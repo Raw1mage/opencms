@@ -85,8 +85,26 @@ export namespace Auth {
       return accountToAuth(exactMatch.info)
     }
 
+    // Try simplified ID match for Antigravity (e.g. antigravity-ivon0829 -> antigravity-subscription-ivon0829-gmail-com)
+    if (providerID.startsWith("antigravity-") && !providerID.includes("subscription")) {
+      const antigravityAccounts = await Account.list("antigravity");
+      for (const [id, info] of Object.entries(antigravityAccounts)) {
+        if (info.type === "subscription" && info.email) {
+          const username = info.email.split("@")[0];
+          const simplified = `antigravity-${username}`;
+          if (simplified === providerID) {
+            return accountToAuth(info);
+          }
+        }
+      }
+    }
+
     // Otherwise, get the active account for this provider family
     const family = parseFamily(providerID)
+    const activeAccount = await Account.getActiveInfo(family)
+    if (activeAccount) {
+      return accountToAuth(activeAccount)
+    }
     const legacyAuth = await (async () => {
       const { Global } = await import("../global")
       const authPath = path.join(Global.Path.data, "auth.json")
@@ -263,7 +281,12 @@ export namespace Auth {
 
     for (const [id, info] of Object.entries(accounts)) {
       if (info.type === "subscription") {
-        const oldId = id.replace("google-subscription-", "antigravity-").replace("antigravity-1", "antigravity")
+        let oldId = id.replace("google-subscription-", "antigravity-");
+        // Simplify: antigravity-ivon0829-gmail-com -> antigravity-ivon0829
+        if (info.email) {
+          const username = info.email.split("@")[0];
+          oldId = `antigravity-${username}`;
+        }
         result[oldId] = {
           refreshToken: info.refreshToken,
           managedProjectId: info.managedProjectId || info.projectId || "",

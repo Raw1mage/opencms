@@ -5,10 +5,12 @@ import { Log } from "@/util/log"
 import {
   streamText,
   wrapLanguageModel,
+  convertToModelMessages,
   type ModelMessage,
   type StreamTextResult,
   type Tool,
   type ToolSet,
+  type UIMessage,
   extractReasoningMiddleware,
   tool,
   jsonSchema,
@@ -181,6 +183,25 @@ export namespace LLM {
       })
     }
 
+    const streamMessages = [
+      ...(isCodex
+        ? [
+            {
+              role: "user",
+              content: system.join("\n\n"),
+            } as ModelMessage,
+          ]
+        : system.map(
+            (x): ModelMessage => ({
+              role: "system",
+              content: x,
+            }),
+          )),
+      ...input.messages,
+    ]
+
+    const finalMessages = normalizeMessages(streamMessages, tools)
+
     return streamText({
       onError(error) {
         l.error("stream error", {
@@ -233,30 +254,23 @@ export namespace LLM {
         ...headers,
       },
       maxRetries: input.retries ?? 0,
-      messages: [
-        ...(isCodex
-          ? [
-              {
-                role: "user",
-                content: system.join("\n\n"),
-              } as ModelMessage,
-            ]
-          : system.map(
-              (x): ModelMessage => ({
-                role: "system",
-                content: x,
-              }),
-            )),
-        ...input.messages,
-      ],
+      messages: finalMessages,
       model: wrapLanguageModel({
         model: language,
         middleware: [
           {
             async transformParams(args) {
               if (args.type === "stream") {
+                const params = args.params as { messages?: ModelMessage[]; prompt?: ModelMessage[] }
+                const prompt = Array.isArray(params.messages) ? params.messages : params.prompt
+                if (!Array.isArray(prompt)) return args.params
+                const next = ProviderTransform.message(prompt as ModelMessage[], input.model, options)
+                if (Array.isArray(params.messages)) {
+                  params.messages = next
+                  return args.params
+                }
                 // @ts-expect-error
-                args.params.prompt = ProviderTransform.message(args.params.prompt, input.model, options)
+                params.prompt = next
               }
               return args.params
             },
@@ -294,5 +308,23 @@ export namespace LLM {
       }
     }
     return false
+  }
+
+  function normalizeMessages(messages: Array<ModelMessage | UIMessage>, tools: Record<string, Tool>): ModelMessage[] {
+    if (messages.length === 0) return []
+    const list: ModelMessage[] = []
+    for (const msg of messages) {
+      if (isUIMessage(msg)) {
+        const converted = convertToModelMessages([msg], { tools: tools as ToolSet })
+        list.push(...converted)
+        continue
+      }
+      list.push(msg)
+    }
+    return list
+  }
+
+  function isUIMessage(msg: ModelMessage | UIMessage): msg is UIMessage {
+    return typeof msg === "object" && msg !== null && "parts" in msg
   }
 }

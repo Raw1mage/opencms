@@ -879,6 +879,7 @@ export class AccountManager {
         managedProjectId: a.parts.managedProjectId,
         addedAt: a.addedAt,
         lastUsed: a.lastUsed,
+        enabled: a.enabled,
         lastSwitchReason: a.lastSwitchReason,
         rateLimitResetTimes: Object.keys(a.rateLimitResetTimes).length > 0 ? a.rateLimitResetTimes : undefined,
         coolingDownUntil: a.coolingDownUntil,
@@ -1024,5 +1025,40 @@ export class AccountManager {
       return [];
     }
     return [...account.fingerprintHistory];
+  }
+
+  getActiveIndex(): number {
+    return this.currentAccountIndexByFamily.claude;
+  }
+
+  getActiveIndexByFamily(): Record<string, number> {
+    return { ...this.currentAccountIndexByFamily };
+  }
+
+  setActiveIndex(index: number) {
+    if (index >= 0 && index < this.accounts.length) {
+      this.currentAccountIndexByFamily.claude = index;
+      this.currentAccountIndexByFamily.gemini = index;
+    }
+  }
+
+  getAccount(index: number): ManagedAccount | undefined {
+    return this.accounts[index];
+  }
+
+  removeAccountByIndex(index: number) {
+    if (index >= 0 && index < this.accounts.length) {
+      this.accounts.splice(index, 1);
+      // Re-index remaining accounts
+      this.accounts.forEach((acc, i) => (acc.index = i));
+
+      // Adjust active indices
+      if (this.currentAccountIndexByFamily.claude >= this.accounts.length) {
+        this.currentAccountIndexByFamily.claude = Math.max(0, this.accounts.length - 1);
+      }
+      if (this.currentAccountIndexByFamily.gemini >= this.accounts.length) {
+        this.currentAccountIndexByFamily.gemini = Math.max(0, this.accounts.length - 1);
+      }
+    }
   }
 }

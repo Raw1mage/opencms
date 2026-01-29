@@ -506,9 +506,9 @@ export function Prompt(props: PromptProps) {
     const sessionID = props.sessionID
       ? props.sessionID
       : await (async () => {
-          const sessionID = await sdk.client.session.create({}).then((x) => x.data!.id)
-          return sessionID
-        })()
+        const sessionID = await sdk.client.session.create({}).then((x) => x.data!.id)
+        return sessionID
+      })()
     const messageID = Identifier.ascending("message")
     let inputText = store.prompt.input
 
@@ -538,7 +538,7 @@ export function Prompt(props: PromptProps) {
     if (store.mode === "shell") {
       sdk.client.session.shell({
         sessionID,
-        agent: local.agent.current().name,
+        agent: local.agent.current()?.name || "agent",
         model: {
           providerID: selectedModel.providerID,
           modelID: selectedModel.modelID,
@@ -565,7 +565,7 @@ export function Prompt(props: PromptProps) {
         sessionID,
         command: command.slice(1),
         arguments: args,
-        agent: local.agent.current().name,
+        agent: local.agent.current()?.name || "agent",
         model: `${selectedModel.providerID}/${selectedModel.modelID}`,
         messageID,
         variant,
@@ -582,7 +582,7 @@ export function Prompt(props: PromptProps) {
           sessionID,
           ...selectedModel,
           messageID,
-          agent: local.agent.current().name,
+          agent: local.agent.current()?.name || "agent",
           model: selectedModel,
           variant,
           parts: [
@@ -597,7 +597,7 @@ export function Prompt(props: PromptProps) {
             })),
           ],
         })
-        .catch(() => {})
+        .catch(() => { })
     }
     history.append({
       ...store.prompt,
@@ -703,7 +703,7 @@ export function Prompt(props: PromptProps) {
   const highlight = createMemo(() => {
     if (keybind.leader) return theme.border
     if (store.mode === "shell") return theme.primary
-    return local.agent.color(local.agent.current().name)
+    return local.agent.color(local.agent.current()?.name || "agent")
   })
 
   const showVariant = createMemo(() => {
@@ -714,7 +714,7 @@ export function Prompt(props: PromptProps) {
   })
 
   const spinnerDef = createMemo(() => {
-    const color = local.agent.color(local.agent.current().name)
+    const color = local.agent.color(local.agent.current()?.name || "agent")
     return {
       frames: createFrames({
         color,
@@ -891,7 +891,7 @@ export function Prompt(props: PromptProps) {
                     // Handle SVG as raw text content, not as base64 image
                     if (file.type === "image/svg+xml") {
                       event.preventDefault()
-                      const content = await file.text().catch(() => {})
+                      const content = await file.text().catch(() => { })
                       if (content) {
                         pasteText(content, `[SVG: ${file.name ?? "image"}]`)
                         return
@@ -902,7 +902,7 @@ export function Prompt(props: PromptProps) {
                       const content = await file
                         .arrayBuffer()
                         .then((buffer) => Buffer.from(buffer).toString("base64"))
-                        .catch(() => {})
+                        .catch(() => { })
                       if (content) {
                         await pasteImage({
                           filename: file.name,
@@ -912,7 +912,7 @@ export function Prompt(props: PromptProps) {
                         return
                       }
                     }
-                  } catch {}
+                  } catch { }
                 }
 
                 const lineCount = (pastedContent.match(/\n/g)?.length ?? 0) + 1
@@ -952,7 +952,7 @@ export function Prompt(props: PromptProps) {
             />
             <box flexDirection="row" flexShrink={0} paddingTop={1} gap={1}>
               <text fg={highlight()}>
-                {store.mode === "shell" ? "Shell" : Locale.titlecase(local.agent.current().name)}{" "}
+                {store.mode === "shell" ? "Shell" : Locale.titlecase(local.agent.current()?.name || "Agent")}{" "}
               </text>
               <Show when={store.mode === "normal"}>
                 <box flexDirection="row" gap={1}>
@@ -987,13 +987,13 @@ export function Prompt(props: PromptProps) {
             customBorderChars={
               theme.backgroundElement.a !== 0
                 ? {
-                    ...EmptyBorder,
-                    horizontal: "▀",
-                  }
+                  ...EmptyBorder,
+                  horizontal: "▀",
+                }
                 : {
-                    ...EmptyBorder,
-                    horizontal: " ",
-                  }
+                  ...EmptyBorder,
+                  horizontal: " ",
+                }
             }
           />
         </box>

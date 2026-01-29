@@ -171,7 +171,6 @@ export const AuthCommand = cmd({
       .command(AuthLoginCommand)
       .command(AuthLogoutCommand)
       .command(AuthListCommand)
-      .command(AuthSwitchCommand)
       .demandCommand(),
   async handler() { },
 })
@@ -508,58 +507,3 @@ export const AuthLogoutCommand = cmd({
   },
 })
 
-export const AuthSwitchCommand = cmd({
-  command: "switch <provider> [account]",
-  describe: "switch default account for a provider",
-  builder: (yargs) =>
-    yargs
-      .positional("provider", {
-        type: "string",
-        demandOption: true,
-        describe: "provider name (e.g., google, anthropic)",
-      })
-      .positional("account", {
-        type: "string",
-        describe: "account suffix (e.g., work, personal)",
-      })
-      .option("project", {
-        type: "boolean",
-        describe: "update project config instead of global",
-        default: false,
-      }),
-  async handler(args) {
-    UI.empty()
-    const providerPrefix = args.provider
-    const accountSuffix = args.account
-    const fullProviderID = accountSuffix ? `${providerPrefix}-${accountSuffix}` : providerPrefix
-
-    // Validate account exists
-    if (!(await Auth.hasAccount(fullProviderID))) {
-      const available = await Auth.listAccounts(providerPrefix)
-      prompts.log.error(`Account ${fullProviderID} not found`)
-      if (available.length > 0) {
-        prompts.log.info(`Available: ${available.join(", ")}`)
-      } else {
-        prompts.log.info(`No accounts found for ${providerPrefix}. Run: opencode auth login`)
-      }
-      return
-    }
-
-    // Get current model or use default
-    const config = await Config.get()
-    const currentModel = config.model || "claude-sonnet-4-5"
-    const [_, modelID] = currentModel.split("/")
-    const newModel = modelID ? `${fullProviderID}/${modelID}` : fullProviderID
-
-    // Update appropriate config
-    if (args.project) {
-      await Config.update({ model: newModel })
-      prompts.log.success(`Project now using ${fullProviderID}`)
-    } else {
-      await Config.updateGlobal({ model: newModel })
-      prompts.log.success(`Global default now using ${fullProviderID}`)
-    }
-
-    prompts.outro("Done")
-  },
-})

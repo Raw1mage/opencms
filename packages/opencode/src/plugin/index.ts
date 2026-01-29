@@ -21,7 +21,7 @@ export namespace Plugin {
   const BUILTIN = ["opencode-anthropic-auth@0.0.10", "@gitlab/opencode-gitlab-auth@1.3.2"]
 
   // Built-in plugins that are directly imported (not installed from npm)
-  const INTERNAL_PLUGINS: PluginInstance[] = [CodexAuthPlugin, CopilotAuthPlugin, AntigravityOAuthPlugin, GeminiCLIOAuthPlugin]
+  const INTERNAL_PLUGINS: PluginInstance[] = [CodexAuthPlugin, CopilotAuthPlugin, AntigravityOAuthPlugin as any, GeminiCLIOAuthPlugin as any]
 
   // Cached state
   let _loading: Promise<{ hooks: Hooks[]; input: PluginInput }> | undefined
@@ -29,7 +29,7 @@ export namespace Plugin {
     if (_loading) return _loading
     _loading = (async () => {
       const client = createOpencodeClient({
-        baseUrl: "http://localhost:4096",
+        baseUrl: "http://localhost:1080",
         // @ts-ignore - fetch type incompatibility
         fetch: async (...args) => Server.App().fetch(...args),
       })
@@ -145,6 +145,11 @@ export namespace Plugin {
       await Provider.addDynamicModels(results)
     }
     return results
+  }
+
+  export async function getAuth(provider: string) {
+    const hooks = await list();
+    return hooks.find(h => h.auth?.provider === provider)?.auth;
   }
 
   export async function init() {

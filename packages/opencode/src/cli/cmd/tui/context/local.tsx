@@ -38,7 +38,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       const [agentStore, setAgentStore] = createStore<{
         current: string
       }>({
-        current: agents()[0].name,
+        current: agents()[0]?.name ?? "",
       })
       const { theme } = useTheme()
       const colors = createMemo(() => [
@@ -54,7 +54,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           return agents()
         },
         current() {
-          return agents().find((x) => x.name === agentStore.current)!
+          return agents().find((x) => x.name === agentStore.current) || agents()[0]
         },
         set(name: string) {
           if (!agents().some((x) => x.name === name))
@@ -140,7 +140,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (Array.isArray(x.favorite)) setModelStore("favorite", x.favorite)
           if (typeof x.variant === "object" && x.variant !== null) setModelStore("variant", x.variant)
         })
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => {
           setModelStore("ready", true)
           if (state.pending) save()
@@ -188,6 +188,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
       const currentModel = createMemo(() => {
         const a = agent.current()
+        if (!a) return fallbackModel()
         return (
           getFirstValidModel(
             () => modelStore.model[a.name],
@@ -377,7 +378,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     // Automatically update model when agent changes
     createEffect(() => {
       const value = agent.current()
-      if (value.model) {
+      if (value?.model) {
         if (isModelValid(value.model))
           model.set({
             providerID: value.model.providerID,

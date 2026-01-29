@@ -32,8 +32,10 @@ import type { Path } from "@opencode-ai/sdk"
 export const { use: useSync, provider: SyncProvider } = createSimpleContext({
   name: "Sync",
   init: () => {
+
     const [store, setStore] = createStore<{
-      status: "loading" | "partial" | "complete"
+      status: "loading" | "partial" | "complete" | "error"
+      error?: string
       provider: Provider[]
       provider_default: Record<string, string>
       provider_next: ProviderListResponse
@@ -400,12 +402,14 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           })
         })
         .catch(async (e) => {
+          const message = e instanceof Error ? e.message : String(e)
           Log.Default.error("tui bootstrap failed", {
-            error: e instanceof Error ? e.message : String(e),
+            error: message,
             name: e instanceof Error ? e.name : undefined,
             stack: e instanceof Error ? e.stack : undefined,
           })
-          await exit(e)
+          setStore("status", "error")
+          setStore("error", message)
         })
     }
 
@@ -421,7 +425,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         return store.status
       },
       get ready() {
-        return store.status !== "loading"
+        return true // Optimistic rendering for TUI
       },
       session: {
         get(sessionID: string) {

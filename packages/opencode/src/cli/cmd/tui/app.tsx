@@ -18,6 +18,7 @@ import { DialogHelp } from "./ui/dialog-help"
 import { CommandProvider, useCommandDialog } from "@tui/component/dialog-command"
 import { DialogAgent } from "@tui/component/dialog-agent"
 import { DialogSessionList } from "@tui/component/dialog-session-list"
+import { DialogAccount } from "@tui/component/dialog-account"
 import { KeybindProvider } from "@tui/context/keybind"
 import { ThemeProvider, useTheme } from "@tui/context/theme"
 import { Home } from "@tui/routes/home"
@@ -448,6 +449,18 @@ function App() {
       category: "System",
     },
     {
+      title: "Manage accounts",
+      value: "account.manage",
+      slash: {
+        name: "accounts",
+        aliases: ["account"],
+      },
+      onSelect: () => {
+        dialog.replace(() => <DialogAccount />)
+      },
+      category: "System",
+    },
+    {
       title: "Switch theme",
       value: "theme.switch",
       keybind: "theme_list",
@@ -483,7 +496,7 @@ function App() {
       title: "Open docs",
       value: "docs.open",
       onSelect: () => {
-        open("https://opencode.ai/docs").catch(() => {})
+        open("https://opencode.ai/docs").catch(() => { })
         dialog.clear()
       },
       category: "System",
@@ -597,6 +610,10 @@ function App() {
   })
 
   sdk.event.on(TuiEvent.CommandExecute.type, (evt) => {
+    if (evt.properties.command === "account.manage") {
+      dialog.replace(() => <DialogAccount />)
+      return
+    }
     command.trigger(evt.properties.command)
   })
 

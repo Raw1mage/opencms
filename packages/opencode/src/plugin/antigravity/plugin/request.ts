@@ -590,11 +590,13 @@ function generateSyntheticProjectId(): string {
 
 const STREAM_ACTION = "streamGenerateContent";
 
-/**
- * Detects requests headed to the Google Generative Language API so we can intercept them.
- */
-export function isGenerativeLanguageRequest(input: RequestInfo): input is string {
-  return typeof input === "string" && input.includes("generativelanguage.googleapis.com");
+export function isGenerativeLanguageRequest(input: RequestInfo): boolean {
+  const url = typeof input === "string" ? input : input.url;
+  // Prevent recursion by ignoring internal Antigravity plugin requests
+  if (url.includes("loadCodeAssist") || url.includes("onboardUser")) {
+    return false;
+  }
+  return url.includes("generativelanguage.googleapis.com") || url.startsWith("/v1/") || url.startsWith("/models/");
 }
 
 /**
@@ -643,41 +645,62 @@ export function prepareAntigravityRequest(
   let sessionId: string | undefined;
   let needsSignedThinkingWarmup = false;
   let thinkingRecoveryMessage: string | undefined;
+  const urlString = typeof input === "string" ? input : input.url;
 
-  if (!isGenerativeLanguageRequest(input)) {
-    return {
-      request: input,
-      init: { ...baseInit, headers },
-      streaming: false,
-      headerStyle,
-    };
+  if (!isGenerativeLanguageRequest(urlString)) {
+    // If it's a relative URL to Google API, make it absolute so global fetch works
+    if (urlString.startsWith("/v1") || urlString.startsWith("/models")) {
+      input = `https://generativelanguage.googleapis.com${urlString.startsWith("/") ? "" : "/"}${urlString}`;
+    } else {
+
+      return {
+        request: input,
+        init: { ...baseInit, headers },
+        streaming: false,
+        headerStyle,
+      };
+    }
   }
+
+
+  const currentUrl = typeof input === "string" ? input : input.url;
 
   headers.set("Authorization", `Bearer ${accessToken}`);
   headers.delete("x-api-key");
 
-  const match = input.match(/\/models\/([^:]+):(\w+)/);
-  if (!match) {
-    return {
-      request: input,
-      init: { ...baseInit, headers },
-      streaming: false,
-      headerStyle,
-    };
+  // Improved regex to capture model ID and action more reliably.
+  // Handles /models/model-id:action or /models/model-id
+  const match = currentUrl.match(/\/models\/([^:\/?]+)(?::([^?\s/]+))?/);
+  const rawModelFromUrl = match?.[1] || "";
+  const rawActionFromUrl = match?.[2] || "generateContent";
+
+  const requestedModel = rawModelFromUrl;
+  const resolved = resolveModelForHeaderStyle(requestedModel, headerStyle);
+  const effectiveModel = resolved.actualModel;
+  const isClaude = isClaudeModel(effectiveModel) || isClaudeModel(requestedModel);
+
+  if (isClaude) {
+    headers.set("User-Agent", "anthropic-claude-code/0.5.1");
+    headers.set("anthropic-client", "claude-code/0.5.1");
   }
 
-  const [, rawModel = "", rawAction = ""] = match;
-  const requestedModel = rawModel;
+  const streaming = rawActionFromUrl.startsWith("stream") || currentUrl.includes("alt=sse");
+  const rawAction = (streaming && !rawActionFromUrl.startsWith("stream"))
+    ? "streamGenerateContent"
+    : (rawActionFromUrl || "generateContent");
 
-  const resolved = resolveModelForHeaderStyle(rawModel, headerStyle);
-  const effectiveModel = resolved.actualModel;
-
-  const streaming = rawAction === STREAM_ACTION;
   const defaultEndpoint = headerStyle === "gemini-cli" ? GEMINI_CLI_ENDPOINT : ANTIGRAVITY_ENDPOINT;
   const baseEndpoint = endpointOverride ?? defaultEndpoint;
-  const transformedUrl = `${baseEndpoint}/v1internal:${rawAction}${streaming ? "?alt=sse" : ""}`;
 
-  const isClaude = isClaudeModel(resolved.actualModel);
+  // Ensure transformedUrl is absolute
+  const rawActionFromUrlEncoded = rawAction.startsWith("stream") ? "streamGenerateContent" : rawAction;
+  const transformedUrl = `${baseEndpoint}/v1internal:${rawActionFromUrlEncoded}${streaming ? "?alt=sse" : ""}`;
+
+  if (isDebugEnabled()) {
+    log.debug(`transformedUrl: ${transformedUrl}`, { rawModelFromUrl, rawActionFromUrl, effectiveModel, input: currentUrl });
+  }
+
+
   const isClaudeThinking = isClaudeThinkingModel(resolved.actualModel);
 
   // Tier-based thinking configuration from model resolver (can be overridden by variant config)
@@ -1168,12 +1191,14 @@ export function prepareAntigravityRequest(
         const conversationKey = resolveConversationKey(requestPayload);
         signatureSessionKey = buildSignatureSessionKey(PLUGIN_SESSION_ID, effectiveModel, conversationKey, resolveProjectKey(projectId));
 
+        // Step 0: Sanitize cross-model metadata (strips foreign signatures/metadata)
+        // This is crucial for avoiding validation errors when switching models mid-session.
+        sanitizeCrossModelPayloadInPlace(requestPayload, { targetModel: effectiveModel });
+
         // For Claude models, filter out unsigned thinking blocks (required by Claude API)
         // Attempts to restore signatures from cache for multi-turn conversations
         // Handle both Gemini-style contents[] and Anthropic-style messages[] payloads.
         if (isClaude) {
-          // Step 0: Sanitize cross-model metadata (strips Gemini signatures when sending to Claude)
-          sanitizeCrossModelPayloadInPlace(requestPayload, { targetModel: effectiveModel });
 
           // Step 1: Strip corrupted/unsigned thinking blocks FIRST
           deepFilterThinkingBlocks(requestPayload, signatureSessionKey, getCachedSignature, true);
@@ -1394,9 +1419,13 @@ export function prepareAntigravityRequest(
   const fingerprintHeaders = buildFingerprintHeaders(fingerprint);
 
   // Apply fingerprint headers (override randomized with fingerprint if available)
-  headers.set("User-Agent", fingerprintHeaders["User-Agent"] || selectedHeaders["User-Agent"]);
+  // CRITICAL: Prevent fingerprint from overwriting Claude-specific User-Agent
+  if (!isClaude || !headers.has("User-Agent")) {
+    headers.set("User-Agent", fingerprintHeaders["User-Agent"] || selectedHeaders["User-Agent"]);
+  }
   headers.set("X-Goog-Api-Client", fingerprintHeaders["X-Goog-Api-Client"] || selectedHeaders["X-Goog-Api-Client"]);
   headers.set("Client-Metadata", fingerprintHeaders["Client-Metadata"] || selectedHeaders["Client-Metadata"]);
+
 
   // Add new fingerprint-specific headers for device identity
   if (fingerprintHeaders["X-Goog-QuotaUser"]) {
