@@ -51,14 +51,21 @@ export function DialogModel(props: { providerID?: string }) {
     return map[fam] ?? name
   }
 
-  const owner = (provider: { email?: string; name: string }) => {
-    const email = provider.email
-    if (email && email.includes("@")) return email.split("@")[0]
-    const match = provider.name.match(/\(([^)]+)\)/)
-    if (!match) return undefined
-    const raw = match[1]
-    if (raw.includes("@")) return raw.split("@")[0]
-    return raw || undefined
+  const owner = (provider: { id: string; name: string; email?: string }) => {
+    const fam = family(provider.id)
+    if (!fam) return undefined
+    const info = {
+      type: "subscription",
+      name: provider.name,
+      email: provider.email,
+      refreshToken: "",
+      accessToken: "",
+      expiresAt: 0,
+      addedAt: 0,
+    }
+    const display = Account.getDisplayName(provider.id, info, fam)
+    if (display.includes("@")) return display.split("@")[0]
+    return display || undefined
   }
 
   const activeOwners = createMemo(() => {
@@ -99,8 +106,15 @@ export function DialogModel(props: { providerID?: string }) {
       ? favorites.flatMap((item) => {
         const provider = sync.data.provider.find((x) => x.id === item.providerID) as any
         if (!provider) return []
+        const fam = family(provider.id)
+        if (fam && activeFamilies().has(fam) && !provider.active) return []
         const model = provider.models[item.modelID]
         if (!model) return []
+        const who = iife(() => {
+          if (!fam) return owner(provider)
+          return activeOwners().get(fam) ?? owner(provider)
+        })
+        const group = label(provider.name, provider.id)
         return [
           {
             key: item,
@@ -109,7 +123,7 @@ export function DialogModel(props: { providerID?: string }) {
               modelID: model.id,
             },
             title: model.name ?? item.modelID,
-            description: provider.name,
+            description: [group, who].filter(Boolean).join(" · "),
             category: "Favorites",
             disabled: provider.id === "opencode" && model.id.includes("-nano"),
             footer: model.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
