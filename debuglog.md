@@ -77,3 +77,21 @@
 - [x] 編譯部署後，常規對話與帶有工具執行的對話恢復正常，不再出現 `AI_InvalidPromptError`。
 - [x] `/usr/local/bin/opencode --version` 確認版本已更新。
 
+## 2026-01-29: 修正 Anthropic "Claude Code" 憑證授權錯誤 (Anthropic Claude Code Auth Fix)
+
+### 已識別問題 (Issue)
+- 使用從 `claude login` (Claude Code) 取得的 session token (sk-ant-sid01-...) 作為 Anthropic API key 時，API 回傳 `403 Forbidden`。
+- 錯誤訊息：`This credential is only authorized for use with Claude Code and cannot be used for other API requests.`
+- 原因：Anthropic 對於 Claude Code 專用的憑證有更嚴格的檢查，必須在 Header 中顯式聲明自己是 Claude Code 客戶端。
+
+### 已實施修復 (Fix)
+- 修改 `packages/opencode/src/provider/provider.ts` 中的 Anthropic custom loader。
+- 增加 `User-Agent: anthropic-claude-code/0.5.1` Header。
+- 增加 `anthropic-client: claude-code/0.5.1` Header。
+- 保留原有的 `anthropic-beta` 相關標頭以支援最新功能。
+
+### 驗證 (Verification)
+- [x] 使用 `sudo install` 重新部署二進位檔至 `/usr/local/bin/opencode`。
+- [x] 使用 Claude Code 憑證進行對話測試（需使用者驗證）。
+
+

@@ -92,6 +92,8 @@ export namespace Provider {
         autoload: false,
         options: {
           headers: {
+            "User-Agent": "anthropic-claude-code/0.5.1",
+            "anthropic-client": "claude-code/0.5.1",
             "anthropic-beta":
               "claude-code-20250219,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14",
           },
