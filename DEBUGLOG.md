@@ -48,6 +48,18 @@
 ### 驗證 (Verification)
 - [ ] `/model-check` summary 不再把 embedding 計入錯誤。
 
+## 2026-01-30: CLI 測試迴圈免載入 TUI (Headless Model-Check Without TUI)
+
+### 已識別問題 (Issues Identified)
+1. **Bun 直接執行 CLI 失敗**：`/home/pkcs12/.bun/bin/bun ./packages/opencode/src/index.ts model-check` 會因為 TUI 模組引入 `react/jsx-dev-runtime` 而中斷。
+
+### 已實施修復 (Fixes Implemented)
+1. **延遲載入 TUI 命令**：在 `packages/opencode/src/index.ts`，以動態 import 載入 TUI 命令，並允許 `OPENCODE_SKIP_TUI=1` 跳過。
+
+### 驗證 (Verification)
+- [x] `OPENCODE_SKIP_TUI=1` 執行 `model-check --json` 成功完成。
+- [x] `unavailableModels` 為 0。
+
 ## 2026-01-29: /models 只顯示 active 訂閱者並標示家族歸屬 (Active Subscription Labeling in /models)
 
 ### 已識別問題 (Issues Identified)
