@@ -186,6 +186,7 @@ export type CooldownReason = "auth-failure" | "network-error" | "project-error";
 
 export interface AccountMetadataV3 {
   email?: string;
+  tier?: "free" | "paid";
   refreshToken: string;
   projectId?: string;
   managedProjectId?: string;
@@ -493,7 +494,8 @@ export function migrateV2ToV3(v2: AccountStorage): AccountStorageV3 {
 
 export async function loadAccounts(): Promise<AccountStorageV3 | null> {
   const now = Date.now();
-  if (accountCache && (now - lastLoadTime < CACHE_TTL)) {
+  const skipCache = process.env["OPENCODE_TEST_NO_ACCOUNT_CACHE"] === "1";
+  if (!skipCache && accountCache && (now - lastLoadTime < CACHE_TTL)) {
     return accountCache;
   }
 

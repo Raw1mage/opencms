@@ -4,7 +4,10 @@ import os from "os"
 import path from "path"
 import fs from "fs/promises"
 import fsSync from "fs"
-import { afterAll } from "bun:test"
+import { createRequire } from "node:module"
+import { afterAll, vi } from "bun:test"
+
+const require = createRequire(import.meta.url)
 
 const dir = path.join(os.tmpdir(), "opencode-test-data-" + process.pid)
 await fs.mkdir(dir, { recursive: true })
@@ -25,6 +28,30 @@ process.env["XDG_DATA_HOME"] = path.join(dir, "share")
 process.env["XDG_CACHE_HOME"] = path.join(dir, "cache")
 process.env["XDG_CONFIG_HOME"] = path.join(dir, "config")
 process.env["XDG_STATE_HOME"] = path.join(dir, "state")
+const oauthPortState = { value: 0 }
+for (const _ of Array.from({ length: 20 })) {
+  const candidate = 20000 + Math.floor(Math.random() * 20000)
+  try {
+    const server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: candidate,
+      fetch() {
+        return new Response("ok")
+      },
+    })
+    oauthPortState.value = candidate
+    server.stop(true)
+    break
+  } catch {
+    continue
+  }
+}
+if (!oauthPortState.value) {
+  oauthPortState.value = 29876
+}
+process.env["OPENCODE_OAUTH_CALLBACK_PORT"] = String(oauthPortState.value)
+process.env["OPENCODE_TEST_LSP_SKIP_INIT"] = "1"
+process.env["OPENCODE_TEST_NO_ACCOUNT_CACHE"] = "1"
 
 // Write the cache version file to prevent global/index.ts from clearing the cache
 const cacheDir = path.join(dir, "cache", "opencode")
@@ -51,6 +78,41 @@ delete process.env["DEEPSEEK_API_KEY"]
 delete process.env["FIREWORKS_API_KEY"]
 delete process.env["CEREBRAS_API_KEY"]
 delete process.env["SAMBANOVA_API_KEY"]
+
+const v = vi as any
+;(globalThis as any).vi = v
+if (v && typeof v.stubGlobal !== "function") {
+  v.stubGlobal = (name: string, value: unknown) => {
+    ;(globalThis as any)[name] = value
+  }
+}
+if (v && typeof v.setSystemTime !== "function") {
+  v.setSystemTime = (value: number | string | Date) => {
+    const time = typeof value === "number" ? value : new Date(value).valueOf()
+    v.useFakeTimers({ now: time })
+  }
+}
+if (v && typeof v.advanceTimersByTimeAsync !== "function") {
+  v.advanceTimersByTimeAsync = async (ms: number) => {
+    v.advanceTimersByTime(ms)
+    await Promise.resolve()
+  }
+}
+if (v && typeof v.runAllTimersAsync !== "function") {
+  v.runAllTimersAsync = async () => {
+    v.runAllTimers()
+    await Promise.resolve()
+  }
+}
+if (v && typeof v.mocked !== "function") {
+  v.mocked = <T>(item: T) => item
+}
+if (v && typeof v.resetModules !== "function") {
+  v.resetModules = () => {}
+}
+if (v && typeof v.importActual !== "function") {
+  v.importActual = async (id: string) => require(id)
+}
 
 // Now safe to import from src/
 const { Log } = await import("../src/util/log")

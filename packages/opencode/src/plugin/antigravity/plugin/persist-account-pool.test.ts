@@ -10,6 +10,7 @@
 
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { promises as fs } from "node:fs";
+import { createRequire } from "node:module";
 import * as storageModule from "./storage";
 import type { AccountStorageV3, AccountMetadataV3 } from "./storage";
 
@@ -19,20 +20,20 @@ vi.mock("proper-lockfile", () => ({
   },
 }));
 
-vi.mock("node:fs", async () => {
-  const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
-  return {
-    ...actual,
-    promises: {
-      readFile: vi.fn(),
-      writeFile: vi.fn(),
-      mkdir: vi.fn().mockResolvedValue(undefined),
-      access: vi.fn().mockResolvedValue(undefined),
-      unlink: vi.fn(),
-      rename: vi.fn().mockResolvedValue(undefined),
-    },
-  };
-});
+const require = createRequire(import.meta.url);
+const actualFs = require("node:fs") as typeof import("node:fs");
+
+vi.mock("node:fs", () => ({
+  ...actualFs,
+  promises: {
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    mkdir: vi.fn().mockResolvedValue(undefined),
+    access: vi.fn().mockResolvedValue(undefined),
+    unlink: vi.fn(),
+    rename: vi.fn().mockResolvedValue(undefined),
+  },
+}));
 
 function createMockAccount(overrides: Partial<AccountMetadataV3> = {}): AccountMetadataV3 {
   return {
@@ -56,7 +57,7 @@ function createMockStorage(accounts: AccountMetadataV3[], activeIndex = 0): Acco
 
 describe("loadAccounts", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   afterEach(() => {
@@ -183,10 +184,18 @@ describe("loadAccounts", () => {
 
 describe("saveAccounts", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it("saves valid storage to disk", async () => {
+    vi.mocked(fs.readFile).mockImplementation((path) => {
+      if ((path as string).endsWith(".gitignore")) {
+        return Promise.resolve("existing-entry");
+      }
+      const error = new Error("ENOENT") as NodeJS.ErrnoException;
+      error.code = "ENOENT";
+      return Promise.reject(error);
+    });
     vi.mocked(fs.writeFile).mockResolvedValue(undefined);
     vi.mocked(fs.mkdir).mockResolvedValue(undefined);
 
@@ -293,7 +302,7 @@ describe("TUI flow integration (Issue #89)", () => {
  */
 describe("regression tests", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   describe("first-time user experience", () => {
@@ -309,7 +318,7 @@ describe("regression tests", () => {
       vi.mocked(fs.mkdir).mockResolvedValue(undefined);
 
       const newStorage = createMockStorage([createMockAccount()]);
-      await expect(storageModule.saveAccounts(newStorage)).resolves.not.toThrow();
+      await expect(storageModule.saveAccounts(newStorage)).resolves.toBeUndefined();
     });
   });
 

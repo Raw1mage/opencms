@@ -361,9 +361,10 @@ export const AuthLoginCommand = cmd({
         if (prompts.isCancel(provider)) throw new UI.CancelledError()
 
         const plugin = await Plugin.list().then((x) => x.find((x) => x.auth?.provider === provider))
+        let authMethod: "plugin" | "api" = "api"
         if (plugin && plugin.auth) {
           // Offer choice between plugin auth and direct API key
-          let authMethod = "plugin"
+          authMethod = "plugin"
           if (provider !== "antigravity" && provider !== "gemini-cli") {
             const result = await prompts.select({
               message: "Authentication method",
@@ -428,20 +429,41 @@ export const AuthLoginCommand = cmd({
           )
         }
 
-        // Multi-account support: ask if user wants to name this account
-        const wantsAccountName = await prompts.confirm({
-          message: "Name this account for multi-account support?",
-          initialValue: false,
-        })
+        const accountSuffix = await (async () => {
+          if (provider === "google" && authMethod === "api") {
+            const suffix = await prompts.text({
+              message: "Account name (lowercase, no spaces)",
+              placeholder: "work, personal, project-x",
+              validate: (x) => (x && /^[a-z0-9-]+$/.test(x)
+                ? undefined
+                : "Required. Use lowercase letters, numbers, and hyphens only"),
+            })
+            if (prompts.isCancel(suffix)) throw new UI.CancelledError()
+            return suffix
+          }
+          return undefined
+        })()
 
-        if (!prompts.isCancel(wantsAccountName) && wantsAccountName) {
-          const accountSuffix = await prompts.text({
-            message: "Account name (lowercase, no spaces)",
-            placeholder: "work, personal, project-x",
-            validate: (x) => (x && /^[a-z0-9-]+$/.test(x) ? undefined : "Use lowercase letters, numbers, and hyphens only"),
+        if (accountSuffix) {
+          provider = `${provider}-${accountSuffix}`
+        }
+
+        if (!accountSuffix) {
+          // Multi-account support: ask if user wants to name this account
+          const wantsAccountName = await prompts.confirm({
+            message: "Name this account for multi-account support?",
+            initialValue: false,
           })
-          if (!prompts.isCancel(accountSuffix) && accountSuffix) {
-            provider = `${provider}-${accountSuffix}`
+
+          if (!prompts.isCancel(wantsAccountName) && wantsAccountName) {
+            const suffix = await prompts.text({
+              message: "Account name (lowercase, no spaces)",
+              placeholder: "work, personal, project-x",
+              validate: (x) => (x && /^[a-z0-9-]+$/.test(x) ? undefined : "Use lowercase letters, numbers, and hyphens only"),
+            })
+            if (!prompts.isCancel(suffix) && suffix) {
+              provider = `${provider}-${suffix}`
+            }
           }
         }
 

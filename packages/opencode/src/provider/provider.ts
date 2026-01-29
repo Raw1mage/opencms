@@ -698,8 +698,10 @@ export namespace Provider {
       const accountFamily = Account.parseFamily(providerID)
       const family = accountFamily || providerID
 
+      if (enabled && enabled.size === 0) return false
+
       // Allow specific families that we know are needed for plugins and accounts
-      if (family === "antigravity" || family === "gemini-cli") return true
+      if (!enabled && (family === "antigravity" || family === "gemini-cli")) return true
 
       if (enabled && !enabled.has(family)) return false
       if (disabled.has(providerID)) return false

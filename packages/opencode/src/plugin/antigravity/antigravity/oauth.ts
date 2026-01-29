@@ -62,6 +62,11 @@ interface AntigravityUserInfo {
   email?: string;
 }
 
+export interface AntigravityAccountInfo {
+  projectId: string;
+  tier: "free" | "paid";
+}
+
 /**
  * Encode an object into a URL-safe base64 string.
  */
@@ -194,6 +199,97 @@ async function fetchProjectID(accessToken: string): Promise<string> {
     log.warn("Failed to resolve Antigravity project via loadCodeAssist", { errors: errors.join("; ") });
   }
   return "";
+}
+
+function extractProjectId(payload: any): string {
+  if (typeof payload?.cloudaicompanionProject === "string" && payload.cloudaicompanionProject) {
+    return payload.cloudaicompanionProject;
+  }
+  if (
+    payload?.cloudaicompanionProject &&
+    typeof payload.cloudaicompanionProject.id === "string" &&
+    payload.cloudaicompanionProject.id
+  ) {
+    return payload.cloudaicompanionProject.id;
+  }
+  return "";
+}
+
+function detectPaidTier(payload: any): boolean {
+  if (payload?.paidTier && typeof payload.paidTier.id === "string" && payload.paidTier.id) {
+    return true;
+  }
+  if (Array.isArray(payload?.allowedTiers)) {
+    return payload.allowedTiers.some((tier: any) => typeof tier?.id === "string" && tier.id !== "legacy-tier");
+  }
+  return false;
+}
+
+export async function fetchAccountInfo(accessToken: string): Promise<AntigravityAccountInfo> {
+  const errors: string[] = [];
+  const loadHeaders: Record<string, string> = {
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
+    "User-Agent": GEMINI_CLI_HEADERS["User-Agent"],
+    "X-Goog-Api-Client": GEMINI_CLI_HEADERS["X-Goog-Api-Client"],
+    "Client-Metadata": ANTIGRAVITY_HEADERS["Client-Metadata"],
+  };
+
+  const loadEndpoints = Array.from(
+    new Set<string>([...ANTIGRAVITY_LOAD_ENDPOINTS, ...ANTIGRAVITY_ENDPOINT_FALLBACKS]),
+  );
+
+  let projectId = "";
+  let tier: "free" | "paid" = "free";
+
+  for (const baseEndpoint of loadEndpoints) {
+    try {
+      const url = `${baseEndpoint}/v1internal:loadCodeAssist`;
+      const response = await fetchWithTimeout(url, {
+        method: "POST",
+        headers: loadHeaders,
+        body: JSON.stringify({
+          metadata: {
+            ideType: "IDE_UNSPECIFIED",
+            platform: "PLATFORM_UNSPECIFIED",
+            pluginType: "GEMINI",
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const message = await response.text().catch(() => "");
+        errors.push(
+          `loadCodeAssist ${response.status} at ${baseEndpoint}${message ? `: ${message}` : ""}`,
+        );
+        continue;
+      }
+
+      const data = await response.json();
+      if (detectPaidTier(data)) {
+        tier = "paid";
+      }
+
+      const discoveredProjectId = extractProjectId(data);
+      if (discoveredProjectId) {
+        projectId = discoveredProjectId;
+      }
+
+      if (projectId && tier === "paid") {
+        break;
+      }
+    } catch (e) {
+      errors.push(
+        `loadCodeAssist error at ${baseEndpoint}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  }
+
+  if (errors.length) {
+    log.warn("Failed to resolve Antigravity account info via loadCodeAssist", { errors: errors.join("; ") });
+  }
+
+  return { projectId, tier };
 }
 
 /**

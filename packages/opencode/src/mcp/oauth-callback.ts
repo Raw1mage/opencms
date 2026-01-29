@@ -65,9 +65,10 @@ export namespace McpOAuthCallback {
       return
     }
 
-    server = Bun.serve({
-      port: OAUTH_CALLBACK_PORT,
-      fetch(req) {
+    try {
+      server = Bun.serve({
+        port: OAUTH_CALLBACK_PORT,
+        fetch(req) {
         const url = new URL(req.url)
 
         if (url.pathname !== OAUTH_CALLBACK_PATH) {
@@ -130,8 +131,15 @@ export namespace McpOAuthCallback {
         return new Response(HTML_SUCCESS, {
           headers: { "Content-Type": "text/html" },
         })
-      },
-    })
+        },
+      })
+    } catch (error) {
+      log.info("oauth callback server failed to start", {
+        port: OAUTH_CALLBACK_PORT,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      return
+    }
 
     log.info("oauth callback server started", { port: OAUTH_CALLBACK_PORT })
   }

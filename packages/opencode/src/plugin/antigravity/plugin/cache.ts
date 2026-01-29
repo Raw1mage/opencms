@@ -77,7 +77,7 @@ interface SignatureEntry {
   timestamp: number;
 }
 
-// Map: sessionId -> Map<textHash, SignatureEntry>
+// Map: family:sessionId -> Map<textHash, SignatureEntry>
 const signatureCache = new Map<string, Map<string, SignatureEntry>>();
 
 // Cache entries expire after 1 hour
@@ -120,8 +120,8 @@ function hashText(text: string): string {
 /**
  * Create a disk cache key from sessionId and textHash.
  */
-function makeDiskKey(sessionId: string, textHash: string): string {
-  return `${sessionId}:${textHash}`;
+function makeDiskKey(signatureKey: string, textHash: string): string {
+  return `${signatureKey}:${textHash}`;
 }
 
 /**
@@ -129,16 +129,28 @@ function makeDiskKey(sessionId: string, textHash: string): string {
  * Used for Claude models that require signed thinking blocks in multi-turn conversations.
  * Also writes to disk cache if enabled.
  */
-export function cacheSignature(sessionId: string, text: string, signature: string): void {
+export function cacheSignature(
+  familyOrSession: string,
+  sessionOrText: string,
+  textOrSignature: string,
+  signatureMaybe?: string,
+): void {
+  const hasFamily = typeof signatureMaybe === "string";
+  const family = hasFamily ? familyOrSession : "default";
+  const sessionId = hasFamily ? sessionOrText : familyOrSession;
+  const text = hasFamily ? textOrSignature : sessionOrText;
+  const signature = hasFamily ? signatureMaybe : textOrSignature;
+
   if (!sessionId || !text || !signature) return;
 
   const textHash = hashText(text);
+  const signatureKey = `${family}:${sessionId}`;
 
   // Write to memory cache
-  let sessionMemCache = signatureCache.get(sessionId);
+  let sessionMemCache = signatureCache.get(signatureKey);
   if (!sessionMemCache) {
     sessionMemCache = new Map();
-    signatureCache.set(sessionId, sessionMemCache);
+    signatureCache.set(signatureKey, sessionMemCache);
   }
 
   // Evict old entries if we're at capacity
@@ -164,7 +176,7 @@ export function cacheSignature(sessionId: string, text: string, signature: strin
 
   // Write to disk cache if enabled
   if (diskCache) {
-    const diskKey = makeDiskKey(sessionId, textHash);
+    const diskKey = makeDiskKey(signatureKey, textHash);
     diskCache.store(diskKey, signature);
   }
 }
@@ -174,13 +186,23 @@ export function cacheSignature(sessionId: string, text: string, signature: strin
  * Checks memory first, then falls back to disk cache.
  * Returns undefined if not found or expired.
  */
-export function getCachedSignature(sessionId: string, text: string): string | undefined {
+export function getCachedSignature(
+  familyOrSession: string,
+  sessionOrText: string,
+  textMaybe?: string,
+): string | undefined {
+  const hasFamily = typeof textMaybe === "string";
+  const family = hasFamily ? familyOrSession : "default";
+  const sessionId = hasFamily ? sessionOrText : familyOrSession;
+  const text = hasFamily ? textMaybe : sessionOrText;
+
   if (!sessionId || !text) return undefined;
 
   const textHash = hashText(text);
+  const signatureKey = `${family}:${sessionId}`;
 
   // Check memory cache first
-  const sessionMemCache = signatureCache.get(sessionId);
+  const sessionMemCache = signatureCache.get(signatureKey);
   if (sessionMemCache) {
     const entry = sessionMemCache.get(textHash);
     if (entry) {
@@ -195,14 +217,14 @@ export function getCachedSignature(sessionId: string, text: string): string | un
 
   // Fall back to disk cache
   if (diskCache) {
-    const diskKey = makeDiskKey(sessionId, textHash);
+    const diskKey = makeDiskKey(signatureKey, textHash);
     const diskValue = diskCache.retrieve(diskKey);
     if (diskValue) {
       // Promote to memory cache for faster subsequent access
-      let memCache = signatureCache.get(sessionId);
+      let memCache = signatureCache.get(signatureKey);
       if (!memCache) {
         memCache = new Map();
-        signatureCache.set(sessionId, memCache);
+        signatureCache.set(signatureKey, memCache);
       }
       memCache.set(textHash, { signature: diskValue, timestamp: Date.now() });
       return diskValue;
@@ -218,10 +240,14 @@ export function getCachedSignature(sessionId: string, text: string): string | un
  */
 export function clearSignatureCache(sessionId?: string): void {
   if (sessionId) {
-    signatureCache.delete(sessionId);
+    for (const key of Array.from(signatureCache.keys())) {
+      if (key === sessionId || key.endsWith(`:${sessionId}`)) {
+        signatureCache.delete(key);
+      }
+    }
     // Note: We don't clear individual sessions from disk cache to avoid
     // expensive iteration. Disk cache entries will expire naturally.
-  } else {
+    } else {
     signatureCache.clear();
     // For full clear, we could clear disk cache, but leaving it for now
     // since entries have TTL and will expire naturally.

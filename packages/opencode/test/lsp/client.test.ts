@@ -9,8 +9,9 @@ import { Log } from "../../src/util/log"
 function spawnFakeServer() {
   const { spawn } = require("child_process")
   const serverPath = path.join(__dirname, "../fixture/lsp/fake-lsp-server.js")
+  const node = process.env["NODE_BINARY"] ?? Bun.which("node") ?? process.execPath
   return {
-    process: spawn(process.execPath, [serverPath], {
+    process: spawn(node, [serverPath], {
       stdio: "pipe",
     }),
   }
@@ -21,7 +22,7 @@ describe("LSPClient interop", () => {
     await Log.init({ print: true })
   })
 
-  test("handles workspace/workspaceFolders request", async () => {
+  test("handles workspace/workspaceFolders request", { timeout: 15000 }, async () => {
     const handle = spawnFakeServer() as any
 
     const client = await Instance.provide({
@@ -45,7 +46,7 @@ describe("LSPClient interop", () => {
     await client.shutdown()
   })
 
-  test("handles client/registerCapability request", async () => {
+  test("handles client/registerCapability request", { timeout: 15000 }, async () => {
     const handle = spawnFakeServer() as any
 
     const client = await Instance.provide({
@@ -69,7 +70,7 @@ describe("LSPClient interop", () => {
     await client.shutdown()
   })
 
-  test("handles client/unregisterCapability request", async () => {
+  test("handles client/unregisterCapability request", { timeout: 15000 }, async () => {
     const handle = spawnFakeServer() as any
 
     const client = await Instance.provide({

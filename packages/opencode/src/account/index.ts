@@ -9,7 +9,7 @@ const log = Log.create({ service: "account" })
 
 export namespace Account {
   // Provider families that support multi-account
-  export const FAMILIES = ["google", "openai", "anthropic", "antigravity", "gemini-cli"] as const
+  export const FAMILIES = ["google", "openai", "anthropic", "antigravity", "gemini-cli", "gitlab"] as const
   export type Family = (typeof FAMILIES)[number]
 
   // Account type schemas

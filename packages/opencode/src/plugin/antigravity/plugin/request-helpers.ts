@@ -1,6 +1,7 @@
 import { getKeepThinking } from "./config";
 import { createLogger } from "./logger";
 import { cacheSignature } from "./cache";
+import { getParamType } from "./tool-schema-cache";
 import {
   EMPTY_SCHEMA_PLACEHOLDER_NAME,
   EMPTY_SCHEMA_PLACEHOLDER_DESCRIPTION,
@@ -10,6 +11,100 @@ import { processImageData } from "./image-saver";
 import type { GoogleSearchConfig } from "./transform/types";
 
 const log = createLogger("request-helpers");
+
+export const ANTIGRAVITY_BASE_SYSTEM_INSTRUCTION =
+  "You are Antigravity, a powerful agentic AI coding assistant designed by the Google Deepmind team working on Advanced Agentic Coding.You are pair programming with a USER to solve their coding task. The task may require creating a new codebase, modifying or debugging an existing codebase, or simply answering a question.**Absolute paths only****Proactiveness**";
+
+export function applyAntigravitySystemInstruction(payload: Record<string, unknown>, model: string): void {
+  const normalizedModel = model.toLowerCase();
+  const needsInjection =
+    normalizedModel.includes("claude") ||
+    normalizedModel.includes("gemini-3-pro") ||
+    normalizedModel.includes("gemini-3-flash");
+  if (!needsInjection) return;
+
+  const existing = payload.systemInstruction;
+  const record = existing && typeof existing === "object" ? (existing as Record<string, unknown>) : undefined;
+  const parts = (() => {
+    if (typeof existing === "string") {
+      if (existing.length > 0) {
+        return [{ text: existing }];
+      }
+      return [];
+    }
+    if (record) {
+      const value = record.parts;
+      if (Array.isArray(value)) {
+        return value.filter(
+          (part): part is Record<string, unknown> => typeof part === "object" && part !== null,
+        );
+      }
+    }
+    return [];
+  })();
+
+  const nextParts = [{ text: ANTIGRAVITY_BASE_SYSTEM_INSTRUCTION }, ...parts];
+
+  payload.systemInstruction = record
+    ? { ...record, role: "user", parts: nextParts }
+    : { role: "user", parts: nextParts };
+}
+
+export function processEscapeSequencesOnly(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const hasControlCharEscapes = value.includes("\\n") || value.includes("\\t");
+  const hasIntentionalEscapes = value.includes('\\"') || value.includes("\\\\");
+
+  if (hasControlCharEscapes && !hasIntentionalEscapes) {
+    try {
+      const unescaped = JSON.parse(`"${value.replaceAll('"', '\\"')}"`);
+      if (typeof unescaped === "string") {
+        return unescaped;
+      }
+    } catch {
+      return value;
+    }
+  }
+
+  return value;
+}
+
+export function normalizeToolCallArgs(args: unknown, toolName: string): unknown {
+  if (!args || typeof args !== "object") {
+    return args;
+  }
+
+  const record = args as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(record)) {
+    const expectedType = getParamType(toolName, key);
+
+    if (expectedType === "string") {
+      result[key] = processEscapeSequencesOnly(value);
+      continue;
+    }
+    if (typeof value === "string" && (expectedType === "array" || expectedType === "object")) {
+      try {
+        const parsed = JSON.parse(value);
+        result[key] = parsed;
+      } catch {
+        result[key] = processEscapeSequencesOnly(value);
+      }
+      continue;
+    }
+    if (expectedType === undefined) {
+      result[key] = processEscapeSequencesOnly(value);
+      continue;
+    }
+    result[key] = processEscapeSequencesOnly(value);
+  }
+
+  return result;
+}
 
 const ANTIGRAVITY_PREVIEW_LINK = "https://goo.gle/enable-preview-features"; // TODO: Update to Antigravity link if available
 
@@ -2814,4 +2909,3 @@ data: ${JSON.stringify({ type: "message_stop" })}
     },
   });
 }
-

@@ -1,4 +1,5 @@
 import z from "zod"
+import path from "path"
 import { JWT } from "../util/jwt"
 
 export const OAUTH_DUMMY_KEY = "opencode-oauth-dummy-key"
@@ -43,7 +44,7 @@ export namespace Auth {
    * e.g., "openai" → "openai", "openai-work" → "openai", "google-subscription-1" → "google"
    */
   function parseFamily(providerID: string): string {
-    const families = ["google", "openai", "anthropic", "github-copilot", "antigravity", "gemini-cli"]
+    const families = ["google", "openai", "anthropic", "github-copilot", "antigravity", "gemini-cli", "gitlab"]
     for (const family of families) {
       if (providerID === family || providerID.startsWith(`${family}-`)) {
         return family
@@ -86,9 +87,35 @@ export namespace Auth {
 
     // Otherwise, get the active account for this provider family
     const family = parseFamily(providerID)
+    const legacyAuth = await (async () => {
+      const { Global } = await import("../global")
+      const authPath = path.join(Global.Path.data, "auth.json")
+      const file = Bun.file(authPath)
+      if (!(await file.exists())) return undefined
+
+      const data = await file.json().catch(() => undefined)
+      if (!data || typeof data !== "object") return undefined
+
+      const record = data as Record<string, unknown>
+      const entry = record[providerID] ?? record[family]
+      if (!entry) return undefined
+
+      const parsed = Info.safeParse(entry)
+      if (!parsed.success) return undefined
+      return parsed.data
+    })()
+
+    if (family === "gitlab" && legacyAuth) {
+      return legacyAuth
+    }
+
     const activeInfo = await Account.getActiveInfo(family)
     if (activeInfo) {
       return accountToAuth(activeInfo)
+    }
+
+    if (legacyAuth) {
+      return legacyAuth
     }
 
     return undefined
@@ -107,6 +134,25 @@ export namespace Auth {
       if (activeId && familyData.accounts[activeId]) {
         // Use family name as key for backward compatibility
         result[family] = accountToAuth(familyData.accounts[activeId])
+      }
+    }
+
+    const legacy = await (async () => {
+      const { Global } = await import("../global")
+      const authPath = path.join(Global.Path.data, "auth.json")
+      const file = Bun.file(authPath)
+      if (!(await file.exists())) return undefined
+      const data = await file.json().catch(() => undefined)
+      if (!data || typeof data !== "object") return undefined
+      return data as Record<string, unknown>
+    })()
+
+    if (legacy) {
+      for (const [providerID, auth] of Object.entries(legacy)) {
+        if (result[providerID]) continue
+        const parsed = Info.safeParse(auth)
+        if (!parsed.success) continue
+        result[providerID] = parsed.data
       }
     }
 

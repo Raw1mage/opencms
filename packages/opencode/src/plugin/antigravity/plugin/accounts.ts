@@ -117,11 +117,12 @@ export function calculateBackoffMs(
 }
 
 export type BaseQuotaKey = "claude" | "gemini-antigravity" | "gemini-cli";
-export type QuotaKey = BaseQuotaKey | `${BaseQuotaKey}:${string}`;
+export type QuotaKey = BaseQuotaKey | `${BaseQuotaKey}:${string}` | string;
 
 export interface ManagedAccount {
   index: number;
   email?: string;
+  tier?: "free" | "paid";
   addedAt: number;
   lastUsed: number;
   parts: RefreshParts;
@@ -146,6 +147,12 @@ function nowMs(): number {
   return Date.now();
 }
 
+function getTierRank(tier?: "free" | "paid"): number {
+  if (tier === "paid") return 2;
+  if (tier === "free") return 1;
+  return 0;
+}
+
 function clampNonNegativeInt(value: unknown, fallback: number): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return fallback;
@@ -153,9 +160,12 @@ function clampNonNegativeInt(value: unknown, fallback: number): number {
   return value < 0 ? 0 : Math.floor(value);
 }
 
-function getQuotaKey(family: ModelFamily, headerStyle: HeaderStyle, model?: string | null): QuotaKey {
+function getQuotaKey(family: ModelFamily | string, headerStyle: HeaderStyle, model?: string | null): QuotaKey {
   if (family === "claude") {
     return "claude";
+  }
+  if (family !== "gemini") {
+    return family;
   }
   const base = headerStyle === "gemini-cli" ? "gemini-cli" : "gemini-antigravity";
   if (model) {
@@ -288,6 +298,7 @@ export class AccountManager {
           return {
             index,
             email: acc.email,
+            tier: acc.tier,
             addedAt: clampNonNegativeInt(acc.addedAt, baseNow),
             lastUsed: clampNonNegativeInt(acc.lastUsed, 0),
             parts: {
@@ -335,6 +346,7 @@ export class AccountManager {
         const newAccount: ManagedAccount = {
           index: this.accounts.length,
           email: undefined,
+          tier: undefined,
           addedAt: now,
           lastUsed: 0,
           parts: authParts,
@@ -359,6 +371,7 @@ export class AccountManager {
           {
             index: 0,
             email: undefined,
+            tier: undefined,
             addedAt: now,
             lastUsed: 0,
             parts,
@@ -390,6 +403,59 @@ export class AccountManager {
 
   getAccountsSnapshot(): ManagedAccount[] {
     return this.accounts.map((a) => ({ ...a, parts: { ...a.parts }, rateLimitResetTimes: { ...a.rateLimitResetTimes } }));
+  }
+
+  addAccount(
+    parts: RefreshParts,
+    access?: string,
+    expires?: number,
+    email?: string,
+    tier?: "free" | "paid",
+  ): ManagedAccount | null {
+    if (!parts.refreshToken) {
+      return null;
+    }
+
+    const existing = this.accounts.find(acc => acc.parts.refreshToken === parts.refreshToken);
+    if (existing) {
+      existing.parts = {
+        refreshToken: parts.refreshToken,
+        projectId: parts.projectId ?? existing.parts.projectId,
+        managedProjectId: parts.managedProjectId ?? existing.parts.managedProjectId,
+      };
+      if (typeof access === "string") existing.access = access;
+      if (typeof expires === "number") existing.expires = expires;
+      if (typeof email === "string") existing.email = email;
+      if (tier) existing.tier = tier;
+      existing.enabled = true;
+      return existing;
+    }
+
+    const now = nowMs();
+    const account: ManagedAccount = {
+      index: this.accounts.length,
+      email,
+      tier,
+      addedAt: now,
+      lastUsed: 0,
+      parts,
+      access,
+      expires,
+      enabled: true,
+      rateLimitResetTimes: {},
+      touchedForQuota: {},
+      fingerprint: generateFingerprint(),
+    };
+    this.accounts.push(account);
+
+    if (this.currentAccountIndexByFamily.claude < 0) {
+      this.currentAccountIndexByFamily.claude = 0;
+    }
+    if (this.currentAccountIndexByFamily.gemini < 0) {
+      this.currentAccountIndexByFamily.gemini = 0;
+    }
+
+    return account;
   }
 
   getCurrentAccountForFamily(family: ModelFamily): ManagedAccount | null {
@@ -482,17 +548,24 @@ export class AccountManager {
       this.sessionOffsetApplied[family] = true;
     }
 
+    const preferred = this.getPreferredAvailableAccounts(family, model, headerStyle);
+    if (preferred.length === 0) {
+      return null;
+    }
+
     const current = this.getCurrentAccountForFamily(family);
     if (current) {
       clearExpiredRateLimits(current);
       const isLimitedForRequestedStyle = isRateLimitedForHeaderStyle(current, family, headerStyle, model);
-      if (!isLimitedForRequestedStyle && !this.isAccountCoolingDown(current)) {
+      const currentTier = getTierRank(current.tier);
+      const preferredTier = getTierRank(preferred[0]?.tier);
+      if (!isLimitedForRequestedStyle && !this.isAccountCoolingDown(current) && currentTier === preferredTier) {
         this.markTouchedForQuota(current, quotaKey);
         return current;
       }
     }
 
-    const next = this.getNextForFamily(family, model, headerStyle);
+    const next = this.getNextForFamily(family, model, headerStyle, preferred);
     if (next) {
       this.markTouchedForQuota(next, quotaKey);
       this.currentAccountIndexByFamily[family] = next.index;
@@ -500,11 +573,13 @@ export class AccountManager {
     return next;
   }
 
-  getNextForFamily(family: ModelFamily, model?: string | null, headerStyle: HeaderStyle = "antigravity"): ManagedAccount | null {
-    const available = this.accounts.filter((a) => {
-      clearExpiredRateLimits(a);
-      return a.enabled !== false && !isRateLimitedForHeaderStyle(a, family, headerStyle, model) && !this.isAccountCoolingDown(a);
-    });
+  getNextForFamily(
+    family: ModelFamily,
+    model?: string | null,
+    headerStyle: HeaderStyle = "antigravity",
+    availableOverride?: ManagedAccount[],
+  ): ManagedAccount | null {
+    const available = availableOverride ?? this.getPreferredAvailableAccounts(family, model, headerStyle);
 
     if (available.length === 0) {
       return null;
@@ -653,6 +728,25 @@ export class AccountManager {
     return isRateLimitedForHeaderStyle(account, family, headerStyle, model);
   }
 
+  private getPreferredAvailableAccounts(
+    family: ModelFamily,
+    model?: string | null,
+    headerStyle: HeaderStyle = "antigravity",
+  ): ManagedAccount[] {
+    const available = this.accounts.filter((a) => {
+      clearExpiredRateLimits(a);
+      return a.enabled !== false && !isRateLimitedForHeaderStyle(a, family, headerStyle, model) && !this.isAccountCoolingDown(a);
+    });
+
+    if (available.length === 0) {
+      return [];
+    }
+
+    const ranks = available.map((a) => getTierRank(a.tier));
+    const maxRank = Math.max(...ranks);
+    return available.filter((a) => getTierRank(a.tier) === maxRank);
+  }
+
   getAvailableHeaderStyle(account: ManagedAccount, family: ModelFamily, model?: string | null): HeaderStyle | null {
     clearExpiredRateLimits(account);
     if (family === "claude") {
@@ -779,6 +873,7 @@ export class AccountManager {
       version: 3,
       accounts: this.accounts.map((a) => ({
         email: a.email,
+        tier: a.tier,
         refreshToken: a.parts.refreshToken,
         projectId: a.parts.projectId,
         managedProjectId: a.parts.managedProjectId,
