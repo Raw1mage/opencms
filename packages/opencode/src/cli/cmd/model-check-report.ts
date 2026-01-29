@@ -1,6 +1,7 @@
 import { EOL } from "os"
 import { ProviderHealth } from "../../provider/health"
 import { JWT } from "@/util/jwt"
+import { Account } from "../../account"
 
 export function renderModelCheckReport(report: ProviderHealth.HealthReport): string {
     const lines: string[] = []
@@ -20,9 +21,14 @@ export function renderModelCheckReport(report: ProviderHealth.HealthReport): str
             const modelsText = `${account.modelsWorking}/${account.modelsTotal}`
 
             const typeDisplay = formatAuthType(account.authType)
+
+            // Generate smart display name (we might not have all info here, so we fallback)
             let displayName = account.accountName || account.accountEmail
             if (!displayName || JWT.isUUID(displayName)) {
-                displayName = `${account.providerFamily.charAt(0).toUpperCase() + account.providerFamily.slice(1)} ${typeDisplay}`
+                // We try to reconstruct info for Account.getDisplayName if possible, 
+                // but report might not have accessToken.
+                // However, we can use the providerFamily and id to trigger the hardcoded mappings.
+                displayName = Account.getDisplayName(account.accountEmail || "", { name: account.accountName, type: account.authType as any } as any, account.providerFamily);
             }
 
             lines.push(`#### Account: \`${displayName}\``)

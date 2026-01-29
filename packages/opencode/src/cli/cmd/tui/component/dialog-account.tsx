@@ -115,29 +115,7 @@ export function DialogAccount() {
         const categoryLabel = `${familyDisplayName} (${typeLabel})`
         const status = getAccountStatus(info)
 
-        let displayName = info.name
-        // Fallback for empty name
-        if (!displayName) {
-          if (info.type === "subscription" && info.email) displayName = info.email
-          else displayName = accountId
-        }
-
-        // Repair display name from JWT if it looks like a UUID (dumb check: length > 30 and no @)
-        if (info.type === "subscription" && info.accessToken && displayName && displayName.length > 30 && !displayName.includes("@")) {
-          try {
-            const parts = info.accessToken.split('.')
-            if (parts.length === 3) {
-              const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString())
-              // Check for OpenAI specific profile field or standard email field
-              const email = payload['https://api.openai.com/profile']?.email || payload.email
-              if (email) {
-                displayName = email
-              }
-            }
-          } catch (e) {
-            // ignore jwt parse error
-          }
-        }
+        const displayName = Account.getDisplayName(accountId, info, family)
 
         let description: string | undefined
         if (info.type === "subscription" && info.email && info.email !== displayName) {

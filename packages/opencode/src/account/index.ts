@@ -256,6 +256,48 @@ export namespace Account {
     return undefined
   }
 
+  /**
+   * Smartly get a display name for an account info
+   */
+  export function getDisplayName(id: string, info: Info, family: string): string {
+    const { JWT } = require("../util/jwt"); // Lazy import to avoid cycle if any
+
+    // 1. Try JWT Decoding (OpenAI / Google OAuth)
+    let email = (info.type === "subscription" && info.accessToken) ? JWT.getEmail(info.accessToken) : (info as any).email;
+    if (!email && info.type === "subscription" && info.refreshToken) email = JWT.getEmail(info.refreshToken);
+
+    // 2. Hardcoded / Common Patterns for specific accounts if missing from JSON fields
+    if (!email || email === family) {
+      if ((info as any).accountId && (info as any).accountId.includes("@")) email = (info as any).accountId;
+      else if (info.name && info.name.includes("@")) email = info.name;
+    }
+
+    // 3. Fallback Mapping (Specifically for Opencode/Anthropic generic names)
+    if ((!email || email === family) && family === "anthropic") {
+      if (id === "anthropic-subscription-anthropic") return "company@thesmart.cc";
+    }
+    if ((!email || email === family) && family === "opencode") {
+      if (id === "opencode-api-opencode") return "yeatsluo@gmail.com";
+    }
+
+    // Priority list
+    const candidates = [
+      email,
+      (info as any).username,
+      (info as any).accountId,
+      (info.name && info.name !== family && !JWT.isUUID(info.name)) ? info.name : null,
+      id
+    ];
+
+    for (const c of candidates) {
+      if (c && typeof c === 'string' && c.length > 0 && !JWT.isUUID(c) && c !== family) {
+        return c;
+      }
+    }
+
+    return email || info.name || id || "Unnamed";
+  }
+
   async function migrateToV2(storage: any): Promise<Storage> {
     log.info("Migrating accounts.json to v2...")
     if (storage.families.google && storage.families.google.accounts) {

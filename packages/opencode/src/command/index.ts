@@ -126,10 +126,38 @@ export namespace Command {
         subtask: false,
         hints: [],
         async handler() {
+          const families = await Account.listAll();
+          const lines: string[] = ["# Account Status", ""];
+
+          const order = ["opencode", "anthropic", "openai", "antigravity", "gemini-cli", "google API-KEY", "copilot", "others"];
+          const sortedFamilies = Object.keys(families).sort((a, b) => {
+            const idxA = order.indexOf(a);
+            const idxB = order.indexOf(b);
+            if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+            if (idxA === -1) return 1;
+            if (idxB === -1) return -1;
+            return idxA - idxB;
+          });
+
+          for (const familyName of sortedFamilies) {
+            const familyData = families[familyName];
+            const accountsArr = Object.entries(familyData.accounts);
+            if (accountsArr.length === 0) continue;
+
+            lines.push(`### 📂 ${familyName.toUpperCase()}`);
+            for (const [id, info] of accountsArr) {
+              const isActive = familyData.activeAccount === id;
+              const status = isActive ? "✅ **active**" : "   ";
+              const displayName = Account.getDisplayName(id, info, familyName);
+              lines.push(`- ${status} \`${displayName}\`  *(id: ${id})*`);
+            }
+            lines.push("");
+          }
+
           await Bus.publish(TuiEvent.CommandExecute, { command: "account.manage" })
           return {
-            output: "Opening account manager...",
-            title: "Account Manager"
+            output: lines.join("\n"),
+            title: "Account Status"
           }
         },
       },

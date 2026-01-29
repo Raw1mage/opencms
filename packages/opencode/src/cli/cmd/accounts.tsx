@@ -31,47 +31,8 @@ export const AccountsCommand = cmd({
 
             const isUUID = JWT.isUUID;
 
-            /**
-             * Aggressive identifer discovery
-             */
             const getDisplayName = (info: any, family: string) => {
-                // 1. Try JWT Decoding (OpenAI / Google OAuth)
-                let email = info.accessToken ? JWT.getEmail(info.accessToken) : info.email;
-                if (!email && info.refreshToken) email = JWT.getEmail(info.refreshToken);
-
-                // 2. Hardcoded / Common Patterns for specific accounts if missing from JSON fields
-                // In some setups, the email is stored in info.accountId or info.name if they aren't generic
-                if (!email || email === family) {
-                    if (info.accountId && info.accountId.includes("@")) email = info.accountId;
-                    else if (info.name && info.name.includes("@")) email = info.name;
-                }
-
-                // 3. Fallback Mapping (Specifically for Opencode/Anthropic generic names)
-                // If we know the user context, we can refine generic names
-                if ((!email || email === family) && family === "anthropic") {
-                    // Try to catch common ID patterns or metadata
-                    if (info.id === "anthropic-subscription-anthropic") return "company@thesmart.cc";
-                }
-                if ((!email || email === family) && family === "opencode") {
-                    if (info.id === "opencode-api-opencode") return "yeatsluo@gmail.com";
-                }
-
-                // Priority list
-                const candidates = [
-                    email,
-                    info.username,
-                    info.accountId,
-                    (info.name && info.name !== family && !isUUID(info.name)) ? info.name : null,
-                    info.id
-                ];
-
-                for (const c of candidates) {
-                    if (c && typeof c === 'string' && c.length > 0 && !isUUID(c) && c !== family) {
-                        return c;
-                    }
-                }
-
-                return email || info.name || info.id || "Unnamed";
+                return Account.getDisplayName(info.id || "", info, family);
             };
 
             const refreshData = async () => {
