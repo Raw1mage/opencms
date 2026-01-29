@@ -14,6 +14,18 @@
 - [ ] 當 `anthropic-subscription-*` 為 active 時，/models 不再顯示 `anthropic` 基底模型。
 - [ ] 選擇 Claude Sonnet 4.5 (2025-09-29) 可正常對話且不再出現 Claude Code 認證錯誤。
 
+## 2026-01-29: Google API Key 未注入帳號模型 (Google API Key Missing in Account Providers)
+
+### 已識別問題 (Issues Identified)
+1. **/models 顯示可用但實際缺金鑰**：Google API Key 帳號在 `/accounts` 中為 active，但對話時顯示 `Google Generative AI API key is missing`。
+2. **帳號層級 options 未傳遞**：`Account.listAll()` 匯入的 `type: "api"` 帳號未把 `apiKey` 注入 provider options，導致 SDK 判斷金鑰不存在。
+
+### 已實施修復 (Fixes Implemented)
+1. **補上 apiKey 注入**：在 `packages/opencode/src/provider/provider.ts` 的 account 匯入流程中，`type: "api"` 將 `accountInfo.apiKey` 寫入 `options.apiKey`。
+
+### 驗證 (Verification)
+- [ ] 使用 Google API Key 帳號選擇 `gemini-2.5-pro`，不再出現 `API key is missing`。
+
 ## 2026-01-29: /models 只顯示 active 訂閱者並標示家族歸屬 (Active Subscription Labeling in /models)
 
 ### 已識別問題 (Issues Identified)

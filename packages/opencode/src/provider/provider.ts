@@ -1089,6 +1089,9 @@ export namespace Provider {
             options.apiKey = accountInfo.accessToken
           }
         }
+        if (accountInfo.type === "api" && accountInfo.apiKey) {
+          options.apiKey = accountInfo.apiKey
+        }
 
         database[effectiveId] = {
           id: effectiveId,
