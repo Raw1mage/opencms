@@ -59,3 +59,21 @@
 
 ### 已實施修復 (Fix)
 - `Provider.isProviderAllowed` 允許 `antigravity`/`gemini-cli` 在 `enabled_providers` 包含 `google` 時通過，且仍尊重 `disabled_providers`。
+
+## 2026-01-29: 修正 AI 對話格式錯誤導致的 AI_InvalidPromptError (AI SDK Prompt Compliance)
+
+### 已識別問題 (Issue)
+- 當對話歷史包含工具執行結果（Tool Result）時，AI 模型噴出 `AI_InvalidPromptError: Invalid prompt: The messages must be a ModelMessage[]`。
+- 原因：`toModelMessages` 使用了舊版或非標準的屬性名稱（如 `value` 而非 `text`）以及非標準的 part 類型（如 `json`, `content`），這與最新版本的 AI SDK (v5+) 不相容。
+
+### 已實施修復 (Fix)
+- 重構 `packages/opencode/src/session/message-v2.ts` 中的 `toModelMessages` 與 `toModelOutput`。
+- 將工具輸出中的 `value` 修正為 `text`。
+- 將 `content` 類型的輸出展開為標準的 `text` 與 `file` (原 `media`) parts。
+- 移除自定義的 `json` 類型轉換，改為標準的 JSON 字串輸出。
+- 補充缺失的 `Bus` 與 `Token` 依賴導入。
+
+### 驗證 (Verification)
+- [x] 編譯部署後，常規對話與帶有工具執行的對話恢復正常，不再出現 `AI_InvalidPromptError`。
+- [x] `/usr/local/bin/opencode --version` 確認版本已更新。
+

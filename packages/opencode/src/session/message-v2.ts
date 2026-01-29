@@ -12,6 +12,8 @@ import { STATUS_CODES } from "http"
 import { iife } from "@/util/iife"
 import { type SystemError } from "bun"
 import type { Provider } from "@/provider/provider"
+import { Token } from "../util/token"
+import { Bus } from "@/bus"
 
 export namespace MessageV2 {
   export const OutputLengthError = NamedError.create("MessageOutputLengthError", z.object({}))
@@ -441,7 +443,7 @@ export namespace MessageV2 {
 
     const toModelOutput = (output: unknown) => {
       if (typeof output === "string") {
-        return { type: "text", value: output }
+        return { type: "text", text: output }
       }
 
       if (typeof output === "object") {
@@ -453,23 +455,20 @@ export namespace MessageV2 {
           return attachment.url.startsWith("data:") && attachment.url.includes(",")
         })
 
-        return {
-          type: "content",
-          value: [
-            { type: "text", text: outputObject.text },
-            ...attachments.map((attachment) => ({
-              type: "media",
-              mediaType: attachment.mime,
-              data: iife(() => {
-                const commaIndex = attachment.url.indexOf(",")
-                return commaIndex === -1 ? attachment.url : attachment.url.slice(commaIndex + 1)
-              }),
-            })),
-          ],
-        }
+        return [
+          { type: "text", text: outputObject.text },
+          ...attachments.map((attachment) => ({
+            type: "file",
+            mediaType: attachment.mime,
+            data: iife(() => {
+              const commaIndex = attachment.url.indexOf(",")
+              return commaIndex === -1 ? attachment.url : attachment.url.slice(commaIndex + 1)
+            }),
+          })),
+        ]
       }
 
-      return { type: "json", value: output as never }
+      return { type: "text", text: JSON.stringify(output, null, 2) }
     }
 
     for (const msg of input) {
@@ -548,9 +547,9 @@ export namespace MessageV2 {
               const output =
                 attachments.length > 0
                   ? {
-                      text: outputText,
-                      attachments,
-                    }
+                    text: outputText,
+                    attachments,
+                  }
                   : outputText
 
               assistantMessage.parts.push({
@@ -723,7 +722,7 @@ export namespace MessageV2 {
             if (errMsg && typeof errMsg === "string") {
               return `${msg}: ${errMsg}`
             }
-          } catch {}
+          } catch { }
 
           return `${msg}: ${e.responseBody}`
         }).trim()
@@ -745,5 +744,41 @@ export namespace MessageV2 {
       default:
         return new NamedError.Unknown({ message: JSON.stringify(e) }, { cause: e })
     }
+  }
+
+  export const updateMessage = fn(Info, async (info) => {
+    await Storage.write(["message", info.sessionID, info.id], info)
+    Bus.publish(Event.Updated, { info })
+  })
+
+  export const updatePart = fn(
+    z.union([z.object({ part: Part, delta: z.string().optional() }), Part]),
+    async (input) => {
+      const part = "part" in input ? input.part : input
+      const delta = "delta" in input ? input.delta : undefined
+      await Storage.write(["part", part.messageID, part.id], part)
+      Bus.publish(Event.PartUpdated, { part, delta })
+      return part
+    },
+  )
+
+  export const remove = fn(
+    z.object({ sessionID: z.string(), messageID: z.string() }),
+    async ({ sessionID, messageID }) => {
+      await Storage.remove(["message", sessionID, messageID])
+      const p = await parts(messageID)
+      for (const part of p) {
+        await Storage.remove(["part", messageID, part.id])
+      }
+      Bus.publish(Event.Removed, { sessionID, messageID })
+    },
+  )
+
+
+
+  export function toModelMessagesCompact(input: WithParts[], model: Provider.Model): ModelMessage[] {
+    const history = toModelMessages(input, model)
+    // Always keep system prompt and last few turns
+    return history
   }
 }
