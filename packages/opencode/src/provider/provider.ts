@@ -9,6 +9,7 @@ import { Plugin } from "../plugin"
 import { ModelsDev } from "./models"
 import { NamedError } from "@opencode-ai/util/error"
 import { Auth } from "../auth"
+import { Account } from "../account"
 import { Env } from "../env"
 import { Instance } from "../project/instance"
 import { Flag } from "../flag/flag"
@@ -132,7 +133,6 @@ export namespace Provider {
       return {
         autoload: false,
         async getModel(sdk: any, modelID: string, _options?: Record<string, any>) {
-          if (sdk.responses === undefined && sdk.chat === undefined) return sdk.languageModel(modelID)
           return shouldUseCopilotResponsesApi(modelID) ? sdk.responses(modelID) : sdk.chat(modelID)
         },
         options: {},
@@ -142,7 +142,6 @@ export namespace Provider {
       return {
         autoload: false,
         async getModel(sdk: any, modelID: string, _options?: Record<string, any>) {
-          if (sdk.responses === undefined && sdk.chat === undefined) return sdk.languageModel(modelID)
           return shouldUseCopilotResponsesApi(modelID) ? sdk.responses(modelID) : sdk.chat(modelID)
         },
         options: {},
@@ -175,6 +174,12 @@ export namespace Provider {
         options: {
           baseURL: resourceName ? `https://${resourceName}.cognitiveservices.azure.com/openai` : undefined,
         },
+      }
+    },
+    "gemini-cli": async () => {
+      return {
+        autoload: true,
+        options: {},
       }
     },
     "amazon-bedrock": async () => {
@@ -587,6 +592,10 @@ export namespace Provider {
       env: z.string().array(),
       key: z.string().optional(),
       options: z.record(z.string(), z.any()),
+      active: z.boolean().optional(),
+      email: z.string().optional(),
+      coolingDownUntil: z.number().optional(),
+      cooldownReason: z.string().optional(),
       models: z.record(z.string(), Model),
     })
     .meta({
@@ -603,7 +612,11 @@ export namespace Provider {
       api: {
         id: model.id,
         url: provider.api!,
-        npm: model.provider?.npm ?? provider.npm ?? "@ai-sdk/openai-compatible",
+        npm: iife(() => {
+          if (provider.id.startsWith("github-copilot")) return "@ai-sdk/github-copilot"
+          if (provider.id.startsWith("anthropic")) return "@ai-sdk/anthropic"
+          return model.provider?.npm ?? provider.npm ?? "@ai-sdk/openai-compatible"
+        }),
       },
       status: model.status ?? "active",
       headers: model.headers ?? {},
@@ -617,13 +630,13 @@ export namespace Provider {
         },
         experimentalOver200K: model.cost?.context_over_200k
           ? {
-              cache: {
-                read: model.cost.context_over_200k.cache_read ?? 0,
-                write: model.cost.context_over_200k.cache_write ?? 0,
-              },
-              input: model.cost.context_over_200k.input,
-              output: model.cost.context_over_200k.output,
-            }
+            cache: {
+              read: model.cost.context_over_200k.cache_read ?? 0,
+              write: model.cost.context_over_200k.cache_write ?? 0,
+            },
+            input: model.cost.context_over_200k.input,
+            output: model.cost.context_over_200k.output,
+          }
           : undefined,
       },
       limit: {
@@ -682,7 +695,13 @@ export namespace Provider {
     const enabled = config.enabled_providers ? new Set(config.enabled_providers) : null
 
     function isProviderAllowed(providerID: string): boolean {
-      if (enabled && !enabled.has(providerID)) return false
+      const accountFamily = Account.parseFamily(providerID)
+      const family = accountFamily || providerID
+
+      // Allow specific families that we know are needed for plugins and accounts
+      if (family === "antigravity" || family === "gemini-cli") return true
+
+      if (enabled && !enabled.has(family)) return false
       if (disabled.has(providerID)) return false
       return true
     }
@@ -698,19 +717,6 @@ export namespace Provider {
 
     const configProviders = Object.entries(config.provider ?? {})
 
-    // Add GitHub Copilot Enterprise provider that inherits from GitHub Copilot
-    if (database["github-copilot"]) {
-      const githubCopilot = database["github-copilot"]
-      database["github-copilot-enterprise"] = {
-        ...githubCopilot,
-        id: "github-copilot-enterprise",
-        name: "GitHub Copilot Enterprise",
-        models: mapValues(githubCopilot.models, (model) => ({
-          ...model,
-          providerID: "github-copilot-enterprise",
-        })),
-      }
-    }
 
     function mergeProvider(providerID: string, provider: Partial<Info>) {
       const existing = providers[providerID]
@@ -730,7 +736,7 @@ export namespace Provider {
       const existing = database[providerID]
       const parsed: Info = {
         id: providerID,
-        name: provider.name ?? existing?.name ?? providerID,
+        name: providerID === "google" ? "Google (API Key)" : (provider.name ?? existing?.name ?? providerID),
         env: provider.env ?? existing?.env ?? [],
         options: mergeDeep(existing?.options ?? {}, provider.options ?? {}),
         source: "config",
@@ -808,6 +814,174 @@ export namespace Provider {
       database[providerID] = parsed
     }
 
+    // Add virtual providers that inherit from base families (after config merge)
+    const inheritFrom = (targetID: string, baseID: string, patch: Partial<Info> = {}) => {
+      const base = database[baseID]
+      if (base) {
+        database[targetID] = {
+          ...base,
+          ...patch,
+          id: targetID,
+          models: mapValues(base.models, (model) => {
+            const m = { ...model, providerID: targetID }
+            if (patch.id === "gemini-cli" && m.api) {
+              m.api = { ...m.api, npm: "@ai-sdk/google" }
+            }
+            return m
+          }),
+        }
+      }
+    }
+
+    inheritFrom("github-copilot-enterprise", "github-copilot", { name: "GitHub Copilot Enterprise" })
+    // inheritFrom("antigravity", "google", { name: "Antigravity", env: [] }) // Don't inherit all Google models
+
+    // Initialize Antigravity as a clean provider
+    database["antigravity"] = {
+      id: "antigravity",
+      name: "Antigravity",
+      source: "custom",
+      env: [],
+      options: {},
+      models: {}
+    }
+    inheritFrom("gemini-cli", "google", { id: "gemini-cli", name: "Gemini CLI", env: ["GEMINI_API_KEY"] })
+
+    // If gemini-cli failed to inherit (e.g. google missing) OR it exists but has no models, populate manually
+    if (!database["gemini-cli"] || Object.keys(database["gemini-cli"].models).length === 0) {
+      if (!database["gemini-cli"]) {
+        database["gemini-cli"] = {
+          id: "gemini-cli",
+          name: "Gemini CLI",
+          source: "custom",
+          env: ["GEMINI_API_KEY"],
+          options: {},
+          models: {},
+        }
+      }
+
+      const geminiModels = [
+        { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash" },
+        { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro" },
+        { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash" },
+        { id: "gemini-1.5-pro-latest", name: "Gemini 1.5 Pro (Latest)" },
+        { id: "gemini-1.5-flash-latest", name: "Gemini 1.5 Flash (Latest)" },
+        { id: "gemini-pro", name: "Gemini Pro" },
+        { id: "gemini-ultra", name: "Gemini Ultra" }
+      ]
+
+      for (const m of geminiModels) {
+        database["gemini-cli"].models[m.id] = {
+          id: m.id,
+          name: m.name,
+          providerID: "gemini-cli",
+          family: "gemini",
+          api: { id: m.id, url: "", npm: "@ai-sdk/google" },
+          status: "active",
+          capabilities: {
+            temperature: true,
+            reasoning: false,
+            attachment: true,
+            interleaved: false,
+            input: { text: true, image: true, audio: false, video: false, pdf: false },
+            output: { text: true, audio: false, image: false, video: false, pdf: false },
+            toolcall: true
+          },
+          cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+          limit: { context: 32000, output: 4096 },
+          options: {},
+          variants: {},
+          headers: {},
+          release_date: "2024-01-01"
+        }
+      }
+    }
+
+    // Populate Antigravity with extra models
+    if (database["antigravity"]) {
+      // Populate Antigravity with only specific models
+      const extraModels = [
+        "claude-sonnet-4-5",
+        // "gpt-oss-120b", // Removing generic 120b if we have a specific medium one below
+      ]
+
+      const findModelInDev = (id: string) => {
+        for (const p of Object.values(modelsDev)) {
+          if (p.models[id]) return { provider: p, model: p.models[id] }
+        }
+        return undefined
+      }
+
+      for (const id of extraModels) {
+        const found = findModelInDev(id)
+        if (found) {
+          const model = fromModelsDevModel(found.provider, found.model)
+          model.providerID = "antigravity"
+          model.api = { ...model.api, npm: "@ai-sdk/google", url: "https://generativelanguage.googleapis.com" }
+          database["antigravity"].models[id] = model
+        }
+      }
+
+      const manualModels = [
+        { id: "gemini-3-pro-high", name: "Gemini 3 Pro (High)", family: "gemini-pro" },
+        { id: "gemini-3-pro-low", name: "Gemini 3 Pro (Low)", family: "gemini-pro" },
+        { id: "gemini-3-flash", name: "Gemini 3 Flash (New)", family: "gemini-flash" },
+        { id: "claude-sonnet-4-5-thinking", name: "Claude Sonnet 4.5 (Thinking)", family: "claude", reasoning: true },
+        { id: "claude-opus-4-5-thinking", name: "Claude Opus 4.5 (Thinking)", family: "claude", reasoning: true },
+        { id: "gpt-oss-120b-medium", name: "GPT-OSS 120B (Medium)", family: "gpt-oss" },
+      ]
+
+      for (const m of manualModels) {
+        database["antigravity"].models[m.id] = {
+          id: m.id,
+          name: m.name,
+          providerID: "antigravity",
+          family: m.family,
+          api: { id: m.id, url: "", npm: "@ai-sdk/google" },
+          status: "active",
+          capabilities: {
+            temperature: true,
+            reasoning: m.reasoning || false,
+            attachment: true,
+            toolcall: true,
+            input: { text: true, image: true, audio: false, video: false, pdf: false },
+            output: { text: true, audio: false, image: false, video: false, pdf: false },
+            interleaved: false
+          },
+          cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+          limit: { context: 200000, output: 8192 },
+          options: {},
+          variants: {},
+          headers: {},
+          release_date: "2025-01-01"
+        }
+      }
+    }
+
+    // Inherit models for account-suffixed providers
+    for (const [providerID, provider] of Object.entries(database)) {
+      // Match pattern: "provider-accountname"
+      const match = providerID.match(/^([a-z-]+)-[a-z0-9-]+$/)
+      if (match) {
+        const baseProviderID = match[1] // e.g., "google" from "google-work"
+        const baseProvider = database[baseProviderID]
+
+        // If base exists and account provider has no models, inherit everything
+        if (baseProvider && Object.keys(provider.models).length === 0) {
+          log.info("inheriting models", { from: baseProviderID, to: providerID })
+          database[providerID] = {
+            ...provider,
+            name: provider.name || `${baseProvider.name} (${providerID.split("-").pop()})`,
+            models: mapValues(baseProvider.models, (model) => ({
+              ...model,
+              providerID: providerID, // Update to account-specific provider
+            })),
+            env: baseProvider.env,
+          }
+        }
+      }
+    }
+
     // load env
     const env = Env.all()
     for (const [providerID, provider] of Object.entries(database)) {
@@ -820,7 +994,7 @@ export namespace Provider {
       })
     }
 
-    // load apikeys
+    // load apikeys and other auth
     for (const [providerID, provider] of Object.entries(await Auth.all())) {
       if (disabled.has(providerID)) continue
       if (provider.type === "api") {
@@ -828,52 +1002,192 @@ export namespace Provider {
           source: "api",
           key: provider.key,
         })
+        // @ts-ignore
+      } else if (provider.type === "oauth" || provider.type === "subscription") {
+        mergeProvider(providerID, {
+          source: "custom",
+        })
       }
+    }
+
+    // Load accounts from unified Account module
+    const allFamilies = await Account.listAll()
+    for (const [family, familyData] of Object.entries(allFamilies)) {
+      const baseProvider = database[family]
+      if (!baseProvider) continue
+
+      for (const [accountId, accountInfo] of Object.entries(familyData.accounts)) {
+        if (disabled.has(accountId)) continue
+        if (!isProviderAllowed(accountId)) continue
+
+        // Determine display name
+        let displayName: string
+        if (accountInfo.type === "api") {
+          displayName = `${family.charAt(0).toUpperCase() + family.slice(1)} API (${accountInfo.name})`
+        } else {
+          displayName = `${family.charAt(0).toUpperCase() + family.slice(1)} (${accountInfo.email || accountInfo.name})`
+        }
+
+        // Add to database with models inherited from base provider
+        const options: Record<string, any> = {}
+        if (accountInfo.type === "subscription") {
+          if (accountInfo.projectId) {
+            options.projectId = accountInfo.projectId
+          }
+          if (accountInfo.managedProjectId) {
+            options.managedProjectId = accountInfo.managedProjectId
+          }
+          if (accountInfo.accessToken) {
+            options.apiKey = accountInfo.accessToken
+          }
+        }
+
+        database[accountId] = {
+          id: accountId,
+          source: "custom",
+          name: displayName,
+          active: familyData.activeAccount === accountId,
+          email: accountInfo.type === "subscription" ? accountInfo.email : undefined,
+          coolingDownUntil: accountInfo.type === "subscription" ? accountInfo.coolingDownUntil : undefined,
+          cooldownReason: accountInfo.type === "subscription" ? accountInfo.cooldownReason : undefined,
+          env: [],
+          options,
+          models: mapValues(baseProvider.models, (model) => ({
+            ...model,
+            providerID: accountId,
+          })),
+        }
+
+        mergeProvider(accountId, {
+          source: "custom",
+        })
+      }
+    }
+
+    // Legacy: Load antigravity accounts for backward compatibility with plugins
+    const antigravityAccounts = await Auth.listAntigravityAccounts()
+    for (const [accountID, accountInfo] of Object.entries(antigravityAccounts)) {
+      // Skip if already loaded from Account module
+      if (database[accountID]) continue
+      if (disabled.has(accountID)) continue
+
+      const baseProvider = database["antigravity"] ?? database["google"]
+      if (!baseProvider) continue
+
+      database[accountID] = {
+        id: accountID,
+        source: "custom",
+        name: accountInfo.email
+          ? `Antigravity (${accountInfo.email})`
+          : accountID === "antigravity" || accountID.includes("antigravity")
+            ? "Antigravity"
+            : `Antigravity (${accountID})`,
+        env: [],
+        options: {},
+        models: mapValues(baseProvider.models, (model) => ({
+          ...model,
+          providerID: accountID,
+        })),
+      }
+      mergeProvider(accountID, {
+        source: "custom",
+      })
     }
 
     for (const plugin of await Plugin.list()) {
       if (!plugin.auth) continue
-      const providerID = plugin.auth.provider
-      if (disabled.has(providerID)) continue
+      const family = plugin.auth.provider
+      if (disabled.has(family)) continue
 
       // For github-copilot plugin, check if auth exists for either github-copilot or github-copilot-enterprise
-      let hasAuth = false
-      const auth = await Auth.get(providerID)
-      if (auth) hasAuth = true
+      let hasFamilyAuth = false
+      const familyAuth = await Auth.get(family)
+      if (familyAuth) hasFamilyAuth = true
 
       // Special handling for github-copilot: also check for enterprise auth
-      if (providerID === "github-copilot" && !hasAuth) {
+      if (family === "github-copilot" && !hasFamilyAuth) {
         const enterpriseAuth = await Auth.get("github-copilot-enterprise")
-        if (enterpriseAuth) hasAuth = true
+        if (enterpriseAuth) hasFamilyAuth = true
       }
 
-      if (!hasAuth) continue
+      if (!hasFamilyAuth) continue
       if (!plugin.auth.loader) continue
 
-      // Load for the main provider if auth exists
-      if (auth) {
-        const options = await plugin.auth.loader(() => Auth.get(providerID) as any, database[plugin.auth.provider])
-        const opts = options ?? {}
-        const patch: Partial<Info> = providers[providerID] ? { options: opts } : { source: "custom", options: opts }
-        mergeProvider(providerID, patch)
+      // 1. Load for the main provider family if it exists in providers
+      if (familyAuth) {
+        if (providers[family]) {
+          log.info("loading plugin for family", { family })
+          const options = await plugin.auth.loader(() => Auth.get(family) as any, providers[family])
+          if (options) {
+            providers[family].options = mergeDeep(providers[family].options, options) as any
+          }
+        } else {
+          log.warn("family provider not found in providers list, skipping plugin load", { family })
+        }
+      } else {
+        log.debug("no family auth found", { family })
       }
 
-      // If this is github-copilot plugin, also register for github-copilot-enterprise if auth exists
-      if (providerID === "github-copilot") {
+      // 2. Load for EVERY account belonging to this family (Parallelized)
+      const familyData = allFamilies[family]
+      if (familyData) {
+        const accountLoaderPromises = Object.keys(familyData.accounts).map(async (accountId) => {
+          if (!providers[accountId] || !plugin.auth?.loader) return
+
+          const accountOptions = await plugin.auth.loader(() => Auth.get(accountId) as any, providers[accountId])
+          if (accountOptions) {
+            providers[accountId].options = mergeDeep(providers[accountId].options, accountOptions) as any
+          }
+        })
+        await Promise.all(accountLoaderPromises)
+      }
+
+      // Special handling for legacy antigravity accounts (Parallelized)
+      if (family === "antigravity" || family === "google") {
+        const legacyLoaderPromises = Object.keys(antigravityAccounts).map(async (accountID) => {
+          if (providers[accountID] && plugin.auth?.loader) {
+            const accountOptions = await plugin.auth.loader(() => Auth.get(accountID) as any, providers[accountID])
+            if (accountOptions) {
+              providers[accountID].options = mergeDeep(providers[accountID].options, accountOptions) as any
+            }
+          }
+        })
+        await Promise.all(legacyLoaderPromises)
+      }
+
+      // Special handling for github-copilot-enterprise (legacy)
+      if (family === "github-copilot") {
         const enterpriseProviderID = "github-copilot-enterprise"
-        if (!disabled.has(enterpriseProviderID)) {
+        if (!disabled.has(enterpriseProviderID) && providers[enterpriseProviderID]) {
           const enterpriseAuth = await Auth.get(enterpriseProviderID)
           if (enterpriseAuth) {
             const enterpriseOptions = await plugin.auth.loader(
               () => Auth.get(enterpriseProviderID) as any,
-              database[enterpriseProviderID],
+              providers[enterpriseProviderID],
             )
-            const opts = enterpriseOptions ?? {}
-            const patch: Partial<Info> = providers[enterpriseProviderID]
-              ? { options: opts }
-              : { source: "custom", options: opts }
-            mergeProvider(enterpriseProviderID, patch)
+            if (enterpriseOptions) {
+              providers[enterpriseProviderID].options = mergeDeep(
+                providers[enterpriseProviderID].options,
+                enterpriseOptions,
+              ) as any
+            }
           }
+        }
+      }
+    }
+
+    // Propagate base provider options to account-based providers (only for families without specific plugins or as fallback)
+    for (const family of Account.FAMILIES) {
+      const baseProvider = providers[family]
+      if (!baseProvider?.options) continue
+
+      const fData = allFamilies[family]
+      if (!fData) continue
+
+      for (const accountId of Object.keys(fData.accounts)) {
+        if (providers[accountId]) {
+          // Merge options, prioritizing account-specific options (from plugin loaders)
+          providers[accountId].options = mergeDeep(baseProvider.options, providers[accountId].options ?? {}) as any
         }
       }
     }
@@ -923,8 +1237,6 @@ export namespace Provider {
         )
           delete provider.models[modelID]
 
-        model.variants = mapValues(ProviderTransform.variants(model), (v) => v)
-
         // Filter out disabled variants from config
         const configVariants = configProvider?.models?.[modelID]?.variants
         if (configVariants && model.variants) {
@@ -953,7 +1265,37 @@ export namespace Provider {
   })
 
   export async function list() {
+    await state() // Ensure plugins and loaders are initialized
+
+    // START discovery in background, don't block the CLI boot
+    // This allows the terminal to be interactive immediately
+    const { Plugin } = await import("../plugin")
+    Plugin.discoverModels().catch(err => {
+      log.error("background model discovery failed", { error: err })
+    })
+
     return state().then((state) => state.providers)
+  }
+
+  export async function addDynamicModels(discovered: any[]) {
+    const s = await state()
+    for (const m of discovered) {
+      const pID = m.providerID
+      if (!s.providers[pID]) continue
+
+      const provider = s.providers[pID]
+      if (provider.models[m.id]) continue
+
+      const template = Object.values(provider.models)[0]
+      if (!template) continue
+
+      provider.models[m.id] = {
+        ...template,
+        id: m.id,
+        name: m.name,
+        api: { ...template.api, id: m.id }
+      }
+    }
   }
 
   async function getSDK(model: Model) {
@@ -970,19 +1312,32 @@ export namespace Provider {
       }
 
       if (!options["baseURL"]) options["baseURL"] = model.api.url
-      if (options["apiKey"] === undefined && provider.key) options["apiKey"] = provider.key
+      if (options["apiKey"] === undefined) {
+        if (provider.key) {
+          options["apiKey"] = provider.key
+        } else if (
+          options["fetch"] ||
+          model.providerID.includes("subscription") ||
+          model.providerID.includes("managed") ||
+          model.providerID.includes("antigravity") ||
+          model.providerID.includes("gemini-cli")
+        ) {
+          // If we have a custom fetch (plugin) OR it's a known managed account type, 
+          // inject dummy to satisfy SDK validation
+          options["apiKey"] = "dummy"
+        }
+      }
       if (model.headers)
         options["headers"] = {
           ...options["headers"],
           ...model.headers,
         }
 
-      const key = Bun.hash.xxHash32(JSON.stringify({ providerID: model.providerID, npm: model.api.npm, options }))
+      const key = Bun.hash.xxHash32(JSON.stringify({ npm: model.api.npm, options }))
       const existing = s.sdk.get(key)
       if (existing) return existing
 
       const customFetch = options["fetch"]
-
       options["fetch"] = async (input: any, init?: BunFetchRequestInit) => {
         // Preserve custom fetch if it exists, wrap it with timeout logic
         const fetchFn = customFetch ?? fetch

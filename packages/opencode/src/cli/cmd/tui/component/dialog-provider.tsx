@@ -13,6 +13,7 @@ import { DialogModel } from "./dialog-model"
 import { useKeyboard } from "@opentui/solid"
 import { Clipboard } from "@tui/util/clipboard"
 import { useToast } from "../ui/toast"
+import open from "open"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
   opencode: 0,
@@ -127,7 +128,7 @@ function AutoMethod(props: AutoMethodProps) {
 
   useKeyboard((evt) => {
     if (evt.name === "c" && !evt.ctrl && !evt.meta) {
-      const code = props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4,5}/)?.[0] ?? props.authorization.url
+      const code = props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4}/)?.[0] ?? props.authorization.url
       Clipboard.copy(code)
         .then(() => toast.show({ message: "Copied to clipboard", variant: "info" }))
         .catch(toast.error)
@@ -180,6 +181,18 @@ function CodeMethod(props: CodeMethodProps) {
   const sync = useSync()
   const dialog = useDialog()
   const [error, setError] = createSignal(false)
+  const toast = useToast()
+
+  useKeyboard((evt) => {
+    if (evt.name === "c" && evt.meta) {
+      Clipboard.copy(props.authorization.url)
+        .then(() => toast.show({ message: "URL copied to clipboard", variant: "info" }))
+        .catch(toast.error)
+    }
+    if (evt.name === "o" && evt.meta) {
+      open(props.authorization.url).catch(() => { })
+    }
+  })
 
   return (
     <DialogPrompt
@@ -203,6 +216,14 @@ function CodeMethod(props: CodeMethodProps) {
         <box gap={1}>
           <text fg={theme.textMuted}>{props.authorization.instructions}</text>
           <Link href={props.authorization.url} fg={theme.primary} />
+          <box flexDirection="row" gap={2}>
+            <text fg={theme.text}>
+              alt+c <span style={{ fg: theme.textMuted }}>copy url</span>
+            </text>
+            <text fg={theme.text}>
+              alt+o <span style={{ fg: theme.textMuted }}>open browser</span>
+            </text>
+          </box>
           <Show when={error()}>
             <text fg={theme.error}>Invalid code</text>
           </Show>

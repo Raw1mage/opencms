@@ -21,17 +21,21 @@ type PluginAuth = NonNullable<Hooks["auth"]>
 async function handlePluginAuth(plugin: { auth: PluginAuth }, provider: string): Promise<boolean> {
   let index = 0
   if (plugin.auth.methods.length > 1) {
-    const method = await prompts.select({
-      message: "Login method",
-      options: [
-        ...plugin.auth.methods.map((x, index) => ({
-          label: x.label,
-          value: index.toString(),
-        })),
-      ],
-    })
-    if (prompts.isCancel(method)) throw new UI.CancelledError()
-    index = parseInt(method)
+    if (provider === "antigravity" || provider === "gemini-cli") {
+      index = 0
+    } else {
+      const method = await prompts.select({
+        message: "Login method",
+        options: [
+          ...plugin.auth.methods.map((x, index) => ({
+            label: x.label,
+            value: index.toString(),
+          })),
+        ],
+      })
+      if (prompts.isCancel(method)) throw new UI.CancelledError()
+      index = parseInt(method)
+    }
   }
   const method = plugin.auth.methods[index]
 
@@ -163,19 +167,48 @@ export const AuthCommand = cmd({
   command: "auth",
   describe: "manage credentials",
   builder: (yargs) =>
-    yargs.command(AuthLoginCommand).command(AuthLogoutCommand).command(AuthListCommand).demandCommand(),
-  async handler() {},
+    yargs
+      .command(AuthLoginCommand)
+      .command(AuthLogoutCommand)
+      .command(AuthListCommand)
+      .command(AuthSwitchCommand)
+      .demandCommand(),
+  async handler() { },
 })
 
 export const AuthListCommand = cmd({
-  command: "list",
+  command: "list [provider]",
   aliases: ["ls"],
   describe: "list providers",
-  async handler() {
+  builder: (yargs) =>
+    yargs.positional("provider", {
+      type: "string",
+      describe: "filter by provider (e.g., google, anthropic)",
+    }),
+  async handler(args) {
     UI.empty()
     const authPath = path.join(Global.Path.data, "auth.json")
     const homedir = os.homedir()
     const displayPath = authPath.startsWith(homedir) ? authPath.replace(homedir, "~") : authPath
+
+    // If provider filter specified, list accounts for that provider family
+    if (args.provider) {
+      const accounts = await Auth.listAccounts(args.provider)
+      prompts.intro(`${args.provider} accounts`)
+
+      for (const providerID of accounts) {
+        const auth = await Auth.get(providerID)
+        if (!auth) continue
+        const isDefault = providerID === args.provider
+        const marker = isDefault ? " (default)" : ""
+        prompts.log.info(`${providerID}${marker} ${UI.Style.TEXT_DIM}${auth.type}`)
+      }
+
+      prompts.outro(`${accounts.length} account${accounts.length === 1 ? "" : "s"}`)
+      return
+    }
+
+    // Otherwise, list all credentials
     prompts.intro(`Credentials ${UI.Style.TEXT_DIM}${displayPath}`)
     const results = Object.entries(await Auth.all())
     const database = await ModelsDev.get()
@@ -251,7 +284,7 @@ export const AuthLoginCommand = cmd({
           prompts.outro("Done")
           return
         }
-        await ModelsDev.refresh().catch(() => {})
+        await ModelsDev.refresh().catch(() => { })
 
         const config = await Config.get()
 
@@ -259,12 +292,27 @@ export const AuthLoginCommand = cmd({
         const enabled = config.enabled_providers ? new Set(config.enabled_providers) : undefined
 
         const providers = await ModelsDev.get().then((x) => {
+          const enabled = config.enabled_providers ? new Set(config.enabled_providers) : undefined
+          if (enabled && enabled.has("google")) {
+            enabled.add("antigravity")
+            enabled.add("gemini-cli")
+          }
+
           const filtered: Record<string, (typeof x)[string]> = {}
           for (const [key, value] of Object.entries(x)) {
             if ((enabled ? enabled.has(key) : true) && !disabled.has(key)) {
               filtered[key] = value
             }
           }
+
+          // Force-include antigravity and gemini-cli if allowed
+          if (!disabled.has("antigravity") && (enabled ? enabled.has("antigravity") : true) && !filtered["antigravity"]) {
+            filtered["antigravity"] = { id: "antigravity", name: "Antigravity", env: [], models: {} }
+          }
+          if (!disabled.has("gemini-cli") && (enabled ? enabled.has("gemini-cli") : true) && !filtered["gemini-cli"]) {
+            filtered["gemini-cli"] = { id: "gemini-cli", name: "Gemini CLI", env: ["GEMINI_API_KEY"], models: {} }
+          }
+
           return filtered
         })
 
@@ -273,9 +321,11 @@ export const AuthLoginCommand = cmd({
           anthropic: 1,
           "github-copilot": 2,
           openai: 3,
-          google: 4,
-          openrouter: 5,
-          vercel: 6,
+          antigravity: 4,
+          "gemini-cli": 5,
+          google: 6,
+          openrouter: 7,
+          vercel: 8,
         }
         let provider = await prompts.autocomplete({
           message: "Select provider",
@@ -295,6 +345,9 @@ export const AuthLoginCommand = cmd({
                   opencode: "recommended",
                   anthropic: "Claude Max or API key",
                   openai: "ChatGPT Plus/Pro or API key",
+                  antigravity: "Google Subscription (vibe/internal)",
+                  "gemini-cli": "Google Subscription (CLI)",
+                  google: "API Key only",
                 }[x.id],
               })),
             ),
@@ -309,8 +362,25 @@ export const AuthLoginCommand = cmd({
 
         const plugin = await Plugin.list().then((x) => x.find((x) => x.auth?.provider === provider))
         if (plugin && plugin.auth) {
-          const handled = await handlePluginAuth({ auth: plugin.auth }, provider)
-          if (handled) return
+          // Offer choice between plugin auth and direct API key
+          let authMethod = "plugin"
+          if (provider !== "antigravity" && provider !== "gemini-cli") {
+            const result = await prompts.select({
+              message: "Authentication method",
+              options: [
+                { label: "Subscription (OAuth)", value: "plugin", hint: "via plugin" },
+                { label: "API Key", value: "api", hint: "direct API key" },
+              ],
+            })
+            if (prompts.isCancel(result)) throw new UI.CancelledError()
+            authMethod = result
+          }
+
+          if (authMethod === "plugin") {
+            const handled = await handlePluginAuth({ auth: plugin.auth }, provider)
+            if (handled) return
+          }
+          // If "api" selected, fall through to API key prompt below
         }
 
         if (provider === "other") {
@@ -337,10 +407,10 @@ export const AuthLoginCommand = cmd({
         if (provider === "amazon-bedrock") {
           prompts.log.info(
             "Amazon Bedrock authentication priority:\n" +
-              "  1. Bearer token (AWS_BEARER_TOKEN_BEDROCK or /connect)\n" +
-              "  2. AWS credential chain (profile, access keys, IAM roles, EKS IRSA)\n\n" +
-              "Configure via opencode.json options (profile, region, endpoint) or\n" +
-              "AWS environment variables (AWS_PROFILE, AWS_REGION, AWS_ACCESS_KEY_ID, AWS_WEB_IDENTITY_TOKEN_FILE).",
+            "  1. Bearer token (AWS_BEARER_TOKEN_BEDROCK or /connect)\n" +
+            "  2. AWS credential chain (profile, access keys, IAM roles, EKS IRSA)\n\n" +
+            "Configure via opencode.json options (profile, region, endpoint) or\n" +
+            "AWS environment variables (AWS_PROFILE, AWS_REGION, AWS_ACCESS_KEY_ID, AWS_WEB_IDENTITY_TOKEN_FILE).",
           )
         }
 
@@ -356,6 +426,23 @@ export const AuthLoginCommand = cmd({
           prompts.log.info(
             "Cloudflare AI Gateway can be configured with CLOUDFLARE_GATEWAY_ID, CLOUDFLARE_ACCOUNT_ID, and CLOUDFLARE_API_TOKEN environment variables. Read more: https://opencode.ai/docs/providers/#cloudflare-ai-gateway",
           )
+        }
+
+        // Multi-account support: ask if user wants to name this account
+        const wantsAccountName = await prompts.confirm({
+          message: "Name this account for multi-account support?",
+          initialValue: false,
+        })
+
+        if (!prompts.isCancel(wantsAccountName) && wantsAccountName) {
+          const accountSuffix = await prompts.text({
+            message: "Account name (lowercase, no spaces)",
+            placeholder: "work, personal, project-x",
+            validate: (x) => (x && /^[a-z0-9-]+$/.test(x) ? undefined : "Use lowercase letters, numbers, and hyphens only"),
+          })
+          if (!prompts.isCancel(accountSuffix) && accountSuffix) {
+            provider = `${provider}-${accountSuffix}`
+          }
         }
 
         const key = await prompts.password({
@@ -396,5 +483,61 @@ export const AuthLogoutCommand = cmd({
     if (prompts.isCancel(providerID)) throw new UI.CancelledError()
     await Auth.remove(providerID)
     prompts.outro("Logout successful")
+  },
+})
+
+export const AuthSwitchCommand = cmd({
+  command: "switch <provider> [account]",
+  describe: "switch default account for a provider",
+  builder: (yargs) =>
+    yargs
+      .positional("provider", {
+        type: "string",
+        demandOption: true,
+        describe: "provider name (e.g., google, anthropic)",
+      })
+      .positional("account", {
+        type: "string",
+        describe: "account suffix (e.g., work, personal)",
+      })
+      .option("project", {
+        type: "boolean",
+        describe: "update project config instead of global",
+        default: false,
+      }),
+  async handler(args) {
+    UI.empty()
+    const providerPrefix = args.provider
+    const accountSuffix = args.account
+    const fullProviderID = accountSuffix ? `${providerPrefix}-${accountSuffix}` : providerPrefix
+
+    // Validate account exists
+    if (!(await Auth.hasAccount(fullProviderID))) {
+      const available = await Auth.listAccounts(providerPrefix)
+      prompts.log.error(`Account ${fullProviderID} not found`)
+      if (available.length > 0) {
+        prompts.log.info(`Available: ${available.join(", ")}`)
+      } else {
+        prompts.log.info(`No accounts found for ${providerPrefix}. Run: opencode auth login`)
+      }
+      return
+    }
+
+    // Get current model or use default
+    const config = await Config.get()
+    const currentModel = config.model || "claude-sonnet-4-5"
+    const [_, modelID] = currentModel.split("/")
+    const newModel = modelID ? `${fullProviderID}/${modelID}` : fullProviderID
+
+    // Update appropriate config
+    if (args.project) {
+      await Config.update({ model: newModel })
+      prompts.log.success(`Project now using ${fullProviderID}`)
+    } else {
+      await Config.updateGlobal({ model: newModel })
+      prompts.log.success(`Global default now using ${fullProviderID}`)
+    }
+
+    prompts.outro("Done")
   },
 })

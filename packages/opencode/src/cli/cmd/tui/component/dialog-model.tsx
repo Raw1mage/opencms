@@ -6,6 +6,8 @@ import { DialogSelect, type DialogSelectRef } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
 import { createDialogProviderOptions, DialogProvider } from "./dialog-provider"
 import { useKeybind } from "../context/keybind"
+import { useTheme } from "@tui/context/theme"
+import { iife } from "@/util/iife"
 import * as fuzzysort from "fuzzysort"
 
 export function useConnected() {
@@ -20,6 +22,7 @@ export function DialogModel(props: { providerID?: string }) {
   const sync = useSync()
   const dialog = useDialog()
   const keybind = useKeybind()
+  const { theme } = useTheme()
   const [ref, setRef] = createSignal<DialogSelectRef<unknown>>()
   const [query, setQuery] = createSignal("")
 
@@ -41,80 +44,88 @@ export function DialogModel(props: { providerID?: string }) {
 
     const recentList = showSections
       ? recents.filter(
-          (item) => !favorites.some((fav) => fav.providerID === item.providerID && fav.modelID === item.modelID),
-        )
+        (item) => !favorites.some((fav) => fav.providerID === item.providerID && fav.modelID === item.modelID),
+      )
       : []
 
     const favoriteOptions = showSections
       ? favorites.flatMap((item) => {
-          const provider = sync.data.provider.find((x) => x.id === item.providerID)
-          if (!provider) return []
-          const model = provider.models[item.modelID]
-          if (!model) return []
-          return [
-            {
-              key: item,
-              value: {
-                providerID: provider.id,
-                modelID: model.id,
-              },
-              title: model.name ?? item.modelID,
-              description: provider.name,
-              category: "Favorites",
-              disabled: provider.id === "opencode" && model.id.includes("-nano"),
-              footer: model.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
-              onSelect: () => {
-                dialog.clear()
-                local.model.set(
-                  {
-                    providerID: provider.id,
-                    modelID: model.id,
-                  },
-                  { recent: true },
-                )
-              },
+        const provider = sync.data.provider.find((x) => x.id === item.providerID) as any
+        if (!provider) return []
+        const model = provider.models[item.modelID]
+        if (!model) return []
+        return [
+          {
+            key: item,
+            value: {
+              providerID: provider.id,
+              modelID: model.id,
             },
-          ]
-        })
+            title: model.name ?? item.modelID,
+            description: provider.name,
+            category: "Favorites",
+            disabled: provider.id === "opencode" && model.id.includes("-nano"),
+            footer: model.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
+            onSelect: () => {
+              dialog.clear()
+              local.model.set(
+                {
+                  providerID: provider.id,
+                  modelID: model.id,
+                },
+                { recent: true },
+              )
+            },
+          },
+        ]
+      })
       : []
+
+    // Sort favorites by model name
+    const sortedFavoriteOptions = pipe(
+      favoriteOptions,
+      sortBy((x) => x.title)
+    )
 
     const recentOptions = showSections
       ? recentList.flatMap((item) => {
-          const provider = sync.data.provider.find((x) => x.id === item.providerID)
-          if (!provider) return []
-          const model = provider.models[item.modelID]
-          if (!model) return []
-          return [
-            {
-              key: item,
-              value: {
-                providerID: provider.id,
-                modelID: model.id,
-              },
-              title: model.name ?? item.modelID,
-              description: provider.name,
-              category: "Recent",
-              disabled: provider.id === "opencode" && model.id.includes("-nano"),
-              footer: model.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
-              onSelect: () => {
-                dialog.clear()
-                local.model.set(
-                  {
-                    providerID: provider.id,
-                    modelID: model.id,
-                  },
-                  { recent: true },
-                )
-              },
+        const provider = sync.data.provider.find((x) => x.id === item.providerID) as any
+        if (!provider) return []
+        const model = provider.models[item.modelID]
+        if (!model) return []
+        return [
+          {
+            key: item,
+            value: {
+              providerID: provider.id,
+              modelID: model.id,
             },
-          ]
-        })
+            title: model.name ?? item.modelID,
+            description: provider.name,
+            category: "Recent",
+            disabled: provider.id === "opencode" && model.id.includes("-nano"),
+            footer: model.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
+            onSelect: () => {
+              dialog.clear()
+              local.model.set(
+                {
+                  providerID: provider.id,
+                  modelID: model.id,
+                },
+                { recent: true },
+              )
+            },
+          },
+        ]
+      })
       : []
 
     const providerOptions = pipe(
       sync.data.provider,
+      filter((provider: any) => provider.active !== false),
       sortBy(
         (provider) => provider.id !== "opencode",
+        (provider: any) => !provider.active, // Active accounts first
         (provider) => provider.name,
       ),
       flatMap((provider) =>
@@ -128,17 +139,37 @@ export function DialogModel(props: { providerID?: string }) {
               providerID: provider.id,
               modelID: model,
             }
+            const p = provider as any
             return {
               value,
               title: info.name ?? model,
-              description: favorites.some(
-                (item) => item.providerID === value.providerID && item.modelID === value.modelID,
-              )
-                ? "(Favorite)"
-                : undefined,
               category: connected() ? provider.name : undefined,
               disabled: provider.id === "opencode" && model.includes("-nano"),
-              footer: info.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
+              footer: iife(() => {
+                if (info.cost?.input === 0 && provider.id === "opencode") return "Free"
+                if (p.active) return "Active"
+                return undefined
+              }),
+              gutter: p.active ? (
+                <text fg={theme.success}>●</text>
+              ) : undefined,
+              description: iife(() => {
+                const statusDetails = []
+                if (p.coolingDownUntil && p.coolingDownUntil > Date.now()) {
+                  const remaining = Math.ceil((p.coolingDownUntil - Date.now()) / 1000 / 60)
+                  statusDetails.push(`⏳ Rate limited (${remaining}m)`)
+                }
+                if (p.cooldownReason?.includes("quota")) {
+                  statusDetails.push("💰 Quota exceeded")
+                }
+                const favoriteText = favorites.some(
+                  (item) => item.providerID === value.providerID && item.modelID === value.modelID,
+                )
+                  ? "(Favorite)"
+                  : ""
+
+                return [favoriteText, ...statusDetails].filter(Boolean).join(" ") || undefined
+              }),
               onSelect() {
                 dialog.clear()
                 local.model.set(
@@ -174,15 +205,15 @@ export function DialogModel(props: { providerID?: string }) {
 
     const popularProviders = !connected()
       ? pipe(
-          providers(),
-          map((option) => {
-            return {
-              ...option,
-              category: "Popular providers",
-            }
-          }),
-          take(6),
-        )
+        providers(),
+        map((option) => {
+          return {
+            ...option,
+            category: "Popular providers",
+          }
+        }),
+        take(6),
+      )
       : []
 
     // Search shows a single merged list (favorites inline)
@@ -192,7 +223,7 @@ export function DialogModel(props: { providerID?: string }) {
       return [...filteredProviders, ...filteredPopular]
     }
 
-    return [...favoriteOptions, ...recentOptions, ...providerOptions, ...popularProviders]
+    return [...sortedFavoriteOptions, ...recentOptions, ...providerOptions, ...popularProviders]
   })
 
   const provider = createMemo(() =>
@@ -208,14 +239,14 @@ export function DialogModel(props: { providerID?: string }) {
     <DialogSelect
       keybind={[
         {
-          keybind: keybind.all.model_provider_list?.[0],
+          keybind: keybind.all.model_provider_list,
           title: connected() ? "Connect provider" : "View all providers",
           onTrigger() {
             dialog.replace(() => <DialogProvider />)
           },
         },
         {
-          keybind: keybind.all.model_favorite_toggle?.[0],
+          keybind: keybind.all.model_favorite_toggle,
           title: "Favorite",
           disabled: !connected(),
           onTrigger: (option) => {
