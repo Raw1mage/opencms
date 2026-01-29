@@ -2,7 +2,7 @@
 
 ## [0.0.0-cms-202601291930] - 2026-01-29
 
-- Restrict /models to show only the active subscription per provider family and label categories with the active owner id.
+- Restrict /models to show only the active subscription per provider family and label categories with the active owner id using accounts display-name logic.
 
 ## [0.0.0-cms-202601291900] - 2026-01-29
 

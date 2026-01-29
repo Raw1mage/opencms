@@ -8,7 +8,7 @@
 
 ### 已實施修復 (Fixes Implemented)
 1. **依 /accounts active 同步顯示**：`packages/opencode/src/cli/cmd/tui/component/dialog-model.tsx` 僅顯示每個 family 的 active 訂閱者模型。
-2. **類別標題加上 owner**：以 `/accounts` 推導的 email id 顯示為 `Anthropic (yeatsluo)`、`OpenAI (ivon0829)` 等。
+2. **類別標題加上 owner**：直接沿用 `/accounts` 的 `Account.getDisplayName` 解析 active 訂閱者 email id，顯示為 `Anthropic (yeatsluo)`、`OpenAI (ivon0829)` 等。
 
 ### 驗證 (Verification)
 - [ ] /models 只顯示 active 訂閱者模型。
