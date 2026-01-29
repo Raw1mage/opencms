@@ -700,8 +700,13 @@ export namespace Provider {
 
       if (enabled && enabled.size === 0) return false
 
-      // Allow specific families that we know are needed for plugins and accounts
-      if (!enabled && (family === "antigravity" || family === "gemini-cli")) return true
+      const isAntigravity = family === "antigravity"
+      const isGeminiCli = family === "gemini-cli"
+      if (isAntigravity || isGeminiCli) {
+        if (!enabled) return !disabled.has(providerID)
+        if (enabled.has(family) || enabled.has("google")) return !disabled.has(providerID)
+        return false
+      }
 
       if (enabled && !enabled.has(family)) return false
       if (disabled.has(providerID)) return false

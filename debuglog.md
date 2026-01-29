@@ -51,3 +51,11 @@
 
 ### 驗證 (Verification)
 - `PATH=/home/pkcs12/.bun/bin:$PATH bun run dev model-check` 可進入程式（後續若出現 EACCES 為本機 log 權限問題）。
+
+## 2026-01-29: 修正 enabled_providers 導致 antigravity/gemini-cli 無模型 (Provider Allowlist)
+
+### 已識別問題 (Issue)
+- 開啟 `enabled_providers` 後，`antigravity`/`gemini-cli` 帳號 provider 會被過濾，`model-check` 顯示 `No Working Models (0/0)`。
+
+### 已實施修復 (Fix)
+- `Provider.isProviderAllowed` 允許 `antigravity`/`gemini-cli` 在 `enabled_providers` 包含 `google` 時通過，且仍尊重 `disabled_providers`。
