@@ -1603,7 +1603,91 @@ NOTE: At any point in time through this workflow you should feel free to ask the
 
   export async function command(input: CommandInput) {
     log.info("command", input)
-    const command = await Command.get(input.command)
+
+    const commandInfo = await Command.get(input.command)
+    if (!commandInfo) {
+      throw new Error(`Command not found: ${input.command}`)
+    }
+
+    if (commandInfo.handler) {
+      const session = await Session.get(input.sessionID)
+      if (session.revert) {
+        await SessionRevert.cleanup(session)
+      }
+
+      const agent = await Agent.get(input.agent ?? (await Agent.defaultAgent()))
+      const model = input.model ? Provider.parseModel(input.model) : agent.model ?? (await lastModel(input.sessionID))
+
+      const userMsg: MessageV2.User = {
+        id: input.messageID ?? Identifier.ascending("message"),
+        role: "user",
+        sessionID: input.sessionID,
+        time: { created: Date.now() },
+        agent: agent.name,
+        model,
+      }
+      await Session.updateMessage(userMsg)
+      await Session.updatePart({
+        id: Identifier.ascending("part"),
+        messageID: userMsg.id,
+        sessionID: input.sessionID,
+        type: "text",
+        text: `/${input.command}${input.arguments && input.arguments.trim() ? " " + input.arguments : ""}`,
+      })
+
+      const assistantMsg: MessageV2.Assistant = {
+        id: Identifier.ascending("message"),
+        sessionID: input.sessionID,
+        parentID: userMsg.id,
+        mode: agent.name,
+        agent: agent.name,
+        cost: 0,
+        path: {
+          cwd: Instance.directory,
+          root: Instance.worktree,
+        },
+        time: { created: Date.now() },
+        role: "assistant",
+        tokens: {
+          input: 0,
+          output: 0,
+          reasoning: 0,
+          cache: { read: 0, write: 0 },
+        },
+        modelID: model.modelID,
+        providerID: model.providerID,
+        finish: "stop",
+      }
+      await Session.updateMessage(assistantMsg)
+
+      const result = await commandInfo.handler()
+
+      const part = await Session.updatePart({
+        id: Identifier.ascending("part"),
+        messageID: assistantMsg.id,
+        sessionID: input.sessionID,
+        type: "text" as const,
+        text: result.output,
+        metadata: result.title ? { title: result.title } : undefined,
+      })
+
+      assistantMsg.time.completed = Date.now()
+      await Session.updateMessage(assistantMsg)
+
+      Bus.publish(Command.Event.Executed, {
+        name: input.command,
+        sessionID: input.sessionID,
+        arguments: input.arguments,
+        messageID: assistantMsg.id,
+      })
+
+      return {
+        info: assistantMsg,
+        parts: [part],
+      }
+    }
+
+    const command = commandInfo
     const agentName = command.agent ?? input.agent ?? (await Agent.defaultAgent())
 
     const raw = input.arguments.match(argsRegex) ?? []
