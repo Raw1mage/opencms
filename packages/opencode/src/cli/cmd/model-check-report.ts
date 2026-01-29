@@ -15,7 +15,7 @@ export function renderModelCheckReport(report: ProviderHealth.HealthReport): str
         lines.push("### 🔐 Account Authentication Status")
         lines.push("")
 
-        for (const account of report.accounts) {
+        for (const [index, account] of report.accounts.entries()) {
             const statusText = account.authenticated ? "✅ Active" : "❌ No Working Models"
             const modelsText = `${account.modelsWorking}/${account.modelsTotal}`
 
@@ -45,7 +45,7 @@ export function renderModelCheckReport(report: ProviderHealth.HealthReport): str
                 const colModel = "Model".padEnd(45)
                 const colStatus = "Status".padEnd(20)
                 const colResp = "Ping"
-                lines.push(`| ${colModel} | ${colStatus} | ${colResp} |`)
+                lines.push(`${colModel} ${colStatus} ${colResp}`)
 
                 for (const model of account.models) {
                     if (model.error?.toLowerCase().includes("not supported")) continue
@@ -62,10 +62,15 @@ export function renderModelCheckReport(report: ProviderHealth.HealthReport): str
 
                     const statusDisplay = `${statusIcon} ${statusTextModel}`
                     const statusPadding = 20 - (statusIcon.length > 0 ? 1 : 0)
-                    lines.push(`| ${model.name.padEnd(45)} | ${statusDisplay.padEnd(statusPadding)} | ${responseTime.padEnd(4)} |`)
+                    lines.push(`${model.name.padEnd(45)} ${statusDisplay.padEnd(statusPadding)} ${responseTime.padEnd(4)}`)
                 }
                 lines.push("")
             }
+        }
+
+        if (index < report.accounts.length - 1) {
+            lines.push("---")
+            lines.push("")
         }
     }
 
