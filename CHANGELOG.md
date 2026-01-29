@@ -16,6 +16,10 @@
 
 - Skip embedding models in /model-check so non-chat embeddings do not surface as health failures.
 
+## [0.0.0-cms-202601300355] - 2026-01-30
+
+- Lazy-load TUI commands in CLI and allow `OPENCODE_SKIP_TUI=1` so headless `model-check` can run without JSX runtime deps.
+
 ## [0.0.0-cms-202601291930] - 2026-01-29
 
 - Restrict /models to show only the active subscription per provider family and label categories with the active owner id using accounts display-name logic.
