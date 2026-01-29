@@ -119,7 +119,7 @@ export namespace Command {
       },
       [Default.ACCOUNTS]: {
         name: Default.ACCOUNTS,
-        description: "manage accounts",
+        description: "Manage accounts",
         get template() {
           return `Opening account manager...`
         },

@@ -451,10 +451,6 @@ function App() {
     {
       title: "Manage accounts",
       value: "account.manage",
-      slash: {
-        name: "accounts",
-        aliases: ["account"],
-      },
       onSelect: () => {
         dialog.replace(() => <DialogAccount />)
       },
