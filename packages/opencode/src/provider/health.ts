@@ -628,6 +628,9 @@ export namespace ProviderHealth {
 
         // Check each model in the provider
         for (const modelID of Object.keys(provider.models)) {
+          const info = provider.models[modelID]
+          const embedding = (info.family && info.family.includes("embedding")) || modelID.includes("embedding")
+          if (embedding) continue
           // If no auth, mark all models as NO_AUTH
           if (!hasAuth) {
             checks.push(

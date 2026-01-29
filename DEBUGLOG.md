@@ -37,6 +37,17 @@
 ### 驗證 (Verification)
 - [ ] `/model-check --json` 不再出現 `gemini-embedding-001` 的 unavailable entries。
 
+## 2026-01-29: Health Check 忽略 Embedding 模型 (Skip Embeddings in Health Check)
+
+### 已識別問題 (Issues Identified)
+1. **/model-check 仍列出 embedding**：即使 UI 已隱藏，健康檢查仍會把 embedding 視為 unavailable。
+
+### 已實施修復 (Fixes Implemented)
+1. **健康檢查跳過 embedding**：在 `packages/opencode/src/provider/health.ts`，當 `family` 包含 `embedding` 或 `modelID` 包含 `embedding` 時，直接 `continue`，不納入檢查結果。
+
+### 驗證 (Verification)
+- [ ] `/model-check` summary 不再把 embedding 計入錯誤。
+
 ## 2026-01-29: /models 只顯示 active 訂閱者並標示家族歸屬 (Active Subscription Labeling in /models)
 
 ### 已識別問題 (Issues Identified)

@@ -12,6 +12,10 @@
 
 - Globally filter out `gemini-embedding-001` across all provider variants to avoid listing non-chat embedding models.
 
+## [0.0.0-cms-202601292015] - 2026-01-29
+
+- Skip embedding models in /model-check so non-chat embeddings do not surface as health failures.
+
 ## [0.0.0-cms-202601291930] - 2026-01-29
 
 - Restrict /models to show only the active subscription per provider family and label categories with the active owner id using accounts display-name logic.
