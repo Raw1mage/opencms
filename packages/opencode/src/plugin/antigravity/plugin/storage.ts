@@ -23,6 +23,11 @@ let accountCache: AccountStorageV3 | null = null;
 let lastLoadTime = 0;
 const CACHE_TTL = 30000; // 30 seconds cache for boot speed
 
+export function clearAccountCache() {
+  accountCache = null;
+  lastLoadTime = 0;
+}
+
 /**
  * Files/directories that should be gitignored in the config directory.
  * These contain sensitive data or machine-specific state.
@@ -490,6 +495,24 @@ export function migrateV2ToV3(v2: AccountStorage): AccountStorageV3 {
     }),
     activeIndex: v2.activeIndex,
   };
+}
+
+export function loadAccountsSync(): AccountStorageV3 | null {
+  try {
+    const path = getStoragePath();
+    if (!existsSync(path)) return null;
+    const content = readFileSync(path, "utf-8");
+    const data = JSON.parse(content) as AnyAccountStorage;
+
+    // Auto-migrate if needed (simplified for sync)
+    if (data.version === 3) return data;
+    if (data.version === 1) return migrateV2ToV3(migrateV1ToV2(data));
+    if (data.version === 2) return migrateV2ToV3(data);
+
+    return null;
+  } catch (error) {
+    return null;
+  }
 }
 
 export async function loadAccounts(): Promise<AccountStorageV3 | null> {

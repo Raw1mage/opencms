@@ -1,5 +1,13 @@
 # opencode agent guidelines
 
+## Communication Flow
+
+- **Respond First**: Always answer the user's questions or acknowledge their request before starting any coding task.
+- **Analyze & Plan**: Provide a brief analysis of the problem and your proposed plan of action.
+- **Discuss**: Give the user a chance to discuss or approve the plan, especially for complex changes.
+- **Explain Actions**: Avoid jumping into long coding blocks (10+ minutes) without first explaining what you are about to do.
+- **Language**: Use Traditional Chinese (繁體中文) for all communication with the user.
+
 ## Build/Test Commands
 
 - **Install**: `bun install`

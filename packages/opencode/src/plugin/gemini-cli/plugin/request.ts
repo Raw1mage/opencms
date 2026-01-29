@@ -149,8 +149,9 @@ function addThoughtSignaturesToFunctionCalls(requestPayload: Record<string, unkn
  * @param input Request target passed to fetch.
  * @returns True when the URL targets generativelanguage.googleapis.com.
  */
-export function isGenerativeLanguageRequest(input: RequestInfo): input is string {
-  return toRequestUrlString(input).includes("generativelanguage.googleapis.com");
+export function isGenerativeLanguageRequest(input: RequestInfo): boolean {
+  const url = toRequestUrlString(input);
+  return url.includes("generativelanguage.googleapis.com") || url.startsWith("/v1/") || url.startsWith("/models/");
 }
 
 /**
@@ -169,7 +170,7 @@ function transformStreamingLine(line: string): string {
     if (parsed.response !== undefined) {
       return `data: ${JSON.stringify(parsed.response)}`;
     }
-  } catch (_) {}
+  } catch (_) { }
   return line;
 }
 
@@ -225,7 +226,7 @@ function transformStreamingPayloadStream(
     },
     cancel(reason) {
       if (reader) {
-        reader.cancel(reason).catch(() => {});
+        reader.cancel(reason).catch(() => { });
       }
     },
   });
@@ -267,9 +268,8 @@ export function prepareGeminiRequest(
   const [, rawModel = "", rawAction = ""] = match;
   const effectiveModel = MODEL_FALLBACKS[rawModel] ?? rawModel;
   const streaming = rawAction === STREAM_ACTION;
-  const transformedUrl = `${GEMINI_CODE_ASSIST_ENDPOINT}/v1internal:${rawAction}${
-    streaming ? "?alt=sse" : ""
-  }`;
+  const transformedUrl = `${GEMINI_CODE_ASSIST_ENDPOINT}/v1internal:${rawAction}${streaming ? "?alt=sse" : ""
+    }`;
 
   let body = baseInit.body;
   if (typeof baseInit.body === "string" && baseInit.body) {
@@ -311,7 +311,7 @@ export function prepareGeminiRequest(
         const cachedContentFromExtra =
           typeof requestPayload.extra_body === "object" && requestPayload.extra_body
             ? (requestPayload.extra_body as Record<string, unknown>).cached_content ??
-              (requestPayload.extra_body as Record<string, unknown>).cachedContent
+            (requestPayload.extra_body as Record<string, unknown>).cachedContent
             : undefined;
         const cachedContent =
           (requestPayload.cached_content as string | undefined) ??
@@ -419,7 +419,7 @@ export async function transformGeminiResponse(
     }
 
     const text = await response.text();
-    
+
     if (!response.ok && text) {
       try {
         const errorBody = JSON.parse(text);
@@ -427,7 +427,7 @@ export async function transformGeminiResponse(
           const retryInfo = errorBody.error.details.find(
             (detail: any) => detail['@type'] === 'type.googleapis.com/google.rpc.RetryInfo'
           );
-          
+
           if (retryInfo?.retryDelay) {
             const match = retryInfo.retryDelay.match(/^([\d.]+)s$/);
             if (match && match[1]) {
@@ -444,7 +444,7 @@ export async function transformGeminiResponse(
       } catch (parseError) {
       }
     }
-    
+
     const init = {
       status: response.status,
       statusText: response.statusText,

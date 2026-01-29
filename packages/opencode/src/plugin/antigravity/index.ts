@@ -996,6 +996,8 @@ export const createAntigravityPlugin = (providerId: string) => async (
               }
             };
 
+            // console.error(`[DEBUG_PLUGIN] ANTIGRAVITY_ENDPOINT: ${ANTIGRAVITY_ENDPOINT}`);
+
             // Use while(true) loop to handle rate limits with backoff
             // This ensures we wait and retry when all accounts are rate-limited
             const quietMode = config.quiet_mode;
@@ -1355,7 +1357,7 @@ export const createAntigravityPlugin = (providerId: string) => async (
                     const prepared = prepareAntigravityRequest(
                       input,
                       init,
-                      accessToken,
+                      authRecord.access ?? "",
                       projectContext.effectiveProjectId,
                       currentEndpoint,
                       headerStyle,
@@ -1533,7 +1535,7 @@ export const createAntigravityPlugin = (providerId: string) => async (
 
                       accountManager.markRateLimitedWithReason(account, family, headerStyle, model, rateLimitReason, serverRetryMs, config.failure_ttl_seconds * 1000);
 
-                      accountManager.requestSaveToDisk();
+                      await accountManager.saveToDisk();
 
                       // For Gemini, try prioritized Antigravity across ALL accounts first
                       if (family === "gemini") {

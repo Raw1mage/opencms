@@ -10,6 +10,9 @@ import { MCP } from "../mcp"
 import { Account } from "../account"
 import { renderModelCheckReport } from "../cli/cmd/model-check-report"
 
+import { Bus } from "@/bus"
+import { TuiEvent } from "../cli/cmd/tui/event"
+
 export namespace Command {
   export const Event = {
     Executed: BusEvent.define(
@@ -57,59 +60,12 @@ export namespace Command {
     return result
   }
 
-  async function formatAllAccounts(): Promise<{ output: string; title: string }> {
-    const allFamilies = await Account.listAll()
-
-    let output = ""
-    output += `# All Accounts\n\n`
-
-    const families = ["google", "openai", "anthropic", "antigravity", "gemini-cli"]
-    let hasAnyAccounts = false
-
-    for (const family of families) {
-      const familyData = allFamilies[family]
-      const accounts = familyData?.accounts ?? {}
-      const activeId = familyData?.activeAccount
-
-      const accountEntries = Object.entries(accounts)
-      if (accountEntries.length === 0) continue
-
-      hasAnyAccounts = true
-      output += `## ${family.charAt(0).toUpperCase() + family.slice(1)}\n\n`
-      output += `| # | Name | Type | Email/ID | Status |\n`
-      output += `| :--- | :--- | :--- | :--- | :--- |\n`
-
-      let index = 1
-      for (const [accountId, info] of accountEntries) {
-        const isActive = accountId === activeId
-        const typeLabel = info.type === "api" ? "API Key" : "Subscription"
-        const email = info.type === "subscription" ? (info.email || info.projectId || info.accountId || "-") : "-"
-        const status = isActive ? "✅ Active" : ""
-        output += `| ${index} | ${info.name} | ${typeLabel} | ${email} | ${status} |\n`
-        index++
-      }
-      output += `\n`
-    }
-
-    if (!hasAnyAccounts) {
-      output += `No accounts configured.\n\n`
-      output += `To add accounts, run:\n`
-      output += `- \`opencode auth login google\`\n`
-      output += `- \`opencode auth login openai\`\n`
-      output += `- \`opencode auth login anthropic\`\n`
-    }
-
-    output += `---\n`
-    output += `💡 *Use the TUI account picker (Ctrl+A) to switch between accounts interactively.*\n`
-
-    return { output, title: "All Accounts" }
-  }
 
   export const Default = {
     INIT: "init",
     REVIEW: "review",
     MODEL_CHECK: "model-check",
-    ACCOUNT_SWITCH: "account-switch",
+    ACCOUNTS: "accounts",
   } as const
 
   const state = Instance.state(async () => {
@@ -161,16 +117,20 @@ export namespace Command {
           }
         },
       },
-      [Default.ACCOUNT_SWITCH]: {
-        name: Default.ACCOUNT_SWITCH,
-        description: "manage all accounts (direct, no LLM)",
+      [Default.ACCOUNTS]: {
+        name: Default.ACCOUNTS,
+        description: "manage accounts",
         get template() {
-          return `Managing accounts...`
+          return `Opening account manager...`
         },
         subtask: false,
-        hints: ["$1"],
+        hints: [],
         async handler() {
-          return formatAllAccounts()
+          await Bus.publish(TuiEvent.CommandExecute, { command: "account.manage" })
+          return {
+            output: "Opening account manager...",
+            title: "Account Manager"
+          }
         },
       },
     }
@@ -203,7 +163,7 @@ export namespace Command {
               prompt.name,
               prompt.arguments
                 ? // substitute each argument with $1, $2, etc.
-                  Object.fromEntries(prompt.arguments?.map((argument, i) => [argument.name, `$${i + 1}`]))
+                Object.fromEntries(prompt.arguments?.map((argument, i) => [argument.name, `$${i + 1}`]))
                 : {},
             ).catch(reject)
             resolve(

@@ -42,6 +42,36 @@ import { ProviderTransform } from "./transform"
 export namespace Provider {
   const log = Log.create({ service: "provider" })
 
+  const IGNORED_MODELS = new Set([
+    "google/gemini-1.5-pro",
+    "google/gemini-1.5-flash",
+    "google/gemini-1.0-pro",
+    "anthropic/claude-3-5-sonnet-20241022",
+    "anthropic/claude-sonnet-4-5",
+    "anthropic/claude-2.1",
+    "anthropic/claude-2.0",
+    "anthropic/claude-instant-1.2",
+  ]);
+
+  function isModelIgnored(providerID: string, modelID: string): boolean {
+    if (IGNORED_MODELS.has(providerID) || IGNORED_MODELS.has(`${providerID}/*`)) return true;
+    if (IGNORED_MODELS.has(`${providerID}/${modelID}`)) return true;
+
+    // Check for any ignored model ID that appears as the base model in any provider
+    for (const ignored of IGNORED_MODELS) {
+      if (ignored.includes("/")) {
+        const [ignoredProvider, ignoredModel] = ignored.split("/");
+        if (modelID === ignoredModel && (providerID === ignoredProvider || providerID.includes(ignoredProvider))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+
+
+
   function isGpt5OrLater(modelID: string): boolean {
     const match = /^gpt-(\d+)/.exec(modelID)
     if (!match) {
@@ -1029,6 +1059,13 @@ export namespace Provider {
         if (disabled.has(accountId)) continue
         if (!isProviderAllowed(accountId)) continue
 
+        // Simplify Antigravity IDs (e.g. antigravity-subscription-ivon0829-gmail-com -> antigravity-ivon0829)
+        let effectiveId = accountId;
+        if (family === "antigravity" && accountId.startsWith("antigravity-subscription-") && accountInfo.type === "subscription" && accountInfo.email) {
+          const username = accountInfo.email.split("@")[0];
+          effectiveId = `antigravity-${username}`;
+        }
+
         // Determine display name
         let displayName: string
         if (accountInfo.type === "api") {
@@ -1051,23 +1088,23 @@ export namespace Provider {
           }
         }
 
-        database[accountId] = {
-          id: accountId,
+        database[effectiveId] = {
+          id: effectiveId,
           source: "custom",
           name: displayName,
           active: familyData.activeAccount === accountId,
           email: accountInfo.type === "subscription" ? accountInfo.email : undefined,
           coolingDownUntil: accountInfo.type === "subscription" ? accountInfo.coolingDownUntil : undefined,
           cooldownReason: accountInfo.type === "subscription" ? accountInfo.cooldownReason : undefined,
-          env: [],
+          env: family === "antigravity" ? ["ANTIGRAVITY_Enabled"] : [],
           options,
           models: mapValues(baseProvider.models, (model) => ({
             ...model,
-            providerID: accountId,
+            providerID: effectiveId,
           })),
         }
 
-        mergeProvider(accountId, {
+        mergeProvider(effectiveId, {
           source: "custom",
         })
       }
@@ -1193,10 +1230,16 @@ export namespace Provider {
       const fData = allFamilies[family]
       if (!fData) continue
 
-      for (const accountId of Object.keys(fData.accounts)) {
-        if (providers[accountId]) {
+      for (const [accountId, accountInfo] of Object.entries(fData.accounts)) {
+        let effectiveId = accountId;
+        if (family === "antigravity" && accountId.startsWith("antigravity-subscription-") && accountInfo.type === "subscription" && accountInfo.email) {
+          const username = accountInfo.email.split("@")[0];
+          effectiveId = `antigravity-${username}`;
+        }
+
+        if (providers[effectiveId]) {
           // Merge options, prioritizing account-specific options (from plugin loaders)
-          providers[accountId].options = mergeDeep(baseProvider.options, providers[accountId].options ?? {}) as any
+          providers[effectiveId].options = mergeDeep(baseProvider.options, providers[effectiveId].options ?? {}) as any
         }
       }
     }
@@ -1257,10 +1300,19 @@ export namespace Provider {
         }
       }
 
-      if (Object.keys(provider.models).length === 0) {
+      for (const modelID of Object.keys(provider.models)) {
+        if (isModelIgnored(providerID, modelID)) {
+          delete provider.models[modelID];
+        }
+      }
+
+      if (Object.keys(provider.models).length === 0 || IGNORED_MODELS.has(providerID)) {
         delete providers[providerID]
         continue
       }
+
+
+
 
       log.info("found", { providerID })
     }
@@ -1276,11 +1328,11 @@ export namespace Provider {
   export async function list() {
     await state() // Ensure plugins and loaders are initialized
 
-    // START discovery in background, don't block the CLI boot
-    // This allows the terminal to be interactive immediately
     const { Plugin } = await import("../plugin")
-    Plugin.discoverModels().catch(err => {
-      log.error("background model discovery failed", { error: err })
+    // Wait for model discovery so that the first call (e.g. during TUI boot) 
+    // actually has the models from plugins.
+    await Plugin.discoverModels().catch(err => {
+      log.error("model discovery failed", { error: err })
     })
 
     return state().then((state) => state.providers)

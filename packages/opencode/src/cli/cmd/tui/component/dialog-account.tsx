@@ -1,118 +1,21 @@
-import { createMemo } from "solid-js"
-import { useSync } from "@tui/context/sync"
-import { DialogSelect, type DialogSelectOption } from "@tui/ui/dialog-select"
-import { useDialog } from "@tui/ui/dialog"
-import { DialogProvider } from "./dialog-provider"
+
+import { useDialog } from "../ui/dialog"
 import { useKeybind } from "../context/keybind"
+import { useSDK } from "../context/sdk"
+import { useSync } from "../context/sync"
 import { useTheme } from "../context/theme"
 import { useToast } from "../ui/toast"
-import { useSDK } from "../context/sdk"
+import { createMemo, createSignal, onMount } from "solid-js"
+import { Account } from "../../../../account"
+import { DialogSelect, type DialogSelectOption } from "../ui/dialog-select"
+import { DialogProvider } from "./dialog-provider"
 import { DialogConfirm } from "../ui/dialog-confirm"
-import { xdgData } from "xdg-basedir"
-import path from "path"
-import fs from "node:fs"
-import { Buffer } from "node:buffer"
-import z from "zod"
-import { JWT } from "@/util/jwt"
 
-// Account type schemas (mirrored from account module to avoid Instance.state() dependency)
-const ApiAccount = z.object({
-  type: z.literal("api"),
-  name: z.string(),
-  apiKey: z.string(),
-  addedAt: z.number(),
-})
-
-const SubscriptionAccount = z.object({
-  type: z.literal("subscription"),
-  name: z.string(),
-  email: z.string().optional(),
-  refreshToken: z.string(),
-  accessToken: z.string().optional(),
-  expiresAt: z.number().optional(),
-  projectId: z.string().optional(),
-  managedProjectId: z.string().optional(),
-  accountId: z.string().optional(),
-  addedAt: z.number(),
-  rateLimitResetTimes: z.record(z.string(), z.number()).optional(),
-  coolingDownUntil: z.number().optional(),
-  cooldownReason: z.string().optional(),
-  fingerprint: z.record(z.string(), z.unknown()).optional(),
-})
-
-const AccountInfo = z.discriminatedUnion("type", [ApiAccount, SubscriptionAccount])
-type AccountInfo = z.infer<typeof AccountInfo>
-
-const FamilyData = z.object({
-  activeAccount: z.string().optional(),
-  accounts: z.record(z.string(), AccountInfo),
-})
-type FamilyData = z.infer<typeof FamilyData>
-
-const AccountStorage = z.object({
-  version: z.number(),
-  families: z.record(z.string(), FamilyData),
-})
-type AccountStorage = z.infer<typeof AccountStorage>
-
-type AccountOption = {
+interface AccountOption {
   accountId: string
   family: string
-  type: "api" | "subscription"
+  type: string
 }
-
-// Helper functions to read/write accounts.json directly
-// Use xdg-basedir directly to avoid Global module's top-level await
-const accountsFilepath = path.join(xdgData!, "opencode", "accounts.json")
-
-function loadAccountsSync(): AccountStorage {
-  try {
-    // Use synchronous file reading to avoid async issues in TUI context
-    const content = fs.readFileSync(accountsFilepath, "utf-8")
-    const data = JSON.parse(content)
-    const parsed = AccountStorage.safeParse(data)
-    if (!parsed.success) {
-      return { version: 1, families: {} }
-    }
-    return parsed.data
-  } catch {
-    return { version: 1, families: {} }
-  }
-}
-
-function saveAccountsSync(storage: AccountStorage): void {
-  try {
-    // Ensure directory exists
-    fs.mkdirSync(path.dirname(accountsFilepath), { recursive: true })
-    fs.writeFileSync(accountsFilepath, JSON.stringify(storage, null, 2), { mode: 0o600 })
-  } catch {
-    // Ignore errors
-  }
-}
-
-function setActiveAccountSync(family: string, accountId: string): void {
-  const storage = loadAccountsSync()
-  if (!storage.families[family]?.accounts[accountId]) {
-    throw new Error(`Account not found: ${family}/${accountId}`)
-  }
-  storage.families[family].activeAccount = accountId
-  saveAccountsSync(storage)
-}
-
-function removeAccountSync(family: string, accountId: string): void {
-  const storage = loadAccountsSync()
-  if (!storage.families[family]?.accounts[accountId]) {
-    return
-  }
-  delete storage.families[family].accounts[accountId]
-  // If we removed the active account, pick another
-  if (storage.families[family].activeAccount === accountId) {
-    const remaining = Object.keys(storage.families[family].accounts)
-    storage.families[family].activeAccount = remaining[0]
-  }
-  saveAccountsSync(storage)
-}
-
 
 export function DialogAccount() {
   const sync = useSync()
@@ -122,45 +25,37 @@ export function DialogAccount() {
   const toast = useToast()
   const sdk = useSDK()
 
-  // Load accounts synchronously to avoid async issues in TUI context
-  const getAccounts = () => {
+  const [families, setFamilies] = createSignal<Record<string, Account.FamilyData>>({})
+
+  onMount(() => {
+    loadAccounts()
+  })
+
+  const loadAccounts = async () => {
     try {
-      const storage = loadAccountsSync()
-
-      const result: Array<{
-        accountId: string
-        family: string
-        info: AccountInfo
-        isActive: boolean
-      }> = []
-
-      for (const [family, familyData] of Object.entries(storage.families)) {
-        const activeId = familyData.activeAccount
-        for (const [accountId, info] of Object.entries(familyData.accounts)) {
-          result.push({
-            accountId,
-            family,
-            info,
-            isActive: accountId === activeId,
-          })
-        }
-      }
-
-      return result
+      const all = await Account.listAll()
+      setFamilies(all)
     } catch (e) {
       console.error("Failed to load accounts:", e)
-      return []
     }
   }
 
-  const getAccountStatus = (info: AccountInfo): { icon: string; color: any; text: string } | null => {
+  const setActive = async (family: string, accountId: string) => {
+    await Account.setActive(family, accountId)
+    await loadAccounts()
+  }
+
+  const remove = async (family: string, accountId: string) => {
+    await Account.remove(family, accountId)
+    await loadAccounts()
+  }
+
+  const getAccountStatus = (info: Account.Info): { icon: string; color: any; text: string } | null => {
     if (info.type === "subscription") {
-      // Check for cooling down (rate limited)
       if (info.coolingDownUntil && info.coolingDownUntil > Date.now()) {
         const remaining = Math.ceil((info.coolingDownUntil - Date.now()) / 1000 / 60)
         return { icon: "⏳", color: theme.warning, text: `Rate limited (${remaining}m)` }
       }
-      // Check for quota issues via cooldownReason
       if (info.cooldownReason?.includes("quota")) {
         return { icon: "💰", color: theme.error, text: "Quota exceeded" }
       }
@@ -169,79 +64,109 @@ export function DialogAccount() {
   }
 
   const options = createMemo(() => {
-    const accountList = getAccounts()
-    if (!accountList || accountList.length === 0) return []
+    const data = families()
+    if (Object.keys(data).length === 0) return []
 
     const result: DialogSelectOption<AccountOption>[] = []
 
-    // Group by family and type
-    const familyOrder: Record<string, string> = {
-      antigravity: "Antigravity",
-      "gemini-cli": "Gemini CLI",
-      google: "Google",
-      openai: "OpenAI",
-      anthropic: "Anthropic",
-    }
+    // Use predefined order but include any extra families found
+    const knownFamilies = [...Account.FAMILIES] as string[]
+    const allFamilies = Array.from(new Set([...knownFamilies, ...Object.keys(data)]))
 
-    for (const family of Object.keys(familyOrder)) {
-      const familyAccounts = accountList.filter((a) => a.family === family)
-      if (familyAccounts.length === 0) continue
+    for (const family of allFamilies) {
+      const familyData = data[family]
+      if (!familyData || !familyData.accounts) continue
 
-      // Sort: active first, then by type (subscription before api), then by name
-      const sorted = familyAccounts.sort((a, b) => {
-        if (a.isActive && !b.isActive) return -1
-        if (!a.isActive && b.isActive) return 1
-        if (a.info.type === "subscription" && b.info.type === "api") return -1
-        if (a.info.type === "api" && b.info.type === "subscription") return 1
-        return a.info.name.localeCompare(b.info.name)
+      const accounts = Object.entries(familyData.accounts)
+      if (accounts.length === 0) continue
+
+      // Sort: active first, then API vs Subscription, then Name
+      const sorted = accounts.sort(([idA, a], [idB, b]) => {
+        const activeId = familyData.activeAccount
+        const isActiveA = idA === activeId
+        const isActiveB = idB === activeId
+
+        if (isActiveA && !isActiveB) return -1
+        if (!isActiveA && isActiveB) return 1
+        if (a.type === "api" && b.type === "subscription") return 1
+        if (a.type === "subscription" && b.type === "api") return -1
+        return (a.name || "").localeCompare(b.name || "")
       })
 
-      for (const account of sorted) {
-        const typeLabel = account.info.type === "api" ? "API Key" : "Subscription"
-        const familyName = familyOrder[family] || (family.charAt(0).toUpperCase() + family.slice(1))
-        const categoryLabel = `${familyName} (${typeLabel})`
-        const status = getAccountStatus(account.info)
+      for (const [accountId, info] of sorted) {
+        const isActive = accountId === familyData.activeAccount
 
-        let displayName = account.info.name
-        let description: string | undefined
+        // Family Display Name
+        const familyDisplayName = family.charAt(0).toUpperCase() + family.slice(1)
 
-        const tokenEmail = (account.info.type === "subscription" && account.info.accessToken)
-          ? JWT.getEmail(account.info.accessToken)
-          : undefined
-
-        if (tokenEmail && (JWT.isUUID(displayName) || displayName === account.accountId)) {
-          displayName = tokenEmail
+        // Type Label
+        let typeLabel = "Free"
+        if (info.type === "api") typeLabel = "API"
+        else if (info.type === "subscription") {
+          // Heuristic for tier? Account.Info doesn't strictly have 'tier' in the Zod schema shown in previous file view 
+          // but we can default to Subscription or Paid if we knew. 
+          // For now, let's just say "Subscription" or check specific fields if available.
+          // actually the previous code had `info.tier`. 
+          // The Zod schema in src/account/index.ts does NOT show `tier`. 
+          // So we'll just use "Subscription".
+          typeLabel = "Subscription"
         }
 
-        if (account.info.type === "subscription") {
-          const email = tokenEmail || (account.info.email && !JWT.isUUID(account.info.email) ? account.info.email : undefined)
-          const targetDescription = email || account.info.projectId || account.info.accountId
-          if (targetDescription && targetDescription !== displayName) {
-            description = targetDescription
+        const categoryLabel = `${familyDisplayName} (${typeLabel})`
+        const status = getAccountStatus(info)
+
+        let displayName = info.name
+        // Fallback for empty name
+        if (!displayName) {
+          if (info.type === "subscription" && info.email) displayName = info.email
+          else displayName = accountId
+        }
+
+        // Repair display name from JWT if it looks like a UUID (dumb check: length > 30 and no @)
+        if (info.type === "subscription" && info.accessToken && displayName && displayName.length > 30 && !displayName.includes("@")) {
+          try {
+            const parts = info.accessToken.split('.')
+            if (parts.length === 3) {
+              const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString())
+              // Check for OpenAI specific profile field or standard email field
+              const email = payload['https://api.openai.com/profile']?.email || payload.email
+              if (email) {
+                displayName = email
+              }
+            }
+          } catch (e) {
+            // ignore jwt parse error
           }
         }
-        // Append status text if any
+
+        let description: string | undefined
+        if (info.type === "subscription" && info.email && info.email !== displayName) {
+          description = info.email
+        } else if (info.type === "subscription" && info.projectId) {
+          description = `Project: ${info.projectId}`
+        }
+
         if (status) {
           description = description ? `${description} ${status.icon} ${status.text}` : `${status.icon} ${status.text}`
         }
 
         result.push({
           value: {
-            accountId: account.accountId,
-            family: account.family,
-            type: account.info.type,
+            accountId: accountId,
+            family: family,
+            type: info.type,
           },
           title: displayName,
           description,
           category: categoryLabel,
-          footer: account.isActive ? "Active" : undefined,
-          gutter: account.isActive ? (
+          footer: isActive ? "Active" : undefined,
+          gutter: isActive ? (
             <text fg={theme.success}>●</text>
           ) : status ? (
             <text fg={status.color}>{status.icon}</text>
           ) : undefined,
           onSelect: async () => {
-            setActiveAccountSync(account.family, account.accountId)
+            await setActive(family, accountId)
             toast.show({ message: `Switched to ${displayName}`, variant: "success" })
             // Reload the provider state
             await sdk.client.instance.dispose()
@@ -257,63 +182,20 @@ export function DialogAccount() {
 
   const handleDelete = async (option: DialogSelectOption<AccountOption>) => {
     const selected = option.value
-
-    const account = getAccounts().find((a) => a.accountId === selected.accountId)
-    if (!account) return
-
     const confirmed = await DialogConfirm.show(
       dialog,
       "Delete Account",
-      `Are you sure you want to delete "${account.info.name}"?`
+      `Are you sure you want to delete this account?`
     )
 
     if (confirmed) {
-      removeAccountSync(selected.family, selected.accountId)
-      toast.show({ message: `Deleted ${account.info.name}`, variant: "info" })
-      // Reload provider state
+      await remove(selected.family, selected.accountId)
+      toast.show({ message: "Account deleted", variant: "info" })
       await sdk.client.instance.dispose()
       await sync.bootstrap()
     }
-    // Re-show the account dialog
+    // Re-show 
     dialog.replace(() => <DialogAccount />)
-  }
-
-  const handleReauth = async (option: DialogSelectOption<AccountOption>) => {
-    const selected = option.value
-
-    // Only subscription accounts can be re-authenticated
-    if (selected.type !== "subscription") {
-      toast.show({ message: "API keys don't require re-authentication", variant: "warning" })
-      return
-    }
-
-    const account = getAccounts().find((a) => a.accountId === selected.accountId)
-    if (!account) return
-
-    toast.show({ message: `Opening browser for ${selected.family} login...`, variant: "info" })
-    dialog.clear()
-
-    try {
-      // Call the auth login endpoint
-      const response = await fetch(`http://localhost:4096/auth/${selected.family}/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      })
-
-      const result = await response.json() as { success: boolean; error?: string }
-
-      if (result.success) {
-        toast.show({ message: "Re-authentication successful!", variant: "success" })
-        // Reload provider state
-        await sdk.client.instance.dispose()
-        await sync.bootstrap()
-      } else {
-        toast.show({ message: result.error || "Re-authentication failed", variant: "error" })
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      toast.show({ message: `Re-authentication failed: ${message}`, variant: "error" })
-    }
   }
 
   return (
@@ -323,25 +205,17 @@ export function DialogAccount() {
       current={undefined}
       keybind={[
         {
-          keybind: keybind.all.model_provider_list,
+          keybind: { name: "n", ctrl: true, meta: false, shift: false, super: false, leader: false },
           title: "Add",
           onTrigger: () => {
             dialog.replace(() => <DialogProvider />)
           },
         },
         {
-          keybind: { name: "r", ctrl: false, meta: false, shift: false, super: false, leader: false },
-          title: "Re-auth",
-          onTrigger: handleReauth,
-        },
-        {
-          keybind: [
-            ...(keybind.all.session_delete ?? []),
-            { name: "delete", ctrl: false, meta: false, shift: false, super: false, leader: false },
-          ],
+          keybind: { name: "delete", ctrl: false, meta: false, shift: false, super: false, leader: false },
           title: "Delete",
-          onTrigger: handleDelete,
-        },
+          onTrigger: handleDelete
+        }
       ]}
     />
   )

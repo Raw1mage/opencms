@@ -39,6 +39,7 @@ import { errors } from "./error"
 import { QuestionRoutes } from "./routes/question"
 import { PermissionRoutes } from "./routes/permission"
 import { GlobalRoutes } from "./routes/global"
+import { AccountRoutes } from "./routes/account"
 import { MDNS } from "./mdns"
 
 // @ts-ignore This global is needed to prevent ai-sdk from logging warnings to stdout https://github.com/vercel/ai/blob/2dc67e0ef538307f21368db32d5a12345d98831b/packages/ai/src/logger/log-warnings.ts#L85
@@ -77,6 +78,27 @@ export namespace Server {
             status: 500,
           })
         })
+        .use(
+          cors({
+            origin(input) {
+              if (!input) return
+
+              if (input.startsWith("http://localhost:")) return input
+              if (input.startsWith("http://127.0.0.1:")) return input
+              if (input === "tauri://localhost" || input === "http://tauri.localhost") return input
+
+              // *.opencode.ai (https only, adjust if needed)
+              if (/^https:\/\/([a-z0-9-]+\.)*opencode\.ai$/.test(input)) {
+                return input
+              }
+              if (_corsWhitelist.includes(input)) {
+                return input
+              }
+
+              return
+            },
+          }),
+        )
         .use((c, next) => {
           const password = Flag.OPENCODE_SERVER_PASSWORD
           if (!password) return next()
@@ -100,27 +122,6 @@ export namespace Server {
             timer.stop()
           }
         })
-        .use(
-          cors({
-            origin(input) {
-              if (!input) return
-
-              if (input.startsWith("http://localhost:")) return input
-              if (input.startsWith("http://127.0.0.1:")) return input
-              if (input === "tauri://localhost" || input === "http://tauri.localhost") return input
-
-              // *.opencode.ai (https only, adjust if needed)
-              if (/^https:\/\/([a-z0-9-]+\.)*opencode\.ai$/.test(input)) {
-                return input
-              }
-              if (_corsWhitelist.includes(input)) {
-                return input
-              }
-
-              return
-            },
-          }),
-        )
         .route("/global", GlobalRoutes())
         .put(
           "/auth/:providerID",
@@ -221,9 +222,11 @@ export namespace Server {
         .route("/permission", PermissionRoutes())
         .route("/question", QuestionRoutes())
         .route("/provider", ProviderRoutes())
-        .route("/", FileRoutes())
         .route("/mcp", McpRoutes())
         .route("/tui", TuiRoutes())
+        .route("/account", AccountRoutes())
+        .route("/accounts", AccountRoutes())
+        .route("/", FileRoutes())
         .post(
           "/instance/dispose",
           describeRoute({
