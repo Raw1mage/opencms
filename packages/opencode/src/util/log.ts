@@ -63,13 +63,24 @@ export namespace Log {
       Global.Path.log,
       options.dev ? "dev.log" : new Date().toISOString().split(".")[0].replace(/:/g, "") + ".log",
     )
-    const logfile = Bun.file(logpath)
-    await fs.truncate(logpath).catch(() => {})
-    const writer = logfile.writer()
-    write = async (msg: any) => {
-      const num = writer.write(msg)
-      writer.flush()
-      return num
+    await fs.mkdir(Global.Path.log, { recursive: true }).catch(() => {})
+    try {
+      const logfile = Bun.file(logpath)
+      await fs.truncate(logpath).catch(() => {})
+      const writer = logfile.writer()
+      write = async (msg: any) => {
+        const num = writer.write(msg)
+        writer.flush()
+        return num
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      process.stderr.write(`WARN log init failed: ${message}\n`)
+      logpath = ""
+      write = (msg: any) => {
+        process.stderr.write(msg)
+        return msg.length
+      }
     }
   }
 
