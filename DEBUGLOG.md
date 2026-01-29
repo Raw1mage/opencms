@@ -1,5 +1,19 @@
 # 偵錯日誌 (Debug Log)
 
+## 2026-01-29: /models 只顯示 active 訂閱者並標示家族歸屬 (Active Subscription Labeling in /models)
+
+### 已識別問題 (Issues Identified)
+1. **/models 混雜多帳號**：同一 provider family 可能同時列出多個帳號的模型，與 `/accounts` 的 active 設定不一致。
+2. **缺少 owner 提示**：模型類別標題未標示 active 使用者，難以辨識目前使用者來源。
+
+### 已實施修復 (Fixes Implemented)
+1. **依 /accounts active 同步顯示**：`packages/opencode/src/cli/cmd/tui/component/dialog-model.tsx` 僅顯示每個 family 的 active 訂閱者模型。
+2. **類別標題加上 owner**：以 `/accounts` 推導的 email id 顯示為 `Anthropic (yeatsluo)`、`OpenAI (ivon0829)` 等。
+
+### 驗證 (Verification)
+- [ ] /models 只顯示 active 訂閱者模型。
+- [ ] 類別標題顯示正確 owner。
+
 ## 2026-01-29: Claude Max OAuth 支援修正 (Claude Max OAuth Support Fix)
 
 ### 已識別問題 (Issues Identified)

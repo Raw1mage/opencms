@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.0.0-cms-202601291930] - 2026-01-29
+
+- Restrict /models to show only the active subscription per provider family and label categories with the active owner id.
+
 ## [0.0.0-cms-202601291900] - 2026-01-29
 
 - Fix Anthropic Claude Max OAuth flow by updating the built-in auth plugin and removing the incorrect OAuth block.

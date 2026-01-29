@@ -9,6 +9,7 @@ import { useKeybind } from "../context/keybind"
 import { useTheme } from "@tui/context/theme"
 import { iife } from "@/util/iife"
 import * as fuzzysort from "fuzzysort"
+import { Account } from "@/account"
 
 export function useConnected() {
   const sync = useSync()
@@ -28,6 +29,52 @@ export function DialogModel(props: { providerID?: string }) {
 
   const connected = useConnected()
   const providers = createDialogProviderOptions()
+  const family = (id: string) => {
+    const parsed = Account.parseFamily(id)
+    if (parsed) return parsed
+    if (id === "opencode" || id.startsWith("opencode-")) return "opencode"
+    return undefined
+  }
+
+  const label = (name: string, id: string) => {
+    const fam = family(id)
+    if (!fam) return name
+    const map = {
+      anthropic: "Anthropic",
+      openai: "OpenAI",
+      google: "Google",
+      antigravity: "Antigravity",
+      "gemini-cli": "Gemini CLI",
+      gitlab: "GitLab",
+      opencode: "OpenCode",
+    }
+    return map[fam] ?? name
+  }
+
+  const owner = (provider: { email?: string; name: string }) => {
+    const email = provider.email
+    if (email && email.includes("@")) return email.split("@")[0]
+    const match = provider.name.match(/\(([^)]+)\)/)
+    if (!match) return undefined
+    const raw = match[1]
+    if (raw.includes("@")) return raw.split("@")[0]
+    return raw || undefined
+  }
+
+  const activeOwners = createMemo(() => {
+    const map = new Map<string, string>()
+    for (const provider of sync.data.provider) {
+      if (!provider.active) continue
+      const fam = family(provider.id)
+      if (!fam) continue
+      const who = owner(provider)
+      if (!who) continue
+      map.set(fam, who)
+    }
+    return map
+  })
+
+  const activeFamilies = createMemo(() => new Set(activeOwners().keys()))
 
   const showExtra = createMemo(() => {
     if (!connected()) return false
@@ -122,7 +169,14 @@ export function DialogModel(props: { providerID?: string }) {
 
     const providerOptions = pipe(
       sync.data.provider,
-      filter((provider: any) => provider.active !== false),
+      filter((provider: any) => {
+        if (provider.active === false) return false
+        const fam = family(provider.id)
+        if (!fam) return true
+        const active = activeFamilies().has(fam)
+        if (!active) return true
+        return provider.active === true
+      }),
       sortBy(
         (provider) => provider.id !== "opencode",
         (provider: any) => !provider.active, // Active accounts first
@@ -143,7 +197,18 @@ export function DialogModel(props: { providerID?: string }) {
             return {
               value,
               title: info.name ?? model,
-              category: connected() ? provider.name : undefined,
+              category: connected()
+                ? iife(() => {
+                    const base = label(provider.name, provider.id)
+                    const who = iife(() => {
+                      const fam = family(provider.id)
+                      if (!fam) return undefined
+                      return activeOwners().get(fam)
+                    })
+                    if (who) return `${base} (${who})`
+                    return base
+                  })
+                : undefined,
               disabled: provider.id === "opencode" && model.includes("-nano"),
               footer: iife(() => {
                 if (info.cost?.input === 0 && provider.id === "opencode") return "Free"
