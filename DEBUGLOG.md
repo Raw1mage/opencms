@@ -1,5 +1,19 @@
 # 偵錯日誌 (Debug Log)
 
+## 2026-01-29: 隱藏 Anthropic 基底 Provider (Hide Base Anthropic Provider When Subscription Active)
+
+### 已識別問題 (Issues Identified)
+1. **Claude Code OAuth 認證被錯用**：當 `/accounts` 已啟用 `anthropic-subscription-*` 時，`/models` 仍顯示基底 `anthropic` provider 的模型，導致對話時回報「This credential is only authorized for use with Claude Code...」。
+2. **模型清單與帳號狀態不一致**：同一 family 同時顯示 base provider 與 subscription provider，造成實際可用模型與顯示狀態脫節。
+
+### 已實施修復 (Fixes Implemented)
+1. **隱藏 base provider**：`packages/opencode/src/cli/cmd/tui/component/dialog-model.tsx` 若同一 family 有 active subscription，過濾掉 base provider（例如 `anthropic`）。
+2. **保留 active 模型**：只保留 active subscription 的模型，避免使用錯誤的認證通道。
+
+### 驗證 (Verification)
+- [ ] 當 `anthropic-subscription-*` 為 active 時，/models 不再顯示 `anthropic` 基底模型。
+- [ ] 選擇 Claude Sonnet 4.5 (2025-09-29) 可正常對話且不再出現 Claude Code 認證錯誤。
+
 ## 2026-01-29: /models 只顯示 active 訂閱者並標示家族歸屬 (Active Subscription Labeling in /models)
 
 ### 已識別問題 (Issues Identified)
@@ -13,6 +27,18 @@
 ### 驗證 (Verification)
 - [ ] /models 只顯示 active 訂閱者模型。
 - [ ] 類別標題顯示正確 owner。
+
+## 2026-01-29: Gemini Embedding 模型不支援聊天 (Ignore Unsupported Embedding Models)
+
+### 已識別問題 (Issues Identified)
+1. **Gemini embedding 模型被誤列**：`gemini-embedding-001` 是 embedding 模型，健康檢查回報 `Skipping: Embedding models not supported for chat health check`。
+2. **/models 顯示不該出現的模型**：在 google 與 gemini-cli provider 下仍會顯示該模型，實際上無法對話。
+
+### 已實施修復 (Fixes Implemented)
+1. **加入 ignorelist**：在 `packages/opencode/src/provider/provider.ts` 的 `IGNORED_MODELS` 新增 `google/gemini-embedding-001` 與 `gemini-cli/gemini-embedding-001`，讓 /models 不再顯示。
+
+### 驗證 (Verification)
+- [ ] /models 不再顯示 `gemini-embedding-001`。
 
 ## 2026-01-29: Claude Max OAuth 支援修正 (Claude Max OAuth Support Fix)
 

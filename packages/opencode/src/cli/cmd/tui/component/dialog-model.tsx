@@ -189,6 +189,7 @@ export function DialogModel(props: { providerID?: string }) {
         if (!fam) return true
         const active = activeFamilies().has(fam)
         if (!active) return true
+        if (provider.id === fam) return false
         return provider.active === true
       }),
       sortBy(

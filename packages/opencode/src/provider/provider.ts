@@ -46,27 +46,29 @@ export namespace Provider {
     "google/gemini-1.5-pro",
     "google/gemini-1.5-flash",
     "google/gemini-1.0-pro",
+    "google/gemini-embedding-001",
+    "gemini-cli/gemini-embedding-001",
     "anthropic/claude-3-5-sonnet-20241022",
     "anthropic/claude-sonnet-4-5",
     "anthropic/claude-2.1",
     "anthropic/claude-2.0",
     "anthropic/claude-instant-1.2",
-  ]);
+  ])
 
   function isModelIgnored(providerID: string, modelID: string): boolean {
-    if (IGNORED_MODELS.has(providerID) || IGNORED_MODELS.has(`${providerID}/*`)) return true;
-    if (IGNORED_MODELS.has(`${providerID}/${modelID}`)) return true;
+    if (IGNORED_MODELS.has(providerID) || IGNORED_MODELS.has(`${providerID}/*`)) return true
+    if (IGNORED_MODELS.has(`${providerID}/${modelID}`)) return true
 
     // Check for any ignored model ID that appears as the base model in any provider
     for (const ignored of IGNORED_MODELS) {
       if (ignored.includes("/")) {
-        const [ignoredProvider, ignoredModel] = ignored.split("/");
+        const [ignoredProvider, ignoredModel] = ignored.split("/")
         if (modelID === ignoredModel && (providerID === ignoredProvider || providerID.includes(ignoredProvider))) {
-          return true;
+          return true
         }
       }
     }
-    return false;
+    return false
   }
 
 

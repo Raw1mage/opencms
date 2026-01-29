@@ -1,8 +1,13 @@
 # Changelog
 
+## [0.0.0-cms-202601291945] - 2026-01-29
+
+- Hide base Anthropic provider models in /models when an active Anthropic subscription account is present, preventing Claude Code-only credentials from being selected.
+
 ## [0.0.0-cms-202601291930] - 2026-01-29
 
 - Restrict /models to show only the active subscription per provider family and label categories with the active owner id using accounts display-name logic.
+- Hide unsupported Gemini embedding models from /models.
 
 ## [0.0.0-cms-202601291900] - 2026-01-29
 
