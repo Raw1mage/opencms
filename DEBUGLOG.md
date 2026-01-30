@@ -249,3 +249,4 @@ Verifying if 'Bus' and 'Session.Event' can be used in accounts.ts to notify UI.
 Antigravity plugin accounts.ts needs to be modified to use Bus to publish an event when account switching happens.
 The lint errors 'Cannot find module' are due to the relative import path being too deep or aliases not being picked up by the linter context, or strict isolation. However, since I used dynamic imports, it heavily depends on runtime resolution. I will verify if the file exists at that relative path.
 The correct path to 'bus' from 'accounts.ts' is likely ../../../bus (3 levels up, then bus).
+Model resolver aliases updated to preserve suffixes. This should fix the Not Found error by sending the correct model ID to the API.
