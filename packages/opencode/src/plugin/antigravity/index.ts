@@ -58,6 +58,18 @@ const MAX_WARMUP_RETRIES = 2;
 const CAPACITY_BACKOFF_TIERS_MS = [5000, 10000, 20000, 30000, 60000];
 
 export let globalAccountManager: AccountManager | null = null;
+export async function refreshGlobalAccountManager(): Promise<boolean> {
+  if (!cachedGetAuth) return false;
+  const auth = await cachedGetAuth();
+  if (!isOAuthAuth(auth)) return false;
+  const next = await AccountManager.loadFromDisk(auth);
+  if (!globalAccountManager) {
+    globalAccountManager = next;
+    return true;
+  }
+  globalAccountManager.replaceFrom(next);
+  return true;
+}
 
 function getCapacityBackoffDelay(consecutiveFailures: number): number {
   const index = Math.min(consecutiveFailures, CAPACITY_BACKOFF_TIERS_MS.length - 1);
@@ -1036,13 +1048,43 @@ export const createAntigravityPlugin = (providerId: string) => async (
                 throw new Error("No Antigravity accounts available. Run `opencode auth login`.");
               }
 
-              const account = accountManager.getCurrentOrNextForFamily(
-                family,
-                model,
-                config.account_selection_strategy,
-                'antigravity',
-                config.pid_offset_enabled,
-              );
+              const pickAccount = async () => {
+                if (config.account_rotation !== "fixed") {
+                  return accountManager.getCurrentOrNextForFamily(
+                    family,
+                    model,
+                    config.account_selection_strategy,
+                    "antigravity",
+                    config.pid_offset_enabled,
+                  );
+                }
+
+                const fixed = accountManager.getPinnedForFamily(family);
+                if (!fixed) return null;
+
+                const headerStyle = getHeaderStyleFromUrl(urlString, family);
+                const explicitQuota = isExplicitQuotaFromUrl(urlString);
+                const limited = accountManager.isRateLimitedForHeaderStyle(fixed, family, headerStyle, model);
+                const cooling = accountManager.isAccountCoolingDown(fixed);
+                if (!limited && !cooling) return fixed;
+
+                const waitMs = accountManager.getMinWaitTimeForFamily(
+                  family,
+                  model,
+                  headerStyle,
+                  explicitQuota,
+                ) || 0;
+                const waitTimeFormatted = waitMs > 0 ? formatWaitTime(waitMs) : "later";
+                await showToast(
+                  `Selected account rate limited. Retry ${waitTimeFormatted} or choose another model.`,
+                  "warning",
+                );
+                throw new Error(
+                  `Selected account rate limited for ${family}. Retry ${waitTimeFormatted} or choose another model.`,
+                );
+              };
+
+              const account = await pickAccount();
 
               if (!account) {
                 const headerStyle = getHeaderStyleFromUrl(urlString, family);
@@ -1417,6 +1459,32 @@ export const createAntigravityPlugin = (providerId: string) => async (
 
                       // [Enhanced Parsing] Pass status to handling logic
                       const rateLimitReason = parseRateLimitReason(bodyInfo.reason, bodyInfo.message, response.status);
+
+                      if (config.account_rotation === "fixed") {
+                        const backoffMs = calculateBackoffMs(
+                          rateLimitReason,
+                          account.consecutiveFailures ?? 0,
+                          serverRetryMs,
+                        );
+                        accountManager.markRateLimitedWithReason(
+                          account,
+                          family,
+                          headerStyle,
+                          model,
+                          rateLimitReason,
+                          serverRetryMs,
+                          config.failure_ttl_seconds * 1000,
+                        );
+                        accountManager.requestSaveToDisk();
+                        const waitTimeFormatted = formatWaitTime(backoffMs);
+                        await showToast(
+                          `Rate limited for selected account. Retry ${waitTimeFormatted} or choose another model.`,
+                          "warning",
+                        );
+                        throw new Error(
+                          `Selected account rate limited for ${family}. Retry ${waitTimeFormatted} or choose another model.`,
+                        );
+                      }
 
                       // STRATEGY 1: CAPACITY / SERVER ERROR (Transient)
                       // Goal: Wait and Retry SAME Account. DO NOT LOCK.

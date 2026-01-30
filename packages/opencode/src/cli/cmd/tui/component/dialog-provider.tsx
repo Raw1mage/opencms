@@ -23,6 +23,69 @@ const PROVIDER_PRIORITY: Record<string, number> = {
   google: 4,
 }
 
+async function startProviderAuth(
+  providerID: string,
+  dialog: ReturnType<typeof useDialog>,
+  sync: ReturnType<typeof useSync>,
+  sdk: ReturnType<typeof useSDK>,
+) {
+  const methods = sync.data.provider_auth[providerID] ?? [
+    {
+      type: "api",
+      label: "API key",
+    },
+  ]
+  let index: number | null = 0
+  if (methods.length > 1) {
+    index = await new Promise<number | null>((resolve) => {
+      dialog.replace(
+        () => (
+          <DialogSelect
+            title="Select auth method"
+            options={methods.map((x, index) => ({
+              title: x.label,
+              value: index,
+            }))}
+            onSelect={(option) => resolve(option.value)}
+          />
+        ),
+        () => resolve(null),
+      )
+    })
+  }
+  if (index == null) return
+  const method = methods[index]
+  if (method.type === "oauth") {
+    const result = await sdk.client.provider.oauth.authorize({
+      providerID,
+      method: index,
+    })
+    if (result.data?.method === "code") {
+      dialog.replace(() => (
+        <CodeMethod
+          providerID={providerID}
+          title={method.label}
+          index={index}
+          authorization={result.data!}
+        />
+      ))
+    }
+    if (result.data?.method === "auto") {
+      dialog.replace(() => (
+        <AutoMethod
+          providerID={providerID}
+          title={method.label}
+          index={index}
+          authorization={result.data!}
+        />
+      ))
+    }
+  }
+  if (method.type === "api") {
+    return dialog.replace(() => <ApiMethod providerID={providerID} title={method.label} />)
+  }
+}
+
 export function createDialogProviderOptions() {
   const sync = useSync()
   const dialog = useDialog()
@@ -45,61 +108,7 @@ export function createDialogProviderOptions() {
           category: provider.id in PROVIDER_PRIORITY ? "Popular" : "Other",
           footer: isConnected ? "Connected" : undefined,
           async onSelect() {
-            const methods = sync.data.provider_auth[provider.id] ?? [
-              {
-                type: "api",
-                label: "API key",
-              },
-            ]
-            let index: number | null = 0
-            if (methods.length > 1) {
-              index = await new Promise<number | null>((resolve) => {
-                dialog.replace(
-                  () => (
-                    <DialogSelect
-                      title="Select auth method"
-                      options={methods.map((x, index) => ({
-                        title: x.label,
-                        value: index,
-                      }))}
-                      onSelect={(option) => resolve(option.value)}
-                    />
-                  ),
-                  () => resolve(null),
-                )
-              })
-            }
-            if (index == null) return
-            const method = methods[index]
-            if (method.type === "oauth") {
-              const result = await sdk.client.provider.oauth.authorize({
-                providerID: provider.id,
-                method: index,
-              })
-              if (result.data?.method === "code") {
-                dialog.replace(() => (
-                  <CodeMethod
-                    providerID={provider.id}
-                    title={method.label}
-                    index={index}
-                    authorization={result.data!}
-                  />
-                ))
-              }
-              if (result.data?.method === "auto") {
-                dialog.replace(() => (
-                  <AutoMethod
-                    providerID={provider.id}
-                    title={method.label}
-                    index={index}
-                    authorization={result.data!}
-                  />
-                ))
-              }
-            }
-            if (method.type === "api") {
-              return dialog.replace(() => <ApiMethod providerID={provider.id} title={method.label} />)
-            }
+            await startProviderAuth(provider.id, dialog, sync, sdk)
           },
         }
       }),
@@ -108,9 +117,28 @@ export function createDialogProviderOptions() {
   return options
 }
 
-export function DialogProvider() {
+export function DialogProvider(props: { providerID?: string }) {
   const dialog = useDialog()
+  const sync = useSync()
+  const sdk = useSDK()
+  const { theme } = useTheme()
   const options = createDialogProviderOptions()
+  if (props.providerID) {
+    onMount(async () => {
+      await startProviderAuth(props.providerID!, dialog, sync, sdk)
+    })
+    return (
+      <box paddingLeft={2} paddingRight={2} gap={1} paddingBottom={1}>
+        <box flexDirection="row" justifyContent="space-between">
+          <text attributes={TextAttributes.BOLD} fg={theme.text}>
+            Connect a provider
+          </text>
+          <text fg={theme.textMuted}>esc</text>
+        </box>
+        <text fg={theme.textMuted}>Opening authentication...</text>
+      </box>
+    )
+  }
   return (
     <DialogSelect
       title="Connect a provider"

@@ -10,16 +10,19 @@ export function Dialog(
   props: ParentProps<{
     size?: "medium" | "large"
     onClose: () => void
+    closeOnBackdrop?: boolean
   }>,
 ) {
   const dimensions = useTerminalDimensions()
   const { theme } = useTheme()
   const renderer = useRenderer()
+  const closeOnBackdrop = props.closeOnBackdrop ?? false
 
   return (
     <box
       onMouseUp={async () => {
         if (renderer.getSelection()) return
+        if (!closeOnBackdrop) return
         props.onClose?.()
       }}
       width={dimensions().width}
@@ -97,6 +100,20 @@ function init() {
       })
       refocus()
     },
+    push(input: any, onClose?: () => void) {
+      if (store.stack.length === 0) {
+        focus = renderer.currentFocusedRenderable
+        focus?.blur()
+      }
+      setStore("stack", (s) => [...s, { element: input, onClose }])
+    },
+    pop() {
+      if (store.stack.length === 0) return
+      const current = store.stack.at(-1)!
+      if (current.onClose) current.onClose()
+      setStore("stack", (s) => s.slice(0, -1))
+      if (store.stack.length === 0) refocus()
+    },
     replace(input: any, onClose?: () => void) {
       if (store.stack.length === 0) {
         focus = renderer.currentFocusedRenderable
@@ -149,7 +166,7 @@ export function DialogProvider(props: ParentProps) {
         }}
       >
         <Show when={value.stack.length}>
-          <Dialog onClose={() => value.clear()} size={value.size}>
+          <Dialog onClose={() => value.clear()} size={value.size} closeOnBackdrop={false}>
             {value.stack.at(-1)!.element}
           </Dialog>
         </Show>

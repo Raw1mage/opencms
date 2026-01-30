@@ -20,13 +20,17 @@ export interface DialogSelectProps<T> {
   onFilter?: (query: string) => void
   onSelect?: (option: DialogSelectOption<T>) => void
   skipFilter?: boolean
+  hideInput?: boolean
   keybind?: {
     keybind?: Keybind.Info
     title: string
     disabled?: boolean
+    label?: string
+    hidden?: boolean
     onTrigger: (option: DialogSelectOption<T>) => void
   }[]
   current?: T
+  keybindLayout?: "inline" | "columns"
 }
 
 export interface DialogSelectOption<T = any> {
@@ -217,7 +221,8 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   }
   props.ref?.(ref)
 
-  const keybinds = createMemo(() => props.keybind?.filter((x) => !x.disabled && x.keybind) ?? [])
+  const keybinds = createMemo(() => props.keybind?.filter((x) => !x.disabled && x.keybind && !x.hidden) ?? [])
+  const keybindTitleWidth = createMemo(() => Math.max(0, ...keybinds().map((x) => x.title.length)))
 
   return (
     <box gap={1} paddingBottom={1}>
@@ -228,28 +233,30 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
           </text>
           <text fg={theme.textMuted}>esc</text>
         </box>
-        <box paddingTop={1} paddingBottom={1}>
-          <input
-            onInput={(e) => {
-              batch(() => {
-                setStore("filter", e)
-                props.onFilter?.(e)
-              })
-            }}
-            focusedBackgroundColor={theme.backgroundPanel}
-            cursorColor={theme.primary}
-            focusedTextColor={theme.textMuted}
-            ref={(r) => {
-              input = r
-              setTimeout(() => {
-                if (!input) return
-                if (input.isDestroyed) return
-                input.focus()
-              }, 1)
-            }}
-            placeholder={props.placeholder ?? "Search"}
-          />
-        </box>
+        <Show when={!props.hideInput}>
+          <box paddingTop={1} paddingBottom={1}>
+            <input
+              onInput={(e) => {
+                batch(() => {
+                  setStore("filter", e)
+                  props.onFilter?.(e)
+                })
+              }}
+              focusedBackgroundColor={theme.backgroundPanel}
+              cursorColor={theme.primary}
+              focusedTextColor={theme.textMuted}
+              ref={(r) => {
+                input = r
+                setTimeout(() => {
+                  if (!input) return
+                  if (input.isDestroyed) return
+                  input.focus()
+                }, 1)
+              }}
+              placeholder={props.placeholder ?? "Search"}
+            />
+          </box>
+        </Show>
       </box>
       <Show
         when={grouped().length > 0}
@@ -325,17 +332,40 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
         </scrollbox>
       </Show>
       <Show when={keybinds().length} fallback={<box flexShrink={0} />}>
-        <box paddingRight={2} paddingLeft={4} flexDirection="row" gap={2} flexShrink={0} paddingTop={1}>
-          <For each={keybinds()}>
-            {(item) => (
-              <text>
-                <span style={{ fg: theme.text }}>
-                  <b>{item.title}</b>{" "}
-                </span>
-                <span style={{ fg: theme.textMuted }}>{Keybind.toString(item.keybind)}</span>
-              </text>
-            )}
-          </For>
+        <box paddingRight={2} paddingLeft={4} flexShrink={0} paddingTop={1}>
+          <Show when={props.keybindLayout === "columns"} fallback={
+            <box flexDirection="row" gap={2}>
+              <For each={keybinds()}>
+                {(item) => (
+                  <text>
+                    <span style={{ fg: theme.text }}>
+                      <b>{item.title}</b>{" "}
+                    </span>
+                    <span style={{ fg: theme.textMuted }}>{item.label ?? Keybind.toString(item.keybind)}</span>
+                  </text>
+                )}
+              </For>
+            </box>
+          }>
+            <box flexDirection="column" gap={1}>
+              <For each={keybinds()}>
+                {(item) => {
+                  const label = item.label ?? Keybind.toString(item.keybind)
+                  const pad = Math.max(0, keybindTitleWidth() - item.title.length + 2)
+                  const spacer = " ".repeat(pad)
+                  return (
+                    <text>
+                      <span style={{ fg: theme.text }}>
+                        <b>{item.title}</b>
+                      </span>
+                      <span style={{ fg: theme.text }}>{spacer}</span>
+                      <span style={{ fg: theme.textMuted }}>{label}</span>
+                    </text>
+                  )
+                }}
+              </For>
+            </box>
+          </Show>
         </box>
       </Show>
     </box>

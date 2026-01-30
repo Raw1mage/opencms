@@ -7,6 +7,7 @@ import { UI } from "../ui"
 import { EOL } from "os"
 import { Account } from "../../account"
 import { modelRegistry } from "../../plugin/antigravity/plugin/model-registry"
+import { AccountManager } from "../../plugin/antigravity/plugin/accounts" // Import explicitly
 
 // Define specific models for Antigravity as fallback
 const ANTIGRAVITY_MODELS = [
@@ -37,6 +38,16 @@ const OPENAI_MODELS = [
   "gpt-5.2-codex"
 ];
 
+// Internal ID to Display Name
+const DISPLAY_ALIASES: Record<string, string> = {
+  "google API-KEY": "google-api"
+};
+
+// Input Name to Internal ID
+const INPUT_ALIASES: Record<string, string> = {
+  "google-api": "google API-KEY"
+};
+
 export const ModelsCommand = cmd({
   command: "models [action] [provider] [model]",
   describe: "Manage and monitor models. Actions: list (default), add, remove, reset.",
@@ -59,18 +70,24 @@ export const ModelsCommand = cmd({
         type: "boolean",
       })
       .option("refresh", {
-        describe: "refresh the models cache from models.dev",
+        describe: "refresh the models cache from models.dev AND Google API",
         type: "boolean",
       })
       .example("opencode models", "Show status dashboard")
       .example("opencode models antigravity", "Show status only for Antigravity")
-      .example("opencode models add openai gpt-6-preview", "Add a new model to list")
+      .example("opencode models add google-api gemini-1.5-pro", "Add model using simplified alias")
   },
   handler: async (args) => {
     // Determine mode
     let mode: "list" | "add" | "remove" | "reset" = "list";
     let filterProvider: string | undefined = undefined;
+
+    // Resolve aliases for inputs
     let targetProvider = args.provider;
+    if (targetProvider && INPUT_ALIASES[targetProvider]) {
+      targetProvider = INPUT_ALIASES[targetProvider];
+    }
+
     let targetModel = args.model;
 
     const action = args.action?.toLowerCase();
@@ -78,8 +95,8 @@ export const ModelsCommand = cmd({
     if (action === "add" || action === "remove" || action === "reset") {
       mode = action;
     } else if (action) {
-      // Treat as provider filter
-      filterProvider = action;
+      // Treat as provider filter (also check alias)
+      filterProvider = INPUT_ALIASES[action] || action;
     }
 
     if (args.refresh) {
@@ -90,35 +107,79 @@ export const ModelsCommand = cmd({
     // Load registry
     await modelRegistry.load();
 
-    // Handle modification actions
-    if (mode !== "list") {
-      if (!targetProvider && mode !== 'reset') {
-        // targetProvider comes from 2nd arg.
+    if (args.refresh) {
+      UI.println("Refreshing model lists...");
+
+      // 1. Refresh generic cache
+      await ModelsDev.refresh()
+      UI.println("  • Models.dev cache refreshed");
+
+      // 2. Discover Google API models
+      try {
+        const families = await Account.listAll();
+        // Look for google API-KEY accounts
+        const googleFamily = families["google API-KEY"];
+        if (googleFamily && googleFamily.accounts) {
+          const accounts = Object.values(googleFamily.accounts);
+          // Find first account with apiKey
+          const acc = accounts.find((a: any) => a.apiKey);
+          if (acc && (acc as any).apiKey) {
+            const apiKey = (acc as any).apiKey;
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (data.models && Array.isArray(data.models)) {
+                let count = 0;
+                for (const m of data.models) {
+                  let name = m.name;
+                  if (name.startsWith("models/")) name = name.substring(7);
+                  if (name.includes("gemini") || name.includes("palm")) {
+                    modelRegistry.add("google API-KEY", name);
+                    count++;
+                  }
+                }
+                await modelRegistry.save();
+                UI.println(`  • Discovered ${count} Google models via API`);
+              }
+            } else {
+              UI.println(`  • Failed to list Google models: ${response.status}`);
+            }
+          }
+        }
+      } catch (e) {
+        UI.println(`  • Error refreshing Google models: ${e}`);
       }
 
+      UI.println(UI.Style.TEXT_SUCCESS_BOLD + "Refresh complete." + UI.Style.TEXT_NORMAL);
+    }
+
+    // Handle modification actions
+    if (mode !== "list") {
       if (!targetProvider) {
         UI.error(`Provider required for ${mode}. Usage: opencode models ${mode} <provider> [model]`);
         return;
       }
 
+      const displayProvider = DISPLAY_ALIASES[targetProvider] || targetProvider;
+
       if (mode === "add" && targetModel) {
         modelRegistry.add(targetProvider, targetModel);
         await modelRegistry.save();
-        UI.println(UI.Style.TEXT_SUCCESS + `Added ${targetModel} to ${targetProvider}` + UI.Style.TEXT_NORMAL);
+        UI.println(UI.Style.TEXT_SUCCESS + `Added ${targetModel} to ${displayProvider}` + UI.Style.TEXT_NORMAL);
         return;
       }
 
       if (mode === "remove" && targetModel) {
         modelRegistry.remove(targetProvider, targetModel);
         await modelRegistry.save();
-        UI.println(UI.Style.TEXT_SUCCESS + `Removed ${targetModel} from ${targetProvider}` + UI.Style.TEXT_NORMAL);
+        UI.println(UI.Style.TEXT_SUCCESS + `Removed ${targetModel} from ${displayProvider}` + UI.Style.TEXT_NORMAL);
         return;
       }
 
       if (mode === "reset") {
         modelRegistry.reset(targetProvider);
         await modelRegistry.save();
-        UI.println(UI.Style.TEXT_SUCCESS + `Reset ${targetProvider} to defaults` + UI.Style.TEXT_NORMAL);
+        UI.println(UI.Style.TEXT_SUCCESS + `Reset ${displayProvider} to defaults` + UI.Style.TEXT_NORMAL);
         return;
       }
 
@@ -130,10 +191,13 @@ export const ModelsCommand = cmd({
     await Instance.provide({
       directory: process.cwd(),
       async fn() {
-        const { globalAccountManager } = await import("../../plugin/antigravity/index");
         const families = await Account.listAll();
         const providers = await Provider.list();
         const now = Date.now();
+
+        // Initialize Antigravity Account Manager explicitly to ensure data availability
+        const agManager = await AccountManager.loadFromDisk();
+        const agSnapshot = agManager.getAccountsSnapshot();
 
         // Helper for time formatting
         const getWaitTime = (ts: number | undefined) => {
@@ -178,6 +242,7 @@ export const ModelsCommand = cmd({
         // Order providers
         const order = ["antigravity", "gemini-cli", "anthropic", "openai", "opencode", "google API-KEY"];
         const sortedFamilies = Object.keys(families).sort((a, b) => {
+          // Map a to sort key if needed, mostly 'google API-KEY' is in sort list
           const idxA = order.indexOf(a);
           const idxB = order.indexOf(b);
           if (idxA === -1 && idxB === -1) return a.localeCompare(b);
@@ -188,8 +253,6 @@ export const ModelsCommand = cmd({
 
         console.log(UI.Style.TEXT_NORMAL_BOLD + "\n📦 Model Health & Availability Status\n" + UI.Style.TEXT_NORMAL);
 
-        const agSnapshot = globalAccountManager ? globalAccountManager.getAccountsSnapshot() : [];
-
         for (const familyName of sortedFamilies) {
           if (filterProvider && filterProvider !== familyName) continue;
 
@@ -198,12 +261,40 @@ export const ModelsCommand = cmd({
 
           if (accountsArr.length === 0) continue;
 
-          console.log(UI.Style.TEXT_HIGHLIGHT_BOLD + `📂 ${familyName.toUpperCase()}` + UI.Style.TEXT_NORMAL);
+          // Apply alias for display
+          const displayFamilyName = DISPLAY_ALIASES[familyName] || familyName;
+
+          console.log(UI.Style.TEXT_HIGHLIGHT_BOLD + `📂 ${displayFamilyName.toUpperCase()}` + UI.Style.TEXT_NORMAL);
 
           for (const [id, info] of accountsArr) {
             const isActive = familyData.activeAccount === id;
             const activeMark = isActive ? UI.Style.TEXT_SUCCESS + "●" + UI.Style.TEXT_NORMAL : "○";
-            const displayName = Account.getDisplayName(id, info, familyName);
+
+            // 1. Find matched account FIRST to get metadata
+            let matchedAcc: any = undefined;
+            let displayNameOverride: string | null = null;
+
+            if (familyName === "antigravity" && agSnapshot.length > 0) {
+              // ID format: antigravity-subscription-{N} where N is 1-based index
+              // Snapshot index is 0-based
+              const match = id.match(/antigravity-subscription-(\d+)/);
+              if (match) {
+                const index = parseInt(match[1]) - 1;
+                matchedAcc = agSnapshot.find((a: any) => a.index === index);
+              } else {
+                // Fallback: try direct index match if ID happens to be just number
+                matchedAcc = agSnapshot.find((a: any) => String(a.index) === id);
+              }
+
+              if (matchedAcc && matchedAcc.email) {
+                displayNameOverride = matchedAcc.email;
+              }
+            } else if (agSnapshot.length > 0 && "email" in info && (info as any).email) {
+              matchedAcc = agSnapshot.find((a: any) => a.email === (info as any).email);
+            }
+
+            // 2. Determine Display Name
+            let displayName = displayNameOverride || Account.getDisplayName(id, info, familyName);
 
             console.log(`  ${activeMark} 👤 ${displayName}`);
 
@@ -231,14 +322,6 @@ export const ModelsCommand = cmd({
                   modelsToShow = ["standard-model"];
                 }
               }
-            }
-
-            // Find Antigravity account object for status checking
-            let matchedAcc: any = undefined;
-            if (familyName === "antigravity" && agSnapshot.length > 0) {
-              matchedAcc = agSnapshot.find((a: any) => String(a.index) === id);
-            } else if (agSnapshot.length > 0 && "email" in info && info.email) {
-              matchedAcc = agSnapshot.find((a: any) => a.email === (info as any).email);
             }
 
             // Sort models
@@ -270,7 +353,10 @@ export const ModelsCommand = cmd({
         }
 
         console.log(UI.Style.TEXT_DIM + `Last updated: ${new Date().toLocaleTimeString()}` + UI.Style.TEXT_NORMAL);
-        console.log(UI.Style.TEXT_DIM + `Hint: Use 'opencode models add/remove <provider> <model>' to customize this list.` + UI.Style.TEXT_NORMAL);
+
+        if (!args.refresh) {
+          console.log(UI.Style.TEXT_DIM + `Hint: Use 'opencode models --refresh' to discover new Google models.` + UI.Style.TEXT_NORMAL);
+        }
       },
     })
   },

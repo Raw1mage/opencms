@@ -1,5 +1,55 @@
 # Changelog
 
+## [1.1.50] - 2026-01-30
+
+### Fixed
+- **Anthropic account visibility**: Do not hide `*-subscription-*` family suffix accounts when they are the only account in that family.
+- **Account list clutter**: Removed inline "Add new account" action rows; use `A/a` hotkey instead.
+- **Accidental dialog dismiss**: Clicking outside dialogs no longer closes them; use `esc`.
+- **Account counts**: Show "1 account" for single-account providers.
+
+### Changed
+- **Planning docs**: Deprecated root `PLANNING.md` in favor of `packages/opencode/PLANNING.md`.
+
+## [1.1.49] - 2026-01-30
+
+### Changed
+- **Account selection UX**: Removed search input in account lists; added `A` hotkey for adding accounts directly within the current family.
+- **Keybind layout**: Two-column keybind display for account/model views; Back hidden in model view.
+- **Root list**: Favorites/Recents now expanded directly (no Quick Access folder) in both admin and model dialogs.
+
+### Fixed
+- **Account counts**: Provider account counts now match filtered core accounts (no Gemini CLI mismatch).
+- **Account deletion**: Delete stays on the same account list and refreshes immediately.
+- **Active indicators**: Removed account-level active dots to avoid multiple-green-dot confusion.
+
+## [1.1.48] - 2026-01-30
+
+### Fixed
+- **Google API account list**: Dialog-model now uses core accounts (no phantom `google` entry) and deletes correct IDs.
+- **Account delete flow**: Stays on account list after delete and refreshes state immediately.
+- **Root quick access**: Quick Access folder replaced by expanded Favorites/Recents list in model selector.
+
+## [1.1.47] - 2026-01-30
+
+### Fixed
+- **/admin active indicator**: Only the single active account shows a green dot for Antigravity.
+- **/admin account counts**: Root provider counts now reflect core account storage, preventing phantom Gemini CLI accounts.
+- **/admin account list**: Filters legacy generic IDs (e.g. `gemini-cli`, `gemini-cli-subscription-gemini-cli`) when specific accounts exist.
+
+### Changed
+- **Root list labels**: Standardized “Recents” category label to match UI copy.
+
+## [1.1.46] - 2026-01-30
+
+### Changed
+- **Antigravity account rotation**: Added fixed-account mode so /admin selection is authoritative; auto rotation disabled by default.
+- **Rate limit behavior**: Fail fast in fixed mode to allow higher-level model fallback instead of waiting or rotating accounts.
+
+### Fixed
+- **/admin account management**: Active selection now updates both core and antigravity manager, and refreshes the in-memory pool after set/delete.
+- **Antigravity UI drift**: Global account manager refresh added to prevent stale account counts after deletion.
+
 ## [1.1.45] - 2026-01-30
 
 ### Fixed - Antigravity Model Communication (Critical) ✅ RESOLVED

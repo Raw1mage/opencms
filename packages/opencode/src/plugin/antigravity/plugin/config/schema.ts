@@ -249,6 +249,14 @@ export const AntigravityConfigSchema = z.object({
    * @default "hybrid"
    */
   account_selection_strategy: AccountSelectionStrategySchema.default('hybrid'),
+
+  /**
+   * Account rotation mode for request routing.
+   * - auto: use selection strategy + rotation
+   * - fixed: always use the active account from /admin
+   * @default "auto"
+   */
+  account_rotation: z.enum(['auto', 'fixed']).default('fixed'),
   
   /**
    * Enable PID-based account offset for multi-session distribution.
@@ -385,6 +393,7 @@ export const DEFAULT_CONFIG: AntigravityConfig = {
   max_rate_limit_wait_seconds: 300,
   quota_fallback: false,
   account_selection_strategy: 'hybrid',
+  account_rotation: 'fixed',
   pid_offset_enabled: false,
   switch_on_first_rate_limit: true,
   scheduling_mode: 'cache_first',

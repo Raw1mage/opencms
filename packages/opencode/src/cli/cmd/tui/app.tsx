@@ -19,6 +19,7 @@ import { CommandProvider, useCommandDialog } from "@tui/component/dialog-command
 import { DialogAgent } from "@tui/component/dialog-agent"
 import { DialogSessionList } from "@tui/component/dialog-session-list"
 import { DialogAccount } from "@tui/component/dialog-account"
+import { DialogAdmin } from "@tui/component/dialog-admin"
 import { KeybindProvider } from "@tui/context/keybind"
 import { ThemeProvider, useTheme } from "@tui/context/theme"
 import { Home } from "@tui/routes/home"
@@ -254,6 +255,9 @@ function App() {
           sessionID: args.sessionID,
         })
       }
+      if (args.admin) {
+        dialog.replace(() => <DialogAdmin />)
+      }
     })
   })
 
@@ -455,6 +459,18 @@ function App() {
         dialog.replace(() => <DialogAccount />)
       },
       category: "System",
+    },
+    {
+      title: "Admin Panel",
+      value: "admin.panel",
+      keybind: "admin_panel",
+      category: "System",
+      slash: {
+        name: "admin",
+      },
+      onSelect: () => {
+        dialog.replace(() => <DialogAdmin />)
+      },
     },
     {
       title: "Switch theme",

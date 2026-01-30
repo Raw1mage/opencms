@@ -22,12 +22,16 @@ export function DialogConfirm(props: DialogConfirmProps) {
 
   useKeyboard((evt) => {
     if (evt.name === "return") {
+      evt.preventDefault()
+      evt.stopPropagation()
       if (store.active === "confirm") props.onConfirm?.()
       if (store.active === "cancel") props.onCancel?.()
-      dialog.clear()
+      dialog.pop()
     }
 
     if (evt.name === "left" || evt.name === "right") {
+      evt.preventDefault()
+      evt.stopPropagation()
       setStore("active", store.active === "confirm" ? "cancel" : "confirm")
     }
   })
@@ -52,7 +56,7 @@ export function DialogConfirm(props: DialogConfirmProps) {
               onMouseUp={(evt) => {
                 if (key === "confirm") props.onConfirm?.()
                 if (key === "cancel") props.onCancel?.()
-                dialog.clear()
+                dialog.pop()
               }}
             >
               <text fg={key === store.active ? theme.selectedListItemText : theme.textMuted}>
@@ -68,7 +72,7 @@ export function DialogConfirm(props: DialogConfirmProps) {
 
 DialogConfirm.show = (dialog: DialogContext, title: string, message: string) => {
   return new Promise<boolean>((resolve) => {
-    dialog.replace(
+    dialog.push(
       () => (
         <DialogConfirm
           title={title}

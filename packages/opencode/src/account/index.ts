@@ -404,6 +404,11 @@ export namespace Account {
             if (family === "google" || family === "openai") {
               continue // Skip - will be migrated from antigravity/codex account files
             }
+            // Skip Anthropic if already present (avoid duplicates with new format)
+            if (family === "anthropic" && storage.families["anthropic"] && Object.keys(storage.families["anthropic"].accounts).length > 0) {
+              continue
+            }
+
             if (!storage.families[family]) {
               storage.families[family] = { accounts: {} }
             }
@@ -428,6 +433,15 @@ export namespace Account {
         log.warn("Failed to migrate auth.json", { error: e })
       }
     }
+
+    // Post-migrate cleanup: Remove legacy account ID if new format exists for Anthropic
+    if (storage.families["anthropic"] && storage.families["anthropic"].accounts["anthropic"] && storage.families["anthropic"].accounts["anthropic-subscription-anthropic"]) {
+      delete storage.families["anthropic"].accounts["anthropic"];
+      if (storage.families["anthropic"].activeAccount === "anthropic") {
+        storage.families["anthropic"].activeAccount = "anthropic-subscription-anthropic";
+      }
+    }
+
 
     // 2. Migrate from antigravity-accounts.json
     const xdgConfig = process.env.XDG_CONFIG_HOME || path.join(Global.Path.home, ".config")

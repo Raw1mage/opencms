@@ -1,4 +1,4 @@
-import { createMemo, createSignal } from "solid-js"
+import { createMemo, createSignal, createResource } from "solid-js"
 import { useLocal } from "@tui/context/local"
 import { useSync } from "@tui/context/sync"
 import { map, pipe, flatMap, entries, filter, sortBy, take } from "remeda"
@@ -13,6 +13,11 @@ import * as fuzzysort from "fuzzysort"
 import { Account } from "@/account"
 import { Keybind } from "@/util/keybind"
 import { isDeepEqual } from "remeda"
+import { AccountManager } from "../../../../plugin/antigravity/plugin/accounts"
+import { DialogConfirm } from "@tui/ui/dialog-confirm"
+import { DialogProvider as DialogProviderList } from "./dialog-provider"
+import { useToast } from "@tui/ui/toast"
+import { saveAccounts } from "../../../../plugin/antigravity/plugin/storage"
 
 export function useConnected() {
   const sync = useSync()
@@ -25,14 +30,48 @@ export function DialogModel(props: { providerID?: string }) {
   const local = useLocal()
   const sync = useSync()
   const dialog = useDialog()
+  const toast = useToast()
   const keybind = useKeybind()
   const { theme } = useTheme()
   const [ref, setRef] = createSignal<DialogSelectRef<unknown>>()
   const [query, setQuery] = createSignal("")
   const [showHidden, setShowHidden] = createSignal(false)
 
+  // Navigation State
+  // steps: root -> account_select -> model_select
+  // distinct views: favorites, recents
+  const [step, setStep] = createSignal<"root" | "account_select" | "model_select" | "favorites" | "recents">("root")
+  const [selectedFamily, setSelectedFamily] = createSignal<string | null>(null)
+  const [selectedProviderID, setSelectedProviderID] = createSignal<string | null>(props.providerID ?? null)
+
+  const [refreshSignal, setRefreshSignal] = createSignal(0)
+  const forceRefresh = () => setRefreshSignal((s) => s + 1)
+
+  // Load Antigravity Manager
+  const [agManager] = createResource(refreshSignal, async () => {
+    try {
+      return await AccountManager.loadFromDisk()
+    } catch (e) {
+      return null
+    }
+  })
+  const [coreAll] = createResource(refreshSignal, async () => {
+    try {
+      return await Account.listAll()
+    } catch (e) {
+      return {}
+    }
+  })
+  const [coreActive] = createResource(refreshSignal, async () => {
+    try {
+      return await Account.getActive("antigravity")
+    } catch (e) {
+      return undefined
+    }
+  })
+
   const connected = useConnected()
-  const providers = createDialogProviderOptions()
+
   const family = (id: string) => {
     const parsed = Account.parseFamily(id)
     if (parsed) return parsed
@@ -58,14 +97,38 @@ export function DialogModel(props: { providerID?: string }) {
   const owner = (provider: { id: string; name: string; email?: string }) => {
     const fam = family(provider.id)
     if (!fam) return undefined
+
+    // Fix Antigravity Display Name using AccountManager
+    if (fam === 'antigravity') {
+      const manager = agManager()
+      if (manager) {
+        const snap = manager.getAccountsSnapshot()
+
+        // Case 1: Specific Account ID (e.g., antigravity-subscription-1)
+        const match = provider.id.match(/antigravity-subscription-(\d+)/)
+        if (match) {
+          const index = parseInt(match[1]) - 1
+          const acc = snap.find((a: any) => a.index === index)
+          if (acc && acc.email) return acc.email
+        }
+
+        // Case 2: Generic "antigravity" ID -> Use Active Account
+        if (provider.id === 'antigravity') {
+          const activeIndex = manager.getActiveIndex()
+          const acc = snap.find((a: any) => a.index === activeIndex)
+          if (acc && acc.email) return acc.email
+        }
+
+        // Case 3: Fallback by index match
+        const acc = snap.find((a: any) => String(a.index) === provider.id)
+        if (acc && acc.email) return acc.email
+      }
+    }
+
     const info = {
       type: "subscription",
       name: provider.name,
       email: provider.email,
-      refreshToken: "",
-      accessToken: "",
-      expiresAt: 0,
-      addedAt: 0,
     }
     const display = Account.getDisplayName(provider.id, info as any, fam as string)
     return display || undefined
@@ -89,262 +152,379 @@ export function DialogModel(props: { providerID?: string }) {
     return map
   })
 
-  const activeFamilies = createMemo(() => new Set(activeOwners().keys()))
-
-  const showExtra = createMemo(() => {
-    if (!connected()) return false
-    if (props.providerID) return false
-    return true
+  // Group providers by family
+  const groupedProviders = createMemo(() => {
+    const groups = new Map<string, any[]>()
+    for (const p of sync.data.provider) {
+      const fam = family(p.id)
+      if (!fam) continue
+      if (!groups.has(fam)) groups.set(fam, [])
+      groups.get(fam)!.push(p)
+    }
+    return groups
   })
 
   const options = createMemo(() => {
+    const s = step()
     const q = query()
-    const needle = q.trim()
-    const showSections = showExtra() && needle.length === 0
+
     const favorites = connected() ? local.model.favorite() : []
     const recents = local.model.recent()
 
-    const recentList = showSections
-      ? recents.filter(
-        (item) => !favorites.some((fav) => fav.providerID === item.providerID && fav.modelID === item.modelID),
-      )
-      : []
+    // ROOT VIEW: Families + Favorites/Recents (Expanded)
+    if (s === "root") {
+      const list = []
 
-    const favoriteOptions = showSections
-      ? favorites.flatMap((item) => {
-        const provider = sync.data.provider.find((x) => x.id === item.providerID) as any
-        if (!provider) return []
-        const fam = family(provider.id)
-        if (fam && activeFamilies().has(fam) && !provider.active) return []
-        const model = provider.models[item.modelID]
-        if (!model) return []
-        const who = iife(() => {
-          if (!fam) return owner(provider)
-          return activeOwners().get(fam) ?? owner(provider)
+      const getModelOptions = (modelList: { providerID: string, modelID: string, origin?: string }[]) => {
+        return modelList.flatMap(item => {
+          const p = sync.data.provider.find(x => x.id === item.providerID)
+          if (!p) return []
+          const m = p.models[item.modelID]
+          if (!m) return []
+
+          return [{
+            value: { providerID: item.providerID, modelID: item.modelID, origin: item.origin },
+            title: m.name ?? item.modelID,
+            description: label(p.name, p.id),
+            category: item.origin === 'favorite' ? "Favorites" : "Recents",
+            footer: m.cost?.input === 0 ? "Free" : undefined,
+            disabled: (p.id === "opencode" && m.id.includes("-nano")),
+            onSelect: () => {
+              dialog.clear()
+              local.model.set({ providerID: item.providerID, modelID: item.modelID }, { recent: true })
+            }
+          }]
         })
-        const group = label(provider.name, provider.id)
-        return [
-          {
-            key: item,
-            value: {
-              providerID: provider.id,
-              modelID: model.id,
-              origin: "favorite",
-            },
-            title: model.name ?? item.modelID,
-            description: [group, who].filter(Boolean).join(" · "),
-            category: "Favorites",
-            disabled: provider.id === "opencode" && model.id.includes("-nano"),
-            footer: model.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
-            onSelect: () => {
-              dialog.clear()
-              local.model.set(
-                {
-                  providerID: provider.id,
-                  modelID: model.id,
-                },
-                { recent: true },
-              )
-            },
-          },
-        ]
+      }
+
+      if (favorites.length > 0) {
+        list.push(...getModelOptions(favorites.map(x => ({ ...x, origin: 'favorite' }))))
+      }
+
+      if (recents.length > 0) {
+        list.push(...getModelOptions(recents.map(x => ({ ...x, origin: 'recent' }))))
+      }
+
+      // 3. Families
+      // Sort families: Antigravity first, then others
+      const families = Array.from(groupedProviders().keys()).sort((a, b) => {
+        if (a === 'antigravity') return -1
+        if (b === 'antigravity') return 1
+        return a.localeCompare(b)
       })
-      : []
 
-    // Sort favorites by model name
-    const sortedFavoriteOptions = pipe(
-      favoriteOptions,
-      sortBy((x) => x.title)
-    )
+      for (const fam of families) {
+        const providers = groupedProviders().get(fam) || []
+        // Check if any is active or has models
+        if (providers.every(p => Object.keys(p.models).length === 0 && !p.active)) continue;
 
-    const recentOptions = showSections
-      ? recentList.flatMap((item) => {
-        const provider = sync.data.provider.find((x) => x.id === item.providerID) as any
-        if (!provider) return []
-        const model = provider.models[item.modelID]
-        if (!model) return []
-        return [
-          {
-            key: item,
-            value: {
-              providerID: provider.id,
-              modelID: model.id,
-              origin: "recent",
-            },
-            title: model.name ?? item.modelID,
-            description: provider.name,
-            category: "Recent",
-            disabled: provider.id === "opencode" && model.id.includes("-nano"),
-            footer: model.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
-            onSelect: () => {
-              dialog.clear()
-              local.model.set(
-                {
-                  providerID: provider.id,
-                  modelID: model.id,
-                },
-                { recent: true },
-              )
-            },
-          },
-        ]
-      })
-      : []
+        const displayName = label(fam, fam) // Pass id same as name if abstract
+        const familyData = coreAll()?.[fam]
+        const allIds = familyData ? Object.keys(familyData.accounts || {}) : []
+        const isFamilySuffix = (id: string) => id === `${fam}-subscription-${fam}` || id === `${fam}-api-${fam}`
+        const isGeneric = (id: string) =>
+          id === fam || id === "google" || id === "gemini-cli" || id === "antigravity" || isFamilySuffix(id)
+        const hasSpecific = allIds.some(id => !isGeneric(id))
+        const filteredIds = allIds.filter(id => (hasSpecific ? !isGeneric(id) : true))
+        const accountTotal = familyData ? filteredIds.length : providers.length
+        const activeCount = familyData?.activeAccount ? 1 : providers.filter(p => p.active).length
 
-    const providerOptions = pipe(
-      sync.data.provider,
-      filter((provider: any) => {
-        if (provider.active === false) return false
-        const fam = family(provider.id)
-        if (!fam) return true
-        const active = activeFamilies().has(fam)
-        if (!active) return true
-        // if (provider.id === fam) return false // Fix: Don't hide family-named providers (fixes Anthropic)
-        return provider.active === true
-      }),
-      sortBy(
-        (provider) => provider.id === "opencode",
-        (provider: any) => !provider.active, // Active accounts first
-        (provider) => provider.name,
-      ),
-      flatMap((provider) =>
-        pipe(
-          provider.models,
-          entries(),
-          filter(([_, info]) => info.status !== "deprecated"),
-          filter(([_, info]) => (props.providerID ? info.providerID === props.providerID : true)),
-          map(([model, info]) => {
-            const value = {
-              providerID: provider.id,
-              modelID: model,
-            }
-            const p = provider as any
-            return {
-              value,
-              title: info.name ?? model,
-              category: connected()
-                ? iife(() => {
-                  const base = label(provider.name, provider.id)
-                  const who = owner(provider)
-                  if (who) return `${base} (${who})`
-                  return base
-                })
-                : undefined,
-              disabled:
-                (provider.id === "opencode" && model.includes("-nano")) ||
-                (p.cooldownReason?.includes("blocked") ?? false),
-              footer: iife(() => {
-                if (info.cost?.input === 0 && provider.id === "opencode") return "Free"
-                if (p.active) return "Active"
-                return undefined
-              }),
-              gutter: p.active ? (
-                <text fg={theme.success as any}>●</text>
-              ) : undefined,
-              description: iife(() => {
-                const statusDetails = []
-                if (p.coolingDownUntil && p.coolingDownUntil > Date.now()) {
-                  const remaining = Math.ceil((p.coolingDownUntil - Date.now()) / 1000 / 60)
-                  statusDetails.push(`⏳ Rate limited (${remaining}m)`)
-                }
-                if (p.cooldownReason?.includes("quota")) {
-                  statusDetails.push("💰 Quota exceeded")
-                }
-                if (p.cooldownReason && !p.cooldownReason.includes("quota")) {
-                  statusDetails.push(`⛔ ${p.cooldownReason}`)
-                }
-                const favoriteText = favorites.some(
-                  (item) => item.providerID === value.providerID && item.modelID === value.modelID,
-                )
-                  ? "(Favorite)"
-                  : ""
-
-                return [favoriteText, ...statusDetails].filter(Boolean).join(" ") || undefined
-              }),
-              onSelect() {
-                dialog.clear()
-                local.model.set(
-                  {
-                    providerID: provider.id,
-                    modelID: model,
-                  },
-                  { recent: true },
-                )
-              },
-            }
-          }),
-          filter((x) => {
-            // Filter hidden items unless showing all
-            if (showSections && !showHidden()) {
-              const value = x.value
-              const isHidden = local.model.hidden().some(
-                (h) => h.providerID === value.providerID && h.modelID === value.modelID
-              )
-              if (isHidden) return false
-            }
-            if (!showSections) return true
-
-            // Original logic for providerOptions:
-            // filter((provider: any) => {
-            //   if (provider.active === false) return false
-            //   const fam = family(provider.id)
-            //   if (!fam) return true
-            //   const active = activeFamilies().has(fam)
-            //   if (!active) return true
-            //   // Removed: if (provider.id === fam) return false
-            //   return provider.active === true
-            // })
-            // This filter block is applied to the flattened options
-            // But the logic above (if (!showSections) return true) handles typical cases.
-            // The `providerOptions` construction loop had the filter.
-            // Wait, I am editing the `options` memo's filter function at the end?
-            // NO, I am editing the `filter` pipe call in `providerOptions` definition?
-            // The lines match `filter((x) => {` which is the LAST filter in `options` memo (combining all lists).
-            // That filter was managing hidden state.
-            // The user wants Anthropic visible.
-            // That logic was in `providerOptions` definition earlier in the file.
-            // I need to target THAT block.
-            return true
-          }),
-          sortBy(
-            (x) => x.footer !== "Free",
-            (x) => x.title,
-          ),
-        ),
-      ),
-    )
-
-    const popularProviders = !connected()
-      ? pipe(
-        providers(),
-        map((option) => {
-          return {
-            ...option,
-            category: "Popular providers",
+        list.push({
+          value: fam,
+          title: displayName,
+          category: "Providers",
+          icon: "📂",
+          description: accountTotal >= 1 ? `${accountTotal} account${accountTotal === 1 ? "" : "s"}` : undefined,
+          gutter: activeCount > 0 ? <text fg={theme.success as any}>●</text> : undefined,
+          onSelect: () => {
+            setSelectedFamily(fam)
+            setStep("account_select")
+            setQuery("")
           }
-        }),
-        take(6),
-      )
-      : []
-
-    // Search shows a single merged list (favorites inline)
-    if (needle) {
-      const filteredProviders = fuzzysort.go(needle, providerOptions, { keys: ["title", "category"] }).map((x) => x.obj)
-      const filteredPopular = fuzzysort.go(needle, popularProviders, { keys: ["title"] }).map((x) => x.obj)
-      return [...filteredProviders, ...filteredPopular]
+        })
+      }
+      return list
     }
 
-    return [...sortedFavoriteOptions, ...recentOptions, ...providerOptions, ...popularProviders]
-  })
+    // ACCOUNT SELECTION VIEW
+    if (s === "account_select") {
+      const fam = selectedFamily()
+      if (!fam) return []
 
-  const provider = createMemo(() =>
-    props.providerID ? sync.data.provider.find((x) => x.id === props.providerID) : null,
-  )
+      // Special handling for Antigravity: Get accounts directly from manager
+      let accountList: any[] = []
+
+      if (fam === 'antigravity') {
+        const agAccounts = agManager()?.getAccountsSnapshot() || []
+
+        if (agAccounts.length > 0) {
+          const core = coreAll()?.antigravity?.accounts || {}
+          const coreByToken = new Map<string, string>()
+          const coreByEmail = new Map<string, string>()
+          for (const entry of Object.entries(core)) {
+            const id = entry[0]
+            const info = entry[1] as any
+            if (info?.type !== "subscription") continue
+            if (info.refreshToken) coreByToken.set(info.refreshToken, id)
+            if (info.email) coreByEmail.set(info.email, id)
+          }
+
+          const activeId = coreActive()
+
+          accountList = agAccounts.map(acc => {
+            const id = `antigravity-subscription-${acc.index + 1}`
+            const token = acc.parts?.refreshToken
+            const byToken = token ? coreByToken.get(token) : undefined
+            const byEmail = acc.email ? coreByEmail.get(acc.email) : undefined
+            const mapped = byToken || byEmail
+            const coreId = mapped || id
+            const isActive = activeId ? activeId === coreId : agManager()?.getActiveIndex() === acc.index
+            return {
+              id: id,
+              coreId: coreId,
+              name: acc.email || `Account ${acc.index + 1}`,
+              active: isActive,
+              email: acc.email,
+              type: "subscription"
+            }
+          })
+        }
+      } else {
+        const familyData = coreAll()?.[fam]
+        const accounts = familyData?.accounts || {}
+        const activeId = familyData?.activeAccount
+        const isFamilySuffix = (id: string) => id === `${fam}-subscription-${fam}` || id === `${fam}-api-${fam}`
+        const isGeneric = (id: string) =>
+          id === fam || id === "google" || id === "gemini-cli" || id === "antigravity" || isFamilySuffix(id)
+        const hasSpecific = Object.keys(accounts).some(id => !isGeneric(id))
+        accountList = Object.entries(accounts)
+          .filter(([id]) => {
+            if (hasSpecific && isGeneric(id)) return false
+            return true
+          })
+          .map(([id, info]) => {
+            const displayName = Account.getDisplayName(id, info as any, fam) || (info as any)?.name || id
+            return {
+              id,
+              coreId: id,
+              name: displayName,
+              active: activeId === id,
+              email: (info as any)?.email,
+              type: (info as any)?.type
+            }
+          })
+      }
+
+      const accountOptions = pipe(
+        accountList,
+        map(p => {
+          // Determine display name
+          let title = p.name
+          if (fam === 'antigravity' && p.email) title = p.email
+          else if (fam === 'antigravity') {
+            // Fallback title logic if name is missing or same as ID
+            title = p.name || p.id
+          } else {
+            const who = owner(p)
+            title = who || p.name || p.id
+          }
+
+          return {
+            value: p.id,
+            coreId: p.coreId || p.id,
+            title: title,
+            category: label(fam, fam),
+            icon: "👤",
+            description: p.id !== title ? p.id : undefined,
+            onSelect: async () => {
+              // If Antigravity, we need to explicitly set active
+              if (fam === 'antigravity') {
+                try {
+                  const coreId = p.coreId || p.id
+                  // Update Core
+                  await Account.setActive(fam, coreId)
+
+                  // Update Specialized Manager
+                  const manager = agManager()
+                  if (manager) {
+                    const match = p.id.match(/antigravity-subscription-(\d+)/)
+                    if (match) {
+                      const index = parseInt(match[1]) - 1
+                      manager.setActiveIndex(index)
+                      await saveAccounts({
+                        version: 3,
+                        accounts: manager.getAccountsSnapshot() as any,
+                        activeIndex: manager.getActiveIndex(),
+                        activeIndexByFamily: manager.getActiveIndexByFamily()
+                      })
+                    }
+                  }
+                } catch (e) {
+                  console.error(e)
+                }
+                // For model selection, use the GENERIC "antigravity" provider ID
+                setSelectedProviderID('antigravity')
+              } else {
+                if (fam) {
+                  await Account.setActive(fam, p.coreId || p.id)
+                  await Account.refresh()
+                }
+                setSelectedProviderID(p.coreId || p.id)
+              }
+              setStep("model_select")
+              setQuery("")
+              forceRefresh()
+            }
+          }
+        })
+      )
+
+      return accountOptions
+    }
+
+    // FAVORITES VIEW
+    if (s === "favorites") {
+      const list = []
+      const getModelOptions = (modelList: { providerID: string, modelID: string, origin?: string }[]) => {
+        return modelList.flatMap(item => {
+          const p = sync.data.provider.find(x => x.id === item.providerID)
+          if (!p) return []
+          const m = p.models[item.modelID]
+          if (!m) return []
+          return [{
+            value: { providerID: item.providerID, modelID: item.modelID },
+            title: m.name ?? item.modelID,
+            description: label(p.name, p.id),
+            category: item.origin === 'favorite' ? "Favorites" : "Recents",
+            footer: m.cost?.input === 0 ? "Free" : undefined,
+            disabled: (p.id === "opencode" && m.id.includes("-nano")),
+            onSelect: () => {
+              dialog.clear()
+              local.model.set({ providerID: item.providerID, modelID: item.modelID }, { recent: true })
+            }
+          }]
+        })
+      }
+      list.push(...getModelOptions(favorites.map(x => ({ ...x, origin: 'favorite' }))))
+      return list
+    }
+
+    // RECENTS VIEW
+    if (s === "recents") {
+      const list = []
+      const getModelOptions = (modelList: { providerID: string, modelID: string, origin?: string }[]) => {
+        return modelList.flatMap(item => {
+          const p = sync.data.provider.find(x => x.id === item.providerID)
+          if (!p) return []
+          const m = p.models[item.modelID]
+          if (!m) return []
+          return [{
+            value: { providerID: item.providerID, modelID: item.modelID },
+            title: m.name ?? item.modelID,
+            description: label(p.name, p.id),
+            category: item.origin === 'favorite' ? "Favorites" : "Recents",
+            footer: m.cost?.input === 0 ? "Free" : undefined,
+            disabled: (p.id === "opencode" && m.id.includes("-nano")),
+            onSelect: () => {
+              dialog.clear()
+              local.model.set({ providerID: item.providerID, modelID: item.modelID }, { recent: true })
+            }
+          }]
+        })
+      }
+      list.push(...getModelOptions(recents.map(x => ({ ...x, origin: 'recent' }))))
+      return list
+    }
+
+    // MODEL SELECTION VIEW (Tier 3)
+    if (s === "model_select") {
+      const pid = selectedProviderID()
+      if (!pid) return []
+      const p = sync.data.provider.find(x => x.id === pid)
+      if (!p) return []
+
+      const showAll = showHidden()
+
+      return pipe(
+        p.models,
+        entries(),
+        filter(([_, info]) => info.status !== "deprecated"),
+        // Filter hidden
+        filter(([mid, _]) => {
+          if (showAll) return true
+          return !local.model.hidden().some(h => h.providerID === pid && h.modelID === mid)
+        }),
+        map(([mid, info]) => {
+          const isFav = favorites.some(f => f.providerID === pid && f.modelID === mid)
+          const pAny = p as any
+          return {
+            value: { providerID: pid, modelID: mid },
+            title: info.name ?? mid,
+            category: "Models",
+            gutter: isFav ? "⭐" : undefined,
+            description: iife(() => {
+              if (pAny.coolingDownUntil && pAny.coolingDownUntil > Date.now()) {
+                const remaining = Math.ceil((pAny.coolingDownUntil - Date.now()) / 1000 / 60)
+                return `⏳ Rate limited (${remaining}m)`
+              }
+              if (pAny.cooldownReason) return `⛔ ${pAny.cooldownReason}`
+              return undefined
+            }),
+            disabled: (pid === "opencode" && mid.includes("-nano")) || (pAny.cooldownReason?.includes("blocked") ?? false),
+            footer: info.cost?.input === 0 ? "Free" : undefined,
+            onSelect: () => {
+              dialog.clear()
+              local.model.set({ providerID: pid, modelID: mid }, { recent: true })
+            }
+          }
+        }),
+        sortBy(x => x.title)
+      )
+    }
+
+    return []
+  })
 
   const title = createMemo(() => {
-    if (provider()) return provider()!.name
-    return "Select model"
+    if (step() === "root") return "Select Provider"
+    if (step() === "favorites") return "Favorites"
+    if (step() === "recents") return "Recent Models"
+    if (step() === "account_select") return `Select Account (${label(selectedFamily() || "", selectedFamily() || "")})`
+    if (step() === "model_select") {
+      if (selectedProviderID()) {
+        const p = sync.data.provider.find(x => x.id === selectedProviderID())
+        if (p) {
+          const who = owner(p)
+          if (who) return `Select Model - ${who}`
+          return `Select Model - ${p.name}`
+        }
+      }
+      return "Select Model"
+    }
+    return "Models"
   })
+
+  // Handle Back
+  const goBack = () => {
+    if (query() !== "") {
+      setQuery("")
+      return
+    }
+    if (step() === "root") {
+      dialog.clear()
+      return
+    }
+    if (step() === "account_select" || step() === "favorites" || step() === "recents") {
+      setStep("root")
+      setSelectedFamily(null)
+      return
+    }
+    if (step() === "model_select") {
+      setStep("account_select")
+      setSelectedProviderID(null)
+      return
+    }
+  }
 
   return (
     <DialogSelect
@@ -352,53 +532,95 @@ export function DialogModel(props: { providerID?: string }) {
         {
           keybind: Keybind.parse("f")[0],
           title: "Favorite",
-          disabled: !connected(),
+          label: "F/f",
+          disabled: !connected() || step() !== "model_select", // Only allow favoriting in model list
           onTrigger: (option: any) => {
-            local.model.toggleFavorite(option.value as { providerID: string; modelID: string })
+            const val = option.value
+            if (val && typeof val === "object" && val.providerID && val.modelID) {
+              local.model.toggleFavorite(val)
+            }
           },
         },
         {
           keybind: Keybind.parse("delete")[0],
-          title: "Delete/Hide",
+          title: step() === "model_select" ? "Hide" : "Delete",
+          label: "del",
           disabled: !connected(),
-          onTrigger: (option: any) => {
-            const val = option.value as { providerID: string; modelID: string; origin?: string }
-            if (val.origin === "recent") {
-              local.model.removeFromRecent(val)
-            } else if (val.origin === "favorite") {
-              local.model.toggleFavorite(val)
-            } else {
-              local.model.toggleHidden(val)
+          onTrigger: async (option: any) => {
+            const val = option.value
+
+            // Handle Account Deletion in 'account_select' step
+            if (step() === "account_select" && typeof val === "string" && val !== "__add_account__") {
+              const fam = selectedFamily()
+              if (!fam) return
+
+              const confirmed = await DialogConfirm.show(
+                dialog,
+                "Delete Account",
+                `Are you sure you want to delete this account?`
+              )
+
+              if (confirmed) {
+                try {
+                  // 1. Specialized Antigravity Cleanup
+                  if (fam === 'antigravity') {
+                    const manager = agManager()
+                    if (manager) {
+                      const match = val.match(/antigravity-subscription-(\d+)/)
+                      if (match) {
+                        const index = parseInt(match[1]) - 1
+                        if (manager.removeAccountByIndex(index)) {
+                          await saveAccounts({
+                            version: 3,
+                            accounts: manager.getAccountsSnapshot() as any,
+                            activeIndex: manager.getActiveIndex(),
+                            activeIndexByFamily: manager.getActiveIndexByFamily()
+                          })
+                        }
+                      }
+                    }
+                  }
+
+                  // 2. Core Account Removal
+                  const coreId = option.coreId || val
+                  await Account.remove(fam, coreId)
+                  await Account.refresh()
+
+                  toast.show({ message: "Account deleted successfully", variant: "success" })
+                  setStep("account_select")
+                  setSelectedFamily(fam)
+                  setQuery("")
+                  forceRefresh()
+                } catch (e: any) {
+                  toast.error(e)
+                }
+              }
+              return
             }
-          },
-        },
-        // Add backspace as alias for delete
-        {
-          keybind: Keybind.parse("backspace")[0],
-          title: "Delete (Backspace)",
-          disabled: !connected(),
-          onTrigger: (option: any) => {
-            const val = option.value as { providerID: string; modelID: string; origin?: string }
-            if (val.origin === "recent") {
-              local.model.removeFromRecent(val)
-            } else if (val.origin === "favorite") {
-              local.model.toggleFavorite(val)
-            } else {
-              local.model.toggleHidden(val)
+
+            if (step() === "model_select") {
+              const modelVal = option.value as { providerID: string; modelID: string; origin?: string }
+              if (modelVal.origin === "recent") {
+                local.model.removeFromRecent(modelVal)
+              } else if (modelVal.origin === "favorite") {
+                local.model.toggleFavorite(modelVal)
+              } else {
+                local.model.toggleHidden(modelVal)
+              }
             }
           },
         },
         {
           keybind: Keybind.parse("s")[0],
-          title: showHidden() ? "Hide hidden" : "Show all",
-          disabled: !connected(),
-          onTrigger: () => {
-            setShowHidden(!showHidden())
-          },
+          title: "Showall",
+          label: "S/s",
+          disabled: !connected() || step() !== "model_select",
+          onTrigger: () => setShowHidden(!showHidden()),
         },
         {
           keybind: Keybind.parse("insert")[0],
           title: "Unhide",
+          label: "Ins",
           disabled: !connected() || !showHidden(),
           onTrigger: (option: any) => {
             const val = option.value as { providerID: string; modelID: string }
@@ -411,26 +633,37 @@ export function DialogModel(props: { providerID?: string }) {
           },
         },
         {
-          keybind: Keybind.parse("left")[0],
-          title: "Back",
+          keybind: Keybind.parse("a")[0],
+          title: "Add",
+          label: "A/a",
+          disabled: step() !== "account_select",
           onTrigger: () => {
-            dialog.clear()
-          },
+            const fam = selectedFamily()
+            if (fam) dialog.replace(() => <DialogProviderList providerID={fam} />)
+          }
         },
         {
-          keybind: Keybind.parse("a")[0],
-          title: "Accounts",
-          onTrigger: () => {
-            dialog.replace(() => <DialogAccount />)
-          },
+          keybind: Keybind.parse("left")[0],
+          title: "Back",
+          label: "left/esc",
+          hidden: step() === "model_select",
+          onTrigger: goBack
+        },
+        {
+          keybind: Keybind.parse("esc")[0],
+          title: "",
+          hidden: true,
+          onTrigger: goBack
         },
       ]}
       ref={setRef}
       onFilter={setQuery}
-      skipFilter={true}
+      skipFilter={step() === "account_select"}
+      hideInput={step() === "account_select"}
       title={title()}
       current={local.model.current()}
       options={options()}
+      keybindLayout={step() === "account_select" || step() === "model_select" ? "columns" : "inline"}
     />
   )
 }

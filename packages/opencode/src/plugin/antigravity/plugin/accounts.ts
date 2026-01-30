@@ -243,6 +243,22 @@ export class AccountManager {
     return new AccountManager(authFallback, stored);
   }
 
+  replaceFrom(other: AccountManager): void {
+    this.accounts = other.accounts.map((acc) => ({
+      ...acc,
+      parts: { ...acc.parts },
+      rateLimitResetTimes: { ...acc.rateLimitResetTimes },
+      touchedForQuota: { ...acc.touchedForQuota },
+      fingerprint: acc.fingerprint,
+      fingerprintHistory: acc.fingerprintHistory,
+    }));
+    this.cursor = other.cursor;
+    this.currentAccountIndexByFamily = { ...other.currentAccountIndexByFamily };
+    this.sessionOffsetApplied = { ...other.sessionOffsetApplied };
+    this.lastToastAccountIndex = other.lastToastAccountIndex;
+    this.lastToastTime = other.lastToastTime;
+  }
+
   constructor(authFallback?: OAuthAuthDetails, stored?: AccountStorageV3 | null) {
     const authParts = authFallback ? parseRefreshParts(authFallback.refresh) : null;
 
@@ -379,6 +395,21 @@ export class AccountManager {
       return this.accounts[currentIndex] ?? null;
     }
     return null;
+  }
+
+  getPinnedForFamily(family: ModelFamily): ManagedAccount | null {
+    const current = this.getCurrentAccountForFamily(family);
+    if (current && current.enabled !== false) {
+      return current;
+    }
+    const enabled = this.getEnabledAccounts();
+    if (enabled.length === 0) {
+      return null;
+    }
+    const fallback = enabled[0] ?? null;
+    if (!fallback) return null;
+    this.currentAccountIndexByFamily[family] = fallback.index;
+    return fallback;
   }
 
   async markSwitched(account: ManagedAccount, reason: "rate-limit" | "initial" | "rotation", family: ModelFamily): Promise<void> {
