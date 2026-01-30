@@ -1132,9 +1132,16 @@ export namespace Provider {
         if (disabled.has(accountId)) continue
         if (!isProviderAllowed(accountId)) continue
 
-        // Simplify Antigravity IDs (e.g. antigravity-subscription-ivon0829-gmail-com -> antigravity-ivon0829)
+        // For Antigravity, only register the ACTIVE account and map it to the generic 'antigravity' ID
+        // This ensures /models shows a single 'Antigravity' entry that respects /accounts selection
         let effectiveId = accountId;
-        if (family === "antigravity" && accountId.startsWith("antigravity-subscription-") && accountInfo.type === "subscription" && accountInfo.email) {
+        if (family === "antigravity") {
+          if (accountId !== familyData.activeAccount) {
+            continue;
+          }
+          effectiveId = "antigravity";
+        } else if (family === "antigravity" && accountId.startsWith("antigravity-subscription-") && accountInfo.type === "subscription" && accountInfo.email) {
+          // Fallback logic for safety (though the above if block covers it)
           const username = accountInfo.email.split("@")[0];
           effectiveId = `antigravity-${username}`;
         }
