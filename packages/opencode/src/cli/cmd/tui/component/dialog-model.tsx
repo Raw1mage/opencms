@@ -39,7 +39,7 @@ export function DialogModel(props: { providerID?: string }) {
   const label = (name: string, id: string) => {
     const fam = family(id)
     if (!fam) return name
-    const map = {
+    const map: Record<string, string> = {
       anthropic: "Anthropic",
       openai: "OpenAI",
       google: "Google",
@@ -48,7 +48,7 @@ export function DialogModel(props: { providerID?: string }) {
       gitlab: "GitLab",
       opencode: "OpenCode",
     }
-    return map[fam] ?? name
+    return map[fam as string] ?? name
   }
 
   const owner = (provider: { id: string; name: string; email?: string }) => {
@@ -63,14 +63,13 @@ export function DialogModel(props: { providerID?: string }) {
       expiresAt: 0,
       addedAt: 0,
     }
-    const display = Account.getDisplayName(provider.id, info, fam)
-    if (display.includes("@")) return display.split("@")[0]
+    const display = Account.getDisplayName(provider.id, info as any, fam as string)
     return display || undefined
   }
 
   const activeOwners = createMemo(() => {
     const map = new Map<string, string>()
-    for (const provider of sync.data.provider) {
+    for (const provider of sync.data.provider as any[]) {
       if (!provider.active) continue
       const fam = family(provider.id)
       if (!fam) continue
@@ -193,7 +192,7 @@ export function DialogModel(props: { providerID?: string }) {
         return provider.active === true
       }),
       sortBy(
-        (provider) => provider.id !== "opencode",
+        (provider) => provider.id === "opencode",
         (provider: any) => !provider.active, // Active accounts first
         (provider) => provider.name,
       ),
@@ -214,24 +213,26 @@ export function DialogModel(props: { providerID?: string }) {
               title: info.name ?? model,
               category: connected()
                 ? iife(() => {
-                    const base = label(provider.name, provider.id)
-                    const who = iife(() => {
-                      const fam = family(provider.id)
-                      if (!fam) return undefined
-                      return activeOwners().get(fam)
-                    })
-                    if (who) return `${base} (${who})`
-                    return base
+                  const base = label(provider.name, provider.id)
+                  const who = iife(() => {
+                    const fam = family(provider.id)
+                    if (!fam) return undefined
+                    return activeOwners().get(fam)
                   })
+                  if (who) return `${base} (${who})`
+                  return base
+                })
                 : undefined,
-              disabled: provider.id === "opencode" && model.includes("-nano"),
+              disabled:
+                (provider.id === "opencode" && model.includes("-nano")) ||
+                (p.cooldownReason?.includes("blocked") ?? false),
               footer: iife(() => {
                 if (info.cost?.input === 0 && provider.id === "opencode") return "Free"
                 if (p.active) return "Active"
                 return undefined
               }),
               gutter: p.active ? (
-                <text fg={theme.success}>●</text>
+                <text fg={theme.success as any}>●</text>
               ) : undefined,
               description: iife(() => {
                 const statusDetails = []
@@ -241,6 +242,9 @@ export function DialogModel(props: { providerID?: string }) {
                 }
                 if (p.cooldownReason?.includes("quota")) {
                   statusDetails.push("💰 Quota exceeded")
+                }
+                if (p.cooldownReason && !p.cooldownReason.includes("quota")) {
+                  statusDetails.push(`⛔ ${p.cooldownReason}`)
                 }
                 const favoriteText = favorites.some(
                   (item) => item.providerID === value.providerID && item.modelID === value.modelID,
@@ -319,17 +323,17 @@ export function DialogModel(props: { providerID?: string }) {
     <DialogSelect
       keybind={[
         {
-          keybind: keybind.all.model_provider_list,
+          keybind: (keybind.all.model_provider_list as any)?.[0] ?? keybind.all.model_provider_list,
           title: connected() ? "Connect provider" : "View all providers",
           onTrigger() {
             dialog.replace(() => <DialogProvider />)
           },
         },
         {
-          keybind: keybind.all.model_favorite_toggle,
+          keybind: (keybind.all.model_favorite_toggle as any)?.[0] ?? keybind.all.model_favorite_toggle,
           title: "Favorite",
           disabled: !connected(),
-          onTrigger: (option) => {
+          onTrigger: (option: any) => {
             local.model.toggleFavorite(option.value as { providerID: string; modelID: string })
           },
         },

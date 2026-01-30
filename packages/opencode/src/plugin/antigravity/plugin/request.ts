@@ -57,12 +57,16 @@ import {
   needsThinkingRecovery,
 } from "./thinking-recovery";
 import { sanitizeCrossModelPayloadInPlace } from "./transform/cross-model-sanitizer";
-import { isGemini3Model, isImageGenerationModel, buildImageGenerationConfig, applyGeminiTransforms } from "./transform";
 import {
+  isClaudeModel,
+  isGeminiModel,
+  isGemini3Model,
+  isImageGenerationModel,
+  buildImageGenerationConfig,
+  applyGeminiTransforms,
   resolveModelWithTier,
   resolveModelWithVariant,
   resolveModelForHeaderStyle,
-  isClaudeModel,
   isClaudeThinkingModel,
   CLAUDE_THINKING_MAX_OUTPUT_TOKENS,
   type ThinkingTier,
@@ -902,16 +906,16 @@ export function prepareAntigravityRequest(
                   : {}),
               };
             } else if (tierThinkingLevel) {
-              // Gemini 3 uses thinkingLevel string (low/medium/high)
+              // Gemini 3 uses thinking_level string (low/medium/high)
               thinkingConfig = {
-                includeThoughts: normalizedThinking.includeThoughts,
-                thinkingLevel: tierThinkingLevel,
+                include_thoughts: normalizedThinking.includeThoughts ?? true,
+                thinking_level: tierThinkingLevel,
               };
             } else {
               // Gemini 2.5 and others use numeric budget
               thinkingConfig = {
-                includeThoughts: normalizedThinking.includeThoughts,
-                ...(typeof thinkingBudget === "number" && thinkingBudget > 0 ? { thinkingBudget } : {}),
+                include_thoughts: normalizedThinking.includeThoughts ?? true,
+                ...(typeof thinkingBudget === "number" && thinkingBudget > 0 ? { thinking_budget: thinkingBudget } : {}),
               };
             }
 
@@ -1339,7 +1343,19 @@ export function prepareAntigravityRequest(
         // Inject Antigravity system instruction with role "user" (CLIProxyAPI v6.6.89 compatibility)
         // This sets request.systemInstruction.role = "user" and request.systemInstruction.parts[0].text
         if (headerStyle === "antigravity") {
-          const existingSystemInstruction = requestPayload.systemInstruction;
+          const existingSystemInstruction = requestPayload.systemInstruction || requestPayload.system_instruction || requestPayload.instructions;
+          const isGPT = (effectiveModel || requestedModel).toLowerCase().includes("gpt");
+          if (!requestPayload.instructions && isGPT) {
+            const text = extractTextFromContent((existingSystemInstruction as any)?.parts ?? existingSystemInstruction);
+            if (text) {
+              requestPayload.instructions = text;
+            }
+          }
+          // If it's NOT a GPT model, we must NOT have 'instructions' at the top level
+          if (!isGPT && requestPayload.instructions) {
+            delete requestPayload.instructions;
+          }
+
           if (existingSystemInstruction && typeof existingSystemInstruction === "object") {
             const sys = existingSystemInstruction as Record<string, unknown>;
             sys.role = "user";

@@ -36,26 +36,36 @@ export const GEMINI_3_THINKING_LEVELS = ["minimal", "low", "medium", "high"] as 
 export const MODEL_ALIASES: Record<string, string> = {
   // Gemini 3 variants - for Gemini CLI only (tier stripped, thinkingLevel used)
   // For Antigravity, these are bypassed and full model name is kept
-  "gemini-3-pro-low": "gemini-3-pro",
-  "gemini-3-pro-high": "gemini-3-pro",
+  "gemini-3-pro-low": "gemini-3-pro-low",
+  "gemini-3-pro-high": "gemini-3-pro-high",
   "gemini-3-flash-low": "gemini-3-flash",
   "gemini-3-flash-medium": "gemini-3-flash",
   "gemini-3-flash-high": "gemini-3-flash",
-  // Map raw gemini-3-flash to itself to ensure it passes through resolver correctly
   "gemini-3-flash": "gemini-3-flash",
+
+  // Claude 4.5 Aliases (Antigravity)
+  "claude-sonnet-4-5": "claude-sonnet-4-5-20250929",
+  "claude-sonnet-4-5-thinking": "claude-sonnet-4-5-20250929-thinking",
+  "claude-opus-4-5": "claude-opus-4-5-20251101",
+  "claude-opus-4-5-thinking": "claude-opus-4-5-20251101-thinking",
+  "claude-haiku-4-5": "claude-haiku-4-5-20251001",
+  "claude-opus-4-1": "claude-opus-4-1-20250805",
+  "claude-opus-4-1-thinking": "claude-opus-4-1-20250805-thinking",
+  "claude-3-7-sonnet": "claude-3-7-sonnet-20250219",
+  "claude-3-7-sonnet-thinking": "claude-3-7-sonnet-20250219-thinking",
 
   // Claude proxy names (gemini- prefix for compatibility)
   "gemini-claude-sonnet-4-5": "claude-sonnet-4-5",
-  "gemini-claude-sonnet-4-5-thinking-low": "claude-sonnet-4-5-thinking",
-  "gemini-claude-sonnet-4-5-thinking-medium": "claude-sonnet-4-5-thinking",
-  "gemini-claude-sonnet-4-5-thinking-high": "claude-sonnet-4-5-thinking",
-  "gemini-claude-opus-4-5-thinking-low": "claude-opus-4-5-thinking",
-  "gemini-claude-opus-4-5-thinking-medium": "claude-opus-4-5-thinking",
-  "gemini-claude-opus-4-5-thinking-high": "claude-opus-4-5-thinking",
+  "gemini-claude-sonnet-4-5-thinking-low": "claude-sonnet-4-5-20250929-thinking",
+  "gemini-claude-sonnet-4-5-thinking-medium": "claude-sonnet-4-5-20250929-thinking",
+  "gemini-claude-sonnet-4-5-thinking-high": "claude-sonnet-4-5-20250929-thinking",
+  "gemini-claude-opus-4-5-thinking-low": "claude-opus-4-5-20251101-thinking",
+  "gemini-claude-opus-4-5-thinking-medium": "claude-opus-4-5-20251101-thinking",
+  "gemini-claude-opus-4-5-thinking-high": "claude-opus-4-5-20251101-thinking",
+  "gemini-claude-opus-4-1-thinking-low": "claude-opus-4-1-20250805-thinking",
 
-  // Image generation models - only gemini-3-pro-image is available via Antigravity API
-  // Note: gemini-2.5-flash-image (Nano Banana) is NOT supported by Antigravity - only Google AI API
-  // Reference: Antigravity-Manager/src-tauri/src/proxy/common/model_mapping.rs
+  // Image generation models
+  "gemini-3-pro-image": "gemini-3-pro-image-preview",
 };
 
 /**
@@ -301,7 +311,9 @@ export function getModelFamily(model: string): "claude" | "gemini-flash" | "gemi
  * Variant config from OpenCode's providerOptions.
  */
 export interface VariantConfig {
+  thinkingLevel?: string;
   thinkingBudget?: number;
+  includeThoughts?: boolean;
   googleSearch?: GoogleSearchConfig;
 }
 
@@ -391,20 +403,15 @@ export function resolveModelWithVariant(
     base.configSource = "variant";
   }
 
-  if (!variantConfig.thinkingBudget) {
-    return base;
-  }
-
-  const budget = variantConfig.thinkingBudget;
-  const isGemini3 = base.actualModel.toLowerCase().includes("gemini-3");
-
-  if (isGemini3) {
-    const level = budgetToGemini3Level(budget);
+  // If thinkingLevel is explicitly set in variant (Gemini 3), it takes priority
+  if (variantConfig.thinkingLevel) {
+    const level = variantConfig.thinkingLevel;
     const isAntigravityGemini3Pro = base.quotaPreference === "antigravity" &&
       base.actualModel.toLowerCase().startsWith("gemini-3-pro");
 
     let actualModel = base.actualModel;
     if (isAntigravityGemini3Pro) {
+      // For Antigravity G3P, the level is part of the model name ID
       const baseModel = base.actualModel.replace(/-(low|medium|high)$/, "");
       actualModel = `${baseModel}-${level}`;
     }
@@ -418,9 +425,37 @@ export function resolveModelWithVariant(
     };
   }
 
-  return {
-    ...base,
-    thinkingBudget: budget,
-    configSource: "variant",
-  };
+  // If thinkingBudget is set in variant (Claude/Gemini 2.5), it takes priority
+  if (variantConfig.thinkingBudget) {
+    const budget = variantConfig.thinkingBudget;
+    const isGemini3 = base.actualModel.toLowerCase().includes("gemini-3");
+
+    if (isGemini3) {
+      const level = budgetToGemini3Level(budget);
+      const isAntigravityGemini3Pro = base.quotaPreference === "antigravity" &&
+        base.actualModel.toLowerCase().startsWith("gemini-3-pro");
+
+      let actualModel = base.actualModel;
+      if (isAntigravityGemini3Pro) {
+        const baseModel = base.actualModel.replace(/-(low|medium|high)$/, "");
+        actualModel = `${baseModel}-${level}`;
+      }
+
+      return {
+        ...base,
+        actualModel,
+        thinkingLevel: level,
+        thinkingBudget: undefined,
+        configSource: "variant",
+      };
+    }
+
+    return {
+      ...base,
+      thinkingBudget: budget,
+      configSource: "variant",
+    };
+  }
+
+  return base;
 }

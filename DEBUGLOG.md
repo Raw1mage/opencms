@@ -60,6 +60,22 @@
 - [x] `OPENCODE_SKIP_TUI=1` 執行 `model-check --json` 成功完成。
 - [x] `unavailableModels` 為 0。
 
+## 2026-01-30: /models 真實互動式煙測 (Interactive Model Smoke Test)
+
+### 已識別問題 (Issues Identified)
+1. **/models 實測與 model-check 不一致**：手動切換模型並輸入 `hi` 時出現真實錯誤，model-check 無法反映。
+2. **Anthropic 訂閱憑證受限**：Claude Code 訂閱憑證回傳「only authorized for use with Claude Code」。
+3. **Google Gemini 模型列表過寬**：多個 `*-preview-*`、`live-*` 模型在 API 端回應 `NOT_FOUND` 或超時。
+
+### 已實施修復 (Fixes Implemented)
+1. **新增 model-smoke 指令**：`packages/opencode/src/cli/cmd/model-smoke.ts` 以實際 SessionPrompt 逐一送出 `hi`，模擬 /models 行為。
+2. **自動 ignorelist**：新增 `ignored-models.json` 動態清單，model-smoke 會把 `timeout/NOT_FOUND/unsupported` 的模型加入忽略清單，/models 同步隱藏。
+3. **Claude Code 訂閱標示**：Anthropic 訂閱帳號標記為 blocked，/models 會顯示原因並禁用選擇。
+
+### 驗證 (Verification)
+- [ ] `model-smoke` 可逐一跑完並將錯誤模型加入忽略清單。
+- [ ] /models 不再顯示已被 ignorelist 的模型。
+
 ## 2026-01-29: /models 只顯示 active 訂閱者並標示家族歸屬 (Active Subscription Labeling in /models)
 
 ### 已識別問題 (Issues Identified)
