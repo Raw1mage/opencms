@@ -13,7 +13,6 @@ import {
   writeFileSync,
   appendFileSync,
 } from "node:fs";
-import { createRequire } from "node:module";
 
 vi.mock("proper-lockfile", () => ({
   default: {
@@ -210,26 +209,26 @@ describe("deduplicateAccountsByEmail", () => {
   });
 });
 
-const require = createRequire(import.meta.url);
-const actualFs = require("node:fs") as typeof import("node:fs");
-
-vi.mock("node:fs", () => ({
-  ...actualFs,
-  promises: {
-    ...actualFs.promises,
-    readFile: vi.fn(),
-    writeFile: vi.fn(),
-    mkdir: vi.fn().mockResolvedValue(undefined),
-    access: vi.fn().mockResolvedValue(undefined),
-    unlink: vi.fn(),
-    rename: vi.fn().mockResolvedValue(undefined),
-    appendFile: vi.fn(),
-  },
-  existsSync: vi.fn(),
-  readFileSync: vi.fn(),
-  writeFileSync: vi.fn(),
-  appendFileSync: vi.fn(),
-}));
+vi.mock("node:fs", async () => {
+  const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
+  return {
+    ...actual,
+    promises: {
+      ...actual.promises,
+      readFile: vi.fn(),
+      writeFile: vi.fn(),
+      mkdir: vi.fn().mockResolvedValue(undefined),
+      access: vi.fn().mockResolvedValue(undefined),
+      unlink: vi.fn(),
+      rename: vi.fn().mockResolvedValue(undefined),
+      appendFile: vi.fn(),
+    },
+    existsSync: vi.fn(),
+    readFileSync: vi.fn(),
+    writeFileSync: vi.fn(),
+    appendFileSync: vi.fn(),
+  };
+});
 
 describe("Storage Migration", () => {
   const now = Date.now();
@@ -487,7 +486,7 @@ describe("Storage Migration", () => {
       vi.mocked(fs.readFile).mockRejectedValue({ code: "EACCES" });
 
       const { ensureGitignore } = await import("./storage");
-      await expect(ensureGitignore(configDir)).resolves.toBeUndefined();
+      await expect(ensureGitignore(configDir)).resolves.not.toThrow();
 
       expect(fs.writeFile).not.toHaveBeenCalled();
       expect(fs.appendFile).not.toHaveBeenCalled();

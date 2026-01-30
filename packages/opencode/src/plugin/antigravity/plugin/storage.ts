@@ -19,6 +19,9 @@ import { createLogger } from "./logger";
 
 const log = createLogger("storage");
 
+let accountCache: AccountStorageV3 | null = null;
+let lastLoadTime = 0;
+const CACHE_TTL = 30000; // 30 seconds cache for boot speed
 
 /**
  * Files/directories that should be gitignored in the config directory.
@@ -129,7 +132,7 @@ export function ensureGitignoreSync(configDir: string): void {
   }
 }
 
-export type ModelFamily = "claude" | "gemini" | "gemini-flash" | "gemini-pro";
+export type ModelFamily = "claude" | "gemini";
 export type { HeaderStyle };
 
 export interface RateLimitState {
@@ -183,7 +186,6 @@ export type CooldownReason = "auth-failure" | "network-error" | "project-error";
 
 export interface AccountMetadataV3 {
   email?: string;
-  tier?: "free" | "paid";
   refreshToken: string;
   projectId?: string;
   managedProjectId?: string;
@@ -243,8 +245,8 @@ function getConfigDir(): string {
  * Gets the storage path, checking legacy Windows location for migration.
  * If the new path doesn't exist but the legacy path does, returns the legacy path.
  */
-function getStoragePathWithMigration(filename: string): string {
-  const newPath = join(getConfigDir(), filename);
+function getStoragePathWithMigration(): string {
+  const newPath = join(getConfigDir(), "antigravity-accounts.json");
 
   // On Windows, check for legacy %APPDATA% path if new path doesn't exist
   if (process.platform === "win32") {
@@ -266,8 +268,8 @@ function getStoragePathWithMigration(filename: string): string {
   return newPath;
 }
 
-export function getStoragePath(filename: string = "antigravity-accounts.json"): string {
-  return getStoragePathWithMigration(filename);
+export function getStoragePath(): string {
+  return getStoragePathWithMigration();
 }
 
 /**
@@ -489,47 +491,14 @@ export function migrateV2ToV3(v2: AccountStorage): AccountStorageV3 {
   };
 }
 
-export function loadAccountsSync(): AccountStorageV3 | null {
+export async function loadAccounts(): Promise<AccountStorageV3 | null> {
+  const now = Date.now();
+  if (accountCache && (now - lastLoadTime < CACHE_TTL)) {
+    return accountCache;
+  }
+
   try {
     const path = getStoragePath();
-    if (!existsSync(path)) return null;
-    const content = readFileSync(path, "utf-8");
-    const data = JSON.parse(content) as AnyAccountStorage;
-
-    // Auto-migrate if needed (simplified for sync)
-    if (data.version === 3) return data;
-    if (data.version === 1) return migrateV2ToV3(migrateV1ToV2(data));
-    if (data.version === 2) return migrateV2ToV3(data);
-
-    return null;
-  } catch (error) {
-    return null;
-  }
-}
-
-const accountCache = new Map<string, AccountStorageV3>();
-const lastLoadTime = new Map<string, number>();
-const CACHE_TTL = 30000; // 30 seconds cache for boot speed
-
-export function clearAccountCache() {
-  accountCache.clear();
-  lastLoadTime.clear();
-}
-
-
-export async function loadAccounts(filename: string = "antigravity-accounts.json"): Promise<AccountStorageV3 | null> {
-  const now = Date.now();
-  const skipCache = process.env["OPENCODE_TEST_NO_ACCOUNT_CACHE"] === "1";
-
-  if (!skipCache && accountCache.has(filename)) {
-    const last = lastLoadTime.get(filename) || 0;
-    if (now - last < CACHE_TTL) {
-      return accountCache.get(filename)!;
-    }
-  }
-
-  try {
-    const path = getStoragePath(filename);
     const content = await fs.readFile(path, "utf-8");
     const data = JSON.parse(content) as AnyAccountStorage;
 
@@ -545,7 +514,7 @@ export async function loadAccounts(filename: string = "antigravity-accounts.json
       const v2 = migrateV1ToV2(data);
       storage = migrateV2ToV3(v2);
       try {
-        await saveAccounts(storage, filename);
+        await saveAccounts(storage);
         log.info("Migration to v3 complete");
       } catch (saveError) {
         log.warn("Failed to persist migrated storage", {
@@ -556,7 +525,7 @@ export async function loadAccounts(filename: string = "antigravity-accounts.json
       log.info("Migrating account storage from v2 to v3");
       storage = migrateV2ToV3(data);
       try {
-        await saveAccounts(storage, filename);
+        await saveAccounts(storage);
         log.info("Migration to v3 complete");
       } catch (saveError) {
         log.warn("Failed to persist migrated storage", {
@@ -605,8 +574,8 @@ export async function loadAccounts(filename: string = "antigravity-accounts.json
       activeIndex,
     };
 
-    accountCache.set(filename, result);
-    lastLoadTime.set(filename, Date.now());
+    accountCache = result;
+    lastLoadTime = Date.now();
     return result;
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
@@ -618,21 +587,19 @@ export async function loadAccounts(filename: string = "antigravity-accounts.json
   }
 }
 
-export async function saveAccounts(storage: AccountStorageV3, filename: string = "antigravity-accounts.json"): Promise<void> {
-  const path = getStoragePath(filename);
+export async function saveAccounts(storage: AccountStorageV3): Promise<void> {
+  const path = getStoragePath();
   const configDir = dirname(path);
   await fs.mkdir(configDir, { recursive: true });
   await ensureGitignore(configDir);
 
   await withFileLock(path, async () => {
-    // Read fresh from disk to avoid overwriting updates from other processes
-    const existing = await loadAccountsUnsafe(filename);
-
+    const existing = await loadAccountsUnsafe();
     const merged = existing ? mergeAccountStorage(existing, storage) : storage;
 
     // Update cache
-    accountCache.set(filename, merged);
-    lastLoadTime.set(filename, Date.now());
+    accountCache = merged;
+    lastLoadTime = Date.now();
 
     const tempPath = `${path}.${randomBytes(6).toString("hex")}.tmp`;
     const content = JSON.stringify(merged, null, 2);
@@ -652,9 +619,9 @@ export async function saveAccounts(storage: AccountStorageV3, filename: string =
   });
 }
 
-async function loadAccountsUnsafe(filename: string): Promise<AccountStorageV3 | null> {
+async function loadAccountsUnsafe(): Promise<AccountStorageV3 | null> {
   try {
-    const path = getStoragePath(filename);
+    const path = getStoragePath();
     const content = await fs.readFile(path, "utf-8");
     const parsed = JSON.parse(content);
 
@@ -678,12 +645,10 @@ async function loadAccountsUnsafe(filename: string): Promise<AccountStorageV3 | 
   }
 }
 
-export async function clearAccounts(filename: string = "antigravity-accounts.json"): Promise<void> {
+export async function clearAccounts(): Promise<void> {
   try {
-    const path = getStoragePath(filename);
+    const path = getStoragePath();
     await fs.unlink(path);
-    accountCache.delete(filename);
-    lastLoadTime.delete(filename);
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code !== "ENOENT") {

@@ -12,14 +12,13 @@ const THOUGHT_SIGNATURE_BYPASS = "skip_thought_signature_validator";
 const VALID_CLAUDE_SIGNATURE = "RXJRQ0NrZ0lDaEFDR0FJcVFKdmIzVzdUKzcyNE9nS29LTVdocXpIOEVuZFB3VzltelFLZENYT2xTMWs5dXF3RUdNcTMzTEJuaW1keTdBUjhGSUVyVG1IMnk2SVQvYjJaMTFnL3pPRVNES2NoYmVWZzk1LzBMaE50dGhvTUJWUFVJRmxNZU5qSzJzNERJakJXdFhJeVg0ZUJBZ1p4Zk9hYkNBWER6SHRvb2ZtMVQ2SjZodWdwbXFzSHllR3RjeERLd2JicWJJUzRvQStzTm9jcW1RR0MyTUFKUmNBSXRMc3drSFNNK09DcWhPNWZlNWxtNERIN0pJdnluamFBcEVrMUtsZithWjBwZWgyb1ZrZlUyQmVwZVByc3k3UWJVcWFmc3dBSVl6QkNlY1BISTA4bmpneUlBT";
 
 function createContext(model: string): TransformContext {
-  const family: ModelFamily = model.includes("claude")
-    ? "claude"
-    : model.includes("flash")
-      ? "gemini-flash"
+  const family: ModelFamily = model.includes("claude") 
+    ? "claude" 
+    : model.includes("flash") 
+      ? "gemini-flash" 
       : "gemini-pro";
   return {
     model,
-    requestedModel: model,
     family,
     projectId: "test-project",
     streaming: true,
@@ -502,7 +501,7 @@ describe("thoughtSignature handling", () => {
 
     it("Claude→Gemini→Claude: family-independent cache prevents cross-contamination", () => {
       const thinkingText = "The user is asking a simple arithmetic question...";
-
+      
       const claudePayload: RequestPayload = {
         contents: [
           {
@@ -565,7 +564,7 @@ describe("thoughtSignature handling", () => {
 
     it("Claude→Claude: restores signature from same-family cache", () => {
       const thinkingText = "Same family thinking restoration test...";
-
+      
       const firstClaudePayload: RequestPayload = {
         contents: [
           {
@@ -627,7 +626,7 @@ describe("thoughtSignature handling", () => {
 
     it("Gemini→Claude: removes thinking blocks without cached signature", () => {
       const geminiOnlySignature = "GEMINI_SPECIFIC_SIG_not_in_cache_xyz";
-
+      
       const payload: RequestPayload = {
         contents: [
           {
@@ -668,7 +667,7 @@ describe("thoughtSignature handling", () => {
     it("Gemini→Gemini: restores signature from same-family cache", () => {
       const thinkingText = "Gemini thinking that should be restored...";
       const VALID_GEMINI_SIGNATURE = "GeminiValidSignatureXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
-
+      
       cacheSignature("gemini-pro", "test-session-id", thinkingText, VALID_GEMINI_SIGNATURE);
 
       const geminiPayload: RequestPayload = {
@@ -710,9 +709,9 @@ describe("thoughtSignature handling", () => {
     it("Gemini keeps own thinking when pre-cached (simulates response caching)", () => {
       const thinkingText = "Gemini's own thinking...";
       const VALID_GEMINI_SIGNATURE = "GeminiValidSignatureYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY";
-
+      
       cacheSignature("gemini-pro", "test-session-id", thinkingText, VALID_GEMINI_SIGNATURE);
-
+      
       const payload: RequestPayload = {
         contents: [
           {

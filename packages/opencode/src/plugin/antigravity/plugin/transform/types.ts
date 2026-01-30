@@ -5,12 +5,6 @@ export type ModelFamily = "claude" | "gemini-flash" | "gemini-pro";
 export type ThinkingTier = "low" | "medium" | "high";
 
 /**
- * Default token budget for thinking/reasoning. 16000 tokens provides sufficient
- * space for complex reasoning while staying within typical model limits.
- */
-export const DEFAULT_THINKING_BUDGET = 16000;
-
-/**
  * Context for request transformation.
  * Contains all information needed to transform a request payload.
  */

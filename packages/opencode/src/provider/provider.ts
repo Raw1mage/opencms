@@ -1028,9 +1028,13 @@ export namespace Provider {
       }
 
       const manualModels = [
-        { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", family: "gemini-flash" },
-        { id: "gemini-2.0-pro-exp-02-05", name: "Gemini 2.0 Pro", family: "gemini-pro" },
-        { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", family: "gemini-pro" },
+        { id: "claude-opus-4-5-thinking", name: "Claude 4.5 Opus (Thinking)", family: "claude", reasoning: true },
+        { id: "claude-opus-4-5", name: "Claude 4.5 Opus", family: "claude" },
+        { id: "claude-sonnet-4-5-thinking", name: "Claude 4.5 Sonnet (Thinking)", family: "claude", reasoning: true },
+        { id: "claude-sonnet-4-5", name: "Claude 4.5 Sonnet", family: "claude" },
+        { id: "gemini-3-pro-high", name: "Gemini 3 Pro (High)", family: "gemini-pro" },
+        { id: "gemini-3-pro-low", name: "Gemini 3 Pro (Low)", family: "gemini-pro" },
+        { id: "gemini-3-flash", name: "Gemini 3 Flash (New)", family: "gemini-flash" },
         { id: "claude-opus-4-1", name: "Claude Opus 4.1", family: "claude" },
         { id: "claude-opus-4-2", name: "Claude Opus 4.2", family: "claude" },
         { id: "gpt-oss-120b-medium", name: "GPT-OSS 120B (Medium)", family: "gpt-oss" },

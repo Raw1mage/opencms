@@ -233,3 +233,7 @@ Fixed URL for manual Antigravity models.
 - Detected  usage in  (SEARCH_MODEL). This might confirm the ID is valid or an alias.
 - Issue is 'Not Found' (404), suggesting invalid request URL/ID combination.
 Suspect 404 is due to made-up model ID. Trying to switch to known valid ID.
+Branch 'raw' not found in truncated list. Checking specifically for 'raw'.
+Found local branch 'raw'. Diffing against current HEAD to see changes in Antigravity plugin.
+The diff is confusing. The user says 'raw branch' has the fix. I should checkout the files from 'raw' branch for the Antigravity plugin.
+Also reverting my changes to provider.ts manually, or at least restoring the manual models I deleted.

@@ -27,6 +27,7 @@ import {
 import { createLogger } from "./logger";
 import {
   cleanJSONSchemaForAntigravity,
+  DEFAULT_THINKING_BUDGET,
   deepFilterThinkingBlocks,
   extractThinkingConfig,
   extractVariantThinkingConfig,
@@ -43,8 +44,6 @@ import {
   resolveThinkingConfig,
   rewriteAntigravityPreviewAccessError,
   transformThinkingParts,
-  ANTIGRAVITY_BASE_SYSTEM_INSTRUCTION,
-  filterUnsignedThinkingBlocks,
   type AntigravityApiBody,
 } from "./request-helpers";
 import {
@@ -52,23 +51,18 @@ import {
   CLAUDE_DESCRIPTION_PROMPT,
   ANTIGRAVITY_SYSTEM_INSTRUCTION,
 } from "../constants";
-import { DEFAULT_THINKING_BUDGET } from "./transform/types";
 import {
   analyzeConversationState,
   closeToolLoopForThinking,
   needsThinkingRecovery,
 } from "./thinking-recovery";
 import { sanitizeCrossModelPayloadInPlace } from "./transform/cross-model-sanitizer";
+import { isGemini3Model, isImageGenerationModel, buildImageGenerationConfig, applyGeminiTransforms } from "./transform";
 import {
-  isClaudeModel,
-  isGeminiModel,
-  isGemini3Model,
-  isImageGenerationModel,
-  buildImageGenerationConfig,
-  applyGeminiTransforms,
   resolveModelWithTier,
   resolveModelWithVariant,
   resolveModelForHeaderStyle,
+  isClaudeModel,
   isClaudeThinkingModel,
   CLAUDE_THINKING_MAX_OUTPUT_TOKENS,
   type ThinkingTier,
@@ -596,16 +590,11 @@ function generateSyntheticProjectId(): string {
 
 const STREAM_ACTION = "streamGenerateContent";
 
-export function isGenerativeLanguageRequest(input: RequestInfo): boolean {
-  const url = typeof input === "string" ? input : input.url;
-  // Prevent recursion by ignoring internal Antigravity plugin requests
-  // Also check for relative paths that SDKs might produce (e.g. v1beta/models...)
-  if (url.includes("loadCodeAssist") || url.includes("onboardUser")) {
-    return false;
-  }
-  return url.includes("generativelanguage.googleapis.com") ||
-    url.startsWith("/v1/") || url.startsWith("v1/") ||
-    url.startsWith("/models/") || url.startsWith("models/");
+/**
+ * Detects requests headed to the Google Generative Language API so we can intercept them.
+ */
+export function isGenerativeLanguageRequest(input: RequestInfo): input is string {
+  return typeof input === "string" && input.includes("generativelanguage.googleapis.com");
 }
 
 /**
@@ -654,78 +643,41 @@ export function prepareAntigravityRequest(
   let sessionId: string | undefined;
   let needsSignedThinkingWarmup = false;
   let thinkingRecoveryMessage: string | undefined;
-  const urlString = typeof input === "string" ? input : input.url;
 
-  if (!isGenerativeLanguageRequest(urlString)) {
-    // If it's a relative URL to Google API (or empty/malformed from some SDKs), make it absolute
-    const isRelativeApi = urlString.startsWith("/v1") || urlString.startsWith("v1") ||
-      urlString.startsWith("/models") || urlString.startsWith("models") ||
-      (!urlString.startsWith("http") && urlString.length > 0);
-
-    // If it's effectively empty or relative, try to salvage it
-    if (isRelativeApi || !urlString) {
-      let pathToken = urlString;
-      if (!pathToken) {
-        // Fallback for completely empty URL - assume standard generateContent for the model if we can? 
-        // Or just provide a safe base to prevent fetch crash.
-        // However, if we don't know the operation, this might fail downstream 404. 
-        // But failing 404 is better than crashing fetch.
-        // Let's assume v1beta/models if empty (unlikely but safe fallback).
-        pathToken = "/v1beta/models";
-      } else if (!pathToken.startsWith("/")) {
-        pathToken = "/" + pathToken;
-      }
-      input = `https://generativelanguage.googleapis.com${pathToken}`;
-    } else {
-
-      return {
-        request: input,
-        init: { ...baseInit, headers },
-        streaming: false,
-        headerStyle,
-      };
-    }
+  if (!isGenerativeLanguageRequest(input)) {
+    return {
+      request: input,
+      init: { ...baseInit, headers },
+      streaming: false,
+      headerStyle,
+    };
   }
-
-
-  const currentUrl = typeof input === "string" ? input : input.url;
 
   headers.set("Authorization", `Bearer ${accessToken}`);
   headers.delete("x-api-key");
 
-  // Improved regex to capture model ID and action more reliably.
-  // Handles /models/model-id:action or /models/model-id
-  const match = currentUrl.match(/\/models\/([^:\/?]+)(?::([^?\s/]+))?/);
-  const rawModelFromUrl = match?.[1] || "";
-  const rawActionFromUrl = match?.[2] || "generateContent";
-
-  const requestedModel = rawModelFromUrl;
-  const resolved = resolveModelForHeaderStyle(requestedModel, headerStyle);
-  const effectiveModel = resolved.actualModel;
-  const isClaude = isClaudeModel(effectiveModel) || isClaudeModel(requestedModel);
-
-  if (isClaude) {
-    headers.set("User-Agent", "anthropic-claude-code/0.5.1");
-    headers.set("anthropic-client", "claude-code/0.5.1");
+  const match = input.match(/\/models\/([^:]+):(\w+)/);
+  if (!match) {
+    return {
+      request: input,
+      init: { ...baseInit, headers },
+      streaming: false,
+      headerStyle,
+    };
   }
 
-  const streaming = rawActionFromUrl.startsWith("stream") || currentUrl.includes("alt=sse");
-  const rawAction = (streaming && !rawActionFromUrl.startsWith("stream"))
-    ? "streamGenerateContent"
-    : (rawActionFromUrl || "generateContent");
+  const [, rawModel = "", rawAction = ""] = match;
+  const requestedModel = rawModel;
 
+  const resolved = resolveModelForHeaderStyle(rawModel, headerStyle);
+  const effectiveModel = resolved.actualModel;
+
+  const streaming = rawAction === STREAM_ACTION;
   const defaultEndpoint = headerStyle === "gemini-cli" ? GEMINI_CLI_ENDPOINT : ANTIGRAVITY_ENDPOINT;
   const baseEndpoint = endpointOverride ?? defaultEndpoint;
+  const transformedUrl = `${baseEndpoint}/v1internal:${rawAction}${streaming ? "?alt=sse" : ""}`;
 
-  // Ensure transformedUrl is absolute
-  const rawActionFromUrlEncoded = rawAction.startsWith("stream") ? "streamGenerateContent" : rawAction;
-  const transformedUrl = `${baseEndpoint}/v1internal:${rawActionFromUrlEncoded}${streaming ? "?alt=sse" : ""}`;
-
-  if (isDebugEnabled()) {
-    log.debug(`transformedUrl: ${transformedUrl}`, { rawModelFromUrl, rawActionFromUrl, effectiveModel, input: currentUrl });
-  }
-
-
+  const isClaude = isClaudeModel(resolved.actualModel);
   const isClaudeThinking = isClaudeThinkingModel(resolved.actualModel);
 
   // Tier-based thinking configuration from model resolver (can be overridden by variant config)
@@ -742,7 +694,6 @@ export function prepareAntigravityRequest(
   if (typeof baseInit.body === "string" && baseInit.body) {
     try {
       const parsedBody = JSON.parse(baseInit.body) as Record<string, unknown>;
-
       const isWrapped = typeof parsedBody.project === "string" && "request" in parsedBody;
 
       if (isWrapped) {
@@ -928,16 +879,16 @@ export function prepareAntigravityRequest(
                   : {}),
               };
             } else if (tierThinkingLevel) {
-              // Gemini 3 uses thinking_level string (low/medium/high)
+              // Gemini 3 uses thinkingLevel string (low/medium/high)
               thinkingConfig = {
-                include_thoughts: normalizedThinking.includeThoughts ?? true,
-                thinking_level: tierThinkingLevel,
+                includeThoughts: normalizedThinking.includeThoughts,
+                thinkingLevel: tierThinkingLevel,
               };
             } else {
               // Gemini 2.5 and others use numeric budget
               thinkingConfig = {
-                include_thoughts: normalizedThinking.includeThoughts ?? true,
-                ...(typeof thinkingBudget === "number" && thinkingBudget > 0 ? { thinking_budget: thinkingBudget } : {}),
+                includeThoughts: normalizedThinking.includeThoughts,
+                ...(typeof thinkingBudget === "number" && thinkingBudget > 0 ? { thinkingBudget } : {}),
               };
             }
 
@@ -1217,14 +1168,12 @@ export function prepareAntigravityRequest(
         const conversationKey = resolveConversationKey(requestPayload);
         signatureSessionKey = buildSignatureSessionKey(PLUGIN_SESSION_ID, effectiveModel, conversationKey, resolveProjectKey(projectId));
 
-        // Step 0: Sanitize cross-model metadata (strips foreign signatures/metadata)
-        // This is crucial for avoiding validation errors when switching models mid-session.
-        sanitizeCrossModelPayloadInPlace(requestPayload, { targetModel: effectiveModel });
-
         // For Claude models, filter out unsigned thinking blocks (required by Claude API)
         // Attempts to restore signatures from cache for multi-turn conversations
         // Handle both Gemini-style contents[] and Anthropic-style messages[] payloads.
         if (isClaude) {
+          // Step 0: Sanitize cross-model metadata (strips Gemini signatures when sending to Claude)
+          sanitizeCrossModelPayloadInPlace(requestPayload, { targetModel: effectiveModel });
 
           // Step 1: Strip corrupted/unsigned thinking blocks FIRST
           deepFilterThinkingBlocks(requestPayload, signatureSessionKey, getCachedSignature, true);
@@ -1365,19 +1314,7 @@ export function prepareAntigravityRequest(
         // Inject Antigravity system instruction with role "user" (CLIProxyAPI v6.6.89 compatibility)
         // This sets request.systemInstruction.role = "user" and request.systemInstruction.parts[0].text
         if (headerStyle === "antigravity") {
-          const existingSystemInstruction = requestPayload.systemInstruction || requestPayload.system_instruction || requestPayload.instructions;
-          const isGPT = (effectiveModel || requestedModel).toLowerCase().includes("gpt");
-          if (!requestPayload.instructions && isGPT) {
-            const text = extractTextFromContent((existingSystemInstruction as any)?.parts ?? existingSystemInstruction);
-            if (text) {
-              requestPayload.instructions = text;
-            }
-          }
-          // If it's NOT a GPT model, we must NOT have 'instructions' at the top level
-          if (!isGPT && requestPayload.instructions) {
-            delete requestPayload.instructions;
-          }
-
+          const existingSystemInstruction = requestPayload.systemInstruction;
           if (existingSystemInstruction && typeof existingSystemInstruction === "object") {
             const sys = existingSystemInstruction as Record<string, unknown>;
             sys.role = "user";
@@ -1457,13 +1394,9 @@ export function prepareAntigravityRequest(
   const fingerprintHeaders = buildFingerprintHeaders(fingerprint);
 
   // Apply fingerprint headers (override randomized with fingerprint if available)
-  // CRITICAL: Prevent fingerprint from overwriting Claude-specific User-Agent
-  if (!isClaude || !headers.has("User-Agent")) {
-    headers.set("User-Agent", fingerprintHeaders["User-Agent"] || selectedHeaders["User-Agent"]);
-  }
+  headers.set("User-Agent", fingerprintHeaders["User-Agent"] || selectedHeaders["User-Agent"]);
   headers.set("X-Goog-Api-Client", fingerprintHeaders["X-Goog-Api-Client"] || selectedHeaders["X-Goog-Api-Client"]);
   headers.set("Client-Metadata", fingerprintHeaders["Client-Metadata"] || selectedHeaders["Client-Metadata"]);
-
 
   // Add new fingerprint-specific headers for device identity
   if (fingerprintHeaders["X-Goog-QuotaUser"]) {
@@ -1553,11 +1486,11 @@ export function buildThinkingWarmupBody(
 export async function transformAntigravityResponse(
   response: Response,
   streaming: boolean,
-  debugContext: any,
-  requestedModel: string | undefined,
-  projectId: string | undefined,
-  endpoint: string | undefined,
-  effectiveModel: string | undefined,
+  debugContext?: AntigravityDebugContext | null,
+  requestedModel?: string,
+  projectId?: string,
+  endpoint?: string,
+  effectiveModel?: string,
   sessionId?: string,
   toolDebugMissing?: number,
   toolDebugSummary?: string,

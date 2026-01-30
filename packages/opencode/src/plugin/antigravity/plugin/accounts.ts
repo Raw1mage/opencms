@@ -117,12 +117,11 @@ export function calculateBackoffMs(
 }
 
 export type BaseQuotaKey = "claude" | "gemini-antigravity" | "gemini-cli";
-export type QuotaKey = BaseQuotaKey | `${BaseQuotaKey}:${string}` | string;
+export type QuotaKey = BaseQuotaKey | `${BaseQuotaKey}:${string}`;
 
 export interface ManagedAccount {
   index: number;
   email?: string;
-  tier?: "free" | "paid";
   addedAt: number;
   lastUsed: number;
   parts: RefreshParts;
@@ -147,12 +146,6 @@ function nowMs(): number {
   return Date.now();
 }
 
-function getTierRank(tier?: "free" | "paid"): number {
-  if (tier === "paid") return 2;
-  if (tier === "free") return 1;
-  return 0;
-}
-
 function clampNonNegativeInt(value: unknown, fallback: number): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return fallback;
@@ -160,12 +153,9 @@ function clampNonNegativeInt(value: unknown, fallback: number): number {
   return value < 0 ? 0 : Math.floor(value);
 }
 
-function getQuotaKey(family: ModelFamily | string, headerStyle: HeaderStyle, model?: string | null): QuotaKey {
+function getQuotaKey(family: ModelFamily, headerStyle: HeaderStyle, model?: string | null): QuotaKey {
   if (family === "claude") {
     return "claude";
-  }
-  if (family !== "gemini") {
-    return family;
   }
   const base = headerStyle === "gemini-cli" ? "gemini-cli" : "gemini-antigravity";
   if (model) {
@@ -237,18 +227,13 @@ function clearExpiredRateLimits(account: ManagedAccount): void {
 export class AccountManager {
   private accounts: ManagedAccount[] = [];
   private cursor = 0;
-  private baseAuth: OAuthAuthDetails | undefined;
   private currentAccountIndexByFamily: Record<ModelFamily, number> = {
     claude: -1,
     gemini: -1,
-    "gemini-flash": -1,
-    "gemini-pro": -1,
   };
   private sessionOffsetApplied: Record<ModelFamily, boolean> = {
     claude: false,
     gemini: false,
-    "gemini-flash": false,
-    "gemini-pro": false,
   };
   private lastToastAccountIndex = -1;
   private lastToastTime = 0;
@@ -257,11 +242,9 @@ export class AccountManager {
   private saveTimeout: ReturnType<typeof setTimeout> | null = null;
   private savePromiseResolvers: Array<() => void> = [];
 
-  private storageKey: string = "antigravity-accounts.json";
-
-  static async loadFromDisk(authFallback?: OAuthAuthDetails, storageKey: string = "antigravity-accounts.json"): Promise<AccountManager> {
-    const stored = await loadAccounts(storageKey);
-    return new AccountManager(authFallback, stored, storageKey);
+  static async loadFromDisk(authFallback?: OAuthAuthDetails): Promise<AccountManager> {
+    const stored = await loadAccounts();
+    return new AccountManager(authFallback, stored);
   }
 
   /**
@@ -279,8 +262,7 @@ export class AccountManager {
     }
   }
 
-  constructor(authFallback?: OAuthAuthDetails, stored?: AccountStorageV3 | null, storageKey: string = "antigravity-accounts.json") {
-    this.storageKey = storageKey;
+  constructor(authFallback?: OAuthAuthDetails, stored?: AccountStorageV3 | null) {
     const authParts = authFallback ? parseRefreshParts(authFallback.refresh) : null;
 
     if (stored && stored.accounts.length === 0) {
@@ -306,7 +288,6 @@ export class AccountManager {
           return {
             index,
             email: acc.email,
-            tier: acc.tier,
             addedAt: clampNonNegativeInt(acc.addedAt, baseNow),
             lastUsed: clampNonNegativeInt(acc.lastUsed, 0),
             parts: {
@@ -354,7 +335,6 @@ export class AccountManager {
         const newAccount: ManagedAccount = {
           index: this.accounts.length,
           email: undefined,
-          tier: undefined,
           addedAt: now,
           lastUsed: 0,
           parts: authParts,
@@ -379,7 +359,6 @@ export class AccountManager {
           {
             index: 0,
             email: undefined,
-            tier: undefined,
             addedAt: now,
             lastUsed: 0,
             parts,
@@ -413,59 +392,6 @@ export class AccountManager {
     return this.accounts.map((a) => ({ ...a, parts: { ...a.parts }, rateLimitResetTimes: { ...a.rateLimitResetTimes } }));
   }
 
-  addAccount(
-    parts: RefreshParts,
-    access?: string,
-    expires?: number,
-    email?: string,
-    tier?: "free" | "paid",
-  ): ManagedAccount | null {
-    if (!parts.refreshToken) {
-      return null;
-    }
-
-    const existing = this.accounts.find(acc => acc.parts.refreshToken === parts.refreshToken);
-    if (existing) {
-      existing.parts = {
-        refreshToken: parts.refreshToken,
-        projectId: parts.projectId ?? existing.parts.projectId,
-        managedProjectId: parts.managedProjectId ?? existing.parts.managedProjectId,
-      };
-      if (typeof access === "string") existing.access = access;
-      if (typeof expires === "number") existing.expires = expires;
-      if (typeof email === "string") existing.email = email;
-      if (tier) existing.tier = tier;
-      existing.enabled = true;
-      return existing;
-    }
-
-    const now = nowMs();
-    const account: ManagedAccount = {
-      index: this.accounts.length,
-      email,
-      tier,
-      addedAt: now,
-      lastUsed: 0,
-      parts,
-      access,
-      expires,
-      enabled: true,
-      rateLimitResetTimes: {},
-      touchedForQuota: {},
-      fingerprint: generateFingerprint(),
-    };
-    this.accounts.push(account);
-
-    if (this.currentAccountIndexByFamily.claude < 0) {
-      this.currentAccountIndexByFamily.claude = 0;
-    }
-    if (this.currentAccountIndexByFamily.gemini < 0) {
-      this.currentAccountIndexByFamily.gemini = 0;
-    }
-
-    return account;
-  }
-
   getCurrentAccountForFamily(family: ModelFamily): ManagedAccount | null {
     const currentIndex = this.currentAccountIndexByFamily[family];
     if (currentIndex >= 0 && currentIndex < this.accounts.length) {
@@ -477,26 +403,6 @@ export class AccountManager {
   markSwitched(account: ManagedAccount, reason: "rate-limit" | "initial" | "rotation", family: ModelFamily): void {
     account.lastSwitchReason = reason;
     this.currentAccountIndexByFamily[family] = account.index;
-  }
-
-  getCurrentAccount(): ManagedAccount | null {
-    const idx = this.currentAccountIndexByFamily.gemini;
-    return idx >= 0 ? this.accounts[idx] : null;
-  }
-
-  accountToAuth(account: ManagedAccount): OAuthAuthDetails {
-    return this.toAuthDetails(account);
-  }
-
-  updateAccount(account: ManagedAccount, access: string, expires: number, parts: RefreshParts): void {
-    account.access = access;
-    account.expires = expires;
-    account.parts = {
-      ...account.parts,
-      ...parts,
-      projectId: parts.projectId ?? account.parts.projectId,
-      managedProjectId: parts.managedProjectId ?? account.parts.managedProjectId,
-    };
   }
 
   /**
@@ -576,24 +482,17 @@ export class AccountManager {
       this.sessionOffsetApplied[family] = true;
     }
 
-    const preferred = this.getPreferredAvailableAccounts(family, model, headerStyle);
-    if (preferred.length === 0) {
-      return null;
-    }
-
     const current = this.getCurrentAccountForFamily(family);
     if (current) {
       clearExpiredRateLimits(current);
       const isLimitedForRequestedStyle = isRateLimitedForHeaderStyle(current, family, headerStyle, model);
-      const currentTier = getTierRank(current.tier);
-      const preferredTier = getTierRank(preferred[0]?.tier);
-      if (!isLimitedForRequestedStyle && !this.isAccountCoolingDown(current) && currentTier === preferredTier) {
+      if (!isLimitedForRequestedStyle && !this.isAccountCoolingDown(current)) {
         this.markTouchedForQuota(current, quotaKey);
         return current;
       }
     }
 
-    const next = this.getNextForFamily(family, model, headerStyle, preferred);
+    const next = this.getNextForFamily(family, model, headerStyle);
     if (next) {
       this.markTouchedForQuota(next, quotaKey);
       this.currentAccountIndexByFamily[family] = next.index;
@@ -601,13 +500,11 @@ export class AccountManager {
     return next;
   }
 
-  getNextForFamily(
-    family: ModelFamily,
-    model?: string | null,
-    headerStyle: HeaderStyle = "antigravity",
-    availableOverride?: ManagedAccount[],
-  ): ManagedAccount | null {
-    const available = availableOverride ?? this.getPreferredAvailableAccounts(family, model, headerStyle);
+  getNextForFamily(family: ModelFamily, model?: string | null, headerStyle: HeaderStyle = "antigravity"): ManagedAccount | null {
+    const available = this.accounts.filter((a) => {
+      clearExpiredRateLimits(a);
+      return a.enabled !== false && !isRateLimitedForHeaderStyle(a, family, headerStyle, model) && !this.isAccountCoolingDown(a);
+    });
 
     if (available.length === 0) {
       return null;
@@ -756,25 +653,6 @@ export class AccountManager {
     return isRateLimitedForHeaderStyle(account, family, headerStyle, model);
   }
 
-  private getPreferredAvailableAccounts(
-    family: ModelFamily,
-    model?: string | null,
-    headerStyle: HeaderStyle = "antigravity",
-  ): ManagedAccount[] {
-    const available = this.accounts.filter((a) => {
-      clearExpiredRateLimits(a);
-      return a.enabled !== false && !isRateLimitedForHeaderStyle(a, family, headerStyle, model) && !this.isAccountCoolingDown(a);
-    });
-
-    if (available.length === 0) {
-      return [];
-    }
-
-    const ranks = available.map((a) => getTierRank(a.tier));
-    const maxRank = Math.max(...ranks);
-    return available.filter((a) => getTierRank(a.tier) === maxRank);
-  }
-
   getAvailableHeaderStyle(account: ManagedAccount, family: ModelFamily, model?: string | null): HeaderStyle | null {
     clearExpiredRateLimits(account);
     if (family === "claude") {
@@ -901,13 +779,11 @@ export class AccountManager {
       version: 3,
       accounts: this.accounts.map((a) => ({
         email: a.email,
-        tier: a.tier,
         refreshToken: a.parts.refreshToken,
         projectId: a.parts.projectId,
         managedProjectId: a.parts.managedProjectId,
         addedAt: a.addedAt,
         lastUsed: a.lastUsed,
-        enabled: a.enabled,
         lastSwitchReason: a.lastSwitchReason,
         rateLimitResetTimes: Object.keys(a.rateLimitResetTimes).length > 0 ? a.rateLimitResetTimes : undefined,
         coolingDownUntil: a.coolingDownUntil,
@@ -922,11 +798,7 @@ export class AccountManager {
       },
     };
 
-    await saveAccounts(storage, this.storageKey);
-  }
-
-  async save(): Promise<void> {
-    return this.saveToDisk();
+    await saveAccounts(storage);
   }
 
   requestSaveToDisk(): void {
@@ -1057,52 +929,5 @@ export class AccountManager {
       return [];
     }
     return [...account.fingerprintHistory];
-  }
-
-  getActiveIndex(): number {
-    return this.currentAccountIndexByFamily.claude;
-  }
-
-  getActiveIndexByFamily(): Record<string, number> {
-    return { ...this.currentAccountIndexByFamily };
-  }
-
-  setActiveIndex(index: number) {
-    if (index >= 0 && index < this.accounts.length) {
-      this.currentAccountIndexByFamily.claude = index;
-      this.currentAccountIndexByFamily.gemini = index;
-    }
-  }
-
-  getAccount(index: number): ManagedAccount | undefined {
-    return this.accounts[index];
-  }
-
-  removeAccountByIndex(index: number) {
-    if (index >= 0 && index < this.accounts.length) {
-      this.accounts.splice(index, 1);
-      // Re-index remaining accounts
-      this.accounts.forEach((acc, i) => (acc.index = i));
-
-      // Adjust active indices
-      if (this.currentAccountIndexByFamily.claude >= this.accounts.length) {
-        this.currentAccountIndexByFamily.claude = Math.max(0, this.accounts.length - 1);
-      }
-      if (this.currentAccountIndexByFamily.gemini >= this.accounts.length) {
-        this.currentAccountIndexByFamily.gemini = Math.max(0, this.accounts.length - 1);
-      }
-    }
-  }
-  setBaseAuth(auth: OAuthAuthDetails) {
-    this.baseAuth = auth;
-  }
-
-  getAccountInfos() {
-    return this.accounts.map(acc => ({
-      index: acc.index,
-      email: acc.email,
-      isActive: acc.index === this.currentAccountIndexByFamily.gemini,
-      isRateLimited: isRateLimitedForFamily(acc, "gemini")
-    }));
   }
 }

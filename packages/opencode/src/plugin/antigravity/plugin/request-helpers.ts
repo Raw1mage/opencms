@@ -1,113 +1,15 @@
 import { getKeepThinking } from "./config";
 import { createLogger } from "./logger";
 import { cacheSignature } from "./cache";
-import { getParamType } from "./tool-schema-cache";
-import { processImageData } from "./image-saver";
-import type { GoogleSearchConfig, ThinkingConfig } from "./transform/types";
-import { DEFAULT_THINKING_BUDGET } from "./transform/types";
 import {
-  ANTIGRAVITY_ENDPOINT_FALLBACKS,
-  ANTIGRAVITY_PROVIDER_ID,
-  SKIP_THOUGHT_SIGNATURE,
   EMPTY_SCHEMA_PLACEHOLDER_NAME,
-  EMPTY_SCHEMA_PLACEHOLDER_DESCRIPTION
+  EMPTY_SCHEMA_PLACEHOLDER_DESCRIPTION,
+  SKIP_THOUGHT_SIGNATURE,
 } from "../constants";
+import { processImageData } from "./image-saver";
+import type { GoogleSearchConfig } from "./transform/types";
 
 const log = createLogger("request-helpers");
-
-export const ANTIGRAVITY_BASE_SYSTEM_INSTRUCTION =
-  "You are Antigravity, a powerful agentic AI coding assistant designed by the Google Deepmind team working on Advanced Agentic Coding.You are pair programming with a USER to solve their coding task. The task may require creating a new codebase, modifying or debugging an existing codebase, or simply answering a question.**Absolute paths only****Proactiveness**";
-
-export function applyAntigravitySystemInstruction(payload: Record<string, unknown>, model: string): void {
-  const normalizedModel = model.toLowerCase();
-  const needsInjection =
-    normalizedModel.includes("claude") ||
-    normalizedModel.includes("gemini-3-pro") ||
-    normalizedModel.includes("gemini-3-flash");
-  if (!needsInjection) return;
-
-  const existing = payload.systemInstruction;
-  const record = existing && typeof existing === "object" ? (existing as Record<string, unknown>) : undefined;
-  const parts = (() => {
-    if (typeof existing === "string") {
-      if (existing.length > 0) {
-        return [{ text: existing }];
-      }
-      return [];
-    }
-    if (record) {
-      const value = record.parts;
-      if (Array.isArray(value)) {
-        return value.filter(
-          (part): part is Record<string, unknown> => typeof part === "object" && part !== null,
-        );
-      }
-    }
-    return [];
-  })();
-
-  const nextParts = [{ text: ANTIGRAVITY_BASE_SYSTEM_INSTRUCTION }, ...parts];
-
-  payload.systemInstruction = record
-    ? { ...record, role: "user", parts: nextParts }
-    : { role: "user", parts: nextParts };
-}
-
-export function processEscapeSequencesOnly(value: unknown): unknown {
-  if (typeof value !== "string") {
-    return value;
-  }
-
-  const hasControlCharEscapes = value.includes("\\n") || value.includes("\\t");
-  const hasIntentionalEscapes = value.includes('\\"') || value.includes("\\\\");
-
-  if (hasControlCharEscapes && !hasIntentionalEscapes) {
-    try {
-      const unescaped = JSON.parse(`"${value.replaceAll('"', '\\"')}"`);
-      if (typeof unescaped === "string") {
-        return unescaped;
-      }
-    } catch {
-      return value;
-    }
-  }
-
-  return value;
-}
-
-export function normalizeToolCallArgs(args: unknown, toolName: string): unknown {
-  if (!args || typeof args !== "object") {
-    return args;
-  }
-
-  const record = args as Record<string, unknown>;
-  const result: Record<string, unknown> = {};
-
-  for (const [key, value] of Object.entries(record)) {
-    const expectedType = getParamType(toolName, key);
-
-    if (expectedType === "string") {
-      result[key] = processEscapeSequencesOnly(value);
-      continue;
-    }
-    if (typeof value === "string" && (expectedType === "array" || expectedType === "object")) {
-      try {
-        const parsed = JSON.parse(value);
-        result[key] = parsed;
-      } catch {
-        result[key] = processEscapeSequencesOnly(value);
-      }
-      continue;
-    }
-    if (expectedType === undefined) {
-      result[key] = processEscapeSequencesOnly(value);
-      continue;
-    }
-    result[key] = processEscapeSequencesOnly(value);
-  }
-
-  return result;
-}
 
 const ANTIGRAVITY_PREVIEW_LINK = "https://goo.gle/enable-preview-features"; // TODO: Update to Antigravity link if available
 
@@ -597,9 +499,9 @@ function flattenTypeArrays(schema: any, nullableFields?: Map<string, string[]>, 
       newProps[propKey] = processed;
 
       // Track nullable fields for required array cleanup
-      if (processed && typeof processed === "object" &&
-        typeof processed.description === "string" &&
-        processed.description.includes("nullable")) {
+      if (processed && typeof processed === "object" && 
+          typeof processed.description === "string" && 
+          processed.description.includes("nullable")) {
         const objectPath = currentPath || "";
         const existing = localNullableFields.get(objectPath) || [];
         existing.push(propKey);
@@ -683,7 +585,7 @@ function cleanupRequiredFields(schema: any): any {
 
   // Clean up required array if properties exist
   if (Array.isArray(result.required) && result.properties && typeof result.properties === "object") {
-    const validRequired = result.required.filter((req: string) =>
+    const validRequired = result.required.filter((req: string) => 
       Object.prototype.hasOwnProperty.call(result.properties, req)
     );
     if (validRequired.length === 0) {
@@ -813,6 +715,20 @@ export interface AntigravityUsageMetadata {
   cachedContentTokenCount?: number;
   thoughtsTokenCount?: number;
 }
+
+/**
+ * Normalized thinking configuration accepted by Antigravity.
+ */
+export interface ThinkingConfig {
+  thinkingBudget?: number;
+  includeThoughts?: boolean;
+}
+
+/**
+ * Default token budget for thinking/reasoning. 16000 tokens provides sufficient
+ * space for complex reasoning while staying within typical model limits.
+ */
+export const DEFAULT_THINKING_BUDGET = 16000;
 
 /**
  * Checks if a model name indicates thinking/reasoning capability.
@@ -1225,7 +1141,7 @@ function filterContentArray(
         if (sanitized) filtered.push(sanitized);
         continue;
       }
-
+      
       // Not our signature (or no signature) - inject sentinel
       const thinkingText = getThinkingText(item) || "";
       const existingSignature = item.signature || item.thoughtSignature;
@@ -1309,9 +1225,9 @@ export function filterUnsignedThinkingBlocks(
 
     if (Array.isArray((content as any).content)) {
       const isAssistantRole = (content as any).role === "assistant";
-      const isLastAssistantContent = idx === lastAssistantIdx ||
+      const isLastAssistantContent = idx === lastAssistantIdx || 
         (isAssistantRole && idx === findLastAssistantIndex(contents, "assistant"));
-
+      
       const filteredContent = filterContentArray(
         (content as any).content,
         sessionId,
@@ -1350,7 +1266,7 @@ export function filterMessagesThinkingBlocks(
     if (Array.isArray((message as any).content)) {
       const isAssistantRole = (message as any).role === "assistant";
       const isLastAssistant = isAssistantRole && idx === lastAssistantIdx;
-
+      
       const filteredContent = filterContentArray(
         (message as any).content,
         sessionId,
@@ -1594,26 +1510,21 @@ export function normalizeThinkingConfig(config: unknown): ThinkingConfig | undef
 
   const record = config as Record<string, unknown>;
   const budgetRaw = record.thinkingBudget ?? record.thinking_budget;
-  const levelRaw = record.thinkingLevel ?? record.thinking_level;
   const includeRaw = record.includeThoughts ?? record.include_thoughts;
 
   const thinkingBudget = typeof budgetRaw === "number" && Number.isFinite(budgetRaw) ? budgetRaw : undefined;
-  const thinkingLevel = typeof levelRaw === "string" ? levelRaw : undefined;
   const includeThoughts = typeof includeRaw === "boolean" ? includeRaw : undefined;
 
-  const enableThinking = (thinkingBudget !== undefined && thinkingBudget > 0) || thinkingLevel !== undefined;
-  const finalInclude = enableThinking ? includeThoughts ?? true : false;
+  const enableThinking = thinkingBudget !== undefined && thinkingBudget > 0;
+  const finalInclude = enableThinking ? includeThoughts ?? false : false;
 
-  if (!enableThinking && finalInclude === false && thinkingBudget === undefined && thinkingLevel === undefined && includeThoughts === undefined) {
+  if (!enableThinking && finalInclude === false && thinkingBudget === undefined && includeThoughts === undefined) {
     return undefined;
   }
 
   const normalized: ThinkingConfig = {};
   if (thinkingBudget !== undefined) {
     normalized.thinkingBudget = thinkingBudget;
-  }
-  if (thinkingLevel !== undefined) {
-    normalized.thinkingLevel = thinkingLevel;
   }
   if (finalInclude !== undefined) {
     normalized.includeThoughts = finalInclude;
@@ -1774,30 +1685,30 @@ export function isEmptyResponseBody(text: string): boolean {
 
   try {
     const parsed = JSON.parse(text);
-
+    
     // Check for empty candidates (Gemini/Antigravity format)
     if (parsed.candidates !== undefined) {
       if (!Array.isArray(parsed.candidates) || parsed.candidates.length === 0) {
         return true;
       }
-
+      
       // Check if first candidate has empty content
       const firstCandidate = parsed.candidates[0];
       if (!firstCandidate) {
         return true;
       }
-
+      
       // Check for empty parts in content
       const content = firstCandidate.content;
       if (!content || typeof content !== "object") {
         return true;
       }
-
+      
       const parts = content.parts;
       if (!Array.isArray(parts) || parts.length === 0) {
         return true;
       }
-
+      
       // Check if all parts are empty (no text, no functionCall)
       const hasContent = parts.some((part: any) => {
         if (!part || typeof part !== "object") return false;
@@ -1806,35 +1717,35 @@ export function isEmptyResponseBody(text: string): boolean {
         if (part.thought === true && typeof part.text === "string") return true;
         return false;
       });
-
+      
       if (!hasContent) {
         return true;
       }
     }
-
+    
     // Check for empty choices (OpenAI format - shouldn't occur but handle it)
     if (parsed.choices !== undefined) {
       if (!Array.isArray(parsed.choices) || parsed.choices.length === 0) {
         return true;
       }
-
+      
       const firstChoice = parsed.choices[0];
       if (!firstChoice) {
         return true;
       }
-
+      
       // Check for empty message/delta
       const message = firstChoice.message || firstChoice.delta;
       if (!message) {
         return true;
       }
-
+      
       // Check if message has content or tool_calls
       if (!message.content && !message.tool_calls && !message.reasoning_content) {
         return true;
       }
     }
-
+    
     // Check response wrapper (Antigravity envelope)
     if (parsed.response !== undefined) {
       const response = parsed.response;
@@ -1843,7 +1754,7 @@ export function isEmptyResponseBody(text: string): boolean {
       }
       return isEmptyResponseBody(JSON.stringify(response));
     }
-
+    
     return false;
   } catch {
     // JSON parse error - treat as empty
@@ -1887,7 +1798,7 @@ export function isMeaningfulSseLine(line: string): boolean {
   }
 
   const data = line.slice(6).trim();
-
+  
   if (data === "[DONE]") {
     return false;
   }
@@ -1898,7 +1809,7 @@ export function isMeaningfulSseLine(line: string): boolean {
 
   try {
     const parsed = JSON.parse(data);
-
+    
     // Check for candidates with content
     if (parsed.candidates && Array.isArray(parsed.candidates)) {
       for (const candidate of parsed.candidates) {
@@ -1911,12 +1822,12 @@ export function isMeaningfulSseLine(line: string): boolean {
         }
       }
     }
-
+    
     // Check response wrapper
     if (parsed.response?.candidates) {
       return isMeaningfulSseLine(`data: ${JSON.stringify(parsed.response)}`);
     }
-
+    
     return false;
   } catch {
     return false;
@@ -2096,24 +2007,24 @@ export function fixToolResponseGrouping(contents: any[]): any[] {
   }
 
   const newContents: any[] = [];
-
+  
   // Track pending tool call groups that need responses
   const pendingGroups: Array<{
     ids: string[];
     funcNames: string[];
     insertAfterIdx: number;
   }> = [];
-
+  
   // Collected orphan responses (by ID)
   const collectedResponses = new Map<string, any>();
-
+  
   for (const content of contents) {
     const role = content.role;
     const parts = content.parts || [];
-
+    
     // Check if this is a tool response message
     const responseParts = parts.filter((p: any) => p?.functionResponse);
-
+    
     if (responseParts.length > 0) {
       // Collect responses by ID (skip duplicates)
       for (const resp of responseParts) {
@@ -2122,7 +2033,7 @@ export function fixToolResponseGrouping(contents: any[]): any[] {
           collectedResponses.set(respId, resp);
         }
       }
-
+      
       // Try to satisfy the most recent pending group
       for (let i = pendingGroups.length - 1; i >= 0; i--) {
         const group = pendingGroups[i]!;
@@ -2140,19 +2051,19 @@ export function fixToolResponseGrouping(contents: any[]): any[] {
       }
       continue; // Don't add the original response message
     }
-
+    
     if (role === "model") {
       // Check for function calls in this model message
       const funcCalls = parts.filter((p: any) => p?.functionCall);
       newContents.push(content);
-
+      
       if (funcCalls.length > 0) {
         const callIds = funcCalls
           .map((fc: any) => fc.functionCall?.id || "")
           .filter(Boolean);
         const funcNames = funcCalls
           .map((fc: any) => fc.functionCall?.name || "");
-
+        
         if (callIds.length > 0) {
           pendingGroups.push({
             ids: callIds,
@@ -2165,18 +2076,18 @@ export function fixToolResponseGrouping(contents: any[]): any[] {
       newContents.push(content);
     }
   }
-
+  
   // Handle remaining pending groups with orphan recovery
   // Process in reverse order so insertions don't shift indices
   pendingGroups.sort((a, b) => b.insertAfterIdx - a.insertAfterIdx);
-
+  
   for (const group of pendingGroups) {
     const groupResponses: any[] = [];
-
+    
     for (let i = 0; i < group.ids.length; i++) {
       const expectedId = group.ids[i]!;
       const expectedName = group.funcNames[i] || "";
-
+      
       if (collectedResponses.has(expectedId)) {
         // Direct ID match - ideal case
         groupResponses.push(collectedResponses.get(expectedId));
@@ -2184,7 +2095,7 @@ export function fixToolResponseGrouping(contents: any[]): any[] {
       } else if (collectedResponses.size > 0) {
         // Need to find an orphan response
         let matchedId: string | null = null;
-
+        
         // Pass 1: Match by function name
         for (const [orphanId, orphanResp] of collectedResponses) {
           const orphanName = orphanResp.functionResponse?.name || "";
@@ -2193,7 +2104,7 @@ export function fixToolResponseGrouping(contents: any[]): any[] {
             break;
           }
         }
-
+        
         // Pass 2: Match "unknown_function" orphans
         if (!matchedId) {
           for (const [orphanId, orphanResp] of collectedResponses) {
@@ -2203,28 +2114,28 @@ export function fixToolResponseGrouping(contents: any[]): any[] {
             }
           }
         }
-
+        
         // Pass 3: Take first available
         if (!matchedId) {
           matchedId = collectedResponses.keys().next().value ?? null;
         }
-
+        
         if (matchedId) {
           const orphanResp = collectedResponses.get(matchedId)!;
           collectedResponses.delete(matchedId);
-
+          
           // Fix the ID and name to match expected
           orphanResp.functionResponse.id = expectedId;
           if (orphanResp.functionResponse.name === "unknown_function" && expectedName) {
             orphanResp.functionResponse.name = expectedName;
           }
-
+          
           log.debug("Auto-repaired tool ID mismatch", {
             mappedFrom: matchedId,
             mappedTo: expectedId,
             functionName: expectedName,
           });
-
+          
           groupResponses.push(orphanResp);
         }
       } else {
@@ -2235,23 +2146,23 @@ export function fixToolResponseGrouping(contents: any[]): any[] {
             response: {
               result: {
                 error: "Tool response was lost during context processing. " +
-                  "This is a recovered placeholder.",
+                       "This is a recovered placeholder.",
                 recovered: true,
               },
             },
             id: expectedId,
           },
         };
-
+        
         log.debug("Created placeholder response for missing tool", {
           id: expectedId,
           name: expectedName,
         });
-
+        
         groupResponses.push(placeholder);
       }
     }
-
+    
     if (groupResponses.length > 0) {
       // Insert at correct position (after the model message that made the calls)
       newContents.splice(group.insertAfterIdx + 1, 0, {
@@ -2260,7 +2171,7 @@ export function fixToolResponseGrouping(contents: any[]): any[] {
       });
     }
   }
-
+  
   return newContents;
 }
 
@@ -2279,10 +2190,10 @@ export function detectToolIdMismatches(contents: any[]): {
 } {
   const expectedIds: string[] = [];
   const foundIds: string[] = [];
-
+  
   for (const content of contents) {
     const parts = content.parts || [];
-
+    
     for (const part of parts) {
       if (part?.functionCall?.id) {
         expectedIds.push(part.functionCall.id);
@@ -2292,13 +2203,13 @@ export function detectToolIdMismatches(contents: any[]): {
       }
     }
   }
-
+  
   const expectedSet = new Set(expectedIds);
   const foundSet = new Set(foundIds);
-
+  
   const missingIds = expectedIds.filter(id => !foundSet.has(id));
   const orphanIds = foundIds.filter(id => !expectedSet.has(id));
-
+  
   return {
     hasMismatches: missingIds.length > 0 || orphanIds.length > 0,
     expectedIds,
@@ -2596,7 +2507,7 @@ export function injectParameterSignatures(
       });
 
       const sigStr = promptTemplate.replace("{params}", paramList.join(", "));
-
+      
       return {
         ...decl,
         description: (decl.description || "") + sigStr,
@@ -2823,10 +2734,10 @@ export function createSyntheticErrorResponse(
 ): Response {
   // Generate a unique message ID
   const messageId = `msg_synthetic_${Date.now()}`;
-
+  
   // Build Claude SSE events that represent a complete message with error text
   const events: string[] = [];
-
+  
   // 1. message_start event
   events.push(`event: message_start
 data: ${JSON.stringify({
@@ -2903,3 +2814,4 @@ data: ${JSON.stringify({ type: "message_stop" })}
     },
   });
 }
+

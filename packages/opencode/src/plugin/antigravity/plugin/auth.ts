@@ -1,5 +1,4 @@
 import type { AuthDetails, OAuthAuthDetails, RefreshParts } from "./types";
-export type { OAuthAuthDetails };
 
 const ACCESS_TOKEN_EXPIRY_BUFFER_MS = 60 * 1000;
 
