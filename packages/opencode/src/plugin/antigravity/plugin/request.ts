@@ -676,16 +676,17 @@ export function prepareAntigravityRequest(
   const defaultEndpoint = headerStyle === "gemini-cli" ? GEMINI_CLI_ENDPOINT : ANTIGRAVITY_ENDPOINT;
   const baseEndpoint = endpointOverride ?? defaultEndpoint;
   // Use correct resource path for production endpoint compatibility
-  const formattedProjectId = resolvedProjectId || "rising-fact-p41fc"; // Fallback to known default if empty
-  const transformedUrl = `${baseEndpoint}/v1/projects/${formattedProjectId}/locations/global/publishers/google/models/${effectiveModel}:${rawAction}${streaming ? "?alt=sse" : ""}`;
+  // Revert to v1internal as v1/projects also failed. 
+  // Force enable debug logging to diagnose 404.
+  const formattedProjectId = resolvedProjectId || "rising-fact-p41fc";
+  const transformedUrl = `${baseEndpoint}/v1internal:${rawAction}${streaming ? "?alt=sse" : ""}`;
 
-  if (process.env.OPENCODE_DEBUG_ANTIGRAVITY) {
-    console.log(`[Antigravity Debug] Request:
+  // ALWAYS Log for debugging "Not Found"
+  console.log(`[Antigravity Debug] Request:
     URL: ${transformedUrl}
-    Model: ${effectiveModel}
+    Model: ${effectiveModel} (Requested: ${requestedModel})
     Endpoint: ${baseEndpoint}
     Style: ${headerStyle}`);
-  }
 
   const isClaude = isClaudeModel(resolved.actualModel);
   const isClaudeThinking = isClaudeThinkingModel(resolved.actualModel);
