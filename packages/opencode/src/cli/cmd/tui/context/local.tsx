@@ -103,12 +103,17 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           providerID: string
           modelID: string
         }[]
+        hidden: {
+          providerID: string
+          modelID: string
+        }[]
         variant: Record<string, string | undefined>
       }>({
         ready: false,
         model: {},
         recent: [],
         favorite: [],
+        hidden: [],
         variant: {},
       })
 
@@ -128,6 +133,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           JSON.stringify({
             recent: modelStore.recent,
             favorite: modelStore.favorite,
+            hidden: modelStore.hidden,
             variant: modelStore.variant,
           }),
         )
@@ -138,6 +144,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         .then((x) => {
           if (Array.isArray(x.recent)) setModelStore("recent", x.recent)
           if (Array.isArray(x.favorite)) setModelStore("favorite", x.favorite)
+          if (Array.isArray(x.hidden)) setModelStore("hidden", x.hidden)
           if (typeof x.variant === "object" && x.variant !== null) setModelStore("variant", x.variant)
         })
         .catch(() => { })
@@ -208,6 +215,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         },
         favorite() {
           return modelStore.favorite
+        },
+        hidden() {
+          return modelStore.hidden
         },
         parsed: createMemo(() => {
           const value = currentModel()
@@ -314,6 +324,29 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               "favorite",
               next.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
             )
+            save()
+            save()
+          })
+        },
+        toggleHidden(model: { providerID: string; modelID: string }) {
+          batch(() => {
+            const exists = modelStore.hidden.some(
+              (x) => x.providerID === model.providerID && x.modelID === model.modelID,
+            )
+            const next = exists
+              ? modelStore.hidden.filter((x) => x.providerID !== model.providerID || x.modelID !== model.modelID)
+              : [model, ...modelStore.hidden]
+            setModelStore(
+              "hidden",
+              next.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
+            )
+            save()
+          })
+        },
+        removeFromRecent(model: { providerID: string; modelID: string }) {
+          batch(() => {
+            const next = modelStore.recent.filter((x) => x.providerID !== model.providerID || x.modelID !== model.modelID)
+            setModelStore("recent", next)
             save()
           })
         },

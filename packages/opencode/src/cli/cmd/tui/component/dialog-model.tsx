@@ -10,6 +10,8 @@ import { useTheme } from "@tui/context/theme"
 import { iife } from "@/util/iife"
 import * as fuzzysort from "fuzzysort"
 import { Account } from "@/account"
+import { Keybind } from "@/util/keybind"
+import { isDeepEqual } from "remeda"
 
 export function useConnected() {
   const sync = useSync()
@@ -26,6 +28,7 @@ export function DialogModel(props: { providerID?: string }) {
   const { theme } = useTheme()
   const [ref, setRef] = createSignal<DialogSelectRef<unknown>>()
   const [query, setQuery] = createSignal("")
+  const [showHidden, setShowHidden] = createSignal(false)
 
   const connected = useConnected()
   const providers = createDialogProviderOptions()
@@ -120,6 +123,7 @@ export function DialogModel(props: { providerID?: string }) {
             value: {
               providerID: provider.id,
               modelID: model.id,
+              origin: "favorite",
             },
             title: model.name ?? item.modelID,
             description: [group, who].filter(Boolean).join(" · "),
@@ -159,6 +163,7 @@ export function DialogModel(props: { providerID?: string }) {
             value: {
               providerID: provider.id,
               modelID: model.id,
+              origin: "recent",
             },
             title: model.name ?? item.modelID,
             description: provider.name,
@@ -188,7 +193,7 @@ export function DialogModel(props: { providerID?: string }) {
         if (!fam) return true
         const active = activeFamilies().has(fam)
         if (!active) return true
-        if (provider.id === fam) return false
+        // if (provider.id === fam) return false // Fix: Don't hide family-named providers (fixes Anthropic)
         return provider.active === true
       }),
       sortBy(
@@ -267,16 +272,36 @@ export function DialogModel(props: { providerID?: string }) {
             }
           }),
           filter((x) => {
+            // Filter hidden items unless showing all
+            if (showSections && !showHidden()) {
+              const value = x.value
+              const isHidden = local.model.hidden().some(
+                (h) => h.providerID === value.providerID && h.modelID === value.modelID
+              )
+              if (isHidden) return false
+            }
             if (!showSections) return true
-            const value = x.value
-            const inFavorites = favorites.some(
-              (item) => item.providerID === value.providerID && item.modelID === value.modelID,
-            )
-            if (inFavorites) return false
-            const inRecents = recents.some(
-              (item) => item.providerID === value.providerID && item.modelID === value.modelID,
-            )
-            if (inRecents) return false
+
+            // Original logic for providerOptions:
+            // filter((provider: any) => {
+            //   if (provider.active === false) return false
+            //   const fam = family(provider.id)
+            //   if (!fam) return true
+            //   const active = activeFamilies().has(fam)
+            //   if (!active) return true
+            //   // Removed: if (provider.id === fam) return false
+            //   return provider.active === true
+            // })
+            // This filter block is applied to the flattened options
+            // But the logic above (if (!showSections) return true) handles typical cases.
+            // The `providerOptions` construction loop had the filter.
+            // Wait, I am editing the `options` memo's filter function at the end?
+            // NO, I am editing the `filter` pipe call in `providerOptions` definition?
+            // The lines match `filter((x) => {` which is the LAST filter in `options` memo (combining all lists).
+            // That filter was managing hidden state.
+            // The user wants Anthropic visible.
+            // That logic was in `providerOptions` definition earlier in the file.
+            // I need to target THAT block.
             return true
           }),
           sortBy(
@@ -323,18 +348,71 @@ export function DialogModel(props: { providerID?: string }) {
     <DialogSelect
       keybind={[
         {
-          keybind: (keybind.all.model_provider_list as any)?.[0] ?? keybind.all.model_provider_list,
-          title: connected() ? "Connect provider" : "View all providers",
-          onTrigger() {
-            dialog.replace(() => <DialogProvider />)
-          },
-        },
-        {
-          keybind: (keybind.all.model_favorite_toggle as any)?.[0] ?? keybind.all.model_favorite_toggle,
+          keybind: Keybind.parse("f")[0],
           title: "Favorite",
           disabled: !connected(),
           onTrigger: (option: any) => {
             local.model.toggleFavorite(option.value as { providerID: string; modelID: string })
+          },
+        },
+        {
+          keybind: Keybind.parse("delete")[0],
+          title: "Delete/Hide",
+          disabled: !connected(),
+          onTrigger: (option: any) => {
+            const val = option.value as { providerID: string; modelID: string; origin?: string }
+            if (val.origin === "recent") {
+              local.model.removeFromRecent(val)
+            } else if (val.origin === "favorite") {
+              local.model.toggleFavorite(val)
+            } else {
+              local.model.toggleHidden(val)
+            }
+          },
+        },
+        // Add backspace as alias for delete
+        {
+          keybind: Keybind.parse("backspace")[0],
+          title: "Delete (Backspace)",
+          disabled: !connected(),
+          onTrigger: (option: any) => {
+            const val = option.value as { providerID: string; modelID: string; origin?: string }
+            if (val.origin === "recent") {
+              local.model.removeFromRecent(val)
+            } else if (val.origin === "favorite") {
+              local.model.toggleFavorite(val)
+            } else {
+              local.model.toggleHidden(val)
+            }
+          },
+        },
+        {
+          keybind: Keybind.parse("s")[0],
+          title: showHidden() ? "Hide hidden" : "Show all",
+          disabled: !connected(),
+          onTrigger: () => {
+            setShowHidden(!showHidden())
+          },
+        },
+        {
+          keybind: Keybind.parse("insert")[0],
+          title: "Unhide",
+          disabled: !connected() || !showHidden(),
+          onTrigger: (option: any) => {
+            const val = option.value as { providerID: string; modelID: string }
+            const isHidden = local.model.hidden().some(
+              (h) => h.providerID === val.providerID && h.modelID === val.modelID
+            )
+            if (isHidden) {
+              local.model.toggleHidden(val)
+            }
+          },
+        },
+        {
+          keybind: Keybind.parse("a")[0],
+          title: "Accounts",
+          onTrigger: () => {
+            dialog.replace(() => <DialogProvider />)
           },
         },
       ]}

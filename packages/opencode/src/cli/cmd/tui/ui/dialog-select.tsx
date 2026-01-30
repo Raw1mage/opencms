@@ -142,8 +142,8 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   function move(direction: number) {
     if (flat().length === 0) return
     let next = store.selected + direction
-    if (next < 0) next = flat().length - 1
-    if (next >= flat().length) next = 0
+    if (next < 0) next = 0
+    if (next >= flat().length) next = flat().length - 1
     moveTo(next, true)
   }
 

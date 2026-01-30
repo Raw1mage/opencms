@@ -274,10 +274,17 @@ export namespace Account {
 
     // 3. Fallback Mapping (Specifically for Opencode/Anthropic generic names)
     if ((!email || email === family) && family === "anthropic") {
-      if (id === "anthropic-subscription-anthropic") return "company@thesmart.cc";
+      if (id === "anthropic-subscription-anthropic" || id === "anthropic") return "company@thesmart.cc";
     }
     if ((!email || email === family) && family === "opencode") {
-      if (id === "opencode-api-opencode") return "yeatsluo@gmail.com";
+      if (id === "opencode-api-opencode" || id === "opencode") return "yeatsluo@gmail.com";
+    }
+    if ((!email || email === family) && family === "antigravity") {
+      // Try to retrieve from Account storage active account if possible? 
+      // Start with a generic fallback or the specific known email if strictly one user.
+      // For now, let's keep it clean or return dynamic if we could. 
+      // But this is a static function. 
+      // Let's at least handle the ID check.
     }
 
     // Priority list

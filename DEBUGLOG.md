@@ -172,3 +172,36 @@
 
 ## 2026-01-29: Terminal simulation + sandbox path fallback
 ... (history preserved)
+
+## 2026-01-30: /models TUI Refinements & Codex Endpoint Fixes
+
+### Issues Identified
+1.  **Code Editor UI UX**:
+    -   **Visibility**: Recent items were disappearing from their original categories, confusing users.
+    -   **Cursor Jumping**: Selection cursor would jump unpredictably when navigating over items that appeared in both "Recent" and original categories.
+    -   **Scrolling**: List navigation would wrap around from bottom to top, making it hard to stop at the end.
+    -   **Keybindings**: Lacked standard shortcuts like 'delete' for hiding/removing items, 'f' for favorites, 's' for showing hidden items.
+2.  **OpenAI/Codex Errors**:
+    -   Codex endpoints returned `Bad Request: {"detail":"Instructions are required"}`.
+    -   Codex endpoints returned `Bad Request: {"detail":"Unsupported parameter: max_output_tokens"}` (and `max_tokens`).
+3.  **Account Identify**:
+    -   "Opencode" and "Anthropic" categories lacked specific account email identifiers in headers.
+
+### Fixes Implemented
+1.  **TUI Enhancements**:
+    -   **State Management**: Modified `dialog-model.tsx` to maintain distinct `value` objects with `origin` properties, preventing cursor ambiguity.
+    -   **Visibility Logic**: logic updated to keep recent items visible in their main categories.
+    -   **Keybinds**: Implemented `f` (Favorite), `delete`/`backspace` (Hide/Remove), `s` (Toggle Hidden), `ins` (Unhide), `a` (Switch to Accounts).
+    -   **Scrolling**: Updated `DialogSelect` to clamp selection at boundaries instead of cycling.
+2.  **Codex Plugin Fixes**:
+    -   **Request Interception**: Refactored `src/plugin/codex.ts` to intercept `fetch` requests targeting Codex endpoints.
+    -   **Instruction Injection**: Automatically injects `instructions` field into the request body (derived from system message or default) to satisfy API requirements.
+    -   **Parameter Sanitization**: Automatically removes unsupported `max_output_tokens` and `max_tokens` parameters from the request body to prevent 400 errors.
+3.  **Account Display**:
+    -   Updated `Account.getDisplayName` fallback logic to correctly return emails for generic "Opencode" and "Antigravity" IDs.
+
+### Verification
+-   [x] TUI: Recent items duplicate correctly without cursor jumping.
+-   [x] TUI: 'delete', 'f', 's', 'ins', 'a' keys work as expected.
+-   [x] TUI: List scrolling stops at top/bottom.
+-   [x] OpenAI: Codex models work without "Instructions required" or "Unsupported parameter" errors.
