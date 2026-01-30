@@ -116,13 +116,16 @@ export namespace Command {
           });
 
           // Helper for time formatting
-          const formatTime = (ts: number | undefined) => {
-            if (!ts || ts <= now) return "✅ Ready";
+          const getWaitTime = (ts: number | undefined) => {
+            if (!ts || ts <= now) return null;
             const waitSec = Math.ceil((ts - now) / 1000);
-            if (waitSec > 3600) return `🛑 ${(waitSec / 3600).toFixed(1)}h`;
-            if (waitSec > 60) return `🛑 ${(waitSec / 60).toFixed(1)}m`;
-            return `⏳ ${waitSec}s`;
+            if (waitSec > 3600) return `${(waitSec / 3600).toFixed(1)}h`;
+            if (waitSec > 60) return `${(waitSec / 60).toFixed(1)}m`;
+            return `${waitSec}s`;
           };
+
+          // Get snapshot for lookups
+          const agSnapshot = globalAccountManager ? globalAccountManager.getAccountsSnapshot() : [];
 
           for (const familyName of sortedFamilies) {
             const familyData = families[familyName];
@@ -131,52 +134,56 @@ export namespace Command {
 
             lines.push(`### 📂 ${familyName.toUpperCase()}`);
 
-            // Special handling for Antigravity to show detailed rate limits
-            if (familyName === "antigravity" && globalAccountManager) {
-              // @ts-ignore
-              const agSnapshot = globalAccountManager.getAccountsSnapshot() as any[];
-
-              if (agSnapshot.length > 0) {
-                // Determine accounts that belong to this family in AG
-                lines.push("| ID | Account | Claude | Gemini (AG) | Gemini (CLI) |");
-                lines.push("|----|---------|--------|-------------|--------------|");
-
-                for (const acc of agSnapshot) {
-                  // @ts-ignore
-                  const email = acc.email || `Account ${acc.index}`;
-                  // @ts-ignore
-                  const claude = formatTime(acc.rateLimitResetTimes?.["claude"]);
-                  // @ts-ignore
-                  const geminiAG = formatTime(acc.rateLimitResetTimes?.["gemini-antigravity"]);
-                  // @ts-ignore
-                  const geminiCLI = formatTime(acc.rateLimitResetTimes?.["gemini-cli"]);
-
-                  const isActive = familyData.activeAccount === String(acc.index);
-                  const activeMark = isActive ? "⭐" : "";
-
-                  // Check cooldown
-                  // @ts-ignore
-                  const coolingDown = acc.coolingDownUntil && acc.coolingDownUntil > now;
-                  const statusPrefix = coolingDown ? "❄️ " : "";
-
-                  lines.push(`| ${acc.index} | ${activeMark} ${statusPrefix}${email} | ${claude} | ${geminiAG} | ${geminiCLI} |`);
-                }
-                lines.push("");
-                continue; // Skip generic listing for Antigravity
-              }
-            }
-
-            // Generic listing for other providers
             for (const [id, info] of accountsArr) {
               const isActive = familyData.activeAccount === id;
               const status = isActive ? "✅ **Active**" : "   Ready";
               const displayName = Account.getDisplayName(id, info, familyName);
-              lines.push(`- ${status}: \`${displayName}\``);
+
+              // Check for rate limit info from Antigravity system
+              let rateLimitStr = "";
+              if (agSnapshot.length > 0) {
+                // Try to match account based on provider type
+                // Usually matching by email is safest if available, or index for antigravity family
+                let matchedAcc: any = undefined;
+
+                if (familyName === "antigravity") {
+                  // For antigravity family, ID is usually the index
+                  matchedAcc = agSnapshot.find((a: any) => String(a.index) === id);
+                } else if ("email" in info && info.email) {
+                  matchedAcc = agSnapshot.find((a: any) => a.email === (info as any).email);
+                }
+
+                if (matchedAcc && matchedAcc.rateLimitResetTimes) {
+                  const limits: string[] = [];
+
+                  const claudeWait = getWaitTime(matchedAcc.rateLimitResetTimes["claude"]);
+                  if (claudeWait) limits.push(`Claude: ${claudeWait}`);
+
+                  const geminiWait = getWaitTime(matchedAcc.rateLimitResetTimes["gemini-antigravity"]);
+                  if (geminiWait) limits.push(`Gemini(AG): ${geminiWait}`);
+
+                  const geminiCliWait = getWaitTime(matchedAcc.rateLimitResetTimes["gemini-cli"]);
+                  if (geminiCliWait) limits.push(`Gemini(CLI): ${geminiCliWait}`);
+
+                  // Also check global cooldown
+                  if (matchedAcc.coolingDownUntil && matchedAcc.coolingDownUntil > now) {
+                    const globalWait = getWaitTime(matchedAcc.coolingDownUntil);
+                    limits.push(`❄️ Global Cooldown: ${globalWait}`);
+                  }
+
+                  if (limits.length > 0) {
+                    rateLimitStr = ` ⚠️  [${limits.join(", ")}]`;
+                  }
+                }
+              }
+
+              lines.push(`- ${status}: \`${displayName}\`${rateLimitStr}`);
             }
             lines.push("");
           }
 
           lines.push(`*Last updated: ${new Date().toLocaleTimeString()}*`);
+          lines.push(`_Note: Status reflects local usage history. External rate limits are detected upon request._`);
 
           return {
             output: lines.join("\n"),
