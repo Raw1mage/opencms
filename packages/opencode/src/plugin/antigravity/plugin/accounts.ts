@@ -381,9 +381,37 @@ export class AccountManager {
     return null;
   }
 
-  markSwitched(account: ManagedAccount, reason: "rate-limit" | "initial" | "rotation", family: ModelFamily): void {
+  async markSwitched(account: ManagedAccount, reason: "rate-limit" | "initial" | "rotation", family: ModelFamily): Promise<void> {
     account.lastSwitchReason = reason;
     this.currentAccountIndexByFamily[family] = account.index;
+
+    try {
+      // Notify UI of the switch
+      const { Bus } = await import("../../../bus");
+      const { BusEvent } = await import("../../../bus/bus-event");
+      const { z } = await import("zod");
+
+      const AntigravityAccountSwitched = BusEvent.define(
+        "antigravity.account.switched",
+        z.object({
+          family: z.string(),
+          index: z.number(),
+          oldIndex: z.number().optional(),
+          reason: z.string(),
+          email: z.string().optional(),
+        })
+      );
+
+      await Bus.publish(AntigravityAccountSwitched, {
+        family,
+        index: account.index,
+        reason,
+        email: account.email
+      });
+    } catch (error) {
+      // Ignore bus errors if running in isolated context
+      console.error("Failed to publish switch event", error);
+    }
   }
 
   /**
