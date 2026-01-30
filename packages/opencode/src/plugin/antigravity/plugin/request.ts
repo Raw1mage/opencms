@@ -677,6 +677,14 @@ export function prepareAntigravityRequest(
   const baseEndpoint = endpointOverride ?? defaultEndpoint;
   const transformedUrl = `${baseEndpoint}/v1internal:${rawAction}${streaming ? "?alt=sse" : ""}`;
 
+  if (process.env.OPENCODE_DEBUG_ANTIGRAVITY) {
+    console.log(`[Antigravity Debug] Request:
+    URL: ${transformedUrl}
+    Model: ${effectiveModel}
+    Endpoint: ${baseEndpoint}
+    Style: ${headerStyle}`);
+  }
+
   const isClaude = isClaudeModel(resolved.actualModel);
   const isClaudeThinking = isClaudeThinkingModel(resolved.actualModel);
 
