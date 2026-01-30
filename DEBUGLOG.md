@@ -245,3 +245,7 @@ I already checked out the 'raw' branch for 'packages/opencode/src/plugin/antigra
 Maybe the 'raw' branch IS v1.4.1 or compatible. Or maybe I should check if there is a 'v1.4.1' tag in this repo.
 Files updated. Checking for TypeScript errors in the plugin folder.
 It seems createAntigravityFetch is imported but NOT USED? Grep only showed the import.
+Verifying if 'Bus' and 'Session.Event' can be used in accounts.ts to notify UI.
+Antigravity plugin accounts.ts needs to be modified to use Bus to publish an event when account switching happens.
+The lint errors 'Cannot find module' are due to the relative import path being too deep or aliases not being picked up by the linter context, or strict isolation. However, since I used dynamic imports, it heavily depends on runtime resolution. I will verify if the file exists at that relative path.
+The correct path to 'bus' from 'accounts.ts' is likely ../../../bus (3 levels up, then bus).
