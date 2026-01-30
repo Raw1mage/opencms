@@ -228,3 +228,8 @@
 ## Antigravity Chat Fix
 - **URL fix**: Set API URL to  for manual Antigravity models.
 Fixed URL for manual Antigravity models.
+
+## Antigravity Model IDs Fix
+- Detected  usage in  (SEARCH_MODEL). This might confirm the ID is valid or an alias.
+- Issue is 'Not Found' (404), suggesting invalid request URL/ID combination.
+Suspect 404 is due to made-up model ID. Trying to switch to known valid ID.
