@@ -35,7 +35,9 @@
 - Full server restart was required for all fixes to take effect
 
 ### Added
-- **Service Status Dashboard**: Enhanced `/dashboard` to display all provider accounts (Anthropic, OpenAI, etc.) with specialized rate limit monitoring for Antigravity.
+- **Unified Models Command**: Refactored `/models` to serve as the central status dashboard. Now displays a 3-tier hierarchy (Provider -> Account -> Model) with integrated health status (Rate Limit/Cooldown) for each model.
+- **Removed Legacy Commands**: Removed `/dashboard` and `/model-check` in favor of the new, comprehensive `/models` view.
+- **Antigravity & Gemini-CLI Separation**: strict separation of model lists and statuses for Antigravity and Gemini-CLI providers.
 
 
 ## [1.1.44] - 2026-01-30
