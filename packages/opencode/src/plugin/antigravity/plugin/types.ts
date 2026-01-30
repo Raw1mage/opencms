@@ -31,8 +31,6 @@ export interface ProviderModel {
 }
 
 export interface Provider {
-  id: string;
-  name?: string;
   models?: Record<string, ProviderModel>;
 }
 
@@ -50,30 +48,30 @@ export interface PluginContext {
 
 export type AuthPrompt =
   | {
-    type: "text";
-    key: string;
-    message: string;
-    placeholder?: string;
-    validate?: (value: string) => string | undefined;
-    condition?: (inputs: Record<string, string>) => boolean;
-  }
+      type: "text";
+      key: string;
+      message: string;
+      placeholder?: string;
+      validate?: (value: string) => string | undefined;
+      condition?: (inputs: Record<string, string>) => boolean;
+    }
   | {
-    type: "select";
-    key: string;
-    message: string;
-    options: Array<{ label: string; value: string; hint?: string }>;
-    condition?: (inputs: Record<string, string>) => boolean;
-  };
+      type: "select";
+      key: string;
+      message: string;
+      options: Array<{ label: string; value: string; hint?: string }>;
+      condition?: (inputs: Record<string, string>) => boolean;
+    };
 
 export type OAuthAuthorizationResult = { url: string; instructions: string } & (
   | {
-    method: "auto";
-    callback: () => Promise<AntigravityTokenExchangeResult>;
-  }
+      method: "auto";
+      callback: () => Promise<AntigravityTokenExchangeResult>;
+    }
   | {
-    method: "code";
-    callback: (code: string) => Promise<AntigravityTokenExchangeResult>;
-  }
+      method: "code";
+      callback: (code: string) => Promise<AntigravityTokenExchangeResult>;
+    }
 );
 
 export interface AuthMethod {
@@ -97,9 +95,8 @@ export interface PluginResult {
     loader: (getAuth: GetAuth, provider: Provider) => Promise<LoaderResult | Record<string, unknown>>;
     methods: AuthMethod[];
   };
-  event?: (payload: PluginEventPayload) => Promise<void>;
+  event?: (payload: PluginEventPayload) => void;
   tool?: Record<string, unknown>;
-  models?: () => Promise<any[]>;
 }
 
 export interface RefreshParts {

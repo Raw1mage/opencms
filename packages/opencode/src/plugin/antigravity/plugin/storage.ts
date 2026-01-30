@@ -8,20 +8,11 @@ import {
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { randomBytes } from "node:crypto";
-// import lockfile from "proper-lockfile";
-const lockfile = {
-  lock: async (path: string, options: any) => {
-    return async () => { };
-  }
-};
+import lockfile from "proper-lockfile";
 import type { HeaderStyle } from "../constants";
 import { createLogger } from "./logger";
 
 const log = createLogger("storage");
-
-let accountCache: AccountStorageV3 | null = null;
-let lastLoadTime = 0;
-const CACHE_TTL = 30000; // 30 seconds cache for boot speed
 
 /**
  * Files/directories that should be gitignored in the config directory.
@@ -212,70 +203,22 @@ export interface AccountStorageV3 {
 
 type AnyAccountStorage = AccountStorageV1 | AccountStorage | AccountStorageV3;
 
-/**
- * Gets the legacy Windows config directory (%APPDATA%\opencode).
- * Used for migration from older plugin versions.
- */
-function getLegacyWindowsConfigDir(): string {
-  return join(
-    process.env.APPDATA || join(homedir(), "AppData", "Roaming"),
-    "opencode",
-  );
-}
-
-/**
- * Gets the config directory path, with the following precedence:
- * 1. OPENCODE_CONFIG_DIR env var (if set)
- * 2. ~/.config/opencode (all platforms, including Windows)
- *
- * On Windows, also checks for legacy %APPDATA%\opencode path for migration.
- */
 function getConfigDir(): string {
-  // 1. Check for explicit override via env var
-  if (process.env.OPENCODE_CONFIG_DIR) {
-    return process.env.OPENCODE_CONFIG_DIR;
+  const platform = process.platform;
+  if (platform === "win32") {
+    return join(
+      process.env.APPDATA || join(homedir(), "AppData", "Roaming"),
+      "opencode",
+    );
   }
 
-  // 2. Use ~/.config/opencode on all platforms (including Windows)
   const xdgConfig = process.env.XDG_CONFIG_HOME || join(homedir(), ".config");
   return join(xdgConfig, "opencode");
 }
 
-/**
- * Gets the storage path, checking legacy Windows location for migration.
- * If the new path doesn't exist but the legacy path does, returns the legacy path.
- */
-function getStoragePathWithMigration(): string {
-  const newPath = join(getConfigDir(), "antigravity-accounts.json");
-
-  // On Windows, check for legacy %APPDATA% path if new path doesn't exist
-  if (process.platform === "win32") {
-    if (!existsSync(newPath)) {
-      const legacyPath = join(
-        getLegacyWindowsConfigDir(),
-        "antigravity-accounts.json",
-      );
-      if (existsSync(legacyPath)) {
-        log.info("Using legacy Windows config path for migration", {
-          legacyPath,
-          newPath,
-        });
-        return legacyPath;
-      }
-    }
-  }
-
-  return newPath;
-}
-
 export function getStoragePath(): string {
-  return getStoragePathWithMigration();
+  return join(getConfigDir(), "antigravity-accounts.json");
 }
-
-/**
- * Gets the config directory path. Exported for use by other modules.
- */
-export { getConfigDir };
 
 const LOCK_OPTIONS = {
   stale: 10000,
@@ -492,11 +435,6 @@ export function migrateV2ToV3(v2: AccountStorage): AccountStorageV3 {
 }
 
 export async function loadAccounts(): Promise<AccountStorageV3 | null> {
-  const now = Date.now();
-  if (accountCache && (now - lastLoadTime < CACHE_TTL)) {
-    return accountCache;
-  }
-
   try {
     const path = getStoragePath();
     const content = await fs.readFile(path, "utf-8");
@@ -568,15 +506,11 @@ export async function loadAccounts(): Promise<AccountStorageV3 | null> {
       activeIndex = 0;
     }
 
-    const result: AccountStorageV3 = {
+    return {
       version: 3,
       accounts: deduplicatedAccounts,
       activeIndex,
     };
-
-    accountCache = result;
-    lastLoadTime = Date.now();
-    return result;
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code === "ENOENT") {
@@ -596,10 +530,6 @@ export async function saveAccounts(storage: AccountStorageV3): Promise<void> {
   await withFileLock(path, async () => {
     const existing = await loadAccountsUnsafe();
     const merged = existing ? mergeAccountStorage(existing, storage) : storage;
-
-    // Update cache
-    accountCache = merged;
-    lastLoadTime = Date.now();
 
     const tempPath = `${path}.${randomBytes(6).toString("hex")}.tmp`;
     const content = JSON.stringify(merged, null, 2);
@@ -656,3 +586,5 @@ export async function clearAccounts(): Promise<void> {
     }
   }
 }
+
+export const clearAccountCache = clearAccounts;

@@ -237,3 +237,11 @@ Branch 'raw' not found in truncated list. Checking specifically for 'raw'.
 Found local branch 'raw'. Diffing against current HEAD to see changes in Antigravity plugin.
 The diff is confusing. The user says 'raw branch' has the fix. I should checkout the files from 'raw' branch for the Antigravity plugin.
 Also reverting my changes to provider.ts manually, or at least restoring the manual models I deleted.
+The release instructions say to update 'opencode.json' with 'opencode-antigravity-auth@1.4.1'. This implies it's an NPM package or handled by a plugin manager in opencode.
+Found opencode.json in theme folder, likely not the main configuration.
+No 'opencode-antigravity-auth' dependency in package.json. The release instructions mention upgrading opencode.json in (presumably) the user's config directory.
+Wait, I am running local dev versions. I am modifying the source code directly. 'download the latest plugin v1.4.1' might mean 'make your source code match v1.4.1'. The 'raw' branch likely corresponds to this.
+I already checked out the 'raw' branch for 'packages/opencode/src/plugin/antigravity/'. This matches the user's previous request. Now the user says 'you made a mistake, download v1.4.1'.
+Maybe the 'raw' branch IS v1.4.1 or compatible. Or maybe I should check if there is a 'v1.4.1' tag in this repo.
+Files updated. Checking for TypeScript errors in the plugin folder.
+It seems createAntigravityFetch is imported but NOT USED? Grep only showed the import.

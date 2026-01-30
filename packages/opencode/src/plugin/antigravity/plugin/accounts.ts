@@ -170,8 +170,6 @@ function isRateLimitedForQuotaKey(account: ManagedAccount, key: QuotaKey): boole
 }
 
 function isRateLimitedForFamily(account: ManagedAccount, family: ModelFamily, model?: string | null): boolean {
-  if (process.env.OPENCODE_HEALTH_CHECK) return false;
-
   if (family === "claude") {
     return isRateLimitedForQuotaKey(account, "claude");
   }
@@ -183,8 +181,6 @@ function isRateLimitedForFamily(account: ManagedAccount, family: ModelFamily, mo
 }
 
 function isRateLimitedForHeaderStyle(account: ManagedAccount, family: ModelFamily, headerStyle: HeaderStyle, model?: string | null): boolean {
-  if (process.env.OPENCODE_HEALTH_CHECK) return false;
-
   clearExpiredRateLimits(account);
 
   if (family === "claude") {
@@ -245,21 +241,6 @@ export class AccountManager {
   static async loadFromDisk(authFallback?: OAuthAuthDetails): Promise<AccountManager> {
     const stored = await loadAccounts();
     return new AccountManager(authFallback, stored);
-  }
-
-  /**
-   * Pins the manager to ONLY the account matching the provided auth details.
-   * Useful when Opencode expects the request to use a specific account (e.g. model-check).
-   */
-  pinToAuth(auth: OAuthAuthDetails): void {
-    const authParts = parseRefreshParts(auth.refresh);
-    if (!authParts || !authParts.refreshToken) return;
-
-    const matched = this.accounts.find(acc => acc.parts.refreshToken === authParts.refreshToken);
-    if (matched) {
-      this.accounts = [matched];
-      this.cursor = 0;
-    }
   }
 
   constructor(authFallback?: OAuthAuthDetails, stored?: AccountStorageV3 | null) {
@@ -700,6 +681,30 @@ export class AccountManager {
     }
 
     return true;
+  }
+
+  removeAccountByIndex(index: number): boolean {
+    const account = this.accounts.find(a => a.index === index);
+    if (!account) return false;
+    return this.removeAccount(account);
+  }
+
+  getActiveIndex(): number {
+    return this.cursor;
+  }
+
+  getActiveIndexByFamily(): Record<ModelFamily, number> {
+    return { ...this.currentAccountIndexByFamily };
+  }
+
+  setActiveIndex(index: number): void {
+    if (index >= 0 && index < this.accounts.length) {
+      this.cursor = index;
+    }
+  }
+
+  getAccount(index: number): ManagedAccount | null {
+    return this.accounts.find(a => a.index === index) || null;
   }
 
   updateFromAuth(account: ManagedAccount, auth: OAuthAuthDetails): void {

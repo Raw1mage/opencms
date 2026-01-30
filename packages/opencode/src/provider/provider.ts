@@ -39,7 +39,7 @@ import { createPerplexity } from "@ai-sdk/perplexity"
 import { createVercel } from "@ai-sdk/vercel"
 import { createGitLab } from "@gitlab/gitlab-ai-provider"
 import { ProviderTransform } from "./transform"
-import { createAntigravityFetch } from "../plugin/antigravity/plugin/fetch-wrapper"
+
 
 export namespace Provider {
   const log = Log.create({ service: "provider" })

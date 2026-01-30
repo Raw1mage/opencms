@@ -37,7 +37,7 @@ import { AccountManager, type ModelFamily, parseRateLimitReason, calculateBackof
 import { createAutoUpdateCheckerHook } from "./hooks/auto-update-checker";
 import { loadConfig, initRuntimeConfig, type AntigravityConfig } from "./plugin/config";
 import { createSessionRecoveryHook, getRecoverySuccessToast } from "./plugin/recovery";
-import { checkAccountsQuota, fetchAvailableModels } from "./plugin/quota";
+import { checkAccountsQuota } from "./plugin/quota";
 import { initDiskSignatureCache } from "./plugin/cache";
 import { createProactiveRefreshQueue, type ProactiveRefreshQueue } from "./plugin/refresh-queue";
 import { initLogger, createLogger } from "./plugin/logger";
@@ -901,21 +901,14 @@ export const createAntigravityPlugin = (providerId: string) => async (
         // Note: AccountManager now ensures the current auth is always included in accounts
 
         const accountManager = await AccountManager.loadFromDisk(auth);
-
-        // If this plugin instance is for a specific account (not the generic "antigravity" provider),
-        // pin the manager to only that account. This ensures model-check and specific routing works as expected.
-        if (provider.id !== "antigravity") {
-          accountManager.pinToAuth(auth);
-        }
-
         if (accountManager.getAccountCount() > 0) {
           accountManager.requestSaveToDisk();
         }
 
         // Initialize proactive token refresh queue (ported from LLM-API-Key-Proxy)
         let refreshQueue: ProactiveRefreshQueue | null = null;
-        if (config.proactive_token_refresh && accountManager.getAccountCount() > 0 && provider.id === "antigravity") {
-          refreshQueue = createProactiveRefreshQueue(client, provider.id, {
+        if (config.proactive_token_refresh && accountManager.getAccountCount() > 0) {
+          refreshQueue = createProactiveRefreshQueue(client, providerId, {
             enabled: config.proactive_token_refresh,
             bufferSeconds: config.proactive_refresh_buffer_seconds,
             checkIntervalSeconds: config.proactive_refresh_check_interval_seconds,
@@ -2367,31 +2360,12 @@ export const createAntigravityPlugin = (providerId: string) => async (
         },
       ],
     },
-    models: async () => {
-      if (!cachedGetAuth) return [];
-      const auth = await cachedGetAuth();
-      if (!isOAuthAuth(auth)) return [];
-
-      try {
-        const projectContext = await ensureProjectContext(auth);
-        const response = await fetchAvailableModels(projectContext.auth.access!, projectContext.effectiveProjectId);
-        if (!response.models) return [];
-
-        return Object.entries(response.models).map(([id, entry]) => ({
-          id,
-          name: entry.displayName || entry.modelName || id,
-          providerID: providerId,
-        }));
-      } catch (err) {
-        log.error("Failed to dynamically list models", { error: String(err) });
-        return [];
-      }
-    },
   };
 };
 
 export const AntigravityCLIOAuthPlugin = createAntigravityPlugin(ANTIGRAVITY_PROVIDER_ID);
 export const GoogleOAuthPlugin = AntigravityCLIOAuthPlugin;
+export const AntigravityOAuthPlugin = AntigravityCLIOAuthPlugin;
 
 function toUrlString(value: RequestInfo): string {
   if (typeof value === "string") {
@@ -2460,4 +2434,3 @@ function isExplicitQuotaFromUrl(urlString: string): boolean {
   const { explicitQuota } = resolveModelWithTier(modelWithSuffix);
   return explicitQuota ?? false;
 }
-export const AntigravityOAuthPlugin = createAntigravityPlugin("antigravity");
