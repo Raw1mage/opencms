@@ -61,9 +61,9 @@ export function renderModelCheckReport(report: ProviderHealth.HealthReport): str
                         ? `${model.responseTime}ms`
                         : "-"
 
-                    let statusTextModel = model.status
+                    let statusTextModel: string = model.status
                     if (model.error && model.status !== "RATE_LIMITED") {
-                        statusTextModel = `${model.status}: ${model.error.substring(0, 40)}`
+                        statusTextModel = `${model.status}: ${model.error?.substring(0, 40)}`
                     }
 
                     const statusDisplay = `${statusIcon} ${statusTextModel}`

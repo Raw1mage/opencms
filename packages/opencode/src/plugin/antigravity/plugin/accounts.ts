@@ -237,13 +237,18 @@ function clearExpiredRateLimits(account: ManagedAccount): void {
 export class AccountManager {
   private accounts: ManagedAccount[] = [];
   private cursor = 0;
+  private baseAuth: OAuthAuthDetails | undefined;
   private currentAccountIndexByFamily: Record<ModelFamily, number> = {
     claude: -1,
     gemini: -1,
+    "gemini-flash": -1,
+    "gemini-pro": -1,
   };
   private sessionOffsetApplied: Record<ModelFamily, boolean> = {
     claude: false,
     gemini: false,
+    "gemini-flash": false,
+    "gemini-pro": false,
   };
   private lastToastAccountIndex = -1;
   private lastToastTime = 0;
@@ -252,9 +257,11 @@ export class AccountManager {
   private saveTimeout: ReturnType<typeof setTimeout> | null = null;
   private savePromiseResolvers: Array<() => void> = [];
 
-  static async loadFromDisk(authFallback?: OAuthAuthDetails): Promise<AccountManager> {
-    const stored = await loadAccounts();
-    return new AccountManager(authFallback, stored);
+  private storageKey: string = "antigravity-accounts.json";
+
+  static async loadFromDisk(authFallback?: OAuthAuthDetails, storageKey: string = "antigravity-accounts.json"): Promise<AccountManager> {
+    const stored = await loadAccounts(storageKey);
+    return new AccountManager(authFallback, stored, storageKey);
   }
 
   /**
@@ -272,7 +279,8 @@ export class AccountManager {
     }
   }
 
-  constructor(authFallback?: OAuthAuthDetails, stored?: AccountStorageV3 | null) {
+  constructor(authFallback?: OAuthAuthDetails, stored?: AccountStorageV3 | null, storageKey: string = "antigravity-accounts.json") {
+    this.storageKey = storageKey;
     const authParts = authFallback ? parseRefreshParts(authFallback.refresh) : null;
 
     if (stored && stored.accounts.length === 0) {
@@ -469,6 +477,26 @@ export class AccountManager {
   markSwitched(account: ManagedAccount, reason: "rate-limit" | "initial" | "rotation", family: ModelFamily): void {
     account.lastSwitchReason = reason;
     this.currentAccountIndexByFamily[family] = account.index;
+  }
+
+  getCurrentAccount(): ManagedAccount | null {
+    const idx = this.currentAccountIndexByFamily.gemini;
+    return idx >= 0 ? this.accounts[idx] : null;
+  }
+
+  accountToAuth(account: ManagedAccount): OAuthAuthDetails {
+    return this.toAuthDetails(account);
+  }
+
+  updateAccount(account: ManagedAccount, access: string, expires: number, parts: RefreshParts): void {
+    account.access = access;
+    account.expires = expires;
+    account.parts = {
+      ...account.parts,
+      ...parts,
+      projectId: parts.projectId ?? account.parts.projectId,
+      managedProjectId: parts.managedProjectId ?? account.parts.managedProjectId,
+    };
   }
 
   /**
@@ -894,7 +922,11 @@ export class AccountManager {
       },
     };
 
-    await saveAccounts(storage);
+    await saveAccounts(storage, this.storageKey);
+  }
+
+  async save(): Promise<void> {
+    return this.saveToDisk();
   }
 
   requestSaveToDisk(): void {
@@ -1060,5 +1092,17 @@ export class AccountManager {
         this.currentAccountIndexByFamily.gemini = Math.max(0, this.accounts.length - 1);
       }
     }
+  }
+  setBaseAuth(auth: OAuthAuthDetails) {
+    this.baseAuth = auth;
+  }
+
+  getAccountInfos() {
+    return this.accounts.map(acc => ({
+      index: acc.index,
+      email: acc.email,
+      isActive: acc.index === this.currentAccountIndexByFamily.gemini,
+      isRateLimited: isRateLimitedForFamily(acc, "gemini")
+    }));
   }
 }

@@ -27,7 +27,6 @@ import {
 import { createLogger } from "./logger";
 import {
   cleanJSONSchemaForAntigravity,
-  DEFAULT_THINKING_BUDGET,
   deepFilterThinkingBlocks,
   extractThinkingConfig,
   extractVariantThinkingConfig,
@@ -44,6 +43,8 @@ import {
   resolveThinkingConfig,
   rewriteAntigravityPreviewAccessError,
   transformThinkingParts,
+  ANTIGRAVITY_BASE_SYSTEM_INSTRUCTION,
+  filterUnsignedThinkingBlocks,
   type AntigravityApiBody,
 } from "./request-helpers";
 import {
@@ -51,6 +52,7 @@ import {
   CLAUDE_DESCRIPTION_PROMPT,
   ANTIGRAVITY_SYSTEM_INSTRUCTION,
 } from "../constants";
+import { DEFAULT_THINKING_BUDGET } from "./transform/types";
 import {
   analyzeConversationState,
   closeToolLoopForThinking,
@@ -721,6 +723,7 @@ export function prepareAntigravityRequest(
   if (typeof baseInit.body === "string" && baseInit.body) {
     try {
       const parsedBody = JSON.parse(baseInit.body) as Record<string, unknown>;
+
       const isWrapped = typeof parsedBody.project === "string" && "request" in parsedBody;
 
       if (isWrapped) {
@@ -1531,11 +1534,11 @@ export function buildThinkingWarmupBody(
 export async function transformAntigravityResponse(
   response: Response,
   streaming: boolean,
-  debugContext?: AntigravityDebugContext | null,
-  requestedModel?: string,
-  projectId?: string,
-  endpoint?: string,
-  effectiveModel?: string,
+  debugContext: any,
+  requestedModel: string | undefined,
+  projectId: string | undefined,
+  endpoint: string | undefined,
+  effectiveModel: string | undefined,
   sessionId?: string,
   toolDebugMissing?: number,
   toolDebugSummary?: string,

@@ -39,6 +39,7 @@ import { createPerplexity } from "@ai-sdk/perplexity"
 import { createVercel } from "@ai-sdk/vercel"
 import { createGitLab } from "@gitlab/gitlab-ai-provider"
 import { ProviderTransform } from "./transform"
+import { createAntigravityFetch } from "../plugin/antigravity/plugin/fetch-wrapper"
 
 export namespace Provider {
   const log = Log.create({ service: "provider" })
@@ -1344,6 +1345,8 @@ export namespace Provider {
         )
           delete provider.models[modelID]
 
+        model.variants = mapValues(ProviderTransform.variants(model), (v) => v)
+
         // Filter out disabled variants from config
         const configVariants = configProvider?.models?.[modelID]?.variants
         if (configVariants && model.variants) {
@@ -1457,7 +1460,7 @@ export namespace Provider {
         })
       }
 
-      const key = Bun.hash.xxHash32(JSON.stringify({ npm: model.api.npm, options }))
+      const key = Bun.hash.xxHash32(JSON.stringify({ providerID: model.providerID, npm: model.api.npm, options }))
       const existing = s.sdk.get(key)
       if (existing) return existing
 
@@ -1534,6 +1537,7 @@ export namespace Provider {
       s.sdk.set(key, loaded)
       return loaded as SDK
     } catch (e) {
+      log.error("getSDK failed", { providerID: model.providerID, modelID: model.id, error: e })
       throw new InitError({ providerID: model.providerID }, { cause: e })
     }
   }

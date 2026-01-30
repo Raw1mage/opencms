@@ -43,13 +43,32 @@ export const Instance = {
     })
   },
   get directory() {
-    return context.use().directory
+    try {
+      return context.use().directory
+    } catch {
+      return process.cwd()
+    }
   },
   get worktree() {
-    return context.use().worktree
+    try {
+      return context.use().worktree
+    } catch {
+      return "/"
+    }
   },
   get project() {
-    return context.use().project
+    try {
+      return context.use().project
+    } catch {
+      return {
+        id: "global",
+        name: "Global",
+        worktree: process.cwd(),
+        vcs: undefined,
+        sandboxes: [],
+        time: { created: 0, updated: 0 },
+      } as Project.Info
+    }
   },
   /**
    * Check if a path is within the project boundary.

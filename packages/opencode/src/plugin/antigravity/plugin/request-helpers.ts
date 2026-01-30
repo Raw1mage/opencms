@@ -2,13 +2,16 @@ import { getKeepThinking } from "./config";
 import { createLogger } from "./logger";
 import { cacheSignature } from "./cache";
 import { getParamType } from "./tool-schema-cache";
-import {
-  EMPTY_SCHEMA_PLACEHOLDER_NAME,
-  EMPTY_SCHEMA_PLACEHOLDER_DESCRIPTION,
-  SKIP_THOUGHT_SIGNATURE,
-} from "../constants";
 import { processImageData } from "./image-saver";
-import type { GoogleSearchConfig } from "./transform/types";
+import type { GoogleSearchConfig, ThinkingConfig } from "./transform/types";
+import { DEFAULT_THINKING_BUDGET } from "./transform/types";
+import {
+  ANTIGRAVITY_ENDPOINT_FALLBACKS,
+  ANTIGRAVITY_PROVIDER_ID,
+  SKIP_THOUGHT_SIGNATURE,
+  EMPTY_SCHEMA_PLACEHOLDER_NAME,
+  EMPTY_SCHEMA_PLACEHOLDER_DESCRIPTION
+} from "../constants";
 
 const log = createLogger("request-helpers");
 
@@ -810,21 +813,6 @@ export interface AntigravityUsageMetadata {
   cachedContentTokenCount?: number;
   thoughtsTokenCount?: number;
 }
-
-/**
- * Normalized thinking configuration accepted by Antigravity.
- */
-export interface ThinkingConfig {
-  thinkingBudget?: number;
-  thinkingLevel?: string;
-  includeThoughts?: boolean;
-}
-
-/**
- * Default token budget for thinking/reasoning. 16000 tokens provides sufficient
- * space for complex reasoning while staying within typical model limits.
- */
-export const DEFAULT_THINKING_BUDGET = 16000;
 
 /**
  * Checks if a model name indicates thinking/reasoning capability.

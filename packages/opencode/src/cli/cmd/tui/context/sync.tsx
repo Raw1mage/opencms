@@ -248,21 +248,23 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           const updated = store.message[event.properties.info.sessionID]
           if (updated.length > 100) {
             const oldest = updated[0]
-            batch(() => {
-              setStore(
-                "message",
-                event.properties.info.sessionID,
-                produce((draft) => {
-                  draft.shift()
-                }),
-              )
-              setStore(
-                "part",
-                produce((draft) => {
-                  delete draft[oldest.id]
-                }),
-              )
-            })
+            if (oldest) {
+              batch(() => {
+                setStore(
+                  "message",
+                  event.properties.info.sessionID,
+                  produce((draft) => {
+                    draft.shift()
+                  }),
+                )
+                setStore(
+                  "part",
+                  produce((draft) => {
+                    delete draft[oldest.id]
+                  }),
+                )
+              })
+            }
           }
           break
         }
