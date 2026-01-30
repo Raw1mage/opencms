@@ -599,10 +599,13 @@ const STREAM_ACTION = "streamGenerateContent";
 export function isGenerativeLanguageRequest(input: RequestInfo): boolean {
   const url = typeof input === "string" ? input : input.url;
   // Prevent recursion by ignoring internal Antigravity plugin requests
+  // Also check for relative paths that SDKs might produce (e.g. v1beta/models...)
   if (url.includes("loadCodeAssist") || url.includes("onboardUser")) {
     return false;
   }
-  return url.includes("generativelanguage.googleapis.com") || url.startsWith("/v1/") || url.startsWith("/models/");
+  return url.includes("generativelanguage.googleapis.com") ||
+    url.startsWith("/v1/") || url.startsWith("v1/") ||
+    url.startsWith("/models/") || url.startsWith("models/");
 }
 
 /**
@@ -655,8 +658,12 @@ export function prepareAntigravityRequest(
 
   if (!isGenerativeLanguageRequest(urlString)) {
     // If it's a relative URL to Google API, make it absolute so global fetch works
-    if (urlString.startsWith("/v1") || urlString.startsWith("/models")) {
-      input = `https://generativelanguage.googleapis.com${urlString.startsWith("/") ? "" : "/"}${urlString}`;
+    const isRelativeApi = urlString.startsWith("/v1") || urlString.startsWith("v1") ||
+      urlString.startsWith("/models") || urlString.startsWith("models");
+
+    if (isRelativeApi) {
+      const pathToken = urlString.startsWith("/") ? urlString : `/${urlString}`;
+      input = `https://generativelanguage.googleapis.com${pathToken}`;
     } else {
 
       return {

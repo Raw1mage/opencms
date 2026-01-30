@@ -109,8 +109,23 @@ export function createDialogProviderOptions() {
 }
 
 export function DialogProvider() {
+  const dialog = useDialog()
   const options = createDialogProviderOptions()
-  return <DialogSelect title="Connect a provider" options={options()} />
+  return (
+    <DialogSelect
+      title="Connect a provider"
+      options={options()}
+      keybind={[
+        {
+          keybind: { name: "left", ctrl: false, meta: false, shift: false, super: false, leader: false },
+          title: "Back",
+          onTrigger: () => {
+            dialog.clear()
+          },
+        },
+      ]}
+    />
+  )
 }
 
 interface AutoMethodProps {
