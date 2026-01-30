@@ -92,29 +92,30 @@ export namespace Command {
       },
       [Default.DASHBOARD]: {
         name: Default.DASHBOARD,
-        description: "Real-time rate limit status dashboard",
+        description: "Real-time rate limit and account status dashboard",
         get template() {
-          return `Checking rate limits...`
+          return `Checking account status...`
         },
         subtask: false,
         hints: [],
         async handler() {
           const { globalAccountManager } = await import("../plugin/antigravity/index");
-
-          if (!globalAccountManager) {
-            return { output: "⚠️ Antigravity AccountManager not available. Please ensure the plugin is loaded.", title: "Rate Limit Dashboard" };
-          }
-
-          // @ts-ignore
-          const accounts = globalAccountManager.getAccountsSnapshot();
-          const lines = ["# 📊 Rate Limit Dashboard", ""];
-
-          if (accounts.length === 0) {
-            lines.push("No Antigravity accounts found.");
-            return { output: lines.join("\n"), title: "Rate Limit Dashboard" };
-          }
-
+          const families = await Account.listAll();
+          const lines: string[] = ["# 📊 Service Status Dashboard", ""];
           const now = Date.now();
+
+          // Define display order
+          const order = ["antigravity", "gemini-cli", "anthropic", "openai", "opencode", "google API-KEY", "copilot"];
+          const sortedFamilies = Object.keys(families).sort((a, b) => {
+            const idxA = order.indexOf(a);
+            const idxB = order.indexOf(b);
+            if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+            if (idxA === -1) return 1;
+            if (idxB === -1) return -1;
+            return idxA - idxB;
+          });
+
+          // Helper for time formatting
           const formatTime = (ts: number | undefined) => {
             if (!ts || ts <= now) return "✅ Ready";
             const waitSec = Math.ceil((ts - now) / 1000);
@@ -123,37 +124,63 @@ export namespace Command {
             return `⏳ ${waitSec}s`;
           };
 
-          lines.push("| ID | Email | Claude | Gemini (AG) | Gemini (CLI) |");
-          lines.push("|----|-------|--------|-------------|--------------|");
+          for (const familyName of sortedFamilies) {
+            const familyData = families[familyName];
+            const accountsArr = Object.entries(familyData.accounts);
+            if (accountsArr.length === 0) continue;
 
-          for (const acc of accounts) {
-            // @ts-ignore
-            const email = acc.email || `Account ${acc.index}`;
-            // @ts-ignore
-            const claude = formatTime(acc.rateLimitResetTimes?.["claude"]);
-            // @ts-ignore
-            const geminiAG = formatTime(acc.rateLimitResetTimes?.["gemini-antigravity"]);
-            // @ts-ignore
-            const geminiCLI = formatTime(acc.rateLimitResetTimes?.["gemini-cli"]);
+            lines.push(`### 📂 ${familyName.toUpperCase()}`);
 
-            // Check if actively cooling down
-            // @ts-ignore
-            const coolingDown = acc.coolingDownUntil && acc.coolingDownUntil > now;
+            // Special handling for Antigravity to show detailed rate limits
+            if (familyName === "antigravity" && globalAccountManager) {
+              // @ts-ignore
+              const agSnapshot = globalAccountManager.getAccountsSnapshot() as any[];
 
-            let statusPrefix = "";
-            if (coolingDown) statusPrefix = "❄️ ";
+              if (agSnapshot.length > 0) {
+                // Determine accounts that belong to this family in AG
+                lines.push("| ID | Account | Claude | Gemini (AG) | Gemini (CLI) |");
+                lines.push("|----|---------|--------|-------------|--------------|");
 
-            // @ts-ignore
-            lines.push(`| ${acc.index} | ${statusPrefix}${email} | ${claude} | ${geminiAG} | ${geminiCLI} |`);
+                for (const acc of agSnapshot) {
+                  // @ts-ignore
+                  const email = acc.email || `Account ${acc.index}`;
+                  // @ts-ignore
+                  const claude = formatTime(acc.rateLimitResetTimes?.["claude"]);
+                  // @ts-ignore
+                  const geminiAG = formatTime(acc.rateLimitResetTimes?.["gemini-antigravity"]);
+                  // @ts-ignore
+                  const geminiCLI = formatTime(acc.rateLimitResetTimes?.["gemini-cli"]);
+
+                  const isActive = familyData.activeAccount === String(acc.index);
+                  const activeMark = isActive ? "⭐" : "";
+
+                  // Check cooldown
+                  // @ts-ignore
+                  const coolingDown = acc.coolingDownUntil && acc.coolingDownUntil > now;
+                  const statusPrefix = coolingDown ? "❄️ " : "";
+
+                  lines.push(`| ${acc.index} | ${activeMark} ${statusPrefix}${email} | ${claude} | ${geminiAG} | ${geminiCLI} |`);
+                }
+                lines.push("");
+                continue; // Skip generic listing for Antigravity
+              }
+            }
+
+            // Generic listing for other providers
+            for (const [id, info] of accountsArr) {
+              const isActive = familyData.activeAccount === id;
+              const status = isActive ? "✅ **Active**" : "   Ready";
+              const displayName = Account.getDisplayName(id, info, familyName);
+              lines.push(`- ${status}: \`${displayName}\``);
+            }
+            lines.push("");
           }
 
-          lines.push("");
-          lines.push(`*Total Accounts: ${accounts.length}*`);
-          lines.push(`*Time: ${new Date().toLocaleTimeString()}*`);
+          lines.push(`*Last updated: ${new Date().toLocaleTimeString()}*`);
 
           return {
             output: lines.join("\n"),
-            title: "Rate Limit Dashboard",
+            title: "Service Dashboard"
           }
         },
       },

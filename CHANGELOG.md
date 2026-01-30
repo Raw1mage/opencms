@@ -35,7 +35,7 @@
 - Full server restart was required for all fixes to take effect
 
 ### Added
-- **Rate Limit Dashboard**: Added `/dashboard` command to view real-time rate limit status and cooldown timers for all Antigravity accounts.
+- **Service Status Dashboard**: Enhanced `/dashboard` to display all provider accounts (Anthropic, OpenAI, etc.) with specialized rate limit monitoring for Antigravity.
 
 
 ## [1.1.44] - 2026-01-30

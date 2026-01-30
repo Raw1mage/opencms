@@ -169,23 +169,20 @@ bun run dev
 **測試模型**: claude-opus-4-5-thinking
 **測試結果**: ✅ 完全正常工作
 
-### Rate Limit Dashboard (Added Feature)
+### Service Status Dashboard (Enhanced Feature)
 
-為了解決用戶關於 "不知道後台在做什麼" 的擔憂，我們實作了 `/dashboard` 命令。
+為了解決用戶關於 "Dashboard 反直覺" 的反饋，我們重構了 `/dashboard` 命令：
 
-- **功能**:
-  - 顯示所有 Antigravity 賬戶列表
-  - 實時顯示各模型的 Rate Limit 冷卻時間 (Claude, Gemini AG, Gemini CLI)
-  - 標識正在冷卻 (cooldown) 的賬戶
+- **結構優化**:
+  - 改為按 Provider 分組顯示 (Anthropic, OpenAI, Antigravity, etc.)
+  - 統一了 `/accounts` 和 `/dashboard` 的展示邏輯，提供一致的用戶體驗
+- **功能增強**:
+  - **Antigravity**: 專屬表格視圖，顯示每個帳號在 Claude, Gemini AG, Gemini CLI 三個維度的獨立 Rate Limit 狀態
+  - **其他 Provider**: 顯示帳號活躍狀態 (Active/Ready)
 - **技術實現**:
-  - 在 `src/plugin/antigravity/index.ts` 導出 `globalAccountManager`
-  - 在 `src/command/index.ts` 添加 `DASHBOARD` 命令處理器
-  - 移除了舊的 `/model-check` (Perception) 功能，改為被動監控
-- **背景請求調查**:
-  - 添加了調試日誌來追蹤背景請求
-  - 結果證明在沒有用戶操作時，**沒有**多餘的 API 請求在後台運行
-  - 用戶看到的重試提示可能是來自之前的請求隊列，或 VS Code/TUI 的狀態殘留
-  - 現在提供了 Dashboard 讓用戶隨時手動檢查，無需後台自動探測
+  - 混合了 `Account.listAll()` (通用配置) 和 `globalAccountManager` (實時狀態) 的數據
+  - 使用 `write_to_file` 重寫了 `src/command/index.ts` 以確保代碼結構完整性
+
 
 
 
