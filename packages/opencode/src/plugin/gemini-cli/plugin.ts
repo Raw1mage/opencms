@@ -68,12 +68,6 @@ export const GeminiCLIOAuthPlugin = async (
           }
 
           const latestAuth = await getAuth();
-          console.log("GeminiCLI Fetch Debug: ", {
-            hasAuth: !!latestAuth,
-            isOAuth: isOAuthAuth(latestAuth),
-            hasAccess: latestAuth && 'access' in latestAuth ? 'YES' : 'NO',
-            tokenStart: latestAuth && 'access' in latestAuth ? (latestAuth as any).access.substring(0, 10) : 'N/A'
-          });
 
           if (!isOAuthAuth(latestAuth)) {
             return fetch(input, init);

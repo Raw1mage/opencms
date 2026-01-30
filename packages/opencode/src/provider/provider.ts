@@ -14,6 +14,7 @@ import { Env } from "../env"
 import { Instance } from "../project/instance"
 import { Flag } from "../flag/flag"
 import { iife } from "@/util/iife"
+import { Global } from "../global"
 
 // Direct imports for bundled providers
 import { createAmazonBedrock, type AmazonBedrockProviderSettings } from "@ai-sdk/amazon-bedrock"
@@ -54,8 +55,23 @@ export namespace Provider {
     "anthropic/claude-2.0",
     "anthropic/claude-instant-1.2",
   ])
+  const IGNORED_DYNAMIC = new Set<string>()
+
+  async function loadIgnoredDynamic() {
+    IGNORED_DYNAMIC.clear()
+    const file = Bun.file(`${Global.Path.data}/ignored-models.json`)
+    const exists = await file.exists()
+    if (!exists) return
+    const data = await file.json().catch(() => [])
+    if (!Array.isArray(data)) return
+    for (const entry of data) {
+      if (typeof entry === "string" && entry.length > 0) IGNORED_DYNAMIC.add(entry)
+    }
+  }
 
   export function isModelIgnored(providerID: string, modelID: string): boolean {
+    if (IGNORED_DYNAMIC.has(providerID) || IGNORED_DYNAMIC.has(`${providerID}/*`)) return true
+    if (IGNORED_DYNAMIC.has(`${providerID}/${modelID}`)) return true
     if (IGNORED_MODELS.has(providerID) || IGNORED_MODELS.has(`${providerID}/*`)) return true
     if (IGNORED_MODELS.has(`${providerID}/${modelID}`)) return true
 
@@ -727,6 +743,7 @@ export namespace Provider {
 
     const disabled = new Set(config.disabled_providers ?? [])
     const enabled = config.enabled_providers ? new Set(config.enabled_providers) : null
+    await loadIgnoredDynamic()
 
     function isProviderAllowed(providerID: string): boolean {
       const accountFamily = Account.parseFamily(providerID)
@@ -943,7 +960,11 @@ export namespace Provider {
       // Populate Antigravity with only specific models
       const extraModels = [
         "claude-sonnet-4-5",
-        // "gpt-oss-120b", // Removing generic 120b if we have a specific medium one below
+        "claude-opus-4-5",
+        "claude-sonnet-4-5-thinking",
+        "claude-opus-4-5-thinking",
+        "claude-opus-4-1",
+        "claude-opus-4-2",
       ]
 
       const findModelInDev = (id: string) => {
@@ -964,12 +985,19 @@ export namespace Provider {
       }
 
       const manualModels = [
+        { id: "claude-opus-4-5-thinking", name: "Claude 4.5 Opus (Thinking)", family: "claude", reasoning: true },
+        { id: "claude-opus-4-5", name: "Claude 4.5 Opus", family: "claude" },
+        { id: "claude-sonnet-4-5-thinking", name: "Claude 4.5 Sonnet (Thinking)", family: "claude", reasoning: true },
+        { id: "claude-sonnet-4-5", name: "Claude 4.5 Sonnet", family: "claude" },
         { id: "gemini-3-pro-high", name: "Gemini 3 Pro (High)", family: "gemini-pro" },
         { id: "gemini-3-pro-low", name: "Gemini 3 Pro (Low)", family: "gemini-pro" },
         { id: "gemini-3-flash", name: "Gemini 3 Flash (New)", family: "gemini-flash" },
-        { id: "claude-sonnet-4-5-thinking", name: "Claude Sonnet 4.5 (Thinking)", family: "claude", reasoning: true },
-        { id: "claude-opus-4-5-thinking", name: "Claude Opus 4.5 (Thinking)", family: "claude", reasoning: true },
+        { id: "claude-opus-4-1", name: "Claude Opus 4.1", family: "claude" },
+        { id: "claude-opus-4-2", name: "Claude Opus 4.2", family: "claude" },
         { id: "gpt-oss-120b-medium", name: "GPT-OSS 120B (Medium)", family: "gpt-oss" },
+        { id: "gpt-5.1-codex", name: "GPT-5.1 Codex", family: "openai" },
+        { id: "claude-3-7-sonnet-thinking", name: "Claude 3.7 Sonnet (Thinking)", family: "claude", reasoning: true },
+        { id: "claude-3-7-sonnet", name: "Claude 3.7 Sonnet", family: "claude" },
       ]
 
       for (const m of manualModels) {
@@ -977,7 +1005,7 @@ export namespace Provider {
           id: m.id,
           name: m.name,
           providerID: "antigravity",
-          family: m.family,
+          family: m.family as any,
           api: { id: m.id, url: "", npm: "@ai-sdk/google" },
           status: "active",
           capabilities: {
@@ -1069,12 +1097,7 @@ export namespace Provider {
         }
 
         // Determine display name
-        let displayName: string
-        if (accountInfo.type === "api") {
-          displayName = `${family.charAt(0).toUpperCase() + family.slice(1)} API (${accountInfo.name})`
-        } else {
-          displayName = `${family.charAt(0).toUpperCase() + family.slice(1)} (${accountInfo.email || accountInfo.name})`
-        }
+        const displayName = Account.getDisplayName(accountId, accountInfo, family)
 
         // Add to database with models inherited from base provider
         const options: Record<string, any> = {}
@@ -1085,13 +1108,40 @@ export namespace Provider {
           if (accountInfo.managedProjectId) {
             options.managedProjectId = accountInfo.managedProjectId
           }
-          if (accountInfo.accessToken) {
+          if (accountInfo.accessToken && family !== "anthropic") {
             options.apiKey = accountInfo.accessToken
+          }
+          if (family === "anthropic") {
+            options.headers = {
+              "User-Agent": "anthropic-claude-code/0.5.1",
+              "anthropic-client": "claude-code/0.5.1",
+              "anthropic-beta":
+                "claude-code-20250219,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14",
+            }
+            if (accountInfo.accessToken) {
+              options.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+                const headers = new Headers(init?.headers)
+                headers.set("Authorization", `Bearer ${accountInfo.accessToken}`)
+                headers.delete("x-api-key")
+                if (Env.get("OPENCODE_SMOKE_DEBUG")) {
+                  log.info("anthropic subscription request", {
+                    url: typeof input === "string" ? input : input.toString(),
+                    headers: Array.from(headers.keys()),
+                  })
+                }
+                return fetch(input, { ...init, headers })
+              }
+            }
           }
         }
         if (accountInfo.type === "api" && accountInfo.apiKey) {
           options.apiKey = accountInfo.apiKey
         }
+
+        const blocked =
+          family === "anthropic" && accountInfo.type === "subscription"
+            ? "Claude Code subscription credentials are blocked for third-party tools. Use an Anthropic API key."
+            : undefined
 
         database[effectiveId] = {
           id: effectiveId,
@@ -1100,7 +1150,7 @@ export namespace Provider {
           active: familyData.activeAccount === accountId,
           email: accountInfo.type === "subscription" ? accountInfo.email : undefined,
           coolingDownUntil: accountInfo.type === "subscription" ? accountInfo.coolingDownUntil : undefined,
-          cooldownReason: accountInfo.type === "subscription" ? accountInfo.cooldownReason : undefined,
+          cooldownReason: blocked ?? (accountInfo.type === "subscription" ? accountInfo.cooldownReason : undefined),
           env: family === "antigravity" ? ["ANTIGRAVITY_Enabled"] : [],
           options,
           models: mapValues(baseProvider.models, (model) => ({
@@ -1398,6 +1448,14 @@ export namespace Provider {
           ...options["headers"],
           ...model.headers,
         }
+      if (Env.get("OPENCODE_SMOKE_DEBUG") && model.providerID.startsWith("anthropic-subscription")) {
+        log.info("anthropic subscription sdk options", {
+          providerID: model.providerID,
+          hasFetch: typeof options["fetch"] === "function",
+          headers: Object.keys(options["headers"] ?? {}),
+          baseURL: options["baseURL"],
+        })
+      }
 
       const key = Bun.hash.xxHash32(JSON.stringify({ npm: model.api.npm, options }))
       const existing = s.sdk.get(key)
