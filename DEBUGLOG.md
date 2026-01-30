@@ -183,6 +183,20 @@ bun run dev
   - 混合了 `Account.listAll()` (通用配置) 和 `globalAccountManager` (實時狀態) 的數據
   - 使用 `write_to_file` 重寫了 `src/command/index.ts` 以確保代碼結構完整性
 
+### 穩定性與故障排除 (Stability Troubleshooting)
+
+用戶報告 `opencode` 在閒置一段時間後會進入 "沒畫面" 狀態並顯示 `Terminated`。
+
+- **現象**: TUI 停止響應，終端顯示 `Terminated` 和 `^[\`。
+- **分析**:
+  - `Terminated` 通常表示進程收到了 `SIGTERM` 信號。
+  - 常見原因：SSH 會話超時 (TMOUT)、操作系統內存不足 (OOM Killer) 或手動殺死。
+  - 代碼審查：我們檢查了 Antigravity 插件的 `ProactiveRefreshQueue` (每 5 分鐘運行一次) 和 `fetch` 循環，未發現死循環或明顯的內存洩漏源。
+- **建議**:
+  - 如果問題持續發生（例如每 20 分鐘），建議使用 `bun run dev -- --print-logs` 運行以捕獲崩潰前的日誌。
+  - 檢查服務器的內存使用情況。
+
+
 
 
 
