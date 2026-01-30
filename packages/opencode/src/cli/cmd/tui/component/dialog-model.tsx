@@ -225,11 +225,7 @@ export function DialogModel(props: { providerID?: string }) {
               category: connected()
                 ? iife(() => {
                   const base = label(provider.name, provider.id)
-                  const who = iife(() => {
-                    const fam = family(provider.id)
-                    if (!fam) return undefined
-                    return activeOwners().get(fam)
-                  })
+                  const who = owner(provider)
                   if (who) return `${base} (${who})`
                   return base
                 })
