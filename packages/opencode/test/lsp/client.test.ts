@@ -22,7 +22,7 @@ describe("LSPClient interop", () => {
     await Log.init({ print: true })
   })
 
-  test("handles workspace/workspaceFolders request", { timeout: 15000 }, async () => {
+  test("handles workspace/workspaceFolders request", async () => {
     const handle = spawnFakeServer() as any
 
     const client = await Instance.provide({
@@ -46,7 +46,7 @@ describe("LSPClient interop", () => {
     await client.shutdown()
   })
 
-  test("handles client/registerCapability request", { timeout: 15000 }, async () => {
+  test("handles client/registerCapability request", async () => {
     const handle = spawnFakeServer() as any
 
     const client = await Instance.provide({
@@ -70,7 +70,7 @@ describe("LSPClient interop", () => {
     await client.shutdown()
   })
 
-  test("handles client/unregisterCapability request", { timeout: 15000 }, async () => {
+  test("handles client/unregisterCapability request", async () => {
     const handle = spawnFakeServer() as any
 
     const client = await Instance.provide({

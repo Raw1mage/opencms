@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.43] - 2026-01-30
+
+- Implemented strict account isolation for Google login types:
+    - `antigravity` provider now uses `antigravity-accounts.json`.
+    - `gemini-cli` provider now uses `gemini-cli-accounts.json`.
+    - This ensures accounts are correctly separated and never mixed between providers.
+- Refactored `AccountManager` to support parameterized storage files.
+- Removed `account-check` command and associated tools.
+
 ## [0.0.0-cms-202601291945] - 2026-01-29
 
 - Hide base Anthropic provider models in /models when an active Anthropic subscription account is present, preventing Claude Code-only credentials from being selected.

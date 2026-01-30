@@ -121,7 +121,7 @@ const tui = await (async () => {
 })()
 
 for (const cmd of tui) {
-  cli.command(cmd)
+  cli.command(cmd as any)
 }
 
 try {
