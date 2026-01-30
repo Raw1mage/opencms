@@ -48,13 +48,6 @@ export namespace Provider {
     "google/gemini-1.5-pro",
     "google/gemini-1.5-flash",
     "google/gemini-1.0-pro",
-    "google/gemini-embedding-001",
-    "gemini-cli/gemini-embedding-001",
-    "anthropic/claude-3-5-sonnet-20241022",
-    "anthropic/claude-sonnet-4-5",
-    "anthropic/claude-2.1",
-    "anthropic/claude-2.0",
-    "anthropic/claude-instant-1.2",
   ])
   const IGNORED_DYNAMIC = new Set<string>()
 
@@ -948,6 +941,55 @@ export namespace Provider {
           },
           cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
           limit: { context: 32000, output: 4096 },
+          options: {},
+          variants: {},
+          headers: {},
+          release_date: "2024-01-01"
+        }
+      }
+    }
+
+    // If anthropic failed to inherit or it exists but has no models, populate manually
+    if (!database["anthropic"] || Object.keys(database["anthropic"].models).length === 0) {
+      if (!database["anthropic"]) {
+        database["anthropic"] = {
+          id: "anthropic",
+          name: "Anthropic",
+          source: "custom",
+          env: ["ANTHROPIC_API_KEY"],
+          options: {},
+          models: {},
+        }
+      }
+
+      const anthropicModels = [
+        { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet (New)" },
+        { id: "claude-3-5-haiku-20241022", name: "Claude 3.5 Haiku" },
+        { id: "claude-3-opus-20240229", name: "Claude 3 Opus" },
+        { id: "claude-3-sonnet-20240229", name: "Claude 3 Sonnet" },
+        { id: "claude-3-haiku-20240307", name: "Claude 3 Haiku" },
+        { id: "claude-3-5-sonnet-latest", name: "Claude 3.5 Sonnet (Latest)" }
+      ]
+
+      for (const m of anthropicModels) {
+        database["anthropic"].models[m.id] = {
+          id: m.id,
+          name: m.name,
+          providerID: "anthropic",
+          family: "claude",
+          api: { id: m.id, url: "", npm: "@ai-sdk/anthropic" },
+          status: "active",
+          capabilities: {
+            temperature: true,
+            reasoning: false,
+            attachment: true,
+            interleaved: false,
+            input: { text: true, image: true, audio: false, video: false, pdf: true },
+            output: { text: true, audio: false, image: false, video: false, pdf: false },
+            toolcall: true
+          },
+          cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+          limit: { context: 200000, output: 4096 },
           options: {},
           variants: {},
           headers: {},

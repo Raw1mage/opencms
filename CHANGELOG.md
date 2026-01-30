@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.44] - 2026-01-30
+
+### Fixed
+- **Antigravity Chat**: Fixed `TypeError [ERR_INVALID_URL]` by handling relative URLs (e.g., `v1beta/models/...`) in the Antigravity fetch wrapper.
+- **Model List**: Resolved model count discrepancy by strictly filtering Antigravity models (blocking legacy/experimental artifacts) and prioritizing account emails in TUI display.
+- **Accounts**:
+    - Fixed "Time Travel" / crash issue caused by a corrupted `accounts.json` (trailing comma).
+    - Hard-removed ghost account `gemini-cli-subscription-gemini-cli`.
+    - Re-enabled Anthropic models by removing them from the ignored list and adding fallback population.
+- **TUI Navigation**:
+    - Mapped `Left Arrow` key to "Back" (exit/clear) in `/models`, `/accounts`, and `/connect` menus.
+    - Mapped `a` key in `/models` to open `/accounts` (Accounts TUI) instead of `/connect`.
+
 ## [1.1.43] - 2026-01-30
 
 - Implemented strict account isolation for Google login types:

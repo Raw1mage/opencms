@@ -75,7 +75,7 @@ export const GeminiCLIOAuthPlugin = async (
 
           let authRecord = latestAuth;
           if (accessTokenExpired(authRecord)) {
-            console.log("GeminiCLI: Token expired, refreshing...");
+            // console.log("GeminiCLI: Token expired, refreshing...");
             const refreshed = await refreshAccessToken(authRecord, client);
             if (!refreshed) {
               console.log("GeminiCLI: Refresh failed");

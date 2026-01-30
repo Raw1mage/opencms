@@ -183,6 +183,13 @@ export function DialogAccount() {
       current={undefined}
       keybind={[
         {
+          keybind: { name: "left", ctrl: false, meta: false, shift: false, super: false, leader: false },
+          title: "Back",
+          onTrigger: () => {
+            dialog.clear()
+          },
+        },
+        {
           keybind: { name: "n", ctrl: true, meta: false, shift: false, super: false, leader: false },
           title: "Add",
           onTrigger: () => {

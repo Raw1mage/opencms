@@ -205,3 +205,19 @@
 -   [x] TUI: 'delete', 'f', 's', 'ins', 'a' keys work as expected.
 -   [x] TUI: List scrolling stops at top/bottom.
 -   [x] OpenAI: Codex models work without "Instructions required" or "Unsupported parameter" errors.
+
+## Antigravity Fixes
+- Fixed Chat Error: Handled relative URLs (e.g., 'v1beta/models...') in fetch wrapper.
+- Fixed Model Count: Filtered dynamic model list in index.ts to exclude legacy/experimental models.
+- Fixed Account ID: Prioritized email display in TUI active owners list.
+
+## Fixes
+- **Accounts**: Removed ghost 'gemini-cli' account from accounts.json.
+- **Models TUI**: 'a' key now opens /accounts instead of /connect.
+- **Anthropic**: Restored missing Anthropic models.
+
+## Final Fixes
+- **Fixed JSON Corruption**: Repaired  trailing comma error using Bun script. This resolved TUI crashes and 'Time Travel' behavior.
+- **Removed Ghost Account**:  successfully removed.
+- **TUI Update**: 'a' key now correctly routes to .
+- **TUI Improvements**: Added 'left' arrow key support to /models, /accounts, and /connect (DialogProvider) to act as 'Back/Exit' (dialog.clear()).

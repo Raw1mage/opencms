@@ -872,11 +872,21 @@ export const createAntigravityPlugin = (providerId: string) => {
           const projectContext = await ensureProjectContext(auth);
           const response = await fetchAvailableModels(projectContext.auth.access!, projectContext.effectiveProjectId);
           if (!response.models) return [];
-          return Object.entries(response.models).map(([id, entry]) => ({
-            id,
-            name: entry.displayName || entry.modelName || id,
-            providerID: providerId,
-          }));
+          const allowedPrefixes = ["gemini-2.0", "gemini-1.5", "claude-3", "gemini-3", "claude-opus", "claude-sonnet"];
+          const ignoredSubstrings = ["-001", "-002", "embedding", "-vision", "-experimental"];
+
+          return Object.entries(response.models)
+            .filter(([id]) => {
+              const lower = id.toLowerCase();
+              const allowed = allowedPrefixes.some(p => lower.startsWith(p));
+              const ignored = ignoredSubstrings.some(s => lower.includes(s));
+              return allowed && !ignored;
+            })
+            .map(([id, entry]) => ({
+              id,
+              name: entry.displayName || entry.modelName || id,
+              providerID: providerId,
+            }));
         } catch (err) {
           log.error("Failed to dynamically list models", { error: String(err) });
           return [];

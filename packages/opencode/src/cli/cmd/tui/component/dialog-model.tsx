@@ -5,6 +5,7 @@ import { map, pipe, flatMap, entries, filter, sortBy, take } from "remeda"
 import { DialogSelect, type DialogSelectRef } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
 import { createDialogProviderOptions, DialogProvider } from "./dialog-provider"
+import { DialogAccount } from "./dialog-account"
 import { useKeybind } from "../context/keybind"
 import { useTheme } from "@tui/context/theme"
 import { iife } from "@/util/iife"
@@ -78,6 +79,11 @@ export function DialogModel(props: { providerID?: string }) {
       if (!fam) continue
       const who = owner(provider)
       if (!who) continue
+
+      const existing = map.get(fam)
+      if (existing && existing.includes("@") && !who.includes("@")) {
+        continue
+      }
       map.set(fam, who)
     }
     return map
@@ -409,10 +415,17 @@ export function DialogModel(props: { providerID?: string }) {
           },
         },
         {
+          keybind: Keybind.parse("left")[0],
+          title: "Back",
+          onTrigger: () => {
+            dialog.clear()
+          },
+        },
+        {
           keybind: Keybind.parse("a")[0],
           title: "Accounts",
           onTrigger: () => {
-            dialog.replace(() => <DialogProvider />)
+            dialog.replace(() => <DialogAccount />)
           },
         },
       ]}
