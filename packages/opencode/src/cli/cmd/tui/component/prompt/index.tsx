@@ -128,7 +128,26 @@ export function Prompt(props: PromptProps) {
     if (rateLimitKey() === key) return
 
     setRateLimitKey(key)
-    dialog.replace(() => <DialogAdmin />)
+    const savedPrompt = store.prompt.input
+    const targetProvider = local.model.current()?.providerID
+    dialog.replace(
+      () => (
+        <DialogAdmin
+          targetProviderID={targetProvider ?? undefined}
+        />
+      ),
+      () => {
+        setStore("prompt", (prev) => ({
+          ...prev,
+          input: savedPrompt,
+        }))
+        if (input && !input.isDestroyed) {
+          input.setText(savedPrompt)
+          input.gotoBufferEnd()
+          input.focus()
+        }
+      },
+    )
   })
 
   const lastUserMessage = createMemo(() => {

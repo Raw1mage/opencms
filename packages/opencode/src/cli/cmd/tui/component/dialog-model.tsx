@@ -18,6 +18,9 @@ import { DialogConfirm } from "@tui/ui/dialog-confirm"
 import { DialogProvider as DialogProviderList } from "./dialog-provider"
 import { useToast } from "@tui/ui/toast"
 import { saveAccounts } from "../../../../plugin/antigravity/plugin/storage"
+import { debugCheckpoint } from "@/util/debug"
+import { DialogModelProbe } from "./dialog-model-probe"
+import { probeModelAvailability } from "../util/model-probe"
 
 export function useConnected() {
   const sync = useSync()
@@ -44,6 +47,8 @@ export function DialogModel(props: { providerID?: string }) {
   const [ref, setRef] = createSignal<DialogSelectRef<unknown>>()
   const [query, setQuery] = createSignal("")
   const [showHidden, setShowHidden] = createSignal(false)
+  const probePrompt = "say hi"
+  const probeTimeoutMs = 10_000
 
   // Navigation State
   // steps: root -> account_select -> model_select
@@ -56,6 +61,33 @@ export function DialogModel(props: { providerID?: string }) {
   const lockBackOnce = () => {
     setLockBack(true)
     setTimeout(() => setLockBack(false), 200)
+  }
+
+  const probeAndSelectModel = (providerID: string, modelID: string, origin?: string) => {
+    const state = { cancelled: false }
+    const controller = new AbortController()
+    const onClose = () => {
+      state.cancelled = true
+      controller.abort()
+    }
+
+    debugCheckpoint("model", "probe start", { provider: providerID, model: modelID, origin })
+    dialog.push(() => (
+      <DialogModelProbe providerID={providerID} modelID={modelID} prompt={probePrompt} />
+    ), onClose)
+
+    probeModelAvailability(providerID, modelID, probePrompt, probeTimeoutMs, controller.signal).then((result) => {
+      if (state.cancelled) return
+      dialog.pop()
+      if (result.ok) {
+        debugCheckpoint("model", "probe success", { provider: providerID, model: modelID, ms: result.responseTime })
+        local.model.set({ providerID: providerID, modelID: modelID }, { recent: true })
+        dialog.clear()
+        return
+      }
+      debugCheckpoint("model", "probe failed", { provider: providerID, model: modelID, error: result.error })
+      toast.show({ message: `Model unavailable: ${result.error}`, variant: "error" })
+    })
   }
 
   const [refreshSignal, setRefreshSignal] = createSignal(0)
@@ -204,8 +236,7 @@ export function DialogModel(props: { providerID?: string }) {
             footer: isFreeCost(m) ? "Free" : undefined,
             disabled: (p.id === "opencode" && m.id.includes("-nano")),
             onSelect: () => {
-              dialog.clear()
-              local.model.set({ providerID: item.providerID, modelID: item.modelID }, { recent: true })
+              probeAndSelectModel(item.providerID, item.modelID, item.origin)
             }
           }]
         })
@@ -413,8 +444,7 @@ export function DialogModel(props: { providerID?: string }) {
             footer: isFreeCost(m) ? "Free" : undefined,
             disabled: (p.id === "opencode" && m.id.includes("-nano")),
             onSelect: () => {
-              dialog.clear()
-              local.model.set({ providerID: item.providerID, modelID: item.modelID }, { recent: true })
+              probeAndSelectModel(item.providerID, item.modelID, item.origin)
             }
           }]
         })
@@ -440,8 +470,7 @@ export function DialogModel(props: { providerID?: string }) {
             footer: isFreeCost(m) ? "Free" : undefined,
             disabled: (p.id === "opencode" && m.id.includes("-nano")),
             onSelect: () => {
-              dialog.clear()
-              local.model.set({ providerID: item.providerID, modelID: item.modelID }, { recent: true })
+              probeAndSelectModel(item.providerID, item.modelID, item.origin)
             }
           }]
         })
@@ -503,8 +532,7 @@ export function DialogModel(props: { providerID?: string }) {
             disabled: (providerID === "opencode" && mid.includes("-nano")) || (pAny.cooldownReason?.includes("blocked") ?? false),
             footer: isFreeCost(info) ? "Free" : undefined,
             onSelect: () => {
-              dialog.clear()
-              local.model.set({ providerID: providerID, modelID: mid }, { recent: true })
+              probeAndSelectModel(providerID, mid)
             }
           }
         }),

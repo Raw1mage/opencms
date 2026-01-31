@@ -27,6 +27,11 @@
 - **Admin Delete Behavior**: Deleting an account no longer forces a navigation back to root.
 - **Model Selection Focus**: Closing dialogs now refocuses the main prompt input for keyboard-only usage.
 
+## [1.1.59] - 2026-01-31
+
+### Fixed
+- **Rate limit reroute**: When a prompt hits a rate limit we now open `/admin` directly inside the failing provider's model list (keeping your draft prompt intact) so you can quickly pick another model without manually navigating back.
+
 ## [1.1.56] - 2026-01-31
 
 ### Added

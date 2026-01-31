@@ -23,6 +23,8 @@ import { selectedForeground } from "@tui/context/theme"
 import { Locale } from "@/util/locale"
 import { debugCheckpoint, debugSpan } from "@/util/debug"
 import { useExit } from "@tui/context/exit"
+import { DialogModelProbe } from "./dialog-model-probe"
+import { probeModelAvailability } from "../util/model-probe"
 
 // Helper to check connectivity
 function useConnected() {
@@ -32,7 +34,11 @@ function useConnected() {
     )
 }
 
-export function DialogAdmin() {
+export type DialogAdminProps = {
+    targetProviderID?: string
+}
+
+export function DialogAdmin(props: DialogAdminProps = {}) {
     const local = useLocal()
     const sync = useSync()
     const dialog = useDialog()
@@ -46,6 +52,9 @@ export function DialogAdmin() {
     const [googleModels, setGoogleModels] = createSignal<{ id: string; title: string }[]>([])
     const [googleModelsLoading, setGoogleModelsLoading] = createSignal(false)
     const [googleModelError, setGoogleModelError] = createSignal<string | null>(null)
+    const [googleModelsLoaded, setGoogleModelsLoaded] = createSignal(false)
+    const probePrompt = "say hi"
+    const probeTimeoutMs = 10_000
 
     // Navigation State
     // steps: root -> account_select -> model_select
@@ -241,6 +250,7 @@ export function DialogAdmin() {
         refreshSignal()
         if (currentStep !== "model_select" || !pid) return
         if (family(pid) !== "google") return
+        if (googleModelsLoaded()) return
         loadGoogleModels()
     })
 
@@ -250,6 +260,14 @@ export function DialogAdmin() {
         if (id === "opencode" || id.startsWith("opencode-")) return "opencode"
         return undefined
     }
+
+    onMount(() => {
+        if (!props.targetProviderID) return
+        const targetFamily = family(props.targetProviderID)
+        if (targetFamily) setSelectedFamily(targetFamily)
+        setSelectedProviderID(props.targetProviderID)
+        setStep("model_select")
+    })
 
 const label = (name: string, id: string) => {
         const fam = family(id)
@@ -312,8 +330,37 @@ function isFreeCost(info: { cost?: { input?: number; output?: number } }) {
         })
     }
 
-    const loadGoogleModels = async () => {
+    const probeAndSelectModel = (providerID: string, modelID: string, origin?: string) => {
+        const state = { cancelled: false }
+        const controller = new AbortController()
+        const onClose = () => {
+            state.cancelled = true
+            controller.abort()
+        }
+
+        debugCheckpoint("admin", "model probe start", { provider: providerID, model: modelID, origin })
+        dialog.push(() => (
+            <DialogModelProbe providerID={providerID} modelID={modelID} prompt={probePrompt} />
+        ), onClose)
+
+        probeModelAvailability(providerID, modelID, probePrompt, probeTimeoutMs, controller.signal).then((result) => {
+            if (state.cancelled) return
+            dialog.pop()
+            if (result.ok) {
+                debugCheckpoint("admin", "model probe success", { provider: providerID, model: modelID, ms: result.responseTime })
+                local.model.set({ providerID: providerID, modelID: modelID }, { recent: true })
+                dialog.clear()
+                return
+            }
+            debugCheckpoint("admin", "model probe failed", { provider: providerID, model: modelID, error: result.error })
+            toast.show({ message: `Model unavailable: ${result.error}`, variant: "error" })
+        })
+    }
+
+    const loadGoogleModels = async (force = false) => {
         if (googleModelsLoading()) return
+        if (!force && googleModelsLoaded()) return
+        setGoogleModelsLoaded(true)
         return debugSpan("admin.google", "load models", {}, async () => {
             const key = await resolveGoogleApiKey()
             if (!key) {
@@ -388,12 +435,11 @@ function isFreeCost(info: { cost?: { input?: number; output?: number } }) {
                         title: m.name ?? item.modelID,
                         description: label(p.name, p.id),
                         category: item.origin === 'favorite' ? "Favorites" : "Recents",
-                            footer: isFreeCost(m) ? "Free" : undefined,
+                        footer: isFreeCost(m) ? "Free" : undefined,
                         disabled: (p.id === "opencode" && m.id.includes("-nano")),
                         onSelect: () => {
                             debugCheckpoint("admin", "select favorite/recent model", { origin: item.origin, provider: item.providerID, model: item.modelID })
-                            dialog.clear()
-                            local.model.set({ providerID: item.providerID, modelID: item.modelID }, { recent: true })
+                            probeAndSelectModel(item.providerID, item.modelID, item.origin)
                         }
                     }]
                 })
@@ -663,8 +709,7 @@ function isFreeCost(info: { cost?: { input?: number; output?: number } }) {
                             : (isFreeCost(info) ? "Free" : undefined),
                         onSelect: () => {
                             debugCheckpoint("admin", "select model", { provider: providerID, model: mid })
-                            dialog.clear()
-                            local.model.set({ providerID: providerID, modelID: mid }, { recent: true })
+                            probeAndSelectModel(providerID, mid)
                         },
                     }
                 }),
@@ -688,8 +733,7 @@ function isFreeCost(info: { cost?: { input?: number; output?: number } }) {
                             footer: undefined,
                             onSelect: () => {
                                 debugCheckpoint("admin", "select dynamic model", { provider: providerID, model: model.id })
-                                dialog.clear()
-                                local.model.set({ providerID: providerID, modelID: model.id }, { recent: true })
+                                probeAndSelectModel(providerID, model.id)
                             },
                         }
                     })
@@ -876,8 +920,8 @@ function isFreeCost(info: { cost?: { input?: number; output?: number } }) {
                 // MODEL STEP KEYBINDS
                 {
                     keybind: Keybind.parse("f")[0],
-                    title: "Favorite",
-                    label: "F/f",
+                    title: "Favorites",
+                    label: "F",
                     disabled: !connected() || step() !== "model_select",
                     onTrigger: (option: any) => {
                         const val = option.value
@@ -890,12 +934,22 @@ function isFreeCost(info: { cost?: { input?: number; output?: number } }) {
                 {
                     keybind: Keybind.parse("s")[0],
                     title: "Showall",
-                    label: "S/s",
+                    label: "S",
                     disabled: !connected() || step() !== "model_select",
                     onTrigger: () => {
                         const next = !showHidden()
                         debugCheckpoint("admin", "toggle show hidden", { enabled: next })
                         setShowHidden(next)
+                    },
+                },
+                {
+                    keybind: Keybind.parse("r")[0],
+                    title: "Refresh",
+                    label: "R",
+                    disabled: !connected() || step() !== "model_select" || family(selectedProviderID() ?? "") !== "google",
+                    onTrigger: () => {
+                        debugCheckpoint("admin", "refresh google models", { provider: selectedProviderID() })
+                        loadGoogleModels(true)
                     },
                 },
                 // ACCOUNT STEP KEYBINDS
@@ -920,7 +974,7 @@ function isFreeCost(info: { cost?: { input?: number; output?: number } }) {
                 {
                     keybind: Keybind.parse("delete")[0],
                     title: step() === "model_select" ? "Hide" : "Delete",
-                    label: "del",
+                    label: "Del",
                     disabled: !connected(),
                     onTrigger: async (option: any) => {
                         const val = option.value
