@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.61] - 2026-01-31
+
+### Changed
+- **Planning Refactor**: Consolidated `PLANNING.md` and `ADMIN_PLUGIN_DESIGN.md` into comprehensive modular restructuring documents with clear dependency graphs, TUI command mappings, and Google Provider Suite comparison tables.
+- **Auth Unification Plan**: Documented single-source-of-truth strategy for `accounts.json`, including migration steps and Auth.get() simplification.
+- **Rate Limit Strategy**: Added Google Provider internal fallback logic (antigravity → gemini-cli → google-api) and Favorites-based cross-provider fallback.
+
 ## [1.1.60] - 2026-01-31
 
 ### Fixed
