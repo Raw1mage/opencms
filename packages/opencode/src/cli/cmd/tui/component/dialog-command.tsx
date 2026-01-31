@@ -12,6 +12,7 @@ import {
 import { useKeyboard } from "@opentui/solid"
 import { useKeybind } from "@tui/context/keybind"
 import type { KeybindsConfig } from "@opencode-ai/sdk/v2"
+import { debugCheckpoint } from "@/util/debug"
 
 type Context = ReturnType<typeof init>
 const ctx = createContext<Context>()
@@ -76,6 +77,7 @@ function init() {
       for (const option of entries()) {
         if (option.value === name) {
           if (!isEnabled(option)) return
+          debugCheckpoint("command", "trigger", { value: option.value, title: option.title })
           option.onSelect?.(dialog)
           return
         }

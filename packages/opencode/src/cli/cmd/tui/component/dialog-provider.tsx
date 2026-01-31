@@ -1,4 +1,5 @@
-import { createMemo, createSignal, onMount, Show } from "solid-js"
+import { onMount, createSignal, createMemo, Switch, Match, Show, type JSX } from "solid-js"
+import { Log } from "@/util/log"
 import { useSync } from "@tui/context/sync"
 import { map, pipe, sortBy } from "remeda"
 import { DialogSelect } from "@tui/ui/dialog-select"
@@ -125,11 +126,32 @@ export function DialogProvider(props: { providerID?: string }) {
   const sdk = useSDK()
   const { theme } = useTheme()
   const options = createDialogProviderOptions()
-  if (props.providerID) {
-    onMount(async () => {
-      await startProviderAuth(props.providerID!, dialog, sync, sdk)
-    })
-    return (
+
+  onMount(() => {
+    if (props.providerID) {
+      void startProviderAuth(props.providerID, dialog, sync, sdk)
+    }
+  })
+
+  return (
+    <Show
+      when={props.providerID}
+      fallback={
+        <DialogSelect
+          title="Connect a provider"
+          options={options()}
+          keybind={[
+            {
+              keybind: { name: "left", ctrl: false, meta: false, shift: false, super: false, leader: false },
+              title: "Back",
+              onTrigger: () => {
+                dialog.clear()
+              },
+            },
+          ]}
+        />
+      }
+    >
       <box paddingLeft={2} paddingRight={2} gap={1} paddingBottom={1}>
         <box flexDirection="row" justifyContent="space-between">
           <text attributes={TextAttributes.BOLD} fg={theme.text}>
@@ -139,22 +161,7 @@ export function DialogProvider(props: { providerID?: string }) {
         </box>
         <text fg={theme.textMuted}>Opening authentication...</text>
       </box>
-    )
-  }
-  return (
-    <DialogSelect
-      title="Connect a provider"
-      options={options()}
-      keybind={[
-        {
-          keybind: { name: "left", ctrl: false, meta: false, shift: false, super: false, leader: false },
-          title: "Back",
-          onTrigger: () => {
-            dialog.clear()
-          },
-        },
-      ]}
-    />
+    </Show>
   )
 }
 
@@ -287,8 +294,10 @@ function ApiMethod(props: ApiMethodProps) {
   const sdk = useSDK()
   const sync = useSync()
   const { theme } = useTheme()
-  const [name, setName] = createSignal("")
   const needsName = () => props.providerID === "google"
+  const [step, setStep] = createSignal<"name" | "api">(needsName() ? "name" : "api")
+  const [name, setName] = createSignal("")
+
   const providerKey = () => {
     if (!needsName()) return props.providerID
     const trimmed = name().trim()
@@ -296,51 +305,63 @@ function ApiMethod(props: ApiMethodProps) {
     return `${props.providerID}-${trimmed}`
   }
 
-  if (needsName() && !name().trim()) {
-    return (
-      <DialogPrompt
-        title="Account name"
-        placeholder="e.g. yeatsluo"
-        onConfirm={(value) => {
-          const trimmed = value.trim()
-          if (!trimmed) return
-          setName(trimmed)
-        }}
-      />
-    )
-  }
-
   return (
-    <DialogPrompt
-      title={props.title}
-      placeholder="API key"
-      description={
-        props.providerID === "opencode" ? (
-          <box gap={1}>
-            <text fg={theme.textMuted}>
-              OpenCode Zen gives you access to all the best coding models at the cheapest prices with a single API key.
-            </text>
-            <text fg={theme.text}>
-              Go to <span style={{ fg: theme.primary }}>https://opencode.ai/zen</span> to get a key
-            </text>
-          </box>
-        ) : undefined
-      }
-      onConfirm={async (value) => {
-        if (!value) return
-        const pid = providerKey()
-        if (!pid) return
-        await sdk.client.auth.set({
-          providerID: pid,
-          auth: {
-            type: "api",
-            key: value,
-          },
-        })
-        await sdk.client.instance.dispose()
-        await sync.bootstrap()
-        dialog.replace(() => <DialogModel providerID={props.providerID} />)
-      }}
-    />
+    <Switch>
+      <Match when={step() === "name"}>
+        <DialogPrompt
+          title="Account name"
+          placeholder="e.g. yeatsluo"
+          onConfirm={(value) => {
+            const trimmed = value.trim()
+            if (!trimmed) {
+              Log.Default.warn("Empty account name submitted")
+              return
+            }
+            Log.Default.info("Account name confirmed", { name: trimmed })
+            setName(trimmed)
+            setStep("api")
+          }}
+        />
+      </Match>
+      <Match when={step() === "api"}>
+        <DialogPrompt
+          title={props.title}
+          placeholder="API key"
+          description={
+            props.providerID === "opencode" ? (
+              <box gap={1}>
+                <text fg={theme.textMuted}>
+                  OpenCode Zen gives you access to all the best coding models at the cheapest prices with a single API key.
+                </text>
+                <text fg={theme.text}>
+                  Go to <span style={{ fg: theme.primary }}>https://opencode.ai/zen</span> to get a key
+                </text>
+              </box>
+            ) : undefined
+          }
+          onConfirm={async (value) => {
+            const trimmed = value.trim()
+            if (!trimmed) return
+            const pid = providerKey()
+            if (!pid) return
+            Log.Default.info("API key submitted", { providerID: pid })
+            await sdk.client.auth.set({
+              providerID: pid,
+              auth: {
+                type: "api",
+                key: trimmed,
+              },
+            })
+            await sdk.client.instance.dispose()
+            await sync.bootstrap()
+            dialog.replace(() => <DialogModel providerID={props.providerID} />)
+          }}
+          onCancel={() => {
+            if (needsName()) setStep("name")
+            else dialog.clear()
+          }}
+        />
+      </Match>
+    </Switch>
   )
 }

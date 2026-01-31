@@ -2,7 +2,7 @@ import { render, useKeyboard, useRenderer, useTerminalDimensions } from "@opentu
 import { Clipboard } from "@tui/util/clipboard"
 import { TextAttributes } from "@opentui/core"
 import { RouteProvider, useRoute } from "@tui/context/route"
-import { Switch, Match, createEffect, untrack, ErrorBoundary, createSignal, onMount, batch, Show, on } from "solid-js"
+import { Switch, Match, createEffect, untrack, ErrorBoundary, createSignal, onMount, onCleanup, batch, Show, on } from "solid-js"
 import { Installation } from "@/installation"
 import { Flag } from "@/flag/flag"
 import { DialogProvider, useDialog } from "@tui/ui/dialog"
@@ -38,6 +38,7 @@ import { ArgsProvider, useArgs, type Args } from "./context/args"
 import open from "open"
 import { writeHeapSnapshot } from "v8"
 import { PromptRefProvider, usePromptRef } from "./context/prompt"
+import { debugCheckpoint } from "@/util/debug"
 
 async function getTerminalBackgroundColor(): Promise<"dark" | "light"> {
   // can't set raw mode if not a TTY
@@ -122,6 +123,10 @@ export function tui(input: {
         return (
           <ErrorBoundary
             fallback={(error, reset) => <ErrorComponent error={error} reset={reset} onExit={onExit} mode={mode} />}
+            onError={(error) => {
+              const msg = error instanceof Error ? error.stack || error.message : String(error)
+              debugCheckpoint("error", "boundary", { error: msg })
+            }}
           >
             <ArgsProvider {...input.args}>
               <ExitProvider onExit={onExit}>
@@ -187,6 +192,12 @@ function App() {
   const dimensions = useTerminalDimensions()
   const renderer = useRenderer()
   renderer.disableStdoutInterception()
+  onMount(() => {
+    debugCheckpoint("app", "mount")
+  })
+  onCleanup(() => {
+    debugCheckpoint("app", "cleanup")
+  })
   const dialog = useDialog()
   const local = useLocal()
   const kv = useKV()
@@ -208,6 +219,16 @@ function App() {
     renderer.clearSelection()
   }
   const [terminalTitleEnabled, setTerminalTitleEnabled] = createSignal(kv.get("terminal_title_enabled", true))
+
+  createEffect(
+    on(
+      () => dialog.stack.length,
+      (size) => {
+        if (size !== 0) return
+        promptRef.current?.focus()
+      },
+    ),
+  )
 
   createEffect(() => {
     console.log(JSON.stringify(route.data))
@@ -255,7 +276,9 @@ function App() {
           sessionID: args.sessionID,
         })
       }
-      if (args.admin) {
+      const autoAdmin = process.env.OPENCODE_ADMIN_AUTO === "1"
+      if (args.admin || autoAdmin) {
+        if (autoAdmin) debugCheckpoint("admin", "auto panel")
         dialog.replace(() => <DialogAdmin />)
       }
     })
@@ -469,6 +492,7 @@ function App() {
         name: "admin",
       },
       onSelect: () => {
+        debugCheckpoint("admin", "open panel")
         dialog.replace(() => <DialogAdmin />)
       },
     },

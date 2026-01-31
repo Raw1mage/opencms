@@ -27,14 +27,23 @@ import { EOL } from "os"
 import { WebCommand } from "./cli/cmd/web"
 import { PrCommand } from "./cli/cmd/pr"
 import { SessionCommand } from "./cli/cmd/session"
+import { AdminCommand } from "./cli/cmd/admin"
+import { debugInit, debugCheckpoint } from "./util/debug"
+
+debugInit()
+debugCheckpoint("app", "start", { args: process.argv.slice(2) })
 
 process.on("unhandledRejection", (e) => {
+  const msg = e instanceof Error ? e.stack || e.message : String(e)
+  debugCheckpoint("error", "unhandledRejection", { error: msg })
   Log.Default.error("rejection", {
     e: e instanceof Error ? e.message : e,
   })
 })
 
 process.on("uncaughtException", (e) => {
+  const msg = e instanceof Error ? e.stack || e.message : e
+  debugCheckpoint("error", "uncaughtException", { error: msg })
   Log.Default.error("exception", {
     e: e instanceof Error ? e.message : e,
   })
@@ -99,6 +108,7 @@ const cli = yargs(hideBin(process.argv))
   .command(GithubCommand)
   .command(PrCommand)
   .command(SessionCommand)
+  .command(AdminCommand)
   .fail((msg, err) => {
     if (
       msg?.startsWith("Unknown argument") ||

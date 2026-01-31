@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.57] - 2026-01-31
+
+### Added
+- **Debug System**: Implemented a centralized debug logging system in `src/util/debug.ts` with `debugCheckpoint` and `debugSpan` for granular tracing, integrated globally in `src/index.ts`.
+- **Google-API Config Interface**: Completely refactored the Google-API authentication flow in `/admin` using a state-machine based `ApiMethod` component for reliable step-by-step configuration.
+- **Admin CLI Command**: Registered `admin` as a top-level CLI command to allow direct access to the configuration interface.
+
+### Fixed
+- **DialogPrompt Input Stability**: Redesigned `DialogPrompt` to prevent accidental buffer clearing on Enter. It now captures text snapshots before any potential clearing and uses a multi-layered event interception strategy.
+- **TUI Reactivity**: Replaced standard `<Show>` forks with explicit `<Switch>/<Match>` states in authentication flows to ensure clean UI transitions between prompt steps.
+- **Focus Management**: Improved Tab key navigation between textareas and submit buttons in dialog prompts.
+
 ## [1.1.56] - 2026-01-31
 
 ### Added

@@ -1,10 +1,11 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/solid"
-import { batch, createContext, Show, useContext, type JSX, type ParentProps } from "solid-js"
+import { batch, createContext, Show, useContext, type JSX, type ParentProps, createEffect } from "solid-js"
 import { useTheme } from "@tui/context/theme"
 import { Renderable, RGBA } from "@opentui/core"
 import { createStore } from "solid-js/store"
 import { Clipboard } from "@tui/util/clipboard"
 import { useToast } from "./toast"
+import { debugCheckpoint } from "@/util/debug"
 
 export function Dialog(
   props: ParentProps<{
@@ -59,9 +60,14 @@ function init() {
     size: "medium" as "medium" | "large",
   })
 
+  createEffect(() => {
+    debugCheckpoint("dialog", "stack", { size: store.stack.length })
+  })
+
   useKeyboard((evt) => {
     if (evt.name === "escape" && store.stack.length > 0) {
       const current = store.stack.at(-1)!
+      debugCheckpoint("dialog", "escape close", { size: store.stack.length })
       current.onClose?.()
       setStore("stack", store.stack.slice(0, -1))
       evt.preventDefault()
@@ -91,6 +97,7 @@ function init() {
 
   return {
     clear() {
+      debugCheckpoint("dialog", "clear", { size: store.stack.length, stack: new Error().stack })
       for (const item of store.stack) {
         if (item.onClose) item.onClose()
       }
@@ -101,6 +108,7 @@ function init() {
       refocus()
     },
     push(input: any, onClose?: () => void) {
+      debugCheckpoint("dialog", "push", { size: store.stack.length + 1, stack: new Error().stack })
       if (store.stack.length === 0) {
         focus = renderer.currentFocusedRenderable
         focus?.blur()
@@ -110,11 +118,13 @@ function init() {
     pop() {
       if (store.stack.length === 0) return
       const current = store.stack.at(-1)!
+      debugCheckpoint("dialog", "pop", { size: store.stack.length - 1, stack: new Error().stack })
       if (current.onClose) current.onClose()
       setStore("stack", (s) => s.slice(0, -1))
       if (store.stack.length === 0) refocus()
     },
     replace(input: any, onClose?: () => void) {
+      debugCheckpoint("dialog", "replace", { size: 1, stack: new Error().stack })
       if (store.stack.length === 0) {
         focus = renderer.currentFocusedRenderable
         focus?.blur()

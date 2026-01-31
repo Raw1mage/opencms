@@ -1,5 +1,44 @@
 # 偵錯日誌 (Debug Log)
 
+## 2026-01-31: DialogPrompt 輸入與 Google-API 配置流程修復
+
+### 問題摘要 (Problem Summary)
+在 `/admin` 介面新增 Google-API 帳號時，輸入 Account Name 後按下 Enter 鍵會出現以下問題：
+1. **文字原地清空**：輸入框內容消失，但未觸發下一步。
+2. **流程鎖死**：介面停留在 Account Name 提示頁面，無法進入 API Key 輸入頁面。
+3. **按鍵衝突**：TUI 內底層的 `textarea` 預設行為與自定義的 `submit` 邏輯發生競爭。
+
+### 根本原因分析 (Root Cause Analysis)
+
+#### 1. 緩衝區競爭 (Buffer Race Condition)
+TUI 的 `textarea` 組件在接收到 `return` 鍵時，內部可能存在預設的提交行為，該行為會在回調執行前或執行中清空緩衝區。這導致 `onConfirm` 讀取到的值為空，進而觸發了「防空輸入」機制，使得流程停止。
+
+#### 2. 反應性遺失 (Reactivity Loss)
+原本使用單一 `Show` 組件搭配 `!name().trim()` 來切換步驟。在複雜的 TUI 渲染週期中，這種類型的條件判斷有時無法及時觸發組件的重新掛載（Unmount/Remount），導致 UI 雖然邏輯上應該切換，但畫面上仍保留舊的 DOM 節點。
+
+### 關鍵修復步驟 (Critical Fix Steps)
+
+#### 1. 強化 DialogPrompt 穩定性 ✅
+- **過濾關鍵字行為**：從 `textarea` 的鍵盤綁定中移除 `submit` 動作，防止其自動處理 Enter。
+- **快照擷取**：在 `onContentChange` 中即時緩存內容，確保提交時即便緩衝區被清空，仍有最後一份有效快照可用。
+- **雙重攔截**：同時在 `onKeyDown` 和 `useKeyboard` 中使用 `preventDefault()`，確保按鍵事件被專有處理。
+
+#### 2. ApiMethod 狀態機重構 ✅
+- 將 `Show` 改為 `Switch/Match` 結構，並引入顯式的 `step` 訊號 (`"name" | "api"`)。
+- 這種方式強制 SolidJS 在步驟切換時完全替換組件分支，杜絕了舊 DOM 殘留的問題。
+
+#### 3. 全局偵錯系統導入 ✅
+- 在 `src/util/debug.ts` 實現了 `debugCheckpoint`。
+- 在 `src/index.ts` 接入全域崩潰與啟動追蹤，方便後續分析 TUI 的黑盒行為。
+
+### 驗證結果 (Verification) ✅
+- [x] Account Name 輸入後按下 Enter 不再清空文字且能順利跳轉。
+- [x] API Key 頁面能正確接收到前一步傳遞的帳號名稱。
+- [x] `logs/debug.log` 成功紀錄了 `app:start` 與 `DialogPrompt:submit` 事件。
+
+---
+
+
 ## 2026-01-30: Antigravity 模型通信修復 (Antigravity Model Communication Fix)
 
 ### 問題摘要 (Problem Summary)
