@@ -58,6 +58,26 @@ TUI 的 `textarea` 組件在接收到 `return` 鍵時，內部可能存在預設
 - [x] 刪除帳號後仍留在第二層清單。
 - [x] 選完模型後自動回到輸入框，鍵盤可繼續輸入。
 
+---
+
+## 2026-01-31: Rate limit reroute and prompt preservation
+
+### 問題摘要 (Problem Summary)
+- Hitting a rate limit still required manually reopening `/admin` and re-navigating to the third layer to pick another model, wasting time after the first error.
+- The earlier “say hi” probe consumed an extra quota before the real prompt hit the rate limit, so success there didn’t guarantee the next real request wouldn’t fail.
+
+### 根本原因分析 (Root Cause Analysis)
+- Rate limits are only detected when the actual prompt request errors out, not when a synthetic probe completes successfully.
+- Navigating back to `/admin` and reselecting a model fills the same workflow as your regular tri-level navigation, so users lost focus and typed text.
+
+### 關鍵修復步驟 (Critical Fix Steps)
+- **Rate limit handler now reroutes automatically**: When the prompt status enters `retry` with a rate limit message, we replace the dialog stack with `DialogAdmin` prefocused on the current provider’s model list.
+- **Draft preservation**: Store the current prompt text before the reroute and restore it once `/admin` closes so nothing gets lost.
+
+### 驗證結果 (Verification) ✅
+- 🤖 Triggered a rate limit, confirmed `/admin` launched at the failing provider’s third layer and highlighted the model list for quick reselection.
+- ✏️ After closing `/admin`, my draft prompt reappeared and the cursor returned to the input so I could retry without retyping.
+
 
 ## 2026-01-30: Antigravity 模型通信修復 (Antigravity Model Communication Fix)
 
