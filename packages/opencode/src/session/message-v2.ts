@@ -443,7 +443,7 @@ export namespace MessageV2 {
 
     const toModelOutput = (output: unknown) => {
       if (typeof output === "string") {
-        return { type: "text", text: output }
+        return output
       }
 
       if (typeof output === "object") {
@@ -458,17 +458,13 @@ export namespace MessageV2 {
         return [
           { type: "text", text: outputObject.text },
           ...attachments.map((attachment) => ({
-            type: "file",
-            mediaType: attachment.mime,
-            data: iife(() => {
-              const commaIndex = attachment.url.indexOf(",")
-              return commaIndex === -1 ? attachment.url : attachment.url.slice(commaIndex + 1)
-            }),
+            type: "image",
+            image: attachment.url,
           })),
         ]
       }
 
-      return { type: "text", text: JSON.stringify(output, null, 2) }
+      return JSON.stringify(output, null, 2)
     }
 
     for (const msg of input) {
@@ -535,10 +531,6 @@ export namespace MessageV2 {
               text: part.text,
               ...(differentModel ? {} : { providerMetadata: part.metadata }),
             })
-          if (part.type === "step-start")
-            assistantMessage.parts.push({
-              type: "step-start",
-            })
           if (part.type === "tool") {
             toolNames.add(part.tool)
             if (part.state.status === "completed") {
@@ -583,8 +575,9 @@ export namespace MessageV2 {
               })
           }
           if (part.type === "reasoning") {
+            // "reasoning" part type is not yet supported by AI SDK convertToModelMessages
             assistantMessage.parts.push({
-              type: "reasoning",
+              type: "text",
               text: part.text,
               ...(differentModel ? {} : { providerMetadata: part.metadata }),
             })

@@ -2,7 +2,19 @@ import { render, useKeyboard, useRenderer, useTerminalDimensions } from "@opentu
 import { Clipboard } from "@tui/util/clipboard"
 import { TextAttributes } from "@opentui/core"
 import { RouteProvider, useRoute } from "@tui/context/route"
-import { Switch, Match, createEffect, untrack, ErrorBoundary, createSignal, onMount, onCleanup, batch, Show, on } from "solid-js"
+import {
+  Switch,
+  Match,
+  createEffect,
+  untrack,
+  ErrorBoundary,
+  createSignal,
+  onMount,
+  onCleanup,
+  batch,
+  Show,
+  on,
+} from "solid-js"
 import { Installation } from "@/installation"
 import { Flag } from "@/flag/flag"
 import { DialogProvider, useDialog } from "@tui/ui/dialog"
@@ -18,6 +30,7 @@ import { DialogHelp } from "./ui/dialog-help"
 import { CommandProvider, useCommandDialog } from "@tui/component/dialog-command"
 import { DialogAgent } from "@tui/component/dialog-agent"
 import { DialogSessionList } from "@tui/component/dialog-session-list"
+import { DialogTasks } from "@tui/component/dialog-tasks"
 import { DialogAccount } from "@tui/component/dialog-account"
 import { DialogAdmin } from "@tui/component/dialog-admin"
 import { KeybindProvider } from "@tui/context/keybind"
@@ -432,13 +445,12 @@ function App() {
       },
     },
     {
-      title: "Variant cycle",
-      value: "variant.cycle",
+      title: "Task Dashboard",
+      value: "task.list",
       keybind: "variant_cycle",
-      category: "Agent",
-      hidden: true,
+      category: "Session",
       onSelect: () => {
-        local.model.variant.cycle()
+        dialog.replace(() => <DialogTasks />)
       },
     },
     {
@@ -532,7 +544,7 @@ function App() {
       title: "Open docs",
       value: "docs.open",
       onSelect: () => {
-        open("https://opencode.ai/docs").catch(() => { })
+        open("https://opencode.ai/docs").catch(() => {})
         dialog.clear()
       },
       category: "System",

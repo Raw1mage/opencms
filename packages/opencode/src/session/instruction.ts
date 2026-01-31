@@ -17,7 +17,7 @@ const FILES = [
 ]
 
 function globalFiles() {
-  const files = [path.join(Global.Path.config, "AGENTS.md")]
+  const files = [path.join(Global.Path.config, "AGENTS.md"), path.join(os.homedir(), ".opencode", "AGENTS.md")]
   if (!Flag.OPENCODE_DISABLE_CLAUDE_CODE_PROMPT) {
     files.push(path.join(os.homedir(), ".claude", "CLAUDE.md"))
   }
@@ -84,7 +84,6 @@ export namespace InstructionPrompt {
     for (const file of globalFiles()) {
       if (await Bun.file(file).exists()) {
         paths.add(path.resolve(file))
-        break
       }
     }
 

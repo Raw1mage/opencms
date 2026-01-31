@@ -1,7 +1,7 @@
 import type { GeminiTokenExchangeResult } from "../gemini/oauth";
 
 export interface OAuthAuthDetails {
-  type: "oauth";
+  type: "oauth" | "subscription";
   refresh: string;
   access: string;
   expires: number;

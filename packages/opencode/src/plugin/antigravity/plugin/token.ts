@@ -9,12 +9,12 @@ const log = createLogger("token");
 
 interface OAuthErrorPayload {
   error?:
-    | string
-    | {
-        code?: string;
-        status?: string;
-        message?: string;
-      };
+  | string
+  | {
+    code?: string;
+    status?: string;
+    message?: string;
+  };
   error_description?: string;
 }
 
@@ -89,6 +89,10 @@ export async function refreshAccessToken(
 ): Promise<OAuthAuthDetails | undefined> {
   const parts = parseRefreshParts(auth.refresh);
   if (!parts.refreshToken) {
+    return undefined;
+  }
+
+  if (!ANTIGRAVITY_CLIENT_ID || !ANTIGRAVITY_CLIENT_SECRET) {
     return undefined;
   }
 
