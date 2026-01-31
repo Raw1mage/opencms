@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.60] - 2026-01-31
+
+### Fixed
+- **Antigravity Fallback**: Ensure Antigravity provider is always registered in the active provider list to prevent incorrect fallback to Codex when account sync is pending or incomplete.
+
+
 ## [1.1.57] - 2026-01-31
 
 ### Added

@@ -1083,6 +1083,12 @@ export namespace Provider {
       }
     }
 
+    // Ensure Antigravity provider is always available if populated (even if no account active)
+    // This prevents fallback to Codex when account sync is flaky or during transitions
+    if (database["antigravity"]) {
+      mergeProvider("antigravity", { source: "custom" })
+    }
+
     // Inherit models for account-suffixed providers
     for (const [providerID, provider] of Object.entries(database)) {
       // Match pattern: "provider-accountname"
