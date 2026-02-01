@@ -368,7 +368,8 @@ function App() {
         name: "models",
       },
       onSelect: () => {
-        dialog.replace(() => <DialogModel />)
+        // Redirect to Admin panel for unified model/account management
+        dialog.replace(() => <DialogAdmin />)
       },
     },
     {

@@ -1,5 +1,4 @@
 import z from "zod"
-import path from "path"
 import { JWT } from "../util/jwt"
 
 export const OAUTH_DUMMY_KEY = "opencode-oauth-dummy-key"
@@ -41,10 +40,10 @@ export namespace Auth {
 
   /**
    * Parse provider family from provider ID
-   * e.g., "openai" → "openai", "openai-work" → "openai", "google-subscription-1" → "google"
+   * e.g., "openai" → "openai", "openai-work" → "openai", "google-api-work" → "google-api"
    */
   function parseFamily(providerID: string): string {
-    const families = ["google", "openai", "anthropic", "github-copilot", "antigravity", "gemini-cli", "gitlab"]
+    const families = ["google-api", "openai", "anthropic", "github-copilot", "antigravity", "gemini-cli", "gitlab", "opencode"]
     for (const family of families) {
       if (providerID === family || providerID.startsWith(`${family}-`)) {
         return family
@@ -75,65 +74,35 @@ export namespace Auth {
   /**
    * Get auth for a provider ID
    * Looks up the ACTIVE account for the provider family in Account module
+   * Note: auth.json is no longer read - all data comes from accounts.json
    */
   export async function get(providerID: string): Promise<Info | undefined> {
     const { Account } = await import("../account")
 
-    // First, try exact match by account ID
+    // 1. Try exact match by account ID
     const exactMatch = await Account.getById(providerID)
     if (exactMatch) {
       return accountToAuth(exactMatch.info)
     }
 
-    // Try simplified ID match for Antigravity (e.g. antigravity-ivon0829 -> antigravity-subscription-ivon0829-gmail-com)
+    // 2. Try simplified ID match for Antigravity (e.g. antigravity-ivon0829 -> antigravity-subscription-ivon0829-gmail-com)
     if (providerID.startsWith("antigravity-") && !providerID.includes("subscription")) {
-      const antigravityAccounts = await Account.list("antigravity");
+      const antigravityAccounts = await Account.list("antigravity")
       for (const [id, info] of Object.entries(antigravityAccounts)) {
         if (info.type === "subscription" && info.email) {
-          const username = info.email.split("@")[0];
-          const simplified = `antigravity-${username}`;
-          if (simplified === providerID) {
-            return accountToAuth(info);
+          const username = info.email.split("@")[0]
+          if (`antigravity-${username}` === providerID) {
+            return accountToAuth(info)
           }
         }
       }
     }
 
-    // Otherwise, get the active account for this provider family
+    // 3. Get active account for this provider family
     const family = parseFamily(providerID)
-    const activeAccount = await Account.getActiveInfo(family)
-    if (activeAccount) {
-      return accountToAuth(activeAccount)
-    }
-    const legacyAuth = await (async () => {
-      const { Global } = await import("../global")
-      const authPath = path.join(Global.Path.data, "auth.json")
-      const file = Bun.file(authPath)
-      if (!(await file.exists())) return undefined
-
-      const data = await file.json().catch(() => undefined)
-      if (!data || typeof data !== "object") return undefined
-
-      const record = data as Record<string, unknown>
-      const entry = record[providerID] ?? record[family]
-      if (!entry) return undefined
-
-      const parsed = Info.safeParse(entry)
-      if (!parsed.success) return undefined
-      return parsed.data
-    })()
-
-    if (family === "gitlab" && legacyAuth) {
-      return legacyAuth
-    }
-
     const activeInfo = await Account.getActiveInfo(family)
     if (activeInfo) {
       return accountToAuth(activeInfo)
-    }
-
-    if (legacyAuth) {
-      return legacyAuth
     }
 
     return undefined
@@ -141,6 +110,7 @@ export namespace Auth {
 
   /**
    * Get all auth entries (returns active account for each family)
+   * Note: auth.json is no longer read - all data comes from accounts.json
    */
   export async function all(): Promise<Record<string, Info>> {
     const { Account } = await import("../account")
@@ -155,26 +125,15 @@ export namespace Auth {
       }
     }
 
-    const legacy = await (async () => {
-      const { Global } = await import("../global")
-      const authPath = path.join(Global.Path.data, "auth.json")
-      const file = Bun.file(authPath)
-      if (!(await file.exists())) return undefined
-      const data = await file.json().catch(() => undefined)
-      if (!data || typeof data !== "object") return undefined
-      return data as Record<string, unknown>
-    })()
-
-    if (legacy) {
-      for (const [providerID, auth] of Object.entries(legacy)) {
-        if (result[providerID]) continue
-        const parsed = Info.safeParse(auth)
-        if (!parsed.success) continue
-        result[providerID] = parsed.data
-      }
-    }
-
     return result
+  }
+
+  /**
+   * Parse base refresh token from combined format (token|projectId)
+   */
+  function parseBaseToken(refreshToken: string): string {
+    const pipeIndex = refreshToken.indexOf("|")
+    return pipeIndex > 0 ? refreshToken.slice(0, pipeIndex) : refreshToken
   }
 
   /**
@@ -199,18 +158,43 @@ export namespace Auth {
       if (!email && info.access) {
         email = JWT.getEmail(info.access)
       }
-      const slug = email || providerID
-      const accountId = Account.generateId(family, "subscription", slug)
-      await Account.add(family, accountId, {
-        type: "subscription",
-        name: slug,
-        email: email,
-        refreshToken: info.refresh,
-        accessToken: info.access,
-        expiresAt: info.expires,
-        accountId: info.accountId,
-        addedAt: Date.now(),
-      })
+
+      // Check for existing account with same base token to avoid duplicates
+      const baseToken = parseBaseToken(info.refresh)
+      const existingAccounts = await Account.list(family)
+      let existingAccountId: string | undefined
+
+      for (const [id, acc] of Object.entries(existingAccounts)) {
+        if (acc.type !== "subscription") continue
+        const existingBaseToken = parseBaseToken(acc.refreshToken)
+        if (existingBaseToken === baseToken) {
+          existingAccountId = id
+          break
+        }
+      }
+
+      if (existingAccountId) {
+        // Update existing account instead of creating duplicate
+        await Account.update(family, existingAccountId, {
+          email: email,
+          refreshToken: baseToken, // Store base token without projectId suffix
+          accessToken: info.access,
+          expiresAt: info.expires,
+        })
+      } else {
+        const slug = email || providerID
+        const accountId = Account.generateId(family, "subscription", slug)
+        await Account.add(family, accountId, {
+          type: "subscription",
+          name: slug,
+          email: email,
+          refreshToken: baseToken, // Store base token without projectId suffix
+          accessToken: info.access,
+          expiresAt: info.expires,
+          accountId: info.accountId,
+          addedAt: Date.now(),
+        })
+      }
     }
   }
 
@@ -223,15 +207,15 @@ export namespace Auth {
     // Try to find and remove by exact ID first
     const exactMatch = await Account.getById(providerID)
     if (exactMatch) {
-      await Account.remove(exactMatch.family, providerID)
+      await Account.remove(exactMatch.provider, providerID)
       return
     }
 
-    // Otherwise, remove the active account for this family
-    const family = parseFamily(providerID)
-    const activeId = await Account.getActive(family)
+    // Otherwise, remove the active account for this provider
+    const provider = parseFamily(providerID)
+    const activeId = await Account.getActive(provider)
     if (activeId) {
-      await Account.remove(family, activeId)
+      await Account.remove(provider, activeId)
     }
   }
 
@@ -273,12 +257,12 @@ export namespace Auth {
   }
 
   /**
-   * @deprecated Use Account.list("google") instead
+   * @deprecated Use Account.list("google-api") instead
    * Kept for backward compatibility with plugins
    */
   export async function listAntigravityAccounts(): Promise<Record<string, { refreshToken: string; managedProjectId: string; email?: string }>> {
     const { Account } = await import("../account")
-    const accounts = await Account.list("google")
+    const accounts = await Account.list("google-api")
     const result: Record<string, { refreshToken: string; managedProjectId: string; email?: string }> = {}
 
     for (const [id, info] of Object.entries(accounts)) {

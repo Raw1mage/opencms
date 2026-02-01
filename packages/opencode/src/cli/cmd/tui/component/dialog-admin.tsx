@@ -104,6 +104,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     }
 
     onMount(() => {
+        dialog.setSize("large")
         debugCheckpoint("admin", "mount", { step: step(), family: selectedFamily() })
     })
 
@@ -169,7 +170,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             logKey(evt, "none", "ignored")
         }
 
-        if (s === "account_select" && selectedFamily() === "google") {
+        if (s === "account_select" && selectedFamily() === "google-api") {
             const parsed = keybind.parse(evt)
             debugCheckpoint("admin.key", "event", {
                 name: evt.name,
@@ -185,7 +186,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         if (evt.name !== "a") return
         if (evt.ctrl || evt.meta || evt.super) return
         if (step() !== "account_select") return
-        if (selectedFamily() !== "google") return
+        if (selectedFamily() !== "google-api") return
         evt.preventDefault()
         evt.stopPropagation()
         debugCheckpoint("admin", "google add keybind", { step: step(), family: selectedFamily() })
@@ -194,7 +195,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
     createEffect(() => {
         if (step() !== "account_select") return
-        if (selectedFamily() !== "google") return
+        if (selectedFamily() !== "google-api") return
         debugCheckpoint("admin", "enter google account list")
     })
 
@@ -264,7 +265,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         const pid = selectedProviderID()
         refreshSignal()
         if (currentStep !== "model_select" || !pid) return
-        if (family(pid) !== "google") return
+        if (family(pid) !== "google-api") return
         if (googleModelsLoaded()) return
         loadGoogleModels()
     })
@@ -284,7 +285,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         setStep("model_select")
     })
 
-const label = (name: string, id: string) => {
+    const label = (name: string, id: string) => {
         const fam = family(id)
         if (!fam) return name
         const map: Record<string, string> = {
@@ -297,15 +298,15 @@ const label = (name: string, id: string) => {
             opencode: "OpenCode",
         }
         return map[fam as string] ?? name
-}
+    }
 
-function isFreeCost(info: { cost?: { input?: number; output?: number } }) {
-    const cost = info.cost
-    if (!cost) return false
-    const input = cost.input ?? 0
-    const output = cost.output ?? 0
-    return input === 0 && output === 0
-}
+    function isFreeCost(info: { cost?: { input?: number; output?: number } }) {
+        const cost = info.cost
+        if (!cost) return false
+        const input = cost.input ?? 0
+        const output = cost.output ?? 0
+        return input === 0 && output === 0
+    }
 
     const owner = (provider: { id: string; name: string; email?: string }) => {
         const fam = family(provider.id)
@@ -324,8 +325,8 @@ function isFreeCost(info: { cost?: { input?: number; output?: number } }) {
     const resolveGoogleApiKey = async () => {
         return debugSpan("admin.google", "resolve api key", {}, async () => {
             try {
-                const accounts = await Account.list("google")
-                const activeId = await Account.getActive("google")
+                const accounts = await Account.list("google-api")
+                const activeId = await Account.getActive("google-api")
                 const pickKey = (id?: string) => {
                     if (!id) return null
                     const info = accounts[id]
@@ -495,7 +496,7 @@ function isFreeCost(info: { cost?: { input?: number; output?: number } }) {
                 const allIds = familyData ? Object.keys(familyData.accounts || {}) : []
                 const isFamilySuffix = (id: string) => id === `${fam}-subscription-${fam}` || id === `${fam}-api-${fam}`
                 const isGeneric = (id: string) =>
-                    id === fam || id === "google" || id === "gemini-cli" || id === "antigravity" || isFamilySuffix(id)
+                    id === fam || id === "google-api" || id === "gemini-cli" || id === "antigravity" || isFamilySuffix(id)
                 const hasSpecific = allIds.some(id => !isGeneric(id))
                 const filteredIds = allIds.filter(id => (hasSpecific ? !isGeneric(id) : true))
                 const accountTotal = familyData ? filteredIds.length : providers.length
@@ -576,7 +577,7 @@ function isFreeCost(info: { cost?: { input?: number; output?: number } }) {
                 const activeId = familyData?.activeAccount
                 const isFamilySuffix = (id: string) => id === `${fam}-subscription-${fam}` || id === `${fam}-api-${fam}`
                 const isGeneric = (id: string) =>
-                    id === fam || id === "google" || id === "gemini-cli" || id === "antigravity" || isFamilySuffix(id)
+                    id === fam || id === "google-api" || id === "gemini-cli" || id === "antigravity" || isFamilySuffix(id)
                 const hasSpecific = Object.keys(accounts).some(id => !isGeneric(id))
 
                 for (const entry of Object.entries(accounts)) {
@@ -716,7 +717,7 @@ function isFreeCost(info: { cost?: { input?: number; output?: number } }) {
             const providerID = resolved.id
 
             const showAll = showHidden()
-            const isGoogleProvider = family(providerID) === "google"
+            const isGoogleProvider = family(providerID) === "google-api"
             const hiddenCheck = (mid: string) => {
                 if (showAll) return true
                 return !local.model.hidden().some((h) => h.providerID === providerID && h.modelID === mid)
@@ -955,320 +956,321 @@ function isFreeCost(info: { cost?: { input?: number; output?: number } }) {
             }}
         >
             <DialogSelect
+                onMount={() => dialog.setSize("large")}
                 keybind={[
-                // Model Health Dashboard (Tab key)
-                {
-                    keybind: Keybind.parse("tab")[0],
-                    title: "Health",
-                    label: "Tab",
-                    disabled: false,
-                    onTrigger: () => {
-                        debugCheckpoint("admin", "open model health dashboard via tab")
-                        dialog.push(() => <DialogModelHealth />)
+                    // Model Health Dashboard (Tab key)
+                    {
+                        keybind: Keybind.parse("tab")[0],
+                        title: "(Tab)board",
+                        label: "",
+                        disabled: false,
+                        onTrigger: () => {
+                            debugCheckpoint("admin", "open model health dashboard via tab")
+                            dialog.push(() => <DialogModelHealth />)
+                        },
                     },
-                },
-                // MODEL STEP KEYBINDS
-                {
-                    keybind: Keybind.parse("f")[0],
-                    title: "Favorites",
-                    label: "F",
-                    disabled: !connected() || step() !== "model_select",
-                    onTrigger: (option: any) => {
-                        const val = option.value
-                        if (val && typeof val === "object" && val.providerID && val.modelID) {
-                            debugCheckpoint("admin", "toggle favorite", { provider: val.providerID, model: val.modelID })
-                            local.model.toggleFavorite(val)
-                        }
+                    // MODEL STEP KEYBINDS
+                    {
+                        keybind: Keybind.parse("f")[0],
+                        title: "Favorites",
+                        label: "F",
+                        disabled: !connected() || step() !== "model_select",
+                        onTrigger: (option: any) => {
+                            const val = option.value
+                            if (val && typeof val === "object" && val.providerID && val.modelID) {
+                                debugCheckpoint("admin", "toggle favorite", { provider: val.providerID, model: val.modelID })
+                                local.model.toggleFavorite(val)
+                            }
+                        },
                     },
-                },
-                {
-                    keybind: Keybind.parse("s")[0],
-                    title: showHidden() ? "Hide" : "Showall",
-                    label: "S",
-                    disabled: !connected() || (step() !== "model_select" && step() !== "root"),
-                    onTrigger: () => {
-                        const next = !showHidden()
-                        debugCheckpoint("admin", "toggle show hidden", { enabled: next, step: step() })
-                        setShowHidden(next)
+                    {
+                        keybind: Keybind.parse("s")[0],
+                        title: showHidden() ? "Hide" : "Showall",
+                        label: "S",
+                        disabled: !connected() || (step() !== "model_select" && step() !== "root"),
+                        onTrigger: () => {
+                            const next = !showHidden()
+                            debugCheckpoint("admin", "toggle show hidden", { enabled: next, step: step() })
+                            setShowHidden(next)
+                        },
                     },
-                },
-                {
-                    keybind: Keybind.parse("r")[0],
-                    title: "Refresh",
-                    label: "R",
-                    disabled: !connected() || step() !== "model_select" || family(selectedProviderID() ?? "") !== "google",
-                    onTrigger: () => {
-                        debugCheckpoint("admin", "refresh google models", { provider: selectedProviderID() })
-                        loadGoogleModels(true)
+                    {
+                        keybind: Keybind.parse("r")[0],
+                        title: "Refresh",
+                        label: "R",
+                        disabled: !connected() || step() !== "model_select" || family(selectedProviderID() ?? "") !== "google-api",
+                        onTrigger: () => {
+                            debugCheckpoint("admin", "refresh google models", { provider: selectedProviderID() })
+                            loadGoogleModels(true)
+                        },
                     },
-                },
-                // ACCOUNT STEP KEYBINDS
-                {
-                    keybind: Keybind.parse("a")[0],
-                    title: "Add",
-                    label: "A/a",
-                    disabled: step() !== "account_select",
-                    onTrigger: () => {
-                        const fam = selectedFamily()
-                        if (!fam) return
-                        if (fam === "google") {
-                            debugCheckpoint("admin", "add keybind google", { family: fam })
-                            openGoogleAdd()
-                            return
-                        }
+                    // ACCOUNT STEP KEYBINDS
+                    {
+                        keybind: Keybind.parse("a")[0],
+                        title: "(A)dd",
+                        label: "",
+                        disabled: step() !== "account_select",
+                        onTrigger: () => {
+                            const fam = selectedFamily()
+                            if (!fam) return
+                            if (fam === "google-api") {
+                                debugCheckpoint("admin", "add keybind google", { family: fam })
+                                openGoogleAdd()
+                                return
+                            }
 
-                        // Check if provider has OAuth methods available (e.g., Anthropic Claude Pro/Max)
-                        const authMethods = sync.data.provider_auth[fam]
-                        const hasOAuth = authMethods?.some(m => m.type === "oauth")
-                        if (hasOAuth) {
-                            // Provider has OAuth support - use DialogProviderList which handles OAuth flow
-                            debugCheckpoint("admin", "add keybind provider with oauth", { family: fam, methods: authMethods?.map(m => m.label) })
-                            dialog.push(() => <DialogProviderList providerID={fam} />)
-                            return
-                        }
+                            // Check if provider has OAuth methods available (e.g., Anthropic Claude Pro/Max)
+                            const authMethods = sync.data.provider_auth[fam]
+                            const hasOAuth = authMethods?.some(m => m.type === "oauth")
+                            if (hasOAuth) {
+                                // Provider has OAuth support - use DialogProviderList which handles OAuth flow
+                                debugCheckpoint("admin", "add keybind provider with oauth", { family: fam, methods: authMethods?.map(m => m.label) })
+                                dialog.push(() => <DialogProviderList providerID={fam} />)
+                                return
+                            }
 
-                        // Check if this is a models.dev provider (needs API key)
-                        const providerData = modelsDevData()?.[fam]
-                        if (providerData && providerData.env && providerData.env.length > 0) {
-                            // models.dev provider with env var requirement
-                            const envVar = providerData.env[0] // Use first env var
-                            const providerName = providerData.name || fam
-                            debugCheckpoint("admin", "add keybind models.dev provider", { family: fam, envVar })
+                            // Check if this is a models.dev provider (needs API key)
+                            const providerData = modelsDevData()?.[fam]
+                            if (providerData && providerData.env && providerData.env.length > 0) {
+                                // models.dev provider with env var requirement
+                                const envVar = providerData.env[0] // Use first env var
+                                const providerName = providerData.name || fam
+                                debugCheckpoint("admin", "add keybind models.dev provider", { family: fam, envVar })
+                                dialog.push(() => (
+                                    <DialogApiKeyAdd
+                                        providerID={fam}
+                                        providerName={providerName}
+                                        envVar={envVar}
+                                        onCancel={() => {
+                                            debugCheckpoint("admin", "apikey add cancel")
+                                            dialog.pop()
+                                            forceRefresh()
+                                        }}
+                                        onSaved={() => {
+                                            debugCheckpoint("admin", "apikey add saved")
+                                            dialog.pop()
+                                            forceRefresh()
+                                        }}
+                                    />
+                                ))
+                                return
+                            }
+
+                            debugCheckpoint("admin", "add keybind provider list", { family: fam })
+                            dialog.replace(() => <DialogProviderList providerID={fam} />)
+                        }
+                    },
+                    // EDIT ACCOUNT NAME
+                    {
+                        keybind: Keybind.parse("e")[0],
+                        title: "(E)dit",
+                        label: "",
+                        disabled: step() !== "account_select",
+                        onTrigger: async (option: any) => {
+                            const val = option.value
+                            if (typeof val !== "string" || val.startsWith("__")) return
+                            const fam = selectedFamily()
+                            if (!fam) return
+
+                            // Use coreId for account lookup (option.value may not match core account IDs)
+                            const accountId = option.coreId || val
+                            const accountInfo = await Account.get(fam, accountId)
+                            if (!accountInfo) {
+                                toast.show({ message: "Account not found", variant: "error", duration: 2000 })
+                                return
+                            }
+
+                            debugCheckpoint("admin", "edit account", { family: fam, id: accountId })
                             dialog.push(() => (
-                                <DialogApiKeyAdd
-                                    providerID={fam}
-                                    providerName={providerName}
-                                    envVar={envVar}
+                                <DialogAccountEdit
+                                    family={fam}
+                                    accountId={accountId}
+                                    currentName={accountInfo.name}
                                     onCancel={() => {
-                                        debugCheckpoint("admin", "apikey add cancel")
                                         dialog.pop()
-                                        forceRefresh()
                                     }}
                                     onSaved={() => {
-                                        debugCheckpoint("admin", "apikey add saved")
                                         dialog.pop()
                                         forceRefresh()
                                     }}
                                 />
                             ))
-                            return
                         }
+                    },
+                    // VIEW ACCOUNT JSON
+                    {
+                        keybind: Keybind.parse("v")[0],
+                        title: "(V)iew",
+                        label: "",
+                        disabled: step() !== "account_select",
+                        onTrigger: async (option: any) => {
+                            const val = option.value
+                            if (typeof val !== "string" || val.startsWith("__")) return
+                            const fam = selectedFamily()
+                            if (!fam) return
 
-                        debugCheckpoint("admin", "add keybind provider list", { family: fam })
-                        dialog.replace(() => <DialogProviderList providerID={fam} />)
-                    }
-                },
-                // EDIT ACCOUNT NAME
-                {
-                    keybind: Keybind.parse("e")[0],
-                    title: "Edit",
-                    label: "E",
-                    disabled: step() !== "account_select",
-                    onTrigger: async (option: any) => {
-                        const val = option.value
-                        if (typeof val !== "string" || val.startsWith("__")) return
-                        const fam = selectedFamily()
-                        if (!fam) return
-
-                        // Use coreId for account lookup (option.value may not match core account IDs)
-                        const accountId = option.coreId || val
-                        const accountInfo = await Account.get(fam, accountId)
-                        if (!accountInfo) {
-                            toast.show({ message: "Account not found", variant: "error", duration: 2000 })
-                            return
-                        }
-
-                        debugCheckpoint("admin", "edit account", { family: fam, id: accountId })
-                        dialog.push(() => (
-                            <DialogAccountEdit
-                                family={fam}
-                                accountId={accountId}
-                                currentName={accountInfo.name}
-                                onCancel={() => {
-                                    dialog.pop()
-                                }}
-                                onSaved={() => {
-                                    dialog.pop()
-                                    forceRefresh()
-                                }}
-                            />
-                        ))
-                    }
-                },
-                // VIEW ACCOUNT JSON
-                {
-                    keybind: Keybind.parse("v")[0],
-                    title: "View",
-                    label: "V",
-                    disabled: step() !== "account_select",
-                    onTrigger: async (option: any) => {
-                        const val = option.value
-                        if (typeof val !== "string" || val.startsWith("__")) return
-                        const fam = selectedFamily()
-                        if (!fam) return
-
-                        // Use coreId for account lookup (option.value may not match core account IDs)
-                        const accountId = option.coreId || val
-                        const accountInfo = await Account.get(fam, accountId)
-                        if (!accountInfo) {
-                            toast.show({ message: "Account not found", variant: "error", duration: 2000 })
-                            return
-                        }
-
-                        debugCheckpoint("admin", "view account", { family: fam, id: accountId })
-                        dialog.push(() => (
-                            <DialogAccountView
-                                family={fam}
-                                accountId={accountId}
-                                accountInfo={accountInfo}
-                                onClose={() => dialog.pop()}
-                            />
-                        ))
-                    }
-                },
-                // SHARED / DELETE / HIDE
-                {
-                    keybind: Keybind.parse("delete")[0],
-                    title: step() === "model_select" ? "Hide" : (step() === "root" ? "Hide" : "Delete"),
-                    label: "Del",
-                    disabled: !connected(),
-                    onTrigger: async (option: any) => {
-                        const val = option.value
-
-                        // Hide provider on root step
-                        if (step() === "root" && val && typeof val === "object" && val.family) {
-                            // Provider entry with { family, isUnconfigured }
-                            const optionObj = option as any
-                            if (optionObj.category === "Providers") {
-                                const fam = val.family
-                                const isUnconfigured = val.isUnconfigured
-                                // Check if not already hidden
-                                const isInHiddenList = local.model.isProviderHidden(fam)
-                                const effectivelyHidden = isUnconfigured ? !isInHiddenList : isInHiddenList
-                                if (!effectivelyHidden) {
-                                    debugCheckpoint("admin", "hide provider", { family: fam, isUnconfigured })
-                                    // For unconfigured: toggle removes from list (makes it hidden again)
-                                    // For configured: toggle adds to list (makes it hidden)
-                                    local.model.toggleHiddenProvider(fam)
-                                    toast.show({ message: `Provider "${fam}" hidden`, variant: "info", duration: 2000 })
-                                }
+                            // Use coreId for account lookup (option.value may not match core account IDs)
+                            const accountId = option.coreId || val
+                            const accountInfo = await Account.get(fam, accountId)
+                            if (!accountInfo) {
+                                toast.show({ message: "Account not found", variant: "error", duration: 2000 })
                                 return
                             }
-                        }
 
-                        if (step() === "account_select" && typeof val === "string" && val !== "__add_account__") {
-                            const fam = selectedFamily()
-                            if (fam) {
-                                debugCheckpoint("admin", "delete account prompt", { family: fam, id: val })
-                                const confirmed = await DialogConfirm.show(
-                                    dialog,
-                                    "Delete Account",
-                                    `Are you sure you want to delete this account?`
-                                )
+                            debugCheckpoint("admin", "view account", { family: fam, id: accountId })
+                            dialog.push(() => (
+                                <DialogAccountView
+                                    family={fam}
+                                    accountId={accountId}
+                                    accountInfo={accountInfo}
+                                    onClose={() => dialog.pop()}
+                                />
+                            ))
+                        }
+                    },
+                    // SHARED / DELETE / HIDE
+                    {
+                        keybind: Keybind.parse("delete")[0],
+                        title: step() === "model_select" ? "Hide" : (step() === "root" ? "Hide" : "(Del)ete"),
+                        label: "",
+                        disabled: !connected(),
+                        onTrigger: async (option: any) => {
+                            const val = option.value
+
+                            // Hide provider on root step
+                            if (step() === "root" && val && typeof val === "object" && val.family) {
+                                // Provider entry with { family, isUnconfigured }
+                                const optionObj = option as any
+                                if (optionObj.category === "Providers") {
+                                    const fam = val.family
+                                    const isUnconfigured = val.isUnconfigured
+                                    // Check if not already hidden
+                                    const isInHiddenList = local.model.isProviderHidden(fam)
+                                    const effectivelyHidden = isUnconfigured ? !isInHiddenList : isInHiddenList
+                                    if (!effectivelyHidden) {
+                                        debugCheckpoint("admin", "hide provider", { family: fam, isUnconfigured })
+                                        // For unconfigured: toggle removes from list (makes it hidden again)
+                                        // For configured: toggle adds to list (makes it hidden)
+                                        local.model.toggleHiddenProvider(fam)
+                                        toast.show({ message: `Provider "${fam}" hidden`, variant: "info", duration: 2000 })
+                                    }
+                                    return
+                                }
+                            }
+
+                            if (step() === "account_select" && typeof val === "string" && val !== "__add_account__") {
+                                const fam = selectedFamily()
+                                if (fam) {
+                                    debugCheckpoint("admin", "delete account prompt", { family: fam, id: val })
+                                    const confirmed = await DialogConfirm.show(
+                                        dialog,
+                                        "Delete Account",
+                                        `Are you sure you want to delete this account?`
+                                    )
 
                                     if (confirmed) {
                                         try {
-                                        // Remove from core Account module (single source of truth)
-                                        // Use the mapped coreId (e.g. antigravity-subscription-ivon0829-gmail-com)
-                                        const coreId = option.coreId || val
-                                        await Account.remove(fam, coreId)
-                                        await Account.refresh()
+                                            // Remove from core Account module (single source of truth)
+                                            // Use the mapped coreId (e.g. antigravity-subscription-ivon0829-gmail-com)
+                                            const coreId = option.coreId || val
+                                            await Account.remove(fam, coreId)
+                                            await Account.refresh()
 
-                                        // Reload AccountManager to sync in-memory state
-                                        if (fam === 'antigravity') {
-                                            const manager = agManager()
-                                            if (manager) {
-                                                await manager.reloadFromAccountModule()
+                                            // Reload AccountManager to sync in-memory state
+                                            if (fam === 'antigravity') {
+                                                const manager = agManager()
+                                                if (manager) {
+                                                    await manager.reloadFromAccountModule()
+                                                }
                                             }
+
+                                            debugCheckpoint("admin", "delete account success", { family: fam, id: coreId })
+                                            toast.show({ message: "Account deleted successfully", variant: "success" })
+                                            await refreshAntigravity()
+                                            setSelectedFamily(fam)
+                                            setQuery("")
+                                            forceRefresh()
+                                            lockBackOnce()
+                                        } catch (e: any) {
+                                            debugCheckpoint("admin", "delete account error", { family: fam, error: String(e instanceof Error ? e.stack || e.message : e) })
+                                            toast.error(e)
                                         }
-
-                                        debugCheckpoint("admin", "delete account success", { family: fam, id: coreId })
-                                        toast.show({ message: "Account deleted successfully", variant: "success" })
-                                        await refreshAntigravity()
-                                        setSelectedFamily(fam)
-                                        setQuery("")
-                                        forceRefresh()
-                                        lockBackOnce()
-                                    } catch (e: any) {
-                                        debugCheckpoint("admin", "delete account error", { family: fam, error: String(e instanceof Error ? e.stack || e.message : e) })
-                                        toast.error(e)
                                     }
-                                }
-                            }
-                            return
-                        }
-
-                        if (step() === "model_select" || step() === "root") {
-                            // Only handle model values (objects)
-                            if (typeof val === "object" && val.providerID && val.modelID) {
-                                const modelVal = val as any
-                                debugCheckpoint("admin", "delete model action", { origin: modelVal.origin, provider: modelVal.providerID, model: modelVal.modelID })
-                                if (modelVal.origin === "recent") local.model.removeFromRecent(modelVal)
-                                else if (modelVal.origin === "favorite") local.model.toggleFavorite(modelVal)
-                                else if (step() !== "root") local.model.toggleHidden(modelVal)
-                            }
-                        }
-                    },
-                },
-                {
-                    keybind: Keybind.parse("insert")[0],
-                    title: "Unhide",
-                    label: "Ins",
-                    disabled: !connected() || !showHidden(),
-                    onTrigger: (option: any) => {
-                        const val = option.value as any
-
-                        // Unhide provider on root step
-                        if (step() === "root" && val && typeof val === "object" && val.family) {
-                            const optionObj = option as any
-                            if (optionObj.category === "Providers") {
-                                const fam = val.family
-                                const isUnconfigured = val.isUnconfigured
-                                // Check if effectively hidden
-                                const isInHiddenList = local.model.isProviderHidden(fam)
-                                const effectivelyHidden = isUnconfigured ? !isInHiddenList : isInHiddenList
-                                if (effectivelyHidden) {
-                                    debugCheckpoint("admin", "unhide provider", { family: fam, isUnconfigured })
-                                    // For unconfigured: toggle adds to list (makes it shown)
-                                    // For configured: toggle removes from list (makes it shown)
-                                    local.model.toggleHiddenProvider(fam)
-                                    toast.show({ message: `Provider "${fam}" unhidden`, variant: "info", duration: 2000 })
                                 }
                                 return
                             }
-                        }
 
-                        // Unhide model
-                        if (val && typeof val === "object" && val.providerID && val.modelID) {
-                            debugCheckpoint("admin", "unhide model", { provider: val.providerID, model: val.modelID })
-                            local.model.toggleHidden(val)
+                            if (step() === "model_select" || step() === "root") {
+                                // Only handle model values (objects)
+                                if (typeof val === "object" && val.providerID && val.modelID) {
+                                    const modelVal = val as any
+                                    debugCheckpoint("admin", "delete model action", { origin: modelVal.origin, provider: modelVal.providerID, model: modelVal.modelID })
+                                    if (modelVal.origin === "recent") local.model.removeFromRecent(modelVal)
+                                    else if (modelVal.origin === "favorite") local.model.toggleFavorite(modelVal)
+                                    else if (step() !== "root") local.model.toggleHidden(modelVal)
+                                }
+                            }
+                        },
+                    },
+                    {
+                        keybind: Keybind.parse("insert")[0],
+                        title: "Unhide",
+                        label: "Ins",
+                        disabled: !connected() || !showHidden(),
+                        onTrigger: (option: any) => {
+                            const val = option.value as any
+
+                            // Unhide provider on root step
+                            if (step() === "root" && val && typeof val === "object" && val.family) {
+                                const optionObj = option as any
+                                if (optionObj.category === "Providers") {
+                                    const fam = val.family
+                                    const isUnconfigured = val.isUnconfigured
+                                    // Check if effectively hidden
+                                    const isInHiddenList = local.model.isProviderHidden(fam)
+                                    const effectivelyHidden = isUnconfigured ? !isInHiddenList : isInHiddenList
+                                    if (effectivelyHidden) {
+                                        debugCheckpoint("admin", "unhide provider", { family: fam, isUnconfigured })
+                                        // For unconfigured: toggle adds to list (makes it shown)
+                                        // For configured: toggle removes from list (makes it shown)
+                                        local.model.toggleHiddenProvider(fam)
+                                        toast.show({ message: `Provider "${fam}" unhidden`, variant: "info", duration: 2000 })
+                                    }
+                                    return
+                                }
+                            }
+
+                            // Unhide model
+                            if (val && typeof val === "object" && val.providerID && val.modelID) {
+                                debugCheckpoint("admin", "unhide model", { provider: val.providerID, model: val.modelID })
+                                local.model.toggleHidden(val)
+                            }
                         }
-                    }
-                },
-                {
-                    keybind: Keybind.parse("left")[0],
-                    title: "Back",
-                    label: "left/esc",
-                    hidden: step() === "model_select",
-                    onTrigger: goBack
-                },
-                {
-                    keybind: Keybind.parse("esc")[0],
-                    title: "",
-                    hidden: true,
-                    onTrigger: goBack
-                },
-            ]}
-            ref={setRef}
-            onMove={(option) => setCurrentOption(option)}
-            onFilter={setQuery}
-            skipFilter={step() === "account_select"}
-            hideInput={step() === "account_select"}
-            title={title()}
-            current={selectCurrent()}
-            options={options()}
-            keybindLayout="inline"
-        />
+                    },
+                    {
+                        keybind: Keybind.parse("left")[0],
+                        title: "(←)Back",
+                        label: "",
+                        hidden: step() === "model_select",
+                        onTrigger: goBack
+                    },
+                    {
+                        keybind: Keybind.parse("esc")[0],
+                        title: "",
+                        hidden: true,
+                        onTrigger: goBack
+                    },
+                ]}
+                ref={setRef}
+                onMove={(option) => setCurrentOption(option)}
+                onFilter={setQuery}
+                skipFilter={step() === "account_select"}
+                hideInput={step() === "account_select"}
+                title={title()}
+                current={selectCurrent()}
+                options={options()}
+                keybindLayout="inline"
+            />
         </ErrorBoundary>
     )
 }
@@ -1380,8 +1382,8 @@ function DialogGoogleApiAdd(props: { onCancel: () => void; onSaved: () => void }
                 return
             }
 
-            const id = Account.generateId("google", "api", nextName)
-            const existing = await Account.list("google")
+            const id = Account.generateId("google-api", "api", nextName)
+            const existing = await Account.list("google-api")
                 .then((list) => list[id])
                 .catch((err) => {
                     const msg = String(err instanceof Error ? err.stack || err.message : err)
@@ -1404,7 +1406,7 @@ function DialogGoogleApiAdd(props: { onCancel: () => void; onSaved: () => void }
                 apiKey: nextKey,
                 addedAt: Date.now(),
             }
-            const wrote = await Account.add("google", id, info)
+            const wrote = await Account.add("google-api", id, info)
                 .then(() => true)
                 .catch((err) => {
                     const msg = String(err instanceof Error ? err.stack || err.message : err)

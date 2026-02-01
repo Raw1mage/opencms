@@ -12,8 +12,15 @@
  */
 
 import { Log } from "../util/log"
+import { debugCheckpoint } from "../util/debug"
+import { Global } from "../global"
+import path from "path"
+import fs from "fs"
 
 const log = Log.create({ service: "account-rotation" })
+
+// File path for shared model health state across processes
+const HEALTH_FILE = path.join(Global.Path.state, "model-health.json")
 
 // ============================================================================
 // HEALTH SCORE SYSTEM
@@ -606,14 +613,48 @@ interface ModelHealthState {
 
 /**
  * Global registry tracking health status of all provider:model combinations.
- * Shared across foreground dialog and background tasks.
+ * Shared across foreground dialog and background tasks via file persistence.
  */
 export class ModelHealthRegistry {
+  // Unique instance ID for debugging singleton issues
+  private readonly instanceId = Math.random().toString(36).substring(7)
   // Key: "provider:model" -> health state
   private readonly models = new Map<string, ModelHealthState>()
 
   private makeKey(provider: string, model: string): string {
     return `${provider}:${model}`
+  }
+
+  /**
+   * Persist current state to shared file for cross-process access.
+   */
+  private persistToFile(): void {
+    try {
+      const data: Record<string, ModelHealthState> = {}
+      for (const [key, state] of this.models) {
+        data[key] = state
+      }
+      fs.writeFileSync(HEALTH_FILE, JSON.stringify(data), "utf-8")
+    } catch (e) {
+      // Ignore write errors
+    }
+  }
+
+  /**
+   * Load state from shared file (for cross-process sync).
+   */
+  private loadFromFile(): void {
+    try {
+      if (!fs.existsSync(HEALTH_FILE)) return
+      const content = fs.readFileSync(HEALTH_FILE, "utf-8")
+      const data = JSON.parse(content) as Record<string, ModelHealthState>
+      this.models.clear()
+      for (const [key, state] of Object.entries(data)) {
+        this.models.set(key, state)
+      }
+    } catch (e) {
+      // Ignore read errors
+    }
   }
 
   /**
@@ -625,6 +666,9 @@ export class ModelHealthRegistry {
     reason: RateLimitReason,
     backoffMs: number,
   ): void {
+    // Load latest state from file first (other process may have updated)
+    this.loadFromFile()
+
     const key = this.makeKey(provider, model)
     const now = Date.now()
     const existing = this.models.get(key)
@@ -636,6 +680,9 @@ export class ModelHealthRegistry {
       lastSuccess: existing?.lastSuccess ?? 0,
       consecutiveFailures: (existing?.consecutiveFailures ?? 0) + 1,
     })
+
+    // Persist to file for cross-process access
+    this.persistToFile()
 
     log.info("Model marked rate limited", {
       provider,
@@ -650,8 +697,19 @@ export class ModelHealthRegistry {
    * Mark a model as successfully used.
    */
   markSuccess(provider: string, model: string): void {
+    // Load latest state from file first (other process may have updated)
+    this.loadFromFile()
+
     const key = this.makeKey(provider, model)
     const now = Date.now()
+
+    debugCheckpoint("health", "registry.markSuccess.before", {
+      instanceId: this.instanceId,
+      provider,
+      model,
+      key,
+      currentSize: this.models.size,
+    })
 
     this.models.set(key, {
       available: true,
@@ -660,12 +718,33 @@ export class ModelHealthRegistry {
       lastSuccess: now,
       consecutiveFailures: 0,
     })
+
+    // Persist to file for cross-process access
+    this.persistToFile()
+
+    debugCheckpoint("health", "registry.markSuccess.after", {
+      instanceId: this.instanceId,
+      provider,
+      model,
+      key,
+      newSize: this.models.size,
+    })
+
+    log.info("Model marked success", {
+      provider,
+      model,
+      key,
+      totalModelsTracked: this.models.size,
+    })
   }
 
   /**
    * Check if a model is currently available (not rate limited).
    */
   isAvailable(provider: string, model: string): boolean {
+    // Load latest state from file (other process may have updated)
+    this.loadFromFile()
+
     const key = this.makeKey(provider, model)
     const state = this.models.get(key)
 
@@ -684,6 +763,9 @@ export class ModelHealthRegistry {
    * Get remaining wait time until a model is available.
    */
   getWaitTime(provider: string, model: string): number {
+    // Load latest state from file (other process may have updated)
+    this.loadFromFile()
+
     const key = this.makeKey(provider, model)
     const state = this.models.get(key)
 
@@ -704,8 +786,19 @@ export class ModelHealthRegistry {
    * Get health snapshot for debugging.
    */
   getSnapshot(): Map<string, { available: boolean; waitMs: number; reason: RateLimitReason }> {
+    // Load latest state from file (other process may have updated)
+    this.loadFromFile()
+
     const result = new Map<string, { available: boolean; waitMs: number; reason: RateLimitReason }>()
     const now = Date.now()
+
+    debugCheckpoint("health", "registry.getSnapshot", {
+      instanceId: this.instanceId,
+      modelsCount: this.models.size,
+      keys: Array.from(this.models.keys()),
+    })
+
+    log.debug("getSnapshot called", { modelsCount: this.models.size })
 
     for (const [key, state] of this.models) {
       const waitMs = state.rateLimitedUntil > now ? state.rateLimitedUntil - now : 0
@@ -723,8 +816,10 @@ export class ModelHealthRegistry {
    * Clear rate limit for a specific model.
    */
   clear(provider: string, model: string): void {
+    this.loadFromFile()
     const key = this.makeKey(provider, model)
     this.models.delete(key)
+    this.persistToFile()
   }
 
   /**
@@ -732,17 +827,25 @@ export class ModelHealthRegistry {
    */
   clearAll(): void {
     this.models.clear()
+    this.persistToFile()
   }
 }
 
-let globalModelRegistry: ModelHealthRegistry | null = null
+// Use globalThis to ensure true singleton across all module loads
+const REGISTRY_KEY = Symbol.for("opencode.modelHealthRegistry")
 
 /**
  * Get the global model health registry instance.
+ * Uses Symbol.for to ensure singleton across module boundaries.
  */
 export function getModelHealthRegistry(): ModelHealthRegistry {
-  if (!globalModelRegistry) {
-    globalModelRegistry = new ModelHealthRegistry()
+  const g = globalThis as any
+  if (!g[REGISTRY_KEY]) {
+    g[REGISTRY_KEY] = new ModelHealthRegistry()
+    debugCheckpoint("health", "registry.create", {
+      message: "Created new ModelHealthRegistry singleton (globalThis)",
+      instanceId: (g[REGISTRY_KEY] as any).instanceId,
+    })
   }
-  return globalModelRegistry
+  return g[REGISTRY_KEY]
 }

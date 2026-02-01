@@ -64,30 +64,10 @@ export function DialogModel(props: { providerID?: string }) {
   }
 
   const probeAndSelectModel = (providerID: string, modelID: string, origin?: string) => {
-    const state = { cancelled: false }
-    const controller = new AbortController()
-    const onClose = () => {
-      state.cancelled = true
-      controller.abort()
-    }
-
-    debugCheckpoint("model", "probe start", { provider: providerID, model: modelID, origin })
-    dialog.push(() => (
-      <DialogModelProbe providerID={providerID} modelID={modelID} prompt={probePrompt} />
-    ), onClose)
-
-    probeModelAvailability(providerID, modelID, probePrompt, probeTimeoutMs, controller.signal).then((result) => {
-      if (state.cancelled) return
-      dialog.pop()
-      if (result.ok) {
-        debugCheckpoint("model", "probe success", { provider: providerID, model: modelID, ms: result.responseTime })
-        local.model.set({ providerID: providerID, modelID: modelID }, { recent: true })
-        dialog.clear()
-        return
-      }
-      debugCheckpoint("model", "probe failed", { provider: providerID, model: modelID, error: result.error })
-      toast.show({ message: `Model unavailable: ${result.error}`, variant: "error" })
-    })
+    // Skip probe - directly select the model
+    debugCheckpoint("model", "selected (probe skipped)", { provider: providerID, model: modelID, origin })
+    local.model.set({ providerID: providerID, modelID: modelID }, { recent: true })
+    dialog.clear()
   }
 
   const [refreshSignal, setRefreshSignal] = createSignal(0)
@@ -131,7 +111,7 @@ export function DialogModel(props: { providerID?: string }) {
     const map: Record<string, string> = {
       anthropic: "Anthropic",
       openai: "OpenAI",
-      google: "Google-API",
+      "google-api": "Google-API",
       antigravity: "Antigravity",
       "gemini-cli": "Gemini CLI",
       gitlab: "GitLab",
@@ -268,7 +248,7 @@ export function DialogModel(props: { providerID?: string }) {
         const allIds = familyData ? Object.keys(familyData.accounts || {}) : []
         const isFamilySuffix = (id: string) => id === `${fam}-subscription-${fam}` || id === `${fam}-api-${fam}`
         const isGeneric = (id: string) =>
-          id === fam || id === "google" || id === "gemini-cli" || id === "antigravity" || isFamilySuffix(id)
+          id === fam || id === "google-api" || id === "gemini-cli" || id === "antigravity" || isFamilySuffix(id)
         const hasSpecific = allIds.some(id => !isGeneric(id))
         const filteredIds = allIds.filter(id => (hasSpecific ? !isGeneric(id) : true))
         const accountTotal = familyData ? filteredIds.length : providers.length
@@ -340,7 +320,7 @@ export function DialogModel(props: { providerID?: string }) {
         const activeId = familyData?.activeAccount
         const isFamilySuffix = (id: string) => id === `${fam}-subscription-${fam}` || id === `${fam}-api-${fam}`
         const isGeneric = (id: string) =>
-          id === fam || id === "google" || id === "gemini-cli" || id === "antigravity" || isFamilySuffix(id)
+          id === fam || id === "google-api" || id === "gemini-cli" || id === "antigravity" || isFamilySuffix(id)
         const hasSpecific = Object.keys(accounts).some(id => !isGeneric(id))
         accountList = Object.entries(accounts)
           .filter(([id]) => {

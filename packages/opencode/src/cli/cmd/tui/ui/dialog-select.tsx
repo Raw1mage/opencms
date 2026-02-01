@@ -203,10 +203,10 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
       if (item.disabled || !item.keybind) continue
       if (Keybind.match(item.keybind, keybind.parse(evt))) {
         const s = selected()
-        if (s) {
-          evt.preventDefault()
-          item.onTrigger(s)
-        }
+        // Always trigger keybind - let handler deal with null selection
+        // This allows keybinds like "Add" to work even with empty lists
+        evt.preventDefault()
+        item.onTrigger(s as any)
       }
     }
   })

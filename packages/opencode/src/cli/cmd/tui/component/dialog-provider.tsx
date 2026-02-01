@@ -21,7 +21,7 @@ const PROVIDER_PRIORITY: Record<string, number> = {
   anthropic: 1,
   "github-copilot": 2,
   openai: 3,
-  google: 4,
+  "google-api": 4,
 }
 
 async function startProviderAuth(
@@ -36,7 +36,7 @@ async function startProviderAuth(
       label: "API key",
     },
   ]
-  const methods = providerID === "google" ? rawMethods.filter((x) => x.type === "api") : rawMethods
+  const methods = providerID === "google-api" ? rawMethods.filter((x) => x.type === "api") : rawMethods
   const availableMethods = methods.length > 0 ? methods : rawMethods
   let index: number | null = 0
   if (availableMethods.length > 1) {
@@ -294,7 +294,7 @@ function ApiMethod(props: ApiMethodProps) {
   const sdk = useSDK()
   const sync = useSync()
   const { theme } = useTheme()
-  const needsName = () => props.providerID === "google"
+  const needsName = () => props.providerID === "google-api"
   const [step, setStep] = createSignal<"name" | "api">(needsName() ? "name" : "api")
   const [name, setName] = createSignal("")
 

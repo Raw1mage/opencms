@@ -56,7 +56,7 @@ export const AccountsCommand = cmd({
                     newList.push({ isHeader: true, label: familyName.toUpperCase() });
                     for (const [id, info] of accountsArr) {
                         newList.push({
-                            family: familyName,
+                            provider: familyName,
                             id,
                             info: { ...info, id },
                             isActive: familyData.activeAccount === id
@@ -92,7 +92,7 @@ export const AccountsCommand = cmd({
                             const prefix = isSelected ? `${UI.Style.TEXT_HIGHLIGHT}▶${UI.Style.TEXT_NORMAL} ` : "  ";
                             const status = item.isActive ? `${UI.Style.TEXT_SUCCESS} ● active${UI.Style.TEXT_NORMAL}` : "";
                             const check = item.isActive ? "[x]" : "[ ]";
-                            const displayName = getDisplayName(item.info, item.family);
+                            const displayName = getDisplayName(item.info, item.provider);
                             process.stdout.write(`${prefix}${check} ${displayName}${status} ${UI.Style.TEXT_DIM}(${item.id})${UI.Style.TEXT_NORMAL}\n`);
                         }
                     });
@@ -117,7 +117,7 @@ export const AccountsCommand = cmd({
                 } else if (key.name === "return" || key.name === "space") {
                     const item = accountsList[cursorIndex];
                     if (item && !item.isHeader) {
-                        await Account.setActive(item.family, item.id);
+                        await Account.setActive(item.provider, item.id);
                         await refreshData();
                     }
                 } else if (key.name === "a") {
@@ -136,7 +136,7 @@ export const AccountsCommand = cmd({
                         try {
                             const confirmed = await p.confirm({ message: `Are you sure you want to remove account ${item.id}?`, initialValue: false });
                             if (confirmed === true && !p.isCancel(confirmed)) {
-                                await Account.remove(item.family, item.id);
+                                await Account.remove(item.provider, item.id);
                                 await refreshData();
                             }
                         } catch (e) { }
@@ -154,11 +154,25 @@ export const AccountsCommand = cmd({
             const handleAdd = async () => {
                 console.log("\x1Bc");
                 p.intro(`${UI.Style.TEXT_HIGHLIGHT_BOLD}Add New Account${UI.Style.TEXT_NORMAL}`);
+                // Get all existing families + known families
+                const allFamilies = await Account.listAll()
+                const existingFamilies = Object.keys(allFamilies)
+                const knownFamilies = [...Account.FAMILIES] as string[]
+                const combinedFamilies = Array.from(new Set([...existingFamilies, ...knownFamilies])).sort()
                 const family = await p.select({
-                    message: "Select Provider Family:",
-                    options: Account.FAMILIES.map(f => ({ value: f, label: f }))
+                    message: "Select Provider (or choose 'Other' for custom):",
+                    options: [
+                        ...combinedFamilies.map(f => ({ value: f, label: f })),
+                        { value: "__other__", label: "Other (custom provider)" }
+                    ]
                 });
                 if (p.isCancel(family)) return;
+                let finalFamily = family as string
+                if (family === "__other__") {
+                    const customFamily = await p.text({ message: "Enter provider ID (e.g., github-copilot, deepseek):" });
+                    if (p.isCancel(customFamily)) return;
+                    finalFamily = customFamily as string
+                }
                 const nameIn = await p.text({ message: "Account Name (leave for auto):" });
                 if (p.isCancel(nameIn)) return;
 
@@ -171,8 +185,8 @@ export const AccountsCommand = cmd({
                 const extractedEmail = JWT.getEmail(keyVal as string);
                 const finalName = (nameIn && (nameIn as string).length > 0) ? nameIn as string : (extractedEmail || "Default");
 
-                const id = Account.generateId(family as string, "api", finalName);
-                await Account.add(family as string, id, {
+                const id = Account.generateId(finalFamily, "api", finalName);
+                await Account.add(finalFamily, id, {
                     type: "api",
                     name: finalName,
                     apiKey: keyVal as string,
@@ -202,7 +216,7 @@ export const AccountsCommand = cmd({
 
         if (args.id) {
             const found = await Account.getById(args.id as string);
-            if (found) await Account.setActive(found.family, args.id as string);
+            if (found) await Account.setActive(found.provider, args.id as string);
             return;
         }
 

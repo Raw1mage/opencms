@@ -70,8 +70,25 @@ export const GEMINI_CLI_ENDPOINT = ANTIGRAVITY_ENDPOINT_PROD;
  */
 export const ANTIGRAVITY_DEFAULT_PROJECT_ID = "rising-fact-p41fc";
 
+/**
+ * Antigravity version string - SINGLE SOURCE OF TRUTH.
+ * Update this value when a new version is needed.
+ * Used by ANTIGRAVITY_HEADERS, fingerprint.ts, and all version-dependent code.
+ *
+ * @remarks
+ * This version MUST be kept in sync with Google's supported Antigravity versions.
+ * Using an outdated version will cause "This version of Antigravity is no longer supported" errors.
+ */
+export const ANTIGRAVITY_VERSION = "1.15.8" as const;
+
+/**
+ * Default headers for Antigravity API requests.
+ *
+ * Uses ANTIGRAVITY_VERSION to ensure the User-Agent version stays in sync
+ * with the single source of truth, preventing "version no longer supported" errors.
+ */
 export const ANTIGRAVITY_HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/1.104.0 Chrome/138.0.7204.235 Electron/37.3.1 Safari/537.36",
+  "User-Agent": `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${ANTIGRAVITY_VERSION} Chrome/138.0.7204.235 Electron/37.3.1 Safari/537.36`,
   "X-Goog-Api-Client": "google-cloud-sdk vscode_cloudshelleditor/0.1",
   "Client-Metadata": '{"ideType":"IDE_UNSPECIFIED","platform":"PLATFORM_UNSPECIFIED","pluginType":"GEMINI"}',
 } as const;
@@ -82,14 +99,10 @@ export const GEMINI_CLI_HEADERS = {
   "Client-Metadata": "ideType=IDE_UNSPECIFIED,platform=PLATFORM_UNSPECIFIED,pluginType=GEMINI",
 } as const;
 
-const ANTIGRAVITY_USER_AGENTS = [
-  "antigravity/1.15.8 windows/amd64",
-  "antigravity/1.15.5 darwin/arm64",
-  "antigravity/1.15.2 linux/amd64",
-  "antigravity/1.15.0 windows/amd64",
-  "antigravity/1.14.5 darwin/amd64",
-  "antigravity/1.14.0 linux/arm64",
-] as const;
+const ANTIGRAVITY_PLATFORMS = ["windows/amd64", "darwin/arm64", "linux/amd64", "darwin/amd64", "linux/arm64"] as const;
+
+// Derive user agents from version (keeps them in sync automatically)
+const ANTIGRAVITY_USER_AGENTS = ANTIGRAVITY_PLATFORMS.map(platform => `antigravity/${ANTIGRAVITY_VERSION} ${platform}`);
 
 const ANTIGRAVITY_API_CLIENTS = [
   "google-cloud-sdk vscode_cloudshelleditor/0.1",
@@ -141,7 +154,7 @@ export type HeaderStyle = "antigravity" | "gemini-cli";
 /**
  * Provider identifier shared between the plugin loader and credential store.
  */
-export const ANTIGRAVITY_PROVIDER_ID = "google";
+export const ANTIGRAVITY_PROVIDER_ID = "google-api";
 
 // ============================================================================
 // TOOL HALLUCINATION PREVENTION (Ported from LLM-API-Key-Proxy)

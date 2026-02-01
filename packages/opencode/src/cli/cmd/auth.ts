@@ -292,7 +292,7 @@ export const AuthLoginCommand = cmd({
 
         const providers = await ModelsDev.get().then((x) => {
           const enabled = config.enabled_providers ? new Set(config.enabled_providers) : undefined
-          if (enabled && enabled.has("google")) {
+          if (enabled && enabled.has("google-api")) {
             enabled.add("antigravity")
             enabled.add("gemini-cli")
           }
@@ -322,7 +322,7 @@ export const AuthLoginCommand = cmd({
           openai: 3,
           antigravity: 4,
           "gemini-cli": 5,
-          google: 6,
+          "google-api": 6,
           openrouter: 7,
           vercel: 8,
         }
@@ -346,7 +346,7 @@ export const AuthLoginCommand = cmd({
                   openai: "ChatGPT Plus/Pro or API key",
                   antigravity: "Google Subscription (vibe/internal)",
                   "gemini-cli": "Google Subscription (CLI)",
-                  google: "API Key only",
+                  "google-api": "API Key only",
                 }[x.id],
               })),
             ),
@@ -429,7 +429,7 @@ export const AuthLoginCommand = cmd({
         }
 
         const accountSuffix = await (async () => {
-          if (provider === "google" && authMethod === "api") {
+          if (provider === "google-api" && authMethod === "api") {
             const suffix = await prompts.text({
               message: "Account name (lowercase, no spaces)",
               placeholder: "work, personal, project-x",

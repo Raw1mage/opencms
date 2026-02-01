@@ -1,5 +1,63 @@
 # 偵錯日誌 (Debug Log)
 
+## 2026-02-01: Provider Name 正規化與 Model Health Dashboard (Provider Name Normalization & Model Health Dashboard)
+
+### 問題摘要 (Problem Summary)
+1. **Provider 名稱不一致**：代碼中混用 `"google"` 和 `"google-api"`，導致帳號管理和模型選擇邏輯混亂。
+2. **Model Health Dashboard 無法跨進程共享**：TUI 與 Session Processor 運行在不同進程，`globalThis` 無法共享狀態。
+
+### 根本原因分析 (Root Cause Analysis)
+
+#### 1. Provider 名稱散落各處
+- 不同文件使用不同的 provider ID 字串
+- 缺乏統一的命名規範
+
+#### 2. 跨進程狀態同步
+- TUI 運行在 worker 進程中
+- Session Processor 運行在主進程中
+- `Symbol.for` + `globalThis` 無法跨進程邊界
+
+### 關鍵修復步驟 (Critical Fix Steps)
+
+#### 1. Provider Name 正規化 ✅
+統一以下 provider ID：
+- `anthropic`, `openai`, `google-api`, `gemini-cli`, `antigravity`, `opencode`, `github-copilot`
+
+**修改文件**:
+- `packages/opencode/src/account/index.ts` - PROVIDERS 陣列
+- `packages/opencode/src/auth/index.ts` - families 陣列
+- `packages/opencode/src/provider/provider.ts` - enabled checks, inheritance
+- `packages/opencode/src/provider/health.ts` - comments, migration
+- `packages/opencode/src/provider/transform.ts` - provider ID checks
+- `packages/opencode/src/cli/cmd/auth.ts` - priority map, hints
+- `packages/opencode/src/cli/cmd/tui/component/dialog-admin.tsx` - Account operations
+- `packages/opencode/src/cli/cmd/tui/component/dialog-provider.tsx` - priority, filters
+- `packages/opencode/src/cli/cmd/tui/component/dialog-model.tsx` - display map
+- `packages/opencode/src/plugin/antigravity/constants.ts` - ANTIGRAVITY_PROVIDER_ID
+
+#### 2. Model Health Dashboard 跨進程同步 ✅
+**解決方案**：使用文件持久化取代記憶體共享
+- 狀態文件：`~/.local/state/opencode/model-health.json`
+- 每次讀寫前同步文件狀態
+- Dashboard 每秒自動刷新
+
+**修改文件**:
+- `packages/opencode/src/account/rotation.ts` - 新增 `persistToFile()` 和 `loadFromFile()`
+- `packages/opencode/src/cli/cmd/tui/component/dialog-model-health.tsx` - 4 欄表格格式
+
+#### 3. Dashboard UI 優化 ✅
+- 4 欄表格：Provider | Account | Model | Status
+- 自動倒數計時顯示 Rate Limit 剩餘時間
+- 快捷鍵：`R` 刷新、`C` 清除、`←` 返回
+
+### 驗證結果 (Verification) ✅
+- [x] 所有 `"google"` 參照已更新為 `"google-api"`
+- [x] Model Health Dashboard 可顯示跨進程的模型狀態
+- [x] Rate Limit 倒數計時正確更新
+- [x] 背景 Agent 的模型互動也會更新 Dashboard
+
+---
+
 ## 2026-01-31: DialogPrompt 輸入與 Google-API 配置流程修復
 
 ### 問題摘要 (Problem Summary)
@@ -590,3 +648,47 @@ bun run dev
 - 當 AI 代理（Agent）呼叫子代理（Subagent）時，訊息歷史會變得非常複雜且包含大量 `tool-call`。
 - **AI SDK (v5)** 對 `ModelMessage` 的結構要求極其嚴格，任何層級的 `value` 缺失都會導致全域失敗。
 - 在開發新分支（如 `cms`）時，應頻繁與 `origin/dev` 的轉換邏輯比對，因為這是模型通信的生命線。
+
+---
+
+## 2026-01-31: Anthropic OAuth 認證修復與插件重構 (Anthropic OAuth Restoration & Plugin Refactoring)
+
+### 問題摘要 (Problem Summary)
+使用者報告 Anthropic 插件出現「400 Bad Request」錯誤，且指出問題源於「過時的 auth.json」。
+1. **認證被阻擋**：`provider.ts` 中硬編碼阻擋了 Anthropic 訂閱帳號（Claude Code）的使用。
+2. **插件認證方法不全**：內建的 `AnthropicAuthPlugin` 僅支援 `api` 方法，不支援 `oauth`，且缺乏 Token 刷新邏輯。
+3. **舊版插件干擾**：`opencode-anthropic-auth` 舊版外部插件可能仍被載入並讀取 `auth.json`。
+4. **LLM 格式不容錯**：`llm.ts` 針對 Anthropic OAuth 未跳過 Provider System Prompt，導致 Claude 訂閱帳號報錯「only authorized for use with Claude Code」。
+
+### 根本原因分析 (Root Cause Analysis)
+- **硬編碼攔截**：為了安全性或其他考量，先前的代碼直接攔截了 Anthropic 的訂閱帳號。
+- **Token 到期**：OAuth Token 缺乏刷新機制，導致 migration 後的舊 Token 到期後無法使用，產生 400 錯誤。
+- **System Prompt 衝突**：Claude Code 專用憑證對請求 Header 和 System Prompt 有特定要求，若發送了標準的 Provider Prompt 會被視為非 Claude Code 請求。
+
+### 關鍵修復步驟 (Critical Fix Steps)
+
+#### 1. 解除 Anthropic 訂閱阻擋 ✅
+- **文件**: `packages/opencode/src/provider/provider.ts`
+- 移除對 `family === "anthropic"` 且 `type === "subscription"` 的硬編碼 Block。
+
+#### 2. 重構 Anthropic 認證插件 ✅
+- **文件**: `packages/opencode/src/plugin/anthropic.ts`
+- **新增 OAuth 方法**：在 `methods` 中加入 `type: "oauth"` 並提供 `authorize` 接口。
+- **實作 Token 刷新**：在 `fetch` 攔截器中偵測過期並自動調用 `refreshAccessToken` 更新 `accounts.json`。
+- **注入必要 Header**：確保所有請求包含 `anthropic-client: claude-code/0.5.1` 等標誌。
+
+#### 3. 禁止舊版插件載入 ✅
+- **文件**: `packages/opencode/src/plugin/index.ts`
+- 將 `opencode-anthropic-auth` 加入 `ignore` 清單，防止其讀取舊的 `auth.json` 造成衝突。
+
+#### 4. llm.ts 格式適配 ✅
+- **文件**: `packages/opencode/src/session/llm.ts`
+- 更新 `isAnthropicOAuth` 邏輯，確保其行為與 `isCodex` 一致，跳過標準的 Provider System Prompt 以避免驗證失敗。
+
+### 驗證結果 (Verification) ✅
+- [x] Anthropic 訂閱帳號現在可被選中進行對話。
+- [x] 成功過濾掉 standard System Prompt，滿足 Claude Code 認證要求。
+- [x] 插件能夠正確攔截 fetch 並注入 Authorization Header。
+- [x] 舊版插件不再載入。
+
+---

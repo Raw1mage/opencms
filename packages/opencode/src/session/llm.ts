@@ -42,6 +42,7 @@ import {
 } from "@/account/rotation3d"
 import { Bus } from "@/bus"
 import { TuiEvent } from "@/cli/cmd/tui/event"
+import { debugCheckpoint } from "@/util/debug"
 
 export namespace LLM {
   const log = Log.create({ service: "llm" })
@@ -413,10 +414,18 @@ export namespace LLM {
    * Call this after a stream completes successfully.
    */
   export async function recordSuccess(providerID: string, modelID?: string): Promise<void> {
+    log.info("recordSuccess called", { providerID, modelID })
+    debugCheckpoint("health", "llm.recordSuccess", { providerID, modelID })
+
     // Update global model health registry
     if (modelID) {
       const modelRegistry = getModelHealthRegistry()
+      log.info("Calling modelRegistry.markSuccess", { providerID, modelID })
+      debugCheckpoint("health", "llm.recordSuccess.markSuccess", { providerID, modelID })
       modelRegistry.markSuccess(providerID, modelID)
+    } else {
+      log.warn("recordSuccess: modelID is undefined, skipping registry update", { providerID })
+      debugCheckpoint("health", "llm.recordSuccess.noModelID", { providerID })
     }
 
     // Update account-level tracking
@@ -424,7 +433,7 @@ export namespace LLM {
     if (accountId) {
       const healthTracker = getHealthTracker()
       healthTracker.recordSuccess(accountId)
-      log.debug("Recorded success", { providerID, modelID, accountId })
+      log.info("Recorded success with account", { providerID, modelID, accountId })
     }
   }
 

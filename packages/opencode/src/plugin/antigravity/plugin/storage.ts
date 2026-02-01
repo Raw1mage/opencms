@@ -7,6 +7,19 @@ import { createLogger } from "./logger"; // Fixed path and function
 
 const log = createLogger("storage");
 
+// Types needed by accounts.ts
+export type ModelFamily = "claude" | "gemini";
+export type HeaderStyle = "antigravity" | "gemini-cli";
+export type CooldownReason = "rate-limit" | "rotation" | "initial" | "auth-failure" | "project-error" | "network-error";
+export type RateLimitStateV3 = Record<string, number>;
+
+// Cache for account data
+let accountCache: AccountStorageV3 | null = null;
+
+export function clearAccountCache(): void {
+  accountCache = null;
+}
+
 export interface AccountMetadataV3 {
   refreshToken: string;
   email?: string;
@@ -14,9 +27,19 @@ export interface AccountMetadataV3 {
   managedProjectId?: string;
   addedAt: number;
   lastUsed: number;
-  enabled: boolean;
+  enabled?: boolean; // Optional for backward compatibility with tests, defaults to true
   rateLimitResetTimes?: Record<string, number>;
+  // Additional fields for rotation and cooling
+  lastSwitchReason?: CooldownReason;
+  coolingDownUntil?: number;
+  cooldownReason?: CooldownReason;
+  fingerprint?: Record<string, unknown>;
+  fingerprintHistory?: Array<{ version: number; fingerprint: Record<string, unknown>; timestamp: number }>;
 }
+
+// Type aliases for backward compatibility
+export type AccountMetadata = AccountMetadataV3;
+export type AccountStorage = AccountStorageV3;
 
 export interface AccountStorageV3 {
   version: 3;
@@ -34,7 +57,7 @@ function getStoragePath(): string {
   return join(homedir(), ".config", "opencode", "antigravity-accounts.json");
 }
 
-async function ensureGitignore(dir: string): Promise<void> {
+export async function ensureGitignore(dir: string): Promise<void> {
   const gitignorePath = join(dir, ".gitignore");
   if (!existsSync(gitignorePath)) {
     await fs.writeFile(gitignorePath, "*\n", "utf-8");
@@ -52,7 +75,7 @@ async function withFileLock<T>(path: string, fn: () => Promise<T>): Promise<T> {
   return fn();
 }
 
-function deduplicateAccountsByEmail(accounts: AccountMetadataV3[]): AccountMetadataV3[] {
+export function deduplicateAccountsByEmail(accounts: AccountMetadataV3[]): AccountMetadataV3[] {
   const map = new Map<string, AccountMetadataV3>();
   for (const acc of accounts) {
     const key = acc.email || acc.refreshToken;
@@ -68,7 +91,7 @@ function migrateV1ToV2(v1: any): any {
   return { ...v1, version: 2 };
 }
 
-function migrateV2ToV3(v2: any): AccountStorageV3 {
+export function migrateV2ToV3(v2: any): AccountStorageV3 {
   return {
     version: 3,
     accounts: (v2.accounts || []).map((a: any) => ({
@@ -133,6 +156,10 @@ function mergeAccountStorage(
   };
 }
 
+/**
+ * @deprecated Use Account.list("antigravity") from src/account/index.ts instead.
+ * This function is kept for backward compatibility with tests.
+ */
 export async function loadAccounts(): Promise<AccountStorageV3 | null> {
   try {
     const path = getStoragePath();
@@ -182,17 +209,48 @@ export async function loadAccounts(): Promise<AccountStorageV3 | null> {
           let activeIndex = data.activeIndex ?? 0;
           if (agFamily.activeAccount) {
             const agActive = agFamily.activeAccount;
-            const foundIndex = syncedAccounts.findIndex((a, idx) => {
-              // Core ID match
-              const match = agActive.match(/antigravity-subscription-(\d+)/);
-              if (match) return (parseInt(match[1]) - 1) === idx;
-              return false;
-            });
-            if (foundIndex !== -1) activeIndex = foundIndex;
+
+            // Method 1: Look up the active account's data from core and match by refreshToken
+            const activeAccData = agFamily.accounts[agActive];
+            if (activeAccData?.refreshToken) {
+              const foundIndex = syncedAccounts.findIndex(a => a.refreshToken === activeAccData.refreshToken);
+              if (foundIndex !== -1) {
+                activeIndex = foundIndex;
+              }
+            } else {
+              // Method 2: Try to match by email slug in the ID (e.g., "antigravity-subscription-user-gmail-com")
+              const emailSlugMatch = agActive.match(/antigravity-subscription-(.+)/);
+              if (emailSlugMatch) {
+                const slug = emailSlugMatch[1];
+                // Try numeric ID first (e.g., "2" -> index 1)
+                const numericIndex = parseInt(slug, 10);
+                if (!isNaN(numericIndex) && numericIndex >= 1) {
+                  const idx = numericIndex - 1;
+                  if (idx >= 0 && idx < syncedAccounts.length) {
+                    activeIndex = idx;
+                  }
+                } else {
+                  // Try matching by email slug
+                  const foundIndex = syncedAccounts.findIndex(a => {
+                    if (!a.email) return false;
+                    const accountSlug = a.email.toLowerCase().replace(/@/g, '-').replace(/\./g, '-');
+                    return accountSlug === slug || slug.includes(accountSlug);
+                  });
+                  if (foundIndex !== -1) {
+                    activeIndex = foundIndex;
+                  }
+                }
+              }
+            }
           }
 
           data.accounts = syncedAccounts;
           data.activeIndex = activeIndex;
+          // Also update activeIndexByFamily to match the synced activeIndex
+          data.activeIndexByFamily = {
+            claude: activeIndex,
+            gemini: activeIndex,
+          };
         }
       }
     } catch (e) {
@@ -223,6 +281,10 @@ export async function loadAccounts(): Promise<AccountStorageV3 | null> {
   }
 }
 
+/**
+ * @deprecated Use Account.update() from src/account/index.ts instead.
+ * This function is kept for backward compatibility with tests.
+ */
 export async function saveAccounts(storage: AccountStorageV3, overwrite = false): Promise<void> {
   const path = getStoragePath();
   const configDir = dirname(path);

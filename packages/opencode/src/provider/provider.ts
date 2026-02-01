@@ -927,7 +927,7 @@ export namespace Provider {
       const isGeminiCli = family === "gemini-cli"
       if (isAntigravity || isGeminiCli) {
         if (!enabled) return !disabled.has(providerID)
-        if (enabled.has(family) || enabled.has("google")) return !disabled.has(providerID)
+        if (enabled.has(family) || enabled.has("google-api")) return !disabled.has(providerID)
         return false
       }
 
@@ -966,7 +966,7 @@ export namespace Provider {
       const existing = database[providerID]
       const parsed: Info = {
         id: providerID,
-        name: providerID === "google" ? "Google (API Key)" : (provider.name ?? existing?.name ?? providerID),
+        name: providerID === "google-api" ? "Google (API Key)" : (provider.name ?? existing?.name ?? providerID),
         env: provider.env ?? existing?.env ?? [],
         options: mergeDeep(existing?.options ?? {}, provider.options ?? {}),
         source: "config",
@@ -1064,7 +1064,7 @@ export namespace Provider {
     }
 
     inheritFrom("github-copilot-enterprise", "github-copilot", { name: "GitHub Copilot Enterprise" })
-    // inheritFrom("antigravity", "google", { name: "Antigravity", env: [] }) // Don't inherit all Google models
+    // inheritFrom("antigravity", "google-api", { name: "Antigravity", env: [] }) // Don't inherit all Google models
 
     // Initialize Antigravity as a clean provider
     database["antigravity"] = {
@@ -1075,9 +1075,9 @@ export namespace Provider {
       options: {},
       models: {}
     }
-    inheritFrom("gemini-cli", "google", { id: "gemini-cli", name: "Gemini CLI", env: ["GEMINI_API_KEY"] })
+    inheritFrom("gemini-cli", "google-api", { id: "gemini-cli", name: "Gemini CLI", env: ["GEMINI_API_KEY"] })
 
-    // If gemini-cli failed to inherit (e.g. google missing) OR it exists but has no models, populate manually
+    // If gemini-cli failed to inherit (e.g. google-api missing) OR it exists but has no models, populate manually
     if (!database["gemini-cli"] || Object.keys(database["gemini-cli"].models).length === 0) {
       if (!database["gemini-cli"]) {
         database["gemini-cli"] = {
@@ -1267,7 +1267,7 @@ export namespace Provider {
       // Match pattern: "provider-accountname"
       const match = providerID.match(/^([a-z-]+)-[a-z0-9-]+$/)
       if (match) {
-        const baseProviderID = match[1] // e.g., "google" from "google-work"
+        const baseProviderID = match[1] // e.g., "google-api" from "google-api-work"
         const baseProvider = database[baseProviderID]
 
         // If base exists and account provider has no models, inherit everything
@@ -1432,7 +1432,7 @@ export namespace Provider {
       if (database[accountID]) continue
       if (disabled.has(accountID)) continue
 
-      const baseProvider = database["antigravity"] ?? database["google"]
+      const baseProvider = database["antigravity"] ?? database["google-api"]
       if (!baseProvider) continue
 
       database[accountID] = {
@@ -1507,7 +1507,7 @@ export namespace Provider {
       }
 
       // Special handling for legacy antigravity accounts (Parallelized)
-      if (family === "antigravity" || family === "google") {
+      if (family === "antigravity" || family === "google-api") {
         const legacyLoaderPromises = Object.keys(antigravityAccounts).map(async (accountID) => {
           if (providers[accountID] && plugin.auth?.loader) {
             const accountOptions = await plugin.auth.loader(() => Auth.get(accountID) as any, providers[accountID])

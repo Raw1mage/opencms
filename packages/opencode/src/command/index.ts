@@ -7,11 +7,6 @@ import { Identifier } from "../id/id"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 import { MCP } from "../mcp"
-import { Account } from "../account"
-import { renderModelCheckReport } from "../cli/cmd/model-check-report"
-
-import { Bus } from "@/bus"
-import { TuiEvent } from "../cli/cmd/tui/event"
 
 export namespace Command {
   export const Event = {
@@ -64,7 +59,6 @@ export namespace Command {
   export const Default = {
     INIT: "init",
     REVIEW: "review",
-    ACCOUNTS: "accounts",
   } as const
 
   const state = Instance.state(async () => {
@@ -87,50 +81,6 @@ export namespace Command {
         },
         subtask: true,
         hints: hints(PROMPT_REVIEW),
-      },
-      [Default.ACCOUNTS]: {
-        name: Default.ACCOUNTS,
-        description: "Manage accounts",
-        get template() {
-          return `Opening account manager...`
-        },
-        subtask: false,
-        hints: [],
-        async handler() {
-          const families = await Account.listAll();
-          const lines: string[] = ["# Account Status", ""];
-
-          const order = ["opencode", "anthropic", "openai", "antigravity", "gemini-cli", "google API-KEY", "copilot", "others"];
-          const sortedFamilies = Object.keys(families).sort((a, b) => {
-            const idxA = order.indexOf(a);
-            const idxB = order.indexOf(b);
-            if (idxA === -1 && idxB === -1) return a.localeCompare(b);
-            if (idxA === -1) return 1;
-            if (idxB === -1) return -1;
-            return idxA - idxB;
-          });
-
-          for (const familyName of sortedFamilies) {
-            const familyData = families[familyName];
-            const accountsArr = Object.entries(familyData.accounts);
-            if (accountsArr.length === 0) continue;
-
-            lines.push(`### 📂 ${familyName.toUpperCase()}`);
-            for (const [id, info] of accountsArr) {
-              const isActive = familyData.activeAccount === id;
-              const status = isActive ? "✅ **active**" : "   ";
-              const displayName = Account.getDisplayName(id, info, familyName);
-              lines.push(`- ${status} \`${displayName}\`  *(id: ${id})*`);
-            }
-            lines.push("");
-          }
-
-          await Bus.publish(TuiEvent.CommandExecute, { command: "account.manage" })
-          return {
-            output: lines.join("\n"),
-            title: "Account Status"
-          }
-        },
       },
     }
 

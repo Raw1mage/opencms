@@ -107,6 +107,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           providerID: string
           modelID: string
         }[]
+        hiddenProviders: string[]
         variant: Record<string, string | undefined>
       }>({
         ready: false,
@@ -114,6 +115,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         recent: [],
         favorite: [],
         hidden: [],
+        hiddenProviders: [],
         variant: {},
       })
 
@@ -134,6 +136,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             recent: modelStore.recent,
             favorite: modelStore.favorite,
             hidden: modelStore.hidden,
+            hiddenProviders: modelStore.hiddenProviders,
             variant: modelStore.variant,
           }),
         )
@@ -145,6 +148,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (Array.isArray(x.recent)) setModelStore("recent", x.recent)
           if (Array.isArray(x.favorite)) setModelStore("favorite", x.favorite)
           if (Array.isArray(x.hidden)) setModelStore("hidden", x.hidden)
+          if (Array.isArray(x.hiddenProviders)) setModelStore("hiddenProviders", x.hiddenProviders)
           if (typeof x.variant === "object" && x.variant !== null) setModelStore("variant", x.variant)
         })
         .catch(() => { })
@@ -218,6 +222,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         },
         hidden() {
           return modelStore.hidden
+        },
+        hiddenProviders() {
+          return modelStore.hiddenProviders
         },
         parsed: createMemo(() => {
           const value = currentModel()
@@ -342,6 +349,19 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             )
             save()
           })
+        },
+        toggleHiddenProvider(family: string) {
+          batch(() => {
+            const exists = modelStore.hiddenProviders.includes(family)
+            const next = exists
+              ? modelStore.hiddenProviders.filter((x) => x !== family)
+              : [family, ...modelStore.hiddenProviders]
+            setModelStore("hiddenProviders", next)
+            save()
+          })
+        },
+        isProviderHidden(family: string) {
+          return modelStore.hiddenProviders.includes(family)
         },
         removeFromRecent(model: { providerID: string; modelID: string }) {
           batch(() => {
