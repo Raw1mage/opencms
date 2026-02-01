@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.1.69] - 2026-02-02
+
+### Merged from upstream (post-v1.1.48)
+
+- **Agent variant scoping** (#11410): Agent `variant` setting now only applies when using the agent's configured model, preventing unintended variant inheritance when switching models.
+- **AGENTS.md injection fix** (#11581): Prevent duplicate AGENTS.md content injection when reading the instruction file directly.
+- **User plugin auth override** (#11058): User plugins can now override built-in auth plugins using `findLast()` instead of `find()`.
+- **Copilot model switching** (#11569): Fixed anthropic model switching mid-conversation on Copilot; fixed `reasoning_opaque` not being picked up for Gemini models.
+- **Server initialization hang** (#11642): Fixed opencode hanging when using `client.app.log()` during initialization by skipping Instance.provide for `/log` endpoint.
+- **Grep/glob pluralization** (#11565): Corrected pluralization of match count in grep and glob tools.
+- **Dotfile @ mentions** (#11553): Allow @ mentioning folders/files that start with `.` (e.g., `.env`, `.github`).
+
+### Skipped
+
+- **Codex sub system message** (#11667): Not merged due to conflicts with cms-specific message handling logic for Antigravity/GeminiCLI.
+
 ## [1.1.68] - 2026-02-02
 
 ### Fixed
