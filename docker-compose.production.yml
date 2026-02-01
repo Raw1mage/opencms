@@ -1,0 +1,175 @@
+# =============================================================================
+# Opencode Production Docker Compose
+# =============================================================================
+#
+# Prerequisites:
+#   1. Build binary: cd packages/opencode && bun run build --single
+#   2. Sync config:  ./scripts/sync-config.sh
+#   3. Build image:  docker-compose -f docker-compose.production.yml build
+#
+# Usage:
+#   docker-compose -f docker-compose.production.yml up -d
+#
+# Config files are baked into the image from ./config/:
+#   ./config/
+#   ├── opencode/         # -> /opt/opencode/config/opencode/
+#   │   ├── opencode.json # Main config
+#   │   ├── commands/     # Custom commands
+#   │   ├── skills/       # Skills
+#   │   └── bin/          # Custom scripts
+#   ├── data/             # -> /opt/opencode/data/opencode/
+#   │   ├── accounts.json # Auth credentials (accounts)
+#   │   ├── mcp-auth.json # MCP OAuth tokens
+#   │   └── ignored-models.json
+#   └── state/            # -> /opt/opencode/state/opencode/
+#       ├── model.json    # Model preferences
+#       ├── model-health.json
+#       └── kv.json
+#
+# Runtime volumes (for persistent changes):
+#   /opt/opencode/data    # Persistent data
+#   /opt/opencode/state   # Runtime state
+#   /opt/opencode/cache   # Cache files
+#   /opt/opencode/logs    # Container logs
+#
+# =============================================================================
+
+services:
+  opencode:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    image: opencode:latest
+    container_name: opencode
+
+    # Interactive mode for TUI
+    stdin_open: true
+    tty: true
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Environment variables
+    environment:
+      # Unified data home
+      - OPENCODE_DATA_HOME=/opt/opencode
+      # XDG directories (fallback)
+      - XDG_CONFIG_HOME=/opt/opencode/config
+      - XDG_DATA_HOME=/opt/opencode/data
+      - XDG_CACHE_HOME=/opt/opencode/cache
+      - XDG_STATE_HOME=/opt/opencode/state
+      - HOME=/opt/opencode
+      # Timezone
+      - TZ=${TZ:-UTC}
+      # Optional: API keys (prefer using config files instead)
+      # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      # Web server settings (if running opencode web)
+      - OPENCODE_SERVER_PASSWORD=${OPENCODE_SERVER_PASSWORD:-}
+      - OPENCODE_SERVER_USERNAME=${OPENCODE_SERVER_USERNAME:-opencode}
+
+    # Volume mounts - all dynamic files under /opt/opencode
+    volumes:
+      # Configuration directory
+      - /opt/opencode/config:/opt/opencode/config
+      # Data directory (includes bin and log subdirs)
+      - /opt/opencode/data:/opt/opencode/data
+      # Cache directory
+      - /opt/opencode/cache:/opt/opencode/cache
+      # State directory (model-health.json, etc.)
+      - /opt/opencode/state:/opt/opencode/state
+      # Logs directory
+      - /opt/opencode/logs:/opt/opencode/logs
+      # Workspace - mount your code here
+      - ${WORKSPACE:-./workspace}:/workspace:rw
+      # Projects directory - for processing user projects
+      - ${PROJECTS_DIR:-$HOME/projects}:/projects:rw
+      # Git config (optional, for commit authorship)
+      - ${HOME}/.gitconfig:/opt/opencode/.gitconfig:ro
+
+    # Working directory
+    working_dir: /workspace
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 512M
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "opencode", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Web UI mode (optional)
+  opencode-web:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    image: opencode:latest
+    container_name: opencode-web
+    hostname: rawbase
+    profiles:
+      - web
+
+    # Run as host user to match volume permissions
+    user: "${PUID:-1000}:${PGID:-1000}"
+
+    restart: unless-stopped
+
+    # Web server command
+    command: ["web", "--hostname", "0.0.0.0", "--port", "8080"]
+
+    environment:
+      - OPENCODE_DATA_HOME=/opt/opencode
+      - XDG_CONFIG_HOME=/opt/opencode/config
+      - XDG_DATA_HOME=/opt/opencode/data
+      - XDG_CACHE_HOME=/opt/opencode/cache
+      - XDG_STATE_HOME=/opt/opencode/state
+      - HOME=/opt/opencode
+      - TZ=${TZ:-UTC}
+      - OPENCODE_SERVER_PASSWORD=${OPENCODE_SERVER_PASSWORD:-changeme}
+      - OPENCODE_SERVER_USERNAME=${OPENCODE_SERVER_USERNAME:-opencode}
+
+    volumes:
+      - /opt/opencode/config:/opt/opencode/config
+      - /opt/opencode/data:/opt/opencode/data
+      - /opt/opencode/cache:/opt/opencode/cache
+      - /opt/opencode/state:/opt/opencode/state
+      - /opt/opencode/logs:/opt/opencode/logs
+      - ${WORKSPACE:-./workspace}:/workspace:rw
+      - ${PROJECTS_DIR:-$HOME/projects}:/projects:rw
+
+    working_dir: /workspace
+
+    ports:
+      - "${OPENCODE_PORT:-1080}:8080"
+
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 512M
+
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/global/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+# Named volumes (alternative to host mounts)
+# Uncomment if you prefer Docker-managed volumes
+# volumes:
+#   opencode-config:
+#   opencode-data:
+#   opencode-cache:
+#   opencode-state:
+#   opencode-logs:
