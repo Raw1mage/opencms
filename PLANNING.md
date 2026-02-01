@@ -745,3 +745,208 @@ git merge cms-merge-dev
 ## Open Questions
 
 - None at this time; proceeding with the above steps unless new blockers emerge.
+
+---
+
+# 十、Provider 架構改進計畫
+
+> 根據 upstream commits 的設計分析，提出以下架構改進方向，減少硬編碼判斷、提升可維護性。
+
+## 10.1 問題現況
+
+### A. Provider 特殊處理散落各處
+
+目前 `llm.ts` 中有大量 provider-specific 的條件判斷：
+
+```typescript
+// 第 86-89 行
+const isCodex = provider.id.includes("openai") && auth?.type === "oauth"
+const isAnthropicOAuth = provider.id.includes("anthropic") && auth?.type === "oauth"
+const isAntigravity = provider.id.includes("antigravity")
+const isGeminiCli = provider.id.includes("gemini-cli")
+
+// 第 96, 138, 175, 207 行都有使用
+if (isCodex || isAnthropicOAuth || isAntigravity || isGeminiCli) { ... }
+```
+
+**問題**：
+
+- 新增 provider 需要修改多處
+- 邏輯分散難以追蹤
+- 字串匹配容易出錯
+
+### B. Model ID 嗅探 (Sniffing)
+
+`transform.ts` 中用字串匹配判斷 model 類型：
+
+```typescript
+// 第 395-410 行
+if (
+  model.providerID === "anthropic" ||
+  model.api.id.includes("anthropic") ||
+  model.api.id.includes("claude") ||
+  model.id.includes("anthropic") ||
+  model.id.includes("claude")
+) { ... }
+```
+
+**問題**：
+
+- 非 Claude 但 ID 包含 "claude" 的 model 會誤判
+- LiteLLM/proxy 的 model ID 格式不統一
+- 難以處理新 model family
+
+### C. 參數格式不一致
+
+不同 SDK/API 對相同概念使用不同參數名：
+
+| 概念            | @ai-sdk/anthropic   | @ai-sdk/openai-compatible | Bedrock           |
+| --------------- | ------------------- | ------------------------- | ----------------- |
+| Thinking budget | `budgetTokens`      | `budget_tokens`           | `budgetTokens`    |
+| Cache point     | `cacheControl.type` | `cache_control.type`      | `cachePoint.type` |
+
+---
+
+## 10.2 改進方案
+
+### 方案 A：Provider Capability 抽象化
+
+建立統一的 Provider 能力描述介面：
+
+```typescript
+// src/provider/capabilities.ts
+export interface ProviderCapabilities {
+  // 訊息處理
+  systemMessageRole: "system" | "user" | "developer"
+  useInstructionsOption: boolean
+
+  // 參數格式
+  parameterCase: "camelCase" | "snake_case"
+  thinkingParamName: "budgetTokens" | "budget_tokens"
+
+  // Cache 策略
+  cacheLevel: "message" | "content"
+  cacheType: "ephemeral" | "default"
+
+  // 認證類型
+  authTypes: ("api" | "oauth" | "subscription")[]
+
+  // 特殊行為
+  supportsStreaming: boolean
+  supportsToolCalling: boolean
+  requiresMaxTokens: boolean
+}
+
+export function getCapabilities(provider: Provider.Info, auth?: Auth.Info): ProviderCapabilities {
+  // 根據 provider.id 和 auth.type 返回對應能力描述
+  // 集中管理，不再散落各處
+}
+```
+
+**優點**：
+
+- 集中管理 provider 特性
+- 新增 provider 只需擴展 capabilities
+- 減少條件判斷分散
+
+### 方案 B：Model Family 標籤系統
+
+在 model 定義時明確標記 family，而非 ID 嗅探：
+
+```typescript
+// models.dev 或 config 中的 model 定義
+{
+  id: "claude-sonnet-4-20250514",
+  family: "claude",           // 明確標記
+  capabilities: {
+    thinkingFormat: "budgetTokens",
+    reasoning: true,
+  }
+}
+```
+
+**優點**：
+
+- 不依賴字串匹配
+- 支援 proxy/LiteLLM 的自定義 model
+- 可在 config 中覆寫
+
+### 方案 C：Options Transformer Pipeline
+
+建立統一的參數轉換管道：
+
+```typescript
+// src/provider/options-transformer.ts
+export class OptionsTransformer {
+  private transformers: OptionTransformFn[] = []
+
+  register(fn: OptionTransformFn) {
+    this.transformers.push(fn)
+  }
+
+  transform(options: Record<string, any>, context: TransformContext) {
+    return this.transformers.reduce((opts, fn) => fn(opts, context), options)
+  }
+}
+
+// 各 provider 註冊自己的轉換器
+transformer.register(anthropicThinkingTransformer)
+transformer.register(bedrockCacheTransformer)
+transformer.register(openaiCompatibleCaseTransformer)
+```
+
+**優點**：
+
+- 轉換邏輯可組合
+- 每個 provider 獨立維護
+- 易於測試
+
+---
+
+## 10.3 實作計畫
+
+### Phase 1：Provider Capabilities 抽象化 (高優先)
+
+- [ ] 建立 `src/provider/capabilities.ts` 介面定義
+- [ ] 實作 `getCapabilities()` 函數，覆蓋現有 provider
+- [ ] 重構 `llm.ts` 使用 capabilities 取代硬編碼判斷
+- [ ] 移除 `isCodex`, `isAnthropicOAuth`, `isAntigravity`, `isGeminiCli` 變數
+- [ ] 更新相關測試
+
+### Phase 2：Model Family 標籤系統 (中優先)
+
+- [ ] 在 `Provider.Model` 介面新增 `family` 欄位
+- [ ] 更新 models.dev 解析邏輯，自動推斷 family
+- [ ] 允許 config 中覆寫 model family
+- [ ] 重構 `transform.ts` 使用 family 取代 ID 嗅探
+- [ ] 移除 `model.id.includes("claude")` 等判斷
+- [ ] 更新相關測試
+
+### Phase 3：Options Transformer Pipeline (低優先)
+
+- [ ] 建立 `src/provider/options-transformer.ts` 框架
+- [ ] 將 `transform.ts` 中的邏輯遷移至 transformer
+- [ ] 為每個 SDK 建立獨立的 transformer 模組
+- [ ] 支援 plugin 註冊自定義 transformer
+- [ ] 更新相關測試
+
+---
+
+## 10.4 預期效益
+
+| 改進項目      | 現況                | 改進後                                 |
+| ------------- | ------------------- | -------------------------------------- |
+| 新增 provider | 修改 5+ 個檔案      | 只需新增 capabilities 定義             |
+| Model 誤判    | 字串匹配可能誤判    | 明確 family 標籤                       |
+| 參數轉換      | 散落在 transform.ts | 集中於 transformer pipeline            |
+| 測試覆蓋      | 難以單獨測試        | 每個 capability/transformer 可獨立測試 |
+
+---
+
+## 10.5 風險與緩解
+
+| 風險                     | 緩解措施                         |
+| ------------------------ | -------------------------------- |
+| 重構範圍大，可能引入 bug | 分階段進行，每階段完整測試       |
+| 與 origin/dev 分歧加大   | 設計為可選層，不強制依賴         |
+| 現有 provider 行為改變   | 保持向後相容，先驗證再移除舊邏輯 |
