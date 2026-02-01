@@ -15,6 +15,7 @@ import { Config } from "@/config/config"
 import { SessionCompaction } from "./compaction"
 import { PermissionNext } from "@/permission/next"
 import { Question } from "@/question"
+import { debugCheckpoint } from "@/util/debug"
 
 export namespace SessionProcessor {
   const DOOM_LOOP_THRESHOLD = 3
@@ -271,6 +272,13 @@ export namespace SessionProcessor {
                     sessionID: input.sessionID,
                     messageID: input.assistantMessage.parentID,
                   })
+                  // Record success on finish-step since 'finish' event might be skipped if compaction is needed
+                  debugCheckpoint("health", "processor.finish-step", {
+                    providerID: input.model.providerID,
+                    modelID: input.model.id,
+                    sessionID: input.sessionID,
+                  })
+                  await LLM.recordSuccess(input.model.providerID, input.model.id)
                   if (await SessionCompaction.isOverflow({ tokens: usage.tokens, model: input.model })) {
                     needsCompaction = true
                   }
@@ -327,6 +335,12 @@ export namespace SessionProcessor {
 
                 case "finish":
                   // Record successful completion in global model health registry
+                  log.info("finish event - recording success", { providerID: input.model.providerID, modelID: input.model.id })
+                  debugCheckpoint("health", "processor.finish", {
+                    providerID: input.model.providerID,
+                    modelID: input.model.id,
+                    sessionID: input.sessionID,
+                  })
                   await LLM.recordSuccess(input.model.providerID, input.model.id)
                   break
 

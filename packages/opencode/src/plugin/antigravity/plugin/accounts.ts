@@ -1,9 +1,10 @@
 import { formatRefreshParts, parseRefreshParts } from "./auth";
-import { loadAccounts, saveAccounts, type AccountStorageV3, type RateLimitStateV3, type ModelFamily, type HeaderStyle, type CooldownReason } from "./storage";
+import type { RateLimitStateV3, ModelFamily, HeaderStyle, CooldownReason, AccountMetadataV3 } from "./storage";
 import type { OAuthAuthDetails, RefreshParts } from "./types";
 import type { AccountSelectionStrategy } from "./config/schema";
 import { getHealthTracker, getTokenTracker, selectHybridAccount, type AccountWithMetrics } from "./rotation";
 import { generateFingerprint, type Fingerprint, type FingerprintVersion, MAX_FINGERPRINT_HISTORY } from "./fingerprint";
+import { Account } from "../../../account";
 
 export type { ModelFamily, HeaderStyle, CooldownReason } from "./storage";
 export type { AccountSelectionStrategy } from "./config/schema";
@@ -129,7 +130,7 @@ export interface ManagedAccount {
   expires?: number;
   enabled: boolean;
   rateLimitResetTimes: RateLimitStateV3;
-  lastSwitchReason?: "rate-limit" | "initial" | "rotation";
+  lastSwitchReason?: CooldownReason;
   coolingDownUntil?: number;
   cooldownReason?: CooldownReason;
   touchedForQuota: Record<string, number>;
@@ -140,6 +141,34 @@ export interface ManagedAccount {
   fingerprint?: import("./fingerprint").Fingerprint;
   /** History of previous fingerprints for this account */
   fingerprintHistory?: FingerprintVersion[];
+  /** Core Account module ID for syncing back to accounts.json */
+  _coreAccountId?: string;
+}
+
+/** Internal storage format for constructor compatibility */
+interface AccountStorageInternal {
+  version: 3;
+  accounts: Array<{
+    refreshToken: string;
+    email?: string;
+    projectId?: string;
+    managedProjectId?: string;
+    addedAt: number;
+    lastUsed: number;
+    enabled?: boolean;
+    rateLimitResetTimes?: RateLimitStateV3;
+    lastSwitchReason?: CooldownReason;
+    coolingDownUntil?: number;
+    cooldownReason?: CooldownReason;
+    fingerprint?: Record<string, unknown>;
+    fingerprintHistory?: Array<{ version: number; fingerprint: Record<string, unknown>; timestamp: number }>;
+    _coreAccountId?: string;
+  }>;
+  activeIndex: number;
+  activeIndexByFamily?: {
+    claude: number;
+    gemini: number;
+  };
 }
 
 function nowMs(): number {
@@ -238,9 +267,80 @@ export class AccountManager {
   private saveTimeout: ReturnType<typeof setTimeout> | null = null;
   private savePromiseResolvers: Array<() => void> = [];
 
+  /**
+   * Load accounts from the unified Account module (accounts.json).
+   * This is the single source of truth for all account data.
+   */
   static async loadFromDisk(authFallback?: OAuthAuthDetails): Promise<AccountManager> {
-    const stored = await loadAccounts();
-    return new AccountManager(authFallback, stored);
+    const accounts = await Account.list("antigravity");
+    const activeAccountId = await Account.getActive("antigravity");
+
+    // Convert Account module format to internal ManagedAccount format
+    const managedAccounts: ManagedAccount[] = [];
+    const entries = Object.entries(accounts);
+    let activeIndex = 0;
+
+    for (let i = 0; i < entries.length; i++) {
+      const [id, info] = entries[i];
+      if (info.type !== "subscription") continue;
+
+      const parts: RefreshParts = {
+        refreshToken: info.refreshToken,
+        projectId: info.projectId,
+        managedProjectId: info.managedProjectId,
+      };
+
+      managedAccounts.push({
+        index: managedAccounts.length,
+        email: info.email,
+        addedAt: info.addedAt || Date.now(),
+        lastUsed: 0,
+        parts,
+        enabled: true,
+        rateLimitResetTimes: (info.rateLimitResetTimes || {}) as RateLimitStateV3,
+        coolingDownUntil: info.coolingDownUntil,
+        cooldownReason: info.cooldownReason as CooldownReason | undefined,
+        touchedForQuota: {},
+        fingerprint: info.fingerprint as Fingerprint | undefined,
+        _coreAccountId: id, // Store the core account ID for syncing back
+      });
+
+      // Match active account
+      if (id === activeAccountId) {
+        activeIndex = managedAccounts.length - 1;
+      }
+    }
+
+    // Build the storage-like structure for backward compatibility with constructor
+    const stored = {
+      version: 3 as const,
+      accounts: managedAccounts.map(a => ({
+        refreshToken: a.parts.refreshToken,
+        email: a.email,
+        projectId: a.parts.projectId,
+        managedProjectId: a.parts.managedProjectId,
+        addedAt: a.addedAt,
+        lastUsed: a.lastUsed,
+        enabled: a.enabled,
+        rateLimitResetTimes: a.rateLimitResetTimes,
+        coolingDownUntil: a.coolingDownUntil,
+        cooldownReason: a.cooldownReason,
+        fingerprint: a.fingerprint as Record<string, unknown> | undefined,
+        _coreAccountId: (a as any)._coreAccountId,
+      })),
+      activeIndex,
+      activeIndexByFamily: {
+        claude: activeIndex,
+        gemini: activeIndex,
+      },
+    };
+
+    const manager = new AccountManager(authFallback, stored);
+    // Attach core account IDs to managed accounts
+    for (let i = 0; i < manager.accounts.length && i < entries.length; i++) {
+      (manager.accounts[i] as any)._coreAccountId = entries[i][0];
+    }
+    return manager;
   }
 
   replaceFrom(other: AccountManager): void {
@@ -259,7 +359,17 @@ export class AccountManager {
     this.lastToastTime = other.lastToastTime;
   }
 
-  constructor(authFallback?: OAuthAuthDetails, stored?: AccountStorageV3 | null) {
+  /**
+   * Reload accounts from the Account module.
+   * Use this after external changes (e.g., from /admin).
+   */
+  async reloadFromAccountModule(): Promise<void> {
+    await Account.refresh();
+    const fresh = await AccountManager.loadFromDisk();
+    this.replaceFrom(fresh);
+  }
+
+  constructor(authFallback?: OAuthAuthDetails, stored?: AccountStorageInternal | null) {
     const authParts = authFallback ? parseRefreshParts(authFallback.refresh) : null;
 
     if (stored && stored.accounts.length === 0) {
@@ -301,7 +411,9 @@ export class AccountManager {
             cooldownReason: acc.cooldownReason,
             touchedForQuota: {},
             // Use stored fingerprint or generate new one for rate limit mitigation
-            fingerprint: acc.fingerprint ?? generateFingerprint(),
+            fingerprint: (acc.fingerprint as Fingerprint | undefined) ?? generateFingerprint(),
+            // Preserve core account ID for syncing back to Account module
+            _coreAccountId: acc._coreAccountId,
           };
         })
         .filter((a): a is ManagedAccount => a !== null);
@@ -835,34 +947,42 @@ export class AccountManager {
     return [...this.accounts];
   }
 
+  /**
+   * Save account data back to the unified Account module (accounts.json).
+   * Only saves rate limit and fingerprint data since those are managed by AccountManager.
+   */
   async saveToDisk(): Promise<void> {
-    const claudeIndex = Math.max(0, this.currentAccountIndexByFamily.claude);
-    const geminiIndex = Math.max(0, this.currentAccountIndexByFamily.gemini);
+    for (const acc of this.accounts) {
+      const coreId = acc._coreAccountId;
+      if (!coreId) continue;
 
-    const storage: AccountStorageV3 = {
-      version: 3,
-      accounts: this.accounts.map((a) => ({
-        email: a.email,
-        refreshToken: a.parts.refreshToken,
-        projectId: a.parts.projectId,
-        managedProjectId: a.parts.managedProjectId,
-        addedAt: a.addedAt,
-        lastUsed: a.lastUsed,
-        lastSwitchReason: a.lastSwitchReason,
-        rateLimitResetTimes: Object.keys(a.rateLimitResetTimes).length > 0 ? a.rateLimitResetTimes : undefined,
-        coolingDownUntil: a.coolingDownUntil,
-        cooldownReason: a.cooldownReason,
-        fingerprint: a.fingerprint,
-        fingerprintHistory: a.fingerprintHistory?.length ? a.fingerprintHistory : undefined,
-      })),
-      activeIndex: claudeIndex,
-      activeIndexByFamily: {
-        claude: claudeIndex,
-        gemini: geminiIndex,
-      },
-    };
+      try {
+        // Update the account with runtime data that AccountManager tracks
+        await Account.update("antigravity", coreId, {
+          rateLimitResetTimes: Object.keys(acc.rateLimitResetTimes).length > 0
+            ? acc.rateLimitResetTimes
+            : undefined,
+          coolingDownUntil: acc.coolingDownUntil,
+          cooldownReason: acc.cooldownReason,
+          fingerprint: acc.fingerprint as Record<string, unknown> | undefined,
+        });
+      } catch (e) {
+        // Account may have been deleted externally, skip
+      }
+    }
 
-    await saveAccounts(storage);
+    // Update active account if changed
+    const activeAcc = this.getCurrentAccountForFamily("claude");
+    if (activeAcc?._coreAccountId) {
+      const currentActive = await Account.getActive("antigravity");
+      if (currentActive !== activeAcc._coreAccountId) {
+        try {
+          await Account.setActive("antigravity", activeAcc._coreAccountId);
+        } catch (e) {
+          // Ignore if account doesn't exist
+        }
+      }
+    }
   }
 
   requestSaveToDisk(): void {

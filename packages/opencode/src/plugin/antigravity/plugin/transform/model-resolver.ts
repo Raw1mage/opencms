@@ -207,11 +207,16 @@ export function resolveModelWithTier(requestedModel: string): ResolvedModel {
     }
   }
 
-  try { require('node:fs').appendFileSync('/tmp/antigravity_trace.log', `[${new Date().toISOString()}] Resolved ${requestedModel} -> ${antigravityModel} (skipAlias=${skipAlias})\n`); } catch (e) { }
-
-  const actualModel = skipAlias
+  // Strip antigravity- prefix for API model name - prefix is only for quota routing
+  const actualModelRaw = skipAlias
     ? antigravityModel
     : MODEL_ALIASES[modelWithoutQuota] || MODEL_ALIASES[baseName] || baseName;
+
+  // CRITICAL: The antigravity- prefix is ONLY for quota routing, not for API calls
+  // The API expects model names like "gemini-3-pro-high", NOT "antigravity-gemini-3-pro-high"
+  const actualModel = actualModelRaw.replace(/^antigravity-/i, "");
+
+  try { require('node:fs').appendFileSync('/tmp/antigravity_trace.log', `[${new Date().toISOString()}] Resolved ${requestedModel} -> ${actualModel} (raw=${actualModelRaw}, skipAlias=${skipAlias})\n`); } catch (e) { }
 
   const resolvedModel = MODEL_FALLBACKS[actualModel] || actualModel;
   const isThinking = isThinkingCapableModel(resolvedModel);

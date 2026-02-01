@@ -38,8 +38,8 @@ export namespace ProviderHealth {
    * Account authentication status
    */
   export type AccountStatus = {
-    accountID: string // e.g. "google", "google-work", "antigravity"
-    providerFamily: string // e.g. "google", "openai", "anthropic"
+    accountID: string // e.g. "google-api", "google-api-work", "antigravity"
+    providerFamily: string // e.g. "google-api", "openai", "anthropic"
     authType: "oauth" | "api" | "wellknown" | "antigravity" | "none"
     authenticated: boolean
     accountEmail?: string
@@ -554,7 +554,7 @@ export namespace ProviderHealth {
       for (const [accountId, accountInfo] of Object.entries(familyData.accounts)) {
         // Filter out legacy "phantom" accounts if specific accounts exist for this family
         // These are often artifacts of migration or old provider IDs
-        if (hasSpecificAccounts && (accountId === family || accountId === "antigravity" || accountId === "gemini-cli" || accountId === "google")) {
+        if (hasSpecificAccounts && (accountId === family || accountId === "antigravity" || accountId === "gemini-cli" || accountId === "google-api")) {
           // If we have at least one better identifier, skip the generic ones
           continue;
         }

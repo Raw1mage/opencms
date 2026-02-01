@@ -50,6 +50,7 @@
 ```
 src/account/
 ├── index.ts          # Account namespace (list, add, remove, setActive, getActiveInfo)
+├── rotation.ts       # 全域帳號輪替系統 (HealthScore, RateLimit, Selection)
 ├── types.ts          # AccountInfo, AccountFamily 型別定義
 └── migration.ts      # auth.json → accounts.json 遷移邏輯
 ```
@@ -61,6 +62,15 @@ src/account/
 - `Account.setActive(family, accountId)` - 設定使用中帳號
 - `Account.getActiveInfo(family)` - 取得目前使用中帳號資訊
 - `Account.forceFullMigration()` - 強制遷移 auth.json
+
+**輪替 API**（從 antigravity 抽取後的全域版本）：
+- `Account.getNextAvailable(family, provider, model)` - 取得下一個可用帳號
+- `Account.recordSuccess(accountId)` - 記錄成功請求，提升健康度
+- `Account.recordRateLimit(accountId, provider, reason, backoffMs)` - 記錄 rate limit
+- `Account.recordFailure(accountId)` - 記錄失敗，降低健康度
+- `Account.isRateLimited(accountId, provider, model)` - 檢查是否被限速
+- `Account.getMinWaitTime(family, provider, model)` - 取得最短等待時間
+- `Account.getRotationStatus(family, provider)` - 取得輪替狀態（用於 Admin UI）
 
 ### 1.2 Google Provider Suite
 
@@ -517,26 +527,50 @@ ls ~/.local/share/opencode/auth.json           # 應不存在
 
 ## 七、時程與優先序
 
-### Phase 1：Auth 統一 (高優先)
+### Phase 1：Auth 統一 (高優先) ✅ 已完成
 1. ✅ Account 模組實作
-2. ⬜ forceFullMigration() 實作
-3. ⬜ Bootstrap 整合
-4. ⬜ Auth.get() 簡化
+2. ✅ forceFullMigration() 實作
+3. ✅ Bootstrap 整合
+4. ✅ Auth.get() 簡化 (移除 legacy fallback)
 
-### Phase 2：跨模型相容 (高優先)
+### Phase 2：跨模型相容 (高優先) ✅ 已完成
 1. ✅ cross-model-sanitizer 實作
-2. ⬜ LLM.stream() 整合
+2. ✅ LLM.stream() 整合 (在 antigravity request 層)
 
-### Phase 3：Rate Limit Fallback (中優先)
-1. ⬜ Favorites 順序讀取
-2. ⬜ 自動切換邏輯
-3. ⬜ Toast 通知
+### Phase 3：全域帳號輪替機制 (高優先) ✅ 已完成
+> 目標：將 Antigravity 的輪替邏輯抽象為全域 Account 層級功能
 
-### Phase 4：TUI 完善 (中優先)
+1. ✅ 從 antigravity/plugin/rotation.ts 抽取核心邏輯
+   - 新增 `src/account/rotation.ts`
+   - `HealthScoreTracker` - 帳號健康度追蹤（ID-based）
+   - `RateLimitTracker` - Rate limit 狀態追蹤
+   - `selectBestAccount()` - 混合策略選擇演算法
+2. ✅ 在 Account 模組新增輪替 API
+   - `Account.getNextAvailable(family, provider, model)`
+   - `Account.recordRateLimit(accountId, provider, reason, backoffMs)`
+   - `Account.recordSuccess(accountId)`
+   - `Account.recordFailure(accountId)`
+   - `Account.isRateLimited(accountId, provider, model)`
+   - `Account.getMinWaitTime(family, provider, model)`
+   - `Account.getRotationStatus(family, provider)`
+3. ✅ 在 LLM.stream() 整合 Rate Limit 偵測與自動切換
+   - `onError` callback 自動偵測 429 錯誤
+   - 自動記錄 health score 與 rate limit 狀態
+   - `LLM.recordSuccess()` 供成功請求呼叫
+   - `LLM.handleRateLimitFallback()` 供 session 層呼叫
+4. ✅ Favorites 順序優先
+   - 從 `model.json` 讀取 favorites 列表
+   - 依序嘗試 favorites 中的可用模型
+5. ✅ Toast 通知
+   - 在 `LLM.stream()` 的 `onError` 中發布 `TuiEvent.ToastShow`
+   - 顯示 rate limit 原因與等待時間
+
+### Phase 4：TUI 完善 (中優先) ✅ 完成
 1. ✅ Level 1 (Root) 實作
 2. ✅ Level 2 (Accounts) 實作
-3. ⬜ Level 3 (Models) 實作
-4. ⬜ origin/dev `/model` 導向
+3. ✅ Level 3 (Models) 實作
+4. ✅ origin/dev `/models` 導向至 `/admin`
+   - 在 `app.tsx` 中將 `/models` 指令的 `onSelect` 改為開啟 `<DialogAdmin />`
 
 ---
 
@@ -548,3 +582,111 @@ ls ~/.local/share/opencode/auth.json           # 應不存在
 | origin/dev 大幅變動 | 模組盡量獨立，減少耦合 |
 | Cross-model sanitization 不完整 | 增加單元測試覆蓋 |
 | Rate limit 偵測不準確 | 依 HTTP status code 判斷 (429) |
+
+---
+
+## 九、origin/dev 合併計畫 (2026-02-01)
+
+### 9.1 分支差異總覽
+
+| 區域 | origin/dev | cms | 合併策略 |
+|------|-----------|-----|----------|
+| plugin/index.ts | `Instance.state()` 快取, port 4096 | `_loading` Promise, port 1080, 額外函數 | 採用 origin/dev 結構，保留 cms 內部插件 |
+| plugin/ 目錄 | 只有 codex, copilot | 額外有 antigravity/, gemini-cli/, anthropic.ts | 保留 cms 獨有模組 |
+| auth/index.ts | 簡單 auth.json 讀寫 | 複雜 Account 模組整合 | **保留 cms 版本** |
+| account/index.ts | ❌ 不存在 | ✅ 多帳號管理 | **保留 cms 版本** |
+| provider/provider.ts | 無 ANTIGRAVITY 相關 | ANTIGRAVITY_WHITELIST, IGNORED_MODELS | 合併 origin/dev 更新，保留 cms 獨有邏輯 |
+| TUI 元件 | 標準版 | dialog-admin, dialog-account 等 | **保留 cms 版本** |
+
+### 9.2 關鍵檔案合併計畫
+
+#### A. plugin/index.ts
+```
+origin/dev 變更：
+- Instance.state() 取代手動 Promise 快取
+- baseUrl: "http://localhost:4096"
+
+cms 需保留：
+- AntigravityOAuthPlugin, AntigravityLegacyOAuthPlugin, GeminiCLIOAuthPlugin 導入
+- discoverModels(), getAuth() 函數
+
+合併方式：
+1. 採用 origin/dev 的 Instance.state() 結構
+2. 修改 INTERNAL_PLUGINS 加入 cms 插件
+3. 保留 discoverModels(), getAuth() 函數
+```
+
+#### B. provider/provider.ts
+```
+origin/dev 變更：
+- SDK 路徑: "./sdk/copilot" 取代 "./sdk/openai-compatible/src"
+- process.env 直接存取 (AWS_BEARER_TOKEN_BEDROCK, AICORE_SERVICE_KEY)
+- getModel() 加入 languageModel fallback
+- 移除 npm 動態解析 (github-copilot -> @ai-sdk/github-copilot)
+
+cms 需保留：
+- ANTIGRAVITY_WHITELIST
+- IGNORED_MODELS, IGNORED_DYNAMIC
+- loadIgnoredDynamic(), isModelIgnored() 函數
+- gemini-cli CUSTOM_LOADER
+- Account import
+
+合併方式：
+1. 採用 origin/dev 的新 SDK 路徑
+2. 保留 cms 的 ANTIGRAVITY 相關邏輯
+3. 合併 process.env 變更
+4. 保留 gemini-cli CUSTOM_LOADER
+```
+
+#### C. auth/index.ts
+```
+保留 cms 版本 - 不合併 origin/dev 變更
+原因：cms 的 Account 模組是核心功能，origin/dev 簡化版不適用
+```
+
+### 9.3 Anthropic OAuth 問題分析
+
+**問題**：「This credential is only authorized for use with Claude Code」
+
+**根本原因**：
+npm 套件 `opencode-anthropic-auth@0.0.13` 的 user-agent 設定錯誤：
+- 套件設定：`user-agent: claude-cli/2.1.2 (external, cli)`
+- 正確設定：`user-agent: anthropic-claude-code/0.5.1`
+
+**注意**：origin/dev 也使用相同 npm 套件版本，**同樣會有此問題**
+
+**解決方案選項**：
+
+| 方案 | 優點 | 缺點 |
+|------|-----|------|
+| A. Patch npm cache | 立即生效 | 非持久性，bun install 會覆蓋 |
+| B. Fork npm 套件 | 長期解決 | 需要維護自己的 fork |
+| C. 內部插件覆寫 | cms 可控 | 需確保不與 npm 衝突 |
+| D. 回報上游修復 | 根本解決 | 等待時間不確定 |
+
+**建議方案**：C - 建立 cms 內部 anthropic 插件，完全覆寫 npm 套件行為
+
+### 9.4 合併執行步驟
+
+```bash
+# Step 1: 建立合併分支
+git checkout cms
+git checkout -b cms-merge-dev
+
+# Step 2: Cherry-pick 或手動合併 origin/dev 變更
+# 針對每個檔案個別處理，避免覆蓋 cms 獨有功能
+
+# Step 3: 測試
+bun run build
+bun run test
+
+# Step 4: 合併回 cms
+git checkout cms
+git merge cms-merge-dev
+```
+
+### 9.5 優先順序
+
+1. **高優先**：修復 Anthropic OAuth (方案 C)
+2. **中優先**：合併 provider.ts 的 SDK 路徑修正
+3. **低優先**：合併 plugin/index.ts 結構優化

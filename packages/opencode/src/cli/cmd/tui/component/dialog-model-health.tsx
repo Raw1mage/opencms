@@ -11,6 +11,7 @@ import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
 import { getModelHealthRegistry } from "@/account/rotation"
 import { Keybind } from "@/util/keybind"
+import { debugCheckpoint } from "@/util/debug"
 
 export function DialogModelHealth() {
   const dialog = useDialog()
@@ -24,8 +25,10 @@ export function DialogModelHealth() {
     // Force re-computation on tick
     tick()
 
+    debugCheckpoint("health", "dashboard.getSnapshot", { tick: tick() })
     const registry = getModelHealthRegistry()
     const snapshot = registry.getSnapshot()
+    debugCheckpoint("health", "dashboard.snapshot", { size: snapshot.size, keys: Array.from(snapshot.keys()) })
 
     const items: Array<{
       value: string
@@ -44,36 +47,37 @@ export function DialogModelHealth() {
       return a[0].localeCompare(b[0])
     })
 
+    // Table format: Provider | Account | Model | Status
     for (const [key, state] of entries) {
       const [provider, model] = key.split(":")
       const isLimited = state.waitMs > 0
 
+      // Status column
+      let status: string
       if (isLimited) {
         const waitSec = Math.ceil(state.waitMs / 1000)
         const waitMin = Math.floor(waitSec / 60)
         const waitSecRemainder = waitSec % 60
-        const timeStr =
-          waitMin > 0 ? `${waitMin}m ${waitSecRemainder}s` : `${waitSec}s`
-
-        items.push({
-          value: key,
-          title: model || key,
-          description: `Provider: ${provider} | Reason: ${formatReason(state.reason)}`,
-          category: "Rate Limited",
-          footer: `${timeStr}`,
-        })
+        status = waitMin > 0 ? `⏳ ${waitMin}m ${waitSecRemainder}s` : `⏳ ${waitSec}s`
       } else {
-        items.push({
-          value: key,
-          title: model || key,
-          description: `Provider: ${provider}`,
-          category: "Available",
-          footer: "Ready",
-        })
+        status = "✓ Ready"
       }
+
+      // Format as table row: Provider | Account | Model
+      const providerCol = (provider || "-").padEnd(12).slice(0, 12)
+      const accountCol = "default".padEnd(10).slice(0, 10)  // Account not tracked yet
+      const modelCol = (model || key).padEnd(28).slice(0, 28)
+
+      items.push({
+        value: key,
+        title: `${providerCol} ${accountCol} ${modelCol}`,
+        description: isLimited ? formatReason(state.reason) : "",
+        category: "",
+        footer: status,
+      })
     }
 
-    // If no models tracked yet, show a simple message without category
+    // If no models tracked yet, show a simple message
     if (items.length === 0) {
       items.push({
         value: "empty",
@@ -81,6 +85,15 @@ export function DialogModelHealth() {
         description: "Models will appear here after being used",
         category: "",
         footer: "",
+      })
+    } else {
+      // Add header row at the beginning
+      items.unshift({
+        value: "_header",
+        title: "Provider     Account    Model                       ",
+        description: "",
+        category: "",
+        footer: "Status",
       })
     }
 
@@ -109,8 +122,8 @@ export function DialogModelHealth() {
 
   const title = createMemo(() => {
     const s = stats()
-    if (s.total === 0) return "Model Health Dashboard"
-    return `Model Health (${s.available} ok / ${s.limited} limited)`
+    if (s.total === 0) return "Model Health"
+    return `Model Health (${s.available}✓ ${s.limited}⏳)`
   })
 
   return (

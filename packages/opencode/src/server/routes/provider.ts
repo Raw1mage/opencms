@@ -53,12 +53,16 @@ export const ProviderRoutes = lazy(() =>
 
         const providers: Record<string, Provider.Info> = {}
 
+        // Get all families with accounts to determine multi-account status dynamically
+        const familiesWithAccounts = await Account.listAll()
+
         // Merge ModelsDev providers
         for (const [id, devProvider] of Object.entries(filteredProviders)) {
           const family = Account.parseFamily(id) || id
-          const isMultiAccountFamily = Account.FAMILIES.includes(family as Account.Family)
+          // A provider has multi-account if it has accounts in storage (not a whitelist)
+          const hasAccountsConfigured = !!(familiesWithAccounts[family]?.accounts && Object.keys(familiesWithAccounts[family].accounts).length > 0)
 
-          if (isMultiAccountFamily) {
+          if (hasAccountsConfigured) {
             // For multi-account families, we should only show models if they are either:
             // 1. In the 'connected' list (meaning they were discovered specifically for the active account)
             // 2. Public models (cost.input === 0)

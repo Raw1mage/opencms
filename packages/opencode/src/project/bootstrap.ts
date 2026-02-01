@@ -15,6 +15,13 @@ import { Snapshot } from "../snapshot"
 import { Truncate } from "../tool/truncation"
 
 export async function InstanceBootstrap() {
+  // Force migration from auth.json to accounts.json (single source of truth)
+  const { Account } = await import("../account")
+  await Account.forceFullMigration()
+
+  // Clean up duplicate accounts (e.g., same token stored with different IDs)
+  await Account.deduplicateByToken("antigravity")
+
   Log.Default.info("bootstrapping", { directory: Instance.directory })
   await Plugin.init()
   Share.init()
