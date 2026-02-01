@@ -351,8 +351,11 @@ export namespace Session {
     const project = Instance.project
     try {
       const session = await get(sessionID)
+      // Orphan child sessions instead of deleting them - they become standalone sessions
       for (const child of await children(sessionID)) {
-        await remove(child.id)
+        await update(child.id, (s) => {
+          s.parentID = undefined
+        })
       }
       await unshare(sessionID).catch(() => {})
       for (const msg of await Storage.list(["message", sessionID])) {

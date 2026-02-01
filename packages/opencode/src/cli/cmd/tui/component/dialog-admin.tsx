@@ -271,6 +271,12 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     })
 
     const family = (id: string) => {
+        // Normalize "google" to "google-api" (they're the same provider)
+        if (id === "google" || id.startsWith("google-")) {
+            if (id === "google" || id === "google-api" || id.startsWith("google-api-")) {
+                return "google-api"
+            }
+        }
         const parsed = Account.parseFamily(id)
         if (parsed) return parsed
         if (id === "opencode" || id.startsWith("opencode-")) return "opencode"
@@ -292,6 +298,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             anthropic: "Anthropic",
             openai: "OpenAI",
             google: "Google-API",
+            "google-api": "Google-API",
             antigravity: "Antigravity",
             "gemini-cli": "Gemini CLI",
             gitlab: "GitLab",
@@ -306,6 +313,32 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         const input = cost.input ?? 0
         const output = cost.output ?? 0
         return input === 0 && output === 0
+    }
+
+    // Check if a model should show "Free" label
+    // Subscription-based accounts (OpenAI Plus, Anthropic Pro/Max) are NOT free
+    // even if the API cost is 0 - they're part of a paid subscription with quotas
+    function shouldShowFree(providerID: string, modelInfo: { cost?: { input?: number; output?: number } }): boolean {
+        // Only opencode provider models are truly free
+        if (providerID === "opencode") {
+            return isFreeCost(modelInfo)
+        }
+
+        // For other providers, check if the active account is subscription-based
+        const fam = Account.parseFamily(providerID)
+        if (!fam) return false
+
+        const familyData = coreAll()?.[fam]
+        const activeAccountId = familyData?.activeAccount
+        const activeAccountInfo = activeAccountId ? familyData?.accounts?.[activeAccountId] : undefined
+
+        // If using a subscription account, models are NOT free (quota-based)
+        if (activeAccountInfo?.type === "subscription") {
+            return false
+        }
+
+        // For API accounts, check the actual cost
+        return isFreeCost(modelInfo)
     }
 
     const owner = (provider: { id: string; name: string; email?: string }) => {
@@ -419,6 +452,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             const list = []
 
             // LIST HELPERS (Favorites/Recents)
+            // Display: modelname - provider (account can be dynamically switched)
             const getModelOptions = (modelList: { providerID: string, modelID: string, origin?: string }[]) => {
                 return modelList.flatMap(item => {
                     const p = sync.data.provider.find(x => x.id === item.providerID)
@@ -426,12 +460,19 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                     const m = p.models[item.modelID]
                     if (!m) return []
 
+                    // Clean model name: remove "(Plus Subscription)" suffix
+                    const rawName = m.name ?? item.modelID
+                    const cleanName = rawName.replace(/\s*\(Plus Subscription\)\s*/gi, '').trim()
+
+                    // Description: just provider name (account is dynamic)
+                    const providerLabel = label(p.name, p.id)
+
                     return [{
                         value: { providerID: item.providerID, modelID: item.modelID, origin: item.origin },
-                        title: m.name ?? item.modelID,
-                        description: label(p.name, p.id),
+                        title: cleanName,
+                        description: providerLabel,
                         category: item.origin === 'favorite' ? "Favorites" : "Recents",
-                        footer: isFreeCost(m) ? "Free" : undefined,
+                        footer: shouldShowFree(item.providerID, m) ? "Free" : undefined,
                         disabled: (p.id === "opencode" && m.id.includes("-nano")),
                         onSelect: () => {
                             debugCheckpoint("admin", "select favorite/recent model", { origin: item.origin, provider: item.providerID, model: item.modelID })
@@ -453,7 +494,12 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
             // 3. Families - WYSIWYG: No hidden whitelists
             // Configured = has accounts in storage OR has providers from sync
-            const coreFamilies = Object.keys(coreAll() ?? {})
+            // Normalize family names (e.g., "google" -> "google-api")
+            const normalizeFamily = (f: string) => {
+                if (f === "google") return "google-api"
+                return f
+            }
+            const coreFamilies = Object.keys(coreAll() ?? {}).map(normalizeFamily)
             const syncFamilies = [...groupedProviders().keys()]
 
             // Build set of all configured providers (has accounts or sync data)
@@ -492,7 +538,9 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                 const providers = groupedProviders().get(fam) || []
 
                 const displayName = label(fam, fam)
-                const familyData = coreAll()?.[fam]
+                // Reverse-normalize for accounts.json lookup (google-api -> google)
+                const accountsKey = fam === "google-api" ? "google" : fam
+                const familyData = coreAll()?.[accountsKey]
                 const allIds = familyData ? Object.keys(familyData.accounts || {}) : []
                 const isFamilySuffix = (id: string) => id === `${fam}-subscription-${fam}` || id === `${fam}-api-${fam}`
                 const isGeneric = (id: string) =>
@@ -572,7 +620,9 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             // - Use agManager for antigravity.
 
             if (fam !== "antigravity") {
-                const familyData = coreAll()?.[fam]
+                // Reverse-normalize for accounts.json lookup (google-api -> google)
+                const accountsKey = fam === "google-api" ? "google" : fam
+                const familyData = coreAll()?.[accountsKey]
                 const accounts = familyData?.accounts || {}
                 const activeId = familyData?.activeAccount
                 const isFamilySuffix = (id: string) => id === `${fam}-subscription-${fam}` || id === `${fam}-api-${fam}`
@@ -669,6 +719,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                             debugCheckpoint("admin", "select account", { family: fam, id: p.id, coreId: p.coreId })
                             await handleSetActive(fam, p.coreId || p.id, p.id)
                             await refreshAntigravity()
+                            setSelectedProviderID(fam)
                             setStepLogged("model_select", "select account")
                             setQuery("")
                         }
@@ -754,7 +805,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                             (isBlocked && !isRateLimited),
                         footer: isActionable
                             ? <text fg={theme.error as any}>X</text>
-                            : (isFreeCost(info) ? "Free" : undefined),
+                            : (shouldShowFree(providerID, info) ? "Free" : undefined),
                         onSelect: () => {
                             debugCheckpoint("admin", "select model", { provider: providerID, model: mid })
                             probeAndSelectModel(providerID, mid)
@@ -1251,7 +1302,13 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                         keybind: Keybind.parse("left")[0],
                         title: "(←)Back",
                         label: "",
-                        hidden: step() === "model_select",
+                        hidden: false,
+                        onTrigger: goBack
+                    },
+                    {
+                        keybind: Keybind.parse("backspace")[0],
+                        title: "",
+                        hidden: true,
                         onTrigger: goBack
                     },
                     {
@@ -2283,9 +2340,6 @@ function DialogAccountView(props: {
                     View Account: {props.accountId}
                 </text>
                 <text fg={theme.textMuted}>any key to close</text>
-            </box>
-            <box paddingLeft={1} paddingRight={1}>
-                <text fg={theme.textMuted}>Family: {props.family}</text>
             </box>
             <box paddingLeft={1} paddingRight={1} flexDirection="column">
                 <For each={displayLines()}>

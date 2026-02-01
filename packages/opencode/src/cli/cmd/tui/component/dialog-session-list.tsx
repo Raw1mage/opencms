@@ -2,8 +2,9 @@ import { useDialog } from "@tui/ui/dialog"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { useRoute } from "@tui/context/route"
 import { useSync } from "@tui/context/sync"
-import { createMemo, createSignal, createResource, onMount, Show } from "solid-js"
+import { createMemo, createResource, onMount, Show } from "solid-js"
 import { Locale } from "@/util/locale"
+import { Keybind } from "@/util/keybind"
 import { useKeybind } from "../context/keybind"
 import { useTheme } from "../context/theme"
 import { useSDK } from "../context/sdk"
@@ -21,7 +22,6 @@ export function DialogSessionList() {
   const sdk = useSDK()
   const kv = useKV()
 
-  const [toDelete, setToDelete] = createSignal<string>()
   const [search, setSearch] = createDebouncedSignal("", 150)
 
   const [searchResults] = createResource(search, async (query) => {
@@ -38,31 +38,78 @@ export function DialogSessionList() {
 
   const options = createMemo(() => {
     const today = new Date().toDateString()
-    return sessions()
+    const allSessions = sessions()
+
+    // Build a map of parentID -> children
+    const childrenMap = new Map<string, typeof allSessions>()
+    for (const s of allSessions) {
+      if (s.parentID) {
+        const children = childrenMap.get(s.parentID) ?? []
+        children.push(s)
+        childrenMap.set(s.parentID, children)
+      }
+    }
+
+    // Get root sessions (no parentID)
+    const roots = allSessions
       .filter((x) => !x.parentID)
       .toSorted((a, b) => b.time.updated - a.time.updated)
-      .map((x) => {
-        const date = new Date(x.time.updated)
-        let category = date.toDateString()
-        if (category === today) {
-          category = "Today"
-        }
-        const isDeleting = toDelete() === x.id
-        const status = sync.data.session_status?.[x.id]
-        const isWorking = status?.type === "busy"
-        return {
-          title: isDeleting ? `Press ${keybind.print("session_delete")} again to confirm` : x.title,
-          bg: isDeleting ? theme.error : undefined,
-          value: x.id,
-          category,
-          footer: Locale.time(x.time.updated),
-          gutter: isWorking ? (
+
+    const result: Array<{
+      title: string
+      value: string
+      category: string
+      footer: string
+      gutter?: any
+    }> = []
+
+    for (const root of roots) {
+      const date = new Date(root.time.updated)
+      let category = date.toDateString()
+      if (category === today) {
+        category = "Today"
+      }
+      const status = sync.data.session_status?.[root.id]
+      const isWorking = status?.type === "busy"
+      const children = childrenMap.get(root.id) ?? []
+
+      // Add root session with child count indicator
+      result.push({
+        title: children.length > 0 ? `${root.title} [${children.length}]` : root.title,
+        value: root.id,
+        category,
+        footer: Locale.time(root.time.updated),
+        gutter: isWorking ? (
+          <Show when={kv.get("animations_enabled", true)} fallback={<text fg={theme.textMuted}>[⋯]</text>}>
+            <spinner frames={spinnerFrames} interval={80} color={theme.primary} />
+          </Show>
+        ) : undefined,
+      })
+
+      // Add children with tree prefix
+      const sortedChildren = children.toSorted((a, b) => a.time.created - b.time.created)
+      for (let i = 0; i < sortedChildren.length; i++) {
+        const child = sortedChildren[i]
+        const isLast = i === sortedChildren.length - 1
+        const prefix = isLast ? "└─ " : "├─ "
+        const childStatus = sync.data.session_status?.[child.id]
+        const childWorking = childStatus?.type === "busy"
+
+        result.push({
+          title: prefix + child.title,
+          value: child.id,
+          category,  // Same category as parent
+          footer: Locale.time(child.time.updated),
+          gutter: childWorking ? (
             <Show when={kv.get("animations_enabled", true)} fallback={<text fg={theme.textMuted}>[⋯]</text>}>
-              <spinner frames={spinnerFrames} interval={80} color={theme.primary} />
+              <spinner frames={spinnerFrames} interval={80} color={theme.accent} />
             </Show>
           ) : undefined,
-        }
-      })
+        })
+      }
+    }
+
+    return result
   })
 
   onMount(() => {
@@ -76,9 +123,6 @@ export function DialogSessionList() {
       skipFilter={true}
       current={currentSessionID()}
       onFilter={setSearch}
-      onMove={() => {
-        setToDelete(undefined)
-      }}
       onSelect={(option) => {
         route.navigate({
           type: "session",
@@ -88,17 +132,14 @@ export function DialogSessionList() {
       }}
       keybind={[
         {
-          keybind: keybind.all.session_delete?.[0],
-          title: "delete",
+          keybind: Keybind.parse("delete")[0],
+          title: "(Del)ete",
+          label: "",
           onTrigger: async (option) => {
-            if (toDelete() === option.value) {
-              sdk.client.session.delete({
-                sessionID: option.value,
-              })
-              setToDelete(undefined)
-              return
-            }
-            setToDelete(option.value)
+            if (!option) return
+            sdk.client.session.delete({
+              sessionID: option.value,
+            })
           },
         },
         {

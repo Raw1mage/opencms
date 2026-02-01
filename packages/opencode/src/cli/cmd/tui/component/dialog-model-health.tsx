@@ -138,9 +138,18 @@ export function DialogModelHealth() {
       }}
       keybind={[
         {
+          keybind: Keybind.parse("tab")[0],
+          title: "(Tab)Close",
+          label: "",
+          onTrigger: () => {
+            dialog.pop()
+          },
+        },
+        {
           keybind: Keybind.parse("left")[0],
           title: "(←)Back",
           label: "",
+          hidden: true,
           onTrigger: () => {
             dialog.pop()
           },

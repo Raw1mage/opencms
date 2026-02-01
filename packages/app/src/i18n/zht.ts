@@ -224,6 +224,8 @@ export const dict = {
   "prompt.toast.pasteUnsupported.description": "這裡只能貼上圖片或 PDF 檔案。",
   "prompt.toast.modelAgentRequired.title": "請選擇代理程式和模型",
   "prompt.toast.modelAgentRequired.description": "傳送提示前請先選擇代理程式和模型。",
+  "prompt.toast.agentRequired.title": "請選擇代理程式",
+  "prompt.toast.agentRequired.description": "傳送提示前請先選擇代理程式。模型將自動選擇。",
   "prompt.toast.worktreeCreateFailed.title": "建立工作樹失敗",
   "prompt.toast.sessionCreateFailed.title": "建立工作階段失敗",
   "prompt.toast.shellSendFailed.title": "傳送 shell 命令失敗",

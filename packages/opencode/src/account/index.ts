@@ -223,6 +223,60 @@ export namespace Account {
   }
 
   /**
+   * Repair accounts by attempting to extract email from JWT tokens
+   * Useful for fixing accounts where email was stored as UUID
+   */
+  export async function repairEmails(): Promise<{ fixed: number; total: number }> {
+    const { JWT } = await import("../util/jwt")
+    const storage = await state()
+    let fixed = 0
+    let total = 0
+
+    for (const [provider, familyData] of Object.entries(storage.families)) {
+      for (const [accountId, info] of Object.entries(familyData.accounts)) {
+        if (info.type !== "subscription") continue
+        total++
+
+        const sub = info as SubscriptionAccount
+        const currentEmail = sub.email
+
+        // Check if email is missing, is a UUID, or doesn't contain @
+        const needsRepair = !currentEmail ||
+                           JWT.isUUID(currentEmail) ||
+                           !currentEmail.includes("@")
+
+        if (!needsRepair) continue
+
+        // Try to extract email from tokens
+        let newEmail: string | undefined
+        if (sub.accessToken) {
+          newEmail = JWT.getEmail(sub.accessToken)
+        }
+        if (!newEmail && sub.refreshToken) {
+          newEmail = JWT.getEmail(sub.refreshToken)
+        }
+
+        if (newEmail && newEmail !== currentEmail) {
+          log.info("Repairing account email", { provider, accountId, old: currentEmail, new: newEmail })
+          storage.families[provider].accounts[accountId] = {
+            ...sub,
+            email: newEmail,
+            name: sub.name === currentEmail ? newEmail : sub.name,
+          }
+          fixed++
+        }
+      }
+    }
+
+    if (fixed > 0) {
+      await save(storage)
+      log.info("Repaired account emails", { fixed, total })
+    }
+
+    return { fixed, total }
+  }
+
+  /**
    * Remove an account
    */
   export async function remove(provider: string, accountId: string): Promise<void> {

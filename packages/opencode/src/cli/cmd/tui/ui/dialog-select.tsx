@@ -58,6 +58,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     selected: 0,
     filter: "",
     input: "keyboard" as "keyboard" | "mouse",
+    searchMode: false,  // Search mode is off by default - press "/" to enter
   })
 
   createEffect(
@@ -182,6 +183,49 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   useKeyboard((evt) => {
     setStore("input", "keyboard")
 
+    // "/" enters search mode
+    if (!store.searchMode && evt.sequence === "/" && !props.hideInput) {
+      evt.preventDefault()
+      setStore("searchMode", true)
+      setTimeout(() => input?.focus(), 1)
+      return
+    }
+
+    // In search mode, only handle navigation and Esc
+    if (store.searchMode) {
+      // Esc exits search mode (and clears filter if any)
+      if (evt.name === "escape") {
+        evt.preventDefault()
+        if (store.filter) {
+          batch(() => {
+            setStore("filter", "")
+            props.onFilter?.("")
+          })
+        }
+        setStore("searchMode", false)
+        input?.blur()
+        return
+      }
+
+      // Allow navigation in search mode
+      if (evt.name === "up" || (evt.ctrl && evt.name === "p")) { move(-1); return }
+      if (evt.name === "down" || (evt.ctrl && evt.name === "n")) { move(1); return }
+      if (evt.name === "pageup") { move(-10); return }
+      if (evt.name === "pagedown") { move(10); return }
+
+      // Return exits search mode (without selecting)
+      if (evt.name === "return") {
+        evt.preventDefault()
+        setStore("searchMode", false)
+        input?.blur()
+        return
+      }
+
+      // Skip other keybinds when in search mode
+      return
+    }
+
+    // Normal mode: navigation
     if (evt.name === "up" || (evt.ctrl && evt.name === "p")) move(-1)
     if (evt.name === "down" || (evt.ctrl && evt.name === "n")) move(1)
     if (evt.name === "pageup") move(-10)
@@ -199,6 +243,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
       }
     }
 
+    // Normal mode: keybinds
     for (const item of props.keybind ?? []) {
       if (item.disabled || !item.keybind) continue
       if (Keybind.match(item.keybind, keybind.parse(evt))) {
@@ -236,26 +281,29 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
         </box>
         <Show when={!props.hideInput}>
           <box paddingTop={1} paddingBottom={1}>
-            <input
-              onInput={(e) => {
-                batch(() => {
-                  setStore("filter", e)
-                  props.onFilter?.(e)
-                })
-              }}
-              focusedBackgroundColor={theme.backgroundPanel}
-              cursorColor={theme.primary}
-              focusedTextColor={theme.textMuted}
-              ref={(r) => {
-                input = r
-                setTimeout(() => {
-                  if (!input) return
-                  if (input.isDestroyed) return
-                  input.focus()
-                }, 1)
-              }}
-              placeholder={props.placeholder ?? "Search"}
-            />
+            <Show
+              when={store.searchMode}
+              fallback={
+                <text fg={theme.textMuted}>Press / to search</text>
+              }
+            >
+              <input
+                onInput={(e) => {
+                  batch(() => {
+                    setStore("filter", e)
+                    props.onFilter?.(e)
+                  })
+                }}
+                focusedBackgroundColor={theme.backgroundPanel}
+                cursorColor={theme.primary}
+                focusedTextColor={theme.textMuted}
+                ref={(r) => {
+                  input = r
+                  // Only focus when entering search mode (handled by keyboard handler)
+                }}
+                placeholder={props.placeholder ?? "Search"}
+              />
+            </Show>
           </box>
         </Show>
       </box>

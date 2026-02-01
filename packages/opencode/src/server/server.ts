@@ -7,6 +7,8 @@ import { cors } from "hono/cors"
 import { streamSSE } from "hono/streaming"
 import { proxy } from "hono/proxy"
 import { basicAuth } from "hono/basic-auth"
+import { serveStatic } from "hono/bun"
+import path from "path"
 import z from "zod"
 import { Provider } from "../provider/provider"
 import { NamedError } from "@opencode-ai/util/error"
@@ -40,6 +42,7 @@ import { QuestionRoutes } from "./routes/question"
 import { PermissionRoutes } from "./routes/permission"
 import { GlobalRoutes } from "./routes/global"
 import { AccountRoutes } from "./routes/account"
+import { RotationRoutes } from "./routes/rotation"
 import { MDNS } from "./mdns"
 
 // @ts-ignore This global is needed to prevent ai-sdk from logging warnings to stdout https://github.com/vercel/ai/blob/2dc67e0ef538307f21368db32d5a12345d98831b/packages/ai/src/logger/log-warnings.ts#L85
@@ -100,6 +103,8 @@ export namespace Server {
           }),
         )
         .use((c, next) => {
+          // Skip auth for health check endpoint (Docker/k8s health probes)
+          if (c.req.path === "/global/health") return next()
           const password = Flag.OPENCODE_SERVER_PASSWORD
           if (!password) return next()
           const username = Flag.OPENCODE_SERVER_USERNAME ?? "opencode"
@@ -226,6 +231,7 @@ export namespace Server {
         .route("/tui", TuiRoutes())
         .route("/account", AccountRoutes())
         .route("/accounts", AccountRoutes())
+        .route("/rotation", RotationRoutes())
         .route("/", FileRoutes())
         .post(
           "/instance/dispose",
@@ -530,10 +536,49 @@ export namespace Server {
             })
           },
         )
-        .all("/*", async (c) => {
-          const path = c.req.path
+        .get("/*", async (c, next) => {
+          // Try to serve local frontend if OPENCODE_FRONTEND_PATH is set
+          const frontendPath = process.env.OPENCODE_FRONTEND_PATH
+          if (frontendPath) {
+            const reqPath = c.req.path === "/" ? "/index.html" : c.req.path
+            const filePath = path.join(frontendPath, reqPath)
+            const file = Bun.file(filePath)
+            if (await file.exists()) {
+              const ext = path.extname(filePath).toLowerCase()
+              const contentTypes: Record<string, string> = {
+                ".html": "text/html",
+                ".js": "application/javascript",
+                ".css": "text/css",
+                ".json": "application/json",
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".svg": "image/svg+xml",
+                ".ico": "image/x-icon",
+                ".woff": "font/woff",
+                ".woff2": "font/woff2",
+                ".wasm": "application/wasm",
+              }
+              return new Response(file, {
+                headers: {
+                  "Content-Type": contentTypes[ext] || "application/octet-stream",
+                  "Cache-Control": ext === ".html" ? "no-cache" : "public, max-age=31536000",
+                },
+              })
+            }
+            // For SPA routing, serve index.html for non-file paths
+            if (!ext || ext === "") {
+              const indexPath = path.join(frontendPath, "index.html")
+              const indexFile = Bun.file(indexPath)
+              if (await indexFile.exists()) {
+                return new Response(indexFile, {
+                  headers: { "Content-Type": "text/html", "Cache-Control": "no-cache" },
+                })
+              }
+            }
+          }
 
-          const response = await proxy(`https://app.opencode.ai${path}`, {
+          // Fallback to proxy
+          const response = await proxy(`https://app.opencode.ai${c.req.path}`, {
             ...c.req,
             headers: {
               ...c.req.raw.headers,

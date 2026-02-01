@@ -154,9 +154,17 @@ export namespace Auth {
         addedAt: Date.now(),
       })
     } else if (info.type === "oauth") {
-      let email = info.email || info.accountId
+      // Priority: 1. explicit email, 2. JWT decode from access token, 3. JWT decode from refresh token
+      // 4. accountId only if it looks like an email (contains @), not if it's a UUID
+      let email = info.email
       if (!email && info.access) {
         email = JWT.getEmail(info.access)
+      }
+      if (!email && info.refresh) {
+        email = JWT.getEmail(info.refresh)
+      }
+      if (!email && info.accountId && info.accountId.includes("@")) {
+        email = info.accountId
       }
 
       // Check for existing account with same base token to avoid duplicates

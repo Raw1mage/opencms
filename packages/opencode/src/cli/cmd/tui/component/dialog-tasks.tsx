@@ -4,8 +4,10 @@ import { useRoute } from "@tui/context/route"
 import { useSync } from "@tui/context/sync"
 import { createMemo, onMount, Show } from "solid-js"
 import { Locale } from "@/util/locale"
+import { Keybind } from "@/util/keybind"
 import { useTheme } from "../context/theme"
 import { useKV } from "../context/kv"
+import type { AssistantMessage } from "@opencode-ai/sdk/v2"
 import "opentui-spinner/solid"
 
 export function DialogTasks() {
@@ -17,41 +19,66 @@ export function DialogTasks() {
 
   const spinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
 
-  // Filter for Sub-agents (sessions with parentID)
-  const sessions = createMemo(() => sync.data.session.filter((x) => !!x.parentID))
+  // Filter for actively running subagent tasks only
+  const activeTasks = createMemo(() =>
+    sync.data.session.filter((x) => {
+      if (!x.parentID) return false
+      const status = sync.data.session_status?.[x.id]
+      return status?.type === "busy"
+    })
+  )
+
+  // Get provider/model info from the last assistant message
+  const getModelInfo = (sessionID: string) => {
+    const messages = sync.data.message[sessionID] ?? []
+    const lastAssistant = messages.findLast((m) => m.role === "assistant") as AssistantMessage | undefined
+    if (!lastAssistant) return null
+
+    // Find provider name from provider list
+    const provider = sync.data.provider.find((p) => p.id === lastAssistant.providerID)
+    const providerName = provider?.name || lastAssistant.providerID
+    const modelName = provider?.models[lastAssistant.modelID]?.name || lastAssistant.modelID
+
+    return { providerName, modelName, modelID: lastAssistant.modelID }
+  }
 
   const options = createMemo(() => {
-    return sessions()
-      .toSorted((a, b) => b.time.updated - a.time.updated)
+    return activeTasks()
+      .toSorted((a, b) => a.time.created - b.time.created)  // Oldest first (started earlier)
       .map((x) => {
-        const status = sync.data.session_status?.[x.id]
-        const isWorking = status?.type === "busy"
+        const modelInfo = getModelInfo(x.id)
+        const modelDisplay = modelInfo ? `${modelInfo.modelID}` : "..."
 
         return {
           title: x.title || "Untitled Task",
           value: x.id,
-          // Group active tasks together
-          category: isWorking ? "Active Tasks" : "Task History",
-          footer: Locale.time(x.time.updated),
-          gutter: isWorking ? (
-            <Show when={kv.get("animations_enabled", true)} fallback={<text fg={theme.textMuted}>[Run]</text>}>
+          category: "",
+          footer: Locale.time(x.time.created),
+          gutter: (
+            <Show when={kv.get("animations_enabled", true)} fallback={<text fg={theme.textMuted}>[⋯]</text>}>
               <spinner frames={spinnerFrames} interval={80} color={theme.success} />
             </Show>
-          ) : undefined,
-          // Show shortened Parent ID reference for context
-          description: x.parentID ? `⮑ ${x.parentID.slice(0, 8)}` : undefined,
+          ),
+          description: modelDisplay,
         }
       })
   })
 
   onMount(() => {
-    dialog.setSize("large")
+    dialog.setSize("medium")
+  })
+
+  const title = createMemo(() => {
+    const count = activeTasks().length
+    return count > 0 ? `Running Tasks (${count})` : "Running Tasks"
   })
 
   return (
     <DialogSelect
-      title="Task Dashboard"
+      title={title()}
+      placeholder="No running tasks"
       options={options()}
+      hideInput={true}
       current={route.data.type === "session" ? route.data.sessionID : undefined}
       onSelect={(option) => {
         route.navigate({
@@ -60,6 +87,26 @@ export function DialogTasks() {
         })
         dialog.clear()
       }}
+      keybind={[
+        {
+          keybind: Keybind.parse("left")[0],
+          title: "(←)Back",
+          label: "",
+          hidden: true,
+          onTrigger: () => {
+            dialog.clear()
+          },
+        },
+        {
+          keybind: Keybind.parse("backspace")[0],
+          title: "",
+          label: "",
+          hidden: true,
+          onTrigger: () => {
+            dialog.clear()
+          },
+        },
+      ]}
     />
   )
 }

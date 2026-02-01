@@ -218,12 +218,22 @@ export function Session() {
   let prompt: PromptRef
   const keybind = useKeybind()
 
-  // Allow exit when in child session (prompt is hidden)
+  // Allow exit and arrow navigation when in child session (prompt is hidden)
   const exit = useExit()
   useKeyboard((evt) => {
     if (!session()?.parentID) return
     if (keybind.match("app_exit", evt)) {
       exit()
+    }
+    // Arrow key navigation for subagent sessions
+    if (evt.name === "up") {
+      command.trigger("session.parent")
+    }
+    if (evt.name === "left") {
+      command.trigger("session.child.previous")
+    }
+    if (evt.name === "right") {
+      command.trigger("session.child.next")
     }
   })
 

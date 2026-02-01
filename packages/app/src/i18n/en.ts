@@ -229,6 +229,8 @@ export const dict = {
   "prompt.toast.pasteUnsupported.description": "Only images or PDFs can be pasted here.",
   "prompt.toast.modelAgentRequired.title": "Select an agent and model",
   "prompt.toast.modelAgentRequired.description": "Choose an agent and model before sending a prompt.",
+  "prompt.toast.agentRequired.title": "Select an agent",
+  "prompt.toast.agentRequired.description": "Choose an agent before sending a prompt. Model will be auto-selected.",
   "prompt.toast.worktreeCreateFailed.title": "Failed to create worktree",
   "prompt.toast.sessionCreateFailed.title": "Failed to create session",
   "prompt.toast.shellSendFailed.title": "Failed to send shell command",

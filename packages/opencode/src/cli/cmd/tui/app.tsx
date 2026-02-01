@@ -448,7 +448,9 @@ function App() {
     {
       title: "Task Dashboard",
       value: "task.list",
-      keybind: "variant_cycle",
+      slash: {
+        name: "tasks",
+      },
       category: "Session",
       onSelect: () => {
         dialog.replace(() => <DialogTasks />)

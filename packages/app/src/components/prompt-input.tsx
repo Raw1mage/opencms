@@ -42,8 +42,9 @@ import { Select } from "@opencode-ai/ui/select"
 import { getDirectory, getFilename, getFilenameTruncated } from "@opencode-ai/util/path"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { ImagePreview } from "@opencode-ai/ui/image-preview"
-import { ModelSelectorPopover } from "@/components/dialog-select-model"
-import { DialogSelectModelUnpaid } from "@/components/dialog-select-model-unpaid"
+// Model selector removed - auto-selection by backend
+// import { ModelSelectorPopover } from "@/components/dialog-select-model"
+// import { DialogSelectModelUnpaid } from "@/components/dialog-select-model-unpaid"
 import { useProviders } from "@/hooks/use-providers"
 import { useCommand } from "@/context/command"
 import { Persist, persisted } from "@/utils/persist"
@@ -1137,10 +1138,11 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
     const currentModel = local.model.current()
     const currentAgent = local.agent.current()
-    if (!currentModel || !currentAgent) {
+    // Model is now optional - backend will auto-select using subscription priority
+    if (!currentAgent) {
       showToast({
-        title: language.t("prompt.toast.modelAgentRequired.title"),
-        description: language.t("prompt.toast.modelAgentRequired.description"),
+        title: language.t("prompt.toast.agentRequired.title"),
+        description: language.t("prompt.toast.agentRequired.description"),
       })
       return
     }
@@ -1224,12 +1226,15 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
     props.onSubmit?.()
 
-    const model = {
-      modelID: currentModel.id,
-      providerID: currentModel.provider.id,
-    }
+    // Model is optional - if not selected, backend will auto-select using subscription priority
+    const model = currentModel
+      ? {
+          modelID: currentModel.id,
+          providerID: currentModel.provider.id,
+        }
+      : undefined
     const agent = currentAgent.name
-    const variant = local.model.variant.current()
+    const variant = currentModel ? local.model.variant.current() : undefined
 
     const clearInput = () => {
       prompt.reset()
@@ -1914,54 +1919,13 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                     variant="ghost"
                   />
                 </TooltipKeybind>
-                <Show
-                  when={providers.paid().length > 0}
-                  fallback={
-                    <TooltipKeybind
-                      placement="top"
-                      title={language.t("command.model.choose")}
-                      keybind={command.keybind("model.choose")}
-                    >
-                      <Button as="div" variant="ghost" onClick={() => dialog.show(() => <DialogSelectModelUnpaid />)}>
-                        <Show when={local.model.current()?.provider?.id}>
-                          <ProviderIcon id={local.model.current()!.provider.id as IconName} class="size-4 shrink-0" />
-                        </Show>
-                        {local.model.current()?.name ?? language.t("dialog.model.select.title")}
-                        <Icon name="chevron-down" size="small" />
-                      </Button>
-                    </TooltipKeybind>
-                  }
-                >
-                  <TooltipKeybind
-                    placement="top"
-                    title={language.t("command.model.choose")}
-                    keybind={command.keybind("model.choose")}
-                  >
-                    <ModelSelectorPopover triggerAs={Button} triggerProps={{ variant: "ghost" }}>
-                      <Show when={local.model.current()?.provider?.id}>
-                        <ProviderIcon id={local.model.current()!.provider.id as IconName} class="size-4 shrink-0" />
-                      </Show>
-                      {local.model.current()?.name ?? language.t("dialog.model.select.title")}
-                      <Icon name="chevron-down" size="small" />
-                    </ModelSelectorPopover>
-                  </TooltipKeybind>
-                </Show>
-                <Show when={local.model.variant.list().length > 0}>
-                  <TooltipKeybind
-                    placement="top"
-                    title={language.t("command.model.variant.cycle")}
-                    keybind={command.keybind("model.variant.cycle")}
-                  >
-                    <Button
-                      data-action="model-variant-cycle"
-                      variant="ghost"
-                      class="text-text-base _hidden group-hover/prompt-input:inline-block capitalize text-12-regular"
-                      onClick={() => local.model.variant.cycle()}
-                    >
-                      {local.model.variant.current() ?? language.t("common.default")}
-                    </Button>
-                  </TooltipKeybind>
-                </Show>
+                {/* Model is auto-selected by backend based on subscription priority */}
+                <Tooltip placement="top" content="Model is automatically selected based on account health and availability">
+                  <Button as="div" variant="ghost" class="cursor-default opacity-70">
+                    <Icon name="sparkles" size="small" class="text-accent-primary" />
+                    <span class="text-text-secondary">Auto</span>
+                  </Button>
+                </Tooltip>
                 <Show when={permission.permissionsEnabled() && params.id}>
                   <TooltipKeybind
                     placement="top"

@@ -6,7 +6,6 @@ import { useTheme } from "@tui/context/theme"
 import { SplitBorder } from "@tui/component/border"
 import type { AssistantMessage, Session } from "@opencode-ai/sdk/v2"
 import { useCommandDialog } from "@tui/component/dialog-command"
-import { useKeybind } from "../../context/keybind"
 import { Installation } from "@/installation"
 import { useTerminalDimensions } from "@opentui/solid"
 
@@ -61,7 +60,6 @@ export function Header() {
   })
 
   const { theme } = useTheme()
-  const keybind = useKeybind()
   const command = useCommandDialog()
   const [hover, setHover] = createSignal<"parent" | "prev" | "next" | null>(null)
   const dimensions = useTerminalDimensions()
@@ -100,7 +98,7 @@ export function Header() {
                   backgroundColor={hover() === "parent" ? theme.backgroundElement : theme.backgroundPanel}
                 >
                   <text fg={theme.text}>
-                    Parent <span style={{ fg: theme.textMuted }}>{keybind.print("session_parent")}</span>
+                    Parent <span style={{ fg: theme.textMuted }}>↑</span>
                   </text>
                 </box>
                 <box
@@ -110,7 +108,7 @@ export function Header() {
                   backgroundColor={hover() === "prev" ? theme.backgroundElement : theme.backgroundPanel}
                 >
                   <text fg={theme.text}>
-                    Prev <span style={{ fg: theme.textMuted }}>{keybind.print("session_child_cycle_reverse")}</span>
+                    Prev <span style={{ fg: theme.textMuted }}>←</span>
                   </text>
                 </box>
                 <box
@@ -120,7 +118,7 @@ export function Header() {
                   backgroundColor={hover() === "next" ? theme.backgroundElement : theme.backgroundPanel}
                 >
                   <text fg={theme.text}>
-                    Next <span style={{ fg: theme.textMuted }}>{keybind.print("session_child_cycle")}</span>
+                    Next <span style={{ fg: theme.textMuted }}>→</span>
                   </text>
                 </box>
               </box>

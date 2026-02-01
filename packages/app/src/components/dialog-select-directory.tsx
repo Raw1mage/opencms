@@ -23,7 +23,8 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
 
   const home = createMemo(() => sync.data.path.home)
 
-  const start = createMemo(() => sync.data.path.home || sync.data.path.directory)
+  // Prioritize /projects for Docker deployments, fallback to home directory
+  const start = createMemo(() => "/projects")
 
   const cache = new Map<string, Promise<Array<{ name: string; absolute: string }>>>()
 

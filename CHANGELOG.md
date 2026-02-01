@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.66] - 2026-02-01
+
+### Added
+- **Subagent arrow navigation**: Navigate between subagent sessions using arrow keys (↑ parent, ← previous sibling, → next sibling).
+- **Session tree structure**: `/sessions` now displays parent-child relationships with tree prefixes (├─, └─) and child counts.
+- **Running tasks dashboard**: `/tasks` now shows only actively executing subagents with task name, model, and start time.
+
+### Changed
+- **Session deletion behavior**: Deleting a parent session now orphans child sessions instead of cascade deleting them.
+- **Delete key in /sessions**: Sessions can now be deleted directly with Delete key without double confirmation.
+
+### Fixed
+- **Empty session list crash**: Fixed error when pressing Delete key on an empty session list.
+
 ## [1.1.65] - 2026-02-01
 
 ### Added
