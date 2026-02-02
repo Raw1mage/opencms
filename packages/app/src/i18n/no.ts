@@ -31,6 +31,8 @@ export const dict = {
   "command.settings.open": "Åpne innstillinger",
   "command.session.previous": "Forrige sesjon",
   "command.session.next": "Neste sesjon",
+  "command.session.previous.unseen": "Previous unread session",
+  "command.session.next.unseen": "Next unread session",
   "command.session.archive": "Arkiver sesjon",
 
   "command.palette": "Kommandopalett",
@@ -436,6 +438,7 @@ export const dict = {
   "session.review.noChanges": "Ingen endringer",
   "session.files.selectToOpen": "Velg en fil å åpne",
   "session.files.all": "Alle filer",
+  "session.files.binaryContent": "Binary file (content cannot be displayed)",
   "session.messages.renderEarlier": "Vis tidligere meldinger",
   "session.messages.loadingEarlier": "Laster inn tidligere meldinger...",
   "session.messages.loadEarlier": "Last inn tidligere meldinger",

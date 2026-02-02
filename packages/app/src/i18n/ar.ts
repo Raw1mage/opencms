@@ -28,6 +28,8 @@ export const dict = {
   "command.settings.open": "فتح الإعدادات",
   "command.session.previous": "الجلسة السابقة",
   "command.session.next": "الجلسة التالية",
+  "command.session.previous.unseen": "Previous unread session",
+  "command.session.next.unseen": "Next unread session",
   "command.session.archive": "أرشفة الجلسة",
 
   "command.palette": "لوحة الأوامر",
@@ -432,6 +434,7 @@ export const dict = {
   "session.review.noChanges": "لا توجد تغييرات",
   "session.files.selectToOpen": "اختر ملفًا لفتحه",
   "session.files.all": "كل الملفات",
+  "session.files.binaryContent": "Binary file (content cannot be displayed)",
   "session.messages.renderEarlier": "عرض الرسائل السابقة",
   "session.messages.loadingEarlier": "جارٍ تحميل الرسائل السابقة...",
   "session.messages.loadEarlier": "تحميل الرسائل السابقة",

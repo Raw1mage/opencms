@@ -32,6 +32,8 @@ export const dict = {
   "command.settings.open": "開啟設定",
   "command.session.previous": "上一個工作階段",
   "command.session.next": "下一個工作階段",
+  "command.session.previous.unseen": "Previous unread session",
+  "command.session.next.unseen": "Next unread session",
   "command.session.archive": "封存工作階段",
 
   "command.palette": "命令面板",
@@ -433,6 +435,7 @@ export const dict = {
   "session.review.noChanges": "沒有變更",
   "session.files.selectToOpen": "選取要開啟的檔案",
   "session.files.all": "所有檔案",
+  "session.files.binaryContent": "Binary file (content cannot be displayed)",
   "session.messages.renderEarlier": "顯示更早的訊息",
   "session.messages.loadingEarlier": "正在載入更早的訊息...",
   "session.messages.loadEarlier": "載入更早的訊息",
