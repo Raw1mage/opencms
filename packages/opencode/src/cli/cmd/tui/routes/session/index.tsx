@@ -222,10 +222,11 @@ export function Session() {
   // Allow exit and arrow navigation when in child session (prompt is hidden)
   const exit = useExit()
   createEffect(() => {
+    const title = Locale.truncate(session()?.title ?? "", 50)
     return exit.message.set(
       [
         ``,
-        `  █▀▀█  ${UI.Style.TEXT_DIM}${session()?.title}${UI.Style.TEXT_NORMAL}`,
+        `  █▀▀█  ${UI.Style.TEXT_DIM}${title}${UI.Style.TEXT_NORMAL}`,
         `  █  █  ${UI.Style.TEXT_DIM}opencode -s ${session()?.id}${UI.Style.TEXT_NORMAL}`,
         `  ▀▀▀▀  `,
       ].join("\n"),
