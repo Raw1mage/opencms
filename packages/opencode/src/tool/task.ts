@@ -180,6 +180,10 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         }))
       const text = result.parts.findLast((x) => x.type === "text")?.text ?? ""
 
+      if (result.info.error) {
+        throw new Error(`Subagent task failed: ${(result.info.error as any).message || JSON.stringify(result.info.error)}`)
+      }
+
       const output = text + "\n\n" + ["<task_metadata>", `session_id: ${session.id}`, "</task_metadata>"].join("\n")
 
       return {
