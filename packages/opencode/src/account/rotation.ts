@@ -225,11 +225,7 @@ export function parseRateLimitReason(
     if (lower.includes("capacity") || lower.includes("overloaded") || lower.includes("resource exhausted")) {
       return "MODEL_CAPACITY_EXHAUSTED"
     }
-    if (
-      lower.includes("per minute") ||
-      lower.includes("rate limit") ||
-      lower.includes("too many requests")
-    ) {
+    if (lower.includes("per minute") || lower.includes("rate limit") || lower.includes("too many requests") || lower.includes("token refresh failed")) {
       return "RATE_LIMIT_EXCEEDED"
     }
     if (lower.includes("exhausted") || lower.includes("quota")) {
@@ -435,10 +431,7 @@ const SWITCH_THRESHOLD = 100
 /**
  * Sort accounts by LRU (least recently used first) with health score tiebreaker.
  */
-export function sortByLruWithHealth(
-  accounts: AccountCandidate[],
-  minHealthScore: number = 50,
-): AccountCandidate[] {
+export function sortByLruWithHealth(accounts: AccountCandidate[], minHealthScore: number = 50): AccountCandidate[] {
   return accounts
     .filter((acc) => !acc.isRateLimited && !acc.isCoolingDown && acc.healthScore >= minHealthScore)
     .sort((a, b) => {
@@ -544,12 +537,12 @@ export function initGlobalTrackers(healthConfig?: Partial<HealthScoreConfig>): v
 
 /**
  * Utility to check if an error is a rate limit error (HTTP 429)
- * 
+ *
  * This function is intentionally strict to avoid false positives.
  * It only returns true for:
  * - Explicit HTTP 429 status code
  * - Error messages containing explicit rate limit keywords
- * 
+ *
  * It does NOT return true for:
  * - Empty error objects
  * - Generic errors without status codes
@@ -579,9 +572,7 @@ export function isRateLimitError(error: unknown): boolean {
   if (typeof message === "string" && message.length > 0) {
     const lower = message.toLowerCase()
     // Only match very specific rate limit patterns, not generic "error" messages
-    if (lower.includes("429") ||
-      lower.includes("rate_limit_exceeded") ||
-      lower.includes("too many requests")) {
+    if (lower.includes("429") || lower.includes("rate_limit_exceeded") || lower.includes("too many requests") || lower.includes("token refresh failed")) {
       log.debug("isRateLimitError: matched by message pattern", { message: message.substring(0, 100) })
       return true
     }
@@ -686,12 +677,7 @@ export class ModelHealthRegistry {
   /**
    * Mark a model as rate limited.
    */
-  markRateLimited(
-    provider: string,
-    model: string,
-    reason: RateLimitReason,
-    backoffMs: number,
-  ): void {
+  markRateLimited(provider: string, model: string, reason: RateLimitReason, backoffMs: number): void {
     // Load latest state from file first (other process may have updated)
     this.loadFromFile()
 
@@ -805,7 +791,7 @@ export class ModelHealthRegistry {
    * Get all available models from a list of candidates.
    */
   filterAvailable(candidates: Array<{ provider: string; model: string }>): Array<{ provider: string; model: string }> {
-    return candidates.filter(c => this.isAvailable(c.provider, c.model))
+    return candidates.filter((c) => this.isAvailable(c.provider, c.model))
   }
 
   /**
