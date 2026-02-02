@@ -75,6 +75,7 @@ import { PermissionPrompt } from "./permission"
 import { QuestionPrompt } from "./question"
 import { DialogExportOptions } from "../../ui/dialog-export-options"
 import { formatTranscript } from "../../util/transcript"
+import { UI } from "@/cli/ui.ts"
 
 addDefaultParsers(parsers.parsers)
 
@@ -220,6 +221,16 @@ export function Session() {
 
   // Allow exit and arrow navigation when in child session (prompt is hidden)
   const exit = useExit()
+  createEffect(() => {
+    return exit.message.set(
+      [
+        ``,
+        `  █▀▀█  ${UI.Style.TEXT_DIM}${session()?.title}${UI.Style.TEXT_NORMAL}`,
+        `  █  █  ${UI.Style.TEXT_DIM}opencode -s ${session()?.id}${UI.Style.TEXT_NORMAL}`,
+        `  ▀▀▀▀  `,
+      ].join("\n"),
+    )
+  })
   useKeyboard((evt) => {
     if (!session()?.parentID) return
     if (keybind.match("app_exit", evt)) {
@@ -1803,8 +1814,19 @@ function Task(props: ToolProps<typeof TaskTool>) {
   const keybind = useKeybind()
   const { navigate } = useRoute()
   const local = useLocal()
+  const sync = useSync()
 
-  const current = createMemo(() => props.metadata.summary?.findLast((x) => x.state.status !== "pending"))
+  const tools = createMemo(() => {
+    const sessionID = props.metadata.sessionId
+    const msgs = sync.data.message[sessionID ?? ""] ?? []
+    return msgs.flatMap((msg) =>
+      (sync.data.part[msg.id] ?? [])
+        .filter((part): part is ToolPart => part.type === "tool")
+        .map((part) => ({ tool: part.tool, state: part.state })),
+    )
+  })
+
+  const current = createMemo(() => tools().findLast((x) => x.state.status !== "pending"))
   const color = createMemo(() => local.agent.color(props.input.subagent_type ?? "unknown"))
 
   return (
@@ -1821,13 +1843,17 @@ function Task(props: ToolProps<typeof TaskTool>) {
         >
           <box>
             <text style={{ fg: theme.textMuted }}>
-              {props.input.description} ({props.metadata.summary?.length} toolcalls)
+              {props.input.description} ({tools().length} toolcalls)
             </text>
             <Show when={current()}>
-              <text style={{ fg: current()!.state.status === "error" ? theme.error : theme.textMuted }}>
-                └ {Locale.titlecase(current()!.tool)}{" "}
-                {current()!.state.status === "completed" ? current()!.state.title : ""}
-              </text>
+              {(item) => {
+                const title = item().state.status === "completed" ? (item().state as any).title : ""
+                return (
+                  <text style={{ fg: item().state.status === "error" ? theme.error : theme.textMuted }}>
+                    └ {Locale.titlecase(item().tool)} {title}
+                  </text>
+                )
+              }}
             </Show>
           </box>
           <text fg={theme.text}>

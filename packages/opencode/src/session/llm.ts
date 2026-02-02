@@ -1,4 +1,3 @@
-import os from "os"
 import { Installation } from "@/installation"
 import { Provider } from "@/provider/provider"
 import { getCapabilities, requiresDummyTool } from "@/provider/capabilities"
@@ -12,7 +11,6 @@ import {
   type Tool,
   type ToolSet,
   type UIMessage,
-  extractReasoningMiddleware,
   tool,
   jsonSchema,
 } from "ai"
@@ -205,22 +203,22 @@ export namespace LLM {
       })
     }
 
-    const streamMessages = [
-      ...(isCodex || isAnthropicOAuth || isAntigravity || isGeminiCli
-        ? [
-          {
-            role: "user",
-            content: system.join("\n\n"),
-          } as ModelMessage,
-        ]
+    const systemMessages =
+      capabilities.systemMessageRole === "user"
+        ? ([
+            {
+              role: "user",
+              content: system.join("\n\n"),
+            },
+          ] as ModelMessage[])
         : system.map(
-          (x): ModelMessage => ({
-            role: "system",
-            content: x,
-          }),
-        )),
-      ...input.messages,
-    ]
+            (x): ModelMessage => ({
+              role: capabilities.systemMessageRole,
+              content: x,
+            }),
+          )
+
+    const streamMessages = [...systemMessages, ...input.messages]
 
     const finalMessages = normalizeMessages(streamMessages, tools)
 
@@ -337,7 +335,6 @@ export namespace LLM {
               return args.params
             },
           },
-          extractReasoningMiddleware({ tagName: "think", startWithReasoning: false }),
         ],
       }),
       experimental_telemetry: {

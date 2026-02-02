@@ -280,7 +280,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
           <text fg={theme.textMuted}>esc</text>
         </box>
         <Show when={!props.hideInput}>
-          <box paddingTop={1} paddingBottom={1}>
+          <box paddingTop={1}>
             <Show
               when={store.searchMode}
               fallback={
