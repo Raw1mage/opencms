@@ -116,10 +116,16 @@ export function Prompt(props: PromptProps) {
     if (!props.disabled) input.cursorColor = theme.text
   })
 
+  // Track rate limit auto-switch attempts to prevent infinite loops
+  const [autoSwitchAttempts, setAutoSwitchAttempts] = createSignal(0)
+  const MAX_AUTO_SWITCH_ATTEMPTS = 3
+
   createEffect(() => {
     const s = status()
     if (s.type !== "retry") {
       if (rateLimitKey()) setRateLimitKey("")
+      // Reset auto-switch attempts when no longer retrying
+      if (autoSwitchAttempts() > 0) setAutoSwitchAttempts(0)
       return
     }
     if (!isRateLimitMessage(s.message)) return
@@ -128,14 +134,40 @@ export function Prompt(props: PromptProps) {
     if (rateLimitKey() === key) return
 
     setRateLimitKey(key)
+
+    // Check if we have favorites to cycle through
+    const favorites = local.model.favorite().filter((item) => {
+      const provider = sync.data.provider.find((p) => p.id === item.providerID)
+      return !!provider?.models[item.modelID]
+    })
+
+    // Only auto-switch if we have multiple favorites and haven't exceeded max attempts
+    if (favorites.length > 1 && autoSwitchAttempts() < MAX_AUTO_SWITCH_ATTEMPTS) {
+      const currentModel = local.model.current()
+      const currentInFavorites = currentModel
+        ? favorites.some((f) => f.providerID === currentModel.providerID && f.modelID === currentModel.modelID)
+        : false
+
+      if (currentInFavorites) {
+        // Cycle to next favorite
+        local.model.cycleFavorite(1)
+        setAutoSwitchAttempts((prev) => prev + 1)
+
+        const nextModel = local.model.current()
+        toast.show({
+          message: `Rate limited. Switched to ${nextModel?.modelID ?? "next model"}`,
+          variant: "info",
+          duration: 3000,
+        })
+        return
+      }
+    }
+
+    // Fallback: open Admin Dialog for manual intervention
     const savedPrompt = store.prompt.input
     const targetProvider = local.model.current()?.providerID
     dialog.replace(
-      () => (
-        <DialogAdmin
-          targetProviderID={targetProvider ?? undefined}
-        />
-      ),
+      () => <DialogAdmin targetProviderID={targetProvider ?? undefined} />,
       () => {
         setStore("prompt", (prev) => ({
           ...prev,

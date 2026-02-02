@@ -181,6 +181,7 @@ export type RateLimitReason =
   | "RATE_LIMIT_EXCEEDED"
   | "MODEL_CAPACITY_EXHAUSTED"
   | "SERVER_ERROR"
+  | "MODEL_UNAVAILABLE" // New: Model removed/invalid/unsupported
   | "UNKNOWN"
 
 const QUOTA_EXHAUSTED_BACKOFFS = [60_000, 300_000, 1_800_000, 7_200_000] as const
@@ -188,6 +189,7 @@ const RATE_LIMIT_EXCEEDED_BACKOFF = 30_000
 const MODEL_CAPACITY_EXHAUSTED_BASE_BACKOFF = 45_000
 const MODEL_CAPACITY_EXHAUSTED_JITTER_MAX = 30_000
 const SERVER_ERROR_BACKOFF = 20_000
+const MODEL_UNAVAILABLE_BACKOFF = 24 * 60 * 60 * 1000 // 24 hours backoff for unavailable models
 const UNKNOWN_BACKOFF = 60_000
 const MIN_BACKOFF_MS = 2_000
 
@@ -204,8 +206,10 @@ export function parseRateLimitReason(
   status?: number,
 ): RateLimitReason {
   // Status Code Checks
-  if (status === 529 || status === 503) return "MODEL_CAPACITY_EXHAUSTED"
+  if (status === 529 || status === 503 || status === 502) return "MODEL_CAPACITY_EXHAUSTED"
   if (status === 500) return "SERVER_ERROR"
+  if (status === 401 || status === 403) return "SERVER_ERROR" // Treat auth errors as server errors for backoff
+  if (status === 404) return "MODEL_UNAVAILABLE" // Model not found, effectively remove it
 
   // Explicit Reason String
   if (reason) {
@@ -216,20 +220,49 @@ export function parseRateLimitReason(
         return "RATE_LIMIT_EXCEEDED"
       case "MODEL_CAPACITY_EXHAUSTED":
         return "MODEL_CAPACITY_EXHAUSTED"
+      case "MODEL_UNAVAILABLE":
+        return "MODEL_UNAVAILABLE"
     }
   }
 
   // Message Text Scanning
   if (message) {
     const lower = message.toLowerCase()
-    if (lower.includes("capacity") || lower.includes("overloaded") || lower.includes("resource exhausted")) {
+    if (
+      lower.includes("not found") ||
+      lower.includes("does not exist") ||
+      lower.includes("unsupported model") ||
+      lower.includes("invalid model") ||
+      lower.includes("no such model") ||
+      lower.includes("thought_signature") // Gemini 3 requires thought_signature for tool calls
+    ) {
+      return "MODEL_UNAVAILABLE"
+    }
+    if (
+      lower.includes("capacity") ||
+      lower.includes("overloaded") ||
+      lower.includes("resource exhausted") ||
+      lower.includes("unavailable")
+    ) {
       return "MODEL_CAPACITY_EXHAUSTED"
     }
-    if (lower.includes("per minute") || lower.includes("rate limit") || lower.includes("too many requests") || lower.includes("token refresh failed")) {
+    if (
+      lower.includes("per minute") ||
+      lower.includes("rate limit") ||
+      lower.includes("too many requests") ||
+      lower.includes("token refresh failed")
+    ) {
       return "RATE_LIMIT_EXCEEDED"
     }
     if (lower.includes("exhausted") || lower.includes("quota")) {
       return "QUOTA_EXHAUSTED"
+    }
+    if (
+      lower.includes("unauthorized") ||
+      lower.includes("authentication") ||
+      lower.includes("auth")
+    ) {
+      return "SERVER_ERROR"
     }
   }
 
@@ -263,6 +296,8 @@ export function calculateBackoffMs(
       return MODEL_CAPACITY_EXHAUSTED_BASE_BACKOFF + generateJitter(MODEL_CAPACITY_EXHAUSTED_JITTER_MAX)
     case "SERVER_ERROR":
       return SERVER_ERROR_BACKOFF
+    case "MODEL_UNAVAILABLE":
+      return MODEL_UNAVAILABLE_BACKOFF
     case "UNKNOWN":
     default:
       return UNKNOWN_BACKOFF
@@ -551,13 +586,27 @@ export function initGlobalTrackers(healthConfig?: Partial<HealthScoreConfig>): v
 export function isRateLimitError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false
 
-  // Check for explicit 429 status code
+  // Check for explicit status code
   const status = (error as any).status ?? (error as any).statusCode ?? (error as any).code
 
-  // Only treat as rate limit if we have an EXPLICIT 429
-  // Do not assume rate limit for errors without a status
-  if (status === 429) {
-    log.debug("isRateLimitError: matched by status code 429")
+  // Check for explicit rate limit or retryable error status codes
+  // 429: Too Many Requests
+  // 401: Unauthorized (try another account)
+  // 403: Forbidden (try another account)
+  // 404: Not Found (model missing, try another)
+  // 500: Internal Server Error (transient)
+  // 502: Bad Gateway (transient)
+  // 503: Service Unavailable (transient/overloaded)
+  if (
+    status === 429 ||
+    status === 401 ||
+    status === 403 ||
+    status === 404 ||
+    status === 500 ||
+    status === 502 ||
+    status === 503
+  ) {
+    log.debug(`isRateLimitError: matched by status code ${status}`)
     return true
   }
 
@@ -572,7 +621,26 @@ export function isRateLimitError(error: unknown): boolean {
   if (typeof message === "string" && message.length > 0) {
     const lower = message.toLowerCase()
     // Only match very specific rate limit patterns, not generic "error" messages
-    if (lower.includes("429") || lower.includes("rate_limit_exceeded") || lower.includes("too many requests") || lower.includes("token refresh failed")) {
+    if (
+      lower.includes("429") ||
+      lower.includes("rate_limit_exceeded") ||
+      lower.includes("too many requests") ||
+      lower.includes("token refresh failed") ||
+      lower.includes("unauthorized") ||
+      lower.includes("authentication failed") ||
+      lower.includes("model not found") ||
+      lower.includes("does not exist") || lower.includes("unsupported model") || lower.includes("invalid model") ||
+      lower.includes("unavailable") ||
+      lower.includes("overloaded") ||
+      lower.includes("unsupported model") ||
+      lower.includes("invalid model") ||
+      lower.includes("no such model") ||
+      lower.includes("exceeded your current quota") ||
+      lower.includes("quota exceeded") ||
+      lower.includes("quota_exceeded") ||
+      lower.includes("resource exhausted") ||
+      lower.includes("thought_signature") // Gemini 3 function call requires thought_signature
+    ) {
       log.debug("isRateLimitError: matched by message pattern", { message: message.substring(0, 100) })
       return true
     }
