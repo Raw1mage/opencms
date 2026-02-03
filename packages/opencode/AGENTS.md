@@ -4,6 +4,8 @@
 
 - 主要知識記錄檔為 `packages/opencode/DIARY.md`。
 - DIARY 需整合 CHANGELOG / PLANNING / DEBUGLOG 章節，不再分散維護。
+- 不再生成 `PLANNING.md` 檔案，規劃與需求請寫在 DIARY 的 PLANNING 章節。
+- 所有開發紀錄統一改為 DIARY。
 - 新增或移轉內容時，請依日期排序並以繁體中文撰寫。
 
 ## Communication Flow

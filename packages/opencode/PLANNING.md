@@ -20,7 +20,7 @@
 2. 移除 QUOTA 模擬程式碼，恢復實際邏輯。
 3. 修正型別/LSP 錯誤，確保與目前實作一致。
 4. 執行 `bun run typecheck`、`bun test` 驗證。
-5. 必要時更新 DEVLOG 摘要（若有實質變動）。
+5. 必要時更新 DIARY 摘要（若有實質變動）。
 
 ### Tasks
 
@@ -32,7 +32,7 @@
 
 ### Open Questions
 
-- 是否需同步更新 DEVLOG 以紀錄此次修復？
+- 是否需同步更新 DIARY 以紀錄此次修復？
 
 ---
 
@@ -146,6 +146,40 @@ I will perform the review in phases, examining key files and patterns for each a
 - **Open Questions**
   - 是否要限制 panel 顯示列數？目前預計顯示最多 8 筆最活躍的 session。
 - 監控 panel 是否以 poll 為主？暫定每 3 秒刷新一次快照以維持即時性。
+
+---
+
+## Feature: Sidebar Monitor 全域 Model 使用 (2026-02-03)
+
+### Requirements
+
+- Sidebar 的 Monitor 需即時顯示所有使用 model 的背景程序：session、sub-session、agent、sub-agent、tool calls。
+- 以「全局 model 使用狀況」為核心，整合跨層級的執行中資訊。
+- 可在 Monitor 內快速辨識目前正在使用的 model / provider 與所屬層級。
+
+### Scope
+
+- IN: 後端監控快照擴充（跨 session/sub-session/agent/sub-agent/tool calls），SDK/Store 資料流、Sidebar Monitor UI。
+- OUT: 歷史紀錄、長期統計、外部 telemetry 服務串接。
+
+### Approach
+
+1. 盤點現有 SessionMonitor 快照與資料源，定義「全域 model 使用」的最小必要欄位（層級、關聯 ID、狀態、model/provider、tool 名稱）。
+2. 擴充後端快照或新增端點，聚合所有正在使用 model 的背景程序。
+3. 更新 SDK + sync store，提供定期刷新與事件觸發同步。
+4. 更新 Sidebar Monitor：分層標示（session/sub-session/agent/sub-agent/tool call），支援依狀態或層級排序。
+
+### Tasks
+
+1. [ ] 釐清資料來源與快照 schema（全局 model 使用的最小欄位）
+2. [ ] 後端聚合跨層級的執行中紀錄
+3. [ ] 更新 SDK / Store 資料流與刷新策略
+4. [ ] 調整 Sidebar Monitor UI（層級標示 + 排序/過濾）
+
+### Open Questions
+
+- 需要顯示的層級標示格式與優先排序規則？
+- 是否需要限制顯示筆數或分頁？
 
 ---
 

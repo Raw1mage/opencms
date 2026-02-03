@@ -74,8 +74,91 @@
 - Read 工具在父目錄不存在時改用全域搜尋建議路徑，降低 ENOENT 噪音。
 - google_search 改為一律透過 Antigravity 多帳號管理機制選取帳號並執行搜尋（不再依賴 cached OAuth）。
 - 模型回傳 not found / not supported / 404 時，會自動把該模型從 favorites 永久移除。
+- Model Health 改為列出完整 provider/account/model 清單，並以符號顯示 Ready / Rate limit / Untracked 狀態。
 
 ### PLANNING
+
+#### 功能：剪貼簿貼圖與子代理影像容錯
+
+**需求**
+
+- WSL/SSH 環境貼上剪貼簿圖片時避免送出無效 base64。
+- 子代理自動任務遇到影像時不應造成整個 session 失敗。
+- 支援貼上/拖拉/檔案影像輸入的基礎容錯。
+
+**範圍**
+
+- IN: `src/cli/cmd/tui/util/clipboard.ts`, `src/tool/task.ts`
+- OUT: 影像解析/縮圖、UI 顯示與額外功能設計
+
+**作法**
+
+1. WSL 讀取剪貼簿改用 UTF-8 輸出並驗證 base64/PNG。
+2. 子代理自動任務預設不帶影像，避免模型端失敗。
+3. 遇到不合法的 data URL 直接略過。
+
+**任務**
+
+1. [ ] 更新 WSL clipboard 讀取輸出與驗證
+2. [ ] 子代理影像帶入條件化
+3. [ ] 驗證貼上/拖拉/檔案貼上流程
+
+**問題**
+
+- 是否要提供 UI 提示（如：子代理忽略影像）？
+
+#### 功能：主會話影像模型旋轉與降級處理
+
+**需求**
+
+- 貼上圖片只在主 session 顯示，不自動轉 subagent。
+- 當前模型不支援圖片時，僅本次臨時 rotate 到可處理影像的模型並提示。
+- 若無可用影像模型，移除圖片並改成文字提示。
+
+**範圍**
+
+- IN: `src/session/prompt.ts`
+- OUT: Provider capabilities 定義調整、額外 UI 版面變更
+
+**作法**
+
+1. 檢測 user message 是否含 image parts，決定 rotate 或 drop。
+2. 依 provider 健康狀態挑選可用影像模型並顯示 Toast。
+3. 無可用影像模型時，將圖片 part 轉成文字 placeholder。
+
+**任務**
+
+1. [x] 在 SessionPrompt loop 內注入 image rotate/drop 流程
+2. [x] 調整 processor/process 使用 active model
+3. [x] 補齊 Toast 與降級提示內容
+4. [x] `bun run typecheck`
+
+**問題**
+
+- Toast 文案是否需要可配置或多語系？
+
+#### 功能：/agents 選單停用 native search
+
+**需求**
+
+- 取消 /agents 選單的內建搜尋模式（/ 進入 search mode）。
+
+**範圍**
+
+- IN: `src/cli/cmd/tui/component/dialog-agent.tsx`
+- OUT: 其他 DialogSelect 的搜尋行為
+
+**作法**
+
+1. 在 /agents 對應的 DialogSelect 隱藏搜尋輸入。
+
+**任務**
+
+1. [x] 停用 /agents 選單搜尋輸入
+
+**問題**
+
+- 是否需要在 UI 提示搜尋已停用？
 
 #### 功能：thoughtSignature 插件 / QUOTA 清理
 
@@ -110,7 +193,7 @@
 
 **問題**
 
-- 是否同步更新 DEVLOG？
+- 是否同步更新 DIARY？
 
 ---
 

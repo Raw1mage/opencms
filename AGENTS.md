@@ -4,6 +4,12 @@
 - Prefer automation: execute requested actions without confirmation unless blocked by missing info or safety/irreversibility.
 - Bun is installed at `/home/pkcs12/.bun/bin/bun`.
 
+## Documentation / Planning
+
+- 不再生成 `PLANNING.md`。
+- 規劃與需求請直接更新 `packages/opencode/DIARY.md`（依日期排序、繁體中文）。
+- 所有開發紀錄統一改為 DIARY。
+
 ## Style Guide
 
 ### General Principles
