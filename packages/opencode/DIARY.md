@@ -68,6 +68,7 @@
 **來源**：本次變更整理
 
 - 新增 Session Monitor snapshot 與 `/session/top` API，並同步 SDK 型別。
+- 貼圖時略過自動 subagent workflow，統一走主會話流程。
 - Sidebar Monitor 僅追蹤目前 session 與子孫 session，2 秒輪詢更新，完成即隱藏。
 - Sidebar 移除 Subagents 區塊。
 - Session 預設標題改為純時間戳。
@@ -323,6 +324,27 @@
 
 - [ ] 切換模型後送出新訊息，system prompt 仍含最新 AGENTS 指令。
 - [ ] Subagent 選模與 AGENTS scoring 一致。
+
+#### 影像讀取觸發 Subagent 與模型旋轉
+
+**問題摘要**
+
+- 貼圖/讀圖時會自動開啟 subagent，並顯示 model rotated/fallback，導致錯誤處理影像。
+
+**根本原因**
+
+- 本地 `src/session/prompt.ts` 新增自動 subagent workflow 與 image rotate/drop；origin/dev 沒有這段流程。
+- 本地 `src/tool/task.ts` 會把父訊息的影像附件直接帶入 subagent，即使是 auto task 或模型不支援 image。
+
+**修復重點**
+
+- 對齊 origin/dev：移除/關閉自動 subagent workflow 與 image rotate/drop。
+- Task tool 不自動帶入影像，必要時改成明確配置開關。
+
+**驗證**
+
+- [ ] 貼圖不再觸發 subagent 或模型旋轉。
+- [ ] 影像只由主 session 處理，影像錯誤訊息不再出現。
 
 ## 2026-02-02
 
