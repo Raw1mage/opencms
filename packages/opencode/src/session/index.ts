@@ -27,11 +27,15 @@ export namespace Session {
   const log = Log.create({ service: "session" })
 
   function createDefaultTitle() {
-    return new Date().toISOString()
+    const now = new Date()
+    const pad = (value: number) => value.toString().padStart(2, "0")
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(
+      now.getMinutes(),
+    )}`
   }
 
   export function isDefaultTitle(title: string) {
-    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(title)
+    return /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(title)
   }
 
   function getForkedTitle(title: string): string {

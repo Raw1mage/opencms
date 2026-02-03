@@ -17,7 +17,16 @@ export namespace Account {
   // Known OAuth providers - these have specialized handling or OAuth flows.
   // NOTE: This is NOT a whitelist - any provider can have accounts added.
   // This list is for documentation and special case handling only.
-  export const PROVIDERS = ["google-api", "openai", "anthropic", "antigravity", "gemini-cli", "gitlab", "github-copilot", "opencode"] as const
+  export const PROVIDERS = [
+    "google-api",
+    "openai",
+    "anthropic",
+    "antigravity",
+    "gemini-cli",
+    "gitlab",
+    "github-copilot",
+    "opencode",
+  ] as const
   export type Provider = (typeof PROVIDERS)[number]
 
   /** @deprecated Use PROVIDERS instead */
@@ -83,14 +92,31 @@ export namespace Account {
 
   // Cached state
   let _storage: Storage | undefined
+  let _mtime: number | undefined
+
+  async function getDiskMtime(): Promise<number | undefined> {
+    const file = Bun.file(filepath)
+    if (!(await file.exists())) return
+    const mtime = file.lastModified
+    if (typeof mtime !== "number") return
+    return mtime
+  }
+
   async function state(): Promise<Storage> {
-    if (!_storage) {
-      debugLog("Account.state", "Loading from disk (no cache)")
-      _storage = await load()
-      debugLog("Account.state", "Loaded", { families: Object.keys(_storage.families) })
+    if (_storage) {
+      const mtime = await getDiskMtime()
+      if (mtime === _mtime) {
+        debugLog("Account.state", "Using cached state", { families: Object.keys(_storage.families) })
+        return _storage
+      }
+      debugLog("Account.state", "Loading from disk", { reason: "mtime-changed" })
     } else {
-      debugLog("Account.state", "Using cached state", { families: Object.keys(_storage.families) })
+      debugLog("Account.state", "Loading from disk", { reason: "no-cache" })
     }
+
+    _storage = await load()
+    _mtime = await getDiskMtime()
+    debugLog("Account.state", "Loaded", { families: Object.keys(_storage.families) })
     return _storage
   }
 
@@ -134,6 +160,7 @@ export namespace Account {
       debugLog("Account.save", "Content ready", { length: content.length, families: Object.keys(storage.families) })
       await Bun.write(file, content)
       await fs.chmod(filepath, 0o600)
+      _mtime = await getDiskMtime()
       debugLog("Account.save", "Write successful")
     } catch (e) {
       debugLog("Account.save", "Write failed", { error: e instanceof Error ? e.message : String(e) })
@@ -147,7 +174,10 @@ export namespace Account {
   export async function list(provider: string): Promise<Record<string, Info>> {
     const storage = await state()
     const accounts = storage.families[provider]?.accounts ?? {}
-    debugLog("Account.list", provider, { accountCount: Object.keys(accounts).length, accountIds: Object.keys(accounts) })
+    debugLog("Account.list", provider, {
+      accountCount: Object.keys(accounts).length,
+      accountIds: Object.keys(accounts),
+    })
     return accounts
   }
 
@@ -241,9 +271,7 @@ export namespace Account {
         const currentEmail = sub.email
 
         // Check if email is missing, is a UUID, or doesn't contain @
-        const needsRepair = !currentEmail ||
-                           JWT.isUUID(currentEmail) ||
-                           !currentEmail.includes("@")
+        const needsRepair = !currentEmail || JWT.isUUID(currentEmail) || !currentEmail.includes("@")
 
         if (!needsRepair) continue
 
@@ -454,37 +482,35 @@ export namespace Account {
    * WYSIWYG: Always prefer email for identification
    */
   export function getDisplayName(id: string, info: Info, provider: string): string {
-    const { JWT } = require("../util/jwt"); // Lazy import to avoid cycle if any
+    const { JWT } = require("../util/jwt") // Lazy import to avoid cycle if any
 
     // 1. Try JWT Decoding (OpenAI / Google OAuth)
-    let email = (info.type === "subscription" && info.accessToken) ? JWT.getEmail(info.accessToken) : (info as any).email;
-    if (!email && info.type === "subscription" && info.refreshToken) email = JWT.getEmail(info.refreshToken);
+    let email = info.type === "subscription" && info.accessToken ? JWT.getEmail(info.accessToken) : (info as any).email
+    if (!email && info.type === "subscription" && info.refreshToken) email = JWT.getEmail(info.refreshToken)
 
     // 2. Check accountId and name fields for email patterns
     if (!email || email === provider) {
-      if ((info as any).accountId && (info as any).accountId.includes("@")) email = (info as any).accountId;
-      else if (info.name && info.name.includes("@")) email = info.name;
+      if ((info as any).accountId && (info as any).accountId.includes("@")) email = (info as any).accountId
+      else if (info.name && info.name.includes("@")) email = info.name
     }
 
     // 3. If we have an email, use it
     if (email && email !== provider && email.includes("@")) {
-      return email;
+      return email
     }
 
     // 4. For API accounts, the name field should be the user-provided name
     if (info.type === "api" && info.name && info.name !== provider) {
       // Check if name looks useful (not just the provider name repeated)
-      const isUseful = info.name !== provider &&
-                       !info.name.startsWith(`${provider}-`) &&
-                       !JWT.isUUID(info.name);
-      if (isUseful) return info.name;
+      const isUseful = info.name !== provider && !info.name.startsWith(`${provider}-`) && !JWT.isUUID(info.name)
+      if (isUseful) return info.name
     }
 
     // 5. For subscription accounts, try accountId or username
     if (info.type === "subscription") {
-      const sub = info as SubscriptionAccount;
+      const sub = info as SubscriptionAccount
       if (sub.accountId && sub.accountId !== provider && !JWT.isUUID(sub.accountId)) {
-        return sub.accountId;
+        return sub.accountId
       }
     }
 
@@ -492,18 +518,18 @@ export namespace Account {
     const idMatch = id.match(/^[^-]+-(?:api|subscription)-(.+)$/)
     if (idMatch && idMatch[1] && idMatch[1] !== provider) {
       // Convert dashes back to something readable
-      const extracted = idMatch[1].replace(/-/g, ' ')
+      const extracted = idMatch[1].replace(/-/g, " ")
       if (extracted !== provider && !JWT.isUUID(extracted)) {
-        return extracted;
+        return extracted
       }
     }
 
     // 7. Fallback - at least show something other than raw ID
-    if (info.name && info.name !== provider) return info.name;
+    if (info.name && info.name !== provider) return info.name
 
     // 8. Last resort: generate a short label
-    const shortId = id.split('-').pop() || id
-    return shortId !== provider ? shortId : `Account`;
+    const shortId = id.split("-").pop() || id
+    return shortId !== provider ? shortId : `Account`
   }
 
   async function migrateToV2(storage: any): Promise<Storage> {
@@ -517,11 +543,12 @@ export namespace Account {
       for (const [id, account] of Object.entries(googleAccounts as Record<string, any>)) {
         let moved = false
         // Clue for antigravity: fingerprint userAgent or rate limits
-        const isAntigravity = account.fingerprint?.userAgent?.includes("antigravity") ||
-          Object.keys(account.rateLimitResetTimes || {}).some(k => k.startsWith("gemini-antigravity"))
+        const isAntigravity =
+          account.fingerprint?.userAgent?.includes("antigravity") ||
+          Object.keys(account.rateLimitResetTimes || {}).some((k) => k.startsWith("gemini-antigravity"))
 
         // Clue for gemini-cli: rate limits or specific fields
-        const isGeminiCli = Object.keys(account.rateLimitResetTimes || {}).some(k => k.startsWith("gemini-cli"))
+        const isGeminiCli = Object.keys(account.rateLimitResetTimes || {}).some((k) => k.startsWith("gemini-cli"))
 
         if (isAntigravity) {
           const newId = id.replace(/^google-/, "antigravity-")
@@ -539,13 +566,13 @@ export namespace Account {
       if (Object.keys(antigravityAccounts).length > 0) {
         storage.families.antigravity = {
           accounts: antigravityAccounts,
-          activeAccount: Object.keys(antigravityAccounts)[0]
+          activeAccount: Object.keys(antigravityAccounts)[0],
         }
       }
       if (Object.keys(geminiCliAccounts).length > 0) {
         storage.families["gemini-cli"] = {
           accounts: geminiCliAccounts,
-          activeAccount: Object.keys(geminiCliAccounts)[0]
+          activeAccount: Object.keys(geminiCliAccounts)[0],
         }
       }
       storage.families.google.accounts = remainingGoogleAccounts
@@ -606,14 +633,22 @@ export namespace Account {
               continue // Skip - will be migrated from antigravity/codex account files
             }
             // Skip Anthropic if already present (avoid duplicates with new format)
-            if (provider === "anthropic" && storage.families["anthropic"] && Object.keys(storage.families["anthropic"].accounts).length > 0) {
+            if (
+              provider === "anthropic" &&
+              storage.families["anthropic"] &&
+              Object.keys(storage.families["anthropic"].accounts).length > 0
+            ) {
               continue
             }
 
             if (!storage.families[provider]) {
               storage.families[provider] = { accounts: {} }
             }
-            const accountId = generateId(provider, "subscription", authInfo.accountId || providerID.replace(`${provider}-`, "") || "default")
+            const accountId = generateId(
+              provider,
+              "subscription",
+              authInfo.accountId || providerID.replace(`${provider}-`, "") || "default",
+            )
             storage.families[provider].accounts[accountId] = {
               type: "subscription",
               name: authInfo.accountId || providerID,
@@ -636,13 +671,16 @@ export namespace Account {
     }
 
     // Post-migrate cleanup: Remove legacy account ID if new format exists for Anthropic
-    if (storage.families["anthropic"] && storage.families["anthropic"].accounts["anthropic"] && storage.families["anthropic"].accounts["anthropic-subscription-anthropic"]) {
-      delete storage.families["anthropic"].accounts["anthropic"];
+    if (
+      storage.families["anthropic"] &&
+      storage.families["anthropic"].accounts["anthropic"] &&
+      storage.families["anthropic"].accounts["anthropic-subscription-anthropic"]
+    ) {
+      delete storage.families["anthropic"].accounts["anthropic"]
       if (storage.families["anthropic"].activeAccount === "anthropic") {
-        storage.families["anthropic"].activeAccount = "anthropic-subscription-anthropic";
+        storage.families["anthropic"].activeAccount = "anthropic-subscription-anthropic"
       }
     }
-
 
     // 2. Migrate from antigravity-accounts.json
     const xdgConfig = process.env.XDG_CONFIG_HOME || path.join(Global.Path.home, ".config")
@@ -748,6 +786,7 @@ export namespace Account {
    */
   export async function refresh(): Promise<void> {
     _storage = await load()
+    _mtime = await getDiskMtime()
   }
 
   /**
@@ -862,15 +901,16 @@ export namespace Account {
     // Build candidate list
     const candidates: AccountCandidate[] = []
     for (const [id, info] of Object.entries(providerData.accounts)) {
-      const lastUsed = info.type === "subscription" ? (info as any).lastUsed ?? 0 : 0
+      const lastUsed = info.type === "subscription" ? ((info as any).lastUsed ?? 0) : 0
       candidates.push({
         id,
         lastUsed,
         healthScore: healthTracker.getScore(id),
         isRateLimited: rateLimitTracker.isRateLimited(id, provider, model),
-        isCoolingDown: info.type === "subscription" && (info as any).coolingDownUntil
-          ? Date.now() < (info as any).coolingDownUntil
-          : false,
+        isCoolingDown:
+          info.type === "subscription" && (info as any).coolingDownUntil
+            ? Date.now() < (info as any).coolingDownUntil
+            : false,
       })
     }
 
@@ -924,13 +964,7 @@ export namespace Account {
     const rateLimitTracker = rotation.getRateLimitTracker()
 
     healthTracker.recordRateLimit(accountId)
-    rateLimitTracker.markRateLimited(
-      accountId,
-      provider,
-      reason as RateLimitReason,
-      backoffMs,
-      model,
-    )
+    rateLimitTracker.markRateLimited(accountId, provider, reason as RateLimitReason, backoffMs, model)
 
     log.info("Recorded rate limit", { accountId, provider, reason, backoffMs, model })
   }
@@ -996,9 +1030,7 @@ export namespace Account {
    * Get health and rate limit status for all accounts in a provider.
    * Useful for debugging and admin UI.
    */
-  export async function getRotationStatus(
-    provider: string,
-  ): Promise<
+  export async function getRotationStatus(provider: string): Promise<
     Array<{
       id: string
       name: string

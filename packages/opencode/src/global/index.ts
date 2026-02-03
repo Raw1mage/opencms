@@ -20,8 +20,7 @@ const defaultPaths: DirectorySet = {
   state: path.join(xdgState ?? path.join(os.homedir(), ".local/state"), app),
 }
 
-const fallbackRoot =
-  process.env.OPENCODE_DATA_HOME ?? path.join(process.cwd(), ".opencode-data")
+const fallbackRoot = process.env.OPENCODE_DATA_HOME ?? path.join(process.cwd(), ".opencode-data")
 const fallbackPaths: DirectorySet = {
   data: path.join(fallbackRoot, "data"),
   cache: path.join(fallbackRoot, "cache"),

@@ -23,6 +23,7 @@ import { WebSearchTool } from "./websearch"
 import { CodeSearchTool } from "./codesearch"
 import { Flag } from "@/flag/flag"
 import { Log } from "@/util/log"
+import { debugLog } from "@/util/debug-log"
 import { LspTool } from "./lsp"
 import { Truncate } from "./truncation"
 import { PlanExitTool, PlanEnterTool } from "./plan"
@@ -56,6 +57,11 @@ export namespace ToolRegistry {
         custom.push(fromPlugin(id, def))
       }
     }
+
+    debugLog("tool.registry", "state: custom tools", {
+      count: custom.length,
+      ids: custom.map((item) => item.id),
+    })
 
     return { custom }
   })
@@ -133,7 +139,16 @@ export namespace ToolRegistry {
     },
     agent?: Agent.Info,
   ) {
+    debugLog("tool.registry", "tools: start", {
+      providerID: model.providerID,
+      modelID: model.modelID,
+      agent: agent?.name,
+    })
     const tools = await all()
+    debugLog("tool.registry", "tools: all", {
+      count: tools.length,
+      ids: tools.map((item) => item.id),
+    })
     const result = await Promise.all(
       tools
         .filter((t) => {
@@ -158,6 +173,10 @@ export namespace ToolRegistry {
           }
         }),
     )
+    debugLog("tool.registry", "tools: ready", {
+      count: result.length,
+      ids: result.map((item) => item.id),
+    })
     return result
   }
 }

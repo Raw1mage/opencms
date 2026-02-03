@@ -31,4 +31,4 @@ jobs:
       - name: Sync beta branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bun script/beta.ts
+        run: bun scripts/beta.ts

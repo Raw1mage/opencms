@@ -13,15 +13,29 @@ import { useKV } from "../../context/kv"
 import { useRoute } from "../../context/route"
 import { TodoItem } from "../../component/todo-item"
 
-const MONITOR_DISPLAY_LIMIT = 6
 const STATUS_LABELS: Record<string, string> = {
-  busy: "Running",
-  working: "Running",
   idle: "Done",
   error: "Error",
   retry: "Retrying",
   compacting: "Compacting",
   pending: "Pending",
+}
+const LEVEL_LABELS: Record<string, string> = {
+  session: "S",
+  "sub-session": "SS",
+  agent: "A",
+  "sub-agent": "SA",
+  tool: "T",
+}
+
+const formatIsoTitle = (title: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(title)) return title
+  const date = new Date(title)
+  if (Number.isNaN(date.getTime())) return title
+  const pad = (value: number) => value.toString().padStart(2, "0")
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(
+    date.getHours(),
+  )}:${pad(date.getMinutes())}`
 }
 
 export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
@@ -87,39 +101,22 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
   }
 
   const activeStatuses = new Set(["busy", "working", "retry", "compacting", "pending"])
-  const descendants = createMemo(() => {
-    const sessions = sync.data.session
-    const byParent = new Map<string, string[]>()
-    for (const item of sessions) {
-      if (!item.parentID) continue
-      const list = byParent.get(item.parentID) ?? []
-      list.push(item.id)
-      byParent.set(item.parentID, list)
-    }
-    const result = new Set<string>([props.sessionID])
-    const stack = [props.sessionID]
-    while (stack.length > 0) {
-      const id = stack.pop()
-      if (!id) continue
-      const next = byParent.get(id) ?? []
-      for (const child of next) {
-        if (result.has(child)) continue
-        result.add(child)
-        stack.push(child)
-      }
-    }
-    return result
-  })
   const monitorEntries = createMemo(() => {
-    const ids = descendants()
-    return (sync.data.monitor ?? [])
-      .filter((x) => ids.has(x.sessionID))
+    const raw = (sync.data.monitor ?? [])
       .filter((x) => activeStatuses.has(x.status.type))
       .slice()
       .sort((a, b) => b.updated - a.updated)
+
+    // Deduplicate: If an 'agent' entry and a 'session' entry have the same sessionID and are updated at similar times,
+    // prefer the 'agent' entry (or just show one).
+    // Actually, usually [A] and [S] are redundant if there is only one active agent.
+    // Let's filter out 'session' level entries if there is an 'agent' level entry for the same sessionID.
+    const agentSessionIDs = new Set(raw.filter((x) => x.level === "agent").map((x) => x.sessionID))
+    return raw.filter((x) => {
+      if (x.level === "session" && agentSessionIDs.has(x.sessionID)) return false
+      return true
+    })
   })
-  const displayedMonitorEntries = createMemo(() => monitorEntries().slice(0, MONITOR_DISPLAY_LIMIT))
-  const extraMonitorCount = createMemo(() => Math.max(monitorEntries().length - displayedMonitorEntries().length, 0))
   const activeRouteSessionID = createMemo(() => (route.data.type === "session" ? route.data.sessionID : undefined))
 
   const hasProviders = createMemo(() =>
@@ -157,20 +154,25 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
               <text fg={theme.textMuted}>{context()?.percentage ?? 0}% used</text>
               <text fg={theme.textMuted}>{cost()} spent</text>
             </box>
-            <Show when={displayedMonitorEntries().length > 0}>
+            <Show when={monitorEntries().length > 0}>
               <box marginTop={1} gap={1}>
                 <text fg={theme.text}>
                   <b>Monitor</b>
                 </text>
-                <For each={displayedMonitorEntries()}>
+                <For each={monitorEntries()}>
                   {(info) => {
                     const statusType = info.status.type
                     const dotColor = monitorStatusColors[statusType] ?? theme.textMuted
-                    const statusLabel = STATUS_LABELS[statusType] ?? statusType
+                    const statusLabel = STATUS_LABELS[statusType]
+                    const levelLabel = LEVEL_LABELS[info.level] ?? info.level
                     const modelLabel = info.model ? `${info.model.providerID}/${info.model.modelID}` : "No model"
-                    const title = info.title || "Untitled session"
+                    const title = formatIsoTitle(info.title || "Untitled session")
                     const agentSuffix = info.agent ? <span style={{ fg: theme.textMuted }}> ({info.agent})</span> : null
                     const isActiveSession = activeRouteSessionID() === info.sessionID
+                    const metaLabel =
+                      info.level === "tool"
+                        ? `${modelLabel} • Tool call`
+                        : `${modelLabel} • ${info.requests} reqs • ${info.totalTokens.toLocaleString()} tok`
                     return (
                       <box
                         flexDirection="column"
@@ -183,13 +185,15 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                         <box flexDirection="row" gap={1} alignItems="center">
                           <text fg={dotColor}>•</text>
                           <text fg={theme.text} wrapMode="word">
-                            {title}
+                            <span style={{ fg: theme.textMuted }}>[{levelLabel}]</span> {title}
                             {agentSuffix}
-                            <span style={{ fg: dotColor }}> {statusLabel}</span>
+                            <Show when={statusLabel}>
+                              <span style={{ fg: dotColor }}> {statusLabel}</span>
+                            </Show>
                           </text>
                         </box>
                         <text fg={theme.textMuted} wrapMode="word">
-                          {modelLabel} • {info.requests} reqs • {info.totalTokens.toLocaleString()} tok
+                          {metaLabel}
                         </text>
                         <Show when={info.activeTool}>
                           <text fg={theme.textMuted} wrapMode="word">
@@ -200,11 +204,6 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                     )
                   }}
                 </For>
-                <Show when={extraMonitorCount() > 0}>
-                  <text fg={theme.textMuted}>
-                    +{extraMonitorCount()} more session{extraMonitorCount() > 1 ? "s" : ""}
-                  </text>
-                </Show>
               </box>
             </Show>
             <Show when={mcpEntries().length > 0}>

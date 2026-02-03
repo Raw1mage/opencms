@@ -66,11 +66,11 @@ sudo ./scripts/docker-setup.sh
 
 這會複製以下檔案：
 
-| 來源路徑 | 目標路徑 | 內容 |
-|----------|----------|------|
-| `~/.config/opencode/` | `./config/opencode/` | opencode.json, commands/, skills/ |
-| `~/.local/share/opencode/` | `./config/data/` | accounts.json, mcp-auth.json |
-| `~/.local/state/opencode/` | `./config/state/` | model.json, model-health.json |
+| 來源路徑                   | 目標路徑             | 內容                              |
+| -------------------------- | -------------------- | --------------------------------- |
+| `~/.config/opencode/`      | `./config/opencode/` | opencode.json, commands/, skills/ |
+| `~/.local/share/opencode/` | `./config/data/`     | accounts.json, mcp-auth.json      |
+| `~/.local/state/opencode/` | `./config/state/`    | model.json, model-health.json     |
 
 ### 3. 建置映像檔
 
@@ -97,24 +97,24 @@ docker-compose -f docker-compose.production.yml --profile web up -d
 
 ### 環境變數
 
-| 變數 | 預設值 | 說明 |
-|------|--------|------|
-| `OPENCODE_DATA_HOME` | `/opt/opencode` | 統一數據根目錄 |
-| `OPENCODE_SERVER_PASSWORD` | (空) | Web UI 密碼 |
-| `OPENCODE_SERVER_USERNAME` | `opencode` | Web UI 用戶名 |
-| `WORKSPACE` | `./workspace` | 工作目錄掛載點 |
-| `TZ` | `UTC` | 時區設定 |
+| 變數                       | 預設值          | 說明           |
+| -------------------------- | --------------- | -------------- |
+| `OPENCODE_DATA_HOME`       | `/opt/opencode` | 統一數據根目錄 |
+| `OPENCODE_SERVER_PASSWORD` | (空)            | Web UI 密碼    |
+| `OPENCODE_SERVER_USERNAME` | `opencode`      | Web UI 用戶名  |
+| `WORKSPACE`                | `./workspace`   | 工作目錄掛載點 |
+| `TZ`                       | `UTC`           | 時區設定       |
 
 ### Volume 掛載對應
 
-| 主機路徑 | 容器路徑 | 用途 |
-|----------|----------|------|
-| `/opt/opencode/config` | `/opt/opencode/config` | 配置文件 |
-| `/opt/opencode/data` | `/opt/opencode/data` | 持久化數據 |
-| `/opt/opencode/cache` | `/opt/opencode/cache` | 快取 |
-| `/opt/opencode/state` | `/opt/opencode/state` | 運行狀態 |
-| `/opt/opencode/logs` | `/opt/opencode/logs` | 日誌 |
-| `$WORKSPACE` | `/workspace` | 代碼工作區 |
+| 主機路徑               | 容器路徑               | 用途       |
+| ---------------------- | ---------------------- | ---------- |
+| `/opt/opencode/config` | `/opt/opencode/config` | 配置文件   |
+| `/opt/opencode/data`   | `/opt/opencode/data`   | 持久化數據 |
+| `/opt/opencode/cache`  | `/opt/opencode/cache`  | 快取       |
+| `/opt/opencode/state`  | `/opt/opencode/state`  | 運行狀態   |
+| `/opt/opencode/logs`   | `/opt/opencode/logs`   | 日誌       |
+| `$WORKSPACE`           | `/workspace`           | 代碼工作區 |
 
 ## 使用方式
 

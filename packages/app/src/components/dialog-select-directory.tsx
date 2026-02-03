@@ -217,14 +217,17 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
 
     const cap = 12
     const branch = 4
-    const paths = await head.reduce(async (prevPromise, part) => {
-      const prev = await prevPromise
-      if (prev.length === 0) return prev
-      if (part === "..") return prev.map(parentOf)
+    const paths = await head.reduce(
+      async (prevPromise, part) => {
+        const prev = await prevPromise
+        if (prev.length === 0) return prev
+        if (part === "..") return prev.map(parentOf)
 
-      const next = (await Promise.all(prev.map((p) => match(p, part, branch)))).flat()
-      return Array.from(new Set(next)).slice(0, cap)
-    }, Promise.resolve([scopedInput.directory]))
+        const next = (await Promise.all(prev.map((p) => match(p, part, branch)))).flat()
+        return Array.from(new Set(next)).slice(0, cap)
+      },
+      Promise.resolve([scopedInput.directory]),
+    )
 
     if (paths.length === 0) return [] as string[]
 

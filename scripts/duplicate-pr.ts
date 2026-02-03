@@ -16,14 +16,14 @@ async function main() {
 
   if (values.help) {
     console.log(`
-Usage: bun script/duplicate-pr.ts [options] <message>
+ Usage: bun scripts/duplicate-pr.ts [options] <message>
 
 Options:
   -f, --file <path>   File to attach to the prompt
   -h, --help          Show this help message
 
 Examples:
-  bun script/duplicate-pr.ts -f pr_info.txt "Check the attached file for PR details"
+  bun scripts/duplicate-pr.ts -f pr_info.txt "Check the attached file for PR details"
 `)
     process.exit(0)
   }

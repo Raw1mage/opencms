@@ -72,12 +72,171 @@
 - Sidebar Monitor 僅追蹤目前 session 與子孫 session，2 秒輪詢更新，完成即隱藏。
 - Sidebar 移除 Subagents 區塊。
 - Session 預設標題改為純時間戳。
+- New Session 首句自動截斷為 session 名稱（不再依賴模型生成）。
+- Monitor 的 tool/agent 條目若為預設時間戳，改顯示父 session 標題。
+- Monitor 若 session title 尚未更新，改用首則 user 訊息推導顯示。
+- Session 預設時間戳格式改為 `YYYY-MM-DD hh:mm`。
 - Read 工具在父目錄不存在時改用全域搜尋建議路徑，降低 ENOENT 噪音。
 - google_search 改為一律透過 Antigravity 多帳號管理機制選取帳號並執行搜尋（不再依賴 cached OAuth）。
+- google_search 支援 Gemini CLI OAuth（當沒有 Antigravity 帳號時）。
+- google_search 增加標準化 debug log checkpoint，輸出至 `~/.local/share/opencode/log/debug.log`。
 - 模型回傳 not found / not supported / 404 時，會自動把該模型從 favorites 永久移除。
 - Model Health 改為列出完整 provider/account/model 清單，並以符號顯示 Ready / Rate limit / Untracked 狀態。
+- Antigravity 429 流程同步更新全域 RateLimitTracker，讓 Model Health Dashboard 即時顯示 rate limit。
 
 ### PLANNING
+
+#### 功能：google_search 認證失敗 RCA
+
+**需求**
+
+- 釐清為何 google_search 需要 Antigravity 登入且認證失敗。
+- 追查實際呼叫路徑、帳號選取與 token 取得流程。
+- 產出完整 RCA（時間線、影響範圍、根因、修復/預防建議）。
+
+**範圍**
+
+- IN: tool/google_search、Antigravity plugin、auth/accounts、CLI/配置與環境偵測
+- OUT: 實際修復與程式碼修改
+
+**作法**
+
+1. 盤點 google_search tool 與 plugin 綁定流程。
+2. 追查 Antigravity 帳號管理與 auth 取得邏輯。
+3. 比對錯誤訊息與日誌輸出路徑，定位失敗點。
+4. 彙整 RCA 與修復建議。
+
+**任務**
+
+1. [ ] 追查 google_search tool 入口與 provider 選取
+2. [ ] 追查 Antigravity auth/account 流程與 token 取得
+3. [ ] 對照錯誤訊息與 debug log checkpoint
+4. [ ] 產出完整 RCA 報告
+
+**問題**
+
+- 是否存在「需要 Antigravity 但未安裝/未登入」的 fallback 分支？
+- CLI 是否有環境變數或設定可覆寫 provider？
+
+#### 功能：全域 Account 快取同步與 google_search 自動 refresh
+
+**需求**
+
+- 修復全域 Account 快取，避免 google_search 因快取落後誤判未認證。
+- google_search 在缺 accessToken 時自動 refresh，降低手動登入依賴。
+- 補測試覆蓋快取刷新與 refresh 分支。
+
+**範圍**
+
+- IN: `src/account/index.ts`, `src/plugin/antigravity/index.ts`, `src/plugin/antigravity/plugin/accounts.ts`
+- OUT: UI 登入流程、外部 OAuth provider 行為
+
+**作法**
+
+1. 在 Account 模組提供安全的快取刷新入口，統一刷新策略。
+2. google_search 執行前強制同步 Account/AccountManager。
+3. 當 antigravity 帳號缺 accessToken 時自動走 refresh 分支。
+4. 補上單元測試，涵蓋快取刷新與 token refresh。
+
+**任務**
+
+1. [ ] Account 快取刷新入口（可被 tool 強制呼叫）
+2. [ ] google_search 執行前刷新 Account/AccountManager
+3. [ ] 自動 refresh accessToken（缺 token 時）
+4. [ ] 新增/更新測試
+
+**問題**
+
+- refresh 失敗時是否應清除 access token 或標記帳號冷卻？
+
+#### 功能：google_search 全鏈路 checkpoint
+
+**需求**
+
+- 在工具層、session、plugin 與 provider 分支加入 debug checkpoint。
+- 釐清 google_search 未進入 plugin 時的實際阻擋點。
+
+**範圍**
+
+- IN: `src/tool/registry.ts`, `src/session/prompt.ts`, `src/plugin/antigravity/index.ts`, `src/plugin/antigravity/plugin/search.ts`
+- OUT: 功能邏輯改動、測試新增
+
+**作法**
+
+1. ToolRegistry 記錄註冊/過濾後的工具清單。
+2. Session prompt 記錄 resolveTools 流程與工具列表。
+3. google_search 入口與分支流程加入 debugLog。
+
+**任務**
+
+1. [ ] ToolRegistry 加入註冊/過濾 checkpoint
+2. [ ] Session resolveTools 加入工具清單 checkpoint
+3. [ ] google_search 入口與 provider 分支 checkpoint
+
+#### 功能：Typecheck 錯誤修復（TUI / Antigravity / Monitor）
+
+**需求**
+
+- 修正 TUI Model Health Dashboard 的型別推斷與索引錯誤。
+- 修正 antigravity 內 Gemini CLI OAuth 客戶端型別不相容。
+- 修正 Session Monitor 的文字 part 型別縮小錯誤。
+
+**範圍**
+
+- IN: `src/cli/cmd/tui/component/dialog-model-health.tsx`, `src/plugin/antigravity/index.ts`, `src/session/monitor.ts`
+- OUT: 其他功能行為變更
+
+**作法**
+
+1. 為 TUI 資料源補上明確型別，避免 `{}`/`unknown` 擴散。
+2. 建立 Gemini CLI client adapter，並針對 OAuth 型別做安全縮小。
+3. 在 Monitor 使用型別守衛縮小 TextPart。
+
+**任務**
+
+1. [ ] 補齊 dialog-model-health 資料型別
+2. [ ] 修正 Gemini CLI OAuth client 型別相容
+3. [ ] 補上 Monitor TextPart 型別守衛
+4. [ ] `bun run typecheck`
+
+**問題**
+
+- Subscription 型別的 Gemini CLI auth 是否需要另行處理？
+
+#### 功能：Bun 套件開發技能擴充
+
+**需求**
+
+- 提供 Bun 套件開發相關的 skill 指引與可直接使用的模板。
+- 納入建置/測試、專案模板、API/工具封裝、CLI/發佈、文件/紀錄流程。
+- 與本 repo 規範整合（DIARY、Bun 指令）。
+- 提供必要的自動化腳本或產生器。
+
+**範圍**
+
+- IN: skill 指引文件、程式碼模板、腳本/產生器、測試/驗證流程
+- OUT: 非 Bun 生態的通用開發指南、外部 CI 平台整合
+
+**作法**
+
+1. 盤點現有 skill 目錄與 repo 內可復用範本。
+2. 定義 Bun 套件開發的標準流程（install/run/typecheck/test/publish）。
+3. 製作 skill 指引與模板（Tool.define/Zod/Result pattern）。
+4. 補上自動化腳本（產生檔案、更新 DIARY 片段）。
+5. 建立測試/驗證清單與示例。
+
+**任務**
+
+1. [ ] 盤點現有 skill/模板位置與命名
+2. [ ] 撰寫 Bun 套件開發 skill 指引（含流程與規範）
+3. [ ] 建立程式碼模板/產生器（含 Tool.define/Zod/Result）
+4. [ ] 加入自動化腳本（更新 DIARY/建立骨架）
+5. [ ] 補測試與驗證流程（bun test/typecheck）
+
+**問題**
+
+- skill 檔案需放在 repo 內或集中於個人 skills 目錄？
+- CLI 發佈流程是否要內建預設 npm 發佈腳本？
 
 #### 功能：剪貼簿貼圖與子代理影像容錯
 
@@ -114,6 +273,32 @@
 
 - 貼上圖片只在主 session 顯示，不自動轉 subagent。
 - 當前模型不支援圖片時，僅本次臨時 rotate 到可處理影像的模型並提示。
+
+#### 功能：google_search OAuth 重構後的認證修復
+
+**需求**
+
+- google_search 在 OAuth 重構後仍能取得有效 access token 與 projectId。
+- 不依賴舊版 cached OAuth，維持 Antigravity 多帳號選取邏輯。
+
+**範圍**
+
+- IN: `packages/opencode/src/plugin/antigravity/index.ts`, `packages/opencode/src/plugin/antigravity/plugin/accounts.ts`, `packages/opencode/src/auth/index.ts`
+- OUT: UI 登入流程變更、外部 OAuth provider 行為調整
+
+**作法**
+
+1. `Auth.set` 在 `antigravity` family 時保留 `projectId`/`managedProjectId`（從 refresh 字串解析後寫入 Account）。
+2. `AccountManager.loadFromDisk` 讀取 Account 模組的 `accessToken`/`expiresAt`，補齊 ManagedAccount access 狀態。
+3. google_search tool 先嘗試 refresh 全域 AccountManager（使用 cached `getAuth` 或 fallback auth），避免拿到空帳號。
+
+**任務**
+
+1. [ ] 補上 antigravity OAuth 儲存 projectId 的邏輯
+2. [ ] AccountManager 從 Account 模組同步 access token / expires
+3. [ ] google_search tool 初始化前同步帳號狀態
+4. [ ] 補測試：AccountManager 讀取 accessToken、Auth.set 保留 projectId
+
 - 若無可用影像模型，移除圖片並改成文字提示。
 
 **範圍**
@@ -160,6 +345,53 @@
 **問題**
 
 - 是否需要在 UI 提示搜尋已停用？
+
+#### 功能：TUI /tasks 指令退役
+
+**需求**
+
+- 指令清單不再顯示 `/tasks`。
+- 使用者輸入 `/tasks` 不觸發任何動作。
+
+**範圍**
+
+- IN: `src/cli/cmd/tui/app.tsx`
+- OUT: Task Dashboard UI、任務資料結構、後端路由
+
+**作法**
+
+1. 移除 `/tasks` 的 slash 指令註冊與對應 command entry。
+
+**任務**
+
+1. [x] 移除 `/tasks` 指令入口
+
+#### 功能：移除 Task Dashboard UI 檔案
+
+**需求**
+
+- 刪除未使用的 Task Dashboard UI 檔案。
+
+**範圍**
+
+- IN: `src/cli/cmd/tui/component/dialog-tasks.tsx`
+- OUT: 其他指令、資料結構與後端路由
+
+**作法**
+
+1. 刪除 `dialog-tasks.tsx` 檔案。
+
+**任務**
+
+1. [x] 刪除 `dialog-tasks.tsx`
+
+**問題**
+
+- 無
+
+**問題**
+
+- 無
 
 #### 功能：thoughtSignature 插件 / QUOTA 清理
 

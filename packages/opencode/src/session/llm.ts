@@ -38,6 +38,7 @@ import { findFallback, type ModelVector, type FallbackStrategy } from "@/account
 import { Bus } from "@/bus"
 import { TuiEvent } from "@/cli/cmd/tui/event"
 import { debugCheckpoint } from "@/util/debug"
+import { debugLog } from "@/util/debug-log"
 
 export namespace LLM {
   const log = Log.create({ service: "llm" })
@@ -60,6 +61,16 @@ export namespace LLM {
   export type StreamOutput = StreamTextResult<ToolSet, unknown>
 
   export async function stream(input: StreamInput) {
+    debugLog("llm", "LLM.stream started", {
+      modelID: input.model.id,
+      providerID: input.model.providerID,
+      apiNpm: input.model.api.npm,
+      apiId: input.model.api.id,
+      sessionID: input.sessionID,
+      agent: input.agent.name,
+      small: input.small ?? false,
+    })
+
     const l = log
       .clone()
       .tag("providerID", input.model.providerID)
@@ -78,6 +89,15 @@ export namespace LLM {
       Provider.getProvider(input.model.providerID),
       Auth.get(input.model.providerID),
     ])
+
+    debugLog("llm", "Provider and auth loaded", {
+      providerID: input.model.providerID,
+      providerSource: provider?.source,
+      hasCustomFetch: typeof provider?.options?.fetch === "function",
+      authType: auth?.type,
+      providerOptionsKeys: provider?.options ? Object.keys(provider.options) : [],
+    })
+
     // Get provider capabilities (centralizes provider-specific behavior)
     const capabilities = getCapabilities(provider, auth)
     // Legacy alias for gradual migration - these will be removed once all usages migrate to capabilities

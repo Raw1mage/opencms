@@ -199,7 +199,7 @@ export namespace ProviderHealth {
 
     try {
       // Use provided providers list or load it
-      const providers = options.providers || await Provider.list()
+      const providers = options.providers || (await Provider.list())
       const provider = providers[providerID]
       if (!provider) {
         throw new Error(`Provider not found: ${providerID}`)
@@ -288,7 +288,7 @@ export namespace ProviderHealth {
         // Suppress console errors during health check
         const originalConsoleError = console.error
         try {
-          console.error = () => { } // Silence errors
+          console.error = () => {} // Silence errors
           const result = streamText(options)
 
           // Consume at least one chunk to verify aliveness
@@ -329,7 +329,7 @@ export namespace ProviderHealth {
       updateStatus(providerID, modelID, classification.status, classification.retryAfter, classification.error)
 
       // Try to get model config for capabilities using provided providers list
-      const providers = options.providers || await Provider.list()
+      const providers = options.providers || (await Provider.list())
       const modelConfig = providers[providerID]?.models[modelID]
 
       return {
@@ -345,19 +345,19 @@ export namespace ProviderHealth {
         timestamp: new Date().toISOString(),
         capabilities: modelConfig
           ? {
-            context: modelConfig.limit?.context || 0,
-            output: modelConfig.limit?.output || 0,
-            modalities: (() => {
-              const input = modelConfig.capabilities.input
-              const modalities: string[] = []
-              if (input.text) modalities.push("text")
-              if (input.image) modalities.push("image")
-              if (input.pdf) modalities.push("pdf")
-              if (input.audio) modalities.push("audio")
-              if (input.video) modalities.push("video")
-              return modalities
-            })(),
-          }
+              context: modelConfig.limit?.context || 0,
+              output: modelConfig.limit?.output || 0,
+              modalities: (() => {
+                const input = modelConfig.capabilities.input
+                const modalities: string[] = []
+                if (input.text) modalities.push("text")
+                if (input.image) modalities.push("image")
+                if (input.pdf) modalities.push("pdf")
+                if (input.audio) modalities.push("audio")
+                if (input.video) modalities.push("video")
+                return modalities
+              })(),
+            }
           : undefined,
       }
     } finally {
@@ -417,7 +417,7 @@ export namespace ProviderHealth {
           return { status: "RATE_LIMITED", error: "Rate Limited", retryAfter }
         }
       }
-    } catch { }
+    } catch {}
 
     // 2. RATE_LIMITED - Authenticated but rate limit exceeded
     if (
@@ -507,7 +507,6 @@ export namespace ProviderHealth {
     }
   }
 
-
   /**
    * Infer account authentication status from model check results
    * Uses unified Account module as single source of truth
@@ -545,18 +544,25 @@ export namespace ProviderHealth {
     const unifiedAccounts = await Account.listAll()
 
     for (const [family, familyData] of Object.entries(unifiedAccounts)) {
-      const hasSpecificAccounts = Object.keys(familyData.accounts).some(id =>
-        id.includes("-subscription-") ||
-        id.includes("@") ||
-        (id !== family && id !== "antigravity" && id !== "gemini-cli")
-      );
+      const hasSpecificAccounts = Object.keys(familyData.accounts).some(
+        (id) =>
+          id.includes("-subscription-") ||
+          id.includes("@") ||
+          (id !== family && id !== "antigravity" && id !== "gemini-cli"),
+      )
 
       for (const [accountId, accountInfo] of Object.entries(familyData.accounts)) {
         // Filter out legacy "phantom" accounts if specific accounts exist for this family
         // These are often artifacts of migration or old provider IDs
-        if (hasSpecificAccounts && (accountId === family || accountId === "antigravity" || accountId === "gemini-cli" || accountId === "google-api")) {
+        if (
+          hasSpecificAccounts &&
+          (accountId === family ||
+            accountId === "antigravity" ||
+            accountId === "gemini-cli" ||
+            accountId === "google-api")
+        ) {
           // If we have at least one better identifier, skip the generic ones
-          continue;
+          continue
         }
 
         const providerStats = providerResults.get(accountId) || { success: 0, total: 0, errors: [], models: [] }

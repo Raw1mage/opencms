@@ -34,7 +34,6 @@ import type { Path } from "@opencode-ai/sdk"
 export const { use: useSync, provider: SyncProvider } = createSimpleContext({
   name: "Sync",
   init: () => {
-
     const [store, setStore] = createStore<{
       status: "loading" | "partial" | "complete" | "error"
       error?: string

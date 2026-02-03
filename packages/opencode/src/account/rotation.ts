@@ -21,6 +21,8 @@ const log = Log.create({ service: "account-rotation" })
 
 // File path for shared model health state across processes
 const HEALTH_FILE = path.join(Global.Path.state, "model-health.json")
+// File path for shared rate limit state across processes
+const RATE_LIMIT_FILE = path.join(Global.Path.state, "rate-limits.json")
 
 // ============================================================================
 // HEALTH SCORE SYSTEM
@@ -225,7 +227,12 @@ export function parseRateLimitReason(
     if (lower.includes("capacity") || lower.includes("overloaded") || lower.includes("resource exhausted")) {
       return "MODEL_CAPACITY_EXHAUSTED"
     }
-    if (lower.includes("per minute") || lower.includes("rate limit") || lower.includes("too many requests") || lower.includes("token refresh failed")) {
+    if (
+      lower.includes("per minute") ||
+      lower.includes("rate limit") ||
+      lower.includes("too many requests") ||
+      lower.includes("token refresh failed")
+    ) {
       return "RATE_LIMIT_EXCEEDED"
     }
     if (lower.includes("exhausted") || lower.includes("quota")) {
@@ -280,10 +287,50 @@ interface RateLimitState {
 
 /**
  * Tracks rate limits per account per provider
+ * With file persistence for cross-process sync
  */
 export class RateLimitTracker {
   // Map: accountId -> provider -> model? -> RateLimitState
   private readonly limits = new Map<string, Map<string, RateLimitState>>()
+
+  /**
+   * Persist current state to shared file for cross-process access.
+   */
+  private persistToFile(): void {
+    try {
+      const data: Record<string, Record<string, RateLimitState>> = {}
+      for (const [accountId, providerLimits] of this.limits) {
+        data[accountId] = {}
+        for (const [key, state] of providerLimits) {
+          data[accountId][key] = state
+        }
+      }
+      fs.writeFileSync(RATE_LIMIT_FILE, JSON.stringify(data), "utf-8")
+    } catch (e) {
+      // Ignore write errors
+    }
+  }
+
+  /**
+   * Load state from shared file (for cross-process sync).
+   */
+  private loadFromFile(): void {
+    try {
+      if (!fs.existsSync(RATE_LIMIT_FILE)) return
+      const content = fs.readFileSync(RATE_LIMIT_FILE, "utf-8")
+      const data = JSON.parse(content) as Record<string, Record<string, RateLimitState>>
+      this.limits.clear()
+      for (const [accountId, providerData] of Object.entries(data)) {
+        const providerLimits = new Map<string, RateLimitState>()
+        for (const [key, state] of Object.entries(providerData)) {
+          providerLimits.set(key, state)
+        }
+        this.limits.set(accountId, providerLimits)
+      }
+    } catch (e) {
+      // Ignore read errors
+    }
+  }
 
   /**
    * Mark an account as rate limited for a provider/model
@@ -295,6 +342,9 @@ export class RateLimitTracker {
     backoffMs: number,
     model?: string,
   ): void {
+    // Load latest state from file first
+    this.loadFromFile()
+
     const key = model ? `${provider}:${model}` : provider
     const now = Date.now()
 
@@ -310,6 +360,9 @@ export class RateLimitTracker {
       model,
     })
 
+    // Persist to file for cross-process access
+    this.persistToFile()
+
     log.info("Account rate limited", {
       accountId,
       provider,
@@ -324,6 +377,8 @@ export class RateLimitTracker {
    * Check if an account is rate limited for a provider/model
    */
   isRateLimited(accountId: string, provider: string, model?: string): boolean {
+    // Load latest state from file
+    this.loadFromFile()
     this.clearExpired(accountId)
 
     const providerLimits = this.limits.get(accountId)
@@ -351,6 +406,9 @@ export class RateLimitTracker {
    * Get remaining wait time for a rate limited account
    */
   getWaitTime(accountId: string, provider: string, model?: string): number {
+    // Load latest state from file
+    this.loadFromFile()
+
     const providerLimits = this.limits.get(accountId)
     if (!providerLimits) return 0
 
@@ -379,8 +437,12 @@ export class RateLimitTracker {
    * Clear rate limit for an account
    */
   clear(accountId: string, provider?: string, model?: string): void {
+    // Load latest state from file
+    this.loadFromFile()
+
     if (!provider) {
       this.limits.delete(accountId)
+      this.persistToFile()
       return
     }
 
@@ -392,6 +454,8 @@ export class RateLimitTracker {
     } else {
       providerLimits.delete(provider)
     }
+
+    this.persistToFile()
   }
 
   /**
@@ -407,6 +471,61 @@ export class RateLimitTracker {
         providerLimits.delete(key)
       }
     }
+  }
+
+  /**
+   * Get a 3D snapshot of all rate limits for dashboard display.
+   * Returns array of { accountId, providerID, modelID, waitMs, reason }
+   */
+  getSnapshot3D(): Array<{
+    accountId: string
+    providerID: string
+    modelID: string | undefined
+    waitMs: number
+    reason: RateLimitReason
+  }> {
+    // Load latest state from file
+    this.loadFromFile()
+
+    const now = Date.now()
+    const result: Array<{
+      accountId: string
+      providerID: string
+      modelID: string | undefined
+      waitMs: number
+      reason: RateLimitReason
+    }> = []
+
+    for (const [accountId, providerLimits] of this.limits) {
+      for (const [key, state] of providerLimits) {
+        // Skip expired entries
+        if (now >= state.resetTime) continue
+
+        // Parse key: either "provider" or "provider:model"
+        const colonIdx = key.indexOf(":")
+        const providerID = colonIdx >= 0 ? key.slice(0, colonIdx) : key
+        const modelID = colonIdx >= 0 ? key.slice(colonIdx + 1) : state.model
+
+        result.push({
+          accountId,
+          providerID,
+          modelID,
+          waitMs: state.resetTime - now,
+          reason: state.reason,
+        })
+      }
+    }
+
+    return result
+  }
+
+  /**
+   * Clear all rate limits (e.g., on manual reset).
+   */
+  clearAll(): void {
+    this.limits.clear()
+    this.persistToFile()
+    log.info("All rate limits cleared")
   }
 }
 
@@ -572,7 +691,12 @@ export function isRateLimitError(error: unknown): boolean {
   if (typeof message === "string" && message.length > 0) {
     const lower = message.toLowerCase()
     // Only match very specific rate limit patterns, not generic "error" messages
-    if (lower.includes("429") || lower.includes("rate_limit_exceeded") || lower.includes("too many requests") || lower.includes("token refresh failed")) {
+    if (
+      lower.includes("429") ||
+      lower.includes("rate_limit_exceeded") ||
+      lower.includes("too many requests") ||
+      lower.includes("token refresh failed")
+    ) {
       log.debug("isRateLimitError: matched by message pattern", { message: message.substring(0, 100) })
       return true
     }

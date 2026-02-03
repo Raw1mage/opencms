@@ -51,9 +51,7 @@ export function DialogSessionList() {
     }
 
     // Get root sessions (no parentID)
-    const roots = allSessions
-      .filter((x) => !x.parentID)
-      .toSorted((a, b) => b.time.updated - a.time.updated)
+    const roots = allSessions.filter((x) => !x.parentID).toSorted((a, b) => b.time.updated - a.time.updated)
 
     const result: Array<{
       title: string
@@ -98,7 +96,7 @@ export function DialogSessionList() {
         result.push({
           title: prefix + child.title,
           value: child.id,
-          category,  // Same category as parent
+          category, // Same category as parent
           footer: Locale.time(child.time.updated),
           gutter: childWorking ? (
             <Show when={kv.get("animations_enabled", true)} fallback={<text fg={theme.textMuted}>[⋯]</text>}>

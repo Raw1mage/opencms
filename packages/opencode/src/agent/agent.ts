@@ -193,6 +193,7 @@ export namespace Agent {
         mode: "subagent",
         native: true,
       },
+
       compaction: {
         name: "compaction",
         mode: "primary",
@@ -275,7 +276,6 @@ export namespace Agent {
       const agent = result[name]
       const explicit = agent.permission.some((r) => {
         if (r.permission !== "external_directory") return false
-        if (r.action !== "deny") return false
         return r.pattern === Truncate.DIR || r.pattern === Truncate.GLOB
       })
       if (explicit) continue
@@ -364,7 +364,7 @@ export namespace Agent {
           instructions: SystemPrompt.instructions(),
           store: false,
         }),
-        onError: () => {},
+        onError: () => { },
       })
       for await (const part of result.fullStream) {
         if (part.type === "error") throw part.error

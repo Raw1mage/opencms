@@ -274,7 +274,7 @@ if (import.meta.main) {
 
   if (values.help) {
     console.log(`
-Usage: bun script/changelog.ts [options]
+ Usage: bun scripts/changelog.ts [options]
 
 Options:
   -f, --from <version>   Starting version (default: latest GitHub release)
@@ -282,9 +282,9 @@ Options:
   -h, --help             Show this help message
 
 Examples:
-  bun script/changelog.ts                     # Latest release to HEAD
-  bun script/changelog.ts --from 1.0.200      # v1.0.200 to HEAD
-  bun script/changelog.ts -f 1.0.200 -t 1.0.205
+  bun scripts/changelog.ts                     # Latest release to HEAD
+  bun scripts/changelog.ts --from 1.0.200      # v1.0.200 to HEAD
+  bun scripts/changelog.ts -f 1.0.200 -t 1.0.205
 `)
     process.exit(0)
   }

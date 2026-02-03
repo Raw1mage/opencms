@@ -27,7 +27,7 @@ export function DialogPrompt(props: DialogPromptProps) {
   const keybindings = createMemo(() => {
     const all = useTextareaKeybindings()()
     // Explicitly filter out submit to prevent textarea from handling it internally
-    return (all || []).filter(kb => kb.action !== "submit")
+    return (all || []).filter((kb) => kb.action !== "submit")
   })
 
   const submit = () => {
@@ -144,9 +144,7 @@ export function DialogPrompt(props: DialogPromptProps) {
             }
           }}
         >
-          <text fg={theme.text}>
-            submit
-          </text>
+          <text fg={theme.text}>submit</text>
         </box>
       </box>
       <box paddingBottom={1} flexDirection="row" justifyContent="flex-end">

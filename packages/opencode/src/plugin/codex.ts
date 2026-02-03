@@ -449,7 +449,8 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
                 ? requestInput
                 : new URL(typeof requestInput === "string" ? requestInput : requestInput.url)
 
-            const isCodexEndpoint = parsed.pathname.includes("/v1/responses") || parsed.pathname.includes("/chat/completions")
+            const isCodexEndpoint =
+              parsed.pathname.includes("/v1/responses") || parsed.pathname.includes("/chat/completions")
             const url = isCodexEndpoint ? new URL(CODEX_API_ENDPOINT) : parsed
 
             // Process body if it's the Codex endpoint

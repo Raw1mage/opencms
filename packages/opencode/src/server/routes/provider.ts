@@ -60,7 +60,9 @@ export const ProviderRoutes = lazy(() =>
         for (const [id, devProvider] of Object.entries(filteredProviders)) {
           const family = Account.parseFamily(id) || id
           // A provider has multi-account if it has accounts in storage (not a whitelist)
-          const hasAccountsConfigured = !!(familiesWithAccounts[family]?.accounts && Object.keys(familiesWithAccounts[family].accounts).length > 0)
+          const hasAccountsConfigured = !!(
+            familiesWithAccounts[family]?.accounts && Object.keys(familiesWithAccounts[family].accounts).length > 0
+          )
 
           if (hasAccountsConfigured) {
             // For multi-account families, we should only show models if they are either:

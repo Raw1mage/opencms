@@ -9,28 +9,28 @@
  * Ported from opencode-google-antigravity-auth/src/plugin/logger.ts
  */
 
-import type { PluginClient } from "./types";
+import type { PluginClient } from "./types"
 
-type LogLevel = "debug" | "info" | "warn" | "error";
+type LogLevel = "debug" | "info" | "warn" | "error"
 
-const ENV_CONSOLE_LOG = "OPENCODE_ANTIGRAVITY_CONSOLE_LOG";
-const ANTIGRAVITY_CONSOLE_PREFIX = "[Antigravity]";
+const ENV_CONSOLE_LOG = "OPENCODE_ANTIGRAVITY_CONSOLE_LOG"
+const ANTIGRAVITY_CONSOLE_PREFIX = "[Antigravity]"
 
 export interface Logger {
-  debug(message: string, extra?: Record<string, unknown>): void;
-  info(message: string, extra?: Record<string, unknown>): void;
-  warn(message: string, extra?: Record<string, unknown>): void;
-  error(message: string, extra?: Record<string, unknown>): void;
+  debug(message: string, extra?: Record<string, unknown>): void
+  info(message: string, extra?: Record<string, unknown>): void
+  warn(message: string, extra?: Record<string, unknown>): void
+  error(message: string, extra?: Record<string, unknown>): void
 }
 
-let _client: PluginClient | null = null;
+let _client: PluginClient | null = null
 
 /**
  * Check if console logging is enabled via environment variable.
  */
 function isConsoleLogEnabled(): boolean {
-  const val = process.env[ENV_CONSOLE_LOG];
-  return val === "1" || val?.toLowerCase() === "true";
+  const val = process.env[ENV_CONSOLE_LOG]
+  return val === "1" || val?.toLowerCase() === "true"
 }
 
 /**
@@ -38,14 +38,14 @@ function isConsoleLogEnabled(): boolean {
  * Must be called during plugin initialization to enable TUI logging.
  */
 export function initLogger(client: PluginClient): void {
-  _client = client;
+  _client = client
 }
 
 /**
  * Get the current client (for testing or advanced usage).
  */
 export function getLoggerClient(): PluginClient | null {
-  return _client;
+  return _client
 }
 
 /**
@@ -62,11 +62,11 @@ export function getLoggerClient(): PluginClient | null {
  * ```
  */
 export function createLogger(module: string): Logger {
-  const service = `antigravity.${module}`;
+  const service = `antigravity.${module}`
 
   const log = (level: LogLevel, message: string, extra?: Record<string, unknown>): void => {
     // Try TUI logging first
-    const app = _client?.app;
+    const app = _client?.app
     if (app && typeof app.log === "function") {
       app
         .log({
@@ -74,35 +74,35 @@ export function createLogger(module: string): Logger {
         })
         .catch(() => {
           // Silently ignore logging errors
-        });
+        })
     } else if (isConsoleLogEnabled()) {
       // Fallback to console if env var is set
-      const prefix = `[${service}]`;
-      const args = extra ? [prefix, message, extra] : [prefix, message];
+      const prefix = `[${service}]`
+      const args = extra ? [prefix, message, extra] : [prefix, message]
       switch (level) {
         case "debug":
-          console.debug(...args);
-          break;
+          console.debug(...args)
+          break
         case "info":
-          console.info(...args);
-          break;
+          console.info(...args)
+          break
         case "warn":
-          console.warn(...args);
-          break;
+          console.warn(...args)
+          break
         case "error":
-          console.error(...args);
-          break;
+          console.error(...args)
+          break
       }
     }
     // If neither TUI nor console logging is enabled, log is silently discarded
-  };
+  }
 
   return {
     debug: (message, extra) => log("debug", message, extra),
     info: (message, extra) => log("info", message, extra),
     warn: (message, extra) => log("warn", message, extra),
     error: (message, extra) => log("error", message, extra),
-  };
+  }
 }
 
 /**
@@ -115,30 +115,26 @@ export function createLogger(module: string): Logger {
  * @param message - Message to print
  * @param extra - Optional extra data
  */
-export function printAntigravityConsole(
-  level: LogLevel,
-  message: string,
-  extra?: unknown,
-): void {
+export function printAntigravityConsole(level: LogLevel, message: string, extra?: unknown): void {
   if (!isConsoleLogEnabled()) {
-    return;
+    return
   }
 
-  const prefixedMessage = `${ANTIGRAVITY_CONSOLE_PREFIX} ${message}`;
-  const args = extra === undefined ? [prefixedMessage] : [prefixedMessage, extra];
+  const prefixedMessage = `${ANTIGRAVITY_CONSOLE_PREFIX} ${message}`
+  const args = extra === undefined ? [prefixedMessage] : [prefixedMessage, extra]
 
   switch (level) {
     case "debug":
-      console.debug(...args);
-      break;
+      console.debug(...args)
+      break
     case "info":
-      console.info(...args);
-      break;
+      console.info(...args)
+      break
     case "warn":
-      console.warn(...args);
-      break;
+      console.warn(...args)
+      break
     case "error":
-      console.error(...args);
-      break;
+      console.error(...args)
+      break
   }
 }

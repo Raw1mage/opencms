@@ -1,94 +1,88 @@
-import { createInterface } from "node:readline/promises";
-import { stdin as input, stdout as output } from "node:process";
-import {
-  showAuthMenu,
-  showAccountDetails,
-  isTTY,
-  type AccountInfo,
-  type AccountStatus,
-} from "./ui/auth-menu";
+import { createInterface } from "node:readline/promises"
+import { stdin as input, stdout as output } from "node:process"
+import { showAuthMenu, showAccountDetails, isTTY, type AccountInfo, type AccountStatus } from "./ui/auth-menu"
 
 export async function promptProjectId(): Promise<string> {
-  const rl = createInterface({ input, output });
+  const rl = createInterface({ input, output })
   try {
-    const answer = await rl.question("Project ID (leave blank to use your default project): ");
-    return answer.trim();
+    const answer = await rl.question("Project ID (leave blank to use your default project): ")
+    return answer.trim()
   } finally {
-    rl.close();
+    rl.close()
   }
 }
 
 export async function promptAddAnotherAccount(currentCount: number): Promise<boolean> {
-  const rl = createInterface({ input, output });
+  const rl = createInterface({ input, output })
   try {
-    const answer = await rl.question(`Add another account? (${currentCount} added) (y/n): `);
-    const normalized = answer.trim().toLowerCase();
-    return normalized === "y" || normalized === "yes";
+    const answer = await rl.question(`Add another account? (${currentCount} added) (y/n): `)
+    const normalized = answer.trim().toLowerCase()
+    return normalized === "y" || normalized === "yes"
   } finally {
-    rl.close();
+    rl.close()
   }
 }
 
-export type LoginMode = "add" | "fresh" | "manage" | "check" | "cancel";
+export type LoginMode = "add" | "fresh" | "manage" | "check" | "cancel"
 
 export interface ExistingAccountInfo {
-  email?: string;
-  index: number;
-  addedAt?: number;
-  lastUsed?: number;
-  status?: AccountStatus;
-  isCurrentAccount?: boolean;
-  enabled?: boolean;
+  email?: string
+  index: number
+  addedAt?: number
+  lastUsed?: number
+  status?: AccountStatus
+  isCurrentAccount?: boolean
+  enabled?: boolean
 }
 
 export interface LoginMenuResult {
-  mode: LoginMode;
-  deleteAccountIndex?: number;
-  refreshAccountIndex?: number;
-  toggleAccountIndex?: number;
-  deleteAll?: boolean;
+  mode: LoginMode
+  deleteAccountIndex?: number
+  refreshAccountIndex?: number
+  toggleAccountIndex?: number
+  deleteAll?: boolean
 }
 
 async function promptLoginModeFallback(existingAccounts: ExistingAccountInfo[]): Promise<LoginMenuResult> {
-  const rl = createInterface({ input, output });
+  const rl = createInterface({ input, output })
   try {
-    console.log(`\n${existingAccounts.length} account(s) saved:`);
+    console.log(`\n${existingAccounts.length} account(s) saved:`)
     for (const acc of existingAccounts) {
-      const label = acc.email || `Account ${acc.index + 1}`;
-      console.log(`  ${acc.index + 1}. ${label}`);
+      const label = acc.email || `Account ${acc.index + 1}`
+      console.log(`  ${acc.index + 1}. ${label}`)
     }
-    console.log("");
+    console.log("")
 
     while (true) {
-      const answer = await rl.question("(a)dd new, (f)resh start, (m)anage, (c)heck quotas? [a/f/m/c]: ");
-      const normalized = answer.trim().toLowerCase();
+      const answer = await rl.question("(a)dd new, (f)resh start, (m)anage, (c)heck quotas? [a/f/m/c]: ")
+      const normalized = answer.trim().toLowerCase()
 
       if (normalized === "a" || normalized === "add") {
-        return { mode: "add" };
+        return { mode: "add" }
       }
       if (normalized === "f" || normalized === "fresh") {
-        return { mode: "fresh" };
+        return { mode: "fresh" }
       }
       if (normalized === "m" || normalized === "manage") {
-        return { mode: "manage" };
+        return { mode: "manage" }
       }
       if (normalized === "c" || normalized === "check") {
-        return { mode: "check" };
+        return { mode: "check" }
       }
 
-      console.log("Please enter 'a', 'f', 'm', or 'c'.");
+      console.log("Please enter 'a', 'f', 'm', or 'c'.")
     }
   } finally {
-    rl.close();
+    rl.close()
   }
 }
 
 export async function promptLoginMode(existingAccounts: ExistingAccountInfo[]): Promise<LoginMenuResult> {
   if (!isTTY()) {
-    return promptLoginModeFallback(existingAccounts);
+    return promptLoginModeFallback(existingAccounts)
   }
 
-  const accounts: AccountInfo[] = existingAccounts.map(acc => ({
+  const accounts: AccountInfo[] = existingAccounts.map((acc) => ({
     email: acc.email,
     index: acc.index,
     addedAt: acc.addedAt,
@@ -96,45 +90,45 @@ export async function promptLoginMode(existingAccounts: ExistingAccountInfo[]): 
     status: acc.status,
     isCurrentAccount: acc.isCurrentAccount,
     enabled: acc.enabled,
-  }));
+  }))
 
-  console.log("");
+  console.log("")
 
   while (true) {
-    const action = await showAuthMenu(accounts);
+    const action = await showAuthMenu(accounts)
 
     switch (action.type) {
       case "add":
-        return { mode: "add" };
+        return { mode: "add" }
 
       case "check":
-        return { mode: "check" };
+        return { mode: "check" }
 
       case "manage":
-        return { mode: "manage" };
+        return { mode: "manage" }
 
       case "select-account": {
-        const accountAction = await showAccountDetails(action.account);
+        const accountAction = await showAccountDetails(action.account)
         if (accountAction === "delete") {
-          return { mode: "add", deleteAccountIndex: action.account.index };
+          return { mode: "add", deleteAccountIndex: action.account.index }
         }
         if (accountAction === "refresh") {
-          return { mode: "add", refreshAccountIndex: action.account.index };
+          return { mode: "add", refreshAccountIndex: action.account.index }
         }
         if (accountAction === "toggle") {
-          return { mode: "manage", toggleAccountIndex: action.account.index };
+          return { mode: "manage", toggleAccountIndex: action.account.index }
         }
-        continue;
+        continue
       }
 
       case "delete-all":
-        return { mode: "fresh", deleteAll: true };
+        return { mode: "fresh", deleteAll: true }
 
       case "cancel":
-        return { mode: "cancel" };
+        return { mode: "cancel" }
     }
   }
 }
 
-export { isTTY } from "./ui/auth-menu";
-export type { AccountStatus } from "./ui/auth-menu";
+export { isTTY } from "./ui/auth-menu"
+export type { AccountStatus } from "./ui/auth-menu"

@@ -58,7 +58,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     selected: 0,
     filter: "",
     input: "keyboard" as "keyboard" | "mouse",
-    searchMode: false,  // Search mode is off by default - press "/" to enter
+    searchMode: false, // Search mode is off by default - press "/" to enter
   })
 
   createEffect(
@@ -208,10 +208,22 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
       }
 
       // Allow navigation in search mode
-      if (evt.name === "up" || (evt.ctrl && evt.name === "p")) { move(-1); return }
-      if (evt.name === "down" || (evt.ctrl && evt.name === "n")) { move(1); return }
-      if (evt.name === "pageup") { move(-10); return }
-      if (evt.name === "pagedown") { move(10); return }
+      if (evt.name === "up" || (evt.ctrl && evt.name === "p")) {
+        move(-1)
+        return
+      }
+      if (evt.name === "down" || (evt.ctrl && evt.name === "n")) {
+        move(1)
+        return
+      }
+      if (evt.name === "pageup") {
+        move(-10)
+        return
+      }
+      if (evt.name === "pagedown") {
+        move(10)
+        return
+      }
 
       // Return exits search mode (without selecting)
       if (evt.name === "return") {
@@ -281,12 +293,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
         </box>
         <Show when={!props.hideInput}>
           <box paddingTop={1}>
-            <Show
-              when={store.searchMode}
-              fallback={
-                <text fg={theme.textMuted}>Press / to search</text>
-              }
-            >
+            <Show when={store.searchMode} fallback={<text fg={theme.textMuted}>Press / to search</text>}>
               <input
                 onInput={(e) => {
                   batch(() => {
@@ -337,23 +344,23 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                     const active = createMemo(() => isDeepEqual(option.value, selected()?.value))
                     const current = createMemo(() => isDeepEqual(option.value, props.current))
                     return (
-                    <box
-                      id={JSON.stringify(option.value)}
-                      flexDirection="row"
-                      onMouseMove={() => {
-                        if (props.hoverSelect === false) return
-                        setStore("input", "mouse")
-                      }}
-                      onMouseUp={() => {
-                        option.onSelect?.(dialog)
-                        props.onSelect?.(option)
-                      }}
-                      onMouseOver={() => {
-                        if (props.hoverSelect === false) return
-                        if (store.input !== "mouse") return
-                        const index = flat().findIndex((x) => isDeepEqual(x.value, option.value))
-                        if (index === -1) return
-                        moveTo(index)
+                      <box
+                        id={JSON.stringify(option.value)}
+                        flexDirection="row"
+                        onMouseMove={() => {
+                          if (props.hoverSelect === false) return
+                          setStore("input", "mouse")
+                        }}
+                        onMouseUp={() => {
+                          option.onSelect?.(dialog)
+                          props.onSelect?.(option)
+                        }}
+                        onMouseOver={() => {
+                          if (props.hoverSelect === false) return
+                          if (store.input !== "mouse") return
+                          const index = flat().findIndex((x) => isDeepEqual(x.value, option.value))
+                          if (index === -1) return
+                          moveTo(index)
                         }}
                         onMouseDown={() => {
                           const index = flat().findIndex((x) => isDeepEqual(x.value, option.value))
@@ -384,20 +391,23 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
       </Show>
       <Show when={keybinds().length} fallback={<box flexShrink={0} />}>
         <box paddingRight={2} paddingLeft={4} flexShrink={0} paddingTop={1}>
-          <Show when={props.keybindLayout === "columns"} fallback={
-            <box flexDirection="row" gap={2}>
-              <For each={keybinds()}>
-                {(item) => (
-                  <text>
-                    <span style={{ fg: theme.text }}>
-                      <b>{item.title}</b>{" "}
-                    </span>
-                    <span style={{ fg: theme.textMuted }}>{item.label ?? Keybind.toString(item.keybind)}</span>
-                  </text>
-                )}
-              </For>
-            </box>
-          }>
+          <Show
+            when={props.keybindLayout === "columns"}
+            fallback={
+              <box flexDirection="row" gap={2}>
+                <For each={keybinds()}>
+                  {(item) => (
+                    <text>
+                      <span style={{ fg: theme.text }}>
+                        <b>{item.title}</b>{" "}
+                      </span>
+                      <span style={{ fg: theme.textMuted }}>{item.label ?? Keybind.toString(item.keybind)}</span>
+                    </text>
+                  )}
+                </For>
+              </box>
+            }
+          >
             <box flexDirection="column" gap={1}>
               <For each={keybinds()}>
                 {(item) => {

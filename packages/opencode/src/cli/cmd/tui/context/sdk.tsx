@@ -10,7 +10,6 @@ export type EventSource = {
 export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
   name: "SDK",
   init: (props: { url: string; directory?: string; fetch?: typeof fetch; events?: EventSource }) => {
-
     const abort = new AbortController()
     const sdk = createOpencodeClient({
       baseUrl: props.url,
@@ -89,7 +88,7 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
 
           // Log specific error but don't crash
           // console.warn("SDK connection error, retrying...", e)
-          await new Promise(r => setTimeout(r, 2000))
+          await new Promise((r) => setTimeout(r, 2000))
         }
       }
     })
@@ -98,7 +97,6 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
       abort.abort()
       if (timer) clearTimeout(timer)
     })
-
 
     return { client: sdk, event: emitter, url: props.url, ready: true }
   },

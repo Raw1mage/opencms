@@ -25,7 +25,7 @@ jobs:
         uses: ./.github/actions/setup-bun
 
       - name: Generate
-        run: ./script/generate.ts
+        run: ./scripts/generate.ts
 
       - name: Commit and push
         run: |
@@ -44,7 +44,7 @@ jobs:
           #   echo "Failed to push generated code."
           #   echo "Please run locally and push:"
           #   echo ""
-          #   echo "  ./script/generate.ts"
+          #   echo "  ./scripts/generate.ts"
           #   echo "  git add -A && git commit -m \"chore: generate\" && git push"
           #   echo ""
           #   echo "============================================"

@@ -1,61 +1,43 @@
-import { spawn } from "node:child_process";
+import { spawn } from "node:child_process"
+import { debugLog } from "../../util/debug-log"
 
-import { GEMINI_PROVIDER_ID, GEMINI_REDIRECT_URI } from "./constants";
-import {
-  authorizeGemini,
-  exchangeGemini,
-  exchangeGeminiWithVerifier,
-} from "./gemini/oauth";
-import type { GeminiTokenExchangeResult } from "./gemini/oauth";
-import { accessTokenExpired, isOAuthAuth } from "./plugin/auth";
-import { ensureProjectContext } from "./plugin/project";
-import { startGeminiDebugRequest } from "./plugin/debug";
-import {
-  isGenerativeLanguageRequest,
-  prepareGeminiRequest,
-  transformGeminiResponse,
-} from "./plugin/request";
-import { refreshAccessToken } from "./plugin/token";
-import { startOAuthListener, type OAuthListener } from "./plugin/server";
-import type {
-  GetAuth,
-  LoaderResult,
-  PluginContext,
-  PluginResult,
-  ProjectContextResult,
-  Provider,
-} from "./plugin/types";
+import { GEMINI_PROVIDER_ID, GEMINI_REDIRECT_URI } from "./constants"
+import { authorizeGemini, exchangeGemini, exchangeGeminiWithVerifier } from "./gemini/oauth"
+import type { GeminiTokenExchangeResult } from "./gemini/oauth"
+import { accessTokenExpired, isOAuthAuth } from "./plugin/auth"
+import { ensureProjectContext } from "./plugin/project"
+import { startGeminiDebugRequest } from "./plugin/debug"
+import { isGenerativeLanguageRequest, prepareGeminiRequest, transformGeminiResponse } from "./plugin/request"
+import { refreshAccessToken } from "./plugin/token"
+import { startOAuthListener, type OAuthListener } from "./plugin/server"
+import type { GetAuth, LoaderResult, PluginContext, PluginResult, ProjectContextResult, Provider } from "./plugin/types"
 
 /**
  * Registers the Gemini OAuth provider for Opencode, handling auth, request rewriting,
  * debug logging, and response normalization for Gemini Code Assist endpoints.
  */
-export const GeminiCLIOAuthPlugin = async (
-  { client }: any,
-): Promise<any> => ({
+export const GeminiCLIOAuthPlugin = async ({ client }: any): Promise<any> => ({
   auth: {
     provider: GEMINI_PROVIDER_ID,
     loader: async (getAuth: GetAuth, provider: Provider): Promise<LoaderResult | null> => {
-      const auth = await getAuth();
+      const auth = await getAuth()
       if (!isOAuthAuth(auth)) {
-        return null;
+        return null
       }
 
       const providerOptions =
         provider && typeof provider === "object"
           ? ((provider as { options?: Record<string, unknown> }).options ?? undefined)
-          : undefined;
+          : undefined
       const projectIdFromConfig =
-        providerOptions && typeof providerOptions.projectId === "string"
-          ? providerOptions.projectId.trim()
-          : "";
-      const projectIdFromEnv = process.env.OPENCODE_GEMINI_PROJECT_ID?.trim() ?? "";
-      const configuredProjectId = projectIdFromEnv || projectIdFromConfig || undefined;
+        providerOptions && typeof providerOptions.projectId === "string" ? providerOptions.projectId.trim() : ""
+      const projectIdFromEnv = process.env.OPENCODE_GEMINI_PROJECT_ID?.trim() ?? ""
+      const configuredProjectId = projectIdFromEnv || projectIdFromConfig || undefined
 
       if (provider.models) {
         for (const model of Object.values(provider.models)) {
           if (model) {
-            model.cost = { input: 0, output: 0 };
+            model.cost = { input: 0, output: 0 }
           }
         }
       }
@@ -63,30 +45,39 @@ export const GeminiCLIOAuthPlugin = async (
       return {
         apiKey: "",
         async fetch(input, init) {
+          const inputUrl = typeof input === "string" ? input : (input as Request).url
+          debugLog("gemini-cli", "Custom fetch called", { url: inputUrl })
+
           if (!isGenerativeLanguageRequest(input)) {
-            return fetch(input, init);
+            debugLog("gemini-cli", "Not a generative language request, using default fetch")
+            return fetch(input, init)
           }
 
-          const latestAuth = await getAuth();
+          debugLog("gemini-cli", "Is generative language request, processing...")
+
+          const latestAuth = await getAuth()
 
           if (!isOAuthAuth(latestAuth)) {
-            return fetch(input, init);
+            debugLog("gemini-cli", "No OAuth auth, using default fetch", { authType: latestAuth?.type })
+            return fetch(input, init)
           }
 
-          let authRecord = latestAuth;
+          debugLog("gemini-cli", "OAuth auth present, proceeding with transformation")
+
+          let authRecord = latestAuth
           if (accessTokenExpired(authRecord)) {
             // console.log("GeminiCLI: Token expired, refreshing...");
-            const refreshed = await refreshAccessToken(authRecord, client);
+            const refreshed = await refreshAccessToken(authRecord, client)
             if (!refreshed) {
-              console.log("GeminiCLI: Refresh failed");
-              return fetch(input, init);
+              console.log("GeminiCLI: Refresh failed")
+              return fetch(input, init)
             }
-            authRecord = refreshed;
+            authRecord = refreshed
           }
 
-          const accessToken = authRecord.access;
+          const accessToken = authRecord.access
           if (!accessToken) {
-            return fetch(input, init);
+            return fetch(input, init)
           }
 
           /**
@@ -94,31 +85,34 @@ export const GeminiCLIOAuthPlugin = async (
            */
           async function resolveProjectContext(): Promise<ProjectContextResult> {
             try {
-              return await ensureProjectContext(authRecord, client, configuredProjectId);
+              return await ensureProjectContext(authRecord, client, configuredProjectId)
             } catch (error) {
               if (error instanceof Error) {
-                console.error(error.message);
+                console.error(error.message)
               }
-              throw error;
+              throw error
             }
           }
 
-          const projectContext = await resolveProjectContext();
+          const projectContext = await resolveProjectContext()
 
           const {
             request,
             init: transformedInit,
             streaming,
             requestedModel,
-          } = prepareGeminiRequest(
-            input,
-            init,
-            accessToken,
-            projectContext.effectiveProjectId,
-          );
+          } = prepareGeminiRequest(input, init, accessToken, projectContext.effectiveProjectId)
 
-          const originalUrl = toUrlString(input);
-          const resolvedUrl = toUrlString(request);
+          debugLog("gemini-cli", "Request prepared", {
+            originalUrl: toUrlString(input),
+            transformedUrl: toUrlString(request),
+            streaming,
+            requestedModel,
+            hasBody: !!transformedInit.body,
+          })
+
+          const originalUrl = toUrlString(input)
+          const resolvedUrl = toUrlString(request)
           const debugContext = startGeminiDebugRequest({
             originalUrl,
             resolvedUrl,
@@ -127,12 +121,12 @@ export const GeminiCLIOAuthPlugin = async (
             body: transformedInit.body,
             streaming,
             projectId: projectContext.effectiveProjectId,
-          });
+          })
 
-          const response = await fetchWithRetry(request, transformedInit);
-          return transformGeminiResponse(response, streaming, debugContext, requestedModel);
+          const response = await fetchWithRetry(request, transformedInit)
+          return transformGeminiResponse(response, streaming, debugContext, requestedModel)
         },
-      };
+      }
     },
     methods: [
       {
@@ -144,32 +138,30 @@ export const GeminiCLIOAuthPlugin = async (
             process.env.SSH_CLIENT ||
             process.env.SSH_TTY ||
             process.env.OPENCODE_HEADLESS
-          );
+          )
 
-          let listener: OAuthListener | null = null;
+          let listener: OAuthListener | null = null
           if (!isHeadless) {
             try {
-              listener = await startOAuthListener();
+              listener = await startOAuthListener()
             } catch (error) {
               if (error instanceof Error) {
                 console.log(
                   `Warning: Couldn't start the local callback listener (${error.message}). You'll need to paste the callback URL or authorization code.`,
-                );
+                )
               } else {
                 console.log(
                   "Warning: Couldn't start the local callback listener. You'll need to paste the callback URL or authorization code.",
-                );
+                )
               }
             }
           } else {
-            console.log(
-              "Headless environment detected. You'll need to paste the callback URL or authorization code.",
-            );
+            console.log("Headless environment detected. You'll need to paste the callback URL or authorization code.")
           }
 
-          const authorization = await authorizeGemini();
+          const authorization = await authorizeGemini()
           if (!isHeadless) {
-            openBrowserUrl(authorization.url);
+            openBrowserUrl(authorization.url)
           }
 
           if (listener) {
@@ -180,31 +172,30 @@ export const GeminiCLIOAuthPlugin = async (
               method: "auto",
               callback: async (): Promise<GeminiTokenExchangeResult> => {
                 try {
-                  const callbackUrl = await listener.waitForCallback();
-                  const code = callbackUrl.searchParams.get("code");
-                  const state = callbackUrl.searchParams.get("state");
+                  const callbackUrl = await listener.waitForCallback()
+                  const code = callbackUrl.searchParams.get("code")
+                  const state = callbackUrl.searchParams.get("state")
 
                   if (!code || !state) {
                     return {
                       type: "failed",
                       error: "Missing code or state in callback URL",
-                    };
+                    }
                   }
 
-                  return await exchangeGemini(code, state);
+                  return await exchangeGemini(code, state)
                 } catch (error) {
                   return {
                     type: "failed",
                     error: error instanceof Error ? error.message : "Unknown error",
-                  };
+                  }
                 } finally {
                   try {
-                    await listener?.close();
-                  } catch {
-                  }
+                    await listener?.close()
+                  } catch {}
                 }
               },
-            };
+            }
           }
 
           return {
@@ -214,28 +205,28 @@ export const GeminiCLIOAuthPlugin = async (
             method: "code",
             callback: async (callbackUrl: string): Promise<GeminiTokenExchangeResult> => {
               try {
-                const { code, state } = parseOAuthCallbackInput(callbackUrl);
+                const { code, state } = parseOAuthCallbackInput(callbackUrl)
 
                 if (!code) {
                   return {
                     type: "failed",
                     error: "Missing authorization code in callback input",
-                  };
+                  }
                 }
 
                 if (state) {
-                  return exchangeGemini(code, state);
+                  return exchangeGemini(code, state)
                 }
 
-                return exchangeGeminiWithVerifier(code, authorization.verifier);
+                return exchangeGeminiWithVerifier(code, authorization.verifier)
               } catch (error) {
                 return {
                   type: "failed",
                   error: error instanceof Error ? error.message : "Unknown error",
-                };
+                }
               }
             },
-          };
+          }
         },
       },
       {
@@ -245,131 +236,124 @@ export const GeminiCLIOAuthPlugin = async (
       },
     ],
   },
-});
+})
 
-export const GoogleOAuthPlugin = GeminiCLIOAuthPlugin;
+export const GoogleOAuthPlugin = GeminiCLIOAuthPlugin
 
-const RETRYABLE_STATUS_CODES = new Set([429, 503]);
-const DEFAULT_MAX_RETRIES = 2;
-const DEFAULT_BASE_DELAY_MS = 800;
-const DEFAULT_MAX_DELAY_MS = 8000;
+const RETRYABLE_STATUS_CODES = new Set([429, 503])
+const DEFAULT_MAX_RETRIES = 2
+const DEFAULT_BASE_DELAY_MS = 800
+const DEFAULT_MAX_DELAY_MS = 8000
 
 function toUrlString(value: RequestInfo): string {
   if (typeof value === "string") {
-    return value;
+    return value
   }
-  const candidate = (value as Request).url;
+  const candidate = (value as Request).url
   if (candidate) {
-    return candidate;
+    return candidate
   }
-  return value.toString();
+  return value.toString()
 }
 
 function parseOAuthCallbackInput(input: string): { code?: string; state?: string } {
-  const trimmed = input.trim();
+  const trimmed = input.trim()
   if (!trimmed) {
-    return {};
+    return {}
   }
 
   if (/^https?:\/\//i.test(trimmed)) {
     try {
-      const url = new URL(trimmed);
+      const url = new URL(trimmed)
       return {
         code: url.searchParams.get("code") || undefined,
         state: url.searchParams.get("state") || undefined,
-      };
+      }
     } catch {
-      return {};
+      return {}
     }
   }
 
-  const candidate = trimmed.startsWith("?") ? trimmed.slice(1) : trimmed;
+  const candidate = trimmed.startsWith("?") ? trimmed.slice(1) : trimmed
   if (candidate.includes("=")) {
-    const params = new URLSearchParams(candidate);
-    const code = params.get("code") || undefined;
-    const state = params.get("state") || undefined;
+    const params = new URLSearchParams(candidate)
+    const code = params.get("code") || undefined
+    const state = params.get("state") || undefined
     if (code || state) {
-      return { code, state };
+      return { code, state }
     }
   }
 
-  return { code: trimmed };
+  return { code: trimmed }
 }
 
 function openBrowserUrl(url: string): void {
   try {
     // Best-effort: don't block auth flow if spawning fails.
-    const platform = process.platform;
-    const command =
-      platform === "darwin"
-        ? "open"
-        : platform === "win32"
-          ? "rundll32"
-          : "xdg-open";
-    const args =
-      platform === "win32" ? ["url.dll,FileProtocolHandler", url] : [url];
+    const platform = process.platform
+    const command = platform === "darwin" ? "open" : platform === "win32" ? "rundll32" : "xdg-open"
+    const args = platform === "win32" ? ["url.dll,FileProtocolHandler", url] : [url]
     const child = spawn(command, args, {
       stdio: "ignore",
       detached: true,
-    });
-    child.unref?.();
-  } catch {
-  }
+    })
+    child.unref?.()
+  } catch {}
 }
 
 async function fetchWithRetry(input: RequestInfo, init: RequestInit | undefined): Promise<Response> {
-  const maxRetries = DEFAULT_MAX_RETRIES;
-  const baseDelayMs = DEFAULT_BASE_DELAY_MS;
-  const maxDelayMs = DEFAULT_MAX_DELAY_MS;
+  const maxRetries = DEFAULT_MAX_RETRIES
+  const baseDelayMs = DEFAULT_BASE_DELAY_MS
+  const maxDelayMs = DEFAULT_MAX_DELAY_MS
 
   if (!canRetryRequest(init)) {
-    return fetch(input, init);
+    return fetch(input, init)
   }
 
-  let attempt = 0;
+  let attempt = 0
   while (true) {
-    const response = await fetch(input, init);
+    const response = await fetch(input, init)
     if (!RETRYABLE_STATUS_CODES.has(response.status) || attempt >= maxRetries) {
-      return response;
+      return response
     }
 
-    const delayMs = await getRetryDelayMs(response, attempt, baseDelayMs, maxDelayMs);
+    const delayMs = await getRetryDelayMs(response, attempt, baseDelayMs, maxDelayMs)
     if (!delayMs || delayMs <= 0) {
-      return response;
+      return response
     }
 
     if (init?.signal?.aborted) {
-      return response;
+      return response
     }
 
-    await wait(delayMs);
-    attempt += 1;
+    await wait(delayMs)
+    attempt += 1
   }
 }
 
 function canRetryRequest(init: RequestInit | undefined): boolean {
   if (!init?.body) {
-    return true;
+    return true
   }
 
-  const body = init.body;
+  const body = init.body
   if (typeof body === "string") {
-    return true;
+    return true
   }
   if (typeof URLSearchParams !== "undefined" && body instanceof URLSearchParams) {
-    return true;
+    return true
   }
   if (typeof ArrayBuffer !== "undefined" && body instanceof ArrayBuffer) {
-    return true;
+    return true
   }
   if (typeof ArrayBuffer !== "undefined" && ArrayBuffer.isView(body)) {
-    return true;
+    return true
   }
   if (typeof Blob !== "undefined" && body instanceof Blob) {
-    return true;
+    return true
   }
 
-  return false;
+  return false
 }
 
 async function getRetryDelayMs(
@@ -378,136 +362,136 @@ async function getRetryDelayMs(
   baseDelayMs: number,
   maxDelayMs: number,
 ): Promise<number | null> {
-  const headerDelayMs = parseRetryAfterMs(response.headers.get("retry-after-ms"));
+  const headerDelayMs = parseRetryAfterMs(response.headers.get("retry-after-ms"))
   if (headerDelayMs !== null) {
-    return clampDelay(headerDelayMs, maxDelayMs);
+    return clampDelay(headerDelayMs, maxDelayMs)
   }
 
-  const retryAfter = parseRetryAfter(response.headers.get("retry-after"));
+  const retryAfter = parseRetryAfter(response.headers.get("retry-after"))
   if (retryAfter !== null) {
-    return clampDelay(retryAfter, maxDelayMs);
+    return clampDelay(retryAfter, maxDelayMs)
   }
 
-  const bodyDelayMs = await parseRetryDelayFromBody(response);
+  const bodyDelayMs = await parseRetryDelayFromBody(response)
   if (bodyDelayMs !== null) {
-    return clampDelay(bodyDelayMs, maxDelayMs);
+    return clampDelay(bodyDelayMs, maxDelayMs)
   }
 
-  const fallback = baseDelayMs * Math.pow(2, attempt);
-  return clampDelay(fallback, maxDelayMs);
+  const fallback = baseDelayMs * Math.pow(2, attempt)
+  return clampDelay(fallback, maxDelayMs)
 }
 
 function clampDelay(delayMs: number, maxDelayMs: number): number {
   if (!Number.isFinite(delayMs)) {
-    return maxDelayMs;
+    return maxDelayMs
   }
-  return Math.min(Math.max(0, delayMs), maxDelayMs);
+  return Math.min(Math.max(0, delayMs), maxDelayMs)
 }
 
 function parseRetryAfterMs(value: string | null): number | null {
   if (!value) {
-    return null;
+    return null
   }
-  const parsed = Number(value);
+  const parsed = Number(value)
   if (!Number.isFinite(parsed) || parsed <= 0) {
-    return null;
+    return null
   }
-  return parsed;
+  return parsed
 }
 
 function parseRetryAfter(value: string | null): number | null {
   if (!value) {
-    return null;
+    return null
   }
-  const trimmed = value.trim();
+  const trimmed = value.trim()
   if (!trimmed) {
-    return null;
+    return null
   }
-  const asNumber = Number(trimmed);
+  const asNumber = Number(trimmed)
   if (Number.isFinite(asNumber)) {
-    return Math.max(0, Math.round(asNumber * 1000));
+    return Math.max(0, Math.round(asNumber * 1000))
   }
-  const asDate = Date.parse(trimmed);
+  const asDate = Date.parse(trimmed)
   if (!Number.isNaN(asDate)) {
-    return Math.max(0, asDate - Date.now());
+    return Math.max(0, asDate - Date.now())
   }
-  return null;
+  return null
 }
 
 async function parseRetryDelayFromBody(response: Response): Promise<number | null> {
-  let text = "";
+  let text = ""
   try {
-    text = await response.clone().text();
+    text = await response.clone().text()
   } catch {
-    return null;
+    return null
   }
 
   if (!text) {
-    return null;
+    return null
   }
 
-  let parsed: any;
+  let parsed: any
   try {
-    parsed = JSON.parse(text);
+    parsed = JSON.parse(text)
   } catch {
-    return null;
+    return null
   }
 
-  const details = parsed?.error?.details;
+  const details = parsed?.error?.details
   if (!Array.isArray(details)) {
-    return null;
+    return null
   }
 
   for (const detail of details) {
     if (!detail || typeof detail !== "object") {
-      continue;
+      continue
     }
-    const retryDelay = (detail as Record<string, unknown>).retryDelay;
+    const retryDelay = (detail as Record<string, unknown>).retryDelay
     if (!retryDelay) {
-      continue;
+      continue
     }
-    const delayMs = parseRetryDelayValue(retryDelay);
+    const delayMs = parseRetryDelayValue(retryDelay)
     if (delayMs !== null) {
-      return delayMs;
+      return delayMs
     }
   }
 
-  return null;
+  return null
 }
 
 function parseRetryDelayValue(value: unknown): number | null {
   if (!value) {
-    return null;
+    return null
   }
 
   if (typeof value === "string") {
-    const match = value.match(/^([\d.]+)s$/);
+    const match = value.match(/^([\d.]+)s$/)
     if (!match || !match[1]) {
-      return null;
+      return null
     }
-    const seconds = Number(match[1]);
+    const seconds = Number(match[1])
     if (!Number.isFinite(seconds) || seconds <= 0) {
-      return null;
+      return null
     }
-    return Math.round(seconds * 1000);
+    return Math.round(seconds * 1000)
   }
 
   if (typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    const seconds = typeof record.seconds === "number" ? record.seconds : 0;
-    const nanos = typeof record.nanos === "number" ? record.nanos : 0;
+    const record = value as Record<string, unknown>
+    const seconds = typeof record.seconds === "number" ? record.seconds : 0
+    const nanos = typeof record.nanos === "number" ? record.nanos : 0
     if (!Number.isFinite(seconds) || !Number.isFinite(nanos)) {
-      return null;
+      return null
     }
-    const totalMs = Math.round(seconds * 1000 + nanos / 1e6);
-    return totalMs > 0 ? totalMs : null;
+    const totalMs = Math.round(seconds * 1000 + nanos / 1e6)
+    return totalMs > 0 ? totalMs : null
   }
 
-  return null;
+  return null
 }
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
+    setTimeout(resolve, ms)
+  })
 }

@@ -6,9 +6,7 @@
 
 import fs from "fs"
 import path from "path"
-import { Global } from "../global"
-
-const DEBUG_LOG_PATH = path.join(Global.Path.log, "debug.log")
+const DEBUG_LOG_PATH = path.join(process.cwd(), "logs", "debug.log")
 
 // Format timestamp in local time (e.g., 2026-02-01 12:34:56.789)
 function localTimestamp(): string {
@@ -19,6 +17,7 @@ function localTimestamp(): string {
 
 // Clear log file immediately on module load
 try {
+  fs.mkdirSync(path.dirname(DEBUG_LOG_PATH), { recursive: true })
   fs.writeFileSync(DEBUG_LOG_PATH, `=== Debug Log Started: ${localTimestamp()} ===\n`)
 } catch (e) {
   // Ignore if can't write
@@ -34,6 +33,7 @@ export function debugLog(tag: string, message: string, data?: Record<string, unk
   const dataStr = data ? " " + JSON.stringify(data) : ""
   const line = `[${timestamp}] [${tag}] ${message}${dataStr}\n`
   try {
+    fs.mkdirSync(path.dirname(DEBUG_LOG_PATH), { recursive: true })
     fs.appendFileSync(DEBUG_LOG_PATH, line)
   } catch (e) {
     // Ignore write errors
@@ -41,9 +41,7 @@ export function debugLog(tag: string, message: string, data?: Record<string, unk
 }
 
 export function debugLogError(tag: string, message: string, error: unknown) {
-  const errorStr = error instanceof Error
-    ? `${error.message}\n${error.stack}`
-    : String(error)
+  const errorStr = error instanceof Error ? `${error.message}\n${error.stack}` : String(error)
   debugLog(tag, `ERROR: ${message}`, { error: errorStr })
 }
 

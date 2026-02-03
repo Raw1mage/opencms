@@ -52,10 +52,10 @@ export interface FallbackCandidate extends ModelVector {
  * Strategy for fallback selection
  */
 export type FallbackStrategy =
-  | "account-first"    // Try other accounts first, then other models, then other providers
-  | "model-first"      // Try other models first, then other accounts, then other providers
-  | "provider-first"   // Try other providers first (maximizes diversity)
-  | "any-available"    // Take first available regardless of dimension
+  | "account-first" // Try other accounts first, then other models, then other providers
+  | "model-first" // Try other models first, then other accounts, then other providers
+  | "provider-first" // Try other providers first (maximizes diversity)
+  | "any-available" // Take first available regardless of dimension
 
 /**
  * Configuration for the 3D rotation system
@@ -74,7 +74,7 @@ export interface Rotation3DConfig {
 export const DEFAULT_ROTATION3D_CONFIG: Rotation3DConfig = {
   strategy: "account-first",
   allowTierDowngrade: true,
-  maxCandidates: 10,
+  maxCandidates: 50, // Allow many candidates to find a working model
   minHealthScore: 30,
 }
 
@@ -172,23 +172,19 @@ export function selectBestFallback(
   triedKeys?: Set<string>,
 ): FallbackCandidate | null {
   // Filter to available candidates
-  const available = candidates.filter(
-    (c) => {
-      const key = makeKey(c)
-      // Exclude already-tried vectors
-      if (triedKeys?.has(key)) {
-        return false
-      }
-      return (
-        !c.isRateLimited &&
-        c.healthScore >= config.minHealthScore &&
-        // Don't return the exact same vector
-        !(c.providerID === current.providerID &&
-          c.accountId === current.accountId &&
-          c.modelID === current.modelID)
-      )
+  const available = candidates.filter((c) => {
+    const key = makeKey(c)
+    // Exclude already-tried vectors
+    if (triedKeys?.has(key)) {
+      return false
     }
-  )
+    return (
+      !c.isRateLimited &&
+      c.healthScore >= config.minHealthScore &&
+      // Don't return the exact same vector
+      !(c.providerID === current.providerID && c.accountId === current.accountId && c.modelID === current.modelID)
+    )
+  })
 
   if (available.length === 0) {
     log.warn("No available fallback candidates", {
@@ -295,6 +291,7 @@ export async function buildFallbackCandidates(
   }
 
   // 3. Get favorite models from model.json (different providers)
+  // Try ALL accounts for each favorite, not just the active one
   try {
     const modelFile = Bun.file(path.join(Global.Path.state, "model.json"))
     if (await modelFile.exists()) {
@@ -310,23 +307,24 @@ export async function buildFallbackCandidates(
         const favFamily = Account.parseFamily(fav.providerID)
         if (!favFamily) continue
 
-        const activeAccountId = await Account.getActive(favFamily)
-        if (!activeAccountId) continue
+        // Get ALL accounts for this provider family, not just the active one
+        const accounts = await Account.list(favFamily)
+        for (const [accountId, info] of Object.entries(accounts)) {
+          const vector: ModelVector = {
+            providerID: fav.providerID,
+            accountId,
+            modelID: fav.modelID,
+          }
 
-        const vector: ModelVector = {
-          providerID: fav.providerID,
-          accountId: activeAccountId,
-          modelID: fav.modelID,
+          candidates.push({
+            ...vector,
+            healthScore: healthTracker.getScore(accountId),
+            isRateLimited: rateLimitTracker.isRateLimited(accountId, fav.providerID, fav.modelID),
+            waitTimeMs: rateLimitTracker.getWaitTime(accountId, fav.providerID, fav.modelID),
+            priority: 0,
+            reason: fav.providerID === current.providerID ? "diff-model-same-account" : "diff-provider",
+          })
         }
-
-        candidates.push({
-          ...vector,
-          healthScore: healthTracker.getScore(activeAccountId),
-          isRateLimited: rateLimitTracker.isRateLimited(activeAccountId, fav.providerID, fav.modelID),
-          waitTimeMs: rateLimitTracker.getWaitTime(activeAccountId, fav.providerID, fav.modelID),
-          priority: 0,
-          reason: fav.providerID === current.providerID ? "diff-model-same-account" : "diff-provider",
-        })
       }
     }
   } catch (e) {

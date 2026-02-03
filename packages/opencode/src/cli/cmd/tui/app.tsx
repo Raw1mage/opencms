@@ -30,7 +30,6 @@ import { DialogHelp } from "./ui/dialog-help"
 import { CommandProvider, useCommandDialog } from "@tui/component/dialog-command"
 import { DialogAgent } from "@tui/component/dialog-agent"
 import { DialogSessionList } from "@tui/component/dialog-session-list"
-import { DialogTasks } from "@tui/component/dialog-tasks"
 import { DialogAccount } from "@tui/component/dialog-account"
 import { DialogAdmin } from "@tui/component/dialog-admin"
 import { KeybindProvider } from "@tui/context/keybind"
@@ -443,17 +442,6 @@ function App() {
       hidden: true,
       onSelect: () => {
         local.agent.move(1)
-      },
-    },
-    {
-      title: "Task Dashboard",
-      value: "task.list",
-      slash: {
-        name: "tasks",
-      },
-      category: "Session",
-      onSelect: () => {
-        dialog.replace(() => <DialogTasks />)
       },
     },
     {

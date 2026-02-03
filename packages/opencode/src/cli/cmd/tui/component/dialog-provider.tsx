@@ -65,22 +65,12 @@ async function startProviderAuth(
     })
     if (result.data?.method === "code") {
       dialog.replace(() => (
-        <CodeMethod
-          providerID={providerID}
-          title={method.label}
-          index={index}
-          authorization={result.data!}
-        />
+        <CodeMethod providerID={providerID} title={method.label} index={index} authorization={result.data!} />
       ))
     }
     if (result.data?.method === "auto") {
       dialog.replace(() => (
-        <AutoMethod
-          providerID={providerID}
-          title={method.label}
-          index={index}
-          authorization={result.data!}
-        />
+        <AutoMethod providerID={providerID} title={method.label} index={index} authorization={result.data!} />
       ))
     }
   }
@@ -242,7 +232,7 @@ function CodeMethod(props: CodeMethodProps) {
         .catch(toast.error)
     }
     if (evt.name === "o" && evt.meta) {
-      open(props.authorization.url).catch(() => { })
+      open(props.authorization.url).catch(() => {})
     }
   })
 
@@ -331,7 +321,8 @@ function ApiMethod(props: ApiMethodProps) {
             props.providerID === "opencode" ? (
               <box gap={1}>
                 <text fg={theme.textMuted}>
-                  OpenCode Zen gives you access to all the best coding models at the cheapest prices with a single API key.
+                  OpenCode Zen gives you access to all the best coding models at the cheapest prices with a single API
+                  key.
                 </text>
                 <text fg={theme.text}>
                   Go to <span style={{ fg: theme.primary }}>https://opencode.ai/zen</span> to get a key

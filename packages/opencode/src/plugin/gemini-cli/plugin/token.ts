@@ -6,12 +6,12 @@ import type { OAuthAuthDetails, PluginClient, RefreshParts } from "./types"
 
 interface OAuthErrorPayload {
   error?:
-  | string
-  | {
-    code?: string
-    status?: string
-    message?: string
-  }
+    | string
+    | {
+        code?: string
+        status?: string
+        message?: string
+      }
   error_description?: string
 }
 

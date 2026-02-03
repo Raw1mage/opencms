@@ -12,6 +12,7 @@ import { defer } from "@/util/defer"
 import { Config } from "../config/config"
 import { PermissionNext } from "@/permission/next"
 import { Provider } from "../provider/provider"
+import { debugLog } from "@/util/debug-log"
 
 const parameters = z.object({
   description: z.string().describe("A short (3-5 words) description of the task"),
@@ -41,6 +42,13 @@ export const TaskTool = Tool.define("task", async (ctx) => {
     description,
     parameters,
     async execute(params: z.infer<typeof parameters>, ctx) {
+      debugLog("task", "Task tool execute started", {
+        description: params.description,
+        subagent_type: params.subagent_type,
+        model_param: params.model,
+        session_id: params.session_id,
+      })
+
       const config = await Config.get()
 
       // Skip permission check when user explicitly invoked via @ or command subtask
@@ -58,6 +66,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
 
       const agent = await Agent.get(params.subagent_type)
       if (!agent) throw new Error(`Unknown agent type: ${params.subagent_type} is not a valid agent type`)
+      debugLog("task", "Agent loaded", { agentName: agent.name, agentModel: agent.model })
 
       const hasTaskPermission = agent.permission.some((rule) => rule.permission === "task")
 
@@ -108,6 +117,13 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           providerID: msg.info.providerID,
         }
 
+      debugLog("task", "Model resolved for subagent", {
+        modelArg,
+        agentModel: agent.model,
+        parentModel: { modelID: msg.info.modelID, providerID: msg.info.providerID },
+        finalModel: model,
+      })
+
       ctx.metadata({
         title: params.description,
         metadata: {
@@ -146,6 +162,49 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       ctx.abort.addEventListener("abort", cancel)
       using _ = defer(() => ctx.abort.removeEventListener("abort", cancel))
       const promptParts = await SessionPrompt.resolvePromptParts(params.prompt)
+
+      const modelInfo = await Provider.getModel(model.providerID, model.modelID).catch(() => undefined)
+      const auto = params.description.toLowerCase().startsWith("auto ")
+      const allowImages = !auto && (modelInfo?.capabilities?.input?.image ?? false)
+
+      // Extract image attachments from parent session's messages and pass to subagent
+      // This allows images pasted by the user (displayed as [Image N]) to be visible to subagents
+      const parentUserMessage = ctx.messages.findLast((m) => m.info.role === "user")
+      if (parentUserMessage) {
+        const imageAttachments = parentUserMessage.parts.filter(
+          (part): part is MessageV2.FilePart => part.type === "file" && part.mime?.startsWith("image/"),
+        )
+        for (const img of imageAttachments) {
+          if (!allowImages) {
+            debugLog("task", "Skipping image for subagent", {
+              filename: img.filename,
+              mime: img.mime,
+              reason: auto ? "auto_task" : "model_no_image_support",
+            })
+            continue
+          }
+          if (img.url.startsWith("data:")) {
+            const match = img.url.match(/^data:([^;]+);base64,(.*)$/)
+            if (!match || !match[2]) {
+              debugLog("task", "Skipping invalid image data URL", {
+                filename: img.filename,
+                mime: img.mime,
+              })
+              continue
+            }
+          }
+          debugLog("task", "Passing image to subagent", {
+            filename: img.filename,
+            mime: img.mime,
+          })
+          promptParts.push({
+            type: "file",
+            url: img.url,
+            mime: img.mime,
+            filename: img.filename,
+          })
+        }
+      }
 
       const result = await SessionPrompt.prompt({
         messageID,

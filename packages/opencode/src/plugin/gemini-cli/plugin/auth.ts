@@ -1,21 +1,21 @@
-import type { AuthDetails, OAuthAuthDetails, RefreshParts } from "./types";
+import type { AuthDetails, OAuthAuthDetails, RefreshParts } from "./types"
 
-const ACCESS_TOKEN_EXPIRY_BUFFER_MS = 60 * 1000;
+const ACCESS_TOKEN_EXPIRY_BUFFER_MS = 60 * 1000
 
 export function isOAuthAuth(auth: AuthDetails): auth is OAuthAuthDetails {
-  return auth.type === "oauth" || auth.type === "subscription";
+  return auth.type === "oauth" || auth.type === "subscription"
 }
 
 /**
  * Splits a packed refresh string into its constituent refresh token and project IDs.
  */
 export function parseRefreshParts(refresh: string): RefreshParts {
-  const [refreshToken = "", projectId = "", managedProjectId = ""] = (refresh ?? "").split("|");
+  const [refreshToken = "", projectId = "", managedProjectId = ""] = (refresh ?? "").split("|")
   return {
     refreshToken,
     projectId: projectId || undefined,
     managedProjectId: managedProjectId || undefined,
-  };
+  }
 }
 
 /**
@@ -23,16 +23,16 @@ export function parseRefreshParts(refresh: string): RefreshParts {
  */
 export function formatRefreshParts(parts: RefreshParts): string {
   if (!parts.refreshToken) {
-    return "";
+    return ""
   }
 
   if (!parts.projectId && !parts.managedProjectId) {
-    return parts.refreshToken;
+    return parts.refreshToken
   }
 
-  const projectSegment = parts.projectId ?? "";
-  const managedSegment = parts.managedProjectId ?? "";
-  return `${parts.refreshToken}|${projectSegment}|${managedSegment}`;
+  const projectSegment = parts.projectId ?? ""
+  const managedSegment = parts.managedProjectId ?? ""
+  return `${parts.refreshToken}|${projectSegment}|${managedSegment}`
 }
 
 /**
@@ -40,7 +40,7 @@ export function formatRefreshParts(parts: RefreshParts): string {
  */
 export function accessTokenExpired(auth: OAuthAuthDetails): boolean {
   if (!auth.access || typeof auth.expires !== "number") {
-    return true;
+    return true
   }
-  return auth.expires <= Date.now() + ACCESS_TOKEN_EXPIRY_BUFFER_MS;
+  return auth.expires <= Date.now() + ACCESS_TOKEN_EXPIRY_BUFFER_MS
 }

@@ -17,6 +17,7 @@ import { Flag } from "../flag/flag"
 import { iife } from "@/util/iife"
 import { Global } from "../global"
 import { Installation } from "../installation"
+import { debugLog } from "../util/debug-log"
 
 // Direct imports for bundled providers
 import { createAmazonBedrock, type AmazonBedrockProviderSettings } from "@ai-sdk/amazon-bedrock"
@@ -45,7 +46,13 @@ import { ProviderTransform } from "./transform"
 export namespace Provider {
   const log = Log.create({ service: "provider" })
 
-  const IGNORED_MODELS = new Set(["google/gemini-1.5-pro", "google/gemini-1.0-pro"])
+  const IGNORED_MODELS = new Set([
+    "google/gemini-1.5-pro",
+    "google/gemini-1.0-pro",
+    "google/gemini-embedding-001",
+    "google/text-embedding-004",
+    "google/embedding-001",
+  ])
 
   const ANTIGRAVITY_WHITELIST = new Set([
     "gemini-3-pro-high",
@@ -78,16 +85,16 @@ export namespace Provider {
     family: string
     reasoning?: boolean
   }> = [
-    // Free tier models (most likely available)
-    { id: "claude-haiku-4.5", name: "Claude Haiku 4.5", family: "claude" },
-    { id: "gpt-4o-mini", name: "GPT-4o Mini", family: "openai" },
-    // Pro/Enterprise tier models (may require paid subscription)
-    { id: "claude-sonnet-4", name: "Claude Sonnet 4", family: "claude" },
-    { id: "gpt-4o", name: "GPT-4o", family: "openai" },
-    { id: "o1", name: "OpenAI o1", family: "openai", reasoning: true },
-    { id: "o1-mini", name: "OpenAI o1 Mini", family: "openai", reasoning: true },
-    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", family: "gemini" },
-  ]
+      // Free tier models (most likely available)
+      { id: "claude-haiku-4.5", name: "Claude Haiku 4.5", family: "claude" },
+      { id: "gpt-4o-mini", name: "GPT-4o Mini", family: "openai" },
+      // Pro/Enterprise tier models (may require paid subscription)
+      { id: "claude-sonnet-4", name: "Claude Sonnet 4", family: "claude" },
+      { id: "gpt-4o", name: "GPT-4o", family: "openai" },
+      { id: "o1", name: "OpenAI o1", family: "openai", reasoning: true },
+      { id: "o1-mini", name: "OpenAI o1 Mini", family: "openai", reasoning: true },
+      { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", family: "gemini" },
+    ]
 
   /**
    * Fetch models dynamically from a provider's API.
@@ -820,13 +827,13 @@ export namespace Provider {
         },
         experimentalOver200K: model.cost?.context_over_200k
           ? {
-              cache: {
-                read: model.cost.context_over_200k.cache_read ?? 0,
-                write: model.cost.context_over_200k.cache_write ?? 0,
-              },
-              input: model.cost.context_over_200k.input,
-              output: model.cost.context_over_200k.output,
-            }
+            cache: {
+              read: model.cost.context_over_200k.cache_read ?? 0,
+              write: model.cost.context_over_200k.cache_write ?? 0,
+            },
+            input: model.cost.context_over_200k.input,
+            output: model.cost.context_over_200k.output,
+          }
           : undefined,
       },
       limit: {
@@ -1424,6 +1431,67 @@ export namespace Provider {
           options.apiKey = accountInfo.apiKey
         }
 
+        if (family === "google-api") {
+          options.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+            const urlString = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url
+            debugLog("google-api", "Custom fetch called", { url: urlString, family })
+
+            if (init?.body && typeof init.body === "string" && urlString.includes("generativelanguage")) {
+              debugLog("google-api", "Processing generativelanguage request body")
+              try {
+                const body = JSON.parse(init.body) as Record<string, unknown>
+                let signaturesAdded = 0
+
+                const processContents = (contents: unknown, path: string): void => {
+                  if (!contents || !Array.isArray(contents)) {
+                    debugLog("google-api", `processContents: no contents at ${path}`)
+                    return
+                  }
+                  debugLog("google-api", `processContents: ${path}`, { contentCount: (contents as any[]).length })
+
+                  for (const content of contents) {
+                    if (content && typeof content === "object") {
+                      const parts = (content as Record<string, unknown>).parts
+                      if (parts && Array.isArray(parts)) {
+                        for (const part of parts) {
+                          if (part && typeof part === "object") {
+                            const partObj = part as Record<string, unknown>
+                            if (partObj.functionCall && !partObj.thoughtSignature) {
+                              partObj.thoughtSignature = "skip_thought_signature_validator"
+                              signaturesAdded++
+                              debugLog("google-api", "Added thoughtSignature", {
+                                functionName: (partObj.functionCall as any)?.name,
+                              })
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+
+                processContents(body.contents, "contents")
+                if (body.request && typeof body.request === "object") {
+                  processContents((body.request as Record<string, unknown>).contents, "request.contents")
+                }
+
+                debugLog("google-api", "Thought signatures processing complete", { signaturesAdded })
+                init = { ...init, body: JSON.stringify(body) }
+              } catch (e) {
+                debugLog("google-api", "Error processing body", { error: String(e) })
+                // Ignore json parse error
+              }
+            } else {
+              debugLog("google-api", "Skipping body processing", {
+                hasBody: !!init?.body,
+                isString: typeof init?.body === "string",
+                isGenerativelanguage: urlString.includes("generativelanguage"),
+              })
+            }
+            return fetch(input, init)
+          }
+        }
+
         const blocked = undefined
 
         // Whitelist of truly supported Antigravity models
@@ -1459,7 +1527,8 @@ export namespace Provider {
               ...model,
               providerID: effectiveId,
             })),
-            (model, id) => family !== "antigravity" || ANTIGRAVITY_WHITELIST.has(id),
+            (model, id) =>
+              (family !== "antigravity" || ANTIGRAVITY_WHITELIST.has(id)) && !isModelIgnored(effectiveId, id),
           ),
         }
 
@@ -1494,7 +1563,9 @@ export namespace Provider {
             ...model,
             providerID: accountID,
           })),
-          (model, id) => !accountID.includes("antigravity") || ANTIGRAVITY_WHITELIST.has(id),
+          (model, id) =>
+            (!accountID.includes("antigravity") || ANTIGRAVITY_WHITELIST.has(id)) &&
+            !isModelIgnored(accountID, id),
         ),
       }
       mergeProvider(accountID, {
@@ -1771,6 +1842,15 @@ export namespace Provider {
       const provider = s.providers[model.providerID]
       const options = { ...provider.options }
 
+      debugLog("provider", "getSDK called", {
+        providerID: model.providerID,
+        modelID: model.id,
+        apiNpm: model.api.npm,
+        providerSource: provider?.source,
+        hasCustomFetch: typeof options.fetch === "function",
+        optionKeys: Object.keys(options),
+      })
+
       if (model.api.npm.includes("@ai-sdk/openai-compatible") && options["includeUsage"] !== false) {
         options["includeUsage"] = true
       }
@@ -1810,7 +1890,18 @@ export namespace Provider {
       if (existing) return existing
 
       const customFetch = options["fetch"]
+      const wrappedProviderID = model.providerID
+      const wrappedModelID = model.id
       options["fetch"] = async (input: any, init?: BunFetchRequestInit) => {
+        const inputUrl = typeof input === "string" ? input : input?.url || String(input)
+        debugLog("provider-fetch", "SDK fetch wrapper called", {
+          providerID: wrappedProviderID,
+          modelID: wrappedModelID,
+          url: inputUrl,
+          hasCustomFetch: !!customFetch,
+          method: init?.method,
+        })
+
         // Preserve custom fetch if it exists, wrap it with timeout logic
         const fetchFn = customFetch ?? fetch
         const opts = init ?? {}
@@ -1840,6 +1931,37 @@ export namespace Provider {
               }
             }
             opts.body = JSON.stringify(body)
+          }
+        }
+
+        // Add thought signatures to Gemini API function calls
+        // Gemini 3+ models with thinking require thoughtSignature on functionCall parts
+        // This handles the "google" provider which doesn't have a custom fetch with signature handling
+        if (inputUrl.includes("generativelanguage.googleapis.com") && opts.body && opts.method === "POST") {
+          try {
+            const body = JSON.parse(opts.body as string)
+            let modified = false
+            if (Array.isArray(body.contents)) {
+              for (const content of body.contents) {
+                if (content && Array.isArray(content.parts)) {
+                  for (const part of content.parts) {
+                    if (part && typeof part === "object" && "functionCall" in part && !part.thoughtSignature) {
+                      part.thoughtSignature = "skip_thought_signature_validator"
+                      modified = true
+                    }
+                  }
+                }
+              }
+            }
+            if (modified) {
+              opts.body = JSON.stringify(body)
+              debugLog("provider-fetch", "Added thought signatures to Gemini function calls", {
+                providerID: wrappedProviderID,
+                modelID: wrappedModelID,
+              })
+            }
+          } catch {
+            // If parsing fails, proceed with original body
           }
         }
 

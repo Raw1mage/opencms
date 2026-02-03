@@ -5,6 +5,27 @@ import { lazy } from "../../../../util/lazy.js"
 import { tmpdir } from "os"
 import path from "path"
 
+function normalizeBase64(input: string): string | undefined {
+  const cleaned = input.replace(/\s+/g, "").trim()
+  if (!cleaned) return
+  if (!/^[A-Za-z0-9+/=]+$/.test(cleaned)) return
+  return cleaned
+}
+
+function isPng(buffer: Buffer): boolean {
+  if (buffer.length < 8) return false
+  return (
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  )
+}
+
 /**
  * Writes text to clipboard via OSC 52 escape sequence.
  * This allows clipboard operations to work over SSH by having
@@ -46,11 +67,12 @@ export namespace Clipboard {
 
     if (os === "win32" || release().includes("WSL")) {
       const script =
-        "Add-Type -AssemblyName System.Windows.Forms; $img = [System.Windows.Forms.Clipboard]::GetImage(); if ($img) { $ms = New-Object System.IO.MemoryStream; $img.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png); [System.Convert]::ToBase64String($ms.ToArray()) }"
-      const base64 = await $`powershell.exe -NonInteractive -NoProfile -command "${script}"`.nothrow().text()
+        "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Add-Type -AssemblyName System.Windows.Forms; $img = [System.Windows.Forms.Clipboard]::GetImage(); if ($img) { $ms = New-Object System.IO.MemoryStream; $img.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png); [System.Convert]::ToBase64String($ms.ToArray()) }"
+      const raw = await $`powershell.exe -NonInteractive -NoProfile -command "${script}"`.nothrow().text()
+      const base64 = raw ? normalizeBase64(raw) : undefined
       if (base64) {
-        const imageBuffer = Buffer.from(base64.trim(), "base64")
-        if (imageBuffer.length > 0) {
+        const imageBuffer = Buffer.from(base64, "base64")
+        if (isPng(imageBuffer)) {
           return { data: imageBuffer.toString("base64"), mime: "image/png" }
         }
       }

@@ -1,45 +1,37 @@
-import {
-  CODE_ASSIST_HEADERS,
-  GEMINI_CODE_ASSIST_ENDPOINT,
-  GEMINI_PROVIDER_ID,
-} from "../constants";
-import { formatRefreshParts, parseRefreshParts } from "./auth";
-import type {
-  OAuthAuthDetails,
-  PluginClient,
-  ProjectContextResult,
-} from "./types";
+import { CODE_ASSIST_HEADERS, GEMINI_CODE_ASSIST_ENDPOINT, GEMINI_PROVIDER_ID } from "../constants"
+import { formatRefreshParts, parseRefreshParts } from "./auth"
+import type { OAuthAuthDetails, PluginClient, ProjectContextResult } from "./types"
 
-const projectContextResultCache = new Map<string, ProjectContextResult>();
-const projectContextPendingCache = new Map<string, Promise<ProjectContextResult>>();
+const projectContextResultCache = new Map<string, ProjectContextResult>()
+const projectContextPendingCache = new Map<string, Promise<ProjectContextResult>>()
 
 const CODE_ASSIST_METADATA = {
   ideType: "IDE_UNSPECIFIED",
   platform: "PLATFORM_UNSPECIFIED",
   pluginType: "GEMINI",
-} as const;
+} as const
 
 interface GeminiUserTier {
-  id?: string;
-  isDefault?: boolean;
-  userDefinedCloudaicompanionProject?: boolean;
+  id?: string
+  isDefault?: boolean
+  userDefinedCloudaicompanionProject?: boolean
 }
 
 interface LoadCodeAssistPayload {
-  cloudaicompanionProject?: string;
+  cloudaicompanionProject?: string
   currentTier?: {
-    id?: string;
-  };
-  allowedTiers?: GeminiUserTier[];
+    id?: string
+  }
+  allowedTiers?: GeminiUserTier[]
 }
 
 interface OnboardUserPayload {
-  done?: boolean;
+  done?: boolean
   response?: {
     cloudaicompanionProject?: {
-      id?: string;
-    };
-  };
+      id?: string
+    }
+  }
 }
 
 class ProjectIdRequiredError extends Error {
@@ -49,7 +41,7 @@ class ProjectIdRequiredError extends Error {
   constructor() {
     super(
       "Google Gemini requires a Google Cloud project. Enable the Gemini for Google Cloud API on a project you control, then set `provider.google.options.projectId` in your Opencode config (or set OPENCODE_GEMINI_PROJECT_ID).",
-    );
+    )
   }
 }
 
@@ -61,11 +53,11 @@ function buildMetadata(projectId?: string): Record<string, string> {
     ideType: CODE_ASSIST_METADATA.ideType,
     platform: CODE_ASSIST_METADATA.platform,
     pluginType: CODE_ASSIST_METADATA.pluginType,
-  };
-  if (projectId) {
-    metadata.duetProject = projectId;
   }
-  return metadata;
+  if (projectId) {
+    metadata.duetProject = projectId
+  }
+  return metadata
 }
 
 /**
@@ -73,14 +65,14 @@ function buildMetadata(projectId?: string): Record<string, string> {
  */
 function getDefaultTierId(allowedTiers?: GeminiUserTier[]): string | undefined {
   if (!allowedTiers || allowedTiers.length === 0) {
-    return undefined;
+    return undefined
   }
   for (const tier of allowedTiers) {
     if (tier?.isDefault) {
-      return tier.id;
+      return tier.id
     }
   }
-  return allowedTiers[0]?.id;
+  return allowedTiers[0]?.id
 }
 
 /**
@@ -88,16 +80,16 @@ function getDefaultTierId(allowedTiers?: GeminiUserTier[]): string | undefined {
  */
 function wait(ms: number): Promise<void> {
   return new Promise(function (resolve) {
-    setTimeout(resolve, ms);
-  });
+    setTimeout(resolve, ms)
+  })
 }
 
 /**
  * Generates a cache key for project context based on refresh token.
  */
 function getCacheKey(auth: OAuthAuthDetails): string | undefined {
-  const refresh = auth.refresh?.trim();
-  return refresh ? refresh : undefined;
+  const refresh = auth.refresh?.trim()
+  return refresh ? refresh : undefined
 }
 
 /**
@@ -105,23 +97,23 @@ function getCacheKey(auth: OAuthAuthDetails): string | undefined {
  */
 export function invalidateProjectContextCache(refresh?: string): void {
   if (!refresh) {
-    projectContextPendingCache.clear();
-    projectContextResultCache.clear();
-    return;
+    projectContextPendingCache.clear()
+    projectContextResultCache.clear()
+    return
   }
 
-  projectContextPendingCache.delete(refresh);
-  projectContextResultCache.delete(refresh);
+  projectContextPendingCache.delete(refresh)
+  projectContextResultCache.delete(refresh)
 
-  const prefix = `${refresh}|cfg:`;
+  const prefix = `${refresh}|cfg:`
   for (const key of projectContextPendingCache.keys()) {
     if (key.startsWith(prefix)) {
-      projectContextPendingCache.delete(key);
+      projectContextPendingCache.delete(key)
     }
   }
   for (const key of projectContextResultCache.keys()) {
     if (key.startsWith(prefix)) {
-      projectContextResultCache.delete(key);
+      projectContextResultCache.delete(key)
     }
   }
 }
@@ -134,37 +126,33 @@ export async function loadManagedProject(
   projectId?: string,
 ): Promise<LoadCodeAssistPayload | null> {
   try {
-    const metadata = buildMetadata(projectId);
+    const metadata = buildMetadata(projectId)
 
-    const requestBody: Record<string, unknown> = { metadata };
+    const requestBody: Record<string, unknown> = { metadata }
     if (projectId) {
-      requestBody.cloudaicompanionProject = projectId;
+      requestBody.cloudaicompanionProject = projectId
     }
 
-    const response = await fetch(
-      `${GEMINI_CODE_ASSIST_ENDPOINT}/v1internal:loadCodeAssist`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-          ...CODE_ASSIST_HEADERS,
-        },
-        body: JSON.stringify(requestBody),
+    const response = await fetch(`${GEMINI_CODE_ASSIST_ENDPOINT}/v1internal:loadCodeAssist`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        ...CODE_ASSIST_HEADERS,
       },
-    );
+      body: JSON.stringify(requestBody),
+    })
 
     if (!response.ok) {
-      return null;
+      return null
     }
 
-    return (await response.json()) as LoadCodeAssistPayload;
+    return (await response.json()) as LoadCodeAssistPayload
   } catch (error) {
-    console.error("Failed to load Gemini managed project:", error);
-    return null;
+    console.error("Failed to load Gemini managed project:", error)
+    return null
   }
 }
-
 
 /**
  * Onboards a managed project for the user, optionally retrying until completion.
@@ -176,55 +164,52 @@ export async function onboardManagedProject(
   attempts = 10,
   delayMs = 5000,
 ): Promise<string | undefined> {
-  const metadata = buildMetadata(projectId);
+  const metadata = buildMetadata(projectId)
   const requestBody: Record<string, unknown> = {
     tierId,
     metadata,
-  };
+  }
 
   if (tierId !== "FREE") {
     if (!projectId) {
-      throw new ProjectIdRequiredError();
+      throw new ProjectIdRequiredError()
     }
-    requestBody.cloudaicompanionProject = projectId;
+    requestBody.cloudaicompanionProject = projectId
   }
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
-      const response = await fetch(
-        `${GEMINI_CODE_ASSIST_ENDPOINT}/v1internal:onboardUser`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-            ...CODE_ASSIST_HEADERS,
-          },
-          body: JSON.stringify(requestBody),
+      const response = await fetch(`${GEMINI_CODE_ASSIST_ENDPOINT}/v1internal:onboardUser`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+          ...CODE_ASSIST_HEADERS,
         },
-      );
+        body: JSON.stringify(requestBody),
+      })
 
       if (!response.ok) {
-        return undefined;
+        return undefined
       }
 
-      const payload = (await response.json()) as OnboardUserPayload;
-      const managedProjectId = payload.response?.cloudaicompanionProject?.id;
+      const payload = (await response.json()) as OnboardUserPayload
+      const managedProjectId = payload.response?.cloudaicompanionProject?.id
       if (payload.done && managedProjectId) {
-        return managedProjectId;
+        return managedProjectId
       }
       if (payload.done && projectId) {
-        return projectId;
+        return projectId
       }
     } catch (error) {
-      console.error("Failed to onboard Gemini managed project:", error);
-      return undefined;
+      console.error("Failed to onboard Gemini managed project:", error)
+      return undefined
     }
 
-    await wait(delayMs);
+    await wait(delayMs)
   }
 
-  return undefined;
+  return undefined
 }
 
 /**
@@ -235,43 +220,43 @@ export async function ensureProjectContext(
   client: PluginClient,
   configuredProjectId?: string,
 ): Promise<ProjectContextResult> {
-  const accessToken = auth.access;
+  const accessToken = auth.access
   if (!accessToken) {
-    return { auth, effectiveProjectId: "" };
+    return { auth, effectiveProjectId: "" }
   }
 
   const cacheKey = (() => {
-    const base = getCacheKey(auth);
-    if (!base) return undefined;
-    const project = configuredProjectId?.trim() ?? "";
-    return project ? `${base}|cfg:${project}` : base;
-  })();
+    const base = getCacheKey(auth)
+    if (!base) return undefined
+    const project = configuredProjectId?.trim() ?? ""
+    return project ? `${base}|cfg:${project}` : base
+  })()
   if (cacheKey) {
-    const cached = projectContextResultCache.get(cacheKey);
+    const cached = projectContextResultCache.get(cacheKey)
     if (cached) {
-      return cached;
+      return cached
     }
-    const pending = projectContextPendingCache.get(cacheKey);
+    const pending = projectContextPendingCache.get(cacheKey)
     if (pending) {
-      return pending;
+      return pending
     }
   }
 
   const resolveContext = async (): Promise<ProjectContextResult> => {
-    const parts = parseRefreshParts(auth.refresh);
-    const effectiveConfiguredProjectId = configuredProjectId?.trim() || undefined;
-    const projectId = effectiveConfiguredProjectId ?? parts.projectId;
+    const parts = parseRefreshParts(auth.refresh)
+    const effectiveConfiguredProjectId = configuredProjectId?.trim() || undefined
+    const projectId = effectiveConfiguredProjectId ?? parts.projectId
 
     if (projectId || parts.managedProjectId) {
       return {
         auth,
         effectiveProjectId: projectId || parts.managedProjectId || "",
-      };
+      }
     }
 
-    const loadPayload = await loadManagedProject(accessToken, projectId);
+    const loadPayload = await loadManagedProject(accessToken, projectId)
     if (loadPayload?.cloudaicompanionProject) {
-      const managedProjectId = loadPayload.cloudaicompanionProject;
+      const managedProjectId = loadPayload.cloudaicompanionProject
       const updatedAuth: OAuthAuthDetails = {
         ...auth,
         refresh: formatRefreshParts({
@@ -279,33 +264,33 @@ export async function ensureProjectContext(
           projectId,
           managedProjectId,
         }),
-      };
+      }
 
       await client.auth.set({
         path: { id: GEMINI_PROVIDER_ID },
         body: updatedAuth,
-      });
+      })
 
-      return { auth: updatedAuth, effectiveProjectId: managedProjectId };
+      return { auth: updatedAuth, effectiveProjectId: managedProjectId }
     }
 
     if (!loadPayload) {
-      throw new ProjectIdRequiredError();
+      throw new ProjectIdRequiredError()
     }
 
-    const currentTierId = loadPayload.currentTier?.id ?? undefined;
+    const currentTierId = loadPayload.currentTier?.id ?? undefined
     if (currentTierId && currentTierId !== "FREE") {
-      throw new ProjectIdRequiredError();
+      throw new ProjectIdRequiredError()
     }
 
-    const defaultTierId = getDefaultTierId(loadPayload.allowedTiers);
-    const tierId = defaultTierId ?? "FREE";
+    const defaultTierId = getDefaultTierId(loadPayload.allowedTiers)
+    const tierId = defaultTierId ?? "FREE"
 
     if (tierId !== "FREE") {
-      throw new ProjectIdRequiredError();
+      throw new ProjectIdRequiredError()
     }
 
-    const managedProjectId = await onboardManagedProject(accessToken, tierId, projectId);
+    const managedProjectId = await onboardManagedProject(accessToken, tierId, projectId)
     if (managedProjectId) {
       const updatedAuth: OAuthAuthDetails = {
         ...auth,
@@ -314,38 +299,38 @@ export async function ensureProjectContext(
           projectId,
           managedProjectId,
         }),
-      };
+      }
 
       await client.auth.set({
         path: { id: GEMINI_PROVIDER_ID },
         body: updatedAuth,
-      });
+      })
 
-      return { auth: updatedAuth, effectiveProjectId: managedProjectId };
+      return { auth: updatedAuth, effectiveProjectId: managedProjectId }
     }
 
-    throw new ProjectIdRequiredError();
-  };
+    throw new ProjectIdRequiredError()
+  }
 
   if (!cacheKey) {
-    return resolveContext();
+    return resolveContext()
   }
 
   const promise = resolveContext()
     .then((result) => {
-      const nextKey = getCacheKey(result.auth) ?? cacheKey;
-      projectContextPendingCache.delete(cacheKey);
-      projectContextResultCache.set(nextKey, result);
+      const nextKey = getCacheKey(result.auth) ?? cacheKey
+      projectContextPendingCache.delete(cacheKey)
+      projectContextResultCache.set(nextKey, result)
       if (nextKey !== cacheKey) {
-        projectContextResultCache.delete(cacheKey);
+        projectContextResultCache.delete(cacheKey)
       }
-      return result;
+      return result
     })
     .catch((error) => {
-      projectContextPendingCache.delete(cacheKey);
-      throw error;
-    });
+      projectContextPendingCache.delete(cacheKey)
+      throw error
+    })
 
-  projectContextPendingCache.set(cacheKey, promise);
-  return promise;
+  projectContextPendingCache.set(cacheKey, promise)
+  return promise
 }

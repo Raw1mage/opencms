@@ -6,12 +6,14 @@
  * - Rate-limited models (with cooldown time remaining)
  */
 
-import { createMemo, createSignal, onCleanup } from "solid-js"
+import { createMemo, createSignal, onCleanup, createResource } from "solid-js"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
-import { getModelHealthRegistry } from "@/account/rotation"
+import { getModelHealthRegistry, getRateLimitTracker } from "@/account/rotation"
 import { Keybind } from "@/util/keybind"
 import { debugCheckpoint } from "@/util/debug"
+import { Account } from "@/account"
+import { Provider } from "@/provider/provider"
 
 export function DialogModelHealth() {
   const dialog = useDialog()
@@ -21,14 +23,30 @@ export function DialogModelHealth() {
   const interval = setInterval(() => setTick((t) => t + 1), 1000)
   onCleanup(() => clearInterval(interval))
 
-  const options = createMemo(() => {
+  const [providers] = createResource<Record<string, Provider.Info>>(() => Provider.list().catch(() => ({})))
+  const [accounts] = createResource<Record<string, Account.ProviderData>>(() => Account.listAll().catch(() => ({})))
+
+  const data = createMemo(() => {
     // Force re-computation on tick
     tick()
 
     debugCheckpoint("health", "dashboard.getSnapshot", { tick: tick() })
+
+    // Get 3D rate limit data from RateLimitTracker (used by rotation3d)
+    const rateLimitTracker = getRateLimitTracker()
+    const rateLimits3D = rateLimitTracker.getSnapshot3D()
+
+    // Also get 2D data from ModelHealthRegistry for "Ready" models
     const registry = getModelHealthRegistry()
-    const snapshot = registry.getSnapshot()
-    debugCheckpoint("health", "dashboard.snapshot", { size: snapshot.size, keys: Array.from(snapshot.keys()) })
+    const snapshot2D = registry.getSnapshot()
+
+    const providerMap = providers() ?? {}
+    const accountMap = accounts() ?? {}
+
+    debugCheckpoint("health", "dashboard.snapshot", {
+      rateLimits3DCount: rateLimits3D.length,
+      snapshot2DSize: snapshot2D.size,
+    })
 
     const items: Array<{
       value: string
@@ -38,43 +56,107 @@ export function DialogModelHealth() {
       footer: string
     }> = []
 
-    // Convert snapshot to sorted array
-    const entries = Array.from(snapshot.entries()).sort((a, b) => {
-      // Sort by category (rate-limited first), then by name
-      const aLimited = a[1].waitMs > 0
-      const bLimited = b[1].waitMs > 0
-      if (aLimited !== bLimited) return aLimited ? -1 : 1
-      return a[0].localeCompare(b[0])
-    })
-
-    // Table format: Provider | Account | Model | Status
-    for (const [key, state] of entries) {
-      const [provider, model] = key.split(":")
-      const isLimited = state.waitMs > 0
-
-      // Status column
-      let status: string
-      if (isLimited) {
-        const waitSec = Math.ceil(state.waitMs / 1000)
-        const waitMin = Math.floor(waitSec / 60)
-        const waitSecRemainder = waitSec % 60
-        status = waitMin > 0 ? `⏳ ${waitMin}m ${waitSecRemainder}s` : `⏳ ${waitSec}s`
-      } else {
-        status = "✓ Ready"
+    const modelLimits = new Map<string, { waitMs: number; reason: string }>()
+    const providerLimits = new Map<string, { waitMs: number; reason: string }>()
+    for (const entry of rateLimits3D) {
+      const hasModel = entry.modelID && entry.modelID.length > 0
+      if (hasModel) {
+        modelLimits.set(`${entry.accountId}:${entry.providerID}:${entry.modelID}`, {
+          waitMs: entry.waitMs,
+          reason: entry.reason,
+        })
       }
+      if (!hasModel) {
+        providerLimits.set(`${entry.accountId}:${entry.providerID}`, {
+          waitMs: entry.waitMs,
+          reason: entry.reason,
+        })
+      }
+    }
 
-      // Format as table row: Provider | Account | Model
-      const providerCol = (provider || "-").padEnd(12).slice(0, 12)
-      const accountCol = "default".padEnd(10).slice(0, 10)  // Account not tracked yet
-      const modelCol = (model || key).padEnd(28).slice(0, 28)
+    let ready = 0
+    let limited = 0
+    let untracked = 0
 
-      items.push({
-        value: key,
-        title: `${providerCol} ${accountCol} ${modelCol}`,
-        description: isLimited ? formatReason(state.reason) : "",
-        category: "",
-        footer: status,
-      })
+    const providerIds = Object.keys(providerMap).sort((a, b) => a.localeCompare(b))
+    for (const providerID of providerIds) {
+      const provider = providerMap[providerID]
+      if (!provider) continue
+
+      const accountData = accountMap[providerID]
+      const accountIds = accountData ? Object.keys(accountData.accounts) : []
+      const list = accountIds.length > 0 ? accountIds : ["-"]
+      const models = Object.values(provider.models).sort((a, b) => a.id.localeCompare(b.id))
+
+      for (const accountId of list) {
+        const info = accountId === "-" ? undefined : accountData?.accounts[accountId]
+        const display = info ? Account.getDisplayName(accountId, info, providerID) : accountId
+        const accountCol = (display || "-").padEnd(18).slice(0, 18)
+        const providerCol = (providerID || "-").padEnd(12).slice(0, 12)
+
+        for (const model of models) {
+          const modelCol = (model.id || "-").padEnd(28).slice(0, 28)
+          const entry = modelLimits.get(`${accountId}:${providerID}:${model.id}`)
+          if (entry && entry.waitMs > 0) {
+            limited += 1
+            items.push({
+              value: `${accountId}:${providerID}:${model.id}`,
+              title: `${providerCol} ${accountCol} ${modelCol}`,
+              description: formatReason(entry.reason),
+              category: "",
+              footer: `⏳ ${formatWait(entry.waitMs)}`,
+            })
+            continue
+          }
+
+          const providerLimit = providerLimits.get(`${accountId}:${providerID}`)
+          if (providerLimit && providerLimit.waitMs > 0) {
+            limited += 1
+            items.push({
+              value: `${accountId}:${providerID}:${model.id}`,
+              title: `${providerCol} ${accountCol} ${modelCol}`,
+              description: formatReason(providerLimit.reason),
+              category: "",
+              footer: `⏳ ${formatWait(providerLimit.waitMs)}`,
+            })
+            continue
+          }
+
+          const state2d = snapshot2D.get(`${providerID}:${model.id}`)
+          if (state2d && state2d.waitMs > 0) {
+            limited += 1
+            items.push({
+              value: `${accountId}:${providerID}:${model.id}`,
+              title: `${providerCol} ${accountCol} ${modelCol}`,
+              description: `${formatReason(state2d.reason)} (model)`,
+              category: "",
+              footer: `⏳ ${formatWait(state2d.waitMs)}`,
+            })
+            continue
+          }
+
+          if (state2d && state2d.available) {
+            ready += 1
+            items.push({
+              value: `${accountId}:${providerID}:${model.id}`,
+              title: `${providerCol} ${accountCol} ${modelCol}`,
+              description: "",
+              category: "",
+              footer: "✓ Ready",
+            })
+            continue
+          }
+
+          untracked += 1
+          items.push({
+            value: `${accountId}:${providerID}:${model.id}`,
+            title: `${providerCol} ${accountCol} ${modelCol}`,
+            description: "",
+            category: "",
+            footer: "· Untracked",
+          })
+        }
+      }
     }
 
     // If no models tracked yet, show a simple message
@@ -82,7 +164,7 @@ export function DialogModelHealth() {
       items.push({
         value: "empty",
         title: "No models tracked yet",
-        description: "Models will appear here after being used",
+        description: "Rate limits will appear here when encountered",
         category: "",
         footer: "",
       })
@@ -90,46 +172,31 @@ export function DialogModelHealth() {
       // Add header row at the beginning
       items.unshift({
         value: "_header",
-        title: "Provider     Account    Model                       ",
+        title: "Provider     Account            Model                       ",
         description: "",
         category: "",
         footer: "Status",
       })
     }
 
-    return items
+    return { items, stats: { ready, limited, untracked, total: ready + limited + untracked } }
   })
 
   // Summary stats
   const stats = createMemo(() => {
-    tick()
-    const registry = getModelHealthRegistry()
-    const snapshot = registry.getSnapshot()
-
-    let available = 0
-    let limited = 0
-
-    for (const [, state] of snapshot) {
-      if (state.waitMs > 0) {
-        limited++
-      } else {
-        available++
-      }
-    }
-
-    return { available, limited, total: available + limited }
+    return data().stats
   })
 
   const title = createMemo(() => {
     const s = stats()
     if (s.total === 0) return "Model Health"
-    return `Model Health (${s.available}✓ ${s.limited}⏳)`
+    return `Model Health (${s.ready}✓ ${s.limited}⏳ ${s.untracked}·)`
   })
 
   return (
     <DialogSelect
       title={title()}
-      options={options()}
+      options={data().items}
       skipFilter={true}
       hideInput={true}
       hoverSelect={false}
@@ -167,8 +234,11 @@ export function DialogModelHealth() {
           title: "(C)lear",
           label: "",
           onTrigger: () => {
+            // Clear both trackers
             const registry = getModelHealthRegistry()
             registry.clearAll()
+            const rateLimitTracker = getRateLimitTracker()
+            rateLimitTracker.clearAll()
             setTick((t) => t + 1)
           },
         },
@@ -191,4 +261,12 @@ function formatReason(reason: string): string {
     default:
       return reason || "Unknown"
   }
+}
+
+function formatWait(waitMs: number): string {
+  const waitSec = Math.ceil(waitMs / 1000)
+  const waitMin = Math.floor(waitSec / 60)
+  const waitSecRemainder = waitSec % 60
+  if (waitMin > 0) return `${waitMin}m ${waitSecRemainder}s`
+  return `${waitSec}s`
 }

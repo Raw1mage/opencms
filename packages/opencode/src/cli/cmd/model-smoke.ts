@@ -154,7 +154,9 @@ export const ModelSmokeCommand = cmd({
         const assistant = msgRes.info as MessageV2.Assistant
         const textParts = msgRes.parts.filter((p) => p.type === "text").map((p) => (p as MessageV2.TextPart).text)
         const fullText = textParts.join(" ").trim()
-        const reasoningParts = msgRes.parts.filter((p) => p.type === "reasoning").map((p) => (p as MessageV2.ReasoningPart).text)
+        const reasoningParts = msgRes.parts
+          .filter((p) => p.type === "reasoning")
+          .map((p) => (p as MessageV2.ReasoningPart).text)
         const fullReasoning = reasoningParts.join(" ").trim()
 
         let validationError: string | undefined

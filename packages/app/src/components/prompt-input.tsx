@@ -1958,7 +1958,10 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                   />
                 </TooltipKeybind>
                 {/* Model is auto-selected by backend based on subscription priority */}
-                <Tooltip placement="top" content="Model is automatically selected based on account health and availability">
+                <Tooltip
+                  placement="top"
+                  content="Model is automatically selected based on account health and availability"
+                >
                   <Button as="div" variant="ghost" class="cursor-default opacity-70">
                     <Icon name="sparkles" size="small" class="text-accent-primary" />
                     <span class="text-text-secondary">Auto</span>

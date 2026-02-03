@@ -1824,6 +1824,34 @@ export type Config = {
      * Continue the agent loop when a tool call is denied
      */
     continue_loop_on_deny?: boolean
+    subagent_workflow?: {
+      /**
+       * Enable automatic subagent workflow
+       */
+      enabled?: boolean
+      /**
+       * Keywords that trigger subagent delegation
+       */
+      keywords?: Array<string>
+      /**
+       * Ordered subagent roles to execute
+       */
+      roles?: Array<string>
+      /**
+       * Minimum characters to treat as non-trivial
+       */
+      min_chars?: number
+      /**
+       * Minimum lines to treat as non-trivial
+       */
+      min_lines?: number
+      /**
+       * Per-role model overrides in provider/model format
+       */
+      models?: {
+        [key: string]: string
+      }
+    }
     /**
      * Timeout in milliseconds for model context protocol (MCP) requests
      */
@@ -1998,6 +2026,8 @@ export type McpResource = {
   client: string
 }
 
+export type SessionMonitorLevel = "session" | "sub-session" | "agent" | "sub-agent" | "tool"
+
 export type SessionMonitorStatus =
   | SessionStatus
   | {
@@ -2015,6 +2045,8 @@ export type SessionMonitorStatus =
     }
 
 export type SessionMonitorInfo = {
+  id: string
+  level: SessionMonitorLevel
   sessionID: string
   title: string
   parentID?: string
@@ -2195,6 +2227,7 @@ export type Command = {
   template: string
   subtask?: boolean
   hints: Array<string>
+  source?: string
 }
 
 export type Agent = {

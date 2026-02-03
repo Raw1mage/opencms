@@ -22,11 +22,11 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
           }
         }
       })
-      .catch(() => { })
+      .catch(() => {})
       .finally(() => {
         try {
           setReady(true)
-        } catch (e) { }
+        } catch (e) {}
       })
 
     const result = {

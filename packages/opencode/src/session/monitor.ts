@@ -4,6 +4,11 @@ import { SessionStatus } from "./status"
 import { MessageV2 } from "./message-v2"
 
 export namespace SessionMonitor {
+  export const Level = z.enum(["session", "sub-session", "agent", "sub-agent", "tool"]).meta({
+    ref: "SessionMonitorLevel",
+  })
+  export type Level = z.infer<typeof Level>
+
   export const Status = z
     .union([
       SessionStatus.Info,
@@ -28,6 +33,8 @@ export namespace SessionMonitor {
 
   export const Info = z
     .object({
+      id: z.string(),
+      level: Level,
       sessionID: z.string(),
       title: z.string(),
       parentID: z.string().optional(),
@@ -61,7 +68,79 @@ export namespace SessionMonitor {
 
   export async function snapshot() {
     const result: Info[] = []
+    const activeStatuses = new Set(["busy", "working", "retry", "compacting", "pending"])
+    const sessions: Session.Info[] = []
     for await (const session of Session.list()) {
+      sessions.push(session)
+    }
+    const map = new Map(sessions.map((session) => [session.id, session]))
+    const sessionTitle = (session: Session.Info) => {
+      let current: Session.Info | undefined = session
+      while (current && Session.isDefaultTitle(current.title) && current.parentID) {
+        current = map.get(current.parentID)
+      }
+      return current?.title ?? session.title
+    }
+    const isTextPart = (part: MessageV2.Part): part is MessageV2.TextPart => {
+      return part.type === "text" && !part.synthetic
+    }
+    const extractTitle = (message: MessageV2.WithParts) => {
+      if (message.info.role !== "user") return undefined
+      const text = message.parts
+        .filter(isTextPart)
+        .map((part) => part.text)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim()
+      const source =
+        text.length > 0
+          ? text
+          : message.parts
+              .filter((part) => part.type === "subtask")
+              .map((part) => part.prompt)
+              .join(" ")
+              .replace(/\s+/g, " ")
+              .trim()
+      if (source.length === 0) return undefined
+      const sentence =
+        source.match(/^[^。！？.!?]+[。！？.!?]/)?.[0] ??
+        source
+          .split("\n")
+          .map((line) => line.trim())
+          .find((line) => line.length > 0) ??
+        source
+      const cleaned = sentence.trim()
+      if (cleaned.length === 0) return undefined
+      return cleaned.length > 100 ? cleaned.substring(0, 97) + "..." : cleaned
+    }
+    const emptyTokens = () => ({
+      input: 0,
+      output: 0,
+      reasoning: 0,
+      cache: {
+        read: 0,
+        write: 0,
+      },
+    })
+    const statusFrom = (current: SessionStatus.Info, last?: MessageV2.Info) => {
+      if (current.type !== "idle") return current
+      if (!last) return { type: "pending" } as Status
+      if (last.role === "assistant" && last.error) {
+        const err = last.error as { message?: string; data?: { message?: string } } | undefined
+        return { type: "error", message: err?.message || err?.data?.message || "Unknown error" } as Status
+      }
+      if (last.role === "assistant" && !last.time.completed) return { type: "working" } as Status
+      if (last.role === "user") return { type: "working" } as Status
+      return current
+    }
+    const toolStatus = (state: z.infer<typeof MessageV2.ToolState>) => {
+      if (state.status === "running") return { type: "working" } as Status
+      if (state.status === "pending") return { type: "pending" } as Status
+      if (state.status === "error") return { type: "error", message: state.error } as Status
+      return { type: "idle" } as Status
+    }
+    for (const session of sessions) {
+      let fallbackTitle: string | undefined = undefined
       const sums = {
         requests: 0,
         total: 0,
@@ -88,8 +167,31 @@ export namespace SessionMonitor {
       const latest = {
         value: undefined as MessageV2.Info | undefined,
       }
+      const agents = new Map<
+        string,
+        {
+          requests: number
+          total: number
+          tokens: {
+            input: number
+            output: number
+            reasoning: number
+            cache: {
+              read: number
+              write: number
+            }
+          }
+          model?: { providerID: string; modelID: string }
+          latest?: MessageV2.Assistant
+          updated: number
+          tool?: { name?: string; status?: string }
+        }
+      >()
+      const tools: Info[] = []
 
       for await (const message of MessageV2.stream(session.id)) {
+        const derived = extractTitle(message)
+        if (derived) fallbackTitle = derived
         if (!latest.value) latest.value = message.info
         if (message.info.role === "assistant") {
           const info = message.info
@@ -113,48 +215,137 @@ export namespace SessionMonitor {
           sums.tokens.cache.read += info.tokens.cache.read
           sums.tokens.cache.write += info.tokens.cache.write
           sums.total += total
+
+          if (info.agent) {
+            const current = agents.get(info.agent)
+            const entry = current ?? {
+              requests: 0,
+              total: 0,
+              tokens: emptyTokens(),
+              model: undefined as { providerID: string; modelID: string } | undefined,
+              latest: undefined as MessageV2.Assistant | undefined,
+              updated: 0,
+              tool: undefined as { name?: string; status?: string } | undefined,
+            }
+            if (!current) agents.set(info.agent, entry)
+            if (!entry.latest) entry.latest = info
+            if (!entry.updated) entry.updated = info.time.completed ?? info.time.created
+            if (total > 0) entry.requests += 1
+            entry.tokens.input += info.tokens.input
+            entry.tokens.output += info.tokens.output
+            entry.tokens.reasoning += info.tokens.reasoning
+            entry.tokens.cache.read += info.tokens.cache.read
+            entry.tokens.cache.write += info.tokens.cache.write
+            entry.total += total
+            if (!entry.model && total > 0) {
+              entry.model = {
+                providerID: info.providerID,
+                modelID: info.modelID,
+              }
+            }
+          }
         }
 
-        if (!tool.name) {
-          const part = message.parts.find(
-            (item) => item.type === "tool" && (item.state.status === "pending" || item.state.status === "running"),
-          )
-          if (part && part.type === "tool") {
+        for (const part of message.parts) {
+          if (part.type !== "tool") continue
+          if (part.state.status !== "pending" && part.state.status !== "running") continue
+          if (!tool.name) {
             tool.name = part.tool
             tool.status = part.state.status
           }
+          if (message.info.role === "assistant") {
+            const info = message.info
+            const current = info.agent ? agents.get(info.agent) : undefined
+            if (current && !current.tool?.name) {
+              current.tool = {
+                name: part.tool,
+                status: part.state.status,
+              }
+            }
+          }
+          const info = message.info
+          const baseModel =
+            info.role === "assistant"
+              ? {
+                  providerID: info.providerID,
+                  modelID: info.modelID,
+                }
+              : undefined
+          tools.push({
+            id: `tool:${session.id}:${part.id}`,
+            level: "tool",
+            sessionID: session.id,
+            title: session.title,
+            parentID: session.parentID,
+            agent: info.role === "assistant" ? info.agent : undefined,
+            status: toolStatus(part.state),
+            model: baseModel,
+            requests: 0,
+            tokens: emptyTokens(),
+            totalTokens: 0,
+            activeTool: part.tool,
+            activeToolStatus: part.state.status,
+            updated:
+              part.state.status === "running" ? part.state.time.start : (info.time.created ?? session.time.updated),
+          })
         }
       }
 
-      const status = (() => {
-        if (session.time.compacting) return { type: "compacting" } as Status
-        const current = SessionStatus.get(session.id)
-        if (current.type !== "idle") return current
-        const last = latest.value
-        if (!last) return { type: "pending" } as Status
-        if (last.role === "assistant" && last.error) {
-          const err = last.error as any
-          return { type: "error", message: err.message || err.data?.message || "Unknown error" } as Status
-        }
-        if (last.role === "assistant" && !last.time.completed) return { type: "working" } as Status
-        if (last.role === "user") return { type: "working" } as Status
-        return current
-      })()
+      const baseTitle = sessionTitle(session)
+      const title = Session.isDefaultTitle(baseTitle) ? (fallbackTitle ?? baseTitle) : baseTitle
+      for (const entry of tools) {
+        entry.title = title
+      }
+      const status = session.time.compacting
+        ? ({ type: "compacting" } as Status)
+        : statusFrom(SessionStatus.get(session.id), latest.value)
+      const level = session.parentID ? "sub-session" : "session"
 
-      result.push({
-        sessionID: session.id,
-        title: session.title,
-        parentID: session.parentID,
-        agent: agent.value,
-        status,
-        model: model.value,
-        requests: sums.requests,
-        tokens: sums.tokens,
-        totalTokens: sums.total,
-        activeTool: tool.name,
-        activeToolStatus: tool.status,
-        updated: session.time.updated,
-      })
+      if (model.value && activeStatuses.has(status.type)) {
+        result.push({
+          id: `${level}:${session.id}`,
+          level,
+          sessionID: session.id,
+          title,
+          parentID: session.parentID,
+          agent: agent.value,
+          status,
+          model: model.value,
+          requests: sums.requests,
+          tokens: sums.tokens,
+          totalTokens: sums.total,
+          activeTool: tool.name,
+          activeToolStatus: tool.status,
+          updated: session.time.updated,
+        })
+      }
+
+      for (const [name, info] of agents) {
+        const status = statusFrom({ type: "idle" }, info.latest)
+        const level = session.parentID ? "sub-agent" : "agent"
+        if (info.model && activeStatuses.has(status.type)) {
+          result.push({
+            id: `${level}:${session.id}:${name}`,
+            level,
+            sessionID: session.id,
+            title,
+            parentID: session.parentID,
+            agent: name,
+            status,
+            model: info.model,
+            requests: info.requests,
+            tokens: info.tokens,
+            totalTokens: info.total,
+            activeTool: info.tool?.name,
+            activeToolStatus: info.tool?.status,
+            updated: info.updated || session.time.updated,
+          })
+        }
+      }
+
+      for (const entry of tools) {
+        if (entry.model && activeStatuses.has(entry.status.type)) result.push(entry)
+      }
     }
     result.sort((a, b) => b.updated - a.updated)
     return result

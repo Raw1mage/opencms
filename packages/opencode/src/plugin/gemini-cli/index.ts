@@ -1,14 +1,5 @@
-export {
-    GeminiCLIOAuthPlugin,
-    GoogleOAuthPlugin,
-} from "./plugin";
+export { GeminiCLIOAuthPlugin, GoogleOAuthPlugin } from "./plugin"
 
-export {
-    authorizeGemini,
-    exchangeGemini,
-} from "./gemini/oauth";
+export { authorizeGemini, exchangeGemini } from "./gemini/oauth"
 
-export type {
-    GeminiAuthorization,
-    GeminiTokenExchangeResult,
-} from "./gemini/oauth";
+export type { GeminiAuthorization, GeminiTokenExchangeResult } from "./gemini/oauth"

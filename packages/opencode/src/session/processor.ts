@@ -29,13 +29,14 @@ export namespace SessionProcessor {
 
   function isModelNotSupportedError(error: unknown): boolean {
     const data = (error as any)?.data
-    const status = typeof (error as any)?.status === "number"
-      ? (error as any).status
-      : typeof (error as any)?.statusCode === "number"
-        ? (error as any).statusCode
-        : typeof data?.status === "number"
-          ? data.status
-          : undefined
+    const status =
+      typeof (error as any)?.status === "number"
+        ? (error as any).status
+        : typeof (error as any)?.statusCode === "number"
+          ? (error as any).statusCode
+          : typeof data?.status === "number"
+            ? data.status
+            : undefined
 
     const parts = [
       (error as any)?.message,
@@ -58,7 +59,9 @@ export namespace SessionProcessor {
   async function removeFavorite(providerID: string, modelID: string): Promise<boolean> {
     const file = Bun.file(path.join(Global.Path.state, "model.json"))
     if (!(await file.exists())) return false
-    const data = await file.json().catch(() => null) as { favorite?: Array<{ providerID: string; modelID: string }> } | null
+    const data = (await file.json().catch(() => null)) as {
+      favorite?: Array<{ providerID: string; modelID: string }>
+    } | null
     if (!data || !Array.isArray(data.favorite)) return false
     const next = data.favorite.filter((item) => item.providerID !== providerID || item.modelID !== modelID)
     if (next.length === data.favorite.length) return false
@@ -81,7 +84,8 @@ export namespace SessionProcessor {
     // Track fallback attempts to prevent infinite loops
     const triedVectors = new Set<string>()
     let fallbackAttempts = 0
-    const MAX_FALLBACK_ATTEMPTS = 5
+    // Allow many attempts to find a working model across all accounts/providers
+    const MAX_FALLBACK_ATTEMPTS = 50
 
     const result = {
       get message() {
@@ -390,7 +394,10 @@ export namespace SessionProcessor {
 
                 case "finish":
                   // Record successful completion in global model health registry
-                  log.info("finish event - recording success", { providerID: input.model.providerID, modelID: input.model.id })
+                  log.info("finish event - recording success", {
+                    providerID: input.model.providerID,
+                    modelID: input.model.id,
+                  })
                   debugCheckpoint("health", "processor.finish", {
                     providerID: input.model.providerID,
                     modelID: input.model.id,
@@ -454,6 +461,33 @@ export namespace SessionProcessor {
                   modelID: streamInput.model.id,
                 })
               }
+
+              // Also trigger rotation for 404 errors - find an alternative model
+              fallbackAttempts++
+              if (fallbackAttempts <= MAX_FALLBACK_ATTEMPTS) {
+                const fallback = await LLM.handleRateLimitFallback(streamInput.model, "account-first", triedVectors)
+                if (fallback) {
+                  log.info("Switching to fallback model after 404", {
+                    from: streamInput.model.id,
+                    to: fallback.id,
+                    fallbackAttempts,
+                    triedCount: triedVectors.size,
+                  })
+                  streamInput.model = fallback
+                  input.model = fallback
+                  input.assistantMessage.modelID = fallback.id
+                  input.assistantMessage.providerID = fallback.providerID
+
+                  attempt = 0
+                  await new Promise((resolve) => setTimeout(resolve, 100))
+                  continue
+                } else {
+                  log.warn("No fallback available after 404 error", {
+                    fallbackAttempts,
+                    triedCount: triedVectors.size,
+                  })
+                }
+              }
             }
 
             log.error("process", {
@@ -471,7 +505,7 @@ export namespace SessionProcessor {
                 message: retry,
                 next: Date.now() + delay,
               })
-              await SessionRetry.sleep(delay, input.abort).catch(() => { })
+              await SessionRetry.sleep(delay, input.abort).catch(() => {})
               continue
             }
             input.assistantMessage.error = error

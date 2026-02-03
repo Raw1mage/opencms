@@ -1,4 +1,3 @@
-
 import { useDialog } from "../ui/dialog"
 import { useKeybind } from "../context/keybind"
 import { useSDK } from "../context/sdk"
@@ -103,11 +102,11 @@ export function DialogAccount() {
         let typeLabel = "Free"
         if (info.type === "api") typeLabel = "API"
         else if (info.type === "subscription") {
-          // Heuristic for tier? Account.Info doesn't strictly have 'tier' in the Zod schema shown in previous file view 
-          // but we can default to Subscription or Paid if we knew. 
+          // Heuristic for tier? Account.Info doesn't strictly have 'tier' in the Zod schema shown in previous file view
+          // but we can default to Subscription or Paid if we knew.
           // For now, let's just say "Subscription" or check specific fields if available.
-          // actually the previous code had `info.tier`. 
-          // The Zod schema in src/account/index.ts does NOT show `tier`. 
+          // actually the previous code had `info.tier`.
+          // The Zod schema in src/account/index.ts does NOT show `tier`.
           // So we'll just use "Subscription".
           typeLabel = "Subscription"
         }
@@ -163,7 +162,7 @@ export function DialogAccount() {
     const confirmed = await DialogConfirm.show(
       dialog,
       "Delete Account",
-      `Are you sure you want to delete this account?`
+      `Are you sure you want to delete this account?`,
     )
 
     if (confirmed) {
@@ -172,7 +171,7 @@ export function DialogAccount() {
       await sdk.client.instance.dispose()
       await sync.bootstrap()
     }
-    // Re-show 
+    // Re-show
     dialog.replace(() => <DialogAccount />)
   }
 
@@ -199,8 +198,8 @@ export function DialogAccount() {
         {
           keybind: { name: "delete", ctrl: false, meta: false, shift: false, super: false, leader: false },
           title: "Delete",
-          onTrigger: handleDelete
-        }
+          onTrigger: handleDelete,
+        },
       ]}
     />
   )

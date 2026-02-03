@@ -5,6 +5,7 @@ import z from "zod"
 import { Identifier } from "../id/id"
 import { MessageV2 } from "./message-v2"
 import { Log } from "../util/log"
+import { debugLog } from "@/util/debug-log"
 import { SessionRevert } from "./revert"
 import { Session } from "."
 import { Agent } from "../agent/agent"
@@ -43,7 +44,6 @@ import { TaskTool } from "@/tool/task"
 import { Tool } from "@/tool/tool"
 import { PermissionNext } from "@/permission/next"
 import { SessionStatus } from "./status"
-import { LLM } from "./llm"
 import { getModelHealthRegistry } from "@/account/rotation"
 import { TuiEvent } from "@/cli/cmd/tui/event"
 import { iife } from "@/util/iife"
@@ -783,6 +783,13 @@ export namespace SessionPrompt {
   }) {
     using _ = log.time("resolveTools")
     const tools: Record<string, AITool> = {}
+    debugLog("tool.resolve", "start", {
+      sessionID: input.session.id,
+      agent: input.agent.name,
+      providerID: input.model.providerID,
+      modelID: input.model.api.id,
+      bypassAgentCheck: input.bypassAgentCheck,
+    })
 
     const context = (args: any, options: ToolCallOptions): Tool.Context => ({
       sessionID: input.session.id,
@@ -819,10 +826,15 @@ export namespace SessionPrompt {
       },
     })
 
-    for (const item of await ToolRegistry.tools(
+    const registryTools = await ToolRegistry.tools(
       { modelID: input.model.api.id, providerID: input.model.providerID },
       input.agent,
-    )) {
+    )
+    debugLog("tool.resolve", "registry", {
+      count: registryTools.length,
+      ids: registryTools.map((item) => item.id),
+    })
+    for (const item of registryTools) {
       const schema = ProviderTransform.schema(input.model, z.toJSONSchema(item.parameters))
       tools[item.id] = tool({
         id: item.id as any,
@@ -830,6 +842,15 @@ export namespace SessionPrompt {
         inputSchema: jsonSchema(schema as any),
         async execute(args, options) {
           const ctx = context(args, options)
+          debugLog("tool.call", "start", {
+            tool: item.id,
+            sessionID: ctx.sessionID,
+            messageID: ctx.messageID,
+            callID: ctx.callID,
+            agent: ctx.agent,
+            providerID: input.model.providerID,
+            modelID: input.model.api.id,
+          })
           await Plugin.trigger(
             "tool.execute.before",
             {
@@ -841,7 +862,20 @@ export namespace SessionPrompt {
               args,
             },
           )
-          const result = await item.execute(args, ctx)
+          const result = await item.execute(args, ctx).catch((error) => {
+            debugLog("tool.call", "error", {
+              tool: item.id,
+              sessionID: ctx.sessionID,
+              callID: ctx.callID,
+              message: error instanceof Error ? error.message : String(error),
+            })
+            throw error
+          })
+          debugLog("tool.call", "end", {
+            tool: item.id,
+            sessionID: ctx.sessionID,
+            callID: ctx.callID,
+          })
           await Plugin.trigger(
             "tool.execute.after",
             {
@@ -2078,62 +2112,41 @@ NOTE: At any point in time through this workflow you should feel free to ask the
         .length === 1
     if (!isFirst) return
 
-    // Gather all messages up to and including the first real user message for context
-    // This includes any shell/subtask executions that preceded the user's first prompt
-    const contextMessages = input.history.slice(0, firstRealUserIdx + 1)
-    const firstRealUser = contextMessages[firstRealUserIdx]
-
-    // For subtask-only messages (from command invocations), extract the prompt directly
-    // since toModelMessage converts subtask parts to generic "The following tool was executed by the user"
+    const firstRealUser = input.history[firstRealUserIdx]
     const subtaskParts = firstRealUser.parts.filter((p) => p.type === "subtask") as MessageV2.SubtaskPart[]
-    const hasOnlySubtaskParts = subtaskParts.length > 0 && firstRealUser.parts.every((p) => p.type === "subtask")
+    const text = firstRealUser.parts
+      .filter((p) => p.type === "text" && !p.synthetic)
+      .map((p) => (p as MessageV2.TextPart).text)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim()
+    const source =
+      text.length > 0
+        ? text
+        : subtaskParts
+            .map((p) => p.prompt)
+            .join(" ")
+            .replace(/\s+/g, " ")
+            .trim()
+    if (source.length === 0) return
 
-    const agent = await Agent.get("title")
-    if (!agent) return
-    const model = await iife(async () => {
-      if (agent.model) return await Provider.getModel(agent.model.providerID, agent.model.modelID)
-      return (
-        (await Provider.getSmallModel(input.providerID)) ?? (await Provider.getModel(input.providerID, input.modelID))
-      )
-    })
-    const result = await LLM.stream({
-      agent,
-      user: firstRealUser.info as MessageV2.User,
-      system: [],
-      small: true,
-      tools: {},
-      model,
-      abort: new AbortController().signal,
-      sessionID: input.session.id,
-      retries: 2,
-      messages: [
-        {
-          role: "user",
-          content: "Generate a title for this conversation:\n",
-        },
-        ...(hasOnlySubtaskParts
-          ? [{ role: "user" as const, content: subtaskParts.map((p) => p.prompt).join("\n") }]
-          : MessageV2.toModelMessages(contextMessages, model)),
-      ],
-    })
-    const text = await result.text.catch((err) => log.error("failed to generate title", { error: err }))
-    // Record successful completion in global model health registry
-    if (text) await LLM.recordSuccess(model.providerID, model.id)
-    if (text)
-      return Session.update(
-        input.session.id,
-        (draft) => {
-          const cleaned = text
-            .replace(/<think>[\s\S]*?<\/think>\s*/g, "")
-            .split("\n")
-            .map((line) => line.trim())
-            .find((line) => line.length > 0)
-          if (!cleaned) return
+    const sentence =
+      source.match(/^[^。！？.!?]+[。！？.!?]/)?.[0] ??
+      source
+        .split("\n")
+        .map((line) => line.trim())
+        .find((line) => line.length > 0) ??
+      source
+    const cleaned = sentence.trim()
+    if (cleaned.length === 0) return
 
-          const title = cleaned.length > 100 ? cleaned.substring(0, 97) + "..." : cleaned
-          draft.title = title
-        },
-        { touch: false },
-      )
+    return Session.update(
+      input.session.id,
+      (draft) => {
+        const title = cleaned.length > 100 ? cleaned.substring(0, 97) + "..." : cleaned
+        draft.title = title
+      },
+      { touch: false },
+    )
   }
 }

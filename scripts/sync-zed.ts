@@ -10,7 +10,7 @@ const EXTENSION_NAME = "opencode"
 
 async function main() {
   const version = process.argv[2]
-  if (!version) throw new Error("Version argument required, ex: bun script/sync-zed.ts v1.0.52")
+  if (!version) throw new Error("Version argument required, ex: bun scripts/sync-zed.ts v1.0.52")
 
   const token = process.env.ZED_EXTENSIONS_PAT
   if (!token) throw new Error("ZED_EXTENSIONS_PAT environment variable required")

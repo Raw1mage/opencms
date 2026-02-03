@@ -1,146 +1,130 @@
-import { generatePKCE } from "@openauthjs/openauth/pkce";
-import { JWT } from "../../../util/jwt";
+import { generatePKCE } from "@openauthjs/openauth/pkce"
+import { JWT } from "../../../util/jwt"
 
-import {
-  GEMINI_CLIENT_ID,
-  GEMINI_CLIENT_SECRET,
-  GEMINI_REDIRECT_URI,
-  GEMINI_SCOPES,
-} from "../constants";
+import { GEMINI_CLIENT_ID, GEMINI_CLIENT_SECRET, GEMINI_REDIRECT_URI, GEMINI_SCOPES } from "../constants"
 
 interface PkcePair {
-  challenge: string;
-  verifier: string;
+  challenge: string
+  verifier: string
 }
 
 interface GeminiAuthState {
-  verifier: string;
+  verifier: string
 }
 
 /**
  * Result returned to the caller after constructing an OAuth authorization URL.
  */
 export interface GeminiAuthorization {
-  url: string;
-  verifier: string;
+  url: string
+  verifier: string
 }
 
 interface GeminiTokenExchangeSuccess {
-  type: "success";
-  refresh: string;
-  access: string;
-  expires: number;
-  email?: string;
+  type: "success"
+  refresh: string
+  access: string
+  expires: number
+  email?: string
 }
 
 interface GeminiTokenExchangeFailure {
-  type: "failed";
-  error: string;
+  type: "failed"
+  error: string
 }
 
-export type GeminiTokenExchangeResult =
-  | GeminiTokenExchangeSuccess
-  | GeminiTokenExchangeFailure;
+export type GeminiTokenExchangeResult = GeminiTokenExchangeSuccess | GeminiTokenExchangeFailure
 
 interface GeminiTokenResponse {
-  access_token: string;
-  expires_in: number;
-  refresh_token: string;
-  id_token?: string;
+  access_token: string
+  expires_in: number
+  refresh_token: string
+  id_token?: string
 }
 
 interface GeminiUserInfo {
-  email?: string;
+  email?: string
 }
 
 /**
  * Encode an object into a URL-safe base64 string.
  */
 function encodeState(payload: GeminiAuthState): string {
-  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url")
 }
 
 /**
  * Decode an OAuth state parameter back into its structured representation.
  */
 function decodeState(state: string): GeminiAuthState {
-  const normalized = state.replace(/-/g, "+").replace(/_/g, "/");
-  const padded = normalized.padEnd(normalized.length + ((4 - normalized.length % 4) % 4), "=");
-  const json = Buffer.from(padded, "base64").toString("utf8");
-  const parsed = JSON.parse(json);
+  const normalized = state.replace(/-/g, "+").replace(/_/g, "/")
+  const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=")
+  const json = Buffer.from(padded, "base64").toString("utf8")
+  const parsed = JSON.parse(json)
   if (typeof parsed.verifier !== "string") {
-    throw new Error("Missing PKCE verifier in state");
+    throw new Error("Missing PKCE verifier in state")
   }
   return {
     verifier: parsed.verifier,
-  };
+  }
 }
 
 /**
  * Build the Gemini OAuth authorization URL including PKCE.
  */
 export async function authorizeGemini(): Promise<GeminiAuthorization> {
-  const pkce = (await generatePKCE()) as PkcePair;
+  const pkce = (await generatePKCE()) as PkcePair
 
-  const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-  url.searchParams.set("client_id", GEMINI_CLIENT_ID);
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("redirect_uri", GEMINI_REDIRECT_URI);
-  url.searchParams.set("scope", GEMINI_SCOPES.join(" "));
-  url.searchParams.set("code_challenge", pkce.challenge);
-  url.searchParams.set("code_challenge_method", "S256");
-  url.searchParams.set("state", encodeState({ verifier: pkce.verifier }));
-  url.searchParams.set("access_type", "offline");
-  url.searchParams.set("prompt", "consent");
+  const url = new URL("https://accounts.google.com/o/oauth2/v2/auth")
+  url.searchParams.set("client_id", GEMINI_CLIENT_ID)
+  url.searchParams.set("response_type", "code")
+  url.searchParams.set("redirect_uri", GEMINI_REDIRECT_URI)
+  url.searchParams.set("scope", GEMINI_SCOPES.join(" "))
+  url.searchParams.set("code_challenge", pkce.challenge)
+  url.searchParams.set("code_challenge_method", "S256")
+  url.searchParams.set("state", encodeState({ verifier: pkce.verifier }))
+  url.searchParams.set("access_type", "offline")
+  url.searchParams.set("prompt", "consent")
   // Add a fragment so any stray terminal glyphs are ignored by the auth server.
-  url.hash = "opencode";
+  url.hash = "opencode"
 
   return {
     url: url.toString(),
     verifier: pkce.verifier,
-  };
+  }
 }
 
 /**
  * Exchange an authorization code for Gemini CLI access and refresh tokens.
  */
-export async function exchangeGemini(
-  code: string,
-  state: string,
-): Promise<GeminiTokenExchangeResult> {
+export async function exchangeGemini(code: string, state: string): Promise<GeminiTokenExchangeResult> {
   try {
-    const { verifier } = decodeState(state);
+    const { verifier } = decodeState(state)
 
-    return await exchangeGeminiWithVerifierInternal(code, verifier);
+    return await exchangeGeminiWithVerifierInternal(code, verifier)
   } catch (error) {
     return {
       type: "failed",
       error: error instanceof Error ? error.message : "Unknown error",
-    };
+    }
   }
 }
 
 /**
  * Exchange an authorization code using a known PKCE verifier.
  */
-export async function exchangeGeminiWithVerifier(
-  code: string,
-  verifier: string,
-): Promise<GeminiTokenExchangeResult> {
+export async function exchangeGeminiWithVerifier(code: string, verifier: string): Promise<GeminiTokenExchangeResult> {
   try {
-    return await exchangeGeminiWithVerifierInternal(code, verifier);
+    return await exchangeGeminiWithVerifierInternal(code, verifier)
   } catch (error) {
     return {
       type: "failed",
       error: error instanceof Error ? error.message : "Unknown error",
-    };
+    }
   }
 }
 
-async function exchangeGeminiWithVerifierInternal(
-  code: string,
-  verifier: string,
-): Promise<GeminiTokenExchangeResult> {
+async function exchangeGeminiWithVerifierInternal(code: string, verifier: string): Promise<GeminiTokenExchangeResult> {
   const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: {
@@ -154,36 +138,31 @@ async function exchangeGeminiWithVerifierInternal(
       redirect_uri: GEMINI_REDIRECT_URI,
       code_verifier: verifier,
     }),
-  });
+  })
 
   if (!tokenResponse.ok) {
-    const errorText = await tokenResponse.text();
-    return { type: "failed", error: errorText };
+    const errorText = await tokenResponse.text()
+    return { type: "failed", error: errorText }
   }
 
-  const tokenPayload = (await tokenResponse.json()) as GeminiTokenResponse;
+  const tokenPayload = (await tokenResponse.json()) as GeminiTokenResponse
 
-  const userInfoResponse = await fetch(
-    "https://www.googleapis.com/oauth2/v1/userinfo?alt=json",
-    {
-      headers: {
-        Authorization: `Bearer ${tokenPayload.access_token}`,
-      },
+  const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v1/userinfo?alt=json", {
+    headers: {
+      Authorization: `Bearer ${tokenPayload.access_token}`,
     },
-  );
+  })
 
-  const userInfo = userInfoResponse.ok
-    ? ((await userInfoResponse.json()) as GeminiUserInfo)
-    : {};
+  const userInfo = userInfoResponse.ok ? ((await userInfoResponse.json()) as GeminiUserInfo) : {}
 
-  const refreshToken = tokenPayload.refresh_token;
+  const refreshToken = tokenPayload.refresh_token
   if (!refreshToken) {
-    return { type: "failed", error: "Missing refresh token in response" };
+    return { type: "failed", error: "Missing refresh token in response" }
   }
 
-  let email = userInfo.email;
+  let email = userInfo.email
   if (!email && tokenPayload.id_token) {
-    email = JWT.getEmail(tokenPayload.id_token);
+    email = JWT.getEmail(tokenPayload.id_token)
   }
 
   return {
@@ -192,5 +171,5 @@ async function exchangeGeminiWithVerifierInternal(
     access: tokenPayload.access_token,
     expires: Date.now() + tokenPayload.expires_in * 1000,
     email,
-  };
+  }
 }

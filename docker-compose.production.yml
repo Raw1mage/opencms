@@ -164,7 +164,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
-
 # Named volumes (alternative to host mounts)
 # Uncomment if you prefer Docker-managed volumes
 # volumes:

@@ -39,7 +39,7 @@ jobs:
       - uses: ./.github/actions/setup-bun
       - id: version
         run: |
-          ./script/version.ts
+          ./scripts/version.ts
         env:
           GH_TOKEN: ${{ github.token }}
           OPENCODE_BUMP: ${{ inputs.bump }}
@@ -258,7 +258,7 @@ jobs:
           git config --global user.name "opencode"
           ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts || true
 
-      - run: ./script/publish.ts
+      - run: ./scripts/publish.ts
         env:
           OPENCODE_VERSION: ${{ needs.version.outputs.version }}
           OPENCODE_RELEASE: ${{ needs.version.outputs.release }}

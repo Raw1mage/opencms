@@ -43,7 +43,16 @@ export namespace Auth {
    * e.g., "openai" → "openai", "openai-work" → "openai", "google-api-work" → "google-api"
    */
   function parseFamily(providerID: string): string {
-    const families = ["google-api", "openai", "anthropic", "github-copilot", "antigravity", "gemini-cli", "gitlab", "opencode"]
+    const families = [
+      "google-api",
+      "openai",
+      "anthropic",
+      "github-copilot",
+      "antigravity",
+      "gemini-cli",
+      "gitlab",
+      "opencode",
+    ]
     for (const family of families) {
       if (providerID === family || providerID.startsWith(`${family}-`)) {
         return family
@@ -57,7 +66,11 @@ export namespace Auth {
   /**
    * Convert Account.Info to Auth.Info
    */
-  function accountToAuth(info: { type: "api"; apiKey: string } | { type: "subscription"; refreshToken: string; accessToken?: string; expiresAt?: number; accountId?: string }): Info {
+  function accountToAuth(
+    info:
+      | { type: "api"; apiKey: string }
+      | { type: "subscription"; refreshToken: string; accessToken?: string; expiresAt?: number; accountId?: string },
+  ): Info {
     if (info.type === "api") {
       return { type: "api", key: info.apiKey }
     } else {
@@ -136,6 +149,19 @@ export namespace Auth {
     return pipeIndex > 0 ? refreshToken.slice(0, pipeIndex) : refreshToken
   }
 
+  function parseRefreshParts(refreshToken: string): {
+    refreshToken: string
+    projectId?: string
+    managedProjectId?: string
+  } {
+    const [refresh = "", projectId = "", managedProjectId = ""] = (refreshToken ?? "").split("|")
+    return {
+      refreshToken: refresh,
+      projectId: projectId || undefined,
+      managedProjectId: managedProjectId || undefined,
+    }
+  }
+
   /**
    * Set auth for a provider (creates/updates account in Account module)
    */
@@ -168,7 +194,11 @@ export namespace Auth {
       }
 
       // Check for existing account with same base token to avoid duplicates
-      const baseToken = parseBaseToken(info.refresh)
+      const parts = parseRefreshParts(info.refresh)
+      const baseToken = parts.refreshToken || parseBaseToken(info.refresh)
+      const hasProjectParts = family === "antigravity" || family === "gemini-cli"
+      const projectId = hasProjectParts ? parts.projectId : undefined
+      const managedProjectId = hasProjectParts ? parts.managedProjectId : undefined
       const existingAccounts = await Account.list(family)
       let existingAccountId: string | undefined
 
@@ -188,6 +218,8 @@ export namespace Auth {
           refreshToken: baseToken, // Store base token without projectId suffix
           accessToken: info.access,
           expiresAt: info.expires,
+          projectId,
+          managedProjectId,
         })
       } else {
         const slug = email || providerID
@@ -200,6 +232,8 @@ export namespace Auth {
           accessToken: info.access,
           expiresAt: info.expires,
           accountId: info.accountId,
+          projectId,
+          managedProjectId,
           addedAt: Date.now(),
         })
       }
@@ -268,18 +302,20 @@ export namespace Auth {
    * @deprecated Use Account.list("google-api") instead
    * Kept for backward compatibility with plugins
    */
-  export async function listAntigravityAccounts(): Promise<Record<string, { refreshToken: string; managedProjectId: string; email?: string }>> {
+  export async function listAntigravityAccounts(): Promise<
+    Record<string, { refreshToken: string; managedProjectId: string; email?: string }>
+  > {
     const { Account } = await import("../account")
     const accounts = await Account.list("google-api")
     const result: Record<string, { refreshToken: string; managedProjectId: string; email?: string }> = {}
 
     for (const [id, info] of Object.entries(accounts)) {
       if (info.type === "subscription") {
-        let oldId = id.replace("google-subscription-", "antigravity-");
+        let oldId = id.replace("google-subscription-", "antigravity-")
         // Simplify: antigravity-ivon0829-gmail-com -> antigravity-ivon0829
         if (info.email) {
-          const username = info.email.split("@")[0];
-          oldId = `antigravity-${username}`;
+          const username = info.email.split("@")[0]
+          oldId = `antigravity-${username}`
         }
         result[oldId] = {
           refreshToken: info.refreshToken,
