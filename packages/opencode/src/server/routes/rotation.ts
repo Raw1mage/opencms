@@ -5,11 +5,7 @@ import { lazy } from "../../util/lazy"
 import { errors } from "../error"
 import { Account } from "../../account"
 import { Provider } from "../../provider/provider"
-import {
-  getHealthTracker,
-  getRateLimitTracker,
-  getModelHealthRegistry,
-} from "../../account/rotation"
+import { getHealthTracker, getRateLimitTracker, getModelHealthRegistry } from "../../account/rotation"
 import {
   getRotation3DStatus,
   buildFallbackCandidates,
@@ -42,11 +38,14 @@ const AccountStatusSchema = z.object({
 // Schema for rotation status response
 const RotationStatusSchema = z.object({
   accounts: z.array(AccountStatusSchema),
-  modelHealth: z.record(z.string(), z.object({
-    healthScore: z.number(),
-    isAvailable: z.boolean(),
-    lastRateLimit: z.number().optional(),
-  })),
+  modelHealth: z.record(
+    z.string(),
+    z.object({
+      healthScore: z.number(),
+      isAvailable: z.boolean(),
+      lastRateLimit: z.number().optional(),
+    }),
+  ),
   recommended: z.object({
     dialog: ModelVectorSchema.optional(),
     task: ModelVectorSchema.optional(),
@@ -90,7 +89,7 @@ export const RotationRoutes = lazy(() =>
 
             // Determine account type
             let type: "subscription" | "api" | "oauth" = "api"
-            if (info.type === "subscription" || info.type === "oauth") {
+            if (info.type === "subscription" || (info.type as string) === "oauth") {
               type = info.type === "subscription" ? "subscription" : "oauth"
             }
 
@@ -101,7 +100,9 @@ export const RotationRoutes = lazy(() =>
               type,
               healthScore,
               isRateLimited,
-              rateLimitResetAt: isRateLimited ? Date.now() + rateLimitTracker.getWaitTime(accountId, family) : undefined,
+              rateLimitResetAt: isRateLimited
+                ? Date.now() + rateLimitTracker.getWaitTime(accountId, family)
+                : undefined,
               consecutiveFailures: healthTracker.getConsecutiveFailures(accountId),
               lastSuccess: undefined, // Could add if needed
             })
@@ -113,9 +114,9 @@ export const RotationRoutes = lazy(() =>
         const registrySnapshot = modelRegistry.getSnapshot()
         for (const [key, data] of registrySnapshot) {
           modelHealth[key] = {
-            healthScore: data.score,
-            isAvailable: data.score >= 50,
-            lastRateLimit: data.lastRateLimit,
+            healthScore: (data as any).score ?? 100,
+            isAvailable: ((data as any).score ?? 100) >= 50,
+            lastRateLimit: (data as any).lastRateLimit,
           }
         }
 
@@ -141,26 +142,33 @@ export const RotationRoutes = lazy(() =>
             description: "Recommended model vector",
             content: {
               "application/json": {
-                schema: resolver(z.object({
-                  vector: ModelVectorSchema.optional(),
-                  candidates: z.array(z.object({
-                    vector: ModelVectorSchema,
-                    score: z.number(),
-                    reason: z.string(),
-                  })),
-                  fallbackChain: z.array(ModelVectorSchema),
-                })),
+                schema: resolver(
+                  z.object({
+                    vector: ModelVectorSchema.optional(),
+                    candidates: z.array(
+                      z.object({
+                        vector: ModelVectorSchema,
+                        score: z.number(),
+                        reason: z.string(),
+                      }),
+                    ),
+                    fallbackChain: z.array(ModelVectorSchema),
+                  }),
+                ),
               },
             },
           },
           ...errors(400),
         },
       }),
-      validator("json", z.object({
-        taskType: z.enum(["dialog", "task", "background", "coding", "review"]).default("dialog"),
-        preferSubscription: z.boolean().default(true),
-        currentVector: ModelVectorSchema.optional(),
-      })),
+      validator(
+        "json",
+        z.object({
+          taskType: z.enum(["dialog", "task", "background", "coding", "review"]).default("dialog"),
+          preferSubscription: z.boolean().default(true),
+          currentVector: ModelVectorSchema.optional(),
+        }),
+      ),
       async (c) => {
         const { taskType, preferSubscription, currentVector } = c.req.valid("json")
 
@@ -181,21 +189,28 @@ export const RotationRoutes = lazy(() =>
             description: "Fallback recommendation",
             content: {
               "application/json": {
-                schema: resolver(z.object({
-                  fallback: ModelVectorSchema.optional(),
-                  reason: z.string(),
-                  waitTimeMs: z.number().optional(),
-                })),
+                schema: resolver(
+                  z.object({
+                    fallback: ModelVectorSchema.optional(),
+                    reason: z.string(),
+                    waitTimeMs: z.number().optional(),
+                  }),
+                ),
               },
             },
           },
           ...errors(400),
         },
       }),
-      validator("json", z.object({
-        current: ModelVectorSchema,
-        strategy: z.enum(["account-first", "model-first", "provider-first", "any-available"]).default("account-first"),
-      })),
+      validator(
+        "json",
+        z.object({
+          current: ModelVectorSchema,
+          strategy: z
+            .enum(["account-first", "model-first", "provider-first", "any-available"])
+            .default("account-first"),
+        }),
+      ),
       async (c) => {
         const { current, strategy } = c.req.valid("json")
 
@@ -232,8 +247,8 @@ export const RotationRoutes = lazy(() =>
 
 // Helper: Get recommended models for different use cases
 async function getRecommendedModels(accounts: z.infer<typeof AccountStatusSchema>[]) {
-  const healthyAccounts = accounts.filter(a => a.healthScore >= 50 && !a.isRateLimited)
-  const subscriptionAccounts = healthyAccounts.filter(a => a.type === "subscription" || a.type === "oauth")
+  const healthyAccounts = accounts.filter((a) => a.healthScore >= 50 && !a.isRateLimited)
+  const subscriptionAccounts = healthyAccounts.filter((a) => a.type === "subscription" || a.type === "oauth")
 
   // Priority order for dialog model
   const dialogPriority = ["opencode", "anthropic", "openai", "google"]
@@ -248,7 +263,8 @@ async function getRecommendedModels(accounts: z.infer<typeof AccountStatusSchema
 
   // Find best dialog model
   for (const priority of dialogPriority) {
-    const account = subscriptionAccounts.find(a => a.provider === priority) || healthyAccounts.find(a => a.provider === priority)
+    const account =
+      subscriptionAccounts.find((a) => a.provider === priority) || healthyAccounts.find((a) => a.provider === priority)
     if (account) {
       const model = await getDefaultModelForProvider(account.provider)
       if (model) {
@@ -267,7 +283,8 @@ async function getRecommendedModels(accounts: z.infer<typeof AccountStatusSchema
 
   // For background, prefer haiku/mini models
   for (const priority of backgroundPriority) {
-    const account = subscriptionAccounts.find(a => a.provider === priority) || healthyAccounts.find(a => a.provider === priority)
+    const account =
+      subscriptionAccounts.find((a) => a.provider === priority) || healthyAccounts.find((a) => a.provider === priority)
     if (account) {
       const model = await getSmallModelForProvider(account.provider)
       if (model) {
@@ -293,10 +310,10 @@ async function getDefaultModelForProvider(providerID: string): Promise<string | 
 
     // Priority models by provider
     const modelPriority: Record<string, string[]> = {
-      "anthropic": ["claude-sonnet-4", "claude-opus-4-5", "claude-3-5-sonnet-20241022"],
-      "openai": ["gpt-4o", "gpt-5", "o3-mini"],
-      "google": ["gemini-2.0-flash", "gemini-2.5-pro"],
-      "opencode": ["big-pickle", "claude-sonnet-4"],
+      anthropic: ["claude-sonnet-4", "claude-opus-4-5", "claude-3-5-sonnet-20241022"],
+      openai: ["gpt-4o", "gpt-5", "o3-mini"],
+      google: ["gemini-2.0-flash", "gemini-2.5-pro"],
+      opencode: ["big-pickle", "claude-sonnet-4"],
     }
 
     const priorities = modelPriority[providerID] || []
@@ -320,10 +337,10 @@ async function getSmallModelForProvider(providerID: string): Promise<string | un
     if (!provider?.models) return undefined
 
     const smallModels: Record<string, string[]> = {
-      "anthropic": ["claude-3-5-haiku-20241022", "claude-3-haiku-20240307"],
-      "openai": ["gpt-4o-mini", "gpt-3.5-turbo"],
-      "google": ["gemini-2.0-flash-lite", "gemini-1.5-flash"],
-      "opencode": ["gpt-5-nano"],
+      anthropic: ["claude-3-5-haiku-20241022", "claude-3-haiku-20240307"],
+      openai: ["gpt-4o-mini", "gpt-3.5-turbo"],
+      google: ["gemini-2.0-flash-lite", "gemini-1.5-flash"],
+      opencode: ["gpt-5-nano"],
     }
 
     const priorities = smallModels[providerID] || []
@@ -338,11 +355,7 @@ async function getSmallModelForProvider(providerID: string): Promise<string | un
 }
 
 // Helper: Get recommendation for specific task type
-async function getRecommendationForTask(
-  taskType: string,
-  preferSubscription: boolean,
-  currentVector?: ModelVector,
-) {
+async function getRecommendationForTask(taskType: string, preferSubscription: boolean, currentVector?: ModelVector) {
   const allFamilies = await Account.listAll()
   const healthTracker = getHealthTracker()
   const rateLimitTracker = getRateLimitTracker()
@@ -370,10 +383,8 @@ async function getRecommendationForTask(
 
       if (isRateLimited || healthScore < 30) continue
 
-      const isSubscription = info.type === "subscription" || info.type === "oauth"
-      const model = tier === 3
-        ? await getSmallModelForProvider(family)
-        : await getDefaultModelForProvider(family)
+      const isSubscription = info.type === "subscription" || (info.type as string) === "oauth"
+      const model = tier === 3 ? await getSmallModelForProvider(family) : await getDefaultModelForProvider(family)
 
       if (!model) continue
 
@@ -407,6 +418,6 @@ async function getRecommendationForTask(
   return {
     vector: candidates[0]?.vector,
     candidates: candidates.slice(0, 5),
-    fallbackChain: candidates.slice(1, 4).map(c => c.vector),
+    fallbackChain: candidates.slice(1, 4).map((c) => c.vector),
   }
 }

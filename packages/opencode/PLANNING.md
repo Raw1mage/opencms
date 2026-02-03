@@ -1,5 +1,76 @@
 # Code Review: OpenCode System
 
+## Feature: thoughtSignature Plugin / QUOTA Cleanup (2026-02-03)
+
+### Requirements
+
+- 確認 `src/plugin/google-api/plugin.ts` 存在並於 `src/plugin/index.ts` 註冊，確保 Gemini tool calls 注入 `thoughtSignature`。
+- 移除 `src/session/processor.ts` 中為模擬 QUOTA_EXHAUSTED/INVALID_ARGUMENT 而加入的暫時程式碼。
+- 修復既有 LSP/型別錯誤（`src/config/config.ts`, `src/task/task.ts`）。
+- 通過型別檢查與測試：`bun run typecheck`、`bun test`。
+
+### Scope
+
+- IN: `src/plugin/google-api/plugin.ts`, `src/plugin/index.ts`, `src/session/processor.ts`, `src/config/config.ts`, `src/task/task.ts`, `PLANNING.md` 更新。
+- OUT: 其他功能開發、文件以外之行為變更。
+
+### Approach
+
+1. 先檢查並記錄現有 plugin 設定與註冊狀態。
+2. 移除 QUOTA 模擬程式碼，恢復實際邏輯。
+3. 修正型別/LSP 錯誤，確保與目前實作一致。
+4. 執行 `bun run typecheck`、`bun test` 驗證。
+5. 必要時更新 DEVLOG 摘要（若有實質變動）。
+
+### Tasks
+
+1. [ ] 驗證 thoughtSignature 插件存在並已註冊
+2. [ ] 移除 `src/session/processor.ts` 的 QUOTA 模擬
+3. [ ] 修復 `config.ts` / `task.ts` 型別錯誤
+4. [ ] 執行 `bun run typecheck`
+5. [ ] 執行 `bun test`
+
+### Open Questions
+
+- 是否需同步更新 DEVLOG 以紀錄此次修復？
+
+---
+
+## Feature: Dialog 主會話 + Sub-session 分工 (2026-02-03)
+
+### Requirements
+
+- Main session 的 dialog agent 以對話/規劃/分派為主，允許處理瑣碎修補。
+- 任務分類後以 sub-session 分工（可再分派、可使用工具）。
+- Sub-session 模型選擇：以 Favorites 為候選池，搭配 rotation3d 選擇可用模型。
+- 依任務特性與工程規模挑選角色與模型量級（大型任務→高階模型）。
+- 分工不固定角色，依任務動態決定；支援關鍵字觸發。
+
+### Scope
+
+- IN: `src/session/prompt.ts`, `src/agent/agent.ts`, `src/account/rotation3d.ts`（調用）、`src/config/config.ts`（設定）
+- IN: `AGENTS.md`（補充 model 特長/分工策略說明）
+- OUT: CLI/TUI 顯示調整、Provider/Rotation 核心行為變更。
+
+### Approach
+
+1. 定義 dialog agent 的行為與分派策略（分類、規模評估、角色決定）。
+2. Main session 生成 subtask parts，啟動 sub-session；允許 sub-session 再分派與使用工具。
+3. 模型選擇：以 Favorites + rotation3d 取得可用模型向量，映射到子任務角色。
+4. 在 AGENTS.md 建立模型特長/任務對應表與分工準則。
+
+### Tasks
+
+1. [ ] 調整 dialog agent 與 sub-session 分派邏輯
+2. [ ] 接上 Favorites + rotation3d 的模型挑選
+3. [ ] 任務分類 → 角色/模型量級映射
+4. [ ] 更新 AGENTS.md 模型特長/分工策略
+5. [ ] 驗證 sub-session 允許工具與再分派
+
+### Open Questions
+
+- 角色與模型量級映射的預設規則是否要可配置？
+
 ## Requirements
 
 - **Scope**: Comprehensive review of the entire system, including:

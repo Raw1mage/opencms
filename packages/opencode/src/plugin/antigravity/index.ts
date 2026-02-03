@@ -1,6 +1,6 @@
 import { exec } from "node:child_process";
 import { tool } from "@opencode-ai/plugin";
-import { ANTIGRAVITY_ENDPOINT_FALLBACKS, ANTIGRAVITY_PROVIDER_ID, type HeaderStyle } from "./constants";
+import { ANTIGRAVITY_ENDPOINT_FALLBACKS, ANTIGRAVITY_PROVIDER_ID, SEARCH_MODEL, type HeaderStyle } from "./constants";
 import { authorizeAntigravity, exchangeAntigravity } from "./antigravity/oauth";
 import type { AntigravityTokenExchangeResult } from "./antigravity/oauth";
 import { accessTokenExpired, isOAuthAuth, parseRefreshParts } from "./plugin/auth";
@@ -836,41 +836,89 @@ export const createAntigravityPlugin = (providerId: string) => async (
     async execute(args, ctx) {
       log.debug("Google Search tool called", { query: args.query, urlCount: args.urls?.length ?? 0 });
 
-      // Get current auth context
-      const auth = cachedGetAuth ? await cachedGetAuth() : null;
-      if (!auth || !isOAuthAuth(auth)) {
-        return "Error: Not authenticated with Antigravity. Please run `opencode auth login` to authenticate.";
+      let accountManager = globalAccountManager ?? await AccountManager.loadFromDisk();
+      if (!globalAccountManager) {
+        globalAccountManager = accountManager;
       }
 
-      // Get access token and project ID
-      const parts = parseRefreshParts(auth.refresh);
-      const projectId = parts.managedProjectId || parts.projectId || "unknown";
+      await accountManager.syncActiveFromAccountModule();
 
-      // Ensure we have a valid access token
-      let accessToken = auth.access;
-      if (!accessToken || accessTokenExpired(auth)) {
-        try {
-          const refreshed = await refreshAccessToken(auth, client, providerId);
-          accessToken = refreshed?.access;
-        } catch (error) {
-          return `Error: Failed to refresh access token: ${error instanceof Error ? error.message : String(error)}`;
+      const accountCount = accountManager.getAccountCount();
+      if (accountCount === 0) {
+        return "Error: No Antigravity accounts available. Run `opencode auth login`.";
+      }
+
+      let lastError: Error | null = null;
+
+      for (let attempt = 0; attempt < accountCount; attempt++) {
+        const account = accountManager.getCurrentOrNextForFamily(
+          "gemini",
+          SEARCH_MODEL,
+          config.account_selection_strategy,
+          "antigravity",
+          config.pid_offset_enabled,
+        );
+
+        if (!account) {
+          lastError = new Error("No available Antigravity accounts");
+          break;
         }
+
+        let authRecord = accountManager.toAuthDetails(account);
+        if (accessTokenExpired(authRecord)) {
+          const refreshed = await refreshAccessToken(authRecord, client, providerId).catch((error) => {
+            lastError = error instanceof Error ? error : new Error(String(error));
+            if (error instanceof AntigravityTokenRefreshError && error.code === "invalid_grant") {
+              const removed = accountManager.removeAccount(account);
+              if (removed) {
+                accountManager.requestSaveToDisk();
+              }
+            }
+            const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index);
+            getHealthTracker().recordFailure(account.index);
+            if (shouldCooldown) {
+              accountManager.markAccountCoolingDown(account, cooldownMs, "auth-failure");
+              accountManager.markRateLimited(account, cooldownMs, "gemini", "antigravity", SEARCH_MODEL);
+            }
+            return undefined;
+          });
+
+          if (!refreshed) {
+            continue;
+          }
+
+          resetAccountFailureState(account.index);
+          accountManager.updateFromAuth(account, refreshed);
+          accountManager.requestSaveToDisk();
+          authRecord = refreshed;
+        }
+
+        const accessToken = authRecord.access;
+        if (!accessToken) {
+          lastError = new Error("Missing access token");
+          continue;
+        }
+
+        const parts = parseRefreshParts(authRecord.refresh);
+        const projectId = parts.managedProjectId || parts.projectId || "unknown";
+
+        accountManager.markAccountUsed(account.index);
+        accountManager.requestSaveToDisk();
+
+        return executeSearch(
+          {
+            query: args.query,
+            urls: args.urls,
+            thinking: args.thinking,
+          },
+          accessToken,
+          projectId,
+          ctx.abort,
+        );
       }
 
-      if (!accessToken) {
-        return "Error: No valid access token available. Please run `opencode auth login` to re-authenticate.";
-      }
+      return `Error: ${lastError?.message ?? "No available Antigravity accounts"}`;
 
-      return executeSearch(
-        {
-          query: args.query,
-          urls: args.urls,
-          thinking: args.thinking,
-        },
-        accessToken,
-        projectId,
-        ctx.abort,
-      );
     },
   });
 

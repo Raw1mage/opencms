@@ -545,9 +545,9 @@ export namespace Server {
           if (frontendPath) {
             const reqPath = c.req.path === "/" ? "/index.html" : c.req.path
             const filePath = path.join(frontendPath, reqPath)
+            const ext = path.extname(filePath).toLowerCase()
             const file = Bun.file(filePath)
             if (await file.exists()) {
-              const ext = path.extname(filePath).toLowerCase()
               const contentTypes: Record<string, string> = {
                 ".html": "text/html",
                 ".js": "application/javascript",

@@ -34,6 +34,7 @@ import { spawn } from "child_process"
 import { Command } from "../command"
 import { $, fileURLToPath } from "bun"
 import { ConfigMarkdown } from "../config/markdown"
+import { Config } from "../config/config"
 import { SessionSummary } from "./summary"
 import { NamedError } from "@opencode-ai/util/error"
 import { fn } from "@/util/fn"
@@ -53,6 +54,28 @@ globalThis.AI_SDK_LOG_WARNINGS = false
 export namespace SessionPrompt {
   const log = Log.create({ service: "session.prompt" })
   export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
+  const WORKFLOW_KEYWORDS = [
+    "分工",
+    "多代理",
+    "multi-agent",
+    "subagent",
+    "review",
+    "檢查",
+    "檢視",
+    "測試",
+    "test",
+    "testing",
+  ]
+  const WORKFLOW_ROLES = ["explore", "coding", "review", "testing", "docs"]
+  const WORKFLOW_MIN_CHARS = 160
+  const WORKFLOW_MIN_LINES = 3
+  const WORKFLOW_MODEL_FALLBACKS: Record<string, string[]> = {
+    explore: ["google/gemini-2.5-flash", "openai/gpt-5.2", "openai/gpt-5.2-codex"],
+    coding: ["openai/gpt-5.2-codex", "openai/gpt-5.2", "google/gemini-2.5-pro"],
+    review: ["google/gemini-2.5-pro", "openai/gpt-5.2", "openai/gpt-5.2-codex"],
+    testing: ["openai/gpt-5.2-codex", "openai/gpt-5.2", "google/gemini-2.5-pro"],
+    docs: ["openai/gpt-5.2", "google/gemini-2.5-pro", "openai/gpt-5.2-codex"],
+  }
 
   const state = Instance.state(
     () => {
@@ -69,13 +92,13 @@ export namespace SessionPrompt {
       return data
     },
     async (current) => {
-    for (const item of Object.values(current)) {
-      item.abort.abort()
-      for (const callback of item.callbacks) {
-        callback.reject(new DOMException("Aborted", "AbortError"))
+      for (const item of Object.values(current)) {
+        item.abort.abort()
+        for (const callback of item.callbacks) {
+          callback.reject(new DOMException("Aborted", "AbortError"))
+        }
       }
-    }
-  },
+    },
   )
 
   export function assertNotBusy(sessionID: string) {
@@ -846,6 +869,91 @@ export namespace SessionPrompt {
         ? agent.variant
         : undefined)
 
+    const partsInput = await iife(async () => {
+      if (!agent) return input.parts
+      if (agent.mode === "subagent") return input.parts
+      if (input.noReply) return input.parts
+      if (input.parts.some((part) => part.type === "subtask" || part.type === "agent")) return input.parts
+
+      const cfg = await Config.get()
+      const workflow = cfg.experimental?.subagent_workflow
+      if (workflow?.enabled === false) return input.parts
+
+      const text = input.parts
+        .filter((part) => part.type === "text")
+        .map((part) => part.text)
+        .join("\n\n")
+        .trim()
+      if (!text) return input.parts
+
+      const keywords = workflow?.keywords ?? WORKFLOW_KEYWORDS
+      const roles = workflow?.roles ?? WORKFLOW_ROLES
+      const minChars = workflow?.min_chars ?? WORKFLOW_MIN_CHARS
+      const minLines = workflow?.min_lines ?? WORKFLOW_MIN_LINES
+      const normalized = text.toLowerCase()
+      const hasKeyword = keywords.some((keyword) => keyword && normalized.includes(keyword.toLowerCase()))
+      const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0)
+      const hasList = /(^|\n)\s*[-*]\s+/.test(text) || /(^|\n)\s*\d+\.\s+/.test(text)
+      const hasFiles = input.parts.some((part) => part.type === "file")
+      const nonTrivial =
+        text.length >= minChars || lines.length >= minLines || hasList || hasFiles || input.parts.length > 1
+      if (!hasKeyword && !nonTrivial) return input.parts
+
+      const providers = await Provider.list()
+      const overrides = workflow?.models ?? {}
+      const tasks: PromptInput["parts"] = []
+
+      // Import scoring module
+      const { ModelScoring } = await import("../agent/score")
+
+      for (const role of roles) {
+        const sub = await Agent.get(role)
+        if (!sub) continue
+        const override = overrides[role]
+        const model = await iife(async () => {
+          if (override) {
+            const parsed = Provider.parseModel(override)
+            if (providers[parsed.providerID]?.models?.[parsed.modelID]) return parsed
+          }
+          if (sub.model && providers[sub.model.providerID]?.models?.[sub.model.modelID]) return sub.model
+
+          // 3. Score-based Selection (Favorites + Rotation + Weighting)
+          const scored = await ModelScoring.select(role)
+          if (scored) return scored
+
+          const fallbacks = WORKFLOW_MODEL_FALLBACKS[role] ?? []
+          for (const candidate of fallbacks) {
+            const parsed = Provider.parseModel(candidate)
+            if (providers[parsed.providerID]?.models?.[parsed.modelID]) return parsed
+          }
+          return undefined
+        })
+        const prompt = iife(() => {
+          if (role === "explore")
+            return (
+              "Explore the codebase for relevant files, existing patterns, and constraints. Summarize findings.\n\nUser request:\n" +
+              text
+            )
+          if (role === "coding") return "Propose an implementation plan and key code changes.\n\nUser request:\n" + text
+          if (role === "review")
+            return "Identify correctness risks, edge cases, and potential regressions.\n\nUser request:\n" + text
+          if (role === "testing") return "Suggest a focused test/verification plan.\n\nUser request:\n" + text
+          if (role === "docs") return "List documentation or changelog updates needed.\n\nUser request:\n" + text
+          return "Provide a concise subtask response.\n\nUser request:\n" + text
+        })
+        tasks.push({
+          type: "subtask",
+          agent: sub.name,
+          description: `Auto ${role} task`,
+          prompt,
+          ...(model ? { model } : {}),
+        })
+      }
+
+      if (tasks.length === 0) return input.parts
+      return [...tasks.reverse(), ...input.parts]
+    })
+
     const info: MessageV2.Info = {
       id: input.messageID ?? Identifier.ascending("message"),
       role: "user",
@@ -862,7 +970,7 @@ export namespace SessionPrompt {
     using _ = defer(() => InstructionPrompt.clear(info.id))
 
     const parts = await Promise.all(
-      input.parts.map(async (part): Promise<MessageV2.Part[]> => {
+      partsInput.map(async (part): Promise<MessageV2.Part[]> => {
         if (part.type === "file") {
           // before checking the protocol we check if this is an mcp resource because it needs special handling
           if (part.source?.type === "resource") {
@@ -1647,7 +1755,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
       }
 
       const agent = await Agent.get(input.agent ?? (await Agent.defaultAgent()))
-      const model = input.model ? Provider.parseModel(input.model) : agent.model ?? (await lastModel(input.sessionID))
+      const model = input.model ? Provider.parseModel(input.model) : (agent.model ?? (await lastModel(input.sessionID)))
 
       const userMsg: MessageV2.User = {
         id: input.messageID ?? Identifier.ascending("message"),

@@ -83,6 +83,7 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
     error: theme.error,
     retry: theme.warning,
     compacting: theme.textMuted,
+    pending: theme.textMuted,
   }
 
   const activeStatuses = new Set(["busy", "working", "retry", "compacting", "pending"])
@@ -366,7 +367,6 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                 </Show>
               </box>
             </Show>
-
           </box>
         </scrollbox>
 

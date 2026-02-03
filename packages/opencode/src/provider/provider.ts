@@ -42,14 +42,10 @@ import { createVercel } from "@ai-sdk/vercel"
 import { createGitLab } from "@gitlab/gitlab-ai-provider"
 import { ProviderTransform } from "./transform"
 
-
 export namespace Provider {
   const log = Log.create({ service: "provider" })
 
-  const IGNORED_MODELS = new Set([
-    "google/gemini-1.5-pro",
-    "google/gemini-1.0-pro",
-  ])
+  const IGNORED_MODELS = new Set(["google/gemini-1.5-pro", "google/gemini-1.0-pro"])
 
   const ANTIGRAVITY_WHITELIST = new Set([
     "gemini-3-pro-high",
@@ -65,8 +61,8 @@ export namespace Provider {
     "claude-opus-4-1",
     "claude-opus-4-2",
     "gpt-oss-120b-medium",
-    "gpt-5.1-codex"
-  ]);
+    "gpt-5.1-codex",
+  ])
   const IGNORED_DYNAMIC = new Set<string>()
 
   /**
@@ -82,16 +78,16 @@ export namespace Provider {
     family: string
     reasoning?: boolean
   }> = [
-      // Free tier models (most likely available)
-      { id: "claude-haiku-4.5", name: "Claude Haiku 4.5", family: "claude" },
-      { id: "gpt-4o-mini", name: "GPT-4o Mini", family: "openai" },
-      // Pro/Enterprise tier models (may require paid subscription)
-      { id: "claude-sonnet-4", name: "Claude Sonnet 4", family: "claude" },
-      { id: "gpt-4o", name: "GPT-4o", family: "openai" },
-      { id: "o1", name: "OpenAI o1", family: "openai", reasoning: true },
-      { id: "o1-mini", name: "OpenAI o1 Mini", family: "openai", reasoning: true },
-      { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", family: "gemini" },
-    ]
+    // Free tier models (most likely available)
+    { id: "claude-haiku-4.5", name: "Claude Haiku 4.5", family: "claude" },
+    { id: "gpt-4o-mini", name: "GPT-4o Mini", family: "openai" },
+    // Pro/Enterprise tier models (may require paid subscription)
+    { id: "claude-sonnet-4", name: "Claude Sonnet 4", family: "claude" },
+    { id: "gpt-4o", name: "GPT-4o", family: "openai" },
+    { id: "o1", name: "OpenAI o1", family: "openai", reasoning: true },
+    { id: "o1-mini", name: "OpenAI o1 Mini", family: "openai", reasoning: true },
+    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", family: "gemini" },
+  ]
 
   /**
    * Fetch models dynamically from a provider's API.
@@ -111,16 +107,14 @@ export namespace Provider {
 
       if (providerID.startsWith("github-copilot")) {
         // GitHub Copilot uses OpenAI-compatible API with specific headers
-        url = baseURL
-          ? `${baseURL}/models`
-          : "https://api.githubcopilot.com/models"
+        url = baseURL ? `${baseURL}/models` : "https://api.githubcopilot.com/models"
         // Add required headers for GitHub Copilot API
         headers["User-Agent"] = `opencode/${Installation.VERSION}`
         headers["Openai-Intent"] = "conversation-edits"
         headers["x-initiator"] = "user"
       } else {
         // Generic OpenAI-compatible endpoint
-        url = baseURL ? `${baseURL}/models` : null as any
+        url = baseURL ? `${baseURL}/models` : (null as any)
         if (!url) return null
       }
 
@@ -229,9 +223,6 @@ export namespace Provider {
     }
     return false
   }
-
-
-
 
   function isGpt5OrLater(modelID: string): boolean {
     const match = /^gpt-(\d+)/.exec(modelID)
@@ -829,13 +820,13 @@ export namespace Provider {
         },
         experimentalOver200K: model.cost?.context_over_200k
           ? {
-            cache: {
-              read: model.cost.context_over_200k.cache_read ?? 0,
-              write: model.cost.context_over_200k.cache_write ?? 0,
-            },
-            input: model.cost.context_over_200k.input,
-            output: model.cost.context_over_200k.output,
-          }
+              cache: {
+                read: model.cost.context_over_200k.cache_read ?? 0,
+                write: model.cost.context_over_200k.cache_write ?? 0,
+              },
+              input: model.cost.context_over_200k.input,
+              output: model.cost.context_over_200k.output,
+            }
           : undefined,
       },
       limit: {
@@ -911,7 +902,10 @@ export namespace Provider {
       }
       log.info("Injected bundled github-copilot models", { count: Object.keys(copilotModels).length })
     }
-    if (!database["github-copilot-enterprise"] || Object.keys(database["github-copilot-enterprise"].models || {}).length === 0) {
+    if (
+      !database["github-copilot-enterprise"] ||
+      Object.keys(database["github-copilot-enterprise"].models || {}).length === 0
+    ) {
       const copilotModels: Record<string, Model> = {}
       for (const m of GITHUB_COPILOT_DEFAULT_MODELS) {
         copilotModels[m.id] = createCopilotModel("github-copilot-enterprise", m)
@@ -951,7 +945,6 @@ export namespace Provider {
     log.info("init")
 
     const configProviders = Object.entries(config.provider ?? {})
-
 
     function mergeProvider(providerID: string, provider: Partial<Info>) {
       const existing = providers[providerID]
@@ -1083,7 +1076,7 @@ export namespace Provider {
       source: "custom",
       env: [],
       options: {},
-      models: {}
+      models: {},
     }
 
     // Initialize Gemini CLI as a clean self-built provider (do NOT inherit from google-api)
@@ -1121,14 +1114,14 @@ export namespace Provider {
           interleaved: false,
           input: { text: true, image: true, audio: false, video: false, pdf: false },
           output: { text: true, audio: false, image: false, video: false, pdf: false },
-          toolcall: true
+          toolcall: true,
         },
         cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
         limit: { context: m.context, output: 8192 },
         options: {},
         variants: {},
         headers: {},
-        release_date: "2025-01-01"
+        release_date: "2025-01-01",
       }
     }
 
@@ -1151,7 +1144,7 @@ export namespace Provider {
         { id: "claude-3-opus-20240229", name: "Claude 3 Opus" },
         { id: "claude-3-sonnet-20240229", name: "Claude 3 Sonnet" },
         { id: "claude-3-haiku-20240307", name: "Claude 3 Haiku" },
-        { id: "claude-3-5-sonnet-latest", name: "Claude 3.5 Sonnet (Latest)" }
+        { id: "claude-3-5-sonnet-latest", name: "Claude 3.5 Sonnet (Latest)" },
       ]
 
       for (const m of anthropicModels) {
@@ -1169,14 +1162,14 @@ export namespace Provider {
             interleaved: false,
             input: { text: true, image: true, audio: false, video: false, pdf: true },
             output: { text: true, audio: false, image: false, video: false, pdf: false },
-            toolcall: true
+            toolcall: true,
           },
           cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
           limit: { context: 200000, output: 4096 },
           options: {},
           variants: {},
           headers: {},
-          release_date: "2024-01-01"
+          release_date: "2024-01-01",
         }
       }
     }
@@ -1241,14 +1234,14 @@ export namespace Provider {
             toolcall: true,
             input: { text: true, image: true, audio: false, video: false, pdf: false },
             output: { text: true, audio: false, image: false, video: false, pdf: false },
-            interleaved: false
+            interleaved: false,
           },
           cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
           limit: { context: 200000, output: 8192 },
           options: {},
           variants: {},
           headers: {},
-          release_date: "2025-01-01"
+          release_date: "2025-01-01",
         }
       }
     }
@@ -1258,12 +1251,12 @@ export namespace Provider {
     if (database["antigravity"]) {
       log.info("Antigravity database entry", {
         modelCount: Object.keys(database["antigravity"].models).length,
-        models: Object.keys(database["antigravity"].models)
+        models: Object.keys(database["antigravity"].models),
       })
       mergeProvider("antigravity", { source: "custom" })
       log.info("Antigravity after merge", {
         inProviders: !!providers["antigravity"],
-        modelCount: providers["antigravity"] ? Object.keys(providers["antigravity"].models).length : 0
+        modelCount: providers["antigravity"] ? Object.keys(providers["antigravity"].models).length : 0,
       })
     }
 
@@ -1271,12 +1264,12 @@ export namespace Provider {
     if (database["gemini-cli"]) {
       log.info("Gemini CLI database entry", {
         modelCount: Object.keys(database["gemini-cli"].models).length,
-        models: Object.keys(database["gemini-cli"].models)
+        models: Object.keys(database["gemini-cli"].models),
       })
       mergeProvider("gemini-cli", { source: "custom" })
       log.info("Gemini CLI after merge", {
         inProviders: !!providers["gemini-cli"],
-        modelCount: providers["gemini-cli"] ? Object.keys(providers["gemini-cli"].models).length : 0
+        modelCount: providers["gemini-cli"] ? Object.keys(providers["gemini-cli"].models).length : 0,
       })
     }
 
@@ -1352,22 +1345,32 @@ export namespace Provider {
 
         // For Antigravity, only register the ACTIVE account and map it to the generic 'antigravity' ID
         // This ensures /models shows a single 'Antigravity' entry that respects /accounts selection
-        let effectiveId = accountId;
+        let effectiveId = accountId
         if (family === "antigravity") {
           if (accountId !== familyData.activeAccount) {
-            continue;
+            continue
           }
-          effectiveId = "antigravity";
-        } else if (family === "antigravity" && accountId.startsWith("antigravity-subscription-") && accountInfo.type === "subscription" && accountInfo.email) {
+          effectiveId = "antigravity"
+        } else if (
+          family === "antigravity" &&
+          accountId.startsWith("antigravity-subscription-") &&
+          accountInfo.type === "subscription" &&
+          accountInfo.email
+        ) {
           // Fallback logic for safety (though the above if block covers it)
-          const username = accountInfo.email.split("@")[0];
-          effectiveId = `antigravity-${username}`;
+          const username = accountInfo.email.split("@")[0]
+          effectiveId = `antigravity-${username}`
         }
 
         // Determine display name
         let displayName = Account.getDisplayName(accountId, accountInfo, family)
-        if (family === "antigravity" && effectiveId === "antigravity" && accountInfo.type === "subscription" && accountInfo.email) {
-          displayName = `Antigravity (${accountInfo.email})`;
+        if (
+          family === "antigravity" &&
+          effectiveId === "antigravity" &&
+          accountInfo.type === "subscription" &&
+          accountInfo.email
+        ) {
+          displayName = `Antigravity (${accountInfo.email})`
         }
 
         // Add to database with models inherited from base provider
@@ -1426,8 +1429,8 @@ export namespace Provider {
           "claude-opus-4-1",
           "claude-opus-4-2",
           "gpt-oss-120b-medium",
-          "gpt-5.1-codex"
-        ]);
+          "gpt-5.1-codex",
+        ])
 
         database[effectiveId] = {
           id: effectiveId,
@@ -1444,7 +1447,7 @@ export namespace Provider {
               ...model,
               providerID: effectiveId,
             })),
-            (model, id) => family !== "antigravity" || ANTIGRAVITY_WHITELIST.has(id)
+            (model, id) => family !== "antigravity" || ANTIGRAVITY_WHITELIST.has(id),
           ),
         }
 
@@ -1479,7 +1482,7 @@ export namespace Provider {
             ...model,
             providerID: accountID,
           })),
-          (model, id) => !accountID.includes("antigravity") || ANTIGRAVITY_WHITELIST.has(id)
+          (model, id) => !accountID.includes("antigravity") || ANTIGRAVITY_WHITELIST.has(id),
         ),
       }
       mergeProvider(accountID, {
@@ -1569,9 +1572,7 @@ export namespace Provider {
 
         // Dynamic model fetching for github-copilot
         // Try to fetch models from the API, fallback to bundled defaults
-        const copilotProviders = [family, enterpriseProviderID].filter(
-          (id) => !disabled.has(id) && providers[id],
-        )
+        const copilotProviders = [family, enterpriseProviderID].filter((id) => !disabled.has(id) && providers[id])
 
         for (const copilotID of copilotProviders) {
           const auth = await Auth.get(copilotID)
@@ -1617,10 +1618,15 @@ export namespace Provider {
       if (!fData) continue
 
       for (const [accountId, accountInfo] of Object.entries(fData.accounts)) {
-        let effectiveId = accountId;
-        if (family === "antigravity" && accountId.startsWith("antigravity-subscription-") && accountInfo.type === "subscription" && accountInfo.email) {
-          const username = accountInfo.email.split("@")[0];
-          effectiveId = `antigravity-${username}`;
+        let effectiveId = accountId
+        if (
+          family === "antigravity" &&
+          accountId.startsWith("antigravity-subscription-") &&
+          accountInfo.type === "subscription" &&
+          accountInfo.email
+        ) {
+          const username = accountInfo.email.split("@")[0]
+          effectiveId = `antigravity-${username}`
         }
 
         if (providers[effectiveId]) {
@@ -1690,7 +1696,7 @@ export namespace Provider {
 
       for (const modelID of Object.keys(provider.models)) {
         if (isModelIgnored(providerID, modelID)) {
-          delete provider.models[modelID];
+          delete provider.models[modelID]
         }
       }
 
@@ -1698,9 +1704,6 @@ export namespace Provider {
         delete providers[providerID]
         continue
       }
-
-
-
 
       log.info("found", { providerID })
     }
@@ -1717,9 +1720,9 @@ export namespace Provider {
     await state() // Ensure plugins and loaders are initialized
 
     const { Plugin } = await import("../plugin")
-    // Wait for model discovery so that the first call (e.g. during TUI boot) 
+    // Wait for model discovery so that the first call (e.g. during TUI boot)
     // actually has the models from plugins.
-    await Plugin.discoverModels().catch(err => {
+    await Plugin.discoverModels().catch((err) => {
       log.error("model discovery failed", { error: err })
     })
 
@@ -1742,7 +1745,7 @@ export namespace Provider {
         ...template,
         id: m.id,
         name: m.name,
-        api: { ...template.api, id: m.id }
+        api: { ...template.api, id: m.id },
       }
     }
   }
@@ -1771,7 +1774,7 @@ export namespace Provider {
           model.providerID.includes("antigravity") ||
           model.providerID.includes("gemini-cli")
         ) {
-          // If we have a custom fetch (plugin) OR it's a known managed account type, 
+          // If we have a custom fetch (plugin) OR it's a known managed account type,
           // inject dummy to satisfy SDK validation
           options["apiKey"] = "dummy"
         }
@@ -2070,7 +2073,9 @@ export namespace Provider {
    * Try to select a model from subscription-based accounts.
    * Returns undefined if no subscription accounts are available.
    */
-  async function selectSubscriptionModel(cfg: Config.Config): Promise<{ providerID: string; modelID: string } | undefined> {
+  async function selectSubscriptionModel(
+    cfg: Config.Info,
+  ): Promise<{ providerID: string; modelID: string } | undefined> {
     const { getHealthTracker, getRateLimitTracker } = await import("../account/rotation")
 
     // Priority order for subscription providers
@@ -2091,7 +2096,7 @@ export namespace Provider {
       // Find a healthy, non-rate-limited subscription account
       for (const [accountId, info] of Object.entries(accounts)) {
         // Only consider subscription/oauth accounts
-        if (info.type !== "subscription" && info.type !== "oauth") continue
+        if (info.type !== "subscription" && (info.type as string) !== "oauth") continue
 
         // Check health and rate limit
         const healthScore = healthTracker.getScore(accountId)

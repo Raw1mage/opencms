@@ -117,8 +117,7 @@ export namespace SessionMonitor {
 
         if (!tool.name) {
           const part = message.parts.find(
-            (item) =>
-              item.type === "tool" && (item.state.status === "pending" || item.state.status === "running"),
+            (item) => item.type === "tool" && (item.state.status === "pending" || item.state.status === "running"),
           )
           if (part && part.type === "tool") {
             tool.name = part.tool
@@ -133,7 +132,10 @@ export namespace SessionMonitor {
         if (current.type !== "idle") return current
         const last = latest.value
         if (!last) return { type: "pending" } as Status
-        if (last.role === "assistant" && last.error) return { type: "error", message: last.error.message } as Status
+        if (last.role === "assistant" && last.error) {
+          const err = last.error as any
+          return { type: "error", message: err.message || err.data?.message || "Unknown error" } as Status
+        }
         if (last.role === "assistant" && !last.time.completed) return { type: "working" } as Status
         if (last.role === "user") return { type: "working" } as Status
         return current

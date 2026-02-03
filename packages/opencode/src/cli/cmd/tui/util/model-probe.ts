@@ -1,9 +1,7 @@
 import { streamText } from "ai"
 import { Provider } from "@/provider/provider"
 
-export type ModelProbeResult =
-  | { ok: true; responseTime: number }
-  | { ok: false; error: string }
+export type ModelProbeResult = { ok: true; responseTime: number } | { ok: false; error: string }
 
 export function probeModelAvailability(
   providerID: string,
@@ -17,10 +15,10 @@ export function probeModelAvailability(
   return Provider.list()
     .then((providers) => {
       const provider = providers[providerID]
-      if (!provider) return { ok: false, error: `Provider not found: ${providerID}` }
+      if (!provider) return { ok: false as const, error: `Provider not found: ${providerID}` }
 
       const modelConfig = provider.models[modelID]
-      if (!modelConfig) return { ok: false, error: `Model not found: ${providerID}/${modelID}` }
+      if (!modelConfig) return { ok: false as const, error: `Model not found: ${providerID}/${modelID}` }
 
       return Provider.getLanguage(modelConfig).then((language) => {
         const controller = new AbortController()
@@ -52,16 +50,16 @@ export function probeModelAvailability(
         }
 
         return Promise.race([
-          run().then(() => ({ ok: true, responseTime: Date.now() - started })),
+          run().then(() => ({ ok: true as const, responseTime: Date.now() - started })),
           timeout,
         ]).catch((error) => ({
-          ok: false,
+          ok: false as const,
           error: error instanceof Error ? error.message : String(error),
         }))
       })
     })
     .catch((error) => ({
-      ok: false,
+      ok: false as const,
       error: error instanceof Error ? error.message : String(error),
     }))
 }

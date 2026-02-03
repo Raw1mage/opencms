@@ -36,6 +36,7 @@ export namespace Command {
       template: z.promise(z.string()).or(z.string()),
       subtask: z.boolean().optional(),
       hints: z.array(z.string()),
+      source: z.string().optional(),
     })
     .meta({
       ref: "Command",
