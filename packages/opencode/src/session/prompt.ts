@@ -44,6 +44,8 @@ import { Tool } from "@/tool/tool"
 import { PermissionNext } from "@/permission/next"
 import { SessionStatus } from "./status"
 import { LLM } from "./llm"
+import { getModelHealthRegistry } from "@/account/rotation"
+import { TuiEvent } from "@/cli/cmd/tui/event"
 import { iife } from "@/util/iife"
 import { Shell } from "@/shell/shell"
 import { Truncate } from "@/tool/truncation"
@@ -75,6 +77,77 @@ export namespace SessionPrompt {
     review: ["google/gemini-2.5-pro", "openai/gpt-5.2", "openai/gpt-5.2-codex"],
     testing: ["openai/gpt-5.2-codex", "openai/gpt-5.2", "google/gemini-2.5-pro"],
     docs: ["openai/gpt-5.2", "google/gemini-2.5-pro", "openai/gpt-5.2-codex"],
+  }
+
+  function hasImageParts(message?: MessageV2.WithParts): boolean {
+    if (!message) return false
+    return message.parts.some((part) => part.type === "file" && part.mime?.startsWith("image/"))
+  }
+
+  function stripImageParts(messages: MessageV2.WithParts[]) {
+    for (const msg of messages) {
+      if (msg.info.role !== "user") continue
+      const parts: MessageV2.Part[] = []
+      for (const part of msg.parts) {
+        if (part.type !== "file" || !part.mime?.startsWith("image/")) {
+          parts.push(part)
+          continue
+        }
+        const name = part.filename || part.mime || "image"
+        parts.push({
+          id: Identifier.ascending("part"),
+          messageID: msg.info.id,
+          sessionID: msg.info.sessionID,
+          type: "text",
+          text: `[Image omitted: ${name}]`,
+          synthetic: true,
+        })
+      }
+      msg.parts = parts
+    }
+  }
+
+  async function selectImageModel(current: Provider.Model): Promise<Provider.Model | undefined> {
+    const providers = await Provider.list()
+    const registry = getModelHealthRegistry()
+    const cfg = await Config.get()
+    const order: string[] = []
+    if (!order.includes(current.providerID)) order.push(current.providerID)
+    if (!order.includes("gemini-cli")) order.push("gemini-cli")
+    if (!order.includes("antigravity")) order.push("antigravity")
+    for (const pid of Object.keys(providers)) {
+      if (!order.includes(pid)) order.push(pid)
+    }
+
+    for (const pid of order) {
+      if (cfg.disabled_providers?.includes(pid)) continue
+      const provider = providers[pid]
+      if (!provider) continue
+      const models = Provider.sort(Object.values(provider.models))
+      for (const model of models) {
+        if (!model.capabilities.input.image) continue
+        if (!model.capabilities.output.text) continue
+        if (!registry.isAvailable(pid, model.id)) continue
+        return model
+      }
+    }
+  }
+
+  async function resolveImageRequest(input: {
+    model: Provider.Model
+    message?: MessageV2.WithParts
+  }): Promise<{ model: Provider.Model; dropImages: boolean; rotated: boolean }> {
+    if (!hasImageParts(input.message)) {
+      return { model: input.model, dropImages: false, rotated: false }
+    }
+    if (input.model.capabilities.input.image) {
+      return { model: input.model, dropImages: false, rotated: false }
+    }
+    const fallback = await selectImageModel(input.model)
+    if (fallback) {
+      return { model: fallback, dropImages: false, rotated: true }
+    }
+    return { model: input.model, dropImages: true, rotated: false }
   }
 
   const state = Instance.state(
@@ -550,6 +623,18 @@ export namespace SessionPrompt {
       }
 
       // normal processing
+      const userMsg = msgs.findLast((m) => m.info.role === "user")
+      const imageResolution = await resolveImageRequest({ model, message: userMsg })
+      const activeModel = imageResolution.model
+      if (imageResolution.rotated) {
+        const change = `${activeModel.providerID}/${activeModel.id}`
+        Bus.publish(TuiEvent.ToastShow, {
+          title: "Model Rotated",
+          message: `Using ${change} for image input`,
+          variant: "info",
+          duration: 4000,
+        }).catch(() => {})
+      }
       const agent = await Agent.get(lastUser.agent)
       const maxSteps = agent.steps ?? Infinity
       const isLastStep = step >= maxSteps
@@ -577,15 +662,15 @@ export namespace SessionPrompt {
             reasoning: 0,
             cache: { read: 0, write: 0 },
           },
-          modelID: model.id,
-          providerID: model.providerID,
+          modelID: activeModel.id,
+          providerID: activeModel.providerID,
           time: {
             created: Date.now(),
           },
           sessionID,
         })) as MessageV2.Assistant,
         sessionID: sessionID,
-        model,
+        model: activeModel,
         abort,
       })
       using _ = defer(() => InstructionPrompt.clear(processor.message.id))
@@ -597,7 +682,7 @@ export namespace SessionPrompt {
       const tools = await resolveTools({
         agent,
         session,
-        model,
+        model: activeModel,
         tools: lastUser.tools,
         processor,
         bypassAgentCheck,
@@ -612,6 +697,9 @@ export namespace SessionPrompt {
       }
 
       const sessionMessages = clone(msgs)
+      if (imageResolution.dropImages) {
+        stripImageParts(sessionMessages)
+      }
 
       // Ephemerally wrap queued user messages with a reminder to stay on track
       if (step > 1 && lastFinished) {
@@ -639,9 +727,9 @@ export namespace SessionPrompt {
         agent,
         abort,
         sessionID,
-        system: [...(await SystemPrompt.environment(model)), ...(await InstructionPrompt.system())],
+        system: [...(await SystemPrompt.environment(activeModel)), ...(await InstructionPrompt.system())],
         messages: [
-          ...MessageV2.toModelMessages(sessionMessages, model),
+          ...MessageV2.toModelMessages(sessionMessages, activeModel),
           ...(isLastStep
             ? [
                 {
@@ -652,7 +740,7 @@ export namespace SessionPrompt {
             : []),
         ],
         tools,
-        model,
+        model: activeModel,
       })
       if (result === "stop") break
       if (result === "compact") {
@@ -874,6 +962,8 @@ export namespace SessionPrompt {
       if (agent.mode === "subagent") return input.parts
       if (input.noReply) return input.parts
       if (input.parts.some((part) => part.type === "subtask" || part.type === "agent")) return input.parts
+      const hasImage = input.parts.some((part) => part.type === "file" && part.mime?.startsWith("image/"))
+      if (hasImage) return input.parts
 
       const cfg = await Config.get()
       const workflow = cfg.experimental?.subagent_workflow
