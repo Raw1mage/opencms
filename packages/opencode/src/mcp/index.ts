@@ -894,8 +894,9 @@ export namespace MCP {
    * Remove OAuth credentials for an MCP server.
    */
   export async function removeAuth(mcpName: string): Promise<void> {
+    const oauthState = await McpAuth.getOAuthState(mcpName)
     await McpAuth.remove(mcpName)
-    McpOAuthCallback.cancelPending(mcpName)
+    if (oauthState) McpOAuthCallback.cancelPending(oauthState)
     pendingOAuthTransports.delete(mcpName)
     await McpAuth.clearOAuthState(mcpName)
     log.info("removed oauth credentials", { mcpName })

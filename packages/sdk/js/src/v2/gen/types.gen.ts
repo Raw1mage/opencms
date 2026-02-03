@@ -1109,6 +1109,10 @@ export type KeybindsConfig = {
    */
   model_cycle_favorite_reverse?: string
   /**
+   * Open admin panel
+   */
+  admin_panel?: string
+  /**
    * List available commands
    */
   command_list?: string

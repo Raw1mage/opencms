@@ -68,7 +68,10 @@ export function DialogModel(props: { providerID?: string }) {
     debugCheckpoint("model", "selected (probe skipped)", { provider: providerID, model: modelID, origin })
     // Skip validation for Google API dynamic models (not in provider.models registry)
     const isGoogleDynamic = family(providerID) === "google-api"
-    local.model.set({ providerID: providerID, modelID: modelID }, { recent: true, skipValidation: isGoogleDynamic })
+    local.model.set(
+      { providerID: providerID, modelID: modelID },
+      { recent: true, skipValidation: isGoogleDynamic, announce: true },
+    )
     dialog.clear()
   }
 
@@ -127,7 +130,7 @@ export function DialogModel(props: { providerID?: string }) {
     if (!fam) return undefined
 
     // Fix Antigravity Display Name using AccountManager
-    if (fam === 'antigravity') {
+    if (fam === "antigravity") {
       const manager = agManager()
       if (manager) {
         const snap = manager.getAccountsSnapshot()
@@ -141,7 +144,7 @@ export function DialogModel(props: { providerID?: string }) {
         }
 
         // Case 2: Generic "antigravity" ID -> Use Active Account
-        if (provider.id === 'antigravity') {
+        if (provider.id === "antigravity") {
           const activeIndex = manager.getActiveIndex()
           const acc = snap.find((a: any) => a.index === activeIndex)
           if (acc && acc.email) return acc.email
@@ -203,47 +206,49 @@ export function DialogModel(props: { providerID?: string }) {
     if (s === "root") {
       const list = []
 
-      const getModelOptions = (modelList: { providerID: string, modelID: string, origin?: string }[]) => {
-        return modelList.flatMap(item => {
-          const p = sync.data.provider.find(x => x.id === item.providerID)
+      const getModelOptions = (modelList: { providerID: string; modelID: string; origin?: string }[]) => {
+        return modelList.flatMap((item) => {
+          const p = sync.data.provider.find((x) => x.id === item.providerID)
           if (!p) return []
           const m = p.models[item.modelID]
           if (!m) return []
 
-          return [{
-            value: { providerID: item.providerID, modelID: item.modelID, origin: item.origin },
-            title: m.name ?? item.modelID,
-            description: label(p.name, p.id),
-            category: item.origin === 'favorite' ? "Favorites" : "Recents",
-            footer: isFreeCost(m) ? "Free" : undefined,
-            disabled: (p.id === "opencode" && m.id.includes("-nano")),
-            onSelect: () => {
-              probeAndSelectModel(item.providerID, item.modelID, item.origin)
-            }
-          }]
+          return [
+            {
+              value: { providerID: item.providerID, modelID: item.modelID, origin: item.origin },
+              title: m.name ?? item.modelID,
+              description: label(p.name, p.id),
+              category: item.origin === "favorite" ? "Favorites" : "Recents",
+              footer: isFreeCost(m) ? "Free" : undefined,
+              disabled: p.id === "opencode" && m.id.includes("-nano"),
+              onSelect: () => {
+                probeAndSelectModel(item.providerID, item.modelID, item.origin)
+              },
+            },
+          ]
         })
       }
 
       if (favorites.length > 0) {
-        list.push(...getModelOptions(favorites.map(x => ({ ...x, origin: 'favorite' }))))
+        list.push(...getModelOptions(favorites.map((x) => ({ ...x, origin: "favorite" }))))
       }
 
       if (recents.length > 0) {
-        list.push(...getModelOptions(recents.map(x => ({ ...x, origin: 'recent' }))))
+        list.push(...getModelOptions(recents.map((x) => ({ ...x, origin: "recent" }))))
       }
 
       // 3. Families
       // Sort families: Antigravity first, then others
       const families = Array.from(groupedProviders().keys()).sort((a, b) => {
-        if (a === 'antigravity') return -1
-        if (b === 'antigravity') return 1
+        if (a === "antigravity") return -1
+        if (b === "antigravity") return 1
         return a.localeCompare(b)
       })
 
       for (const fam of families) {
         const providers = groupedProviders().get(fam) || []
         // Check if any is active or has models
-        if (providers.every(p => Object.keys(p.models).length === 0 && !p.active)) continue;
+        if (providers.every((p) => Object.keys(p.models).length === 0 && !p.active)) continue
 
         const displayName = label(fam, fam) // Pass id same as name if abstract
         const familyData = coreAll()?.[fam]
@@ -251,10 +256,10 @@ export function DialogModel(props: { providerID?: string }) {
         const isFamilySuffix = (id: string) => id === `${fam}-subscription-${fam}` || id === `${fam}-api-${fam}`
         const isGeneric = (id: string) =>
           id === fam || id === "google-api" || id === "gemini-cli" || id === "antigravity" || isFamilySuffix(id)
-        const hasSpecific = allIds.some(id => !isGeneric(id))
-        const filteredIds = allIds.filter(id => (hasSpecific ? !isGeneric(id) : true))
+        const hasSpecific = allIds.some((id) => !isGeneric(id))
+        const filteredIds = allIds.filter((id) => (hasSpecific ? !isGeneric(id) : true))
         const accountTotal = familyData ? filteredIds.length : providers.length
-        const activeCount = familyData?.activeAccount ? 1 : providers.filter(p => p.active).length
+        const activeCount = familyData?.activeAccount ? 1 : providers.filter((p) => p.active).length
 
         list.push({
           value: fam,
@@ -267,7 +272,7 @@ export function DialogModel(props: { providerID?: string }) {
             setSelectedFamily(fam)
             setStep("account_select")
             setQuery("")
-          }
+          },
         })
       }
       return list
@@ -281,7 +286,7 @@ export function DialogModel(props: { providerID?: string }) {
       // Special handling for Antigravity: Get accounts directly from manager
       let accountList: any[] = []
 
-      if (fam === 'antigravity') {
+      if (fam === "antigravity") {
         const agAccounts = agManager()?.getAccountsSnapshot() || []
 
         if (agAccounts.length > 0) {
@@ -298,7 +303,7 @@ export function DialogModel(props: { providerID?: string }) {
 
           const activeId = coreActive()
 
-          accountList = agAccounts.map(acc => {
+          accountList = agAccounts.map((acc) => {
             const id = `antigravity-subscription-${acc.index + 1}`
             const token = acc.parts?.refreshToken
             const byToken = token ? coreByToken.get(token) : undefined
@@ -312,7 +317,7 @@ export function DialogModel(props: { providerID?: string }) {
               name: acc.email || `Account ${acc.index + 1}`,
               active: isActive,
               email: acc.email,
-              type: "subscription"
+              type: "subscription",
             }
           })
         }
@@ -323,7 +328,7 @@ export function DialogModel(props: { providerID?: string }) {
         const isFamilySuffix = (id: string) => id === `${fam}-subscription-${fam}` || id === `${fam}-api-${fam}`
         const isGeneric = (id: string) =>
           id === fam || id === "google-api" || id === "gemini-cli" || id === "antigravity" || isFamilySuffix(id)
-        const hasSpecific = Object.keys(accounts).some(id => !isGeneric(id))
+        const hasSpecific = Object.keys(accounts).some((id) => !isGeneric(id))
         accountList = Object.entries(accounts)
           .filter(([id]) => {
             if (hasSpecific && isGeneric(id)) return false
@@ -337,18 +342,18 @@ export function DialogModel(props: { providerID?: string }) {
               name: displayName,
               active: activeId === id,
               email: (info as any)?.email,
-              type: (info as any)?.type
+              type: (info as any)?.type,
             }
           })
       }
 
       const accountOptions = pipe(
         accountList,
-        map(p => {
+        map((p) => {
           // Determine display name
           let title = p.name
-          if (fam === 'antigravity' && p.email) title = p.email
-          else if (fam === 'antigravity') {
+          if (fam === "antigravity" && p.email) title = p.email
+          else if (fam === "antigravity") {
             // Fallback title logic if name is missing or same as ID
             title = p.name || p.id
           } else {
@@ -365,7 +370,7 @@ export function DialogModel(props: { providerID?: string }) {
             description: p.id !== title ? p.id : undefined,
             onSelect: async () => {
               // If Antigravity, we need to explicitly set active
-              if (fam === 'antigravity') {
+              if (fam === "antigravity") {
                 try {
                   const coreId = p.coreId || p.id
                   // Update Core
@@ -382,7 +387,7 @@ export function DialogModel(props: { providerID?: string }) {
                         version: 3,
                         accounts: manager.getAccountsSnapshot() as any,
                         activeIndex: manager.getActiveIndex(),
-                        activeIndexByFamily: manager.getActiveIndexByFamily()
+                        activeIndexByFamily: manager.getActiveIndexByFamily(),
                       })
                     }
                   }
@@ -390,7 +395,7 @@ export function DialogModel(props: { providerID?: string }) {
                   console.error(e)
                 }
                 // For model selection, use the GENERIC "antigravity" provider ID
-                setSelectedProviderID('antigravity')
+                setSelectedProviderID("antigravity")
               } else {
                 if (fam) {
                   await Account.setActive(fam, p.coreId || p.id)
@@ -401,9 +406,9 @@ export function DialogModel(props: { providerID?: string }) {
               setStep("model_select")
               setQuery("")
               forceRefresh()
-            }
+            },
           }
-        })
+        }),
       )
 
       return accountOptions
@@ -412,52 +417,56 @@ export function DialogModel(props: { providerID?: string }) {
     // FAVORITES VIEW
     if (s === "favorites") {
       const list = []
-      const getModelOptions = (modelList: { providerID: string, modelID: string, origin?: string }[]) => {
-        return modelList.flatMap(item => {
-          const p = sync.data.provider.find(x => x.id === item.providerID)
+      const getModelOptions = (modelList: { providerID: string; modelID: string; origin?: string }[]) => {
+        return modelList.flatMap((item) => {
+          const p = sync.data.provider.find((x) => x.id === item.providerID)
           if (!p) return []
           const m = p.models[item.modelID]
           if (!m) return []
-          return [{
-            value: { providerID: item.providerID, modelID: item.modelID },
-            title: m.name ?? item.modelID,
-            description: label(p.name, p.id),
-            category: item.origin === 'favorite' ? "Favorites" : "Recents",
-            footer: isFreeCost(m) ? "Free" : undefined,
-            disabled: (p.id === "opencode" && m.id.includes("-nano")),
-            onSelect: () => {
-              probeAndSelectModel(item.providerID, item.modelID, item.origin)
-            }
-          }]
+          return [
+            {
+              value: { providerID: item.providerID, modelID: item.modelID },
+              title: m.name ?? item.modelID,
+              description: label(p.name, p.id),
+              category: item.origin === "favorite" ? "Favorites" : "Recents",
+              footer: isFreeCost(m) ? "Free" : undefined,
+              disabled: p.id === "opencode" && m.id.includes("-nano"),
+              onSelect: () => {
+                probeAndSelectModel(item.providerID, item.modelID, item.origin)
+              },
+            },
+          ]
         })
       }
-      list.push(...getModelOptions(favorites.map(x => ({ ...x, origin: 'favorite' }))))
+      list.push(...getModelOptions(favorites.map((x) => ({ ...x, origin: "favorite" }))))
       return list
     }
 
     // RECENTS VIEW
     if (s === "recents") {
       const list = []
-      const getModelOptions = (modelList: { providerID: string, modelID: string, origin?: string }[]) => {
-        return modelList.flatMap(item => {
-          const p = sync.data.provider.find(x => x.id === item.providerID)
+      const getModelOptions = (modelList: { providerID: string; modelID: string; origin?: string }[]) => {
+        return modelList.flatMap((item) => {
+          const p = sync.data.provider.find((x) => x.id === item.providerID)
           if (!p) return []
           const m = p.models[item.modelID]
           if (!m) return []
-          return [{
-            value: { providerID: item.providerID, modelID: item.modelID },
-            title: m.name ?? item.modelID,
-            description: label(p.name, p.id),
-            category: item.origin === 'favorite' ? "Favorites" : "Recents",
-            footer: isFreeCost(m) ? "Free" : undefined,
-            disabled: (p.id === "opencode" && m.id.includes("-nano")),
-            onSelect: () => {
-              probeAndSelectModel(item.providerID, item.modelID, item.origin)
-            }
-          }]
+          return [
+            {
+              value: { providerID: item.providerID, modelID: item.modelID },
+              title: m.name ?? item.modelID,
+              description: label(p.name, p.id),
+              category: item.origin === "favorite" ? "Favorites" : "Recents",
+              footer: isFreeCost(m) ? "Free" : undefined,
+              disabled: p.id === "opencode" && m.id.includes("-nano"),
+              onSelect: () => {
+                probeAndSelectModel(item.providerID, item.modelID, item.origin)
+              },
+            },
+          ]
         })
       }
-      list.push(...getModelOptions(recents.map(x => ({ ...x, origin: 'recent' }))))
+      list.push(...getModelOptions(recents.map((x) => ({ ...x, origin: "recent" }))))
       return list
     }
 
@@ -466,16 +475,16 @@ export function DialogModel(props: { providerID?: string }) {
       const pid = selectedProviderID()
       if (!pid) return []
       const resolved = iife(() => {
-        const direct = sync.data.provider.find(x => x.id === pid)
+        const direct = sync.data.provider.find((x) => x.id === pid)
         if (direct) return { id: pid, provider: direct }
 
         const fam = selectedFamily() || family(pid)
         if (!fam) return undefined
 
-        const byFamily = sync.data.provider.find(x => x.id === fam)
+        const byFamily = sync.data.provider.find((x) => x.id === fam)
         if (byFamily) return { id: fam, provider: byFamily }
 
-        const byPrefix = sync.data.provider.find(x => x.id.startsWith(`${fam}-`))
+        const byPrefix = sync.data.provider.find((x) => x.id.startsWith(`${fam}-`))
         if (byPrefix) return { id: byPrefix.id, provider: byPrefix }
 
         return undefined
@@ -493,10 +502,10 @@ export function DialogModel(props: { providerID?: string }) {
         // Filter hidden
         filter(([mid, _]) => {
           if (showAll) return true
-          return !local.model.hidden().some(h => h.providerID === providerID && h.modelID === mid)
+          return !local.model.hidden().some((h) => h.providerID === providerID && h.modelID === mid)
         }),
         map(([mid, info]) => {
-          const isFav = favorites.some(f => f.providerID === providerID && f.modelID === mid)
+          const isFav = favorites.some((f) => f.providerID === providerID && f.modelID === mid)
           const pAny = p as any
           return {
             value: { providerID: providerID, modelID: mid },
@@ -511,14 +520,16 @@ export function DialogModel(props: { providerID?: string }) {
               if (pAny.cooldownReason) return `⛔ ${pAny.cooldownReason}`
               return undefined
             }),
-            disabled: (providerID === "opencode" && mid.includes("-nano")) || (pAny.cooldownReason?.includes("blocked") ?? false),
+            disabled:
+              (providerID === "opencode" && mid.includes("-nano")) ||
+              (pAny.cooldownReason?.includes("blocked") ?? false),
             footer: isFreeCost(info) ? "Free" : undefined,
             onSelect: () => {
               probeAndSelectModel(providerID, mid)
-            }
+            },
           }
         }),
-        sortBy(x => x.title)
+        sortBy((x) => x.title),
       )
     }
 
@@ -534,11 +545,13 @@ export function DialogModel(props: { providerID?: string }) {
       const pid = selectedProviderID()
       if (pid) {
         const resolved = iife(() => {
-          const direct = sync.data.provider.find(x => x.id === pid)
+          const direct = sync.data.provider.find((x) => x.id === pid)
           if (direct) return direct
           const fam = selectedFamily() || family(pid)
           if (!fam) return undefined
-          return sync.data.provider.find(x => x.id === fam) || sync.data.provider.find(x => x.id.startsWith(`${fam}-`))
+          return (
+            sync.data.provider.find((x) => x.id === fam) || sync.data.provider.find((x) => x.id.startsWith(`${fam}-`))
+          )
         })
         if (resolved) {
           const who = owner(resolved)
@@ -607,13 +620,13 @@ export function DialogModel(props: { providerID?: string }) {
               const confirmed = await DialogConfirm.show(
                 dialog,
                 "Delete Account",
-                `Are you sure you want to delete this account?`
+                `Are you sure you want to delete this account?`,
               )
 
               if (confirmed) {
                 try {
                   // 1. Specialized Antigravity Cleanup
-                  if (fam === 'antigravity') {
+                  if (fam === "antigravity") {
                     const manager = agManager()
                     if (manager) {
                       const match = val.match(/antigravity-subscription-(\d+)/)
@@ -624,7 +637,7 @@ export function DialogModel(props: { providerID?: string }) {
                             version: 3,
                             accounts: manager.getAccountsSnapshot() as any,
                             activeIndex: manager.getActiveIndex(),
-                            activeIndexByFamily: manager.getActiveIndexByFamily()
+                            activeIndexByFamily: manager.getActiveIndexByFamily(),
                           })
                         }
                       }
@@ -677,9 +690,9 @@ export function DialogModel(props: { providerID?: string }) {
           disabled: !connected() || !showHidden(),
           onTrigger: (option: any) => {
             const val = option.value as { providerID: string; modelID: string }
-            const isHidden = local.model.hidden().some(
-              (h) => h.providerID === val.providerID && h.modelID === val.modelID
-            )
+            const isHidden = local.model
+              .hidden()
+              .some((h) => h.providerID === val.providerID && h.modelID === val.modelID)
             if (isHidden) {
               local.model.toggleHidden(val)
             }
@@ -693,20 +706,20 @@ export function DialogModel(props: { providerID?: string }) {
           onTrigger: () => {
             const fam = selectedFamily()
             if (fam) dialog.replace(() => <DialogProviderList providerID={fam} />)
-          }
+          },
         },
         {
           keybind: Keybind.parse("left")[0],
           title: "Back",
           label: "left/esc",
           hidden: step() === "model_select",
-          onTrigger: goBack
+          onTrigger: goBack,
         },
         {
           keybind: Keybind.parse("esc")[0],
           title: "",
           hidden: true,
-          onTrigger: goBack
+          onTrigger: goBack,
         },
       ]}
       ref={setRef}
