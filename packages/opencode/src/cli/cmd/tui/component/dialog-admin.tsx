@@ -423,7 +423,10 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     debugCheckpoint("admin", "model selected (probe skipped)", { provider: providerID, model: modelID, origin })
     // Skip validation for Google API dynamic models (not in provider.models registry)
     const isGoogleDynamic = family(providerID) === "google-api"
-    local.model.set({ providerID: providerID, modelID: modelID }, { recent: true, skipValidation: isGoogleDynamic })
+    local.model.set(
+      { providerID: providerID, modelID: modelID },
+      { recent: true, skipValidation: isGoogleDynamic, announce: true },
+    )
     dialog.clear()
   }
 

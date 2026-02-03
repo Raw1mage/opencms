@@ -135,66 +135,153 @@ Agents and subagents should select models from **Favorites** as the primary pool
 
 #### OpenAI (Current Options)
 
-| Model | Billing | Best For |
-|-------|---------|----------|
-| `gpt-5.2-codex` | subscription | Latest frontier agentic coding |
-| `gpt-5.2` | subscription | Latest frontier model |
-| `gpt-5.1-codex-max` | subscription | Deep and fast reasoning |
-| `gpt-5.1-codex-mini` | **token** | **Trivial tasks (PRIMARY)** - cheap, fast |
+| Model                | Billing      | Best For                                  |
+| -------------------- | ------------ | ----------------------------------------- |
+| `gpt-5.2-codex`      | subscription | Latest frontier agentic coding            |
+| `gpt-5.2`            | subscription | Latest frontier model                     |
+| `gpt-5.1-codex-max`  | subscription | Deep and fast reasoning                   |
+| `gpt-5.1-codex-mini` | **token**    | **Trivial tasks (PRIMARY)** - cheap, fast |
 
 #### Google API Free Tier (RPD 計次型)
 
-| Model | RPM | TPM | RPD | 適用場景 |
-|-------|-----|-----|-----|----------|
-| Gemini 2.5 Flash-Lite | 15 | 250K | **1,000** | 中等任務 |
-| Gemini 2.5 Flash | 10 | 250K | 250 | 一般開發 |
-| Gemini 2.5 Pro | 5 | 250K | 100 | 複雜推理 |
-| Gemini 3 Pro Preview | 10 | 250K | 100 | 最新功能 |
+| Model                 | RPM | TPM  | RPD       | 適用場景 |
+| --------------------- | --- | ---- | --------- | -------- |
+| Gemini 2.5 Flash-Lite | 15  | 250K | **1,000** | 中等任務 |
+| Gemini 2.5 Flash      | 10  | 250K | 250       | 一般開發 |
+| Gemini 2.5 Pro        | 5   | 250K | 100       | 複雜推理 |
+| Gemini 3 Pro Preview  | 10  | 250K | 100       | 最新功能 |
 
 > ⚠️ **不要用 Google API 做瑣碎任務！**
+>
 > - ❌ Title generation, summaries, yes/no → 用 `gpt-5.1-codex-mini`
 > - ❌ Host/Orchestrator 互動 → 用 `gpt-5.1-codex-mini`
 > - ✅ Coding, review, planning → 可以用 Google API
 
 #### Antigravity (Work-based)
 
-| Tier | Reset | Best For |
-|------|-------|----------|
-| Free | Weekly | Light usage |
-| AI Pro ($20/mo) | 5 hours | Regular usage |
-| AI Ultra ($250/mo) | 5 hours | Heavy usage |
+| Tier               | Reset   | Best For      |
+| ------------------ | ------- | ------------- |
+| Free               | Weekly  | Light usage   |
+| AI Pro ($20/mo)    | 5 hours | Regular usage |
+| AI Ultra ($250/mo) | 5 hours | Heavy usage   |
 
 Models: Gemini 3 Pro/Flash, Claude Opus 4.5, Claude Sonnet 4.5, GPT-OSS 120B
 
-### Task-to-Model Matching
+### Task-to-Model Matching (Multi-Factor Scoring)
 
-```yaml
-task_billing_policy:
-  trivial:
-    description: "Host/Orchestrator, title, summaries, simple edits"
-    preferred_billing: token-based
-    model: "gpt-5.1-codex-mini"
-    reason: "Low cost, does NOT consume Google RPD"
+We select models based on a weighted score: **Domain (40%) + Capability (30%) + Cost (30%)**.
 
-  moderate:
-    description: "Code review, documentation, moderate edits"
-    preferred_billing: any
-    models: [gpt-5.2-codex, gemini-2.5-flash]
-
-  complex:
-    description: "Architecture, refactoring, multi-file changes"
-    preferred_billing: subscription
-    models: [gpt-5.2-codex, gpt-5.2, gemini-2.5-pro]
+```opencode-model-scoring
+{
+  "weights": {
+    "domain": 0.4,
+    "capability": 0.3,
+    "cost": 0.3
+  },
+  "domain": {
+    "coding": {
+      "openai/gpt-5.2-codex": 100,
+      "anthropic/claude-opus-4-5": 90,
+      "google/gemini-2.5-pro": 85,
+      "google/gemini-3-pro-preview": 80,
+      "anthropic/claude-sonnet-4-5": 95
+    },
+    "review": {
+      "openai/gpt-5.2-codex": 90,
+      "anthropic/claude-opus-4-5": 95,
+      "google/gemini-2.5-pro": 85,
+      "google/gemini-3-pro-preview": 80,
+      "anthropic/claude-sonnet-4-5": 90
+    },
+    "reasoning": {
+      "openai/gpt-5.2-codex": 85,
+      "anthropic/claude-opus-4-5": 95,
+      "google/gemini-2.5-pro": 90,
+      "google/gemini-3-pro-preview": 95,
+      "anthropic/claude-sonnet-4-5": 90
+    },
+    "testing": {
+      "openai/gpt-5.2-codex": 95,
+      "anthropic/claude-opus-4-5": 90,
+      "google/gemini-2.5-pro": 85,
+      "google/gemini-3-pro-preview": 80,
+      "anthropic/claude-sonnet-4-5": 90
+    },
+    "docs": {
+      "openai/gpt-5.2-codex": 80,
+      "anthropic/claude-opus-4-5": 100,
+      "google/gemini-2.5-pro": 85,
+      "google/gemini-3-pro-preview": 80,
+      "anthropic/claude-sonnet-4-5": 95
+    }
+  },
+  "capability": {
+    "openai/gpt-5.2-codex": 95,
+    "anthropic/claude-opus-4-5": 98,
+    "google/gemini-2.5-pro": 90,
+    "google/gemini-3-pro-preview": 95,
+    "anthropic/claude-sonnet-4-5": 92
+  },
+  "cost": {
+    "google/gemini-2.5-pro": 90,
+    "google/gemini-3-pro-preview": 80,
+    "anthropic/claude-sonnet-4-5": 70,
+    "openai/gpt-5.2-codex": 60,
+    "anthropic/claude-opus-4-5": 50
+  }
+}
 ```
+
+#### 1. Domain Score (40%)
+
+| Domain        | GPT-5.2-Codex | Claude-Opus-4.5 | Gemini-2.5-Pro | Gemini-3-Pro | Claude-Sonnet-4.5 |
+| :------------ | :-----------: | :-------------: | :------------: | :----------: | :---------------: |
+| **Coding**    |      100      |       90        |       85       |      80      |        95         |
+| **Review**    |      90       |       95        |       85       |      80      |        90         |
+| **Reasoning** |      85       |       95        |       90       |      95      |        90         |
+| **Docs**      |      80       |       100       |       85       |      80      |        95         |
+
+#### 2. Capability Score (30%)
+
+_Based on benchmarks, context window, and instruction following._
+
+| Model                 | Score | Notes                                 |
+| :-------------------- | :---: | :------------------------------------ |
+| **GPT-5.2-Codex**     |  95   | Best coding, standard context         |
+| **Claude-Opus-4.5**   |  98   | Best nuance/instruction, 200k context |
+| **Gemini-2.5-Pro**    |  90   | 2M context, good reasoning            |
+| **Gemini-3-Pro**      |  95   | Deep reasoning/thinking               |
+| **Claude-Sonnet-4.5** |  92   | Balanced speed/intelligence           |
+
+#### 3. Cost Score (30%)
+
+_Higher score = Lower cost / Better value._
+
+| Model                 | Score | Notes                          |
+| :-------------------- | :---: | :----------------------------- |
+| **Gemini-2.5-Pro**    |  90   | Free tier available / Low cost |
+| **Gemini-3-Pro**      |  80   | Moderate cost                  |
+| **Claude-Sonnet-4.5** |  70   | Mid-tier pricing               |
+| **GPT-5.2-Codex**     |  60   | High value but expensive       |
+| **Claude-Opus-4.5**   |  50   | Most expensive                 |
+
+#### Selection Logic
+
+1. **Rank**: Calculate weighted score for all models.
+2. **Filter**: Remove models currently rate-limited or unhealthy (via Rotation3D).
+3. **Select**: Pick the highest-scoring available model.
+4. **Fallback**: If execution fails, pick the next model in the ranked list.
 
 ### Provider Priority
 
 **Complex tasks** (high token count):
+
 1. Subscription: `opencode`, `openai-oauth`, `github-copilot`
 2. High-quota: `gemini-cli`
 3. API fallback: `openai-api`, `google-api` (Pro/Flash)
 
 **Trivial tasks** (high frequency):
+
 1. **Token-based: `gpt-5.1-codex-mini`** ← PRIMARY
 2. Work-based: `antigravity`
 3. DO NOT use Google API (wastes RPD)
@@ -231,12 +318,12 @@ subagent_policies:
 
 ### Rate Limit Recovery
 
-| Reason | Backoff |
-|--------|---------|
-| `QUOTA_EXHAUSTED` | 1m → 5m → 30m → 2h |
-| `RATE_LIMIT_EXCEEDED` | 30s |
-| `MODEL_CAPACITY_EXHAUSTED` | 45s ± 15s |
-| `SERVER_ERROR` | 20s |
+| Reason                     | Backoff            |
+| -------------------------- | ------------------ |
+| `QUOTA_EXHAUSTED`          | 1m → 5m → 30m → 2h |
+| `RATE_LIMIT_EXCEEDED`      | 30s                |
+| `MODEL_CAPACITY_EXHAUSTED` | 45s ± 15s          |
+| `SERVER_ERROR`             | 20s                |
 
 ### Fallback Chains
 
@@ -245,5 +332,5 @@ fallback:
   gpt-5.2-codex: [gpt-5.2, gpt-5.1-codex-max, gemini-2.5-pro]
   gpt-5.2: [gpt-5.2-codex, gemini-2.5-pro]
   gemini-2.5-pro: [gpt-5.2-codex, gemini-2.5-flash]
-  gpt-5.1-codex-mini: [gemini-2.5-flash-lite]  # Last resort only
+  gpt-5.1-codex-mini: [gemini-2.5-flash-lite] # Last resort only
 ```

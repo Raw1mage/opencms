@@ -78,11 +78,6 @@ export namespace LLM {
       Provider.getProvider(input.model.providerID),
       Auth.get(input.model.providerID),
     ])
-    const isCodex = provider.id.includes("openai") && auth?.type === "oauth"
-    const isAnthropicOAuth = provider.id.includes("anthropic") && auth?.type === "oauth"
-    const isAntigravity = provider.id.includes("antigravity")
-    const isGeminiCli = provider.id.includes("gemini-cli")
-
     // Get provider capabilities (centralizes provider-specific behavior)
     const capabilities = getCapabilities(provider, auth)
     // Legacy alias for gradual migration - these will be removed once all usages migrate to capabilities
@@ -172,7 +167,7 @@ export namespace LLM {
       },
     )
 
-    const maxOutputTokens = isCodex
+    const maxOutputTokens = capabilities.skipMaxOutputTokens
       ? undefined
       : ProviderTransform.maxOutputTokens(
           input.model.api.npm,

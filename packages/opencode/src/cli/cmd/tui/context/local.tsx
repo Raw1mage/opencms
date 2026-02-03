@@ -145,14 +145,14 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       // Auto-cleanup: Remove models from favorites/recent that no longer exist in providers
       function cleanupInvalidModels() {
         if (!modelStore.ready) return
-        const providerIds = new Set(sync.data.provider.map(p => p.id))
+        const providerIds = new Set(sync.data.provider.map((p) => p.id))
         if (providerIds.size === 0) return // Don't cleanup if providers not loaded yet
 
         let changed = false
 
         // Cleanup favorites
-        const validFavorites = modelStore.favorite.filter(item => {
-          const provider = sync.data.provider.find(p => p.id === item.providerID)
+        const validFavorites = modelStore.favorite.filter((item) => {
+          const provider = sync.data.provider.find((p) => p.id === item.providerID)
           const isValid = !!provider?.models[item.modelID]
           if (!isValid && provider) {
             // Provider exists but model doesn't - remove it
@@ -164,8 +164,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         })
 
         // Cleanup recent
-        const validRecent = modelStore.recent.filter(item => {
-          const provider = sync.data.provider.find(p => p.id === item.providerID)
+        const validRecent = modelStore.recent.filter((item) => {
+          const provider = sync.data.provider.find((p) => p.id === item.providerID)
           const isValid = !!provider?.models[item.modelID]
           if (!isValid && provider) {
             console.log(`[auto-cleanup] Removing invalid recent: ${item.providerID}/${item.modelID}`)
@@ -200,7 +200,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (Array.isArray(x.hiddenProviders)) setModelStore("hiddenProviders", x.hiddenProviders)
           if (typeof x.variant === "object" && x.variant !== null) setModelStore("variant", x.variant)
         })
-        .catch(() => { })
+        .catch(() => {})
         .finally(() => {
           setModelStore("ready", true)
           if (state.pending) save()
@@ -340,7 +340,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           )
           save()
         },
-        set(model: { providerID: string; modelID: string }, options?: { recent?: boolean; skipValidation?: boolean }) {
+        set(
+          model: { providerID: string; modelID: string },
+          options?: { recent?: boolean; skipValidation?: boolean; announce?: boolean },
+        ) {
           batch(() => {
             // Skip validation for dynamic models (e.g., Google API models fetched from API)
             if (!options?.skipValidation && !isModelValid(model)) {
@@ -360,6 +363,13 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
                 uniq.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
               )
               save()
+            }
+            if (options?.announce) {
+              toast.show({
+                variant: "info",
+                message: "模型切換只影響下一次訊息，system prompt 會在送出時重新載入。",
+                duration: 3000,
+              })
             }
           })
         },
@@ -419,7 +429,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         },
         removeFromRecent(model: { providerID: string; modelID: string }) {
           batch(() => {
-            const next = modelStore.recent.filter((x) => x.providerID !== model.providerID || x.modelID !== model.modelID)
+            const next = modelStore.recent.filter(
+              (x) => x.providerID !== model.providerID || x.modelID !== model.modelID,
+            )
             setModelStore("recent", next)
             save()
           })

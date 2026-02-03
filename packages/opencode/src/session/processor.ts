@@ -17,6 +17,8 @@ import { PermissionNext } from "@/permission/next"
 import { Question } from "@/question"
 import { debugCheckpoint } from "@/util/debug"
 import { isRateLimitError } from "@/account/rotation"
+import { Global } from "@/global"
+import path from "path"
 
 export namespace SessionProcessor {
   const DOOM_LOOP_THRESHOLD = 3
@@ -24,6 +26,46 @@ export namespace SessionProcessor {
 
   export type Info = Awaited<ReturnType<typeof create>>
   export type Result = Awaited<ReturnType<Info["process"]>>
+
+  function isModelNotSupportedError(error: unknown): boolean {
+    const data = (error as any)?.data
+    const status = typeof (error as any)?.status === "number"
+      ? (error as any).status
+      : typeof (error as any)?.statusCode === "number"
+        ? (error as any).statusCode
+        : typeof data?.status === "number"
+          ? data.status
+          : undefined
+
+    const parts = [
+      (error as any)?.message,
+      data?.message,
+      data?.error?.message,
+      (error as any)?.responseBody,
+      data?.responseBody,
+      (error as any)?.response?.body,
+    ]
+      .filter((item) => typeof item === "string")
+      .join(" ")
+      .toLowerCase()
+
+    if (!parts) return false
+    if (!parts.includes("model") && !parts.includes("models/")) return false
+    if (parts.includes("not found") || parts.includes("not supported")) return true
+    return status === 404
+  }
+
+  async function removeFavorite(providerID: string, modelID: string): Promise<boolean> {
+    const file = Bun.file(path.join(Global.Path.state, "model.json"))
+    if (!(await file.exists())) return false
+    const data = await file.json().catch(() => null) as { favorite?: Array<{ providerID: string; modelID: string }> } | null
+    if (!data || !Array.isArray(data.favorite)) return false
+    const next = data.favorite.filter((item) => item.providerID !== providerID || item.modelID !== modelID)
+    if (next.length === data.favorite.length) return false
+    const updated = { ...data, favorite: next }
+    await Bun.write(file, JSON.stringify(updated, null, 2))
+    return true
+  }
 
   export function create(input: {
     assistantMessage: MessageV2.Assistant
@@ -401,6 +443,16 @@ export namespace SessionProcessor {
                     triedCount: triedVectors.size,
                   })
                 }
+              }
+            }
+
+            if (isModelNotSupportedError(e)) {
+              const removed = await removeFavorite(streamInput.model.providerID, streamInput.model.id)
+              if (removed) {
+                log.warn("Removed invalid model from favorites", {
+                  providerID: streamInput.model.providerID,
+                  modelID: streamInput.model.id,
+                })
               }
             }
 

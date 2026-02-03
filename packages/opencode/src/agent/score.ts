@@ -1,7 +1,9 @@
-import { Config } from "../config/config"
-import { Provider } from "../provider/provider"
 import { type ModelVector } from "../account/rotation3d"
 import { getRateLimitTracker, getHealthTracker } from "../account/rotation"
+import { InstructionPrompt } from "../session/instruction"
+import { Instance } from "../project/instance"
+import { mergeDeep } from "remeda"
+import z from "zod"
 
 // Score Interfaces
 export interface ModelScore {
@@ -13,6 +15,17 @@ export interface ModelScore {
     capability: number
     cost: number
   }
+}
+
+type Rule = {
+  weights: {
+    domain: number
+    capability: number
+    cost: number
+  }
+  domain: Record<string, Record<string, number>>
+  capability: Record<string, number>
+  cost: Record<string, number>
 }
 
 // Configuration for scoring
@@ -71,11 +84,66 @@ const COST_SCORES: Record<string, number> = {
 }
 
 export namespace ModelScoring {
+  const Schema = z.object({
+    weights: z
+      .object({
+        domain: z.number(),
+        capability: z.number(),
+        cost: z.number(),
+      })
+      .optional(),
+    domain: z.record(z.string(), z.record(z.string(), z.number())).optional(),
+    capability: z.record(z.string(), z.number()).optional(),
+    cost: z.record(z.string(), z.number()).optional(),
+  })
+
+  async function load() {
+    const paths = await InstructionPrompt.systemPaths()
+    const list = Array.from(paths).filter((p) => p.endsWith("AGENTS.md"))
+    const root = Instance.worktree
+    const order = list.toSorted((a, b) => {
+      const aLocal = a.startsWith(root) ? 0 : 1
+      const bLocal = b.startsWith(root) ? 0 : 1
+      if (aLocal !== bLocal) return aLocal - bLocal
+      return a.localeCompare(b)
+    })
+    for (const item of order) {
+      const text = await Bun.file(item)
+        .text()
+        .catch(() => "")
+      if (!text) continue
+      const match = text.match(/```opencode-model-scoring\s*([\s\S]*?)```/m)
+      if (!match) continue
+      const raw = match[1]?.trim()
+      if (!raw) continue
+      let json: unknown
+      try {
+        json = JSON.parse(raw)
+      } catch {
+        continue
+      }
+      const parsed = Schema.safeParse(json)
+      if (!parsed.success) continue
+      return parsed.data
+    }
+  }
+
+  async function rules(): Promise<Rule> {
+    const data = await load()
+    const weights = data?.weights ? { ...WEIGHTS, ...data.weights } : WEIGHTS
+    const domain = data?.domain ? mergeDeep(DOMAIN_SCORES, data.domain) : DOMAIN_SCORES
+    const capability = data?.capability ? { ...CAPABILITY_SCORES, ...data.capability } : CAPABILITY_SCORES
+    const cost = data?.cost ? { ...COST_SCORES, ...data.cost } : COST_SCORES
+    return { weights, domain, capability, cost }
+  }
+
   /**
    * Rank models for a specific task domain
    */
   export async function rank(domain: string): Promise<ModelScore[]> {
-    const candidates = new Set([...Object.keys(DOMAIN_SCORES[domain] || {}), ...Object.keys(CAPABILITY_SCORES)])
+    const cfg = await rules()
+    const key = domain === "explore" ? "reasoning" : domain
+    const candidates = new Set([...(Object.keys(cfg.domain[key] || {}) ?? []), ...Object.keys(cfg.capability)])
 
     const results: ModelScore[] = []
 
@@ -84,11 +152,12 @@ export namespace ModelScoring {
       const modelID = rest.join("/")
 
       // Default scores if missing
-      const domainScore = DOMAIN_SCORES[domain]?.[modelKey] ?? 70
-      const capabilityScore = CAPABILITY_SCORES[modelKey] ?? 70
-      const costScore = COST_SCORES[modelKey] ?? 50
+      const domainScore = cfg.domain[key]?.[modelKey] ?? 70
+      const capabilityScore = cfg.capability[modelKey] ?? 70
+      const costScore = cfg.cost[modelKey] ?? 50
 
-      const total = domainScore * WEIGHTS.domain + capabilityScore * WEIGHTS.capability + costScore * WEIGHTS.cost
+      const total =
+        domainScore * cfg.weights.domain + capabilityScore * cfg.weights.capability + costScore * cfg.weights.cost
 
       results.push({
         modelID,
