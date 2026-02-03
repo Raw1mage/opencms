@@ -501,7 +501,7 @@ export namespace MessageV2 {
               text: "What did we do so far?",
             })
           }
-          if (part.type === "subtask") {
+          if (part.type === "subtask" && part.command) {
             userMessage.parts.push({
               type: "text",
               text: "The following tool was executed by the user",
@@ -545,9 +545,7 @@ export namespace MessageV2 {
               const attachments = part.state.time.compacted ? [] : (part.state.attachments ?? [])
               // Always use object format with `text` key for consistent handling in toModelOutput
               // Only include attachments field if there are actual attachments (avoid undefined values)
-              const output = attachments.length > 0
-                ? { text: outputText, attachments }
-                : { text: outputText }
+              const output = attachments.length > 0 ? { text: outputText, attachments } : { text: outputText }
 
               assistantMessage.parts.push({
                 type: ("tool-" + part.tool) as `tool-${string}`,
@@ -719,7 +717,7 @@ export namespace MessageV2 {
             if (errMsg && typeof errMsg === "string") {
               return `${msg}: ${errMsg}`
             }
-          } catch { }
+          } catch {}
 
           return `${msg}: ${e.responseBody}`
         }).trim()
@@ -770,8 +768,6 @@ export namespace MessageV2 {
       Bus.publish(Event.Removed, { sessionID, messageID })
     },
   )
-
-
 
   export function toModelMessagesCompact(input: WithParts[], model: Provider.Model): ModelMessage[] {
     const history = toModelMessages(input, model)

@@ -102,10 +102,11 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       if (msg.info.role !== "assistant") throw new Error("Not an assistant message")
 
       const modelArg = params.model ? Provider.parseModel(params.model) : undefined
-      const model = modelArg ?? agent.model ?? {
-        modelID: msg.info.modelID,
-        providerID: msg.info.providerID,
-      }
+      const model = modelArg ??
+        agent.model ?? {
+          modelID: msg.info.modelID,
+          providerID: msg.info.providerID,
+        }
 
       ctx.metadata({
         title: params.description,
@@ -178,9 +179,10 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           },
         }))
       const text = result.parts.findLast((x) => x.type === "text")?.text ?? ""
+      const info = result.info as any
 
-      if (result.info.error) {
-        throw new Error(`Subagent task failed: ${(result.info.error as any).message || JSON.stringify(result.info.error)}`)
+      if (info.error) {
+        throw new Error(`Subagent task failed: ${info.error.message || JSON.stringify(info.error)}`)
       }
 
       const output = text + "\n\n" + ["<task_metadata>", `session_id: ${session.id}`, "</task_metadata>"].join("\n")

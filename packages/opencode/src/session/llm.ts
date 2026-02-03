@@ -125,10 +125,10 @@ export namespace LLM {
     const base = input.small
       ? ProviderTransform.smallOptions(input.model)
       : ProviderTransform.options({
-        model: input.model,
-        sessionID: input.sessionID,
-        providerOptions: provider.options,
-      })
+          model: input.model,
+          sessionID: input.sessionID,
+          providerOptions: provider.options,
+        })
     const options: Record<string, any> = pipe(
       base,
       mergeDeep(input.model.options),
@@ -175,11 +175,11 @@ export namespace LLM {
     const maxOutputTokens = isCodex
       ? undefined
       : ProviderTransform.maxOutputTokens(
-        input.model.api.npm,
-        params.options,
-        input.model.limit.output,
-        OUTPUT_TOKEN_MAX,
-      )
+          input.model.api.npm,
+          params.options,
+          input.model.limit.output,
+          OUTPUT_TOKEN_MAX,
+        )
 
     const tools = await resolveTools(input)
 
@@ -213,7 +213,7 @@ export namespace LLM {
           ] as ModelMessage[])
         : system.map(
             (x): ModelMessage => ({
-              role: capabilities.systemMessageRole,
+              role: capabilities.systemMessageRole as any,
               content: x,
             }),
           )
@@ -266,7 +266,7 @@ export namespace LLM {
             message: `${input.model.id}: ${reasonText}. Cooling down for ${waitMinutes}m.`,
             variant: "warning",
             duration: 8000,
-          }).catch(() => { }) // Ignore publish errors
+          }).catch(() => {}) // Ignore publish errors
         }
       },
       async experimental_repairToolCall(failed) {
@@ -301,15 +301,15 @@ export namespace LLM {
       headers: {
         ...(input.model.providerID.startsWith("opencode")
           ? {
-            "x-opencode-project": Instance.project.id,
-            "x-opencode-session": input.sessionID,
-            "x-opencode-request": input.user.id,
-            "x-opencode-client": Flag.OPENCODE_CLIENT,
-          }
+              "x-opencode-project": Instance.project.id,
+              "x-opencode-session": input.sessionID,
+              "x-opencode-request": input.user.id,
+              "x-opencode-client": Flag.OPENCODE_CLIENT,
+            }
           : input.model.providerID !== "anthropic"
             ? {
-              "User-Agent": `opencode/${Installation.VERSION}`,
-            }
+                "User-Agent": `opencode/${Installation.VERSION}`,
+              }
             : undefined),
         ...input.model.headers,
         ...headers,
@@ -464,7 +464,13 @@ export namespace LLM {
     const rateLimitTracker = getRateLimitTracker()
     if (!rateLimitTracker.isRateLimited(currentAccountId, currentModel.providerID, currentModel.id)) {
       // Apply a short cooldown (30 seconds) to prevent immediate retry
-      rateLimitTracker.markRateLimited(currentAccountId, currentModel.providerID, "RATE_LIMIT_EXCEEDED", 30_000, currentModel.id)
+      rateLimitTracker.markRateLimited(
+        currentAccountId,
+        currentModel.providerID,
+        "RATE_LIMIT_EXCEEDED",
+        30_000,
+        currentModel.id,
+      )
       log.info("Marked current vector as rate-limited to prevent bounce-back", {
         provider: currentModel.providerID,
         account: currentAccountId,
@@ -536,7 +542,9 @@ export namespace LLM {
       await Account.setActive(family, fallback.accountId)
 
       const accountInfo = await Account.get(family, fallback.accountId)
-      const displayName = accountInfo ? Account.getDisplayName(fallback.accountId, accountInfo, family) : fallback.accountId
+      const displayName = accountInfo
+        ? Account.getDisplayName(fallback.accountId, accountInfo, family)
+        : fallback.accountId
 
       // Notify user of account rotation
       Bus.publish(TuiEvent.ToastShow, {
@@ -544,7 +552,7 @@ export namespace LLM {
         message: `Switched to account: ${displayName}`,
         variant: "info",
         duration: 4000,
-      }).catch(() => { })
+      }).catch(() => {})
 
       return currentModel
     }
@@ -574,7 +582,7 @@ export namespace LLM {
       message: `Fallback to: ${changeDesc}`,
       variant: "info",
       duration: 4000,
-    }).catch(() => { })
+    }).catch(() => {})
 
     return fallbackModel
   }

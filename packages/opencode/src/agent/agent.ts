@@ -11,6 +11,10 @@ import { ProviderTransform } from "../provider/transform"
 import PROMPT_GENERATE from "./generate.txt"
 import PROMPT_COMPACTION from "./prompt/compaction.txt"
 import PROMPT_EXPLORE from "./prompt/explore.txt"
+import PROMPT_CODING from "./prompt/coding.txt"
+import PROMPT_REVIEW from "./prompt/review.txt"
+import PROMPT_TESTING from "./prompt/testing.txt"
+import PROMPT_DOCS from "./prompt/docs.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
 import { PermissionNext } from "@/permission/next"
@@ -70,6 +74,14 @@ export namespace Agent {
       },
     })
     const user = PermissionNext.fromConfig(cfg.permission ?? {})
+    const sub = PermissionNext.merge(
+      defaults,
+      PermissionNext.fromConfig({
+        todoread: "deny",
+        todowrite: "deny",
+      }),
+      user,
+    )
 
     const result: Record<string, Info> = {
       build: {
@@ -113,15 +125,44 @@ export namespace Agent {
       general: {
         name: "general",
         description: `General-purpose agent for researching complex questions and executing multi-step tasks. Use this agent to execute multiple units of work in parallel.`,
-        permission: PermissionNext.merge(
-          defaults,
-          PermissionNext.fromConfig({
-            todoread: "deny",
-            todowrite: "deny",
-          }),
-          user,
-        ),
+        permission: sub,
         options: {},
+        mode: "subagent",
+        native: true,
+      },
+      coding: {
+        name: "coding",
+        description: "Implements changes and proposes concrete code edits.",
+        permission: sub,
+        options: {},
+        prompt: PROMPT_CODING,
+        mode: "subagent",
+        native: true,
+      },
+      review: {
+        name: "review",
+        description: "Reviews changes for correctness, edge cases, and risks.",
+        permission: sub,
+        options: {},
+        prompt: PROMPT_REVIEW,
+        mode: "subagent",
+        native: true,
+      },
+      testing: {
+        name: "testing",
+        description: "Defines test and verification strategy.",
+        permission: sub,
+        options: {},
+        prompt: PROMPT_TESTING,
+        mode: "subagent",
+        native: true,
+      },
+      docs: {
+        name: "docs",
+        description: "Identifies documentation updates and release notes.",
+        permission: sub,
+        options: {},
+        prompt: PROMPT_DOCS,
         mode: "subagent",
         native: true,
       },

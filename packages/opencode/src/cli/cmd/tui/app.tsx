@@ -135,10 +135,10 @@ export function tui(input: {
       () => {
         return (
           <ErrorBoundary
-            fallback={(error, reset) => <ErrorComponent error={error} reset={reset} onExit={onExit} mode={mode} />}
-            onError={(error) => {
+            fallback={(error, reset) => {
               const msg = error instanceof Error ? error.stack || error.message : String(error)
               debugCheckpoint("error", "boundary", { error: msg })
+              return <ErrorComponent error={error} reset={reset} onExit={onExit} mode={mode} />
             }}
           >
             <ArgsProvider {...input.args}>
@@ -501,7 +501,7 @@ function App() {
     {
       title: "Admin Panel",
       value: "admin.panel",
-      keybind: "admin_panel",
+      keybind: "admin_panel" as const,
       category: "System",
       slash: {
         name: "admin",

@@ -1,5 +1,11 @@
 # opencode agent guidelines
 
+## 知識紀錄
+
+- 主要知識記錄檔為 `packages/opencode/DIARY.md`。
+- DIARY 需整合 CHANGELOG / PLANNING / DEBUGLOG 章節，不再分散維護。
+- 新增或移轉內容時，請依日期排序並以繁體中文撰寫。
+
 ## Communication Flow
 
 - **Respond First**: Always answer the user's questions or acknowledge their request before starting any coding task.

@@ -256,7 +256,6 @@ describe("session.message-v2.toModelMessage", () => {
             data: "https://example.com/img.png",
           },
           { type: "text", text: "What did we do so far?" },
-          { type: "text", text: "The following tool was executed by the user" },
         ],
       },
     ])
