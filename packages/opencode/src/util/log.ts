@@ -2,6 +2,7 @@ import path from "path"
 import fs from "fs/promises"
 import { Global } from "../global"
 import z from "zod"
+import { debugCheckpoint } from "./debug"
 
 export namespace Log {
   export const Level = z.enum(["DEBUG", "INFO", "WARN", "ERROR"]).meta({ ref: "LogLevel", description: "Log level" })
@@ -109,6 +110,15 @@ export namespace Log {
   export function create(tags?: Record<string, any>) {
     tags = tags || {}
 
+    function formatMessage(message: any): string {
+      if (message instanceof Error) return message.stack ?? message.message
+      if (typeof message === "string") return message
+      if (message === undefined) return ""
+      if (message === null) return "null"
+      if (typeof message === "object") return JSON.stringify(message)
+      return String(message)
+    }
+
     const service = tags["service"]
     if (service && typeof service === "string") {
       const cached = loggers.get(service)
@@ -138,21 +148,25 @@ export namespace Log {
     const result: Logger = {
       debug(message?: any, extra?: Record<string, any>) {
         if (shouldLog("DEBUG")) {
+          debugCheckpoint("log", `DEBUG ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
           write("DEBUG " + build(message, extra))
         }
       },
       info(message?: any, extra?: Record<string, any>) {
         if (shouldLog("INFO")) {
+          debugCheckpoint("log", `INFO ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
           write("INFO  " + build(message, extra))
         }
       },
       error(message?: any, extra?: Record<string, any>) {
         if (shouldLog("ERROR")) {
+          debugCheckpoint("log", `ERROR ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
           write("ERROR " + build(message, extra))
         }
       },
       warn(message?: any, extra?: Record<string, any>) {
         if (shouldLog("WARN")) {
+          debugCheckpoint("log", `WARN ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
           write("WARN  " + build(message, extra))
         }
       },

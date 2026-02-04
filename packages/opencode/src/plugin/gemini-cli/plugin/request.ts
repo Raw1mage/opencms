@@ -8,7 +8,7 @@ import {
   type GeminiApiBody,
   type GeminiUsageMetadata,
 } from "./request-helpers"
-import { debugLog } from "../../../util/debug-log"
+import { debugCheckpoint } from "../../../util/debug"
 
 const STREAM_ACTION = "streamGenerateContent"
 const MODEL_FALLBACKS: Record<string, string> = {
@@ -57,7 +57,7 @@ interface OpenAIMessage {
  */
 function transformOpenAIToolCalls(requestPayload: Record<string, unknown>): void {
   const messages = requestPayload.messages
-  debugLog("gemini-request", "transformOpenAIToolCalls called", {
+  debugCheckpoint("gemini-request", "transformOpenAIToolCalls called", {
     hasMessages: !!messages,
     messageCount: Array.isArray(messages) ? messages.length : 0,
   })
@@ -123,11 +123,11 @@ function addThoughtSignaturesToFunctionCalls(requestPayload: Record<string, unkn
 
   const processContents = (contents: unknown, path: string): void => {
     if (!contents || !Array.isArray(contents)) {
-      debugLog("gemini-request", `processContents: no contents at ${path}`, { contents: typeof contents })
+      debugCheckpoint("gemini-request", `processContents: no contents at ${path}`, { contents: typeof contents })
       return
     }
 
-    debugLog("gemini-request", `processContents: processing ${path}`, { contentCount: contents.length })
+    debugCheckpoint("gemini-request", `processContents: processing ${path}`, { contentCount: contents.length })
 
     for (let i = 0; i < contents.length; i++) {
       const content = contents[i]
@@ -145,12 +145,12 @@ function addThoughtSignaturesToFunctionCalls(requestPayload: Record<string, unkn
                 if (!partObj.thoughtSignature) {
                   partObj.thoughtSignature = "skip_thought_signature_validator"
                   signaturesAdded++
-                  debugLog("gemini-request", `Added thoughtSignature to functionCall`, {
+                  debugCheckpoint("gemini-request", `Added thoughtSignature to functionCall`, {
                     path: `${path}[${i}].parts[${j}]`,
                     functionName: funcName,
                   })
                 } else {
-                  debugLog("gemini-request", `functionCall already has thoughtSignature`, {
+                  debugCheckpoint("gemini-request", `functionCall already has thoughtSignature`, {
                     path: `${path}[${i}].parts[${j}]`,
                     functionName: funcName,
                   })
@@ -163,7 +163,7 @@ function addThoughtSignaturesToFunctionCalls(requestPayload: Record<string, unkn
     }
   }
 
-  debugLog("gemini-request", "addThoughtSignaturesToFunctionCalls called", {
+  debugCheckpoint("gemini-request", "addThoughtSignaturesToFunctionCalls called", {
     hasContents: !!requestPayload.contents,
     hasNestedRequest: !!(requestPayload.request && typeof requestPayload.request === "object"),
     payloadKeys: Object.keys(requestPayload),
@@ -177,7 +177,7 @@ function addThoughtSignaturesToFunctionCalls(requestPayload: Record<string, unkn
     processContents(requestObj.contents, "request.contents")
   }
 
-  debugLog("gemini-request", "addThoughtSignaturesToFunctionCalls completed", {
+  debugCheckpoint("gemini-request", "addThoughtSignaturesToFunctionCalls completed", {
     functionCallsFound,
     signaturesAdded,
   })
@@ -308,7 +308,7 @@ export function prepareGeminiRequest(
   const transformedUrl = `${GEMINI_CODE_ASSIST_ENDPOINT}/v1internal:${rawAction}${streaming ? "?alt=sse" : ""}`
 
   let body = baseInit.body
-  debugLog("gemini-request", "prepareGeminiRequest processing body", {
+  debugCheckpoint("gemini-request", "prepareGeminiRequest processing body", {
     hasBody: !!baseInit.body,
     bodyType: typeof baseInit.body,
     bodyLength: typeof baseInit.body === "string" ? baseInit.body.length : 0,
@@ -319,7 +319,7 @@ export function prepareGeminiRequest(
       const parsedBody = JSON.parse(baseInit.body) as Record<string, unknown>
       const isWrapped = typeof parsedBody.project === "string" && "request" in parsedBody
 
-      debugLog("gemini-request", "Body parsed", {
+      debugCheckpoint("gemini-request", "Body parsed", {
         isWrapped,
         parsedBodyKeys: Object.keys(parsedBody),
         hasContents: !!parsedBody.contents,
@@ -327,14 +327,14 @@ export function prepareGeminiRequest(
       })
 
       if (isWrapped) {
-        debugLog("gemini-request", "Body already wrapped, skipping transformation")
+        debugCheckpoint("gemini-request", "Body already wrapped, skipping transformation")
         const wrappedBody = {
           ...parsedBody,
           model: effectiveModel,
         } as Record<string, unknown>
         body = JSON.stringify(wrappedBody)
       } else {
-        debugLog("gemini-request", "Body not wrapped, applying transformations")
+        debugCheckpoint("gemini-request", "Body not wrapped, applying transformations")
         const requestPayload: Record<string, unknown> = { ...parsedBody }
 
         transformOpenAIToolCalls(requestPayload)

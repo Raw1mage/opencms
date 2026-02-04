@@ -12,7 +12,7 @@ import { defer } from "@/util/defer"
 import { Config } from "../config/config"
 import { PermissionNext } from "@/permission/next"
 import { Provider } from "../provider/provider"
-import { debugLog } from "@/util/debug-log"
+import { debugCheckpoint } from "@/util/debug"
 
 const parameters = z.object({
   description: z.string().describe("A short (3-5 words) description of the task"),
@@ -42,7 +42,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
     description,
     parameters,
     async execute(params: z.infer<typeof parameters>, ctx) {
-      debugLog("task", "Task tool execute started", {
+      debugCheckpoint("task", "Task tool execute started", {
         description: params.description,
         subagent_type: params.subagent_type,
         model_param: params.model,
@@ -66,7 +66,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
 
       const agent = await Agent.get(params.subagent_type)
       if (!agent) throw new Error(`Unknown agent type: ${params.subagent_type} is not a valid agent type`)
-      debugLog("task", "Agent loaded", { agentName: agent.name, agentModel: agent.model })
+      debugCheckpoint("task", "Agent loaded", { agentName: agent.name, agentModel: agent.model })
 
       const hasTaskPermission = agent.permission.some((rule) => rule.permission === "task")
 
@@ -117,7 +117,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           providerID: msg.info.providerID,
         }
 
-      debugLog("task", "Model resolved for subagent", {
+      debugCheckpoint("task", "Model resolved for subagent", {
         modelArg,
         agentModel: agent.model,
         parentModel: { modelID: msg.info.modelID, providerID: msg.info.providerID },
@@ -176,7 +176,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         )
         for (const img of imageAttachments) {
           if (!allowImages) {
-            debugLog("task", "Skipping image for subagent", {
+            debugCheckpoint("task", "Skipping image for subagent", {
               filename: img.filename,
               mime: img.mime,
               reason: auto ? "auto_task" : "model_no_image_support",
@@ -186,14 +186,14 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           if (img.url.startsWith("data:")) {
             const match = img.url.match(/^data:([^;]+);base64,(.*)$/)
             if (!match || !match[2]) {
-              debugLog("task", "Skipping invalid image data URL", {
+              debugCheckpoint("task", "Skipping invalid image data URL", {
                 filename: img.filename,
                 mime: img.mime,
               })
               continue
             }
           }
-          debugLog("task", "Passing image to subagent", {
+          debugCheckpoint("task", "Passing image to subagent", {
             filename: img.filename,
             mime: img.mime,
           })

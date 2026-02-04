@@ -41,7 +41,7 @@ import { AccountManager, type ModelFamily, parseRateLimitReason, calculateBackof
 import { Account } from "../../account"
 import { Auth } from "../../auth"
 import { getModelHealthRegistry } from "../../account/rotation"
-import { debugLog } from "../../util/debug-log"
+import { debugCheckpoint } from "../../util/debug"
 import { createAutoUpdateCheckerHook } from "./hooks/auto-update-checker"
 import { loadConfig, initRuntimeConfig, type AntigravityConfig } from "./plugin/config"
 import { createSessionRecoveryHook, getRecoverySuccessToast } from "./plugin/recovery"
@@ -62,15 +62,25 @@ export let globalAccountManager: AccountManager | null = null
 // Module-level cached getAuth function for tool access and refresh
 let cachedGetAuth: GetAuth | null = null
 export async function refreshGlobalAccountManager(): Promise<boolean> {
+  debugCheckpoint("antigravity", "refreshGlobalAccountManager: start", { hasCachedGetAuth: !!cachedGetAuth })
   if (!cachedGetAuth) return false
   const auth = await cachedGetAuth()
-  if (!isOAuthAuth(auth)) return false
+  if (!isOAuthAuth(auth)) {
+    debugCheckpoint("antigravity", "refreshGlobalAccountManager: non-oauth auth")
+    return false
+  }
   const next = await AccountManager.loadFromDisk(auth)
   if (!globalAccountManager) {
     globalAccountManager = next
+    debugCheckpoint("antigravity", "refreshGlobalAccountManager: initialized global manager", {
+      count: next.getAccountCount(),
+    })
     return true
   }
   globalAccountManager.replaceFrom(next)
+  debugCheckpoint("antigravity", "refreshGlobalAccountManager: replaced global manager", {
+    count: next.getAccountCount(),
+  })
   return true
 }
 
@@ -846,20 +856,21 @@ export const createAntigravityPlugin =
       },
       async execute(args, ctx) {
         log.debug("Google Search tool called", { query: args.query, urlCount: args.urls?.length ?? 0 })
-        debugLog("google_search", "start", {
+        debugCheckpoint("google_search", "start", {
           query: args.query,
           urlCount: args.urls?.length ?? 0,
           thinking: args.thinking ?? true,
         })
 
         const executeGeminiCliSearch = async (): Promise<{ ok: boolean; output: string; error?: string }> => {
-          debugLog("google_search", "gemini-cli: start")
+          debugCheckpoint("google_search", "gemini-cli: start")
           const auth = await Auth.get("gemini-cli")
           if (!auth || !isGeminiOAuth(auth)) {
-            debugLog("google_search", "gemini-cli: missing auth")
+            debugCheckpoint("google_search", "gemini-cli: missing auth")
             return {
               ok: false,
-              output: "Error: Gemini CLI OAuth is not configured. Run `opencode auth login`.",
+              output:
+                "Error: Gemini CLI OAuth is not configured. Please configure Gemini CLI OAuth (via /admin or accounts.json), or use an Antigravity account.",
               error: "Gemini CLI OAuth is not configured",
             }
           }
@@ -891,21 +902,23 @@ export const createAntigravityPlugin =
           }
 
           if (geminiAccessTokenExpired(authRecord)) {
-            debugLog("google_search", "gemini-cli: access token expired, refreshing")
+            debugCheckpoint("google_search", "gemini-cli: access token expired, refreshing")
             const refreshed = await refreshGeminiAccessToken(authRecord, geminiClient)
             if (!refreshed) {
-              debugLog("google_search", "gemini-cli: refresh failed")
+              debugCheckpoint("google_search", "gemini-cli: refresh failed")
               return {
                 ok: false,
-                output: "Error: Gemini CLI access token refresh failed. Run `opencode auth login`.",
+                output:
+                  "Error: Gemini CLI access token refresh failed. Please reconfigure Gemini CLI OAuth (via /admin or accounts.json), or use an Antigravity account.",
                 error: "Gemini CLI access token refresh failed",
               }
             }
             if (refreshed.type !== "oauth") {
-              debugLog("google_search", "gemini-cli: unexpected auth type", { type: refreshed.type })
+              debugCheckpoint("google_search", "gemini-cli: unexpected auth type", { type: refreshed.type })
               return {
                 ok: false,
-                output: "Error: Gemini CLI auth must be OAuth. Run `opencode auth login`.",
+                output:
+                  "Error: Gemini CLI auth must be OAuth. Please configure Gemini CLI OAuth (via /admin or accounts.json), or use an Antigravity account.",
                 error: "Gemini CLI auth must be OAuth",
               }
             }
@@ -919,16 +932,17 @@ export const createAntigravityPlugin =
 
           const accessToken = authRecord.access
           if (!accessToken) {
-            debugLog("google_search", "gemini-cli: missing access token")
+            debugCheckpoint("google_search", "gemini-cli: missing access token")
             return {
               ok: false,
-              output: "Error: Gemini CLI access token is missing. Run `opencode auth login`.",
+              output:
+                "Error: Gemini CLI access token is missing. Please reconfigure Gemini CLI OAuth (via /admin or accounts.json), or use an Antigravity account.",
               error: "Gemini CLI access token is missing",
             }
           }
 
           const configuredProjectId = process.env.OPENCODE_GEMINI_PROJECT_ID?.trim() || undefined
-          debugLog("google_search", "gemini-cli: resolve project context", {
+          debugCheckpoint("google_search", "gemini-cli: resolve project context", {
             configuredProjectId: configuredProjectId ? "set" : "unset",
           })
           const projectContext = await ensureGeminiProjectContext(authRecord, geminiClient, configuredProjectId).catch(
@@ -939,7 +953,7 @@ export const createAntigravityPlugin =
           )
 
           if ("error" in projectContext) {
-            debugLog("google_search", "gemini-cli: project context error", { error: projectContext.error })
+            debugCheckpoint("google_search", "gemini-cli: project context error", { error: projectContext.error })
             return {
               ok: false,
               output: `Error: ${projectContext.error}`,
@@ -948,7 +962,7 @@ export const createAntigravityPlugin =
           }
 
           if (!projectContext.effectiveProjectId) {
-            debugLog("google_search", "gemini-cli: missing project id")
+            debugCheckpoint("google_search", "gemini-cli: missing project id")
             return {
               ok: false,
               output: "Error: Gemini CLI project ID is missing. Set OPENCODE_GEMINI_PROJECT_ID and retry.",
@@ -956,7 +970,7 @@ export const createAntigravityPlugin =
             }
           }
 
-          debugLog("google_search", "gemini-cli: execute search", {
+          debugCheckpoint("google_search", "gemini-cli: execute search", {
             projectId: projectContext.effectiveProjectId,
           })
           const result = await executeSearch(
@@ -971,10 +985,10 @@ export const createAntigravityPlugin =
             { headerStyle: "gemini-cli" },
           )
           if (result.ok) {
-            debugLog("google_search", "gemini-cli: search ok")
+            debugCheckpoint("google_search", "gemini-cli: search ok")
             return { ok: true, output: result.output }
           }
-          debugLog("google_search", "gemini-cli: search failed", { error: result.error })
+          debugCheckpoint("google_search", "gemini-cli: search failed", { error: result.error })
           return { ok: false, output: result.output, error: result.error }
         }
 
@@ -985,18 +999,23 @@ export const createAntigravityPlugin =
           globalAccountManager = accountManager
         }
 
-        await accountManager.syncActiveFromAccountModule()
+        await accountManager.reloadFromAccountModule()
+        debugCheckpoint("google_search", "antigravity: reloaded accounts", {
+          count: accountManager.getAccountCount(),
+          activeIndex: accountManager.getActiveIndex(),
+          activeIndexByFamily: accountManager.getActiveIndexByFamily(),
+        })
 
         const accountCount = accountManager.getAccountCount()
-        debugLog("google_search", "antigravity: account count", { count: accountCount })
+        debugCheckpoint("google_search", "antigravity: account count", { count: accountCount })
         if (accountCount === 0) {
-          debugLog("google_search", "antigravity: no accounts, fallback to gemini-cli")
+          debugCheckpoint("google_search", "antigravity: no accounts, fallback to gemini-cli")
           const geminiResult = await executeGeminiCliSearch()
           if (geminiResult.ok) {
-            debugLog("google_search", "gemini-cli: returned result after no antigravity accounts")
+            debugCheckpoint("google_search", "gemini-cli: returned result after no antigravity accounts")
             return geminiResult.output
           }
-          debugLog("google_search", "google_search: both providers failed", {
+          debugCheckpoint("google_search", "google_search: both providers failed", {
             antigravity: "no accounts",
             geminiCli: geminiResult.error,
           })
@@ -1015,14 +1034,14 @@ export const createAntigravityPlugin =
           )
 
           if (!account) {
-            debugLog("google_search", "antigravity: no available account")
+            debugCheckpoint("google_search", "antigravity: no available account")
             lastError = new Error("No available Antigravity accounts")
             break
           }
 
           let authRecord = accountManager.toAuthDetails(account)
           if (accessTokenExpired(authRecord)) {
-            debugLog("google_search", "antigravity: access token expired, refreshing", {
+            debugCheckpoint("google_search", "antigravity: access token expired, refreshing", {
               accountIndex: account.index,
             })
             const refreshed = await refreshAccessToken(authRecord, client, providerId).catch((error) => {
@@ -1043,27 +1062,64 @@ export const createAntigravityPlugin =
             })
 
             if (!refreshed) {
-              debugLog("google_search", "antigravity: refresh failed", { accountIndex: account.index })
+              debugCheckpoint("google_search", "antigravity: refresh failed", { accountIndex: account.index })
               continue
             }
 
             resetAccountFailureState(account.index)
             accountManager.updateFromAuth(account, refreshed)
             accountManager.requestSaveToDisk()
+            await accountManager.flushSaveToDisk()
             authRecord = refreshed
+            debugCheckpoint("google_search", "antigravity: refresh ok", {
+              accountIndex: account.index,
+              expiresAt: authRecord.expires,
+            })
           }
 
           const accessToken = authRecord.access
           if (!accessToken) {
-            debugLog("google_search", "antigravity: missing access token", { accountIndex: account.index })
+            debugCheckpoint("google_search", "antigravity: missing access token", { accountIndex: account.index })
             lastError = new Error("Missing access token")
             continue
           }
 
-          const parts = parseRefreshParts(authRecord.refresh)
-          const projectId = parts.managedProjectId || parts.projectId
+          let projectContext: ProjectContextResult
+          try {
+            projectContext = await ensureProjectContext(authRecord)
+            resetAccountFailureState(account.index)
+          } catch (error) {
+            const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index)
+            getHealthTracker().recordFailure(account.index)
+            lastError = error instanceof Error ? error : new Error(String(error))
+            if (shouldCooldown) {
+              accountManager.markAccountCoolingDown(account, cooldownMs, "project-error")
+              accountManager.markRateLimited(account, cooldownMs, "gemini", "antigravity", SEARCH_MODEL)
+            }
+            debugCheckpoint("google_search", "antigravity: project context error", {
+              accountIndex: account.index,
+              error: lastError.message,
+            })
+            continue
+          }
+
+          if (projectContext.auth !== authRecord) {
+            accountManager.updateFromAuth(account, projectContext.auth)
+            authRecord = projectContext.auth
+            accountManager.requestSaveToDisk()
+            await accountManager.flushSaveToDisk()
+            const parts = parseRefreshParts(authRecord.refresh)
+            debugCheckpoint("google_search", "antigravity: project context persisted", {
+              accountIndex: account.index,
+              projectId: parts.projectId,
+              managedProjectId: parts.managedProjectId,
+              effectiveProjectId: projectContext.effectiveProjectId,
+            })
+          }
+
+          const projectId = projectContext.effectiveProjectId
           if (!projectId) {
-            debugLog("google_search", "antigravity: missing project id", { accountIndex: account.index })
+            debugCheckpoint("google_search", "antigravity: missing project id", { accountIndex: account.index })
             lastError = new Error("Missing project ID")
             continue
           }
@@ -1071,7 +1127,7 @@ export const createAntigravityPlugin =
           accountManager.markAccountUsed(account.index)
           accountManager.requestSaveToDisk()
 
-          debugLog("google_search", "antigravity: execute search", {
+          debugCheckpoint("google_search", "antigravity: execute search", {
             accountIndex: account.index,
             projectId,
           })
@@ -1087,11 +1143,11 @@ export const createAntigravityPlugin =
             { headerStyle: "antigravity" },
           )
           if (result.ok) {
-            debugLog("google_search", "antigravity: search ok", { accountIndex: account.index })
+            debugCheckpoint("google_search", "antigravity: search ok", { accountIndex: account.index })
             return result.output
           }
 
-          debugLog("google_search", "antigravity: search failed", {
+          debugCheckpoint("google_search", "antigravity: search failed", {
             accountIndex: account.index,
             error: result.error,
           })
@@ -1099,17 +1155,17 @@ export const createAntigravityPlugin =
           continue
         }
 
-        debugLog("google_search", "antigravity: all attempts failed, trying gemini-cli", {
+        debugCheckpoint("google_search", "antigravity: all attempts failed, trying gemini-cli", {
           error: lastError?.message,
         })
         const geminiResult = await executeGeminiCliSearch()
         if (geminiResult.ok) {
-          debugLog("google_search", "gemini-cli: returned result after antigravity failure")
+          debugCheckpoint("google_search", "gemini-cli: returned result after antigravity failure")
           return geminiResult.output
         }
 
         const antigravityError = lastError?.message ?? "No available Antigravity accounts"
-        debugLog("google_search", "google_search: both providers failed", {
+        debugCheckpoint("google_search", "google_search: both providers failed", {
           antigravity: antigravityError,
           geminiCli: geminiResult.error,
         })
@@ -1192,20 +1248,22 @@ export const createAntigravityPlugin =
             apiKey: "",
             async fetch(input, init) {
               const inputUrl = typeof input === "string" ? input : (input as any)?.url || String(input)
-              debugLog("antigravity-plugin", "Custom fetch called", { url: inputUrl.substring(0, 100) })
+              debugCheckpoint("antigravity-plugin", "Custom fetch called", { url: inputUrl.substring(0, 100) })
 
               if (!isGenerativeLanguageRequest(input)) {
-                debugLog("antigravity-plugin", "Not a generativelanguage request, using default fetch")
+                debugCheckpoint("antigravity-plugin", "Not a generativelanguage request, using default fetch")
                 return fetch(input, init)
               }
 
               const latestAuth = await getAuth()
               if (!isOAuthAuth(latestAuth)) {
-                debugLog("antigravity-plugin", "No OAuth auth, using default fetch", { authType: latestAuth?.type })
+                debugCheckpoint("antigravity-plugin", "No OAuth auth, using default fetch", {
+                  authType: latestAuth?.type,
+                })
                 return fetch(input, init)
               }
 
-              debugLog("antigravity-plugin", "OAuth auth present, proceeding with antigravity handling")
+              debugCheckpoint("antigravity-plugin", "OAuth auth present, proceeding with antigravity handling")
 
               if (accountManager.getAccountCount() === 0) {
                 throw new Error("No Antigravity accounts configured. Run `opencode auth login`.")
@@ -1216,7 +1274,7 @@ export const createAntigravityPlugin =
               const model = extractModelFromUrl(urlString)
 
               // Top-level request tracking
-              debugLog("ANTIGRAVITY", "REQUEST_START", {
+              debugCheckpoint("ANTIGRAVITY", "REQUEST_START", {
                 family,
                 model,
                 url: urlString.substring(0, 100), // Truncate for readability
@@ -1251,7 +1309,7 @@ export const createAntigravityPlugin =
               // Helper to check if request was aborted
               const checkAborted = () => {
                 if (abortSignal?.aborted) {
-                  debugLog("ANTIGRAVITY", "REQUEST_ABORTED", {
+                  debugCheckpoint("ANTIGRAVITY", "REQUEST_ABORTED", {
                     family,
                     model,
                     reason:
@@ -1381,7 +1439,7 @@ export const createAntigravityPlugin =
                       "warning",
                     )
                     allAccountsRateLimitedToastShown = true
-                    debugLog("ANTIGRAVITY", "ALL_ACCOUNTS_RATE_LIMITED", {
+                    debugCheckpoint("ANTIGRAVITY", "ALL_ACCOUNTS_RATE_LIMITED", {
                       family,
                       accountCount,
                       waitMs,
@@ -1572,7 +1630,7 @@ export const createAntigravityPlugin =
 
                   try {
                     pushDebug("thinking-warmup: start")
-                    debugLog("ANTIGRAVITY", "thinking-warmup: starting", {
+                    debugCheckpoint("ANTIGRAVITY", "thinking-warmup: starting", {
                       sessionId: prepared.sessionId,
                       url: warmupUrl,
                     })
@@ -1590,7 +1648,7 @@ export const createAntigravityPlugin =
                     await transformed.text()
                     markWarmupSuccess(prepared.sessionId)
                     pushDebug("thinking-warmup: done")
-                    debugLog("ANTIGRAVITY", "thinking-warmup: completed", {
+                    debugCheckpoint("ANTIGRAVITY", "thinking-warmup: completed", {
                       sessionId: prepared.sessionId,
                       status: warmupResponse.status,
                     })
@@ -1598,7 +1656,7 @@ export const createAntigravityPlugin =
                     clearWarmupAttempt(prepared.sessionId)
                     const errorMsg = error instanceof Error ? error.message : String(error)
                     pushDebug(`thinking-warmup: failed ${errorMsg}`)
-                    debugLog("ANTIGRAVITY", "thinking-warmup: FAILED", {
+                    debugCheckpoint("ANTIGRAVITY", "thinking-warmup: FAILED", {
                       sessionId: prepared.sessionId,
                       error: errorMsg,
                     })
@@ -1675,7 +1733,7 @@ export const createAntigravityPlugin =
                         } as any,
                       )
 
-                      debugLog("ANTIGRAVITY", "REQUEST_PREPARED", {
+                      debugCheckpoint("ANTIGRAVITY", "REQUEST_PREPARED", {
                         family,
                         model,
                         effectiveModel: prepared.effectiveModel,
@@ -1712,7 +1770,7 @@ export const createAntigravityPlugin =
                         tokenConsumed = getTokenTracker().consume(account.index)
                       }
 
-                      debugLog("ANTIGRAVITY", "FETCH_START", {
+                      debugCheckpoint("ANTIGRAVITY", "FETCH_START", {
                         family,
                         model,
                         accountIndex: account.index,
@@ -1720,7 +1778,7 @@ export const createAntigravityPlugin =
 
                       const response = await fetch(prepared.request, prepared.init)
 
-                      debugLog("ANTIGRAVITY", "FETCH_COMPLETE", {
+                      debugCheckpoint("ANTIGRAVITY", "FETCH_COMPLETE", {
                         family,
                         model,
                         accountIndex: account.index,
@@ -1871,7 +1929,7 @@ export const createAntigravityPlugin =
                         )
 
                         // Centralized debug logging for rate limit analysis
-                        debugLog("ANTIGRAVITY", `RATE_LIMIT status=${response.status}`, {
+                        debugCheckpoint("ANTIGRAVITY", `RATE_LIMIT status=${response.status}`, {
                           accountIndex: account.index,
                           email: account.email,
                           family,
@@ -2096,7 +2154,7 @@ export const createAntigravityPlugin =
                         if (model) {
                           getModelHealthRegistry().markSuccess("antigravity", model)
                         }
-                        debugLog("ANTIGRAVITY", "REQUEST_SUCCESS", {
+                        debugCheckpoint("ANTIGRAVITY", "REQUEST_SUCCESS", {
                           family,
                           model,
                           accountIndex: account.index,
@@ -2204,7 +2262,7 @@ export const createAntigravityPlugin =
 
                       return transformedResponse
                     } catch (error) {
-                      debugLog("ANTIGRAVITY", "REQUEST_ERROR", {
+                      debugCheckpoint("ANTIGRAVITY", "REQUEST_ERROR", {
                         family,
                         model,
                         accountIndex: account.index,

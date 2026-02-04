@@ -8,6 +8,7 @@ import {
   calculateBackoffMs,
   type RateLimitReason,
 } from "./accounts"
+import { Account } from "../../../account"
 import type { AccountStorageV3 } from "./storage"
 import type { OAuthAuthDetails } from "./types"
 
@@ -1091,6 +1092,51 @@ describe("AccountManager", () => {
       expect(saveSpy).toHaveBeenCalledTimes(1)
 
       saveSpy.mockRestore()
+    })
+  })
+
+  describe("saveToDisk persistence", () => {
+    it("writes access token and project fields to Account module", async () => {
+      const stored = {
+        version: 3,
+        accounts: [
+          {
+            refreshToken: "r1",
+            projectId: "p1",
+            managedProjectId: "mp1",
+            accessToken: "access-1",
+            expiresAt: 123,
+            addedAt: 1,
+            lastUsed: 0,
+            _coreAccountId: "antigravity-subscription-a",
+          },
+        ],
+        activeIndex: 0,
+      }
+
+      const manager = new AccountManager(undefined, stored as any)
+      const update = vi.spyOn(Account, "update").mockResolvedValue()
+      const getActive = vi.spyOn(Account, "getActive").mockResolvedValue("antigravity-subscription-a")
+      const setActive = vi.spyOn(Account, "setActive").mockResolvedValue()
+
+      await manager.saveToDisk()
+
+      expect(update).toHaveBeenCalledWith(
+        "antigravity",
+        "antigravity-subscription-a",
+        expect.objectContaining({
+          refreshToken: "r1",
+          accessToken: "access-1",
+          expiresAt: 123,
+          projectId: "p1",
+          managedProjectId: "mp1",
+        }),
+      )
+      expect(setActive).not.toHaveBeenCalled()
+
+      update.mockRestore()
+      getActive.mockRestore()
+      setActive.mockRestore()
     })
   })
 

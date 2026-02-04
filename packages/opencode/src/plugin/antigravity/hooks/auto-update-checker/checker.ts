@@ -10,10 +10,10 @@ import {
   USER_OPENCODE_CONFIG,
   USER_OPENCODE_CONFIG_JSONC,
 } from "./constants"
-import { debugLogToFile } from "../../plugin/debug"
+import { debugCheckpoint } from "../../../../util/debug"
 
-function debugLog(message: string): void {
-  debugLogToFile(message)
+function debug(message: string): void {
+  debugCheckpoint("auto-update-checker", message)
 }
 
 export function isLocalDevMode(directory: string): boolean {
@@ -158,7 +158,7 @@ export function getCachedVersion(): string | null {
       if (pkg.version) return pkg.version
     }
   } catch (err) {
-    debugLog(`[auto-update-checker] Failed to resolve version from current directory: ${err}`)
+    debug(`[auto-update-checker] Failed to resolve version from current directory: ${err}`)
   }
 
   return null
@@ -171,7 +171,7 @@ export function updatePinnedVersion(configPath: string, oldEntry: string, newVer
 
     const pluginMatch = content.match(/"plugin"\s*:\s*\[/)
     if (!pluginMatch || pluginMatch.index === undefined) {
-      debugLog(`[auto-update-checker] No "plugin" array found in ${configPath}`)
+      debug(`[auto-update-checker] No "plugin" array found in ${configPath}`)
       return false
     }
 
@@ -193,7 +193,7 @@ export function updatePinnedVersion(configPath: string, oldEntry: string, newVer
     const regex = new RegExp(`["']${escapedOldEntry}["']`)
 
     if (!regex.test(pluginArrayContent)) {
-      debugLog(`[auto-update-checker] Entry "${oldEntry}" not found in plugin array of ${configPath}`)
+      debug(`[auto-update-checker] Entry "${oldEntry}" not found in plugin array of ${configPath}`)
       return false
     }
 
@@ -201,12 +201,12 @@ export function updatePinnedVersion(configPath: string, oldEntry: string, newVer
     const updatedContent = before + updatedPluginArray + after
 
     if (updatedContent === content) {
-      debugLog(`[auto-update-checker] No changes made to ${configPath}`)
+      debug(`[auto-update-checker] No changes made to ${configPath}`)
       return false
     }
 
     fs.writeFileSync(configPath, updatedContent, "utf-8")
-    debugLog(`[auto-update-checker] Updated ${configPath}: ${oldEntry} → ${newEntry}`)
+    debug(`[auto-update-checker] Updated ${configPath}: ${oldEntry} → ${newEntry}`)
     return true
   } catch (err) {
     console.error(`[auto-update-checker] Failed to update config file ${configPath}:`, err)
@@ -237,19 +237,19 @@ export async function getLatestVersion(): Promise<string | null> {
 
 export async function checkForUpdate(directory: string): Promise<UpdateCheckResult> {
   if (isLocalDevMode(directory)) {
-    debugLog("[auto-update-checker] Local dev mode detected, skipping update check")
+    debug("[auto-update-checker] Local dev mode detected, skipping update check")
     return { needsUpdate: false, currentVersion: null, latestVersion: null, isLocalDev: true, isPinned: false }
   }
 
   const pluginInfo = findPluginEntry(directory)
   if (!pluginInfo) {
-    debugLog("[auto-update-checker] Plugin not found in config")
+    debug("[auto-update-checker] Plugin not found in config")
     return { needsUpdate: false, currentVersion: null, latestVersion: null, isLocalDev: false, isPinned: false }
   }
 
   const currentVersion = getCachedVersion() ?? pluginInfo.pinnedVersion
   if (!currentVersion) {
-    debugLog("[auto-update-checker] No version found (cached or pinned)")
+    debug("[auto-update-checker] No version found (cached or pinned)")
     return {
       needsUpdate: false,
       currentVersion: null,
@@ -261,11 +261,11 @@ export async function checkForUpdate(directory: string): Promise<UpdateCheckResu
 
   const latestVersion = await getLatestVersion()
   if (!latestVersion) {
-    debugLog("[auto-update-checker] Failed to fetch latest version")
+    debug("[auto-update-checker] Failed to fetch latest version")
     return { needsUpdate: false, currentVersion, latestVersion: null, isLocalDev: false, isPinned: pluginInfo.isPinned }
   }
 
   const needsUpdate = currentVersion !== latestVersion
-  debugLog(`[auto-update-checker] Current: ${currentVersion}, Latest: ${latestVersion}, NeedsUpdate: ${needsUpdate}`)
+  debug(`[auto-update-checker] Current: ${currentVersion}, Latest: ${latestVersion}, NeedsUpdate: ${needsUpdate}`)
   return { needsUpdate, currentVersion, latestVersion, isLocalDev: false, isPinned: pluginInfo.isPinned }
 }

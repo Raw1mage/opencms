@@ -167,12 +167,15 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                     const levelLabel = LEVEL_LABELS[info.level] ?? info.level
                     const modelLabel = info.model ? `${info.model.providerID}/${info.model.modelID}` : "No model"
                     const title = formatIsoTitle(info.title || "Untitled session")
-                    const agentSuffix = info.agent ? <span style={{ fg: theme.textMuted }}> ({info.agent})</span> : null
+                    const agentSuffix = info.agent ? ` (${info.agent})` : ""
                     const isActiveSession = activeRouteSessionID() === info.sessionID
                     const metaLabel =
                       info.level === "tool"
-                        ? `${modelLabel} • Tool call`
-                        : `${modelLabel} • ${info.requests} reqs • ${info.totalTokens.toLocaleString()} tok`
+                        ? `${modelLabel}`
+                        : `${modelLabel} ${info.requests} reqs ${info.totalTokens.toLocaleString()} tok`
+                    const toolLabel = info.activeTool
+                      ? `Tool: ${info.activeTool} (${info.activeToolStatus ?? "pending"})`
+                      : null
                     return (
                       <box
                         flexDirection="column"
@@ -186,20 +189,16 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                           <text fg={dotColor}>•</text>
                           <text fg={theme.text} wrapMode="word">
                             <span style={{ fg: theme.textMuted }}>[{levelLabel}]</span> {title}
-                            {agentSuffix}
+                            <span style={{ fg: theme.textMuted }}>{agentSuffix}</span>
                             <Show when={statusLabel}>
                               <span style={{ fg: dotColor }}> {statusLabel}</span>
                             </Show>
+                            <span style={{ fg: theme.textMuted }}> {metaLabel}</span>
+                            <Show when={toolLabel}>
+                              <span style={{ fg: theme.textMuted }}> {toolLabel}</span>
+                            </Show>
                           </text>
                         </box>
-                        <text fg={theme.textMuted} wrapMode="word">
-                          {metaLabel}
-                        </text>
-                        <Show when={info.activeTool}>
-                          <text fg={theme.textMuted} wrapMode="word">
-                            Tool: {info.activeTool} ({info.activeToolStatus ?? "pending"})
-                          </text>
-                        </Show>
                       </box>
                     )
                   }}

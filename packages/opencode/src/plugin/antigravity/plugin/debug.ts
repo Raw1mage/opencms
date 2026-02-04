@@ -1,9 +1,9 @@
-import { createWriteStream, mkdirSync } from "node:fs"
 import { join } from "node:path"
 import { homedir } from "node:os"
 import { env } from "node:process"
 import type { AntigravityConfig } from "./config"
 import { ensureGitignoreSync } from "./storage"
+import { debugCheckpoint } from "../../../util/debug"
 
 const MAX_BODY_PREVIEW_CHARS = 12000
 const MAX_BODY_VERBOSE_CHARS = 50000
@@ -48,26 +48,10 @@ function getConfigDir(): string {
 }
 
 /**
- * Returns the logs directory, creating it if needed.
- */
-function getLogsDir(customLogDir?: string): string {
-  const logsDir = customLogDir || join(getConfigDir(), "antigravity-logs")
-
-  try {
-    mkdirSync(logsDir, { recursive: true })
-  } catch {
-    // Directory may already exist or we don't have permission
-  }
-
-  return logsDir
-}
-
-/**
  * Builds a timestamped log file path.
  */
-function createLogFilePath(customLogDir?: string): string {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
-  return join(getLogsDir(customLogDir), `antigravity-debug-${timestamp}.log`)
+function createLogFilePath(): string {
+  return "/home/pkcs12/opencode/logs/debug.log"
 }
 
 /**
@@ -78,16 +62,8 @@ function createLogWriter(filePath?: string): (line: string) => void {
     return () => {}
   }
 
-  try {
-    const stream = createWriteStream(filePath, { flags: "a" })
-    stream.on("error", () => {})
-    return (line: string) => {
-      const timestamp = new Date().toISOString()
-      const formatted = `[${timestamp}] ${line}`
-      stream.write(`${formatted}\n`)
-    }
-  } catch {
-    return () => {}
+  return (line: string) => {
+    debugCheckpoint("antigravity.debug", line, { filePath })
   }
 }
 
@@ -105,7 +81,7 @@ export function initializeDebug(config: AntigravityConfig): void {
     : parseDebugLevel(envDebugFlag)
   const debugEnabled = debugLevel >= 1
   const verboseEnabled = debugLevel >= 2
-  const logFilePath = debugEnabled ? createLogFilePath(config.log_dir) : undefined
+  const logFilePath = debugEnabled ? createLogFilePath() : undefined
   const logWriter = createLogWriter(logFilePath)
 
   if (debugEnabled) {

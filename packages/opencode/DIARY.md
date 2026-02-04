@@ -4,6 +4,7 @@
 
 ## 目錄
 
+- 2026-02-04：google_search 認證修復與文件政策調整
 - 2026-02-03：近期變更與規劃
 - 2026-02-02：Monitor 與測試快取規劃
 - 2026-02-01：Provider 正規化與 Model Health Dashboard
@@ -61,6 +62,419 @@
 
 ---
 
+## 2026-02-04
+
+### CHANGELOG
+
+- 全域 AGENTS 指引更新：以 DIARY.md 分章節維護規劃與架構，停止維護 PLANNING.md/ARCHITECTURE.md。
+- debug log 註解對齊實際路徑（使用 `<codebase>/logs/debug.log`）。
+- debug log 統一路徑為 `/home/pkcs12/opencode/logs/debug.log` 並於啟動即清空（debug.ts + debug-log.ts）。
+- 清理 debugLog 殘留，auto-update-checker 與 antigravity 改用 debugCheckpoint。
+- google_search 的 Gemini CLI 錯誤訊息移除 `opencode auth login` 指引。
+- 統一 debug log 系統為純文字輸出，gemini-cli/antigravity/Log/legacy trace 改走同一 writer。
+- debugCheckpoint 改用同步 append，避免短命令（--version）結束前漏寫。
+- debug log 行加上 [opencode] 統一前綴，方便與系統工具 JSON 行區分。
+
+### PLANNING
+
+#### 功能：google_search 空結果修復
+
+**需求**
+
+- 修正 google_search 回傳空內容時的輸出，避免 UI 一律判定無結果。
+- 補上必要的 fallback 或解析，確保最少有可讀內容。
+
+**範圍**
+
+- IN: google_search 工具輸出格式、搜尋回應解析、空結果判定
+- OUT: 非搜尋相關功能、UI 互動流程重構
+
+**作法**
+
+1. 盤點搜尋回應結構（content/groundingMetadata/searchEntryPoint）。
+2. 為空內容加入 fallback（例如 searchEntryPoint 文字化）。
+3. 空結果明確回報為錯誤或提示訊息，便於上層判斷。
+
+**任務**
+
+1. [ ] 讀取 google_search 回應解析流程
+2. [ ] 加入空內容 fallback 與判定
+3. [ ] 更新 debug checkpoint 以識別空結果來源
+4. [ ] 驗證 UI 搜尋可回傳非空結果
+
+**問題**
+
+- 實際 API 回應欄位可能變動，需保留保守處理。
+
+#### 功能：google_search Antigravity 認證失敗 RCA（log-based）
+
+**需求**
+
+- 以 logs（debug.log + 其他 \*.log）為唯一證據來源。
+- 產出口頭 RCA，並寫入 DIARY 的 DEBUGLOG。
+- 彙整多個可能失敗點與證據強弱。
+- 不處理/不操作任何二進位 opencode。
+
+**範圍**
+
+- IN: `/home/pkcs12/opencode/logs/debug.log` 與 repo 內其他 `.log` 檔
+- OUT: 程式碼修改、二進位檔案、非 log 的外部系統行為
+
+**作法**
+
+1. 盤點可用 log 檔與更新時間。
+2. 依 google_search 觸發時間線讀取上下文。
+3. 以關鍵字（auth/token/refresh/projectId/antigravity/401/403）定位失敗點。
+4. 彙整 RCA（摘要/根因/修復重點/驗證/可能性清單）。
+5. 更新 DIARY DEBUGLOG 並修正先前不正確的測試記錄。
+
+**任務**
+
+1. [ ] 列出 repo 內所有 .log 檔
+2. [ ] 讀取 debug.log 關鍵區段與上下文
+3. [ ] 搜索其他 logs 的認證錯誤訊息
+4. [ ] 產出多重可能根因與證據強度
+5. [ ] 更新 DIARY DEBUGLOG
+
+**問題**
+
+- logs 可能被清空或不存在，需確認實際可用證據
+
+#### 功能：debug log JSON 行來源追查與統一
+
+**需求**
+
+- 全 repo 追查仍輸出 JSON/JSONL 的寫入點。
+- debug.log 只允許純文字（含 [opencode] 前綴）。
+- `bun run dev` 啟動即清空 debug.log。
+- 允許暫時性偵測（堆疊/來源標記），完成後移除。
+
+**範圍**
+
+- IN: 全 repo 所有寫入 debug.log / debug writer 呼叫點
+- OUT: 非 debug 的一般 log 系統與業務邏輯改動
+
+**方法**
+
+1. 全 repo 搜尋 debug.log 與 JSONL 寫入模式。
+2. 若無直接命中，於統一 writer 加入暫時性堆疊記錄以定位來源。
+3. 以 `bun run dev -- --version` 驗證是否仍有 JSON 行。
+4. 修正來源後移除暫時偵測，確認只剩純文字輸出。
+
+**任務**
+
+1. [x] 全 repo 掃描 debug.log 寫入點與 JSONL pattern
+2. [x] 加入暫時性堆疊/來源標記（若需要）
+3. [ ] 追查並修正殘留寫入來源
+4. [ ] 移除暫時偵測並驗證 `bun run dev`
+
+**問題**
+
+- JSON 行來源尚未定位
+
+#### 功能：google_search 認證可用化（循環修正）
+
+**需求**
+
+- 以最小步驟觸發 google_search 並收集 debug.log。
+- 針對認證失敗的循環/重試策略進行修正。
+- 確保 google_search 能返回有效搜尋結果。
+
+**範圍**
+
+- IN: `src/plugin/antigravity/index.ts`, `src/plugin/antigravity/plugin/search.ts`, debug log
+- OUT: UI/TUI 操作流程、外部 OAuth provider 行為變更
+
+**方法**
+
+1. 建立最小觸發腳本/流程，產生 debug.log。
+2. 根據 log 判斷認證卡點與循環行為。
+3. 最小修正循環/重試策略並再次驗證。
+
+**任務**
+
+1. [x] 觸發 google_search 產生日誌
+2. [x] 分析 debug.log 並定位認證卡點
+3. [ ] 修正循環/重試策略
+4. [x] 驗證 google_search 可用
+
+**驗證**
+
+- smoke script 以 query「free model」成功回應，debug.log 顯示 response ok（length 2941）。
+- 認證/refresh 流程可正常執行，未見失敗循環。
+
+**問題**
+
+- 目前無。
+
+#### 功能：google_search tool call 認證流程（避免要求 opencode auth login）
+
+**需求**
+
+- 在 tool call 情境下，避免回傳「請先 opencode auth login」的提示。
+- 優先使用 accounts.json 的 antigravity 帳號；gemini-cli 作為可選 fallback。
+- 只調整 google_search tool 相關流程與訊息。
+
+**範圍**
+
+- IN: `src/plugin/antigravity/index.ts`
+- OUT: 其他 tool/provider、UI 流程
+
+**方法**
+
+1. 調整 gemini-cli fallback 條件與錯誤訊息。
+2. 當 gemini-cli 未配置時，回傳明確的 antigravity 帳號設定指引。
+3. 用 `script/google-search-smoke.ts` 驗證。
+
+**任務**
+
+1. [x] 調整 google_search fallback 與錯誤訊息
+2. [ ] 使用 smoke test 驗證
+
+#### 功能：google_search tool call 追加 checkpoint（僅補 log）
+
+**需求**
+
+- 只新增 debugCheckpoint，不調整 warn/error 等級。
+- 聚焦 tool registry / session resolveTools / google_search 入口與分支的執行鏈路。
+- 由使用者在 UI 觸發 google_search，回收 debug.log 進行判讀。
+
+**範圍**
+
+- IN: `src/tool/registry.ts`, `src/session/prompt.ts`, `src/plugin/antigravity/index.ts`, `src/plugin/antigravity/plugin/search.ts`
+- OUT: 功能邏輯改動、測試新增、錯誤訊息語意變更
+
+**作法**
+
+1. 在 ToolRegistry 註冊與過濾階段加入 checkpoint（工具清單摘要）。
+2. 在 Session resolveTools 流程加入 checkpoint（候選與最終工具列表）。
+3. 在 google_search 入口/分支補上 checkpoint（選帳號/取得 token/確立 provider）。
+4. 請使用者透過 UI 觸發 google_search，擷取 debug.log 進行分析。
+
+**任務**
+
+1. [ ] 盤點並新增 tool registry / resolveTools / google_search 入口 checkpoint
+2. [ ] 請使用者以 UI 觸發一次 google_search 並提供 debug.log
+3. [ ] 依新 log 判斷是否仍需補 checkpoint
+
+**問題**
+
+- 需要使用者配合 UI 觸發與提供最新 debug.log。
+
+#### 功能：google_search 工具來源衝突修正（本地檢查）
+
+**需求**
+
+- 不透過 UI 觸發，先以本地工具層面檢查定位重複 tool ID。
+- 允許新增 warn 以標示覆蓋與來源衝突。
+- 需要修正載入順序或停用重複工具來源。
+- 完成後執行測試指令。
+
+**範圍**
+
+- IN: `src/tool/registry.ts`, `src/plugin/index.ts`, `src/session/prompt.ts` 及相關插件註冊
+- OUT: UI 互動流程、外部認證行為、非必要的功能邏輯重構
+
+**作法**
+
+1. 盤點重複 tool ID 的來源與載入順序。
+2. 明確標示被覆蓋來源（含 warn）。
+3. 調整載入順序或停用重複來源（最小改動）。
+4. 跑測試驗證。
+
+**任務**
+
+1. [ ] 盤點 google_search 來源與重複註冊位置
+2. [ ] 加入 warn 並記錄覆蓋來源
+3. [ ] 修正載入順序或停用重複工具
+4. [ ] `bun run typecheck`
+5. [ ] `bun test`
+
+**問題**
+
+- 是否需要保留次要來源作為顯式 fallback？
+
+#### 功能：tool call 共用 debug log checkpoint 強化
+
+**需求**
+
+- 在共用 tool call 執行流程建立完整 checkpoint（請求/回應摘要、錯誤與重試、provider/工具資訊）。
+- 每次重啟 opencode 時清除舊 debug.log（重啟從新檔開始）。
+- 不遮罩內容。
+
+**範圍**
+
+- IN: `src/session/prompt.ts`（tool resolve/execute 共用流程）、`src/util/debug-log.ts`
+- OUT: 各別 tool 內部邏輯
+
+**方法**
+
+1. 在 tool call start/end/error 增加 args 與回應摘要。
+2. MCP tool wrapper 同步補齊 checkpoint。
+3. 確認 debug log 啟動即清空（若已滿足則註記）。
+
+**任務**
+
+1. [x] 回退 google_search fallback 訊息改動
+2. [ ] 補齊共用 tool call checkpoint（先回退避免影響對話）
+3. [ ] smoke test 驗證 debug.log
+
+**驗證**
+
+- `bun run script/google-search-smoke.ts "free model"` 成功。
+- debug.log 於啟動即清空（模組載入時重寫檔案）。
+- debug log 路徑統一為 <codebase>/logs/debug.log（以 repo root 為基準）。
+
+**問題**
+
+- 共用 tool call checkpoint 變更導致對話流程錯誤（需重新設計導入點）。
+
+#### 功能：debug log 路徑與清空機制校正
+
+**需求**
+
+- debug log 一律寫入 `/home/pkcs12/opencode/logs/debug.log`。
+- 每次啟動即清空舊檔案。
+
+**範圍**
+
+- IN: `src/util/debug.ts`, `src/util/debug-log.ts`
+- OUT: 其他 log 系統
+
+**作法**
+
+1. debug.ts 與 debug-log.ts 統一使用固定路徑。
+2. 模組載入時清空檔案，並保留初始化護欄。
+
+**任務**
+
+1. [x] 修正 debug.ts 寫入路徑
+2. [x] 修正 debug-log.ts 寫入路徑
+3. [x] 啟動即清空舊檔案
+
+**問題**
+
+- 目前無。
+
+#### 功能：debug system 統一與全鏈路追蹤
+
+**需求**
+
+- 合併為單一 debug API 與單一路徑輸出。
+- 追蹤每一個步驟與資訊流（含 trace/span、scope、事件、耗時、結果）。
+- 啟動即清空 debug.log。
+
+**範圍**
+
+- IN: `src/util/debug.ts`, `src/util/debug-log.ts`, 全部 debug 呼叫點
+- OUT: 一般 Log 系統（`src/util/log.ts`）
+
+**作法**
+
+1. 盤點 debugCheckpoint/debugSpan/debugLog 使用點與資料需求。
+2. 設計單一 debug API 與統一 JSONL 格式。
+3. 逐步遷移呼叫端並移除/封裝 debug-log.ts。
+4. 在 tool/session/provider 主要流程補齊 checkpoint。
+
+**任務**
+
+1. [ ] 盤點所有 debug 使用點
+2. [ ] 設計單一 debug API/格式
+3. [ ] 遷移呼叫端與刪除/封裝 debug-log.ts
+4. [ ] 補齊全鏈路 checkpoint
+5. [ ] 驗證 debug.log 連貫性
+
+**問題**
+
+- 目前無。
+
+#### 功能：統一 debug log system（純文字）
+
+**需求**
+
+- 全部 debug/legacy log 統一輸出到 `/home/pkcs12/opencode/logs/debug.log`。
+- 輸出格式為純文字（可讀格式）。
+- `bun run dev` 啟動即清空舊檔案。
+- 以單一 writer 承接所有 debug/legacy/log 呼叫端。
+
+**範圍**
+
+- IN: `src/util/debug.ts`, `src/util/log.ts`, `src/plugin/antigravity/plugin/debug.ts`, `src/plugin/gemini-cli/plugin/debug.ts`, legacy debug 寫入點
+- OUT: 一般非 debug 的業務流程（不改功能邏輯）
+
+**作法**
+
+1. 盤點所有 debug/legacy 寫入來源與路徑。
+2. 建立單一純文字 debug writer，統一輸出到固定路徑。
+3. debugCheckpoint/debugSpan/外掛 debug/Log.debug 全部改為導向統一 writer。
+4. 在 `bun run dev` 啟動流程中確保清空 debug.log。
+5. 以最小流程驗證只剩單一路徑輸出。
+
+**任務**
+
+1. [x] 盤點所有 debug/legacy 寫入來源
+2. [x] 建立統一純文字 writer 與格式
+3. [x] 串接 debugCheckpoint/debugSpan 與外掛 debug
+4. [x] 串接 util/log 的 debug 等級輸出
+5. [x] `bun run dev` 驗證路徑與清空行為
+6. [x] 掃描殘留寫入點並修正
+
+**問題**
+
+- legacy writer 的來源仍需定位與替換
+
+#### 功能：debugLog 殘留清理與統一 API
+
+**需求**
+
+- 清理剩餘 `debugLog` 呼叫與舊引用，統一改為 `debugCheckpoint`。
+- 確保全專案只保留單一 debug API 與單一路徑輸出。
+
+**範圍**
+
+- IN: `src/**` 全部 debugLog 呼叫點、auto-update-checker hooks
+- OUT: 一般 Log 系統、功能行為改動
+
+**作法**
+
+1. 盤點剩餘 `debugLog(` 與 `debug-log` 引用。
+2. 逐檔替換為 `debugCheckpoint` 並移除別名。
+3. 檢查 auto-update-checker 本地 helper 是否可刪除/改用共用 API。
+
+**任務**
+
+1. [x] 盤點 debugLog 殘留清單
+2. [x] 替換為 debugCheckpoint 並移除別名
+3. [x] 檢查 auto-update-checker helper 一致性
+4. [x] 驗證無 debug-log 舊引用
+
+**問題**
+
+- 目前無。
+
+### DEBUGLOG
+
+#### google_search 測試流程 RCA
+
+**問題摘要**
+
+- 需求為「只測 google_search」，不要求處理 JSON log 或 binary 來源。
+- 以 `bun run dev` 啟動後，透過 UI 觸發一次 google_search。
+- 檢視 `/home/pkcs12/opencode/logs/debug.log`，確認輸出為純文字 `[opencode]` 格式。
+
+**根本原因**
+
+- 測試目標單純為功能驗證，未涉及 JSON/JSONL writer；debug.log 僅需提供可讀紀錄。
+
+**修復重點**
+
+- 無需修復（本次為驗證流程）。
+
+**驗證**
+
+- [x] `bun run dev` 啟動後完成 google_search 測試。
+- [x] debug.log 內容為 `[opencode]` 純文字格式，未見 JSON/JSONL 行（檢視已讀範圍）。
+
 ## 2026-02-03
 
 ### CHANGELOG
@@ -83,6 +497,8 @@
 - 模型回傳 not found / not supported / 404 時，會自動把該模型從 favorites 永久移除。
 - Model Health 改為列出完整 provider/account/model 清單，並以符號顯示 Ready / Rate limit / Untracked 狀態。
 - Antigravity 429 流程同步更新全域 RateLimitTracker，讓 Model Health Dashboard 即時顯示 rate limit。
+- Monitor 狀態改為單行顯示，分隔符改為空白。
+- Debug log 寫入路徑改為 repo root 的 `logs/debug.log`（不受 cwd 影響）。
 
 ### PLANNING
 
@@ -298,6 +714,65 @@
 2. [ ] AccountManager 從 Account 模組同步 access token / expires
 3. [ ] google_search tool 初始化前同步帳號狀態
 4. [ ] 補測試：AccountManager 讀取 accessToken、Auth.set 保留 projectId
+
+#### 功能：google_search 透過 AccountManager 取得認證
+
+**需求**
+
+- google_search 不依賴 `opencode auth login`，改由 AccountManager/Account 模組取得 OAuth 認證（accounts.json 為核心）。
+- 缺 access token 時能自動 refresh，並回寫 accounts.json。
+- 若 antigravity 認證需要額外欄位，允許擴充 accounts.json。
+- 以 debug.log 追蹤認證與 refresh 流程，便於抓蟲。
+- 確保 antigravity 帳號的 projectId/managedProjectId 可被 google_search 使用。
+
+**範圍**
+
+- IN: `src/plugin/antigravity/index.ts`, `src/plugin/antigravity/plugin/accounts.ts`, `src/account/index.ts`
+- OUT: UI 登入流程、外部 OAuth provider 行為
+
+**作法**
+
+1. 在 AccountManager 補上同步 accessToken/expires 回 Account 模組的能力。
+2. google_search 取得帳號時優先走 AccountManager，缺 token 自動 refresh 並回寫。
+3. 如需，擴充 accounts.json 欄位並同步讀寫。
+4. 強化 debug log 以利觀察帳號來源與 refresh 流程。
+
+**任務**
+
+1. [ ] AccountManager 回寫 accessToken/expires
+2. [ ] google_search 認證流程改為 AccountManager
+3. [ ] accounts.json 擴充欄位同步（若 refresh 回傳新增資訊）
+4. [ ] 更新/新增 antigravity 相關測試
+
+**問題**
+
+- 是否需要在無 projectId 時回退到 managedProjectId 或提示重新授權？
+
+#### 功能：google_search 認證測試補齊與 debug log 補強
+
+**需求**
+
+- 補齊 antigravity/google_search 相關測試（全量覆蓋）。
+- debug.log 增補欄位以利追蹤（不改業務行為）。
+
+**範圍**
+
+- IN: `src/plugin/antigravity/index.ts`, `src/plugin/antigravity/plugin/accounts.test.ts`
+- OUT: 其他功能行為變更、執行測試命令
+
+**作法**
+
+1. 擴充 debugLog 欄位內容（如 accountIndex/projectId）。
+2. 新增測試覆蓋 saveToDisk 回寫、metadata、ensureProjectContext 流程。
+
+**任務**
+
+1. [ ] 補充 debug.log 欄位
+2. [ ] 新增/更新 antigravity 測試（全量覆蓋）
+
+**問題**
+
+- 是否需要針對 refresh 失敗補充 debugLog 分支覆蓋？
 
 - 若無可用影像模型，移除圖片並改成文字提示。
 

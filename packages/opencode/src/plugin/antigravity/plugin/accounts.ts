@@ -5,6 +5,7 @@ import type { AccountSelectionStrategy } from "./config/schema"
 import { getHealthTracker, getTokenTracker, selectHybridAccount, type AccountWithMetrics } from "./rotation"
 import { generateFingerprint, type Fingerprint, type FingerprintVersion, MAX_FINGERPRINT_HISTORY } from "./fingerprint"
 import { Account } from "../../../account"
+import { debugCheckpoint } from "../../../util/debug"
 
 export type { ModelFamily, HeaderStyle, CooldownReason } from "./storage"
 export type { AccountSelectionStrategy } from "./config/schema"
@@ -290,6 +291,11 @@ export class AccountManager {
     const accounts = await Account.list("antigravity")
     const activeAccountId = await Account.getActive("antigravity")
 
+    debugCheckpoint("AccountManager", "loadFromDisk: raw accounts", {
+      count: Object.keys(accounts).length,
+      active: activeAccountId,
+    })
+
     // Convert Account module format to internal ManagedAccount format
     const managedAccounts: ManagedAccount[] = []
     const entries = Object.entries(accounts)
@@ -297,7 +303,10 @@ export class AccountManager {
 
     for (let i = 0; i < entries.length; i++) {
       const [id, info] = entries[i]
-      if (info.type !== "subscription") continue
+      if (info.type !== "subscription") {
+        debugCheckpoint("AccountManager", "loadFromDisk: skipping non-subscription", { id, type: info.type })
+        continue
+      }
 
       const parts: RefreshParts = {
         refreshToken: info.refreshToken,
@@ -355,6 +364,12 @@ export class AccountManager {
     }
 
     const manager = new AccountManager(authFallback, stored)
+
+    debugCheckpoint("AccountManager", "loadFromDisk: manager created", {
+      count: manager.getAccountCount(),
+      total: manager.getTotalAccountCount(),
+    })
+
     // Attach core account IDs to managed accounts
     for (let i = 0; i < manager.accounts.length && i < entries.length; i++) {
       ;(manager.accounts[i] as any)._coreAccountId = entries[i][0]
@@ -1010,7 +1025,7 @@ export class AccountManager {
 
   /**
    * Save account data back to the unified Account module (accounts.json).
-   * Only saves rate limit and fingerprint data since those are managed by AccountManager.
+   * Persists runtime auth state (access/refresh/project) along with rate limit metadata.
    */
   async saveToDisk(): Promise<void> {
     for (const acc of this.accounts) {
@@ -1020,6 +1035,11 @@ export class AccountManager {
       try {
         // Update the account with runtime data that AccountManager tracks
         await Account.update("antigravity", coreId, {
+          refreshToken: acc.parts.refreshToken,
+          accessToken: acc.access,
+          expiresAt: acc.expires,
+          projectId: acc.parts.projectId,
+          managedProjectId: acc.parts.managedProjectId,
           rateLimitResetTimes: Object.keys(acc.rateLimitResetTimes).length > 0 ? acc.rateLimitResetTimes : undefined,
           coolingDownUntil: acc.coolingDownUntil,
           cooldownReason: acc.cooldownReason,
