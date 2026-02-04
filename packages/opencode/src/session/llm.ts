@@ -34,7 +34,7 @@ import {
   getModelHealthRegistry,
   type RateLimitReason,
 } from "@/account/rotation"
-import { findFallback, type ModelVector, type FallbackStrategy } from "@/account/rotation3d"
+import { findFallback, type ModelVector, type FallbackStrategy, isVectorRateLimited } from "@/account/rotation3d"
 import { Bus } from "@/bus"
 import { TuiEvent } from "@/cli/cmd/tui/event"
 import { debugCheckpoint } from "@/util/debug"
@@ -534,8 +534,11 @@ export namespace LLM {
     const isSameAccount = fallback.accountId === currentAccountId
     const isSameModel = fallback.modelID === currentModel.id
 
+    const fallbackReason = isVectorRateLimited(currentVector) ? "rate-limit" : "unknown"
+
     log.info("3D fallback selected", {
       reason: fallback.reason,
+      trigger: fallbackReason,
       changes: {
         provider: !isSameProvider,
         account: !isSameAccount,
@@ -550,6 +553,18 @@ export namespace LLM {
         provider: fallback.providerID,
         account: fallback.accountId,
         model: fallback.modelID,
+      },
+    })
+
+    debugCheckpoint("rotation3d", "Executing fallback switch", {
+      trigger: fallbackReason,
+      strategy: fallback.reason,
+      from: `${currentModel.providerID}:${currentAccountId}:${currentModel.id}`,
+      to: `${fallback.providerID}:${fallback.accountId}:${fallback.modelID}`,
+      changes: {
+        provider: !isSameProvider,
+        account: !isSameAccount,
+        model: !isSameModel,
       },
     })
 

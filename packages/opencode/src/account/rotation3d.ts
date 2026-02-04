@@ -16,6 +16,7 @@
 
 import { Log } from "../util/log"
 import { getRateLimitTracker, getHealthTracker } from "./rotation"
+import { debugCheckpoint } from "../util/debug"
 
 const log = Log.create({ service: "rotation3d" })
 
@@ -212,6 +213,30 @@ export function selectBestFallback(
       reason: best.reason,
       priority: best.priority,
       healthScore: best.healthScore,
+    })
+    debugCheckpoint("rotation3d", "Fallback selected", {
+      from: makeKey(current),
+      to: makeKey(best),
+      reason: best.reason,
+      priority: best.priority,
+      healthScore: best.healthScore,
+      candidatesCount: candidates.length,
+      availableCount: available.length,
+      triedCount: triedKeys?.size ?? 0,
+    })
+  } else {
+    debugCheckpoint("rotation3d", "No fallback available", {
+      from: makeKey(current),
+      totalCandidates: candidates.length,
+      availableCount: available.length,
+      triedCount: triedKeys?.size ?? 0,
+      reasons: available
+        .map((c) => ({
+          key: makeKey(c),
+          isRateLimited: c.isRateLimited,
+          healthScore: c.healthScore,
+        }))
+        .slice(0, 5), // log top 5 rejections
     })
   }
 
