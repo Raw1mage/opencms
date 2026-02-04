@@ -163,12 +163,13 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       using _ = defer(() => ctx.abort.removeEventListener("abort", cancel))
       const promptParts = await SessionPrompt.resolvePromptParts(params.prompt)
 
-      const modelInfo = await Provider.getModel(model.providerID, model.modelID).catch(() => undefined)
-      const auto = params.description.toLowerCase().startsWith("auto ")
-      const allowImages = !auto && (modelInfo?.capabilities?.input?.image ?? false)
+      // const modelInfo = await Provider.getModel(model.providerID, model.modelID).catch(() => undefined)
+      // const auto = params.description.toLowerCase().startsWith("auto ")
+      // const allowImages = !auto && (modelInfo?.capabilities?.input?.image ?? false)
 
       // Extract image attachments from parent session's messages and pass to subagent
       // This allows images pasted by the user (displayed as [Image N]) to be visible to subagents
+      /*
       const parentUserMessage = ctx.messages.findLast((m) => m.info.role === "user")
       if (parentUserMessage) {
         const imageAttachments = parentUserMessage.parts.filter(
@@ -205,6 +206,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           })
         }
       }
+      */
 
       const result = await SessionPrompt.prompt({
         messageID,

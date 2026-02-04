@@ -501,6 +501,9 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     onSelect: handleAtSelect,
   })
 
+  const source = (value: string | undefined): SlashCommand["source"] =>
+    value === "command" || value === "mcp" || value === "skill" ? value : undefined
+
   const slashCommands = createMemo<SlashCommand[]>(() => {
     const builtin = command.options
       .filter((opt) => !opt.disabled && !opt.id.startsWith("suggested.") && opt.slash)
@@ -519,7 +522,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       title: cmd.name,
       description: cmd.description,
       type: "custom" as const,
-      source: cmd.source,
+      source: source(cmd.source),
     }))
 
     const skills = sync.data.skill.map((skill) => ({
@@ -1256,14 +1259,16 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     props.onSubmit?.()
 
     // Model is optional - if not selected, backend will auto-select using subscription priority
-    const model = currentModel
+    const selectedModel = currentModel
       ? {
           modelID: currentModel.id,
           providerID: currentModel.provider.id,
         }
       : undefined
+    const model = selectedModel ?? { providerID: "auto", modelID: "auto" }
     const agent = currentAgent.name
-    const variant = currentModel ? local.model.variant.current() : undefined
+    const variant = selectedModel ? local.model.variant.current() : undefined
+    const modelKey = selectedModel ? `${selectedModel.providerID}/${selectedModel.modelID}` : undefined
 
     const clearInput = () => {
       prompt.reset()
@@ -1288,7 +1293,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         .shell({
           sessionID: session.id,
           agent,
-          model,
+          model: selectedModel,
           command: text,
         })
         .catch((err) => {
@@ -1313,7 +1318,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
             command: commandName,
             arguments: args.join(" "),
             agent,
-            model: `${model.providerID}/${model.modelID}`,
+            model: modelKey,
             variant,
             parts: images.map((attachment) => ({
               id: Identifier.ascending("part"),
@@ -1960,10 +1965,10 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 {/* Model is auto-selected by backend based on subscription priority */}
                 <Tooltip
                   placement="top"
-                  content="Model is automatically selected based on account health and availability"
+                  value="Model is automatically selected based on account health and availability"
                 >
                   <Button as="div" variant="ghost" class="cursor-default opacity-70">
-                    <Icon name="sparkles" size="small" class="text-accent-primary" />
+                    <Icon name="models" size="small" class="text-accent-primary" />
                     <span class="text-text-secondary">Auto</span>
                   </Button>
                 </Tooltip>

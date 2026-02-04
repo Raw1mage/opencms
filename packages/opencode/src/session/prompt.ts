@@ -53,6 +53,8 @@ import { Truncate } from "@/tool/truncation"
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
 
+import { buildFallbackCandidates, type ModelVector } from "../account/rotation3d"
+
 export namespace SessionPrompt {
   const log = Log.create({ service: "session.prompt" })
   export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
@@ -72,11 +74,11 @@ export namespace SessionPrompt {
   const WORKFLOW_MIN_CHARS = 160
   const WORKFLOW_MIN_LINES = 3
   const WORKFLOW_MODEL_FALLBACKS: Record<string, string[]> = {
-    explore: ["google/gemini-2.5-flash", "openai/gpt-5.2", "openai/gpt-5.2-codex"],
-    coding: ["openai/gpt-5.2-codex", "openai/gpt-5.2", "google/gemini-2.5-pro"],
-    review: ["google/gemini-2.5-pro", "openai/gpt-5.2", "openai/gpt-5.2-codex"],
-    testing: ["openai/gpt-5.2-codex", "openai/gpt-5.2", "google/gemini-2.5-pro"],
-    docs: ["openai/gpt-5.2", "google/gemini-2.5-pro", "openai/gpt-5.2-codex"],
+    explore: ["gemini-cli/gemini-2.0-flash", "openai/gpt-5.2", "openai/gpt-5.2-codex"],
+    coding: ["openai/gpt-5.2-codex", "openai/gpt-5.2", "gemini-cli/gemini-2.0-pro-exp-02-05"],
+    review: ["gemini-cli/gemini-2.0-pro-exp-02-05", "openai/gpt-5.2", "openai/gpt-5.2-codex"],
+    testing: ["openai/gpt-5.2-codex", "openai/gpt-5.2", "gemini-cli/gemini-2.0-flash"],
+    docs: ["openai/gpt-5.2", "gemini-cli/gemini-2.0-pro-exp-02-05", "openai/gpt-5.2-codex"],
   }
 
   function hasImageParts(message?: MessageV2.WithParts): boolean {
@@ -108,16 +110,43 @@ export namespace SessionPrompt {
   }
 
   async function selectImageModel(current: Provider.Model): Promise<Provider.Model | undefined> {
+    // Use Rotation3D to find robust candidates (checking health, rate limits, favorites)
+    const candidates = await buildFallbackCandidates({
+      providerID: current.providerID,
+      accountId: current.providerID, // In session context, providerID key acts as account identifier
+      modelID: current.id,
+    })
+
     const providers = await Provider.list()
-    const registry = getModelHealthRegistry()
-    const cfg = await Config.get()
+
+    // 1. Try to find a healthy, image-capable candidate from Rotation3D
+    for (const c of candidates) {
+      // Resolve the actual provider entry (candidate.accountId is usually the provider key)
+      const provider = providers[c.accountId] ?? providers[c.providerID]
+      if (!provider) continue
+
+      const model = provider.models[c.modelID]
+      if (!model) continue
+
+      // Check for image capability AND ensure it's not rate limited
+      if (model.capabilities.input.image && !c.isRateLimited) {
+        return model
+      }
+    }
+
+    // 2. Fallback: Hardcoded rescue list (if Rotation3D yields nothing)
+    // This maintains the original safety net for specific reliable providers
     const order: string[] = []
-    if (!order.includes(current.providerID)) order.push(current.providerID)
     if (!order.includes("gemini-cli")) order.push("gemini-cli")
     if (!order.includes("antigravity")) order.push("antigravity")
+
+    // Add all others
     for (const pid of Object.keys(providers)) {
       if (!order.includes(pid)) order.push(pid)
     }
+
+    const registry = getModelHealthRegistry()
+    const cfg = await Config.get()
 
     for (const pid of order) {
       if (cfg.disabled_providers?.includes(pid)) continue
@@ -127,7 +156,13 @@ export namespace SessionPrompt {
       for (const model of models) {
         if (!model.capabilities.input.image) continue
         if (!model.capabilities.output.text) continue
+        // We already checked Rotation3D candidates (which checks registry), but this sweep covers models
+        // that might not be in the fallback candidates list (e.g. not in favorites or same family)
         if (!registry.isAvailable(pid, model.id)) continue
+
+        // Avoid the current model if it was already rejected by capability check in resolveImageRequest
+        if (pid === current.providerID && model.id === current.id) continue
+
         return model
       }
     }
@@ -140,9 +175,15 @@ export namespace SessionPrompt {
     if (!hasImageParts(input.message)) {
       return { model: input.model, dropImages: false, rotated: false }
     }
-    if (input.model.capabilities.input.image) {
+
+    // Hard-exclude known models that report image support but fail (Ghost Bug 400)
+    // Gemini 3 Pro models currently fail with 400 on image input despite metadata
+    const isBrokenImageModel = input.model.id.includes("gemini-3-pro")
+
+    if (input.model.capabilities.input.image && !isBrokenImageModel) {
       return { model: input.model, dropImages: false, rotated: false }
     }
+
     const fallback = await selectImageModel(input.model)
     if (fallback) {
       return { model: fallback, dropImages: false, rotated: true }
@@ -634,6 +675,17 @@ export namespace SessionPrompt {
           variant: "info",
           duration: 4000,
         }).catch(() => {})
+
+        // PERSISTENCE: Update the user message to use this working model as the preference.
+        // This ensures subsequent turns (which check `lastModel`) will default to this capability-verified model.
+        if (lastUser) {
+          const updatedInfo = { ...lastUser }
+          updatedInfo.model = {
+            providerID: activeModel.providerID,
+            modelID: activeModel.id,
+          }
+          await Session.updateMessage(updatedInfo)
+        }
       }
       const agent = await Agent.get(lastUser.agent)
       const maxSteps = agent.steps ?? Infinity

@@ -417,6 +417,12 @@ export namespace SessionProcessor {
           } catch (e: any) {
             // Check for rate limit and attempt fallback
             if (isRateLimitError(e)) {
+              debugCheckpoint("rotation3d", "Rate limit detected", {
+                error: e.message,
+                model: streamInput.model.id,
+                fallbackAttempts,
+                triedVectors: Array.from(triedVectors),
+              })
               fallbackAttempts++
               if (fallbackAttempts > MAX_FALLBACK_ATTEMPTS) {
                 log.error("Max fallback attempts exceeded, stopping rotation", {
@@ -454,6 +460,12 @@ export namespace SessionProcessor {
             }
 
             if (isModelNotSupportedError(e)) {
+              debugCheckpoint("rotation3d", "Model not supported/found", {
+                error: e.message,
+                model: streamInput.model.id,
+                fallbackAttempts,
+                triedVectors: Array.from(triedVectors),
+              })
               const removed = await removeFavorite(streamInput.model.providerID, streamInput.model.id)
               if (removed) {
                 log.warn("Removed invalid model from favorites", {

@@ -147,7 +147,25 @@ export namespace ModelScoring {
 
     const results: ModelScore[] = []
 
+    // Load favorites from model.json to filter candidates
+    let allowed: Set<string> | undefined
+    try {
+      const { Global } = await import("../global")
+      const path = await import("path")
+      const modelFile = Bun.file(path.join(Global.Path.state, "model.json"))
+      if (await modelFile.exists()) {
+        const modelData = await modelFile.json()
+        const favorites: Array<{ providerID: string; modelID: string }> = modelData.favorite ?? []
+        allowed = new Set(favorites.map((f) => `${f.providerID}/${f.modelID}`))
+      }
+    } catch {
+      // Ignore errors reading favorites
+    }
+
     for (const modelKey of candidates) {
+      // Skip if not in favorites (unless favorites list is empty/unreadable)
+      if (allowed && !allowed.has(modelKey)) continue
+
       const [providerID, ...rest] = modelKey.split("/")
       const modelID = rest.join("/")
 
