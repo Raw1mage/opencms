@@ -1456,7 +1456,6 @@ export const createAntigravityPlugin =
               const rawProviderID = headerAccountId
                 ? (Account.parseProvider(headerAccountId) ?? providerId)
                 : providerId
-              const baseProviderID = rawProviderID === "google-api" ? "gemini-cli" : rawProviderID
 
               // Top-level request tracking
               debugCheckpoint("ANTIGRAVITY", "REQUEST_START", {
@@ -1564,7 +1563,9 @@ export const createAntigravityPlugin =
                   if (!fixed) return null
 
                   // Strict Protocol Selection by Provider ID
-                  const headerStyle = getHeaderStyleFromUrl(urlString, family, baseProviderID ?? providerId)
+                  const fixedCoreId = fixed._coreAccountId
+                  const fixedProviderID = (fixedCoreId ? Account.parseProvider(fixedCoreId) : providerId) ?? providerId
+                  const headerStyle = getHeaderStyleFromUrl(urlString, family, fixedProviderID)
 
                   const explicitQuota = isExplicitQuotaFromUrl(urlString)
                   const limited = accountManager.isRateLimitedForHeaderStyle(fixed, family, headerStyle, model)
@@ -1648,10 +1649,10 @@ export const createAntigravityPlugin =
                 // Determine base provider ID for protocol selection
                 // This normalizes "antigravity-subscription-1" -> "antigravity"
                 const coreId = account._coreAccountId
-                const baseProviderID = coreId ? Account.parseProvider(coreId) : providerId
+                const effectiveProviderID = coreId ? Account.parseProvider(coreId) : providerId
 
                 pushDebug(
-                  `selected idx=${account.index} email=${account.email ?? ""} family=${family} accounts=${accountCount} provider=${baseProviderID} strategy=${config.account_selection_strategy}`,
+                  `selected idx=${account.index} email=${account.email ?? ""} family=${family} accounts=${accountCount} provider=${effectiveProviderID} strategy=${config.account_selection_strategy}`,
                 )
                 if (isDebugEnabled()) {
                   logAccountContext("Selected", {
@@ -1875,8 +1876,8 @@ export const createAntigravityPlugin =
                 let shouldSwitchAccount = false
 
                 // Strict Protocol Selection by Provider ID
-                // Note: baseProviderID is derived from account.id or providerId in the outer scope
-                let headerStyle = getHeaderStyleFromUrl(urlString, family, baseProviderID ?? providerId)
+                // Note: effectiveProviderID is derived from account.id or providerId in the outer scope
+                let headerStyle = getHeaderStyleFromUrl(urlString, family, effectiveProviderID ?? providerId)
                 const explicitQuota = isExplicitQuotaFromUrl(urlString)
                 pushDebug(`headerStyle=${headerStyle} explicit=${explicitQuota}`)
                 if (account.fingerprint) {
