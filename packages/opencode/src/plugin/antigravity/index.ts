@@ -1445,6 +1445,19 @@ export const createAntigravityPlugin =
               const family = getModelFamilyFromUrl(urlString)
               const model = extractModelFromUrl(urlString)
 
+              // Extract accountId from headers if present
+              const headers = init?.headers ? new Headers(init.headers) : new Headers()
+              const headerAccountId = headers.get("x-opencode-account-id") || undefined
+
+              // Determine base provider ID for protocol selection (Strict 3D Vector Logic)
+              // 1. Use accountId from header if available (most specific)
+              // 2. Fallback to plugin providerId
+              // 3. Normalize using Account.parseProvider to handle "google-api" -> "gemini-cli" mapping if needed
+              const rawProviderID = headerAccountId
+                ? (Account.parseProvider(headerAccountId) ?? providerId)
+                : providerId
+              const baseProviderID = rawProviderID === "google-api" ? "gemini-cli" : rawProviderID
+
               // Top-level request tracking
               debugCheckpoint("ANTIGRAVITY", "REQUEST_START", {
                 family,
@@ -1550,7 +1563,9 @@ export const createAntigravityPlugin =
                   const fixed = accountManager.getPinnedForFamily(family)
                   if (!fixed) return null
 
-                  const headerStyle = getHeaderStyleFromUrl(urlString, family)
+                  // Strict Protocol Selection by Provider ID
+                  const headerStyle = getHeaderStyleFromUrl(urlString, family, baseProviderID ?? providerId)
+
                   const explicitQuota = isExplicitQuotaFromUrl(urlString)
                   const limited = accountManager.isRateLimitedForHeaderStyle(fixed, family, headerStyle, model)
                   const cooling = accountManager.isAccountCoolingDown(fixed)
@@ -1570,7 +1585,10 @@ export const createAntigravityPlugin =
                 const account = await pickAccount()
 
                 if (!account) {
-                  const headerStyle = getHeaderStyleFromUrl(urlString, family)
+                  // Strict Protocol Selection by Provider ID (using fallback providerId as account is null)
+                  const fallbackProviderID = rawProviderID === "google-api" ? "gemini-cli" : rawProviderID
+                  const headerStyle = getHeaderStyleFromUrl(urlString, family, fallbackProviderID)
+
                   const explicitQuota = isExplicitQuotaFromUrl(urlString)
                   // All accounts are rate-limited - wait and retry
                   const waitMs =
@@ -1627,8 +1645,13 @@ export const createAntigravityPlugin =
                 // Account is available - reset the toast flag
                 resetAllAccountsRateLimitedToast()
 
+                // Determine base provider ID for protocol selection
+                // This normalizes "antigravity-subscription-1" -> "antigravity"
+                const coreId = account._coreAccountId
+                const baseProviderID = coreId ? Account.parseProvider(coreId) : providerId
+
                 pushDebug(
-                  `selected idx=${account.index} email=${account.email ?? ""} family=${family} accounts=${accountCount} strategy=${config.account_selection_strategy}`,
+                  `selected idx=${account.index} email=${account.email ?? ""} family=${family} accounts=${accountCount} provider=${baseProviderID} strategy=${config.account_selection_strategy}`,
                 )
                 if (isDebugEnabled()) {
                   logAccountContext("Selected", {
@@ -1663,7 +1686,14 @@ export const createAntigravityPlugin =
                       lastError = new Error("Antigravity token refresh failed")
                       if (shouldCooldown) {
                         accountManager.markAccountCoolingDown(account, cooldownMs, "auth-failure")
-                        accountManager.markRateLimited(account, cooldownMs, family, "antigravity", model)
+                        // Use headerStyle determined by providerId if possible, else "antigravity" as safe default for auth errors
+                        const errorHeaderStyle =
+                          providerId === "gemini-cli"
+                            ? "gemini-cli"
+                            : providerId === "antigravity"
+                              ? "antigravity"
+                              : "antigravity"
+                        accountManager.markRateLimited(account, cooldownMs, family, errorHeaderStyle, model)
                         pushDebug(`token-refresh-failed: cooldown ${cooldownMs}ms after ${failures} failures`)
                       }
                       continue
@@ -1714,7 +1744,13 @@ export const createAntigravityPlugin =
                     lastError = error instanceof Error ? error : new Error(String(error))
                     if (shouldCooldown) {
                       accountManager.markAccountCoolingDown(account, cooldownMs, "auth-failure")
-                      accountManager.markRateLimited(account, cooldownMs, family, "antigravity", model)
+                      const errorHeaderStyle =
+                        providerId === "gemini-cli"
+                          ? "gemini-cli"
+                          : providerId === "antigravity"
+                            ? "antigravity"
+                            : "antigravity"
+                      accountManager.markRateLimited(account, cooldownMs, family, errorHeaderStyle, model)
                       pushDebug(`token-refresh-error: cooldown ${cooldownMs}ms after ${failures} failures`)
                     }
                     continue
@@ -1838,11 +1874,9 @@ export const createAntigravityPlugin =
                 // Try endpoint fallbacks with single header style based on model suffix
                 let shouldSwitchAccount = false
 
-                // Determine header style from model suffix:
-                // - Models with :antigravity suffix -> use Antigravity quota
-                // - Models without suffix (default) -> use Gemini CLI quota
-                // - Claude models -> always use Antigravity
-                let headerStyle = getHeaderStyleFromUrl(urlString, family)
+                // Strict Protocol Selection by Provider ID
+                // Note: baseProviderID is derived from account.id or providerId in the outer scope
+                let headerStyle = getHeaderStyleFromUrl(urlString, family, baseProviderID ?? providerId)
                 const explicitQuota = isExplicitQuotaFromUrl(urlString)
                 pushDebug(`headerStyle=${headerStyle} explicit=${explicitQuota}`)
                 if (account.fingerprint) {
@@ -3127,16 +3161,11 @@ function getModelFamilyFromUrl(urlString: string): ModelFamily {
   return family
 }
 
-function getHeaderStyleFromUrl(urlString: string, family: ModelFamily): HeaderStyle {
-  if (family === "claude") {
+function getHeaderStyleFromUrl(urlString: string, family: ModelFamily, providerID: string): HeaderStyle {
+  if (providerID === "antigravity") {
     return "antigravity"
   }
-  const modelWithSuffix = extractModelFromUrlWithSuffix(urlString)
-  if (!modelWithSuffix) {
-    return "gemini-cli"
-  }
-  const { quotaPreference } = resolveModelWithTier(modelWithSuffix)
-  return quotaPreference ?? "gemini-cli"
+  return "gemini-cli"
 }
 
 function isExplicitQuotaFromUrl(urlString: string): boolean {
