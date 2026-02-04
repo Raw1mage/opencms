@@ -76,7 +76,6 @@ export function DialogModelHealth() {
 
     let ready = 0
     let limited = 0
-    let untracked = 0
 
     const providerIds = Object.keys(providerMap).sort((a, b) => a.localeCompare(b))
     for (const providerID of providerIds) {
@@ -147,14 +146,7 @@ export function DialogModelHealth() {
             continue
           }
 
-          untracked += 1
-          items.push({
-            value: `${accountId}:${providerID}:${model.id}`,
-            title: `${providerCol} ${accountCol} ${modelCol}`,
-            description: "",
-            category: "",
-            footer: "· Untracked",
-          })
+          continue
         }
       }
     }
@@ -179,7 +171,7 @@ export function DialogModelHealth() {
       })
     }
 
-    return { items, stats: { ready, limited, untracked, total: ready + limited + untracked } }
+    return { items, stats: { ready, limited, total: ready + limited } }
   })
 
   // Summary stats
@@ -190,7 +182,7 @@ export function DialogModelHealth() {
   const title = createMemo(() => {
     const s = stats()
     if (s.total === 0) return "Model Health"
-    return `Model Health (${s.ready}✓ ${s.limited}⏳ ${s.untracked}·)`
+    return `Model Health (${s.ready}✓ ${s.limited}⏳)`
   })
 
   return (
