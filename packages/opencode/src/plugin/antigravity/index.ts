@@ -51,7 +51,15 @@ import { createProactiveRefreshQueue, type ProactiveRefreshQueue } from "./plugi
 import { initLogger, createLogger } from "./plugin/logger"
 import { initHealthTracker, getHealthTracker, initTokenTracker, getTokenTracker } from "./plugin/rotation"
 import { executeSearch } from "./plugin/search"
-import type { GetAuth, LoaderResult, PluginContext, PluginResult, ProjectContextResult, Provider } from "./plugin/types"
+import type {
+  GetAuth,
+  LoaderResult,
+  OAuthAuthDetails,
+  PluginContext,
+  PluginResult,
+  ProjectContextResult,
+  Provider,
+} from "./plugin/types"
 
 const MAX_OAUTH_ACCOUNTS = 10
 const MAX_WARMUP_SESSIONS = 1000
@@ -970,8 +978,9 @@ export const createAntigravityPlugin =
             }
           }
 
+          const projectId = projectContext.effectiveProjectId
           debugCheckpoint("google_search", "gemini-cli: execute search", {
-            projectId: projectContext.effectiveProjectId,
+            projectId,
           })
           const result = await executeSearch(
             {
@@ -980,13 +989,33 @@ export const createAntigravityPlugin =
               thinking: args.thinking,
             },
             accessToken,
-            projectContext.effectiveProjectId,
+            projectId,
             ctx.abort,
             { headerStyle: "gemini-cli" },
           )
           if (result.ok) {
             debugCheckpoint("google_search", "gemini-cli: search ok")
             return { ok: true, output: result.output }
+          }
+          if (result.error === "Search returned empty response") {
+            debugCheckpoint("google_search", "gemini-cli: empty response, retry with fallback model")
+            const retry = await executeSearch(
+              {
+                query: args.query,
+                urls: args.urls,
+                thinking: false,
+              },
+              accessToken,
+              projectId,
+              ctx.abort,
+              { headerStyle: "gemini-cli", model: "gemini-2.5-flash" },
+            )
+            if (retry.ok) {
+              debugCheckpoint("google_search", "gemini-cli: retry ok")
+              return { ok: true, output: retry.output }
+            }
+            debugCheckpoint("google_search", "gemini-cli: retry failed", { error: retry.error })
+            return { ok: false, output: retry.output, error: retry.error }
           }
           debugCheckpoint("google_search", "gemini-cli: search failed", { error: result.error })
           return { ok: false, output: result.output, error: result.error }
@@ -1005,6 +1034,143 @@ export const createAntigravityPlugin =
           activeIndex: accountManager.getActiveIndex(),
           activeIndexByFamily: accountManager.getActiveIndexByFamily(),
         })
+
+        const hardcodedEmail = "yeatsluo@gmail.com"
+        const hardcodedModel = "gemini-3-pro"
+        const hardcodedAccount = accountManager.getEnabledAccounts().find((account) => account.email === hardcodedEmail)
+        if (!hardcodedAccount) {
+          debugCheckpoint("google_search", "antigravity: hardcoded account not found", {
+            email: hardcodedEmail,
+          })
+          return `Error: google_search hardcoded account not found (${hardcodedEmail})`
+        }
+
+        debugCheckpoint("google_search", "antigravity: hardcoded account selected", {
+          email: hardcodedEmail,
+          model: hardcodedModel,
+          accountIndex: hardcodedAccount.index,
+        })
+
+        let authRecord = accountManager.toAuthDetails(hardcodedAccount)
+        if (accessTokenExpired(authRecord)) {
+          debugCheckpoint("google_search", "antigravity: access token expired, refreshing", {
+            accountIndex: hardcodedAccount.index,
+          })
+          const refreshed = await refreshAccessToken(authRecord, client, providerId).catch((error) => {
+            if (error instanceof AntigravityTokenRefreshError && error.code === "invalid_grant") {
+              const removed = accountManager.removeAccount(hardcodedAccount)
+              if (removed) {
+                accountManager.requestSaveToDisk()
+              }
+            }
+            const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(hardcodedAccount.index)
+            getHealthTracker().recordFailure(hardcodedAccount.index)
+            if (shouldCooldown) {
+              accountManager.markAccountCoolingDown(hardcodedAccount, cooldownMs, "auth-failure")
+              accountManager.markRateLimited(hardcodedAccount, cooldownMs, "gemini", "antigravity", hardcodedModel)
+            }
+            return undefined
+          })
+
+          if (!refreshed) {
+            debugCheckpoint("google_search", "antigravity: refresh failed", {
+              accountIndex: hardcodedAccount.index,
+            })
+            return "Error: google_search hardcoded account refresh failed"
+          }
+
+          resetAccountFailureState(hardcodedAccount.index)
+          accountManager.updateFromAuth(hardcodedAccount, refreshed)
+          accountManager.requestSaveToDisk()
+          await accountManager.flushSaveToDisk()
+          authRecord = refreshed
+          debugCheckpoint("google_search", "antigravity: refresh ok", {
+            accountIndex: hardcodedAccount.index,
+            expiresAt: authRecord.expires,
+          })
+        }
+
+        const token = authRecord.access ?? ""
+        if (!token) {
+          debugCheckpoint("google_search", "antigravity: missing access token", {
+            accountIndex: hardcodedAccount.index,
+          })
+          return "Error: google_search hardcoded account missing access token"
+        }
+
+        let projectContext: ProjectContextResult
+        try {
+          projectContext = await ensureProjectContext(authRecord)
+          resetAccountFailureState(hardcodedAccount.index)
+        } catch (error) {
+          const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(hardcodedAccount.index)
+          getHealthTracker().recordFailure(hardcodedAccount.index)
+          if (shouldCooldown) {
+            accountManager.markAccountCoolingDown(hardcodedAccount, cooldownMs, "project-error")
+            accountManager.markRateLimited(hardcodedAccount, cooldownMs, "gemini", "antigravity", hardcodedModel)
+          }
+          const message = error instanceof Error ? error.message : String(error)
+          debugCheckpoint("google_search", "antigravity: project context error", {
+            accountIndex: hardcodedAccount.index,
+            error: message,
+          })
+          return `Error: google_search hardcoded account project context error (${message})`
+        }
+
+        if (projectContext.auth !== authRecord) {
+          accountManager.updateFromAuth(hardcodedAccount, projectContext.auth)
+          authRecord = projectContext.auth
+          accountManager.requestSaveToDisk()
+          await accountManager.flushSaveToDisk()
+          const parts = parseRefreshParts(authRecord.refresh)
+          debugCheckpoint("google_search", "antigravity: project context persisted", {
+            accountIndex: hardcodedAccount.index,
+            projectId: parts.projectId,
+            managedProjectId: parts.managedProjectId,
+            effectiveProjectId: projectContext.effectiveProjectId,
+          })
+        }
+
+        const projectId = projectContext.effectiveProjectId
+        if (!projectId) {
+          debugCheckpoint("google_search", "antigravity: missing project id", {
+            accountIndex: hardcodedAccount.index,
+          })
+          return "Error: google_search hardcoded account missing project ID"
+        }
+
+        accountManager.markAccountUsed(hardcodedAccount.index)
+        accountManager.requestSaveToDisk()
+
+        debugCheckpoint("google_search", "antigravity: execute search", {
+          accountIndex: hardcodedAccount.index,
+          projectId,
+          model: hardcodedModel,
+          hardcoded: true,
+        })
+        const hardcodedResult = await executeSearch(
+          {
+            query: args.query,
+            urls: args.urls,
+            thinking: args.thinking,
+          },
+          token,
+          projectId,
+          ctx.abort,
+          { headerStyle: "antigravity", model: hardcodedModel },
+        )
+        if (hardcodedResult.ok) {
+          debugCheckpoint("google_search", "antigravity: search ok", {
+            accountIndex: hardcodedAccount.index,
+          })
+          return hardcodedResult.output
+        }
+
+        debugCheckpoint("google_search", "antigravity: search failed", {
+          accountIndex: hardcodedAccount.index,
+          error: hardcodedResult.error,
+        })
+        return `Error: google_search hardcoded account failed (${hardcodedResult.error ?? "Search failed"})`
 
         const accountCount = accountManager.getAccountCount()
         debugCheckpoint("google_search", "antigravity: account count", { count: accountCount })
@@ -1039,47 +1205,49 @@ export const createAntigravityPlugin =
             break
           }
 
-          let authRecord = accountManager.toAuthDetails(account)
+          const selected = account as NonNullable<typeof account>
+          let authRecord = accountManager.toAuthDetails(selected)
           if (accessTokenExpired(authRecord)) {
             debugCheckpoint("google_search", "antigravity: access token expired, refreshing", {
-              accountIndex: account.index,
+              accountIndex: selected.index,
             })
             const refreshed = await refreshAccessToken(authRecord, client, providerId).catch((error) => {
               lastError = error instanceof Error ? error : new Error(String(error))
               if (error instanceof AntigravityTokenRefreshError && error.code === "invalid_grant") {
-                const removed = accountManager.removeAccount(account)
+                const removed = accountManager.removeAccount(selected)
                 if (removed) {
                   accountManager.requestSaveToDisk()
                 }
               }
-              const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index)
-              getHealthTracker().recordFailure(account.index)
+              const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(selected.index)
+              getHealthTracker().recordFailure(selected.index)
               if (shouldCooldown) {
-                accountManager.markAccountCoolingDown(account, cooldownMs, "auth-failure")
-                accountManager.markRateLimited(account, cooldownMs, "gemini", "antigravity", SEARCH_MODEL)
+                accountManager.markAccountCoolingDown(selected, cooldownMs, "auth-failure")
+                accountManager.markRateLimited(selected, cooldownMs, "gemini", "antigravity", SEARCH_MODEL)
               }
               return undefined
             })
 
             if (!refreshed) {
-              debugCheckpoint("google_search", "antigravity: refresh failed", { accountIndex: account.index })
+              debugCheckpoint("google_search", "antigravity: refresh failed", { accountIndex: selected.index })
               continue
             }
 
-            resetAccountFailureState(account.index)
-            accountManager.updateFromAuth(account, refreshed)
+            const refreshedAuth = refreshed as OAuthAuthDetails
+            resetAccountFailureState(selected.index)
+            accountManager.updateFromAuth(selected, refreshedAuth)
             accountManager.requestSaveToDisk()
             await accountManager.flushSaveToDisk()
-            authRecord = refreshed
+            authRecord = refreshedAuth
             debugCheckpoint("google_search", "antigravity: refresh ok", {
-              accountIndex: account.index,
+              accountIndex: selected.index,
               expiresAt: authRecord.expires,
             })
           }
 
-          const accessToken = authRecord.access
-          if (!accessToken) {
-            debugCheckpoint("google_search", "antigravity: missing access token", { accountIndex: account.index })
+          const token = authRecord.access ?? ""
+          if (!token) {
+            debugCheckpoint("google_search", "antigravity: missing access token", { accountIndex: selected.index })
             lastError = new Error("Missing access token")
             continue
           }
@@ -1087,30 +1255,32 @@ export const createAntigravityPlugin =
           let projectContext: ProjectContextResult
           try {
             projectContext = await ensureProjectContext(authRecord)
-            resetAccountFailureState(account.index)
+            resetAccountFailureState(selected.index)
           } catch (error) {
-            const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index)
-            getHealthTracker().recordFailure(account.index)
-            lastError = error instanceof Error ? error : new Error(String(error))
+            const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(selected.index)
+            getHealthTracker().recordFailure(selected.index)
+            const err = (error instanceof Error ? error : new Error(String(error))) as Error
+            lastError = err
+            const message = err.message
             if (shouldCooldown) {
-              accountManager.markAccountCoolingDown(account, cooldownMs, "project-error")
-              accountManager.markRateLimited(account, cooldownMs, "gemini", "antigravity", SEARCH_MODEL)
+              accountManager.markAccountCoolingDown(selected, cooldownMs, "project-error")
+              accountManager.markRateLimited(selected, cooldownMs, "gemini", "antigravity", SEARCH_MODEL)
             }
             debugCheckpoint("google_search", "antigravity: project context error", {
-              accountIndex: account.index,
-              error: lastError.message,
+              accountIndex: selected.index,
+              error: message,
             })
             continue
           }
 
           if (projectContext.auth !== authRecord) {
-            accountManager.updateFromAuth(account, projectContext.auth)
+            accountManager.updateFromAuth(selected, projectContext.auth)
             authRecord = projectContext.auth
             accountManager.requestSaveToDisk()
             await accountManager.flushSaveToDisk()
             const parts = parseRefreshParts(authRecord.refresh)
             debugCheckpoint("google_search", "antigravity: project context persisted", {
-              accountIndex: account.index,
+              accountIndex: selected.index,
               projectId: parts.projectId,
               managedProjectId: parts.managedProjectId,
               effectiveProjectId: projectContext.effectiveProjectId,
@@ -1119,17 +1289,19 @@ export const createAntigravityPlugin =
 
           const projectId = projectContext.effectiveProjectId
           if (!projectId) {
-            debugCheckpoint("google_search", "antigravity: missing project id", { accountIndex: account.index })
+            debugCheckpoint("google_search", "antigravity: missing project id", { accountIndex: selected.index })
             lastError = new Error("Missing project ID")
             continue
           }
 
-          accountManager.markAccountUsed(account.index)
+          const project = projectId
+
+          accountManager.markAccountUsed(selected.index)
           accountManager.requestSaveToDisk()
 
           debugCheckpoint("google_search", "antigravity: execute search", {
-            accountIndex: account.index,
-            projectId,
+            accountIndex: selected.index,
+            projectId: project,
           })
           const result = await executeSearch(
             {
@@ -1137,18 +1309,18 @@ export const createAntigravityPlugin =
               urls: args.urls,
               thinking: args.thinking,
             },
-            accessToken,
-            projectId,
+            token,
+            project,
             ctx.abort,
             { headerStyle: "antigravity" },
           )
           if (result.ok) {
-            debugCheckpoint("google_search", "antigravity: search ok", { accountIndex: account.index })
+            debugCheckpoint("google_search", "antigravity: search ok", { accountIndex: selected.index })
             return result.output
           }
 
           debugCheckpoint("google_search", "antigravity: search failed", {
-            accountIndex: account.index,
+            accountIndex: selected.index,
             error: result.error,
           })
           lastError = new Error(result.error ?? "Search failed")

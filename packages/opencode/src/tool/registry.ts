@@ -75,6 +75,12 @@ export namespace ToolRegistry {
         parameters: z.object(def.args),
         description: def.description,
         execute: async (args, ctx) => {
+          if (id === "google_search") {
+            debugCheckpoint("tool.registry", "execute: google_search", {
+              id,
+              source,
+            })
+          }
           const pluginCtx = {
             ...ctx,
             directory: Instance.directory,
@@ -152,6 +158,7 @@ export namespace ToolRegistry {
       ids: tools.map((item) => item.id),
     })
     const filtered = tools.filter((t) => {
+      if (t.id === "google_search") return false
       // Enable websearch/codesearch for zen users OR via enable flag
       if (t.id === "codesearch" || t.id === "websearch") {
         return model.providerID === "opencode" || Flag.OPENCODE_ENABLE_EXA
@@ -171,6 +178,7 @@ export namespace ToolRegistry {
     })
 
     const score = (item: Tool.Info) => {
+      if (item.id === "google_search" && item.source?.includes("refs/opencode-antigravity-auth-1.4.3")) return 5
       if (item.id === "google_search" && item.source?.includes("antigravity")) return 4
       if (item.source?.startsWith("internal:")) return 3
       if (item.source?.startsWith("file:")) return 1

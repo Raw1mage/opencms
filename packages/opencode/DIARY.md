@@ -71,11 +71,190 @@
 - debug log 統一路徑為 `/home/pkcs12/opencode/logs/debug.log` 並於啟動即清空（debug.ts + debug-log.ts）。
 - 清理 debugLog 殘留，auto-update-checker 與 antigravity 改用 debugCheckpoint。
 - google_search 的 Gemini CLI 錯誤訊息移除 `opencode auth login` 指引。
+- google_search 改用 randomized headers，支援 Origin/Referer 環境變數。
+- google_search 成功/錯誤回應 body 追加 debug log（截斷）。
+- google_search 執行時記錄工具來源（internal / refs）。
+- google_search 工具優先選用 `/refs/opencode-antigravity-auth-1.4.3` 來源。
+- 停用 google_search 工具註冊，改採 websearch。
 - 統一 debug log 系統為純文字輸出，gemini-cli/antigravity/Log/legacy trace 改走同一 writer。
 - debugCheckpoint 改用同步 append，避免短命令（--version）結束前漏寫。
 - debug log 行加上 [opencode] 統一前綴，方便與系統工具 JSON 行區分。
+- PromptInput 修正 typecheck：SlashCommand source 收斂、model optional 分離、Tooltip/Icon props 對齊。
 
 ### PLANNING
+
+#### 功能：Model Health Dashboard 隱藏 Untracked
+
+**需求**
+
+- admin panel 的 Model Health Dashboard 不顯示 Untracked 模型。
+- 只保留 Ready / Rate limit 的列表與統計。
+
+**範圍**
+
+- IN: `src/cli/cmd/tui/component/dialog-model-health.tsx`
+- OUT: 其他 admin panel UI、後端狀態來源、資料結構調整
+
+**作法**
+
+1. 在列表組裝時直接略過 untracked 狀態，不加入 items。
+2. 統計與標題不再包含 untracked。
+
+**任務**
+
+1. [ ] 更新 Model Health Dashboard 過濾 untracked
+2. [ ] 確認標題統計不再顯示 untracked
+
+**問題**
+
+- 目前無。
+
+#### 功能：修復貼上圖片 invalid image data（支援 PNG/JPEG/WebP）
+
+**需求**
+
+- 修復 WSL+Windows 剪貼簿貼圖在 TUI/CLI 流程出現 invalid image data。
+- 影像格式支援 PNG + JPEG + WebP。
+- 遇到無效影像資料要提示使用者，不送出影像。
+
+**範圍**
+
+- IN: `src/cli/cmd/tui/util/clipboard.ts`, `src/cli/cmd/tui/component/prompt/index.tsx`
+- IN: `src/cli/cmd/cli.ts`（若有共用 paste 流程）
+- OUT: 影像縮圖/壓縮、UI 版面重設計、非貼上相關流程
+
+**作法**
+
+1. 擴充 clipboard 影像讀取，允許 PNG/JPEG/WebP，並驗證 data URL 與 base64。
+2. 發現無效影像時直接中止並顯示提示，不送出 image part。
+3. TUI/CLI 共享驗證邏輯，避免分支行為不一致。
+4. 補上 debug checkpoint（必要時），協助追蹤剪貼簿輸入與格式。
+
+**任務**
+
+1. [ ] 檢查 clipboard.ts 目前 PNG-only 與 data URL 生成流程
+2. [ ] 新增 JPEG/WebP 支援與 base64 驗證
+3. [ ] 在 TUI/CLI paste 流程加入「無效影像提示」
+4. [ ] 驗證 WSL+Windows 貼圖流程（TUI/CLI）
+
+**問題**
+
+- 目前無。
+
+#### 功能：google_search 回應 body 紀錄與 headers 強化
+
+**需求**
+
+- 僅針對 google_search 記錄成功與錯誤的回應 body（含截斷）。
+- google_search headers 改用 randomized 組合，加強 client 模擬。
+- Origin/Referer 由環境變數控制，未設定則不帶。
+
+**範圍**
+
+- IN: `src/plugin/antigravity/plugin/search.ts`
+- OUT: 其他 antigravity request、其他工具或 provider
+
+**作法**
+
+1. google_search request headers 改用 `getRandomizedHeaders`。
+2. 讀取 `OPENCODE_ANTIGRAVITY_SEARCH_ORIGIN` / `OPENCODE_ANTIGRAVITY_SEARCH_REFERER`，有值才加入。
+3. 成功/錯誤回應都記錄 response body（截斷），維持 debug log 可讀性。
+
+**任務**
+
+1. [ ] 更新 google_search headers 組裝邏輯
+2. [ ] 補上成功/錯誤回應 body 的 debug log
+3. [ ] 更新 DIARY CHANGELOG
+
+**問題**
+
+- 是否需要對回應 body 做進一步遮罩（除了截斷）？
+
+#### 功能：google_search 工具來源記錄與 internal vs /refs 協議比較
+
+**需求**
+
+- 比較 internal 與 `/refs/opencode-antigravity-auth-1.4.3` 的協議差異（僅診斷，不改邏輯）。
+- 在 google_search 執行時記錄工具來源（internal / refs）。
+- 不切換來源、不對齊行為、不新增測試。
+
+**範圍**
+
+- IN: `src/tool/registry.ts` 或 google_search 入口（新增來源日誌）
+- OUT: 工具來源切換、協議/模型/端點調整、測試
+
+**作法**
+
+1. 在工具解析/執行處加入 debugCheckpoint，輸出實際來源路徑或註冊標識。
+2. 彙整 internal vs /refs 的協議差異並回報（不改碼）。
+
+**任務**
+
+1. [ ] 找到可取得工具來源資訊的執行位置
+2. [ ] 加入 google_search 工具來源 debugCheckpoint
+3. [ ] 整理協議差異清單與結論
+
+**問題**
+
+- 來源標識是否能直接取得註冊路徑？若無需額外標記？
+
+#### 功能：停用 google_search 改用 websearch
+
+**需求**
+
+- 停用/移除 google_search 工具註冊。
+- 改採 opencode 原生 websearch（不改其行為）。
+- 更新文件紀錄。
+
+**範圍**
+
+- IN: `src/tool/registry.ts`, DIARY
+- OUT: websearch 行為調整、測試
+
+**作法**
+
+1. 在工具過濾階段移除 `google_search`。
+2. 更新 DIARY CHANGELOG。
+
+**任務**
+
+1. [ ] 停用 google_search 工具註冊/解析
+2. [ ] 更新 DIARY 記錄
+
+**問題**
+
+- 是否需提示使用者改用 websearch 指令？
+
+#### 功能：貼上觸發 tool call 的 3D rotation 反覆重試問題
+
+**需求**
+
+- 釐清貼上文字/圖片後的 tool call 流程，找出 3D rotation 反覆重試的根因。
+- 產出精簡版 RCA，說明症狀/根因/影響/建議。
+- 提出修復計畫（含實作建議），採用「短期記憶當前可用 vector list」避免反覆從頭重跑。
+
+**範圍**
+
+- IN: 貼上事件處理流程、tool call 入口、3D rotation/模型輪替/health 檢查
+- OUT: 非貼上觸發的其他輸入流程、非相關 UI 重構
+
+**作法**
+
+1. 盤點貼上事件 → tool call 的主流程與相關模組。
+2. 定位 rotation3d/rotation3D 或模型輪替核心邏輯與重試條件。
+3. 比對「已抓 model status」與「仍重跑」的差異點。
+4. 形成 RCA 與修復計畫（含短期記憶 vector list 的設計方向）。
+
+**任務**
+
+1. [ ] 搜尋貼上事件與 tool call 的串接路徑
+2. [ ] 搜尋 rotation3d / model rotation / fallback / retry 相關程式碼
+3. [ ] 產出精簡版 RCA 與修復計畫
+
+**問題**
+
+- rotation3d 的具體觸發點是否只在 tool call，或也在一般 prompt 流程？
+- vector list 的「短期記憶」需存在於 session、process、或全域快取？
 
 #### 功能：google_search 空結果修復
 
@@ -105,6 +284,58 @@
 **問題**
 
 - 實際 API 回應欄位可能變動，需保留保守處理。
+
+#### 功能：google_search hardcode 路徑（antigravity 固定帳號/模型）
+
+**需求**
+
+- google_search 僅走 hardcode 路徑，固定帳號 `yeatsluo@gmail.com` 與模型 `gemini-3-pro`。
+- hardcode 路徑失敗就回傳錯誤，不做 fallback。
+- 僅限 google_search tool call，不影響其他工具。
+
+**範圍**
+
+- IN: `src/plugin/antigravity/index.ts` google_search 分支
+- OUT: 其他工具、一般搜尋 fallback 流程
+
+**作法**
+
+1. 在 google_search 入口強制選取指定帳號。
+2. 固定使用 `gemini-3-pro` 執行搜尋。
+3. hardcode 失敗直接返回錯誤並停止。
+
+**任務**
+
+1. [ ] 修正 hardcode 路徑的型別錯誤
+2. [ ] 確保 hardcode 路徑 early return，略過原本 loop/fallback
+
+**問題**
+
+- 是否需要補 debugCheckpoint 以識別 hardcode 路徑命中？
+
+#### 功能：PromptInput typecheck 修復（SlashCommand/Model/Tooltip/Icon）
+
+**需求**
+
+- 修正 `prompt-input.tsx` 的型別錯誤（SlashCommand source、model 可選、Tooltip/Icon props）。
+- 允許 UI 微調，但不改動核心流程。
+
+**範圍**
+
+- IN: `packages/app/src/components/prompt-input.tsx`, `packages/ui/src/components/tooltip.tsx`
+- OUT: 其他 UI 流程、非必要重構
+
+**作法**
+
+1. 針對 SlashCommand source 做型別收斂。
+2. 將 model 的顯示/送出拆成不同變數，避免 `undefined`。
+3. Tooltip 改用 `value` props，Icon 更換為既有名稱。
+
+**任務**
+
+1. [ ] 修正 SlashCommand source 型別
+2. [ ] 修正 model optional 相關型別
+3. [ ] 修正 Tooltip/Icon props
 
 #### 功能：google_search Antigravity 認證失敗 RCA（log-based）
 
@@ -453,6 +684,30 @@
 - 目前無。
 
 ### DEBUGLOG
+
+#### google_search 429（RESOURCE_EXHAUSTED）
+
+**問題摘要**
+
+- google_search 在 hardcoded antigravity 帳號上回傳 429。
+- response body 明確為 `RESOURCE_EXHAUSTED`。
+
+**根本原因**
+
+- 目標帳號/專案配額耗盡（非 client 模擬錯誤）。
+
+**證據**
+
+- debug.log 顯示 response body：`{"error":{"code":429,"message":"Resource has been exhausted (e.g. check quota).","status":"RESOURCE_EXHAUSTED"}}`。
+- trace 顯示使用 hardcoded 帳號 `yeatsluo@gmail.com`、模型 `gemini-3-pro-low`。
+
+**修復重點**
+
+- 若需解除：更換帳號/專案配額、等待配額恢復、或調整 hardcoded 路徑策略。
+
+**驗證**
+
+- [x] 2026-02-04 05:22:40 讀到 429 回應 body（RESOURCE_EXHAUSTED）。
 
 #### google_search 測試流程 RCA
 
@@ -1399,3 +1654,32 @@
 - 固定版本 `1.15.8`。
 - 補齊 Gemini transform 檢查與參數。
 - 移除硬編碼 `console.log`。
+
+### DEBUGLOG
+
+#### 貼上功能失效 (Text/Image Paste Failure)
+
+**問題摘要**
+
+- 使用者回報貼上文字與圖片功能失效。
+- debug.log 顯示 `tool.call` 正常，無針對貼上動作的錯誤堆疊，呈現「靜默失敗」狀態。
+
+**根本原因**
+
+- **觸發條件**：在某些終端環境（如 WSL/Windows Terminal），TUI 的 `textarea.onPaste` 事件可能接收到空字串或格式異常，導致程式觸發 fallback 指令 `prompt.paste`。
+- **邏輯缺漏**：`src/cli/cmd/tui/component/prompt/index.tsx` 中的 `prompt.paste` 指令實作不完整。它透過 `Clipboard.read()` 讀取剪貼簿後，**僅檢查並處理 `image/` MIME type**。
+- **結果**：當剪貼簿內容為 `text/plain` 且走入 fallback 路徑時，程式碼完全忽略該內容，導致使用者操作後無任何反應。
+
+**修復重點**
+
+- 修改 `prompt.paste` 指令邏輯。
+- 新增 `text/plain` 的處理分支。
+- 補回文字貼上策略：
+  - 檢查是否啟用 `disable_paste_summary`。
+  - 若內容過長（>3 行或 >150 字），轉換為 `[Pasted ~N lines]` 虛擬文字。
+  - 否則直接插入文字內容。
+
+**驗證**
+
+- [x] 程式碼審查確認 `prompt.paste` 已包含 `text/plain` 處理邏輯。
+- [ ] 待使用者於實際環境驗證。

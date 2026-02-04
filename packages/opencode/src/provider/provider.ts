@@ -85,16 +85,16 @@ export namespace Provider {
     family: string
     reasoning?: boolean
   }> = [
-      // Free tier models (most likely available)
-      { id: "claude-haiku-4.5", name: "Claude Haiku 4.5", family: "claude" },
-      { id: "gpt-4o-mini", name: "GPT-4o Mini", family: "openai" },
-      // Pro/Enterprise tier models (may require paid subscription)
-      { id: "claude-sonnet-4", name: "Claude Sonnet 4", family: "claude" },
-      { id: "gpt-4o", name: "GPT-4o", family: "openai" },
-      { id: "o1", name: "OpenAI o1", family: "openai", reasoning: true },
-      { id: "o1-mini", name: "OpenAI o1 Mini", family: "openai", reasoning: true },
-      { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", family: "gemini" },
-    ]
+    // Free tier models (most likely available)
+    { id: "claude-haiku-4.5", name: "Claude Haiku 4.5", family: "claude" },
+    { id: "gpt-4o-mini", name: "GPT-4o Mini", family: "openai" },
+    // Pro/Enterprise tier models (may require paid subscription)
+    { id: "claude-sonnet-4", name: "Claude Sonnet 4", family: "claude" },
+    { id: "gpt-4o", name: "GPT-4o", family: "openai" },
+    { id: "o1", name: "OpenAI o1", family: "openai", reasoning: true },
+    { id: "o1-mini", name: "OpenAI o1 Mini", family: "openai", reasoning: true },
+    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", family: "gemini" },
+  ]
 
   /**
    * Fetch models dynamically from a provider's API.
@@ -827,13 +827,13 @@ export namespace Provider {
         },
         experimentalOver200K: model.cost?.context_over_200k
           ? {
-            cache: {
-              read: model.cost.context_over_200k.cache_read ?? 0,
-              write: model.cost.context_over_200k.cache_write ?? 0,
-            },
-            input: model.cost.context_over_200k.input,
-            output: model.cost.context_over_200k.output,
-          }
+              cache: {
+                read: model.cost.context_over_200k.cache_read ?? 0,
+                write: model.cost.context_over_200k.cache_write ?? 0,
+              },
+              input: model.cost.context_over_200k.input,
+              output: model.cost.context_over_200k.output,
+            }
           : undefined,
       },
       limit: {
@@ -1099,11 +1099,9 @@ export namespace Provider {
     // Populate Gemini CLI models (official gemini-cli supported models)
     // Reference: https://geminicli.com/docs/cli/model/
     const geminiCliModels = [
-      { id: "gemini-3-pro-preview", name: "Gemini 3 Pro (Preview)", reasoning: true, context: 1048576 },
-      { id: "gemini-3-flash-preview", name: "Gemini 3 Flash (Preview)", reasoning: true, context: 1048576 },
-      { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", reasoning: false, context: 1048576 },
-      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", reasoning: false, context: 1048576 },
-      { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", reasoning: false, context: 1048576 },
+      { id: "gemini-2.0-flash-lite-preview-02-05", name: "Gemini 2.0 Flash Lite", reasoning: false, context: 1048576 },
+      { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", reasoning: false, context: 1048576 },
+      { id: "gemini-2.0-pro-exp-02-05", name: "Gemini 2.0 Pro", reasoning: false, context: 2097152 },
     ]
 
     for (const m of geminiCliModels) {
@@ -1215,7 +1213,7 @@ export namespace Provider {
         { id: "claude-opus-4-5", name: "Claude 4.5 Opus", family: "claude" },
         { id: "claude-sonnet-4-5-thinking", name: "Claude 4.5 Sonnet (Thinking)", family: "claude", reasoning: true },
         { id: "claude-sonnet-4-5", name: "Claude 4.5 Sonnet", family: "claude" },
-        { id: "gemini-3-pro-high", name: "Gemini 3 Pro (High)", family: "gemini-pro" },
+        { id: "gemini-3-pro-high", name: "Gemini 3 Pro (High)", family: "gemini-pro", image: false },
         { id: "gemini-3-pro-low", name: "Gemini 3 Pro (Low)", family: "gemini-pro" },
         { id: "gemini-3-flash", name: "Gemini 3 Flash (New)", family: "gemini-flash" },
         { id: "claude-opus-4-1", name: "Claude Opus 4.1", family: "claude" },
@@ -1239,7 +1237,7 @@ export namespace Provider {
             reasoning: m.reasoning || false,
             attachment: true,
             toolcall: true,
-            input: { text: true, image: true, audio: false, video: false, pdf: false },
+            input: { text: true, image: (m as any).image ?? true, audio: false, video: false, pdf: false },
             output: { text: true, audio: false, image: false, video: false, pdf: false },
             interleaved: false,
           },
@@ -1447,7 +1445,9 @@ export namespace Provider {
                     debugCheckpoint("google-api", `processContents: no contents at ${path}`)
                     return
                   }
-                  debugCheckpoint("google-api", `processContents: ${path}`, { contentCount: (contents as any[]).length })
+                  debugCheckpoint("google-api", `processContents: ${path}`, {
+                    contentCount: (contents as any[]).length,
+                  })
 
                   for (const content of contents) {
                     if (content && typeof content === "object") {
@@ -1564,8 +1564,7 @@ export namespace Provider {
             providerID: accountID,
           })),
           (model, id) =>
-            (!accountID.includes("antigravity") || ANTIGRAVITY_WHITELIST.has(id)) &&
-            !isModelIgnored(accountID, id),
+            (!accountID.includes("antigravity") || ANTIGRAVITY_WHITELIST.has(id)) && !isModelIgnored(accountID, id),
         ),
       }
       mergeProvider(accountID, {
