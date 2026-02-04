@@ -10,6 +10,7 @@
  */
 
 import type { PluginClient } from "./types"
+import { debugCheckpoint } from "../../../util/debug"
 
 type LogLevel = "debug" | "info" | "warn" | "error"
 
@@ -65,6 +66,10 @@ export function createLogger(module: string): Logger {
   const service = `antigravity.${module}`
 
   const log = (level: LogLevel, message: string, extra?: Record<string, unknown>): void => {
+    debugCheckpoint("antigravity.logger", `${level.toUpperCase()} ${message}`, {
+      module,
+      extra,
+    })
     // Try TUI logging first
     const app = _client?.app
     if (app && typeof app.log === "function") {

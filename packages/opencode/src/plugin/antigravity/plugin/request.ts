@@ -66,11 +66,10 @@ import type { GoogleSearchConfig } from "./transform/types"
 
 const log = createLogger("request")
 
-// Use central debug log from util/debug-log.ts
-import { debugLog as centralDebugLog } from "../../../util/debug-log"
+import { debugCheckpoint } from "../../../util/debug"
 
-const debugLog = (msg: string, data?: any) => {
-  centralDebugLog("antigravity", msg, data)
+const debug = (msg: string, data?: any) => {
+  debugCheckpoint("antigravity", msg, data)
 }
 
 const PLUGIN_SESSION_ID = `-${crypto.randomUUID()}`
@@ -176,9 +175,9 @@ function resolveConversationKey(requestPayload: Record<string, unknown>): string
 
   const systemSeed = extractTextFromContent(
     (anyPayload.systemInstruction as any)?.parts ??
-    anyPayload.systemInstruction ??
-    anyPayload.system ??
-    anyPayload.system_instruction,
+      anyPayload.systemInstruction ??
+      anyPayload.system ??
+      anyPayload.system_instruction,
   )
   const messageSeed = Array.isArray(anyPayload.messages)
     ? extractConversationSeedFromMessages(anyPayload.messages)
@@ -382,7 +381,7 @@ function hasSignedThinkingPart(part: any): boolean {
 }
 
 function ensureThinkingBeforeToolUseInContents(contents: any[], signatureSessionKey: string): any[] {
-  debugLog("ensureThinkingBeforeToolUseInContents called", {
+  debug("ensureThinkingBeforeToolUseInContents called", {
     contentCount: contents?.length,
     signatureSessionKey,
   })
@@ -403,7 +402,7 @@ function ensureThinkingBeforeToolUseInContents(contents: any[], signatureSession
       return content
     }
 
-    debugLog(`Content[${idx}] has tool use, processing`, {
+    debug(`Content[${idx}] has tool use, processing`, {
       role,
       partCount: parts.length,
     })
@@ -413,15 +412,15 @@ function ensureThinkingBeforeToolUseInContents(contents: any[], signatureSession
       .filter((p) => !isGeminiThinkingPart(p))
       .map((p, partIdx) => {
         if (p && typeof p === "object" && p.functionCall) {
-          debugLog(`Processing functionCall in contents[${idx}].parts[${partIdx}]`, {
+          debug(`Processing functionCall in contents[${idx}].parts[${partIdx}]`, {
             hasSignature: !!p.thoughtSignature,
             signatureLength: p.thoughtSignature?.length,
-            functionName: p.functionCall.name
+            functionName: p.functionCall.name,
           })
         }
         if (p && typeof p === "object" && p.functionCall && !p.thoughtSignature) {
-          debugLog(`Injecting sentinel signature into functionCall contents[${idx}].parts[${partIdx}]`, {
-            functionName: p.functionCall.name
+          debug(`Injecting sentinel signature into functionCall contents[${idx}].parts[${partIdx}]`, {
+            functionName: p.functionCall.name,
           })
           return { ...p, thoughtSignature: SKIP_THOUGHT_SIGNATURE_SENTINEL }
         }
@@ -645,7 +644,7 @@ export function prepareAntigravityRequest(
   thinkingRecoveryMessage?: string
 } {
   const inputUrl = typeof input === "string" ? input : (input as any)?.url || String(input)
-  debugLog("prepareAntigravityRequest called", {
+  debug("prepareAntigravityRequest called", {
     url: inputUrl,
     headerStyle,
     forceThinkingRecovery,
@@ -663,7 +662,7 @@ export function prepareAntigravityRequest(
   let thinkingRecoveryMessage: string | undefined
 
   if (!isGenerativeLanguageRequest(input)) {
-    debugLog("Not a generativelanguage request, skipping", { url: inputUrl })
+    debug("Not a generativelanguage request, skipping", { url: inputUrl })
     return {
       request: input,
       init: { ...baseInit, headers },
@@ -746,27 +745,27 @@ export function prepareAntigravityRequest(
         }
 
         for (const req of requestObjects) {
-          ; (req as any).sessionId = signatureSessionKey
+          ;(req as any).sessionId = signatureSessionKey
           stripInjectedDebugFromRequestPayload(req as Record<string, unknown>)
 
           if (isClaude) {
             sanitizeCrossModelPayloadInPlace(req, { targetModel: effectiveModel })
             deepFilterThinkingBlocks(req, signatureSessionKey, getCachedSignature, true)
             if (isClaudeThinking && Array.isArray((req as any).contents)) {
-              ; (req as any).contents = ensureThinkingBeforeToolUseInContents((req as any).contents, signatureSessionKey)
+              ;(req as any).contents = ensureThinkingBeforeToolUseInContents((req as any).contents, signatureSessionKey)
             }
             if (isClaudeThinking && Array.isArray((req as any).messages)) {
-              ; (req as any).messages = ensureThinkingBeforeToolUseInMessages((req as any).messages, signatureSessionKey)
+              ;(req as any).messages = ensureThinkingBeforeToolUseInMessages((req as any).messages, signatureSessionKey)
             }
             applyToolPairingFixes(req as Record<string, unknown>, true)
           } else if (isGemini3Model(effectiveModel)) {
             // EXPERIMENTAL: Apply thinking signature enforcement for Gemini 3 models
             deepFilterThinkingBlocks(req, signatureSessionKey, getCachedSignature, true)
             if (Array.isArray((req as any).contents)) {
-              ; (req as any).contents = ensureThinkingBeforeToolUseInContents((req as any).contents, signatureSessionKey)
+              ;(req as any).contents = ensureThinkingBeforeToolUseInContents((req as any).contents, signatureSessionKey)
             }
             if (Array.isArray((req as any).messages)) {
-              ; (req as any).messages = ensureThinkingBeforeToolUseInMessages((req as any).messages, signatureSessionKey)
+              ;(req as any).messages = ensureThinkingBeforeToolUseInMessages((req as any).messages, signatureSessionKey)
             }
           }
         }
@@ -843,13 +842,13 @@ export function prepareAntigravityRequest(
           sanitizeCrossModelPayloadInPlace(requestPayload, { targetModel: effectiveModel })
           deepFilterThinkingBlocks(requestPayload, signatureSessionKey, getCachedSignature, true)
           if (isClaudeThinking && Array.isArray((requestPayload as any).contents)) {
-            ; (requestPayload as any).contents = ensureThinkingBeforeToolUseInContents(
+            ;(requestPayload as any).contents = ensureThinkingBeforeToolUseInContents(
               (requestPayload as any).contents,
               signatureSessionKey,
             )
           }
           if (isClaudeThinking && Array.isArray((requestPayload as any).messages)) {
-            ; (requestPayload as any).messages = ensureThinkingBeforeToolUseInMessages(
+            ;(requestPayload as any).messages = ensureThinkingBeforeToolUseInMessages(
               (requestPayload as any).messages,
               signatureSessionKey,
             )
@@ -859,13 +858,13 @@ export function prepareAntigravityRequest(
           // EXPERIMENTAL: Apply thinking signature enforcement for Gemini 3 models
           deepFilterThinkingBlocks(requestPayload, signatureSessionKey, getCachedSignature, true)
           if (Array.isArray((requestPayload as any).contents)) {
-            ; (requestPayload as any).contents = ensureThinkingBeforeToolUseInContents(
+            ;(requestPayload as any).contents = ensureThinkingBeforeToolUseInContents(
               (requestPayload as any).contents,
               signatureSessionKey,
             )
           }
           if (Array.isArray((requestPayload as any).messages)) {
-            ; (requestPayload as any).messages = ensureThinkingBeforeToolUseInMessages(
+            ;(requestPayload as any).messages = ensureThinkingBeforeToolUseInMessages(
               (requestPayload as any).messages,
               signatureSessionKey,
             )
@@ -990,7 +989,7 @@ export function prepareAntigravityRequest(
         })
         if (wrappedBody.request && typeof wrappedBody.request === "object") {
           sessionId = signatureSessionKey
-            ; (wrappedBody.request as any).sessionId = signatureSessionKey
+          ;(wrappedBody.request as any).sessionId = signatureSessionKey
         }
 
         body = JSON.stringify(wrappedBody)
@@ -1185,9 +1184,9 @@ export async function transformAntigravityResponse(
         const errorType = detectErrorType(errorBody.error.message || "")
         if (errorType === "thinking_block_order") {
           const recoveryError = new Error("THINKING_RECOVERY_NEEDED")
-            ; (recoveryError as any).recoveryType = errorType
-            ; (recoveryError as any).originalError = errorBody
-            ; (recoveryError as any).debugInfo = debugInfo
+          ;(recoveryError as any).recoveryType = errorType
+          ;(recoveryError as any).originalError = errorBody
+          ;(recoveryError as any).debugInfo = debugInfo
           throw recoveryError
         }
 

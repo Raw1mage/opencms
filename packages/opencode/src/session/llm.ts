@@ -38,7 +38,6 @@ import { findFallback, type ModelVector, type FallbackStrategy } from "@/account
 import { Bus } from "@/bus"
 import { TuiEvent } from "@/cli/cmd/tui/event"
 import { debugCheckpoint } from "@/util/debug"
-import { debugLog } from "@/util/debug-log"
 
 export namespace LLM {
   const log = Log.create({ service: "llm" })
@@ -61,7 +60,7 @@ export namespace LLM {
   export type StreamOutput = StreamTextResult<ToolSet, unknown>
 
   export async function stream(input: StreamInput) {
-    debugLog("llm", "LLM.stream started", {
+    debugCheckpoint("llm", "LLM.stream started", {
       modelID: input.model.id,
       providerID: input.model.providerID,
       apiNpm: input.model.api.npm,
@@ -69,6 +68,7 @@ export namespace LLM {
       sessionID: input.sessionID,
       agent: input.agent.name,
       small: input.small ?? false,
+      trace: input.sessionID,
     })
 
     const l = log
@@ -90,12 +90,13 @@ export namespace LLM {
       Auth.get(input.model.providerID),
     ])
 
-    debugLog("llm", "Provider and auth loaded", {
+    debugCheckpoint("llm", "Provider and auth loaded", {
       providerID: input.model.providerID,
       providerSource: provider?.source,
       hasCustomFetch: typeof provider?.options?.fetch === "function",
       authType: auth?.type,
       providerOptionsKeys: provider?.options ? Object.keys(provider.options) : [],
+      trace: input.sessionID,
     })
 
     // Get provider capabilities (centralizes provider-specific behavior)

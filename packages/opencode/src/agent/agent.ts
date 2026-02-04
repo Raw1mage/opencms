@@ -271,13 +271,15 @@ export namespace Agent {
       item.permission = PermissionNext.merge(item.permission, PermissionNext.fromConfig(value.permission ?? {}))
     }
 
+    const hasExplicit = (perm?: Config.Permission) => {
+      const rule = perm?.external_directory
+      if (!rule || typeof rule === "string") return false
+      return Truncate.DIR in rule || Truncate.GLOB in rule
+    }
+
     // Ensure Truncate.DIR is allowed unless explicitly configured
     for (const name in result) {
-      const agent = result[name]
-      const explicit = agent.permission.some((r) => {
-        if (r.permission !== "external_directory") return false
-        return r.pattern === Truncate.DIR || r.pattern === Truncate.GLOB
-      })
+      const explicit = hasExplicit(cfg.permission) || hasExplicit(cfg.agent?.[name]?.permission)
       if (explicit) continue
 
       result[name].permission = PermissionNext.merge(
@@ -364,7 +366,7 @@ export namespace Agent {
           instructions: SystemPrompt.instructions(),
           store: false,
         }),
-        onError: () => { },
+        onError: () => {},
       })
       for await (const part of result.fullStream) {
         if (part.type === "error") throw part.error

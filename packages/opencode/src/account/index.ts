@@ -3,7 +3,7 @@ import fs from "fs/promises"
 import { Global } from "../global"
 import z from "zod"
 import { Log } from "../util/log"
-import { debugLog } from "../util/debug-log"
+import { debugCheckpoint } from "../util/debug"
 import { Instance } from "../project/instance"
 import type { AccountCandidate, RateLimitReason } from "./rotation"
 
@@ -54,6 +54,7 @@ export namespace Account {
     managedProjectId: z.string().optional(),
     accountId: z.string().optional(),
     addedAt: z.number(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
     // Rate limiting metadata
     rateLimitResetTimes: z.record(z.string(), z.number()).optional(),
     coolingDownUntil: z.number().optional(),
@@ -106,17 +107,17 @@ export namespace Account {
     if (_storage) {
       const mtime = await getDiskMtime()
       if (mtime === _mtime) {
-        debugLog("Account.state", "Using cached state", { families: Object.keys(_storage.families) })
+        debugCheckpoint("Account.state", "Using cached state", { families: Object.keys(_storage.families) })
         return _storage
       }
-      debugLog("Account.state", "Loading from disk", { reason: "mtime-changed" })
+      debugCheckpoint("Account.state", "Loading from disk", { reason: "mtime-changed" })
     } else {
-      debugLog("Account.state", "Loading from disk", { reason: "no-cache" })
+      debugCheckpoint("Account.state", "Loading from disk", { reason: "no-cache" })
     }
 
     _storage = await load()
     _mtime = await getDiskMtime()
-    debugLog("Account.state", "Loaded", { families: Object.keys(_storage.families) })
+    debugCheckpoint("Account.state", "Loaded", { families: Object.keys(_storage.families) })
     return _storage
   }
 
@@ -153,17 +154,17 @@ export namespace Account {
   }
 
   async function save(storage: Storage): Promise<void> {
-    debugLog("Account.save", "Writing", { path: filepath })
+    debugCheckpoint("Account.save", "Writing", { path: filepath })
     try {
       const file = Bun.file(filepath)
       const content = JSON.stringify(storage, null, 2)
-      debugLog("Account.save", "Content ready", { length: content.length, families: Object.keys(storage.families) })
+      debugCheckpoint("Account.save", "Content ready", { length: content.length, families: Object.keys(storage.families) })
       await Bun.write(file, content)
       await fs.chmod(filepath, 0o600)
       _mtime = await getDiskMtime()
-      debugLog("Account.save", "Write successful")
+      debugCheckpoint("Account.save", "Write successful")
     } catch (e) {
-      debugLog("Account.save", "Write failed", { error: e instanceof Error ? e.message : String(e) })
+      debugCheckpoint("Account.save", "Write failed", { error: e instanceof Error ? e.message : String(e) })
       throw e
     }
   }
@@ -174,7 +175,7 @@ export namespace Account {
   export async function list(provider: string): Promise<Record<string, Info>> {
     const storage = await state()
     const accounts = storage.families[provider]?.accounts ?? {}
-    debugLog("Account.list", provider, {
+    debugCheckpoint("Account.list", provider, {
       accountCount: Object.keys(accounts).length,
       accountIds: Object.keys(accounts),
     })
@@ -214,26 +215,26 @@ export namespace Account {
    * Add a new account
    */
   export async function add(provider: string, accountId: string, info: Info): Promise<void> {
-    debugLog("Account.add", "Starting", { provider, accountId, type: info.type })
+    debugCheckpoint("Account.add", "Starting", { provider, accountId, type: info.type })
     const storage = await state()
-    debugLog("Account.add", "Got state", { existingFamilies: Object.keys(storage.families) })
+    debugCheckpoint("Account.add", "Got state", { existingFamilies: Object.keys(storage.families) })
 
     if (!storage.families[provider]) {
       storage.families[provider] = { accounts: {} }
-      debugLog("Account.add", "Created new provider entry", { provider })
+      debugCheckpoint("Account.add", "Created new provider entry", { provider })
     }
 
     storage.families[provider].accounts[accountId] = info
-    debugLog("Account.add", "Added account", { accounts: Object.keys(storage.families[provider].accounts) })
+    debugCheckpoint("Account.add", "Added account", { accounts: Object.keys(storage.families[provider].accounts) })
 
     // If this is the first account, make it active
     if (!storage.families[provider].activeAccount) {
       storage.families[provider].activeAccount = accountId
-      debugLog("Account.add", "Set as active account", { accountId })
+      debugCheckpoint("Account.add", "Set as active account", { accountId })
     }
 
     await save(storage)
-    debugLog("Account.add", "Save completed", { provider, accountId })
+    debugCheckpoint("Account.add", "Save completed", { provider, accountId })
     log.info("Account added", { provider, accountId, type: info.type })
   }
 

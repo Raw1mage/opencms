@@ -1,12 +1,9 @@
-import { createWriteStream } from "node:fs"
-import { join } from "node:path"
-import { cwd, env } from "node:process"
+import { env } from "node:process"
+import { debugCheckpoint } from "../../../util/debug"
 
 const DEBUG_FLAG = env.OPENCODE_GEMINI_DEBUG ?? ""
 const MAX_BODY_PREVIEW_CHARS = 2000
 const debugEnabled = DEBUG_FLAG.trim() === "1"
-const logFilePath = debugEnabled ? defaultLogFilePath() : undefined
-const logWriter = createLogWriter(logFilePath)
 
 export interface GeminiDebugContext {
   id: string
@@ -154,7 +151,8 @@ function truncateForLog(text: string): string {
  * Writes a single debug line using the configured writer.
  */
 function logDebug(line: string): void {
-  logWriter(line)
+  if (!debugEnabled) return
+  debugCheckpoint("gemini-cli", line)
 }
 
 /**
@@ -168,27 +166,5 @@ function formatError(error: unknown): string {
     return JSON.stringify(error)
   } catch {
     return String(error)
-  }
-}
-
-/**
- * Builds a timestamped log file path in the current working directory.
- */
-function defaultLogFilePath(): string {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
-  return join(cwd(), `gemini-debug-${timestamp}.log`)
-}
-
-/**
- * Creates a line writer that appends to a file when provided.
- */
-function createLogWriter(filePath?: string): (line: string) => void {
-  if (!filePath) {
-    return () => {}
-  }
-
-  const stream = createWriteStream(filePath, { flags: "a" })
-  return (line: string) => {
-    stream.write(`${line}\n`)
   }
 }

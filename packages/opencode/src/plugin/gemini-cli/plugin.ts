@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process"
-import { debugLog } from "../../util/debug-log"
+import { debugCheckpoint } from "../../util/debug"
 
 import { GEMINI_PROVIDER_ID, GEMINI_REDIRECT_URI } from "./constants"
 import { authorizeGemini, exchangeGemini, exchangeGeminiWithVerifier } from "./gemini/oauth"
@@ -46,23 +46,23 @@ export const GeminiCLIOAuthPlugin = async ({ client }: any): Promise<any> => ({
         apiKey: "",
         async fetch(input, init) {
           const inputUrl = typeof input === "string" ? input : (input as Request).url
-          debugLog("gemini-cli", "Custom fetch called", { url: inputUrl })
+          debugCheckpoint("gemini-cli", "Custom fetch called", { url: inputUrl })
 
           if (!isGenerativeLanguageRequest(input)) {
-            debugLog("gemini-cli", "Not a generative language request, using default fetch")
+            debugCheckpoint("gemini-cli", "Not a generative language request, using default fetch")
             return fetch(input, init)
           }
 
-          debugLog("gemini-cli", "Is generative language request, processing...")
+          debugCheckpoint("gemini-cli", "Is generative language request, processing...")
 
           const latestAuth = await getAuth()
 
           if (!isOAuthAuth(latestAuth)) {
-            debugLog("gemini-cli", "No OAuth auth, using default fetch", { authType: latestAuth?.type })
+            debugCheckpoint("gemini-cli", "No OAuth auth, using default fetch", { authType: latestAuth?.type })
             return fetch(input, init)
           }
 
-          debugLog("gemini-cli", "OAuth auth present, proceeding with transformation")
+          debugCheckpoint("gemini-cli", "OAuth auth present, proceeding with transformation")
 
           let authRecord = latestAuth
           if (accessTokenExpired(authRecord)) {
@@ -103,7 +103,7 @@ export const GeminiCLIOAuthPlugin = async ({ client }: any): Promise<any> => ({
             requestedModel,
           } = prepareGeminiRequest(input, init, accessToken, projectContext.effectiveProjectId)
 
-          debugLog("gemini-cli", "Request prepared", {
+          debugCheckpoint("gemini-cli", "Request prepared", {
             originalUrl: toUrlString(input),
             transformedUrl: toUrlString(request),
             streaming,

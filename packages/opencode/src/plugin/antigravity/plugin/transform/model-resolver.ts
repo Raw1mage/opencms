@@ -6,6 +6,7 @@
  */
 
 import type { ResolvedModel, ThinkingTier, GoogleSearchConfig } from "./types"
+import { debugCheckpoint } from "../../../../util/debug"
 
 /**
  * Thinking tier budgets by model family.
@@ -213,12 +214,12 @@ export function resolveModelWithTier(requestedModel: string): ResolvedModel {
   // The API expects model names like "gemini-3-pro-high", NOT "antigravity-gemini-3-pro-high"
   const actualModel = actualModelRaw.replace(/^antigravity-/i, "")
 
-  try {
-    require("node:fs").appendFileSync(
-      "/tmp/antigravity_trace.log",
-      `[${new Date().toISOString()}] Resolved ${requestedModel} -> ${actualModel} (raw=${actualModelRaw}, skipAlias=${skipAlias})\n`,
-    )
-  } catch (e) {}
+  debugCheckpoint("antigravity.trace", "Resolved model", {
+    requestedModel,
+    actualModel,
+    actualModelRaw,
+    skipAlias,
+  })
 
   const resolvedModel = MODEL_FALLBACKS[actualModel] || actualModel
   const isThinking = isThinkingCapableModel(resolvedModel)

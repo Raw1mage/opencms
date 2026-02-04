@@ -5,7 +5,7 @@ import z from "zod"
 import { Identifier } from "../id/id"
 import { MessageV2 } from "./message-v2"
 import { Log } from "../util/log"
-import { debugLog } from "@/util/debug-log"
+import { debugCheckpoint } from "@/util/debug"
 import { SessionRevert } from "./revert"
 import { Session } from "."
 import { Agent } from "../agent/agent"
@@ -783,12 +783,13 @@ export namespace SessionPrompt {
   }) {
     using _ = log.time("resolveTools")
     const tools: Record<string, AITool> = {}
-    debugLog("tool.resolve", "start", {
+    debugCheckpoint("tool.resolve", "start", {
       sessionID: input.session.id,
       agent: input.agent.name,
       providerID: input.model.providerID,
       modelID: input.model.api.id,
       bypassAgentCheck: input.bypassAgentCheck,
+      trace: input.session.id,
     })
 
     const context = (args: any, options: ToolCallOptions): Tool.Context => ({
@@ -830,11 +831,23 @@ export namespace SessionPrompt {
       { modelID: input.model.api.id, providerID: input.model.providerID },
       input.agent,
     )
-    debugLog("tool.resolve", "registry", {
+    debugCheckpoint("tool.resolve", "registry", {
       count: registryTools.length,
       ids: registryTools.map((item) => item.id),
+      trace: input.session.id,
     })
+    const seen = new Map<string, string | undefined>()
     for (const item of registryTools) {
+      const prev = seen.get(item.id)
+      if (prev) {
+        debugCheckpoint("tool.resolve", "duplicate", {
+          id: item.id,
+          previous: prev,
+          next: item.source ?? "unknown",
+          trace: input.session.id,
+        })
+      }
+      seen.set(item.id, item.source)
       const schema = ProviderTransform.schema(input.model, z.toJSONSchema(item.parameters))
       tools[item.id] = tool({
         id: item.id as any,
@@ -842,7 +855,7 @@ export namespace SessionPrompt {
         inputSchema: jsonSchema(schema as any),
         async execute(args, options) {
           const ctx = context(args, options)
-          debugLog("tool.call", "start", {
+          debugCheckpoint("tool.call", "start", {
             tool: item.id,
             sessionID: ctx.sessionID,
             messageID: ctx.messageID,
@@ -850,6 +863,7 @@ export namespace SessionPrompt {
             agent: ctx.agent,
             providerID: input.model.providerID,
             modelID: input.model.api.id,
+            trace: ctx.callID,
           })
           await Plugin.trigger(
             "tool.execute.before",
@@ -863,18 +877,20 @@ export namespace SessionPrompt {
             },
           )
           const result = await item.execute(args, ctx).catch((error) => {
-            debugLog("tool.call", "error", {
+            debugCheckpoint("tool.call", "error", {
               tool: item.id,
               sessionID: ctx.sessionID,
               callID: ctx.callID,
               message: error instanceof Error ? error.message : String(error),
+              trace: ctx.callID,
             })
             throw error
           })
-          debugLog("tool.call", "end", {
+          debugCheckpoint("tool.call", "end", {
             tool: item.id,
             sessionID: ctx.sessionID,
             callID: ctx.callID,
+            trace: ctx.callID,
           })
           await Plugin.trigger(
             "tool.execute.after",
@@ -975,6 +991,13 @@ export namespace SessionPrompt {
       tools[key] = item
     }
 
+    const ids = Object.keys(tools)
+    debugCheckpoint("tool.resolve", "ready", {
+      count: ids.length,
+      ids,
+      hasGoogleSearch: ids.includes("google_search"),
+      trace: input.session.id,
+    })
     return tools
   }
 

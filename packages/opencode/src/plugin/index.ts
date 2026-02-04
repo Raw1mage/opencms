@@ -24,13 +24,13 @@ export namespace Plugin {
 
   // Built-in plugins that are directly imported (not installed from npm)
   // AnthropicAuthPlugin is internal to use correct Claude Code headers for OAuth
-  const INTERNAL_PLUGINS: PluginInstance[] = [
-    CodexAuthPlugin,
-    CopilotAuthPlugin,
-    AntigravityOAuthPlugin as any,
-    AntigravityLegacyOAuthPlugin as any,
-    GeminiCLIOAuthPlugin as any,
-    AnthropicAuthPlugin as any,
+  const INTERNAL_PLUGINS: { name: string; plugin: PluginInstance }[] = [
+    { name: "codex", plugin: CodexAuthPlugin },
+    { name: "copilot", plugin: CopilotAuthPlugin },
+    { name: "antigravity", plugin: AntigravityOAuthPlugin as any },
+    { name: "antigravity-legacy", plugin: AntigravityLegacyOAuthPlugin as any },
+    { name: "gemini-cli", plugin: GeminiCLIOAuthPlugin as any },
+    { name: "anthropic", plugin: AnthropicAuthPlugin as any },
   ]
 
   // Cached state
@@ -51,9 +51,10 @@ export namespace Plugin {
       $: Bun.$,
     }
 
-    for (const plugin of INTERNAL_PLUGINS) {
-      log.info("loading internal plugin", { name: plugin.name })
-      const init = await plugin(input)
+    for (const entry of INTERNAL_PLUGINS) {
+      log.info("loading internal plugin", { name: entry.name })
+      const init = await entry.plugin(input)
+      ;(init as { __source?: string }).__source = `internal:${entry.name}`
       hooks.push(init)
     }
 
@@ -104,6 +105,7 @@ export namespace Plugin {
         if (seen.has(fn)) continue
         seen.add(fn)
         const init = await fn(input)
+        ;(init as { __source?: string }).__source = plugin
         hooks.push(init)
       }
     }

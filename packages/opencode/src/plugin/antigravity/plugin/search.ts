@@ -17,7 +17,7 @@ import {
   type HeaderStyle,
 } from "../constants"
 import { createLogger } from "./logger"
-import { debugLog } from "../../../util/debug-log"
+import { debugCheckpoint } from "../../../util/debug"
 import { resolveModelForHeaderStyle } from "./transform/model-resolver"
 
 const log = createLogger("search")
@@ -122,6 +122,15 @@ function getSessionId(): string {
   return `${sessionPrefix}-${sessionCounter}`
 }
 
+function stripHtml(input: string): string {
+  return input
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
 function formatSearchResult(result: SearchResult): string {
   const lines: string[] = []
 
@@ -204,6 +213,11 @@ function parseSearchResponse(data: AntigravitySearchResponse): SearchResult {
           })
         }
       }
+    }
+
+    if (!result.text && gm.searchEntryPoint?.renderedContent) {
+      const entry = stripHtml(gm.searchEntryPoint.renderedContent)
+      if (entry) result.text = entry
     }
   }
 
@@ -300,7 +314,7 @@ export async function executeSearch(
     headerStyle,
     model,
   })
-  debugLog("google_search", "request: prepared", {
+  debugCheckpoint("google_search", "request: prepared", {
     headerStyle,
     model,
     urlCount: urls?.length ?? 0,
@@ -322,7 +336,7 @@ export async function executeSearch(
     if (!response.ok) {
       const errorText = await response.text()
       log.debug("Search API error", { status: response.status, error: errorText })
-      debugLog("google_search", "response: error", {
+      debugCheckpoint("google_search", "response: error", {
         status: response.status,
         statusText: response.statusText,
       })
@@ -339,14 +353,30 @@ export async function executeSearch(
     log.debug("Search response received", { hasResponse: !!data.response })
 
     const result = parseSearchResponse(data)
+    const empty =
+      !result.text.trim() &&
+      result.sources.length === 0 &&
+      result.searchQueries.length === 0 &&
+      result.urlsRetrieved.length === 0
+    if (empty) {
+      const entry = data.response?.candidates?.[0]?.groundingMetadata?.searchEntryPoint?.renderedContent
+      debugCheckpoint("google_search", "response: empty", {
+        headerStyle,
+        model,
+        hasEntry: !!entry,
+        entryLength: entry?.length ?? 0,
+      })
+      const output = "## Search Error\n\nSearch returned empty response. Please try again with a different query."
+      return { ok: false, output, error: "Search returned empty response" }
+    }
     const formatted = formatSearchResult(result)
     log.debug("Search response formatted", { resultLength: formatted.length })
-    debugLog("google_search", "response: ok", { length: formatted.length })
+    debugCheckpoint("google_search", "response: ok", { length: formatted.length })
     return { ok: true, output: formatted }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     log.debug("Search execution error", { error: message })
-    debugLog("google_search", "response: exception", { error: message })
+    debugCheckpoint("google_search", "response: exception", { error: message })
     const output = `## Search Error\n\nFailed to execute search: ${message}. Please try again with a different query.`
     return { ok: false, output, error: `Search failed: ${message}` }
   }

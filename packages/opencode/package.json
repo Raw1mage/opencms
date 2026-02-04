@@ -9,7 +9,7 @@
     "typecheck": "tsgo --noEmit",
     "test": "bun test",
     "build": "bun run script/build.ts",
-    "dev": "bun run --conditions=browser ./src/index.ts",
+    "dev": "bun run ../../scripts/debug-normalize.ts & bun run --conditions=browser ./src/index.ts",
     "web": "OPENCODE_SERVER_PASSWORD='Ne20240Wsl!' /usr/local/bin/opencode web --hostname 0.0.0.0 --port 1080",
     "dev:server": "OPENCODE_SERVER_PASSWORD='Ne20240Wsl!' bun run --conditions=browser ./src/index.ts web --hostname 0.0.0.0 --port 1080",
     "random": "echo 'Random script updated at $(date)' && echo 'Change queued successfully' && echo 'Another change made' && echo 'Yet another change' && echo 'One more change' && echo 'Final change' && echo 'Another final change' && echo 'Yet another final change'",

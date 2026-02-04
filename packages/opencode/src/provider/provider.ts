@@ -17,7 +17,7 @@ import { Flag } from "../flag/flag"
 import { iife } from "@/util/iife"
 import { Global } from "../global"
 import { Installation } from "../installation"
-import { debugLog } from "../util/debug-log"
+import { debugCheckpoint } from "../util/debug"
 
 // Direct imports for bundled providers
 import { createAmazonBedrock, type AmazonBedrockProviderSettings } from "@ai-sdk/amazon-bedrock"
@@ -1434,20 +1434,20 @@ export namespace Provider {
         if (family === "google-api") {
           options.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
             const urlString = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url
-            debugLog("google-api", "Custom fetch called", { url: urlString, family })
+            debugCheckpoint("google-api", "Custom fetch called", { url: urlString, family })
 
             if (init?.body && typeof init.body === "string" && urlString.includes("generativelanguage")) {
-              debugLog("google-api", "Processing generativelanguage request body")
+              debugCheckpoint("google-api", "Processing generativelanguage request body")
               try {
                 const body = JSON.parse(init.body) as Record<string, unknown>
                 let signaturesAdded = 0
 
                 const processContents = (contents: unknown, path: string): void => {
                   if (!contents || !Array.isArray(contents)) {
-                    debugLog("google-api", `processContents: no contents at ${path}`)
+                    debugCheckpoint("google-api", `processContents: no contents at ${path}`)
                     return
                   }
-                  debugLog("google-api", `processContents: ${path}`, { contentCount: (contents as any[]).length })
+                  debugCheckpoint("google-api", `processContents: ${path}`, { contentCount: (contents as any[]).length })
 
                   for (const content of contents) {
                     if (content && typeof content === "object") {
@@ -1459,7 +1459,7 @@ export namespace Provider {
                             if (partObj.functionCall && !partObj.thoughtSignature) {
                               partObj.thoughtSignature = "skip_thought_signature_validator"
                               signaturesAdded++
-                              debugLog("google-api", "Added thoughtSignature", {
+                              debugCheckpoint("google-api", "Added thoughtSignature", {
                                 functionName: (partObj.functionCall as any)?.name,
                               })
                             }
@@ -1475,14 +1475,14 @@ export namespace Provider {
                   processContents((body.request as Record<string, unknown>).contents, "request.contents")
                 }
 
-                debugLog("google-api", "Thought signatures processing complete", { signaturesAdded })
+                debugCheckpoint("google-api", "Thought signatures processing complete", { signaturesAdded })
                 init = { ...init, body: JSON.stringify(body) }
               } catch (e) {
-                debugLog("google-api", "Error processing body", { error: String(e) })
+                debugCheckpoint("google-api", "Error processing body", { error: String(e) })
                 // Ignore json parse error
               }
             } else {
-              debugLog("google-api", "Skipping body processing", {
+              debugCheckpoint("google-api", "Skipping body processing", {
                 hasBody: !!init?.body,
                 isString: typeof init?.body === "string",
                 isGenerativelanguage: urlString.includes("generativelanguage"),
@@ -1842,7 +1842,7 @@ export namespace Provider {
       const provider = s.providers[model.providerID]
       const options = { ...provider.options }
 
-      debugLog("provider", "getSDK called", {
+      debugCheckpoint("provider", "getSDK called", {
         providerID: model.providerID,
         modelID: model.id,
         apiNpm: model.api.npm,
@@ -1894,7 +1894,7 @@ export namespace Provider {
       const wrappedModelID = model.id
       options["fetch"] = async (input: any, init?: BunFetchRequestInit) => {
         const inputUrl = typeof input === "string" ? input : input?.url || String(input)
-        debugLog("provider-fetch", "SDK fetch wrapper called", {
+        debugCheckpoint("provider-fetch", "SDK fetch wrapper called", {
           providerID: wrappedProviderID,
           modelID: wrappedModelID,
           url: inputUrl,
@@ -1955,7 +1955,7 @@ export namespace Provider {
             }
             if (modified) {
               opts.body = JSON.stringify(body)
-              debugLog("provider-fetch", "Added thought signatures to Gemini function calls", {
+              debugCheckpoint("provider-fetch", "Added thought signatures to Gemini function calls", {
                 providerID: wrappedProviderID,
                 modelID: wrappedModelID,
               })

@@ -7,6 +7,7 @@ import {
 import { formatRefreshParts, parseRefreshParts } from "./auth"
 import { createLogger } from "./logger"
 import type { OAuthAuthDetails, ProjectContextResult } from "./types"
+import { debugCheckpoint } from "../../../util/debug"
 
 const log = createLogger("project")
 
@@ -252,31 +253,18 @@ export async function ensureProjectContext(auth: OAuthAuthDetails): Promise<Proj
     }
 
     // Try to resolve a managed project from Antigravity if possible.
-    try {
-      require("node:fs").appendFileSync(
-        "/tmp/antigravity_trace.log",
-        `[${new Date().toISOString()}] Attempting to load managed project\n`,
-      )
-    } catch (e) {}
+    debugCheckpoint("antigravity.trace", "Attempting to load managed project")
     const loadPayload = await loadManagedProject(accessToken, parts.projectId ?? fallbackProjectId)
     const resolvedManagedProjectId = extractManagedProjectId(loadPayload)
 
     if (resolvedManagedProjectId) {
-      try {
-        require("node:fs").appendFileSync(
-          "/tmp/antigravity_trace.log",
-          `[${new Date().toISOString()}] Found managed project: ${resolvedManagedProjectId}\n`,
-        )
-      } catch (e) {}
+      debugCheckpoint("antigravity.trace", "Found managed project", {
+        managedProjectId: resolvedManagedProjectId,
+      })
       return persistManagedProject(resolvedManagedProjectId)
     }
 
-    try {
-      require("node:fs").appendFileSync(
-        "/tmp/antigravity_trace.log",
-        `[${new Date().toISOString()}] No managed project found, attempting onboarding...\n`,
-      )
-    } catch (e) {}
+    debugCheckpoint("antigravity.trace", "No managed project found, attempting onboarding")
     // No managed project found - try to auto-provision one via onboarding.
     // This handles accounts that were added before managed project provisioning was required.
     const tierId = getDefaultTierId(loadPayload?.allowedTiers) ?? "FREE"

@@ -23,7 +23,7 @@ import { WebSearchTool } from "./websearch"
 import { CodeSearchTool } from "./codesearch"
 import { Flag } from "@/flag/flag"
 import { Log } from "@/util/log"
-import { debugLog } from "@/util/debug-log"
+import { debugCheckpoint } from "@/util/debug"
 import { LspTool } from "./lsp"
 import { Truncate } from "./truncation"
 import { PlanExitTool, PlanEnterTool } from "./plan"
@@ -46,29 +46,31 @@ export namespace ToolRegistry {
         const namespace = path.basename(match, path.extname(match))
         const mod = await import(match)
         for (const [id, def] of Object.entries<ToolDefinition>(mod)) {
-          custom.push(fromPlugin(id === "default" ? namespace : `${namespace}_${id}`, def))
+          custom.push(fromPlugin(id === "default" ? namespace : `${namespace}_${id}`, def, `file:${match}`))
         }
       }
     }
 
     const plugins = await Plugin.list()
     for (const plugin of plugins) {
+      const source = "__source" in plugin ? (plugin as { __source?: string }).__source : undefined
       for (const [id, def] of Object.entries(plugin.tool ?? {})) {
-        custom.push(fromPlugin(id, def))
+        custom.push(fromPlugin(id, def, source ?? "plugin"))
       }
     }
 
-    debugLog("tool.registry", "state: custom tools", {
+    debugCheckpoint("tool.registry", "state: custom tools", {
       count: custom.length,
-      ids: custom.map((item) => item.id),
+      tools: custom.map((item) => ({ id: item.id, source: item.source })),
     })
 
     return { custom }
   })
 
-  function fromPlugin(id: string, def: ToolDefinition): Tool.Info {
+  function fromPlugin(id: string, def: ToolDefinition, source?: string): Tool.Info {
     return {
       id,
+      source,
       init: async (initCtx) => ({
         parameters: z.object(def.args),
         description: def.description,
@@ -139,41 +141,82 @@ export namespace ToolRegistry {
     },
     agent?: Agent.Info,
   ) {
-    debugLog("tool.registry", "tools: start", {
+    debugCheckpoint("tool.registry", "tools: start", {
       providerID: model.providerID,
       modelID: model.modelID,
       agent: agent?.name,
     })
     const tools = await all()
-    debugLog("tool.registry", "tools: all", {
+    debugCheckpoint("tool.registry", "tools: all", {
       count: tools.length,
       ids: tools.map((item) => item.id),
     })
+    const filtered = tools.filter((t) => {
+      // Enable websearch/codesearch for zen users OR via enable flag
+      if (t.id === "codesearch" || t.id === "websearch") {
+        return model.providerID === "opencode" || Flag.OPENCODE_ENABLE_EXA
+      }
+
+      // use apply tool in same format as codex
+      const usePatch =
+        model.modelID.includes("gpt-") && !model.modelID.includes("oss") && !model.modelID.includes("gpt-4")
+      if (t.id === "apply_patch") return usePatch
+      if (t.id === "edit" || t.id === "write") return !usePatch
+
+      return true
+    })
+    debugCheckpoint("tool.registry", "tools: filtered", {
+      count: filtered.length,
+      ids: filtered.map((item) => item.id),
+    })
+
+    const score = (item: Tool.Info) => {
+      if (item.id === "google_search" && item.source?.includes("antigravity")) return 4
+      if (item.source?.startsWith("internal:")) return 3
+      if (item.source?.startsWith("file:")) return 1
+      return 2
+    }
+
+    const groups = filtered.reduce<Record<string, Tool.Info[]>>((acc, item) => {
+      acc[item.id] = acc[item.id] ? [...acc[item.id], item] : [item]
+      return acc
+    }, {})
+
+    const deduped: Tool.Info[] = []
+    const duplicates: { id: string; count: number; sources: string[]; chosen?: string }[] = []
+    for (const [id, items] of Object.entries(groups)) {
+      if (items.length === 1) {
+        deduped.push(items[0])
+        continue
+      }
+      const picked = items.reduce((current, item) => {
+        if (score(item) > score(current)) return item
+        return current
+      })
+      const sources = items.map((item) => item.source ?? "unknown")
+      const chosen = picked.source ?? "unknown"
+      duplicates.push({ id, count: items.length, sources, chosen })
+      log.warn("duplicate tool id detected", { id, chosen, sources })
+      deduped.push(picked)
+    }
+
+    if (duplicates.length > 0) {
+      debugCheckpoint("tool.registry", "tools: duplicate ids", {
+        duplicates,
+      })
+    }
+
     const result = await Promise.all(
-      tools
-        .filter((t) => {
-          // Enable websearch/codesearch for zen users OR via enable flag
-          if (t.id === "codesearch" || t.id === "websearch") {
-            return model.providerID === "opencode" || Flag.OPENCODE_ENABLE_EXA
-          }
-
-          // use apply tool in same format as codex
-          const usePatch =
-            model.modelID.includes("gpt-") && !model.modelID.includes("oss") && !model.modelID.includes("gpt-4")
-          if (t.id === "apply_patch") return usePatch
-          if (t.id === "edit" || t.id === "write") return !usePatch
-
-          return true
-        })
-        .map(async (t) => {
-          using _ = log.time(t.id)
-          return {
-            id: t.id,
-            ...(await t.init({ agent })),
-          }
-        }),
+      deduped.map(async (t) => {
+        using _ = log.time(t.id)
+        return {
+          id: t.id,
+          source: t.source,
+          ...(await t.init({ agent })),
+        }
+      }),
     )
-    debugLog("tool.registry", "tools: ready", {
+    debugCheckpoint("tool.registry", "tools: ready", {
       count: result.length,
       ids: result.map((item) => item.id),
     })
