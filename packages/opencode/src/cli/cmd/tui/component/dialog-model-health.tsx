@@ -9,6 +9,7 @@
 import { createMemo, createSignal, onCleanup, createResource } from "solid-js"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
+import { useLocal } from "@tui/context/local"
 import { getModelHealthRegistry, getRateLimitTracker } from "@/account/rotation"
 import { Keybind } from "@/util/keybind"
 import { debugCheckpoint } from "@/util/debug"
@@ -17,6 +18,7 @@ import { Provider } from "@/provider/provider"
 
 export function DialogModelHealth() {
   const dialog = useDialog()
+  const local = useLocal()
 
   // Auto-refresh every second to update countdown timers
   const [tick, setTick] = createSignal(0)
@@ -192,8 +194,17 @@ export function DialogModelHealth() {
       skipFilter={true}
       hideInput={true}
       hoverSelect={false}
-      onSelect={() => {
-        // No action on select, this is a read-only dashboard
+      onSelect={(option: any) => {
+        const value = option?.value
+        if (!value || value === "_header" || value === "empty") return
+        if (typeof value !== "string") return
+        const [accountId, providerID, ...rest] = value.split(":")
+        const modelID = rest.join(":")
+        if (!providerID || !modelID) return
+        const resolvedProvider = providerID === "google" ? "google-api" : Account.parseFamily(providerID) || providerID
+        debugCheckpoint("health", "select model", { accountId, providerID: resolvedProvider, modelID })
+        local.model.set({ providerID: resolvedProvider, modelID }, { recent: true, announce: true })
+        dialog.pop()
       }}
       keybind={[
         {

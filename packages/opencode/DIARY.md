@@ -83,6 +83,33 @@
 
 ### PLANNING
 
+#### 功能：Admin 移除 Recent + Health Check Enter 選模
+
+**需求**
+
+- admin panel 不顯示「Recent」子列表。
+- Health Check 列表按 Enter 可選取當前項目並設為 dialog model。
+- 行為需跨平台一致。
+
+**範圍**
+
+- IN: `src/cli/cmd/tui/component/dialog-admin.tsx`, `src/cli/cmd/tui/component/dialog-model-health.tsx`
+- OUT: 其他列表/Model Store 資料結構、後端健康檢查邏輯
+
+**作法**
+
+1. 移除 admin root 列表的 Recents 區塊與相關狀態。
+2. Health Check 列表在 Enter 選取時，將 model 套用到 local dialog model 並關閉面板。
+
+**任務**
+
+1. [ ] 移除 admin Recent 區塊與 recents 狀態
+2. [ ] Health Check 支援 Enter 選取並套用 model
+
+**問題**
+
+- 是否需要額外提示（toast）選模成功？
+
 #### 功能：Model Health Dashboard 隱藏 Untracked
 
 **需求**

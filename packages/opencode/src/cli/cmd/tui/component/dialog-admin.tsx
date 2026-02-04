@@ -70,8 +70,8 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
   // Navigation State
   // steps: root -> account_select -> model_select
-  // distinct views: favorites, recents
-  const [step, setStep] = createSignal<"root" | "account_select" | "model_select" | "favorites" | "recents">("root")
+  // distinct views: favorites
+  const [step, setStep] = createSignal<"root" | "account_select" | "model_select" | "favorites">("root")
   const [selectedFamily, setSelectedFamily] = createSignal<string | null>(null)
 
   // This tracks the "provider ID" that models.ts/sync system naturally understands
@@ -80,9 +80,8 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   const [lockBack, setLockBack] = createSignal(false)
   const [prevStep, setPrevStep] = createSignal(step())
 
-  // Collapse state for Favorites and Recents sections
+  // Collapse state for Favorites section
   const [favoritesCollapsed, setFavoritesCollapsed] = createSignal(false)
-  const [recentsCollapsed, setRecentsCollapsed] = createSignal(false)
 
   // Track when a sub-dialog was recently closed to prevent goBack from triggering
   // Use both a flag and timestamp for maximum reliability
@@ -110,7 +109,6 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     const s = step()
     if (s === "root") return "root"
     if (s === "favorites") return "favorites"
-    if (s === "recents") return "recents"
     if (s === "account_select") return "account_select"
     if (s === "model_select") return "model_select"
     return s
@@ -512,13 +510,12 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     const triggers = refreshSignal() // Dependency to force re-calc
 
     const favorites = connected() ? local.model.favorite() : []
-    const recents = local.model.recent()
 
     // LEVEL 1: ROOT
     if (s === "root") {
       const list = []
 
-      // LIST HELPERS (Favorites/Recents)
+      // LIST HELPERS (Favorites)
       // Display: modelname - provider (account can be dynamically switched)
       const getModelOptions = (modelList: { providerID: string; modelID: string; origin?: string }[]) => {
         return modelList.flatMap((item) => {
@@ -543,7 +540,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               footer: shouldShowFree(item.providerID, m) ? "Free" : undefined,
               disabled: p.id === "opencode" && m.id.includes("-nano"),
               onSelect: () => {
-                debugCheckpoint("admin", "select favorite/recent model", {
+                debugCheckpoint("admin", "select favorite model", {
                   origin: item.origin,
                   provider: item.providerID,
                   model: item.modelID,
@@ -573,24 +570,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         }
       }
 
-      // 2. Recents (Collapsible)
-      if (recents.length > 0) {
-        const isCollapsed = recentsCollapsed()
-        list.push({
-          value: { type: "__section_header__", section: "recents" },
-          title: `${isCollapsed ? "▸" : "▾"} Recents (${recents.length})`,
-          description: isCollapsed ? "Press Enter to expand" : "Press Enter to collapse",
-          onSelect: () => {
-            debugCheckpoint("admin", "toggle recents collapsed", { collapsed: !isCollapsed })
-            setRecentsCollapsed(!isCollapsed)
-          },
-        })
-        if (!isCollapsed) {
-          list.push(...getModelOptions(recents.map((x) => ({ ...x, origin: "recent" }))))
-        }
-      }
-
-      // 3. Families - WYSIWYG: No hidden whitelists
+      // 2. Families - WYSIWYG: No hidden whitelists
       // Configured = has accounts in storage OR has providers from sync
       // Normalize family names (e.g., "google" -> "google-api")
       const normalizeFamily = (f: string) => {
@@ -1094,7 +1074,6 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     const showAllIndicator = showHidden() ? " [Show All]" : ""
     if (step() === "root") return `Admin Control Panel${showAllIndicator}`
     if (step() === "favorites") return "Favorites"
-    if (step() === "recents") return "Recent Models"
     if (step() === "account_select") return `Manage Accounts (${label(selectedFamily() || "", selectedFamily() || "")})`
     if (step() === "model_select") {
       // Try to show meaningful header
@@ -1140,7 +1119,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       dialog.clear()
       return
     }
-    if (step() === "account_select" || step() === "favorites" || step() === "recents") {
+    if (step() === "account_select" || step() === "favorites") {
       debugCheckpoint("admin", "back to root", { step: step(), family: selectedFamily() })
       setStepLogged("root", "back to root")
       setSelectedFamily(null)
