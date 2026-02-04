@@ -183,8 +183,9 @@ export function resolveModelWithTier(requestedModel: string): ResolvedModel {
   const isImageModel = IMAGE_GENERATION_MODELS.test(modelWithoutQuota)
 
   // Image models always route to Antigravity
-  const quotaPreference =
-    isAntigravity || isAntigravityOnly || isLegacyAntigravity || isImageModel ? "antigravity" : "gemini-cli"
+  // Default to Antigravity quota for all models to prevent false positive rate limits (Issue #103)
+  // gemini-cli quota is often shared/limited, while Antigravity internal quota is unused.
+  const quotaPreference = "antigravity"
   const explicitQuota = isAntigravity || isImageModel
 
   const isGemini3 = modelWithoutQuota.toLowerCase().startsWith("gemini-3")

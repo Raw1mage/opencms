@@ -20,3 +20,4 @@
 
 ### 2026-02-02
 (舊內容保留於此)
+- [2026-02-05] Pass Account ID to Antigravity Plugin (docs/events/event_2026-02-05.md)

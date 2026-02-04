@@ -83,6 +83,9 @@ export namespace LLM {
       modelID: input.model.id,
       providerID: input.model.providerID,
     })
+    // Get account ID for rate limit tracking and provider options
+    const currentAccountId = await getAccountIdForProvider(input.model.providerID)
+
     const [language, cfg, provider, auth] = await Promise.all([
       Provider.getLanguage(input.model),
       Config.get(),
@@ -94,6 +97,7 @@ export namespace LLM {
       providerID: input.model.providerID,
       providerSource: provider?.source,
       hasCustomFetch: typeof provider?.options?.fetch === "function",
+      accountId: currentAccountId,
       authType: auth?.type,
       providerOptionsKeys: provider?.options ? Object.keys(provider.options) : [],
       trace: input.sessionID,
@@ -144,6 +148,7 @@ export namespace LLM {
           model: input.model,
           sessionID: input.sessionID,
           providerOptions: provider.options,
+          accountId: currentAccountId,
         })
     const options: Record<string, any> = pipe(
       base,
@@ -239,7 +244,7 @@ export namespace LLM {
     const finalMessages = normalizeMessages(streamMessages, tools)
 
     // Get account ID for rate limit tracking
-    const accountId = await getAccountIdForProvider(input.model.providerID)
+    const accountId = currentAccountId
 
     return streamText({
       onError(error) {
@@ -315,6 +320,7 @@ export namespace LLM {
       maxOutputTokens,
       abortSignal: input.abort,
       headers: {
+        ...(accountId ? { "x-opencode-account-id": accountId } : {}),
         ...(input.model.providerID.startsWith("opencode")
           ? {
               "x-opencode-project": Instance.project.id,

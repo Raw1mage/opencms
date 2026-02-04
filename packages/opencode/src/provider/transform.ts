@@ -578,8 +578,17 @@ export namespace ProviderTransform {
     model: Provider.Model
     sessionID: string
     providerOptions?: Record<string, any>
+    accountId?: string
   }): Record<string, any> {
     const result: Record<string, any> = {}
+
+    // Pass accountId for antigravity protocol selection
+    if (input.model.providerID === "antigravity" && input.accountId) {
+      result["antigravity"] = {
+        ...(input.providerOptions?.antigravity || {}),
+        accountId: input.accountId,
+      }
+    }
 
     // openai and providers using openai package should set store to false by default.
     if (
