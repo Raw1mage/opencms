@@ -21,13 +21,7 @@ const ANTIGRAVITY_MODELS = [
 ]
 
 // Define specific models for Gemini CLI as fallback
-const GEMINI_CLI_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
-  "gemini-2.5-pro",
-  "gemini-3-flash-preview",
-  "gemini-3-pro-preview",
-]
+const GEMINI_CLI_MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite-preview-02-05", "gemini-2.0-pro-exp-02-05"]
 
 // Define specific models for OpenAI as fallback
 const OPENAI_MODELS = ["gpt-5.1-codex", "gpt-5.1-codex-max", "gpt-5.1-codex-mini", "gpt-5.2", "gpt-5.2-codex"]

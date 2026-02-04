@@ -8,14 +8,16 @@
 
 import {
   ANTIGRAVITY_ENDPOINT,
-  ANTIGRAVITY_HEADERS,
   GEMINI_CLI_ENDPOINT,
-  GEMINI_CLI_HEADERS,
   SEARCH_MODEL,
+  SEARCH_THINKING_BUDGET_DEEP,
+  SEARCH_THINKING_BUDGET_FAST,
   SEARCH_TIMEOUT_MS,
   SEARCH_SYSTEM_INSTRUCTION,
+  getRandomizedHeaders,
   type HeaderStyle,
 } from "../constants"
+import { env } from "node:process"
 import { createLogger } from "./logger"
 import { debugCheckpoint } from "../../../util/debug"
 import { resolveModelForHeaderStyle } from "./transform/model-resolver"
@@ -131,6 +133,11 @@ function stripHtml(input: string): string {
     .trim()
 }
 
+function titleFromUrl(url: string): string {
+  const host = url.replace(/^https?:\/\//, "").split("/")[0]
+  return host || url
+}
+
 function formatSearchResult(result: SearchResult): string {
   const lines: string[] = []
 
@@ -139,9 +146,9 @@ function formatSearchResult(result: SearchResult): string {
   lines.push("")
 
   if (result.sources.length > 0) {
-    lines.push("### Sources")
+    lines.push("### Sources（請保留連結）")
     for (const source of result.sources) {
-      lines.push(`- [${source.title}](${source.url})`)
+      lines.push(`- [${source.title}](${source.url}) — ${source.url}`)
     }
     lines.push("")
   }
@@ -163,6 +170,25 @@ function formatSearchResult(result: SearchResult): string {
   }
 
   return lines.join("\n")
+}
+
+const MAX_BODY_LOG_CHARS = 12000
+
+function truncateForLog(text: string): string {
+  if (text.length <= MAX_BODY_LOG_CHARS) {
+    return text
+  }
+  return `${text.slice(0, MAX_BODY_LOG_CHARS)}... (truncated ${text.length - MAX_BODY_LOG_CHARS} chars)`
+}
+
+function logBody(status: number, body: string, context: { headerStyle: HeaderStyle; model: string }): void {
+  debugCheckpoint("google_search", "response: body", {
+    status,
+    headerStyle: context.headerStyle,
+    model: context.model,
+    length: body.length,
+    body: truncateForLog(body),
+  })
 }
 
 function parseSearchResponse(data: AntigravitySearchResponse): SearchResult {
@@ -206,12 +232,12 @@ function parseSearchResponse(data: AntigravitySearchResponse): SearchResult {
 
     if (gm.groundingChunks) {
       for (const chunk of gm.groundingChunks) {
-        if (chunk.web?.uri && chunk.web?.title) {
-          result.sources.push({
-            title: chunk.web.title,
-            url: chunk.web.uri,
-          })
-        }
+        if (!chunk.web?.uri) continue
+        const title = chunk.web.title ? chunk.web.title : titleFromUrl(chunk.web.uri)
+        result.sources.push({
+          title,
+          url: chunk.web.uri,
+        })
       }
     }
 
@@ -251,12 +277,24 @@ export async function executeSearch(
   accessToken: string,
   projectId: string,
   abortSignal?: AbortSignal,
-  options?: { headerStyle?: HeaderStyle },
+  options?: { headerStyle?: HeaderStyle; model?: string },
 ): Promise<SearchResponseResult> {
   const { query, urls, thinking = true } = args
   const headerStyle = options?.headerStyle ?? "antigravity"
-  const resolvedModel = resolveModelForHeaderStyle(SEARCH_MODEL, headerStyle)
+  const requestedModel = options?.model ?? SEARCH_MODEL
+  const resolvedModel = resolveModelForHeaderStyle(requestedModel, headerStyle)
   const model = resolvedModel.actualModel
+
+  const useGemini3Thinking = resolvedModel.thinkingLevel && model.toLowerCase().includes("gemini-3")
+  const useGemini25Thinking = model.toLowerCase().includes("gemini-2.5")
+  const thinkingConfig = useGemini3Thinking
+    ? { thinkingLevel: thinking ? resolvedModel.thinkingLevel : "low", includeThoughts: false }
+    : useGemini25Thinking
+      ? {
+          thinkingBudget: thinking ? SEARCH_THINKING_BUDGET_DEEP : SEARCH_THINKING_BUDGET_FAST,
+          includeThoughts: false,
+        }
+      : undefined
 
   // Build prompt with optional URLs
   let prompt = query
@@ -283,12 +321,7 @@ export async function executeSearch(
       },
     ],
     tools,
-    generationConfig: {
-      thinkingConfig: {
-        thinkingLevel: thinking ? "high" : "low",
-        includeThoughts: false,
-      },
-    },
+    generationConfig: thinkingConfig ? { thinkingConfig } : undefined,
   }
 
   // Wrap in Antigravity format
@@ -306,6 +339,19 @@ export async function executeSearch(
   // Use non-streaming endpoint for search
   const baseEndpoint = headerStyle === "gemini-cli" ? GEMINI_CLI_ENDPOINT : ANTIGRAVITY_ENDPOINT
   const url = `${baseEndpoint}/v1internal:generateContent`
+  const headers: Record<string, string> = {
+    ...getRandomizedHeaders(headerStyle),
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
+  }
+  const origin = env.OPENCODE_ANTIGRAVITY_SEARCH_ORIGIN
+  if (origin) {
+    headers.Origin = origin
+  }
+  const referer = env.OPENCODE_ANTIGRAVITY_SEARCH_REFERER
+  if (referer) {
+    headers.Referer = referer
+  }
 
   log.debug("Executing search", {
     query,
@@ -319,22 +365,21 @@ export async function executeSearch(
     model,
     urlCount: urls?.length ?? 0,
     thinking,
+    origin: origin ? true : false,
+    referer: referer ? true : false,
   })
 
   try {
     const response = await fetch(url, {
       method: "POST",
-      headers: {
-        ...(headerStyle === "gemini-cli" ? GEMINI_CLI_HEADERS : ANTIGRAVITY_HEADERS),
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify(wrappedBody),
       signal: abortSignal ?? AbortSignal.timeout(SEARCH_TIMEOUT_MS),
     })
 
     if (!response.ok) {
       const errorText = await response.text()
+      logBody(response.status, errorText, { headerStyle, model })
       log.debug("Search API error", { status: response.status, error: errorText })
       debugCheckpoint("google_search", "response: error", {
         status: response.status,
@@ -349,7 +394,9 @@ export async function executeSearch(
       }
     }
 
-    const data = (await response.json()) as AntigravitySearchResponse
+    const bodyText = await response.text()
+    logBody(response.status, bodyText, { headerStyle, model })
+    const data = JSON.parse(bodyText) as AntigravitySearchResponse
     log.debug("Search response received", { hasResponse: !!data.response })
 
     const result = parseSearchResponse(data)

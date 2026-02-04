@@ -14,8 +14,8 @@ import { debugCheckpoint } from "../../../../util/debug"
  */
 export const THINKING_TIER_BUDGETS = {
   claude: { low: 8192, medium: 16384, high: 32768 },
-  "gemini-2.5-pro": { low: 8192, medium: 16384, high: 32768 },
-  "gemini-2.5-flash": { low: 6144, medium: 12288, high: 24576 },
+  "gemini-2.0-pro": { low: 8192, medium: 16384, high: 32768 },
+  "gemini-2.0-flash": { low: 6144, medium: 12288, high: 24576 },
   default: { low: 4096, medium: 8192, high: 16384 },
 } as const
 
@@ -53,7 +53,7 @@ export const MODEL_ALIASES: Record<string, string> = {
   "gemini-claude-opus-4-5-thinking-high": "claude-opus-4-5-thinking",
 
   // Image generation models - only gemini-3-pro-image is available via Antigravity API
-  // Note: gemini-2.5-flash-image (Nano Banana) is NOT supported by Antigravity - only Google AI API
+  // Note: gemini-2.0-flash-image (Nano Banana) is NOT supported by Antigravity - only Google AI API
   // Reference: Antigravity-Manager/src-tauri/src/proxy/common/model_mapping.rs
 }
 
@@ -134,11 +134,11 @@ function getBudgetFamily(model: string): keyof typeof THINKING_TIER_BUDGETS {
   if (model.includes("claude")) {
     return "claude"
   }
-  if (model.includes("gemini-2.5-pro")) {
-    return "gemini-2.5-pro"
+  if (model.includes("gemini-2.0-pro")) {
+    return "gemini-2.0-pro"
   }
-  if (model.includes("gemini-2.5-flash")) {
-    return "gemini-2.5-flash"
+  if (model.includes("gemini-2.0-flash")) {
+    return "gemini-2.0-flash"
   }
   return "default"
 }
