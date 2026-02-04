@@ -2,15 +2,23 @@ import { spawn } from "node:child_process"
 import { debugCheckpoint } from "../../util/debug"
 
 import { GEMINI_PROVIDER_ID, GEMINI_REDIRECT_URI } from "./constants"
-import { authorizeGemini, exchangeGemini, exchangeGeminiWithVerifier } from "./gemini/oauth"
+import { authorizeGemini, exchangeGeminiWithVerifier } from "./gemini/oauth"
 import type { GeminiTokenExchangeResult } from "./gemini/oauth"
 import { accessTokenExpired, isOAuthAuth } from "./plugin/auth"
-import { ensureProjectContext } from "./plugin/project"
-import { startGeminiDebugRequest } from "./plugin/debug"
+import { ensureProjectContext, resolveProjectContextFromAccessToken } from "./plugin/project"
+import { isGeminiDebugEnabled, logGeminiDebugMessage, startGeminiDebugRequest } from "./plugin/debug"
 import { isGenerativeLanguageRequest, prepareGeminiRequest, transformGeminiResponse } from "./plugin/request"
 import { refreshAccessToken } from "./plugin/token"
 import { startOAuthListener, type OAuthListener } from "./plugin/server"
-import type { GetAuth, LoaderResult, PluginContext, PluginResult, ProjectContextResult, Provider } from "./plugin/types"
+import type {
+  GetAuth,
+  LoaderResult,
+  OAuthAuthDetails,
+  PluginContext,
+  PluginResult,
+  ProjectContextResult,
+  Provider,
+} from "./plugin/types"
 
 /**
  * Registers the Gemini OAuth provider for Opencode, handling auth, request rewriting,
@@ -32,7 +40,9 @@ export const GeminiCLIOAuthPlugin = async ({ client }: any): Promise<any> => ({
       const projectIdFromConfig =
         providerOptions && typeof providerOptions.projectId === "string" ? providerOptions.projectId.trim() : ""
       const projectIdFromEnv = process.env.OPENCODE_GEMINI_PROJECT_ID?.trim() ?? ""
-      const configuredProjectId = projectIdFromEnv || projectIdFromConfig || undefined
+      const googleProjectIdFromEnv =
+        process.env.GOOGLE_CLOUD_PROJECT?.trim() ?? process.env.GOOGLE_CLOUD_PROJECT_ID?.trim() ?? ""
+      const configuredProjectId = projectIdFromEnv || projectIdFromConfig || googleProjectIdFromEnv || undefined
 
       if (provider.models) {
         for (const model of Object.values(provider.models)) {
@@ -130,9 +140,57 @@ export const GeminiCLIOAuthPlugin = async ({ client }: any): Promise<any> => ({
     },
     methods: [
       {
-        label: "OAuth with Google (Gemini CLI) [TEST]",
+        label: "OAuth with Google (Gemini CLI)",
         type: "oauth",
         authorize: async () => {
+          const maybeHydrateProjectId = async (
+            result: GeminiTokenExchangeResult,
+          ): Promise<GeminiTokenExchangeResult> => {
+            if (result.type !== "success") {
+              return result
+            }
+
+            const accessToken = result.access
+            if (!accessToken) {
+              return result
+            }
+
+            const projectFromEnv = process.env.OPENCODE_GEMINI_PROJECT_ID?.trim() ?? ""
+            const googleProjectFromEnv =
+              process.env.GOOGLE_CLOUD_PROJECT?.trim() ?? process.env.GOOGLE_CLOUD_PROJECT_ID?.trim() ?? ""
+            const configuredProjectId = projectFromEnv || googleProjectFromEnv || undefined
+
+            try {
+              const authSnapshot = {
+                type: "oauth",
+                refresh: result.refresh,
+                access: result.access,
+                expires: result.expires,
+              } satisfies OAuthAuthDetails
+              const projectContext = await resolveProjectContextFromAccessToken(
+                authSnapshot,
+                accessToken,
+                configuredProjectId,
+              )
+
+              if (projectContext.auth.refresh !== result.refresh) {
+                if (isGeminiDebugEnabled()) {
+                  logGeminiDebugMessage(
+                    `OAuth project resolved during auth: ${projectContext.effectiveProjectId || "none"}`,
+                  )
+                }
+                return { ...result, refresh: projectContext.auth.refresh }
+              }
+            } catch (error) {
+              if (isGeminiDebugEnabled()) {
+                const message = error instanceof Error ? error.message : String(error)
+                console.warn(`[Gemini OAuth] Project resolution skipped: ${message}`)
+              }
+            }
+
+            return result
+          }
+
           const isHeadless = !!(
             process.env.SSH_CONNECTION ||
             process.env.SSH_CLIENT ||
@@ -183,7 +241,14 @@ export const GeminiCLIOAuthPlugin = async ({ client }: any): Promise<any> => ({
                     }
                   }
 
-                  return await exchangeGemini(code, state)
+                  if (state !== authorization.state) {
+                    return {
+                      type: "failed",
+                      error: "State mismatch in callback URL (possible CSRF attempt)",
+                    }
+                  }
+
+                  return await maybeHydrateProjectId(await exchangeGeminiWithVerifier(code, authorization.verifier))
                 } catch (error) {
                   return {
                     type: "failed",
@@ -214,11 +279,14 @@ export const GeminiCLIOAuthPlugin = async ({ client }: any): Promise<any> => ({
                   }
                 }
 
-                if (state) {
-                  return exchangeGemini(code, state)
+                if (state && state !== authorization.state) {
+                  return {
+                    type: "failed",
+                    error: "State mismatch in callback input (possible CSRF attempt)",
+                  }
                 }
 
-                return exchangeGeminiWithVerifier(code, authorization.verifier)
+                return await maybeHydrateProjectId(await exchangeGeminiWithVerifier(code, authorization.verifier))
               } catch (error) {
                 return {
                   type: "failed",

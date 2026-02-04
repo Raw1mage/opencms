@@ -577,7 +577,8 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       const provider = providerMap[providerID]
       if (!provider) continue
 
-      const accountData = accountMap[providerID]
+      const accountFamily = family(providerID) ?? providerID
+      const accountData = accountMap[providerID] ?? accountMap[accountFamily]
       const accountIds = accountData ? Object.keys(accountData.accounts) : []
       const list = accountIds.length > 0 ? accountIds : ["-"]
       const models = Object.values(provider.models).sort((a, b) => a.id.localeCompare(b.id))

@@ -90,6 +90,21 @@ export function logGeminiDebugResponse(
   }
 }
 
+export function isGeminiDebugEnabled(): boolean {
+  return debugEnabled
+}
+
+export function logGeminiDebugMessage(message: string): void {
+  logDebug(message)
+}
+
+export function formatDebugBodyPreview(body: string | undefined): string | undefined {
+  if (!body) {
+    return undefined
+  }
+  return truncateForLog(body)
+}
+
 /**
  * Obscures sensitive headers and returns a plain object for logging.
  */

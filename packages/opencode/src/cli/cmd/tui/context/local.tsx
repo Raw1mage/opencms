@@ -1,5 +1,5 @@
 import { createStore } from "solid-js/store"
-import { batch, createEffect, createMemo } from "solid-js"
+import { batch, createEffect, createMemo, createResource } from "solid-js"
 import { useSync } from "@tui/context/sync"
 import { useTheme } from "@tui/context/theme"
 import { uniqueBy } from "remeda"
@@ -9,6 +9,7 @@ import { iife } from "@/util/iife"
 import { createSimpleContext } from "./helper"
 import { useToast } from "../ui/toast"
 import { Provider } from "@/provider/provider"
+import { Account } from "@/account"
 import { useArgs } from "./args"
 import { useSDK } from "./sdk"
 import { RGBA } from "@opentui/core"
@@ -19,6 +20,42 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     const sync = useSync()
     const sdk = useSDK()
     const toast = useToast()
+    const [accountFamilies] = createResource(() => Account.listAll())
+    const accountDisplayNames = createMemo(() => {
+      const families = accountFamilies()
+      if (!families) return {}
+      const map: Record<string, { label: string; family: string }> = {}
+      for (const [family, data] of Object.entries(families)) {
+        for (const [id, info] of Object.entries(data.accounts)) {
+          map[id] = {
+            label: Account.getDisplayName(id, info, family),
+            family,
+          }
+        }
+      }
+      return map
+    })
+
+    function getAccountLabel(providerID: string, fallback: string) {
+      const labels = accountDisplayNames()
+      if (!labels || Object.keys(labels).length === 0) return fallback
+      if (labels[providerID]) return labels[providerID].label
+      const families = accountFamilies()
+      const family = Account.parseProvider(providerID)
+      if (family && families?.[family]?.activeAccount) {
+        const active = families[family]!.activeAccount
+        if (active && labels[active]) return labels[active].label
+      }
+      return fallback
+    }
+
+    function formatModelAnnouncement(model: { providerID: string; modelID: string }) {
+      const providerInfo = sync.data.provider.find((x) => x.id === model.providerID)
+      const providerLabel = providerInfo?.name ?? model.providerID
+      const modelLabel = providerInfo?.models[model.modelID]?.name ?? model.modelID
+      const accountLabel = getAccountLabel(model.providerID, "default account")
+      return `《${providerLabel}, ${accountLabel}, ${modelLabel}》`
+    }
 
     function isModelValid(model: { providerID: string; modelID: string }) {
       const provider = sync.data.provider.find((x) => x.id === model.providerID)
@@ -367,7 +404,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             if (options?.announce) {
               toast.show({
                 variant: "info",
-                message: "模型切換只影響下一次訊息，system prompt 會在送出時重新載入。",
+                message: formatModelAnnouncement(model),
                 duration: 3000,
               })
             }
