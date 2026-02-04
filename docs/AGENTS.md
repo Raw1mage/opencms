@@ -2,17 +2,17 @@
 
 ## 知識紀錄
 
-- 主要知識記錄檔為 `packages/opencode/DIARY.md`。
-- DIARY 需整合 CHANGELOG / PLANNING / DEBUGLOG 章節，不再分散維護。
-- 不再生成 `PLANNING.md` 檔案，規劃與需求請寫在 DIARY 的 PLANNING 章節。
-- 所有開發紀錄統一改為 DIARY。
-- 新增或移轉內容時，請依日期排序並以繁體中文撰寫。
+- 主要知識記錄索引為 `docs/DIARY.md`。
+- 具體開發紀錄（PLANNING / DEBUGLOG / CHANGELOG）儲存於 `docs/events/event_$date.md`。
+- DIARY 僅作為事件索引，記錄日期、任務摘要及指向對應 event 檔案的連結。
+- 不再生成獨立的 `PLANNING.md` 或 `ARCHITECTURE.md` 檔案。
+- 所有紀錄依日期排序，並以繁體中文撰寫。
 
 ## Communication Flow
 
 - **Respond First**: Always answer the user's questions or acknowledge their request before starting any coding task.
 - **Analyze & Plan**: Provide a brief analysis of the problem and your proposed plan of action.
-- **Discuss**: Give the user a chance to discuss or approve the plan, especially for complex changes.
+- **Clarify & Act**: 使用多選題釐清需求。完成需求釐清與 PLANNING 後，直接更新 event 紀錄並開始實作，避免冗餘的重複確認。
 - **Explain Actions**: Avoid jumping into long coding blocks (10+ minutes) without first explaining what you are about to do.
 - **Language**: Use Traditional Chinese (繁體中文) for all communication with the user.
 
@@ -41,3 +41,46 @@
 - **Logging**: Use `Log.create({ service: "name" })` pattern
 - **Storage**: Use `Storage` namespace for persistence
 - **API Client**: The TypeScript TUI (built with SolidJS + OpenTUI) communicates with the OpenCode server using `@opencode-ai/sdk`. When adding/modifying server endpoints in `packages/opencode/src/server/server.ts`, run `./scripts/generate.ts` to regenerate the SDK and related files.
+
+---
+
+## 規劃與架構 (Planning & Architecture) - **強制執行**
+
+在編寫 **任何** 程式碼之前，請先記錄計畫：
+
+### 步驟 1：建立或更新 docs/events/event_$date.md
+
+```markdown
+#### 功能：<名稱>
+
+**需求**
+
+- <釐切後的條列重點>
+
+**範圍**
+
+- IN：<包含項目>
+- OUT：<排除項目>
+
+**方法**
+
+- <高層次策略>
+
+**任務**
+
+1. [ ] <任務 1>
+2. [ ] <任務 2>
+
+**待解問題**
+
+- <任何未解決項目>
+```
+
+### 步驟 2：更新 docs/DIARY.md 索引
+
+在 `docs/DIARY.md` 中新增一條索引，連結至該 event 檔案。
+
+### 步驟 3：驗證與實作
+
+- 確保流程合乎邏輯且無死角。
+- 需求釐清後直接實作，不需再詢問「是否開始規劃」。

@@ -12,7 +12,6 @@ export const GEMINI_CLIENT_SECRET = "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"
  * Scopes required for Gemini CLI integrations.
  */
 export const GEMINI_SCOPES: readonly string[] = [
-  "openid",
   "https://www.googleapis.com/auth/cloud-platform",
   "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/userinfo.profile",
