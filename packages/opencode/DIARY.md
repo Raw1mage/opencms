@@ -757,6 +757,36 @@
 
 ### PLANNING
 
+#### 功能：影像貼圖只使用 Rotation3D（移除本地 fallback）
+
+**需求**
+
+- 影像模型選擇只依賴 Rotation3D，移除本地硬編碼 fallback。
+- Rotation3D 找不到可用模型時直接中止並提示，不隱藏問題。
+- 清理影像相關的本地例外邏輯（包含硬編碼模型排除）。
+
+**範圍**
+
+- IN: `src/session/prompt.ts` 影像旋轉/丟棄流程、提示訊息
+- OUT: 非影像的模型輪替流程、subagent workflow 判斷邏輯
+
+**方法**
+
+1. 移除 `selectImageModel` 的本地 rescue 清單與手動掃描邏輯。
+2. `resolveImageRequest` 僅使用 Rotation3D 候選，若無可用模型則回報錯誤並中止。
+3. 移除硬編碼的影像模型排除規則，改由 Rotation3D/全域狀態決定。
+
+**任務**
+
+1. [ ] 移除影像本地 fallback（rescue 清單）
+2. [ ] Rotation3D 無候選時中止並提示
+3. [ ] 清理硬編碼影像模型例外
+4. [ ] 手動驗證貼圖流程（本機/非 SSH）
+
+**待解問題**
+
+- Rotation3D 是否需要新增影像能力篩選欄位（未來擴充）？
+
 #### 功能：google_search 認證失敗 RCA
 
 **需求**

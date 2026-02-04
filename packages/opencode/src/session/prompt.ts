@@ -44,7 +44,6 @@ import { TaskTool } from "@/tool/task"
 import { Tool } from "@/tool/tool"
 import { PermissionNext } from "@/permission/next"
 import { SessionStatus } from "./status"
-import { getModelHealthRegistry } from "@/account/rotation"
 import { TuiEvent } from "@/cli/cmd/tui/event"
 import { iife } from "@/util/iife"
 import { Shell } from "@/shell/shell"
@@ -119,50 +118,15 @@ export namespace SessionPrompt {
 
     const providers = await Provider.list()
 
-    // 1. Try to find a healthy, image-capable candidate from Rotation3D
+    // Try to find a healthy, image-capable candidate from Rotation3D
     for (const c of candidates) {
-      // Resolve the actual provider entry (candidate.accountId is usually the provider key)
       const provider = providers[c.accountId] ?? providers[c.providerID]
       if (!provider) continue
 
       const model = provider.models[c.modelID]
       if (!model) continue
 
-      // Check for image capability AND ensure it's not rate limited
       if (model.capabilities.input.image && !c.isRateLimited) {
-        return model
-      }
-    }
-
-    // 2. Fallback: Hardcoded rescue list (if Rotation3D yields nothing)
-    // This maintains the original safety net for specific reliable providers
-    const order: string[] = []
-    if (!order.includes("gemini-cli")) order.push("gemini-cli")
-    if (!order.includes("antigravity")) order.push("antigravity")
-
-    // Add all others
-    for (const pid of Object.keys(providers)) {
-      if (!order.includes(pid)) order.push(pid)
-    }
-
-    const registry = getModelHealthRegistry()
-    const cfg = await Config.get()
-
-    for (const pid of order) {
-      if (cfg.disabled_providers?.includes(pid)) continue
-      const provider = providers[pid]
-      if (!provider) continue
-      const models = Provider.sort(Object.values(provider.models))
-      for (const model of models) {
-        if (!model.capabilities.input.image) continue
-        if (!model.capabilities.output.text) continue
-        // We already checked Rotation3D candidates (which checks registry), but this sweep covers models
-        // that might not be in the fallback candidates list (e.g. not in favorites or same family)
-        if (!registry.isAvailable(pid, model.id)) continue
-
-        // Avoid the current model if it was already rejected by capability check in resolveImageRequest
-        if (pid === current.providerID && model.id === current.id) continue
-
         return model
       }
     }
@@ -171,16 +135,13 @@ export namespace SessionPrompt {
   async function resolveImageRequest(input: {
     model: Provider.Model
     message?: MessageV2.WithParts
+    sessionID: string
   }): Promise<{ model: Provider.Model; dropImages: boolean; rotated: boolean }> {
     if (!hasImageParts(input.message)) {
       return { model: input.model, dropImages: false, rotated: false }
     }
 
-    // Hard-exclude known models that report image support but fail (Ghost Bug 400)
-    // Gemini 3 Pro models currently fail with 400 on image input despite metadata
-    const isBrokenImageModel = input.model.id.includes("gemini-3-pro")
-
-    if (input.model.capabilities.input.image && !isBrokenImageModel) {
+    if (input.model.capabilities.input.image) {
       return { model: input.model, dropImages: false, rotated: false }
     }
 
@@ -188,7 +149,14 @@ export namespace SessionPrompt {
     if (fallback) {
       return { model: fallback, dropImages: false, rotated: true }
     }
-    return { model: input.model, dropImages: true, rotated: false }
+    const error = new NamedError.Unknown({
+      message: "No available image-capable model from Rotation3D. Image input blocked.",
+    })
+    Bus.publish(Session.Event.Error, {
+      sessionID: input.sessionID,
+      error: error.toObject(),
+    })
+    throw error
   }
 
   const state = Instance.state(
@@ -665,7 +633,7 @@ export namespace SessionPrompt {
 
       // normal processing
       const userMsg = msgs.findLast((m) => m.info.role === "user")
-      const imageResolution = await resolveImageRequest({ model, message: userMsg })
+      const imageResolution = await resolveImageRequest({ model, message: userMsg, sessionID })
       const activeModel = imageResolution.model
       if (imageResolution.rotated) {
         const change = `${activeModel.providerID}/${activeModel.id}`
