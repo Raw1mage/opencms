@@ -64,15 +64,7 @@ export interface FallbackCandidate extends ModelVector {
 /**
  * Purpose of the rotation
  */
-export type RotationPurpose =
-  | "coding"
-  | "reasoning"
-  | "image"
-  | "docs"
-  | "audio"
-  | "video"
-  | "long-context"
-  | "generic"
+export type RotationPurpose = "coding" | "reasoning" | "image" | "docs" | "audio" | "video" | "long-context" | "generic"
 
 /**
  * Strategy for fallback selection
@@ -351,18 +343,27 @@ export async function buildFallbackCandidates(
     log.warn("Failed to list providers", { error: e })
   }
 
-  // Load Favorites set for filtering
+  // Load favorites/hidden sets for filtering
   let allowedModels = new Set<string>()
+  let hiddenModels = new Set<string>()
+  let hiddenProviders = new Set<string>()
   try {
     const modelFile = Bun.file(path.join(Global.Path.state, "model.json"))
     if (await modelFile.exists()) {
       const modelData = await modelFile.json()
       const favorites: Array<{ providerId: string; modelID: string }> = modelData.favorite ?? []
+      const hidden: Array<{ providerId: string; modelID: string }> = modelData.hidden ?? []
+      const hiddenProviderList: string[] = modelData.hiddenProviders ?? []
       allowedModels = new Set(favorites.map((f) => `${f.providerId}/${f.modelID}`))
+      hiddenModels = new Set(hidden.map((h) => `${h.providerId}/${h.modelID}`))
+      hiddenProviders = new Set(hiddenProviderList)
     }
   } catch (e) {
     log.warn("Failed to read favorites for filtering", { error: e })
   }
+
+  const isHidden = (vector: ModelVector) =>
+    hiddenProviders.has(vector.providerId) || hiddenModels.has(`${vector.providerId}/${vector.modelID}`)
 
   // Helper to enrich candidate with capabilities
   const enrich = (vector: ModelVector, reason: FallbackCandidate["reason"]): FallbackCandidate => {
@@ -385,16 +386,13 @@ export async function buildFallbackCandidates(
     const accounts = await Account.list(family)
     for (const [accountId, info] of Object.entries(accounts)) {
       if (accountId === current.accountId) continue
-      candidates.push(
-        enrich(
-          {
-            providerId: current.providerId,
-            accountId,
-            modelID: current.modelID,
-          },
-          "same-model-diff-account",
-        ),
-      )
+      const vector = {
+        providerId: current.providerId,
+        accountId,
+        modelID: current.modelID,
+      }
+      if (isHidden(vector)) continue
+      candidates.push(enrich(vector, "same-model-diff-account"))
     }
   }
 
@@ -405,16 +403,13 @@ export async function buildFallbackCandidates(
     if (providerId !== current.providerId) continue
     if (modelId === current.modelID) continue
 
-    candidates.push(
-      enrich(
-        {
-          providerId: current.providerId,
-          accountId: current.accountId,
-          modelID: modelId,
-        },
-        "diff-model-same-account",
-      ),
-    )
+    const vector = {
+      providerId: current.providerId,
+      accountId: current.accountId,
+      modelID: modelId,
+    }
+    if (isHidden(vector)) continue
+    candidates.push(enrich(vector, "diff-model-same-account"))
   }
 
   // 3. Get favorite models from model.json (different providers)
@@ -425,10 +420,13 @@ export async function buildFallbackCandidates(
       const modelData = await modelFile.json()
       const favorites: Array<{ providerId: string; modelID: string; tags?: string[] }> = modelData.favorite ?? []
       const hiddenProviders: string[] = modelData.hiddenProviders ?? []
+      const hidden: Array<{ providerId: string; modelID: string }> = modelData.hidden ?? []
+      const hiddenModelKeys = new Set(hidden.map((h) => `${h.providerId}/${h.modelID}`))
 
       for (const fav of favorites) {
         if (!fav.providerId) continue
         if (hiddenProviders.includes(fav.providerId)) continue
+        if (hiddenModelKeys.has(`${fav.providerId}/${fav.modelID}`)) continue
         if (fav.providerId === current.providerId && fav.modelID === current.modelID) continue
 
         const favFamily = Account.parseFamily(fav.providerId)
@@ -436,12 +434,14 @@ export async function buildFallbackCandidates(
 
         const accounts = await Account.list(favFamily)
         for (const [accountId, info] of Object.entries(accounts)) {
+          const vector = {
+            providerId: fav.providerId,
+            accountId,
+            modelID: fav.modelID,
+          }
+          if (isHidden(vector)) continue
           const candidate = enrich(
-            {
-              providerId: fav.providerId,
-              accountId,
-              modelID: fav.modelID,
-            },
+            vector,
             fav.providerId === current.providerId ? "diff-model-same-account" : "diff-provider",
           )
 
@@ -475,6 +475,7 @@ export async function buildFallbackCandidates(
       }
 
       const vector: ModelVector = { providerId: "opencode", accountId, modelID: modelId }
+      if (isHidden(vector)) continue
       if (
         vector.providerId === current.providerId &&
         vector.modelID === current.modelID &&

@@ -330,6 +330,13 @@ export function Prompt(props: PromptProps) {
     return messages.findLast((m) => m.role === "user")
   })
 
+  const lastAssistantMessage = createMemo(() => {
+    if (!props.sessionID) return undefined
+    const messages = sync.data.message[props.sessionID]
+    if (!messages) return undefined
+    return messages.findLast((m) => m.role === "assistant")
+  })
+
   const [store, setStore] = createStore<{
     prompt: PromptInfo
     mode: "normal" | "shell"
@@ -364,6 +371,27 @@ export function Prompt(props: PromptProps) {
         local.agent.set(msg.agent)
         if (msg.model) local.model.set(msg.model)
         if (msg.variant) local.model.variant.set(msg.variant)
+      }
+    }
+  })
+
+  // Sync model/variant from last assistant message (rotation3d fallback)
+  let syncedAssistantMessageID: string | undefined
+  createEffect(() => {
+    const sessionID = props.sessionID
+    const msg = lastAssistantMessage()
+    if (!sessionID || !msg) return
+    if (msg.id === syncedAssistantMessageID) return
+    syncedAssistantMessageID = msg.id
+
+    const isPrimaryAgent = local.agent.list().some((x) => x.name === msg.agent)
+    if (msg.agent && !isPrimaryAgent) return
+
+    if (msg.providerId && msg.modelID) {
+      const current = local.model.current()
+      const same = current && current.providerId === msg.providerId && current.modelID === msg.modelID
+      if (!same) {
+        local.model.set({ providerId: msg.providerId, modelID: msg.modelID }, { skipValidation: true, announce: false })
       }
     }
   })
