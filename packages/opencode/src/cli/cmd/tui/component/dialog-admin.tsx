@@ -934,33 +934,59 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
     const favorites = connected() ? local.model.favorite() : []
 
+    const formatProviderModelTitle = (
+      providerID: string,
+      modelTitle: string,
+      widths: { provider: number; model: number },
+    ) => {
+      const providerCol = providerID.padEnd(widths.provider)
+      const modelCol = modelTitle.padEnd(widths.model)
+      return `${providerCol} ${modelCol}`
+    }
+
     const getModelOptions = (
       modelList: { providerID: string; modelID: string }[],
       origin: "favorite",
     ): DialogSelectOption<unknown>[] => {
-      return modelList.flatMap((item) => {
+      const resolved = modelList.flatMap((item) => {
         const p = sync.data.provider.find((x) => x.id === item.providerID)
         if (!p) return []
         const m = p.models[item.modelID]
         if (!m) return []
-
         return [
           {
-            value: { providerID: item.providerID, modelID: item.modelID, origin },
-            title: `${item.providerID} - ${item.modelID}`,
-            description: undefined,
-            footer: undefined,
+            providerID: item.providerID,
+            modelID: item.modelID,
             disabled: p.id === "opencode" && m.id.includes("-nano"),
-            onSelect: () => {
-              debugCheckpoint("admin", "select favorite model", {
-                origin,
-                provider: item.providerID,
-                model: item.modelID,
-              })
-              probeAndSelectModel(item.providerID, item.modelID, origin)
-            },
           },
         ]
+      })
+
+      const widths = resolved.reduce(
+        (acc, item) => {
+          acc.provider = Math.max(acc.provider, item.providerID.length)
+          acc.model = Math.max(acc.model, item.modelID.length)
+          return acc
+        },
+        { provider: 0, model: 0 },
+      )
+
+      return resolved.map((item) => {
+        return {
+          value: { providerID: item.providerID, modelID: item.modelID, origin },
+          title: formatProviderModelTitle(item.providerID, item.modelID, widths),
+          description: undefined,
+          footer: undefined,
+          disabled: item.disabled,
+          onSelect: () => {
+            debugCheckpoint("admin", "select favorite model", {
+              origin,
+              provider: item.providerID,
+              model: item.modelID,
+            })
+            probeAndSelectModel(item.providerID, item.modelID, origin)
+          },
+        }
       })
     }
 
@@ -1347,7 +1373,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
           return {
             value: { providerID: baseProviderID, modelID: mid },
-            title: info.name ?? mid,
+            modelTitle: info.name ?? mid,
             category: "Models",
             gutter: isFav ? <text fg={theme.accent}>⭐</text> : undefined,
             description: iife(() => {
@@ -1372,7 +1398,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             },
           }
         }),
-        sortBy((entry) => entry.title),
+        sortBy((entry) => entry.modelTitle),
       )
 
       const existingIds = new Set(baseEntries.map((entry) => entry.value.modelID))
@@ -1383,7 +1409,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               const isFav = favorites.some((f) => f.providerID === baseProviderID && f.modelID === model.id)
               return {
                 value: { providerID: baseProviderID, modelID: model.id },
-                title: model.title,
+                modelTitle: model.title,
                 category: "Models",
                 gutter: isFav ? <text fg={theme.accent}>⭐</text> : undefined,
                 description: "Google AI Studio list",
@@ -1396,7 +1422,23 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             })
         : []
 
-      const combined = sortBy([...baseEntries, ...dynamicEntries], (entry) => entry.title)
+      const combined = sortBy([...baseEntries, ...dynamicEntries], (entry) => entry.modelTitle)
+
+      const widths = combined.reduce(
+        (acc, entry) => {
+          acc.provider = Math.max(acc.provider, baseProviderID.length)
+          acc.model = Math.max(acc.model, entry.modelTitle.length)
+          return acc
+        },
+        { provider: baseProviderID.length, model: 0 },
+      )
+
+      const formattedCombined = combined.map((entry) => {
+        return {
+          ...entry,
+          title: formatProviderModelTitle(baseProviderID, entry.modelTitle, widths),
+        }
+      })
 
       const extras: DialogSelectOption<unknown>[] = []
       if (isGoogleProvider) {
@@ -1417,7 +1459,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         }
       }
 
-      if (combined.length === 0) {
+      if (formattedCombined.length === 0) {
         extras.push({
           title: "No models found",
           value: "__empty__",
@@ -1427,7 +1469,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         return extras
       }
 
-      return extras.concat(combined)
+      return extras.concat(formattedCombined)
     }
 
     return []

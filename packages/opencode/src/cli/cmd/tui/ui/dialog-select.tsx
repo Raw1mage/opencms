@@ -179,8 +179,15 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     }
   }
 
+  // Track stack length at mount time to detect new dialogs pushed on top
+  const initialStackLength = dialog.stack.length
+
   const keybind = useKeybind()
   useKeyboard((evt) => {
+    // Skip if a dialog was pushed on top after this component mounted
+    // This prevents Enter key from triggering the selected option when user is typing in a DialogPrompt
+    if (dialog.stack.length > initialStackLength) return
+
     setStore("input", "keyboard")
 
     // "/" enters search mode
