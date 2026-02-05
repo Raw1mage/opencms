@@ -115,7 +115,27 @@ export namespace ModelsDev {
 
   export async function get() {
     const result = await Data()
-    return normalizeProviders(result as Record<string, Provider>)
+    const data = result as Record<string, Provider>
+
+    // Merge snapshot models into result so that locally-added models
+    // are always available even when a cached models.json takes priority.
+    const snapshotData = await import("./models-snapshot")
+      .then((m) => m.snapshot as Record<string, Provider>)
+      .catch(() => undefined)
+    if (snapshotData) {
+      for (const [providerKey, snapshotProvider] of Object.entries(snapshotData)) {
+        const existing = data[providerKey]
+        if (existing && snapshotProvider.models) {
+          for (const [modelId, model] of Object.entries(snapshotProvider.models)) {
+            if (!existing.models[modelId]) {
+              existing.models[modelId] = model
+            }
+          }
+        }
+      }
+    }
+
+    return normalizeProviders(data)
   }
 
   export async function refresh() {

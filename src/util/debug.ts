@@ -1,9 +1,11 @@
 import crypto from "crypto"
 import fs from "fs"
 import path from "path"
+import os from "os"
 
-const root = "/home/pkcs12/opencode/logs"
+const root = path.join(os.homedir(), ".opencode", "logs")
 const file = path.join(root, "debug.log")
+export const DEBUG_LOG_PATH = file
 let initialized = false
 let seq = 0
 const keytraceEnabled = process.env.OPENCODE_DEBUG_KEYTRACE === "1"

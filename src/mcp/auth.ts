@@ -28,7 +28,7 @@ export namespace McpAuth {
   })
   export type Entry = z.infer<typeof Entry>
 
-  const filepath = path.join(Global.Path.data, "mcp-auth.json")
+  const filepath = path.join(Global.Path.user, "mcp-auth.json")
 
   export async function get(mcpName: string): Promise<Entry | undefined> {
     const data = await all()

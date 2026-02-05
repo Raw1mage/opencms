@@ -1,8 +1,5 @@
-import path from "path"
-import fs from "fs/promises"
-import { Global } from "../global"
 import z from "zod"
-import { debugCheckpoint } from "./debug"
+import { debugCheckpoint, DEBUG_LOG_PATH } from "./debug"
 
 export namespace Log {
   export const Level = z.enum(["DEBUG", "INFO", "WARN", "ERROR"]).meta({ ref: "LogLevel", description: "Log level" })
@@ -47,77 +44,28 @@ export namespace Log {
     level?: Level
   }
 
-  let logpath = ""
   export function file() {
-    return logpath
+    return DEBUG_LOG_PATH
   }
-  let write = (msg: any) => {
-    process.stderr.write(msg)
-    return msg.length
-  }
+
+  let printToStderr = false
 
   export async function init(options: Options) {
     if (options.level) level = options.level
-    cleanup(Global.Path.log)
-    if (options.print) return
-    logpath = path.join(
-      Global.Path.log,
-      options.dev ? "dev.log" : new Date().toISOString().split(".")[0].replace(/:/g, "") + ".log",
-    )
-    await fs.mkdir(Global.Path.log, { recursive: true }).catch(() => {})
-    try {
-      const logfile = Bun.file(logpath)
-      await fs.truncate(logpath).catch(() => {})
-      const writer = logfile.writer()
-      write = async (msg: any) => {
-        const num = writer.write(msg)
-        writer.flush()
-        return num
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      process.stderr.write(`WARN log init failed: ${message}\n`)
-      logpath = ""
-      write = (msg: any) => {
-        process.stderr.write(msg)
-        return msg.length
-      }
-    }
+    printToStderr = options.print
   }
 
-  async function cleanup(dir: string) {
-    const glob = new Bun.Glob("????-??-??T??????.log")
-    const files = await Array.fromAsync(
-      glob.scan({
-        cwd: dir,
-        absolute: true,
-      }),
-    )
-    if (files.length <= 5) return
-
-    const filesToDelete = files.slice(0, -10)
-    await Promise.all(filesToDelete.map((file) => fs.unlink(file).catch(() => {})))
+  function formatMessage(message: any): string {
+    if (message instanceof Error) return message.stack ?? message.message
+    if (typeof message === "string") return message
+    if (message === undefined) return ""
+    if (message === null) return "null"
+    if (typeof message === "object") return JSON.stringify(message)
+    return String(message)
   }
 
-  function formatError(error: Error, depth = 0): string {
-    const result = error.message
-    return error.cause instanceof Error && depth < 10
-      ? result + " Caused by: " + formatError(error.cause, depth + 1)
-      : result
-  }
-
-  let last = Date.now()
   export function create(tags?: Record<string, any>) {
     tags = tags || {}
-
-    function formatMessage(message: any): string {
-      if (message instanceof Error) return message.stack ?? message.message
-      if (typeof message === "string") return message
-      if (message === undefined) return ""
-      if (message === null) return "null"
-      if (typeof message === "object") return JSON.stringify(message)
-      return String(message)
-    }
 
     const service = tags["service"]
     if (service && typeof service === "string") {
@@ -127,47 +75,29 @@ export namespace Log {
       }
     }
 
-    function build(message: any, extra?: Record<string, any>) {
-      const prefix = Object.entries({
-        ...tags,
-        ...extra,
-      })
-        .filter(([_, value]) => value !== undefined && value !== null)
-        .map(([key, value]) => {
-          const prefix = `${key}=`
-          if (value instanceof Error) return prefix + formatError(value)
-          if (typeof value === "object") return prefix + JSON.stringify(value)
-          return prefix + value
-        })
-        .join(" ")
-      const next = new Date()
-      const diff = next.getTime() - last
-      last = next.getTime()
-      return [next.toISOString().split(".")[0], "+" + diff + "ms", prefix, message].filter(Boolean).join(" ") + "\n"
-    }
     const result: Logger = {
       debug(message?: any, extra?: Record<string, any>) {
         if (shouldLog("DEBUG")) {
           debugCheckpoint("log", `DEBUG ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
-          write("DEBUG " + build(message, extra))
+          if (printToStderr) process.stderr.write(`DEBUG ${formatMessage(message)}\n`)
         }
       },
       info(message?: any, extra?: Record<string, any>) {
         if (shouldLog("INFO")) {
           debugCheckpoint("log", `INFO ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
-          write("INFO  " + build(message, extra))
+          if (printToStderr) process.stderr.write(`INFO  ${formatMessage(message)}\n`)
         }
       },
       error(message?: any, extra?: Record<string, any>) {
         if (shouldLog("ERROR")) {
           debugCheckpoint("log", `ERROR ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
-          write("ERROR " + build(message, extra))
+          if (printToStderr) process.stderr.write(`ERROR ${formatMessage(message)}\n`)
         }
       },
       warn(message?: any, extra?: Record<string, any>) {
         if (shouldLog("WARN")) {
           debugCheckpoint("log", `WARN ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
-          write("WARN  " + build(message, extra))
+          if (printToStderr) process.stderr.write(`WARN  ${formatMessage(message)}\n`)
         }
       },
       tag(key: string, value: string) {

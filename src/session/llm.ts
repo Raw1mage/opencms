@@ -50,6 +50,11 @@ export namespace LLM {
 
   export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
 
+  // Toast debouncing for rate-limit and rotation notifications
+  const TOAST_DEBOUNCE_MS = 15_000
+  let lastRateLimitToastAt = 0
+  let lastRotationToastAt = 0
+
   export type StreamInput = {
     user: MessageV2.User
     sessionID: string
@@ -285,15 +290,19 @@ export namespace LLM {
             backoffMs,
           })
 
-          // Publish toast notification for rate limit
-          const waitMinutes = Math.ceil(backoffMs / 60000)
-          const reasonText = formatRateLimitReason(reason)
-          Bus.publish(TuiEvent.ToastShow, {
-            title: "Rate Limit",
-            message: `${input.model.id}: ${reasonText}. Cooling down for ${waitMinutes}m.`,
-            variant: "warning",
-            duration: 8000,
-          }).catch(() => {}) // Ignore publish errors
+          // Publish toast notification for rate limit (debounced)
+          const now = Date.now()
+          if (now - lastRateLimitToastAt >= TOAST_DEBOUNCE_MS) {
+            lastRateLimitToastAt = now
+            const waitMinutes = Math.ceil(backoffMs / 60000)
+            const reasonText = formatRateLimitReason(reason)
+            Bus.publish(TuiEvent.ToastShow, {
+              title: "Rate Limit",
+              message: `${input.model.id}: ${reasonText}. Cooling down for ${waitMinutes}m.`,
+              variant: "warning",
+              duration: 8000,
+            }).catch(() => {}) // Ignore publish errors
+          }
         }
       },
       async experimental_repairToolCall(failed) {
@@ -502,12 +511,12 @@ export namespace LLM {
     // Mark current vector as rate-limited to prevent bouncing back to it
     const rateLimitTracker = getRateLimitTracker()
     if (!rateLimitTracker.isRateLimited(currentAccountId, currentModel.providerId, currentModel.id)) {
-      // Apply a short cooldown (30 seconds) to prevent immediate retry
+      // Apply cooldown (60 seconds) to prevent immediate retry
       rateLimitTracker.markRateLimited(
         currentAccountId,
         currentModel.providerId,
         "RATE_LIMIT_EXCEEDED",
-        30_000,
+        60_000,
         currentModel.id,
       )
       log.info("Marked current vector as rate-limited to prevent bounce-back", {
@@ -548,6 +557,42 @@ export namespace LLM {
     // Mark as tried
     triedVectors.add(fallbackKey)
 
+    // Log the dimension change
+    const isSameProvider = fallback.providerId === currentModel.providerId
+    const isSameAccount = fallback.accountId === currentAccountId
+    const isSameModel = fallback.modelID === currentModel.id
+
+    const fallbackReason = isVectorRateLimited(currentVector) ? "rate-limit" : "unknown"
+    const purpose = (fallback as any).purpose || fallbackReason
+    const reasonLabel = PURPOSE_LABELS[purpose] || fallback.reason
+    const fromStr = `${currentAccountId}(${currentModel.id})`
+    const toStr = `${fallback.accountId}(${fallback.modelID})`
+    const toastMsg = `[Rotation: ${reasonLabel}] ${fromStr} → ${toStr}`
+
+    log.info("3D fallback selected", {
+      reason: fallback.reason,
+      trigger: fallbackReason,
+      changes: {
+        provider: !isSameProvider,
+        account: !isSameAccount,
+        model: !isSameModel,
+      },
+      from: fromStr,
+      to: toStr,
+    })
+
+    debugCheckpoint("rotation3d", "Executing fallback switch", {
+      trigger: fallbackReason,
+      strategy: fallback.reason,
+      from: fromStr,
+      to: toStr,
+      changes: {
+        provider: !isSameProvider,
+        account: !isSameAccount,
+        model: !isSameModel,
+      },
+    })
+
     // If same model but different account, set the new account as active
     if (isSameModel && !isSameAccount && isSameProvider) {
       await Account.setActive(family, fallback.accountId)
@@ -557,13 +602,17 @@ export namespace LLM {
         ? Account.getDisplayName(fallback.accountId, accountInfo, family)
         : fallback.accountId
 
-      // Notify user of account rotation
-      Bus.publish(TuiEvent.ToastShow, {
-        title: "Account Rotated",
-        message: toastMsg,
-        variant: "info",
-        duration: 8000,
-      }).catch(() => {})
+      // Notify user of account rotation (debounced)
+      const now1 = Date.now()
+      if (now1 - lastRotationToastAt >= TOAST_DEBOUNCE_MS) {
+        lastRotationToastAt = now1
+        Bus.publish(TuiEvent.ToastShow, {
+          title: "Account Rotated",
+          message: toastMsg,
+          variant: "info",
+          duration: 8000,
+        }).catch(() => {})
+      }
 
       // Return currentModel here, as the rotation only changed the account, not the model object itself
       return currentModel
@@ -589,13 +638,17 @@ export namespace LLM {
       }
     }
 
-    // Notify user of model/provider rotation
-    Bus.publish(TuiEvent.ToastShow, {
-      title: "Model Rotated",
-      message: toastMsg,
-      variant: "info",
-      duration: 8000,
-    }).catch(() => {})
+    // Notify user of model/provider rotation (debounced)
+    const now2 = Date.now()
+    if (now2 - lastRotationToastAt >= TOAST_DEBOUNCE_MS) {
+      lastRotationToastAt = now2
+      Bus.publish(TuiEvent.ToastShow, {
+        title: "Model Rotated",
+        message: toastMsg,
+        variant: "info",
+        duration: 8000,
+      }).catch(() => {})
+    }
 
     return fallbackModel
   }

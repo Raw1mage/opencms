@@ -427,6 +427,7 @@ export async function buildFallbackCandidates(
       const hiddenProviders: string[] = modelData.hiddenProviders ?? []
 
       for (const fav of favorites) {
+        if (!fav.providerId) continue
         if (hiddenProviders.includes(fav.providerId)) continue
         if (fav.providerId === current.providerId && fav.modelID === current.modelID) continue
 

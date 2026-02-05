@@ -246,7 +246,7 @@ function shouldIgnore(error?: string): boolean {
 }
 
 async function loadIgnored(): Promise<Set<string>> {
-  const file = Bun.file(`${Global.Path.data}/ignored-models.json`)
+  const file = Bun.file(`${Global.Path.user}/ignored-models.json`)
   const exists = await file.exists()
   if (!exists) return new Set<string>()
   const data = await file.json().catch(() => [])
@@ -256,5 +256,5 @@ async function loadIgnored(): Promise<Set<string>> {
 
 async function saveIgnored(list: Set<string>) {
   const data = JSON.stringify([...list].sort(), null, 2)
-  await Bun.write(`${Global.Path.data}/ignored-models.json`, data)
+  await Bun.write(`${Global.Path.user}/ignored-models.json`, data)
 }

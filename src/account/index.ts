@@ -89,7 +89,8 @@ export namespace Account {
   export type Storage = z.infer<typeof Storage>
 
   const CURRENT_VERSION = 2
-  const filepath = path.join(Global.Path.data, "accounts.json")
+  const filepath = path.join(Global.Path.user, "accounts.json")
+  const legacyFilepath = path.join(Global.Path.data, "accounts.json")
 
   // Cached state
   let _storage: Storage | undefined
@@ -123,7 +124,19 @@ export namespace Account {
 
   async function load(): Promise<Storage> {
     const file = Bun.file(filepath)
-    const exists = await file.exists()
+    let exists = await file.exists()
+
+    // Auto-migrate from old XDG location (~/.local/share/opencode/accounts.json)
+    if (!exists) {
+      const legacyFile = Bun.file(legacyFilepath)
+      if (await legacyFile.exists()) {
+        log.info("Migrating accounts.json from legacy path", { from: legacyFilepath, to: filepath })
+        await fs.mkdir(path.dirname(filepath), { recursive: true }).catch(() => {})
+        await Bun.write(filepath, await legacyFile.text())
+        await fs.chmod(filepath, 0o600)
+        exists = true
+      }
+    }
 
     if (!exists) {
       // Try migration from old formats
@@ -448,6 +461,7 @@ export namespace Account {
    * - "{provider}-subscription-{name}" -> provider
    */
   export function parseProvider(accountId: string): string | undefined {
+    if (!accountId || typeof accountId !== "string") return undefined
     // First check known PROVIDERS (prefix match)
     for (const provider of PROVIDERS) {
       if (accountId === provider || accountId.startsWith(`${provider}-`)) {

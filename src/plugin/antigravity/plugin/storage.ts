@@ -177,7 +177,7 @@ export async function loadAccounts(): Promise<AccountStorageV3 | null> {
     // However, resyncing every load causes "deleted accounts coming back" if not careful.
     // Fixed: We will TRUST accounts.json as the source of TRUTH for which accounts exist.
     try {
-      const mainAccountsPath = join(homedir(), ".local/share", "opencode", "accounts.json")
+      const mainAccountsPath = join(homedir(), ".opencode", "accounts.json")
       if (existsSync(mainAccountsPath)) {
         const mainContent = readFileSync(mainAccountsPath, "utf-8")
         const mainData = JSON.parse(mainContent)

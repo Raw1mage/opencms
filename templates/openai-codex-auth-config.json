@@ -1,0 +1,10 @@
+{
+  "codexMode": true,
+  "retryAllAccountsRateLimited": true,
+  "retryAllAccountsMaxWaitMs": 0,
+  "retryAllAccountsMaxRetries": 10,
+  "tokenRefreshSkewMs": 60000,
+  "rateLimitToastDebounceMs": 60000,
+  "sessionRecovery": true,
+  "autoResume": true
+}

@@ -203,7 +203,7 @@ export namespace Provider {
 
   async function loadIgnoredDynamic() {
     IGNORED_DYNAMIC.clear()
-    const file = Bun.file(`${Global.Path.data}/ignored-models.json`)
+    const file = Bun.file(`${Global.Path.user}/ignored-models.json`)
     const exists = await file.exists()
     if (!exists) return
     const data = await file.json().catch(() => [])

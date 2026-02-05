@@ -332,7 +332,7 @@ export const McpLogoutCommand = cmd({
         UI.empty()
         prompts.intro("MCP OAuth Logout")
 
-        const authPath = path.join(Global.Path.data, "mcp-auth.json")
+        const authPath = path.join(Global.Path.user, "mcp-auth.json")
         const credentials = await McpAuth.all()
         const serverNames = Object.keys(credentials)
 

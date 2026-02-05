@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@opencode-ai/plugin": "1.1.52",
+    "opencode-openai-codex-auth-multi": "^4.7.0"
+  }
+}

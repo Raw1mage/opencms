@@ -63,6 +63,10 @@ export namespace Global {
     get home() {
       return process.env.OPENCODE_TEST_HOME || os.homedir()
     },
+    /** ~/.opencode/ — user-specific data (accounts, logs, ignored-models, etc.) */
+    get user() {
+      return path.join(this.home, ".opencode")
+    },
     data: resolvedPaths.data,
     bin: path.join(resolvedPaths.data, "bin"),
     log: path.join(resolvedPaths.data, "log"),
@@ -73,12 +77,43 @@ export namespace Global {
 }
 
 await Promise.all([
+  fs.mkdir(Global.Path.user, { recursive: true }),
   fs.mkdir(Global.Path.data, { recursive: true }),
   fs.mkdir(Global.Path.config, { recursive: true }),
   fs.mkdir(Global.Path.state, { recursive: true }),
   fs.mkdir(Global.Path.log, { recursive: true }),
   fs.mkdir(Global.Path.bin, { recursive: true }),
 ])
+
+// Install template user-data files to ~/.opencode/ if they don't exist yet
+const SENSITIVE_FILES = new Set(["accounts.json", "openai-codex-accounts.json", "mcp-auth.json"])
+const templateFiles = [
+  "accounts.json",
+  "ignored-models.json",
+  "mcp-auth.json",
+  "model-status.json",
+  "openai-codex-accounts.json",
+  "openai-codex-auth-config.json",
+  "package.json",
+  ".gitignore",
+  "AGENTS.md",
+  "local-config/opencode.json",
+  "local-config/README.md",
+]
+const templatesDir = path.join(import.meta.dir, "../../templates")
+await Promise.all(
+  templateFiles.map(async (name) => {
+    const target = path.join(Global.Path.user, name)
+    const exists = await Bun.file(target).exists()
+    if (exists) return
+    const src = path.join(templatesDir, name)
+    const srcExists = await Bun.file(src).exists()
+    if (!srcExists) return
+    await fs.mkdir(path.dirname(target), { recursive: true }).catch(() => {})
+    await Bun.write(target, Bun.file(src))
+    if (SENSITIVE_FILES.has(name)) await fs.chmod(target, 0o600)
+  }),
+)
 
 const CACHE_VERSION = "21"
 
