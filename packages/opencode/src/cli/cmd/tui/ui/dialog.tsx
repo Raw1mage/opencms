@@ -1,5 +1,5 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/solid"
-import { batch, createContext, Show, useContext, type JSX, type ParentProps, createEffect } from "solid-js"
+import { batch, createContext, Show, useContext, type JSX, type ParentProps, createEffect, createSignal, createMemo } from "solid-js"
 import { useTheme } from "@tui/context/theme"
 import { Renderable, RGBA } from "@opentui/core"
 import { createStore } from "solid-js/store"
@@ -57,8 +57,9 @@ function init() {
       element: JSX.Element
       onClose?: () => void
     }[],
-    size: "medium" as "medium" | "large",
   })
+  // Separate size signal to avoid triggering stack re-render when size changes
+  const [size, setSize] = createSignal<"medium" | "large">("medium")
 
   createEffect(() => {
     debugCheckpoint("dialog", "stack", { size: store.stack.length })
@@ -102,7 +103,7 @@ function init() {
         if (item.onClose) item.onClose()
       }
       batch(() => {
-        setStore("size", "medium")
+        setSize("medium")
         setStore("stack", [])
       })
       refocus()
@@ -132,7 +133,7 @@ function init() {
       for (const item of store.stack) {
         if (item.onClose) item.onClose()
       }
-      setStore("size", "medium")
+      setSize("medium")
       setStore("stack", [
         {
           element: input,
@@ -144,10 +145,10 @@ function init() {
       return store.stack
     },
     get size() {
-      return store.size
+      return size()
     },
-    setSize(size: "medium" | "large") {
-      setStore("size", size)
+    setSize(newSize: "medium" | "large") {
+      setSize(newSize)
     },
   }
 }
@@ -155,6 +156,16 @@ function init() {
 export type DialogContext = ReturnType<typeof init>
 
 const ctx = createContext<DialogContext>()
+
+// Helper component to render the dialog element with memoization
+function DialogContent(props: { element: JSX.Element }) {
+  // Memoize the resolved element to prevent re-creation
+  const resolved = createMemo(() => {
+    const el = props.element
+    return typeof el === "function" ? el() : el
+  })
+  return <>{resolved()}</>
+}
 
 export function DialogProvider(props: ParentProps) {
   const value = init()
@@ -177,7 +188,7 @@ export function DialogProvider(props: ParentProps) {
       >
         <Show when={value.stack.length}>
           <Dialog onClose={() => value.clear()} size={value.size} closeOnBackdrop={false}>
-            {value.stack.at(-1)!.element}
+            <DialogContent element={value.stack.at(-1)!.element} />
           </Dialog>
         </Show>
       </box>
