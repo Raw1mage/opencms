@@ -43,6 +43,7 @@ export interface DialogSelectOption<T = any> {
   disabled?: boolean
   bg?: RGBA
   gutter?: JSX.Element
+  truncate?: "ellipsis" | "none"
   onSelect?: (ctx: DialogContext) => void
 }
 
@@ -291,7 +292,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
 
   return (
     <box gap={1} paddingBottom={1}>
-      <box paddingLeft={4} paddingRight={4}>
+      <box paddingLeft={4} paddingRight={2}>
         <box flexDirection="row" justifyContent="space-between">
           <text fg={theme.text} attributes={TextAttributes.BOLD}>
             {props.title}
@@ -331,7 +332,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
       >
         <scrollbox
           paddingLeft={1}
-          paddingRight={1}
+          paddingRight={0}
           scrollbarOptions={{ visible: false }}
           ref={(r: ScrollBoxRenderable) => (scroll = r)}
           maxHeight={height()}
@@ -376,7 +377,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                         }}
                         backgroundColor={active() ? (option.bg ?? theme.primary) : RGBA.fromInts(0, 0, 0, 0)}
                         paddingLeft={current() || option.gutter ? 1 : 3}
-                        paddingRight={3}
+                        paddingRight={0}
                         gap={1}
                       >
                         <Option
@@ -386,6 +387,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                           active={active()}
                           current={current()}
                           gutter={option.gutter}
+                          truncate={option.truncate}
                         />
                       </box>
                     )
@@ -447,10 +449,12 @@ function Option(props: {
   current?: boolean
   footer?: JSX.Element | string
   gutter?: JSX.Element
+  truncate?: "ellipsis" | "none"
   onMouseOver?: () => void
 }) {
   const { theme } = useTheme()
   const fg = selectedForeground(theme)
+  const title = () => (props.truncate === "none" ? props.title : Locale.truncate(props.title, 61))
 
   return (
     <>
@@ -469,10 +473,10 @@ function Option(props: {
         fg={props.active ? fg : props.current ? theme.primary : theme.text}
         attributes={props.active ? TextAttributes.BOLD : undefined}
         overflow="hidden"
-        wrapMode="none"
+        wrapMode={props.truncate === "none" ? "word" : "none"}
         paddingLeft={3}
       >
-        {Locale.truncate(props.title, 61)}
+        {title()}
         <Show when={props.description}>
           <span style={{ fg: props.active ? fg : theme.textMuted }}> {props.description}</span>
         </Show>

@@ -2,6 +2,7 @@ import { $ } from "bun"
 import { platform, release } from "os"
 import clipboardy from "clipboardy"
 import { lazy } from "../../../../util/lazy.js"
+import { debugCheckpoint } from "../../../../util/debug"
 import { tmpdir } from "os"
 import path from "path"
 import { stat } from "fs/promises"
@@ -84,8 +85,19 @@ export namespace Clipboard {
   }
 
   export async function read(): Promise<Content | undefined> {
+    debugCheckpoint("clipboard", "read:start", {
+      hasRemotePath: Boolean(process.env["OPENCODE_CLIPBOARD_IMAGE_PATH"]),
+      platform: platform(),
+    })
+
     const remote = await readRemoteImage()
-    if (remote) return remote
+    if (remote) {
+      debugCheckpoint("clipboard", "read:remote", {
+        mime: remote.mime,
+        dataLength: remote.data.length,
+      })
+      return remote
+    }
 
     const os = platform()
 
@@ -97,7 +109,9 @@ export namespace Clipboard {
           .quiet()
         const file = Bun.file(tmpfile)
         const buffer = await file.arrayBuffer()
-        return { data: Buffer.from(buffer).toString("base64"), mime: "image/png" }
+        const data = Buffer.from(buffer).toString("base64")
+        debugCheckpoint("clipboard", "read:darwin", { mime: "image/png", dataLength: data.length })
+        return { data, mime: "image/png" }
       } catch {
       } finally {
         await $`rm -f "${tmpfile}"`.nothrow().quiet()
@@ -112,7 +126,9 @@ export namespace Clipboard {
       if (base64) {
         const imageBuffer = Buffer.from(base64, "base64")
         if (isPng(imageBuffer)) {
-          return { data: imageBuffer.toString("base64"), mime: "image/png" }
+          const data = imageBuffer.toString("base64")
+          debugCheckpoint("clipboard", "read:win32", { mime: "image/png", dataLength: data.length })
+          return { data, mime: "image/png" }
         }
       }
     }
@@ -120,18 +136,24 @@ export namespace Clipboard {
     if (os === "linux") {
       const wayland = await $`wl-paste -t image/png`.nothrow().arrayBuffer()
       if (wayland && wayland.byteLength > 0) {
-        return { data: Buffer.from(wayland).toString("base64"), mime: "image/png" }
+        const data = Buffer.from(wayland).toString("base64")
+        debugCheckpoint("clipboard", "read:wayland", { mime: "image/png", dataLength: data.length })
+        return { data, mime: "image/png" }
       }
       const x11 = await $`xclip -selection clipboard -t image/png -o`.nothrow().arrayBuffer()
       if (x11 && x11.byteLength > 0) {
-        return { data: Buffer.from(x11).toString("base64"), mime: "image/png" }
+        const data = Buffer.from(x11).toString("base64")
+        debugCheckpoint("clipboard", "read:x11", { mime: "image/png", dataLength: data.length })
+        return { data, mime: "image/png" }
       }
     }
 
     const text = await clipboardy.read().catch(() => {})
     if (text) {
+      debugCheckpoint("clipboard", "read:text", { mime: "text/plain", dataLength: text.length })
       return { data: text, mime: "text/plain" }
     }
+    debugCheckpoint("clipboard", "read:empty")
   }
 
   const getCopyMethod = lazy(() => {

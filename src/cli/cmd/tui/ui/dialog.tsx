@@ -1,5 +1,15 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/solid"
-import { batch, createContext, Show, useContext, type JSX, type ParentProps, createEffect, createSignal, createMemo } from "solid-js"
+import {
+  batch,
+  createContext,
+  Show,
+  useContext,
+  type JSX,
+  type ParentProps,
+  createEffect,
+  createSignal,
+  createMemo,
+} from "solid-js"
 import { useTheme } from "@tui/context/theme"
 import { Renderable, RGBA } from "@opentui/core"
 import { createStore } from "solid-js/store"
@@ -9,7 +19,8 @@ import { debugCheckpoint } from "@/util/debug"
 
 export function Dialog(
   props: ParentProps<{
-    size?: "medium" | "large"
+    size?: "medium" | "large" | "xlarge"
+    width?: number
     onClose: () => void
     closeOnBackdrop?: boolean
   }>,
@@ -40,7 +51,7 @@ export function Dialog(
           if (renderer.getSelection()) return
           e.stopPropagation()
         }}
-        width={props.size === "large" ? 80 : 60}
+        width={props.width ?? (props.size === "xlarge" ? 90 : props.size === "large" ? 80 : 60)}
         maxWidth={dimensions().width - 2}
         backgroundColor={theme.backgroundPanel}
         paddingTop={1}
@@ -59,7 +70,8 @@ function init() {
     }[],
   })
   // Separate size signal to avoid triggering stack re-render when size changes
-  const [size, setSize] = createSignal<"medium" | "large">("medium")
+  const [size, setSize] = createSignal<"medium" | "large" | "xlarge">("medium")
+  const [width, setWidth] = createSignal<number | undefined>(undefined)
 
   createEffect(() => {
     debugCheckpoint("dialog", "stack", { size: store.stack.length })
@@ -104,6 +116,7 @@ function init() {
       }
       batch(() => {
         setSize("medium")
+        setWidth(undefined)
         setStore("stack", [])
       })
       refocus()
@@ -134,6 +147,7 @@ function init() {
         if (item.onClose) item.onClose()
       }
       setSize("medium")
+      setWidth(undefined)
       setStore("stack", [
         {
           element: input,
@@ -147,8 +161,14 @@ function init() {
     get size() {
       return size()
     },
-    setSize(newSize: "medium" | "large") {
+    get width() {
+      return width()
+    },
+    setSize(newSize: "medium" | "large" | "xlarge") {
       setSize(newSize)
+    },
+    setWidth(newWidth: number | undefined) {
+      setWidth(newWidth)
     },
   }
 }
@@ -158,7 +178,7 @@ export type DialogContext = ReturnType<typeof init>
 const ctx = createContext<DialogContext>()
 
 // Helper component to render the dialog element with memoization
-function DialogContent(props: { element: JSX.Element }) {
+function DialogContent(props: { element: JSX.Element | (() => JSX.Element) }) {
   // Memoize the resolved element to prevent re-creation
   const resolved = createMemo(() => {
     const el = props.element
@@ -187,7 +207,7 @@ export function DialogProvider(props: ParentProps) {
         }}
       >
         <Show when={value.stack.length}>
-          <Dialog onClose={() => value.clear()} size={value.size} closeOnBackdrop={false}>
+          <Dialog onClose={() => value.clear()} size={value.size} width={value.width} closeOnBackdrop={false}>
             <DialogContent element={value.stack.at(-1)!.element} />
           </Dialog>
         </Show>
