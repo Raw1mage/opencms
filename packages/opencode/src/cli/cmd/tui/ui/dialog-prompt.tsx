@@ -4,7 +4,7 @@ import { useDialog, type DialogContext } from "./dialog"
 import { onMount, createSignal, createMemo, Show, type JSX } from "solid-js"
 import { useTextareaKeybindings } from "../component/textarea-keybindings"
 import { useKeyboard } from "@opentui/solid"
-import { Log } from "@/util/log"
+import { debugCheckpoint } from "@/util/debug"
 
 export type DialogPromptProps = {
   title: string
@@ -24,40 +24,63 @@ export function DialogPrompt(props: DialogPromptProps) {
   const [text, setText] = createSignal(props.value ?? "")
   let lastValidValue = props.value ?? ""
 
+  // Filter out submit action - we handle enter key manually via useKeyboard
   const keybindings = createMemo(() => {
     const all = useTextareaKeybindings()()
-    // Explicitly filter out submit to prevent textarea from handling it internally
     return (all || []).filter((kb) => kb.action !== "submit")
   })
 
   const submit = () => {
-    // Priority: direct plainText from ref -> last non-empty tracked value -> fallback text signal
-    const val = (textarea?.plainText || lastValidValue || text() || "").trim()
-    Log.Default.info("DialogPrompt submit triggered", { title: props.title, length: val.length })
+    const plainText = textarea?.plainText
+    const textSignal = text()
+    const val = (plainText || lastValidValue || textSignal || "").trim()
+    debugCheckpoint("dialog-prompt", "submit called", {
+      title: props.title,
+      plainText: plainText ?? "(null)",
+      lastValidValue,
+      textSignal,
+      finalVal: val,
+      valLength: val.length,
+    })
     if (!val) {
-      Log.Default.warn("DialogPrompt submit blocked: empty value")
+      debugCheckpoint("dialog-prompt", "submit blocked - empty value")
       return
     }
+    debugCheckpoint("dialog-prompt", "calling onConfirm", { val })
     props.onConfirm?.(val)
   }
 
   useKeyboard((evt: KeyEvent) => {
+    debugCheckpoint("dialog-prompt", "useKeyboard received", {
+      key: evt.name,
+      defaultPrevented: evt.defaultPrevented,
+      textareaFocused: textarea?.focused ?? false,
+      submitBtnFocused: submitBtn?.focused ?? false,
+    })
+    // Skip if already handled by onKeyDown
+    if (evt.defaultPrevented) {
+      debugCheckpoint("dialog-prompt", "useKeyboard skipped - defaultPrevented")
+      return
+    }
+    // Handle enter for submit button only (textarea uses onKeyDown)
     if (evt.name === "return" || evt.name === "enter") {
-      if (textarea?.focused || submitBtn?.focused) {
-        Log.Default.info("Enter caught by useKeyboard in DialogPrompt")
+      if (submitBtn?.focused) {
         evt.preventDefault()
         evt.stopPropagation()
+        debugCheckpoint("dialog-prompt", "useKeyboard handling enter for submitBtn")
         submit()
+        return
       }
+      debugCheckpoint("dialog-prompt", "useKeyboard enter ignored - submitBtn not focused")
     }
     if (evt.name === "left" && !textarea?.focused && props.onCancel) {
-      Log.Default.info("Left caught for Back action")
+      debugCheckpoint("dialog-prompt", "useKeyboard handling left for back")
       props.onCancel()
       evt.preventDefault()
       evt.stopPropagation()
     }
     if (evt.name === "tab") {
-      Log.Default.info("Tab caught for focus switch")
+      debugCheckpoint("dialog-prompt", "useKeyboard handling tab")
       if (textarea?.focused) {
         textarea.blur()
         submitBtn?.focus()
@@ -97,18 +120,28 @@ export function DialogPrompt(props: DialogPromptProps) {
         <textarea
           id={`input-${props.title.replace(/\s+/g, "-").toLowerCase()}`}
           onKeyDown={(e: KeyEvent) => {
+            debugCheckpoint("dialog-prompt", "onKeyDown received", {
+              key: e.name,
+              defaultPrevented: e.defaultPrevented,
+              plainText: textarea?.plainText ?? "(null)",
+            })
+            // Handle enter before textarea processes it internally
             if (e.name === "return" || e.name === "enter") {
-              const val = (textarea?.plainText || lastValidValue || "").trim()
-              Log.Default.info("Enter caught by onKeyDown in textarea", { val })
-              if (val) {
-                e.preventDefault()
-                e.stopPropagation()
-                props.onConfirm?.(val)
-              }
+              if (e.shift || e.ctrl || e.meta || e.super) return
+              debugCheckpoint("dialog-prompt", "onKeyDown handling enter - calling preventDefault")
+              e.preventDefault()
+              e.stopPropagation()
+              debugCheckpoint("dialog-prompt", "onKeyDown calling submit")
+              submit()
             }
           }}
           onContentChange={(val) => {
             const next = typeof val === "string" ? val : (val as any).text
+            debugCheckpoint("dialog-prompt", "onContentChange", {
+              rawVal: typeof val === "string" ? val : JSON.stringify(val),
+              next,
+              prevLastValidValue: lastValidValue,
+            })
             if (next && next.trim().length > 0) {
               lastValidValue = next
             }

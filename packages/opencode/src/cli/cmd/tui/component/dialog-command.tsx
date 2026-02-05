@@ -9,10 +9,11 @@ import {
   type Accessor,
   type ParentProps,
 } from "solid-js"
-import { useKeyboard } from "@opentui/solid"
+import { useKeyboard, useRenderer } from "@opentui/solid"
 import { useKeybind } from "@tui/context/keybind"
 import type { KeybindsConfig } from "@opencode-ai/sdk/v2"
 import { debugCheckpoint } from "@/util/debug"
+import { InputRenderable, TextareaRenderable } from "@opentui/core"
 
 type Context = ReturnType<typeof init>
 const ctx = createContext<Context>()
@@ -35,6 +36,7 @@ function init() {
   const [suspendCount, setSuspendCount] = createSignal(0)
   const dialog = useDialog()
   const keybind = useKeybind()
+  const renderer = useRenderer()
 
   const entries = createMemo(() => {
     const all = registrations().flatMap((x) => x())
@@ -62,6 +64,10 @@ function init() {
   useKeyboard((evt) => {
     if (suspended()) return
     if (dialog.stack.length > 0) return
+    const focused = renderer.currentFocusedRenderable
+    if (focused && (focused instanceof TextareaRenderable || focused instanceof InputRenderable)) {
+      if (evt.name === "home" || evt.name === "end") return
+    }
     for (const option of entries()) {
       if (!isEnabled(option)) continue
       if (option.keybind && keybind.match(option.keybind, evt)) {

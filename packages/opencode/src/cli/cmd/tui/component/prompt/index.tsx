@@ -32,7 +32,6 @@ import { useExit } from "../../context/exit"
 import { Clipboard } from "../../util/clipboard"
 import type { FilePart } from "@opencode-ai/sdk/v2"
 import { TuiEvent } from "../../event"
-import { debugCheckpoint } from "@/util/debug"
 import { iife } from "@/util/iife"
 import { Locale } from "@/util/locale"
 import { formatDuration } from "@/util/format"
@@ -1029,24 +1028,6 @@ export function Prompt(props: PromptProps) {
               }}
               keyBindings={textareaKeybindings()}
               onKeyDown={async (e) => {
-                const eventObj = e as unknown as Record<string, unknown>
-                const rawFields: Record<string, unknown> = {}
-                for (const [key, value] of Object.entries(eventObj)) {
-                  if (typeof value === "function") continue
-                  if (value && typeof value === "object") continue
-                  rawFields[key] = value
-                }
-                debugCheckpoint("prompt", "onKeyDown", {
-                  key: e.name,
-                  shift: e.shift,
-                  ctrl: e.ctrl,
-                  meta: e.meta,
-                  super: e.super,
-                  defaultPrevented: e.defaultPrevented,
-                  focused: input?.focused ?? false,
-                  rawKeys: Object.keys(eventObj),
-                  rawFields,
-                })
                 if (props.disabled) {
                   e.preventDefault()
                   return
@@ -1355,6 +1336,9 @@ export function Prompt(props: PromptProps) {
                   </text>
                 </Match>
               </Switch>
+              <text fg={theme.text}>
+                ctrl+j <span style={{ fg: theme.textMuted }}>newline</span>
+              </text>
             </box>
           </Show>
         </box>

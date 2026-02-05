@@ -4,3 +4,4 @@
 - [2026-02-05] [OpenAI/Codex 配額顯示 5hour+weekly 格式](events/event_2026-02-05.md)
 - [2026-02-05] [調整配額顯示格式與提示位置](events/event_2026-02-05.md)
 - [2026-02-05] [調整 TUI 輸入框 Shift+Enter 與 Home/End 行為](events/event_2026-02-05.md)
+- [2026-02-05] [右下角新增 Ctrl+J newline 提示](events/event_2026-02-05.md)
