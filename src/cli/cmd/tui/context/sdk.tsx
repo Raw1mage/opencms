@@ -27,10 +27,14 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
     let last = 0
 
     const flush = () => {
+      if (timer) {
+        clearTimeout(timer)
+        timer = undefined
+      }
       if (queue.length === 0) return
+
       const events = queue
       queue = []
-      timer = undefined
       last = Date.now()
       // Batch all event emissions so all store updates result in a single render
       batch(() => {
@@ -42,13 +46,13 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
 
     const handleEvent = (event: Event) => {
       queue.push(event)
-      const elapsed = Date.now() - last
-
       if (timer) return
+
+      const elapsed = Date.now() - last
       // If we just flushed recently (within 16ms), batch this with future events
       // Otherwise, process immediately to avoid latency
       if (elapsed < 16) {
-        timer = setTimeout(flush, 16)
+        timer = setTimeout(flush, 16 - elapsed)
         return
       }
       flush()

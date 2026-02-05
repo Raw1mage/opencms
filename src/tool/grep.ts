@@ -49,14 +49,61 @@ export const GrepTool = Tool.define("grep", {
       signal: ctx.abort,
     })
 
-    const output = await new Response(proc.stdout).text()
+    const matches: { path: string; modTime: number; lineNum: number; lineText: string }[] = []
+    const limit = 100
+    let truncated = false
+    let hasOutput = false
+
+    const decoder = new TextDecoder()
+    let leftover = ""
+
+    const reader = proc.stdout.getReader()
+    try {
+      outer: while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        hasOutput = true
+        const text = decoder.decode(value, { stream: true })
+        const lines = (leftover + text).split(/\r?\n/)
+        leftover = lines.pop() ?? ""
+
+        for (const line of lines) {
+          if (!line) continue
+
+          const [filePath, lineNumStr, ...lineTextParts] = line.split("|")
+          if (!filePath || !lineNumStr || lineTextParts.length === 0) continue
+
+          const lineNum = parseInt(lineNumStr, 10)
+          const lineText = lineTextParts.join("|")
+
+          const file = Bun.file(filePath)
+          const stats = await file.stat().catch(() => null)
+          if (!stats) continue
+
+          matches.push({
+            path: filePath,
+            modTime: stats.mtime.getTime(),
+            lineNum,
+            lineText,
+          })
+
+          if (matches.length >= limit) {
+            truncated = true
+            proc.kill()
+            break outer
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore errors from killing the process or stream issues
+    }
+
     const errorOutput = await new Response(proc.stderr).text()
     const exitCode = await proc.exited
 
-    // Exit codes: 0 = matches found, 1 = no matches, 2 = errors (but may still have matches)
-    // With --no-messages, we suppress error output but still get exit code 2 for broken symlinks etc.
-    // Only fail if exit code is 2 AND no output was produced
-    if (exitCode === 1 || (exitCode === 2 && !output.trim())) {
+    // Exit codes: 0 = matches found, 1 = no matches, 2 = errors
+    if (exitCode === 1 || (!hasOutput && exitCode === 2)) {
       return {
         title: params.pattern,
         metadata: { matches: 0, truncated: false },
@@ -64,42 +111,15 @@ export const GrepTool = Tool.define("grep", {
       }
     }
 
-    if (exitCode !== 0 && exitCode !== 2) {
+    if (exitCode !== 0 && exitCode !== 2 && exitCode !== null && !truncated) {
       throw new Error(`ripgrep failed: ${errorOutput}`)
     }
 
     const hasErrors = exitCode === 2
 
-    // Handle both Unix (\n) and Windows (\r\n) line endings
-    const lines = output.trim().split(/\r?\n/)
-    const matches = []
-
-    for (const line of lines) {
-      if (!line) continue
-
-      const [filePath, lineNumStr, ...lineTextParts] = line.split("|")
-      if (!filePath || !lineNumStr || lineTextParts.length === 0) continue
-
-      const lineNum = parseInt(lineNumStr, 10)
-      const lineText = lineTextParts.join("|")
-
-      const file = Bun.file(filePath)
-      const stats = await file.stat().catch(() => null)
-      if (!stats) continue
-
-      matches.push({
-        path: filePath,
-        modTime: stats.mtime.getTime(),
-        lineNum,
-        lineText,
-      })
-    }
-
     matches.sort((a, b) => b.modTime - a.modTime)
 
-    const limit = 100
-    const truncated = matches.length > limit
-    const finalMatches = truncated ? matches.slice(0, limit) : matches
+    const finalMatches = matches // already limited by the loop
 
     if (finalMatches.length === 0) {
       return {

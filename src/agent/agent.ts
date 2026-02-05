@@ -51,10 +51,8 @@ export namespace Agent {
     })
   export type Info = z.infer<typeof Info>
 
-  const state = Instance.state(async () => {
-    const cfg = await Config.get()
-
-    const defaults = PermissionNext.fromConfig({
+  function getDefaultPermissions() {
+    return PermissionNext.fromConfig({
       "*": "allow",
       doom_loop: "ask",
       external_directory: {
@@ -65,7 +63,6 @@ export namespace Agent {
       question: "deny",
       plan_enter: "deny",
       plan_exit: "deny",
-      // mirrors github.com/github/gitignore Node.gitignore pattern for .env files
       read: {
         "*": "allow",
         "*.env": "ask",
@@ -73,17 +70,14 @@ export namespace Agent {
         "*.env.example": "allow",
       },
     })
-    const user = PermissionNext.fromConfig(cfg.permission ?? {})
-    const sub = PermissionNext.merge(
-      defaults,
-      PermissionNext.fromConfig({
-        todoread: "deny",
-        todowrite: "deny",
-      }),
-      user,
-    )
+  }
 
-    const result: Record<string, Info> = {
+  function getNativeAgents(
+    defaults: PermissionNext.Ruleset,
+    user: PermissionNext.Ruleset,
+    sub: PermissionNext.Ruleset,
+  ): Record<string, Info> {
+    return {
       build: {
         name: "build",
         description: "The default agent. Executes tools based on configured permissions.",
@@ -193,20 +187,13 @@ export namespace Agent {
         mode: "subagent",
         native: true,
       },
-
       compaction: {
         name: "compaction",
         mode: "primary",
         native: true,
         hidden: true,
         prompt: PROMPT_COMPACTION,
-        permission: PermissionNext.merge(
-          defaults,
-          PermissionNext.fromConfig({
-            "*": "deny",
-          }),
-          user,
-        ),
+        permission: PermissionNext.merge(defaults, PermissionNext.fromConfig({ "*": "deny" }), user),
         options: {},
       },
       title: {
@@ -216,13 +203,7 @@ export namespace Agent {
         native: true,
         hidden: true,
         temperature: 0.5,
-        permission: PermissionNext.merge(
-          defaults,
-          PermissionNext.fromConfig({
-            "*": "deny",
-          }),
-          user,
-        ),
+        permission: PermissionNext.merge(defaults, PermissionNext.fromConfig({ "*": "deny" }), user),
         prompt: PROMPT_TITLE,
       },
       summary: {
@@ -231,16 +212,26 @@ export namespace Agent {
         options: {},
         native: true,
         hidden: true,
-        permission: PermissionNext.merge(
-          defaults,
-          PermissionNext.fromConfig({
-            "*": "deny",
-          }),
-          user,
-        ),
+        permission: PermissionNext.merge(defaults, PermissionNext.fromConfig({ "*": "deny" }), user),
         prompt: PROMPT_SUMMARY,
       },
     }
+  }
+
+  const state = Instance.state(async () => {
+    const cfg = await Config.get()
+    const defaults = getDefaultPermissions()
+    const user = PermissionNext.fromConfig(cfg.permission ?? {})
+    const sub = PermissionNext.merge(
+      defaults,
+      PermissionNext.fromConfig({
+        todoread: "deny",
+        todowrite: "deny",
+      }),
+      user,
+    )
+
+    const result = getNativeAgents(defaults, user, sub)
 
     for (const [key, value] of Object.entries(cfg.agent ?? {})) {
       if (value.disable) {
