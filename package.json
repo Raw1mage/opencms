@@ -96,7 +96,10 @@
   ],
   "overrides": {
     "@types/bun": "catalog:",
-    "@types/node": "catalog:"
+    "@types/node": "catalog:",
+    "babel-preset-solid": "1.9.9",
+    "@babel/core": "7.28.0",
+    "@babel/generator": "7.28.0"
   },
   "patchedDependencies": {
     "ghostty-web@0.3.0": "patches/ghostty-web@0.3.0.patch"
