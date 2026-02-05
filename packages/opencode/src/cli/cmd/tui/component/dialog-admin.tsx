@@ -24,7 +24,9 @@ import { Keybind } from "@/util/keybind"
 import { AccountManager } from "../../../../plugin/antigravity/plugin/accounts"
 import { ModelsDev } from "@/provider/models"
 import { DialogConfirm } from "@tui/ui/dialog-confirm"
+import { DialogPrompt } from "@tui/ui/dialog-prompt"
 import { DialogProvider as DialogProviderList } from "./dialog-provider"
+import { DialogProviderManualAdd } from "./dialog-provider-manual-add"
 import { useToast } from "@tui/ui/toast"
 // Account management now uses Account module exclusively (accounts.json as single source of truth)
 import { useKeyboard } from "@opentui/solid"
@@ -38,6 +40,10 @@ import { DialogModelProbe } from "./dialog-model-probe"
 import { getModelHealthRegistry, getRateLimitTracker } from "@/account/rotation"
 import { Provider } from "@/provider/provider"
 import { probeModelAvailability } from "../util/model-probe"
+import { Auth } from "@/auth"
+import { checkAccountsQuota, type QuotaGroup } from "@/plugin/antigravity/plugin/quota"
+import { loadAccounts, saveAccounts } from "@/plugin/antigravity/plugin/storage"
+import { getModelFamily } from "@/plugin/antigravity/plugin/transform/model-resolver"
 
 // Helper to check connectivity
 function useConnected() {
@@ -67,6 +73,10 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   const [googleModelsLoaded, setGoogleModelsLoaded] = createSignal(false)
   const probePrompt = "say hi"
   const probeTimeoutMs = 10_000
+  const [quotaRefresh, setQuotaRefresh] = createSignal(0)
+  const CODEX_ISSUER = "https://auth.openai.com"
+  const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
+  const CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
 
   // Navigation State
   // steps: root -> account_select -> model_select
@@ -154,6 +164,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   onMount(() => {
     dialog.setSize("large")
     debugCheckpoint("admin", "mount", { step: step(), family: selectedFamily() })
+    setQuotaRefresh((v) => v + 1)
   })
 
   onCleanup(() => {
@@ -320,6 +331,78 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   const [activityAccounts] = createResource<Record<string, Account.ProviderData>>(() =>
     Account.listAll().catch(() => ({})),
   )
+  const [quotaGroups] = createResource(quotaRefresh, async () => {
+    try {
+      const storage = await loadAccounts()
+      if (!storage || storage.accounts.length === 0) return null
+      const results = await checkAccountsQuota(storage.accounts, {} as any)
+
+      let shouldSave = false
+      for (const res of results) {
+        if (res.updatedAccount) {
+          storage.accounts[res.index] = res.updatedAccount
+          shouldSave = true
+        }
+      }
+      if (shouldSave) {
+        await saveAccounts(storage)
+      }
+
+      const activeIndex = Math.max(0, Math.min(storage.activeIndex ?? 0, results.length - 1))
+      const active = results.find((res) => res.index === activeIndex)
+      return active?.quota?.groups ?? null
+    } catch (error) {
+      debugCheckpoint("admin.quota", "fetch error", { error: String(error) })
+      return null
+    }
+  })
+  const [codexQuota] = createResource(quotaRefresh, async () => {
+    try {
+      const auth = await Auth.get("openai")
+      if (!auth || auth.type !== "oauth") return null
+
+      let access = auth.access
+      let expires = auth.expires
+      let refresh = auth.refresh
+      let accountId = auth.accountId
+
+      if (!access || !expires || expires < Date.now()) {
+        const tokens = await refreshCodexAccessToken(refresh)
+        access = tokens.access_token
+        refresh = tokens.refresh_token ?? refresh
+        expires = Date.now() + (tokens.expires_in ?? 3600) * 1000
+        accountId = accountId ?? extractAccountIdFromTokens(tokens)
+
+        const activeId = await Account.getActive("openai")
+        if (activeId) {
+          await Account.update("openai", activeId, {
+            refreshToken: refresh,
+            accessToken: access,
+            expiresAt: expires,
+            accountId,
+          })
+        }
+      }
+
+      const headers = new Headers({ Authorization: `Bearer ${access}`, Accept: "application/json" })
+      if (accountId) headers.set("ChatGPT-Account-Id", accountId)
+
+      const response = await fetch(CODEX_USAGE_URL, { headers })
+      if (!response.ok) {
+        debugCheckpoint("admin.quota", "codex usage error", { status: response.status })
+        return null
+      }
+      const usage = (await response.json()) as any
+      const hourlyUsed = usage?.rate_limit?.primary_window?.used_percent ?? 0
+      const weeklyUsed = usage?.rate_limit?.secondary_window?.used_percent ?? 0
+      const hourlyRemaining = clampPercentage(100 - hourlyUsed)
+      const weeklyRemaining = clampPercentage(100 - weeklyUsed)
+      return { hourlyRemaining, weeklyRemaining }
+    } catch (error) {
+      debugCheckpoint("admin.quota", "codex fetch error", { error: String(error) })
+      return null
+    }
+  })
 
   const connected = useConnected()
   createEffect(() => {
@@ -402,6 +485,114 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
     // For API accounts, check the actual cost
     return isFreeCost(modelInfo)
+  }
+
+  function clampPercentage(value: number): number {
+    if (!Number.isFinite(value)) return 0
+    if (value < 0) return 0
+    if (value > 100) return 100
+    return Math.round(value)
+  }
+
+  type CodexTokenResponse = {
+    id_token?: string
+    access_token: string
+    refresh_token?: string
+    expires_in?: number
+  }
+
+  type CodexIdTokenClaims = {
+    chatgpt_account_id?: string
+    organizations?: Array<{ id: string }>
+    "https://api.openai.com/auth"?: {
+      chatgpt_account_id?: string
+    }
+  }
+
+  function parseCodexJwtClaims(token: string): CodexIdTokenClaims | undefined {
+    const parts = token.split(".")
+    if (parts.length !== 3) return undefined
+    try {
+      return JSON.parse(Buffer.from(parts[1], "base64url").toString())
+    } catch {
+      return undefined
+    }
+  }
+
+  function extractAccountIdFromClaims(claims: CodexIdTokenClaims): string | undefined {
+    return (
+      claims.chatgpt_account_id ||
+      claims["https://api.openai.com/auth"]?.chatgpt_account_id ||
+      claims.organizations?.[0]?.id
+    )
+  }
+
+  function extractAccountIdFromTokens(tokens: CodexTokenResponse): string | undefined {
+    if (tokens.id_token) {
+      const claims = parseCodexJwtClaims(tokens.id_token)
+      if (claims) {
+        const accountId = extractAccountIdFromClaims(claims)
+        if (accountId) return accountId
+      }
+    }
+    const claims = parseCodexJwtClaims(tokens.access_token)
+    return claims ? extractAccountIdFromClaims(claims) : undefined
+  }
+
+  async function refreshCodexAccessToken(refreshToken: string): Promise<CodexTokenResponse> {
+    const response = await fetch(`${CODEX_ISSUER}/oauth/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+        client_id: CODEX_CLIENT_ID,
+      }).toString(),
+    })
+    if (!response.ok) {
+      throw new Error(`Codex token refresh failed: ${response.status}`)
+    }
+    return response.json()
+  }
+
+  function resolveQuotaGroup(modelID: string, displayName?: string): QuotaGroup | null {
+    const combined = `${modelID} ${displayName ?? ""}`.toLowerCase()
+    if (combined.includes("claude")) return "claude"
+    const isGemini3 = combined.includes("gemini-3") || combined.includes("gemini 3")
+    if (!isGemini3) return null
+    const family = getModelFamily(modelID)
+    return family === "gemini-flash" ? "gemini-flash" : "gemini-pro"
+  }
+
+  function getQuotaPercent(providerID: string, modelID: string, displayName?: string): number | undefined {
+    if (family(providerID) !== "antigravity") return undefined
+    const groups = quotaGroups()
+    if (!groups) return undefined
+    const group = resolveQuotaGroup(modelID, displayName)
+    if (!group) return undefined
+    const remaining = groups[group]?.remainingFraction
+    if (typeof remaining !== "number") return undefined
+    return Math.round(remaining * 100)
+  }
+
+  function formatQuotaFooter(
+    providerID: string,
+    modelID: string,
+    displayName: string | undefined,
+    fallbackFree: boolean,
+    isRateLimited?: boolean,
+  ): string | undefined {
+    if (family(providerID) === "openai" || providerID === "openai") {
+      if (isRateLimited) return "(5hrs:0% | week:0%)"
+      const quota = codexQuota()
+      if (!quota) return "(5hrs:-- | week:--)"
+      return `(5hrs:${quota.hourlyRemaining}% | week:${quota.weeklyRemaining}%)`
+    }
+    if (isRateLimited) return "0%"
+    const percent = getQuotaPercent(providerID, modelID, displayName)
+    if (typeof percent === "number") return `${percent}%`
+    if (fallbackFree) return "100%"
+    return undefined
   }
 
   const owner = (provider: { id: string; name: string; email?: string }) => {
@@ -637,7 +828,9 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               title: `${providerCol} ${accountCol} ${modelCol}`,
               description: "",
               category: "",
-              footer: "✓ Ready",
+              footer:
+                formatQuotaFooter(providerID, model.id, model.name ?? model.id, shouldShowFree(providerID, model)) ??
+                "✓ Ready",
             })
           }
         }
@@ -677,6 +870,63 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   }
 
   // ---- OPTION GENERATION ----
+  const handleAddProvider = (fam: string) => {
+    if (!fam) return
+    const normalizedFam = fam === "google" ? "google-api" : fam
+    if (normalizedFam === "google-api") {
+      debugCheckpoint("admin", "add provider google", { family: normalizedFam })
+      openGoogleAdd()
+      return
+    }
+
+    // Check if provider has OAuth methods available
+    const authMethods = sync.data.provider_auth[normalizedFam]
+    const hasOAuth = authMethods?.some((m) => m.type === "oauth")
+    if (hasOAuth) {
+      debugCheckpoint("admin", "add provider with oauth", {
+        family: normalizedFam,
+        methods: authMethods?.map((m) => m.label),
+      })
+      dialog.push(() => <DialogProviderList providerID={normalizedFam} />, markDialogClosed)
+      return
+    }
+
+    // Check if this is a models.dev provider (needs API key)
+    const providerData = modelsDevData()?.[normalizedFam]
+    if (providerData && providerData.env && providerData.env.length > 0) {
+      const envVar = providerData.env[0]
+      const providerName = providerData.name || normalizedFam
+      debugCheckpoint("admin", "add provider models.dev", { family: normalizedFam, envVar })
+      dialog.push(
+        () => (
+          <DialogApiKeyAdd
+            providerID={normalizedFam}
+            providerName={providerName}
+            envVar={envVar}
+            onCancel={() => {
+              markDialogClosed()
+              debugCheckpoint("admin", "apikey add cancel")
+              dialog.pop()
+              forceRefresh()
+            }}
+            onSaved={() => {
+              markDialogClosed()
+              debugCheckpoint("admin", "apikey add saved")
+              dialog.pop()
+              forceRefresh()
+            }}
+          />
+        ),
+        markDialogClosed,
+      )
+      return
+    }
+
+    // Fallback: Generic Provider List
+    debugCheckpoint("admin", "add provider list fallback", { family: normalizedFam })
+    dialog.replace(() => <DialogProviderList providerID={normalizedFam} />)
+  }
+
   const options = createMemo(() => {
     const s = step()
     const currentPage = page()
@@ -694,16 +944,12 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         const m = p.models[item.modelID]
         if (!m) return []
 
-        const rawName = m.name ?? item.modelID
-        const cleanName = rawName.replace(/\s*\(Plus Subscription\)\s*/gi, "").trim()
-        const providerLabel = label(p.name, p.id)
-
         return [
           {
             value: { providerID: item.providerID, modelID: item.modelID, origin },
-            title: cleanName,
-            description: providerLabel,
-            footer: shouldShowFree(item.providerID, m) ? "Free" : undefined,
+            title: `${item.providerID} - ${item.modelID}`,
+            description: undefined,
+            footer: undefined,
             disabled: p.id === "opencode" && m.id.includes("-nano"),
             onSelect: () => {
               debugCheckpoint("admin", "select favorite model", {
@@ -746,6 +992,15 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     // LEVEL 1: ROOT
     if (s === "root") {
       const list = []
+      list.push({
+        title: "Add Custom Provider",
+        value: "__add_custom__",
+        category: "Actions",
+        icon: "+",
+        onSelect: () => {
+          dialog.push(() => <DialogProviderManualAdd onSelect={(id) => handleAddProvider(id)} />, markDialogClosed)
+        },
+      })
 
       // 1. Families - WYSIWYG: No hidden whitelists
       // Configured = has accounts in storage OR has providers from sync
@@ -786,7 +1041,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       for (const fam of families) {
         const providers = groupedProviders().get(fam) || []
 
-        const displayName = label(fam, fam)
+        const displayName = fam
         // For google-api, merge accounts from both "google" (legacy) and "google-api" families
         const familyData =
           fam === "google-api"
@@ -1104,11 +1359,13 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               return undefined
             }),
             disabled: (providerID === "opencode" && mid.includes("-nano")) || (isBlocked && !isRateLimited),
-            footer: isActionable ? (
-              <text fg={theme.error as any}>X</text>
-            ) : shouldShowFree(providerID, info) ? (
-              "Free"
-            ) : undefined,
+            footer: formatQuotaFooter(
+              providerID,
+              mid,
+              info.name ?? mid,
+              shouldShowFree(providerID, info),
+              isActionable,
+            ),
             onSelect: () => {
               debugCheckpoint("admin", "select model", { provider: baseProviderID, model: mid })
               probeAndSelectModel(baseProviderID, mid)

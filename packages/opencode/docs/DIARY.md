@@ -1,0 +1,6 @@
+- [2026-02-05] [新增自定義 Provider Wizard](events/event_2026-02-05.md)
+- [2026-02-05] [移除 Display Name + 顯示配額%](events/event_2026-02-05.md)
+- [2026-02-05] [配額更新改為被動觸發（/admin 進入時）](events/event_2026-02-05.md)
+- [2026-02-05] [OpenAI/Codex 配額顯示 5hour+weekly 格式](events/event_2026-02-05.md)
+- [2026-02-05] [調整配額顯示格式與提示位置](events/event_2026-02-05.md)
+- [2026-02-05] [調整 TUI 輸入框 Shift+Enter 與 Home/End 行為](events/event_2026-02-05.md)
