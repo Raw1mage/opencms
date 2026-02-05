@@ -98,9 +98,24 @@ export namespace ModelsDev {
     return JSON.parse(json)
   })
 
+  function normalizeProviders(data: Record<string, Provider>): Record<string, Provider> {
+    const normalized = { ...data }
+    const googleProvider = normalized["google"]
+    if (googleProvider) {
+      if (!normalized["google-api"]) {
+        normalized["google-api"] = {
+          ...googleProvider,
+          id: "google-api",
+        }
+      }
+      delete normalized["google"]
+    }
+    return normalized
+  }
+
   export async function get() {
     const result = await Data()
-    return result as Record<string, Provider>
+    return normalizeProviders(result as Record<string, Provider>)
   }
 
   export async function refresh() {

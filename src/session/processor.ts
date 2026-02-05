@@ -27,7 +27,51 @@ export namespace SessionProcessor {
   export type Info = Awaited<ReturnType<typeof create>>
   export type Result = Awaited<ReturnType<Info["process"]>>
 
-  function isModelNotSupportedError(error: unknown): boolean {
+  function isModelPermanentError(error: unknown): boolean {
+    const { status, parts } = extractErrorDetails(error)
+    if (!parts) return false
+    if (!parts.includes("model") && !parts.includes("models/")) return false
+
+    // Permanent errors: model not found, invalid model ID, access denied for specific model
+    if (
+      parts.includes("not found") ||
+      parts.includes("not supported") ||
+      parts.includes("invalid model id") ||
+      (parts.includes("access denied") && parts.includes("model")) ||
+      (parts.includes("permission denied") && parts.includes("model")) ||
+      status === 404
+    ) {
+      return true
+    }
+    return false
+  }
+
+  function isModelTemporaryError(error: unknown): boolean {
+    const { status, parts } = extractErrorDetails(error)
+    if (!parts) return false
+
+    // Temporary errors: rate limit, quota, server errors, general 403 (could be temporary token issue)
+    if (
+      isRateLimitError(error) ||
+      parts.includes("quota exceeded") ||
+      parts.includes("rate limit") ||
+      parts.includes("overloaded") ||
+      parts.includes("server error") ||
+      status === 429 ||
+      status === 500 ||
+      status === 502 ||
+      status === 503 ||
+      status === 504 ||
+      // General 403 can be temporary (e.g., token expired, or temporary account issue)
+      (status === 403 && !isModelPermanentError(error)) // Only if not a permanent 403
+    ) {
+      return true
+    }
+    return false
+  }
+
+  // Helper to extract common error details
+  function extractErrorDetails(error: unknown) {
     const data = (error as any)?.data
     const status =
       typeof (error as any)?.status === "number"
@@ -49,21 +93,17 @@ export namespace SessionProcessor {
       .filter((item) => typeof item === "string")
       .join(" ")
       .toLowerCase()
-
-    if (!parts) return false
-    if (!parts.includes("model") && !parts.includes("models/")) return false
-    if (parts.includes("not found") || parts.includes("not supported")) return true
-    return status === 404
+    return { status, parts }
   }
 
-  async function removeFavorite(providerID: string, modelID: string): Promise<boolean> {
+  async function removeFavorite(providerId: string, modelID: string): Promise<boolean> {
     const file = Bun.file(path.join(Global.Path.state, "model.json"))
     if (!(await file.exists())) return false
     const data = (await file.json().catch(() => null)) as {
-      favorite?: Array<{ providerID: string; modelID: string }>
+      favorite?: Array<{ providerId: string; modelID: string }>
     } | null
     if (!data || !Array.isArray(data.favorite)) return false
-    const next = data.favorite.filter((item) => item.providerID !== providerID || item.modelID !== modelID)
+    const next = data.favorite.filter((item) => item.providerId !== providerId || item.modelID !== modelID)
     if (next.length === data.favorite.length) return false
     const updated = { ...data, favorite: next }
     await Bun.write(file, JSON.stringify(updated, null, 2))
@@ -333,11 +373,11 @@ export namespace SessionProcessor {
                   })
                   // Record success on finish-step since 'finish' event might be skipped if compaction is needed
                   debugCheckpoint("health", "processor.finish-step", {
-                    providerID: input.model.providerID,
+                    providerId: input.model.providerId,
                     modelID: input.model.id,
                     sessionID: input.sessionID,
                   })
-                  await LLM.recordSuccess(input.model.providerID, input.model.id)
+                  await LLM.recordSuccess(input.model.providerId, input.model.id)
                   if (await SessionCompaction.isOverflow({ tokens: usage.tokens, model: input.model })) {
                     needsCompaction = true
                   }
@@ -395,15 +435,15 @@ export namespace SessionProcessor {
                 case "finish":
                   // Record successful completion in global model health registry
                   log.info("finish event - recording success", {
-                    providerID: input.model.providerID,
+                    providerId: input.model.providerId,
                     modelID: input.model.id,
                   })
                   debugCheckpoint("health", "processor.finish", {
-                    providerID: input.model.providerID,
+                    providerId: input.model.providerId,
                     modelID: input.model.id,
                     sessionID: input.sessionID,
                   })
-                  await LLM.recordSuccess(input.model.providerID, input.model.id)
+                  await LLM.recordSuccess(input.model.providerId, input.model.id)
                   break
 
                 default:
@@ -415,89 +455,74 @@ export namespace SessionProcessor {
               if (needsCompaction) break
             }
           } catch (e: any) {
-            // Check for rate limit and attempt fallback
-            if (isRateLimitError(e)) {
-              debugCheckpoint("rotation3d", "Rate limit detected", {
+            // 1. Handle Temporary Errors (Rate Limit, Quota, Server Busy)
+            if (isModelTemporaryError(e)) {
+              debugCheckpoint("rotation3d", "Temporary failure detected", {
                 error: e.message,
                 model: streamInput.model.id,
                 fallbackAttempts,
                 triedVectors: Array.from(triedVectors),
               })
+
               fallbackAttempts++
               if (fallbackAttempts > MAX_FALLBACK_ATTEMPTS) {
                 log.error("Max fallback attempts exceeded, stopping rotation", {
                   attempts: fallbackAttempts,
                   triedCount: triedVectors.size,
-                  tried: Array.from(triedVectors).join(", "),
                 })
-                // Fall through to normal error handling
               } else {
                 const fallback = await LLM.handleRateLimitFallback(streamInput.model, "account-first", triedVectors)
                 if (fallback) {
-                  log.info("Switching to fallback model", {
+                  log.info("Switching to fallback model (temporary error)", {
                     from: streamInput.model.id,
                     to: fallback.id,
                     fallbackAttempts,
-                    triedCount: triedVectors.size,
                   })
                   streamInput.model = fallback
                   input.model = fallback
-                  // Update assistant message metadata to reflect the new model
                   input.assistantMessage.modelID = fallback.id
-                  input.assistantMessage.providerID = fallback.providerID
-
+                  input.assistantMessage.providerId = fallback.providerId
                   attempt = 0
-                  // Wait a short moment to ensure UI updates
                   await new Promise((resolve) => setTimeout(resolve, 100))
                   continue
-                } else {
-                  log.warn("No fallback available after rate limit", {
-                    fallbackAttempts,
-                    triedCount: triedVectors.size,
-                  })
                 }
               }
             }
 
-            if (isModelNotSupportedError(e)) {
-              debugCheckpoint("rotation3d", "Model not supported/found", {
+            // 2. Handle Permanent Errors (Model not found, invalid model)
+            if (isModelPermanentError(e)) {
+              debugCheckpoint("rotation3d", "Permanent failure detected", {
                 error: e.message,
                 model: streamInput.model.id,
                 fallbackAttempts,
                 triedVectors: Array.from(triedVectors),
               })
-              const removed = await removeFavorite(streamInput.model.providerID, streamInput.model.id)
+
+              const removed = await removeFavorite(streamInput.model.providerId, streamInput.model.id)
               if (removed) {
                 log.warn("Removed invalid model from favorites", {
-                  providerID: streamInput.model.providerID,
+                  providerId: streamInput.model.providerId,
                   modelID: streamInput.model.id,
                 })
               }
 
-              // Also trigger rotation for 404 errors - find an alternative model
+              // Trigger rotation to find a working model
               fallbackAttempts++
               if (fallbackAttempts <= MAX_FALLBACK_ATTEMPTS) {
                 const fallback = await LLM.handleRateLimitFallback(streamInput.model, "account-first", triedVectors)
                 if (fallback) {
-                  log.info("Switching to fallback model after 404", {
+                  log.info("Switching to fallback model (permanent error)", {
                     from: streamInput.model.id,
                     to: fallback.id,
                     fallbackAttempts,
-                    triedCount: triedVectors.size,
                   })
                   streamInput.model = fallback
                   input.model = fallback
                   input.assistantMessage.modelID = fallback.id
-                  input.assistantMessage.providerID = fallback.providerID
-
+                  input.assistantMessage.providerId = fallback.providerId
                   attempt = 0
                   await new Promise((resolve) => setTimeout(resolve, 100))
                   continue
-                } else {
-                  log.warn("No fallback available after 404 error", {
-                    fallbackAttempts,
-                    triedCount: triedVectors.size,
-                  })
                 }
               }
             }
@@ -506,7 +531,7 @@ export namespace SessionProcessor {
               error: e,
               stack: JSON.stringify(e.stack),
             })
-            const error = MessageV2.fromError(e, { providerID: input.model.providerID })
+            const error = MessageV2.fromError(e, { providerId: input.model.providerId })
             const retry = SessionRetry.retryable(error)
             if (retry !== undefined) {
               attempt++

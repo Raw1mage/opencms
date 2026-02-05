@@ -328,13 +328,13 @@ export class Auth extends HeyApiClient {
    */
   public remove<ThrowOnError extends boolean = false>(
     parameters: {
-      providerID: string
+      providerId: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "providerID" }] }])
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "providerId" }] }])
     return (options?.client ?? this.client).delete<AuthRemoveResponses, AuthRemoveErrors, ThrowOnError>({
-      url: "/auth/{providerID}",
+      url: "/auth/{providerId}",
       ...options,
       ...params,
     })
@@ -347,7 +347,7 @@ export class Auth extends HeyApiClient {
    */
   public set<ThrowOnError extends boolean = false>(
     parameters: {
-      providerID: string
+      providerId: string
       auth?: Auth3
     },
     options?: Options<never, ThrowOnError>,
@@ -357,14 +357,14 @@ export class Auth extends HeyApiClient {
       [
         {
           args: [
-            { in: "path", key: "providerID" },
+            { in: "path", key: "providerId" },
             { key: "auth", map: "body" },
           ],
         },
       ],
     )
     return (options?.client ?? this.client).put<AuthSetResponses, AuthSetErrors, ThrowOnError>({
-      url: "/auth/{providerID}",
+      url: "/auth/{providerId}",
       ...options,
       ...params,
       headers: {
@@ -1231,7 +1231,7 @@ export class Session extends HeyApiClient {
       sessionID: string
       directory?: string
       modelID?: string
-      providerID?: string
+      providerId?: string
       messageID?: string
     },
     options?: Options<never, ThrowOnError>,
@@ -1244,7 +1244,7 @@ export class Session extends HeyApiClient {
             { in: "path", key: "sessionID" },
             { in: "query", key: "directory" },
             { in: "body", key: "modelID" },
-            { in: "body", key: "providerID" },
+            { in: "body", key: "providerId" },
             { in: "body", key: "messageID" },
           ],
         },
@@ -1430,7 +1430,7 @@ export class Session extends HeyApiClient {
     parameters: {
       sessionID: string
       directory?: string
-      providerID?: string
+      providerId?: string
       modelID?: string
       auto?: boolean
     },
@@ -1443,7 +1443,7 @@ export class Session extends HeyApiClient {
           args: [
             { in: "path", key: "sessionID" },
             { in: "query", key: "directory" },
-            { in: "body", key: "providerID" },
+            { in: "body", key: "providerId" },
             { in: "body", key: "modelID" },
             { in: "body", key: "auto" },
           ],
@@ -1505,7 +1505,7 @@ export class Session extends HeyApiClient {
       directory?: string
       messageID?: string
       model?: {
-        providerID: string
+        providerId: string
         modelID: string
       }
       agent?: string
@@ -1593,7 +1593,7 @@ export class Session extends HeyApiClient {
       directory?: string
       messageID?: string
       model?: {
-        providerID: string
+        providerId: string
         modelID: string
       }
       agent?: string
@@ -1705,7 +1705,7 @@ export class Session extends HeyApiClient {
       directory?: string
       agent?: string
       model?: {
-        providerID: string
+        providerId: string
         modelID: string
       }
       command?: string
@@ -2078,7 +2078,7 @@ export class Oauth extends HeyApiClient {
    */
   public authorize<ThrowOnError extends boolean = false>(
     parameters: {
-      providerID: string
+      providerId: string
       directory?: string
       method?: number
     },
@@ -2089,7 +2089,7 @@ export class Oauth extends HeyApiClient {
       [
         {
           args: [
-            { in: "path", key: "providerID" },
+            { in: "path", key: "providerId" },
             { in: "query", key: "directory" },
             { in: "body", key: "method" },
           ],
@@ -2101,7 +2101,7 @@ export class Oauth extends HeyApiClient {
       ProviderOauthAuthorizeErrors,
       ThrowOnError
     >({
-      url: "/provider/{providerID}/oauth/authorize",
+      url: "/provider/{providerId}/oauth/authorize",
       ...options,
       ...params,
       headers: {
@@ -2119,7 +2119,7 @@ export class Oauth extends HeyApiClient {
    */
   public callback<ThrowOnError extends boolean = false>(
     parameters: {
-      providerID: string
+      providerId: string
       directory?: string
       method?: number
       code?: string
@@ -2131,7 +2131,7 @@ export class Oauth extends HeyApiClient {
       [
         {
           args: [
-            { in: "path", key: "providerID" },
+            { in: "path", key: "providerId" },
             { in: "query", key: "directory" },
             { in: "body", key: "method" },
             { in: "body", key: "code" },
@@ -2144,7 +2144,7 @@ export class Oauth extends HeyApiClient {
       ProviderOauthCallbackErrors,
       ThrowOnError
     >({
-      url: "/provider/{providerID}/oauth/callback",
+      url: "/provider/{providerId}/oauth/callback",
       ...options,
       ...params,
       headers: {
@@ -3152,7 +3152,7 @@ export class Rotation extends HeyApiClient {
       taskType?: "dialog" | "task" | "background" | "coding" | "review"
       preferSubscription?: boolean
       currentVector?: {
-        providerID: string
+        providerId: string
         accountId: string
         modelID: string
       }
@@ -3193,7 +3193,7 @@ export class Rotation extends HeyApiClient {
     parameters?: {
       directory?: string
       current?: {
-        providerID: string
+        providerId: string
         accountId: string
         modelID: string
       }

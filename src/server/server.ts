@@ -129,7 +129,7 @@ export namespace Server {
         })
         .route("/global", GlobalRoutes())
         .put(
-          "/auth/:providerID",
+          "/auth/:providerId",
           describeRoute({
             summary: "Set auth credentials",
             description: "Set authentication credentials",
@@ -149,19 +149,19 @@ export namespace Server {
           validator(
             "param",
             z.object({
-              providerID: z.string(),
+              providerId: z.string(),
             }),
           ),
           validator("json", Auth.Info),
           async (c) => {
-            const providerID = c.req.valid("param").providerID
+            const providerId = c.req.valid("param").providerId
             const info = c.req.valid("json")
-            await Auth.set(providerID, info)
+            await Auth.set(providerId, info)
             return c.json(true)
           },
         )
         .delete(
-          "/auth/:providerID",
+          "/auth/:providerId",
           describeRoute({
             summary: "Remove auth credentials",
             description: "Remove authentication credentials",
@@ -181,12 +181,12 @@ export namespace Server {
           validator(
             "param",
             z.object({
-              providerID: z.string(),
+              providerId: z.string(),
             }),
           ),
           async (c) => {
-            const providerID = c.req.valid("param").providerID
-            await Auth.remove(providerID)
+            const providerId = c.req.valid("param").providerId
+            await Auth.remove(providerId)
             return c.json(true)
           },
         )

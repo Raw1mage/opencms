@@ -17,7 +17,7 @@ import {
 
 // Schema for ModelVector
 const ModelVectorSchema = z.object({
-  providerID: z.string(),
+  providerId: z.string(),
   accountId: z.string(),
   modelID: z.string(),
 })
@@ -227,7 +227,7 @@ export const RotationRoutes = lazy(() =>
         if (fallback) {
           return c.json({
             fallback: {
-              providerID: fallback.providerID,
+              providerId: fallback.providerId,
               accountId: fallback.accountId,
               modelID: fallback.modelID,
             },
@@ -251,7 +251,7 @@ async function getRecommendedModels(accounts: z.infer<typeof AccountStatusSchema
   const subscriptionAccounts = healthyAccounts.filter((a) => a.type === "subscription" || a.type === "oauth")
 
   // Priority order for dialog model
-  const dialogPriority = ["opencode", "anthropic", "openai", "google"]
+  const dialogPriority = ["opencode", "anthropic", "openai", "google-api"]
   // Priority order for background tasks (prefer cheaper)
   const backgroundPriority = ["opencode", "anthropic", "openai"]
 
@@ -269,7 +269,7 @@ async function getRecommendedModels(accounts: z.infer<typeof AccountStatusSchema
       const model = await getDefaultModelForProvider(account.provider)
       if (model) {
         recommended.dialog = {
-          providerID: account.provider,
+          providerId: account.provider,
           accountId: account.id,
           modelID: model,
         }
@@ -289,7 +289,7 @@ async function getRecommendedModels(accounts: z.infer<typeof AccountStatusSchema
       const model = await getSmallModelForProvider(account.provider)
       if (model) {
         recommended.background = {
-          providerID: account.provider,
+          providerId: account.provider,
           accountId: account.id,
           modelID: model,
         }
@@ -302,10 +302,10 @@ async function getRecommendedModels(accounts: z.infer<typeof AccountStatusSchema
 }
 
 // Helper: Get default model for a provider
-async function getDefaultModelForProvider(providerID: string): Promise<string | undefined> {
+async function getDefaultModelForProvider(providerId: string): Promise<string | undefined> {
   try {
     const providers = await Provider.list()
-    const provider = providers[providerID]
+    const provider = providers[providerId]
     if (!provider?.models) return undefined
 
     // Priority models by provider
@@ -316,7 +316,7 @@ async function getDefaultModelForProvider(providerID: string): Promise<string | 
       opencode: ["big-pickle", "claude-sonnet-4"],
     }
 
-    const priorities = modelPriority[providerID] || []
+    const priorities = modelPriority[providerId] || []
     for (const model of priorities) {
       if (provider.models[model]) return model
     }
@@ -330,10 +330,10 @@ async function getDefaultModelForProvider(providerID: string): Promise<string | 
 }
 
 // Helper: Get small/cheap model for a provider
-async function getSmallModelForProvider(providerID: string): Promise<string | undefined> {
+async function getSmallModelForProvider(providerId: string): Promise<string | undefined> {
   try {
     const providers = await Provider.list()
-    const provider = providers[providerID]
+    const provider = providers[providerId]
     if (!provider?.models) return undefined
 
     const smallModels: Record<string, string[]> = {
@@ -343,12 +343,12 @@ async function getSmallModelForProvider(providerID: string): Promise<string | un
       opencode: ["gpt-5-nano"],
     }
 
-    const priorities = smallModels[providerID] || []
+    const priorities = smallModels[providerId] || []
     for (const model of priorities) {
       if (provider.models[model]) return model
     }
 
-    return await getDefaultModelForProvider(providerID)
+    return await getDefaultModelForProvider(providerId)
   } catch {
     return undefined
   }
@@ -396,13 +396,13 @@ async function getRecommendationForTask(taskType: string, preferSubscription: bo
       }
 
       // Boost if same provider as current (stickiness)
-      if (currentVector && family === currentVector.providerID) {
+      if (currentVector && family === currentVector.providerId) {
         score += 20
       }
 
       candidates.push({
         vector: {
-          providerID: family,
+          providerId: family,
           accountId,
           modelID: model,
         },

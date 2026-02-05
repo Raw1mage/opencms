@@ -486,7 +486,7 @@ export namespace ACP {
         }
       } catch (e) {
         const error = MessageV2.fromError(e, {
-          providerID: this.config.defaultModel?.providerID ?? "unknown",
+          providerId: this.config.defaultModel?.providerId ?? "unknown",
         })
         if (LoadAPIKeyError.isInstance(error)) {
           throw RequestError.authRequired()
@@ -530,9 +530,9 @@ export namespace ACP {
 
         const lastUser = messages?.findLast((m) => m.info.role === "user")?.info
         if (lastUser?.role === "user") {
-          result.models.currentModelId = `${lastUser.model.providerID}/${lastUser.model.modelID}`
+          result.models.currentModelId = `${lastUser.model.providerId}/${lastUser.model.modelID}`
           this.sessionManager.setModel(sessionId, {
-            providerID: lastUser.model.providerID,
+            providerId: lastUser.model.providerId,
             modelID: lastUser.model.modelID,
           })
           if (result.modes?.availableModes.some((m) => m.id === lastUser.agent)) {
@@ -549,7 +549,7 @@ export namespace ACP {
         return result
       } catch (e) {
         const error = MessageV2.fromError(e, {
-          providerID: this.config.defaultModel?.providerID ?? "unknown",
+          providerId: this.config.defaultModel?.providerId ?? "unknown",
         })
         if (LoadAPIKeyError.isInstance(error)) {
           throw RequestError.authRequired()
@@ -594,7 +594,7 @@ export namespace ACP {
         return response
       } catch (e) {
         const error = MessageV2.fromError(e, {
-          providerID: this.config.defaultModel?.providerID ?? "unknown",
+          providerId: this.config.defaultModel?.providerId ?? "unknown",
         })
         if (LoadAPIKeyError.isInstance(error)) {
           throw RequestError.authRequired()
@@ -657,7 +657,7 @@ export namespace ACP {
         return mode
       } catch (e) {
         const error = MessageV2.fromError(e, {
-          providerID: this.config.defaultModel?.providerID ?? "unknown",
+          providerId: this.config.defaultModel?.providerId ?? "unknown",
         })
         if (LoadAPIKeyError.isInstance(error)) {
           throw RequestError.authRequired()
@@ -684,7 +684,7 @@ export namespace ACP {
         })
       } catch (e) {
         const error = MessageV2.fromError(e, {
-          providerID: this.config.defaultModel?.providerID ?? "unknown",
+          providerId: this.config.defaultModel?.providerId ?? "unknown",
         })
         if (LoadAPIKeyError.isInstance(error)) {
           throw RequestError.authRequired()
@@ -1248,7 +1248,7 @@ export namespace ACP {
         await this.sdk.session.prompt({
           sessionID,
           model: {
-            providerID: model.providerID,
+            providerId: model.providerId,
             modelID: model.modelID,
           },
           variant: this.sessionManager.getVariant(sessionID),
@@ -1267,7 +1267,7 @@ export namespace ACP {
           sessionID,
           command: command.name,
           arguments: cmd.args,
-          model: model.providerID + "/" + model.modelID,
+          model: model.providerId + "/" + model.modelID,
           agent,
           directory,
         })
@@ -1280,7 +1280,7 @@ export namespace ACP {
             {
               sessionID,
               directory,
-              providerID: model.providerID,
+              providerId: model.providerId,
               modelID: model.modelID,
             },
             { throwOnError: true },
@@ -1364,7 +1364,7 @@ export namespace ACP {
         if (!cfg || !cfg.model) return undefined
         const parsed = Provider.parseModel(cfg.model)
         return {
-          providerID: parsed.providerID,
+          providerId: parsed.providerId,
           modelID: parsed.modelID,
         }
       })
@@ -1382,7 +1382,7 @@ export namespace ACP {
       })
 
     if (specified && providers.length) {
-      const provider = providers.find((p) => p.id === specified.providerID)
+      const provider = providers.find((p) => p.id === specified.providerId)
       if (provider && provider.models[specified.modelID]) return specified
     }
 
@@ -1391,12 +1391,12 @@ export namespace ACP {
     const opencodeProvider = providers.find((p) => p.id === "opencode")
     if (opencodeProvider) {
       if (opencodeProvider.models["big-pickle"]) {
-        return { providerID: "opencode", modelID: "big-pickle" }
+        return { providerId: "opencode", modelID: "big-pickle" }
       }
       const [best] = Provider.sort(Object.values(opencodeProvider.models))
       if (best) {
         return {
-          providerID: best.providerID,
+          providerId: best.providerId,
           modelID: best.id,
         }
       }
@@ -1406,14 +1406,14 @@ export namespace ACP {
     const [best] = Provider.sort(models)
     if (best) {
       return {
-        providerID: best.providerID,
+        providerId: best.providerId,
         modelID: best.id,
       }
     }
 
     if (specified) return specified
 
-    return { providerID: "opencode", modelID: "big-pickle" }
+    return { providerId: "opencode", modelID: "big-pickle" }
   }
 
   function parseUri(
@@ -1476,9 +1476,9 @@ export namespace ACP {
 
   function modelVariantsFromProviders(
     providers: Array<{ id: string; models: Record<string, { variants?: Record<string, any> }> }>,
-    model: { providerID: string; modelID: string },
+    model: { providerId: string; modelID: string },
   ): string[] {
-    const provider = providers.find((entry) => entry.id === model.providerID)
+    const provider = providers.find((entry) => entry.id === model.providerId)
     if (!provider) return []
     const modelInfo = provider.models[model.modelID]
     if (!modelInfo?.variants) return []
@@ -1509,24 +1509,24 @@ export namespace ACP {
   }
 
   function formatModelIdWithVariant(
-    model: { providerID: string; modelID: string },
+    model: { providerId: string; modelID: string },
     variant: string | undefined,
     availableVariants: string[],
     includeVariant: boolean,
   ) {
-    const base = `${model.providerID}/${model.modelID}`
+    const base = `${model.providerId}/${model.modelID}`
     if (!includeVariant || !variant || !availableVariants.includes(variant)) return base
     return `${base}/${variant}`
   }
 
   function buildVariantMeta(input: {
-    model: { providerID: string; modelID: string }
+    model: { providerId: string; modelID: string }
     variant?: string
     availableVariants: string[]
   }) {
     return {
       opencode: {
-        modelId: `${input.model.providerID}/${input.model.modelID}`,
+        modelId: `${input.model.providerId}/${input.model.modelID}`,
         variant: input.variant ?? null,
         availableVariants: input.availableVariants,
       },
@@ -1536,9 +1536,9 @@ export namespace ACP {
   function parseModelSelection(
     modelId: string,
     providers: Array<{ id: string; models: Record<string, { variants?: Record<string, any> }> }>,
-  ): { model: { providerID: string; modelID: string }; variant?: string } {
+  ): { model: { providerId: string; modelID: string }; variant?: string } {
     const parsed = Provider.parseModel(modelId)
-    const provider = providers.find((p) => p.id === parsed.providerID)
+    const provider = providers.find((p) => p.id === parsed.providerId)
     if (!provider) {
       return { model: parsed, variant: undefined }
     }
@@ -1556,7 +1556,7 @@ export namespace ACP {
       const baseModelInfo = provider.models[baseModelId]
       if (baseModelInfo?.variants && candidateVariant in baseModelInfo.variants) {
         return {
-          model: { providerID: parsed.providerID, modelID: baseModelId },
+          model: { providerId: parsed.providerId, modelID: baseModelId },
           variant: candidateVariant,
         }
       }

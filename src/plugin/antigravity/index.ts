@@ -3162,8 +3162,8 @@ function getModelFamilyFromUrl(urlString: string): ModelFamily {
   return family
 }
 
-function getHeaderStyleFromUrl(urlString: string, family: ModelFamily, providerID: string): HeaderStyle {
-  if (providerID === "antigravity") {
+function getHeaderStyleFromUrl(urlString: string, family: ModelFamily, providerId: string): HeaderStyle {
+  if (providerId === "antigravity") {
     return "antigravity"
   }
   return "gemini-cli"

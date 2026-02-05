@@ -99,8 +99,8 @@ export namespace SessionCompaction {
     const userMessage = input.messages.findLast((m) => m.info.id === input.parentID)!.info as MessageV2.User
     const agent = await Agent.get("compaction")
     const model = agent.model
-      ? await Provider.getModel(agent.model.providerID, agent.model.modelID)
-      : await Provider.getModel(userMessage.model.providerID, userMessage.model.modelID)
+      ? await Provider.getModel(agent.model.providerId, agent.model.modelID)
+      : await Provider.getModel(userMessage.model.providerId, userMessage.model.modelID)
     const msg = (await Session.updateMessage({
       id: Identifier.ascending("message"),
       role: "assistant",
@@ -121,7 +121,7 @@ export namespace SessionCompaction {
         cache: { read: 0, write: 0 },
       },
       modelID: model.id,
-      providerID: model.providerID,
+      providerId: model.providerId,
       time: {
         created: Date.now(),
       },
@@ -197,7 +197,7 @@ export namespace SessionCompaction {
       sessionID: Identifier.schema("session"),
       agent: z.string(),
       model: z.object({
-        providerID: z.string(),
+        providerId: z.string(),
         modelID: z.string(),
       }),
       auto: z.boolean(),

@@ -84,7 +84,7 @@ export namespace ProviderTransform {
       })
     }
     if (
-      model.providerID === "mistral" ||
+      model.providerId === "mistral" ||
       model.api.id.toLowerCase().includes("mistral") ||
       model.api.id.toLocaleLowerCase().includes("devstral")
     ) {
@@ -167,7 +167,7 @@ export namespace ProviderTransform {
     return msgs
   }
 
-  function applyCaching(msgs: ModelMessage[], providerID: string): ModelMessage[] {
+  function applyCaching(msgs: ModelMessage[], providerId: string): ModelMessage[] {
     const system = msgs.filter((msg) => msg.role === "system").slice(0, 2)
     const final = msgs.filter((msg) => msg.role !== "system").slice(-2)
 
@@ -190,7 +190,7 @@ export namespace ProviderTransform {
     }
 
     for (const msg of unique([...system, ...final])) {
-      const shouldUseContentOptions = providerID !== "anthropic" && Array.isArray(msg.content) && msg.content.length > 0
+      const shouldUseContentOptions = providerId !== "anthropic" && Array.isArray(msg.content) && msg.content.length > 0
 
       if (shouldUseContentOptions) {
         const lastContent = msg.content[msg.content.length - 1]
@@ -248,25 +248,25 @@ export namespace ProviderTransform {
     msgs = unsupportedParts(msgs, model)
     msgs = normalizeMessages(msgs, model, options)
     if (
-      model.providerID === "anthropic" ||
+      model.providerId === "anthropic" ||
       model.api.id.includes("anthropic") ||
       model.api.id.includes("claude") ||
       model.id.includes("anthropic") ||
       model.id.includes("claude") ||
       model.api.npm === "@ai-sdk/anthropic"
     ) {
-      msgs = applyCaching(msgs, model.providerID)
+      msgs = applyCaching(msgs, model.providerId)
     }
 
-    // Remap providerOptions keys from stored providerID to expected SDK key
+    // Remap providerOptions keys from stored providerId to expected SDK key
     const key = sdkKey(model.api.npm)
-    if (key && key !== model.providerID && model.api.npm !== "@ai-sdk/azure") {
+    if (key && key !== model.providerId && model.api.npm !== "@ai-sdk/azure") {
       const remap = (opts: Record<string, any> | undefined) => {
         if (!opts) return opts
-        if (!(model.providerID in opts)) return opts
+        if (!(model.providerId in opts)) return opts
         const result = { ...opts }
-        result[key] = result[model.providerID]
-        delete result[model.providerID]
+        result[key] = result[model.providerId]
+        delete result[model.providerId]
         return result
       }
 
@@ -583,7 +583,7 @@ export namespace ProviderTransform {
     const result: Record<string, any> = {}
 
     // Pass accountId for antigravity protocol selection
-    if (input.model.providerID === "antigravity" && input.accountId) {
+    if (input.model.providerId === "antigravity" && input.accountId) {
       result["antigravity"] = {
         ...(input.providerOptions?.antigravity || {}),
         accountId: input.accountId,
@@ -592,7 +592,7 @@ export namespace ProviderTransform {
 
     // openai and providers using openai package should set store to false by default.
     if (
-      input.model.providerID === "openai" ||
+      input.model.providerId === "openai" ||
       input.model.api.npm === "@ai-sdk/openai" ||
       input.model.api.npm === "@ai-sdk/github-copilot"
     ) {
@@ -609,20 +609,20 @@ export namespace ProviderTransform {
     }
 
     if (
-      input.model.providerID === "baseten" ||
-      (input.model.providerID === "opencode" && ["kimi-k2-thinking", "glm-4.6"].includes(input.model.api.id))
+      input.model.providerId === "baseten" ||
+      (input.model.providerId === "opencode" && ["kimi-k2-thinking", "glm-4.6"].includes(input.model.api.id))
     ) {
       result["chat_template_args"] = { enable_thinking: true }
     }
 
-    if (["zai", "zhipuai"].includes(input.model.providerID) && input.model.api.npm === "@ai-sdk/openai-compatible") {
+    if (["zai", "zhipuai"].includes(input.model.providerId) && input.model.api.npm === "@ai-sdk/openai-compatible") {
       result["thinking"] = {
         type: "enabled",
         clear_thinking: false,
       }
     }
 
-    if (input.model.providerID === "openai" || input.providerOptions?.setCacheKey) {
+    if (input.model.providerId === "openai" || input.providerOptions?.setCacheKey) {
       result["promptCacheKey"] = input.sessionID
     }
 
@@ -646,19 +646,19 @@ export namespace ProviderTransform {
         input.model.api.id.includes("gpt-5.") &&
         !input.model.api.id.includes("codex") &&
         !input.model.api.id.includes("-chat") &&
-        input.model.providerID !== "azure"
+        input.model.providerId !== "azure"
       ) {
         result["textVerbosity"] = "low"
       }
 
-      if (input.model.providerID.startsWith("opencode")) {
+      if (input.model.providerId.startsWith("opencode")) {
         result["promptCacheKey"] = input.sessionID
         result["include"] = ["reasoning.encrypted_content"]
         result["reasoningSummary"] = "auto"
       }
     }
 
-    if (input.model.providerID === "venice") {
+    if (input.model.providerId === "venice") {
       result["promptCacheKey"] = input.sessionID
     }
 
@@ -666,20 +666,20 @@ export namespace ProviderTransform {
   }
 
   export function smallOptions(model: Provider.Model) {
-    if (model.providerID === "openai" || model.api.id.includes("gpt-5")) {
+    if (model.providerId === "openai" || model.api.id.includes("gpt-5")) {
       if (model.api.id.includes("5.")) {
         return { reasoningEffort: "low" }
       }
       return { reasoningEffort: "minimal" }
     }
-    if (model.providerID === "google-api") {
+    if (model.providerId === "google-api") {
       // gemini-3 uses thinkingLevel, gemini-2.5 uses thinkingBudget
       if (model.api.id.includes("gemini-3")) {
         return { thinkingConfig: { thinkingLevel: "minimal" } }
       }
       return { thinkingConfig: { thinkingBudget: 0 } }
     }
-    if (model.providerID === "openrouter") {
+    if (model.providerId === "openrouter") {
       if (model.api.id.includes("google")) {
         return { reasoning: { enabled: false } }
       }
@@ -689,7 +689,7 @@ export namespace ProviderTransform {
   }
 
   export function providerOptions(model: Provider.Model, options: { [x: string]: any }) {
-    const key = sdkKey(model.api.npm) ?? model.providerID
+    const key = sdkKey(model.api.npm) ?? model.providerId
     return { [key]: options }
   }
 
@@ -721,7 +721,7 @@ export namespace ProviderTransform {
 
   export function schema(model: Provider.Model, schema: JSONSchema.BaseSchema) {
     /*
-    if (["openai", "azure"].includes(providerID)) {
+    if (["openai", "azure"].includes(providerId)) {
       if (schema.type === "object" && schema.properties) {
         for (const [key, value] of Object.entries(schema.properties)) {
           if (schema.required?.includes(key)) continue
@@ -739,7 +739,7 @@ export namespace ProviderTransform {
     */
 
     // Convert integer enums to string enums for Google/Gemini
-    if (model.providerID === "google-api" || model.api.id.includes("gemini")) {
+    if (model.providerId === "google-api" || model.api.id.includes("gemini")) {
       const sanitizeGemini = (obj: any): any => {
         if (obj === null || typeof obj !== "object") {
           return obj
@@ -783,12 +783,12 @@ export namespace ProviderTransform {
     return schema
   }
 
-  export function error(providerID: string, error: APICallError) {
+  export function error(providerId: string, error: APICallError) {
     let message = error.message
-    if (providerID.includes("github-copilot") && error.statusCode === 403) {
+    if (providerId.includes("github-copilot") && error.statusCode === 403) {
       return "Please reauthenticate with the copilot provider to ensure your credentials work properly with OpenCode."
     }
-    if (providerID.includes("github-copilot") && message.includes("The requested model is not supported")) {
+    if (providerId.includes("github-copilot") && message.includes("The requested model is not supported")) {
       return (
         message +
         "\n\nMake sure the model is enabled in your copilot settings: https://github.com/settings/copilot/features"

@@ -87,13 +87,13 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
   const { client } = input
   return {
     "chat.headers": async (input, output) => {
-      if (input.model.providerID === "anthropic") {
+      if (input.model.providerId === "anthropic") {
         output.headers["session_id"] = input.sessionID
       }
     },
     "experimental.chat.system.transform": async (input, output) => {
       const prefix = "You are Claude Code, Anthropic's official CLI for Claude."
-      if (input.model?.providerID === "anthropic") {
+      if (input.model?.providerId === "anthropic") {
         output.system.unshift(prefix)
         if (output.system[1]) output.system[1] = prefix + "\n\n" + output.system[1]
       }

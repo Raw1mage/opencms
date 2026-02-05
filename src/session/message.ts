@@ -6,7 +6,7 @@ export namespace Message {
   export const AuthError = NamedError.create(
     "ProviderAuthError",
     z.object({
-      providerID: z.string(),
+      providerId: z.string(),
       message: z.string(),
     }),
   )
@@ -160,7 +160,7 @@ export namespace Message {
             .object({
               system: z.string().array(),
               modelID: z.string(),
-              providerID: z.string(),
+              providerId: z.string(),
               path: z.object({
                 cwd: z.string(),
                 root: z.string(),

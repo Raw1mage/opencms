@@ -38,7 +38,7 @@ export namespace Agent {
       model: z
         .object({
           modelID: z.string(),
-          providerID: z.string(),
+          providerId: z.string(),
         })
         .optional(),
       variant: z.string().optional(),
@@ -312,10 +312,10 @@ export namespace Agent {
     return primaryVisible.name
   }
 
-  export async function generate(input: { description: string; model?: { providerID: string; modelID: string } }) {
+  export async function generate(input: { description: string; model?: { providerId: string; modelID: string } }) {
     const cfg = await Config.get()
     const defaultModel = input.model ?? (await Provider.defaultModel())
-    const model = await Provider.getModel(defaultModel.providerID, defaultModel.modelID)
+    const model = await Provider.getModel(defaultModel.providerId, defaultModel.modelID)
     const language = await Provider.getLanguage(model)
 
     const system = [PROMPT_GENERATE]
@@ -350,7 +350,7 @@ export namespace Agent {
       }),
     } satisfies Parameters<typeof generateObject>[0]
 
-    if (defaultModel.providerID === "openai" && (await Auth.get(defaultModel.providerID))?.type === "oauth") {
+    if (defaultModel.providerId === "openai" && (await Auth.get(defaultModel.providerId))?.type === "oauth") {
       const result = streamObject({
         ...params,
         providerOptions: ProviderTransform.providerOptions(model, {

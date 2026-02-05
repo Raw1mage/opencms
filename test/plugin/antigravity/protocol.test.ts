@@ -25,34 +25,34 @@ describe("Protocol Selection Logic", () => {
   })
 
   // Replicating the logic from src/plugin/antigravity/index.ts getHeaderStyleFromUrl
-  const getHeaderStyle = (providerID: string) => {
-    if (providerID === "antigravity") {
+  const getHeaderStyle = (providerId: string) => {
+    if (providerId === "antigravity") {
       return "antigravity"
     }
     return "gemini-cli"
   }
 
   test("Strict protocol selection: antigravity -> antigravity", () => {
-    const providerID = "antigravity"
-    const style = getHeaderStyle(providerID)
+    const providerId = "antigravity"
+    const style = getHeaderStyle(providerId)
     expect(style).toBe("antigravity")
   })
 
   test("Strict protocol selection: gemini-cli -> gemini-cli", () => {
-    const providerID = "gemini-cli"
-    const style = getHeaderStyle(providerID)
+    const providerId = "gemini-cli"
+    const style = getHeaderStyle(providerId)
     expect(style).toBe("gemini-cli")
   })
 
   test("Strict protocol selection: google-api -> gemini-cli (fallback)", () => {
-    const providerID = "google-api"
-    const style = getHeaderStyle(providerID)
+    const providerId = "google-api"
+    const style = getHeaderStyle(providerId)
     expect(style).toBe("gemini-cli")
   })
 
   test("Strict protocol selection: unknown -> gemini-cli (fallback)", () => {
-    const providerID = "unknown-provider"
-    const style = getHeaderStyle(providerID)
+    const providerId = "unknown-provider"
+    const style = getHeaderStyle(providerId)
     expect(style).toBe("gemini-cli")
   })
 })

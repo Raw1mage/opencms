@@ -27,7 +27,7 @@ const ModelList: Component<{
   const models = createMemo(() =>
     local.model
       .list()
-      .filter((m) => local.model.visible({ modelID: m.id, providerID: m.provider.id }))
+      .filter((m) => local.model.visible({ modelID: m.id, providerId: m.provider.id }))
       .filter((m) => (props.provider ? m.provider.id === props.provider : true)),
   )
 
@@ -67,7 +67,7 @@ const ModelList: Component<{
         </Tooltip>
       )}
       onSelect={(x) => {
-        local.model.set(x ? { modelID: x.id, providerID: x.provider.id } : undefined, {
+        local.model.set(x ? { modelID: x.id, providerId: x.provider.id } : undefined, {
           recent: true,
         })
         props.onSelect()

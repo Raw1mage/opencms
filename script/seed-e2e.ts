@@ -3,7 +3,7 @@ const title = process.env.OPENCODE_E2E_SESSION_TITLE ?? "E2E Session"
 const text = process.env.OPENCODE_E2E_MESSAGE ?? "Seeded for UI e2e"
 const model = process.env.OPENCODE_E2E_MODEL ?? "opencode/gpt-5-nano"
 const parts = model.split("/")
-const providerID = parts[0] ?? "opencode"
+const providerId = parts[0] ?? "opencode"
 const modelID = parts[1] ?? "gpt-5-nano"
 const now = Date.now()
 
@@ -28,7 +28,7 @@ const seed = async () => {
         time: { created: now },
         agent: "build",
         model: {
-          providerID,
+          providerId,
           modelID,
         },
       }

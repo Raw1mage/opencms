@@ -29,7 +29,7 @@ describe("revert + compact workflow", () => {
           sessionID,
           agent: "default",
           model: {
-            providerID: "openai",
+            providerId: "openai",
             modelID: "gpt-4",
           },
           time: {
@@ -65,7 +65,7 @@ describe("revert + compact workflow", () => {
             cache: { read: 0, write: 0 },
           },
           modelID: "gpt-4",
-          providerID: "openai",
+          providerId: "openai",
           parentID: userMsg1.id,
           time: {
             created: Date.now(),
@@ -90,7 +90,7 @@ describe("revert + compact workflow", () => {
           sessionID,
           agent: "default",
           model: {
-            providerID: "openai",
+            providerId: "openai",
             modelID: "gpt-4",
           },
           time: {
@@ -125,7 +125,7 @@ describe("revert + compact workflow", () => {
             cache: { read: 0, write: 0 },
           },
           modelID: "gpt-4",
-          providerID: "openai",
+          providerId: "openai",
           parentID: userMsg2.id,
           time: {
             created: Date.now(),
@@ -205,7 +205,7 @@ describe("revert + compact workflow", () => {
           sessionID,
           agent: "default",
           model: {
-            providerID: "openai",
+            providerId: "openai",
             modelID: "gpt-4",
           },
           time: {
@@ -239,7 +239,7 @@ describe("revert + compact workflow", () => {
             cache: { read: 0, write: 0 },
           },
           modelID: "gpt-4",
-          providerID: "openai",
+          providerId: "openai",
           parentID: userMsg.id,
           time: {
             created: Date.now(),

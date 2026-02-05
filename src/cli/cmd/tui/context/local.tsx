@@ -36,12 +36,12 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       return map
     })
 
-    function getAccountLabel(providerID: string, fallback: string) {
+    function getAccountLabel(providerId: string, fallback: string) {
       const labels = accountDisplayNames()
       if (!labels || Object.keys(labels).length === 0) return fallback
-      if (labels[providerID]) return labels[providerID].label
+      if (labels[providerId]) return labels[providerId].label
       const families = accountFamilies()
-      const family = Account.parseProvider(providerID)
+      const family = Account.parseProvider(providerId)
       if (family && families?.[family]?.activeAccount) {
         const active = families[family]!.activeAccount
         if (active && labels[active]) return labels[active].label
@@ -49,24 +49,24 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       return fallback
     }
 
-    function formatModelAnnouncement(model: { providerID: string; modelID: string }) {
-      const providerInfo = sync.data.provider.find((x) => x.id === model.providerID)
-      const providerLabel = providerInfo?.name ?? model.providerID
+    function formatModelAnnouncement(model: { providerId: string; modelID: string }) {
+      const providerInfo = sync.data.provider.find((x) => x.id === model.providerId)
+      const providerLabel = providerInfo?.name ?? model.providerId
       const modelLabel = providerInfo?.models[model.modelID]?.name ?? model.modelID
-      const accountLabel = getAccountLabel(model.providerID, "default account")
+      const accountLabel = getAccountLabel(model.providerId, "default account")
       return `《${providerLabel}, ${accountLabel}, ${modelLabel}》`
     }
 
-    function isModelValid(model: { providerID: string; modelID: string }) {
-      const provider = sync.data.provider.find((x) => x.id === model.providerID)
-      return !!provider?.models[model.modelID]
+    function isModelAvailable(model: { providerId: string; modelID: string }) {
+      const provider = sync.data.provider.find((x) => x.id === model.providerId)
+      return !!provider
     }
 
-    function getFirstValidModel(...modelFns: (() => { providerID: string; modelID: string } | undefined)[]) {
+    function getFirstValidModel(...modelFns: (() => { providerId: string; modelID: string } | undefined)[]) {
       for (const modelFn of modelFns) {
         const model = modelFn()
         if (!model) continue
-        if (isModelValid(model)) return model
+        if (isModelAvailable(model)) return model
       }
     }
 
@@ -128,20 +128,20 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         model: Record<
           string,
           {
-            providerID: string
+            providerId: string
             modelID: string
           }
         >
         recent: {
-          providerID: string
+          providerId: string
           modelID: string
         }[]
         favorite: {
-          providerID: string
+          providerId: string
           modelID: string
         }[]
         hidden: {
-          providerID: string
+          providerId: string
           modelID: string
         }[]
         hiddenProviders: string[]
@@ -179,54 +179,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         )
       }
 
-      // Auto-cleanup: Remove models from favorites/recent that no longer exist in providers
-      function cleanupInvalidModels() {
-        if (!modelStore.ready) return
-        const providerIds = new Set(sync.data.provider.map((p) => p.id))
-        if (providerIds.size === 0) return // Don't cleanup if providers not loaded yet
-
-        let changed = false
-
-        // Cleanup favorites
-        const validFavorites = modelStore.favorite.filter((item) => {
-          const provider = sync.data.provider.find((p) => p.id === item.providerID)
-          const isValid = !!provider?.models[item.modelID]
-          if (!isValid && provider) {
-            // Provider exists but model doesn't - remove it
-            console.log(`[auto-cleanup] Removing invalid favorite: ${item.providerID}/${item.modelID}`)
-            changed = true
-            return false
-          }
-          return true // Keep if provider not loaded or model valid
-        })
-
-        // Cleanup recent
-        const validRecent = modelStore.recent.filter((item) => {
-          const provider = sync.data.provider.find((p) => p.id === item.providerID)
-          const isValid = !!provider?.models[item.modelID]
-          if (!isValid && provider) {
-            console.log(`[auto-cleanup] Removing invalid recent: ${item.providerID}/${item.modelID}`)
-            changed = true
-            return false
-          }
-          return true
-        })
-
-        if (changed) {
-          setModelStore("favorite", validFavorites)
-          setModelStore("recent", validRecent)
-          save()
-        }
-      }
-
-      // Run cleanup when provider data changes
-      createEffect(() => {
-        // Track provider data changes
-        const _providers = sync.data.provider
-        if (_providers.length > 0 && modelStore.ready) {
-          cleanupInvalidModels()
-        }
-      })
+      // Auto-cleanup removed: allow favorites/recent even if model ID is not in provider.models
 
       file
         .json()
@@ -241,34 +194,32 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         .finally(() => {
           setModelStore("ready", true)
           if (state.pending) save()
-          // Run initial cleanup after loading
-          cleanupInvalidModels()
         })
 
       const args = useArgs()
       const fallbackModel = createMemo(() => {
         if (args.model) {
-          const { providerID, modelID } = Provider.parseModel(args.model)
-          if (isModelValid({ providerID, modelID })) {
+          const { providerId, modelID } = Provider.parseModel(args.model)
+          if (isModelAvailable({ providerId, modelID })) {
             return {
-              providerID,
+              providerId,
               modelID,
             }
           }
         }
 
         if (sync.data.config.model) {
-          const { providerID, modelID } = Provider.parseModel(sync.data.config.model)
-          if (isModelValid({ providerID, modelID })) {
+          const { providerId, modelID } = Provider.parseModel(sync.data.config.model)
+          if (isModelAvailable({ providerId, modelID })) {
             return {
-              providerID,
+              providerId,
               modelID,
             }
           }
         }
 
         for (const item of modelStore.recent) {
-          if (isModelValid(item)) {
+          if (isModelAvailable(item)) {
             return item
           }
         }
@@ -280,7 +231,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const model = defaultModel ?? firstModel?.id
         if (!model) return undefined
         return {
-          providerID: provider.id,
+          providerId: provider.id,
           modelID: model,
         }
       })
@@ -323,10 +274,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               reasoning: false,
             }
           }
-          const provider = sync.data.provider.find((x) => x.id === value.providerID)
+          const provider = sync.data.provider.find((x) => x.id === value.providerId)
           const info = provider?.models[value.modelID]
           return {
-            provider: provider?.name ?? value.providerID,
+            provider: provider?.name ?? value.providerId,
             model: info?.name ?? value.modelID,
             reasoning: info?.capabilities?.reasoning ?? false,
           }
@@ -335,7 +286,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           const current = currentModel()
           if (!current) return
           const recent = modelStore.recent
-          const index = recent.findIndex((x) => x.providerID === current.providerID && x.modelID === current.modelID)
+          const index = recent.findIndex((x) => x.providerId === current.providerId && x.modelID === current.modelID)
           if (index === -1) return
           let next = index + direction
           if (next < 0) next = recent.length - 1
@@ -345,7 +296,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           setModelStore("model", agent.current().name, { ...val })
         },
         cycleFavorite(direction: 1 | -1) {
-          const favorites = modelStore.favorite.filter((item) => isModelValid(item))
+          const favorites = modelStore.favorite.filter((item) => isModelAvailable(item))
           if (!favorites.length) {
             toast.show({
               variant: "info",
@@ -357,7 +308,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           const current = currentModel()
           let index = -1
           if (current) {
-            index = favorites.findIndex((x) => x.providerID === current.providerID && x.modelID === current.modelID)
+            index = favorites.findIndex((x) => x.providerId === current.providerId && x.modelID === current.modelID)
           }
           if (index === -1) {
             index = direction === 1 ? 0 : favorites.length - 1
@@ -369,23 +320,22 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           const next = favorites[index]
           if (!next) return
           setModelStore("model", agent.current().name, { ...next })
-          const uniq = uniqueBy([next, ...modelStore.recent], (x) => `${x.providerID}/${x.modelID}`)
+          const uniq = uniqueBy([next, ...modelStore.recent], (x) => `${x.providerId}/${x.modelID}`)
           if (uniq.length > 10) uniq.pop()
           setModelStore(
             "recent",
-            uniq.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
+            uniq.map((x) => ({ providerId: x.providerId, modelID: x.modelID })),
           )
           save()
         },
         set(
-          model: { providerID: string; modelID: string },
+          model: { providerId: string; modelID: string },
           options?: { recent?: boolean; skipValidation?: boolean; announce?: boolean },
         ) {
           batch(() => {
-            // Skip validation for dynamic models (e.g., Google API models fetched from API)
-            if (!options?.skipValidation && !isModelValid(model)) {
+            if (!options?.skipValidation && !isModelAvailable(model)) {
               toast.show({
-                message: `Model ${model.providerID}/${model.modelID} is not valid`,
+                message: `Model ${model.providerId}/${model.modelID} is not valid`,
                 variant: "warning",
                 duration: 3000,
               })
@@ -393,11 +343,11 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             }
             setModelStore("model", agent.current().name, model)
             if (options?.recent) {
-              const uniq = uniqueBy([model, ...modelStore.recent], (x) => `${x.providerID}/${x.modelID}`)
+              const uniq = uniqueBy([model, ...modelStore.recent], (x) => `${x.providerId}/${x.modelID}`)
               if (uniq.length > 10) uniq.pop()
               setModelStore(
                 "recent",
-                uniq.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
+                uniq.map((x) => ({ providerId: x.providerId, modelID: x.modelID })),
               )
               save()
             }
@@ -410,43 +360,41 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             }
           })
         },
-        toggleFavorite(model: { providerID: string; modelID: string }, options?: { skipValidation?: boolean }) {
+        toggleFavorite(model: { providerId: string; modelID: string }, options?: { skipValidation?: boolean }) {
           batch(() => {
-            // Skip validation for dynamic models (e.g., Google API models fetched from API)
-            // These models are already validated at their source and won't be in provider.models
-            if (!options?.skipValidation && !isModelValid(model)) {
+            if (!options?.skipValidation && !isModelAvailable(model)) {
               toast.show({
-                message: `Model ${model.providerID}/${model.modelID} is not valid`,
+                message: `Model ${model.providerId}/${model.modelID} is not valid`,
                 variant: "warning",
                 duration: 3000,
               })
               return
             }
             const exists = modelStore.favorite.some(
-              (x) => x.providerID === model.providerID && x.modelID === model.modelID,
+              (x) => x.providerId === model.providerId && x.modelID === model.modelID,
             )
             const next = exists
-              ? modelStore.favorite.filter((x) => x.providerID !== model.providerID || x.modelID !== model.modelID)
+              ? modelStore.favorite.filter((x) => x.providerId !== model.providerId || x.modelID !== model.modelID)
               : [model, ...modelStore.favorite]
             setModelStore(
               "favorite",
-              next.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
+              next.map((x) => ({ providerId: x.providerId, modelID: x.modelID })),
             )
             save()
             save()
           })
         },
-        toggleHidden(model: { providerID: string; modelID: string }) {
+        toggleHidden(model: { providerId: string; modelID: string }) {
           batch(() => {
             const exists = modelStore.hidden.some(
-              (x) => x.providerID === model.providerID && x.modelID === model.modelID,
+              (x) => x.providerId === model.providerId && x.modelID === model.modelID,
             )
             const next = exists
-              ? modelStore.hidden.filter((x) => x.providerID !== model.providerID || x.modelID !== model.modelID)
+              ? modelStore.hidden.filter((x) => x.providerId !== model.providerId || x.modelID !== model.modelID)
               : [model, ...modelStore.hidden]
             setModelStore(
               "hidden",
-              next.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
+              next.map((x) => ({ providerId: x.providerId, modelID: x.modelID })),
             )
             save()
           })
@@ -464,10 +412,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         isProviderHidden(family: string) {
           return modelStore.hiddenProviders.includes(family)
         },
-        removeFromRecent(model: { providerID: string; modelID: string }) {
+        removeFromRecent(model: { providerId: string; modelID: string }) {
           batch(() => {
             const next = modelStore.recent.filter(
-              (x) => x.providerID !== model.providerID || x.modelID !== model.modelID,
+              (x) => x.providerId !== model.providerId || x.modelID !== model.modelID,
             )
             setModelStore("recent", next)
             save()
@@ -477,13 +425,13 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           current() {
             const m = currentModel()
             if (!m) return undefined
-            const key = `${m.providerID}/${m.modelID}`
+            const key = `${m.providerId}/${m.modelID}`
             return modelStore.variant[key]
           },
           list() {
             const m = currentModel()
             if (!m) return []
-            const provider = sync.data.provider.find((x) => x.id === m.providerID)
+            const provider = sync.data.provider.find((x) => x.id === m.providerId)
             const info = provider?.models[m.modelID]
             if (!info?.variants) return []
             return Object.keys(info.variants)
@@ -491,7 +439,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           set(value: string | undefined) {
             const m = currentModel()
             if (!m) return
-            const key = `${m.providerID}/${m.modelID}`
+            const key = `${m.providerId}/${m.modelID}`
             setModelStore("variant", key, value)
             save()
           },
@@ -535,15 +483,15 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     createEffect(() => {
       const value = agent.current()
       if (value?.model) {
-        if (isModelValid(value.model))
+        if (isModelAvailable(value.model))
           model.set({
-            providerID: value.model.providerID,
+            providerId: value.model.providerId,
             modelID: value.model.modelID,
           })
         else
           toast.show({
             variant: "warning",
-            message: `Agent ${value.name}'s configured model ${value.model.providerID}/${value.model.modelID} is not valid`,
+            message: `Agent ${value.name}'s configured model ${value.model.providerId}/${value.model.modelID} is not valid`,
             duration: 3000,
           })
       }

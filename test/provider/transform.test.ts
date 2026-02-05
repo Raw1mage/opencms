@@ -8,7 +8,7 @@ describe("ProviderTransform.options - setCacheKey", () => {
 
   const mockModel = {
     id: "anthropic/claude-3-5-sonnet",
-    providerID: "anthropic",
+    providerId: "anthropic",
     api: {
       id: "claude-3-5-sonnet-20241022",
       url: "https://api.anthropic.com",
@@ -73,7 +73,7 @@ describe("ProviderTransform.options - setCacheKey", () => {
   test("should set promptCacheKey for openai provider regardless of setCacheKey", () => {
     const openaiModel = {
       ...mockModel,
-      providerID: "openai",
+      providerId: "openai",
       api: {
         id: "gpt-4",
         url: "https://api.openai.com",
@@ -87,7 +87,7 @@ describe("ProviderTransform.options - setCacheKey", () => {
   test("should set store=false for openai provider", () => {
     const openaiModel = {
       ...mockModel,
-      providerID: "openai",
+      providerId: "openai",
       api: {
         id: "gpt-4",
         url: "https://api.openai.com",
@@ -200,7 +200,7 @@ describe("ProviderTransform.maxOutputTokens", () => {
 describe("ProviderTransform.schema - gemini array items", () => {
   test("adds missing items for array properties", () => {
     const geminiModel = {
-      providerID: "google",
+      providerId: "google-api",
       api: {
         id: "gemini-3-pro",
       },
@@ -242,7 +242,7 @@ describe("ProviderTransform.message - DeepSeek reasoning content", () => {
       msgs,
       {
         id: "deepseek/deepseek-chat",
-        providerID: "deepseek",
+        providerId: "deepseek",
         api: {
           id: "deepseek-chat",
           url: "https://api.deepseek.com",
@@ -304,7 +304,7 @@ describe("ProviderTransform.message - DeepSeek reasoning content", () => {
       msgs,
       {
         id: "openai/gpt-4",
-        providerID: "openai",
+        providerId: "openai",
         api: {
           id: "gpt-4",
           url: "https://api.openai.com",
@@ -348,7 +348,7 @@ describe("ProviderTransform.message - DeepSeek reasoning content", () => {
 describe("ProviderTransform.message - empty image handling", () => {
   const mockModel = {
     id: "anthropic/claude-3-5-sonnet",
-    providerID: "anthropic",
+    providerId: "anthropic",
     api: {
       id: "claude-3-5-sonnet-20241022",
       url: "https://api.anthropic.com",
@@ -451,7 +451,7 @@ describe("ProviderTransform.message - empty image handling", () => {
 describe("ProviderTransform.message - anthropic empty content filtering", () => {
   const anthropicModel = {
     id: "anthropic/claude-3-5-sonnet",
-    providerID: "anthropic",
+    providerId: "anthropic",
     api: {
       id: "claude-3-5-sonnet-20241022",
       url: "https://api.anthropic.com",
@@ -599,7 +599,7 @@ describe("ProviderTransform.message - anthropic empty content filtering", () => 
   test("does not filter for non-anthropic providers", () => {
     const openaiModel = {
       ...anthropicModel,
-      providerID: "openai",
+      providerId: "openai",
       api: {
         id: "gpt-4",
         url: "https://api.openai.com",
@@ -626,7 +626,7 @@ describe("ProviderTransform.message - anthropic empty content filtering", () => 
 describe("ProviderTransform.message - strip openai metadata when store=false", () => {
   const openaiModel = {
     id: "openai/gpt-5",
-    providerID: "openai",
+    providerId: "openai",
     api: {
       id: "gpt-5",
       url: "https://api.openai.com",
@@ -687,7 +687,7 @@ describe("ProviderTransform.message - strip openai metadata when store=false", (
   test("preserves itemId and reasoningEncryptedContent when store=false even when not openai", () => {
     const zenModel = {
       ...openaiModel,
-      providerID: "zen",
+      providerId: "zen",
     }
     const msgs = [
       {
@@ -775,7 +775,7 @@ describe("ProviderTransform.message - strip openai metadata when store=false", (
   test("preserves metadata for non-openai packages when store is false", () => {
     const anthropicModel = {
       ...openaiModel,
-      providerID: "anthropic",
+      providerId: "anthropic",
       api: {
         id: "claude-3",
         url: "https://api.anthropic.com",
@@ -805,10 +805,10 @@ describe("ProviderTransform.message - strip openai metadata when store=false", (
     expect(result[0].content[0].providerOptions?.openai?.itemId).toBe("msg_123")
   })
 
-  test("preserves metadata using providerID key when store is false", () => {
+  test("preserves metadata using providerId key when store is false", () => {
     const opencodeModel = {
       ...openaiModel,
-      providerID: "opencode",
+      providerId: "opencode",
       api: {
         id: "opencode-test",
         url: "https://api.opencode.ai",
@@ -842,7 +842,7 @@ describe("ProviderTransform.message - strip openai metadata when store=false", (
   test("preserves itemId across all providerOptions keys", () => {
     const opencodeModel = {
       ...openaiModel,
-      providerID: "opencode",
+      providerId: "opencode",
       api: {
         id: "opencode-test",
         url: "https://api.opencode.ai",
@@ -884,7 +884,7 @@ describe("ProviderTransform.message - strip openai metadata when store=false", (
   test("does not strip metadata for non-openai packages when store is not false", () => {
     const anthropicModel = {
       ...openaiModel,
-      providerID: "anthropic",
+      providerId: "anthropic",
       api: {
         id: "claude-3",
         url: "https://api.anthropic.com",
@@ -915,10 +915,10 @@ describe("ProviderTransform.message - strip openai metadata when store=false", (
 })
 
 describe("ProviderTransform.message - providerOptions key remapping", () => {
-  const createModel = (providerID: string, npm: string) =>
+  const createModel = (providerId: string, npm: string) =>
     ({
-      id: `${providerID}/test-model`,
-      providerID,
+      id: `${providerId}/test-model`,
+      providerId,
       api: {
         id: "test-model",
         url: "https://api.test.com",
@@ -959,7 +959,7 @@ describe("ProviderTransform.message - providerOptions key remapping", () => {
     expect(result[0].providerOptions?.openai).toBeUndefined()
   })
 
-  test("openai with github-copilot npm remaps providerID to 'copilot'", () => {
+  test("openai with github-copilot npm remaps providerId to 'copilot'", () => {
     const model = createModel("github-copilot", "@ai-sdk/github-copilot")
     const msgs = [
       {
@@ -977,7 +977,7 @@ describe("ProviderTransform.message - providerOptions key remapping", () => {
     expect(result[0].providerOptions?.["github-copilot"]).toBeUndefined()
   })
 
-  test("bedrock remaps providerID to 'bedrock' key", () => {
+  test("bedrock remaps providerId to 'bedrock' key", () => {
     const model = createModel("my-bedrock", "@ai-sdk/amazon-bedrock")
     const msgs = [
       {
@@ -1000,7 +1000,7 @@ describe("ProviderTransform.message - claude w/bedrock custom inference profile"
   test("adds cachePoint", () => {
     const model = {
       id: "amazon-bedrock/custom-claude-sonnet-4.5",
-      providerID: "amazon-bedrock",
+      providerId: "amazon-bedrock",
       api: {
         id: "arn:aws:bedrock:xxx:yyy:application-inference-profile/zzz",
         url: "https://api.test.com",
@@ -1034,7 +1034,7 @@ describe("ProviderTransform.message - claude w/bedrock custom inference profile"
 describe("ProviderTransform.variants", () => {
   const createMockModel = (overrides: Partial<any> = {}): any => ({
     id: "test/test-model",
-    providerID: "test",
+    providerId: "test",
     api: {
       id: "test-model",
       url: "https://api.test.com",
@@ -1077,7 +1077,7 @@ describe("ProviderTransform.variants", () => {
   test("deepseek returns empty object", () => {
     const model = createMockModel({
       id: "deepseek/deepseek-chat",
-      providerID: "deepseek",
+      providerId: "deepseek",
       api: {
         id: "deepseek-chat",
         url: "https://api.deepseek.com",
@@ -1091,7 +1091,7 @@ describe("ProviderTransform.variants", () => {
   test("minimax returns empty object", () => {
     const model = createMockModel({
       id: "minimax/minimax-model",
-      providerID: "minimax",
+      providerId: "minimax",
       api: {
         id: "minimax-model",
         url: "https://api.minimax.com",
@@ -1105,7 +1105,7 @@ describe("ProviderTransform.variants", () => {
   test("glm returns empty object", () => {
     const model = createMockModel({
       id: "glm/glm-4",
-      providerID: "glm",
+      providerId: "glm",
       api: {
         id: "glm-4",
         url: "https://api.glm.com",
@@ -1119,7 +1119,7 @@ describe("ProviderTransform.variants", () => {
   test("mistral returns empty object", () => {
     const model = createMockModel({
       id: "mistral/mistral-large",
-      providerID: "mistral",
+      providerId: "mistral",
       api: {
         id: "mistral-large-latest",
         url: "https://api.mistral.com",
@@ -1134,7 +1134,7 @@ describe("ProviderTransform.variants", () => {
     test("returns empty object for non-qualifying models", () => {
       const model = createMockModel({
         id: "openrouter/test-model",
-        providerID: "openrouter",
+        providerId: "openrouter",
         api: {
           id: "test-model",
           url: "https://openrouter.ai",
@@ -1148,7 +1148,7 @@ describe("ProviderTransform.variants", () => {
     test("gpt models return OPENAI_EFFORTS with reasoning", () => {
       const model = createMockModel({
         id: "openrouter/gpt-4",
-        providerID: "openrouter",
+        providerId: "openrouter",
         api: {
           id: "gpt-4",
           url: "https://openrouter.ai",
@@ -1164,7 +1164,7 @@ describe("ProviderTransform.variants", () => {
     test("gemini-3 returns OPENAI_EFFORTS with reasoning", () => {
       const model = createMockModel({
         id: "openrouter/gemini-3-5-pro",
-        providerID: "openrouter",
+        providerId: "openrouter",
         api: {
           id: "gemini-3-5-pro",
           url: "https://openrouter.ai",
@@ -1178,7 +1178,7 @@ describe("ProviderTransform.variants", () => {
     test("grok-4 returns empty object", () => {
       const model = createMockModel({
         id: "openrouter/grok-4",
-        providerID: "openrouter",
+        providerId: "openrouter",
         api: {
           id: "grok-4",
           url: "https://openrouter.ai",
@@ -1192,7 +1192,7 @@ describe("ProviderTransform.variants", () => {
     test("grok-3-mini returns low and high with reasoning", () => {
       const model = createMockModel({
         id: "openrouter/grok-3-mini",
-        providerID: "openrouter",
+        providerId: "openrouter",
         api: {
           id: "grok-3-mini",
           url: "https://openrouter.ai",
@@ -1210,7 +1210,7 @@ describe("ProviderTransform.variants", () => {
     test("returns OPENAI_EFFORTS with reasoningEffort", () => {
       const model = createMockModel({
         id: "gateway/gateway-model",
-        providerID: "gateway",
+        providerId: "gateway",
         api: {
           id: "gateway-model",
           url: "https://gateway.ai",
@@ -1228,7 +1228,7 @@ describe("ProviderTransform.variants", () => {
     test("standard models return low, medium, high", () => {
       const model = createMockModel({
         id: "gpt-4.5",
-        providerID: "github-copilot",
+        providerId: "github-copilot",
         api: {
           id: "gpt-4.5",
           url: "https://api.githubcopilot.com",
@@ -1247,7 +1247,7 @@ describe("ProviderTransform.variants", () => {
     test("gpt-5.1-codex-max includes xhigh", () => {
       const model = createMockModel({
         id: "gpt-5.1-codex-max",
-        providerID: "github-copilot",
+        providerId: "github-copilot",
         api: {
           id: "gpt-5.1-codex-max",
           url: "https://api.githubcopilot.com",
@@ -1261,7 +1261,7 @@ describe("ProviderTransform.variants", () => {
     test("gpt-5.1-codex-mini does not include xhigh", () => {
       const model = createMockModel({
         id: "gpt-5.1-codex-mini",
-        providerID: "github-copilot",
+        providerId: "github-copilot",
         api: {
           id: "gpt-5.1-codex-mini",
           url: "https://api.githubcopilot.com",
@@ -1275,7 +1275,7 @@ describe("ProviderTransform.variants", () => {
     test("gpt-5.1-codex does not include xhigh", () => {
       const model = createMockModel({
         id: "gpt-5.1-codex",
-        providerID: "github-copilot",
+        providerId: "github-copilot",
         api: {
           id: "gpt-5.1-codex",
           url: "https://api.githubcopilot.com",
@@ -1289,7 +1289,7 @@ describe("ProviderTransform.variants", () => {
     test("gpt-5.2 includes xhigh", () => {
       const model = createMockModel({
         id: "gpt-5.2",
-        providerID: "github-copilot",
+        providerId: "github-copilot",
         api: {
           id: "gpt-5.2",
           url: "https://api.githubcopilot.com",
@@ -1308,7 +1308,7 @@ describe("ProviderTransform.variants", () => {
     test("gpt-5.2-codex includes xhigh", () => {
       const model = createMockModel({
         id: "gpt-5.2-codex",
-        providerID: "github-copilot",
+        providerId: "github-copilot",
         api: {
           id: "gpt-5.2-codex",
           url: "https://api.githubcopilot.com",
@@ -1324,7 +1324,7 @@ describe("ProviderTransform.variants", () => {
     test("returns WIDELY_SUPPORTED_EFFORTS with reasoningEffort", () => {
       const model = createMockModel({
         id: "cerebras/llama-4",
-        providerID: "cerebras",
+        providerId: "cerebras",
         api: {
           id: "llama-4-sc",
           url: "https://api.cerebras.ai",
@@ -1342,7 +1342,7 @@ describe("ProviderTransform.variants", () => {
     test("returns WIDELY_SUPPORTED_EFFORTS with reasoningEffort", () => {
       const model = createMockModel({
         id: "togetherai/llama-4",
-        providerID: "togetherai",
+        providerId: "togetherai",
         api: {
           id: "llama-4-sc",
           url: "https://api.togetherai.com",
@@ -1360,7 +1360,7 @@ describe("ProviderTransform.variants", () => {
     test("grok-3 returns empty object", () => {
       const model = createMockModel({
         id: "xai/grok-3",
-        providerID: "xai",
+        providerId: "xai",
         api: {
           id: "grok-3",
           url: "https://api.x.ai",
@@ -1374,7 +1374,7 @@ describe("ProviderTransform.variants", () => {
     test("grok-3-mini returns low and high with reasoningEffort", () => {
       const model = createMockModel({
         id: "xai/grok-3-mini",
-        providerID: "xai",
+        providerId: "xai",
         api: {
           id: "grok-3-mini",
           url: "https://api.x.ai",
@@ -1392,7 +1392,7 @@ describe("ProviderTransform.variants", () => {
     test("returns WIDELY_SUPPORTED_EFFORTS with reasoningEffort", () => {
       const model = createMockModel({
         id: "deepinfra/llama-4",
-        providerID: "deepinfra",
+        providerId: "deepinfra",
         api: {
           id: "llama-4-sc",
           url: "https://api.deepinfra.com",
@@ -1410,7 +1410,7 @@ describe("ProviderTransform.variants", () => {
     test("returns WIDELY_SUPPORTED_EFFORTS with reasoningEffort", () => {
       const model = createMockModel({
         id: "custom-provider/custom-model",
-        providerID: "custom-provider",
+        providerId: "custom-provider",
         api: {
           id: "custom-model",
           url: "https://api.custom.com",
@@ -1428,7 +1428,7 @@ describe("ProviderTransform.variants", () => {
     test("o1-mini returns empty object", () => {
       const model = createMockModel({
         id: "o1-mini",
-        providerID: "azure",
+        providerId: "azure",
         api: {
           id: "o1-mini",
           url: "https://azure.com",
@@ -1442,7 +1442,7 @@ describe("ProviderTransform.variants", () => {
     test("standard azure models return custom efforts with reasoningSummary", () => {
       const model = createMockModel({
         id: "o1",
-        providerID: "azure",
+        providerId: "azure",
         api: {
           id: "o1",
           url: "https://azure.com",
@@ -1461,7 +1461,7 @@ describe("ProviderTransform.variants", () => {
     test("gpt-5 adds minimal effort", () => {
       const model = createMockModel({
         id: "gpt-5",
-        providerID: "azure",
+        providerId: "azure",
         api: {
           id: "gpt-5",
           url: "https://azure.com",
@@ -1477,7 +1477,7 @@ describe("ProviderTransform.variants", () => {
     test("gpt-5-pro returns empty object", () => {
       const model = createMockModel({
         id: "gpt-5-pro",
-        providerID: "openai",
+        providerId: "openai",
         api: {
           id: "gpt-5-pro",
           url: "https://api.openai.com",
@@ -1491,7 +1491,7 @@ describe("ProviderTransform.variants", () => {
     test("standard openai models return custom efforts with reasoningSummary", () => {
       const model = createMockModel({
         id: "gpt-5",
-        providerID: "openai",
+        providerId: "openai",
         api: {
           id: "gpt-5",
           url: "https://api.openai.com",
@@ -1511,7 +1511,7 @@ describe("ProviderTransform.variants", () => {
     test("models after 2025-11-13 include 'none' effort", () => {
       const model = createMockModel({
         id: "gpt-5-nano",
-        providerID: "openai",
+        providerId: "openai",
         api: {
           id: "gpt-5-nano",
           url: "https://api.openai.com",
@@ -1526,7 +1526,7 @@ describe("ProviderTransform.variants", () => {
     test("models after 2025-12-04 include 'xhigh' effort", () => {
       const model = createMockModel({
         id: "openai/gpt-5-chat",
-        providerID: "openai",
+        providerId: "openai",
         api: {
           id: "gpt-5-chat",
           url: "https://api.openai.com",
@@ -1543,7 +1543,7 @@ describe("ProviderTransform.variants", () => {
     test("returns high and max with thinking config", () => {
       const model = createMockModel({
         id: "anthropic/claude-4",
-        providerID: "anthropic",
+        providerId: "anthropic",
         api: {
           id: "claude-4",
           url: "https://api.anthropic.com",
@@ -1571,7 +1571,7 @@ describe("ProviderTransform.variants", () => {
     test("returns WIDELY_SUPPORTED_EFFORTS with reasoningConfig", () => {
       const model = createMockModel({
         id: "bedrock/llama-4",
-        providerID: "bedrock",
+        providerId: "bedrock",
         api: {
           id: "llama-4-sc",
           url: "https://bedrock.amazonaws.com",
@@ -1593,7 +1593,7 @@ describe("ProviderTransform.variants", () => {
     test("gemini-2.5 returns high and max with thinkingConfig and thinkingBudget", () => {
       const model = createMockModel({
         id: "google/gemini-2.5-pro",
-        providerID: "google",
+        providerId: "google",
         api: {
           id: "gemini-2.5-pro",
           url: "https://generativelanguage.googleapis.com",
@@ -1619,7 +1619,7 @@ describe("ProviderTransform.variants", () => {
     test("other gemini models return low and high with thinkingLevel", () => {
       const model = createMockModel({
         id: "google/gemini-2.0-pro",
-        providerID: "google",
+        providerId: "google",
         api: {
           id: "gemini-2.0-pro",
           url: "https://generativelanguage.googleapis.com",
@@ -1643,7 +1643,7 @@ describe("ProviderTransform.variants", () => {
     test("gemini-2.5 returns high and max with thinkingConfig and thinkingBudget", () => {
       const model = createMockModel({
         id: "google-vertex/gemini-2.5-pro",
-        providerID: "google-vertex",
+        providerId: "google-vertex",
         api: {
           id: "gemini-2.5-pro",
           url: "https://vertexai.googleapis.com",
@@ -1657,7 +1657,7 @@ describe("ProviderTransform.variants", () => {
     test("other vertex models return low and high with thinkingLevel", () => {
       const model = createMockModel({
         id: "google-vertex/gemini-2.0-pro",
-        providerID: "google-vertex",
+        providerId: "google-vertex",
         api: {
           id: "gemini-2.0-pro",
           url: "https://vertexai.googleapis.com",
@@ -1673,7 +1673,7 @@ describe("ProviderTransform.variants", () => {
     test("returns empty object", () => {
       const model = createMockModel({
         id: "cohere/command-r",
-        providerID: "cohere",
+        providerId: "cohere",
         api: {
           id: "command-r",
           url: "https://api.cohere.com",
@@ -1689,7 +1689,7 @@ describe("ProviderTransform.variants", () => {
     test("returns none and WIDELY_SUPPORTED_EFFORTS with thinkingLevel", () => {
       const model = createMockModel({
         id: "groq/llama-4",
-        providerID: "groq",
+        providerId: "groq",
         api: {
           id: "llama-4-sc",
           url: "https://api.groq.com",
@@ -1713,7 +1713,7 @@ describe("ProviderTransform.variants", () => {
     test("returns empty object", () => {
       const model = createMockModel({
         id: "perplexity/sonar-plus",
-        providerID: "perplexity",
+        providerId: "perplexity",
         api: {
           id: "sonar-plus",
           url: "https://api.perplexity.ai",

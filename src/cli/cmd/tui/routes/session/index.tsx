@@ -424,7 +424,7 @@ export function Session() {
         sdk.client.session.summarize({
           sessionID: route.sessionID,
           modelID: selectedModel.modelID,
-          providerID: selectedModel.providerID,
+          providerId: selectedModel.providerId,
         })
         dialog.clear()
       },

@@ -54,7 +54,7 @@ export namespace ProviderHealth {
    * Detailed health information for a single model
    */
   export type ModelHealthInfo = {
-    providerID: string
+    providerId: string
     modelID: string
     fullID: string // "provider/model"
     name?: string // Friendly name from config
@@ -128,13 +128,13 @@ export namespace ProviderHealth {
    * Update the dynamic health state of a model
    */
   export function updateStatus(
-    providerID: string,
+    providerId: string,
     modelID: string,
     status: ModelStatus,
     retryAfter?: number,
     error?: string,
   ) {
-    const fullID = `${providerID}/${modelID}`
+    const fullID = `${providerId}/${modelID}`
     modelState[fullID] = {
       status,
       retryAfter,
@@ -147,8 +147,8 @@ export namespace ProviderHealth {
    * Get the current dynamic status of a model
    * Returns "AVAILABLE" if no state is recorded
    */
-  export function getStatus(providerID: string, modelID: string): ModelStatus {
-    const fullID = `${providerID}/${modelID}`
+  export function getStatus(providerId: string, modelID: string): ModelStatus {
+    const fullID = `${providerId}/${modelID}`
     const state = modelState[fullID]
     if (!state) return "AVAILABLE"
 
@@ -166,12 +166,12 @@ export namespace ProviderHealth {
    * Check health of a single model by sending a minimal test request
    */
   export async function checkModel(
-    providerID: string,
+    providerId: string,
     modelID: string,
     options: CheckOptions = {},
   ): Promise<ModelHealthInfo> {
     const timeout = options.timeout || 10000
-    const fullID = `${providerID}/${modelID}`
+    const fullID = `${providerId}/${modelID}`
     const startTime = Date.now()
     let controller: AbortController | undefined
     let timeoutId: ReturnType<typeof setTimeout> | undefined
@@ -179,13 +179,13 @@ export namespace ProviderHealth {
     // [REMOVED legacy rate limit check that was causing account collision and missing response times]
 
     // Check Legacy Status (In-memory)
-    const currentStatus = getStatus(providerID, modelID)
+    const currentStatus = getStatus(providerId, modelID)
     if (currentStatus !== "AVAILABLE") {
       // Still return the cached state if we explicitly marked it as non-available recently
       // but only if NO_AUTH or similar terminal states. For RATE_LIMITED we might want to re-verify.
       if (currentStatus !== "RATE_LIMITED") {
         return {
-          providerID,
+          providerId,
           modelID,
           fullID,
           status: currentStatus,
@@ -195,22 +195,22 @@ export namespace ProviderHealth {
       }
     }
 
-    log.info("checking model", { providerID, modelID, timeout, mode: options.mode })
+    log.info("checking model", { providerId, modelID, timeout, mode: options.mode })
 
     try {
       // Use provided providers list or load it
       const providers = options.providers || (await Provider.list())
-      const provider = providers[providerID]
+      const provider = providers[providerId]
       if (!provider) {
-        throw new Error(`Provider not found: ${providerID}`)
+        throw new Error(`Provider not found: ${providerId}`)
       }
       const modelConfig = provider?.models[modelID]
 
       if (!provider || !modelConfig) {
-        log.warn("model not found in config", { providerID, modelID })
-        updateStatus(providerID, modelID, "MODEL_NOT_FOUND", undefined, "Model not found in configuration")
+        log.warn("model not found in config", { providerId, modelID })
+        updateStatus(providerId, modelID, "MODEL_NOT_FOUND", undefined, "Model not found in configuration")
         return {
-          providerID,
+          providerId,
           modelID,
           fullID,
           status: "MODEL_NOT_FOUND",
@@ -237,7 +237,7 @@ export namespace ProviderHealth {
       // Skip if it's an embedding model (which will always fail streamText)
       if (modelID.includes("embedding") || modelConfig.family?.includes("embedding")) {
         return {
-          providerID,
+          providerId,
           modelID,
           fullID,
           status: "UNKNOWN_ERROR",
@@ -254,9 +254,9 @@ export namespace ProviderHealth {
       // Perception mode: Skip the actual test request if authentication is valid
       if (options.mode === "perception") {
         const responseTime = Date.now() - startTime
-        updateStatus(providerID, modelID, "AVAILABLE")
+        updateStatus(providerId, modelID, "AVAILABLE")
         return {
-          providerID,
+          providerId,
           modelID,
           fullID,
           name: modelConfig.name || modelID,
@@ -281,7 +281,7 @@ export namespace ProviderHealth {
           maxRetries: 0, // Fail fast, do not retry
         }
 
-        if (providerID === "openai" || modelID.includes("gpt-5")) {
+        if (providerId === "openai" || modelID.includes("gpt-5")) {
           options.responseFormat = { type: "json" }
         }
 
@@ -304,9 +304,9 @@ export namespace ProviderHealth {
 
       const responseTime = Date.now() - startTime
 
-      updateStatus(providerID, modelID, "AVAILABLE")
+      updateStatus(providerId, modelID, "AVAILABLE")
       return {
-        providerID,
+        providerId,
         modelID,
         fullID,
         name: modelConfig.name,
@@ -322,18 +322,18 @@ export namespace ProviderHealth {
       }
     } catch (error) {
       const responseTime = Date.now() - startTime
-      const classification = classifyError(error, providerID, modelID)
+      const classification = classifyError(error, providerId, modelID)
 
       // SILENT: Don't spray the full error object to stderr anymore
       log.warn(`Check failed: ${fullID} -> ${classification.status}`)
-      updateStatus(providerID, modelID, classification.status, classification.retryAfter, classification.error)
+      updateStatus(providerId, modelID, classification.status, classification.retryAfter, classification.error)
 
       // Try to get model config for capabilities using provided providers list
       const providers = options.providers || (await Provider.list())
-      const modelConfig = providers[providerID]?.models[modelID]
+      const modelConfig = providers[providerId]?.models[modelID]
 
       return {
-        providerID,
+        providerId,
         modelID,
         fullID,
         name: modelConfig?.name || modelID,
@@ -370,7 +370,7 @@ export namespace ProviderHealth {
    */
   function classifyError(
     error: any,
-    providerID: string,
+    providerId: string,
     modelID: string,
   ): {
     status: ModelStatus
@@ -519,7 +519,7 @@ export namespace ProviderHealth {
 
     // Group results by provider
     for (const result of results) {
-      const existing = providerResults.get(result.providerID) || { success: 0, total: 0, errors: [], models: [] }
+      const existing = providerResults.get(result.providerId) || { success: 0, total: 0, errors: [], models: [] }
       existing.total++
       if (result.status === "AVAILABLE") {
         existing.success++
@@ -536,7 +536,7 @@ export namespace ProviderHealth {
         error: result.error,
       })
 
-      providerResults.set(result.providerID, existing)
+      providerResults.set(result.providerId, existing)
     }
 
     // Build account statuses from unified Account module only
@@ -620,39 +620,39 @@ export namespace ProviderHealth {
       const checks: Promise<ModelHealthInfo>[] = []
 
       // Iterate through providers and models
-      for (const [providerID, provider] of Object.entries(providers)) {
+      for (const [providerId, provider] of Object.entries(providers)) {
         // Filter by provider or family if specified
         if (options.providers) {
-          const family = Account.parseFamily(providerID)
-          if (!options.providers.includes(providerID) && (!family || !options.providers.includes(family))) {
+          const family = Account.parseFamily(providerId)
+          if (!options.providers.includes(providerId) && (!family || !options.providers.includes(family))) {
             continue
           }
         }
 
         // Check if provider has authentication (Auth module handles the actual auth)
-        const hasAuth = await Auth.hasAccount(providerID)
+        const hasAuth = await Auth.hasAccount(providerId)
 
         // Check each model in the provider
         for (const modelID of Object.keys(provider.models)) {
-          if (Provider.isModelIgnored(providerID, modelID)) continue
+          if (Provider.isModelIgnored(providerId, modelID)) continue
           // If no auth, mark all models as NO_AUTH
           if (!hasAuth) {
             checks.push(
               Promise.resolve({
-                providerID,
+                providerId,
                 modelID,
-                fullID: `${providerID}/${modelID}`,
+                fullID: `${providerId}/${modelID}`,
                 name: provider.models[modelID].name || modelID,
                 status: "NO_AUTH" as ModelStatus,
                 available: false,
-                error: `No authentication configured for ${providerID}. Run: opencode auth login ${providerID}`,
+                error: `No authentication configured for ${providerId}. Run: opencode auth login ${providerId}`,
                 timestamp: new Date().toISOString(),
               }),
             )
             continue
           }
 
-          const checkPromise = checkModel(providerID, modelID, {
+          const checkPromise = checkModel(providerId, modelID, {
             timeout: options.timeout,
             mode: options.mode,
             providers,

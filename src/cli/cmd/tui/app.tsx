@@ -273,14 +273,14 @@ function App() {
     batch(() => {
       if (args.agent) local.agent.set(args.agent)
       if (args.model) {
-        const { providerID, modelID } = Provider.parseModel(args.model)
-        if (!providerID || !modelID)
+        const { providerId, modelID } = Provider.parseModel(args.model)
+        if (!providerId || !modelID)
           return toast.show({
             variant: "warning",
             message: `Invalid model format: ${args.model}`,
             duration: 3000,
           })
-        local.model.set({ providerID, modelID }, { recent: true })
+        local.model.set({ providerId, modelID }, { recent: true })
       }
       if (args.sessionID) {
         route.navigate({
@@ -637,7 +637,7 @@ function App() {
   createEffect(() => {
     const currentModel = local.model.current()
     if (!currentModel) return
-    if (currentModel.providerID === "openrouter" && !kv.get("openrouter_warning", false)) {
+    if (currentModel.providerId === "openrouter" && !kv.get("openrouter_warning", false)) {
       untrack(() => {
         DialogAlert.show(
           dialog,

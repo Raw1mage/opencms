@@ -100,7 +100,7 @@ export interface MessageData {
     error?: unknown
     agent?: string
     model?: {
-      providerID: string
+      providerId: string
       modelID: string
     }
     system?: string
@@ -121,7 +121,7 @@ export interface ResumeConfig {
   sessionID: string
   agent?: string
   model?: {
-    providerID: string
+    providerId: string
     modelID: string
   }
 }

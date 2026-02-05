@@ -444,7 +444,7 @@ export const GithubRunCommand = cmd({
       const isScheduleEvent = context.eventName === "schedule"
       const isWorkflowDispatchEvent = context.eventName === "workflow_dispatch"
 
-      const { providerID, modelID } = normalizeModel()
+      const { providerId, modelID } = normalizeModel()
       const runId = normalizeRunId()
       const share = normalizeShare()
       const oidcBaseUrl = normalizeOidcBaseUrl()
@@ -652,11 +652,11 @@ export const GithubRunCommand = cmd({
         const value = process.env["MODEL"]
         if (!value) throw new Error(`Environment variable "MODEL" is not set`)
 
-        const { providerID, modelID } = Provider.parseModel(value)
+        const { providerId, modelID } = Provider.parseModel(value)
 
-        if (!providerID.length || !modelID.length)
+        if (!providerId.length || !modelID.length)
           throw new Error(`Invalid model ${value}. Model must be in the format "provider/model".`)
-        return { providerID, modelID }
+        return { providerId, modelID }
       }
 
       function normalizeRunId() {
@@ -884,7 +884,7 @@ export const GithubRunCommand = cmd({
           sessionID: session.id,
           messageID: Identifier.ascending("message"),
           model: {
-            providerID,
+            providerId,
             modelID,
           },
           // agent is omitted - server will use default_agent from config or fall back to "build"
@@ -932,7 +932,7 @@ export const GithubRunCommand = cmd({
           sessionID: session.id,
           messageID: Identifier.ascending("message"),
           model: {
-            providerID,
+            providerId,
             modelID,
           },
           tools: { "*": false }, // Disable all tools to force text response
@@ -1304,7 +1304,7 @@ Co-authored-by: ${actor} <${actor}@users.noreply.github.com>"`
           const titleAlt = encodeURIComponent(session.title.substring(0, 50))
           const title64 = Buffer.from(session.title.substring(0, 700), "utf8").toString("base64")
 
-          return `<a href="${shareBaseUrl}/s/${shareId}"><img width="200" alt="${titleAlt}" src="https://social-cards.sst.dev/opencode-share/${title64}.png?model=${providerID}/${modelID}&version=${session.version}&id=${shareId}" /></a>\n`
+          return `<a href="${shareBaseUrl}/s/${shareId}"><img width="200" alt="${titleAlt}" src="https://social-cards.sst.dev/opencode-share/${title64}.png?model=${providerId}/${modelID}&version=${session.version}&id=${shareId}" /></a>\n`
         })()
         const shareUrl = shareId ? `[opencode session](${shareBaseUrl}/s/${shareId})&nbsp;&nbsp;|&nbsp;&nbsp;` : ""
         return `\n\n${image}${shareUrl}[github run](${runUrl})`

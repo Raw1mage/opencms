@@ -42,7 +42,7 @@ export function SessionContextTab(props: SessionContextTabProps) {
     }) as AssistantMessage
     if (!last) return
 
-    const provider = sync.data.provider.all.find((x) => x.id === last.providerID)
+    const provider = sync.data.provider.all.find((x) => x.id === last.providerId)
     const model = provider?.models[last.modelID]
     const limit = model?.limit.context
 
@@ -114,7 +114,7 @@ export function SessionContextTab(props: SessionContextTabProps) {
   const providerLabel = createMemo(() => {
     const c = ctx()
     if (!c) return "—"
-    return c.provider?.name ?? c.message.providerID
+    return c.provider?.name ?? c.message.providerId
   })
 
   const modelLabel = createMemo(() => {

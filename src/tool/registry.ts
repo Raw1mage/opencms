@@ -142,13 +142,13 @@ export namespace ToolRegistry {
 
   export async function tools(
     model: {
-      providerID: string
+      providerId: string
       modelID: string
     },
     agent?: Agent.Info,
   ) {
     debugCheckpoint("tool.registry", "tools: start", {
-      providerID: model.providerID,
+      providerId: model.providerId,
       modelID: model.modelID,
       agent: agent?.name,
     })
@@ -161,7 +161,7 @@ export namespace ToolRegistry {
       if (t.id === "google_search") return false
       // Enable websearch/codesearch for zen users OR via enable flag
       if (t.id === "codesearch" || t.id === "websearch") {
-        return model.providerID === "opencode" || Flag.OPENCODE_ENABLE_EXA
+        return model.providerId === "opencode" || Flag.OPENCODE_ENABLE_EXA
       }
 
       // use apply tool in same format as codex

@@ -37,7 +37,7 @@ function isFreeCost(info: { cost?: { input?: number; output?: number } }) {
   return input === 0 && output === 0
 }
 
-export function DialogModel(props: { providerID?: string }) {
+export function DialogModel(props: { providerId?: string }) {
   const local = useLocal()
   const sync = useSync()
   const dialog = useDialog()
@@ -55,7 +55,7 @@ export function DialogModel(props: { providerID?: string }) {
   // distinct views: favorites, recents
   const [step, setStep] = createSignal<"root" | "account_select" | "model_select" | "favorites" | "recents">("root")
   const [selectedFamily, setSelectedFamily] = createSignal<string | null>(null)
-  const [selectedProviderID, setSelectedProviderID] = createSignal<string | null>(props.providerID ?? null)
+  const [selectedProviderID, setSelectedProviderID] = createSignal<string | null>(props.providerId ?? null)
   const [lockBack, setLockBack] = createSignal(false)
 
   const lockBackOnce = () => {
@@ -63,14 +63,12 @@ export function DialogModel(props: { providerID?: string }) {
     setTimeout(() => setLockBack(false), 200)
   }
 
-  const probeAndSelectModel = (providerID: string, modelID: string, origin?: string) => {
+  const probeAndSelectModel = (providerId: string, modelID: string, origin?: string) => {
     // Skip probe - directly select the model
-    debugCheckpoint("model", "selected (probe skipped)", { provider: providerID, model: modelID, origin })
-    // Skip validation for Google API dynamic models (not in provider.models registry)
-    const isGoogleDynamic = family(providerID) === "google-api"
+    debugCheckpoint("model", "selected (probe skipped)", { provider: providerId, model: modelID, origin })
     local.model.set(
-      { providerID: providerID, modelID: modelID },
-      { recent: true, skipValidation: isGoogleDynamic, announce: true },
+      { providerId: providerId, modelID: modelID },
+      { recent: true, skipValidation: true, announce: true },
     )
     dialog.clear()
   }
@@ -206,23 +204,23 @@ export function DialogModel(props: { providerID?: string }) {
     if (s === "root") {
       const list = []
 
-      const getModelOptions = (modelList: { providerID: string; modelID: string; origin?: string }[]) => {
+      const getModelOptions = (modelList: { providerId: string; modelID: string; origin?: string }[]) => {
         return modelList.flatMap((item) => {
-          const p = sync.data.provider.find((x) => x.id === item.providerID)
+          const p = sync.data.provider.find((x) => x.id === item.providerId)
           if (!p) return []
           const m = p.models[item.modelID]
           if (!m) return []
 
           return [
             {
-              value: { providerID: item.providerID, modelID: item.modelID, origin: item.origin },
+              value: { providerId: item.providerId, modelID: item.modelID, origin: item.origin },
               title: m.name ?? item.modelID,
               description: label(p.name, p.id),
               category: item.origin === "favorite" ? "Favorites" : "Recents",
               footer: isFreeCost(m) ? "Free" : undefined,
               disabled: p.id === "opencode" && m.id.includes("-nano"),
               onSelect: () => {
-                probeAndSelectModel(item.providerID, item.modelID, item.origin)
+                probeAndSelectModel(item.providerId, item.modelID, item.origin)
               },
             },
           ]
@@ -417,22 +415,22 @@ export function DialogModel(props: { providerID?: string }) {
     // FAVORITES VIEW
     if (s === "favorites") {
       const list = []
-      const getModelOptions = (modelList: { providerID: string; modelID: string; origin?: string }[]) => {
+      const getModelOptions = (modelList: { providerId: string; modelID: string; origin?: string }[]) => {
         return modelList.flatMap((item) => {
-          const p = sync.data.provider.find((x) => x.id === item.providerID)
+          const p = sync.data.provider.find((x) => x.id === item.providerId)
           if (!p) return []
           const m = p.models[item.modelID]
           if (!m) return []
           return [
             {
-              value: { providerID: item.providerID, modelID: item.modelID },
+              value: { providerId: item.providerId, modelID: item.modelID },
               title: m.name ?? item.modelID,
               description: label(p.name, p.id),
               category: item.origin === "favorite" ? "Favorites" : "Recents",
               footer: isFreeCost(m) ? "Free" : undefined,
               disabled: p.id === "opencode" && m.id.includes("-nano"),
               onSelect: () => {
-                probeAndSelectModel(item.providerID, item.modelID, item.origin)
+                probeAndSelectModel(item.providerId, item.modelID, item.origin)
               },
             },
           ]
@@ -445,22 +443,22 @@ export function DialogModel(props: { providerID?: string }) {
     // RECENTS VIEW
     if (s === "recents") {
       const list = []
-      const getModelOptions = (modelList: { providerID: string; modelID: string; origin?: string }[]) => {
+      const getModelOptions = (modelList: { providerId: string; modelID: string; origin?: string }[]) => {
         return modelList.flatMap((item) => {
-          const p = sync.data.provider.find((x) => x.id === item.providerID)
+          const p = sync.data.provider.find((x) => x.id === item.providerId)
           if (!p) return []
           const m = p.models[item.modelID]
           if (!m) return []
           return [
             {
-              value: { providerID: item.providerID, modelID: item.modelID },
+              value: { providerId: item.providerId, modelID: item.modelID },
               title: m.name ?? item.modelID,
               description: label(p.name, p.id),
               category: item.origin === "favorite" ? "Favorites" : "Recents",
               footer: isFreeCost(m) ? "Free" : undefined,
               disabled: p.id === "opencode" && m.id.includes("-nano"),
               onSelect: () => {
-                probeAndSelectModel(item.providerID, item.modelID, item.origin)
+                probeAndSelectModel(item.providerId, item.modelID, item.origin)
               },
             },
           ]
@@ -491,24 +489,24 @@ export function DialogModel(props: { providerID?: string }) {
       })
       if (!resolved) return []
       const p = resolved.provider
-      const providerID = resolved.id
+      const providerId = resolved.id
 
       const showAll = showHidden()
 
-      return pipe(
+      const baseList = pipe(
         p.models,
         entries(),
         filter(([_, info]) => info.status !== "deprecated"),
         // Filter hidden
         filter(([mid, _]) => {
           if (showAll) return true
-          return !local.model.hidden().some((h) => h.providerID === providerID && h.modelID === mid)
+          return !local.model.hidden().some((h) => h.providerId === providerId && h.modelID === mid)
         }),
         map(([mid, info]) => {
-          const isFav = favorites.some((f) => f.providerID === providerID && f.modelID === mid)
+          const isFav = favorites.some((f) => f.providerId === providerId && f.modelID === mid)
           const pAny = p as any
           return {
-            value: { providerID: providerID, modelID: mid },
+            value: { providerId: providerId, modelID: mid },
             title: info.name ?? mid,
             category: "Models",
             gutter: isFav ? <text fg={theme.accent}>⭐</text> : undefined,
@@ -521,16 +519,38 @@ export function DialogModel(props: { providerID?: string }) {
               return undefined
             }),
             disabled:
-              (providerID === "opencode" && mid.includes("-nano")) ||
+              (providerId === "opencode" && mid.includes("-nano")) ||
               (pAny.cooldownReason?.includes("blocked") ?? false),
             footer: isFreeCost(info) ? "Free" : undefined,
             onSelect: () => {
-              probeAndSelectModel(providerID, mid)
+              probeAndSelectModel(providerId, mid)
             },
           }
         }),
-        sortBy((x) => x.title),
       )
+
+      if (family(providerId) !== "google-api") {
+        return sortBy(baseList, (x) => x.title)
+      }
+
+      const existingIds = new Set(baseList.map((entry) => entry.value.modelID))
+      const extras = ["gemini-3-pro", "gemini-3-flash"]
+        .filter((id) => !existingIds.has(id))
+        .map((id) => {
+          const isFav = favorites.some((f) => f.providerId === providerId && f.modelID === id)
+          return {
+            value: { providerId: providerId, modelID: id },
+            title: id,
+            category: "Models",
+            gutter: isFav ? <text fg={theme.accent}>⭐</text> : undefined,
+            disabled: false,
+            onSelect: () => {
+              probeAndSelectModel(providerId, id)
+            },
+          }
+        })
+
+      return sortBy([...baseList, ...extras], (x) => x.title)
     }
 
     return []
@@ -597,10 +617,8 @@ export function DialogModel(props: { providerID?: string }) {
           disabled: !connected() || step() !== "model_select", // Only allow favoriting in model list
           onTrigger: (option: any) => {
             const val = option.value
-            if (val && typeof val === "object" && val.providerID && val.modelID) {
-              // Skip validation for Google API dynamic models (not in provider.models registry)
-              const isGoogleDynamic = family(val.providerID) === "google-api"
-              local.model.toggleFavorite(val, { skipValidation: isGoogleDynamic })
+            if (val && typeof val === "object" && val.providerId && val.modelID) {
+              local.model.toggleFavorite(val, { skipValidation: true })
             }
           },
         },
@@ -663,13 +681,11 @@ export function DialogModel(props: { providerID?: string }) {
             }
 
             if (step() === "model_select") {
-              const modelVal = option.value as { providerID: string; modelID: string; origin?: string }
+              const modelVal = option.value as { providerId: string; modelID: string; origin?: string }
               if (modelVal.origin === "recent") {
                 local.model.removeFromRecent(modelVal)
               } else if (modelVal.origin === "favorite") {
-                // Skip validation when removing favorites (model already exists in favorites)
-                const isGoogleDynamic = family(modelVal.providerID) === "google-api"
-                local.model.toggleFavorite(modelVal, { skipValidation: isGoogleDynamic })
+                local.model.toggleFavorite(modelVal, { skipValidation: true })
               } else {
                 local.model.toggleHidden(modelVal)
               }
@@ -689,10 +705,10 @@ export function DialogModel(props: { providerID?: string }) {
           label: "Ins",
           disabled: !connected() || !showHidden(),
           onTrigger: (option: any) => {
-            const val = option.value as { providerID: string; modelID: string }
+            const val = option.value as { providerId: string; modelID: string }
             const isHidden = local.model
               .hidden()
-              .some((h) => h.providerID === val.providerID && h.modelID === val.modelID)
+              .some((h) => h.providerId === val.providerId && h.modelID === val.modelID)
             if (isHidden) {
               local.model.toggleHidden(val)
             }
@@ -705,7 +721,7 @@ export function DialogModel(props: { providerID?: string }) {
           disabled: step() !== "account_select",
           onTrigger: () => {
             const fam = selectedFamily()
-            if (fam) dialog.replace(() => <DialogProviderList providerID={fam} />)
+            if (fam) dialog.replace(() => <DialogProviderList providerId={fam} />)
           },
         },
         {

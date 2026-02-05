@@ -183,12 +183,12 @@ function createChatStream(text: string) {
   })
 }
 
-async function loadFixture(providerID: string, modelID: string) {
+async function loadFixture(providerId: string, modelID: string) {
   const fixturePath = path.join(import.meta.dir, "../tool/fixtures/models-api.json")
   const data = (await Bun.file(fixturePath).json()) as Record<string, ModelsDev.Provider>
-  const provider = data[providerID]
+  const provider = data[providerId]
   if (!provider) {
-    throw new Error(`Missing provider in fixture: ${providerID}`)
+    throw new Error(`Missing provider in fixture: ${providerId}`)
   }
   const model = provider.models[modelID]
   if (!model) {
@@ -226,9 +226,9 @@ describe("session.llm.stream", () => {
       throw new Error("Server not initialized")
     }
 
-    const providerID = "alibaba"
+    const providerId = "alibaba"
     const modelID = "qwen-plus"
-    const fixture = await loadFixture(providerID, modelID)
+    const fixture = await loadFixture(providerId, modelID)
     const provider = fixture.provider
     const model = fixture.model
 
@@ -246,9 +246,9 @@ describe("session.llm.stream", () => {
           path.join(dir, "opencode.json"),
           JSON.stringify({
             $schema: "https://opencode.ai/config.json",
-            enabled_providers: [providerID],
+            enabled_providers: [providerId],
             provider: {
-              [providerID]: {
+              [providerId]: {
                 options: {
                   apiKey: "test-key",
                   baseURL: `${server.url.origin}/v1`,
@@ -263,7 +263,7 @@ describe("session.llm.stream", () => {
     await Instance.provide({
       directory: tmp.path,
       fn: async () => {
-        const resolved = await Provider.getModel(providerID, model.id)
+        const resolved = await Provider.getModel(providerId, model.id)
         const sessionID = "session-test-1"
         const agent = {
           name: "test",
@@ -280,7 +280,7 @@ describe("session.llm.stream", () => {
           role: "user",
           time: { created: Date.now() },
           agent: agent.name,
-          model: { providerID, modelID: resolved.id },
+          model: { providerId, modelID: resolved.id },
           variant: "high",
         } satisfies MessageV2.User
 
@@ -415,7 +415,7 @@ describe("session.llm.stream", () => {
           role: "user",
           time: { created: Date.now() },
           agent: agent.name,
-          model: { providerID: "openai", modelID: resolved.id },
+          model: { providerId: "openai", modelID: resolved.id },
           variant: "high",
         } satisfies MessageV2.User
 
@@ -459,9 +459,9 @@ describe("session.llm.stream", () => {
       throw new Error("Server not initialized")
     }
 
-    const providerID = "anthropic"
+    const providerId = "anthropic"
     const modelID = "claude-3-5-sonnet-20241022"
-    const fixture = await loadFixture(providerID, modelID)
+    const fixture = await loadFixture(providerId, modelID)
     const provider = fixture.provider
     const model = fixture.model
 
@@ -509,9 +509,9 @@ describe("session.llm.stream", () => {
           path.join(dir, "opencode.json"),
           JSON.stringify({
             $schema: "https://opencode.ai/config.json",
-            enabled_providers: [providerID],
+            enabled_providers: [providerId],
             provider: {
-              [providerID]: {
+              [providerId]: {
                 options: {
                   apiKey: "test-anthropic-key",
                   baseURL: `${server.url.origin}/v1`,
@@ -526,7 +526,7 @@ describe("session.llm.stream", () => {
     await Instance.provide({
       directory: tmp.path,
       fn: async () => {
-        const resolved = await Provider.getModel(providerID, model.id)
+        const resolved = await Provider.getModel(providerId, model.id)
         const sessionID = "session-test-3"
         const agent = {
           name: "test",
@@ -543,7 +543,7 @@ describe("session.llm.stream", () => {
           role: "user",
           time: { created: Date.now() },
           agent: agent.name,
-          model: { providerID, modelID: resolved.id },
+          model: { providerId, modelID: resolved.id },
         } satisfies MessageV2.User
 
         const stream = await LLM.stream({
@@ -585,9 +585,9 @@ describe("session.llm.stream", () => {
       throw new Error("Server not initialized")
     }
 
-    const providerID = "google"
+    const providerId = "google-api"
     const modelID = "gemini-2.5-flash"
-    const fixture = await loadFixture(providerID, modelID)
+    const fixture = await loadFixture(providerId, modelID)
     const provider = fixture.provider
     const model = fixture.model
     const pathSuffix = `/v1beta/models/${model.id}:streamGenerateContent`
@@ -617,9 +617,9 @@ describe("session.llm.stream", () => {
           path.join(dir, "opencode.json"),
           JSON.stringify({
             $schema: "https://opencode.ai/config.json",
-            enabled_providers: [providerID],
+            enabled_providers: [providerId],
             provider: {
-              [providerID]: {
+              [providerId]: {
                 options: {
                   apiKey: "test-google-key",
                   baseURL: `${server.url.origin}/v1beta`,
@@ -634,7 +634,7 @@ describe("session.llm.stream", () => {
     await Instance.provide({
       directory: tmp.path,
       fn: async () => {
-        const resolved = await Provider.getModel(providerID, model.id)
+        const resolved = await Provider.getModel(providerId, model.id)
         const sessionID = "session-test-4"
         const agent = {
           name: "test",
@@ -651,7 +651,7 @@ describe("session.llm.stream", () => {
           role: "user",
           time: { created: Date.now() },
           agent: agent.name,
-          model: { providerID, modelID: resolved.id },
+          model: { providerId, modelID: resolved.id },
         } satisfies MessageV2.User
 
         const stream = await LLM.stream({

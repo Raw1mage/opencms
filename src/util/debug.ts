@@ -21,7 +21,7 @@ const flowKeys = [
   "sessionID",
   "messageID",
   "callID",
-  "providerID",
+  "providerId",
   "modelID",
   "agent",
   "tool",

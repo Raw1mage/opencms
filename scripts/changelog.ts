@@ -140,7 +140,7 @@ async function summarizeCommit(opencode: Awaited<ReturnType<typeof createOpencod
     .prompt({
       path: { id: session.data!.id },
       body: {
-        model: { providerID: "opencode", modelID: "claude-sonnet-4-5" },
+        model: { providerId: "opencode", modelID: "claude-sonnet-4-5" },
         tools: {
           "*": false,
         },

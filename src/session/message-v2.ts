@@ -21,7 +21,7 @@ export namespace MessageV2 {
   export const AuthError = NamedError.create(
     "ProviderAuthError",
     z.object({
-      providerID: z.string(),
+      providerId: z.string(),
       message: z.string(),
     }),
   )
@@ -173,7 +173,7 @@ export namespace MessageV2 {
     agent: z.string(),
     model: z
       .object({
-        providerID: z.string(),
+        providerId: z.string(),
         modelID: z.string(),
       })
       .optional(),
@@ -320,7 +320,7 @@ export namespace MessageV2 {
       .optional(),
     agent: z.string(),
     model: z.object({
-      providerID: z.string(),
+      providerId: z.string(),
       modelID: z.string(),
     }),
     system: z.string().optional(),
@@ -368,7 +368,7 @@ export namespace MessageV2 {
       .optional(),
     parentID: z.string(),
     modelID: z.string(),
-    providerID: z.string(),
+    providerId: z.string(),
     /**
      * @deprecated
      */
@@ -511,7 +511,7 @@ export namespace MessageV2 {
       }
 
       if (msg.info.role === "assistant") {
-        const differentModel = `${model.providerID}/${model.id}` !== `${msg.info.providerID}/${msg.info.modelID}`
+        const differentModel = `${model.providerId}/${model.id}` !== `${msg.info.providerId}/${msg.info.modelID}`
 
         if (
           msg.info.error &&
@@ -659,7 +659,7 @@ export namespace MessageV2 {
     return status === 404 || e.isRetryable
   }
 
-  export function fromError(e: unknown, ctx: { providerID: string }) {
+  export function fromError(e: unknown, ctx: { providerId: string }) {
     switch (true) {
       case e instanceof DOMException && e.name === "AbortError":
         return new MessageV2.AbortedError(
@@ -673,7 +673,7 @@ export namespace MessageV2 {
       case LoadAPIKeyError.isInstance(e):
         return new MessageV2.AuthError(
           {
-            providerID: ctx.providerID,
+            providerId: ctx.providerId,
             message: e.message,
           },
           { cause: e },
@@ -702,7 +702,7 @@ export namespace MessageV2 {
             }
             return "Unknown error"
           }
-          const transformed = ProviderTransform.error(ctx.providerID, e)
+          const transformed = ProviderTransform.error(ctx.providerId, e)
           if (transformed !== msg) {
             return transformed
           }
@@ -727,7 +727,7 @@ export namespace MessageV2 {
           {
             message,
             statusCode: e.statusCode,
-            isRetryable: ctx.providerID.startsWith("openai") ? isOpenAiErrorRetryable(e) : e.isRetryable,
+            isRetryable: ctx.providerId.startsWith("openai") ? isOpenAiErrorRetryable(e) : e.isRetryable,
             responseHeaders: e.responseHeaders,
             responseBody: e.responseBody,
             metadata,

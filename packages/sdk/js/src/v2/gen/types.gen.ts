@@ -112,7 +112,7 @@ export type UserMessage = {
   }
   agent: string
   model: {
-    providerID: string
+    providerId: string
     modelID: string
   }
   system?: string
@@ -125,7 +125,7 @@ export type UserMessage = {
 export type ProviderAuthError = {
   name: "ProviderAuthError"
   data: {
-    providerID: string
+    providerId: string
     message: string
   }
 }
@@ -178,7 +178,7 @@ export type AssistantMessage = {
   error?: ProviderAuthError | UnknownError | MessageOutputLengthError | MessageAbortedError | ApiError
   parentID: string
   modelID: string
-  providerID: string
+  providerId: string
   mode: string
   agent: string
   path: {
@@ -242,7 +242,7 @@ export type SubtaskPart = {
   description: string
   agent: string
   model?: {
-    providerID: string
+    providerId: string
     modelID: string
   }
   command?: string
@@ -1899,7 +1899,7 @@ export type NotFoundError = {
 
 export type Model = {
   id: string
-  providerID: string
+  providerId: string
   api: {
     id: string
     url: string
@@ -2053,7 +2053,7 @@ export type SessionMonitorInfo = {
   agent?: string
   status: SessionMonitorStatus
   model?: {
-    providerID: string
+    providerId: string
     modelID: string
   }
   requests: number
@@ -2114,7 +2114,7 @@ export type SubtaskPartInput = {
   description: string
   agent: string
   model?: {
-    providerID: string
+    providerId: string
     modelID: string
   }
   command?: string
@@ -2242,7 +2242,7 @@ export type Agent = {
   permission: PermissionRuleset
   model?: {
     modelID: string
-    providerID: string
+    providerId: string
   }
   variant?: string
   prompt?: string
@@ -2360,10 +2360,10 @@ export type GlobalDisposeResponse = GlobalDisposeResponses[keyof GlobalDisposeRe
 export type AuthRemoveData = {
   body?: never
   path: {
-    providerID: string
+    providerId: string
   }
   query?: never
-  url: "/auth/{providerID}"
+  url: "/auth/{providerId}"
 }
 
 export type AuthRemoveErrors = {
@@ -2387,10 +2387,10 @@ export type AuthRemoveResponse = AuthRemoveResponses[keyof AuthRemoveResponses]
 export type AuthSetData = {
   body?: Auth
   path: {
-    providerID: string
+    providerId: string
   }
   query?: never
-  url: "/auth/{providerID}"
+  url: "/auth/{providerId}"
 }
 
 export type AuthSetErrors = {
@@ -3212,7 +3212,7 @@ export type SessionTodoResponse = SessionTodoResponses[keyof SessionTodoResponse
 export type SessionInitData = {
   body?: {
     modelID: string
-    providerID: string
+    providerId: string
     messageID: string
   }
   path: {
@@ -3393,7 +3393,7 @@ export type SessionDiffResponse = SessionDiffResponses[keyof SessionDiffResponse
 
 export type SessionSummarizeData = {
   body?: {
-    providerID: string
+    providerId: string
     modelID: string
     auto?: boolean
   }
@@ -3475,7 +3475,7 @@ export type SessionPromptData = {
   body?: {
     messageID?: string
     model?: {
-      providerID: string
+      providerId: string
       modelID: string
     }
     agent?: string
@@ -3662,7 +3662,7 @@ export type SessionPromptAsyncData = {
   body?: {
     messageID?: string
     model?: {
-      providerID: string
+      providerId: string
       modelID: string
     }
     agent?: string
@@ -3769,7 +3769,7 @@ export type SessionShellData = {
   body?: {
     agent: string
     model?: {
-      providerID: string
+      providerId: string
       modelID: string
     }
     command: string
@@ -4171,12 +4171,12 @@ export type ProviderOauthAuthorizeData = {
     /**
      * Provider ID
      */
-    providerID: string
+    providerId: string
   }
   query?: {
     directory?: string
   }
-  url: "/provider/{providerID}/oauth/authorize"
+  url: "/provider/{providerId}/oauth/authorize"
 }
 
 export type ProviderOauthAuthorizeErrors = {
@@ -4212,12 +4212,12 @@ export type ProviderOauthCallbackData = {
     /**
      * Provider ID
      */
-    providerID: string
+    providerId: string
   }
   query?: {
     directory?: string
   }
-  url: "/provider/{providerID}/oauth/callback"
+  url: "/provider/{providerId}/oauth/callback"
 }
 
 export type ProviderOauthCallbackErrors = {
@@ -5118,17 +5118,17 @@ export type RotationStatusResponses = {
     }
     recommended: {
       dialog?: {
-        providerID: string
+        providerId: string
         accountId: string
         modelID: string
       }
       task?: {
-        providerID: string
+        providerId: string
         accountId: string
         modelID: string
       }
       background?: {
-        providerID: string
+        providerId: string
         accountId: string
         modelID: string
       }
@@ -5144,7 +5144,7 @@ export type RotationRecommendData = {
     taskType?: "dialog" | "task" | "background" | "coding" | "review"
     preferSubscription?: boolean
     currentVector?: {
-      providerID: string
+      providerId: string
       accountId: string
       modelID: string
     }
@@ -5171,13 +5171,13 @@ export type RotationRecommendResponses = {
    */
   200: {
     vector?: {
-      providerID: string
+      providerId: string
       accountId: string
       modelID: string
     }
     candidates: Array<{
       vector: {
-        providerID: string
+        providerId: string
         accountId: string
         modelID: string
       }
@@ -5185,7 +5185,7 @@ export type RotationRecommendResponses = {
       reason: string
     }>
     fallbackChain: Array<{
-      providerID: string
+      providerId: string
       accountId: string
       modelID: string
     }>
@@ -5197,7 +5197,7 @@ export type RotationRecommendResponse = RotationRecommendResponses[keyof Rotatio
 export type RotationFallbackData = {
   body?: {
     current: {
-      providerID: string
+      providerId: string
       accountId: string
       modelID: string
     }
@@ -5225,7 +5225,7 @@ export type RotationFallbackResponses = {
    */
   200: {
     fallback?: {
-      providerID: string
+      providerId: string
       accountId: string
       modelID: string
     }

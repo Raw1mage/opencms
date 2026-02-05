@@ -662,11 +662,9 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   const probeAndSelectModel = (providerId: string, modelID: string, origin?: string) => {
     // Skip probe - directly select the model
     debugCheckpoint("admin", "model selected (probe skipped)", { provider: providerId, model: modelID, origin })
-    // Skip validation for Google API dynamic models (not in provider.models registry)
-    const isGoogleDynamic = family(providerId) === "google-api"
     local.model.set(
       { providerId: providerId, modelID: modelID },
-      { recent: true, skipValidation: isGoogleDynamic, announce: true },
+      { recent: true, skipValidation: true, announce: true },
     )
     dialog.clear()
   }
@@ -1683,9 +1681,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               const val = option.value
               if (val && typeof val === "object" && val.providerId && val.modelID) {
                 debugCheckpoint("admin", "toggle favorite", { provider: val.providerId, model: val.modelID })
-                // Skip validation for Google API models (dynamic models not in provider.models registry)
-                const isGoogleDynamic = family(val.providerId) === "google-api"
-                local.model.toggleFavorite(val, { skipValidation: isGoogleDynamic })
+                local.model.toggleFavorite(val, { skipValidation: true })
               }
             },
           },
@@ -1968,9 +1964,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                   })
                   if (modelVal.origin === "recent") local.model.removeFromRecent(modelVal)
                   else if (modelVal.origin === "favorite") {
-                    // Skip validation when removing favorites (model already exists in favorites list)
-                    const isGoogleDynamic = family(modelVal.providerId) === "google-api"
-                    local.model.toggleFavorite(modelVal, { skipValidation: isGoogleDynamic })
+                    local.model.toggleFavorite(modelVal, { skipValidation: true })
                   } else if (step() !== "root") local.model.toggleHidden(modelVal)
                 }
               }
@@ -2742,17 +2736,26 @@ function DialogApiKeyAdd(props: {
 }
 
 function formatReason(reason: string): string {
+  if (!reason) return "Unknown"
+  // If the reason already contains an HTTP code or looks like a status code, return it as is
+  // e.g. "HTTP 429", "503 Service Unavailable"
+  if (reason.startsWith("HTTP") || /^\d{3}/.test(reason)) {
+    return reason
+  }
+
   switch (reason) {
     case "QUOTA_EXHAUSTED":
-      return "Quota exhausted"
+      return "Quota (429)"
     case "RATE_LIMIT_EXCEEDED":
-      return "Rate limit (RPM)"
+      return "Rate Limit (429)"
     case "MODEL_CAPACITY_EXHAUSTED":
-      return "Model capacity"
+      return "Overloaded (503)"
     case "SERVER_ERROR":
-      return "Server error"
+      return "Server Error (500)"
+    case "TIMEOUT":
+      return "Timeout (408)"
     default:
-      return reason || "Unknown"
+      return reason
   }
 }
 

@@ -135,9 +135,9 @@ export namespace SessionSummary {
       const agent = await Agent.get("title")
       if (!agent) return
       const titleModel = agent.model
-        ? await Provider.getModel(agent.model.providerID, agent.model.modelID)
-        : ((await Provider.getSmallModel(userMsg.model.providerID)) ??
-          (await Provider.getModel(userMsg.model.providerID, userMsg.model.modelID)))
+        ? await Provider.getModel(agent.model.providerId, agent.model.modelID)
+        : ((await Provider.getSmallModel(userMsg.model.providerId)) ??
+          (await Provider.getModel(userMsg.model.providerId, userMsg.model.modelID)))
       const stream = await LLM.stream({
         agent,
         user: userMsg,
@@ -162,7 +162,7 @@ export namespace SessionSummary {
       })
       const result = await stream.text
       // Record successful completion in global model health registry
-      await LLM.recordSuccess(titleModel.providerID, titleModel.id)
+      await LLM.recordSuccess(titleModel.providerId, titleModel.id)
       log.info("title", { title: result })
       userMsg.summary.title = result
       await Session.updateMessage(userMsg)
