@@ -1,3 +1,9 @@
+- [2026-02-06] [深度清理與對齊修正 (Phase 2.1)](events/event_2026-02-06_alignment_sync.md)
+- [2026-02-06] [修復 google-api 模型清單回填](events/event_2026-02-06_google_api_models.md)
+- [2026-02-06] [Provider 系統清理與顯示優化 (Phase 2)](events/event_2026-02-06_provider_cleanup.md)
+- [2026-02-06] [移除 Model Activities 用量「…」placeholder](events/event_2026-02-06.md)
+- [2026-02-06] [antigravity 逐帳號配額顯示（Activities + Model Select）](events/event_2026-02-06.md)
+- [2026-02-05] [清理 Provider 冗餘與命名統一](events/event_20260205_provider_unify.md)
 - [2026-02-05] [Model Rotation 統一化與透明化](events/event_20260205_rotation_unify.md)
 - [2026-02-05] [Fix Skill Tool Content TypeError](events/event_20260205.md)
 - [2026-02-05] [修復 TUI Sidebar MCP 狀態同步問題](events/event_2026-02-05_fix-tui-mcp-sync.md)
@@ -12,3 +18,5 @@
 - [2026-02-05] [Admin Panel Providers/Favorites 欄寬對齊](events/event_2026-02-05.md)
 - [2026-02-05] [刪除主 Session 時連帶刪除其所屬 subsessions](events/event_2026-02-05.md)
 - [2026-02-05] [專案 Code Review](events/event_20260205_codereview.md)
+
+- [2026-02-06] 系統清理：移除冗餘的 DialogModelHealth，釐清 cli 用戶來源。 [連結](./events/event_2026-02-06.md)
