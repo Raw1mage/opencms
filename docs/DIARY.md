@@ -1,3 +1,5 @@
+- [2026-02-05] [修復 TUI Sidebar MCP 狀態同步問題](events/event_2026-02-05_fix-tui-mcp-sync.md)
+- [2026-02-05] [修復 MCP Server 連線與認證系統](events/event_2026-02-05_fix-mcp-auth.md)
 - [2026-02-05] [新增自定義 Provider Wizard](events/event_2026-02-05.md)
 - [2026-02-05] [移除 Display Name + 顯示配額%](events/event_2026-02-05.md)
 - [2026-02-05] [配額更新改為被動觸發（/admin 進入時）](events/event_2026-02-05.md)
