@@ -41,7 +41,7 @@ import { getModelHealthRegistry, getRateLimitTracker } from "@/account/rotation"
 import { Provider } from "@/provider/provider"
 import { probeModelAvailability } from "../util/model-probe"
 import { Auth } from "@/auth"
-import { checkAccountsQuota, type QuotaGroup } from "@/plugin/antigravity/plugin/quota"
+import { checkAccountsQuota, type QuotaGroup, type QuotaGroupSummary } from "@/plugin/antigravity/plugin/quota"
 import { loadAccounts, saveAccounts } from "@/plugin/antigravity/plugin/storage"
 import { getModelFamily } from "@/plugin/antigravity/plugin/transform/model-resolver"
 
@@ -348,9 +348,27 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         await saveAccounts(storage)
       }
 
-      const activeIndex = Math.max(0, Math.min(storage.activeIndex ?? 0, results.length - 1))
-      const active = results.find((res) => res.index === activeIndex)
-      return active?.quota?.groups ?? null
+      const coreAccounts = await Account.list("antigravity").catch(() => ({}))
+      const coreByToken = new Map<string, string>()
+      const coreByEmail = new Map<string, string>()
+      for (const [id, info] of Object.entries(coreAccounts)) {
+        if (info.type !== "subscription") continue
+        if (info.refreshToken) coreByToken.set(info.refreshToken, id)
+        if (info.email) coreByEmail.set(info.email, id)
+      }
+
+      const groupsByAccount: Record<string, Partial<Record<QuotaGroup, QuotaGroupSummary>>> = {}
+      for (const res of results) {
+        const account = storage.accounts[res.index]
+        if (!account) continue
+        const token = account.refreshToken
+        const email = account.email
+        const coreId = (token && coreByToken.get(token)) ?? (email && coreByEmail.get(email))
+        if (!coreId) continue
+        groupsByAccount[coreId] = res.quota?.groups ?? {}
+      }
+
+      return groupsByAccount
     } catch (error) {
       debugCheckpoint("admin.quota", "fetch error", { error: String(error) })
       return null
@@ -358,49 +376,63 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   })
   const [codexQuota] = createResource(quotaRefresh, async () => {
     try {
-      const auth = await Auth.get("openai")
-      if (!auth || auth.type !== "oauth") return null
+      const accounts = await Account.list("openai")
+      const results: Record<string, { hourlyRemaining: number; weeklyRemaining: number } | null> = {}
 
-      let access = auth.access
-      let expires = auth.expires
-      let refresh = auth.refresh
-      let accountId = auth.accountId
+      for (const [id, info] of Object.entries(accounts)) {
+        if (info.type !== "subscription") continue
 
-      if (!access || !expires || expires < Date.now()) {
-        const tokens = await refreshCodexAccessToken(refresh)
-        access = tokens.access_token
-        refresh = tokens.refresh_token ?? refresh
-        expires = Date.now() + (tokens.expires_in ?? 3600) * 1000
-        accountId = accountId ?? extractAccountIdFromTokens(tokens)
+        let access = info.accessToken
+        let expires = info.expiresAt
+        let refresh = info.refreshToken
+        let accountId = info.accountId
 
-        const activeId = await Account.getActive("openai")
-        if (activeId) {
-          await Account.update("openai", activeId, {
-            refreshToken: refresh,
-            accessToken: access,
-            expiresAt: expires,
-            accountId,
-          })
+        if (!access || !expires || expires < Date.now()) {
+          try {
+            const tokens = await refreshCodexAccessToken(refresh)
+            access = tokens.access_token
+            refresh = tokens.refresh_token ?? refresh
+            expires = Date.now() + (tokens.expires_in ?? 3600) * 1000
+            accountId = accountId ?? extractAccountIdFromTokens(tokens)
+
+            await Account.update("openai", id, {
+              refreshToken: refresh,
+              accessToken: access,
+              expiresAt: expires,
+              accountId,
+            })
+          } catch (e) {
+            debugCheckpoint("admin.quota", "token refresh failed", { id, error: String(e) })
+            results[id] = null
+            continue
+          }
+        }
+
+        try {
+          const headers = new Headers({ Authorization: `Bearer ${access}`, Accept: "application/json" })
+          if (accountId) headers.set("ChatGPT-Account-Id", accountId)
+
+          const response = await fetch(CODEX_USAGE_URL, { headers })
+          if (!response.ok) {
+            debugCheckpoint("admin.quota", "codex usage error", { id, status: response.status })
+            results[id] = null
+            continue
+          }
+          const usage = (await response.json()) as any
+          const hourlyUsed = usage?.rate_limit?.primary_window?.used_percent ?? 0
+          const weeklyUsed = usage?.rate_limit?.secondary_window?.used_percent ?? 0
+          const hourlyRemaining = clampPercentage(100 - hourlyUsed)
+          const weeklyRemaining = clampPercentage(100 - weeklyUsed)
+          results[id] = { hourlyRemaining, weeklyRemaining }
+        } catch (e) {
+          debugCheckpoint("admin.quota", "fetch usage failed", { id, error: String(e) })
+          results[id] = null
         }
       }
-
-      const headers = new Headers({ Authorization: `Bearer ${access}`, Accept: "application/json" })
-      if (accountId) headers.set("ChatGPT-Account-Id", accountId)
-
-      const response = await fetch(CODEX_USAGE_URL, { headers })
-      if (!response.ok) {
-        debugCheckpoint("admin.quota", "codex usage error", { status: response.status })
-        return null
-      }
-      const usage = (await response.json()) as any
-      const hourlyUsed = usage?.rate_limit?.primary_window?.used_percent ?? 0
-      const weeklyUsed = usage?.rate_limit?.secondary_window?.used_percent ?? 0
-      const hourlyRemaining = clampPercentage(100 - hourlyUsed)
-      const weeklyRemaining = clampPercentage(100 - weeklyUsed)
-      return { hourlyRemaining, weeklyRemaining }
+      return results
     } catch (error) {
       debugCheckpoint("admin.quota", "codex fetch error", { error: String(error) })
-      return null
+      return {}
     }
   })
 
@@ -416,13 +448,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   })
 
   const family = (id: string) => {
-    // Normalize "google" to "google-api" (they're the same provider)
-    if (id === "google" || id.startsWith("google-")) {
-      if (id === "google" || id === "google-api" || id.startsWith("google-api-")) {
-        return "google-api"
-      }
-    }
-    const parsed = Account.parseFamily(id)
+    const parsed = Account.parseProvider(id)
     if (parsed) return parsed
     if (id === "opencode" || id.startsWith("opencode-")) return "opencode"
     return undefined
@@ -438,19 +464,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   })
 
   const label = (name: string, id: string) => {
-    const fam = family(id)
-    if (!fam) return name
-    const map: Record<string, string> = {
-      anthropic: "Anthropic",
-      openai: "OpenAI",
-      google: "Google-API",
-      "google-api": "Google-API",
-      antigravity: "Antigravity",
-      "gemini-cli": "Gemini CLI",
-      gitlab: "GitLab",
-      opencode: "OpenCode",
-    }
-    return map[fam as string] ?? name
+    return Account.getProviderLabel(family(id) || id)
   }
 
   function isFreeCost(info: { cost?: { input?: number; output?: number } }) {
@@ -464,14 +478,14 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   // Check if a model should show "Free" label
   // Subscription-based accounts (OpenAI Plus, Anthropic Pro/Max) are NOT free
   // even if the API cost is 0 - they're part of a paid subscription with quotas
-  function shouldShowFree(providerID: string, modelInfo: { cost?: { input?: number; output?: number } }): boolean {
+  function shouldShowFree(providerId: string, modelInfo: { cost?: { input?: number; output?: number } }): boolean {
     // Only opencode provider models are truly free
-    if (providerID === "opencode") {
+    if (providerId === "opencode") {
       return isFreeCost(modelInfo)
     }
 
     // For other providers, check if the active account is subscription-based
-    const fam = Account.parseFamily(providerID)
+    const fam = Account.parseFamily(providerId)
     if (!fam) return false
 
     const familyData = coreAll()?.[fam]
@@ -564,9 +578,15 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     return family === "gemini-flash" ? "gemini-flash" : "gemini-pro"
   }
 
-  function getQuotaPercent(providerID: string, modelID: string, displayName?: string): number | undefined {
-    if (family(providerID) !== "antigravity") return undefined
-    const groups = quotaGroups()
+  function getQuotaPercent(
+    accountId: string | undefined,
+    providerId: string,
+    modelID: string,
+    displayName?: string,
+  ): number | undefined {
+    if (family(providerId) !== "antigravity") return undefined
+    if (!accountId) return undefined
+    const groups = quotaGroups()?.[accountId]
     if (!groups) return undefined
     const group = resolveQuotaGroup(modelID, displayName)
     if (!group) return undefined
@@ -576,22 +596,28 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   }
 
   function formatQuotaFooter(
-    providerID: string,
+    accountId: string,
+    providerId: string,
     modelID: string,
     displayName: string | undefined,
     fallbackFree: boolean,
     isRateLimited?: boolean,
+    waitMs?: number,
   ): string | undefined {
-    if (family(providerID) === "openai" || providerID === "openai") {
-      if (isRateLimited) return "(5hrs:0% | week:0%)"
-      const quota = codexQuota()
-      if (!quota) return "(5hrs:-- | week:--)"
-      return `(5hrs:${quota.hourlyRemaining}% | week:${quota.weeklyRemaining}%)`
+    if (family(providerId) === "openai" || providerId === "openai") {
+      if (isRateLimited && waitMs && waitMs > 0) return `0% ⏳ ${formatWait(waitMs)}`
+      if (isRateLimited) return "5H:0% WK:0%"
+      const quotaMap = codexQuota()
+      const quota = quotaMap?.[accountId]
+      if (!quota) return "5H:-- WK:--"
+      return `5H:${quota.hourlyRemaining}% WK:${quota.weeklyRemaining}%`
     }
+    if (isRateLimited && waitMs && waitMs > 0) return `0% ⏳ ${formatWait(waitMs)}`
     if (isRateLimited) return "0%"
-    const percent = getQuotaPercent(providerID, modelID, displayName)
+    const percent = getQuotaPercent(accountId, providerId, modelID, displayName)
     if (typeof percent === "number") return `${percent}%`
     if (fallbackFree) return "100%"
+    if (family(providerId) === "antigravity") return "--"
     return undefined
   }
 
@@ -633,27 +659,42 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     })
   }
 
-  const probeAndSelectModel = (providerID: string, modelID: string, origin?: string) => {
+  const probeAndSelectModel = (providerId: string, modelID: string, origin?: string) => {
     // Skip probe - directly select the model
-    debugCheckpoint("admin", "model selected (probe skipped)", { provider: providerID, model: modelID, origin })
+    debugCheckpoint("admin", "model selected (probe skipped)", { provider: providerId, model: modelID, origin })
     // Skip validation for Google API dynamic models (not in provider.models registry)
-    const isGoogleDynamic = family(providerID) === "google-api"
+    const isGoogleDynamic = family(providerId) === "google-api"
     local.model.set(
-      { providerID: providerID, modelID: modelID },
+      { providerId: providerId, modelID: modelID },
       { recent: true, skipValidation: isGoogleDynamic, announce: true },
     )
     dialog.clear()
   }
 
-  // Whitelist of Google API models to show (by model ID pattern)
-  // User-specified list: Flash variants, Gemma 3, Embedding, Robotics
+  // Whitelist of Google API models to show (exact model IDs)
+  // User-specified list from AI Studio (official model IDs)
   const GOOGLE_MODEL_WHITELIST = [
-    "gemini-2.5-flash", // Gemini 2.5 Flash (includes TTS, Native Audio Dialog variants)
-    "gemini-2.5-pro", // Gemini 2.5 Pro (includes TTS variant)
-    "gemini-3-flash", // Gemini 3 Flash
-    "gemma-3-", // Gemma 3 variants (1B, 2B, 4B, 12B, 27B)
-    "gemini-embedding", // Gemini Embedding
-    "gemini-robotics", // Gemini Robotics ER
+    // Gemini 3 (Latest)
+    "gemini-3-pro",
+    "gemini-3-flash",
+    // Gemini 2.5 (Stable)
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash-image",
+    // Gemini 2.0
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    // Gemini 1.5
+    "gemini-1.5-pro",
+    "gemini-1.5-flash",
+    // Latest Aliases
+    "gemini-1.5-pro-latest",
+    "gemini-1.5-flash-latest",
+    // Specialized
+    "text-embedding-004",
+    "aqa",
+    "gemini-1.0-pro",
   ]
 
   const isGoogleModelWhitelisted = (id: string) => {
@@ -747,13 +788,13 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     for (const entry of rateLimits3D) {
       const hasModel = entry.modelID && entry.modelID.length > 0
       if (hasModel) {
-        modelLimits.set(`${entry.accountId}:${entry.providerID}:${entry.modelID}`, {
+        modelLimits.set(`${entry.accountId}:${entry.providerId}:${entry.modelID}`, {
           waitMs: entry.waitMs,
           reason: entry.reason,
         })
       }
       if (!hasModel) {
-        providerLimits.set(`${entry.accountId}:${entry.providerID}`, {
+        providerLimits.set(`${entry.accountId}:${entry.providerId}`, {
           waitMs: entry.waitMs,
           reason: entry.reason,
         })
@@ -764,29 +805,30 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     let limited = 0
 
     const providerIds = Object.keys(providerMap).sort((a, b) => a.localeCompare(b))
-    for (const providerID of providerIds) {
-      const provider = providerMap[providerID]
+    for (const providerId of providerIds) {
+      const provider = providerMap[providerId]
       if (!provider) continue
 
-      const accountFamily = family(providerID) ?? providerID
-      const accountData = accountMap[providerID] ?? accountMap[accountFamily]
+      const accountFamily = family(providerId) ?? providerId
+      const accountData = accountMap[providerId] ?? accountMap[accountFamily]
       const accountIds = accountData ? Object.keys(accountData.accounts) : []
       const list = accountIds.length > 0 ? accountIds : ["-"]
       const models = Object.values(provider.models).sort((a, b) => a.id.localeCompare(b.id))
 
       for (const accountId of list) {
         const info = accountId === "-" ? undefined : accountData?.accounts[accountId]
-        const display = info ? Account.getDisplayName(accountId, info, providerID) : accountId
-        const accountCol = (display || "-").padEnd(18).slice(0, 18)
-        const providerCol = (providerID || "-").padEnd(12).slice(0, 12)
+        const display = info ? Account.getDisplayName(accountId, info, providerId) : accountId
+        const accountCol = (display || "-").padEnd(19).slice(0, 19)
+        const providerLabel = Account.getProviderLabel(family(providerId) || providerId)
+        const providerCol = (providerLabel || "-").padEnd(13).slice(0, 13)
 
         for (const model of models) {
-          const modelCol = (model.id || "-").padEnd(28).slice(0, 28)
-          const entry = modelLimits.get(`${accountId}:${providerID}:${model.id}`)
+          const modelCol = (model.id || "-").padEnd(27).slice(0, 27)
+          const entry = modelLimits.get(`${accountId}:${providerId}:${model.id}`)
           if (entry && entry.waitMs > 0) {
             limited += 1
             items.push({
-              value: `${accountId}:${providerID}:${model.id}`,
+              value: `${accountId}:${providerId}:${model.id}`,
               title: `${providerCol} ${accountCol} ${modelCol}`,
               description: formatReason(entry.reason),
               category: "",
@@ -795,11 +837,11 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             continue
           }
 
-          const providerLimit = providerLimits.get(`${accountId}:${providerID}`)
+          const providerLimit = providerLimits.get(`${accountId}:${providerId}`)
           if (providerLimit && providerLimit.waitMs > 0) {
             limited += 1
             items.push({
-              value: `${accountId}:${providerID}:${model.id}`,
+              value: `${accountId}:${providerId}:${model.id}`,
               title: `${providerCol} ${accountCol} ${modelCol}`,
               description: formatReason(providerLimit.reason),
               category: "",
@@ -808,11 +850,11 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             continue
           }
 
-          const state2d = snapshot2D.get(`${providerID}:${model.id}`)
+          const state2d = snapshot2D.get(`${providerId}:${model.id}`)
           if (state2d && state2d.waitMs > 0) {
             limited += 1
             items.push({
-              value: `${accountId}:${providerID}:${model.id}`,
+              value: `${accountId}:${providerId}:${model.id}`,
               title: `${providerCol} ${accountCol} ${modelCol}`,
               description: `${formatReason(state2d.reason)} (model)`,
               category: "",
@@ -824,13 +866,20 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
           if (state2d && state2d.available) {
             ready += 1
             items.push({
-              value: `${accountId}:${providerID}:${model.id}`,
+              value: `${accountId}:${providerId}:${model.id}`,
               title: `${providerCol} ${accountCol} ${modelCol}`,
               description: "",
               category: "",
               footer:
-                formatQuotaFooter(providerID, model.id, model.name ?? model.id, shouldShowFree(providerID, model)) ??
-                "✓ Ready",
+                formatQuotaFooter(
+                  accountId,
+                  providerId,
+                  model.id,
+                  model.name ?? model.id,
+                  shouldShowFree(providerId, model),
+                  false,
+                  0,
+                ) ?? "✓ Ready",
             })
           }
         }
@@ -848,7 +897,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     } else {
       items.unshift({
         value: "_header",
-        title: "Provider     Account            Model                       ",
+        title: "Provider      Account             Model                      ",
         description: "",
         category: "",
         footer: "Status",
@@ -860,19 +909,19 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
   const selectActivity = (value: string) => {
     if (!value || value === "_header" || value === "empty") return
-    const [accountId, providerID, ...rest] = value.split(":")
+    const [accountId, providerId, ...rest] = value.split(":")
     const modelID = rest.join(":")
-    if (!providerID || !modelID) return
-    const resolvedProvider = providerID === "google" ? "google-api" : Account.parseFamily(providerID) || providerID
-    debugCheckpoint("admin.activities", "select model", { accountId, providerID: resolvedProvider, modelID })
-    local.model.set({ providerID: resolvedProvider, modelID }, { recent: true, announce: true })
+    if (!providerId || !modelID) return
+    const resolvedProvider = Account.parseProvider(providerId) || providerId
+    debugCheckpoint("admin.activities", "select model", { accountId, providerId: resolvedProvider, modelID })
+    local.model.set({ providerId: resolvedProvider, modelID }, { recent: true, announce: true })
     dialog.clear()
   }
 
   // ---- OPTION GENERATION ----
   const handleAddProvider = (fam: string) => {
     if (!fam) return
-    const normalizedFam = fam === "google" ? "google-api" : fam
+    const normalizedFam = fam
     if (normalizedFam === "google-api") {
       debugCheckpoint("admin", "add provider google", { family: normalizedFam })
       openGoogleAdd()
@@ -887,7 +936,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         family: normalizedFam,
         methods: authMethods?.map((m) => m.label),
       })
-      dialog.push(() => <DialogProviderList providerID={normalizedFam} />, markDialogClosed)
+      dialog.push(() => <DialogProviderList providerId={normalizedFam} />, markDialogClosed)
       return
     }
 
@@ -900,7 +949,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       dialog.push(
         () => (
           <DialogApiKeyAdd
-            providerID={normalizedFam}
+            providerId={normalizedFam}
             providerName={providerName}
             envVar={envVar}
             onCancel={() => {
@@ -924,7 +973,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
     // Fallback: Generic Provider List
     debugCheckpoint("admin", "add provider list fallback", { family: normalizedFam })
-    dialog.replace(() => <DialogProviderList providerID={normalizedFam} />)
+    dialog.replace(() => <DialogProviderList providerId={normalizedFam} />)
   }
 
   const options = createMemo(() => {
@@ -935,27 +984,27 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     const favorites = connected() ? local.model.favorite() : []
 
     const formatProviderModelTitle = (
-      providerID: string,
+      providerId: string,
       modelTitle: string,
       widths: { provider: number; model: number },
     ) => {
-      const providerCol = providerID.padEnd(widths.provider)
+      const providerCol = label(providerId, providerId).padEnd(widths.provider)
       const modelCol = modelTitle.padEnd(widths.model)
       return `${providerCol} ${modelCol}`
     }
 
     const getModelOptions = (
-      modelList: { providerID: string; modelID: string }[],
+      modelList: { providerId: string; modelID: string }[],
       origin: "favorite",
     ): DialogSelectOption<unknown>[] => {
       const resolved = modelList.flatMap((item) => {
-        const p = sync.data.provider.find((x) => x.id === item.providerID)
+        const p = sync.data.provider.find((x) => x.id === item.providerId)
         if (!p) return []
         const m = p.models[item.modelID]
         if (!m) return []
         return [
           {
-            providerID: item.providerID,
+            providerId: item.providerId,
             modelID: item.modelID,
             disabled: p.id === "opencode" && m.id.includes("-nano"),
           },
@@ -964,7 +1013,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
       const widths = resolved.reduce(
         (acc, item) => {
-          acc.provider = Math.max(acc.provider, item.providerID.length)
+          acc.provider = Math.max(acc.provider, item.providerId.length)
           acc.model = Math.max(acc.model, item.modelID.length)
           return acc
         },
@@ -973,18 +1022,18 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
       return resolved.map((item) => {
         return {
-          value: { providerID: item.providerID, modelID: item.modelID, origin },
-          title: formatProviderModelTitle(item.providerID, item.modelID, widths),
+          value: { providerId: item.providerId, modelID: item.modelID, origin },
+          title: formatProviderModelTitle(item.providerId, item.modelID, widths),
           description: undefined,
           footer: undefined,
           disabled: item.disabled,
           onSelect: () => {
             debugCheckpoint("admin", "select favorite model", {
               origin,
-              provider: item.providerID,
+              provider: item.providerId,
               model: item.modelID,
             })
-            probeAndSelectModel(item.providerID, item.modelID, origin)
+            probeAndSelectModel(item.providerId, item.modelID, origin)
           },
         }
       })
@@ -1030,16 +1079,12 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
       // 1. Families - WYSIWYG: No hidden whitelists
       // Configured = has accounts in storage OR has providers from sync
-      // Normalize family names (e.g., "google" -> "google-api")
-      const normalizeFamily = (f: string) => {
-        if (f === "google") return "google-api"
-        return f
-      }
-      const coreFamilies = Object.keys(coreAll() ?? {}).map(normalizeFamily)
+      const coreFamilies = Object.keys(coreAll() ?? {})
       const syncFamilies = [...groupedProviders().keys()]
 
       // Build set of all configured providers (has accounts or sync data)
       const configuredProviders = new Set([...coreFamilies, ...syncFamilies])
+      configuredProviders.delete("google")
 
       // Get all models.dev providers that aren't already configured
       const allModelsDevProviders = Object.keys(modelsDevData() ?? {}).filter((id) => {
@@ -1068,19 +1113,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         const providers = groupedProviders().get(fam) || []
 
         const displayName = fam
-        // For google-api, merge accounts from both "google" (legacy) and "google-api" families
-        const familyData =
-          fam === "google-api"
-            ? (() => {
-                const legacy = coreAll()?.["google"]
-                const current = coreAll()?.["google-api"]
-                if (!legacy && !current) return undefined
-                return {
-                  activeAccount: current?.activeAccount || legacy?.activeAccount,
-                  accounts: { ...(legacy?.accounts || {}), ...(current?.accounts || {}) },
-                }
-              })()
-            : coreAll()?.[fam]
+        const familyData = coreAll()?.[fam]
         const allIds = familyData ? Object.keys(familyData.accounts || {}) : []
         const isFamilySuffix = (id: string) => id === `${fam}-subscription-${fam}` || id === `${fam}-api-${fam}`
         const isGeneric = (id: string) =>
@@ -1166,36 +1199,15 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       // - Use agManager for antigravity.
 
       if (fam !== "antigravity") {
-        // For google-api, merge accounts from both "google" (legacy) and "google-api" families
-        // Track which family each account actually belongs to for proper lookup
+        const familyData = coreAll()?.[fam]
         const accountsWithFamily: Array<{ id: string; info: any; coreFamily: string }> = []
-
-        if (fam === "google-api") {
-          const legacy = coreAll()?.["google"]
-          const current = coreAll()?.["google-api"]
-          if (legacy?.accounts) {
-            for (const [id, info] of Object.entries(legacy.accounts)) {
-              accountsWithFamily.push({ id, info, coreFamily: "google" })
-            }
-          }
-          if (current?.accounts) {
-            for (const [id, info] of Object.entries(current.accounts)) {
-              accountsWithFamily.push({ id, info, coreFamily: "google-api" })
-            }
-          }
-        } else {
-          const familyData = coreAll()?.[fam]
-          if (familyData?.accounts) {
-            for (const [id, info] of Object.entries(familyData.accounts)) {
-              accountsWithFamily.push({ id, info, coreFamily: fam })
-            }
+        if (familyData?.accounts) {
+          for (const [id, info] of Object.entries(familyData.accounts)) {
+            accountsWithFamily.push({ id, info, coreFamily: fam })
           }
         }
 
-        const activeId =
-          fam === "google-api"
-            ? coreAll()?.["google-api"]?.activeAccount || coreAll()?.["google"]?.activeAccount
-            : coreAll()?.[fam]?.activeAccount
+        const activeId = familyData?.activeAccount
 
         const isFamilySuffix = (id: string) => id === `${fam}-subscription-${fam}` || id === `${fam}-api-${fam}`
         const isGeneric = (id: string) =>
@@ -1347,16 +1359,21 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       })
       if (!resolved) return []
       const p = resolved.provider
-      const providerID = resolved.id
+      const providerId = resolved.id
 
       const showAll = showHidden()
-      const isGoogleProvider = family(providerID) === "google-api"
+      const isGoogleProvider = family(providerId) === "google-api"
       // Use base family ID for model values (favorites, validation expect base provider ID like "google-api", not account-specific "google-api-xxx")
-      const baseProviderID = family(providerID) || providerID
+      const baseProviderID = family(providerId) || providerId
       const hiddenCheck = (mid: string) => {
         if (showAll) return true
-        return !local.model.hidden().some((h) => h.providerID === baseProviderID && h.modelID === mid)
+        return !local.model.hidden().some((h) => h.providerId === baseProviderID && h.modelID === mid)
       }
+
+      const quotaAccountId = iife(() => {
+        if (family(providerId) !== "antigravity") return pid
+        return coreActive() || pid
+      })
 
       const baseEntries = pipe(
         p.models,
@@ -1364,7 +1381,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         filter(([_, info]) => info.status !== "deprecated"),
         filter(([mid]) => hiddenCheck(mid)),
         map(([mid, info]) => {
-          const isFav = favorites.some((f) => f.providerID === baseProviderID && f.modelID === mid)
+          const isFav = favorites.some((f) => f.providerId === baseProviderID && f.modelID === mid)
           const pAny = p as any
 
           const isRateLimited = pAny.coolingDownUntil && pAny.coolingDownUntil > Date.now()
@@ -1372,7 +1389,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
           const isActionable = isRateLimited || isBlocked
 
           return {
-            value: { providerID: baseProviderID, modelID: mid },
+            value: { providerId: baseProviderID, modelID: mid },
             modelTitle: info.name ?? mid,
             category: "Models",
             gutter: isFav ? <text fg={theme.accent}>⭐</text> : undefined,
@@ -1384,13 +1401,15 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               if (isBlocked) return `⛔ ${pAny.cooldownReason}`
               return undefined
             }),
-            disabled: (providerID === "opencode" && mid.includes("-nano")) || (isBlocked && !isRateLimited),
+            disabled: (providerId === "opencode" && mid.includes("-nano")) || (isBlocked && !isRateLimited),
             footer: formatQuotaFooter(
-              providerID,
+              quotaAccountId,
+              providerId,
               mid,
               info.name ?? mid,
-              shouldShowFree(providerID, info),
+              shouldShowFree(providerId, info),
               isActionable,
+              isRateLimited ? Math.max(0, pAny.coolingDownUntil - Date.now()) : 0,
             ),
             onSelect: () => {
               debugCheckpoint("admin", "select model", { provider: baseProviderID, model: mid })
@@ -1406,9 +1425,9 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         ? googleModels()
             .filter((model) => hiddenCheck(model.id) && !existingIds.has(model.id))
             .map((model) => {
-              const isFav = favorites.some((f) => f.providerID === baseProviderID && f.modelID === model.id)
+              const isFav = favorites.some((f) => f.providerId === baseProviderID && f.modelID === model.id)
               return {
-                value: { providerID: baseProviderID, modelID: model.id },
+                value: { providerId: baseProviderID, modelID: model.id },
                 modelTitle: model.title,
                 category: "Models",
                 gutter: isFav ? <text fg={theme.accent}>⭐</text> : undefined,
@@ -1662,10 +1681,10 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             disabled: !connected() || step() !== "model_select",
             onTrigger: (option: any) => {
               const val = option.value
-              if (val && typeof val === "object" && val.providerID && val.modelID) {
-                debugCheckpoint("admin", "toggle favorite", { provider: val.providerID, model: val.modelID })
+              if (val && typeof val === "object" && val.providerId && val.modelID) {
+                debugCheckpoint("admin", "toggle favorite", { provider: val.providerId, model: val.modelID })
                 // Skip validation for Google API models (dynamic models not in provider.models registry)
-                const isGoogleDynamic = family(val.providerID) === "google-api"
+                const isGoogleDynamic = family(val.providerId) === "google-api"
                 local.model.toggleFavorite(val, { skipValidation: isGoogleDynamic })
               }
             },
@@ -1737,7 +1756,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                   family: fam,
                   methods: authMethods?.map((m) => m.label),
                 })
-                dialog.push(() => <DialogProviderList providerID={fam} />, markDialogClosed)
+                dialog.push(() => <DialogProviderList providerId={fam} />, markDialogClosed)
                 return
               }
 
@@ -1751,7 +1770,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                 dialog.push(
                   () => (
                     <DialogApiKeyAdd
-                      providerID={fam}
+                      providerId={fam}
                       providerName={providerName}
                       envVar={envVar}
                       onCancel={() => {
@@ -1774,7 +1793,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               }
 
               debugCheckpoint("admin", "add keybind provider list", { family: fam })
-              dialog.replace(() => <DialogProviderList providerID={fam} />)
+              dialog.replace(() => <DialogProviderList providerId={fam} />)
             },
           },
           // EDIT ACCOUNT NAME
@@ -1940,17 +1959,17 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
               if (step() === "model_select" || step() === "root") {
                 // Only handle model values (objects)
-                if (typeof val === "object" && val.providerID && val.modelID) {
+                if (typeof val === "object" && val.providerId && val.modelID) {
                   const modelVal = val as any
                   debugCheckpoint("admin", "delete model action", {
                     origin: modelVal.origin,
-                    provider: modelVal.providerID,
+                    provider: modelVal.providerId,
                     model: modelVal.modelID,
                   })
                   if (modelVal.origin === "recent") local.model.removeFromRecent(modelVal)
                   else if (modelVal.origin === "favorite") {
                     // Skip validation when removing favorites (model already exists in favorites list)
-                    const isGoogleDynamic = family(modelVal.providerID) === "google-api"
+                    const isGoogleDynamic = family(modelVal.providerId) === "google-api"
                     local.model.toggleFavorite(modelVal, { skipValidation: isGoogleDynamic })
                   } else if (step() !== "root") local.model.toggleHidden(modelVal)
                 }
@@ -1986,8 +2005,8 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               }
 
               // Unhide model
-              if (val && typeof val === "object" && val.providerID && val.modelID) {
-                debugCheckpoint("admin", "unhide model", { provider: val.providerID, model: val.modelID })
+              if (val && typeof val === "object" && val.providerId && val.modelID) {
+                debugCheckpoint("admin", "unhide model", { provider: val.providerId, model: val.modelID })
                 local.model.toggleHidden(val)
               }
             },
@@ -2374,7 +2393,7 @@ function DialogGoogleApiAdd(props: { onCancel: () => void; onSaved: () => void }
  * Generic API Key Add Dialog for models.dev providers
  */
 function DialogApiKeyAdd(props: {
-  providerID: string
+  providerId: string
   providerName: string
   envVar: string
   onCancel: () => void
@@ -2401,11 +2420,11 @@ function DialogApiKeyAdd(props: {
   })
 
   onMount(() => {
-    debugCheckpoint("admin.apikey_add", "mount", { provider: props.providerID })
+    debugCheckpoint("admin.apikey_add", "mount", { provider: props.providerId })
   })
 
   onCleanup(() => {
-    debugCheckpoint("admin.apikey_add", "cleanup", { provider: props.providerID })
+    debugCheckpoint("admin.apikey_add", "cleanup", { provider: props.providerId })
   })
 
   const items = createMemo(() => [
@@ -2477,7 +2496,7 @@ function DialogApiKeyAdd(props: {
     resetErrors()
     const nextName = name().trim()
     const nextKey = key().trim()
-    debugCheckpoint("admin.apikey_add", "save attempt", { name: nextName, provider: props.providerID })
+    debugCheckpoint("admin.apikey_add", "save attempt", { name: nextName, provider: props.providerId })
     if (!nextName) setNameErr("Account name is required")
     if (!nextKey) setKeyErr(`${props.envVar} is required`)
     if (!nextName || !nextKey) {
@@ -2485,8 +2504,8 @@ function DialogApiKeyAdd(props: {
       return
     }
 
-    const id = Account.generateId(props.providerID, "api", nextName)
-    const existing = await Account.list(props.providerID)
+    const id = Account.generateId(props.providerId, "api", nextName)
+    const existing = await Account.list(props.providerId)
       .then((list) => list[id])
       .catch((err) => {
         const msg = String(err instanceof Error ? err.stack || err.message : err)
@@ -2513,7 +2532,7 @@ function DialogApiKeyAdd(props: {
       apiKey: nextKey,
       addedAt: Date.now(),
     }
-    const wrote = await Account.add(props.providerID, id, info)
+    const wrote = await Account.add(props.providerId, id, info)
       .then(() => true)
       .catch((err) => {
         const msg = String(err instanceof Error ? err.stack || err.message : err)
@@ -2522,7 +2541,7 @@ function DialogApiKeyAdd(props: {
         return false
       })
     if (!wrote) return
-    debugCheckpoint("admin.apikey_add", "save success", { id, provider: props.providerID })
+    debugCheckpoint("admin.apikey_add", "save success", { id, provider: props.providerId })
     toast.show({ message: `${props.providerName} account saved`, variant: "success" })
     props.onSaved()
   }
@@ -2738,11 +2757,14 @@ function formatReason(reason: string): string {
 }
 
 function formatWait(waitMs: number): string {
-  const waitSec = Math.ceil(waitMs / 1000)
-  const waitMin = Math.floor(waitSec / 60)
-  const waitSecRemainder = waitSec % 60
-  if (waitMin > 0) return `${waitMin}m ${waitSecRemainder}s`
-  return `${waitSec}s`
+  const totalSec = Math.ceil(waitMs / 1000)
+  const days = Math.floor(totalSec / (3600 * 24))
+  const hours = Math.floor((totalSec % (3600 * 24)) / 3600)
+  const minutes = Math.floor((totalSec % 3600) / 60)
+  const seconds = totalSec % 60
+
+  const pad = (n: number) => n.toString().padStart(2, "0")
+  return `${pad(days)}:${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
 }
 
 /**
