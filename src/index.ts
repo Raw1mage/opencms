@@ -4,10 +4,13 @@ import { RunCommand } from "./cli/cmd/run"
 import { GenerateCommand } from "./cli/cmd/generate"
 import { Log } from "./util/log"
 import { AuthCommand } from "./cli/cmd/auth"
+import { AccountsCommand } from "./cli/cmd/accounts"
 import { AgentCommand } from "./cli/cmd/agent"
 import { UpgradeCommand } from "./cli/cmd/upgrade"
 import { UninstallCommand } from "./cli/cmd/uninstall"
 import { ModelsCommand } from "./cli/cmd/models"
+import { ModelCheckCommand } from "./cli/cmd/model-check"
+import { ModelSmokeCommand } from "./cli/cmd/model-smoke"
 import { UI } from "./cli/ui"
 import { Installation } from "./installation"
 import { NamedError } from "@opencode-ai/util/error"
@@ -19,21 +22,28 @@ import { McpCommand } from "./cli/cmd/mcp"
 import { GithubCommand } from "./cli/cmd/github"
 import { ExportCommand } from "./cli/cmd/export"
 import { ImportCommand } from "./cli/cmd/import"
-import { AttachCommand } from "./cli/cmd/tui/attach"
-import { TuiThreadCommand } from "./cli/cmd/tui/thread"
 import { AcpCommand } from "./cli/cmd/acp"
 import { EOL } from "os"
 import { WebCommand } from "./cli/cmd/web"
 import { PrCommand } from "./cli/cmd/pr"
 import { SessionCommand } from "./cli/cmd/session"
+import { AdminCommand } from "./cli/cmd/admin"
+import { debugInit, debugCheckpoint } from "./util/debug"
+
+debugInit()
+debugCheckpoint("app", "start", { args: process.argv.slice(2) })
 
 process.on("unhandledRejection", (e) => {
+  const msg = e instanceof Error ? e.stack || e.message : String(e)
+  debugCheckpoint("error", "unhandledRejection", { error: msg })
   Log.Default.error("rejection", {
     e: e instanceof Error ? e.message : e,
   })
 })
 
 process.on("uncaughtException", (e) => {
+  const msg = e instanceof Error ? e.stack || e.message : e
+  debugCheckpoint("error", "uncaughtException", { error: msg })
   Log.Default.error("exception", {
     e: e instanceof Error ? e.message : e,
   })
@@ -79,24 +89,26 @@ const cli = yargs(hideBin(process.argv))
   .completion("completion", "generate shell completion script")
   .command(AcpCommand)
   .command(McpCommand)
-  .command(TuiThreadCommand)
-  .command(AttachCommand)
   .command(RunCommand)
   .command(GenerateCommand)
   .command(DebugCommand)
   .command(AuthCommand)
+  .command(AccountsCommand)
   .command(AgentCommand)
   .command(UpgradeCommand)
   .command(UninstallCommand)
   .command(ServeCommand)
   .command(WebCommand)
   .command(ModelsCommand)
+  .command(ModelCheckCommand)
+  .command(ModelSmokeCommand)
   .command(StatsCommand)
   .command(ExportCommand)
   .command(ImportCommand)
   .command(GithubCommand)
   .command(PrCommand)
   .command(SessionCommand)
+  .command(AdminCommand)
   .fail((msg, err) => {
     if (
       msg?.startsWith("Unknown argument") ||
@@ -110,6 +122,17 @@ const cli = yargs(hideBin(process.argv))
     process.exit(1)
   })
   .strict()
+
+const tui = await (async () => {
+  if (process.env.OPENCODE_SKIP_TUI === "1") return []
+  const attach = await import("./cli/cmd/tui/attach")
+  const thread = await import("./cli/cmd/tui/thread")
+  return [thread.TuiThreadCommand, attach.AttachCommand]
+})()
+
+for (const cmd of tui) {
+  cli.command(cmd as any)
+}
 
 try {
   await cli.parse()

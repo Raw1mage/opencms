@@ -1,14 +1,61 @@
 import fs from "fs/promises"
+import { constants as fsConstants } from "fs"
 import { xdgData, xdgCache, xdgConfig, xdgState } from "xdg-basedir"
 import path from "path"
 import os from "os"
 
 const app = "opencode"
 
-const data = path.join(xdgData!, app)
-const cache = path.join(xdgCache!, app)
-const config = path.join(xdgConfig!, app)
-const state = path.join(xdgState!, app)
+type DirectorySet = {
+  data: string
+  cache: string
+  config: string
+  state: string
+}
+
+const defaultPaths: DirectorySet = {
+  data: path.join(xdgData ?? path.join(os.homedir(), ".local/share"), app),
+  cache: path.join(xdgCache ?? path.join(os.homedir(), ".cache"), app),
+  config: path.join(xdgConfig ?? path.join(os.homedir(), ".config"), app),
+  state: path.join(xdgState ?? path.join(os.homedir(), ".local/state"), app),
+}
+
+const fallbackRoot = process.env.OPENCODE_DATA_HOME ?? path.join(process.cwd(), ".opencode-data")
+const fallbackPaths: DirectorySet = {
+  data: path.join(fallbackRoot, "data"),
+  cache: path.join(fallbackRoot, "cache"),
+  config: path.join(fallbackRoot, "config"),
+  state: path.join(fallbackRoot, "state"),
+}
+
+async function ensurePaths(paths: DirectorySet) {
+  await Promise.all(
+    Object.values(paths).map(async (dir) => {
+      await fs.mkdir(dir, { recursive: true })
+      await fs.access(dir, fsConstants.W_OK)
+    }),
+  )
+}
+
+function isAccessDenied(error: unknown): error is NodeJS.ErrnoException {
+  if (!(error instanceof Error)) return false
+  const code = (error as NodeJS.ErrnoException).code
+  return code === "EACCES" || code === "EPERM"
+}
+
+const resolvedPaths: DirectorySet = await (async () => {
+  try {
+    await ensurePaths(defaultPaths)
+    return defaultPaths
+  } catch (error) {
+    if (isAccessDenied(error)) {
+      await fs.mkdir(fallbackRoot, { recursive: true }).catch(() => {})
+      await ensurePaths(fallbackPaths)
+      return fallbackPaths
+    }
+    throw error
+  }
+})()
 
 export namespace Global {
   export const Path = {
@@ -16,12 +63,12 @@ export namespace Global {
     get home() {
       return process.env.OPENCODE_TEST_HOME || os.homedir()
     },
-    data,
-    bin: path.join(data, "bin"),
-    log: path.join(data, "log"),
-    cache,
-    config,
-    state,
+    data: resolvedPaths.data,
+    bin: path.join(resolvedPaths.data, "bin"),
+    log: path.join(resolvedPaths.data, "log"),
+    cache: resolvedPaths.cache,
+    config: resolvedPaths.config,
+    state: resolvedPaths.state,
   }
 }
 

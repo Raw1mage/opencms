@@ -2,6 +2,7 @@ import path from "path"
 import fs from "fs/promises"
 import { Global } from "../global"
 import z from "zod"
+import { debugCheckpoint } from "./debug"
 
 export namespace Log {
   export const Level = z.enum(["DEBUG", "INFO", "WARN", "ERROR"]).meta({ ref: "LogLevel", description: "Log level" })
@@ -63,13 +64,24 @@ export namespace Log {
       Global.Path.log,
       options.dev ? "dev.log" : new Date().toISOString().split(".")[0].replace(/:/g, "") + ".log",
     )
-    const logfile = Bun.file(logpath)
-    await fs.truncate(logpath).catch(() => {})
-    const writer = logfile.writer()
-    write = async (msg: any) => {
-      const num = writer.write(msg)
-      writer.flush()
-      return num
+    await fs.mkdir(Global.Path.log, { recursive: true }).catch(() => {})
+    try {
+      const logfile = Bun.file(logpath)
+      await fs.truncate(logpath).catch(() => {})
+      const writer = logfile.writer()
+      write = async (msg: any) => {
+        const num = writer.write(msg)
+        writer.flush()
+        return num
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      process.stderr.write(`WARN log init failed: ${message}\n`)
+      logpath = ""
+      write = (msg: any) => {
+        process.stderr.write(msg)
+        return msg.length
+      }
     }
   }
 
@@ -97,6 +109,15 @@ export namespace Log {
   let last = Date.now()
   export function create(tags?: Record<string, any>) {
     tags = tags || {}
+
+    function formatMessage(message: any): string {
+      if (message instanceof Error) return message.stack ?? message.message
+      if (typeof message === "string") return message
+      if (message === undefined) return ""
+      if (message === null) return "null"
+      if (typeof message === "object") return JSON.stringify(message)
+      return String(message)
+    }
 
     const service = tags["service"]
     if (service && typeof service === "string") {
@@ -127,21 +148,25 @@ export namespace Log {
     const result: Logger = {
       debug(message?: any, extra?: Record<string, any>) {
         if (shouldLog("DEBUG")) {
+          debugCheckpoint("log", `DEBUG ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
           write("DEBUG " + build(message, extra))
         }
       },
       info(message?: any, extra?: Record<string, any>) {
         if (shouldLog("INFO")) {
+          debugCheckpoint("log", `INFO ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
           write("INFO  " + build(message, extra))
         }
       },
       error(message?: any, extra?: Record<string, any>) {
         if (shouldLog("ERROR")) {
+          debugCheckpoint("log", `ERROR ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
           write("ERROR " + build(message, extra))
         }
       },
       warn(message?: any, extra?: Record<string, any>) {
         if (shouldLog("WARN")) {
+          debugCheckpoint("log", `WARN ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
           write("WARN  " + build(message, extra))
         }
       },

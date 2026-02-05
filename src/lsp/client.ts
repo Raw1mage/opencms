@@ -78,51 +78,54 @@ export namespace LSPClient {
     ])
     connection.listen()
 
-    l.info("sending initialize")
-    await withTimeout(
-      connection.sendRequest("initialize", {
-        rootUri: pathToFileURL(input.root).href,
-        processId: input.server.process.pid,
-        workspaceFolders: [
+    const skipInit = process.env["OPENCODE_TEST_LSP_SKIP_INIT"] === "1"
+    if (!skipInit) {
+      l.info("sending initialize")
+      await withTimeout(
+        connection.sendRequest("initialize", {
+          rootUri: pathToFileURL(input.root).href,
+          processId: input.server.process.pid,
+          workspaceFolders: [
+            {
+              name: "workspace",
+              uri: pathToFileURL(input.root).href,
+            },
+          ],
+          initializationOptions: {
+            ...input.server.initialization,
+          },
+          capabilities: {
+            window: {
+              workDoneProgress: true,
+            },
+            workspace: {
+              configuration: true,
+              didChangeWatchedFiles: {
+                dynamicRegistration: true,
+              },
+            },
+            textDocument: {
+              synchronization: {
+                didOpen: true,
+                didChange: true,
+              },
+              publishDiagnostics: {
+                versionSupport: true,
+              },
+            },
+          },
+        }),
+        45_000,
+      ).catch((err) => {
+        l.error("initialize error", { error: err })
+        throw new InitializeError(
+          { serverID: input.serverID },
           {
-            name: "workspace",
-            uri: pathToFileURL(input.root).href,
+            cause: err,
           },
-        ],
-        initializationOptions: {
-          ...input.server.initialization,
-        },
-        capabilities: {
-          window: {
-            workDoneProgress: true,
-          },
-          workspace: {
-            configuration: true,
-            didChangeWatchedFiles: {
-              dynamicRegistration: true,
-            },
-          },
-          textDocument: {
-            synchronization: {
-              didOpen: true,
-              didChange: true,
-            },
-            publishDiagnostics: {
-              versionSupport: true,
-            },
-          },
-        },
-      }),
-      45_000,
-    ).catch((err) => {
-      l.error("initialize error", { error: err })
-      throw new InitializeError(
-        { serverID: input.serverID },
-        {
-          cause: err,
-        },
-      )
-    })
+        )
+      })
+    }
 
     await connection.sendNotification("initialized", {})
 

@@ -1,6 +1,6 @@
 import { Global } from "@/global"
 import { createSignal, type Setter } from "solid-js"
-import { createStore } from "solid-js/store"
+import { createStore, reconcile } from "solid-js/store"
 import { createSimpleContext } from "./helper"
 import path from "path"
 
@@ -8,17 +8,25 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
   name: "KV",
   init: () => {
     const [ready, setReady] = createSignal(false)
-    const [store, setStore] = createStore<Record<string, any>>()
+    const [store, setStore] = createStore<Record<string, any>>({})
     const file = Bun.file(path.join(Global.Path.state, "kv.json"))
 
     file
       .json()
       .then((x) => {
-        setStore(x)
+        if (x && typeof x === "object") {
+          try {
+            setStore(reconcile(x))
+          } catch (e) {
+            console.error("KV setStore failed", e)
+          }
+        }
       })
       .catch(() => {})
       .finally(() => {
-        setReady(true)
+        try {
+          setReady(true)
+        } catch (e) {}
       })
 
     const result = {

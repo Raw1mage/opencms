@@ -10,7 +10,7 @@ import { Log } from "../util/log"
 
 const log = Log.create({ service: "mcp.oauth" })
 
-const OAUTH_CALLBACK_PORT = 19876
+const OAUTH_CALLBACK_PORT = Number(process.env["OPENCODE_OAUTH_CALLBACK_PORT"] ?? "19876")
 const OAUTH_CALLBACK_PATH = "/mcp/oauth/callback"
 
 export interface McpOAuthConfig {

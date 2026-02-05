@@ -1,25 +1,29 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/solid"
-import { batch, createContext, Show, useContext, type JSX, type ParentProps } from "solid-js"
+import { batch, createContext, Show, useContext, type JSX, type ParentProps, createEffect, createSignal, createMemo } from "solid-js"
 import { useTheme } from "@tui/context/theme"
 import { Renderable, RGBA } from "@opentui/core"
 import { createStore } from "solid-js/store"
 import { Clipboard } from "@tui/util/clipboard"
 import { useToast } from "./toast"
+import { debugCheckpoint } from "@/util/debug"
 
 export function Dialog(
   props: ParentProps<{
     size?: "medium" | "large"
     onClose: () => void
+    closeOnBackdrop?: boolean
   }>,
 ) {
   const dimensions = useTerminalDimensions()
   const { theme } = useTheme()
   const renderer = useRenderer()
+  const closeOnBackdrop = props.closeOnBackdrop ?? false
 
   return (
     <box
       onMouseUp={async () => {
         if (renderer.getSelection()) return
+        if (!closeOnBackdrop) return
         props.onClose?.()
       }}
       width={dimensions().width}
@@ -53,12 +57,18 @@ function init() {
       element: JSX.Element
       onClose?: () => void
     }[],
-    size: "medium" as "medium" | "large",
+  })
+  // Separate size signal to avoid triggering stack re-render when size changes
+  const [size, setSize] = createSignal<"medium" | "large">("medium")
+
+  createEffect(() => {
+    debugCheckpoint("dialog", "stack", { size: store.stack.length })
   })
 
   useKeyboard((evt) => {
     if (evt.name === "escape" && store.stack.length > 0) {
       const current = store.stack.at(-1)!
+      debugCheckpoint("dialog", "escape close", { size: store.stack.length })
       current.onClose?.()
       setStore("stack", store.stack.slice(0, -1))
       evt.preventDefault()
@@ -88,16 +98,34 @@ function init() {
 
   return {
     clear() {
+      debugCheckpoint("dialog", "clear", { size: store.stack.length, stack: new Error().stack })
       for (const item of store.stack) {
         if (item.onClose) item.onClose()
       }
       batch(() => {
-        setStore("size", "medium")
+        setSize("medium")
         setStore("stack", [])
       })
       refocus()
     },
+    push(input: any, onClose?: () => void) {
+      debugCheckpoint("dialog", "push", { size: store.stack.length + 1, stack: new Error().stack })
+      if (store.stack.length === 0) {
+        focus = renderer.currentFocusedRenderable
+        focus?.blur()
+      }
+      setStore("stack", (s) => [...s, { element: input, onClose }])
+    },
+    pop() {
+      if (store.stack.length === 0) return
+      const current = store.stack.at(-1)!
+      debugCheckpoint("dialog", "pop", { size: store.stack.length - 1, stack: new Error().stack })
+      if (current.onClose) current.onClose()
+      setStore("stack", (s) => s.slice(0, -1))
+      if (store.stack.length === 0) refocus()
+    },
     replace(input: any, onClose?: () => void) {
+      debugCheckpoint("dialog", "replace", { size: 1, stack: new Error().stack })
       if (store.stack.length === 0) {
         focus = renderer.currentFocusedRenderable
         focus?.blur()
@@ -105,7 +133,7 @@ function init() {
       for (const item of store.stack) {
         if (item.onClose) item.onClose()
       }
-      setStore("size", "medium")
+      setSize("medium")
       setStore("stack", [
         {
           element: input,
@@ -117,10 +145,10 @@ function init() {
       return store.stack
     },
     get size() {
-      return store.size
+      return size()
     },
-    setSize(size: "medium" | "large") {
-      setStore("size", size)
+    setSize(newSize: "medium" | "large") {
+      setSize(newSize)
     },
   }
 }
@@ -128,6 +156,16 @@ function init() {
 export type DialogContext = ReturnType<typeof init>
 
 const ctx = createContext<DialogContext>()
+
+// Helper component to render the dialog element with memoization
+function DialogContent(props: { element: JSX.Element }) {
+  // Memoize the resolved element to prevent re-creation
+  const resolved = createMemo(() => {
+    const el = props.element
+    return typeof el === "function" ? el() : el
+  })
+  return <>{resolved()}</>
+}
 
 export function DialogProvider(props: ParentProps) {
   const value = init()
@@ -149,8 +187,8 @@ export function DialogProvider(props: ParentProps) {
         }}
       >
         <Show when={value.stack.length}>
-          <Dialog onClose={() => value.clear()} size={value.size}>
-            {value.stack.at(-1)!.element}
+          <Dialog onClose={() => value.clear()} size={value.size} closeOnBackdrop={false}>
+            <DialogContent element={value.stack.at(-1)!.element} />
           </Dialog>
         </Show>
       </box>

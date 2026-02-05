@@ -4,13 +4,39 @@ import { createStore } from "solid-js/store"
 import { useTheme } from "../../context/theme"
 import { Locale } from "@/util/locale"
 import path from "path"
-import type { AssistantMessage } from "@opencode-ai/sdk/v2"
+import type { AssistantMessage, Part as MessagePart } from "@opencode-ai/sdk/v2"
 import { Global } from "@/global"
 import { Installation } from "@/installation"
 import { useKeybind } from "../../context/keybind"
 import { useDirectory } from "../../context/directory"
 import { useKV } from "../../context/kv"
+import { useRoute } from "../../context/route"
 import { TodoItem } from "../../component/todo-item"
+
+const STATUS_LABELS: Record<string, string> = {
+  idle: "Done",
+  error: "Error",
+  retry: "Retrying",
+  compacting: "Compacting",
+  pending: "Pending",
+}
+const LEVEL_LABELS: Record<string, string> = {
+  session: "S",
+  "sub-session": "SS",
+  agent: "A",
+  "sub-agent": "SA",
+  tool: "T",
+}
+
+const formatIsoTitle = (title: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(title)) return title
+  const date = new Date(title)
+  if (Number.isNaN(date.getTime())) return title
+  const pad = (value: number) => value.toString().padStart(2, "0")
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(
+    date.getHours(),
+  )}:${pad(date.getMinutes())}`
+}
 
 export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
   const sync = useSync()
@@ -62,6 +88,36 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
 
   const directory = useDirectory()
   const kv = useKV()
+  const route = useRoute()
+
+  const monitorStatusColors = {
+    busy: theme.success,
+    working: theme.success,
+    idle: theme.textMuted,
+    error: theme.error,
+    retry: theme.warning,
+    compacting: theme.textMuted,
+    pending: theme.textMuted,
+  }
+
+  const activeStatuses = new Set(["busy", "working", "retry", "compacting", "pending"])
+  const monitorEntries = createMemo(() => {
+    const raw = (sync.data.monitor ?? [])
+      .filter((x) => activeStatuses.has(x.status.type))
+      .slice()
+      .sort((a, b) => b.updated - a.updated)
+
+    // Deduplicate: If an 'agent' entry and a 'session' entry have the same sessionID and are updated at similar times,
+    // prefer the 'agent' entry (or just show one).
+    // Actually, usually [A] and [S] are redundant if there is only one active agent.
+    // Let's filter out 'session' level entries if there is an 'agent' level entry for the same sessionID.
+    const agentSessionIDs = new Set(raw.filter((x) => x.level === "agent").map((x) => x.sessionID))
+    return raw.filter((x) => {
+      if (x.level === "session" && agentSessionIDs.has(x.sessionID)) return false
+      return true
+    })
+  })
+  const activeRouteSessionID = createMemo(() => (route.data.type === "session" ? route.data.sessionID : undefined))
 
   const hasProviders = createMemo(() =>
     sync.data.provider.some((x) => x.id !== "opencode" || Object.values(x.models).some((y) => y.cost?.input !== 0)),
@@ -98,6 +154,57 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
               <text fg={theme.textMuted}>{context()?.percentage ?? 0}% used</text>
               <text fg={theme.textMuted}>{cost()} spent</text>
             </box>
+            <Show when={monitorEntries().length > 0}>
+              <box marginTop={1} gap={1}>
+                <text fg={theme.text}>
+                  <b>Monitor</b>
+                </text>
+                <For each={monitorEntries()}>
+                  {(info) => {
+                    const statusType = info.status.type
+                    const dotColor = monitorStatusColors[statusType] ?? theme.textMuted
+                    const statusLabel = STATUS_LABELS[statusType]
+                    const levelLabel = LEVEL_LABELS[info.level] ?? info.level
+                    const modelLabel = info.model ? `${info.model.providerID}/${info.model.modelID}` : "No model"
+                    const title = formatIsoTitle(info.title || "Untitled session")
+                    const agentSuffix = info.agent ? ` (${info.agent})` : ""
+                    const isActiveSession = activeRouteSessionID() === info.sessionID
+                    const metaLabel =
+                      info.level === "tool"
+                        ? `${modelLabel}`
+                        : `${modelLabel} ${info.requests} reqs ${info.totalTokens.toLocaleString()} tok`
+                    const toolLabel = info.activeTool
+                      ? `Tool: ${info.activeTool} (${info.activeToolStatus ?? "pending"})`
+                      : null
+                    return (
+                      <box
+                        flexDirection="column"
+                        paddingLeft={1}
+                        paddingRight={1}
+                        gap={0}
+                        backgroundColor={isActiveSession ? theme.backgroundElement : undefined}
+                        onMouseDown={() => route.navigate({ type: "session", sessionID: info.sessionID })}
+                      >
+                        <box flexDirection="row" gap={1} alignItems="center">
+                          <text fg={dotColor}>•</text>
+                          <text fg={theme.text} wrapMode="word">
+                            <span style={{ fg: theme.textMuted }}>[{levelLabel}]</span> {title}
+                            <span style={{ fg: theme.textMuted }}>{agentSuffix}</span>
+                            <Show when={statusLabel}>
+                              <span style={{ fg: dotColor }}> {statusLabel}</span>
+                            </Show>
+                            <span style={{ fg: theme.textMuted }}> {metaLabel}</span>
+                            <Show when={toolLabel}>
+                              <span style={{ fg: theme.textMuted }}> {toolLabel}</span>
+                            </Show>
+                          </text>
+                        </box>
+                      </box>
+                    )
+                  }}
+                </For>
+              </box>
+            </Show>
             <Show when={mcpEntries().length > 0}>
               <box>
                 <box

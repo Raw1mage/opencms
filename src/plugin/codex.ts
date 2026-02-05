@@ -443,15 +443,65 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
               headers.set("ChatGPT-Account-Id", authWithAccount.accountId)
             }
 
-            // Rewrite URL to Codex endpoint
+            // Normalize URL
             const parsed =
               requestInput instanceof URL
                 ? requestInput
                 : new URL(typeof requestInput === "string" ? requestInput : requestInput.url)
-            const url =
+
+            const isCodexEndpoint =
               parsed.pathname.includes("/v1/responses") || parsed.pathname.includes("/chat/completions")
-                ? new URL(CODEX_API_ENDPOINT)
-                : parsed
+            const url = isCodexEndpoint ? new URL(CODEX_API_ENDPOINT) : parsed
+
+            // Process body if it's the Codex endpoint
+            if (isCodexEndpoint) {
+              let bodyString: string | undefined
+
+              // Extract body from init or requestInput
+              if (init?.body) {
+                bodyString = typeof init.body === "string" ? init.body : undefined
+              } else if (requestInput instanceof Request) {
+                // We must clone because reading the body consumes it
+                try {
+                  bodyString = await requestInput.clone().text()
+                } catch (e) {
+                  // Fallback or ignore
+                }
+              }
+
+              if (bodyString) {
+                try {
+                  const body = JSON.parse(bodyString)
+                  const messages = body.messages || []
+                  const systemMsg = messages.find((m: any) => m.role === "system" || m.role === "developer")
+
+                  // Codex endpoint requires instructions
+                  if (systemMsg) {
+                    body.instructions = systemMsg.content
+                  } else {
+                    body.instructions = "You are a helpful assistant."
+                  }
+
+                  // Remove unsupported parameters
+                  if (body.max_output_tokens) {
+                    // body.max_tokens = body.max_output_tokens // DO NOT MAP to max_tokens if that is also unsupported
+                    delete body.max_output_tokens
+                  }
+                  if (body.max_tokens) {
+                    delete body.max_tokens
+                  }
+
+                  // Ensure init is valid and update body
+                  if (!init) init = {}
+                  init.body = JSON.stringify(body)
+
+                  // If we pulled body from Request, we might need to carry over other Request properties if not in init
+                  if (!init.method && requestInput instanceof Request) init.method = requestInput.method
+                } catch (e) {
+                  // Ignore JSON parse errors
+                }
+              }
+            }
 
             return fetch(url, {
               ...init,

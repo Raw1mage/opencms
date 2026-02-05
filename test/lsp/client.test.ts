@@ -9,8 +9,9 @@ import { Log } from "../../src/util/log"
 function spawnFakeServer() {
   const { spawn } = require("child_process")
   const serverPath = path.join(__dirname, "../fixture/lsp/fake-lsp-server.js")
+  const node = process.env["NODE_BINARY"] ?? Bun.which("node") ?? process.execPath
   return {
-    process: spawn(process.execPath, [serverPath], {
+    process: spawn(node, [serverPath], {
       stdio: "pipe",
     }),
   }

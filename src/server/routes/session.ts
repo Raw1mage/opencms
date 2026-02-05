@@ -9,6 +9,7 @@ import { SessionCompaction } from "../../session/compaction"
 import { SessionRevert } from "../../session/revert"
 import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
+import { SessionMonitor } from "@/session/monitor"
 import { Todo } from "../../session/todo"
 import { Agent } from "../../agent/agent"
 import { Snapshot } from "@/snapshot"
@@ -86,6 +87,29 @@ export const SessionRoutes = lazy(() =>
       }),
       async (c) => {
         const result = SessionStatus.list()
+        return c.json(result)
+      },
+    )
+    .get(
+      "/top",
+      describeRoute({
+        summary: "Get session monitor snapshot",
+        description: "Retrieve the latest top-like session monitor snapshot for active sessions.",
+        operationId: "session.top",
+        responses: {
+          200: {
+            description: "Session monitor snapshot",
+            content: {
+              "application/json": {
+                schema: resolver(SessionMonitor.Info.array()),
+              },
+            },
+          },
+          ...errors(400),
+        },
+      }),
+      async (c) => {
+        const result = await SessionMonitor.snapshot()
         return c.json(result)
       },
     )

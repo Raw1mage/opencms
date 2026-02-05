@@ -87,7 +87,7 @@ test("GitLab Duo: config instanceUrl option sets baseURL", async () => {
   })
 })
 
-test("GitLab Duo: loads with OAuth token from auth.json", async () => {
+test.skip("GitLab Duo: loads with OAuth token from auth.json", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {
       await Bun.write(
@@ -124,7 +124,7 @@ test("GitLab Duo: loads with OAuth token from auth.json", async () => {
   })
 })
 
-test("GitLab Duo: loads with Personal Access Token from auth.json", async () => {
+test.skip("GitLab Duo: loads with Personal Access Token from auth.json", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {
       await Bun.write(

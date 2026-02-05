@@ -7,6 +7,7 @@ import { ModelsDev } from "../../provider/models"
 import { ProviderAuth } from "../../provider/auth"
 import { mapValues } from "remeda"
 import { errors } from "../error"
+import { Account } from "../../account"
 import { lazy } from "../../util/lazy"
 
 export const ProviderRoutes = lazy(() =>
@@ -47,11 +48,59 @@ export const ProviderRoutes = lazy(() =>
           }
         }
 
+        // Wait for discovery to be sure we have the latest account-specific models
         const connected = await Provider.list()
-        const providers = Object.assign(
-          mapValues(filteredProviders, (x) => Provider.fromModelsDevProvider(x)),
-          connected,
-        )
+
+        const providers: Record<string, Provider.Info> = {}
+
+        // Get all families with accounts to determine multi-account status dynamically
+        const familiesWithAccounts = await Account.listAll()
+
+        // Merge ModelsDev providers
+        for (const [id, devProvider] of Object.entries(filteredProviders)) {
+          const family = Account.parseFamily(id) || id
+          // A provider has multi-account if it has accounts in storage (not a whitelist)
+          const hasAccountsConfigured = !!(
+            familiesWithAccounts[family]?.accounts && Object.keys(familiesWithAccounts[family].accounts).length > 0
+          )
+
+          if (hasAccountsConfigured) {
+            // For multi-account families, we should only show models if they are either:
+            // 1. In the 'connected' list (meaning they were discovered specifically for the active account)
+            // 2. Public models (cost.input === 0)
+
+            const connectedProvider = connected[id]
+            if (connectedProvider) {
+              providers[id] = connectedProvider
+              continue
+            }
+
+            // If not connected, we show the ModelsDev version but filter for public models only
+            const info = Provider.fromModelsDevProvider(devProvider)
+            const publicModels: Record<string, Provider.Model> = {}
+            for (const [mId, mInfo] of Object.entries(info.models)) {
+              if (mInfo.cost.input === 0) {
+                publicModels[mId] = mInfo
+              }
+            }
+
+            if (Object.keys(publicModels).length > 0) {
+              info.models = publicModels
+              providers[id] = info
+            }
+          } else {
+            // For other providers, show as is or if they are in connected
+            providers[id] = connected[id] || Provider.fromModelsDevProvider(devProvider)
+          }
+        }
+
+        // Add any connected providers that were not in filteredProviders
+        for (const [id, info] of Object.entries(connected)) {
+          if (!providers[id]) {
+            providers[id] = info
+          }
+        }
+
         return c.json({
           all: Object.values(providers),
           default: mapValues(providers, (item) => Provider.sort(Object.values(item.models))[0].id),

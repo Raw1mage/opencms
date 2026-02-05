@@ -17,6 +17,8 @@ import type {
   ProviderListResponse,
   ProviderAuthMethod,
   VcsInfo,
+  AppSkillsResponse,
+  SessionMonitorInfo,
 } from "@opencode-ai/sdk/v2"
 import { createStore, produce, reconcile } from "solid-js/store"
 import { useSDK } from "@tui/context/sdk"
@@ -33,13 +35,15 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
   name: "Sync",
   init: () => {
     const [store, setStore] = createStore<{
-      status: "loading" | "partial" | "complete"
+      status: "loading" | "partial" | "complete" | "error"
+      error?: string
       provider: Provider[]
       provider_default: Record<string, string>
       provider_next: ProviderListResponse
       provider_auth: Record<string, ProviderAuthMethod[]>
       agent: Agent[]
       command: Command[]
+      skill: AppSkillsResponse
       permission: {
         [sessionID: string]: PermissionRequest[]
       }
@@ -54,6 +58,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       session_diff: {
         [sessionID: string]: Snapshot.FileDiff[]
       }
+      monitor: SessionMonitorInfo[]
       todo: {
         [sessionID: string]: Todo[]
       }
@@ -86,11 +91,13 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       permission: {},
       question: {},
       command: [],
+      skill: [],
       provider: [],
       provider_default: {},
       session: [],
       session_status: {},
       session_diff: {},
+      monitor: [],
       todo: {},
       message: {},
       part: {},
@@ -246,21 +253,23 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           const updated = store.message[event.properties.info.sessionID]
           if (updated.length > 100) {
             const oldest = updated[0]
-            batch(() => {
-              setStore(
-                "message",
-                event.properties.info.sessionID,
-                produce((draft) => {
-                  draft.shift()
-                }),
-              )
-              setStore(
-                "part",
-                produce((draft) => {
-                  delete draft[oldest.id]
-                }),
-              )
-            })
+            if (oldest) {
+              batch(() => {
+                setStore(
+                  "message",
+                  event.properties.info.sessionID,
+                  produce((draft) => {
+                    draft.shift()
+                  }),
+                )
+                setStore(
+                  "part",
+                  produce((draft) => {
+                    delete draft[oldest.id]
+                  }),
+                )
+              })
+            }
           }
           break
         }
@@ -385,6 +394,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           Promise.all([
             ...(args.continue ? [] : [sessionListPromise.then((sessions) => setStore("session", reconcile(sessions)))]),
             sdk.client.command.list().then((x) => setStore("command", reconcile(x.data ?? []))),
+            sdk.client.app.skills().then((x) => setStore("skill", reconcile(x.data ?? []))),
             sdk.client.lsp.status().then((x) => setStore("lsp", reconcile(x.data!))),
             sdk.client.mcp.status().then((x) => setStore("mcp", reconcile(x.data!))),
             sdk.client.experimental.resource.list().then((x) => setStore("mcp_resource", reconcile(x.data ?? {}))),
@@ -400,17 +410,37 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           })
         })
         .catch(async (e) => {
+          const message = e instanceof Error ? e.message : String(e)
           Log.Default.error("tui bootstrap failed", {
-            error: e instanceof Error ? e.message : String(e),
+            error: message,
             name: e instanceof Error ? e.name : undefined,
             stack: e instanceof Error ? e.stack : undefined,
           })
-          await exit(e)
+          setStore("status", "error")
+          setStore("error", message)
+        })
+    }
+
+    const pollMonitor = () => {
+      sdk.client.session
+        .top()
+        .then((x) => setStore("monitor", reconcile(x.data ?? [])))
+        .catch((e) => {
+          const message = e instanceof Error ? e.message : String(e)
+          Log.Default.error("tui monitor poll failed", {
+            error: message,
+            name: e instanceof Error ? e.name : undefined,
+            stack: e instanceof Error ? e.stack : undefined,
+          })
+        })
+        .finally(() => {
+          setTimeout(pollMonitor, 2000)
         })
     }
 
     onMount(() => {
       bootstrap()
+      pollMonitor()
     })
 
     const fullSyncedSessions = new Set<string>()
@@ -421,7 +451,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         return store.status
       },
       get ready() {
-        return store.status !== "loading"
+        return true // Optimistic rendering for TUI
       },
       session: {
         get(sessionID: string) {

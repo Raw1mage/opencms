@@ -13,16 +13,34 @@ export function TodoItem(props: TodoItemProps) {
       <text
         flexShrink={0}
         style={{
-          fg: props.status === "in_progress" ? theme.warning : theme.textMuted,
+          fg:
+            props.status === "in_progress"
+              ? theme.warning
+              : props.status === "cancelled"
+                ? theme.error
+                : theme.textMuted,
         }}
       >
-        [{props.status === "completed" ? "✓" : props.status === "in_progress" ? "•" : " "}]{" "}
+        [
+        {props.status === "completed"
+          ? "✓"
+          : props.status === "cancelled"
+            ? "✗"
+            : props.status === "in_progress"
+              ? "•"
+              : " "}
+        ]{" "}
       </text>
       <text
         flexGrow={1}
         wrapMode="word"
         style={{
-          fg: props.status === "in_progress" ? theme.warning : theme.textMuted,
+          fg:
+            props.status === "in_progress"
+              ? theme.warning
+              : props.status === "cancelled"
+                ? theme.error
+                : theme.textMuted,
         }}
       >
         {props.content}
