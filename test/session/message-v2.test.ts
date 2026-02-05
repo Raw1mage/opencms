@@ -5,7 +5,7 @@ import type { Provider } from "../../src/provider/provider"
 const sessionID = "session"
 const model: Provider.Model = {
   id: "test-model",
-  providerID: "test",
+  providerId: "test",
   api: {
     id: "test-model",
     url: "https://example.com",
@@ -59,7 +59,7 @@ function userInfo(id: string): MessageV2.User {
     role: "user",
     time: { created: 0 },
     agent: "user",
-    model: { providerID: "test", modelID: "test" },
+    model: { providerId: "test", modelID: "test" },
     tools: {},
     mode: "",
   } as unknown as MessageV2.User
@@ -69,9 +69,9 @@ function assistantInfo(
   id: string,
   parentID: string,
   error?: MessageV2.Assistant["error"],
-  meta?: { providerID: string; modelID: string },
+  meta?: { providerId: string; modelID: string },
 ): MessageV2.Assistant {
-  const infoModel = meta ?? { providerID: model.providerID, modelID: model.api.id }
+  const infoModel = meta ?? { providerId: model.providerId, modelID: model.api.id }
   return {
     id,
     sessionID,
@@ -80,7 +80,7 @@ function assistantInfo(
     error,
     parentID,
     modelID: infoModel.modelID,
-    providerID: infoModel.providerID,
+    providerId: infoModel.providerId,
     mode: "",
     agent: "agent",
     path: { cwd: "/", root: "/" },
@@ -369,7 +369,7 @@ describe("session.message-v2.toModelMessage", () => {
         ] as MessageV2.Part[],
       },
       {
-        info: assistantInfo(assistantID, userID, undefined, { providerID: "other", modelID: "other" }),
+        info: assistantInfo(assistantID, userID, undefined, { providerId: "other", modelID: "other" }),
         parts: [
           {
             ...basePart(assistantID, "a1"),

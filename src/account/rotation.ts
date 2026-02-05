@@ -475,11 +475,11 @@ export class RateLimitTracker {
 
   /**
    * Get a 3D snapshot of all rate limits for dashboard display.
-   * Returns array of { accountId, providerID, modelID, waitMs, reason }
+   * Returns array of { accountId, providerId, modelID, waitMs, reason }
    */
   getSnapshot3D(): Array<{
     accountId: string
-    providerID: string
+    providerId: string
     modelID: string | undefined
     waitMs: number
     reason: RateLimitReason
@@ -490,7 +490,7 @@ export class RateLimitTracker {
     const now = Date.now()
     const result: Array<{
       accountId: string
-      providerID: string
+      providerId: string
       modelID: string | undefined
       waitMs: number
       reason: RateLimitReason
@@ -503,12 +503,12 @@ export class RateLimitTracker {
 
         // Parse key: either "provider" or "provider:model"
         const colonIdx = key.indexOf(":")
-        const providerID = colonIdx >= 0 ? key.slice(0, colonIdx) : key
+        const providerId = colonIdx >= 0 ? key.slice(0, colonIdx) : key
         const modelID = colonIdx >= 0 ? key.slice(colonIdx + 1) : state.model
 
         result.push({
           accountId,
-          providerID,
+          providerId,
           modelID,
           waitMs: state.resetTime - now,
           reason: state.reason,

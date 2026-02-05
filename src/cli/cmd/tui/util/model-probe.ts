@@ -4,7 +4,7 @@ import { Provider } from "@/provider/provider"
 export type ModelProbeResult = { ok: true; responseTime: number } | { ok: false; error: string }
 
 export function probeModelAvailability(
-  providerID: string,
+  providerId: string,
   modelID: string,
   prompt: string,
   timeoutMs: number,
@@ -14,11 +14,11 @@ export function probeModelAvailability(
 
   return Provider.list()
     .then((providers) => {
-      const provider = providers[providerID]
-      if (!provider) return { ok: false as const, error: `Provider not found: ${providerID}` }
+      const provider = providers[providerId]
+      if (!provider) return { ok: false as const, error: `Provider not found: ${providerId}` }
 
       const modelConfig = provider.models[modelID]
-      if (!modelConfig) return { ok: false as const, error: `Model not found: ${providerID}/${modelID}` }
+      if (!modelConfig) return { ok: false as const, error: `Model not found: ${providerId}/${modelID}` }
 
       return Provider.getLanguage(modelConfig).then((language) => {
         const controller = new AbortController()

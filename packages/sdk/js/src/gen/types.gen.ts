@@ -58,7 +58,7 @@ export type UserMessage = {
   }
   agent: string
   model: {
-    providerID: string
+    providerId: string
     modelID: string
   }
   system?: string
@@ -70,7 +70,7 @@ export type UserMessage = {
 export type ProviderAuthError = {
   name: "ProviderAuthError"
   data: {
-    providerID: string
+    providerId: string
     message: string
   }
 }
@@ -120,7 +120,7 @@ export type AssistantMessage = {
   error?: ProviderAuthError | UnknownError | MessageOutputLengthError | MessageAbortedError | ApiError
   parentID: string
   modelID: string
-  providerID: string
+  providerId: string
   mode: string
   path: {
     cwd: string
@@ -1455,7 +1455,7 @@ export type Command = {
 
 export type Model = {
   id: string
-  providerID: string
+  providerId: string
   api: {
     id: string
     url: string
@@ -1601,7 +1601,7 @@ export type Agent = {
   }
   model?: {
     modelID: string
-    providerID: string
+    providerId: string
   }
   prompt?: string
   tools: {
@@ -2308,7 +2308,7 @@ export type SessionTodoResponse = SessionTodoResponses[keyof SessionTodoResponse
 export type SessionInitData = {
   body?: {
     modelID: string
-    providerID: string
+    providerId: string
     messageID: string
   }
   path: {
@@ -2505,7 +2505,7 @@ export type SessionDiffResponse = SessionDiffResponses[keyof SessionDiffResponse
 
 export type SessionSummarizeData = {
   body?: {
-    providerID: string
+    providerId: string
     modelID: string
   }
   path: {
@@ -2586,7 +2586,7 @@ export type SessionPromptData = {
   body?: {
     messageID?: string
     model?: {
-      providerID: string
+      providerId: string
       modelID: string
     }
     agent?: string
@@ -2681,7 +2681,7 @@ export type SessionPromptAsyncData = {
   body?: {
     messageID?: string
     model?: {
-      providerID: string
+      providerId: string
       modelID: string
     }
     agent?: string
@@ -2775,7 +2775,7 @@ export type SessionShellData = {
   body?: {
     agent: string
     model?: {
-      providerID: string
+      providerId: string
       modelID: string
     }
     command: string

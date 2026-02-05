@@ -302,7 +302,7 @@ export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
       ],
     },
     "chat.headers": async (input, output) => {
-      if (!input.model.providerID.includes("github-copilot")) return
+      if (!input.model.providerId.includes("github-copilot")) return
 
       if (input.model.api.npm === "@ai-sdk/anthropic") {
         output.headers["anthropic-beta"] = "interleaved-thinking-2025-05-14"

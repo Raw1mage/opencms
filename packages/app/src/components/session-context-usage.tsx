@@ -48,7 +48,7 @@ export function SessionContextUsage(props: SessionContextUsageProps) {
     if (!last) return
     const total =
       last.tokens.input + last.tokens.output + last.tokens.reasoning + last.tokens.cache.read + last.tokens.cache.write
-    const model = sync.data.provider.all.find((x) => x.id === last.providerID)?.models[last.modelID]
+    const model = sync.data.provider.all.find((x) => x.id === last.providerId)?.models[last.modelID]
     return {
       tokens: total.toLocaleString(locale),
       percentage: model?.limit.context ? Math.round((total / model.limit.context) * 100) : null,

@@ -42,7 +42,7 @@ export namespace Auth {
    * Parse provider family from provider ID
    * e.g., "openai" → "openai", "openai-work" → "openai", "google-api-work" → "google-api"
    */
-  function parseFamily(providerID: string): string {
+  function parseFamily(providerId: string): string {
     const families = [
       "google-api",
       "openai",
@@ -54,13 +54,13 @@ export namespace Auth {
       "opencode",
     ]
     for (const family of families) {
-      if (providerID === family || providerID.startsWith(`${family}-`)) {
+      if (providerId === family || providerId.startsWith(`${family}-`)) {
         return family
       }
     }
     // Default: use the first segment before hyphen, or the whole ID
-    const match = providerID.match(/^([a-z0-9-]+)(-|$)/)
-    return match ? match[1] : providerID
+    const match = providerId.match(/^([a-z0-9-]+)(-|$)/)
+    return match ? match[1] : providerId
   }
 
   /**
@@ -89,22 +89,22 @@ export namespace Auth {
    * Looks up the ACTIVE account for the provider family in Account module
    * Note: auth.json is no longer read - all data comes from accounts.json
    */
-  export async function get(providerID: string): Promise<Info | undefined> {
+  export async function get(providerId: string): Promise<Info | undefined> {
     const { Account } = await import("../account")
 
     // 1. Try exact match by account ID
-    const exactMatch = await Account.getById(providerID)
+    const exactMatch = await Account.getById(providerId)
     if (exactMatch) {
       return accountToAuth(exactMatch.info)
     }
 
     // 2. Try simplified ID match for Antigravity (e.g. antigravity-ivon0829 -> antigravity-subscription-ivon0829-gmail-com)
-    if (providerID.startsWith("antigravity-") && !providerID.includes("subscription")) {
+    if (providerId.startsWith("antigravity-") && !providerId.includes("subscription")) {
       const antigravityAccounts = await Account.list("antigravity")
       for (const [id, info] of Object.entries(antigravityAccounts)) {
         if (info.type === "subscription" && info.email) {
           const username = info.email.split("@")[0]
-          if (`antigravity-${username}` === providerID) {
+          if (`antigravity-${username}` === providerId) {
             return accountToAuth(info)
           }
         }
@@ -112,7 +112,7 @@ export namespace Auth {
     }
 
     // 3. Get active account for this provider family
-    const family = parseFamily(providerID)
+    const family = parseFamily(providerId)
     const activeInfo = await Account.getActiveInfo(family)
     if (activeInfo) {
       return accountToAuth(activeInfo)
@@ -165,13 +165,13 @@ export namespace Auth {
   /**
    * Set auth for a provider (creates/updates account in Account module)
    */
-  export async function set(providerID: string, info: Info) {
+  export async function set(providerId: string, info: Info) {
     const { Account } = await import("../account")
-    const family = parseFamily(providerID)
+    const family = parseFamily(providerId)
 
     if (info.type === "api") {
-      const raw = providerID.startsWith(`${family}-`) ? providerID.slice(family.length + 1) : providerID
-      const label = raw || providerID
+      const raw = providerId.startsWith(`${family}-`) ? providerId.slice(family.length + 1) : providerId
+      const label = raw || providerId
       const accountId = Account.generateId(family, "api", label)
       await Account.add(family, accountId, {
         type: "api",
@@ -222,7 +222,7 @@ export namespace Auth {
           managedProjectId,
         })
       } else {
-        const slug = email || providerID
+        const slug = email || providerId
         const accountId = Account.generateId(family, "subscription", slug)
         await Account.add(family, accountId, {
           type: "subscription",
@@ -243,18 +243,18 @@ export namespace Auth {
   /**
    * Remove auth for a provider
    */
-  export async function remove(providerID: string) {
+  export async function remove(providerId: string) {
     const { Account } = await import("../account")
 
     // Try to find and remove by exact ID first
-    const exactMatch = await Account.getById(providerID)
+    const exactMatch = await Account.getById(providerId)
     if (exactMatch) {
-      await Account.remove(exactMatch.provider, providerID)
+      await Account.remove(exactMatch.provider, providerId)
       return
     }
 
     // Otherwise, remove the active account for this provider
-    const provider = parseFamily(providerID)
+    const provider = parseFamily(providerId)
     const activeId = await Account.getActive(provider)
     if (activeId) {
       await Account.remove(provider, activeId)
@@ -283,17 +283,17 @@ export namespace Auth {
   /**
    * Check if any account exists for this provider family
    */
-  export async function hasAccount(providerID: string): Promise<boolean> {
+  export async function hasAccount(providerId: string): Promise<boolean> {
     const { Account } = await import("../account")
 
     // First, try exact match by account ID
-    const exactMatch = await Account.getById(providerID)
+    const exactMatch = await Account.getById(providerId)
     if (exactMatch) {
       return true
     }
 
     // Otherwise, check if family has any accounts
-    const family = parseFamily(providerID)
+    const family = parseFamily(providerId)
     const accounts = await Account.list(family)
     return Object.keys(accounts).length > 0
   }

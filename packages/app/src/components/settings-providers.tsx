@@ -61,17 +61,17 @@ export const SettingsProviders: Component = () => {
 
   const canDisconnect = (item: unknown) => source(item) !== "env"
 
-  const isConfigCustom = (providerID: string) => {
-    const provider = globalSync.data.config.provider?.[providerID]
+  const isConfigCustom = (providerId: string) => {
+    const provider = globalSync.data.config.provider?.[providerId]
     if (!provider) return false
     if (provider.npm !== "@ai-sdk/openai-compatible") return false
     if (!provider.models || Object.keys(provider.models).length === 0) return false
     return true
   }
 
-  const disableProvider = async (providerID: string, name: string) => {
+  const disableProvider = async (providerId: string, name: string) => {
     const before = globalSync.data.config.disabled_providers ?? []
-    const next = before.includes(providerID) ? before : [...before, providerID]
+    const next = before.includes(providerId) ? before : [...before, providerId]
     globalSync.set("config", "disabled_providers", next)
 
     await globalSync
@@ -91,14 +91,14 @@ export const SettingsProviders: Component = () => {
       })
   }
 
-  const disconnect = async (providerID: string, name: string) => {
-    if (isConfigCustom(providerID)) {
-      await globalSDK.client.auth.remove({ providerID }).catch(() => undefined)
-      await disableProvider(providerID, name)
+  const disconnect = async (providerId: string, name: string) => {
+    if (isConfigCustom(providerId)) {
+      await globalSDK.client.auth.remove({ providerId }).catch(() => undefined)
+      await disableProvider(providerId, name)
       return
     }
     await globalSDK.client.auth
-      .remove({ providerID })
+      .remove({ providerId })
       .then(async () => {
         await globalSDK.client.global.dispose()
         showToast({
@@ -195,7 +195,7 @@ export const SettingsProviders: Component = () => {
                         {language.t("dialog.provider.openai.note")}
                       </span>
                     </Show>
-                    <Show when={item.id === "google"}>
+                    <Show when={item.id === "google-api"}>
                       <span class="text-12-regular text-text-weak pl-8">
                         {language.t("dialog.provider.google.note")}
                       </span>

@@ -1262,13 +1262,13 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     const selectedModel = currentModel
       ? {
           modelID: currentModel.id,
-          providerID: currentModel.provider.id,
+          providerId: currentModel.provider.id,
         }
       : undefined
-    const model = selectedModel ?? { providerID: "auto", modelID: "auto" }
+    const model = selectedModel ?? { providerId: "auto", modelID: "auto" }
     const agent = currentAgent.name
     const variant = selectedModel ? local.model.variant.current() : undefined
-    const modelKey = selectedModel ? `${selectedModel.providerID}/${selectedModel.modelID}` : undefined
+    const modelKey = selectedModel ? `${selectedModel.providerId}/${selectedModel.modelID}` : undefined
 
     const clearInput = () => {
       prompt.reset()

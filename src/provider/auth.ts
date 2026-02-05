@@ -53,15 +53,15 @@ export namespace ProviderAuth {
 
   export const authorize = fn(
     z.object({
-      providerID: z.string(),
+      providerId: z.string(),
       method: z.number(),
     }),
     async (input): Promise<Authorization | undefined> => {
-      const auth = await state().then((s) => s.methods[input.providerID])
+      const auth = await state().then((s) => s.methods[input.providerId])
       const method = auth.methods[input.method]
       if (method.type === "oauth") {
         const result = await method.authorize()
-        await state().then((s) => (s.pending[input.providerID] = result))
+        await state().then((s) => (s.pending[input.providerId] = result))
         return {
           url: result.url,
           method: result.method,
@@ -73,17 +73,17 @@ export namespace ProviderAuth {
 
   export const callback = fn(
     z.object({
-      providerID: z.string(),
+      providerId: z.string(),
       method: z.number(),
       code: z.string().optional(),
     }),
     async (input) => {
-      const match = await state().then((s) => s.pending[input.providerID])
-      if (!match) throw new OauthMissing({ providerID: input.providerID })
+      const match = await state().then((s) => s.pending[input.providerId])
+      if (!match) throw new OauthMissing({ providerId: input.providerId })
       let result
 
       if (match.method === "code") {
-        if (!input.code) throw new OauthCodeMissing({ providerID: input.providerID })
+        if (!input.code) throw new OauthCodeMissing({ providerId: input.providerId })
         result = await match.callback(input.code)
       }
 
@@ -93,7 +93,7 @@ export namespace ProviderAuth {
 
       if (result?.type === "success") {
         if ("key" in result) {
-          await Auth.set(input.providerID, {
+          await Auth.set(input.providerId, {
             type: "api",
             key: result.key,
           })
@@ -108,7 +108,7 @@ export namespace ProviderAuth {
           if (result.accountId) {
             info.accountId = result.accountId
           }
-          await Auth.set(input.providerID, info)
+          await Auth.set(input.providerId, info)
         }
         return
       }
@@ -119,11 +119,11 @@ export namespace ProviderAuth {
 
   export const api = fn(
     z.object({
-      providerID: z.string(),
+      providerId: z.string(),
       key: z.string(),
     }),
     async (input) => {
-      await Auth.set(input.providerID, {
+      await Auth.set(input.providerId, {
         type: "api",
         key: input.key,
       })
@@ -133,13 +133,13 @@ export namespace ProviderAuth {
   export const OauthMissing = NamedError.create(
     "ProviderAuthOauthMissing",
     z.object({
-      providerID: z.string(),
+      providerId: z.string(),
     }),
   )
   export const OauthCodeMissing = NamedError.create(
     "ProviderAuthOauthCodeMissing",
     z.object({
-      providerID: z.string(),
+      providerId: z.string(),
     }),
   )
 

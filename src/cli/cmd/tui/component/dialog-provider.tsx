@@ -25,18 +25,18 @@ const PROVIDER_PRIORITY: Record<string, number> = {
 }
 
 async function startProviderAuth(
-  providerID: string,
+  providerId: string,
   dialog: ReturnType<typeof useDialog>,
   sync: ReturnType<typeof useSync>,
   sdk: ReturnType<typeof useSDK>,
 ) {
-  const rawMethods = sync.data.provider_auth[providerID] ?? [
+  const rawMethods = sync.data.provider_auth[providerId] ?? [
     {
       type: "api",
       label: "API key",
     },
   ]
-  const methods = providerID === "google-api" ? rawMethods.filter((x) => x.type === "api") : rawMethods
+  const methods = providerId === "google-api" ? rawMethods.filter((x) => x.type === "api") : rawMethods
   const availableMethods = methods.length > 0 ? methods : rawMethods
   let index: number | null = 0
   if (availableMethods.length > 1) {
@@ -60,22 +60,22 @@ async function startProviderAuth(
   const method = availableMethods[index]
   if (method.type === "oauth") {
     const result = await sdk.client.provider.oauth.authorize({
-      providerID,
+      providerId,
       method: index,
     })
     if (result.data?.method === "code") {
       dialog.replace(() => (
-        <CodeMethod providerID={providerID} title={method.label} index={index} authorization={result.data!} />
+        <CodeMethod providerId={providerId} title={method.label} index={index} authorization={result.data!} />
       ))
     }
     if (result.data?.method === "auto") {
       dialog.replace(() => (
-        <AutoMethod providerID={providerID} title={method.label} index={index} authorization={result.data!} />
+        <AutoMethod providerId={providerId} title={method.label} index={index} authorization={result.data!} />
       ))
     }
   }
   if (method.type === "api") {
-    return dialog.replace(() => <ApiMethod providerID={providerID} title={method.label} />)
+    return dialog.replace(() => <ApiMethod providerId={providerId} title={method.label} />)
   }
 }
 
@@ -110,7 +110,7 @@ export function createDialogProviderOptions() {
   return options
 }
 
-export function DialogProvider(props: { providerID?: string }) {
+export function DialogProvider(props: { providerId?: string }) {
   const dialog = useDialog()
   const sync = useSync()
   const sdk = useSDK()
@@ -118,14 +118,14 @@ export function DialogProvider(props: { providerID?: string }) {
   const options = createDialogProviderOptions()
 
   onMount(() => {
-    if (props.providerID) {
-      void startProviderAuth(props.providerID, dialog, sync, sdk)
+    if (props.providerId) {
+      void startProviderAuth(props.providerId, dialog, sync, sdk)
     }
   })
 
   return (
     <Show
-      when={props.providerID}
+      when={props.providerId}
       fallback={
         <DialogSelect
           title="Connect a provider"
@@ -157,7 +157,7 @@ export function DialogProvider(props: { providerID?: string }) {
 
 interface AutoMethodProps {
   index: number
-  providerID: string
+  providerId: string
   title: string
   authorization: ProviderAuthAuthorization
 }
@@ -179,7 +179,7 @@ function AutoMethod(props: AutoMethodProps) {
 
   onMount(async () => {
     const result = await sdk.client.provider.oauth.callback({
-      providerID: props.providerID,
+      providerId: props.providerId,
       method: props.index,
     })
     if (result.error) {
@@ -188,7 +188,7 @@ function AutoMethod(props: AutoMethodProps) {
     }
     await sdk.client.instance.dispose()
     await sync.bootstrap()
-    dialog.replace(() => <DialogModel providerID={props.providerID} />)
+    dialog.replace(() => <DialogModel providerId={props.providerId} />)
   })
 
   return (
@@ -214,7 +214,7 @@ function AutoMethod(props: AutoMethodProps) {
 interface CodeMethodProps {
   index: number
   title: string
-  providerID: string
+  providerId: string
   authorization: ProviderAuthAuthorization
 }
 function CodeMethod(props: CodeMethodProps) {
@@ -242,14 +242,14 @@ function CodeMethod(props: CodeMethodProps) {
       placeholder="Authorization code"
       onConfirm={async (value) => {
         const { error } = await sdk.client.provider.oauth.callback({
-          providerID: props.providerID,
+          providerId: props.providerId,
           method: props.index,
           code: value,
         })
         if (!error) {
           await sdk.client.instance.dispose()
           await sync.bootstrap()
-          dialog.replace(() => <DialogModel providerID={props.providerID} />)
+          dialog.replace(() => <DialogModel providerId={props.providerId} />)
           return
         }
         setError(true)
@@ -276,7 +276,7 @@ function CodeMethod(props: CodeMethodProps) {
 }
 
 interface ApiMethodProps {
-  providerID: string
+  providerId: string
   title: string
 }
 function ApiMethod(props: ApiMethodProps) {
@@ -284,15 +284,15 @@ function ApiMethod(props: ApiMethodProps) {
   const sdk = useSDK()
   const sync = useSync()
   const { theme } = useTheme()
-  const needsName = () => props.providerID === "google-api"
+  const needsName = () => props.providerId === "google-api"
   const [step, setStep] = createSignal<"name" | "api">(needsName() ? "name" : "api")
   const [name, setName] = createSignal("")
 
   const providerKey = () => {
-    if (!needsName()) return props.providerID
+    if (!needsName()) return props.providerId
     const trimmed = name().trim()
     if (!trimmed) return ""
-    return `${props.providerID}-${trimmed}`
+    return `${props.providerId}-${trimmed}`
   }
 
   return (
@@ -318,7 +318,7 @@ function ApiMethod(props: ApiMethodProps) {
           title={props.title}
           placeholder="API key"
           description={
-            props.providerID === "opencode" ? (
+            props.providerId === "opencode" ? (
               <box gap={1}>
                 <text fg={theme.textMuted}>
                   OpenCode Zen gives you access to all the best coding models at the cheapest prices with a single API
@@ -335,9 +335,9 @@ function ApiMethod(props: ApiMethodProps) {
             if (!trimmed) return
             const pid = providerKey()
             if (!pid) return
-            Log.Default.info("API key submitted", { providerID: pid })
+            Log.Default.info("API key submitted", { providerId: pid })
             await sdk.client.auth.set({
-              providerID: pid,
+              providerId: pid,
               auth: {
                 type: "api",
                 key: trimmed,
@@ -345,7 +345,7 @@ function ApiMethod(props: ApiMethodProps) {
             })
             await sdk.client.instance.dispose()
             await sync.bootstrap()
-            dialog.replace(() => <DialogModel providerID={props.providerID} />)
+            dialog.replace(() => <DialogModel providerId={props.providerId} />)
           }}
           onCancel={() => {
             if (needsName()) setStep("name")

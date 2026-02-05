@@ -111,12 +111,12 @@ export namespace SessionPrompt {
   async function selectImageModel(current: Provider.Model): Promise<Provider.Model | undefined> {
     // Get the actual account ID for the current provider
     const { Account } = await import("../account/index")
-    const family = Account.parseFamily(current.providerID)
-    const accountId = family ? ((await Account.getActive(family)) ?? current.providerID) : current.providerID
+    const family = Account.parseFamily(current.providerId)
+    const accountId = family ? ((await Account.getActive(family)) ?? current.providerId) : current.providerId
 
     // Use Rotation3D to find robust candidates (checking health, rate limits, favorites)
     const candidates = await buildFallbackCandidates({
-      providerID: current.providerID,
+      providerId: current.providerId,
       accountId,
       modelID: current.id,
     })
@@ -125,7 +125,7 @@ export namespace SessionPrompt {
 
     // Try to find a healthy, image-capable candidate from Rotation3D
     for (const c of candidates) {
-      const provider = providers[c.accountId] ?? providers[c.providerID]
+      const provider = providers[c.accountId] ?? providers[c.providerId]
       if (!provider) continue
 
       const model = provider.models[c.modelID]
@@ -203,7 +203,7 @@ export namespace SessionPrompt {
     messageID: Identifier.schema("message").optional(),
     model: z
       .object({
-        providerID: z.string(),
+        providerId: z.string(),
         modelID: z.string(),
       })
       .optional(),
@@ -430,18 +430,18 @@ export namespace SessionPrompt {
         ensureTitle({
           session,
           modelID: lastUser.model.modelID,
-          providerID: lastUser.model.providerID,
+          providerId: lastUser.model.providerId,
           history: msgs,
         })
 
-      const model = await Provider.getModel(lastUser.model.providerID, lastUser.model.modelID)
+      const model = await Provider.getModel(lastUser.model.providerId, lastUser.model.modelID)
       const task = tasks.pop()
 
       // pending subtask
       // TODO: centralize "invoke tool" logic
       if (task?.type === "subtask") {
         const taskTool = await TaskTool.init()
-        const taskModel = task.model ? await Provider.getModel(task.model.providerID, task.model.modelID) : model
+        const taskModel = task.model ? await Provider.getModel(task.model.providerId, task.model.modelID) : model
         const assistantMessage = (await Session.updateMessage({
           id: Identifier.ascending("message"),
           role: "assistant",
@@ -461,7 +461,7 @@ export namespace SessionPrompt {
             cache: { read: 0, write: 0 },
           },
           modelID: taskModel.id,
-          providerID: taskModel.providerID,
+          providerId: taskModel.providerId,
           time: {
             created: Date.now(),
           },
@@ -646,7 +646,7 @@ export namespace SessionPrompt {
       const imageResolution = await resolveImageRequest({ model, message: userMsg, sessionID })
       const activeModel = imageResolution.model
       if (imageResolution.rotated) {
-        const change = `${activeModel.providerID}/${activeModel.id}`
+        const change = `${activeModel.providerId}/${activeModel.id}`
         Bus.publish(TuiEvent.ToastShow, {
           title: "Model Rotated",
           message: `Using ${change} for image input`,
@@ -659,7 +659,7 @@ export namespace SessionPrompt {
         if (lastUser) {
           const updatedInfo = { ...lastUser }
           updatedInfo.model = {
-            providerID: activeModel.providerID,
+            providerId: activeModel.providerId,
             modelID: activeModel.id,
           }
           await Session.updateMessage(updatedInfo)
@@ -693,7 +693,7 @@ export namespace SessionPrompt {
             cache: { read: 0, write: 0 },
           },
           modelID: activeModel.id,
-          providerID: activeModel.providerID,
+          providerId: activeModel.providerId,
           time: {
             created: Date.now(),
           },
@@ -816,7 +816,7 @@ export namespace SessionPrompt {
     debugCheckpoint("tool.resolve", "start", {
       sessionID: input.session.id,
       agent: input.agent.name,
-      providerID: input.model.providerID,
+      providerId: input.model.providerId,
       modelID: input.model.api.id,
       bypassAgentCheck: input.bypassAgentCheck,
       trace: input.session.id,
@@ -858,7 +858,7 @@ export namespace SessionPrompt {
     })
 
     const registryTools = await ToolRegistry.tools(
-      { modelID: input.model.api.id, providerID: input.model.providerID },
+      { modelID: input.model.api.id, providerId: input.model.providerId },
       input.agent,
     )
     debugCheckpoint("tool.resolve", "registry", {
@@ -891,7 +891,7 @@ export namespace SessionPrompt {
             messageID: ctx.messageID,
             callID: ctx.callID,
             agent: ctx.agent,
-            providerID: input.model.providerID,
+            providerId: input.model.providerId,
             modelID: input.model.api.id,
             trace: ctx.callID,
           })
@@ -1039,7 +1039,7 @@ export namespace SessionPrompt {
       input.variant ??
       (agent.variant &&
       agent.model &&
-      model.providerID === agent.model.providerID &&
+      model.providerId === agent.model.providerId &&
       model.modelID === agent.model.modelID
         ? agent.variant
         : undefined)
@@ -1090,9 +1090,9 @@ export namespace SessionPrompt {
         const model = await iife(async () => {
           if (override) {
             const parsed = Provider.parseModel(override)
-            if (providers[parsed.providerID]?.models?.[parsed.modelID]) return parsed
+            if (providers[parsed.providerId]?.models?.[parsed.modelID]) return parsed
           }
-          if (sub.model && providers[sub.model.providerID]?.models?.[sub.model.modelID]) return sub.model
+          if (sub.model && providers[sub.model.providerId]?.models?.[sub.model.modelID]) return sub.model
 
           // 3. Score-based Selection (Favorites + Rotation + Weighting)
           const scored = await ModelScoring.select(role)
@@ -1101,7 +1101,7 @@ export namespace SessionPrompt {
           const fallbacks = WORKFLOW_MODEL_FALLBACKS[role] ?? []
           for (const candidate of fallbacks) {
             const parsed = Provider.parseModel(candidate)
-            if (providers[parsed.providerID]?.models?.[parsed.modelID]) return parsed
+            if (providers[parsed.providerId]?.models?.[parsed.modelID]) return parsed
           }
           return undefined
         })
@@ -1312,7 +1312,7 @@ export namespace SessionPrompt {
 
                 await ReadTool.init()
                   .then(async (t) => {
-                    const model = await Provider.getModel(info.model.providerID, info.model.modelID)
+                    const model = await Provider.getModel(info.model.providerId, info.model.modelID)
                     const readCtx: Tool.Context = {
                       sessionID: input.sessionID,
                       abort: new AbortController().signal,
@@ -1658,7 +1658,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
     agent: z.string(),
     model: z
       .object({
-        providerID: z.string(),
+        providerId: z.string(),
         modelID: z.string(),
       })
       .optional(),
@@ -1687,7 +1687,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
       role: "user",
       agent: input.agent,
       model: {
-        providerID: model.providerID,
+        providerId: model.providerId,
         modelID: model.modelID,
       },
     }
@@ -1724,7 +1724,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
         cache: { read: 0, write: 0 },
       },
       modelID: model.modelID,
-      providerID: model.providerID,
+      providerId: model.providerId,
     }
     await Session.updateMessage(msg)
     const part: MessageV2.Part = {
@@ -1971,7 +1971,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
           cache: { read: 0, write: 0 },
         },
         modelID: model.modelID,
-        providerID: model.providerID,
+        providerId: model.providerId,
         finish: "stop",
       }
       await Session.updateMessage(assistantMsg)
@@ -2066,14 +2066,14 @@ NOTE: At any point in time through this workflow you should feel free to ask the
     })()
 
     try {
-      await Provider.getModel(taskModel.providerID, taskModel.modelID)
+      await Provider.getModel(taskModel.providerId, taskModel.modelID)
     } catch (e) {
       if (Provider.ModelNotFoundError.isInstance(e)) {
-        const { providerID, modelID, suggestions } = e.data
+        const { providerId, modelID, suggestions } = e.data
         const hint = suggestions?.length ? ` Did you mean: ${suggestions.join(", ")}?` : ""
         Bus.publish(Session.Event.Error, {
           sessionID: input.sessionID,
-          error: new NamedError.Unknown({ message: `Model not found: ${providerID}/${modelID}.${hint}` }).toObject(),
+          error: new NamedError.Unknown({ message: `Model not found: ${providerId}/${modelID}.${hint}` }).toObject(),
         })
       }
       throw e
@@ -2100,7 +2100,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             description: command.description ?? "",
             command: input.command,
             model: {
-              providerID: taskModel.providerID,
+              providerId: taskModel.providerId,
               modelID: taskModel.modelID,
             },
             // TODO: how can we make task tool accept a more complex input?
@@ -2148,7 +2148,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
   async function ensureTitle(input: {
     session: Session.Info
     history: MessageV2.WithParts[]
-    providerID: string
+    providerId: string
     modelID: string
   }) {
     if (input.session.parentID) return

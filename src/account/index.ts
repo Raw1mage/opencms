@@ -158,7 +158,10 @@ export namespace Account {
     try {
       const file = Bun.file(filepath)
       const content = JSON.stringify(storage, null, 2)
-      debugCheckpoint("Account.save", "Content ready", { length: content.length, families: Object.keys(storage.families) })
+      debugCheckpoint("Account.save", "Content ready", {
+        length: content.length,
+        families: Object.keys(storage.families),
+      })
       await Bun.write(file, content)
       await fs.chmod(filepath, 0o600)
       _mtime = await getDiskMtime()
@@ -526,11 +529,31 @@ export namespace Account {
     }
 
     // 7. Fallback - at least show something other than raw ID
-    if (info.name && info.name !== provider) return info.name
+    if (info.name && info.name !== provider && info.name !== "Default") return info.name
 
     // 8. Last resort: generate a short label
     const shortId = id.split("-").pop() || id
-    return shortId !== provider ? shortId : `Account`
+    if (shortId !== provider && shortId !== "default" && shortId !== "cli") return shortId
+
+    // 9. If everything else fails or is redundant, return a clean label
+    return getProviderLabel(provider)
+  }
+
+  /**
+   * Get a friendly display label for a provider ID
+   */
+  export function getProviderLabel(provider: string): string {
+    const map: Record<string, string> = {
+      "google-api": "Google API",
+      openai: "OpenAI",
+      anthropic: "Anthropic",
+      antigravity: "Antigravity",
+      "gemini-cli": "Gemini CLI",
+      opencode: "Opencode",
+      gitlab: "GitLab",
+      "github-copilot": "GitHub Copilot",
+    }
+    return map[provider] || provider.charAt(0).toUpperCase() + provider.slice(1)
   }
 
   async function migrateToV2(storage: any): Promise<Storage> {
@@ -606,8 +629,8 @@ export namespace Account {
     if (await authFile.exists()) {
       try {
         const authData = await authFile.json()
-        for (const [providerID, auth] of Object.entries(authData)) {
-          const provider = parseProviderFromLegacyId(providerID)
+        for (const [providerId, auth] of Object.entries(authData)) {
+          const provider = parseProviderFromLegacyId(providerId)
           if (!provider || !PROVIDERS.includes(provider as Provider)) continue
 
           const authInfo = auth as any
@@ -616,10 +639,10 @@ export namespace Account {
             if (!storage.families[provider]) {
               storage.families[provider] = { accounts: {} }
             }
-            const accountId = generateId(provider, "api", providerID.replace(`${provider}-`, "") || "default")
+            const accountId = generateId(provider, "api", providerId.replace(`${provider}-`, "") || "default")
             storage.families[provider].accounts[accountId] = {
               type: "api",
-              name: providerID === provider ? "Default" : providerID.replace(`${provider}-`, ""),
+              name: providerId === provider ? "Default" : providerId.replace(`${provider}-`, ""),
               apiKey: authInfo.key,
               addedAt: Date.now(),
             }
@@ -648,11 +671,11 @@ export namespace Account {
             const accountId = generateId(
               provider,
               "subscription",
-              authInfo.accountId || providerID.replace(`${provider}-`, "") || "default",
+              authInfo.accountId || providerId.replace(`${provider}-`, "") || "default",
             )
             storage.families[provider].accounts[accountId] = {
               type: "subscription",
-              name: authInfo.accountId || providerID,
+              name: authInfo.accountId || providerId,
               email: authInfo.accountId,
               refreshToken: authInfo.refresh,
               accessToken: authInfo.access,
@@ -773,9 +796,9 @@ export namespace Account {
   /**
    * Parse provider from legacy provider ID (used in migration)
    */
-  function parseProviderFromLegacyId(providerID: string): string | undefined {
+  function parseProviderFromLegacyId(providerId: string): string | undefined {
     // Handle suffixed providers like "google-api-work" -> "google-api"
-    const match = providerID.match(/^([a-z]+)(-[a-z0-9-]+)?$/)
+    const match = providerId.match(/^([a-z]+)(-[a-z0-9-]+)?$/)
     if (match) {
       return match[1]
     }
@@ -809,8 +832,8 @@ export namespace Account {
       const storage = await state()
       let migrated = false
 
-      for (const [providerID, auth] of Object.entries(authData as Record<string, any>)) {
-        const provider = parseProviderFromLegacyId(providerID)
+      for (const [providerId, auth] of Object.entries(authData as Record<string, any>)) {
+        const provider = parseProviderFromLegacyId(providerId)
         if (!provider || !PROVIDERS.includes(provider as Provider)) continue
 
         if (!storage.families[provider]) {

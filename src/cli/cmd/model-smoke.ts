@@ -10,7 +10,7 @@ import { Global } from "../../global"
 import { MessageV2 } from "../../session/message-v2"
 
 type SmokeResult = {
-  providerID: string
+  providerId: string
   modelID: string
   name?: string
   ok: boolean
@@ -76,24 +76,24 @@ export const ModelSmokeCommand = cmd({
       const providers = await Provider.list()
       const families = await Account.listAll()
       const active = new Set(Object.keys(families).filter((key) => !!families[key].activeAccount))
-      const items: { providerID: string; modelID: string; name?: string }[] = []
+      const items: { providerId: string; modelID: string; name?: string }[] = []
 
-      for (const [providerID, provider] of Object.entries(providers)) {
+      for (const [providerId, provider] of Object.entries(providers)) {
         if (provider.active === false) continue
         if (provider.cooldownReason?.includes("blocked")) continue
-        const fam = family(providerID)
-        if (!allow(providerID, fam)) continue
+        const fam = family(providerId)
+        if (!allow(providerId, fam)) continue
         const hasActive = fam ? active.has(fam) : false
-        if (fam && hasActive && providerID === fam) continue
+        if (fam && hasActive && providerId === fam) continue
         if (fam && hasActive && provider.active !== true) continue
 
         for (const [modelID, info] of Object.entries(provider.models)) {
-          if (Provider.isModelIgnored(providerID, modelID)) continue
+          if (Provider.isModelIgnored(providerId, modelID)) continue
           const input = info.capabilities?.input
           if (input && !input.text) continue
           const output = info.capabilities?.output
           if (output && !output.text) continue
-          items.push({ providerID, modelID, name: info.name })
+          items.push({ providerId, modelID, name: info.name })
         }
       }
 
@@ -103,7 +103,7 @@ export const ModelSmokeCommand = cmd({
         if (limit !== undefined && state.index >= limit) break
         state.index += 1
         if (skip && state.index <= skip) continue
-        const label = `${item.providerID}/${item.modelID}`
+        const label = `${item.providerId}/${item.modelID}`
         UI.println(
           UI.Style.TEXT_INFO_BOLD + "~",
           UI.Style.TEXT_NORMAL,
@@ -131,7 +131,7 @@ export const ModelSmokeCommand = cmd({
         const response = await Promise.race([
           SessionPrompt.prompt({
             sessionID,
-            model: { providerID: item.providerID, modelID: item.modelID },
+            model: { providerId: item.providerId, modelID: item.modelID },
             parts: [{ type: "text", text: message }],
           })
             .then((res) => ({ res }))
@@ -205,7 +205,7 @@ export const ModelSmokeCommand = cmd({
       const before = ignored.size
       for (const item of results.filter((r) => !r.ok)) {
         if (!shouldIgnore(item.error)) continue
-        ignored.add(`${item.providerID}/${item.modelID}`)
+        ignored.add(`${item.providerId}/${item.modelID}`)
       }
       if (ignored.size > before) {
         await saveIgnored(ignored)
@@ -219,7 +219,7 @@ export const ModelSmokeCommand = cmd({
 
       UI.error(`failed models: ${failed.length}`)
       for (const item of failed) {
-        UI.println(UI.Style.TEXT_DANGER_BOLD + "×", UI.Style.TEXT_NORMAL, `${item.providerID}/${item.modelID}`)
+        UI.println(UI.Style.TEXT_DANGER_BOLD + "×", UI.Style.TEXT_NORMAL, `${item.providerId}/${item.modelID}`)
         if (item.error) UI.println(UI.Style.TEXT_DIM + item.error)
       }
       process.exit(1)

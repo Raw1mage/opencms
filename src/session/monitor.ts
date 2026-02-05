@@ -42,7 +42,7 @@ export namespace SessionMonitor {
       status: Status,
       model: z
         .object({
-          providerID: z.string(),
+          providerId: z.string(),
           modelID: z.string(),
         })
         .optional(),
@@ -155,7 +155,7 @@ export namespace SessionMonitor {
         },
       }
       const model = {
-        value: undefined as { providerID: string; modelID: string } | undefined,
+        value: undefined as { providerId: string; modelID: string } | undefined,
       }
       const agent = {
         value: undefined as string | undefined,
@@ -181,7 +181,7 @@ export namespace SessionMonitor {
               write: number
             }
           }
-          model?: { providerID: string; modelID: string }
+          model?: { providerId: string; modelID: string }
           latest?: MessageV2.Assistant
           updated: number
           tool?: { name?: string; status?: string }
@@ -203,7 +203,7 @@ export namespace SessionMonitor {
             info.tokens.cache.write
           if (!model.value && total > 0) {
             model.value = {
-              providerID: info.providerID,
+              providerId: info.providerId,
               modelID: info.modelID,
             }
           }
@@ -222,7 +222,7 @@ export namespace SessionMonitor {
               requests: 0,
               total: 0,
               tokens: emptyTokens(),
-              model: undefined as { providerID: string; modelID: string } | undefined,
+              model: undefined as { providerId: string; modelID: string } | undefined,
               latest: undefined as MessageV2.Assistant | undefined,
               updated: 0,
               tool: undefined as { name?: string; status?: string } | undefined,
@@ -239,7 +239,7 @@ export namespace SessionMonitor {
             entry.total += total
             if (!entry.model && total > 0) {
               entry.model = {
-                providerID: info.providerID,
+                providerId: info.providerId,
                 modelID: info.modelID,
               }
             }
@@ -267,7 +267,7 @@ export namespace SessionMonitor {
           const baseModel =
             info.role === "assistant"
               ? {
-                  providerID: info.providerID,
+                  providerId: info.providerId,
                   modelID: info.modelID,
                 }
               : undefined

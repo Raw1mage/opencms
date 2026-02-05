@@ -4,7 +4,7 @@ import { useTheme } from "@tui/context/theme"
 
 const spinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
 
-export function DialogModelProbe(props: { providerID: string; modelID: string; prompt: string }) {
+export function DialogModelProbe(props: { providerId: string; modelID: string; prompt: string }) {
   const { theme } = useTheme()
 
   return (
@@ -21,7 +21,7 @@ export function DialogModelProbe(props: { providerID: string; modelID: string; p
       </box>
       <box paddingTop={1}>
         <text fg={theme.textMuted}>
-          {props.providerID}/{props.modelID}
+          {props.providerId}/{props.modelID}
         </text>
       </box>
     </box>

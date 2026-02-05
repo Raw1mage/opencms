@@ -62,7 +62,7 @@ export interface ProviderCapabilities {
   /**
    * Provider family for grouping (useful for fallback logic).
    */
-  family: "openai" | "anthropic" | "google" | "antigravity" | "gemini-cli" | "other"
+  family: "openai" | "anthropic" | "google-api" | "antigravity" | "gemini-cli" | "other"
 }
 
 /**
@@ -172,7 +172,7 @@ export function getCapabilities(provider: Provider.Info, auth?: Auth.Info): Prov
     return {
       ...DEFAULT_CAPABILITIES,
       authType: "api",
-      family: "google",
+      family: "google-api",
     }
   }
 

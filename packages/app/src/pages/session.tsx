@@ -939,7 +939,7 @@ export default function Page() {
         await sdk.client.session.summarize({
           sessionID,
           modelID: model.id,
-          providerID: model.provider.id,
+          providerId: model.provider.id,
         })
       },
     },

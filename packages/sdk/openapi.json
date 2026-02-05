@@ -158,7 +158,7 @@
         ]
       }
     },
-    "/auth/{providerID}": {
+    "/auth/{providerId}": {
       "put": {
         "operationId": "auth.set",
         "summary": "Set auth credentials",
@@ -188,7 +188,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "providerID",
+            "name": "providerId",
             "schema": {
               "type": "string"
             },
@@ -240,7 +240,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "providerID",
+            "name": "providerId",
             "schema": {
               "type": "string"
             },
@@ -1876,7 +1876,7 @@
                   "modelID": {
                     "type": "string"
                   },
-                  "providerID": {
+                  "providerId": {
                     "type": "string"
                   },
                   "messageID": {
@@ -1884,7 +1884,7 @@
                     "pattern": "^msg.*"
                   }
                 },
-                "required": ["modelID", "providerID", "messageID"]
+                "required": ["modelID", "providerId", "messageID"]
               }
             }
           }
@@ -2255,7 +2255,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "providerID": {
+                  "providerId": {
                     "type": "string"
                   },
                   "modelID": {
@@ -2266,7 +2266,7 @@
                     "type": "boolean"
                   }
                 },
-                "required": ["providerID", "modelID"]
+                "required": ["providerId", "modelID"]
               }
             }
           }
@@ -2442,14 +2442,14 @@
                   "model": {
                     "type": "object",
                     "properties": {
-                      "providerID": {
+                      "providerId": {
                         "type": "string"
                       },
                       "modelID": {
                         "type": "string"
                       }
                     },
-                    "required": ["providerID", "modelID"]
+                    "required": ["providerId", "modelID"]
                   },
                   "agent": {
                     "type": "string"
@@ -2818,14 +2818,14 @@
                   "model": {
                     "type": "object",
                     "properties": {
-                      "providerID": {
+                      "providerId": {
                         "type": "string"
                       },
                       "modelID": {
                         "type": "string"
                       }
                     },
-                    "required": ["providerID", "modelID"]
+                    "required": ["providerId", "modelID"]
                   },
                   "agent": {
                     "type": "string"
@@ -3087,14 +3087,14 @@
                   "model": {
                     "type": "object",
                     "properties": {
-                      "providerID": {
+                      "providerId": {
                         "type": "string"
                       },
                       "modelID": {
                         "type": "string"
                       }
                     },
-                    "required": ["providerID", "modelID"]
+                    "required": ["providerId", "modelID"]
                   },
                   "command": {
                     "type": "string"
@@ -3945,7 +3945,7 @@
         ]
       }
     },
-    "/provider/{providerID}/oauth/authorize": {
+    "/provider/{providerId}/oauth/authorize": {
       "post": {
         "operationId": "provider.oauth.authorize",
         "parameters": [
@@ -3958,7 +3958,7 @@
           },
           {
             "in": "path",
-            "name": "providerID",
+            "name": "providerId",
             "schema": {
               "type": "string"
             },
@@ -4014,7 +4014,7 @@
         ]
       }
     },
-    "/provider/{providerID}/oauth/callback": {
+    "/provider/{providerId}/oauth/callback": {
       "post": {
         "operationId": "provider.oauth.callback",
         "parameters": [
@@ -4027,7 +4027,7 @@
           },
           {
             "in": "path",
-            "name": "providerID",
+            "name": "providerId",
             "schema": {
               "type": "string"
             },
@@ -5980,7 +5980,7 @@
                         "dialog": {
                           "type": "object",
                           "properties": {
-                            "providerID": {
+                            "providerId": {
                               "type": "string"
                             },
                             "accountId": {
@@ -5990,12 +5990,12 @@
                               "type": "string"
                             }
                           },
-                          "required": ["providerID", "accountId", "modelID"]
+                          "required": ["providerId", "accountId", "modelID"]
                         },
                         "task": {
                           "type": "object",
                           "properties": {
-                            "providerID": {
+                            "providerId": {
                               "type": "string"
                             },
                             "accountId": {
@@ -6005,12 +6005,12 @@
                               "type": "string"
                             }
                           },
-                          "required": ["providerID", "accountId", "modelID"]
+                          "required": ["providerId", "accountId", "modelID"]
                         },
                         "background": {
                           "type": "object",
                           "properties": {
-                            "providerID": {
+                            "providerId": {
                               "type": "string"
                             },
                             "accountId": {
@@ -6020,7 +6020,7 @@
                               "type": "string"
                             }
                           },
-                          "required": ["providerID", "accountId", "modelID"]
+                          "required": ["providerId", "accountId", "modelID"]
                         }
                       }
                     },
@@ -6067,7 +6067,7 @@
                     "vector": {
                       "type": "object",
                       "properties": {
-                        "providerID": {
+                        "providerId": {
                           "type": "string"
                         },
                         "accountId": {
@@ -6077,7 +6077,7 @@
                           "type": "string"
                         }
                       },
-                      "required": ["providerID", "accountId", "modelID"]
+                      "required": ["providerId", "accountId", "modelID"]
                     },
                     "candidates": {
                       "type": "array",
@@ -6087,7 +6087,7 @@
                           "vector": {
                             "type": "object",
                             "properties": {
-                              "providerID": {
+                              "providerId": {
                                 "type": "string"
                               },
                               "accountId": {
@@ -6097,7 +6097,7 @@
                                 "type": "string"
                               }
                             },
-                            "required": ["providerID", "accountId", "modelID"]
+                            "required": ["providerId", "accountId", "modelID"]
                           },
                           "score": {
                             "type": "number"
@@ -6114,7 +6114,7 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "providerID": {
+                          "providerId": {
                             "type": "string"
                           },
                           "accountId": {
@@ -6124,7 +6124,7 @@
                             "type": "string"
                           }
                         },
-                        "required": ["providerID", "accountId", "modelID"]
+                        "required": ["providerId", "accountId", "modelID"]
                       }
                     }
                   },
@@ -6162,7 +6162,7 @@
                   "currentVector": {
                     "type": "object",
                     "properties": {
-                      "providerID": {
+                      "providerId": {
                         "type": "string"
                       },
                       "accountId": {
@@ -6172,7 +6172,7 @@
                         "type": "string"
                       }
                     },
-                    "required": ["providerID", "accountId", "modelID"]
+                    "required": ["providerId", "accountId", "modelID"]
                   }
                 }
               }
@@ -6212,7 +6212,7 @@
                     "fallback": {
                       "type": "object",
                       "properties": {
-                        "providerID": {
+                        "providerId": {
                           "type": "string"
                         },
                         "accountId": {
@@ -6222,7 +6222,7 @@
                           "type": "string"
                         }
                       },
-                      "required": ["providerID", "accountId", "modelID"]
+                      "required": ["providerId", "accountId", "modelID"]
                     },
                     "reason": {
                       "type": "string"
@@ -6256,7 +6256,7 @@
                   "current": {
                     "type": "object",
                     "properties": {
-                      "providerID": {
+                      "providerId": {
                         "type": "string"
                       },
                       "accountId": {
@@ -6266,7 +6266,7 @@
                         "type": "string"
                       }
                     },
-                    "required": ["providerID", "accountId", "modelID"]
+                    "required": ["providerId", "accountId", "modelID"]
                   },
                   "strategy": {
                     "default": "account-first",
@@ -7318,14 +7318,14 @@
           "model": {
             "type": "object",
             "properties": {
-              "providerID": {
+              "providerId": {
                 "type": "string"
               },
               "modelID": {
                 "type": "string"
               }
             },
-            "required": ["providerID", "modelID"]
+            "required": ["providerId", "modelID"]
           },
           "system": {
             "type": "string"
@@ -7355,14 +7355,14 @@
           "data": {
             "type": "object",
             "properties": {
-              "providerID": {
+              "providerId": {
                 "type": "string"
               },
               "message": {
                 "type": "string"
               }
             },
-            "required": ["providerID", "message"]
+            "required": ["providerId", "message"]
           }
         },
         "required": ["name", "data"]
@@ -7515,7 +7515,7 @@
           "modelID": {
             "type": "string"
           },
-          "providerID": {
+          "providerId": {
             "type": "string"
           },
           "mode": {
@@ -7580,7 +7580,7 @@
           "time",
           "parentID",
           "modelID",
-          "providerID",
+          "providerId",
           "mode",
           "agent",
           "path",
@@ -7714,14 +7714,14 @@
           "model": {
             "type": "object",
             "properties": {
-              "providerID": {
+              "providerId": {
                 "type": "string"
               },
               "modelID": {
                 "type": "string"
               }
             },
-            "required": ["providerID", "modelID"]
+            "required": ["providerId", "modelID"]
           },
           "command": {
             "type": "string"
@@ -11284,7 +11284,7 @@
           "id": {
             "type": "string"
           },
-          "providerID": {
+          "providerId": {
             "type": "string"
           },
           "api": {
@@ -11487,7 +11487,7 @@
         },
         "required": [
           "id",
-          "providerID",
+          "providerId",
           "api",
           "name",
           "capabilities",
@@ -11724,14 +11724,14 @@
           "model": {
             "type": "object",
             "properties": {
-              "providerID": {
+              "providerId": {
                 "type": "string"
               },
               "modelID": {
                 "type": "string"
               }
             },
-            "required": ["providerID", "modelID"]
+            "required": ["providerId", "modelID"]
           },
           "requests": {
             "type": "number"
@@ -11901,14 +11901,14 @@
           "model": {
             "type": "object",
             "properties": {
-              "providerID": {
+              "providerId": {
                 "type": "string"
               },
               "modelID": {
                 "type": "string"
               }
             },
-            "required": ["providerID", "modelID"]
+            "required": ["providerId", "modelID"]
           },
           "command": {
             "type": "string"
@@ -12286,11 +12286,11 @@
               "modelID": {
                 "type": "string"
               },
-              "providerID": {
+              "providerId": {
                 "type": "string"
               }
             },
-            "required": ["modelID", "providerID"]
+            "required": ["modelID", "providerId"]
           },
           "variant": {
             "type": "string"

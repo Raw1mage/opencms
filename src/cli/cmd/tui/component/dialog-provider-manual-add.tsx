@@ -8,7 +8,7 @@ import { useKeyboard } from "@opentui/solid"
 import { TextareaRenderable, TextAttributes, KeyEvent } from "@opentui/core"
 
 interface Props {
-  onSelect: (providerID: string) => void
+  onSelect: (providerId: string) => void
   initialProviderID?: string
 }
 
@@ -18,7 +18,7 @@ export function DialogProviderManualAdd(props: Props) {
   const { theme } = useTheme()
 
   // Field values
-  const [providerID, setProviderID] = createSignal(props.initialProviderID || "")
+  const [providerId, setProviderID] = createSignal(props.initialProviderID || "")
   const [baseURL, setBaseURL] = createSignal("")
   const [modelIDs, setModelIDs] = createSignal("")
 
@@ -34,7 +34,7 @@ export function DialogProviderManualAdd(props: Props) {
 
   const refs = () => [refId, refURL, refModels]
 
-  const canSubmit = () => providerID().trim() && baseURL().trim() && modelIDs().trim()
+  const canSubmit = () => providerId().trim() && baseURL().trim() && modelIDs().trim()
 
   const focusField = (index: number) => {
     const clamped = Math.max(0, Math.min(index, 2))
@@ -59,7 +59,7 @@ export function DialogProviderManualAdd(props: Props) {
   const handleSave = async () => {
     if (!canSubmit() || status() !== "input") return
 
-    const pID = providerID().trim()
+    const pID = providerId().trim()
     const pURL = baseURL().trim().replace(/\/+$/, "")
     const mIDs = parseModelIds(modelIDs())
 

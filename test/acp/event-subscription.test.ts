@@ -181,7 +181,7 @@ function createFakeAgent() {
 
   const agent = new ACP.Agent(connection, {
     sdk,
-    defaultModel: { providerID: "opencode", modelID: "big-pickle" },
+    defaultModel: { providerId: "opencode", modelID: "big-pickle" },
   } as any)
 
   const stop = () => {

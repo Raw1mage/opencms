@@ -8,7 +8,7 @@ import { debugCheckpoint } from "@/util/debug"
 // Score Interfaces
 export interface ModelScore {
   modelID: string
-  providerID: string
+  providerId: string
   score: number
   breakdown: {
     domain: number
@@ -155,8 +155,8 @@ export namespace ModelScoring {
       const modelFile = Bun.file(path.join(Global.Path.state, "model.json"))
       if (await modelFile.exists()) {
         const modelData = await modelFile.json()
-        const favorites: Array<{ providerID: string; modelID: string }> = modelData.favorite ?? []
-        allowed = new Set(favorites.map((f) => `${f.providerID}/${f.modelID}`))
+        const favorites: Array<{ providerId: string; modelID: string }> = modelData.favorite ?? []
+        allowed = new Set(favorites.map((f) => `${f.providerId}/${f.modelID}`))
       }
     } catch {
       // Ignore errors reading favorites
@@ -166,7 +166,7 @@ export namespace ModelScoring {
       // Skip if not in favorites (unless favorites list is empty/unreadable)
       if (allowed && !allowed.has(modelKey)) continue
 
-      const [providerID, ...rest] = modelKey.split("/")
+      const [providerId, ...rest] = modelKey.split("/")
       const modelID = rest.join("/")
 
       // Default scores if missing
@@ -179,7 +179,7 @@ export namespace ModelScoring {
 
       results.push({
         modelID,
-        providerID,
+        providerId,
         score: total,
         breakdown: {
           domain: domainScore,
@@ -203,11 +203,11 @@ export namespace ModelScoring {
 
     // Get current model preference if any
     const activeModel = await Provider.defaultModel()
-    const activeFamily = Account.parseFamily(activeModel.providerID)
+    const activeFamily = Account.parseFamily(activeModel.providerId)
     const activeAccountId = activeFamily ? (await Account.getActive(activeFamily)) ?? "public" : "public"
 
     const currentVector: ModelVector = {
-      providerID: activeModel.providerID,
+      providerId: activeModel.providerId,
       modelID: activeModel.id,
       accountId: activeAccountId,
     }
@@ -225,7 +225,7 @@ export namespace ModelScoring {
         reason: fallback.reason,
       })
       return {
-        providerID: fallback.providerID,
+        providerId: fallback.providerId,
         modelID: fallback.modelID,
         accountId: fallback.accountId,
       }
@@ -233,12 +233,12 @@ export namespace ModelScoring {
 
     // Fallback to top ranked if rotation3d didn't find a better match
     for (const candidate of ranking) {
-      const family = Account.parseFamily(candidate.providerID)
+      const family = Account.parseFamily(candidate.providerId)
       if (!family) continue
       const active = await Account.getActive(family)
       if (active) {
         return {
-          providerID: candidate.providerID,
+          providerId: candidate.providerId,
           modelID: candidate.modelID,
           accountId: active,
         }

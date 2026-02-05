@@ -79,7 +79,7 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
     if (!last) return
     const total =
       last.tokens.input + last.tokens.output + last.tokens.reasoning + last.tokens.cache.read + last.tokens.cache.write
-    const model = sync.data.provider.find((x) => x.id === last.providerID)?.models[last.modelID]
+    const model = sync.data.provider.find((x) => x.id === last.providerId)?.models[last.modelID]
     return {
       tokens: total.toLocaleString(),
       percentage: model?.limit.context ? Math.round((total / model.limit.context) * 100) : null,
@@ -165,7 +165,7 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                     const dotColor = monitorStatusColors[statusType] ?? theme.textMuted
                     const statusLabel = STATUS_LABELS[statusType]
                     const levelLabel = LEVEL_LABELS[info.level] ?? info.level
-                    const modelLabel = info.model ? `${info.model.providerID}/${info.model.modelID}` : "No model"
+                    const modelLabel = info.model ? `${info.model.providerId}/${info.model.modelID}` : "No model"
                     const title = formatIsoTitle(info.title || "Untitled session")
                     const agentSuffix = info.agent ? ` (${info.agent})` : ""
                     const isActiveSession = activeRouteSessionID() === info.sessionID

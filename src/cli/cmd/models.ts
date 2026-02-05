@@ -33,14 +33,10 @@ const GEMINI_CLI_MODELS = [
 const OPENAI_MODELS = ["gpt-5.1-codex", "gpt-5.1-codex-max", "gpt-5.1-codex-mini", "gpt-5.2", "gpt-5.2-codex"]
 
 // Internal ID to Display Name
-const DISPLAY_ALIASES: Record<string, string> = {
-  "google API-KEY": "google-api",
-}
+const DISPLAY_ALIASES: Record<string, string> = {}
 
 // Input Name to Internal ID
-const INPUT_ALIASES: Record<string, string> = {
-  "google-api": "google API-KEY",
-}
+const INPUT_ALIASES: Record<string, string> = {}
 
 export const ModelsCommand = cmd({
   command: "models [action] [provider] [model]",
@@ -111,8 +107,8 @@ export const ModelsCommand = cmd({
       // 2. Discover Google API models
       try {
         const families = await Account.listAll()
-        // Look for google API-KEY accounts
-        const googleFamily = families["google API-KEY"]
+        // Look for google-api accounts
+        const googleFamily = families["google-api"]
         if (googleFamily && googleFamily.accounts) {
           const accounts = Object.values(googleFamily.accounts)
           // Find first account with apiKey
@@ -128,7 +124,7 @@ export const ModelsCommand = cmd({
                   let name = m.name
                   if (name.startsWith("models/")) name = name.substring(7)
                   if (name.includes("gemini") || name.includes("palm")) {
-                    modelRegistry.add("google API-KEY", name)
+                    modelRegistry.add("google-api", name)
                     count++
                   }
                 }
@@ -234,9 +230,9 @@ export const ModelsCommand = cmd({
         }
 
         // Order providers
-        const order = ["antigravity", "gemini-cli", "anthropic", "openai", "opencode", "google API-KEY"]
+        const order = ["antigravity", "gemini-cli", "anthropic", "openai", "opencode", "google-api"]
         const sortedFamilies = Object.keys(families).sort((a, b) => {
-          // Map a to sort key if needed, mostly 'google API-KEY' is in sort list
+          // Map a to sort key if needed, mostly 'google-api' is in sort list
           const idxA = order.indexOf(a)
           const idxB = order.indexOf(b)
           if (idxA === -1 && idxB === -1) return a.localeCompare(b)
@@ -254,9 +250,9 @@ export const ModelsCommand = cmd({
           const accountsArr = Object.entries(familyData.accounts)
 
           if (accountsArr.length === 0) continue
-
+          
           // Apply alias for display
-          const displayFamilyName = DISPLAY_ALIASES[familyName] || familyName
+          const displayFamilyName = Account.getProviderLabel(familyName)
 
           console.log(UI.Style.TEXT_HIGHLIGHT_BOLD + `📂 ${displayFamilyName.toUpperCase()}` + UI.Style.TEXT_NORMAL)
 

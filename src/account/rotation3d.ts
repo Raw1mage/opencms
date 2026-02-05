@@ -28,7 +28,7 @@ const log = Log.create({ service: "rotation3d" })
  * A point in the 3D model space
  */
 export interface ModelVector {
-  providerID: string
+  providerId: string
   accountId: string
   modelID: string
 }
@@ -112,7 +112,7 @@ export const DEFAULT_ROTATION3D_CONFIG: Rotation3DConfig = {
  * Key for tracking rate limits in 3D space
  */
 function makeKey(vector: ModelVector): string {
-  return `${vector.providerID}:${vector.accountId}:${vector.modelID}`
+  return `${vector.providerId}:${vector.accountId}:${vector.modelID}`
 }
 
 /**
@@ -120,7 +120,7 @@ function makeKey(vector: ModelVector): string {
  */
 export function isVectorRateLimited(vector: ModelVector): boolean {
   const tracker = getRateLimitTracker()
-  return tracker.isRateLimited(vector.accountId, vector.providerID, vector.modelID)
+  return tracker.isRateLimited(vector.accountId, vector.providerId, vector.modelID)
 }
 
 /**
@@ -128,7 +128,7 @@ export function isVectorRateLimited(vector: ModelVector): boolean {
  */
 export function getVectorWaitTime(vector: ModelVector): number {
   const tracker = getRateLimitTracker()
-  return tracker.getWaitTime(vector.accountId, vector.providerID, vector.modelID)
+  return tracker.getWaitTime(vector.accountId, vector.providerId, vector.modelID)
 }
 
 // ============================================================================
@@ -144,7 +144,7 @@ function scoreCandidateByStrategy(
   strategy: FallbackStrategy,
   purpose: RotationPurpose = "generic",
 ): number {
-  const isSameProvider = candidate.providerID === current.providerID
+  const isSameProvider = candidate.providerId === current.providerId
   const isSameAccount = candidate.accountId === current.accountId
   const isSameModel = candidate.modelID === current.modelID
 
@@ -240,7 +240,7 @@ export function selectBestFallback(
       !c.isRateLimited &&
       c.healthScore >= config.minHealthScore &&
       // Don't return the exact same vector
-      !(c.providerID === current.providerID && c.accountId === current.accountId && c.modelID === current.modelID)
+      !(c.providerId === current.providerId && c.accountId === current.accountId && c.modelID === current.modelID)
     )
   })
 
@@ -357,8 +357,8 @@ export async function buildFallbackCandidates(
     const modelFile = Bun.file(path.join(Global.Path.state, "model.json"))
     if (await modelFile.exists()) {
       const modelData = await modelFile.json()
-      const favorites: Array<{ providerID: string; modelID: string }> = modelData.favorite ?? []
-      allowedModels = new Set(favorites.map((f) => `${f.providerID}/${f.modelID}`))
+      const favorites: Array<{ providerId: string; modelID: string }> = modelData.favorite ?? []
+      allowedModels = new Set(favorites.map((f) => `${f.providerId}/${f.modelID}`))
     }
   } catch (e) {
     log.warn("Failed to read favorites for filtering", { error: e })
@@ -366,12 +366,12 @@ export async function buildFallbackCandidates(
 
   // Helper to enrich candidate with capabilities
   const enrich = (vector: ModelVector, reason: FallbackCandidate["reason"]): FallbackCandidate => {
-    const model = providers[vector.providerID]?.models?.[vector.modelID]
+    const model = providers[vector.providerId]?.models?.[vector.modelID]
     return {
       ...vector,
       healthScore: healthTracker.getScore(vector.accountId),
-      isRateLimited: rateLimitTracker.isRateLimited(vector.accountId, vector.providerID, vector.modelID),
-      waitTimeMs: rateLimitTracker.getWaitTime(vector.accountId, vector.providerID, vector.modelID),
+      isRateLimited: rateLimitTracker.isRateLimited(vector.accountId, vector.providerId, vector.modelID),
+      waitTimeMs: rateLimitTracker.getWaitTime(vector.accountId, vector.providerId, vector.modelID),
       priority: 0,
       reason,
       capabilities: extractCapabilities(model),
@@ -380,7 +380,7 @@ export async function buildFallbackCandidates(
 
   // 1. Get all accounts in the same family (same provider, different accounts)
   // Always allowed as it's the same model the user is already using
-  const family = Account.parseFamily(current.providerID)
+  const family = Account.parseFamily(current.providerId)
   if (family) {
     const accounts = await Account.list(family)
     for (const [accountId, info] of Object.entries(accounts)) {
@@ -388,7 +388,7 @@ export async function buildFallbackCandidates(
       candidates.push(
         enrich(
           {
-            providerID: current.providerID,
+            providerId: current.providerId,
             accountId,
             modelID: current.modelID,
           },
@@ -399,26 +399,22 @@ export async function buildFallbackCandidates(
   }
 
   // 2. Get alternative models from same provider (different model, same account)
-  // STRICT: Only allow if it's a Favorite model
-  const currentProvider = providers[current.providerID]
-  if (currentProvider?.models) {
-    for (const [modelId, model] of Object.entries(currentProvider.models)) {
-      if (modelId === current.modelID) continue
-      
-      // Check if this specific model is in favorites
-      if (!allowedModels.has(`${current.providerID}/${modelId}`)) continue
+  // Use favorites list directly (do not require provider.models listing)
+  for (const fav of allowedModels) {
+    const [providerId, modelId] = fav.split("/")
+    if (providerId !== current.providerId) continue
+    if (modelId === current.modelID) continue
 
-      candidates.push(
-        enrich(
-          {
-            providerID: current.providerID,
-            accountId: current.accountId,
-            modelID: modelId,
-          },
-          "diff-model-same-account",
-        ),
-      )
-    }
+    candidates.push(
+      enrich(
+        {
+          providerId: current.providerId,
+          accountId: current.accountId,
+          modelID: modelId,
+        },
+        "diff-model-same-account",
+      ),
+    )
   }
 
   // 3. Get favorite models from model.json (different providers)
@@ -427,25 +423,25 @@ export async function buildFallbackCandidates(
     const modelFile = Bun.file(path.join(Global.Path.state, "model.json"))
     if (await modelFile.exists()) {
       const modelData = await modelFile.json()
-      const favorites: Array<{ providerID: string; modelID: string; tags?: string[] }> = modelData.favorite ?? []
+      const favorites: Array<{ providerId: string; modelID: string; tags?: string[] }> = modelData.favorite ?? []
       const hiddenProviders: string[] = modelData.hiddenProviders ?? []
 
       for (const fav of favorites) {
-        if (hiddenProviders.includes(fav.providerID)) continue
-        if (fav.providerID === current.providerID && fav.modelID === current.modelID) continue
+        if (hiddenProviders.includes(fav.providerId)) continue
+        if (fav.providerId === current.providerId && fav.modelID === current.modelID) continue
 
-        const favFamily = Account.parseFamily(fav.providerID)
+        const favFamily = Account.parseFamily(fav.providerId)
         if (!favFamily) continue
 
         const accounts = await Account.list(favFamily)
         for (const [accountId, info] of Object.entries(accounts)) {
           const candidate = enrich(
             {
-              providerID: fav.providerID,
+              providerId: fav.providerId,
               accountId,
               modelID: fav.modelID,
             },
-            fav.providerID === current.providerID ? "diff-model-same-account" : "diff-provider",
+            fav.providerId === current.providerId ? "diff-model-same-account" : "diff-provider",
           )
 
           // Apply manual tags if present
@@ -477,9 +473,9 @@ export async function buildFallbackCandidates(
         if (active) accountId = active
       }
 
-      const vector: ModelVector = { providerID: "opencode", accountId, modelID: modelId }
+      const vector: ModelVector = { providerId: "opencode", accountId, modelID: modelId }
       if (
-        vector.providerID === current.providerID &&
+        vector.providerId === current.providerId &&
         vector.modelID === current.modelID &&
         vector.accountId === current.accountId
       )
@@ -542,7 +538,7 @@ export async function getNextAvailableVector(
   const fallback = await findFallback(current, config)
   if (fallback) {
     return {
-      providerID: fallback.providerID,
+      providerId: fallback.providerId,
       accountId: fallback.accountId,
       modelID: fallback.modelID,
     }

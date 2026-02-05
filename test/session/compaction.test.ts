@@ -18,7 +18,7 @@ function createModel(opts: {
 }): Provider.Model {
   return {
     id: "test-model",
-    providerID: "test",
+    providerId: "test",
     name: "Test",
     limit: {
       context: opts.context,

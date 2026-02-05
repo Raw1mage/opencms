@@ -114,13 +114,13 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       const model = modelArg ??
         agent.model ?? {
           modelID: msg.info.modelID,
-          providerID: msg.info.providerID,
+          providerId: msg.info.providerId,
         }
 
       debugCheckpoint("task", "Model resolved for subagent", {
         modelArg,
         agentModel: agent.model,
-        parentModel: { modelID: msg.info.modelID, providerID: msg.info.providerID },
+        parentModel: { modelID: msg.info.modelID, providerId: msg.info.providerId },
         finalModel: model,
       })
 
@@ -163,7 +163,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       using _ = defer(() => ctx.abort.removeEventListener("abort", cancel))
       const promptParts = await SessionPrompt.resolvePromptParts(params.prompt)
 
-      // const modelInfo = await Provider.getModel(model.providerID, model.modelID).catch(() => undefined)
+      // const modelInfo = await Provider.getModel(model.providerId, model.modelID).catch(() => undefined)
       // const auto = params.description.toLowerCase().startsWith("auto ")
       // const allowImages = !auto && (modelInfo?.capabilities?.input?.image ?? false)
 
@@ -213,7 +213,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         sessionID: session.id,
         model: {
           modelID: model.modelID,
-          providerID: model.providerID,
+          providerId: model.providerId,
         },
         agent: agent.name,
         tools: {

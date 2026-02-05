@@ -281,7 +281,7 @@ export default function Share(props: { id: string; api: string; info: Session.In
         result.tokens.output += msg.tokens.output
         result.tokens.reasoning += msg.tokens.reasoning
 
-        result.models[`${msg.providerID} ${msg.modelID}`] = [msg.providerID, msg.modelID]
+        result.models[`${msg.providerId} ${msg.modelID}`] = [msg.providerId, msg.modelID]
 
         if (msg.path.root) {
           result.rootDir = msg.path.root
@@ -519,7 +519,7 @@ export function fromV1(v1: Message.Info): MessageWithParts {
         reasoning: 0,
       },
       modelID: v1.metadata.assistant!.modelID,
-      providerID: v1.metadata.assistant!.providerID,
+      providerId: v1.metadata.assistant!.providerId,
       mode: "build",
       system: v1.metadata.assistant!.system,
       error: v1.metadata.error,

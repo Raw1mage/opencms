@@ -130,7 +130,7 @@ export const ProviderRoutes = lazy(() =>
       },
     )
     .post(
-      "/:providerID/oauth/authorize",
+      "/:providerId/oauth/authorize",
       describeRoute({
         summary: "OAuth authorize",
         description: "Initiate OAuth authorization for a specific AI provider to get an authorization URL.",
@@ -150,7 +150,7 @@ export const ProviderRoutes = lazy(() =>
       validator(
         "param",
         z.object({
-          providerID: z.string().meta({ description: "Provider ID" }),
+          providerId: z.string().meta({ description: "Provider ID" }),
         }),
       ),
       validator(
@@ -160,17 +160,17 @@ export const ProviderRoutes = lazy(() =>
         }),
       ),
       async (c) => {
-        const providerID = c.req.valid("param").providerID
+        const providerId = c.req.valid("param").providerId
         const { method } = c.req.valid("json")
         const result = await ProviderAuth.authorize({
-          providerID,
+          providerId,
           method,
         })
         return c.json(result)
       },
     )
     .post(
-      "/:providerID/oauth/callback",
+      "/:providerId/oauth/callback",
       describeRoute({
         summary: "OAuth callback",
         description: "Handle the OAuth callback from a provider after user authorization.",
@@ -190,7 +190,7 @@ export const ProviderRoutes = lazy(() =>
       validator(
         "param",
         z.object({
-          providerID: z.string().meta({ description: "Provider ID" }),
+          providerId: z.string().meta({ description: "Provider ID" }),
         }),
       ),
       validator(
@@ -201,10 +201,10 @@ export const ProviderRoutes = lazy(() =>
         }),
       ),
       async (c) => {
-        const providerID = c.req.valid("param").providerID
+        const providerId = c.req.valid("param").providerId
         const { method, code } = c.req.valid("json")
         await ProviderAuth.callback({
-          providerID,
+          providerId,
           method,
           code,
         })

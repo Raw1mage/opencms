@@ -306,7 +306,7 @@ export function Prompt(props: PromptProps) {
 
     setRateLimitKey(key)
     const savedPrompt = store.prompt.input
-    const targetProvider = local.model.current()?.providerID
+    const targetProvider = local.model.current()?.providerId
     dialog.replace(
       () => <DialogAdmin targetProviderID={targetProvider ?? undefined} />,
       () => {
@@ -754,7 +754,7 @@ export function Prompt(props: PromptProps) {
         sessionID,
         agent: local.agent.current()?.name || "agent",
         model: {
-          providerID: selectedModel.providerID,
+          providerId: selectedModel.providerId,
           modelID: selectedModel.modelID,
         },
         command: inputText,
@@ -780,7 +780,7 @@ export function Prompt(props: PromptProps) {
         command: command.slice(1),
         arguments: args,
         agent: local.agent.current()?.name || "agent",
-        model: `${selectedModel.providerID}/${selectedModel.modelID}`,
+        model: `${selectedModel.providerId}/${selectedModel.modelID}`,
         messageID,
         variant,
         parts: nonTextParts
@@ -955,13 +955,13 @@ export function Prompt(props: PromptProps) {
   const quotaHint = createMemo(() => {
     const current = local.model.current()
     if (!current) return undefined
-    if (current.providerID === "openai" || Account.parseFamily(current.providerID) === "openai") {
+    if (current.providerId === "openai" || Account.parseFamily(current.providerId) === "openai") {
       if (isRateLimited()) return "(5hrs:0% | week:0%)"
       const quota = codexQuota()
       if (!quota) return "(5hrs:-- | week:--)"
       return `(5hrs:${quota.hourlyRemaining}% | week:${quota.weeklyRemaining}%)`
     }
-    if (current.providerID === "antigravity" || Account.parseFamily(current.providerID) === "antigravity") {
+    if (current.providerId === "antigravity" || Account.parseFamily(current.providerId) === "antigravity") {
       if (isRateLimited()) return "0%"
       const groups = quotaGroups()
       if (!groups) return undefined

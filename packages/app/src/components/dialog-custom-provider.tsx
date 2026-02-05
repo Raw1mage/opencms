@@ -27,7 +27,7 @@ export function DialogCustomProvider(props: Props) {
   const language = useLanguage()
 
   const [form, setForm] = createStore({
-    providerID: "",
+    providerId: "",
     name: "",
     baseURL: "",
     apiKey: "",
@@ -37,7 +37,7 @@ export function DialogCustomProvider(props: Props) {
   })
 
   const [errors, setErrors] = createStore({
-    providerID: undefined as string | undefined,
+    providerId: undefined as string | undefined,
     name: undefined as string | undefined,
     baseURL: undefined as string | undefined,
     models: [{} as { id?: string; name?: string }],
@@ -115,7 +115,7 @@ export function DialogCustomProvider(props: Props) {
   }
 
   const validate = () => {
-    const providerID = form.providerID.trim()
+    const providerId = form.providerId.trim()
     const name = form.name.trim()
     const baseURL = form.baseURL.trim()
     const apiKey = form.apiKey.trim()
@@ -123,9 +123,9 @@ export function DialogCustomProvider(props: Props) {
     const env = apiKey.match(/^\{env:([^}]+)\}$/)?.[1]?.trim()
     const key = apiKey && !env ? apiKey : undefined
 
-    const idError = !providerID
+    const idError = !providerId
       ? "Provider ID is required"
-      : !PROVIDER_ID.test(providerID)
+      : !PROVIDER_ID.test(providerId)
         ? "Use lowercase letters, numbers, hyphens, or underscores"
         : undefined
 
@@ -136,8 +136,8 @@ export function DialogCustomProvider(props: Props) {
         ? "Must start with http:// or https://"
         : undefined
 
-    const disabled = (globalSync.data.config.disabled_providers ?? []).includes(providerID)
-    const existingProvider = globalSync.data.provider.all.find((p) => p.id === providerID)
+    const disabled = (globalSync.data.config.disabled_providers ?? []).includes(providerId)
+    const existingProvider = globalSync.data.provider.all.find((p) => p.id === providerId)
     const existsError = idError
       ? undefined
       : existingProvider && !disabled
@@ -188,7 +188,7 @@ export function DialogCustomProvider(props: Props) {
 
     setErrors(
       produce((draft) => {
-        draft.providerID = idError ?? existsError
+        draft.providerId = idError ?? existsError
         draft.name = nameError
         draft.baseURL = urlError
         draft.models = modelErrors
@@ -205,7 +205,7 @@ export function DialogCustomProvider(props: Props) {
     }
 
     return {
-      providerID,
+      providerId,
       name,
       key,
       config: {
@@ -228,11 +228,11 @@ export function DialogCustomProvider(props: Props) {
     setForm("saving", true)
 
     const disabledProviders = globalSync.data.config.disabled_providers ?? []
-    const nextDisabled = disabledProviders.filter((id) => id !== result.providerID)
+    const nextDisabled = disabledProviders.filter((id) => id !== result.providerId)
 
     const auth = result.key
       ? globalSDK.client.auth.set({
-          providerID: result.providerID,
+          providerId: result.providerId,
           auth: {
             type: "api",
             key: result.key,
@@ -242,7 +242,7 @@ export function DialogCustomProvider(props: Props) {
 
     auth
       .then(() =>
-        globalSync.updateConfig({ provider: { [result.providerID]: result.config }, disabled_providers: nextDisabled }),
+        globalSync.updateConfig({ provider: { [result.providerId]: result.config }, disabled_providers: nextDisabled }),
       )
       .then(() => {
         dialog.close()
@@ -296,10 +296,10 @@ export function DialogCustomProvider(props: Props) {
               label="Provider ID"
               placeholder="myprovider"
               description="Lowercase letters, numbers, hyphens, or underscores"
-              value={form.providerID}
-              onChange={setForm.bind(null, "providerID")}
-              validationState={errors.providerID ? "invalid" : undefined}
-              error={errors.providerID}
+              value={form.providerId}
+              onChange={setForm.bind(null, "providerId")}
+              validationState={errors.providerId ? "invalid" : undefined}
+              error={errors.providerId}
             />
             <TextField
               label="Display name"

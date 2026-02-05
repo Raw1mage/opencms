@@ -123,7 +123,7 @@ describe("session.message-v2.fromError", () => {
         syscall: "read",
       })
 
-      const result = MessageV2.fromError(error, { providerID: "test" })
+      const result = MessageV2.fromError(error, { providerId: "test" })
 
       expect(MessageV2.APIError.isInstance(result)).toBe(true)
       expect((result as MessageV2.APIError).data.isRetryable).toBe(true)
@@ -156,7 +156,7 @@ describe("session.message-v2.fromError", () => {
       responseBody: '{"error":"boom"}',
       isRetryable: false,
     })
-    const result = MessageV2.fromError(error, { providerID: "openai" }) as MessageV2.APIError
+    const result = MessageV2.fromError(error, { providerId: "openai" }) as MessageV2.APIError
     expect(result.data.isRetryable).toBe(true)
   })
 })

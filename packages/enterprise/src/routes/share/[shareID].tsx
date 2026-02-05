@@ -244,7 +244,7 @@ export default function () {
                             setStore("messageId", undefined)
                           }
                         }
-                        const provider = createMemo(() => activeMessage()?.model?.providerID)
+                        const provider = createMemo(() => activeMessage()?.model?.providerId)
                         const modelID = createMemo(() => activeMessage()?.model?.modelID)
                         const model = createMemo(() => data().model[data().sessionID]?.find((m) => m.id === modelID()))
                         const diffs = createMemo(() => {

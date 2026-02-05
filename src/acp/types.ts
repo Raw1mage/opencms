@@ -7,7 +7,7 @@ export interface ACPSessionState {
   mcpServers: McpServer[]
   createdAt: Date
   model?: {
-    providerID: string
+    providerId: string
     modelID: string
   }
   variant?: string
@@ -17,7 +17,7 @@ export interface ACPSessionState {
 export interface ACPConfig {
   sdk: OpencodeClient
   defaultModel?: {
-    providerID: string
+    providerId: string
     modelID: string
   }
 }

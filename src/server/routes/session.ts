@@ -535,7 +535,7 @@ export const SessionRoutes = lazy(() =>
       validator(
         "json",
         z.object({
-          providerID: z.string(),
+          providerId: z.string(),
           modelID: z.string(),
           auto: z.boolean().optional().default(false),
         }),
@@ -558,7 +558,7 @@ export const SessionRoutes = lazy(() =>
           sessionID,
           agent: currentAgent,
           model: {
-            providerID: body.providerID,
+            providerId: body.providerId,
             modelID: body.modelID,
           },
           auto: body.auto,

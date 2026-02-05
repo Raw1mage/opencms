@@ -68,7 +68,7 @@ export namespace LLM {
   export async function stream(input: StreamInput) {
     debugCheckpoint("llm", "LLM.stream started", {
       modelID: input.model.id,
-      providerID: input.model.providerID,
+      providerId: input.model.providerId,
       apiNpm: input.model.api.npm,
       apiId: input.model.api.id,
       sessionID: input.sessionID,
@@ -79,7 +79,7 @@ export namespace LLM {
 
     const l = log
       .clone()
-      .tag("providerID", input.model.providerID)
+      .tag("providerId", input.model.providerId)
       .tag("modelID", input.model.id)
       .tag("sessionID", input.sessionID)
       .tag("small", (input.small ?? false).toString())
@@ -87,20 +87,20 @@ export namespace LLM {
       .tag("mode", input.agent.mode)
     l.info("stream", {
       modelID: input.model.id,
-      providerID: input.model.providerID,
+      providerId: input.model.providerId,
     })
     // Get account ID for rate limit tracking and provider options
-    const currentAccountId = await getAccountIdForProvider(input.model.providerID)
+    const currentAccountId = await getAccountIdForProvider(input.model.providerId)
 
     const [language, cfg, provider, auth] = await Promise.all([
       Provider.getLanguage(input.model),
       Config.get(),
-      Provider.getProvider(input.model.providerID),
-      Auth.get(input.model.providerID),
+      Provider.getProvider(input.model.providerId),
+      Auth.get(input.model.providerId),
     ])
 
     debugCheckpoint("llm", "Provider and auth loaded", {
-      providerID: input.model.providerID,
+      providerId: input.model.providerId,
       providerSource: provider?.source,
       hasCustomFetch: typeof provider?.options?.fetch === "function",
       accountId: currentAccountId,
@@ -218,7 +218,7 @@ export namespace LLM {
     // 2. Providers with explicit "litellmProxy: true" option (opt-in for custom gateways)
     const isLiteLLMProxy =
       provider.options?.["litellmProxy"] === true ||
-      input.model.providerID.toLowerCase().includes("litellm") ||
+      input.model.providerId.toLowerCase().includes("litellm") ||
       input.model.api.id.toLowerCase().includes("litellm")
 
     if (isLiteLLMProxy && Object.keys(tools).length === 0 && hasToolCalls(input.messages)) {
@@ -266,7 +266,7 @@ export namespace LLM {
 
           // Update global model health registry (shared across all tasks)
           const modelRegistry = getModelHealthRegistry()
-          modelRegistry.markRateLimited(input.model.providerID, input.model.id, reason, backoffMs)
+          modelRegistry.markRateLimited(input.model.providerId, input.model.id, reason, backoffMs)
 
           // Also update account-level tracking if we have an account
           if (accountId) {
@@ -274,12 +274,12 @@ export namespace LLM {
             const rateLimitTracker = getRateLimitTracker()
 
             healthTracker.recordRateLimit(accountId)
-            rateLimitTracker.markRateLimited(accountId, input.model.providerID, reason, backoffMs, input.model.id)
+            rateLimitTracker.markRateLimited(accountId, input.model.providerId, reason, backoffMs, input.model.id)
           }
 
           l.warn("Rate limit detected", {
             accountId,
-            providerID: input.model.providerID,
+            providerId: input.model.providerId,
             modelID: input.model.id,
             reason,
             backoffMs,
@@ -327,14 +327,14 @@ export namespace LLM {
       abortSignal: input.abort,
       headers: {
         ...(accountId ? { "x-opencode-account-id": accountId } : {}),
-        ...(input.model.providerID.startsWith("opencode")
+        ...(input.model.providerId.startsWith("opencode")
           ? {
               "x-opencode-project": Instance.project.id,
               "x-opencode-session": input.sessionID,
               "x-opencode-request": input.user.id,
               "x-opencode-client": Flag.OPENCODE_CLIENT,
             }
-          : input.model.providerID !== "anthropic"
+          : input.model.providerId !== "anthropic"
             ? {
                 "User-Agent": `opencode/${Installation.VERSION}`,
               }
@@ -419,11 +419,11 @@ export namespace LLM {
    * Get the active account ID for a provider.
    * Used for rate limit tracking.
    */
-  async function getAccountIdForProvider(providerID: string): Promise<string | undefined> {
+  async function getAccountIdForProvider(providerId: string): Promise<string | undefined> {
     const { Account } = await import("@/account")
 
     // Parse family from provider ID
-    const family = Account.parseFamily(providerID)
+    const family = Account.parseFamily(providerId)
     if (!family) return undefined
 
     // Get active account
@@ -434,27 +434,27 @@ export namespace LLM {
    * Record a successful request for the current provider.
    * Call this after a stream completes successfully.
    */
-  export async function recordSuccess(providerID: string, modelID?: string): Promise<void> {
-    log.info("recordSuccess called", { providerID, modelID })
-    debugCheckpoint("health", "llm.recordSuccess", { providerID, modelID })
+  export async function recordSuccess(providerId: string, modelID?: string): Promise<void> {
+    log.info("recordSuccess called", { providerId, modelID })
+    debugCheckpoint("health", "llm.recordSuccess", { providerId, modelID })
 
     // Update global model health registry
     if (modelID) {
       const modelRegistry = getModelHealthRegistry()
-      log.info("Calling modelRegistry.markSuccess", { providerID, modelID })
-      debugCheckpoint("health", "llm.recordSuccess.markSuccess", { providerID, modelID })
-      modelRegistry.markSuccess(providerID, modelID)
+      log.info("Calling modelRegistry.markSuccess", { providerId, modelID })
+      debugCheckpoint("health", "llm.recordSuccess.markSuccess", { providerId, modelID })
+      modelRegistry.markSuccess(providerId, modelID)
     } else {
-      log.warn("recordSuccess: modelID is undefined, skipping registry update", { providerID })
-      debugCheckpoint("health", "llm.recordSuccess.noModelID", { providerID })
+      log.warn("recordSuccess: modelID is undefined, skipping registry update", { providerId })
+      debugCheckpoint("health", "llm.recordSuccess.noModelID", { providerId })
     }
 
     // Update account-level tracking
-    const accountId = await getAccountIdForProvider(providerID)
+    const accountId = await getAccountIdForProvider(providerId)
     if (accountId) {
       const healthTracker = getHealthTracker()
       healthTracker.recordSuccess(accountId)
-      log.info("Recorded success with account", { providerID, modelID, accountId })
+      log.info("Recorded success with account", { providerId, modelID, accountId })
     }
   }
 
@@ -488,7 +488,7 @@ export namespace LLM {
     const { Account } = await import("@/account")
     const { getRateLimitTracker } = await import("@/account/rotation")
 
-    const family = Account.parseFamily(currentModel.providerID)
+    const family = Account.parseFamily(currentModel.providerId)
     if (!family) return null
 
     // Get current account
@@ -496,22 +496,22 @@ export namespace LLM {
     if (!currentAccountId) return null
 
     // Build current vector key and add to tried set
-    const currentVectorKey = `${currentModel.providerID}:${currentAccountId}:${currentModel.id}`
+    const currentVectorKey = `${currentModel.providerId}:${currentAccountId}:${currentModel.id}`
     triedVectors.add(currentVectorKey)
 
     // Mark current vector as rate-limited to prevent bouncing back to it
     const rateLimitTracker = getRateLimitTracker()
-    if (!rateLimitTracker.isRateLimited(currentAccountId, currentModel.providerID, currentModel.id)) {
+    if (!rateLimitTracker.isRateLimited(currentAccountId, currentModel.providerId, currentModel.id)) {
       // Apply a short cooldown (30 seconds) to prevent immediate retry
       rateLimitTracker.markRateLimited(
         currentAccountId,
-        currentModel.providerID,
+        currentModel.providerId,
         "RATE_LIMIT_EXCEEDED",
         30_000,
         currentModel.id,
       )
       log.info("Marked current vector as rate-limited to prevent bounce-back", {
-        provider: currentModel.providerID,
+        provider: currentModel.providerId,
         account: currentAccountId,
         model: currentModel.id,
       })
@@ -519,74 +519,34 @@ export namespace LLM {
 
     // Build current vector
     const currentVector: ModelVector = {
-      providerID: currentModel.providerID,
+      providerId: currentModel.providerId,
       accountId: currentAccountId,
       modelID: currentModel.id,
     }
 
     // Use 3D rotation to find best fallback
-    const fallback = await findFallback(currentVector, { strategy })
+    const fallback = await findFallback(currentVector, { strategy }, triedVectors)
 
     if (!fallback) {
-      log.warn("No fallback available in any dimension", {
-        current: currentVectorKey,
-        triedCount: triedVectors.size,
-      })
+      // If no fallback, return current tried vectors for next attempt
       return null
     }
 
-    // Check if this fallback has already been tried
-    const fallbackKey = `${fallback.providerID}:${fallback.accountId}:${fallback.modelID}`
+    // Add the selected fallback to tried vectors to avoid immediate retry in subsequent attempts
+    const fallbackKey = `${fallback.providerId}:${fallback.accountId}:${fallback.modelID}`
+
+    // Check if this fallback has already been tried (should be caught by findFallback, but as a safeguard)
     if (triedVectors.has(fallbackKey)) {
-      log.warn("Fallback already tried, searching for next option", {
+      log.warn("Fallback already tried after selection, attempting to find another", {
         fallback: fallbackKey,
         triedCount: triedVectors.size,
       })
-      // Mark this as tried and recursively find another
-      // But impose a limit to prevent stack overflow
-      if (triedVectors.size >= 10) {
-        log.error("Max fallback attempts reached, giving up", { triedCount: triedVectors.size })
-        return null
-      }
-      // Try again with updated tried set (findFallback will filter)
-      return null // Let processor retry with the updated triedVectors
+      // If it has been tried, recursively call again to find a *new* fallback
+      return handleRateLimitFallback(currentModel, strategy, triedVectors)
     }
 
-    // Log the dimension change
-    const isSameProvider = fallback.providerID === currentModel.providerID
-    const isSameAccount = fallback.accountId === currentAccountId
-    const isSameModel = fallback.modelID === currentModel.id
-
-    const fallbackReason = isVectorRateLimited(currentVector) ? "rate-limit" : "unknown"
-    const purpose = (fallback as any).purpose || fallbackReason
-    const reasonLabel = PURPOSE_LABELS[purpose] || fallback.reason
-    const fromStr = `${currentAccountId}(${currentModel.id})`
-    const toStr = `${fallback.accountId}(${fallback.modelID})`
-    const toastMsg = `[Rotation: ${reasonLabel}] ${fromStr} → ${toStr}`
-
-    log.info("3D fallback selected", {
-      reason: fallback.reason,
-      trigger: fallbackReason,
-      changes: {
-        provider: !isSameProvider,
-        account: !isSameAccount,
-        model: !isSameModel,
-      },
-      from: fromStr,
-      to: toStr,
-    })
-
-    debugCheckpoint("rotation3d", "Executing fallback switch", {
-      trigger: fallbackReason,
-      strategy: fallback.reason,
-      from: fromStr,
-      to: toStr,
-      changes: {
-        provider: !isSameProvider,
-        account: !isSameAccount,
-        model: !isSameModel,
-      },
-    })
+    // Mark as tried
+    triedVectors.add(fallbackKey)
 
     // If same model but different account, set the new account as active
     if (isSameModel && !isSameAccount && isSameProvider) {
@@ -605,22 +565,25 @@ export namespace LLM {
         duration: 8000,
       }).catch(() => {})
 
+      // Return currentModel here, as the rotation only changed the account, not the model object itself
       return currentModel
     }
 
     // If different model or provider, get the full model info
-    const fallbackModel = await Provider.getModel(fallback.providerID, fallback.modelID)
+    const fallbackModel = await Provider.getModel(fallback.providerId, fallback.modelID)
     if (!fallbackModel) {
       log.warn("Fallback model not found", {
-        providerID: fallback.providerID,
+        providerId: fallback.providerId,
         modelID: fallback.modelID,
       })
-      return null
+      // If fallback model info can't be found, add it to tried and search again
+      triedVectors.add(fallbackKey)
+      return handleRateLimitFallback(currentModel, strategy, triedVectors)
     }
 
     // If different account in a different provider family, set that account active too
     if (!isSameProvider) {
-      const fallbackFamily = Account.parseFamily(fallback.providerID)
+      const fallbackFamily = Account.parseFamily(fallback.providerId)
       if (fallbackFamily) {
         await Account.setActive(fallbackFamily, fallback.accountId)
       }

@@ -191,12 +191,12 @@ export const AuthListCommand = cmd({
       const accounts = await Auth.listAccounts(args.provider)
       prompts.intro(`${args.provider} accounts`)
 
-      for (const providerID of accounts) {
-        const auth = await Auth.get(providerID)
+      for (const providerId of accounts) {
+        const auth = await Auth.get(providerId)
         if (!auth) continue
-        const isDefault = providerID === args.provider
+        const isDefault = providerId === args.provider
         const marker = isDefault ? " (default)" : ""
-        prompts.log.info(`${providerID}${marker} ${UI.Style.TEXT_DIM}${auth.type}`)
+        prompts.log.info(`${providerId}${marker} ${UI.Style.TEXT_DIM}${auth.type}`)
       }
 
       prompts.outro(`${accounts.length} account${accounts.length === 1 ? "" : "s"}`)
@@ -208,8 +208,8 @@ export const AuthListCommand = cmd({
     const results = Object.entries(await Auth.all())
     const database = await ModelsDev.get()
 
-    for (const [providerID, result] of results) {
-      const name = database[providerID]?.name || providerID
+    for (const [providerId, result] of results) {
+      const name = database[providerId]?.name || providerId
       prompts.log.info(`${name} ${UI.Style.TEXT_DIM}${result.type}`)
     }
 
@@ -218,11 +218,11 @@ export const AuthListCommand = cmd({
     // Environment variables section
     const activeEnvVars: Array<{ provider: string; envVar: string }> = []
 
-    for (const [providerID, provider] of Object.entries(database)) {
+    for (const [providerId, provider] of Object.entries(database)) {
       for (const envVar of provider.env) {
         if (process.env[envVar]) {
           activeEnvVars.push({
-            provider: provider.name || providerID,
+            provider: provider.name || providerId,
             envVar,
           })
         }
@@ -494,15 +494,15 @@ export const AuthLogoutCommand = cmd({
       return
     }
     const database = await ModelsDev.get()
-    const providerID = await prompts.select({
+    const providerId = await prompts.select({
       message: "Select provider",
       options: credentials.map(([key, value]) => ({
         label: (database[key]?.name || key) + UI.Style.TEXT_DIM + " (" + value.type + ")",
         value: key,
       })),
     })
-    if (prompts.isCancel(providerID)) throw new UI.CancelledError()
-    await Auth.remove(providerID)
+    if (prompts.isCancel(providerId)) throw new UI.CancelledError()
+    await Auth.remove(providerId)
     prompts.outro("Logout successful")
   },
 })

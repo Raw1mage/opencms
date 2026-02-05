@@ -1,3 +1,5 @@
+- [2026-02-06] [Rotation3D V2: 精確區分永久失效與 5 分鐘禁閉機制](events/event_20260206_rotation_v2.md)
+- [2026-02-06] [優化 Rotation3D 避免重複嘗試與加強 Favorites 清理](events/event_20260206_rotation_fix.md)
 - [2026-02-06] [深度清理與對齊修正 (Phase 2.1)](events/event_2026-02-06_alignment_sync.md)
 - [2026-02-06] [修復 google-api 模型清單回填](events/event_2026-02-06_google_api_models.md)
 - [2026-02-06] [Provider 系統清理與顯示優化 (Phase 2)](events/event_2026-02-06_provider_cleanup.md)
