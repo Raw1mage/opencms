@@ -81,7 +81,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   // Navigation State
   // steps: root -> account_select -> model_select
   const [step, setStep] = createSignal<"root" | "account_select" | "model_select">("root")
-  const pages = ["activities", "favorites", "providers"] as const
+  const pages = ["activities", "providers"] as const
   type Page = (typeof pages)[number]
   const [page, setPage] = createSignal<Page>("activities")
   const [selectedFamily, setSelectedFamily] = createSignal<string | null>(null)
@@ -113,6 +113,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     return Date.now() - dialogClosedAt < DIALOG_CLOSE_DEBOUNCE_MS
   }
   const [currentOption, setCurrentOption] = createSignal<DialogSelectOption<unknown> | null>(null)
+  const [activitySort, setActivitySort] = createSignal<"usage" | "provider" | "model">("usage")
 
   const menuLabel = () => {
     const s = step()
@@ -162,7 +163,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   }
 
   onMount(() => {
-    dialog.setSize("large")
+    dialog.setSize("xlarge")
     debugCheckpoint("admin", "mount", { step: step(), family: selectedFamily() })
     setQuotaRefresh((v) => v + 1)
   })
@@ -772,6 +773,17 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
     const providerMap = activityProviders() ?? {}
     const accountMap = activityAccounts() ?? {}
+    const favorites = connected() ? local.model.favorite() : []
+    const recentList = local.model.recent()
+    const recentRanks = new Map<string, number>()
+    for (let i = 0; i < recentList.length; i += 1) {
+      const item = recentList[i]
+      recentRanks.set(`${item.providerId}:${item.modelID}`, i)
+    }
+    const getRecentRank = (providerId: string, modelId: string) => {
+      const rank = recentRanks.get(`${providerId}:${modelId}`)
+      return typeof rank === "number" ? rank : Number.MAX_SAFE_INTEGER
+    }
 
     const items: Array<{
       value: string
@@ -779,10 +791,13 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       description: string
       category: string
       footer: string
+      truncate?: "none" | "ellipsis"
     }> = []
 
     const modelLimits = new Map<string, { waitMs: number; reason: string }>()
     const providerLimits = new Map<string, { waitMs: number; reason: string }>()
+    const modelLimitKeys = new Set<string>()
+    const providerLimitProviders = new Set<string>()
     for (const entry of rateLimits3D) {
       const hasModel = entry.modelID && entry.modelID.length > 0
       if (hasModel) {
@@ -790,97 +805,201 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
           waitMs: entry.waitMs,
           reason: entry.reason,
         })
+        modelLimitKeys.add(`${entry.providerId}:${entry.modelID}`)
       }
       if (!hasModel) {
         providerLimits.set(`${entry.accountId}:${entry.providerId}`, {
           waitMs: entry.waitMs,
           reason: entry.reason,
         })
+        providerLimitProviders.add(entry.providerId)
       }
     }
 
     let ready = 0
     let limited = 0
 
+    const favoritesSet = new Set(favorites.map((item) => `${item.providerId}:${item.modelID}`))
+    const modelEntries = new Map<string, { providerId: string; modelId: string }>()
     const providerIds = Object.keys(providerMap).sort((a, b) => a.localeCompare(b))
     for (const providerId of providerIds) {
       const provider = providerMap[providerId]
       if (!provider) continue
+      const models = Object.values(provider.models)
+      for (const model of models) {
+        const key = `${providerId}:${model.id}`
+        if (
+          favoritesSet.has(key) ||
+          modelLimitKeys.has(key) ||
+          snapshot2D.has(key) ||
+          providerLimitProviders.has(providerId)
+        ) {
+          modelEntries.set(key, { providerId, modelId: model.id })
+        }
+      }
+    }
 
+    for (const key of snapshot2D.keys()) {
+      const splitAt = key.indexOf(":")
+      if (splitAt <= 0) continue
+      const providerId = key.slice(0, splitAt)
+      const modelId = key.slice(splitAt + 1)
+      modelEntries.set(key, { providerId, modelId })
+    }
+
+    for (const key of modelLimitKeys) {
+      const splitAt = key.indexOf(":")
+      if (splitAt <= 0) continue
+      const providerId = key.slice(0, splitAt)
+      const modelId = key.slice(splitAt + 1)
+      modelEntries.set(key, { providerId, modelId })
+    }
+
+    for (const favorite of favorites) {
+      const key = `${favorite.providerId}:${favorite.modelID}`
+      modelEntries.set(key, { providerId: favorite.providerId, modelId: favorite.modelID })
+    }
+
+    const sortedModels = Array.from(modelEntries.values()).sort((a, b) => {
+      const mode = activitySort()
+      const labelA = Account.getProviderLabel(family(a.providerId) || a.providerId)
+      const labelB = Account.getProviderLabel(family(b.providerId) || b.providerId)
+      if (mode === "provider") {
+        if (labelA !== labelB) return labelA.localeCompare(labelB)
+        return a.modelId.localeCompare(b.modelId)
+      }
+      if (mode === "model") {
+        if (a.modelId !== b.modelId) return a.modelId.localeCompare(b.modelId)
+        return labelA.localeCompare(labelB)
+      }
+      const rankA = getRecentRank(a.providerId, a.modelId)
+      const rankB = getRecentRank(b.providerId, b.modelId)
+      if (rankA !== rankB) return rankA - rankB
+      if (labelA !== labelB) return labelA.localeCompare(labelB)
+      return a.modelId.localeCompare(b.modelId)
+    })
+
+    const branchWidth = 2
+    const widths = sortedModels.reduce(
+      (acc, entry) => {
+        const providerLabel = Account.getProviderLabel(family(entry.providerId) || entry.providerId) || "-"
+        acc.provider = Math.max(acc.provider, providerLabel.length)
+        acc.model = Math.max(acc.model, (entry.modelId || "-").length)
+        const accountFamily = family(entry.providerId) ?? entry.providerId
+        const accountData = accountMap[entry.providerId] ?? accountMap[accountFamily]
+        const accountIds = accountData ? Object.keys(accountData.accounts) : []
+        const list = accountIds.length > 0 ? accountIds : ["-"]
+        for (const accountId of list) {
+          const info = accountId === "-" ? undefined : accountData?.accounts[accountId]
+          const display = info ? Account.getDisplayName(accountId, info, entry.providerId) : accountId
+          acc.account = Math.max(acc.account, (display || "-").length)
+        }
+        return acc
+      },
+      { provider: 8, model: 12, account: 12 },
+    )
+
+    const currentModel = local.model.current()
+
+    for (const entryModel of sortedModels) {
+      const providerId = entryModel.providerId
+      const modelId = entryModel.modelId
+      const isCurrentModel = currentModel?.providerId === providerId && currentModel?.modelID === modelId
       const accountFamily = family(providerId) ?? providerId
       const accountData = accountMap[providerId] ?? accountMap[accountFamily]
+      const activeAccountId = accountData?.activeAccount
       const accountIds = accountData ? Object.keys(accountData.accounts) : []
       const list = accountIds.length > 0 ? accountIds : ["-"]
-      const models = Object.values(provider.models).sort((a, b) => a.id.localeCompare(b.id))
+      const providerLabel = Account.getProviderLabel(family(providerId) || providerId)
+      const providerCol = (providerLabel || "-").padEnd(widths.provider)
+      const modelCol = (modelId || "-").padEnd(widths.model)
+      const modelInfo = providerMap[providerId]?.models?.[modelId]
+      const modelDisplayName = modelInfo?.name ?? modelId
+      const fallbackFree = modelInfo ? shouldShowFree(providerId, modelInfo) : false
 
-      for (const accountId of list) {
+      for (let i = 0; i < list.length; i += 1) {
+        const accountId = list[i]
         const info = accountId === "-" ? undefined : accountData?.accounts[accountId]
         const display = info ? Account.getDisplayName(accountId, info, providerId) : accountId
-        const accountCol = (display || "-").padEnd(19).slice(0, 19)
-        const providerLabel = Account.getProviderLabel(family(providerId) || providerId)
-        const providerCol = (providerLabel || "-").padEnd(13).slice(0, 13)
+        const isLast = i === list.length - 1
+        const branchMarker = list.length === 1 ? "" : i === 0 ? "┬─" : isLast ? "└─" : "├─"
+        const branchColValue = branchMarker.padEnd(branchWidth)
+        const accountCol = `${display || "-"}`.padEnd(widths.account)
+        const titleProviderCol = i === 0 ? providerCol : "".padEnd(widths.provider)
+        const titleModelCol = i === 0 ? modelCol : "".padEnd(widths.model)
+        const isCurrentAccount = isCurrentModel && activeAccountId && activeAccountId === accountId
+        const rowSuffix = isCurrentAccount ? " ✅" : ""
 
-        for (const model of models) {
-          const modelCol = (model.id || "-").padEnd(27).slice(0, 27)
-          const entry = modelLimits.get(`${accountId}:${providerId}:${model.id}`)
-          if (entry && entry.waitMs > 0) {
-            limited += 1
-            items.push({
-              value: `${accountId}:${providerId}:${model.id}`,
-              title: `${providerCol} ${accountCol} ${modelCol}`,
-              description: formatReason(entry.reason),
-              category: "",
-              footer: `⏳ ${formatWait(entry.waitMs)}`,
-            })
-            continue
-          }
-
-          const providerLimit = providerLimits.get(`${accountId}:${providerId}`)
-          if (providerLimit && providerLimit.waitMs > 0) {
-            limited += 1
-            items.push({
-              value: `${accountId}:${providerId}:${model.id}`,
-              title: `${providerCol} ${accountCol} ${modelCol}`,
-              description: formatReason(providerLimit.reason),
-              category: "",
-              footer: `⏳ ${formatWait(providerLimit.waitMs)}`,
-            })
-            continue
-          }
-
-          const state2d = snapshot2D.get(`${providerId}:${model.id}`)
-          if (state2d && state2d.waitMs > 0) {
-            limited += 1
-            items.push({
-              value: `${accountId}:${providerId}:${model.id}`,
-              title: `${providerCol} ${accountCol} ${modelCol}`,
-              description: `${formatReason(state2d.reason)} (model)`,
-              category: "",
-              footer: `⏳ ${formatWait(state2d.waitMs)}`,
-            })
-            continue
-          }
-
-          if (state2d && state2d.available) {
-            ready += 1
-            items.push({
-              value: `${accountId}:${providerId}:${model.id}`,
-              title: `${providerCol} ${accountCol} ${modelCol}`,
-              description: "",
-              category: "",
-              footer:
-                formatQuotaFooter(
-                  accountId,
-                  providerId,
-                  model.id,
-                  model.name ?? model.id,
-                  shouldShowFree(providerId, model),
-                  false,
-                  0,
-                ) ?? "✓ Ready",
-            })
-          }
+        const modelKey = `${providerId}:${modelId}`
+        const modelEntry = modelLimits.get(`${accountId}:${providerId}:${modelId}`)
+        if (modelEntry && modelEntry.waitMs > 0) {
+          limited += 1
+          const statusText = `⏳ ${formatWait(modelEntry.waitMs)}${rowSuffix}`
+          items.push({
+            value: `${accountId}:${providerId}:${modelId}`,
+            title: `${titleProviderCol} ${titleModelCol} ${branchColValue}${accountCol}  ${statusText}`,
+            description: "",
+            category: "",
+            footer: "",
+            truncate: "none",
+          })
+          continue
         }
+
+        const providerLimit = providerLimits.get(`${accountId}:${providerId}`)
+        if (providerLimit && providerLimit.waitMs > 0) {
+          limited += 1
+          const statusText = `⏳ ${formatWait(providerLimit.waitMs)}${rowSuffix}`
+          items.push({
+            value: `${accountId}:${providerId}:${modelId}`,
+            title: `${titleProviderCol} ${titleModelCol} ${branchColValue}${accountCol}  ${statusText}`,
+            description: "",
+            category: "",
+            footer: "",
+            truncate: "none",
+          })
+          continue
+        }
+
+        const state2d = snapshot2D.get(modelKey)
+        if (state2d && state2d.waitMs > 0) {
+          limited += 1
+          const statusText = `⏳ ${formatWait(state2d.waitMs)}${rowSuffix}`
+          items.push({
+            value: `${accountId}:${providerId}:${modelId}`,
+            title: `${titleProviderCol} ${titleModelCol} ${branchColValue}${accountCol}  ${statusText}`,
+            description: "",
+            category: "",
+            footer: "",
+            truncate: "none",
+          })
+          continue
+        }
+
+        if (state2d && state2d.available) {
+          ready += 1
+          const readyFooter =
+            (formatQuotaFooter(accountId, providerId, modelId, modelDisplayName, fallbackFree, false, 0) ?? "✓ Ready") +
+            rowSuffix
+          items.push({
+            value: `${accountId}:${providerId}:${modelId}`,
+            title: `${titleProviderCol} ${titleModelCol} ${branchColValue}${accountCol}  ${readyFooter}`,
+            description: "",
+            category: "",
+            footer: "",
+            truncate: "none",
+          })
+          continue
+        }
+
+        items.push({
+          value: `${accountId}:${providerId}:${modelId}`,
+          title: `${titleProviderCol} ${titleModelCol} ${branchColValue}${accountCol}  -${rowSuffix}`,
+          description: "",
+          category: "",
+          footer: "",
+          truncate: "none",
+        })
       }
     }
 
@@ -893,12 +1012,17 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         footer: "",
       })
     } else {
+      const headerProvider = "Provider".padEnd(widths.provider)
+      const headerModel = "Model".padEnd(widths.model)
+      const headerBranch = "".padEnd(branchWidth)
+      const headerAccount = "Account".padEnd(widths.account)
       items.unshift({
         value: "_header",
-        title: "Provider      Account             Model                      ",
+        title: `${headerProvider} ${headerModel} ${headerBranch}${headerAccount}  Status`,
         description: "",
         category: "",
-        footer: "Status",
+        footer: "",
+        truncate: "none",
       })
     }
 
@@ -913,7 +1037,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     const resolvedProvider = Account.parseProvider(providerId) || providerId
     debugCheckpoint("admin.activities", "select model", { accountId, providerId: resolvedProvider, modelID })
     local.model.set({ providerId: resolvedProvider, modelID }, { recent: true, announce: true })
-    dialog.clear()
+    setActivityTick((tick) => tick + 1)
   }
 
   // ---- OPTION GENERATION ----
@@ -1046,20 +1170,6 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
           onSelect: disabled ? undefined : () => selectActivity(item.value),
         }
       })
-    }
-
-    if (currentPage === "favorites") {
-      if (favorites.length === 0) {
-        return [
-          {
-            title: "No favorites yet",
-            value: "__favorites_empty__",
-            disabled: true,
-            category: "Favorites",
-          },
-        ]
-      }
-      return getModelOptions(favorites, "favorite")
     }
 
     // LEVEL 1: ROOT
@@ -1569,7 +1679,6 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       if (stats.total === 0) return "Model Activities"
       return `Model Activities (${stats.ready}✓ ${stats.limited}⏳)`
     }
-    if (currentPage === "favorites") return "Favorites"
     if (currentPage === "providers") {
       if (step() === "root") return `Providers${showAllIndicator}`
       if (step() === "account_select")
@@ -1644,7 +1753,22 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     return local.model.current()
   })
 
-  onMount(() => dialog.setSize("large"))
+  onMount(() => dialog.setSize("xlarge"))
+  onCleanup(() => dialog.setWidth(undefined))
+
+  createEffect(() => {
+    const currentPage = page()
+    if (currentPage !== "activities") {
+      dialog.setWidth(undefined)
+      return
+    }
+    const activityItems = activityData().items
+    const maxTitle = activityItems.reduce((max, item) => Math.max(max, item.title.length), 0)
+    const headerTitle = `Model Activities (${activityData().stats.ready}/${activityData().stats.total})`
+    const baseWidth = Math.max(maxTitle, headerTitle.length)
+    const desired = baseWidth + 8
+    dialog.setWidth(desired)
+  })
 
   return (
     <ErrorBoundary
@@ -1685,17 +1809,37 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               }
             },
           },
-          {
-            keybind: Keybind.parse("s")[0],
-            title: showHidden() ? "Hide" : "Showall",
-            label: "S",
-            disabled: !connected() || page() !== "providers" || (step() !== "model_select" && step() !== "root"),
-            onTrigger: () => {
-              const next = !showHidden()
-              debugCheckpoint("admin", "toggle show hidden", { enabled: next, step: step() })
-              setShowHidden(next)
-            },
-          },
+          ...(page() === "providers"
+            ? [
+                {
+                  keybind: Keybind.parse("s")[0],
+                  title: showHidden() ? "Hide" : "Showall",
+                  label: "S",
+                  disabled: !connected() || (step() !== "model_select" && step() !== "root"),
+                  onTrigger: () => {
+                    const next = !showHidden()
+                    debugCheckpoint("admin", "toggle show hidden", { enabled: next, step: step() })
+                    setShowHidden(next)
+                  },
+                },
+              ]
+            : []),
+          ...(page() === "activities"
+            ? [
+                {
+                  keybind: Keybind.parse("s")[0],
+                  title: "(S)ort",
+                  label: activitySort() === "usage" ? "Usage" : activitySort() === "provider" ? "Provider" : "Model",
+                  disabled: false,
+                  onTrigger: () => {
+                    const next =
+                      activitySort() === "usage" ? "provider" : activitySort() === "provider" ? "model" : "usage"
+                    debugCheckpoint("admin.activities", "sort", { mode: next })
+                    setActivitySort(next)
+                  },
+                },
+              ]
+            : []),
           {
             keybind: Keybind.parse("r")[0],
             title: "(R)efresh",
@@ -1712,20 +1856,6 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               }
               debugCheckpoint("admin", "refresh google models", { provider: selectedProviderID() })
               loadGoogleModels(true)
-            },
-          },
-          {
-            keybind: Keybind.parse("c")[0],
-            title: "(C)lear",
-            label: "C",
-            disabled: page() !== "activities",
-            onTrigger: () => {
-              debugCheckpoint("admin.activities", "clear")
-              const registry = getModelHealthRegistry()
-              registry.clearAll()
-              const tracker = getRateLimitTracker()
-              tracker.clearAll()
-              setActivityTick((tick) => tick + 1)
             },
           },
           // ACCOUNT STEP KEYBINDS
@@ -1878,98 +2008,102 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             },
           },
           // SHARED / DELETE / HIDE
-          {
-            keybind: Keybind.parse("delete")[0],
-            title: step() === "model_select" ? "Hide" : step() === "root" ? "Hide" : "(Del)ete",
-            label: "",
-            disabled: !connected(),
-            onTrigger: async (option: any) => {
-              const val = option.value
+          ...(page() === "activities"
+            ? []
+            : [
+                {
+                  keybind: Keybind.parse("delete")[0],
+                  title: step() === "model_select" ? "Hide" : step() === "root" ? "Hide" : "(Del)ete",
+                  label: "",
+                  disabled: !connected(),
+                  onTrigger: async (option: any) => {
+                    const val = option.value
 
-              // Hide provider on root step
-              if (step() === "root" && val && typeof val === "object" && val.family) {
-                // Provider entry with { family, isUnconfigured }
-                const optionObj = option as any
-                if (optionObj.category === "Providers") {
-                  const fam = val.family
-                  const isUnconfigured = val.isUnconfigured
-                  // Check if not already hidden
-                  const isInHiddenList = local.model.isProviderHidden(fam)
-                  const effectivelyHidden = isUnconfigured ? !isInHiddenList : isInHiddenList
-                  if (!effectivelyHidden) {
-                    debugCheckpoint("admin", "hide provider", { family: fam, isUnconfigured })
-                    // For unconfigured: toggle removes from list (makes it hidden again)
-                    // For configured: toggle adds to list (makes it hidden)
-                    local.model.toggleHiddenProvider(fam)
-                    toast.show({ message: `Provider "${fam}" hidden`, variant: "info", duration: 2000 })
-                  }
-                  return
-                }
-              }
+                    // Hide provider on root step
+                    if (step() === "root" && val && typeof val === "object" && val.family) {
+                      // Provider entry with { family, isUnconfigured }
+                      const optionObj = option as any
+                      if (optionObj.category === "Providers") {
+                        const fam = val.family
+                        const isUnconfigured = val.isUnconfigured
+                        // Check if not already hidden
+                        const isInHiddenList = local.model.isProviderHidden(fam)
+                        const effectivelyHidden = isUnconfigured ? !isInHiddenList : isInHiddenList
+                        if (!effectivelyHidden) {
+                          debugCheckpoint("admin", "hide provider", { family: fam, isUnconfigured })
+                          // For unconfigured: toggle removes from list (makes it hidden again)
+                          // For configured: toggle adds to list (makes it hidden)
+                          local.model.toggleHiddenProvider(fam)
+                          toast.show({ message: `Provider "${fam}" hidden`, variant: "info", duration: 2000 })
+                        }
+                        return
+                      }
+                    }
 
-              if (step() === "account_select" && typeof val === "string" && val !== "__add_account__") {
-                const fam = selectedFamily()
-                if (fam) {
-                  // Use coreFamily for account operations (accounts may be stored in different family than displayed)
-                  const lookupFamily = option.coreFamily || fam
-                  debugCheckpoint("admin", "delete account prompt", { family: lookupFamily, id: val })
-                  const confirmed = await DialogConfirm.show(
-                    dialog,
-                    "Delete Account",
-                    `Are you sure you want to delete this account?`,
-                  )
+                    if (step() === "account_select" && typeof val === "string" && val !== "__add_account__") {
+                      const fam = selectedFamily()
+                      if (fam) {
+                        // Use coreFamily for account operations (accounts may be stored in different family than displayed)
+                        const lookupFamily = option.coreFamily || fam
+                        debugCheckpoint("admin", "delete account prompt", { family: lookupFamily, id: val })
+                        const confirmed = await DialogConfirm.show(
+                          dialog,
+                          "Delete Account",
+                          `Are you sure you want to delete this account?`,
+                        )
 
-                  if (confirmed) {
-                    try {
-                      // Remove from core Account module (single source of truth)
-                      // Use the mapped coreId and coreFamily for correct lookup
-                      const coreId = option.coreId || val
-                      await Account.remove(lookupFamily, coreId)
-                      await Account.refresh()
+                        if (confirmed) {
+                          try {
+                            // Remove from core Account module (single source of truth)
+                            // Use the mapped coreId and coreFamily for correct lookup
+                            const coreId = option.coreId || val
+                            await Account.remove(lookupFamily, coreId)
+                            await Account.refresh()
 
-                      // Reload AccountManager to sync in-memory state
-                      if (lookupFamily === "antigravity") {
-                        const manager = agManager()
-                        if (manager) {
-                          await manager.reloadFromAccountModule()
+                            // Reload AccountManager to sync in-memory state
+                            if (lookupFamily === "antigravity") {
+                              const manager = agManager()
+                              if (manager) {
+                                await manager.reloadFromAccountModule()
+                              }
+                            }
+
+                            debugCheckpoint("admin", "delete account success", { family: lookupFamily, id: coreId })
+                            toast.show({ message: "Account deleted successfully", variant: "success" })
+                            await refreshAntigravity()
+                            setSelectedFamily(fam)
+                            forceRefresh()
+                            lockBackOnce()
+                          } catch (e: any) {
+                            debugCheckpoint("admin", "delete account error", {
+                              family: fam,
+                              error: String(e instanceof Error ? e.stack || e.message : e),
+                            })
+                            toast.error(e)
+                          }
                         }
                       }
-
-                      debugCheckpoint("admin", "delete account success", { family: lookupFamily, id: coreId })
-                      toast.show({ message: "Account deleted successfully", variant: "success" })
-                      await refreshAntigravity()
-                      setSelectedFamily(fam)
-                      forceRefresh()
-                      lockBackOnce()
-                    } catch (e: any) {
-                      debugCheckpoint("admin", "delete account error", {
-                        family: fam,
-                        error: String(e instanceof Error ? e.stack || e.message : e),
-                      })
-                      toast.error(e)
+                      return
                     }
-                  }
-                }
-                return
-              }
 
-              if (step() === "model_select" || step() === "root") {
-                // Only handle model values (objects)
-                if (typeof val === "object" && val.providerId && val.modelID) {
-                  const modelVal = val as any
-                  debugCheckpoint("admin", "delete model action", {
-                    origin: modelVal.origin,
-                    provider: modelVal.providerId,
-                    model: modelVal.modelID,
-                  })
-                  if (modelVal.origin === "recent") local.model.removeFromRecent(modelVal)
-                  else if (modelVal.origin === "favorite") {
-                    local.model.toggleFavorite(modelVal, { skipValidation: true })
-                  } else if (step() !== "root") local.model.toggleHidden(modelVal)
-                }
-              }
-            },
-          },
+                    if (step() === "model_select" || step() === "root") {
+                      // Only handle model values (objects)
+                      if (typeof val === "object" && val.providerId && val.modelID) {
+                        const modelVal = val as any
+                        debugCheckpoint("admin", "delete model action", {
+                          origin: modelVal.origin,
+                          provider: modelVal.providerId,
+                          model: modelVal.modelID,
+                        })
+                        if (modelVal.origin === "recent") local.model.removeFromRecent(modelVal)
+                        else if (modelVal.origin === "favorite") {
+                          local.model.toggleFavorite(modelVal, { skipValidation: true })
+                        } else if (step() !== "root") local.model.toggleHidden(modelVal)
+                      }
+                    }
+                  },
+                },
+              ]),
           {
             keybind: Keybind.parse("insert")[0],
             title: "Unhide",

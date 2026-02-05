@@ -36,6 +36,7 @@ import { iife } from "@/util/iife"
 import { Locale } from "@/util/locale"
 import { formatDuration } from "@/util/format"
 import { createColors, createFrames } from "../../ui/spinner.ts"
+import { debugCheckpoint } from "@/util/debug"
 import { useDialog } from "@tui/ui/dialog"
 import { DialogProvider as DialogProviderConnect } from "../dialog-provider"
 import { DialogAdmin } from "../dialog-admin"
@@ -932,6 +933,14 @@ export function Prompt(props: PromptProps) {
         },
       },
     }
+    debugCheckpoint("tui.paste", "image", {
+      mime: part.mime,
+      filename: part.filename,
+      sourceType: part.source?.type,
+      sourcePath: part.source?.type === "file" ? part.source.path : undefined,
+      urlPrefix: part.url.split(",")[0],
+      dataLength: file.content.length,
+    })
     setStore(
       produce((draft) => {
         const partIndex = draft.prompt.parts.length

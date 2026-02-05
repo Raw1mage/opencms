@@ -1149,9 +1149,23 @@ export namespace SessionPrompt {
     const parts = await Promise.all(
       partsInput.map(async (part): Promise<MessageV2.Part[]> => {
         if (part.type === "file") {
+          const urlPrefix = part.url.includes(",") ? part.url.split(",")[0] : part.url.slice(0, 80)
+          debugCheckpoint("prompt.file", "part:received", {
+            mime: part.mime,
+            filename: part.filename,
+            sourceType: part.source?.type,
+            sourcePath: part.source?.type === "file" || part.source?.type === "symbol" ? part.source.path : undefined,
+            urlPrefix,
+          })
           // before checking the protocol we check if this is an mcp resource because it needs special handling
           if (part.source?.type === "resource") {
             const { clientName, uri } = part.source
+            debugCheckpoint("prompt.file", "mcp:resource", {
+              clientName,
+              uri,
+              mime: part.mime,
+              filename: part.filename,
+            })
             log.info("mcp resource", { clientName, uri, mime: part.mime })
 
             const pieces: MessageV2.Part[] = [
@@ -1225,6 +1239,11 @@ export namespace SessionPrompt {
           switch (url.protocol) {
             case "data:":
               if (part.mime === "text/plain") {
+                debugCheckpoint("prompt.file", "data:text", {
+                  mime: part.mime,
+                  filename: part.filename,
+                  urlPrefix: part.url.split(",")[0],
+                })
                 return [
                   {
                     id: Identifier.ascending("part"),
@@ -1256,6 +1275,11 @@ export namespace SessionPrompt {
               // have to normalize, symbol search returns absolute paths
               // Decode the pathname since URL constructor doesn't automatically decode it
               const filepath = fileURLToPath(part.url)
+              debugCheckpoint("prompt.file", "file:resolved", {
+                filepath,
+                mime: part.mime,
+                filename: part.filename,
+              })
               const stat = await Bun.file(filepath).stat()
 
               if (stat.isDirectory()) {
@@ -1298,6 +1322,13 @@ export namespace SessionPrompt {
                   }
                 }
                 const args = { filePath: filepath, offset, limit }
+                debugCheckpoint("prompt.file", "read:call", {
+                  filepath,
+                  mime: part.mime,
+                  filename: part.filename,
+                  offset,
+                  limit,
+                })
 
                 const pieces: MessageV2.Part[] = [
                   {
@@ -1355,6 +1386,7 @@ export namespace SessionPrompt {
                   .catch((error) => {
                     log.error("failed to read file", { error })
                     const message = error instanceof Error ? error.message : error.toString()
+                    debugCheckpoint("prompt.file", "read:error", { filepath, error: message })
                     Bus.publish(Session.Event.Error, {
                       sessionID: input.sessionID,
                       error: new NamedError.Unknown({
