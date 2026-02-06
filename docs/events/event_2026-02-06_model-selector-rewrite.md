@@ -20,10 +20,21 @@
 
 1. [x] 建立事件紀錄檔案。
 2. [x] 更新 `docs/DIARY.md` 索引。
-3. [ ] 調查 `model-selector` skill 的實作代碼。
-4. [ ] 擬定重構方案（移出內文、優化觸發邏輯）。
-5. [ ] 等待使用者確認後執行。
+3. [x] 調查 `model-selector` skill 的實作代碼。
+4. [x] 擬定重構方案（移出內文、優化觸發邏輯）。
+5. [x] 執行重構。
 
-**待解問題**
+**變更紀錄**
 
-- 需要確認 `model-selector` skill 目前是純文字指引還是具備腳本邏輯。
+- `~/.claude/skills/model-selector/SKILL.md`：
+  - 移除硬編碼的模型列表（原本列出 gpt-5.2-codex、gemini-3-pro 等具體模型）
+  - 改為基於任務類型的概念性建議框架
+  - 全文改為繁體中文
+  - 強調動態查詢可用模型而非靜態推薦
+
+- `.opencode/AGENTS.md`：
+  - 移除 `skill({ name: "model-selector" })` 強制載入指令
+  - 改為選用技能
+
+- `templates/AGENTS.md`：
+  - 同步移除 model-selector 強制載入指令

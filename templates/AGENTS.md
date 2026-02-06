@@ -6,12 +6,11 @@
 
 ## 第一階段：會話啟動 (Session Initialization)
 
-### 1. 必備技能載入
+### 1. 選用技能載入
 
-工作階段啟動時，必須立即載入以下核心技能以最佳化任務處理：
+工作階段啟動時，可依需求載入以下技能：
 
 ```javascript
-skill({ name: "model-selector" }) // 針對任務類型選擇最佳模型
 skill({ name: "agent-workflow" }) // 啟用多重 Agent 協作編排
 ```
 

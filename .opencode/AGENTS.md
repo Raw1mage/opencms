@@ -4,10 +4,9 @@
 
 ## 工作階段啟動 - 必備技能 (Session Start - Required Skills)
 
-工作階段啟動時，請立即載入以下技能：
+工作階段啟動時，可依需求載入以下技能：
 
 ```javascript
-skill({ name: "model-selector" }) // 針對任務最佳化模型選擇
 skill({ name: "agent-workflow" }) // 多重 Agent 協作編排
 ```
 
