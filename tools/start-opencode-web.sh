@@ -21,4 +21,6 @@ echo "URL: http://0.0.0.0:1080"
 echo "Username: opencode"
 echo ""
 
-exec /usr/local/bin/opencode web --hostname 0.0.0.0 --port 1080
+# @event_2026-02-06_xdg-install: resolve binary dynamically
+BIN_PATH=$(which opencode 2>/dev/null || echo "/usr/local/bin/opencode")
+exec "$BIN_PATH" web --hostname 0.0.0.0 --port 1080

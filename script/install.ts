@@ -23,6 +23,11 @@ const installDir = (() => {
     return path.resolve(process.env.OPENCODE_INSTALL_DIR)
   }
 
+  // @event_2026-02-06_xdg-install: prioritize XDG_BIN_HOME or ~/.local/bin
+  if (process.env.XDG_BIN_HOME) {
+    return path.resolve(process.env.XDG_BIN_HOME)
+  }
+
   if (process.env.XDG_BIN_DIR) {
     return path.resolve(process.env.XDG_BIN_DIR)
   }
@@ -35,7 +40,7 @@ const installDir = (() => {
     return path.resolve(repoRoot, "bin")
   }
 
-  return "/usr/local/bin"
+  return path.join(os.homedir(), ".local/bin")
 })()
 
 const binaryName = process.platform === "win32" ? "opencode.exe" : "opencode"
@@ -116,63 +121,16 @@ const movePath = async (src: string, dest: string) => {
   }
 }
 
-const cleanupToCyclebin = async (entries: TemplateManifestEntry[]) => {
-  // @event_2026-02-07_install: cleanup clutter to cyclebin (XDG-aware)
-  const targets: TemplateTarget[] = ["config", "state", "data"]
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
-  const cyclebinRoot = path.join(Global.Path.state, "cyclebin")
-
-  const manifestFilesByTarget = new Map<TemplateTarget, Set<string>>()
-  for (const target of targets) manifestFilesByTarget.set(target, new Set())
-
-  for (const entry of entries) {
-    const target = entry.target ?? "config"
-    const firstSegment = entry.path.split(/[/\\]/)[0]
-    manifestFilesByTarget.get(target)?.add(firstSegment)
-  }
-
-  const protectedByTarget = (target: TemplateTarget) => {
-    const protectedPaths = new Set(manifestFilesByTarget.get(target))
-    if (target === "state") protectedPaths.add("cyclebin")
-    if (target === "data") {
-      protectedPaths.add("log")
-      protectedPaths.add("generated-images")
-      protectedPaths.add("node_modules")
-      protectedPaths.add("bun.lock")
-    }
-    return protectedPaths
-  }
-
-  for (const target of targets) {
-    const root = resolveTargetDir(target)
-    if (!fs.existsSync(root)) continue
-
-    const entriesInRoot = await fsPromises.readdir(root, { withFileTypes: true })
-    let movedCount = 0
-    const protectedPaths = protectedByTarget(target)
-
-    for (const entry of entriesInRoot) {
-      if (protectedPaths.has(entry.name)) continue
-
-      if (movedCount === 0) ensureDir(path.join(cyclebinRoot, timestamp, target))
-
-      const src = path.join(root, entry.name)
-      const dest = path.join(cyclebinRoot, timestamp, target, entry.name)
-
-      try {
-        await movePath(src, dest)
-        console.log(`已將雜物 ${entry.name} 移至 cyclebin/${timestamp}/${target}/`)
-        movedCount++
-      } catch (error) {
-        console.warn(`無法移動 ${entry.name} 到 cyclebin:`, error)
-      }
-    }
-
-    if (movedCount > 0) {
-      console.log(`清理完成（${target}），共移動 ${movedCount} 個項目至 cyclebin`)
-    }
-  }
-}
+// @event_2026-02-07_install: REMOVED cleanupToCyclebin
+// 原設計缺陷：使用白名單策略，只保護 manifest 中的檔案，其餘一律移除
+// 但 manifest 只有 8 個模板檔案，而 runtime 會產生 20+ 種檔案
+// 導致使用者的認證憑證、session 歷史、模型狀態等核心資料被誤刪
+//
+// 若未來需要清理功能，應：
+// 1. 獨立成 `bun run cleanup` 指令
+// 2. 使用黑名單策略（只移除明確已知的過時檔案如 .tmp, .bak-*）
+// 3. 預設 dry-run 模式，需要 --force 才會實際執行
+// 4. 互動確認，列出將被移動的檔案讓使用者確認
 
 type TemplateManifestEntry = {
   path: string
@@ -313,6 +271,38 @@ const runBuild = async () => {
   await $`bun run build --single --skip-install`
 }
 
+// @event_2026-02-07_terminal-cleanup: Install shell profile for terminal protection
+const installShellProfile = async () => {
+  const shellProfileSrc = path.join(templatesDir, "shell-profile.sh")
+  if (!(await Bun.file(shellProfileSrc).exists())) return
+
+  const profileContent = await Bun.file(shellProfileSrc).text()
+  const marker = "# OpenCode Terminal Protection"
+
+  // Detect user's shell and profile file
+  const shell = process.env.SHELL || "/bin/bash"
+  const homeDir = os.homedir()
+  const profilePaths = shell.includes("zsh")
+    ? [path.join(homeDir, ".zshrc")]
+    : [path.join(homeDir, ".bashrc"), path.join(homeDir, ".bash_profile")]
+
+  for (const profilePath of profilePaths) {
+    if (!fs.existsSync(profilePath)) continue
+
+    const existing = await Bun.file(profilePath).text()
+    if (existing.includes(marker)) {
+      console.log(`Shell profile 已存在於 ${profilePath}`)
+      return
+    }
+
+    // Append to profile
+    await fsPromises.appendFile(profilePath, "\n" + profileContent + "\n")
+    console.log(`已安裝 terminal protection 到 ${profilePath}`)
+    console.log("請執行 source " + profilePath + " 或重新開啟終端機以生效")
+    return
+  }
+}
+
 const installBinary = () => {
   if (!fs.existsSync(builtBinaryPath)) {
     throw new Error(`找不到建置輸出: ${builtBinaryPath}`)
@@ -340,8 +330,9 @@ try {
   await runBuild()
   installBinary()
   await migrateLegacyOpencode(entries)
-  await cleanupToCyclebin(entries)
+  // cleanupToCyclebin 已移除：install 不應清理使用者資料
   await installTemplates(entries)
+  await installShellProfile()
 } catch (error) {
   console.error("安裝失敗:", error)
   process.exit(1)

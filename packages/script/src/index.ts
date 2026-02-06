@@ -33,6 +33,16 @@ const IS_PREVIEW = CHANNEL !== "latest"
 const VERSION = await (async () => {
   if (env.OPENCODE_VERSION) return env.OPENCODE_VERSION
   if (IS_PREVIEW) return `0.0.0-${CHANNEL}-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")}`
+  // In development/local mode, mark the version clearly
+  if (!env.OPENCODE_RELEASE && !env.OPENCODE_BUMP) {
+    const version = await fetch("https://registry.npmjs.org/opencode-ai/latest")
+      .then((res) => {
+        if (!res.ok) return { version: "1.0.0" }
+        return res.json()
+      })
+      .then((data: any) => data.version || "1.0.0")
+    return `${version}-dev`
+  }
   const version = await fetch("https://registry.npmjs.org/opencode-ai/latest")
     .then((res) => {
       if (!res.ok) throw new Error(res.statusText)

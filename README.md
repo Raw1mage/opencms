@@ -80,14 +80,17 @@ scoop bucket add extras; scoop install extras/opencode-desktop
 The install script respects the following priority order for the installation path:
 
 1. `$OPENCODE_INSTALL_DIR` - Custom installation directory
-2. `$XDG_BIN_DIR` - XDG Base Directory Specification compliant path
-3. `$HOME/bin` - Standard user binary directory (if exists or can be created)
-4. `$HOME/.local/bin` - Default fallback
+2. `$XDG_BIN_HOME` or `$XDG_BIN_DIR` - XDG Base Directory Specification compliant paths
+3. `$HOME/.local/bin` - Default fallback for Unix systems
+4. `$LOCALAPPDATA/bin` - Default fallback for Windows
 
 ```bash
 # Examples
+# Install to system-wide directory (requires sudo)
 OPENCODE_INSTALL_DIR=/usr/local/bin curl -fsSL https://opencode.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://opencode.ai/install | bash
+
+# Install to XDG compliant directory
+XDG_BIN_HOME=$HOME/.local/bin curl -fsSL https://opencode.ai/install | bash
 ```
 
 <!-- @event_2026-02-07_install -->
@@ -103,8 +106,8 @@ bun run install
 此命令會：
 
 1. 執行 `bun run build --single --skip-install`，為當前作業系統與架構產生 native binary。
-2. 將對應的 `dist/opencode-<platform>-<arch>/bin/opencode` 拷貝進上方指定的安裝目錄（預設為 `/usr/local/bin`）。
-3. 設定可執行權限，若需要 root 權限會顯式提示您使用 `sudo` 重新執行。
+2. 將對應的 `dist/opencode-<platform>-<arch>/bin/opencode` 拷貝進上方指定的安裝目錄（預設為 `~/.local/bin`）。
+3. 設定可執行權限，若安裝目錄需要 root 權限會顯式提示您使用 `sudo` 重新執行。
 4. **清理與初始化 XDG 目錄**：
    - 依 `templates/manifest.json` 的 `target`（config/state/data）初始化設定檔。
    - 自動將 legacy `~/.opencode/` 與 XDG 目錄內非必要雜物移至 `~/.local/state/opencode/cyclebin/`。
@@ -114,18 +117,18 @@ bun run install
 
 根據 `templates/manifest.json`，以下是 XDG 目錄結構與關鍵檔案：
 
-| 位置 | 檔案/資料夾 | 用途描述 | 備註 |
-| :--- | :--- | :--- | :--- |
-| `~/.config/opencode` | `accounts.json` | 主要帳號資訊、權杖 (Tokens) 與配額狀態。 | **敏感檔案** |
-| `~/.config/opencode` | `mcp-auth.json` | MCP 伺服器連線憑證。 | **敏感檔案** |
-| `~/.config/opencode` | `opencode.json` | 全域使用者設定檔（Provider、Keybinds、Plugins 等）。 | |
-| `~/.config/opencode` | `AGENTS.md` | 定義 AI Agent 的全域指令與行為規範。 | |
-| `~/.config/opencode` | `CONFIG-README.md` | 設定檔說明與範例。 | |
-| `~/.local/state/opencode` | `ignored-models.json` | 模型選擇或自動輪詢中應忽略的模型清單。 | |
-| `~/.local/state/opencode` | `cyclebin/` | 安裝程序清理出的過時或不明檔案。 | **Runtime 產生** |
-| `~/.local/share/opencode` | `package.json` / `node_modules/` | 自定義工具或插件安裝位置。 | |
-| `~/.local/share/opencode` | `generated-images/` | 生成圖片輸出。 | **Runtime 產生** |
-| `~/.local/share/opencode` | `log/` | 系統執行軌跡與錯誤診斷資訊。 | **Runtime 產生** |
+| 位置                      | 檔案/資料夾                      | 用途描述                                             | 備註             |
+| :------------------------ | :------------------------------- | :--------------------------------------------------- | :--------------- |
+| `~/.config/opencode`      | `accounts.json`                  | 主要帳號資訊、權杖 (Tokens) 與配額狀態。             | **敏感檔案**     |
+| `~/.config/opencode`      | `mcp-auth.json`                  | MCP 伺服器連線憑證。                                 | **敏感檔案**     |
+| `~/.config/opencode`      | `opencode.json`                  | 全域使用者設定檔（Provider、Keybinds、Plugins 等）。 |                  |
+| `~/.config/opencode`      | `AGENTS.md`                      | 定義 AI Agent 的全域指令與行為規範。                 |                  |
+| `~/.config/opencode`      | `CONFIG-README.md`               | 設定檔說明與範例。                                   |                  |
+| `~/.local/state/opencode` | `ignored-models.json`            | 模型選擇或自動輪詢中應忽略的模型清單。               |                  |
+| `~/.local/state/opencode` | `cyclebin/`                      | 安裝程序清理出的過時或不明檔案。                     | **Runtime 產生** |
+| `~/.local/share/opencode` | `package.json` / `node_modules/` | 自定義工具或插件安裝位置。                           |                  |
+| `~/.local/share/opencode` | `generated-images/`              | 生成圖片輸出。                                       | **Runtime 產生** |
+| `~/.local/share/opencode` | `log/`                           | 系統執行軌跡與錯誤診斷資訊。                         | **Runtime 產生** |
 
 如需覆寫安裝路徑，請事先設定 `OPENCODE_INSTALL_DIR` 或 `XDG_BIN_DIR`，安裝腳本會依照與官方安裝相同的優先順序決定安裝位置。
 

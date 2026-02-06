@@ -4,7 +4,8 @@
 # Tests basic connectivity and authentication for multiple providers/account types.
 
 echo "=== Opencode E2E Tester ==="
-OPENCODE="/usr/local/bin/opencode"
+# @event_2026-02-06_xdg-install: resolve binary dynamically
+OPENCODE=$(which opencode 2>/dev/null || echo "/usr/local/bin/opencode")
 
 echo "Using: $($OPENCODE --version)"
 echo ""
