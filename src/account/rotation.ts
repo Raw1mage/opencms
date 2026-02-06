@@ -19,10 +19,57 @@ import fs from "fs"
 
 const log = Log.create({ service: "account-rotation" })
 
-// File path for shared model health state across processes
+// @event_2026-02-06:rotation_unify - Unified state file for all rotation tracking
+// Combines account health scores and rate limits in one file for simpler cross-process sharing
+const UNIFIED_STATE_FILE = path.join(Global.Path.state, "rotation-state.json")
+
+// Legacy file paths (kept for backward compatibility and ModelHealthRegistry monitoring)
 const HEALTH_FILE = path.join(Global.Path.state, "model-health.json")
-// File path for shared rate limit state across processes
-const RATE_LIMIT_FILE = path.join(Global.Path.state, "rate-limits.json")
+// Legacy: rate-limits.json and account-health.json are no longer used
+// All data is now in rotation-state.json
+
+/**
+ * Unified state structure for cross-process rotation tracking.
+ * @event_2026-02-06:rotation_unify
+ */
+interface UnifiedRotationState {
+  version: number
+  accountHealth: Record<string, HealthScoreState>
+  rateLimits: Record<string, Record<string, RateLimitState>>
+}
+
+/**
+ * Read the unified state file.
+ * @event_2026-02-06:rotation_unify
+ */
+function readUnifiedState(): UnifiedRotationState {
+  try {
+    if (!fs.existsSync(UNIFIED_STATE_FILE)) {
+      return { version: 1, accountHealth: {}, rateLimits: {} }
+    }
+    const content = fs.readFileSync(UNIFIED_STATE_FILE, "utf-8")
+    const data = JSON.parse(content) as UnifiedRotationState
+    return {
+      version: data.version ?? 1,
+      accountHealth: data.accountHealth ?? {},
+      rateLimits: data.rateLimits ?? {},
+    }
+  } catch {
+    return { version: 1, accountHealth: {}, rateLimits: {} }
+  }
+}
+
+/**
+ * Write the unified state file.
+ * @event_2026-02-06:rotation_unify
+ */
+function writeUnifiedState(state: UnifiedRotationState): void {
+  try {
+    fs.writeFileSync(UNIFIED_STATE_FILE, JSON.stringify(state), "utf-8")
+  } catch {
+    // Ignore write errors
+  }
+}
 
 // ============================================================================
 // HEALTH SCORE SYSTEM
@@ -65,6 +112,10 @@ interface HealthScoreState {
 /**
  * Tracks health scores for accounts by ID.
  * Higher score = healthier account = preferred for selection.
+ *
+ * @event_2026-02-06:rotation_unify
+ * Now uses file-based persistence for cross-process state sharing.
+ * Subagents will see rate limits from the parent process immediately.
  */
 export class HealthScoreTracker {
   private readonly scores = new Map<string, HealthScoreState>()
@@ -75,9 +126,38 @@ export class HealthScoreTracker {
   }
 
   /**
+   * Persist current state to unified state file for cross-process access.
+   * @event_2026-02-06:rotation_unify - Now uses unified rotation-state.json
+   */
+  private persistToFile(): void {
+    const state = readUnifiedState()
+    const data: Record<string, HealthScoreState> = {}
+    for (const [accountId, scoreState] of this.scores) {
+      data[accountId] = scoreState
+    }
+    state.accountHealth = data
+    writeUnifiedState(state)
+  }
+
+  /**
+   * Load state from unified state file (for cross-process sync).
+   * @event_2026-02-06:rotation_unify - Now uses unified rotation-state.json
+   */
+  private loadFromFile(): void {
+    const state = readUnifiedState()
+    this.scores.clear()
+    for (const [accountId, scoreState] of Object.entries(state.accountHealth)) {
+      this.scores.set(accountId, scoreState)
+    }
+  }
+
+  /**
    * Get current health score for an account, applying time-based recovery.
    */
   getScore(accountId: string): number {
+    // @event_2026-02-06:rotation_unify - Load latest state from file
+    this.loadFromFile()
+
     const state = this.scores.get(accountId)
     if (!state) {
       return this.config.initial
@@ -95,6 +175,9 @@ export class HealthScoreTracker {
    * Record a successful request - improves health score.
    */
   recordSuccess(accountId: string): void {
+    // @event_2026-02-06:rotation_unify - Load latest state from file first
+    this.loadFromFile()
+
     const now = Date.now()
     const current = this.getScore(accountId)
 
@@ -104,21 +187,40 @@ export class HealthScoreTracker {
       lastSuccess: now,
       consecutiveFailures: 0,
     })
+
+    // @event_2026-02-06:rotation_unify - Persist for cross-process access
+    this.persistToFile()
+
+    log.debug("Account health: success recorded", { accountId, newScore: this.scores.get(accountId)?.score })
   }
 
   /**
    * Record a rate limit hit - moderate penalty.
    */
   recordRateLimit(accountId: string): void {
+    // @event_2026-02-06:rotation_unify - Load latest state from file first
+    this.loadFromFile()
+
     const now = Date.now()
     const state = this.scores.get(accountId)
     const current = this.getScore(accountId)
+    const newScore = Math.max(0, current + this.config.rateLimitPenalty)
+    const newFailures = (state?.consecutiveFailures ?? 0) + 1
 
     this.scores.set(accountId, {
-      score: Math.max(0, current + this.config.rateLimitPenalty),
+      score: newScore,
       lastUpdated: now,
       lastSuccess: state?.lastSuccess ?? 0,
-      consecutiveFailures: (state?.consecutiveFailures ?? 0) + 1,
+      consecutiveFailures: newFailures,
+    })
+
+    // @event_2026-02-06:rotation_unify - Persist for cross-process access
+    this.persistToFile()
+
+    log.info("Account health: rate limit recorded", {
+      accountId,
+      newScore,
+      consecutiveFailures: newFailures,
     })
   }
 
@@ -126,15 +228,29 @@ export class HealthScoreTracker {
    * Record a failure (auth, network, etc.) - larger penalty.
    */
   recordFailure(accountId: string): void {
+    // @event_2026-02-06:rotation_unify - Load latest state from file first
+    this.loadFromFile()
+
     const now = Date.now()
     const state = this.scores.get(accountId)
     const current = this.getScore(accountId)
+    const newScore = Math.max(0, current + this.config.failurePenalty)
+    const newFailures = (state?.consecutiveFailures ?? 0) + 1
 
     this.scores.set(accountId, {
-      score: Math.max(0, current + this.config.failurePenalty),
+      score: newScore,
       lastUpdated: now,
       lastSuccess: state?.lastSuccess ?? 0,
-      consecutiveFailures: (state?.consecutiveFailures ?? 0) + 1,
+      consecutiveFailures: newFailures,
+    })
+
+    // @event_2026-02-06:rotation_unify - Persist for cross-process access
+    this.persistToFile()
+
+    log.info("Account health: failure recorded", {
+      accountId,
+      newScore,
+      consecutiveFailures: newFailures,
     })
   }
 
@@ -149,6 +265,8 @@ export class HealthScoreTracker {
    * Get consecutive failure count for an account.
    */
   getConsecutiveFailures(accountId: string): number {
+    // @event_2026-02-06:rotation_unify - Load latest state from file
+    this.loadFromFile()
     return this.scores.get(accountId)?.consecutiveFailures ?? 0
   }
 
@@ -156,13 +274,19 @@ export class HealthScoreTracker {
    * Reset health state for an account (e.g., after removal).
    */
   reset(accountId: string): void {
+    // @event_2026-02-06:rotation_unify - Load latest, modify, persist
+    this.loadFromFile()
     this.scores.delete(accountId)
+    this.persistToFile()
   }
 
   /**
    * Get all scores for debugging/logging.
    */
   getSnapshot(): Map<string, { score: number; consecutiveFailures: number }> {
+    // @event_2026-02-06:rotation_unify - Load latest state from file
+    this.loadFromFile()
+
     const result = new Map<string, { score: number; consecutiveFailures: number }>()
     for (const [id] of this.scores) {
       result.set(id, {
@@ -294,41 +418,35 @@ export class RateLimitTracker {
   private readonly limits = new Map<string, Map<string, RateLimitState>>()
 
   /**
-   * Persist current state to shared file for cross-process access.
+   * Persist current state to unified state file for cross-process access.
+   * @event_2026-02-06:rotation_unify - Now uses unified rotation-state.json
    */
   private persistToFile(): void {
-    try {
-      const data: Record<string, Record<string, RateLimitState>> = {}
-      for (const [accountId, providerLimits] of this.limits) {
-        data[accountId] = {}
-        for (const [key, state] of providerLimits) {
-          data[accountId][key] = state
-        }
+    const state = readUnifiedState()
+    const data: Record<string, Record<string, RateLimitState>> = {}
+    for (const [accountId, providerLimits] of this.limits) {
+      data[accountId] = {}
+      for (const [key, limitState] of providerLimits) {
+        data[accountId][key] = limitState
       }
-      fs.writeFileSync(RATE_LIMIT_FILE, JSON.stringify(data), "utf-8")
-    } catch (e) {
-      // Ignore write errors
     }
+    state.rateLimits = data
+    writeUnifiedState(state)
   }
 
   /**
-   * Load state from shared file (for cross-process sync).
+   * Load state from unified state file (for cross-process sync).
+   * @event_2026-02-06:rotation_unify - Now uses unified rotation-state.json
    */
   private loadFromFile(): void {
-    try {
-      if (!fs.existsSync(RATE_LIMIT_FILE)) return
-      const content = fs.readFileSync(RATE_LIMIT_FILE, "utf-8")
-      const data = JSON.parse(content) as Record<string, Record<string, RateLimitState>>
-      this.limits.clear()
-      for (const [accountId, providerData] of Object.entries(data)) {
-        const providerLimits = new Map<string, RateLimitState>()
-        for (const [key, state] of Object.entries(providerData)) {
-          providerLimits.set(key, state)
-        }
-        this.limits.set(accountId, providerLimits)
+    const state = readUnifiedState()
+    this.limits.clear()
+    for (const [accountId, providerData] of Object.entries(state.rateLimits)) {
+      const providerLimits = new Map<string, RateLimitState>()
+      for (const [key, limitState] of Object.entries(providerData)) {
+        providerLimits.set(key, limitState)
       }
-    } catch (e) {
-      // Ignore read errors
+      this.limits.set(accountId, providerLimits)
     }
   }
 

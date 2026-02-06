@@ -10,7 +10,7 @@ import { ModelsDev } from "./models"
 import { NamedError } from "@opencode-ai/util/error"
 import { Auth } from "../auth"
 import { Account } from "../account"
-import { getModelHealthRegistry } from "../account/rotation"
+import { getRateLimitTracker } from "../account/rotation"
 import { Env } from "../env"
 import { Instance } from "../project/instance"
 import { Flag } from "../flag/flag"
@@ -2152,14 +2152,29 @@ export namespace Provider {
     }
   }
 
+  /**
+   * @event_2026-02-06:rotation_unify
+   * Check if a model is available for a specific provider.
+   * Uses RateLimitTracker with account dimension for per-account rate limiting.
+   */
+  async function isModelAvailable(pid: string, modelID: string): Promise<boolean> {
+    const family = Account.parseFamily(pid)
+    if (!family) return true // No family = no account tracking, assume available
+
+    const accountId = await Account.getActive(family)
+    if (!accountId) return true // No active account, assume available
+
+    const tracker = getRateLimitTracker()
+    return !tracker.isRateLimited(accountId, pid, modelID)
+  }
+
   export async function getSmallModel(providerId: string) {
     const cfg = await Config.get()
-    const registry = getModelHealthRegistry()
 
     // User-configured small model takes priority (but check health)
     if (cfg.small_model) {
       const parsed = parseModel(cfg.small_model)
-      if (registry.isAvailable(parsed.providerId, parsed.modelID)) {
+      if (await isModelAvailable(parsed.providerId, parsed.modelID)) {
         return getModel(parsed.providerId, parsed.modelID)
       }
       // Fall through to find healthy alternative
@@ -2189,8 +2204,8 @@ export namespace Provider {
         const priorityIndex = priority.findIndex((p) => modelID.includes(p))
         if (priorityIndex === -1) continue
 
-        // Check if model is healthy (not rate limited)
-        if (!registry.isAvailable(pid, modelID)) {
+        // Check if model is healthy (not rate limited) - with account dimension
+        if (!(await isModelAvailable(pid, modelID))) {
           continue
         }
 
@@ -2219,7 +2234,7 @@ export namespace Provider {
     // Fallback: try opencode provider
     const opencodeProvider = providers["opencode"]
     if (opencodeProvider?.models?.["gpt-5-nano"]) {
-      if (registry.isAvailable("opencode", "gpt-5-nano")) {
+      if (await isModelAvailable("opencode", "gpt-5-nano")) {
         return getModel("opencode", "gpt-5-nano")
       }
     }

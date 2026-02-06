@@ -2,15 +2,25 @@
  * Account Rotation System
  *
  * Implements advanced account selection algorithms:
- * - Health Score: Track account wellness based on success/failure
+ * - Health Score: Track account wellness based on success/failure (via global file-based tracker)
  * - LRU Selection: Prefer accounts with longest rest periods
  * - Jitter: Add random variance to break predictable patterns
  *
  * Used by 'hybrid' strategy for improved ban prevention and load distribution.
+ *
+ * @event_2026-02-06:rotation_unify
+ * IMPORTANT: Health scores are now backed by the global file-based tracker
+ * at src/account/rotation.ts to enable cross-process state sharing.
+ * Subagents and background tasks will see rate limits from the parent process.
  */
 
+import {
+  HealthScoreTracker as GlobalHealthScoreTracker,
+  getHealthTracker as getGlobalHealthTracker,
+} from "../../../account/rotation"
+
 // ============================================================================
-// HEALTH SCORE SYSTEM
+// HEALTH SCORE SYSTEM (Adapter for Global Tracker)
 // ============================================================================
 
 export interface HealthScoreConfig {
@@ -40,120 +50,96 @@ export const DEFAULT_HEALTH_SCORE_CONFIG: HealthScoreConfig = {
   maxScore: 100,
 }
 
-interface HealthScoreState {
-  score: number
-  lastUpdated: number
-  lastSuccess: number
-  consecutiveFailures: number
+/**
+ * Converts account index to a stable string ID for the global tracker.
+ * Format: "antigravity-account-{index}"
+ */
+function indexToAccountId(accountIndex: number): string {
+  return `antigravity-account-${accountIndex}`
 }
 
 /**
- * Tracks health scores for accounts.
- * Higher score = healthier account = preferred for selection.
+ * Adapter that wraps the global file-based HealthScoreTracker.
+ * Provides number-based index API while using string-based global tracker internally.
+ *
+ * @event_2026-02-06:rotation_unify
+ * This adapter enables cross-process state sharing:
+ * - Parent process updates are visible to subagents
+ * - Rate limits are immediately shared across all processes
  */
 export class HealthScoreTracker {
-  private readonly scores = new Map<number, HealthScoreState>()
+  private readonly globalTracker: GlobalHealthScoreTracker
   private readonly config: HealthScoreConfig
 
   constructor(config: Partial<HealthScoreConfig> = {}) {
     this.config = { ...DEFAULT_HEALTH_SCORE_CONFIG, ...config }
+    // Use the global file-based tracker for cross-process sharing
+    this.globalTracker = getGlobalHealthTracker()
   }
 
   /**
    * Get current health score for an account, applying time-based recovery.
    */
   getScore(accountIndex: number): number {
-    const state = this.scores.get(accountIndex)
-    if (!state) {
-      return this.config.initial
-    }
-
-    // Apply passive recovery based on time since last update
-    const now = Date.now()
-    const hoursSinceUpdate = (now - state.lastUpdated) / (1000 * 60 * 60)
-    const recoveredPoints = Math.floor(hoursSinceUpdate * this.config.recoveryRatePerHour)
-
-    return Math.min(this.config.maxScore, state.score + recoveredPoints)
+    return this.globalTracker.getScore(indexToAccountId(accountIndex))
   }
 
   /**
    * Record a successful request - improves health score.
    */
   recordSuccess(accountIndex: number): void {
-    const now = Date.now()
-    const current = this.getScore(accountIndex)
-
-    this.scores.set(accountIndex, {
-      score: Math.min(this.config.maxScore, current + this.config.successReward),
-      lastUpdated: now,
-      lastSuccess: now,
-      consecutiveFailures: 0,
-    })
+    this.globalTracker.recordSuccess(indexToAccountId(accountIndex))
   }
 
   /**
    * Record a rate limit hit - moderate penalty.
    */
   recordRateLimit(accountIndex: number): void {
-    const now = Date.now()
-    const state = this.scores.get(accountIndex)
-    const current = this.getScore(accountIndex)
-
-    this.scores.set(accountIndex, {
-      score: Math.max(0, current + this.config.rateLimitPenalty),
-      lastUpdated: now,
-      lastSuccess: state?.lastSuccess ?? 0,
-      consecutiveFailures: (state?.consecutiveFailures ?? 0) + 1,
-    })
+    this.globalTracker.recordRateLimit(indexToAccountId(accountIndex))
   }
 
   /**
    * Record a failure (auth, network, etc.) - larger penalty.
    */
   recordFailure(accountIndex: number): void {
-    const now = Date.now()
-    const state = this.scores.get(accountIndex)
-    const current = this.getScore(accountIndex)
-
-    this.scores.set(accountIndex, {
-      score: Math.max(0, current + this.config.failurePenalty),
-      lastUpdated: now,
-      lastSuccess: state?.lastSuccess ?? 0,
-      consecutiveFailures: (state?.consecutiveFailures ?? 0) + 1,
-    })
+    this.globalTracker.recordFailure(indexToAccountId(accountIndex))
   }
 
   /**
    * Check if account is healthy enough to use.
    */
   isUsable(accountIndex: number): boolean {
-    return this.getScore(accountIndex) >= this.config.minUsable
+    return this.globalTracker.isUsable(indexToAccountId(accountIndex))
   }
 
   /**
    * Get consecutive failure count for an account.
    */
   getConsecutiveFailures(accountIndex: number): number {
-    return this.scores.get(accountIndex)?.consecutiveFailures ?? 0
+    return this.globalTracker.getConsecutiveFailures(indexToAccountId(accountIndex))
   }
 
   /**
    * Reset health state for an account (e.g., after removal).
    */
   reset(accountIndex: number): void {
-    this.scores.delete(accountIndex)
+    this.globalTracker.reset(indexToAccountId(accountIndex))
   }
 
   /**
    * Get all scores for debugging/logging.
+   * Note: Only returns accounts tracked by this adapter (antigravity-account-* prefix).
    */
   getSnapshot(): Map<number, { score: number; consecutiveFailures: number }> {
     const result = new Map<number, { score: number; consecutiveFailures: number }>()
-    for (const [index] of this.scores) {
-      result.set(index, {
-        score: this.getScore(index),
-        consecutiveFailures: this.getConsecutiveFailures(index),
-      })
+    const globalSnapshot = this.globalTracker.getSnapshot()
+    for (const [id, data] of globalSnapshot) {
+      if (id.startsWith("antigravity-account-")) {
+        const index = parseInt(id.replace("antigravity-account-", ""), 10)
+        if (!isNaN(index)) {
+          result.set(index, data)
+        }
+      }
     }
     return result
   }

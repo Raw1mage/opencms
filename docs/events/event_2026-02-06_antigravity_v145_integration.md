@@ -20,12 +20,13 @@ Claude thinking 模型在 subagent 執行 tool call 時出現 `Invalid 'signatur
 
 | 功能 | 描述 | cms 狀態 | 優先級 |
 |-----|------|---------|-------|
-| `toast_scope` | 控制 toast 在子會話中的可見性 | ❌ 缺失 | HIGH |
-| `cli_first` | Gemini CLI quota 優先路由 | ❌ 缺失 | MEDIUM |
-| Soft Quota Protection | 跳過 90% 使用率的帳戶 | ❌ 缺失 | HIGH |
-| Antigravity-First Strategy | 跨帳戶耗盡 Antigravity quota 後再 fallback | ⚠️ 部分 | MEDIUM |
-| **#233 Sandbox Endpoint Skip** | **Gemini CLI 跳過 sandbox 端點** | ❌ 缺失 | **CRITICAL** |
+| `toast_scope` | 控制 toast 在子會話中的可見性 | ✅ 完成 | HIGH |
+| `cli_first` | Gemini CLI quota 優先路由 | ✅ 完成 | MEDIUM |
+| Soft Quota Protection | 跳過 90% 使用率的帳戶 | ⏭️ 跳過 (有 rotation3d) | HIGH |
+| Antigravity-First Strategy | 跨帳戶耗盡 Antigravity quota 後再 fallback | ⏭️ 跳過 | MEDIUM |
+| **#233 Sandbox Endpoint Skip** | **Gemini CLI 跳過 sandbox 端點** | ✅ 完成 | **CRITICAL** |
 | Thinking Block Handling | 增強 thinking block 處理 | ✅ 已有（upstream 已回滾） | - |
+| **Rotation 系統統一** | **跨進程帳戶健康狀態共享** | ✅ 完成 | **CRITICAL** |
 
 ---
 
@@ -190,4 +191,102 @@ cli_first: z.boolean().default(false)
 | 時間 | 動作 | 結果 |
 |-----|------|------|
 | 2026-02-06 | 初始分析完成 | 識別 6 項整合任務 |
-| | | |
+| 2026-02-06 | #233 Sandbox Skip 實作 | ✅ 完成 |
+| 2026-02-06 | toast_scope 設定 | ✅ 完成 |
+| 2026-02-06 | cli_first 設定 | ✅ 完成 |
+| 2026-02-06 | Rotation 系統統一 | ✅ 完成 - 解決 subagent 重複試 rate-limited model 問題 |
+| 2026-02-06 | ModelHealthRegistry 降級 | ✅ 完成 - 決策邏輯改用 RateLimitTracker (3D) |
+| 2026-02-06 | 統一狀態檔 | ✅ 完成 - 合併為 rotation-state.json |
+
+---
+
+## Rotation 系統統一 (rotation_unify)
+
+**問題**: Subagent 經常重複嘗試剛才被 rate limit 的模型，因為帳戶健康狀態沒有跨進程共享。
+
+**根本原因**:
+- `src/plugin/antigravity/plugin/rotation.ts` 有自己的 in-memory `HealthScoreTracker`
+- `src/account/rotation.ts` 的全域 `HealthScoreTracker` 也是 in-memory only
+- 只有 `RateLimitTracker` 和 `ModelHealthRegistry` 有檔案持久化
+
+**修復**:
+1. 為全域 `HealthScoreTracker` 添加檔案持久化 (`~/.local/state/opencode/account-health.json`)
+2. 將 Antigravity plugin 的 `HealthScoreTracker` 改為 adapter，包裝全域追蹤器
+3. 使用 `antigravity-account-{index}` 格式將 number index 轉換為 string ID
+
+**修改檔案**:
+- `src/account/rotation.ts` - 添加 `persistToFile()` 和 `loadFromFile()` 方法
+- `src/plugin/antigravity/plugin/rotation.ts` - 改為 adapter 模式
+
+**效果**:
+- Parent session 的 rate limit 會立即被 subagent 看到
+- 帳戶健康分數跨所有進程即時同步
+
+---
+
+## ModelHealthRegistry 降級 (rotation_unify Phase 2)
+
+**問題**: `ModelHealthRegistry` 只追蹤 `provider:model` 維度（無帳號維度），導致一個帳號 rate limit 時，所有帳號對該模型都被標記為不可用。
+
+**根本原因**:
+- `provider.ts` 中的 `getSmallModel()` 使用 `ModelHealthRegistry.isAvailable()` 檢查可用性
+- 此方法沒有帳號參數，無法區分不同帳號的狀態
+- 導致 rotation3d 的跨帳號輪換機制被繞過
+
+**修復**:
+1. `src/provider/provider.ts`:
+   - 移除 `getModelHealthRegistry` import
+   - 新增 `isModelAvailable(pid, modelID)` async helper，使用 `RateLimitTracker` 檢查
+   - 所有 `registry.isAvailable()` 調用改為 `await isModelAvailable()`
+
+2. `src/session/llm.ts`:
+   - 錯誤處理改為只使用 `RateLimitTracker.markRateLimited()` (有帳號維度)
+   - 移除 `ModelHealthRegistry` 的使用
+
+3. `src/plugin/antigravity/index.ts`:
+   - 移除重複的 `getModelHealthRegistry().markRateLimited()` 調用
+   - 移除重複的 `getModelHealthRegistry().markSuccess()` 調用
+   - 保留 `getRateLimitTracker().markRateLimited()` (有帳號維度)
+
+**修改檔案**:
+- `src/provider/provider.ts` - 改用 `RateLimitTracker` 做可用性檢查
+- `src/session/llm.ts` - 移除 `ModelHealthRegistry` 使用
+- `src/plugin/antigravity/index.ts` - 移除重複的 `ModelHealthRegistry` 調用
+
+**效果**:
+- 決策邏輯統一使用 `RateLimitTracker` (3D: account:provider:model)
+- 帳號 A 的 rate limit 不再影響帳號 B 使用同一模型
+- `ModelHealthRegistry` 保留僅供監控/顯示用途
+
+---
+
+## 統一狀態檔 (rotation_unify Phase 3)
+
+**問題**: 狀態分散在三個獨立的 JSON 檔案中，增加複雜度和潛在的同步問題。
+
+**原先結構**:
+- `rate-limits.json` - RateLimitTracker (3D: account:provider:model)
+- `account-health.json` - HealthScoreTracker (帳號健康分數)
+- `model-health.json` - ModelHealthRegistry (2D: provider:model, 僅監控用)
+
+**修復**:
+將 `rate-limits.json` 和 `account-health.json` 合併為單一 `rotation-state.json`:
+```json
+{
+  "version": 1,
+  "accountHealth": { [accountId]: { score, lastUpdated, lastSuccess, consecutiveFailures } },
+  "rateLimits": { [accountId]: { [provider:model]: { resetTime, reason, model } } }
+}
+```
+
+**修改檔案**:
+- `src/account/rotation.ts`:
+  - 新增 `readUnifiedState()` 和 `writeUnifiedState()` 函數
+  - `HealthScoreTracker.persistToFile/loadFromFile` 改用統一檔案
+  - `RateLimitTracker.persistToFile/loadFromFile` 改用統一檔案
+  - `model-health.json` 保留供 `ModelHealthRegistry` 監控使用
+
+**效果**:
+- 狀態集中在單一檔案 (`~/.local/state/opencode/rotation-state.json`)
+- 減少 I/O 操作次數（讀寫一個檔案而非兩個）
+- 跨進程同步更可靠

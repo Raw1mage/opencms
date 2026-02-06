@@ -1,3 +1,5 @@
+- [2026-02-06] [重構 Model Selector Skill 並清理 AGENTS.md](events/event_2026-02-06_model-selector-rewrite.md)
+- [2026-02-06] [修復 CLI 腳本相容性與 XDG 對齊](events/event_2026-02-06_bin-scripts-fix.md)
 - [2026-02-06] [Antigravity Auth Plugin v1.4.5 整合](events/event_2026-02-06_antigravity_v145_integration.md)（#233 sandbox fix, toast_scope, soft quota）
 - [2026-02-07] [bun run install 自動安裝 opencode](events/event_2026-02-07_install.md)
 - [2026-02-07] [GMI Cloud UI 優化與清理](events/event_2026-02-06_gmicloud_ui_cleanup.md)
@@ -56,3 +58,8 @@
 - [2026-02-06] [專案型別檢查與代碼審查](events/event_20260206_typecheck_codereview.md)
 - [2026-02-06] 系統清理：移除冗餘的 DialogModelHealth，釐清 cli 用戶來源。 [連結](./events/event_2026-02-06.md)
 - [2026-02-06] [修正 SST 環境變數宣告錯誤](events/event_20260206_sst_env_fix.md)
+- [2026-02-06] [修復 Claude 模型思考區塊簽章錯誤](events/event_2026-02-06_fix_claude_sentinel.md)
+
+- 2026-02-06: [調查 Subagent 模型選擇失控問題](events/event_2026-02-06.md) - 發現 `.opencode/AGENTS.md` 載入的 `model-selector` skill 導致 Subagent 強制使用 Antigravity Claude 4.5。
+
+- 2026-02-06: [調查 Subagent 模型選擇失控問題](events/event_2026-02-06.md) - 發現 `.opencode/AGENTS.md` 載入的 `model-selector` skill 導致 Subagent 強制使用 Antigravity Claude 4.5。

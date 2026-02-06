@@ -31,7 +31,6 @@ import {
   calculateBackoffMs,
   getHealthTracker,
   getRateLimitTracker,
-  getModelHealthRegistry,
   type RateLimitReason,
 } from "@/account/rotation"
 import {
@@ -263,17 +262,15 @@ export namespace LLM {
           error,
         })
 
-        // Track rate limits in global health system
+        // @event_2026-02-06:rotation_unify
+        // Track rate limits with account dimension for proper cross-process sharing
+        // Removed ModelHealthRegistry (global) - use RateLimitTracker (per-account) only
         if (isRateLimitError(error)) {
           const { reason, retryAfterMs } = extractRateLimitDetails(error)
           const consecutiveFailures = accountId ? getHealthTracker().getConsecutiveFailures(accountId) : 0
           const backoffMs = calculateBackoffMs(reason, consecutiveFailures, retryAfterMs)
 
-          // Update global model health registry (shared across all tasks)
-          const modelRegistry = getModelHealthRegistry()
-          modelRegistry.markRateLimited(input.model.providerId, input.model.id, reason, backoffMs)
-
-          // Also update account-level tracking if we have an account
+          // Update account-level tracking (with account dimension)
           if (accountId) {
             const healthTracker = getHealthTracker()
             const rateLimitTracker = getRateLimitTracker()
@@ -442,27 +439,26 @@ export namespace LLM {
   /**
    * Record a successful request for the current provider.
    * Call this after a stream completes successfully.
+   *
+   * @event_2026-02-06:rotation_unify
+   * Removed ModelHealthRegistry - use account-level tracking only
    */
   export async function recordSuccess(providerId: string, modelID?: string): Promise<void> {
     log.info("recordSuccess called", { providerId, modelID })
     debugCheckpoint("health", "llm.recordSuccess", { providerId, modelID })
-
-    // Update global model health registry
-    if (modelID) {
-      const modelRegistry = getModelHealthRegistry()
-      log.info("Calling modelRegistry.markSuccess", { providerId, modelID })
-      debugCheckpoint("health", "llm.recordSuccess.markSuccess", { providerId, modelID })
-      modelRegistry.markSuccess(providerId, modelID)
-    } else {
-      log.warn("recordSuccess: modelID is undefined, skipping registry update", { providerId })
-      debugCheckpoint("health", "llm.recordSuccess.noModelID", { providerId })
-    }
 
     // Update account-level tracking
     const accountId = await getAccountIdForProvider(providerId)
     if (accountId) {
       const healthTracker = getHealthTracker()
       healthTracker.recordSuccess(accountId)
+
+      // Clear rate limit for this specific account:provider:model combination
+      if (modelID) {
+        const rateLimitTracker = getRateLimitTracker()
+        rateLimitTracker.clear(accountId, providerId, modelID)
+      }
+
       log.info("Recorded success with account", { providerId, modelID, accountId })
     }
   }

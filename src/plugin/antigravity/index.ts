@@ -40,7 +40,7 @@ import { clearAccounts, loadAccounts, saveAccounts } from "./plugin/storage"
 import { AccountManager, type ModelFamily, parseRateLimitReason, calculateBackoffMs } from "./plugin/accounts"
 import { Account } from "../../account"
 import { Auth } from "../../auth"
-import { getModelHealthRegistry } from "../../account/rotation"
+// @event_2026-02-06:rotation_unify - Removed ModelHealthRegistry import (use RateLimitTracker only)
 import { debugCheckpoint } from "../../util/debug"
 import { createAutoUpdateCheckerHook } from "./hooks/auto-update-checker"
 import { loadConfig, initRuntimeConfig, type AntigravityConfig } from "./plugin/config"
@@ -2205,6 +2205,7 @@ export const createAntigravityPlugin =
                           getHealthTracker().recordRateLimit(account.index)
 
                           const { getRateLimitTracker } = await import("../../account/rotation")
+                          // @event_2026-02-06:rotation_unify - Use RateLimitTracker only (with account dimension)
                           getRateLimitTracker().markRateLimited(
                             (account as any)._coreAccountId || `antigravity-account-${account.index}`,
                             "antigravity",
@@ -2212,16 +2213,6 @@ export const createAntigravityPlugin =
                             effectiveDelayMs,
                             model || undefined,
                           )
-
-                          // Update global model health registry (shared across all foreground/background tasks)
-                          if (model) {
-                            getModelHealthRegistry().markRateLimited(
-                              "antigravity",
-                              model,
-                              rateLimitReason,
-                              effectiveDelayMs,
-                            )
-                          }
 
                           const accountLabel = account.email || `Account ${account.index + 1}`
 
@@ -2421,14 +2412,11 @@ export const createAntigravityPlugin =
                         }
 
                         // Success or non-retryable error - return the response
+                        // @event_2026-02-06:rotation_unify - Removed redundant ModelHealthRegistry.markSuccess
                         if (response.ok) {
                           account.consecutiveFailures = 0
                           getHealthTracker().recordSuccess(account.index)
                           accountManager.markAccountUsed(account.index)
-                          // Update global model health registry (shared across all foreground/background tasks)
-                          if (model) {
-                            getModelHealthRegistry().markSuccess("antigravity", model)
-                          }
                           debugCheckpoint("ANTIGRAVITY", "REQUEST_SUCCESS", {
                             family,
                             model,
