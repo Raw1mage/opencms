@@ -109,6 +109,38 @@ export const TuiThreadCommand = cmd({
       await client.call("reload", undefined)
     })
 
+    // @event_2026-02-07_terminal-cleanup: Reset terminal state on unexpected exit
+    // This prevents mouse tracking and alternate screen buffer from persisting
+    // after opencode is killed or crashes
+    const resetTerminal = () => {
+      // Disable mouse tracking modes
+      process.stdout.write("\x1b[?1000l") // Basic mouse tracking
+      process.stdout.write("\x1b[?1002l") // Button event tracking
+      process.stdout.write("\x1b[?1003l") // All motion tracking
+      process.stdout.write("\x1b[?1006l") // SGR extended mouse mode
+      // Exit alternate screen buffer
+      process.stdout.write("\x1b[?1049l")
+      // Show cursor
+      process.stdout.write("\x1b[?25h")
+      // Reset character attributes
+      process.stdout.write("\x1b[0m")
+      // Disable raw mode if active
+      if (process.stdin.isTTY && process.stdin.isRaw) {
+        process.stdin.setRawMode(false)
+      }
+    }
+
+    const handleTerminalExit = (signal: string) => {
+      resetTerminal()
+      worker.terminate()
+      process.exit(signal === "SIGINT" ? 130 : 143)
+    }
+
+    process.on("SIGINT", () => handleTerminalExit("SIGINT"))
+    process.on("SIGTERM", () => handleTerminalExit("SIGTERM"))
+    process.on("SIGHUP", () => handleTerminalExit("SIGHUP"))
+    process.on("exit", resetTerminal)
+
     const prompt = await iife(async () => {
       const piped = !process.stdin.isTTY ? await Bun.stdin.text() : undefined
       if (!args.prompt) return piped

@@ -2422,6 +2422,8 @@ function DialogGoogleApiAdd(props: { onCancel: () => void; onSaved: () => void }
             const isPair = createMemo(() => isSave() && items()[cancelIndex()]?.id === "cancel")
             const saveActive = createMemo(() => cursor() === index())
             const cancelActive = createMemo(() => cursor() === cancelIndex())
+            const isEditing = createMemo(() => mode() === item.id)
+
             return (
               <Show when={!isCancel()}>
                 <box flexDirection="column" paddingBottom={1}>
@@ -2429,19 +2431,57 @@ function DialogGoogleApiAdd(props: { onCancel: () => void; onSaved: () => void }
                     when={isPair()}
                     fallback={
                       <box
-                        flexDirection="row"
+                        flexDirection="column"
                         paddingLeft={2}
                         paddingRight={2}
                         backgroundColor={active() ? theme.primary : undefined}
                       >
-                        <text fg={fg()} attributes={active() ? TextAttributes.BOLD : undefined}>
-                          {item.label}
-                        </text>
-                        <Show when={item.id === "name" || item.id === "key"}>
-                          <text fg={val() ? fg() : theme.textMuted}>
-                            {" "}
-                            {Locale.truncate(val() || placeholderText(), 48)}
+                        <box flexDirection="row">
+                          <text fg={fg()} attributes={active() ? TextAttributes.BOLD : undefined}>
+                            {item.label}
                           </text>
+                          <Show when={(item.id === "name" || item.id === "key") && !isEditing()}>
+                            <text fg={val() ? fg() : theme.textMuted}>
+                              {" "}
+                              {Locale.truncate(val() || placeholderText(), 48)}
+                            </text>
+                          </Show>
+                        </box>
+                        <Show when={isEditing()}>
+                          <box paddingTop={1} paddingBottom={1}>
+                            <textarea
+                              height={1}
+                              keyBindings={bindings()}
+                              placeholder={placeholderText()}
+                              ref={(val: TextareaRenderable) => setInputRef(val)}
+                              initialValue={draft()}
+                              onContentChange={(val) => {
+                                if (typeof val === "string") {
+                                  setDraft(val)
+                                  return
+                                }
+                                if (val && typeof val === "object" && "text" in val) {
+                                  const text = (val as { text?: unknown }).text
+                                  setDraft(typeof text === "string" ? text : "")
+                                  return
+                                }
+                                setDraft("")
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.name === "return" || e.name === "enter") {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  commitEdit()
+                                }
+                                if (e.name === "esc" || e.name === "escape") {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  cancelEdit()
+                                }
+                              }}
+                              focused
+                            />
+                          </box>
                         </Show>
                       </box>
                     }
@@ -2480,39 +2520,6 @@ function DialogGoogleApiAdd(props: { onCancel: () => void; onSaved: () => void }
           }}
         </For>
       </box>
-      <Show when={mode()}>
-        <box paddingLeft={1} paddingRight={1} gap={1}>
-          <text fg={theme.textMuted}>{mode() === "name" ? "Account name" : "API key"}</text>
-          <Show when={`edit-${mode()}-${tick()}`} keyed>
-            {(key) => (
-              <textarea
-                height={3}
-                keyBindings={bindings()}
-                placeholder={mode() === "name" ? "Enter account name" : "Enter API key"}
-                ref={(val: TextareaRenderable) => setInputRef(val)}
-                initialValue={draft()}
-                onContentChange={(val) => {
-                  if (typeof val === "string") {
-                    setDraft(val)
-                    return
-                  }
-                  if (val && typeof val === "object" && "text" in val) {
-                    const text = (val as { text?: unknown }).text
-                    setDraft(typeof text === "string" ? text : "")
-                    return
-                  }
-                  setDraft("")
-                }}
-                focused
-                textColor={theme.text}
-                focusedTextColor={theme.text}
-                cursorColor={theme.text}
-              />
-            )}
-          </Show>
-          <text fg={theme.textMuted}>enter save · left/esc cancel</text>
-        </box>
-      </Show>
     </box>
   )
 }
@@ -2774,6 +2781,8 @@ function DialogApiKeyAdd(props: {
             const isPair = createMemo(() => isSave() && items()[cancelIndex()]?.id === "cancel")
             const saveActive = createMemo(() => cursor() === index())
             const cancelActive = createMemo(() => cursor() === cancelIndex())
+            const isEditing = createMemo(() => mode() === item.id)
+
             return (
               <Show when={!isCancel()}>
                 <box flexDirection="column" paddingBottom={1}>
@@ -2781,19 +2790,57 @@ function DialogApiKeyAdd(props: {
                     when={isPair()}
                     fallback={
                       <box
-                        flexDirection="row"
+                        flexDirection="column"
                         paddingLeft={2}
                         paddingRight={2}
                         backgroundColor={active() ? theme.primary : undefined}
                       >
-                        <text fg={fg()} attributes={active() ? TextAttributes.BOLD : undefined}>
-                          {item.label}
-                        </text>
-                        <Show when={item.id === "name" || item.id === "key"}>
-                          <text fg={val() ? fg() : theme.textMuted}>
-                            {" "}
-                            {Locale.truncate(val() || placeholderText(), 48)}
+                        <box flexDirection="row">
+                          <text fg={fg()} attributes={active() ? TextAttributes.BOLD : undefined}>
+                            {item.label}
                           </text>
+                          <Show when={(item.id === "name" || item.id === "key") && !isEditing()}>
+                            <text fg={val() ? fg() : theme.textMuted}>
+                              {" "}
+                              {Locale.truncate(val() || placeholderText(), 48)}
+                            </text>
+                          </Show>
+                        </box>
+                        <Show when={isEditing()}>
+                          <box paddingTop={1} paddingBottom={1}>
+                            <textarea
+                              height={1}
+                              keyBindings={bindings()}
+                              placeholder={placeholderText()}
+                              ref={(val: TextareaRenderable) => setInputRef(val)}
+                              initialValue={draft()}
+                              onContentChange={(val) => {
+                                if (typeof val === "string") {
+                                  setDraft(val)
+                                  return
+                                }
+                                if (val && typeof val === "object" && "text" in val) {
+                                  const text = (val as { text?: unknown }).text
+                                  setDraft(typeof text === "string" ? text : "")
+                                  return
+                                }
+                                setDraft("")
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.name === "return" || e.name === "enter") {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  commitEdit()
+                                }
+                                if (e.name === "esc" || e.name === "escape") {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  cancelEdit()
+                                }
+                              }}
+                              focused
+                            />
+                          </box>
                         </Show>
                       </box>
                     }
@@ -2832,39 +2879,6 @@ function DialogApiKeyAdd(props: {
           }}
         </For>
       </box>
-      <Show when={mode()}>
-        <box paddingLeft={1} paddingRight={1} gap={1}>
-          <text fg={theme.textMuted}>{mode() === "name" ? "Account name" : props.envVar}</text>
-          <Show when={`edit-${mode()}-${tick()}`} keyed>
-            {(key) => (
-              <textarea
-                height={3}
-                keyBindings={bindings()}
-                placeholder={mode() === "name" ? "Enter account name" : `Enter ${props.envVar}`}
-                ref={(val: TextareaRenderable) => setInputRef(val)}
-                initialValue={draft()}
-                onContentChange={(val) => {
-                  if (typeof val === "string") {
-                    setDraft(val)
-                    return
-                  }
-                  if (val && typeof val === "object" && "text" in val) {
-                    const text = (val as { text?: unknown }).text
-                    setDraft(typeof text === "string" ? text : "")
-                    return
-                  }
-                  setDraft("")
-                }}
-                focused
-                textColor={theme.text}
-                focusedTextColor={theme.text}
-                cursorColor={theme.text}
-              />
-            )}
-          </Show>
-          <text fg={theme.textMuted}>enter save · left/esc cancel</text>
-        </box>
-      </Show>
     </box>
   )
 }
@@ -3088,19 +3102,57 @@ function DialogAccountEdit(props: {
                     when={isSave}
                     fallback={
                       <box
-                        flexDirection="row"
+                        flexDirection="column"
                         paddingLeft={2}
                         paddingRight={2}
                         backgroundColor={active() ? theme.primary : undefined}
                       >
-                        <text fg={fg()} attributes={active() ? TextAttributes.BOLD : undefined}>
-                          {item.label}
-                        </text>
-                        <Show when={isNameField}>
-                          <text fg={name() ? fg() : theme.textMuted}>
-                            {" "}
-                            {Locale.truncate(name() || "Enter email or account name", 48)}
+                        <box flexDirection="row">
+                          <text fg={fg()} attributes={active() ? TextAttributes.BOLD : undefined}>
+                            {item.label}
                           </text>
+                          <Show when={isNameField && !editing()}>
+                            <text fg={name() ? fg() : theme.textMuted}>
+                              {" "}
+                              {Locale.truncate(name() || "Enter email or account name", 48)}
+                            </text>
+                          </Show>
+                        </box>
+                        <Show when={isNameField && editing()}>
+                          <box paddingTop={1} paddingBottom={1}>
+                            <textarea
+                              height={1}
+                              keyBindings={bindings()}
+                              placeholder="Enter email or account name"
+                              ref={(val: TextareaRenderable) => setInputRef(val)}
+                              initialValue={draft()}
+                              onContentChange={(val) => {
+                                if (typeof val === "string") {
+                                  setDraft(val)
+                                  return
+                                }
+                                if (val && typeof val === "object" && "text" in val) {
+                                  const text = (val as { text?: unknown }).text
+                                  setDraft(typeof text === "string" ? text : "")
+                                  return
+                                }
+                                setDraft("")
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.name === "return" || e.name === "enter") {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  commitEdit()
+                                }
+                                if (e.name === "esc" || e.name === "escape") {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  cancelEdit()
+                                }
+                              }}
+                              focused
+                            />
+                          </box>
                         </Show>
                       </box>
                     }
@@ -3133,7 +3185,7 @@ function DialogAccountEdit(props: {
                     </box>
                   </Show>
                   <Show when={isNameField && nameErr()}>
-                    <box paddingLeft={4}>
+                    <box paddingLeft={4} paddingTop={0}>
                       <text fg={theme.error}>{nameErr()}</text>
                     </box>
                   </Show>
@@ -3143,39 +3195,6 @@ function DialogAccountEdit(props: {
           }}
         </For>
       </box>
-      <Show when={editing()}>
-        <box paddingLeft={1} paddingRight={1} gap={1}>
-          <text fg={theme.textMuted}>New name (use email for better identification):</text>
-          <Show when={`edit-name-${tick()}`} keyed>
-            {(key) => (
-              <textarea
-                height={3}
-                keyBindings={bindings()}
-                placeholder="Enter email or account name"
-                ref={(val: TextareaRenderable) => setInputRef(val)}
-                initialValue={draft()}
-                onContentChange={(val) => {
-                  if (typeof val === "string") {
-                    setDraft(val)
-                    return
-                  }
-                  if (val && typeof val === "object" && "text" in val) {
-                    const text = (val as { text?: unknown }).text
-                    setDraft(typeof text === "string" ? text : "")
-                    return
-                  }
-                  setDraft("")
-                }}
-                focused
-                textColor={theme.text}
-                focusedTextColor={theme.text}
-                cursorColor={theme.text}
-              />
-            )}
-          </Show>
-          <text fg={theme.textMuted}>enter confirm · esc cancel</text>
-        </box>
-      </Show>
     </box>
   )
 }
