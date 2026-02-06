@@ -121,6 +121,15 @@ function applyEnvOverrides(config: AntigravityConfig): AntigravityConfig {
     quiet_mode:
       env.OPENCODE_ANTIGRAVITY_QUIET === "1" || env.OPENCODE_ANTIGRAVITY_QUIET === "true" ? true : config.quiet_mode,
 
+    // @event_2026-02-06:antigravity_v145_integration
+    // OPENCODE_ANTIGRAVITY_TOAST_SCOPE=all (default: root_only)
+    toast_scope:
+      env.OPENCODE_ANTIGRAVITY_TOAST_SCOPE === "all"
+        ? "all"
+        : env.OPENCODE_ANTIGRAVITY_TOAST_SCOPE === "root_only"
+          ? "root_only"
+          : config.toast_scope,
+
     // OPENCODE_ANTIGRAVITY_DEBUG=1 or any truthy value
     debug: env.OPENCODE_ANTIGRAVITY_DEBUG
       ? env.OPENCODE_ANTIGRAVITY_DEBUG !== "0" && env.OPENCODE_ANTIGRAVITY_DEBUG !== "false"

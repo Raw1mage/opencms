@@ -1,6 +1,6 @@
 import { exec } from "node:child_process"
 import { tool } from "@opencode-ai/plugin"
-import { ANTIGRAVITY_ENDPOINT_FALLBACKS, ANTIGRAVITY_PROVIDER_ID, SEARCH_MODEL, type HeaderStyle } from "./constants"
+import { ANTIGRAVITY_ENDPOINT_FALLBACKS, ANTIGRAVITY_ENDPOINT_PROD, ANTIGRAVITY_PROVIDER_ID, SEARCH_MODEL, type HeaderStyle } from "./constants"
 import { authorizeAntigravity, exchangeAntigravity } from "./antigravity/oauth"
 import type { AntigravityTokenExchangeResult } from "./antigravity/oauth"
 import { accessTokenExpired, isOAuthAuth, parseRefreshParts } from "./plugin/auth"
@@ -65,6 +65,12 @@ const MAX_OAUTH_ACCOUNTS = 10
 const MAX_WARMUP_SESSIONS = 1000
 const MAX_WARMUP_RETRIES = 2
 const CAPACITY_BACKOFF_TIERS_MS = [5000, 10000, 20000, 30000, 60000]
+
+// @event_2026-02-06:antigravity_v145_integration
+// Track if this plugin instance is running in a child session (subagent, background task)
+// Used to filter toasts based on toast_scope config
+let isChildSession = false
+let childSessionParentID: string | undefined = undefined
 
 export let globalAccountManager: AccountManager | null = null
 // Module-level cached getAuth function for tool access and refresh
@@ -798,6 +804,23 @@ export const createAntigravityPlugin =
         // Forward to update checker
         await updateChecker.event(input)
 
+        // @event_2026-02-06:antigravity_v145_integration
+        // Track if this is a child session (subagent, background task)
+        // Used to filter toasts based on toast_scope config
+        if (input.event.type === "session.created") {
+          const props = input.event.properties as { info?: { parentID?: string } } | undefined
+          if (props?.info?.parentID) {
+            isChildSession = true
+            childSessionParentID = props.info.parentID
+            log.debug("child-session-detected", { parentID: props.info.parentID })
+          } else {
+            // Reset for root sessions - important when plugin instance is reused
+            isChildSession = false
+            childSessionParentID = undefined
+            log.debug("root-session-detected", {})
+          }
+        }
+
         // Handle session recovery
         if (sessionRecovery && input.event.type === "session.error") {
           const props = input.event.properties as Record<string, unknown> | undefined
@@ -828,17 +851,21 @@ export const createAntigravityPlugin =
                 })
                 .catch(() => { })
 
-              // Show success toast
+              // @event_2026-02-06:antigravity_v145_integration
+              // Show success toast (respects toast_scope for child sessions)
               const successToast = getRecoverySuccessToast()
-              await client.tui
-                .showToast({
-                  body: {
-                    title: successToast.title,
-                    message: successToast.message,
-                    variant: "success",
-                  },
-                })
-                .catch(() => { })
+              log.debug("recovery-toast", { ...successToast, isChildSession, toastScope: config.toast_scope })
+              if (!(config.toast_scope === "root_only" && isChildSession)) {
+                await client.tui
+                  .showToast({
+                    body: {
+                      title: successToast.title,
+                      message: successToast.message,
+                      variant: "success",
+                    },
+                  })
+                  .catch(() => { })
+              }
             }
           }
         }
@@ -1506,11 +1533,22 @@ export const createAntigravityPlugin =
                 // Use while(true) loop to handle rate limits with backoff
                 // This ensures we wait and retry when all accounts are rate-limited
                 const quietMode = config.quiet_mode
+                const toastScope = config.toast_scope
 
-                // Helper to show toast without blocking on abort (respects quiet_mode)
+                // @event_2026-02-06:antigravity_v145_integration
+                // Helper to show toast without blocking on abort (respects quiet_mode and toast_scope)
                 const showToast = async (message: string, variant: "info" | "warning" | "success" | "error") => {
+                  // Always log to debug regardless of toast filtering
+                  log.debug("toast", { message, variant, isChildSession, toastScope })
+
                   if (quietMode) return
                   if (abortSignal?.aborted) return
+
+                  // Filter toasts for child sessions when toast_scope is "root_only"
+                  if (toastScope === "root_only" && isChildSession) {
+                    log.debug("toast-suppressed-child-session", { message, variant, parentID: childSessionParentID })
+                    return
+                  }
 
                   if (variant === "warning" && message.toLowerCase().includes("rate")) {
                     if (!shouldShowRateLimitToast(message)) {
@@ -1877,9 +1915,13 @@ export const createAntigravityPlugin =
 
                   // Strict Protocol Selection by Provider ID
                   // Note: effectiveProviderID is derived from account.id or providerId in the outer scope
-                  let headerStyle = getHeaderStyleFromUrl(urlString, family, effectiveProviderID ?? providerId)
+                  const baseHeaderStyle = getHeaderStyleFromUrl(urlString, family, effectiveProviderID ?? providerId)
                   const explicitQuota = isExplicitQuotaFromUrl(urlString)
-                  pushDebug(`headerStyle=${headerStyle} explicit=${explicitQuota}`)
+                  // @event_2026-02-06:antigravity_v145_integration
+                  // Apply cli_first preference for Gemini models
+                  const cliFirst = getCliFirst(config)
+                  let headerStyle = resolvePreferredHeaderStyle(baseHeaderStyle, family, explicitQuota, cliFirst)
+                  pushDebug(`headerStyle=${headerStyle} baseStyle=${baseHeaderStyle} cliFirst=${cliFirst} explicit=${explicitQuota}`)
                   if (account.fingerprint) {
                     pushDebug(
                       `fingerprint: quotaUser=${account.fingerprint.quotaUser} deviceId=${account.fingerprint.deviceId.slice(0, 8)}...`,
@@ -1925,6 +1967,13 @@ export const createAntigravityPlugin =
                       }
 
                       const currentEndpoint = ANTIGRAVITY_ENDPOINT_FALLBACKS[i]
+
+                      // @event_2026-02-06:antigravity_v145_integration
+                      // #233: Skip sandbox endpoints for Gemini CLI models - they only work with production endpoint
+                      if (headerStyle === "gemini-cli" && currentEndpoint !== ANTIGRAVITY_ENDPOINT_PROD) {
+                        pushDebug(`Skipping sandbox endpoint ${currentEndpoint} for gemini-cli headerStyle`)
+                        continue
+                      }
 
                       try {
                         const prepared = prepareAntigravityRequest(
@@ -2241,9 +2290,11 @@ export const createAntigravityPlugin =
 
                           accountManager.requestSaveToDisk()
 
-                          // For Gemini, try prioritized Antigravity across ALL accounts first
+                          // @event_2026-02-06:antigravity_v145_integration
+                          // For Gemini, preserve preferred quota across ALL accounts before fallback
+                          // cli_first: preserve gemini-cli, otherwise preserve antigravity
                           if (family === "gemini") {
-                            if (headerStyle === "antigravity") {
+                            if (headerStyle === "antigravity" && !cliFirst) {
                               // Check if any other account has Antigravity quota for this model
                               if (hasOtherAccountWithAntigravity(account)) {
                                 pushDebug(
@@ -2267,6 +2318,21 @@ export const createAntigravityPlugin =
                                   )
                                   headerStyle = alternateStyle
                                   pushDebug(`quota fallback: ${headerStyle}`)
+                                  continue
+                                }
+                              }
+                            } else if (headerStyle === "gemini-cli" && cliFirst) {
+                              // cli_first mode: try alternate style (antigravity) after gemini-cli exhausted
+                              if (config.quota_fallback && !explicitQuota) {
+                                const alternateStyle = accountManager.getAvailableHeaderStyle(account, family, model)
+                                if (alternateStyle && alternateStyle !== headerStyle) {
+                                  const safeModelName = model || "this model"
+                                  await showToast(
+                                    `Gemini CLI quota exhausted for ${safeModelName}. Switching to Antigravity quota...`,
+                                    "warning",
+                                  )
+                                  headerStyle = alternateStyle
+                                  pushDebug(`quota fallback (cli_first): ${headerStyle}`)
                                   continue
                                 }
                               }
@@ -3188,6 +3254,31 @@ function getHeaderStyleFromUrl(urlString: string, family: ModelFamily, providerI
     return "antigravity"
   }
   return "gemini-cli"
+}
+
+// @event_2026-02-06:antigravity_v145_integration
+// Helper to get cli_first preference from config
+function getCliFirst(config: AntigravityConfig): boolean {
+  return (config as AntigravityConfig & { cli_first?: boolean }).cli_first ?? false
+}
+
+// @event_2026-02-06:antigravity_v145_integration
+// Resolve the preferred header style for Gemini models considering cli_first
+function resolvePreferredHeaderStyle(
+  baseHeaderStyle: HeaderStyle,
+  family: ModelFamily,
+  explicitQuota: boolean,
+  cliFirst: boolean,
+): HeaderStyle {
+  // Only apply cli_first preference for Gemini models without explicit quota
+  if (family !== "gemini" || explicitQuota) {
+    return baseHeaderStyle
+  }
+  // If cli_first is enabled, prefer gemini-cli; otherwise keep the base style
+  if (cliFirst) {
+    return "gemini-cli"
+  }
+  return baseHeaderStyle
 }
 
 function isExplicitQuotaFromUrl(urlString: string): boolean {
