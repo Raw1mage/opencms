@@ -1,3 +1,4 @@
+- [2026-02-06] [Antigravity Auth Plugin v1.4.5 整合](events/event_2026-02-06_antigravity_v145_integration.md)（#233 sandbox fix, toast_scope, soft quota）
 - [2026-02-07] [bun run install 自動安裝 opencode](events/event_2026-02-07_install.md)
 - [2026-02-07] [GMI Cloud UI 優化與清理](events/event_2026-02-06_gmicloud_ui_cleanup.md)
 - [2026-02-07] [Event 註解規範](events/event_2026-02-07_event-comments.md)

@@ -32,6 +32,17 @@ export const SchedulingModeSchema = z.enum(["cache_first", "balance", "performan
 export type SchedulingMode = z.infer<typeof SchedulingModeSchema>
 
 /**
+ * Toast visibility scope for session-aware toast filtering.
+ * @event_2026-02-06:antigravity_v145_integration
+ *
+ * - `root_only` (default): Only show toasts for root sessions (no parentID).
+ *   Subagents and background tasks won't show toast notifications.
+ * - `all`: Show toasts for all sessions including subagents and background tasks.
+ */
+export const ToastScopeSchema = z.enum(["root_only", "all"])
+export type ToastScope = z.infer<typeof ToastScopeSchema>
+
+/**
  * Signature cache configuration for persisting thinking block signatures to disk.
  */
 export const SignatureCacheConfigSchema = z.object({
@@ -66,6 +77,20 @@ export const AntigravityConfigSchema = z.object({
    * @default false
    */
   quiet_mode: z.boolean().default(false),
+
+  /**
+   * Control which sessions show toast notifications.
+   * @event_2026-02-06:antigravity_v145_integration
+   *
+   * - `root_only` (default): Only root sessions show toasts.
+   *   Subagents and background tasks will be silent (less spam).
+   * - `all`: All sessions show toasts including subagents and background tasks.
+   *
+   * Debug logging captures all toasts regardless of this setting.
+   * Env override: OPENCODE_ANTIGRAVITY_TOAST_SCOPE=all
+   * @default "root_only"
+   */
+  toast_scope: ToastScopeSchema.default("root_only"),
 
   /**
    * Enable debug logging to file.
@@ -244,6 +269,19 @@ export const AntigravityConfigSchema = z.object({
   quota_fallback: z.boolean().default(false),
 
   /**
+   * Prefer gemini-cli routing before Antigravity for Gemini models.
+   * @event_2026-02-06:antigravity_v145_integration
+   *
+   * When false (default): Antigravity is tried first, then gemini-cli.
+   * When true: gemini-cli is tried first, then Antigravity.
+   *
+   * Useful for users who want to preserve Antigravity quota for Claude models.
+   *
+   * @default false
+   */
+  cli_first: z.boolean().default(false),
+
+  /**
    * Strategy for selecting accounts when making requests.
    * Env override: OPENCODE_ANTIGRAVITY_ACCOUNT_SELECTION_STRATEGY
    * @default "hybrid"
@@ -381,6 +419,7 @@ export type SignatureCacheConfig = z.infer<typeof SignatureCacheConfigSchema>
  */
 export const DEFAULT_CONFIG: AntigravityConfig = {
   quiet_mode: false,
+  toast_scope: "root_only",
   debug: false,
   keep_thinking: false,
   session_recovery: true,
@@ -395,6 +434,7 @@ export const DEFAULT_CONFIG: AntigravityConfig = {
   proactive_refresh_check_interval_seconds: 300,
   max_rate_limit_wait_seconds: 300,
   quota_fallback: false,
+  cli_first: false,
   account_selection_strategy: "hybrid",
   account_rotation: "fixed",
   pid_offset_enabled: false,
