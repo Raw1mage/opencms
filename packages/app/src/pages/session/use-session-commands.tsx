@@ -36,7 +36,7 @@ interface SessionCommandsProps {
   navigateMessageByOffset: (offset: number) => void
 }
 
-export function useCommands(props: SessionCommandsProps) {
+export function useSessionCommands(props: SessionCommandsProps) {
   const language = useLanguage()
   const navigate = useNavigate()
   const params = useParams()

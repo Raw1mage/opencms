@@ -8,7 +8,7 @@ import { LineComment as LineCommentView, LineCommentEditor } from "@opencode-ai/
 import { Tabs } from "@opencode-ai/ui/tabs"
 import { Mark } from "@opencode-ai/ui/logo"
 import type { SelectedLineRange } from "@/context/file"
-import { handoff } from "../../utils/handoff"
+import { handoff } from "./utils/handoff"
 
 interface FileContentTabProps {
   tab: string
@@ -22,7 +22,7 @@ interface FileContentTabProps {
   addCommentToContext: (input: any) => void
 }
 
-export function FileContentTab(props: FileContentTabProps) {
+export function FileTabContent(props: FileContentTabProps) {
   let scroll: HTMLDivElement | undefined
   let scrollFrame: number | undefined
   let pending: { x: number; y: number } | undefined
