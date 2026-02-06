@@ -1,4 +1,4 @@
-import { For, onCleanup, Show, Match, Switch, createMemo, createEffect, createSignal, on, type JSX } from "solid-js"
+import { onCleanup, Show, Match, Switch, createMemo, createEffect, createSignal, on, type JSX } from "solid-js"
 import { createMediaQuery } from "@solid-primitives/media"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { useLocal } from "@/context/local"
@@ -46,6 +46,8 @@ import { SessionPromptDock } from "./session-prompt-dock"
 import { closestMessage, scheduleScrollSpy, cancelScrollSpy } from "./scroll-spy"
 import { markScrollGesture, isScrollGestureActive } from "./message-gesture"
 import { useSessionHashScroll, anchor, scrollToElement } from "./use-session-hash-scroll"
+import { useSessionBackfill } from "./use-session-backfill"
+import { useSessionHandoff } from "./use-session-handoff"
 import { SessionMobileTabs } from "./session-mobile-tabs"
 import { SessionSidePanel } from "./session-side-panel"
 
@@ -615,7 +617,17 @@ export default function Page() {
     showAllFiles,
     addSelectionToContext,
     navigateMessageByOffset,
-  }) // Verify
+  })
+
+  const { scheduleTurnBackfill, cancelTurnBackfill } = useSessionBackfill({
+    scroller: () => scroller,
+    messagesReady,
+    messageCount: () => visibleUserMessages().length,
+    onBackfill: (index) => setStore("turnStart", index),
+    turnStart: () => store.turnStart,
+  })
+
+  useSessionHandoff({ tabs })
 
   const reviewPanel = () => (
     <div class="flex flex-col h-full overflow-hidden bg-background-stronger contain-strict">
@@ -843,89 +855,6 @@ export default function Page() {
     autoScroll.scrollRef(el)
   }
 
-  const turnInit = 20
-  const turnBatch = 20
-  let turnHandle: number | undefined
-  let turnIdle = false
-
-  function cancelTurnBackfill() {
-    const handle = turnHandle
-    if (handle === undefined) return
-    turnHandle = undefined
-
-    if (turnIdle && window.cancelIdleCallback) {
-      window.cancelIdleCallback(handle)
-      return
-    }
-
-    clearTimeout(handle)
-  }
-
-  function scheduleTurnBackfill() {
-    if (turnHandle !== undefined) return
-    if (store.turnStart <= 0) return
-
-    if (window.requestIdleCallback) {
-      turnIdle = true
-      turnHandle = window.requestIdleCallback(() => {
-        turnHandle = undefined
-        backfillTurns()
-      })
-      return
-    }
-
-    turnIdle = false
-    turnHandle = window.setTimeout(() => {
-      turnHandle = undefined
-      backfillTurns()
-    }, 0)
-  }
-
-  function backfillTurns() {
-    const start = store.turnStart
-    if (start <= 0) return
-
-    const next = start - turnBatch
-    const nextStart = next > 0 ? next : 0
-
-    const el = scroller
-    if (!el) {
-      setStore("turnStart", nextStart)
-      scheduleTurnBackfill()
-      return
-    }
-
-    const beforeTop = el.scrollTop
-    const beforeHeight = el.scrollHeight
-
-    setStore("turnStart", nextStart)
-
-    requestAnimationFrame(() => {
-      const delta = el.scrollHeight - beforeHeight
-      if (!delta) return
-      el.scrollTop = beforeTop + delta
-    })
-
-    scheduleTurnBackfill()
-  }
-
-  createEffect(
-    on(
-      () => [params.id, messagesReady()] as const,
-      ([id, ready]) => {
-        cancelTurnBackfill()
-        setStore("turnStart", 0)
-        if (!id || !ready) return
-
-        const len = visibleUserMessages().length
-        const start = len > turnInit ? len - turnInit : 0
-        setStore("turnStart", start)
-        scheduleTurnBackfill()
-      },
-      { defer: true },
-    ),
-  )
-
   createResizeObserver(
     () => promptDock,
     ({ height }) => {
@@ -990,56 +919,6 @@ export default function Page() {
 
   createEffect(() => {
     document.addEventListener("keydown", handleKeyDown)
-  })
-
-  const previewPrompt = () =>
-    prompt
-      .current()
-      .map((part) => {
-        if (part.type === "file") return `[file:${part.path}]`
-        if (part.type === "agent") return `@${part.name}`
-        if (part.type === "image") return `[image:${part.filename}]`
-        return part.content
-      })
-      .join("")
-      .trim()
-
-  createEffect(() => {
-    if (!prompt.ready()) return
-    handoff.prompt = previewPrompt()
-  })
-
-  createEffect(() => {
-    if (!terminal.ready()) return
-    language.locale()
-
-    const label = (pty: LocalPTY) => {
-      const title = pty.title
-      const number = pty.titleNumber
-      const match = title.match(/^Terminal (\d+)$/)
-      const parsed = match ? Number(match[1]) : undefined
-      const isDefaultTitle = Number.isFinite(number) && number > 0 && Number.isFinite(parsed) && parsed === number
-
-      if (title && !isDefaultTitle) return title
-      if (Number.isFinite(number) && number > 0) return language.t("terminal.title.numbered", { number })
-      if (title) return title
-      return language.t("terminal.title")
-    }
-
-    handoff.terminals = terminal.all().map(label)
-  })
-
-  createEffect(() => {
-    if (!file.ready()) return
-    handoff.files = Object.fromEntries(
-      tabs()
-        .all()
-        .flatMap((tab) => {
-          const path = file.pathFromTab(tab)
-          if (!path) return []
-          return [[path, file.selectedLines(path) ?? null] as const]
-        }),
-    )
   })
 
   onCleanup(() => {
