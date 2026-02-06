@@ -790,8 +790,6 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
     const modelLimits = new Map<string, { waitMs: number; reason: string }>()
     const providerLimits = new Map<string, { waitMs: number; reason: string }>()
-    const modelLimitKeys = new Set<string>()
-    const providerLimitProviders = new Set<string>()
     for (const entry of rateLimits3D) {
       const hasModel = entry.modelID && entry.modelID.length > 0
       if (hasModel) {
@@ -799,75 +797,21 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
           waitMs: entry.waitMs,
           reason: entry.reason,
         })
-        modelLimitKeys.add(`${entry.providerId}:${entry.modelID}`)
       }
       if (!hasModel) {
         providerLimits.set(`${entry.accountId}:${entry.providerId}`, {
           waitMs: entry.waitMs,
           reason: entry.reason,
         })
-        providerLimitProviders.add(entry.providerId)
       }
     }
 
     let ready = 0
     let limited = 0
 
-    const favoritesSet = new Set(favorites.map((item) => `${item.providerId}:${item.modelID}`))
     const modelEntries = new Map<string, { providerId: string; modelId: string }>()
-    const providerIds = Object.keys(providerMap).sort((a, b) => a.localeCompare(b))
 
-    // @event_2026-02-06:rotation_unify - Check which providers have quota data
-    const quotaGroupsData = quotaGroups()
-    const providersWithQuota = new Set<string>()
-    if (quotaGroupsData) {
-      for (const accountId of Object.keys(quotaGroupsData)) {
-        // Find which provider this account belongs to
-        for (const [pid, providerData] of Object.entries(accountMap)) {
-          if (providerData?.accounts?.[accountId]) {
-            providersWithQuota.add(pid)
-          }
-        }
-      }
-    }
-
-    for (const providerId of providerIds) {
-      const provider = providerMap[providerId]
-      if (!provider) continue
-      const models = Object.values(provider.models)
-      const providerFamily = family(providerId)
-      // @event_2026-02-06:rotation_unify - Also include models from providers with quota data
-      const hasQuotaData = providersWithQuota.has(providerId) || (providerFamily && providersWithQuota.has(providerFamily))
-      for (const model of models) {
-        const key = `${providerId}:${model.id}`
-        if (
-          favoritesSet.has(key) ||
-          modelLimitKeys.has(key) ||
-          snapshot2D.has(key) ||
-          providerLimitProviders.has(providerId) ||
-          hasQuotaData
-        ) {
-          modelEntries.set(key, { providerId, modelId: model.id })
-        }
-      }
-    }
-
-    for (const key of snapshot2D.keys()) {
-      const splitAt = key.indexOf(":")
-      if (splitAt <= 0) continue
-      const providerId = key.slice(0, splitAt)
-      const modelId = key.slice(splitAt + 1)
-      modelEntries.set(key, { providerId, modelId })
-    }
-
-    for (const key of modelLimitKeys) {
-      const splitAt = key.indexOf(":")
-      if (splitAt <= 0) continue
-      const providerId = key.slice(0, splitAt)
-      const modelId = key.slice(splitAt + 1)
-      modelEntries.set(key, { providerId, modelId })
-    }
-
+    // @event_2026-02-06:fix-model-activities - Only show favorites in Model Activities
     for (const favorite of favorites) {
       const key = `${favorite.providerId}:${favorite.modelID}`
       modelEntries.set(key, { providerId: favorite.providerId, modelId: favorite.modelID })
@@ -1866,6 +1810,25 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                       activitySort() === "usage" ? "provider" : activitySort() === "provider" ? "model" : "usage"
                     debugCheckpoint("admin.activities", "sort", { mode: next })
                     setActivitySort(next)
+                  },
+                },
+                {
+                  keybind: Keybind.parse("d")[0],
+                  title: "(D)elete",
+                  label: "D",
+                  disabled: false,
+                  // @event_2026-02-06:fix-model-activities - Add d key to remove from favorites in activities page
+                  onTrigger: (option: any) => {
+                    const val = option.value
+                    if (val && typeof val === "string") {
+                      const parts = val.split(":")
+                      if (parts.length >= 3) {
+                        const providerId = parts[1]
+                        const modelID = parts[2]
+                        debugCheckpoint("admin.activities", "delete favorite", { providerId, modelID })
+                        local.model.toggleFavorite({ providerId, modelID }, { skipValidation: true })
+                      }
+                    }
                   },
                 },
               ]

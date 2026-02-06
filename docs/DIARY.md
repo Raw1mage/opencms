@@ -1,3 +1,4 @@
+- [2026-02-06] [修復 Model Activities 顯示區塊並新增收藏刪除鍵](events/event_2026-02-06_fix-model-activities.md)
 - [2026-02-06] [重構 Model Selector Skill 並清理 AGENTS.md](events/event_2026-02-06_model-selector-rewrite.md)
 - [2026-02-06] [修復 CLI 腳本相容性與 XDG 對齊](events/event_2026-02-06_bin-scripts-fix.md)
 - [2026-02-06] [Antigravity Auth Plugin v1.4.5 整合](events/event_2026-02-06_antigravity_v145_integration.md)（#233 sandbox fix, toast_scope, soft quota）
