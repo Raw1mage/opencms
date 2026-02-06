@@ -7,8 +7,8 @@
 工作階段啟動時，請立即載入以下技能：
 
 ```javascript
-skill({ name: "model-selector" }); // 針對任務最佳化模型選擇
-skill({ name: "agent-workflow" }); // 多重 Agent 協作編排
+skill({ name: "model-selector" }) // 針對任務最佳化模型選擇
+skill({ name: "agent-workflow" }) // 多重 Agent 協作編排
 ```
 
 ---

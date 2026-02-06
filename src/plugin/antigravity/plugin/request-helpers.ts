@@ -1163,6 +1163,11 @@ function filterContentArray(
       }
 
       // Not our signature (or no signature) - inject sentinel
+      if (isClaudeModel) {
+        log.debug("Dropping unsigned thinking block for Claude (sentinel not supported)") // @event_2026-02-06:fix_claude_sentinel
+        continue
+      }
+
       const thinkingText = getThinkingText(item) || ""
       const existingSignature = item.signature || item.thoughtSignature
       const signatureInfo = existingSignature

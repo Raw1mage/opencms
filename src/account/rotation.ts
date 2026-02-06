@@ -25,8 +25,9 @@ const UNIFIED_STATE_FILE = path.join(Global.Path.state, "rotation-state.json")
 
 // Legacy file paths (kept for backward compatibility and ModelHealthRegistry monitoring)
 const HEALTH_FILE = path.join(Global.Path.state, "model-health.json")
-// Legacy: rate-limits.json and account-health.json are no longer used
-// All data is now in rotation-state.json
+// Legacy files - used for backwards compatibility migration
+const LEGACY_RATE_LIMITS_FILE = path.join(Global.Path.state, "rate-limits.json")
+const LEGACY_ACCOUNT_HEALTH_FILE = path.join(Global.Path.state, "account-health.json")
 
 /**
  * Unified state structure for cross-process rotation tracking.
@@ -39,21 +40,57 @@ interface UnifiedRotationState {
 }
 
 /**
- * Read the unified state file.
+ * Read the unified state file with backwards compatibility.
  * @event_2026-02-06:rotation_unify
+ * If the unified file doesn't exist, migrate from legacy files (rate-limits.json, account-health.json).
  */
 function readUnifiedState(): UnifiedRotationState {
   try {
-    if (!fs.existsSync(UNIFIED_STATE_FILE)) {
-      return { version: 1, accountHealth: {}, rateLimits: {} }
+    // Try to read the unified state file first
+    if (fs.existsSync(UNIFIED_STATE_FILE)) {
+      const content = fs.readFileSync(UNIFIED_STATE_FILE, "utf-8")
+      const data = JSON.parse(content) as UnifiedRotationState
+      return {
+        version: data.version ?? 1,
+        accountHealth: data.accountHealth ?? {},
+        rateLimits: data.rateLimits ?? {},
+      }
     }
-    const content = fs.readFileSync(UNIFIED_STATE_FILE, "utf-8")
-    const data = JSON.parse(content) as UnifiedRotationState
-    return {
-      version: data.version ?? 1,
-      accountHealth: data.accountHealth ?? {},
-      rateLimits: data.rateLimits ?? {},
+
+    // Backwards compatibility: migrate from legacy files
+    const state: UnifiedRotationState = { version: 1, accountHealth: {}, rateLimits: {} }
+
+    // Read legacy rate-limits.json
+    if (fs.existsSync(LEGACY_RATE_LIMITS_FILE)) {
+      try {
+        const content = fs.readFileSync(LEGACY_RATE_LIMITS_FILE, "utf-8")
+        const legacyData = JSON.parse(content) as Record<string, Record<string, RateLimitState>>
+        state.rateLimits = legacyData
+        log.info("Migrated rate limits from legacy file", { entries: Object.keys(legacyData).length })
+      } catch {
+        // Ignore parse errors
+      }
     }
+
+    // Read legacy account-health.json
+    if (fs.existsSync(LEGACY_ACCOUNT_HEALTH_FILE)) {
+      try {
+        const content = fs.readFileSync(LEGACY_ACCOUNT_HEALTH_FILE, "utf-8")
+        const legacyData = JSON.parse(content) as Record<string, HealthScoreState>
+        state.accountHealth = legacyData
+        log.info("Migrated account health from legacy file", { entries: Object.keys(legacyData).length })
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
+    // Write the unified state file to complete migration
+    if (Object.keys(state.rateLimits).length > 0 || Object.keys(state.accountHealth).length > 0) {
+      writeUnifiedState(state)
+      log.info("Created unified state file from legacy data")
+    }
+
+    return state
   } catch {
     return { version: 1, accountHealth: {}, rateLimits: {} }
   }

@@ -197,6 +197,7 @@ cli_first: z.boolean().default(false)
 | 2026-02-06 | Rotation 系統統一 | ✅ 完成 - 解決 subagent 重複試 rate-limited model 問題 |
 | 2026-02-06 | ModelHealthRegistry 降級 | ✅ 完成 - 決策邏輯改用 RateLimitTracker (3D) |
 | 2026-02-06 | 統一狀態檔 | ✅ 完成 - 合併為 rotation-state.json |
+| 2026-02-06 | 向後相容性修復 | ✅ 完成 - readUnifiedState() 自動遷移舊檔案 |
 
 ---
 
@@ -290,3 +291,24 @@ cli_first: z.boolean().default(false)
 - 狀態集中在單一檔案 (`~/.local/state/opencode/rotation-state.json`)
 - 減少 I/O 操作次數（讀寫一個檔案而非兩個）
 - 跨進程同步更可靠
+
+---
+
+## 向後相容性修復 (rotation_unify Phase 4)
+
+**問題**: Activities 面板的 rate limit 倒數時間不顯示。
+
+**根本原因**:
+- 新的 `readUnifiedState()` 只讀取 `rotation-state.json`
+- 舊的 rate limit 數據在 `rate-limits.json`
+- 統一狀態檔不存在時返回空數據
+
+**修復**:
+`src/account/rotation.ts`:
+- `readUnifiedState()` 添加向後相容性邏輯
+- 如果 `rotation-state.json` 不存在，自動從 `rate-limits.json` 和 `account-health.json` 遷移
+- 遷移完成後自動建立 `rotation-state.json`
+
+**效果**:
+- 首次執行時自動遷移舊數據
+- Activities 面板正確顯示 rate limit 倒數時間
