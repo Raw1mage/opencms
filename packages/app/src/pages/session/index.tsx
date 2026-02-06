@@ -1,33 +1,16 @@
-import {
-  For,
-  onCleanup,
-  onMount,
-  Show,
-  Match,
-  Switch,
-  createMemo,
-  createEffect,
-  createSignal,
-  on,
-  type JSX,
-} from "solid-js"
+import { For, onCleanup, Show, Match, Switch, createMemo, createEffect, createSignal, on, type JSX } from "solid-js"
 import { createMediaQuery } from "@solid-primitives/media"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { useLocal } from "@/context/local"
 import { selectionFromLines, useFile, type FileSelection, type SelectedLineRange } from "@/context/file"
 import { createStore } from "solid-js/store"
-import { PromptInput } from "@/components/prompt-input"
 import { SessionContextUsage } from "@/components/session-context-usage"
 import { IconButton } from "@opencode-ai/ui/icon-button"
-import { Button } from "@opencode-ai/ui/button"
-import { Icon } from "@opencode-ai/ui/icon"
 import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { ResizeHandle } from "@opencode-ai/ui/resize-handle"
 import { Tabs } from "@opencode-ai/ui/tabs"
 import { useCodeComponent } from "@opencode-ai/ui/context/code"
-import { BasicTool } from "@opencode-ai/ui/basic-tool"
 import { createAutoScroll } from "@opencode-ai/ui/hooks"
-import { SessionReview } from "@opencode-ai/ui/session-review"
 import { Mark } from "@opencode-ai/ui/logo"
 
 import { DragDropProvider, DragDropSensors, DragOverlay, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd"
@@ -35,43 +18,31 @@ import type { DragEvent } from "@thisbeyond/solid-dnd"
 import { useSync } from "@/context/sync"
 import { useTerminal, type LocalPTY } from "@/context/terminal"
 import { useLayout } from "@/context/layout"
-import { Terminal } from "@/components/terminal"
 import { checksum, base64Encode } from "@opencode-ai/util/encode"
-import { findLast } from "@opencode-ai/util/array"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { DialogSelectFile } from "@/components/dialog-select-file"
 import FileTree from "@/components/file-tree"
-import { DialogSelectModel } from "@/components/dialog-select-model"
-import { DialogSelectMcp } from "@/components/dialog-select-mcp"
-import { DialogFork } from "@/components/dialog-fork"
 import { useCommand } from "@/context/command"
 import { useLanguage } from "@/context/language"
 import { useNavigate, useParams } from "@solidjs/router"
 import { UserMessage } from "@opencode-ai/sdk/v2"
-import type { FileDiff } from "@opencode-ai/sdk/v2/client"
 import { useSDK } from "@/context/sdk"
 import { usePrompt } from "@/context/prompt"
 import { useComments, type LineComment } from "@/context/comments"
-import { extractPromptFromParts } from "@/utils/prompt"
 import { ConstrainDragYAxis, getDraggableId } from "@/utils/solid-dnd"
 import { usePermission } from "@/context/permission"
 import { showToast } from "@opencode-ai/ui/toast"
-import {
-  SessionHeader,
-  SessionContextTab,
-  SortableTab,
-  FileVisual,
-  SortableTerminalTab,
-  NewSessionView,
-} from "@/components/session"
+import { SessionHeader, SessionContextTab, SortableTab, FileVisual, NewSessionView } from "@/components/session"
 import { navMark, navParams } from "@/utils/perf"
 import { same } from "@/utils/same"
 import { handoff } from "./utils/handoff"
 
-import { SessionReviewTab, StickyAddButton, type DiffStyle } from "./components/session-review-tab"
-import { useCommands } from "./hooks/use-commands"
-import { SessionMessages } from "./components/session-messages"
-import { FileContentTab } from "./components/sidebar/file-content-tab"
+import { StickyAddButton, SessionReviewTab } from "./review-tab"
+import { useSessionCommands } from "./use-session-commands"
+import { MessageTimeline } from "./message-timeline"
+import { FileTabContent } from "./file-tabs"
+import { TerminalPanel } from "./terminal-panel"
+import { SessionPromptDock } from "./session-prompt-dock"
 
 export default function Page() {
   const layout = useLayout()
@@ -421,28 +392,32 @@ export default function Page() {
     ),
   )
 
+  const focusTerminal = (id: string) => {
+    // Immediately remove focus
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+    const wrapper = document.getElementById(`terminal-wrapper-${id}`)
+    const element = wrapper?.querySelector('[data-component="terminal"]') as HTMLElement
+    if (!element) return
+
+    // Find and focus the ghostty textarea (the actual input element)
+    const textarea = element.querySelector("textarea") as HTMLTextAreaElement
+    if (textarea) {
+      textarea.focus()
+      return
+    }
+    // Fallback: focus container and dispatch pointer event
+    element.focus()
+    element.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }))
+  }
+
   createEffect(
     on(
       () => terminal.active(),
       (activeId) => {
         if (!activeId || !view().terminal.opened()) return
-        // Immediately remove focus
-        if (document.activeElement instanceof HTMLElement) {
-          document.activeElement.blur()
-        }
-        const wrapper = document.getElementById(`terminal-wrapper-${activeId}`)
-        const element = wrapper?.querySelector('[data-component="terminal"]') as HTMLElement
-        if (!element) return
-
-        // Find and focus the ghostty textarea (the actual input element)
-        const textarea = element.querySelector("textarea") as HTMLTextAreaElement
-        if (textarea) {
-          textarea.focus()
-          return
-        }
-        // Fallback: focus container and dispatch pointer event
-        element.focus()
-        element.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }))
+        focusTerminal(activeId)
       },
     ),
   )
@@ -591,19 +566,7 @@ export default function Page() {
     const activeId = terminal.active()
     if (!activeId) return
     setTimeout(() => {
-      const wrapper = document.getElementById(`terminal-wrapper-${activeId}`)
-      const element = wrapper?.querySelector('[data-component="terminal"]') as HTMLElement
-      if (!element) return
-
-      // Find and focus the ghostty textarea (the actual input element)
-      const textarea = element.querySelector("textarea") as HTMLTextAreaElement
-      if (textarea) {
-        textarea.focus()
-        return
-      }
-      // Fallback: focus container and dispatch pointer event
-      element.focus()
-      element.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }))
+      focusTerminal(activeId)
     }, 0)
   }
 
@@ -639,7 +602,7 @@ export default function Page() {
 
   const [touchGesture, setTouchGesture] = createSignal<number | undefined>()
 
-  useCommands({
+  useSessionCommands({
     tabs,
     view,
     activeMessage,
@@ -1349,7 +1312,7 @@ export default function Page() {
                       </div>
                     }
                   >
-                    <SessionMessages
+                    <MessageTimeline
                       params={params}
                       info={info}
                       centered={centered}
@@ -1398,85 +1361,22 @@ export default function Page() {
           </div>
 
           {/* Prompt input */}
-          <div
-            ref={(el) => (promptDock = el)}
-            class="absolute inset-x-0 bottom-0 pt-12 pb-4 flex flex-col justify-center items-center z-50 px-4 md:px-0 bg-gradient-to-t from-background-stronger via-background-stronger to-transparent pointer-events-none"
-          >
-            <div
-              classList={{
-                "w-full px-4 pointer-events-auto": true,
-                "md:max-w-200 3xl:max-w-[1200px] 4xl:max-w-[1600px] 5xl:max-w-[1900px]": centered(),
-              }}
-            >
-              <Show when={request()} keyed>
-                {(perm) => (
-                  <div data-component="tool-part-wrapper" data-permission="true" class="mb-3">
-                    <BasicTool
-                      icon="checklist"
-                      locked
-                      defaultOpen
-                      trigger={{
-                        title: language.t("notification.permission.title"),
-                        subtitle:
-                          perm.permission === "doom_loop"
-                            ? language.t("settings.permissions.tool.doom_loop.title")
-                            : perm.permission,
-                      }}
-                    >
-                      <Show when={perm.patterns.length > 0}>
-                        <div class="flex flex-col gap-1 py-2 px-3 max-h-40 overflow-y-auto no-scrollbar">
-                          <For each={perm.patterns}>
-                            {(pattern) => <code class="text-12-regular text-text-base break-all">{pattern}</code>}
-                          </For>
-                        </div>
-                      </Show>
-                      <Show when={perm.permission === "doom_loop"}>
-                        <div class="text-12-regular text-text-weak pb-2 px-3">
-                          {language.t("settings.permissions.tool.doom_loop.description")}
-                        </div>
-                      </Show>
-                    </BasicTool>
-                    <div data-component="permission-prompt">
-                      <div data-slot="permission-actions">
-                        <Button variant="ghost" size="small" onClick={() => decide("reject")} disabled={ui.responding}>
-                          {language.t("ui.permission.deny")}
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="small"
-                          onClick={() => decide("always")}
-                          disabled={ui.responding}
-                        >
-                          {language.t("ui.permission.allowAlways")}
-                        </Button>
-                        <Button variant="primary" size="small" onClick={() => decide("once")} disabled={ui.responding}>
-                          {language.t("ui.permission.allowOnce")}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </Show>
-
-              <Show
-                when={prompt.ready()}
-                fallback={
-                  <div class="w-full min-h-32 md:min-h-40 rounded-md border border-border-weak-base bg-background-base/50 px-4 py-3 text-text-weak whitespace-pre-wrap pointer-events-none">
-                    {handoff.prompt || language.t("prompt.loading")}
-                  </div>
-                }
-              >
-                <PromptInput
-                  ref={(el) => {
-                    inputRef = el
-                  }}
-                  newSessionWorktree={newSessionWorktree()}
-                  onNewSessionWorktreeReset={() => setStore("newSessionWorktree", "main")}
-                  onSubmit={resumeScroll}
-                />
-              </Show>
-            </div>
-          </div>
+          <SessionPromptDock
+            view={view()}
+            layout={layout}
+            centered={centered()}
+            permissionRequest={request}
+            promptReady={prompt.ready()}
+            handoffPrompt={handoff.prompt}
+            language={language}
+            responding={ui.responding}
+            onDecide={decide}
+            setInputRef={(el) => (inputRef = el)}
+            newSessionWorktree={newSessionWorktree()}
+            onNewSessionWorktreeReset={() => setStore("newSessionWorktree", "main")}
+            onSubmit={resumeScroll}
+            setPromptDockRef={(el) => (promptDock = el)}
+          />
 
           <Show when={isDesktop() && layout.fileTree.opened()}>
             <ResizeHandle
@@ -1644,7 +1544,7 @@ export default function Page() {
 
                       <For each={openedTabs()}>
                         {(tab) => (
-                          <FileContentTab
+                          <FileTabContent
                             tab={tab}
                             file={file}
                             tabs={tabs}
@@ -1755,151 +1655,22 @@ export default function Page() {
         </Show>
       </div>
 
-      <Show when={isDesktop() && view().terminal.opened()}>
-        <div
-          id="terminal-panel"
-          role="region"
-          aria-label={language.t("terminal.title")}
-          class="relative w-full flex flex-col shrink-0 border-t border-border-weak-base"
-          style={{ height: `${layout.terminal.height()}px` }}
-        >
-          <ResizeHandle
-            direction="vertical"
-            size={layout.terminal.height()}
-            min={100}
-            max={window.innerHeight * 0.6}
-            collapseThreshold={50}
-            onResize={layout.terminal.resize}
-            onCollapse={view().terminal.close}
-          />
-          <Show
-            when={terminal.ready()}
-            fallback={
-              <div class="flex flex-col h-full pointer-events-none">
-                <div class="h-10 flex items-center gap-2 px-2 border-b border-border-weak-base bg-background-stronger overflow-hidden">
-                  <For each={handoff.terminals}>
-                    {(title) => (
-                      <div class="px-2 py-1 rounded-md bg-surface-base text-14-regular text-text-weak truncate max-w-40">
-                        {title}
-                      </div>
-                    )}
-                  </For>
-                  <div class="flex-1" />
-                  <div class="text-text-weak pr-2">
-                    {language.t("common.loading")}
-                    {language.t("common.loading.ellipsis")}
-                  </div>
-                </div>
-                <div class="flex-1 flex items-center justify-center text-text-weak">
-                  {language.t("terminal.loading")}
-                </div>
-              </div>
-            }
-          >
-            <DragDropProvider
-              onDragStart={handleTerminalDragStart}
-              onDragEnd={handleTerminalDragEnd}
-              onDragOver={handleTerminalDragOver}
-              collisionDetector={closestCenter}
-            >
-              <DragDropSensors />
-              <ConstrainDragYAxis />
-              <div class="flex flex-col h-full">
-                <Tabs
-                  variant="alt"
-                  value={terminal.active()}
-                  onChange={(id) => {
-                    // Only switch tabs if not in the middle of starting edit mode
-                    terminal.open(id)
-                  }}
-                  class="!h-auto !flex-none"
-                >
-                  <Tabs.List class="h-10">
-                    <SortableProvider ids={terminal.all().map((t: LocalPTY) => t.id)}>
-                      <For each={terminal.all()}>
-                        {(pty) => (
-                          <SortableTerminalTab
-                            terminal={pty}
-                            onClose={() => {
-                              view().terminal.close()
-                              setUi("autoCreated", false)
-                            }}
-                          />
-                        )}
-                      </For>
-                    </SortableProvider>
-                    <div class="h-full flex items-center justify-center">
-                      <TooltipKeybind
-                        title={language.t("command.terminal.new")}
-                        keybind={command.keybind("terminal.new")}
-                        class="flex items-center"
-                      >
-                        <IconButton
-                          icon="plus-small"
-                          variant="ghost"
-                          iconSize="large"
-                          onClick={terminal.new}
-                          aria-label={language.t("command.terminal.new")}
-                        />
-                      </TooltipKeybind>
-                    </div>
-                  </Tabs.List>
-                </Tabs>
-                <div class="flex-1 min-h-0 relative">
-                  <For each={terminal.all()}>
-                    {(pty) => (
-                      <div
-                        id={`terminal-wrapper-${pty.id}`}
-                        class="absolute inset-0"
-                        style={{
-                          display: terminal.active() === pty.id ? "block" : "none",
-                        }}
-                      >
-                        <Show when={pty.id} keyed>
-                          <Terminal
-                            pty={pty}
-                            onCleanup={terminal.update}
-                            onConnectError={() => terminal.clone(pty.id)}
-                          />
-                        </Show>
-                      </div>
-                    )}
-                  </For>
-                </div>
-              </div>
-              <DragOverlay>
-                <Show when={store.activeTerminalDraggable}>
-                  {(draggedId) => {
-                    const pty = createMemo(() => terminal.all().find((t: LocalPTY) => t.id === draggedId()))
-                    return (
-                      <Show when={pty()}>
-                        {(t) => (
-                          <div class="relative p-1 h-10 flex items-center bg-background-stronger text-14-regular">
-                            {(() => {
-                              const title = t().title
-                              const number = t().titleNumber
-                              const match = title.match(/^Terminal (\d+)$/)
-                              const parsed = match ? Number(match[1]) : undefined
-                              const isDefaultTitle =
-                                Number.isFinite(number) && number > 0 && Number.isFinite(parsed) && parsed === number
-
-                              if (title && !isDefaultTitle) return title
-                              if (Number.isFinite(number) && number > 0)
-                                return language.t("terminal.title.numbered", { number })
-                              if (title) return title
-                              return language.t("terminal.title")
-                            })()}
-                          </div>
-                        )}
-                      </Show>
-                    )
-                  }}
-                </Show>
-              </DragOverlay>
-            </DragDropProvider>
-          </Show>
-        </div>
-      </Show>
+      <TerminalPanel
+        view={view()}
+        layout={layout}
+        terminal={terminal}
+        language={language}
+        command={command}
+        handoff={handoff.terminals}
+        handleTerminalDragStart={handleTerminalDragStart}
+        handleTerminalDragOver={handleTerminalDragOver}
+        handleTerminalDragEnd={handleTerminalDragEnd}
+        onCloseTab={() => {
+          view().terminal.close()
+          setUi("autoCreated", false)
+        }}
+        activeTerminalDraggable={store.activeTerminalDraggable}
+      />
     </div>
   )
 }

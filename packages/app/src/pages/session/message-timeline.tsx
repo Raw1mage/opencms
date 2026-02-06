@@ -30,7 +30,7 @@ interface SessionMessagesProps {
   navigate: (path: string) => void
 }
 
-export function SessionMessages(props: SessionMessagesProps) {
+export function MessageTimeline(props: SessionMessagesProps) {
   return (
     <div class="relative w-full h-full min-w-0">
       <div

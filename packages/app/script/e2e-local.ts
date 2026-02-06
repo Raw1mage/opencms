@@ -43,8 +43,8 @@ async function waitForHealth(url: string) {
 }
 
 const appDir = process.cwd()
-const repoDir = path.resolve(appDir, "../..")
-const opencodeDir = path.join(repoDir, "packages", "opencode")
+const repoDir = "/home/pkcs12/opencode"
+const opencodeDir = repoDir
 
 const extraArgs = (() => {
   const args = process.argv.slice(2)
@@ -63,10 +63,11 @@ const serverEnv = {
   OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
   OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: "true",
   OPENCODE_TEST_HOME: path.join(sandbox, "home"),
-  XDG_DATA_HOME: path.join(sandbox, "share"),
-  XDG_CACHE_HOME: path.join(sandbox, "cache"),
-  XDG_CONFIG_HOME: path.join(sandbox, "config"),
-  XDG_STATE_HOME: path.join(sandbox, "state"),
+  XDG_DATA_HOME: process.env.XDG_DATA_HOME || path.join(sandbox, "share"),
+  XDG_CACHE_HOME: process.env.XDG_CACHE_HOME || path.join(sandbox, "cache"),
+  XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME || path.join(sandbox, "config"),
+  XDG_STATE_HOME: process.env.XDG_STATE_HOME || path.join(sandbox, "state"),
+  PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH || path.join(os.homedir(), ".cache", "ms-playwright"),
   OPENCODE_E2E_PROJECT_DIR: repoDir,
   OPENCODE_E2E_SESSION_TITLE: "E2E Session",
   OPENCODE_E2E_MESSAGE: "Seeded for UI e2e",
@@ -83,7 +84,7 @@ const runnerEnv = {
   PLAYWRIGHT_PORT: String(webPort),
 } satisfies Record<string, string>
 
-const seed = Bun.spawn(["bun", "script/seed-e2e.ts"], {
+const seed = Bun.spawn(["bun", path.join(opencodeDir, "script/seed-e2e.ts")], {
   cwd: opencodeDir,
   env: serverEnv,
   stdout: "inherit",
@@ -99,16 +100,16 @@ Object.assign(process.env, serverEnv)
 process.env.AGENT = "1"
 process.env.OPENCODE = "1"
 
-const log = await import("../../opencode/src/util/log")
-const install = await import("../../opencode/src/installation")
+const log = await import("../../../src/util/log")
+const install = await import("../../../src/installation")
 await log.Log.init({
   print: true,
   dev: install.Installation.isLocal(),
   level: "WARN",
 })
 
-const servermod = await import("../../opencode/src/server/server")
-const inst = await import("../../opencode/src/project/instance")
+const servermod = await import("../../../src/server/server")
+const inst = await import("../../../src/project/instance")
 const server = servermod.Server.listen({ port: serverPort, hostname: "127.0.0.1" })
 console.log(`opencode server listening on http://127.0.0.1:${serverPort}`)
 

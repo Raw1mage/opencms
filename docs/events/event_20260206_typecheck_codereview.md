@@ -104,6 +104,38 @@
 - `packages/console/resource/resource.node.ts`: 針對 Cloudflare Resource 型別缺漏加上 `@ts-expect-error` 註解。
 - Typecheck：`bun run typecheck` 完成（全部通過）。
 
+---
+
+#### 功能：專案型別檢查與代碼審查 (2nd Iteration)
+
+**需求**
+
+- 驗證目前專案的型別健康狀況。
+- 檢查最近的變更（特別是檔案系統安全修補）是否符合規範。
+- 識別潛在的效能瓶頸與架構風險。
+
+**任務**
+
+1. [x] 執行 `bun turbo typecheck`：全數通過（11/11 成功）。
+2. [x] 審查 `src/file/index.ts` 的 realpath 實作。
+3. [x] 審查核心 Provider 邏輯 (`src/provider/provider.ts`)。
+4. [x] 檢查 `packages/console` 下 house `resource.node.ts` 註解。
+
+**審查結果**
+
+- **型別健康度**：目前專案型別系統穩定，透過 `@ts-expect-error` 妥善處理了 SST 與 Cloudflare 的型別缺失。
+- **安全性**：`src/file/index.ts` 實作了三層式 `realpath` 校驗 (path.resolve -> fs.realpath -> parent.realpath)，能有效防止符號連結 (Symlink) 導致的路徑逃逸攻擊。
+- **核心邏輯**：Provider 系統支援性完整，特別是 AWS Bedrock 的區域處理與 Cloudflare AI Gateway 的參數轉換邏輯十分詳盡。
+
+**優化建議**
+
+1. **檔案系統搜尋效能**：
+   - 在 `src/file/index.ts` 的 `search` 函式中，`warnIfOutsideProject` 是對整個檔案清單執行。
+   - **建議**：僅對搜尋結果（由 `limit` 限制後的子集）進行 `realpath` 校驗，以減少在大規模專案下的系統調用開銷。
+
+2. **SST 環境變數宣告**：
+   - 雖然目前使用 `@ts-expect-error` 解決了編譯錯誤，但建議在 `packages/console/app/sst-env.d.ts` 中手動補齊 `CLOUDFLARE_API_TOKEN` 的宣告，以獲得更好的 IDE 支援。
+
 **待解問題**
 
 - 無
