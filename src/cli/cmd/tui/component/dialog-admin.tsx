@@ -1034,6 +1034,16 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     setActivityTick((tick) => tick + 1)
   }
 
+  const activityValue = createMemo(() => {
+    const cur = local.model.current()
+    if (!cur) return undefined
+    const accountData =
+      activityAccounts()?.[cur.providerId] ?? activityAccounts()?.[family(cur.providerId) ?? cur.providerId]
+    const activeAccountId = accountData?.activeAccount
+    if (!activeAccountId) return undefined
+    return `${activeAccountId}:${cur.providerId}:${cur.modelID}`
+  })
+
   // ---- OPTION GENERATION ----
   const handleAddProvider = (fam: string) => {
     if (!fam) return
@@ -1753,6 +1763,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   }
 
   const selectCurrent = createMemo(() => {
+    if (page() === "activities") return activityValue()
     if (step() === "account_select") {
       const first = options().find((option) => {
         if (!("disabled" in option)) return true

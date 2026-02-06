@@ -1,0 +1,3 @@
+[submodule "refs/opencode-antigravity-auth"]
+	path = refs/opencode-antigravity-auth
+	url = https://github.com/NoeFabris/opencode-antigravity-auth.git
