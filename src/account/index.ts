@@ -25,6 +25,7 @@ export namespace Account {
     "gemini-cli",
     "gitlab",
     "github-copilot",
+    "gmicloud",
     "opencode",
   ] as const
   export type Provider = (typeof PROVIDERS)[number]

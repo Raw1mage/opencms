@@ -708,6 +708,15 @@ export namespace Provider {
         },
       }
     },
+    gmicloud: async () => {
+      // @event_2026-02-06:gmicloud_provider
+      return {
+        autoload: true,
+        options: {
+          baseURL: "https://api.gmi-serving.com/v1",
+        },
+      }
+    },
   }
 
   export const Model = z
@@ -883,13 +892,16 @@ export namespace Provider {
   }
 
   const state = Instance.state(async () => {
+    debugCheckpoint("provider", "state init start")
     using _ = log.time("state")
     const config = await Config.get()
     const modelsDev = await ModelsDev.get()
+    debugCheckpoint("provider", "models.dev loaded", { providerCount: Object.keys(modelsDev).length })
     const database = mapValues(modelsDev, fromModelsDevProvider)
 
     // Inject github-copilot with bundled default models if not in models.dev or if models are empty
     if (!database["github-copilot"] || Object.keys(database["github-copilot"].models || {}).length === 0) {
+      debugCheckpoint("provider", "injecting copilot defaults")
       const copilotModels: Record<string, Model> = {}
       for (const m of GITHUB_COPILOT_DEFAULT_MODELS) {
         copilotModels[m.id] = createCopilotModel("github-copilot", m)
@@ -1252,6 +1264,46 @@ export namespace Provider {
         }
       }
     }
+
+    // Initialize GMI Cloud
+    // @event_2026-02-06:gmicloud_provider
+    database["gmicloud"] = {
+      id: "gmicloud",
+      name: "GMI Cloud",
+      source: "custom",
+      env: ["GMI_API_KEY"],
+      options: { baseURL: "https://api.gmi-serving.com/v1" },
+      models: {
+        "deepseek-ai/DeepSeek-R1": {
+          id: "deepseek-ai/DeepSeek-R1",
+          name: "DeepSeek R1",
+          providerId: "gmicloud",
+          family: "deepseek",
+          api: {
+            id: "deepseek-ai/DeepSeek-R1",
+            url: "https://api.gmi-serving.com/v1",
+            npm: "@ai-sdk/openai-compatible",
+          },
+          status: "active",
+          capabilities: {
+            temperature: true,
+            reasoning: true,
+            attachment: false,
+            toolcall: true,
+            input: { text: true, image: false, audio: false, video: false, pdf: false },
+            output: { text: true, audio: false, image: false, video: false, pdf: false },
+            interleaved: false,
+          },
+          cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+          limit: { context: 64000, output: 8000 },
+          options: {},
+          variants: {},
+          headers: {},
+          release_date: "2025-01-01",
+        },
+      },
+    }
+    mergeProvider("gmicloud", { source: "custom" })
 
     // Ensure Antigravity provider is always available if populated (even if no account active)
     // This prevents fallback to Codex when account sync is flaky or during transitions
@@ -1727,7 +1779,9 @@ export namespace Provider {
         log.error("Provider does not exist in model list " + providerId)
         continue
       }
+      debugCheckpoint("provider", "custom loader start", { providerId })
       const result = await fn(data)
+      debugCheckpoint("provider", "custom loader end", { providerId, autoload: result?.autoload })
       if (result && (result.autoload || providers[providerId])) {
         if (result.getModel) modelLoaders[providerId] = result.getModel
         const opts = result.options ?? {}
@@ -1746,7 +1800,9 @@ export namespace Provider {
     }
 
     for (const [providerId, provider] of Object.entries(providers)) {
+      debugCheckpoint("provider", "post-processing start", { providerId })
       if (!isProviderAllowed(providerId)) {
+        debugCheckpoint("provider", "provider disabled", { providerId })
         delete providers[providerId]
         continue
       }
@@ -1754,27 +1810,42 @@ export namespace Provider {
       const configProvider = config.provider?.[providerId]
 
       for (const [modelID, model] of Object.entries(provider.models)) {
-        model.api.id = model.api.id ?? model.id ?? modelID
-        if (modelID === "gpt-5-chat-latest" || (providerId === "openrouter" && modelID === "openai/gpt-5-chat"))
-          delete provider.models[modelID]
-        if (model.status === "alpha" && !Flag.OPENCODE_ENABLE_EXPERIMENTAL_MODELS) delete provider.models[modelID]
-        if (model.status === "deprecated") delete provider.models[modelID]
-        if (
-          (configProvider?.blacklist && configProvider.blacklist.includes(modelID)) ||
-          (configProvider?.whitelist && !configProvider.whitelist.includes(modelID))
-        )
-          delete provider.models[modelID]
+        try {
+          model.api.id = model.api.id ?? model.id ?? modelID
+          if (modelID === "gpt-5-chat-latest" || (providerId === "openrouter" && modelID === "openai/gpt-5-chat")) {
+            delete provider.models[modelID]
+            continue
+          }
+          if (model.status === "alpha" && !Flag.OPENCODE_ENABLE_EXPERIMENTAL_MODELS) {
+            delete provider.models[modelID]
+            continue
+          }
+          if (model.status === "deprecated") {
+            delete provider.models[modelID]
+            continue
+          }
+          if (
+            (configProvider?.blacklist && configProvider.blacklist.includes(modelID)) ||
+            (configProvider?.whitelist && !configProvider.whitelist.includes(modelID))
+          ) {
+            delete provider.models[modelID]
+            continue
+          }
 
-        model.variants = mapValues(ProviderTransform.variants(model), (v) => v)
+          model.variants = mapValues(ProviderTransform.variants(model), (v) => v)
 
-        // Filter out disabled variants from config
-        const configVariants = configProvider?.models?.[modelID]?.variants
-        if (configVariants && model.variants) {
-          const merged = mergeDeep(model.variants, configVariants)
-          model.variants = mapValues(
-            pickBy(merged, (v) => !v.disabled),
-            (v) => omit(v, ["disabled"]),
-          )
+          // Filter out disabled variants from config
+          const configVariants = configProvider?.models?.[modelID]?.variants
+          if (configVariants && model.variants) {
+            const merged = mergeDeep(model.variants, configVariants)
+            model.variants = mapValues(
+              pickBy(merged, (v) => !v.disabled),
+              (v) => omit(v, ["disabled"]),
+            )
+          }
+        } catch (e) {
+          debugCheckpoint("provider", "model processing error", { providerId, modelID, error: String(e) })
+          delete provider.models[modelID]
         }
       }
 
@@ -1785,10 +1856,15 @@ export namespace Provider {
       }
 
       if (Object.keys(provider.models).length === 0 || IGNORED_MODELS.has(providerId)) {
+        debugCheckpoint("provider", "deleting empty or ignored provider", {
+          providerId,
+          count: Object.keys(provider.models).length,
+        })
         delete providers[providerId]
         continue
       }
 
+      debugCheckpoint("provider", "post-processing end", { providerId })
       log.info("found", { providerId })
     }
 

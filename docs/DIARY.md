@@ -1,5 +1,8 @@
 - [2026-02-07] [bun run install 自動安裝 opencode](events/event_2026-02-07_install.md)
+- [2026-02-07] [GMI Cloud UI 優化與清理](events/event_2026-02-06_gmicloud_ui_cleanup.md)
 - [2026-02-07] [Event 註解規範](events/event_2026-02-07_event-comments.md)
+- [2026-02-06] [修復 GMI Cloud 整合後的 UI 崩潰問題](events/event_2026-02-06_gmicloud_ui_fix.md)
+- [2026-02-06] [增加 GMI Cloud Provider 支援](events/event_2026-02-06_gmicloud_provider.md)
 - [2026-02-06] [修復 XDG 遷移後的帳號空白問題](events/event_2026-02-06_accounts-fix.md)
 - [2026-02-06] [安全修補（realpath）+ Typecheck 暫避註解](events/event_20260206_typecheck_codereview.md)（list/search 警告模式 + typecheck 通過）
 - [2026-02-06] [Typecheck + 全專案人工 Code Review（廢棄程式 / memory leak / security exploits）](events/event_20260206_typecheck_codereview.md)

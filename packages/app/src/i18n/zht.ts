@@ -100,6 +100,7 @@ export const dict = {
   "dialog.provider.anthropic.note": "使用 Claude Pro/Max 或 API 金鑰連線",
   "dialog.provider.openai.note": "使用 ChatGPT Pro/Plus 或 API 金鑰連線",
   "dialog.provider.copilot.note": "使用 Copilot 或 API 金鑰連線",
+  "dialog.provider.gmicloud.note": "高效能 DeepSeek-R1 推論服務",
 
   "dialog.model.select.title": "選擇模型",
   "dialog.model.search.placeholder": "搜尋模型",

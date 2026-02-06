@@ -58,6 +58,7 @@ export type DialogAdminProps = {
 }
 
 export function DialogAdmin(props: DialogAdminProps = {}) {
+  debugCheckpoint("admin", "DialogAdmin init")
   const local = useLocal()
   const sync = useSync()
   const dialog = useDialog()
@@ -153,13 +154,6 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     setStep("root")
     setSelectedFamily(null)
     setSelectedProviderID(null)
-  }
-
-  const nextPage = () => {
-    const current = page()
-    const index = pages.indexOf(current)
-    const next = pages[(index + 1) % pages.length]
-    setPageLogged(next, "tab")
   }
 
   onMount(() => {
@@ -1699,7 +1693,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     return "Admin"
   })
 
-  // ---- BACK NAVIGATION ----
+  // ---- NAVIGATION ----
   const goBack = () => {
     // Skip if there's a sub-dialog on top (like View/Edit dialogs)
     // The main dialog (DialogAdmin itself) is NOT counted - only pushed sub-dialogs
@@ -1718,6 +1712,10 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     }
     if (lockBack() && step() === "account_select") return
     if (step() === "root") {
+      if (page() === "providers") {
+        setPageLogged("activities", "left to activities")
+        return
+      }
       debugCheckpoint("admin", "back exit", { step: step() })
       dialog.clear()
       return
@@ -1739,6 +1737,18 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       // Maybe clear to reset state, but keeping it is fine.
       // Actually, account list doesn't depend on selectedProviderID, it depends on selectedFamily.
       return
+    }
+  }
+
+  const goForward = (option: DialogSelectOption<any>) => {
+    if (dialog.stack.length > 1) return
+    if (page() === "activities") {
+      setPageLogged("providers", "right to providers")
+      return
+    }
+    // Deep layers in providers page
+    if (option && option.onSelect) {
+      option.onSelect(dialog)
     }
   }
 
@@ -1784,17 +1794,6 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     >
       <DialogSelect
         keybind={[
-          // Page switcher (Tab key)
-          {
-            keybind: Keybind.parse("tab")[0],
-            title: "(Tab)Next",
-            label: "",
-            disabled: false,
-            onTrigger: () => {
-              debugCheckpoint("admin", "next page", { from: page() })
-              nextPage()
-            },
-          },
           // MODEL STEP KEYBINDS
           {
             keybind: Keybind.parse("f")[0],
@@ -2145,6 +2144,13 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             label: "",
             hidden: false,
             onTrigger: goBack,
+          },
+          {
+            keybind: Keybind.parse("right")[0],
+            title: "(→)Next",
+            label: "",
+            hidden: false,
+            onTrigger: goForward,
           },
           {
             keybind: Keybind.parse("backspace")[0],

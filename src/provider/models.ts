@@ -117,6 +117,30 @@ export namespace ModelsDev {
     const result = await Data()
     const data = result as Record<string, Provider>
 
+    if (!data["gmicloud"]) {
+      data["gmicloud"] = {
+        id: "gmicloud",
+        name: "GMI Cloud",
+        env: ["GMI_API_KEY"],
+        api: "https://api.gmi-serving.com/v1",
+        npm: "@ai-sdk/openai-compatible",
+        models: {
+          "deepseek-ai/DeepSeek-R1": {
+            id: "deepseek-ai/DeepSeek-R1",
+            name: "DeepSeek R1",
+            family: "deepseek",
+            release_date: "2025-01-01",
+            attachment: false,
+            reasoning: true,
+            temperature: true,
+            tool_call: true,
+            limit: { context: 64000, output: 8000 },
+            options: {},
+          },
+        },
+      }
+    }
+
     // Merge snapshot models into result so that locally-added models
     // are always available even when a cached models.json takes priority.
     const snapshotData = await import("./models-snapshot")
