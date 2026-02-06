@@ -248,6 +248,7 @@ const migrateLegacyOpencode = async (entries: TemplateManifestEntry[]) => {
 
 const installTemplates = async (entries: TemplateManifestEntry[]) => {
   // @event_2026-02-07_install: template manifest-driven initialization (XDG targets)
+  // @event_2026-02-07_sync: date-based sync for non-sensitive files, backup before overwrite
   if (entries.length === 0) return
 
   for (const entry of entries) {
@@ -256,13 +257,31 @@ const installTemplates = async (entries: TemplateManifestEntry[]) => {
     const targetRoot = resolveTargetDir(entry.target ?? "config")
     const dest = path.join(targetRoot, relativePath)
     if (!(await Bun.file(src).exists())) continue
-    if (await Bun.file(dest).exists()) continue
+
+    const isSensitive = entry.sensitive || TEMPLATE_SENSITIVE_FILES.has(path.basename(relativePath))
+    const destExists = await Bun.file(dest).exists()
+
+    if (destExists) {
+      // 敏感檔案：永不覆蓋
+      if (isSensitive) continue
+
+      // 非敏感檔案：比較 mtime，源較新才覆蓋
+      const srcStat = await fsPromises.stat(src)
+      const destStat = await fsPromises.stat(dest)
+      if (srcStat.mtime <= destStat.mtime) continue
+
+      // 覆蓋前備份
+      const backupPath = dest + ".bak"
+      await fsPromises.copyFile(dest, backupPath)
+      console.log(`已備份 ${relativePath} 到 ${backupPath}`)
+    }
+
     ensureDir(path.dirname(dest))
     await Bun.write(dest, Bun.file(src))
-    if (entry.sensitive || TEMPLATE_SENSITIVE_FILES.has(path.basename(relativePath))) {
+    if (isSensitive) {
       await fsPromises.chmod(dest, 0o600)
     }
-    console.log(`初始化設定檔 ${relativePath} 到 ${dest}`)
+    console.log(`${destExists ? "已更新" : "初始化"}設定檔 ${relativePath} 到 ${dest}`)
   }
 }
 
