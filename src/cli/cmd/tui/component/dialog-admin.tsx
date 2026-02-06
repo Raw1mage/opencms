@@ -816,17 +816,36 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     const favoritesSet = new Set(favorites.map((item) => `${item.providerId}:${item.modelID}`))
     const modelEntries = new Map<string, { providerId: string; modelId: string }>()
     const providerIds = Object.keys(providerMap).sort((a, b) => a.localeCompare(b))
+
+    // @event_2026-02-06:rotation_unify - Check which providers have quota data
+    const quotaGroupsData = quotaGroups()
+    const providersWithQuota = new Set<string>()
+    if (quotaGroupsData) {
+      for (const accountId of Object.keys(quotaGroupsData)) {
+        // Find which provider this account belongs to
+        for (const [pid, providerData] of Object.entries(accountMap)) {
+          if (providerData?.accounts?.[accountId]) {
+            providersWithQuota.add(pid)
+          }
+        }
+      }
+    }
+
     for (const providerId of providerIds) {
       const provider = providerMap[providerId]
       if (!provider) continue
       const models = Object.values(provider.models)
+      const providerFamily = family(providerId)
+      // @event_2026-02-06:rotation_unify - Also include models from providers with quota data
+      const hasQuotaData = providersWithQuota.has(providerId) || (providerFamily && providersWithQuota.has(providerFamily))
       for (const model of models) {
         const key = `${providerId}:${model.id}`
         if (
           favoritesSet.has(key) ||
           modelLimitKeys.has(key) ||
           snapshot2D.has(key) ||
-          providerLimitProviders.has(providerId)
+          providerLimitProviders.has(providerId) ||
+          hasQuotaData
         ) {
           modelEntries.set(key, { providerId, modelId: model.id })
         }
@@ -970,11 +989,12 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
           continue
         }
 
-        if (state2d && state2d.available) {
+        // @event_2026-02-06:rotation_unify - Show quota for all models with quota data
+        // Previously required state2d.available, now shows quota regardless of rate limit history
+        const quotaFooter = formatQuotaFooter(accountId, providerId, modelId, modelDisplayName, fallbackFree, false, 0)
+        if (quotaFooter || (state2d && state2d.available)) {
           ready += 1
-          const readyFooter =
-            (formatQuotaFooter(accountId, providerId, modelId, modelDisplayName, fallbackFree, false, 0) ?? "✓ Ready") +
-            rowSuffix
+          const readyFooter = (quotaFooter ?? "✓ Ready") + rowSuffix
           items.push({
             value: `${accountId}:${providerId}:${modelId}`,
             title: `${titleProviderCol} ${titleModelCol} ${branchColValue}${accountCol}  ${readyFooter}`,
