@@ -21,11 +21,11 @@
 
 - [x] 重構 `global-sync.tsx` 並拆分至 `context/global-sync/`
 - [x] 建立 `components/prompt-input/` 目錄
-- [x] 拆分 `prompt-input.tsx` 的 `history`, `attachments`, `submit`, `editor-dom` 邏輯 (文件已建立)
+- [x] 拆分 `prompt-input.tsx` 的 `history`, `attachments`, `submit`, `editor-dom`, `slash-popover`, `context-items`, `image-attachments` 邏輯
 - [x] 將 `prompt-input.tsx` 切換至新模組並移除冗餘代碼
-- [ ] 建立 `pages/session/` 目錄
-- [ ] 拆分 `pages/session.tsx` 的 `file-tabs`, `terminal-panel`, `message-timeline` 邏輯
-- [ ] 驗證全專案 Typecheck 通過
+- [x] 建立 `pages/session/` 目錄
+- [x] 拆分 `pages/session/index.tsx` 的子組件與 Hooks (`scroll-spy`, `message-gesture`, `use-session-hash-scroll`, `use-session-backfill`, `use-session-handoff`, `mobile-tabs`, `side-panel`)
+- [x] 驗證全專案 Typecheck 通過 & E2E 核心測試 (`prompt`, `context`, `session`) 通過
 
 **待解問題** -
 
