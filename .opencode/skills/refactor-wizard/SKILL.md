@@ -1,9 +1,9 @@
 ---
-name: refactor-from-dev
+name: refactor-wizard
 description: Interactive Merge Wizard to safely merge origin/dev into cms, handling architectural divergence (3-way split, multi-account, admin panel).
 ---
 
-# Interactive Merge Wizard (refactor-from-dev)
+# Interactive Merge Wizard (refactor-wizard)
 
 ## Description
 
@@ -15,6 +15,10 @@ It guides you through analyzing divergence, planning the merge strategy for each
 2.  **Multi-account Support**.
 3.  **Rotation3D**.
 4.  **Admin Panel & TUI** (`src/cli/cmd/admin.ts`, `src/cli/cmd/tui/`).
+
+**Key Principle**: The `antigravity` and `gemini-cli` plugins are strictly for **OAuth Client Simulation**. Internal account switching or rate limiting features within the plugins should be discarded in favor of CMS's global `Account` and `Rotation3D` modules.
+
+**Language Requirement**: All interactions with the user must be in **Traditional Chinese (繁體中文)**.
 
 ## Workflow (Strict Agent Workflow)
 
@@ -33,10 +37,13 @@ Follow the `agent-workflow` state machine:
 
 - **Goal**: Determine the strategy for each divergent commit.
 - **Action**:
-  - **Interactive Analysis**: Engage the user in a dialogue. Ask questions based on the templates in `references/merge_wizard.md`.
+  - **Deep Analysis**: For High Risk items, perform a deep code analysis explaining *why* the change matters to CMS.
+  - **Risk Assessment**: **NEW**: Include a risk assessment for proposed actions (potential side effects, API breaks, etc.).
+  - **Interactive Analysis**: Engage the user in a dialogue using `mcp_question` (in Traditional Chinese).
   - Prioritize HIGH risk items (critical paths).
   - Discuss MEDIUM risk items (source code).
   - Batch LOW risk items.
+  - **Decision Logic**: For Plugin updates, keep OAuth/Token logic, discard Account Manager logic.
 - **Output**: Create a `docs/events/refactor_plan_YYYYMMDD.md` file detailing the agreed-upon actions.
 
 ### 3. WAITING_APPROVAL
@@ -63,8 +70,9 @@ Modifications to these areas require **manual porting** and **high scrutiny**:
 - `src/session/llm.ts` (Rotation3D)
 - `src/cli/cmd/admin.ts` (Admin Panel entry point)
 - `src/cli/cmd/tui/` (Text User Interface components)
+- `src/plugin/antigravity/` & `src/plugin/gemini-cli/` (Internal Account Managers should NOT override global Accounts)
 
 ## Tools & References
 
 - `scripts/analyze_divergence.py`: Generates the divergence report and JSON data.
-- `references/merge_wizard.md`: Contains the interactive script, question templates, and plan format.
+- `references/merge_wizard.md`: Contains the interactive script (in Traditional Chinese), question templates, and plan format.
