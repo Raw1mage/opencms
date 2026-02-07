@@ -330,6 +330,7 @@ export async function buildFallbackCandidates(
   const { Account } = await import("./index")
   const { Provider } = await import("../provider/provider")
   const { Global } = await import("../global")
+  const { getOpenAIQuotas } = await import("./openai_quota")
   const path = await import("path")
 
   const candidates: FallbackCandidate[] = []
@@ -341,6 +342,13 @@ export async function buildFallbackCandidates(
     providers = await Provider.list()
   } catch (e) {
     log.warn("Failed to list providers", { error: e })
+  }
+
+  let openaiQuotas: any = {}
+  try {
+    openaiQuotas = await getOpenAIQuotas()
+  } catch (e) {
+    log.warn("Failed to get OpenAI quotas for fallback", { error: e })
   }
 
   // Load favorites/hidden sets for filtering
@@ -368,10 +376,21 @@ export async function buildFallbackCandidates(
   // Helper to enrich candidate with capabilities
   const enrich = (vector: ModelVector, reason: FallbackCandidate["reason"]): FallbackCandidate => {
     const model = providers[vector.providerId]?.models?.[vector.modelID]
+
+    let isQuotaLimited = false
+    if (vector.providerId === "openai") {
+      const quota = openaiQuotas[vector.accountId]
+      if (quota) {
+        if (quota.hourlyRemaining <= 0 || quota.weeklyRemaining <= 0) {
+          isQuotaLimited = true
+        }
+      }
+    }
+
     return {
       ...vector,
       healthScore: healthTracker.getScore(vector.accountId),
-      isRateLimited: rateLimitTracker.isRateLimited(vector.accountId, vector.providerId, vector.modelID),
+      isRateLimited: rateLimitTracker.isRateLimited(vector.accountId, vector.providerId, vector.modelID) || isQuotaLimited,
       waitTimeMs: rateLimitTracker.getWaitTime(vector.accountId, vector.providerId, vector.modelID),
       priority: 0,
       reason,

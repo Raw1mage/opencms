@@ -91,9 +91,9 @@ export function getCapabilities(provider: Provider.Info, auth?: Auth.Info): Prov
   // Antigravity: Google AI via Antigravity OAuth
   if (id.includes("antigravity")) {
     return {
-      useInstructionsOption: true,
+      useInstructionsOption: false,
       systemMessageRole: "user",
-      skipDefaultSystemPrompt: true,
+      skipDefaultSystemPrompt: false,
       skipMaxOutputTokens: false,
       requiresDummyToolForHistory: false,
       authType: "subscription",
