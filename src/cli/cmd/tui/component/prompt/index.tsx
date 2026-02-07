@@ -377,13 +377,17 @@ export function Prompt(props: PromptProps) {
   })
 
   // Sync model/variant from last assistant message (rotation3d fallback)
-  let syncedAssistantMessageID: string | undefined
+  // Track both message ID and model to detect fallback updates within same message
+  let syncedAssistantMessageKey: string | undefined
   createEffect(() => {
     const sessionID = props.sessionID
     const msg = lastAssistantMessage()
     if (!sessionID || !msg) return
-    if (msg.id === syncedAssistantMessageID) return
-    syncedAssistantMessageID = msg.id
+
+    // Use composite key to detect both new messages AND model changes within same message
+    const messageKey = `${msg.id}:${msg.providerId}:${msg.modelID}`
+    if (messageKey === syncedAssistantMessageKey) return
+    syncedAssistantMessageKey = messageKey
 
     const isPrimaryAgent = local.agent.list().some((x) => x.name === msg.agent)
     if (msg.agent && !isPrimaryAgent) return
@@ -392,7 +396,8 @@ export function Prompt(props: PromptProps) {
       const current = local.model.current()
       const same = current && current.providerId === msg.providerId && current.modelID === msg.modelID
       if (!same) {
-        local.model.set({ providerId: msg.providerId, modelID: msg.modelID }, { skipValidation: true, announce: false })
+        // recent: true persists the fallback model so it's used on next startup
+        local.model.set({ providerId: msg.providerId, modelID: msg.modelID }, { skipValidation: true, announce: false, recent: true })
       }
     }
   })

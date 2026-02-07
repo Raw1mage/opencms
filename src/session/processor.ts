@@ -482,6 +482,8 @@ export namespace SessionProcessor {
                   input.model = fallback
                   input.assistantMessage.modelID = fallback.id
                   input.assistantMessage.providerId = fallback.providerId
+                  // Persist the updated modelID immediately so TUI can display the correct model
+                  await Session.updateMessage(input.assistantMessage)
                   attempt = 0
                   await new Promise((resolve) => setTimeout(resolve, 100))
                   continue
@@ -520,6 +522,8 @@ export namespace SessionProcessor {
                   input.model = fallback
                   input.assistantMessage.modelID = fallback.id
                   input.assistantMessage.providerId = fallback.providerId
+                  // Persist the updated modelID immediately so TUI can display the correct model
+                  await Session.updateMessage(input.assistantMessage)
                   attempt = 0
                   await new Promise((resolve) => setTimeout(resolve, 100))
                   continue
