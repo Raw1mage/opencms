@@ -23,8 +23,15 @@ function isWsl(): boolean {
 
 function hasWslInterop(): boolean {
   // Some environments expose WSL-ish env vars but cannot execute Windows .exe.
-  // WSL interop registers a binfmt handler under this path.
-  return existsSync("/proc/sys/fs/binfmt_misc/WSLInterop")
+  // Check multiple indicators of working WSL interop:
+  // 1. WSL_INTEROP env var (set when interop socket is available)
+  // 2. binfmt handler path (may not exist on all WSL2 configurations)
+  // 3. powershell.exe is actually in PATH (most reliable)
+  return (
+    !!process.env["WSL_INTEROP"] ||
+    existsSync("/proc/sys/fs/binfmt_misc/WSLInterop") ||
+    Boolean(Bun.which("powershell.exe"))
+  )
 }
 
 function normalizeBase64(input: string): string | undefined {

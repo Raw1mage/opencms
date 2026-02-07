@@ -175,9 +175,9 @@ function resolveConversationKey(requestPayload: Record<string, unknown>): string
 
   const systemSeed = extractTextFromContent(
     (anyPayload.systemInstruction as any)?.parts ??
-    anyPayload.systemInstruction ??
-    anyPayload.system ??
-    anyPayload.system_instruction,
+      anyPayload.systemInstruction ??
+      anyPayload.system ??
+      anyPayload.system_instruction,
   )
   const messageSeed = Array.isArray(anyPayload.messages)
     ? extractConversationSeedFromMessages(anyPayload.messages)
@@ -332,7 +332,7 @@ function isGeminiThinkingPart(part: any): boolean {
 
 const SKIP_THOUGHT_SIGNATURE_SENTINEL = "skip_thought_signature_validator"
 
-function ensureThoughtSignature(part: any, sessionId: string): any {
+function ensureThoughtSignature(part: any, sessionId: string, allowSentinel: boolean = true): any {
   if (!part || typeof part !== "object") {
     return part
   }
@@ -348,7 +348,7 @@ function ensureThoughtSignature(part: any, sessionId: string): any {
       if (cached) {
         return { ...part, thoughtSignature: cached }
       }
-      return { ...part, thoughtSignature: SKIP_THOUGHT_SIGNATURE_SENTINEL }
+      return allowSentinel ? { ...part, thoughtSignature: SKIP_THOUGHT_SIGNATURE_SENTINEL } : part
     }
     return part
   }
@@ -358,7 +358,7 @@ function ensureThoughtSignature(part: any, sessionId: string): any {
     if (cached) {
       return { ...part, signature: cached }
     }
-    return { ...part, signature: SKIP_THOUGHT_SIGNATURE_SENTINEL }
+    return allowSentinel ? { ...part, signature: SKIP_THOUGHT_SIGNATURE_SENTINEL } : part
   }
 
   return part
@@ -380,10 +380,16 @@ function hasSignedThinkingPart(part: any): boolean {
   return false
 }
 
-function ensureThinkingBeforeToolUseInContents(contents: any[], signatureSessionKey: string): any[] {
+function ensureThinkingBeforeToolUseInContents(
+  contents: any[],
+  signatureSessionKey: string,
+  options?: { allowSentinel?: boolean },
+): any[] {
+  const allowSentinel = options?.allowSentinel !== false
   debug("ensureThinkingBeforeToolUseInContents called", {
     contentCount: contents?.length,
     signatureSessionKey,
+    allowSentinel,
   })
 
   return contents.map((content: any, idx: number) => {
@@ -407,7 +413,12 @@ function ensureThinkingBeforeToolUseInContents(contents: any[], signatureSession
       partCount: parts.length,
     })
 
-    const thinkingParts = parts.filter(isGeminiThinkingPart).map((p) => ensureThoughtSignature(p, signatureSessionKey))
+    const thinkingParts = parts
+      .filter(isGeminiThinkingPart)
+      .map((p) => ensureThoughtSignature(p, signatureSessionKey, allowSentinel))
+      // For providers/models where sentinel is not supported (e.g. Claude on Antigravity),
+      // never pass through unsigned thinking blocks.
+      .filter((p) => (allowSentinel ? true : hasSignedThinkingPart(p)))
     const otherParts = parts
       .filter((p) => !isGeminiThinkingPart(p))
       .map((p, partIdx) => {
@@ -418,7 +429,7 @@ function ensureThinkingBeforeToolUseInContents(contents: any[], signatureSession
             functionName: p.functionCall.name,
           })
         }
-        if (p && typeof p === "object" && p.functionCall && !p.thoughtSignature) {
+        if (allowSentinel && p && typeof p === "object" && p.functionCall && !p.thoughtSignature) {
           debug(`Injecting sentinel signature into functionCall contents[${idx}].parts[${partIdx}]`, {
             functionName: p.functionCall.name,
           })
@@ -434,20 +445,28 @@ function ensureThinkingBeforeToolUseInContents(contents: any[], signatureSession
 
     const lastThinking = defaultSignatureStore.get(signatureSessionKey)
     if (!lastThinking) {
-      // If we have an existing thinking part (which ensureThoughtSignature likely marked with sentinel), use it.
-      if (thinkingParts.length > 0) {
-        log.debug("Using sentinel signature for existing thinking (cache miss)", { signatureSessionKey })
-        return { ...content, parts: [...thinkingParts, ...otherParts] }
+      // For models that support sentinel (Gemini), we can preserve existing thinking parts
+      // and inject sentinel thinking blocks on cache miss.
+      if (allowSentinel) {
+        // If we have an existing thinking part (which ensureThoughtSignature likely marked with sentinel), use it.
+        if (thinkingParts.length > 0) {
+          log.debug("Using sentinel signature for existing thinking (cache miss)", { signatureSessionKey })
+          return { ...content, parts: [...thinkingParts, ...otherParts] }
+        }
+
+        // Otherwise, inject a new sentinel thinking block
+        log.debug("Injecting sentinel signature (cache miss)", { signatureSessionKey })
+        const injected = {
+          thought: true,
+          text: "Thinking Process",
+          thoughtSignature: SKIP_THOUGHT_SIGNATURE_SENTINEL,
+        }
+        return { ...content, parts: [injected, ...otherParts] }
       }
 
-      // Otherwise, inject a new sentinel thinking block
-      log.debug("Injecting sentinel signature (cache miss)", { signatureSessionKey })
-      const injected = {
-        thought: true,
-        text: "Thinking Process",
-        thoughtSignature: SKIP_THOUGHT_SIGNATURE_SENTINEL,
-      }
-      return { ...content, parts: [injected, ...otherParts] }
+      // Sentinel is not supported (e.g. Claude). Never inject fake signatures.
+      // Just drop thinking blocks and continue with tool use parts.
+      return { ...content, parts: otherParts }
     }
 
     const injected = {
@@ -531,7 +550,12 @@ function hasSignedThinkingInMessages(messages: any[]): boolean {
   })
 }
 
-function ensureThinkingBeforeToolUseInMessages(messages: any[], signatureSessionKey: string): any[] {
+function ensureThinkingBeforeToolUseInMessages(
+  messages: any[],
+  signatureSessionKey: string,
+  options?: { allowSentinel?: boolean },
+): any[] {
+  const allowSentinel = options?.allowSentinel !== false
   return messages.map((message: any) => {
     if (!message || typeof message !== "object" || !Array.isArray(message.content)) {
       return message
@@ -556,7 +580,7 @@ function ensureThinkingBeforeToolUseInMessages(messages: any[], signatureSession
     const otherBlocks = blocks
       .filter((b) => !(b && typeof b === "object" && (b.type === "thinking" || b.type === "redacted_thinking")))
       .map((b) => {
-        if (b && typeof b === "object" && b.functionCall && !b.thoughtSignature) {
+        if (allowSentinel && b && typeof b === "object" && b.functionCall && !b.thoughtSignature) {
           return { ...b, thoughtSignature: SKIP_THOUGHT_SIGNATURE_SENTINEL }
         }
         return b
@@ -573,13 +597,18 @@ function ensureThinkingBeforeToolUseInMessages(messages: any[], signatureSession
     if (!lastThinking) {
       const existingThinking = thinkingBlocks[0]
       const thinkingText = existingThinking?.thinking || existingThinking?.text || ""
-      log.debug("Injecting sentinel signature (cache miss)", { signatureSessionKey })
-      const sentinelBlock = {
-        type: "thinking",
-        thinking: thinkingText,
-        signature: SKIP_THOUGHT_SIGNATURE,
+      if (allowSentinel) {
+        log.debug("Injecting sentinel signature (cache miss)", { signatureSessionKey })
+        const sentinelBlock = {
+          type: "thinking",
+          thinking: thinkingText,
+          signature: SKIP_THOUGHT_SIGNATURE,
+        }
+        return { ...message, content: [sentinelBlock, ...otherBlocks] }
       }
-      return { ...message, content: [sentinelBlock, ...otherBlocks] }
+
+      // Sentinel is not supported (e.g. Claude). Never inject fake signatures.
+      return { ...message, content: otherBlocks }
     }
 
     const injected = {
@@ -751,27 +780,53 @@ export function prepareAntigravityRequest(
         }
 
         for (const req of requestObjects) {
-          ; (req as any).sessionId = signatureSessionKey
+          ;(req as any).sessionId = signatureSessionKey
           stripInjectedDebugFromRequestPayload(req as Record<string, unknown>)
 
           if (isClaude) {
             sanitizeCrossModelPayloadInPlace(req, { targetModel: effectiveModel })
             deepFilterThinkingBlocks(req, signatureSessionKey, getCachedSignature, true)
             if (isClaudeThinking && Array.isArray((req as any).contents)) {
-              ; (req as any).contents = ensureThinkingBeforeToolUseInContents((req as any).contents, signatureSessionKey)
+              // Claude thinking signatures must be preserved exactly; sentinel is not supported.
+              ;(req as any).contents = ensureThinkingBeforeToolUseInContents(
+                (req as any).contents,
+                signatureSessionKey,
+                {
+                  allowSentinel: false,
+                },
+              )
             }
             if (isClaudeThinking && Array.isArray((req as any).messages)) {
-              ; (req as any).messages = ensureThinkingBeforeToolUseInMessages((req as any).messages, signatureSessionKey)
+              // Claude thinking signatures must be preserved exactly; sentinel is not supported.
+              ;(req as any).messages = ensureThinkingBeforeToolUseInMessages(
+                (req as any).messages,
+                signatureSessionKey,
+                {
+                  allowSentinel: false,
+                },
+              )
             }
             applyToolPairingFixes(req as Record<string, unknown>, true)
           } else if (isGemini3Model(effectiveModel)) {
             // EXPERIMENTAL: Apply thinking signature enforcement for Gemini 3 models
             deepFilterThinkingBlocks(req, signatureSessionKey, getCachedSignature, true)
             if (Array.isArray((req as any).contents)) {
-              ; (req as any).contents = ensureThinkingBeforeToolUseInContents((req as any).contents, signatureSessionKey)
+              ;(req as any).contents = ensureThinkingBeforeToolUseInContents(
+                (req as any).contents,
+                signatureSessionKey,
+                {
+                  allowSentinel: true,
+                },
+              )
             }
             if (Array.isArray((req as any).messages)) {
-              ; (req as any).messages = ensureThinkingBeforeToolUseInMessages((req as any).messages, signatureSessionKey)
+              ;(req as any).messages = ensureThinkingBeforeToolUseInMessages(
+                (req as any).messages,
+                signatureSessionKey,
+                {
+                  allowSentinel: true,
+                },
+              )
             }
           }
         }
@@ -848,15 +903,17 @@ export function prepareAntigravityRequest(
           sanitizeCrossModelPayloadInPlace(requestPayload, { targetModel: effectiveModel })
           deepFilterThinkingBlocks(requestPayload, signatureSessionKey, getCachedSignature, true)
           if (isClaudeThinking && Array.isArray((requestPayload as any).contents)) {
-            ; (requestPayload as any).contents = ensureThinkingBeforeToolUseInContents(
+            ;(requestPayload as any).contents = ensureThinkingBeforeToolUseInContents(
               (requestPayload as any).contents,
               signatureSessionKey,
+              { allowSentinel: false },
             )
           }
           if (isClaudeThinking && Array.isArray((requestPayload as any).messages)) {
-            ; (requestPayload as any).messages = ensureThinkingBeforeToolUseInMessages(
+            ;(requestPayload as any).messages = ensureThinkingBeforeToolUseInMessages(
               (requestPayload as any).messages,
               signatureSessionKey,
+              { allowSentinel: false },
             )
           }
           applyToolPairingFixes(requestPayload, true)
@@ -864,15 +921,17 @@ export function prepareAntigravityRequest(
           // EXPERIMENTAL: Apply thinking signature enforcement for Gemini 3 models
           deepFilterThinkingBlocks(requestPayload, signatureSessionKey, getCachedSignature, true)
           if (Array.isArray((requestPayload as any).contents)) {
-            ; (requestPayload as any).contents = ensureThinkingBeforeToolUseInContents(
+            ;(requestPayload as any).contents = ensureThinkingBeforeToolUseInContents(
               (requestPayload as any).contents,
               signatureSessionKey,
+              { allowSentinel: true },
             )
           }
           if (Array.isArray((requestPayload as any).messages)) {
-            ; (requestPayload as any).messages = ensureThinkingBeforeToolUseInMessages(
+            ;(requestPayload as any).messages = ensureThinkingBeforeToolUseInMessages(
               (requestPayload as any).messages,
               signatureSessionKey,
+              { allowSentinel: true },
             )
           }
         }
@@ -937,7 +996,7 @@ export function prepareAntigravityRequest(
             // 2. Model is capable OR user explicitly requested it via tier config
             normalizedThinking:
               !options?.forceDisableThinking &&
-                (isThinkingCapableModel(effectiveModel) || tierThinkingBudget || tierThinkingLevel)
+              (isThinkingCapableModel(effectiveModel) || tierThinkingBudget || tierThinkingLevel)
                 ? normalizedThinking
                 : undefined,
             googleSearch: options?.googleSearch,
@@ -1002,7 +1061,7 @@ export function prepareAntigravityRequest(
         })
         if (wrappedBody.request && typeof wrappedBody.request === "object") {
           sessionId = signatureSessionKey
-            ; (wrappedBody.request as any).sessionId = signatureSessionKey
+          ;(wrappedBody.request as any).sessionId = signatureSessionKey
         }
 
         body = JSON.stringify(wrappedBody)
@@ -1197,9 +1256,9 @@ export async function transformAntigravityResponse(
         const errorType = detectErrorType(errorBody.error.message || "")
         if (errorType === "thinking_block_order") {
           const recoveryError = new Error("THINKING_RECOVERY_NEEDED")
-            ; (recoveryError as any).recoveryType = errorType
-            ; (recoveryError as any).originalError = errorBody
-            ; (recoveryError as any).debugInfo = debugInfo
+          ;(recoveryError as any).recoveryType = errorType
+          ;(recoveryError as any).originalError = errorBody
+          ;(recoveryError as any).debugInfo = debugInfo
           throw recoveryError
         }
 

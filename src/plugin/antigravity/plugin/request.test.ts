@@ -12,6 +12,8 @@ const {
   isGeminiToolUsePart,
   isGeminiThinkingPart,
   ensureThoughtSignature,
+  ensureThinkingBeforeToolUseInContents,
+  ensureThinkingBeforeToolUseInMessages,
   hasSignedThinkingPart,
   hasToolUseInContents,
   hasSignedThinkingInContents,
@@ -231,6 +233,12 @@ describe("request.ts", () => {
       expect(result.thoughtSignature).toBe("skip_thought_signature_validator")
     })
 
+    it("does not add sentinel when allowSentinel=false", () => {
+      const part = { thought: true, text: "thinking..." }
+      const result = ensureThoughtSignature(part, "no-cache-session", false)
+      expect(result.thoughtSignature).toBeUndefined()
+    })
+
     it("preserves existing thoughtSignature", () => {
       const existingSignature = "a".repeat(MIN_SIGNATURE_LENGTH + 10)
       const part = { thought: true, text: "thinking...", thoughtSignature: existingSignature }
@@ -252,6 +260,31 @@ describe("request.ts", () => {
     it("returns non-object inputs unchanged", () => {
       expect(ensureThoughtSignature("string", "key")).toBe("string")
       expect(ensureThoughtSignature(123, "key")).toBe(123)
+    })
+  })
+
+  describe("ensureThinkingBeforeToolUseInContents", () => {
+    it("does not inject sentinel thinking blocks for Claude (allowSentinel=false)", () => {
+      const contents = [{ role: "model", parts: [{ functionCall: { name: "tool" } }] }]
+      const out = ensureThinkingBeforeToolUseInContents(contents, "no-cache-session", { allowSentinel: false })
+
+      expect(Array.isArray(out[0].parts)).toBe(true)
+      // No thinking parts injected
+      expect(
+        out[0].parts.some((p: any) => p?.thought === true || p?.type === "thinking" || p?.type === "reasoning"),
+      ).toBe(false)
+      // No sentinel thoughtSignature injected into functionCall
+      expect(out[0].parts[0].thoughtSignature).toBeUndefined()
+    })
+  })
+
+  describe("ensureThinkingBeforeToolUseInMessages", () => {
+    it("does not inject sentinel thinking blocks for Claude (allowSentinel=false)", () => {
+      const messages = [{ role: "assistant", content: [{ type: "tool_use", id: "t1" }] }]
+      const out = ensureThinkingBeforeToolUseInMessages(messages, "no-cache-session", { allowSentinel: false })
+
+      expect(Array.isArray(out[0].content)).toBe(true)
+      expect(out[0].content.some((b: any) => b?.type === "thinking" || b?.type === "redacted_thinking")).toBe(false)
     })
   })
 

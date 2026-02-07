@@ -1,3 +1,5 @@
+- [2026-02-07] [修復 Antigravity 400 錯誤不觸發 Rotation 問題](events/event_2026-02-07_fix-antigravity-400-rotation.md)
+- [2026-02-07] [修復 Antigravity Claude Thinking `Invalid signature` (Tool Execution Failed)](events/event_2026-02-07_fix-antigravity-claude-thinking-signature.md)
 - [2026-02-07] [前端架構重構與優化 (Phase 7-11 完成)](events/event_2026-02-07_frontend_refactor_next.md)
 - [2026-02-06] [修復 Admin Panel UI 冗餘與版本號一致性](events/event_2026-02-06_fix-admin-ui.md)
 - [2026-02-06] [修改建置與安裝流程以符合 XDG 規範](events/event_2026-02-06_xdg-install.md)
