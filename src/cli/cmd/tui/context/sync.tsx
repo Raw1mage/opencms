@@ -30,6 +30,7 @@ import { useArgs } from "./args"
 import { batch, onMount } from "solid-js"
 import { Log } from "@/util/log"
 import type { Path } from "@opencode-ai/sdk"
+import { TuiEvent } from "../event"
 
 export const { use: useSync, provider: SyncProvider } = createSimpleContext({
   name: "Sync",
@@ -419,6 +420,27 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           setStore("error", message)
         })
     }
+
+    async function refreshProviders() {
+      const [providersResult, providerListResult] = await Promise.all([
+        sdk.client.config.providers({}),
+        sdk.client.provider.list({}),
+      ])
+      const providers = providersResult.data
+      const providerList = providerListResult.data
+      if (!providers || !providerList) return
+      batch(() => {
+        setStore("provider", reconcile(providers.providers))
+        setStore("provider_default", reconcile(providers.default))
+        setStore("provider_next", reconcile(providerList))
+      })
+    }
+
+    sdk.event.on(TuiEvent.ProviderRefresh.type, () => {
+      refreshProviders().catch((e) => {
+        Log.Default.error("provider refresh failed", { error: e })
+      })
+    })
 
     const pollMonitor = () => {
       sdk.client.session

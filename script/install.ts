@@ -333,6 +333,10 @@ const installBinary = () => {
   console.log(`將 ${path.basename(builtBinaryPath)} 安裝到 ${destination}`)
 
   try {
+    // 先刪除目標檔案以避免 ETXTBSY（binary 正在執行時無法覆寫，但可以刪除）
+    if (fs.existsSync(destination)) {
+      fs.unlinkSync(destination)
+    }
     fs.copyFileSync(builtBinaryPath, destination)
     fs.chmodSync(destination, 0o755)
   } catch (error) {

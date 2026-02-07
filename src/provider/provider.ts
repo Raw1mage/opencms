@@ -891,7 +891,17 @@ export namespace Provider {
     }
   }
 
-  const state = Instance.state(async () => {
+  // Use simple cache instead of Instance.state to avoid directory-key issues during reset
+  let stateCache: ReturnType<typeof initState> | undefined
+  const state = () => {
+    if (!stateCache) stateCache = initState()
+    return stateCache
+  }
+  state.reset = () => {
+    stateCache = undefined
+  }
+
+  async function initState() {
     debugCheckpoint("provider", "state init start")
     using _ = log.time("state")
     const config = await Config.get()
@@ -1874,7 +1884,7 @@ export namespace Provider {
       sdk,
       modelLoaders,
     }
-  })
+  }
 
   export async function list() {
     await state() // Ensure plugins and loaders are initialized
@@ -1887,6 +1897,11 @@ export namespace Provider {
     })
 
     return state().then((state) => state.providers)
+  }
+
+  export function reset() {
+    state.reset()
+    log.info("provider state reset")
   }
 
   export async function addDynamicModels(discovered: any[]) {

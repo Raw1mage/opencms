@@ -1,12 +1,15 @@
 import { BusEvent } from "@/bus/bus-event"
+import { Bus } from "@/bus"
 import z from "zod"
 import { Config } from "../config/config"
 import { Instance } from "../project/instance"
-import { Installation } from "../installation"
 import { Identifier } from "../id/id"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 import { MCP } from "../mcp"
+import { ModelsDev } from "../provider/models"
+import { Provider } from "../provider/provider"
+import { TuiEvent } from "../cli/cmd/tui/event"
 
 export namespace Command {
   export const Event = {
@@ -61,6 +64,7 @@ export namespace Command {
   export const Default = {
     INIT: "init",
     REVIEW: "review",
+    UPDATE_MODELS: "update_models",
   } as const
 
   const state = Instance.state(async () => {
@@ -85,6 +89,28 @@ export namespace Command {
         },
         subtask: true,
         hints: hints(PROMPT_REVIEW),
+      },
+      [Default.UPDATE_MODELS]: {
+        name: Default.UPDATE_MODELS,
+        description: "fetch latest model definitions from models.dev",
+        source: "command",
+        template: "",
+        hints: [],
+        handler: async () => {
+          await ModelsDev.refresh()
+          Provider.reset()
+          await Bus.publish(TuiEvent.ProviderRefresh, {})
+          const data = await ModelsDev.get()
+          const providerCount = Object.keys(data).length
+          const modelCount = Object.values(data).reduce(
+            (acc, p) => acc + Object.keys(p.models).length,
+            0,
+          )
+          return {
+            output: `✓ Models updated — ${providerCount} providers / ${modelCount} models`,
+            title: "Models Updated",
+          }
+        },
       },
     }
 
