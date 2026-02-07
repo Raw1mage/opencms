@@ -1369,13 +1369,13 @@ function filterBase64Content(text: string): string {
     .replace(/iVBORw[A-Za-z0-9+/=\s]{50,}/g, "[PNG image data]")
     // Filter JPEG base64 (starts with /9j/)
     .replace(/\/9j\/[A-Za-z0-9+/=\s]{50,}/g, "[JPEG image data]")
-    // Filter lines that are mostly base64 (>80% base64 chars, >50 chars)
+    // Filter lines that are mostly base64 (>98% base64 chars, >300 chars)
     .split("\n")
     .map((line) => {
-      if (line.length < 50) return line
+      if (line.length < 300) return line
       const base64Chars = (line.match(/[A-Za-z0-9+/=]/g) || []).length
       const ratio = base64Chars / line.length
-      if (ratio > 0.8) return "[base64 data]"
+      if (ratio > 0.98) return "[base64 data]"
       return line
     })
     .join("\n")
