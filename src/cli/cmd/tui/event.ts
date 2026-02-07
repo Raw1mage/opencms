@@ -3,6 +3,7 @@ import { Bus } from "@/bus"
 import z from "zod"
 
 export const TuiEvent = {
+  ProviderRefresh: BusEvent.define("tui.provider.refresh", z.object({})),
   PromptAppend: BusEvent.define("tui.prompt.append", z.object({ text: z.string() })),
   CommandExecute: BusEvent.define(
     "tui.command.execute",
