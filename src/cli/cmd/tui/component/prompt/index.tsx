@@ -436,6 +436,23 @@ export function Prompt(props: PromptProps) {
               mime: content.mime,
               content: content.data,
             })
+            toast.show({ message: "Image pasted from clipboard", variant: "success" })
+          } else {
+            // Text fallback for /paste command
+            input.insertText(content?.data ?? "")
+            setTimeout(() => {
+              if (!input || input.isDestroyed) return
+              input.getLayoutNode().markDirty()
+              renderer.requestRender()
+            }, 0)
+            if (!content) {
+              toast.show({
+                message: "Clipboard is empty or image not accessible (check OPENCODE_CLIPBOARD_IMAGE_PATH)",
+                variant: "warning",
+              })
+            } else {
+              toast.show({ message: "Text pasted from clipboard", variant: "success" })
+            }
           }
         },
       },
@@ -1065,6 +1082,7 @@ export function Prompt(props: PromptProps) {
               }}
               keyBindings={textareaKeybindings()}
               onKeyDown={async (e) => {
+                debugCheckpoint("tui.prompt", "onKeyDown:any", { key: e.name, ctrl: e.ctrl, meta: e.meta, shift: e.shift })
                 if (props.disabled) {
                   e.preventDefault()
                   return
@@ -1074,7 +1092,13 @@ export function Prompt(props: PromptProps) {
                 // through bracketed paste, so we need to intercept the keypress and
                 // directly read from clipboard before the terminal handles it
                 if (keybind.match("input_paste", e)) {
+                  debugCheckpoint("tui.prompt", "onKeyDown:input_paste", { key: e.name, ctrl: e.ctrl, meta: e.meta })
                   const content = await Clipboard.read()
+                  debugCheckpoint("tui.prompt", "onKeyDown:input_paste:read", {
+                    hasContent: !!content,
+                    mime: content?.mime,
+                    dataLength: content?.data?.length,
+                  })
                   if (content?.mime.startsWith("image/")) {
                     e.preventDefault()
                     await pasteImage({
@@ -1082,6 +1106,7 @@ export function Prompt(props: PromptProps) {
                       mime: content.mime,
                       content: content.data,
                     })
+                    toast.show({ message: "Image pasted from clipboard", variant: "success" })
                     return
                   }
                   // If no image, let the default paste behavior continue
@@ -1144,6 +1169,12 @@ export function Prompt(props: PromptProps) {
               }}
               onSubmit={submit}
               onPaste={async (event: PasteEvent) => {
+                const text = event.text ?? ""
+                debugCheckpoint("tui.prompt", "onPaste", {
+                  textLength: text.length,
+                  // Help diagnose IDE/terminal behavior: some environments paste a temp filepath for images.
+                  textSample: text.length <= 200 ? text : text.slice(0, 200),
+                })
                 if (props.disabled) {
                   event.preventDefault()
                   return

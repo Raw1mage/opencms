@@ -6,6 +6,26 @@ import { debugCheckpoint } from "../../../../util/debug"
 import { tmpdir } from "os"
 import path from "path"
 import { stat } from "fs/promises"
+import { existsSync } from "fs"
+
+function isWsl(): boolean {
+  // Bun/Node on WSL reports platform() === "linux".
+  // release() typically contains "microsoft" (e.g. "...microsoft-standard-WSL2+").
+  const r = release().toLowerCase()
+  return (
+    !!process.env["WSL_INTEROP"] ||
+    !!process.env["WSL_DISTRO_NAME"] ||
+    !!process.env["WSLENV"] ||
+    r.includes("microsoft") ||
+    r.includes("wsl")
+  )
+}
+
+function hasWslInterop(): boolean {
+  // Some environments expose WSL-ish env vars but cannot execute Windows .exe.
+  // WSL interop registers a binfmt handler under this path.
+  return existsSync("/proc/sys/fs/binfmt_misc/WSLInterop")
+}
 
 function normalizeBase64(input: string): string | undefined {
   const cleaned = input.replace(/\s+/g, "").trim()
@@ -77,9 +97,19 @@ function parseDataUrl(input: string): { data: string; mime: string } | undefined
 
 async function readRemoteImage(): Promise<Clipboard.Content | undefined> {
   const filepath = process.env["OPENCODE_CLIPBOARD_IMAGE_PATH"]
+  debugCheckpoint("clipboard", "readRemoteImage:check", {
+    hasEnv: !!filepath,
+    filepath,
+  })
+
   if (!filepath) return
 
   const info = await stat(filepath).catch(() => undefined)
+  debugCheckpoint("clipboard", "readRemoteImage:stat", {
+    exists: !!info,
+    size: info?.size,
+    mtime: info?.mtimeMs,
+  })
   if (!info) return
 
   const ttl = Number(process.env["OPENCODE_CLIPBOARD_IMAGE_TTL_MS"] ?? "30000")
@@ -157,28 +187,21 @@ export namespace Clipboard {
       }
     }
 
-    if (os === "win32" || release().includes("WSL")) {
-      const script =
-        "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Add-Type -AssemblyName System.Windows.Forms; $img = [System.Windows.Forms.Clipboard]::GetImage(); if ($img) { $ms = New-Object System.IO.MemoryStream; $img.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png); [System.Convert]::ToBase64String($ms.ToArray()) }"
-      const raw = await $`powershell.exe -NonInteractive -NoProfile -command "${script}"`.nothrow().text()
-      const base64 = raw ? normalizeBase64(raw) : undefined
-      if (base64) {
-        const imageBuffer = Buffer.from(base64, "base64")
-        const mime = detectMimeType(imageBuffer)
-        if (mime) {
-          const data = imageBuffer.toString("base64")
-          debugCheckpoint("clipboard", "read:win32", { mime, dataLength: data.length })
-          return { data, mime }
-        }
-      }
-    }
-
     if (os === "linux") {
       const types = ["image/gif", "image/webp", "image/png", "image/jpeg"]
 
+      const hasWlPaste = Boolean(Bun.which("wl-paste"))
+      const hasXclip = Boolean(Bun.which("xclip"))
+
       // Try Wayland first
       if (process.env["WAYLAND_DISPLAY"]) {
+        if (!hasWlPaste) {
+          debugCheckpoint("clipboard", "read:wayland:missing_wl_paste", {
+            waylandDisplay: process.env["WAYLAND_DISPLAY"],
+          })
+        }
         for (const mime of types) {
+          if (!hasWlPaste) break
           const wayland = await $`wl-paste -t ${mime}`.nothrow().arrayBuffer()
           if (wayland && wayland.byteLength > 0) {
             const data = Buffer.from(wayland).toString("base64")
@@ -189,11 +212,76 @@ export namespace Clipboard {
       }
 
       // Try X11
+      if (!hasXclip) {
+        debugCheckpoint("clipboard", "read:x11:missing_xclip")
+      }
       for (const mime of types) {
+        if (!hasXclip) break
         const x11 = await $`xclip -selection clipboard -t ${mime} -o`.nothrow().arrayBuffer()
         if (x11 && x11.byteLength > 0) {
           const data = Buffer.from(x11).toString("base64")
           debugCheckpoint("clipboard", "read:x11", { mime, dataLength: data.length })
+          return { data, mime }
+        }
+      }
+    }
+
+    // Windows clipboard (only when .exe execution is supported)
+    if (os === "win32" || (isWsl() && hasWslInterop())) {
+      const hasPowerShell = Boolean(Bun.which("powershell.exe"))
+      debugCheckpoint("clipboard", "read:wsl_check", {
+        os,
+        release: release(),
+        hasPowerShell,
+        hasWslInterop: os === "win32" ? undefined : hasWslInterop(),
+      })
+
+      if (hasPowerShell) {
+        // NOTE: Clipboard APIs require STA.
+        const scripts = [
+          {
+            variant: "get-clipboard",
+            script:
+              "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Add-Type -AssemblyName System.Drawing; $img = Get-Clipboard -Format Image -ErrorAction SilentlyContinue; if ($img) { $ms = New-Object System.IO.MemoryStream; $img.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png); [System.Convert]::ToBase64String($ms.ToArray()) }",
+          },
+          {
+            variant: "winforms",
+            script:
+              "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; $img = [System.Windows.Forms.Clipboard]::GetImage(); if ($img) { $ms = New-Object System.IO.MemoryStream; $img.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png); [System.Convert]::ToBase64String($ms.ToArray()) }",
+          },
+        ]
+
+        for (const { variant, script } of scripts) {
+          let result: Awaited<ReturnType<typeof $>>
+          try {
+            result = await $`powershell.exe -NonInteractive -NoProfile -STA -Command ${script}`.nothrow()
+          } catch (error) {
+            debugCheckpoint("clipboard", "read:powershell:spawn_error", {
+              variant,
+              error: String(error),
+            })
+            break
+          }
+
+          const stdout = Buffer.from(result.stdout).toString("utf8")
+          const stderr = Buffer.from(result.stderr).toString("utf8")
+
+          debugCheckpoint("clipboard", "read:powershell", {
+            variant,
+            exitCode: result.exitCode,
+            stdoutLen: stdout.length,
+            stderrLen: stderr.length,
+            stderrSample: stderr.slice(0, 200),
+          })
+
+          const base64 = normalizeBase64(stdout)
+          if (!base64) continue
+          const imageBuffer = Buffer.from(base64, "base64")
+          const mime = detectMimeType(imageBuffer)
+          if (!mime) continue
+
+          const data = imageBuffer.toString("base64")
+          debugCheckpoint("clipboard", "read:win32", { mime, dataLength: data.length })
           return { data, mime }
         }
       }
