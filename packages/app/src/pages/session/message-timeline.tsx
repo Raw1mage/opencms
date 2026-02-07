@@ -2,7 +2,7 @@ import { For, Show, onMount, type Accessor } from "solid-js"
 import { Button } from "@opencode-ai/ui/button"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { Icon } from "@opencode-ai/ui/icon"
-import { SessionTurn } from "@opencode-ai/ui/session-turn"
+import { SessionTurn } from "./components/session-turn"
 import { navMark } from "@/utils/perf"
 import type { UserMessage } from "@opencode-ai/sdk/v2"
 

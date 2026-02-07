@@ -14,9 +14,11 @@ function normalizeBase64(input: string): string | undefined {
   return cleaned
 }
 
-function isPng(buffer: Buffer): boolean {
-  if (buffer.length < 8) return false
-  return (
+function detectMimeType(buffer: Buffer): string | undefined {
+  if (buffer.length < 12) return undefined
+
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
     buffer[0] === 0x89 &&
     buffer[1] === 0x50 &&
     buffer[2] === 0x4e &&
@@ -25,7 +27,42 @@ function isPng(buffer: Buffer): boolean {
     buffer[5] === 0x0a &&
     buffer[6] === 0x1a &&
     buffer[7] === 0x0a
-  )
+  ) {
+    return "image/png"
+  }
+
+  // JPEG: FF D8 FF
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return "image/jpeg"
+  }
+
+  // GIF: GIF87a or GIF89a
+  if (
+    buffer[0] === 0x47 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x38 &&
+    (buffer[4] === 0x37 || buffer[4] === 0x39) &&
+    buffer[5] === 0x61
+  ) {
+    return "image/gif"
+  }
+
+  // WebP: RIFF ... WEBP
+  if (
+    buffer[0] === 0x52 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x46 &&
+    buffer[8] === 0x57 &&
+    buffer[9] === 0x45 &&
+    buffer[10] === 0x42 &&
+    buffer[11] === 0x50
+  ) {
+    return "image/webp"
+  }
+
+  return undefined
 }
 
 function parseDataUrl(input: string): { data: string; mime: string } | undefined {
@@ -50,7 +87,8 @@ async function readRemoteImage(): Promise<Clipboard.Content | undefined> {
 
   const file = Bun.file(filepath)
   const buffer = Buffer.from(await file.arrayBuffer())
-  if (isPng(buffer)) return { data: buffer.toString("base64"), mime: "image/png" }
+  const mime = detectMimeType(buffer)
+  if (mime) return { data: buffer.toString("base64"), mime }
 
   const text = buffer.toString("utf8").trim()
   const dataUrl = parseDataUrl(text)
@@ -59,8 +97,9 @@ async function readRemoteImage(): Promise<Clipboard.Content | undefined> {
   const base64 = normalizeBase64(text)
   if (!base64) return
   const decoded = Buffer.from(base64, "base64")
-  if (!isPng(decoded)) return
-  return { data: decoded.toString("base64"), mime: "image/png" }
+  const decodedMime = detectMimeType(decoded)
+  if (!decodedMime) return
+  return { data: decoded.toString("base64"), mime: decodedMime }
 }
 
 /**
@@ -125,26 +164,38 @@ export namespace Clipboard {
       const base64 = raw ? normalizeBase64(raw) : undefined
       if (base64) {
         const imageBuffer = Buffer.from(base64, "base64")
-        if (isPng(imageBuffer)) {
+        const mime = detectMimeType(imageBuffer)
+        if (mime) {
           const data = imageBuffer.toString("base64")
-          debugCheckpoint("clipboard", "read:win32", { mime: "image/png", dataLength: data.length })
-          return { data, mime: "image/png" }
+          debugCheckpoint("clipboard", "read:win32", { mime, dataLength: data.length })
+          return { data, mime }
         }
       }
     }
 
     if (os === "linux") {
-      const wayland = await $`wl-paste -t image/png`.nothrow().arrayBuffer()
-      if (wayland && wayland.byteLength > 0) {
-        const data = Buffer.from(wayland).toString("base64")
-        debugCheckpoint("clipboard", "read:wayland", { mime: "image/png", dataLength: data.length })
-        return { data, mime: "image/png" }
+      const types = ["image/gif", "image/webp", "image/png", "image/jpeg"]
+
+      // Try Wayland first
+      if (process.env["WAYLAND_DISPLAY"]) {
+        for (const mime of types) {
+          const wayland = await $`wl-paste -t ${mime}`.nothrow().arrayBuffer()
+          if (wayland && wayland.byteLength > 0) {
+            const data = Buffer.from(wayland).toString("base64")
+            debugCheckpoint("clipboard", "read:wayland", { mime, dataLength: data.length })
+            return { data, mime }
+          }
+        }
       }
-      const x11 = await $`xclip -selection clipboard -t image/png -o`.nothrow().arrayBuffer()
-      if (x11 && x11.byteLength > 0) {
-        const data = Buffer.from(x11).toString("base64")
-        debugCheckpoint("clipboard", "read:x11", { mime: "image/png", dataLength: data.length })
-        return { data, mime: "image/png" }
+
+      // Try X11
+      for (const mime of types) {
+        const x11 = await $`xclip -selection clipboard -t ${mime} -o`.nothrow().arrayBuffer()
+        if (x11 && x11.byteLength > 0) {
+          const data = Buffer.from(x11).toString("base64")
+          debugCheckpoint("clipboard", "read:x11", { mime, dataLength: data.length })
+          return { data, mime }
+        }
       }
     }
 

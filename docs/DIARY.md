@@ -1,3 +1,4 @@
+- [2026-02-07] [前端架構重構與優化 (Phase 7-11 完成)](events/event_2026-02-07_frontend_refactor_next.md)
 - [2026-02-06] [修復 Admin Panel UI 冗餘與版本號一致性](events/event_2026-02-06_fix-admin-ui.md)
 - [2026-02-06] [修改建置與安裝流程以符合 XDG 規範](events/event_2026-02-06_xdg-install.md)
 - [2026-02-06] [修復 Model Activities 顯示區塊並新增收藏刪除鍵](events/event_2026-02-06_fix-model-activities.md)
@@ -8,6 +9,7 @@
 - [2026-02-07] [GMI Cloud UI 優化與清理](events/event_2026-02-06_gmicloud_ui_cleanup.md)
 - [2026-02-07] [Event 註解規範](events/event_2026-02-07_event-comments.md)
 - [2026-02-07] [前端架構重構與優化 (Phase 1-6 完成)](events/event_20260207_frontend_refactor.md)
+- [2026-02-07] [前端架構重構與優化 (Phase 7-11 規劃)](events/event_2026-02-07_frontend_refactor_next.md)
 - [2026-02-06] [修復 GMI Cloud 整合後的 UI 崩潰問題](events/event_2026-02-06_gmicloud_ui_fix.md)
 - [2026-02-06] [增加 GMI Cloud Provider 支援](events/event_2026-02-06_gmicloud_provider.md)
 - [2026-02-06] [修復 XDG 遷移後的帳號空白問題](events/event_2026-02-06_accounts-fix.md)

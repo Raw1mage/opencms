@@ -11,19 +11,16 @@ import {
   createMemo,
   createSignal,
 } from "solid-js"
-import { createStore, produce } from "solid-js/store"
+import { createStore } from "solid-js/store"
 import { createFocusSignal } from "@solid-primitives/active-element"
 import { useLocal } from "@/context/local"
-import { useFile, type FileSelection } from "@/context/file"
+import { useFile } from "@/context/file"
 import {
   ContentPart,
   DEFAULT_PROMPT,
   isPromptEqual,
   Prompt,
   usePrompt,
-  ImageAttachmentPart,
-  AgentPart,
-  FileAttachmentPart,
 } from "@/context/prompt"
 import { useLayout } from "@/context/layout"
 import { useSDK } from "@/context/sdk"
@@ -32,7 +29,6 @@ import { useSync } from "@/context/sync"
 import { useComments } from "@/context/comments"
 import { Button } from "@opencode-ai/ui/button"
 import { Icon } from "@opencode-ai/ui/icon"
-import type { IconName } from "@opencode-ai/ui/icons/provider"
 import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { Select } from "@opencode-ai/ui/select"
@@ -40,17 +36,11 @@ import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useProviders } from "@/hooks/use-providers"
 import { useCommand } from "@/context/command"
 import { Persist, persisted } from "@/utils/persist"
-import { Identifier } from "@/utils/id"
-import { Worktree as WorktreeState } from "@/utils/worktree"
 import { SessionContextUsage } from "@/components/session-context-usage"
 import { usePermission } from "@/context/permission"
 import { useLanguage } from "@/context/language"
 import { useGlobalSync } from "@/context/global-sync"
 import { usePlatform } from "@/context/platform"
-import { createOpencodeClient, type Message, type Part } from "@opencode-ai/sdk/v2/client"
-import { Binary } from "@opencode-ai/util/binary"
-import { showToast } from "@opencode-ai/ui/toast"
-import { base64Encode } from "@opencode-ai/util/encode"
 import { ContextItems } from "./prompt-input/context-items"
 import { ImageAttachments } from "./prompt-input/image-attachments"
 import { promptPlaceholder } from "./prompt-input/placeholder"
@@ -58,8 +48,6 @@ import { createPromptAttachments, ACCEPTED_FILE_TYPES } from "./prompt-input/att
 import { createPromptSubmit } from "./prompt-input/submit"
 import { PromptPopover, type AtOption, type SlashCommand } from "./prompt-input/slash-popover"
 import {
-  MAX_HISTORY,
-  clonePromptParts,
   promptLength,
   prependHistoryEntry,
   navigatePromptHistory,
@@ -347,17 +335,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     if (dialog.active) return
     handleDrop(event)
   }
-
-  onMount(() => {
-    document.addEventListener("dragover", handleGlobalDragOver)
-    document.addEventListener("dragleave", handleGlobalDragLeave)
-    document.addEventListener("drop", handleGlobalDrop)
-  })
-  onCleanup(() => {
-    document.removeEventListener("dragover", handleGlobalDragOver)
-    document.removeEventListener("dragleave", handleGlobalDragLeave)
-    document.removeEventListener("drop", handleGlobalDrop)
-  })
 
   createEffect(() => {
     if (!isFocused()) setStore("popover", null)
