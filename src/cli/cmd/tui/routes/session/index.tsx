@@ -1330,7 +1330,10 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
   const content = createMemo(() => {
     // Filter out redacted reasoning chunks from OpenRouter
     // OpenRouter sends encrypted reasoning data that appears as [REDACTED]
-    return props.part.text.replace("[REDACTED]", "").trim()
+    let text = props.part.text.replace("[REDACTED]", "")
+    // Filter out base64 image data that may appear when processing images
+    text = filterBase64Content(text)
+    return text
   })
   return (
     <Show when={content() && ctx.showThinking()}>
@@ -1357,18 +1360,43 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
   )
 }
 
+// Filter base64 image data that models sometimes echo back
+function filterBase64Content(text: string): string {
+  return text
+    // Filter data URLs with base64
+    .replace(/data:[^;]+;base64,[A-Za-z0-9+/=\s]{50,}/g, "[base64 image data]")
+    // Filter PNG base64 (starts with iVBORw)
+    .replace(/iVBORw[A-Za-z0-9+/=\s]{50,}/g, "[PNG image data]")
+    // Filter JPEG base64 (starts with /9j/)
+    .replace(/\/9j\/[A-Za-z0-9+/=\s]{50,}/g, "[JPEG image data]")
+    // Filter lines that are mostly base64 (>80% base64 chars, >50 chars)
+    .split("\n")
+    .map((line) => {
+      if (line.length < 50) return line
+      const base64Chars = (line.match(/[A-Za-z0-9+/=]/g) || []).length
+      const ratio = base64Chars / line.length
+      if (ratio > 0.8) return "[base64 data]"
+      return line
+    })
+    .join("\n")
+    // Collapse multiple consecutive [base64 data] placeholders
+    .replace(/(\[base64[^\]]*\]\n?){2,}/g, "[base64 image data]\n")
+    .trim()
+}
+
 function TextPart(props: { last: boolean; part: TextPart; message: AssistantMessage }) {
   const ctx = use()
   const { theme, syntax } = useTheme()
+  const content = createMemo(() => filterBase64Content(props.part.text))
   return (
-    <Show when={props.part.text.trim()}>
+    <Show when={content()}>
       <box id={"text-" + props.part.id} paddingLeft={3} marginTop={1} flexShrink={0}>
         <Switch>
           <Match when={Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
             <markdown
               syntaxStyle={syntax()}
               streaming={true}
-              content={props.part.text.trim()}
+              content={content()}
               conceal={ctx.conceal()}
             />
           </Match>
@@ -1378,7 +1406,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
               drawUnstyledText={false}
               streaming={true}
               syntaxStyle={syntax()}
-              content={props.part.text.trim()}
+              content={content()}
               conceal={ctx.conceal()}
               fg={theme.text}
             />

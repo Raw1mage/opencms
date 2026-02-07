@@ -392,6 +392,12 @@ export namespace SessionPrompt {
 
     let step = 0
     const session = await Session.get(sessionID)
+    debugCheckpoint("prompt", "loop:session_loaded", {
+      sessionID,
+      parentID: session.parentID,
+      isSubagent: !!session.parentID,
+      title: session.title,
+    })
     while (true) {
       SessionStatus.set(sessionID, { type: "busy" })
       log.info("loop", { step, sessionID })
@@ -752,12 +758,33 @@ export namespace SessionPrompt {
 
       await Plugin.trigger("experimental.chat.messages.transform", {}, { messages: sessionMessages })
 
+      // Determine if we should load instruction prompts
+      // Skip for: 1) subagent sessions (parentID set), 2) agents with mode="subagent"
+      const isSubagentSession = !!session.parentID
+      const isSubagentMode = agent.mode === "subagent"
+      const skipInstructions = isSubagentSession || isSubagentMode
+      const instructionPrompts = skipInstructions ? [] : await InstructionPrompt.system()
+      debugCheckpoint("prompt", "loop:instruction_decision", {
+        sessionID,
+        parentID: session.parentID,
+        agentName: agent.name,
+        agentMode: agent.mode,
+        isSubagentSession,
+        isSubagentMode,
+        skipInstructions,
+        instructionCount: instructionPrompts.length,
+      })
+
       const result = await processor.process({
         user: lastUser,
         agent,
         abort,
         sessionID,
-        system: [...(await SystemPrompt.environment(activeModel)), ...(await InstructionPrompt.system())],
+        system: [
+          ...(await SystemPrompt.environment(activeModel)),
+          // Skip instruction prompts (AGENTS.md/CLAUDE.md) for subagent sessions
+          ...instructionPrompts,
+        ],
         messages: [
           ...MessageV2.toModelMessages(sessionMessages, activeModel),
           ...(isLastStep
