@@ -759,19 +759,14 @@ export namespace SessionPrompt {
       await Plugin.trigger("experimental.chat.messages.transform", {}, { messages: sessionMessages })
 
       // Determine if we should load instruction prompts
-      // Skip for: 1) subagent sessions (parentID set), 2) agents with mode="subagent"
-      const isSubagentSession = !!session.parentID
-      const isSubagentMode = agent.mode === "subagent"
-      const skipInstructions = isSubagentSession || isSubagentMode
-      const instructionPrompts = skipInstructions ? [] : await InstructionPrompt.system()
+      // Subagent sessions (parentID set) or subagent modes still need to adhere to the core constitution
+      // to ensure consistent behavioral standards (e.g., Read-Before-Write, Absolute Paths).
+      const instructionPrompts = await InstructionPrompt.system()
       debugCheckpoint("prompt", "loop:instruction_decision", {
         sessionID,
         parentID: session.parentID,
         agentName: agent.name,
         agentMode: agent.mode,
-        isSubagentSession,
-        isSubagentMode,
-        skipInstructions,
         instructionCount: instructionPrompts.length,
       })
 

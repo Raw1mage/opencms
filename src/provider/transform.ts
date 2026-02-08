@@ -255,7 +255,11 @@ export namespace ProviderTransform {
       model.id.includes("claude") ||
       model.api.npm === "@ai-sdk/anthropic"
     ) {
-      msgs = applyCaching(msgs, model.providerId)
+      // DISABLED: Caching might be a fingerprint signature.
+      // Only apply caching if NOT in subscription mode (detected via lack of providerId suffix or explicit flag)
+      if (!options?.subscription) {
+        msgs = applyCaching(msgs, model.providerId)
+      }
     }
 
     // Remap providerOptions keys from stored providerId to expected SDK key

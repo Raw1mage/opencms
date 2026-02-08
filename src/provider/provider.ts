@@ -1454,7 +1454,7 @@ export namespace Provider {
           effectiveId = `antigravity-${username}`
         }
 
-        // Determine display name
+        // Determined display name
         let displayName = Account.getDisplayName(accountId, accountInfo, family)
         if (
           family === "antigravity" &&
@@ -1477,28 +1477,8 @@ export namespace Provider {
           if (accountInfo.accessToken && family !== "anthropic") {
             options.apiKey = accountInfo.accessToken
           }
-          if (family === "anthropic") {
-            options.headers = {
-              "User-Agent": "anthropic-claude-code/0.5.1",
-              "anthropic-client": "claude-code/0.5.1",
-              "anthropic-beta":
-                "claude-code-20250219,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14",
-            }
-            if (accountInfo.accessToken) {
-              options.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-                const headers = new Headers(init?.headers)
-                headers.set("Authorization", `Bearer ${accountInfo.accessToken}`)
-                headers.delete("x-api-key")
-                if (Env.get("OPENCODE_SMOKE_DEBUG")) {
-                  log.info("anthropic subscription request", {
-                    url: typeof input === "string" ? input : input.toString(),
-                    headers: Array.from(headers.keys()),
-                  })
-                }
-                return fetch(input, { ...init, headers })
-              }
-            }
-          }
+          // REMOVED: Anthropic subscription logic moved to AnthropicAuthPlugin
+          // to ensure strict Claude Code protocol compliance.
         }
         if (accountInfo.type === "api" && accountInfo.apiKey) {
           options.apiKey = accountInfo.apiKey

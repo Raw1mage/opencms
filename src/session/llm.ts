@@ -121,9 +121,10 @@ export namespace LLM {
     const system = []
     system.push(
       [
-        // use agent prompt otherwise provider prompt
+        // use agent prompt if available
+        ...(input.agent.prompt ? [input.agent.prompt] : []),
         // For providers using instructions option, skip SystemPrompt.provider() since it's sent via options.instructions
-        ...(input.agent.prompt ? [input.agent.prompt] : usesInstructions ? [] : SystemPrompt.provider(input.model)),
+        ...(usesInstructions ? [] : SystemPrompt.provider(input.model)),
         // any custom prompt passed into this call
         ...input.system,
         // any custom prompt from last user message
