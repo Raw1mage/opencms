@@ -1660,6 +1660,18 @@ function Bash(props: ToolProps<typeof BashTool>) {
       return { readable: false, reason: `${totalLines} lines` }
     }
 
+    // Minified code 檢測（單行超長）
+    const maxLineLength = Math.max(...lines().map((l) => l.length))
+    if (maxLineLength > 500) {
+      return { readable: false, reason: "minified code" }
+    }
+
+    // 檢測多行超長（可能是 minified code）
+    const longLines = lines().filter((l) => l.length > 200).length
+    if (longLines > totalLines * 0.5) {
+      return { readable: false, reason: "minified/obfuscated code" }
+    }
+
     // JSON/XML 檢測
     const jsonLikePatterns = [/^\s*[\{\[]/, /"[^"]+"\s*:\s*/, /<[^>]+>.*<\/[^>]+>/]
     const jsonLines = lines().filter((line) => jsonLikePatterns.some((p) => p.test(line)))
@@ -1685,8 +1697,7 @@ function Bash(props: ToolProps<typeof BashTool>) {
     if (expanded()) return output()
 
     if (!readableCheck().readable) {
-      const reason = readableCheck().reason ? ` (${readableCheck().reason})` : ""
-      return `[Output hidden${reason}]\nClick to expand`
+      return "...\nClick to expand"
     }
 
     if (!overflow()) return output()

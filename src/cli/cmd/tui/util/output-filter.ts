@@ -15,7 +15,19 @@ export function isHumanReadable(content: string): { readable: boolean; reason?: 
     return { readable: false, reason: `${lines.length} lines` }
   }
 
-  // 規則 2: 檢測 JSON/XML 結構化數據
+  // 規則 2: Minified code 檢測（單行超長）
+  const maxLineLength = Math.max(...lines.map((l) => l.length))
+  if (maxLineLength > 500) {
+    return { readable: false, reason: "minified code" }
+  }
+
+  // 規則 3: 多行超長檢測（可能是 minified/obfuscated code）
+  const longLines = lines.filter((l) => l.length > 200).length
+  if (longLines > lines.length * 0.5) {
+    return { readable: false, reason: "minified/obfuscated code" }
+  }
+
+  // 規則 4: 檢測 JSON/XML 結構化數據
   const jsonLikePatterns = [
     /^\s*[\{\[]/, // 開頭是 { 或 [
     /"[^"]+"\s*:\s*/, // JSON key-value
@@ -26,13 +38,13 @@ export function isHumanReadable(content: string): { readable: boolean; reason?: 
     return { readable: false, reason: "JSON/XML data" }
   }
 
-  // 規則 3: 檢測大量相似的重複模式（如列表輸出）
+  // 規則 5: 檢測大量相似的重複模式（如列表輸出）
   const uniqueLines = new Set(lines.map((l) => l.trim())).size
   if (lines.length > 10 && uniqueLines / lines.length < 0.3) {
     return { readable: false, reason: "repetitive output" }
   }
 
-  // 規則 4: 檢測 Base64 或二進制數據
+  // 規則 6: 檢測 Base64 或二進制數據
   const binaryPatterns = [/^[A-Za-z0-9+/=]{50,}$/, /\\x[0-9a-fA-F]{2}/]
   const binaryLines = lines.filter((line) => binaryPatterns.some((pattern) => pattern.test(line)))
   if (binaryLines.length > 5) {
