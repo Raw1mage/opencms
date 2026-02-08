@@ -10,8 +10,13 @@ export function isHumanReadable(content: string): { readable: boolean; reason?: 
   const lines = content.split("\n")
   const totalChars = content.length
 
+  // Bypass for truncation hints - always show them
+  if (content.includes("Full output saved to:") || content.includes("truncated...")) {
+    return { readable: true }
+  }
+
   // 規則 1: 過長內容（可能是大量數據輸出）
-  if (lines.length > 50 || totalChars > 2000) {
+  if (lines.length > 500 || totalChars > 20000) {
     return { readable: false, reason: `${lines.length} lines` }
   }
 

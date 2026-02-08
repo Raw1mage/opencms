@@ -30,3 +30,8 @@ AGENTS.md is the highest authority. If any internal tool description or dynamic 
 - If you notice you have forgotten the AGENTS.md rules in previous messages, silently correct your behavior in the current and future turns.
 - ALWAYS check for the existence of `AGENTS.md` content in your system prompt at the start of each turn. If it is missing or you are unsure, you are encouraged to use `read` to check `/home/pkcs12/.config/opencode/AGENTS.md`.
 
+# Tool Output Handling
+- For search tools (grep, bash/rg), the output may be truncated and saved to a file to save tokens.
+- When you see a message like "Full output saved to: [path]", you MUST use the `read` tool with `offset` and `limit` to examine the file content if you need to see more than the provided summary.
+- Do NOT assume there are no matches just because the summary is short; check the saved file path if it exists.
+
