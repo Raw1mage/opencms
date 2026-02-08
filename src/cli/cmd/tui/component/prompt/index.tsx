@@ -397,7 +397,10 @@ export function Prompt(props: PromptProps) {
       const same = current && current.providerId === msg.providerId && current.modelID === msg.modelID
       if (!same) {
         // recent: true persists the fallback model so it's used on next startup
-        local.model.set({ providerId: msg.providerId, modelID: msg.modelID }, { skipValidation: true, announce: false, recent: true })
+        local.model.set(
+          { providerId: msg.providerId, modelID: msg.modelID },
+          { skipValidation: true, announce: false, recent: true },
+        )
       }
     }
   })
@@ -1087,7 +1090,12 @@ export function Prompt(props: PromptProps) {
               }}
               keyBindings={textareaKeybindings()}
               onKeyDown={async (e) => {
-                debugCheckpoint("tui.prompt", "onKeyDown:any", { key: e.name, ctrl: e.ctrl, meta: e.meta, shift: e.shift })
+                debugCheckpoint("tui.prompt", "onKeyDown:any", {
+                  key: e.name,
+                  ctrl: e.ctrl,
+                  meta: e.meta,
+                  shift: e.shift,
+                })
                 if (props.disabled) {
                   e.preventDefault()
                   return
@@ -1371,7 +1379,7 @@ export function Prompt(props: PromptProps) {
                       const r = retry()
                       if (!r) return ""
                       const baseMessage = message()
-                      const truncatedHint = isTruncated() ? " (click to expand)" : ""
+                      const truncatedHint = isTruncated() ? " ..." : ""
                       const duration = formatDuration(seconds())
                       const retryInfo = ` [retrying ${duration ? `in ${duration} ` : ""}attempt #${r.attempt}]`
                       return baseMessage + truncatedHint + retryInfo
