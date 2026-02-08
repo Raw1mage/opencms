@@ -1615,10 +1615,10 @@ function BlockTool(props: { title: string; children: JSX.Element; onClick?: () =
     <box
       border={["left"]}
       paddingTop={1}
-      paddingBottom={1}
+      paddingBottom={0}
       paddingLeft={2}
       marginTop={1}
-      gap={1}
+      gap={0}
       backgroundColor={hover() ? theme.backgroundMenu : theme.backgroundPanel}
       customBorderChars={SplitBorder.customBorderChars}
       borderColor={theme.background}
@@ -1629,12 +1629,14 @@ function BlockTool(props: { title: string; children: JSX.Element; onClick?: () =
         props.onClick?.()
       }}
     >
-      <text paddingLeft={3} fg={theme.textMuted}>
+      <text paddingLeft={3} fg={theme.textMuted} marginBottom={1}>
         {props.title}
       </text>
       {props.children}
       <Show when={error()}>
-        <text fg={theme.error}>{error()}</text>
+        <text fg={theme.error} marginTop={1}>
+          {error()}
+        </text>
       </Show>
     </box>
   )
@@ -1742,8 +1744,8 @@ function Bash(props: ToolProps<typeof BashTool>) {
             <Show when={output()}>
               <text fg={theme.text}>{limited()}</text>
             </Show>
-            <Show when={overflow()}>
-              <text fg={theme.textMuted}>{expanded() ? "Click to collapse" : ""}</text>
+            <Show when={expanded()}>
+              <text fg={theme.textMuted}>...</text>
             </Show>
           </box>
         </BlockTool>
@@ -1779,29 +1781,31 @@ function Write(props: ToolProps<typeof WriteTool>) {
           part={props.part}
           onClick={overflow() ? () => setExpanded((prev) => !prev) : undefined}
         >
-          <Show
-            when={expanded()}
-            fallback={
+          <box gap={expanded() ? 1 : 0}>
+            <Show
+              when={expanded()}
+              fallback={
+                <text paddingLeft={3} fg={theme.textMuted}>
+                  ...
+                </text>
+              }
+            >
+              <line_number fg={theme.textMuted} minWidth={3} paddingRight={1}>
+                <code
+                  conceal={false}
+                  fg={theme.text}
+                  filetype={filetype(props.input.filePath!)}
+                  syntaxStyle={syntax()}
+                  content={code()}
+                />
+              </line_number>
+            </Show>
+            <Show when={expanded()}>
               <text paddingLeft={3} fg={theme.textMuted}>
                 ...
               </text>
-            }
-          >
-            <line_number fg={theme.textMuted} minWidth={3} paddingRight={1}>
-              <code
-                conceal={false}
-                fg={theme.text}
-                filetype={filetype(props.input.filePath!)}
-                syntaxStyle={syntax()}
-                content={code()}
-              />
-            </line_number>
-          </Show>
-          <Show when={overflow()}>
-            <text paddingLeft={3} fg={theme.textMuted}>
-              {expanded() ? "Click to collapse" : ""}
-            </text>
-          </Show>
+            </Show>
+          </box>
           <Show when={diagnostics().length}>
             <For each={diagnostics()}>
               {(diagnostic) => (
@@ -2008,41 +2012,43 @@ function Edit(props: ToolProps<typeof EditTool>) {
           part={props.part}
           onClick={overflow() ? () => setExpanded((prev) => !prev) : undefined}
         >
-          <Show
-            when={expanded()}
-            fallback={
+          <box gap={expanded() ? 1 : 0}>
+            <Show
+              when={expanded()}
+              fallback={
+                <text paddingLeft={3} fg={theme.textMuted}>
+                  ...
+                </text>
+              }
+            >
+              <box paddingLeft={1}>
+                <diff
+                  diff={diffContent()}
+                  view={view()}
+                  filetype={ft()}
+                  syntaxStyle={syntax()}
+                  showLineNumbers={true}
+                  width="100%"
+                  wrapMode={ctx.diffWrapMode()}
+                  fg={theme.text}
+                  addedBg={theme.diffAddedBg}
+                  removedBg={theme.diffRemovedBg}
+                  contextBg={theme.diffContextBg}
+                  addedSignColor={theme.diffHighlightAdded}
+                  removedSignColor={theme.diffHighlightRemoved}
+                  lineNumberFg={theme.diffLineNumber}
+                  lineNumberBg={theme.diffContextBg}
+                  addedLineNumberBg={theme.diffAddedLineNumberBg}
+                  removedLineNumberBg={theme.diffRemovedLineNumberBg}
+                />
+              </box>
+            </Show>
+            <Show when={expanded()}>
               <text paddingLeft={3} fg={theme.textMuted}>
                 ...
               </text>
-            }
-          >
-            <box paddingLeft={1}>
-              <diff
-                diff={diffContent()}
-                view={view()}
-                filetype={ft()}
-                syntaxStyle={syntax()}
-                showLineNumbers={true}
-                width="100%"
-                wrapMode={ctx.diffWrapMode()}
-                fg={theme.text}
-                addedBg={theme.diffAddedBg}
-                removedBg={theme.diffRemovedBg}
-                contextBg={theme.diffContextBg}
-                addedSignColor={theme.diffHighlightAdded}
-                removedSignColor={theme.diffHighlightRemoved}
-                lineNumberFg={theme.diffLineNumber}
-                lineNumberBg={theme.diffContextBg}
-                addedLineNumberBg={theme.diffAddedLineNumberBg}
-                removedLineNumberBg={theme.diffRemovedLineNumberBg}
-              />
-            </box>
-          </Show>
-          <Show when={overflow()}>
-            <text paddingLeft={3} fg={theme.textMuted}>
-              {expanded() ? "Click to collapse" : ""}
-            </text>
-          </Show>
+            </Show>
+          </box>
           <Show when={diagnostics().length}>
             <box>
               <For each={diagnostics()}>
@@ -2133,21 +2139,23 @@ function ApplyPatch(props: ToolProps<typeof ApplyPatchTool>) {
                 part={props.part}
                 onClick={overflow() ? () => setExpanded((prev) => !prev) : undefined}
               >
-                <Show
-                  when={file.type !== "delete"}
-                  fallback={
-                    <text fg={theme.diffRemoved}>
-                      -{file.deletions} line{file.deletions !== 1 ? "s" : ""}
+                <box gap={expanded() ? 1 : 0}>
+                  <Show
+                    when={file.type !== "delete"}
+                    fallback={
+                      <text fg={theme.diffRemoved}>
+                        -{file.deletions} line{file.deletions !== 1 ? "s" : ""}
+                      </text>
+                    }
+                  >
+                    <Diff diff={file.diff} filePath={file.filePath} expanded={expanded()} />
+                  </Show>
+                  <Show when={expanded()}>
+                    <text paddingLeft={3} fg={theme.textMuted}>
+                      ...
                     </text>
-                  }
-                >
-                  <Diff diff={file.diff} filePath={file.filePath} expanded={expanded()} />
-                </Show>
-                <Show when={overflow()}>
-                  <text paddingLeft={3} fg={theme.textMuted}>
-                    {expanded() ? "Click to collapse" : ""}
-                  </text>
-                </Show>
+                  </Show>
+                </box>
               </BlockTool>
             )
           }}
