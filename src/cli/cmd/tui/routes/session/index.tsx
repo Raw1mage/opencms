@@ -1759,10 +1759,12 @@ function Bash(props: ToolProps<typeof BashTool>) {
 
 function Write(props: ToolProps<typeof WriteTool>) {
   const { theme, syntax } = useTheme()
+  const [expanded, setExpanded] = createSignal(false)
   const code = createMemo(() => {
     if (!props.input.content) return ""
     return props.input.content
   })
+  const overflow = createMemo(() => code().split("\n").length > 5)
 
   const diagnostics = createMemo(() => {
     const filePath = Filesystem.normalizePath(props.input.filePath ?? "")
@@ -1772,16 +1774,34 @@ function Write(props: ToolProps<typeof WriteTool>) {
   return (
     <Switch>
       <Match when={props.metadata.diagnostics !== undefined}>
-        <BlockTool title={"# Wrote " + normalizePath(props.input.filePath!)} part={props.part}>
-          <line_number fg={theme.textMuted} minWidth={3} paddingRight={1}>
-            <code
-              conceal={false}
-              fg={theme.text}
-              filetype={filetype(props.input.filePath!)}
-              syntaxStyle={syntax()}
-              content={code()}
-            />
-          </line_number>
+        <BlockTool
+          title={"# Wrote " + normalizePath(props.input.filePath!)}
+          part={props.part}
+          onClick={overflow() ? () => setExpanded((prev) => !prev) : undefined}
+        >
+          <Show
+            when={expanded()}
+            fallback={
+              <text paddingLeft={3} fg={theme.textMuted}>
+                ...
+              </text>
+            }
+          >
+            <line_number fg={theme.textMuted} minWidth={3} paddingRight={1}>
+              <code
+                conceal={false}
+                fg={theme.text}
+                filetype={filetype(props.input.filePath!)}
+                syntaxStyle={syntax()}
+                content={code()}
+              />
+            </line_number>
+          </Show>
+          <Show when={overflow()}>
+            <text paddingLeft={3} fg={theme.textMuted}>
+              {expanded() ? "Click to collapse" : ""}
+            </text>
+          </Show>
           <Show when={diagnostics().length}>
             <For each={diagnostics()}>
               {(diagnostic) => (
@@ -1960,6 +1980,7 @@ function Task(props: ToolProps<typeof TaskTool>) {
 function Edit(props: ToolProps<typeof EditTool>) {
   const ctx = use()
   const { theme, syntax } = useTheme()
+  const [expanded, setExpanded] = createSignal(false)
 
   const view = createMemo(() => {
     const diffStyle = ctx.sync.data.config.tui?.diff_style
@@ -1971,6 +1992,7 @@ function Edit(props: ToolProps<typeof EditTool>) {
   const ft = createMemo(() => filetype(props.input.filePath))
 
   const diffContent = createMemo(() => props.metadata.diff)
+  const overflow = createMemo(() => (diffContent()?.split("\n").length ?? 0) > 5)
 
   const diagnostics = createMemo(() => {
     const filePath = Filesystem.normalizePath(props.input.filePath ?? "")
@@ -1981,28 +2003,46 @@ function Edit(props: ToolProps<typeof EditTool>) {
   return (
     <Switch>
       <Match when={props.metadata.diff !== undefined}>
-        <BlockTool title={"← Edit " + normalizePath(props.input.filePath!)} part={props.part}>
-          <box paddingLeft={1}>
-            <diff
-              diff={diffContent()}
-              view={view()}
-              filetype={ft()}
-              syntaxStyle={syntax()}
-              showLineNumbers={true}
-              width="100%"
-              wrapMode={ctx.diffWrapMode()}
-              fg={theme.text}
-              addedBg={theme.diffAddedBg}
-              removedBg={theme.diffRemovedBg}
-              contextBg={theme.diffContextBg}
-              addedSignColor={theme.diffHighlightAdded}
-              removedSignColor={theme.diffHighlightRemoved}
-              lineNumberFg={theme.diffLineNumber}
-              lineNumberBg={theme.diffContextBg}
-              addedLineNumberBg={theme.diffAddedLineNumberBg}
-              removedLineNumberBg={theme.diffRemovedLineNumberBg}
-            />
-          </box>
+        <BlockTool
+          title={"← Edit " + normalizePath(props.input.filePath!)}
+          part={props.part}
+          onClick={overflow() ? () => setExpanded((prev) => !prev) : undefined}
+        >
+          <Show
+            when={expanded()}
+            fallback={
+              <text paddingLeft={3} fg={theme.textMuted}>
+                ...
+              </text>
+            }
+          >
+            <box paddingLeft={1}>
+              <diff
+                diff={diffContent()}
+                view={view()}
+                filetype={ft()}
+                syntaxStyle={syntax()}
+                showLineNumbers={true}
+                width="100%"
+                wrapMode={ctx.diffWrapMode()}
+                fg={theme.text}
+                addedBg={theme.diffAddedBg}
+                removedBg={theme.diffRemovedBg}
+                contextBg={theme.diffContextBg}
+                addedSignColor={theme.diffHighlightAdded}
+                removedSignColor={theme.diffHighlightRemoved}
+                lineNumberFg={theme.diffLineNumber}
+                lineNumberBg={theme.diffContextBg}
+                addedLineNumberBg={theme.diffAddedLineNumberBg}
+                removedLineNumberBg={theme.diffRemovedLineNumberBg}
+              />
+            </box>
+          </Show>
+          <Show when={overflow()}>
+            <text paddingLeft={3} fg={theme.textMuted}>
+              {expanded() ? "Click to collapse" : ""}
+            </text>
+          </Show>
           <Show when={diagnostics().length}>
             <box>
               <For each={diagnostics()}>
@@ -2038,28 +2078,37 @@ function ApplyPatch(props: ToolProps<typeof ApplyPatchTool>) {
     return ctx.width > 120 ? "split" : "unified"
   })
 
-  function Diff(p: { diff: string; filePath: string }) {
+  function Diff(p: { diff: string; filePath: string; expanded: boolean }) {
     return (
       <box paddingLeft={1}>
-        <diff
-          diff={p.diff}
-          view={view()}
-          filetype={filetype(p.filePath)}
-          syntaxStyle={syntax()}
-          showLineNumbers={true}
-          width="100%"
-          wrapMode={ctx.diffWrapMode()}
-          fg={theme.text}
-          addedBg={theme.diffAddedBg}
-          removedBg={theme.diffRemovedBg}
-          contextBg={theme.diffContextBg}
-          addedSignColor={theme.diffHighlightAdded}
-          removedSignColor={theme.diffHighlightRemoved}
-          lineNumberFg={theme.diffLineNumber}
-          lineNumberBg={theme.diffContextBg}
-          addedLineNumberBg={theme.diffAddedLineNumberBg}
-          removedLineNumberBg={theme.diffRemovedLineNumberBg}
-        />
+        <Show
+          when={p.expanded}
+          fallback={
+            <text paddingLeft={3} fg={theme.textMuted}>
+              ...
+            </text>
+          }
+        >
+          <diff
+            diff={p.diff}
+            view={view()}
+            filetype={filetype(p.filePath)}
+            syntaxStyle={syntax()}
+            showLineNumbers={true}
+            width="100%"
+            wrapMode={ctx.diffWrapMode()}
+            fg={theme.text}
+            addedBg={theme.diffAddedBg}
+            removedBg={theme.diffRemovedBg}
+            contextBg={theme.diffContextBg}
+            addedSignColor={theme.diffHighlightAdded}
+            removedSignColor={theme.diffHighlightRemoved}
+            lineNumberFg={theme.diffLineNumber}
+            lineNumberBg={theme.diffContextBg}
+            addedLineNumberBg={theme.diffAddedLineNumberBg}
+            removedLineNumberBg={theme.diffRemovedLineNumberBg}
+          />
+        </Show>
       </box>
     )
   }
@@ -2075,20 +2124,33 @@ function ApplyPatch(props: ToolProps<typeof ApplyPatchTool>) {
     <Switch>
       <Match when={files().length > 0}>
         <For each={files()}>
-          {(file) => (
-            <BlockTool title={title(file)} part={props.part}>
-              <Show
-                when={file.type !== "delete"}
-                fallback={
-                  <text fg={theme.diffRemoved}>
-                    -{file.deletions} line{file.deletions !== 1 ? "s" : ""}
-                  </text>
-                }
+          {(file) => {
+            const [expanded, setExpanded] = createSignal(false)
+            const overflow = createMemo(() => (file.diff?.split("\n").length ?? 0) > 5)
+            return (
+              <BlockTool
+                title={title(file)}
+                part={props.part}
+                onClick={overflow() ? () => setExpanded((prev) => !prev) : undefined}
               >
-                <Diff diff={file.diff} filePath={file.filePath} />
-              </Show>
-            </BlockTool>
-          )}
+                <Show
+                  when={file.type !== "delete"}
+                  fallback={
+                    <text fg={theme.diffRemoved}>
+                      -{file.deletions} line{file.deletions !== 1 ? "s" : ""}
+                    </text>
+                  }
+                >
+                  <Diff diff={file.diff} filePath={file.filePath} expanded={expanded()} />
+                </Show>
+                <Show when={overflow()}>
+                  <text paddingLeft={3} fg={theme.textMuted}>
+                    {expanded() ? "Click to collapse" : ""}
+                  </text>
+                </Show>
+              </BlockTool>
+            )
+          }}
         </For>
       </Match>
       <Match when={true}>

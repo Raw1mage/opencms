@@ -269,9 +269,7 @@ export const BashTool = Tool.define("bash", async () => {
           ctx.extra?.agent,
           ctx.sessionID,
         )
-        const hint = `Command output is too large to display directly (${output.length} bytes). 
-Full output saved to: ${truncated.truncated ? truncated.outputPath : "internal error"}
-Please use the 'read' tool to examine this file if you need to see the complete output.`
+        const hint = `This output is redirected to ${truncated.truncated ? truncated.outputPath : "internal error"}`
 
         return {
           title: params.description,

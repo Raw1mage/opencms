@@ -159,9 +159,7 @@ export const GrepTool = Tool.define("grep", {
     if (fullOutput.length > threshold) {
       // Use Truncate logic to save file but return a specialized minimalist hint
       const result = await Truncate.output(fullOutput, { maxLines: 0 }, ctx.extra?.agent, ctx.sessionID)
-      const hint = `Found ${finalMatches.length} matches. Results are too large to display directly.
-Full output saved to: ${result.truncated ? result.outputPath : "internal error"}
-Please use the 'read' tool to examine this file if you need to see the matches.`
+      const hint = `This output is redirected to ${result.truncated ? result.outputPath : "internal error"}`
 
       return {
         title: params.pattern,
