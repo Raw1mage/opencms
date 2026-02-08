@@ -11,7 +11,7 @@ export function isHumanReadable(content: string): { readable: boolean; reason?: 
   const totalChars = content.length
 
   // Bypass for truncation hints - always show them
-  if (content.includes("Full output saved to:") || content.includes("truncated...")) {
+  if (content.includes("This output is redirected to") || content.includes("truncated...")) {
     return { readable: true }
   }
 
