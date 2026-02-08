@@ -33,6 +33,14 @@ const flowKeys = [
   "projectId",
 ]
 
+function getTimestamp() {
+  const d = new Date()
+  const utc = d.getTime() + d.getTimezoneOffset() * 60000
+  const offset = 8 * 3600000 // UTC+8 for Asia/Taipei
+  const nd = new Date(utc + offset)
+  return nd.toISOString().replace("Z", "+08:00")
+}
+
 function safe(value: unknown): string {
   const seen = new WeakSet<object>()
   return JSON.stringify(value, (_, val) => {
@@ -56,7 +64,7 @@ function normalizeLine(line: string): string {
     return line
   }
   if (!data) return line
-  const time = typeof data.time === "string" ? data.time : new Date().toISOString()
+  const time = typeof data.time === "string" ? data.time : getTimestamp()
   const scope = typeof data.scope === "string" ? data.scope : "unknown"
   const message = typeof data.message === "string" ? data.message : "log"
   const payload = safe({
@@ -140,7 +148,7 @@ function sniffAppend(target: unknown, data: unknown) {
     sample: text.slice(0, 500),
     stack: new Error("debug.sniff").stack,
   })
-  appendRaw(`[opencode] [${new Date().toISOString()}] [debug.sniff] ${payload}\n`)
+  appendRaw(`[opencode] [${getTimestamp()}] [debug.sniff] ${payload}\n`)
   sniffing = false
 }
 
@@ -164,7 +172,7 @@ function sniffWrite(target: unknown, data: unknown) {
     sample: text.slice(0, 500),
     stack: new Error("debug.sniff").stack,
   })
-  appendRaw(`[opencode] [${new Date().toISOString()}] [debug.sniff] ${payload}\n`)
+  appendRaw(`[opencode] [${getTimestamp()}] [debug.sniff] ${payload}\n`)
   sniffing = false
 }
 
@@ -233,7 +241,7 @@ export function debugCheckpoint(scope: string, message: string, data?: Record<st
   if (scope === "admin.keytrace" && !keytraceEnabled) return
   ensure()
   seq = seq + 1
-  const time = new Date().toISOString()
+  const time = getTimestamp()
   const payload = safe({
     seq,
     trace: typeof data?.trace === "string" ? data.trace : undefined,

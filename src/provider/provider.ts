@@ -65,6 +65,8 @@ export namespace Provider {
     "claude-sonnet-4-5-thinking",
     "claude-opus-4-5",
     "claude-opus-4-5-thinking",
+    "claude-opus-4-6",
+    "claude-opus-4-6-thinking",
     "claude-opus-4-1",
     "claude-opus-4-2",
     "gpt-oss-120b-medium",
@@ -283,10 +285,11 @@ export namespace Provider {
         autoload: false,
         options: {
           headers: {
-            "User-Agent": "anthropic-claude-code/0.5.1",
-            "anthropic-client": "claude-code/0.5.1",
+            "User-Agent": "claude-cli/2.1.29 (external, npm)",
+            "x-app": "cli",
+            "x-anthropic-additional-protection": "true",
             "anthropic-beta":
-              "claude-code-20250219,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14",
+              "claude-code-20250219,oauth-2025-04-20,prompt-caching-scope-2026-01-05,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14",
           },
         },
       }
@@ -1168,6 +1171,9 @@ export namespace Provider {
       }
 
       const anthropicModels = [
+        { id: "claude-opus-4-6", name: "Claude 4.6 Opus" },
+        { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet" },
+        { id: "claude-3-7-sonnet-latest", name: "Claude 3.7 Sonnet (Latest)" },
         { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet (New)" },
         { id: "claude-3-5-haiku-20241022", name: "Claude 3.5 Haiku" },
         { id: "claude-3-opus-20240229", name: "Claude 3 Opus" },
@@ -1177,6 +1183,7 @@ export namespace Provider {
       ]
 
       for (const m of anthropicModels) {
+        const isReasoning = m.id.includes("thinking") || m.id.includes("opus-4.6") || m.id.includes("3.7-sonnet")
         database["anthropic"].models[m.id] = {
           id: m.id,
           name: m.name,
@@ -1186,19 +1193,19 @@ export namespace Provider {
           status: "active",
           capabilities: {
             temperature: true,
-            reasoning: false,
+            reasoning: isReasoning,
             attachment: true,
-            interleaved: false,
+            interleaved: isReasoning ? { field: "reasoning_content" } : false,
             input: { text: true, image: true, audio: false, video: false, pdf: true },
             output: { text: true, audio: false, image: false, video: false, pdf: false },
             toolcall: true,
           },
           cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
-          limit: { context: 200000, output: 4096 },
+          limit: { context: 200000, output: 8192 },
           options: {},
           variants: {},
           headers: {},
-          release_date: "2024-01-01",
+          release_date: "2025-01-01",
         }
       }
     }
@@ -1209,8 +1216,10 @@ export namespace Provider {
       const extraModels = [
         "claude-sonnet-4-5",
         "claude-opus-4-5",
+        "claude-opus-4-6",
         "claude-sonnet-4-5-thinking",
         "claude-opus-4-5-thinking",
+        "claude-opus-4-6-thinking",
         "claude-opus-4-1",
         "claude-opus-4-2",
       ]
@@ -1233,6 +1242,8 @@ export namespace Provider {
       }
 
       const manualModels = [
+        { id: "claude-opus-4-6-thinking", name: "Claude 4.6 Opus (Thinking)", family: "claude", reasoning: true },
+        { id: "claude-opus-4-6", name: "Claude 4.6 Opus", family: "claude" },
         { id: "claude-opus-4-5-thinking", name: "Claude 4.5 Opus (Thinking)", family: "claude", reasoning: true },
         { id: "claude-opus-4-5", name: "Claude 4.5 Opus", family: "claude" },
         { id: "claude-sonnet-4-5-thinking", name: "Claude 4.5 Sonnet (Thinking)", family: "claude", reasoning: true },

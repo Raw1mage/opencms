@@ -7,3 +7,6 @@
 [submodule "refs/vscode-antigravity-cockpit"]
 	path = refs/vscode-antigravity-cockpit
 	url = https://github.com/jlcodes99/vscode-antigravity-cockpit
+[submodule "refs/claude-code"]
+	path = refs/claude-code
+	url = https://github.com/anthropics/claude-code

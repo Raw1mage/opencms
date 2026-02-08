@@ -2,11 +2,14 @@ import type { Hooks, PluginInput } from "@opencode-ai/plugin"
 import { Log } from "../util/log"
 import { generatePKCE } from "@openauthjs/openauth/pkce"
 import { spawn } from "node:child_process"
+import os from "node:os"
 
 // Claude CLI integration removed per user request
 // The CLI requires complex interactive prompts (trust workspace, permissions) that are hard to automate reliably via -p.
 
 const log = Log.create({ service: "plugin.anthropic" })
+
+const SESSIONS_INITIALIZED = new Set<string>()
 
 /**
  * FAILURE RECORD (2025-02-01):
@@ -35,12 +38,15 @@ const CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 async function authorize(mode: "max" | "console") {
   const pkce = await generatePKCE()
 
-  const url = new URL(`https://${mode === "console" ? "console.anthropic.com" : "claude.ai"}/oauth/authorize`)
+  const url = new URL(`https://platform.claude.com/oauth/authorize`)
   url.searchParams.set("code", "true")
   url.searchParams.set("client_id", CLIENT_ID)
   url.searchParams.set("response_type", "code")
-  url.searchParams.set("redirect_uri", "https://console.anthropic.com/oauth/code/callback")
-  url.searchParams.set("scope", "org:create_api_key user:profile user:inference")
+  url.searchParams.set("redirect_uri", "https://platform.claude.com/oauth/code/callback")
+  url.searchParams.set(
+    "scope",
+    "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers",
+  )
   url.searchParams.set("code_challenge", pkce.challenge)
   url.searchParams.set("code_challenge_method", "S256")
   url.searchParams.set("state", pkce.verifier)
@@ -56,7 +62,7 @@ async function authorize(mode: "max" | "console") {
  */
 async function exchange(code: string, verifier: string) {
   const splits = code.split("#")
-  const result = await fetch("https://console.anthropic.com/v1/oauth/token", {
+  const result = await fetch("https://platform.claude.com/v1/oauth/token", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -66,7 +72,7 @@ async function exchange(code: string, verifier: string) {
       state: splits[1],
       grant_type: "authorization_code",
       client_id: CLIENT_ID,
-      redirect_uri: "https://console.anthropic.com/oauth/code/callback",
+      redirect_uri: "https://platform.claude.com/oauth/code/callback",
       code_verifier: verifier,
     }),
   })
@@ -101,7 +107,7 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
     auth: {
       provider: "anthropic",
       async loader(getAuth, provider) {
-        const auth = await getAuth()
+        const auth = (await getAuth()) as any
 
         if (auth.type === "api") {
           return {
@@ -127,19 +133,20 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
           return {
             apiKey: "", // OAuth doesn't use x-api-key usually, or it's empty
             headers: {
-              "User-Agent": "anthropic-claude-code/0.5.1",
-              "anthropic-client": "claude-code/0.5.1",
+              "User-Agent": "claude-code/2.1.37 (external, npm)",
+              "x-app": "cli",
+              "x-anthropic-additional-protection": "true",
               "anthropic-beta":
-                "claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14",
+                "claude-code-20250219,oauth-2025-04-20,prompt-caching-scope-2026-01-05,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14",
             },
             fetch: async (reqInput: RequestInfo | URL, init?: RequestInit) => {
-              const auth = await getAuth()
+              const auth = (await getAuth()) as any
               if (auth.type !== "oauth") return fetch(reqInput, init)
 
               // Token Refresh Logic
               if (!auth.access || auth.expires < Date.now()) {
                 log.info("Refreshing Anthropic OAuth Token")
-                const response = await fetch("https://console.anthropic.com/v1/oauth/token", {
+                const response = await fetch("https://platform.claude.com/v1/oauth/token", {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
@@ -148,24 +155,32 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                     grant_type: "refresh_token",
                     refresh_token: auth.refresh,
                     client_id: CLIENT_ID,
+                    scope: "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers",
                   }),
                 })
                 if (!response.ok) {
+                  const errBody = await response.text()
+                  log.error("Token refresh failed", { status: response.status, body: errBody })
                   throw new Error(`Token refresh failed: ${response.status}`)
                 }
                 const json = await response.json()
+                const accountId = auth.accountId || "anthropic"
                 await client.auth.set({
                   path: {
-                    id: "anthropic",
+                    id: accountId,
                   },
                   body: {
                     type: "oauth",
-                    refresh: json.refresh_token,
+                    refresh: json.refresh_token ?? auth.refresh,
                     access: json.access_token,
                     expires: Date.now() + json.expires_in * 1000,
-                  },
+                    orgID: auth.orgID, // Preserve orgID
+                    accountId: auth.accountId,
+                    email: auth.email,
+                  } as any,
                 })
                 auth.access = json.access_token
+                auth.refresh = json.refresh_token ?? auth.refresh
               }
 
               const requestInit = init ?? {}
@@ -181,6 +196,7 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
               const requiredBetas = [
                 "claude-code-20250219",
                 "oauth-2025-04-20",
+                "prompt-caching-scope-2026-01-05",
                 "interleaved-thinking-2025-05-14",
                 "fine-grained-tool-streaming-2025-05-14",
               ]
@@ -188,16 +204,84 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
 
               requestHeaders.set("Authorization", `Bearer ${auth.access}`)
               requestHeaders.set("anthropic-beta", mergedBetas)
+              requestHeaders.set("anthropic-version", "2023-06-01") // Critical: Missing version header might be the cause
 
-              requestHeaders.set("User-Agent", "anthropic-claude-code/0.5.1")
-              requestHeaders.set("anthropic-client", "claude-code/0.5.1")
+              // Exact match with reference implementation which is known to work for some cases
+              requestHeaders.set("User-Agent", "claude-cli/2.1.37 (external, cli)")
+              // requestHeaders.set("anthropic-client", CLIENT_VERSION) // Removed
+              requestHeaders.set("x-app", "cli")
+              requestHeaders.set("x-anthropic-additional-protection", "true")
+              if (auth.orgID) {
+                requestHeaders.set("x-organization-uuid", auth.orgID)
+              }
+
+              // Clean up speculative headers
+              requestHeaders.delete("session_id")
+              requestHeaders.delete("anthropic-session-id")
+              requestHeaders.delete("anthropic-client") // Try removing this
               requestHeaders.delete("x-api-key")
 
               const TOOL_PREFIX = "mcp_"
               let body = requestInit.body
+
+              let requestUrl: URL | null = null
+              try {
+                if (typeof reqInput === "string") {
+                  requestUrl = new URL(reqInput)
+                } else if (reqInput instanceof URL) {
+                  requestUrl = reqInput
+                } else if (reqInput instanceof Request) {
+                  requestUrl = new URL(reqInput.url)
+                }
+              } catch {
+                requestUrl = null
+              }
+
               if (body && typeof body === "string") {
                 try {
                   const parsed = JSON.parse(body)
+
+                  if (requestUrl && requestUrl.pathname === "/v1/messages") {
+                    const sessionId = requestHeaders.get("session_id") || "default-session"
+
+                    // Initialize Session on Anthropic Server if not already done
+                    if (!SESSIONS_INITIALIZED.has(sessionId)) {
+                      log.info("Initializing Anthropic Server Session", { sessionId })
+                      try {
+                        const sessionResponse = await fetch("https://api.anthropic.com/v1/sessions", {
+                          method: "POST",
+                          headers: {
+                            ...Object.fromEntries(requestHeaders.entries()),
+                            "Content-Type": "application/json",
+                          },
+                          body: JSON.stringify({
+                            sources: [],
+                            outcomes: [],
+                            model: parsed.model || "claude-3-7-sonnet-latest",
+                          }),
+                        })
+
+                        if (sessionResponse.ok) {
+                          SESSIONS_INITIALIZED.add(sessionId)
+                          log.info("Anthropic Server Session Initialized", { sessionId })
+                        } else {
+                          const errText = await sessionResponse.text()
+                          // Downgrade to debug as this endpoint is flaky/undocumented but message API might still work
+                          log.debug("Failed to initialize Anthropic Server Session", {
+                            status: sessionResponse.status,
+                            body: errText,
+                          })
+                        }
+                      } catch (e) {
+                        log.debug("Error initializing Anthropic Server Session", { error: e })
+                      }
+                    }
+
+                    // Clean up speculative fields that caused "Extra inputs are not permitted"
+                    if ((parsed as any).session_id) delete (parsed as any).session_id
+                    if ((parsed as any).user_type) delete (parsed as any).user_type
+                    if ((parsed as any).client_type) delete (parsed as any).client_type
+                  }
 
                   // Sanitize system prompt - server blocks "OpenCode" string
                   if (parsed.system && Array.isArray(parsed.system)) {
@@ -244,18 +328,6 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
 
               // URL parameter handling for beta
               let requestInput = reqInput
-              let requestUrl: URL | null = null
-              try {
-                if (typeof reqInput === "string") {
-                  requestUrl = new URL(reqInput)
-                } else if (reqInput instanceof URL) {
-                  requestUrl = reqInput
-                } else if (reqInput instanceof Request) {
-                  requestUrl = new URL(reqInput.url)
-                }
-              } catch {
-                requestUrl = null
-              }
 
               if (requestUrl && requestUrl.pathname === "/v1/messages" && !requestUrl.searchParams.has("beta")) {
                 requestUrl.searchParams.set("beta", "true")
@@ -316,7 +388,7 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
       },
       methods: [
         {
-          label: "Claude Pro/Max (OAuth)",
+          label: "Claude account with subscription · Pro, Max, Team, or Enterprise",
           type: "oauth",
           authorize: async () => {
             const { url, verifier } = await authorize("max")
@@ -326,14 +398,43 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
               method: "code",
               callback: async (code: string) => {
                 const credentials = await exchange(code, verifier)
-                return credentials
+                if (credentials.type === "failed") return credentials
+
+                // Fetch Profile to get Organization UUID and Email
+                try {
+                  const profile = await fetch("https://api.anthropic.com/api/oauth/profile", {
+                    headers: {
+                      Authorization: `Bearer ${credentials.access}`,
+                    },
+                  }).then((r) => r.json())
+
+                  return {
+                    ...credentials,
+                    orgID: profile.organization_uuid,
+                    email: profile.email,
+                    accountId: profile.email, // Use email as accountId for subscription
+                  } as any
+                } catch (e) {
+                  log.error("Failed to fetch Anthropic profile", { error: e })
+                  // Fallback: Try to extract email from JWT token
+                  const { JWT } = require("../util/jwt")
+                  const emailFromToken = JWT.getEmail(credentials.access) || JWT.getEmail(credentials.refresh)
+                  if (emailFromToken) {
+                    return {
+                      ...credentials,
+                      email: emailFromToken,
+                      accountId: emailFromToken,
+                    } as any
+                  }
+                  return credentials
+                }
               },
             }
           },
         },
 
         {
-          label: "Create an API Key",
+          label: "Anthropic Console account · API usage billing",
           type: "oauth",
           authorize: async () => {
             const { url, verifier } = await authorize("console")
@@ -357,8 +458,8 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
           },
         },
         {
-          label: "Anthropic API Key",
-          type: "api",
+          label: "3rd-party platform · Amazon Bedrock, Microsoft Foundry, or Vertex AI",
+          type: "api", // Placeholder for 3rd-party key entry
         },
       ],
     },

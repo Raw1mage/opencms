@@ -247,6 +247,7 @@ function CodeMethod(props: CodeMethodProps) {
           code: value,
         })
         if (!error) {
+          toast.show({ message: "Authentication successful!", variant: "success" })
           await sdk.client.instance.dispose()
           await sync.bootstrap()
           dialog.replace(() => <DialogModel providerId={props.providerId} />)

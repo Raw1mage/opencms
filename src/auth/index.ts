@@ -16,6 +16,7 @@ export namespace Auth {
       expires: z.number(),
       accountId: z.string().optional(),
       email: z.string().optional(),
+      orgID: z.string().optional(),
       enterpriseUrl: z.string().optional(),
     })
     .meta({ ref: "OAuth" })
@@ -69,7 +70,15 @@ export namespace Auth {
   function accountToAuth(
     info:
       | { type: "api"; apiKey: string }
-      | { type: "subscription"; refreshToken: string; accessToken?: string; expiresAt?: number; accountId?: string },
+      | {
+          type: "subscription"
+          refreshToken: string
+          accessToken?: string
+          expiresAt?: number
+          accountId?: string
+          metadata?: Record<string, any>
+          email?: string
+        },
   ): Info {
     if (info.type === "api") {
       return { type: "api", key: info.apiKey }
@@ -80,6 +89,8 @@ export namespace Auth {
         access: info.accessToken || "",
         expires: info.expiresAt || 0,
         accountId: info.accountId,
+        email: info.email,
+        orgID: info.metadata?.orgID,
       }
     }
   }
@@ -220,6 +231,7 @@ export namespace Auth {
           expiresAt: info.expires,
           projectId,
           managedProjectId,
+          metadata: info.orgID ? { orgID: info.orgID } : undefined,
         })
       } else {
         const slug = email || providerId
@@ -235,6 +247,7 @@ export namespace Auth {
           projectId,
           managedProjectId,
           addedAt: Date.now(),
+          metadata: info.orgID ? { orgID: info.orgID } : undefined,
         })
       }
     }

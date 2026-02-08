@@ -1844,11 +1844,11 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                   },
                 },
                 {
-                  keybind: Keybind.parse("d")[0],
+                  keybind: Keybind.parse("delete")[0],
                   title: "(D)elete",
-                  label: "D",
+                  label: "",
                   disabled: false,
-                  // @event_2026-02-06:fix-model-activities - Add d key to remove from favorites in activities page
+                  // @event_2026-02-06:fix-model-activities - Add delete key to remove from favorites in activities page
                   onTrigger: (option: any) => {
                     const val = option.value
                     if (val && typeof val === "string") {
@@ -1867,7 +1867,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
           {
             keybind: Keybind.parse("r")[0],
             title: "(R)efresh",
-            label: "R",
+            label: "",
             disabled:
               page() === "activities"
                 ? false
