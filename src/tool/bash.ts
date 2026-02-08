@@ -163,6 +163,7 @@ export const BashTool = Tool.define("bash", async () => {
         })
       }
 
+      // @ts-ignore
       const shellEnv = await Plugin.trigger("shell.env", { cwd }, { env: {} })
       const proc = spawn(params.command, {
         shell,
@@ -253,6 +254,36 @@ export const BashTool = Tool.define("bash", async () => {
 
       if (resultMetadata.length > 0) {
         output += "\n\n<bash_metadata>\n" + resultMetadata.join("\n") + "\n</bash_metadata>"
+      }
+
+      // If the command is a search command (grep, rg), we want to be more aggressive
+      // about truncation to keep the conversation clean.
+      const isSearch = params.command.includes("grep") || params.command.includes("rg")
+      const threshold = isSearch ? 2000 : 30000
+
+      if (output.length > threshold) {
+        // For search commands, use maxLines: 0 to return only the hint
+        const truncated = await Truncate.output(
+          output,
+          { maxLines: isSearch ? 0 : 50 },
+          ctx.extra?.agent,
+          ctx.sessionID,
+        )
+        const hint = `Command output is too large to display directly (${output.length} bytes). 
+Full output saved to: ${truncated.truncated ? truncated.outputPath : "internal error"}
+Please use the 'read' tool to examine this file if you need to see the complete output.`
+
+        return {
+          title: params.description,
+          metadata: {
+            output: isSearch ? hint : truncated.content,
+            exit: proc.exitCode,
+            description: params.description,
+            truncated: true,
+            ...(truncated.truncated && { outputPath: truncated.outputPath }),
+          },
+          output: isSearch ? hint : truncated.content,
+        }
       }
 
       return {

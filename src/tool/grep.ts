@@ -1,6 +1,7 @@
 import z from "zod"
 import { Tool } from "./tool"
 import { Ripgrep } from "../file/ripgrep"
+import { Truncate } from "./truncation"
 
 import DESCRIPTION from "./grep.txt"
 import { Instance } from "../project/instance"
@@ -50,7 +51,7 @@ export const GrepTool = Tool.define("grep", {
     })
 
     const matches: { path: string; modTime: number; lineNum: number; lineText: string }[] = []
-    const limit = 100
+    const limit = 10000
     let truncated = false
     let hasOutput = false
 
@@ -145,23 +146,41 @@ export const GrepTool = Tool.define("grep", {
       outputLines.push(`  Line ${match.lineNum}: ${truncatedLineText}`)
     }
 
-    if (truncated) {
-      outputLines.push("")
-      outputLines.push("(Results are truncated. Consider using a more specific path or pattern.)")
-    }
-
     if (hasErrors) {
       outputLines.push("")
       outputLines.push("(Some paths were inaccessible and skipped)")
+    }
+
+    const fullOutput = outputLines.join("\n")
+
+    // For grep, we want to be very aggressive about saving to file to keep UI clean
+    // and context window efficient.
+    const threshold = 1000 // characters
+    if (fullOutput.length > threshold) {
+      // Use Truncate logic to save file but return a specialized minimalist hint
+      const result = await Truncate.output(fullOutput, { maxLines: 0 }, ctx.extra?.agent, ctx.sessionID)
+      const hint = `Found ${finalMatches.length} matches. Results are too large to display directly.
+Full output saved to: ${result.truncated ? result.outputPath : "internal error"}
+Please use the 'read' tool to examine this file if you need to see the matches.`
+
+      return {
+        title: params.pattern,
+        metadata: {
+          matches: finalMatches.length,
+          truncated: true,
+          ...(result.truncated && { outputPath: result.outputPath }),
+        },
+        output: hint,
+      }
     }
 
     return {
       title: params.pattern,
       metadata: {
         matches: finalMatches.length,
-        truncated,
+        truncated: false,
       },
-      output: outputLines.join("\n"),
+      output: fullOutput,
     }
   },
 })

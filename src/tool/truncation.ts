@@ -8,10 +8,10 @@ import { Scheduler } from "../scheduler"
 
 export namespace Truncate {
   export const MAX_LINES = 2000
-  export const MAX_BYTES = 50 * 1024
+  export const MAX_BYTES = 256 * 1024
   export const DIR = path.join(Global.Path.data, "tool-output")
   export const GLOB = path.join(DIR, "*")
-  const RETENTION_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+  const RETENTION_MS = 24 * 60 * 60 * 1000 // 24 hours
   const HOUR_MS = 60 * 60 * 1000
 
   export type Result = { content: string; truncated: false } | { content: string; truncated: true; outputPath: string }
@@ -33,11 +33,25 @@ export namespace Truncate {
 
   export async function cleanup() {
     const cutoff = Identifier.timestamp(Identifier.create("tool", false, Date.now() - RETENTION_MS))
-    const glob = new Bun.Glob("tool_*")
+    const glob = new Bun.Glob("**/tool_*")
     const entries = await Array.fromAsync(glob.scan({ cwd: DIR, onlyFiles: true })).catch(() => [] as string[])
     for (const entry of entries) {
-      if (Identifier.timestamp(entry) >= cutoff) continue
+      const filename = path.basename(entry)
+      if (Identifier.timestamp(filename) >= cutoff) continue
       await fs.unlink(path.join(DIR, entry)).catch(() => {})
+    }
+
+    // Also clean up empty session directories
+    const sessionDirs = await fs.readdir(DIR).catch(() => [] as string[])
+    for (const dir of sessionDirs) {
+      const fullPath = path.join(DIR, dir)
+      const stats = await fs.stat(fullPath).catch(() => null)
+      if (stats?.isDirectory()) {
+        const files = await fs.readdir(fullPath).catch(() => [])
+        if (files.length === 0) {
+          await fs.rmdir(fullPath).catch(() => {})
+        }
+      }
     }
   }
 
@@ -47,7 +61,12 @@ export namespace Truncate {
     return rule.action !== "deny"
   }
 
-  export async function output(text: string, options: Options = {}, agent?: Agent.Info): Promise<Result> {
+  export async function output(
+    text: string,
+    options: Options = {},
+    agent?: Agent.Info,
+    sessionID?: string,
+  ): Promise<Result> {
     const maxLines = options.maxLines ?? MAX_LINES
     const maxBytes = options.maxBytes ?? MAX_BYTES
     const direction = options.direction ?? "head"
@@ -90,7 +109,9 @@ export namespace Truncate {
     const preview = out.join("\n")
 
     const id = Identifier.ascending("tool")
-    const filepath = path.join(DIR, id)
+    const dir = sessionID ? path.join(DIR, sessionID) : DIR
+    await fs.mkdir(dir, { recursive: true }).catch(() => {})
+    const filepath = path.join(dir, id)
     await Bun.write(Bun.file(filepath), text)
 
     const hint = hasTaskTool(agent)
