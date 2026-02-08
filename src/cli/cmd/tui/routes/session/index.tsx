@@ -1697,7 +1697,7 @@ function Bash(props: ToolProps<typeof BashTool>) {
     if (expanded()) return output()
 
     if (!readableCheck().readable) {
-      return "...\nClick to expand"
+      return "..."
     }
 
     if (!overflow()) return output()
@@ -1743,7 +1743,7 @@ function Bash(props: ToolProps<typeof BashTool>) {
               <text fg={theme.text}>{limited()}</text>
             </Show>
             <Show when={overflow()}>
-              <text fg={theme.textMuted}>{expanded() ? "Click to collapse" : "Click to expand"}</text>
+              <text fg={theme.textMuted}>{expanded() ? "Click to collapse" : ""}</text>
             </Show>
           </box>
         </BlockTool>

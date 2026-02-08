@@ -94,7 +94,7 @@ $ grep -r "v1/messages"
 
 ```
 $ grep -r "v1/messages" · Search for patterns in files
-[Output hidden (structured data - JSON/XML)]
+...
 ```
 
 ---
@@ -115,7 +115,7 @@ $ grep -rn "thinking"
 
 ```
 $ grep -rn "thinking" · Search for patterns in files
-[Output hidden (50+ lines)]
+...
 ```
 
 對於**人類可讀**的簡短輸出，仍會正常顯示：

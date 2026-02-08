@@ -162,8 +162,7 @@ function block(info: Inline, output?: string) {
   // 智能判斷是否應該顯示
   const check = isHumanReadable(output) // ← 過濾邏輯
   if (!check.readable) {
-    const reason = check.reason ? ` (${check.reason})` : ""
-    UI.println(`[Output hidden${reason}]`) // ← 只影響 UI
+    UI.println("...") // ← 只影響 UI
     return
   }
 
@@ -283,7 +282,7 @@ const matches = grepResults.filter((line) => line.includes("pattern"))
 // 3. UI 顯示層
 tool(part) // → 呼叫 bash() → 呼叫 block()
 // block() 檢測到輸出過長（1000 行）
-// UI 顯示：[Output hidden (1000 lines)]
+// UI 顯示：...
 
 // ⚠️ 注意：part.state.output 依然是完整的 1000 行！
 ```

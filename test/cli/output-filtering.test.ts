@@ -86,14 +86,14 @@ describe("Output Filtering - Agent Data Isolation", () => {
       const shouldDisplay = output && output.length < 500
 
       // 返回顯示的內容（可能被截斷）
-      return shouldDisplay ? output : "[Output hidden]"
+      return shouldDisplay ? output : "..."
     }
 
     const displayedOutput = displayTool(toolPart)
 
     // 驗證：顯示被過濾（因為輸出超過 500 字元）
     expect(toolPart.state.output.length).toBeGreaterThan(500)
-    expect(displayedOutput).toBe("[Output hidden]")
+    expect(displayedOutput).toBe("...")
 
     // 關鍵：原始 state.output 完全未被修改
     expect(toolPart.state.output).toContain("file1.txt")
