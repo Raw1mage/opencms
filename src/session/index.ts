@@ -22,6 +22,8 @@ import { Snapshot } from "@/snapshot"
 import type { Provider } from "@/provider/provider"
 import { PermissionNext } from "@/permission/next"
 import { Global } from "@/global"
+import { Truncate } from "@/tool/truncation"
+import fs from "fs/promises"
 
 export namespace Session {
   const log = Log.create({ service: "session" })
@@ -362,6 +364,11 @@ export namespace Session {
         await Storage.remove(msg)
       }
       await Storage.remove(["session", project.id, sessionID])
+
+      // Clean up session-specific tool outputs
+      const toolOutputDir = path.join(Truncate.DIR, sessionID)
+      await fs.rm(toolOutputDir, { recursive: true, force: true }).catch(() => {})
+
       Bus.publish(Event.Deleted, {
         info: session,
       })
