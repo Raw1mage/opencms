@@ -1362,26 +1362,28 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
 
 // Filter base64 image data that models sometimes echo back
 function filterBase64Content(text: string): string {
-  return text
-    // Filter data URLs with base64
-    .replace(/data:[^;]+;base64,[A-Za-z0-9+/=\s]{50,}/g, "[base64 image data]")
-    // Filter PNG base64 (starts with iVBORw)
-    .replace(/iVBORw[A-Za-z0-9+/=\s]{50,}/g, "[PNG image data]")
-    // Filter JPEG base64 (starts with /9j/)
-    .replace(/\/9j\/[A-Za-z0-9+/=\s]{50,}/g, "[JPEG image data]")
-    // Filter lines that are mostly base64 (>98% base64 chars, >300 chars)
-    .split("\n")
-    .map((line) => {
-      if (line.length < 300) return line
-      const base64Chars = (line.match(/[A-Za-z0-9+/=]/g) || []).length
-      const ratio = base64Chars / line.length
-      if (ratio > 0.98) return "[base64 data]"
-      return line
-    })
-    .join("\n")
-    // Collapse multiple consecutive [base64 data] placeholders
-    .replace(/(\[base64[^\]]*\]\n?){2,}/g, "[base64 image data]\n")
-    .trim()
+  return (
+    text
+      // Filter data URLs with base64
+      .replace(/data:[^;]+;base64,[A-Za-z0-9+/=\s]{50,}/g, "[base64 image data]")
+      // Filter PNG base64 (starts with iVBORw)
+      .replace(/iVBORw[A-Za-z0-9+/=\s]{50,}/g, "[PNG image data]")
+      // Filter JPEG base64 (starts with /9j/)
+      .replace(/\/9j\/[A-Za-z0-9+/=\s]{50,}/g, "[JPEG image data]")
+      // Filter lines that are mostly base64 (>98% base64 chars, >300 chars)
+      .split("\n")
+      .map((line) => {
+        if (line.length < 300) return line
+        const base64Chars = (line.match(/[A-Za-z0-9+/=]/g) || []).length
+        const ratio = base64Chars / line.length
+        if (ratio > 0.98) return "[base64 data]"
+        return line
+      })
+      .join("\n")
+      // Collapse multiple consecutive [base64 data] placeholders
+      .replace(/(\[base64[^\]]*\]\n?){2,}/g, "[base64 image data]\n")
+      .trim()
+  )
 }
 
 function TextPart(props: { last: boolean; part: TextPart; message: AssistantMessage }) {
@@ -1393,12 +1395,7 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
       <box id={"text-" + props.part.id} paddingLeft={3} marginTop={1} flexShrink={0}>
         <Switch>
           <Match when={Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
-            <markdown
-              syntaxStyle={syntax()}
-              streaming={true}
-              content={content()}
-              conceal={ctx.conceal()}
-            />
+            <markdown syntaxStyle={syntax()} streaming={true} content={content()} conceal={ctx.conceal()} />
           </Match>
           <Match when={!Flag.OPENCODE_EXPERIMENTAL_MARKDOWN}>
             <code
@@ -1649,9 +1646,50 @@ function Bash(props: ToolProps<typeof BashTool>) {
   const output = createMemo(() => stripAnsi(props.metadata.output?.trim() ?? ""))
   const [expanded, setExpanded] = createSignal(false)
   const lines = createMemo(() => output().split("\n"))
-  const overflow = createMemo(() => lines().length > 10)
+
+  // 智能判斷內容是否可讀
+  const readableCheck = createMemo(() => {
+    const content = output()
+    if (!content) return { readable: true }
+
+    const totalLines = lines().length
+    const totalChars = content.length
+
+    // 過長內容
+    if (totalLines > 50 || totalChars > 2000) {
+      return { readable: false, reason: `${totalLines} lines` }
+    }
+
+    // JSON/XML 檢測
+    const jsonLikePatterns = [/^\s*[\{\[]/, /"[^"]+"\s*:\s*/, /<[^>]+>.*<\/[^>]+>/]
+    const jsonLines = lines().filter((line) => jsonLikePatterns.some((p) => p.test(line)))
+    if (jsonLines.length > totalLines * 0.5) {
+      return { readable: false, reason: "JSON/XML data" }
+    }
+
+    // 重複模式檢測
+    const uniqueLines = new Set(lines().map((l) => l.trim())).size
+    if (totalLines > 10 && uniqueLines / totalLines < 0.3) {
+      return { readable: false, reason: "repetitive output" }
+    }
+
+    return { readable: true }
+  })
+
+  const overflow = createMemo(() => {
+    if (!readableCheck().readable) return true
+    return lines().length > 10
+  })
+
   const limited = createMemo(() => {
-    if (expanded() || !overflow()) return output()
+    if (expanded()) return output()
+
+    if (!readableCheck().readable) {
+      const reason = readableCheck().reason ? ` (${readableCheck().reason})` : ""
+      return `[Output hidden${reason}]\nClick to expand`
+    }
+
+    if (!overflow()) return output()
     return [...lines().slice(0, 10), "…"].join("\n")
   })
 
