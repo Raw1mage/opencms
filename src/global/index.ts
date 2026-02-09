@@ -138,6 +138,24 @@ const fallbackEntries: TemplateManifestEntry[] = [
 const manifestEntries = await loadManifestEntries()
 const templateEntries = manifestEntries.length > 0 ? manifestEntries : fallbackEntries
 
+async function copyMissingTree(srcRoot: string, dstRoot: string) {
+  await fs.mkdir(dstRoot, { recursive: true })
+  const entries = await fs.readdir(srcRoot, { withFileTypes: true })
+  for (const entry of entries) {
+    const src = path.join(srcRoot, entry.name)
+    const dst = path.join(dstRoot, entry.name)
+    if (entry.isDirectory()) {
+      await copyMissingTree(src, dst)
+      continue
+    }
+    if (!entry.isFile()) continue
+    const exists = await Bun.file(dst).exists()
+    if (exists) continue
+    await fs.mkdir(path.dirname(dst), { recursive: true }).catch(() => {})
+    await Bun.write(dst, Bun.file(src))
+  }
+}
+
 await Promise.all(
   templateEntries.map(async (entry) => {
     const targetRoot = resolveTargetDir(entry.target ?? "config")
@@ -169,6 +187,17 @@ await Promise.all(
     if (entry.sensitive || SENSITIVE_FILES.has(entry.path)) await fs.chmod(target, 0o600)
   }),
 )
+
+// @event_2026-02-10_bundled_skills: Install bundled skills into XDG data dir.
+// Runtime should load skills from managed data paths, not directly from repository templates.
+if (process.env.NODE_ENV !== "test") {
+  const bundledSkillsSrc = path.join(templatesDir, "skills")
+  const bundledSkillsDst = path.join(Global.Path.data, "skills")
+  const srcExists = await Bun.file(bundledSkillsSrc).exists()
+  if (srcExists) {
+    await copyMissingTree(bundledSkillsSrc, bundledSkillsDst)
+  }
+}
 
 const CACHE_VERSION = "21"
 
