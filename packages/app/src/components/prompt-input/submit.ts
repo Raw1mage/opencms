@@ -16,8 +16,6 @@ import { Worktree as WorktreeState } from "@/utils/worktree"
 import type { FileSelection } from "@/context/file"
 import { setCursorPosition } from "./editor-dom"
 import { buildRequestParts } from "./build-request-parts"
-import { Binary } from "@opencode-ai/util/binary"
-import { produce } from "solid-js/store"
 
 type PendingPrompt = {
   abort: AbortController
@@ -36,6 +34,7 @@ type PromptSubmitInput = {
   queueScroll: () => void
   promptLength: (prompt: Prompt) => number
   addToHistory: (prompt: Prompt, mode: "normal" | "shell") => void
+  resetHistoryNavigation: () => void
   setMode: (mode: "normal" | "shell") => void
   setPopover: (popover: "at" | "slash" | null) => void
   newSessionWorktree?: string
@@ -44,7 +43,6 @@ type PromptSubmitInput = {
 }
 
 type CommentItem = {
-  key: string
   path: string
   selection?: FileSelection
   comment?: string
@@ -105,7 +103,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
     }
   }
 
-  const removeCommentItems = (items: CommentItem[]) => {
+  const removeCommentItems = (items: { key: string }[]) => {
     for (const item of items) {
       prompt.context.remove(item.key)
     }
@@ -126,15 +124,16 @@ export function createPromptSubmit(input: PromptSubmitInput) {
 
     const currentModel = local.model.current()
     const currentAgent = local.agent.current()
-    if (!currentAgent) {
+    if (!currentModel || !currentAgent) {
       showToast({
-        title: language.t("prompt.toast.agentRequired.title"),
-        description: language.t("prompt.toast.agentRequired.description"),
+        title: language.t("prompt.toast.modelAgentRequired.title"),
+        description: language.t("prompt.toast.modelAgentRequired.description"),
       })
       return
     }
 
     input.addToHistory(currentPrompt, mode)
+    input.resetHistoryNavigation()
 
     const projectDirectory = sdk.directory
     const isNewSession = !params.id
@@ -196,23 +195,27 @@ export function createPromptSubmit(input: PromptSubmitInput) {
           })
           return undefined
         })
-      if (session) navigate(`/${base64Encode(sessionDirectory)}/session/${session.id}`)
+      if (session) {
+        layout.handoff.setTabs(base64Encode(sessionDirectory), session.id)
+        navigate(`/${base64Encode(sessionDirectory)}/session/${session.id}`)
+      }
     }
-    if (!session) return
+    if (!session) {
+      showToast({
+        title: language.t("prompt.toast.promptSendFailed.title"),
+        description: language.t("prompt.toast.promptSendFailed.description"),
+      })
+      return
+    }
 
     input.onSubmit?.()
 
-    // Model is optional in CMS - backend auto-selects if undefined
-    const selectedModel = currentModel
-      ? {
-          modelID: currentModel.id,
-          providerId: currentModel.provider.id,
-        }
-      : undefined
-    const model = selectedModel ?? { providerId: "auto", modelID: "auto" }
+    const model = {
+      modelID: currentModel.id,
+      providerID: currentModel.provider.id,
+    }
     const agent = currentAgent.name
-    const variant = selectedModel ? local.model.variant.current() : undefined
-    const modelKey = selectedModel ? `${selectedModel.providerId}/${selectedModel.modelID}` : undefined
+    const variant = local.model.variant.current()
 
     const clearInput = () => {
       prompt.reset()
@@ -239,7 +242,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
         .shell({
           sessionID: session.id,
           agent,
-          model: selectedModel,
+          model,
           command: text,
         })
         .catch((err) => {
@@ -264,7 +267,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
             command: commandName,
             arguments: args.join(" "),
             agent,
-            model: modelKey,
+            model: `${model.providerID}/${model.modelID}`,
             variant,
             parts: images.map((attachment) => ({
               id: Identifier.ascending("part"),
@@ -286,7 +289,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
     }
 
     const context = prompt.context.items().slice()
-    const commentItems = context.filter((item) => item.type === "file" && !!item.comment?.trim()) as CommentItem[]
+    const commentItems = context.filter((item) => item.type === "file" && !!item.comment?.trim())
 
     const messageID = Identifier.ascending("message")
     const { requestParts, optimisticParts } = buildRequestParts({
@@ -308,42 +311,20 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       model,
     }
 
-    const addOptimisticMessage = () => {
-      const targetSync = sessionDirectory === projectDirectory ? sync : (globalSync.child(sessionDirectory) as any)
-      const targetSetter = sessionDirectory === projectDirectory ? sync.set : targetSync[1]
+    const addOptimisticMessage = () =>
+      sync.session.optimistic.add({
+        directory: sessionDirectory,
+        sessionID: session.id,
+        message: optimisticMessage,
+        parts: optimisticParts,
+      })
 
-      targetSetter(
-        produce((draft: any) => {
-          const messages = draft.message[session!.id]
-          if (!messages) {
-            draft.message[session!.id] = [optimisticMessage]
-          } else {
-            const result = Binary.search(messages, messageID, (m: any) => m.id)
-            messages.splice(result.index, 0, optimisticMessage)
-          }
-          draft.part[messageID] = optimisticParts
-            .filter((p) => !!p?.id)
-            .slice()
-            .sort((a, b) => a.id.localeCompare(b.id))
-        }),
-      )
-    }
-
-    const removeOptimisticMessage = () => {
-      const targetSync = sessionDirectory === projectDirectory ? sync : (globalSync.child(sessionDirectory) as any)
-      const targetSetter = sessionDirectory === projectDirectory ? sync.set : targetSync[1]
-
-      targetSetter(
-        produce((draft: any) => {
-          const messages = draft.message[session!.id]
-          if (messages) {
-            const result = Binary.search(messages, messageID, (m: any) => m.id)
-            if (result.found) messages.splice(result.index, 1)
-          }
-          delete draft.part[messageID]
-        }),
-      )
-    }
+    const removeOptimisticMessage = () =>
+      sync.session.optimistic.remove({
+        directory: sessionDirectory,
+        sessionID: session.id,
+        messageID,
+      })
 
     removeCommentItems(commentItems)
     clearInput()
@@ -354,20 +335,20 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       if (!worktree || worktree.status !== "pending") return true
 
       if (sessionDirectory === projectDirectory) {
-        sync.set("session_status", session!.id, { type: "busy" })
+        sync.set("session_status", session.id, { type: "busy" })
       }
 
       const controller = new AbortController()
       const cleanup = () => {
         if (sessionDirectory === projectDirectory) {
-          sync.set("session_status", session!.id, { type: "idle" })
+          sync.set("session_status", session.id, { type: "idle" })
         }
         removeOptimisticMessage()
         restoreCommentItems(commentItems)
         restoreInput()
       }
 
-      pending.set(session!.id, { abort: controller, cleanup })
+      pending.set(session.id, { abort: controller, cleanup })
 
       const abortWait = new Promise<Awaited<ReturnType<typeof WorktreeState.wait>>>((resolve) => {
         if (controller.signal.aborted) {
@@ -395,7 +376,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
         if (timer.id === undefined) return
         clearTimeout(timer.id)
       })
-      pending.delete(session!.id)
+      pending.delete(session.id)
       if (controller.signal.aborted) return false
       if (result.status === "failed") throw new Error(result.message)
       return true
@@ -405,7 +386,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       const ok = await waitForWorktree()
       if (!ok) return
       await client.session.prompt({
-        sessionID: session!.id,
+        sessionID: session.id,
         agent,
         model,
         messageID,
@@ -415,9 +396,9 @@ export function createPromptSubmit(input: PromptSubmitInput) {
     }
 
     void send().catch((err) => {
-      pending.delete(session!.id)
+      pending.delete(session.id)
       if (sessionDirectory === projectDirectory) {
-        sync.set("session_status", session!.id, { type: "idle" })
+        sync.set("session_status", session.id, { type: "idle" })
       }
       showToast({
         title: language.t("prompt.toast.promptSendFailed.title"),

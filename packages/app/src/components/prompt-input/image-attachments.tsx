@@ -1,19 +1,15 @@
 import { Component, For, Show } from "solid-js"
 import { Icon } from "@opencode-ai/ui/icon"
-import { ImagePreview } from "@opencode-ai/ui/image-preview"
-import { useDialog } from "@opencode-ai/ui/context/dialog"
-import { useLanguage } from "@/context/language"
 import type { ImageAttachmentPart } from "@/context/prompt"
 
-interface ImageAttachmentsProps {
+type PromptImageAttachmentsProps = {
   attachments: ImageAttachmentPart[]
+  onOpen: (attachment: ImageAttachmentPart) => void
   onRemove: (id: string) => void
+  removeLabel: string
 }
 
-export const ImageAttachments: Component<ImageAttachmentsProps> = (props) => {
-  const dialog = useDialog()
-  const language = useLanguage()
-
+export const PromptImageAttachments: Component<PromptImageAttachmentsProps> = (props) => {
   return (
     <Show when={props.attachments.length > 0}>
       <div class="flex flex-wrap gap-2 px-3 pt-3">
@@ -32,16 +28,14 @@ export const ImageAttachments: Component<ImageAttachmentsProps> = (props) => {
                   src={attachment.dataUrl}
                   alt={attachment.filename}
                   class="size-16 rounded-md object-cover border border-border-base hover:border-border-strong-base transition-colors"
-                  onClick={() =>
-                    dialog.show(() => <ImagePreview src={attachment.dataUrl} alt={attachment.filename} />)
-                  }
+                  onClick={() => props.onOpen(attachment)}
                 />
               </Show>
               <button
                 type="button"
                 onClick={() => props.onRemove(attachment.id)}
                 class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-surface-raised-stronger-non-alpha border border-border-base flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-surface-raised-base-hover"
-                aria-label={language.t("prompt.attachment.remove")}
+                aria-label={props.removeLabel}
               >
                 <Icon name="close" class="size-3 text-text-weak" />
               </button>

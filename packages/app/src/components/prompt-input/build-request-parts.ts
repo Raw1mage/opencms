@@ -1,147 +1,190 @@
-import { type Prompt, type ImageAttachmentPart, type FileAttachmentPart, type AgentPart } from "@/context/prompt"
-import { type FileSelection } from "@/context/file"
-import { Identifier } from "@/utils/id"
 import { getFilename } from "@opencode-ai/util/path"
-import { type Part } from "@opencode-ai/sdk/v2/client"
+import { type AgentPartInput, type FilePartInput, type Part, type TextPartInput } from "@opencode-ai/sdk/v2/client"
+import type { FileSelection } from "@/context/file"
+import type { AgentPart, FileAttachmentPart, ImageAttachmentPart, Prompt } from "@/context/prompt"
+import { Identifier } from "@/utils/id"
 
-type RequestPartsInput = {
+type PromptRequestPart = (TextPartInput | FilePartInput | AgentPartInput) & { id: string }
+
+type ContextFile = {
+  key: string
+  type: "file"
+  path: string
+  selection?: FileSelection
+  comment?: string
+  commentID?: string
+  commentOrigin?: "review" | "file"
+  preview?: string
+}
+
+type BuildRequestPartsInput = {
   prompt: Prompt
-  context: any[]
+  context: ContextFile[]
   images: ImageAttachmentPart[]
   text: string
-  sessionID: string
   messageID: string
+  sessionID: string
   sessionDirectory: string
 }
 
-export function buildRequestParts(input: RequestPartsInput) {
-  const { prompt, context, images, text, sessionID, messageID, sessionDirectory } = input
+const absolute = (directory: string, path: string) =>
+  path.startsWith("/") ? path : (directory + "/" + path).replace("//", "/")
 
-  const toAbsolutePath = (path: string) =>
-    path.startsWith("/") ? path : (sessionDirectory + "/" + path).replace("//", "/")
+const encodeFilePath = (filepath: string): string => {
+  // Normalize Windows paths: convert backslashes to forward slashes
+  let normalized = filepath.replace(/\\/g, "/")
 
-  const encodeFilePath = (filepath: string): string =>
-    filepath
-      .split("/")
-      .map((segment) => encodeURIComponent(segment))
-      .join("/")
+  // Handle Windows absolute paths (D:/path -> /D:/path for proper file:// URLs)
+  if (/^[A-Za-z]:/.test(normalized)) {
+    normalized = "/" + normalized
+  }
 
-  const fileAttachments = prompt.filter((part) => part.type === "file") as FileAttachmentPart[]
-  const agentAttachments = prompt.filter((part) => part.type === "agent") as AgentPart[]
+  // Encode each path segment (preserving forward slashes as path separators)
+  return normalized
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/")
+}
 
-  const fileAttachmentParts = fileAttachments.map((attachment) => {
-    const absolute = toAbsolutePath(attachment.path)
-    const query = attachment.selection
-      ? `?start=${attachment.selection.startLine}&end=${attachment.selection.endLine}`
-      : ""
+const fileQuery = (selection: FileSelection | undefined) =>
+  selection ? `?start=${selection.startLine}&end=${selection.endLine}` : ""
+
+const isFileAttachment = (part: Prompt[number]): part is FileAttachmentPart => part.type === "file"
+const isAgentAttachment = (part: Prompt[number]): part is AgentPart => part.type === "agent"
+
+const commentNote = (path: string, selection: FileSelection | undefined, comment: string) => {
+  const start = selection ? Math.min(selection.startLine, selection.endLine) : undefined
+  const end = selection ? Math.max(selection.startLine, selection.endLine) : undefined
+  const range =
+    start === undefined || end === undefined
+      ? "this file"
+      : start === end
+        ? `line ${start}`
+        : `lines ${start} through ${end}`
+  return `The user made the following comment regarding ${range} of ${path}: ${comment}`
+}
+
+const toOptimisticPart = (part: PromptRequestPart, sessionID: string, messageID: string): Part => {
+  if (part.type === "text") {
+    return {
+      id: part.id,
+      type: "text",
+      text: part.text,
+      synthetic: part.synthetic,
+      ignored: part.ignored,
+      time: part.time,
+      metadata: part.metadata,
+      sessionID,
+      messageID,
+    }
+  }
+  if (part.type === "file") {
+    return {
+      id: part.id,
+      type: "file",
+      mime: part.mime,
+      filename: part.filename,
+      url: part.url,
+      source: part.source,
+      sessionID,
+      messageID,
+    }
+  }
+  return {
+    id: part.id,
+    type: "agent",
+    name: part.name,
+    source: part.source,
+    sessionID,
+    messageID,
+  }
+}
+
+export function buildRequestParts(input: BuildRequestPartsInput) {
+  const requestParts: PromptRequestPart[] = [
+    {
+      id: Identifier.ascending("part"),
+      type: "text",
+      text: input.text,
+    },
+  ]
+
+  const files = input.prompt.filter(isFileAttachment).map((attachment) => {
+    const path = absolute(input.sessionDirectory, attachment.path)
     return {
       id: Identifier.ascending("part"),
-      type: "file" as const,
+      type: "file",
       mime: "text/plain",
-      url: `file://${encodeFilePath(absolute)}${query}`,
+      url: `file://${encodeFilePath(path)}${fileQuery(attachment.selection)}`,
       filename: getFilename(attachment.path),
       source: {
-        type: "file" as const,
+        type: "file",
         text: {
           value: attachment.content,
           start: attachment.start,
           end: attachment.end,
         },
-        path: absolute,
+        path,
       },
-    }
+    } satisfies PromptRequestPart
   })
 
-  const agentAttachmentParts = agentAttachments.map((attachment) => ({
-    id: Identifier.ascending("part"),
-    type: "agent" as const,
-    name: attachment.name,
-    source: {
-      value: attachment.content,
-      start: attachment.start,
-      end: attachment.end,
-    },
-  }))
+  const agents = input.prompt.filter(isAgentAttachment).map((attachment) => {
+    return {
+      id: Identifier.ascending("part"),
+      type: "agent",
+      name: attachment.name,
+      source: {
+        value: attachment.content,
+        start: attachment.start,
+        end: attachment.end,
+      },
+    } satisfies PromptRequestPart
+  })
 
-  const usedUrls = new Set(fileAttachmentParts.map((part) => part.url))
+  const used = new Set(files.map((part) => part.url))
+  const context = input.context.flatMap((item) => {
+    const path = absolute(input.sessionDirectory, item.path)
+    const url = `file://${encodeFilePath(path)}${fileQuery(item.selection)}`
+    const comment = item.comment?.trim()
+    if (!comment && used.has(url)) return []
+    used.add(url)
 
-  const contextParts: Array<any> = []
-
-  const commentNote = (path: string, selection: FileSelection | undefined, comment: string) => {
-    const start = selection ? Math.min(selection.startLine, selection.endLine) : undefined
-    const end = selection ? Math.max(selection.startLine, selection.endLine) : undefined
-    const range =
-      start === undefined || end === undefined
-        ? "this file"
-        : start === end
-          ? `line ${start}`
-          : `lines ${start} through ${end}`
-
-    return `The user made the following comment regarding ${range} of ${path}: ${comment}`
-  }
-
-  const addContextFile = (input: { path: string; selection?: FileSelection; comment?: string }) => {
-    const absolute = toAbsolutePath(input.path)
-    const query = input.selection ? `?start=${input.selection.startLine}&end=${input.selection.endLine}` : ""
-    const url = `file://${encodeFilePath(absolute)}${query}`
-
-    const comment = input.comment?.trim()
-    if (!comment && usedUrls.has(url)) return
-    usedUrls.add(url)
-
-    if (comment) {
-      contextParts.push({
-        id: Identifier.ascending("part"),
-        type: "text",
-        text: commentNote(input.path, input.selection, comment),
-        synthetic: true,
-      })
-    }
-
-    contextParts.push({
+    const filePart = {
       id: Identifier.ascending("part"),
       type: "file",
       mime: "text/plain",
       url,
-      filename: getFilename(input.path),
-    })
-  }
+      filename: getFilename(item.path),
+    } satisfies PromptRequestPart
 
-  for (const item of context) {
-    if (item.type !== "file") continue
-    addContextFile({ path: item.path, selection: item.selection, comment: item.comment })
-  }
+    if (!comment) return [filePart]
 
-  const imageAttachmentParts = images.map((attachment) => ({
-    id: Identifier.ascending("part"),
-    type: "file" as const,
-    mime: attachment.mime,
-    url: attachment.dataUrl,
-    filename: attachment.filename,
-  }))
+    return [
+      {
+        id: Identifier.ascending("part"),
+        type: "text",
+        text: commentNote(item.path, item.selection, comment),
+        synthetic: true,
+      } satisfies PromptRequestPart,
+      filePart,
+    ]
+  })
 
-  const textPart = {
-    id: Identifier.ascending("part"),
-    type: "text" as const,
-    text,
-  }
+  const images = input.images.map((attachment) => {
+    return {
+      id: Identifier.ascending("part"),
+      type: "file",
+      mime: attachment.mime,
+      url: attachment.dataUrl,
+      filename: attachment.filename,
+    } satisfies PromptRequestPart
+  })
 
-  const requestParts = [
-    textPart,
-    ...fileAttachmentParts,
-    ...contextParts,
-    ...agentAttachmentParts,
-    ...imageAttachmentParts,
-  ]
-
-  const optimisticParts = requestParts.map((part) => ({
-    ...part,
-    sessionID,
-    messageID,
-  })) as unknown as Part[]
+  requestParts.push(...files, ...context, ...agents, ...images)
 
   return {
     requestParts,
-    optimisticParts,
+    optimisticParts: requestParts.map((part) => toOptimisticPart(part, input.sessionID, input.messageID)),
   }
 }

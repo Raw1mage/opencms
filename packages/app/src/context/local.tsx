@@ -7,7 +7,7 @@ import { base64Encode } from "@opencode-ai/util/encode"
 import { useProviders } from "@/hooks/use-providers"
 import { useModels } from "@/context/models"
 
-export type ModelKey = { providerId: string; modelID: string }
+export type ModelKey = { providerID: string; modelID: string }
 
 export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
   name: "Local",
@@ -17,13 +17,13 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     const providers = useProviders()
 
     function isModelValid(model: ModelKey) {
-      const provider = providers.all().find((x) => x.id === model.providerId)
+      const provider = providers.all().find((x) => x.id === model.providerID)
       return (
         !!provider?.models[model.modelID] &&
         providers
           .connected()
           .map((p) => p.id)
-          .includes(model.providerId)
+          .includes(model.providerID)
       )
     }
 
@@ -75,7 +75,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           setStore("current", value.name)
           if (value.model)
             model.set({
-              providerId: value.model.providerId,
+              providerID: value.model.providerID,
               modelID: value.model.modelID,
             })
         },
@@ -93,10 +93,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
       const fallbackModel = createMemo<ModelKey | undefined>(() => {
         if (sync.data.config.model) {
-          const [providerId, modelID] = sync.data.config.model.split("/")
-          if (isModelValid({ providerId, modelID })) {
+          const [providerID, modelID] = sync.data.config.model.split("/")
+          if (isModelValid({ providerID, modelID })) {
             return {
-              providerId,
+              providerID,
               modelID,
             }
           }
@@ -112,13 +112,13 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         for (const p of providers.connected()) {
           const configured = defaults[p.id]
           if (configured) {
-            const key = { providerId: p.id, modelID: configured }
+            const key = { providerID: p.id, modelID: configured }
             if (isModelValid(key)) return key
           }
 
           const first = Object.values(p.models)[0]
           if (!first) continue
-          const key = { providerId: p.id, modelID: first.id }
+          const key = { providerID: p.id, modelID: first.id }
           if (isModelValid(key)) return key
         }
 
@@ -157,7 +157,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         if (!val) return
 
         model.set({
-          providerId: val.provider.id,
+          providerID: val.provider.id,
           modelID: val.id,
         })
       }
@@ -187,7 +187,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           current() {
             const m = current()
             if (!m) return undefined
-            return models.variant.get({ providerId: m.provider.id, modelID: m.id })
+            return models.variant.get({ providerID: m.provider.id, modelID: m.id })
           },
           list() {
             const m = current()
@@ -198,7 +198,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           set(value: string | undefined) {
             const m = current()
             if (!m) return
-            models.variant.set({ providerId: m.provider.id, modelID: m.id }, value)
+            models.variant.set({ providerID: m.provider.id, modelID: m.id }, value)
           },
           cycle() {
             const variants = this.list()

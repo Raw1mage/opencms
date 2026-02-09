@@ -97,7 +97,7 @@ export const SettingsModels: Component = () => {
                   <div class="bg-surface-raised-base px-4 rounded-lg">
                     <For each={group.items}>
                       {(item) => {
-                        const key = { providerId: item.provider.id, modelID: item.id }
+                        const key = { providerID: item.provider.id, modelID: item.id }
                         return (
                           <div class="flex flex-wrap items-center justify-between gap-4 py-3 border-b border-border-weak-base last:border-none">
                             <div class="min-w-0">

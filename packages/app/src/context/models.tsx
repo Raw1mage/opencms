@@ -6,7 +6,7 @@ import { createSimpleContext } from "@opencode-ai/ui/context"
 import { useProviders } from "@/hooks/use-providers"
 import { Persist, persisted } from "@/utils/persist"
 
-export type ModelKey = { providerId: string; modelID: string }
+export type ModelKey = { providerID: string; modelID: string }
 
 type Visibility = "show" | "hide"
 type User = ModelKey & { visibility: Visibility; favorite?: boolean }
@@ -52,7 +52,7 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
             (groups) =>
               groups.flatMap((g) => {
                 const first = firstBy(g, [(x) => x.release_date, "desc"])
-                return first ? [{ modelID: first.id, providerId: first.provider.id }] : []
+                return first ? [{ modelID: first.id, providerID: first.provider.id }] : []
               }),
           ),
         ),
@@ -61,11 +61,11 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
       ),
     )
 
-    const latestSet = createMemo(() => new Set(latest().map((x) => `${x.providerId}:${x.modelID}`)))
+    const latestSet = createMemo(() => new Set(latest().map((x) => `${x.providerID}:${x.modelID}`)))
 
     const visibility = createMemo(() => {
       const map = new Map<string, Visibility>()
-      for (const item of store.user) map.set(`${item.providerId}:${item.modelID}`, item.visibility)
+      for (const item of store.user) map.set(`${item.providerID}:${item.modelID}`, item.visibility)
       return map
     })
 
@@ -77,10 +77,10 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
       })),
     )
 
-    const find = (key: ModelKey) => list().find((m) => m.id === key.modelID && m.provider.id === key.providerId)
+    const find = (key: ModelKey) => list().find((m) => m.id === key.modelID && m.provider.id === key.providerID)
 
     function update(model: ModelKey, state: Visibility) {
-      const index = store.user.findIndex((x) => x.modelID === model.modelID && x.providerId === model.providerId)
+      const index = store.user.findIndex((x) => x.modelID === model.modelID && x.providerID === model.providerID)
       if (index >= 0) {
         setStore("user", index, { visibility: state })
         return
@@ -89,7 +89,7 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
     }
 
     const visible = (model: ModelKey) => {
-      const key = `${model.providerId}:${model.modelID}`
+      const key = `${model.providerID}:${model.modelID}`
       const state = visibility().get(key)
       if (state === "hide") return false
       if (state === "show") return true
@@ -104,12 +104,12 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
     }
 
     const push = (model: ModelKey) => {
-      const uniq = uniqueBy([model, ...store.recent], (x) => x.providerId + x.modelID)
+      const uniq = uniqueBy([model, ...store.recent], (x) => x.providerID + x.modelID)
       if (uniq.length > 5) uniq.pop()
       setStore("recent", uniq)
     }
 
-    const variantKey = (model: ModelKey) => `${model.providerId}/${model.modelID}`
+    const variantKey = (model: ModelKey) => `${model.providerID}/${model.modelID}`
     const getVariant = (model: ModelKey) => store.variant?.[variantKey(model)]
 
     const setVariant = (model: ModelKey, value: string | undefined) => {

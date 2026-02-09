@@ -47,9 +47,9 @@ export const DialogManageModels: Component = () => {
           if (!x) return
           const visible = local.model.visible({
             modelID: x.id,
-            providerId: x.provider.id,
+            providerID: x.provider.id,
           })
-          local.model.setVisibility({ modelID: x.id, providerId: x.provider.id }, !visible)
+          local.model.setVisibility({ modelID: x.id, providerID: x.provider.id }, !visible)
         }}
       >
         {(i) => (
@@ -60,11 +60,11 @@ export const DialogManageModels: Component = () => {
                 checked={
                   !!local.model.visible({
                     modelID: i.id,
-                    providerId: i.provider.id,
+                    providerID: i.provider.id,
                   })
                 }
                 onChange={(checked) => {
-                  local.model.setVisibility({ modelID: i.id, providerId: i.provider.id }, checked)
+                  local.model.setVisibility({ modelID: i.id, providerID: i.provider.id }, checked)
                 }}
               />
             </div>

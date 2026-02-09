@@ -79,9 +79,6 @@ export const DialogSelectProvider: Component = () => {
             <Show when={i.id.startsWith("github-copilot")}>
               <div class="text-14-regular text-text-weak">{language.t("dialog.provider.copilot.note")}</div>
             </Show>
-            <Show when={i.id === "gmicloud"}>
-              <div class="text-14-regular text-text-weak">{language.t("dialog.provider.gmicloud.note")}</div>
-            </Show>
           </div>
         )}
       </List>

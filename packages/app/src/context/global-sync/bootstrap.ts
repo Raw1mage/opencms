@@ -1,160 +1,195 @@
+import {
+  type Config,
+  type Path,
+  type PermissionRequest,
+  type Project,
+  type ProviderAuthResponse,
+  type ProviderListResponse,
+  type QuestionRequest,
+  createOpencodeClient,
+} from "@opencode-ai/sdk/v2/client"
+import { batch } from "solid-js"
+import { reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import { retry } from "@opencode-ai/util/retry"
-import { produce, type SetStoreFunction, type Store } from "solid-js/store"
+import { getFilename } from "@opencode-ai/util/path"
+import { showToast } from "@opencode-ai/ui/toast"
+import { cmp, normalizeProviderList } from "./utils"
 import type { State, VcsCache } from "./types"
-import { normalizeProviderList } from "./utils"
+
+type GlobalStore = {
+  ready: boolean
+  path: Path
+  project: Project[]
+  provider: ProviderListResponse
+  provider_auth: ProviderAuthResponse
+  config: Config
+  reload: undefined | "pending" | "complete"
+}
 
 export async function bootstrapGlobal(input: {
-  globalSDK: any // SDK client
-  setGlobalStore: SetStoreFunction<any>
+  globalSDK: ReturnType<typeof createOpencodeClient>
   connectErrorTitle: string
   connectErrorDescription: string
   requestFailedTitle: string
+  setGlobalStore: SetStoreFunction<GlobalStore>
 }) {
-  const { globalSDK, setGlobalStore, connectErrorTitle, connectErrorDescription, requestFailedTitle } = input
-
-  const health = await globalSDK.global
+  const health = await input.globalSDK.global
     .health()
-    .then((x: any) => x.data)
+    .then((x) => x.data)
     .catch(() => undefined)
-
   if (!health?.healthy) {
-    setGlobalStore("ready", true)
-    return { error: "unhealthy" }
+    showToast({
+      variant: "error",
+      title: input.connectErrorTitle,
+      description: input.connectErrorDescription,
+    })
+    input.setGlobalStore("ready", true)
+    return
   }
 
   const tasks = [
     retry(() =>
-      globalSDK.path.get().then((x: any) => {
-        setGlobalStore("path", x.data!)
+      input.globalSDK.path.get().then((x) => {
+        input.setGlobalStore("path", x.data!)
       }),
     ),
     retry(() =>
-      globalSDK.global.config.get().then((x: any) => {
-        setGlobalStore("config", x.data!)
+      input.globalSDK.global.config.get().then((x) => {
+        input.setGlobalStore("config", x.data!)
       }),
     ),
     retry(() =>
-      globalSDK.project.list().then(async (x: any) => {
+      input.globalSDK.project.list().then((x) => {
         const projects = (x.data ?? [])
-          .filter((p: any) => !!p?.id)
-          .filter((p: any) => !!p.worktree && !p.worktree.includes("opencode-test"))
+          .filter((p) => !!p?.id)
+          .filter((p) => !!p.worktree && !p.worktree.includes("opencode-test"))
           .slice()
-          .sort((a: any, b: any) => a.id.localeCompare(b.id))
-        setGlobalStore("project", projects)
+          .sort((a, b) => cmp(a.id, b.id))
+        input.setGlobalStore("project", projects)
       }),
     ),
     retry(() =>
-      globalSDK.provider.list().then((x: any) => {
-        setGlobalStore("provider", normalizeProviderList(x.data!))
+      input.globalSDK.provider.list().then((x) => {
+        input.setGlobalStore("provider", normalizeProviderList(x.data!))
       }),
     ),
     retry(() =>
-      globalSDK.provider.auth().then((x: any) => {
-        setGlobalStore("provider_auth", x.data ?? {})
+      input.globalSDK.provider.auth().then((x) => {
+        input.setGlobalStore("provider_auth", x.data ?? {})
       }),
     ),
   ]
 
   const results = await Promise.allSettled(tasks)
   const errors = results.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => r.reason)
+  if (errors.length) {
+    const message = errors[0] instanceof Error ? errors[0].message : String(errors[0])
+    const more = errors.length > 1 ? ` (+${errors.length - 1} more)` : ""
+    showToast({
+      variant: "error",
+      title: input.requestFailedTitle,
+      description: message + more,
+    })
+  }
+  input.setGlobalStore("ready", true)
+}
 
-  setGlobalStore("ready", true)
-  return { errors }
+function groupBySession<T extends { id: string; sessionID: string }>(input: T[]) {
+  return input.reduce<Record<string, T[]>>((acc, item) => {
+    if (!item?.id || !item.sessionID) return acc
+    const list = acc[item.sessionID]
+    if (list) list.push(item)
+    if (!list) acc[item.sessionID] = [item]
+    return acc
+  }, {})
 }
 
 export async function bootstrapDirectory(input: {
   directory: string
-  sdk: any
+  sdk: ReturnType<typeof createOpencodeClient>
   store: Store<State>
   setStore: SetStoreFunction<State>
   vcsCache: VcsCache
-  loadSessions: (directory: string) => Promise<void>
+  loadSessions: (directory: string) => Promise<void> | void
 }) {
-  const { directory, sdk, store, setStore, vcsCache, loadSessions } = input
-
-  setStore("status", "loading")
+  input.setStore("status", "loading")
 
   const blockingRequests = {
-    project: () => sdk.project.current().then((x: any) => setStore("project", x.data!.id)),
+    project: () => input.sdk.project.current().then((x) => input.setStore("project", x.data!.id)),
     provider: () =>
-      sdk.provider.list().then((x: any) => {
-        setStore("provider", normalizeProviderList(x.data!))
+      input.sdk.provider.list().then((x) => {
+        input.setStore("provider", normalizeProviderList(x.data!))
       }),
-    agent: () => sdk.app.agents().then((x: any) => setStore("agent", x.data ?? [])),
-    config: () => sdk.config.get().then((x: any) => setStore("config", x.data!)),
+    agent: () => input.sdk.app.agents().then((x) => input.setStore("agent", x.data ?? [])),
+    config: () => input.sdk.config.get().then((x) => input.setStore("config", x.data!)),
   }
 
   try {
     await Promise.all(Object.values(blockingRequests).map((p) => retry(p)))
   } catch (err) {
-    setStore("status", "partial")
-    throw err
+    console.error("Failed to bootstrap instance", err)
+    const project = getFilename(input.directory)
+    const message = err instanceof Error ? err.message : String(err)
+    showToast({ title: `Failed to reload ${project}`, description: message })
+    input.setStore("status", "partial")
+    return
   }
 
-  if (store.status !== "complete") setStore("status", "partial")
+  if (input.store.status !== "complete") input.setStore("status", "partial")
 
-  await Promise.all([
-    sdk.path.get().then((x: any) => setStore("path", x.data!)),
-    sdk.command.list().then((x: any) => setStore("command", x.data ?? [])),
-    sdk.app.skills().then((x: any) => setStore("skill", x.data ?? [])),
-    sdk.session.status().then((x: any) => setStore("session_status", x.data!)),
-    loadSessions(directory),
-    sdk.mcp.status().then((x: any) => setStore("mcp", x.data!)),
-    sdk.lsp.status().then((x: any) => setStore("lsp", x.data!)),
-    sdk.vcs.get().then((x: any) => {
-      const next = x.data ?? store.vcs
-      setStore("vcs", next)
-      if (next?.branch) vcsCache.setStore("value", next)
+  Promise.all([
+    input.sdk.path.get().then((x) => input.setStore("path", x.data!)),
+    input.sdk.command.list().then((x) => input.setStore("command", x.data ?? [])),
+    input.sdk.session.status().then((x) => input.setStore("session_status", x.data!)),
+    input.loadSessions(input.directory),
+    input.sdk.mcp.status().then((x) => input.setStore("mcp", x.data!)),
+    input.sdk.lsp.status().then((x) => input.setStore("lsp", x.data!)),
+    input.sdk.vcs.get().then((x) => {
+      const next = x.data ?? input.store.vcs
+      input.setStore("vcs", next)
+      if (next?.branch) input.vcsCache.setStore("value", next)
     }),
-    sdk.permission.list().then((x: any) => {
-      const grouped: Record<string, any[]> = {}
-      for (const perm of x.data ?? []) {
-        if (!perm?.id || !perm.sessionID) continue
-        const existing = grouped[perm.sessionID]
-        if (existing) {
-          existing.push(perm)
-          continue
-        }
-        grouped[perm.sessionID] = [perm]
-      }
-
-      setStore(
-        produce((draft) => {
-          for (const sessionID of Object.keys(draft.permission)) {
-            if (grouped[sessionID]) continue
-            draft.permission[sessionID] = []
-          }
-          for (const [sessionID, permissions] of Object.entries(grouped)) {
-            draft.permission[sessionID] = permissions.filter((p) => !!p?.id).sort((a, b) => a.id.localeCompare(b.id))
-          }
-        }),
+    input.sdk.permission.list().then((x) => {
+      const grouped = groupBySession(
+        (x.data ?? []).filter((perm): perm is PermissionRequest => !!perm?.id && !!perm.sessionID),
       )
-    }),
-    sdk.question.list().then((x: any) => {
-      const grouped: Record<string, any[]> = {}
-      for (const question of x.data ?? []) {
-        if (!question?.id || !question.sessionID) continue
-        const existing = grouped[question.sessionID]
-        if (existing) {
-          existing.push(question)
-          continue
+      batch(() => {
+        for (const sessionID of Object.keys(input.store.permission)) {
+          if (grouped[sessionID]) continue
+          input.setStore("permission", sessionID, [])
         }
-        grouped[question.sessionID] = [question]
-      }
-
-      setStore(
-        produce((draft) => {
-          for (const sessionID of Object.keys(draft.question)) {
-            if (grouped[sessionID]) continue
-            draft.question[sessionID] = []
-          }
-          for (const [sessionID, questions] of Object.entries(grouped)) {
-            draft.question[sessionID] = questions.filter((q) => !!q?.id).sort((a, b) => a.id.localeCompare(b.id))
-          }
-        }),
-      )
+        for (const [sessionID, permissions] of Object.entries(grouped)) {
+          input.setStore(
+            "permission",
+            sessionID,
+            reconcile(
+              permissions.filter((p) => !!p?.id).sort((a, b) => cmp(a.id, b.id)),
+              { key: "id" },
+            ),
+          )
+        }
+      })
     }),
-  ])
-
-  setStore("status", "complete")
+    input.sdk.question.list().then((x) => {
+      const grouped = groupBySession((x.data ?? []).filter((q): q is QuestionRequest => !!q?.id && !!q.sessionID))
+      batch(() => {
+        for (const sessionID of Object.keys(input.store.question)) {
+          if (grouped[sessionID]) continue
+          input.setStore("question", sessionID, [])
+        }
+        for (const [sessionID, questions] of Object.entries(grouped)) {
+          input.setStore(
+            "question",
+            sessionID,
+            reconcile(
+              questions.filter((q) => !!q?.id).sort((a, b) => cmp(a.id, b.id)),
+              { key: "id" },
+            ),
+          )
+        }
+      })
+    }),
+  ]).then(() => {
+    input.setStore("status", "complete")
+  })
 }

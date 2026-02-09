@@ -17,7 +17,7 @@ import { trimSessions } from "./session-trim"
 export function applyGlobalEvent(input: {
   event: { type: string; properties?: unknown }
   project: Project[]
-  setGlobalProject: (next: any) => void
+  setGlobalProject: (next: Project[] | ((draft: Project[]) => void)) => void
   refresh: () => void
 }) {
   if (input.event.type === "global.disposed") {
@@ -29,18 +29,14 @@ export function applyGlobalEvent(input: {
   const properties = input.event.properties as Project
   const result = Binary.search(input.project, properties.id, (s) => s.id)
   if (result.found) {
-    input.setGlobalProject(
-      produce((draft: Project[]) => {
-        draft[result.index] = properties
-      }),
-    )
+    input.setGlobalProject((draft) => {
+      draft[result.index] = { ...draft[result.index], ...properties }
+    })
     return
   }
-  input.setGlobalProject(
-    produce((draft: Project[]) => {
-      draft.splice(result.index, 0, properties)
-    }),
-  )
+  input.setGlobalProject((draft) => {
+    draft.splice(result.index, 0, properties)
+  })
 }
 
 function cleanupSessionCaches(store: Store<State>, setStore: SetStoreFunction<State>, sessionID: string) {

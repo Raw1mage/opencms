@@ -1,8 +1,10 @@
-export function createRefreshQueue(options: {
+type QueueInput = {
   paused: () => boolean
-  bootstrap: () => Promise<any>
-  bootstrapInstance: (directory: string) => Promise<void>
-}) {
+  bootstrap: () => Promise<void>
+  bootstrapInstance: (directory: string) => Promise<void> | void
+}
+
+export function createRefreshQueue(input: QueueInput) {
   const queued = new Set<string>()
   let root = false
   let running = false
@@ -32,13 +34,13 @@ export function createRefreshQueue(options: {
   const push = (directory: string) => {
     if (!directory) return
     queued.add(directory)
-    if (options.paused()) return
+    if (input.paused()) return
     schedule()
   }
 
   const refresh = () => {
     root = true
-    if (options.paused()) return
+    if (input.paused()) return
     schedule()
   }
 
@@ -47,24 +49,21 @@ export function createRefreshQueue(options: {
     running = true
     try {
       while (true) {
-        if (options.paused()) return
-
+        if (input.paused()) return
         if (root) {
           root = false
-          await options.bootstrap()
+          await input.bootstrap()
           await tick()
           continue
         }
-
         const dirs = take(2)
         if (dirs.length === 0) return
-
-        await Promise.all(dirs.map((dir) => options.bootstrapInstance(dir)))
+        await Promise.all(dirs.map((dir) => input.bootstrapInstance(dir)))
         await tick()
       }
     } finally {
       running = false
-      if (options.paused()) return
+      if (input.paused()) return
       if (root || queued.size) schedule()
     }
   }
@@ -72,9 +71,13 @@ export function createRefreshQueue(options: {
   return {
     push,
     refresh,
-    clear: (directory: string) => queued.delete(directory),
-    dispose: () => {
-      if (timer) clearTimeout(timer)
+    clear(directory: string) {
+      queued.delete(directory)
+    },
+    dispose() {
+      if (!timer) return
+      clearTimeout(timer)
+      timer = undefined
     },
   }
 }

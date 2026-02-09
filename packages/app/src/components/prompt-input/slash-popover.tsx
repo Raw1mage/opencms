@@ -13,7 +13,7 @@ export interface SlashCommand {
   title: string
   description?: string
   keybind?: string
-  type: "builtin" | "custom" | "skill"
+  type: "builtin" | "custom"
   source?: "command" | "mcp" | "skill"
 }
 
@@ -21,16 +21,16 @@ type PromptPopoverProps = {
   popover: "at" | "slash" | null
   setSlashPopoverRef: (el: HTMLDivElement) => void
   atFlat: AtOption[]
-  atActive?: string | null
+  atActive?: string
   atKey: (item: AtOption) => string
   setAtActive: (id: string) => void
   onAtSelect: (item: AtOption) => void
   slashFlat: SlashCommand[]
-  slashActive?: string | null
+  slashActive?: string
   setSlashActive: (id: string) => void
   onSlashSelect: (item: SlashCommand) => void
   commandKeybind: (id: string) => string | undefined
-  t: (key: any) => string
+  t: (key: string) => string
 }
 
 export const PromptPopover: Component<PromptPopoverProps> = (props) => {
@@ -71,10 +71,11 @@ export const PromptPopover: Component<PromptPopoverProps> = (props) => {
                           />
                           <div class="flex items-center text-14-regular min-w-0">
                             <span class="text-text-weak whitespace-nowrap truncate min-w-0">
-                              {(() => {
-                                const path = item.type === "file" ? item.path : ""
-                                return path.endsWith("/") ? path : getDirectory(path)
-                              })()}
+                              {item.type === "file"
+                                ? item.path.endsWith("/")
+                                  ? item.path
+                                  : getDirectory(item.path)
+                                : ""}
                             </span>
                             <Show when={item.type === "file" && !item.path.endsWith("/")}>
                               <span class="text-text-strong whitespace-nowrap">
@@ -125,11 +126,6 @@ export const PromptPopover: Component<PromptPopoverProps> = (props) => {
                             : cmd.source === "mcp"
                               ? props.t("prompt.slash.badge.mcp")
                               : props.t("prompt.slash.badge.custom")}
-                        </span>
-                      </Show>
-                      <Show when={cmd.type === "skill"}>
-                        <span class="text-11-regular text-text-subtle px-1.5 py-0.5 bg-surface-base rounded">
-                          {props.t("prompt.slash.badge.skill")}
                         </span>
                       </Show>
                       <Show when={props.commandKeybind(cmd.id)}>

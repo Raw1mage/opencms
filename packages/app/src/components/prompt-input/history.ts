@@ -1,4 +1,6 @@
-import { type Prompt, DEFAULT_PROMPT } from "@/context/prompt"
+import type { Prompt } from "@/context/prompt"
+
+const DEFAULT_PROMPT: Prompt = [{ type: "text", content: "", start: 0, end: 0 }]
 
 export const MAX_HISTORY = 100
 
@@ -16,6 +18,20 @@ export function clonePromptParts(prompt: Prompt): Prompt {
 
 export function promptLength(prompt: Prompt) {
   return prompt.reduce((len, part) => len + ("content" in part ? part.content.length : 0), 0)
+}
+
+export function prependHistoryEntry(entries: Prompt[], prompt: Prompt, max = MAX_HISTORY) {
+  const text = prompt
+    .map((part) => ("content" in part ? part.content : ""))
+    .join("")
+    .trim()
+  const hasImages = prompt.some((part) => part.type === "image")
+  if (!text && !hasImages) return entries
+
+  const entry = clonePromptParts(prompt)
+  const last = entries[0]
+  if (last && isPromptEqual(last, entry)) return entries
+  return [entry, ...entries].slice(0, max)
 }
 
 function isPromptEqual(promptA: Prompt, promptB: Prompt) {
@@ -43,20 +59,6 @@ function isPromptEqual(promptA: Prompt, promptB: Prompt) {
     if (partA.type === "image" && partA.id !== (partB.type === "image" ? partB.id : "")) return false
   }
   return true
-}
-
-export function prependHistoryEntry(entries: Prompt[], prompt: Prompt, max = MAX_HISTORY) {
-  const text = prompt
-    .map((part) => ("content" in part ? part.content : ""))
-    .join("")
-    .trim()
-  const hasImages = prompt.some((part) => part.type === "image")
-  if (!text && !hasImages) return entries
-
-  const entry = clonePromptParts(prompt)
-  const last = entries[0]
-  if (last && isPromptEqual(last, entry)) return entries
-  return [entry, ...entries].slice(0, max)
 }
 
 type HistoryNavInput = {

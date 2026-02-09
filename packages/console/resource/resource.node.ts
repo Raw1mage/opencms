@@ -20,15 +20,12 @@ export const Resource = new Proxy(
         }
         // @ts-ignore
         if (value.type === "sst.cloudflare.Kv") {
-          const resourceBase = ResourceBase as {}
           const client = new Cloudflare({
-            // @ts-expect-error SST Resource types missing CLOUDFLARE_API_TOKEN
-            apiToken: resourceBase.CLOUDFLARE_API_TOKEN.value,
+            apiToken: ResourceBase.CLOUDFLARE_API_TOKEN.value,
           })
           // @ts-ignore
           const namespaceId = value.namespaceId
-          // @ts-expect-error SST Resource types missing CLOUDFLARE_DEFAULT_ACCOUNT_ID
-          const accountId = resourceBase.CLOUDFLARE_DEFAULT_ACCOUNT_ID.value
+          const accountId = ResourceBase.CLOUDFLARE_DEFAULT_ACCOUNT_ID.value
           return {
             get: (k: string | string[]) => {
               const isMulti = Array.isArray(k)

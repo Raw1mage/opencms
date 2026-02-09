@@ -1,13 +1,14 @@
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { Dialog } from "@opencode-ai/ui/dialog"
 import { FileIcon } from "@opencode-ai/ui/file-icon"
-import { List, type ListRef } from "@opencode-ai/ui/list"
+import { List } from "@opencode-ai/ui/list"
 import { getDirectory, getFilename } from "@opencode-ai/util/path"
 import fuzzysort from "fuzzysort"
 import { createMemo, createResource, createSignal } from "solid-js"
 import { useGlobalSDK } from "@/context/global-sdk"
 import { useGlobalSync } from "@/context/global-sync"
 import { useLanguage } from "@/context/language"
+import type { ListRef } from "@opencode-ai/ui/list"
 
 interface DialogSelectDirectoryProps {
   title?: string
@@ -25,8 +26,10 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
   const sdk = useGlobalSDK()
   const dialog = useDialog()
   const language = useLanguage()
+
   const [filter, setFilter] = createSignal("")
-  const [list, setList] = createSignal<ListRef | undefined>(undefined)
+
+  let list: ListRef | undefined
 
   const missingBase = createMemo(() => !(sync.data.path.home || sync.data.path.directory))
 
@@ -111,6 +114,13 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
     return "relative" as const
   }
 
+  function display(path: string, input: string) {
+    const full = trimTrailing(path)
+    if (modeOf(input) === "absolute") return full
+
+    return tildeOf(full) || full
+  }
+
   function tildeOf(absolute: string) {
     const full = trimTrailing(absolute)
     const h = home()
@@ -122,12 +132,6 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
     if (lc === hc) return "~"
     if (lc.startsWith(hc + "/")) return "~" + full.slice(hn.length)
     return ""
-  }
-
-  function display(path: string, input: string) {
-    const full = trimTrailing(path)
-    if (modeOf(input) === "absolute") return full
-    return tildeOf(full) || full
   }
 
   function row(absolute: string): Row {
@@ -208,6 +212,7 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
 
     if (!isPath) {
       const results = await find()
+
       return results.map((rel) => join(scopedInput.directory, rel)).slice(0, 50)
     }
 
@@ -217,19 +222,17 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
 
     const cap = 12
     const branch = 4
-    const paths = await head.reduce(
-      async (prevPromise, part) => {
-        const prev = await prevPromise
-        if (prev.length === 0) return prev
-        if (part === "..") return prev.map(parentOf)
+    let paths = [scopedInput.directory]
+    for (const part of head) {
+      if (part === "..") {
+        paths = paths.map(parentOf)
+        continue
+      }
 
-        const next = (await Promise.all(prev.map((p) => match(p, part, branch)))).flat()
-        return Array.from(new Set(next)).slice(0, cap)
-      },
-      Promise.resolve([scopedInput.directory]),
-    )
-
-    if (paths.length === 0) return [] as string[]
+      const next = (await Promise.all(paths.map((p) => match(p, part, branch)))).flat()
+      paths = Array.from(new Set(next)).slice(0, cap)
+      if (paths.length === 0) return [] as string[]
+    }
 
     const out = (await Promise.all(paths.map((p) => match(p, tail, 50)))).flat()
     const deduped = Array.from(new Set(out))
@@ -269,7 +272,7 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
         items={items}
         key={(x) => x.absolute}
         filterKeys={["search"]}
-        ref={(r) => setList(r)}
+        ref={(r) => (list = r)}
         onFilter={(value) => setFilter(clean(value))}
         onKeyEvent={(e, item) => {
           if (e.key !== "Tab") return
@@ -280,8 +283,7 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
           e.stopPropagation()
 
           const value = display(item.absolute, filter())
-          const next = value.endsWith("/") ? value : value + "/"
-          list()?.setFilter(next)
+          list?.setFilter(value.endsWith("/") ? value : value + "/")
         }}
         onSelect={(path) => {
           if (!path) return

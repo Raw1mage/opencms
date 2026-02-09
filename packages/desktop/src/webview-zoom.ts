@@ -25,16 +25,13 @@ const applyZoom = (next: number) => {
 window.addEventListener("keydown", (event) => {
   if (!(OS_NAME === "macos" ? event.metaKey : event.ctrlKey)) return
 
-  const current = webviewZoom()
-  const next = (() => {
-    if (event.key === "-") return current - 0.2
-    if (event.key === "=" || event.key === "+") return current + 0.2
-    if (event.key === "0") return 1
-    return current
-  })()
+  let newZoom = webviewZoom()
 
-  if (next === current) return
-  applyZoom(clamp(next))
+  if (event.key === "-") newZoom -= 0.2
+  if (event.key === "=" || event.key === "+") newZoom += 0.2
+  if (event.key === "0") newZoom = 1
+
+  applyZoom(clamp(newZoom))
 })
 
 export { webviewZoom }

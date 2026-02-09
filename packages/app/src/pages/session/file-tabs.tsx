@@ -1,28 +1,35 @@
-import { For, Show, createMemo, createEffect, on, Switch, Match, onCleanup, type Accessor } from "solid-js"
+import { type ValidComponent, createEffect, createMemo, For, Match, on, onCleanup, Show, Switch } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Dynamic } from "solid-js/web"
 import { checksum } from "@opencode-ai/util/encode"
 import { decode64 } from "@/utils/base64"
 import { showToast } from "@opencode-ai/ui/toast"
 import { LineComment as LineCommentView, LineCommentEditor } from "@opencode-ai/ui/line-comment"
-import { Tabs } from "@opencode-ai/ui/tabs"
 import { Mark } from "@opencode-ai/ui/logo"
-import type { SelectedLineRange } from "@/context/file"
-import { handoff } from "./utils/handoff"
+import { Tabs } from "@opencode-ai/ui/tabs"
+import { useLayout } from "@/context/layout"
+import { useFile, type SelectedLineRange } from "@/context/file"
+import { useComments } from "@/context/comments"
+import { useLanguage } from "@/context/language"
 
-interface FileContentTabProps {
+export function FileTabContent(props: {
   tab: string
-  file: any
-  tabs: Accessor<any>
-  view: Accessor<any>
-  codeComponent: any
-  comments: any
-  language: any
-  activeTab: Accessor<string>
-  addCommentToContext: (input: any) => void
-}
-
-export function FileTabContent(props: FileContentTabProps) {
+  activeTab: () => string
+  tabs: () => ReturnType<ReturnType<typeof useLayout>["tabs"]>
+  view: () => ReturnType<ReturnType<typeof useLayout>["view"]>
+  handoffFiles: () => Record<string, SelectedLineRange | null> | undefined
+  file: ReturnType<typeof useFile>
+  comments: ReturnType<typeof useComments>
+  language: ReturnType<typeof useLanguage>
+  codeComponent: NonNullable<ValidComponent>
+  addCommentToContext: (input: {
+    file: string
+    selection: SelectedLineRange
+    comment: string
+    preview?: string
+    origin?: "review" | "file"
+  }) => void
+}) {
   let scroll: HTMLDivElement | undefined
   let scrollFrame: number | undefined
   let pending: { x: number; y: number } | undefined
@@ -88,7 +95,7 @@ export function FileTabContent(props: FileContentTabProps) {
     const p = path()
     if (!p) return null
     if (props.file.ready()) return props.file.selectedLines(p) ?? null
-    return handoff.files[p] ?? null
+    return props.handoffFiles()?.[p] ?? null
   })
 
   let wrap: HTMLDivElement | undefined
@@ -99,7 +106,7 @@ export function FileTabContent(props: FileContentTabProps) {
     return props.comments.list(p)
   })
 
-  const commentedLines = createMemo(() => fileComments().map((comment: any) => comment.selection))
+  const commentedLines = createMemo(() => fileComments().map((comment) => comment.selection))
 
   const [note, setNote] = createStore({
     openedComment: null as string | null,
@@ -219,7 +226,7 @@ export function FileTabContent(props: FileContentTabProps) {
     if (focus.file !== p) return
     if (props.activeTab() !== props.tab) return
 
-    const target = fileComments().find((comment: any) => comment.id === focus.id)
+    const target = fileComments().find((comment) => comment.id === focus.id)
     if (!target) return
 
     setOpenedComment(target.id)
@@ -250,11 +257,11 @@ export function FileTabContent(props: FileContentTabProps) {
     scrollFrame = requestAnimationFrame(() => {
       scrollFrame = undefined
 
-      const next = pending
+      const out = pending
       pending = undefined
-      if (!next) return
+      if (!out) return
 
-      props.view().setScroll(props.tab, next)
+      props.view().setScroll(props.tab, out)
     })
   }
 
@@ -302,9 +309,7 @@ export function FileTabContent(props: FileContentTabProps) {
     }
 
     if (el.scrollTop !== s.y) el.scrollTop = s.y
-
     if (codeScroll.length > 0) return
-
     if (el.scrollLeft !== s.x) el.scrollLeft = s.x
   }
 
@@ -400,7 +405,7 @@ export function FileTabContent(props: FileContentTabProps) {
         class="select-text"
       />
       <For each={fileComments()}>
-        {(comment: any) => (
+        {(comment) => (
           <LineCommentView
             id={comment.id}
             top={positions()[comment.id]}

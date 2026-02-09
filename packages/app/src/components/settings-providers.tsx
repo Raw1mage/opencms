@@ -61,17 +61,17 @@ export const SettingsProviders: Component = () => {
 
   const canDisconnect = (item: unknown) => source(item) !== "env"
 
-  const isConfigCustom = (providerId: string) => {
-    const provider = globalSync.data.config.provider?.[providerId]
+  const isConfigCustom = (providerID: string) => {
+    const provider = globalSync.data.config.provider?.[providerID]
     if (!provider) return false
     if (provider.npm !== "@ai-sdk/openai-compatible") return false
     if (!provider.models || Object.keys(provider.models).length === 0) return false
     return true
   }
 
-  const disableProvider = async (providerId: string, name: string) => {
+  const disableProvider = async (providerID: string, name: string) => {
     const before = globalSync.data.config.disabled_providers ?? []
-    const next = before.includes(providerId) ? before : [...before, providerId]
+    const next = before.includes(providerID) ? before : [...before, providerID]
     globalSync.set("config", "disabled_providers", next)
 
     await globalSync
@@ -91,14 +91,14 @@ export const SettingsProviders: Component = () => {
       })
   }
 
-  const disconnect = async (providerId: string, name: string) => {
-    if (isConfigCustom(providerId)) {
-      await globalSDK.client.auth.remove({ providerId }).catch(() => undefined)
-      await disableProvider(providerId, name)
+  const disconnect = async (providerID: string, name: string) => {
+    if (isConfigCustom(providerID)) {
+      await globalSDK.client.auth.remove({ providerID }).catch(() => undefined)
+      await disableProvider(providerID, name)
       return
     }
     await globalSDK.client.auth
-      .remove({ providerId })
+      .remove({ providerID })
       .then(async () => {
         await globalSDK.client.global.dispose()
         showToast({
@@ -123,7 +123,7 @@ export const SettingsProviders: Component = () => {
       </div>
 
       <div class="flex flex-col gap-8 max-w-[720px]">
-        <div class="flex flex-col gap-1">
+        <div class="flex flex-col gap-1" data-component="connected-providers-section">
           <h3 class="text-14-medium text-text-strong pb-2">{language.t("settings.providers.section.connected")}</h3>
           <div class="bg-surface-raised-base px-4 rounded-lg">
             <Show
@@ -195,7 +195,7 @@ export const SettingsProviders: Component = () => {
                         {language.t("dialog.provider.openai.note")}
                       </span>
                     </Show>
-                    <Show when={item.id === "google-api"}>
+                    <Show when={item.id === "google"}>
                       <span class="text-12-regular text-text-weak pl-8">
                         {language.t("dialog.provider.google.note")}
                       </span>
@@ -225,9 +225,12 @@ export const SettingsProviders: Component = () => {
               )}
             </For>
 
-            <div class="flex items-center justify-between gap-4 h-16 border-b border-border-weak-base last:border-none">
+            <div
+              class="flex items-center justify-between gap-4 min-h-16 border-b border-border-weak-base last:border-none flex-wrap py-3"
+              data-component="custom-provider-section"
+            >
               <div class="flex flex-col min-w-0">
-                <div class="flex items-center gap-x-3">
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <ProviderIcon id={icon("synthetic")} class="size-5 shrink-0 icon-strong-base" />
                   <span class="text-14-medium text-text-strong">Custom provider</span>
                   <Tag>{language.t("settings.providers.tag.custom")}</Tag>

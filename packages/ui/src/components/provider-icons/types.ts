@@ -4,7 +4,6 @@ export const iconNames = [
   "zhipuai",
   "zhipuai-coding-plan",
   "zenmux",
-  "gmicloud",
   "zai",
   "zai-coding-plan",
   "xiaomi",

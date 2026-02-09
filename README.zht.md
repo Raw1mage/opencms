@@ -29,7 +29,9 @@
   <a href="README.ru.md">Русский</a> |
   <a href="README.ar.md">العربية</a> |
   <a href="README.no.md">Norsk</a> |
-  <a href="README.br.md">Português (Brasil)</a>
+  <a href="README.br.md">Português (Brasil)</a> |
+  <a href="README.th.md">ไทย</a> |
+  <a href="README.tr.md">Türkçe</a>
 </p>
 
 [![OpenCode Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://opencode.ai)
@@ -79,57 +81,15 @@ scoop bucket add extras; scoop install extras/opencode-desktop
 安裝腳本會依據以下優先順序決定安裝路徑：
 
 1. `$OPENCODE_INSTALL_DIR` - 自定義安裝目錄
-2. `$XDG_BIN_HOME` 或 `$XDG_BIN_DIR` - 符合 XDG 基礎目錄規範的路徑
-3. `$HOME/.local/bin` - Unix 系統的預設路徑
-4. `$LOCALAPPDATA/bin` - Windows 系統的預設路徑
+2. `$XDG_BIN_DIR` - 符合 XDG 基礎目錄規範的路徑
+3. `$HOME/bin` - 標準使用者執行檔目錄 (若存在或可建立)
+4. `$HOME/.opencode/bin` - 預設備用路徑
 
 ```bash
 # 範例
-# 安裝至系統全域目錄 (需要 sudo)
 OPENCODE_INSTALL_DIR=/usr/local/bin curl -fsSL https://opencode.ai/install | bash
-
-# 安裝至符合 XDG 規範的目錄
-XDG_BIN_HOME=$HOME/.local/bin curl -fsSL https://opencode.ai/install | bash
+XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://opencode.ai/install | bash
 ```
-
-<!-- @event_2026-02-06_xdg-install -->
-
-### 原始碼編譯與安裝
-
-使用原始碼編譯後可透過 Bun 一次完成建置與安裝：
-
-```bash
-bun run install
-```
-
-此命令會：
-
-1. 執行 `bun run build --single --skip-install`，為當前作業系統與架構產生原生執行檔。
-2. 將對應的 `dist/opencode-<platform>-<arch>/bin/opencode` 拷貝進上方指定的安裝目錄（預設為 `~/.local/bin`）。
-3. 設定可執行權限，若安裝目錄需要 root 權限會顯式提示您使用 `sudo` 重新執行。
-4. **清理與初始化 XDG 目錄**：
-   - 依 `templates/manifest.json` 的 `target`（config/state/data）初始化設定檔。
-   - 自動將 legacy `~/.opencode/` 與 XDG 目錄內非必要雜物移至 `~/.local/state/opencode/cyclebin/`。
-   - 補齊必要的預設設定檔（僅在目標檔案不存在時寫入），包括帳號、認證、模型忽略清單、AGENTS 規範等。
-
-#### XDG 配置說明
-
-根據 `templates/manifest.json`，以下是 XDG 目錄結構與關鍵檔案：
-
-| 位置                      | 檔案/資料夾                      | 用途描述                                             | 備註             |
-| :------------------------ | :------------------------------- | :--------------------------------------------------- | :--------------- |
-| `~/.config/opencode`      | `accounts.json`                  | 主要帳號資訊、權杖 (Tokens) 與配額狀態。             | **敏感檔案**     |
-| `~/.config/opencode`      | `mcp-auth.json`                  | MCP 伺服器連線憑證。                                 | **敏感檔案**     |
-| `~/.config/opencode`      | `opencode.json`                  | 全域使用者設定檔（Provider、Keybinds、Plugins 等）。 |                  |
-| `~/.config/opencode`      | `AGENTS.md`                      | 定義 AI Agent 的全域指令與行為規範。                 |                  |
-| `~/.config/opencode`      | `CONFIG-README.md`               | 設定檔說明與範例。                                   |                  |
-| `~/.local/state/opencode` | `ignored-models.json`            | 模型選擇或自動輪詢中應忽略的模型清單。               |                  |
-| `~/.local/state/opencode` | `cyclebin/`                      | 安裝程序清理出的過時或不明檔案。                     | **Runtime 產生** |
-| `~/.local/share/opencode` | `package.json` / `node_modules/` | 自定義工具或插件安裝位置。                           |                  |
-| `~/.local/share/opencode` | `generated-images/`              | 生成圖片輸出。                                       | **Runtime 產生** |
-| `~/.local/share/opencode` | `log/`                           | 系統執行軌跡與錯誤診斷資訊。                         | **Runtime 產生** |
-
-如需覆寫安裝路徑，請事先設定 `OPENCODE_INSTALL_DIR` 或 `XDG_BIN_HOME`，安裝腳本會依照優先順序決定安裝位置。
 
 ### Agents
 

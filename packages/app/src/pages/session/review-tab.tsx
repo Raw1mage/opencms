@@ -1,20 +1,16 @@
-import {
-  createEffect,
-  onCleanup,
-  createSignal,
-  on,
-  type JSX,
-} from "solid-js"
+import { createEffect, on, onCleanup, createSignal, type JSX } from "solid-js"
+import type { FileDiff } from "@opencode-ai/sdk/v2"
+import { SessionReview } from "@opencode-ai/ui/session-review"
+import type { SelectedLineRange } from "@/context/file"
 import { useSDK } from "@/context/sdk"
 import { useLayout } from "@/context/layout"
-import { SessionReview } from "@opencode-ai/ui/session-review"
-import type { FileDiff } from "@opencode-ai/sdk/v2/client"
-import type { SelectedLineRange } from "@/context/file"
 import type { LineComment } from "@/context/comments"
 
 export type DiffStyle = "unified" | "split"
 
 export interface SessionReviewTabProps {
+  title?: JSX.Element
+  empty?: JSX.Element
   diffs: () => FileDiff[]
   view: () => ReturnType<ReturnType<typeof useLayout>["view"]>
   diffStyle: DiffStyle
@@ -131,6 +127,8 @@ export function SessionReviewTab(props: SessionReviewTabProps) {
 
   return (
     <SessionReview
+      title={props.title}
+      empty={props.empty}
       scrollRef={(el) => {
         scroll = el
         props.onScrollRef?.(el)

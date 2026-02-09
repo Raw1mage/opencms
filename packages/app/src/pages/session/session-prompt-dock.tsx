@@ -1,21 +1,23 @@
-import { For, Show } from "solid-js"
+import { For, Show, type ComponentProps } from "solid-js"
 import { Button } from "@opencode-ai/ui/button"
 import { BasicTool } from "@opencode-ai/ui/basic-tool"
 import { PromptInput } from "@/components/prompt-input"
-import { useLayout } from "@/context/layout"
-import { useLanguage } from "@/context/language"
+import { QuestionDock } from "@/components/question-dock"
+import { questionSubtitle } from "@/pages/session/session-prompt-helpers"
+
+const questionDockRequest = (value: unknown) => value as ComponentProps<typeof QuestionDock>["request"]
 
 export function SessionPromptDock(props: {
-  view: ReturnType<ReturnType<typeof useLayout>["view"]>
-  layout: ReturnType<typeof useLayout>
   centered: boolean
+  questionRequest: () => { questions: unknown[] } | undefined
   permissionRequest: () => { patterns: string[]; permission: string } | undefined
+  blocked: boolean
   promptReady: boolean
   handoffPrompt?: string
-  language: ReturnType<typeof useLanguage>
+  t: (key: string, vars?: Record<string, string | number | boolean>) => string
   responding: boolean
   onDecide: (response: "once" | "always" | "reject") => void
-  setInputRef: (el: HTMLDivElement) => void
+  inputRef: (el: HTMLDivElement) => void
   newSessionWorktree: string
   onNewSessionWorktreeReset: () => void
   onSubmit: () => void
@@ -29,9 +31,29 @@ export function SessionPromptDock(props: {
       <div
         classList={{
           "w-full px-4 pointer-events-auto": true,
-          "md:max-w-200 3xl:max-w-[1200px] 4xl:max-w-[1600px] 5xl:max-w-[1900px]": props.centered,
+          "md:max-w-200 md:mx-auto 3xl:max-w-[1200px]": props.centered,
         }}
       >
+        <Show when={props.questionRequest()} keyed>
+          {(req) => {
+            const subtitle = questionSubtitle(req.questions.length, (key) => props.t(key))
+            return (
+              <div data-component="tool-part-wrapper" data-question="true" class="mb-3">
+                <BasicTool
+                  icon="bubble-5"
+                  locked
+                  defaultOpen
+                  trigger={{
+                    title: props.t("ui.tool.questions"),
+                    subtitle,
+                  }}
+                />
+                <QuestionDock request={questionDockRequest(req)} />
+              </div>
+            )
+          }}
+        </Show>
+
         <Show when={props.permissionRequest()} keyed>
           {(perm) => (
             <div data-component="tool-part-wrapper" data-permission="true" class="mb-3">
@@ -40,10 +62,10 @@ export function SessionPromptDock(props: {
                 locked
                 defaultOpen
                 trigger={{
-                  title: props.language.t("notification.permission.title"),
+                  title: props.t("notification.permission.title"),
                   subtitle:
                     perm.permission === "doom_loop"
-                      ? props.language.t("settings.permissions.tool.doom_loop.title")
+                      ? props.t("settings.permissions.tool.doom_loop.title")
                       : perm.permission,
                 }}
               >
@@ -56,7 +78,7 @@ export function SessionPromptDock(props: {
                 </Show>
                 <Show when={perm.permission === "doom_loop"}>
                   <div class="text-12-regular text-text-weak pb-2 px-3">
-                    {props.language.t("settings.permissions.tool.doom_loop.description")}
+                    {props.t("settings.permissions.tool.doom_loop.description")}
                   </div>
                 </Show>
               </BasicTool>
@@ -68,7 +90,7 @@ export function SessionPromptDock(props: {
                     onClick={() => props.onDecide("reject")}
                     disabled={props.responding}
                   >
-                    {props.language.t("ui.permission.deny")}
+                    {props.t("ui.permission.deny")}
                   </Button>
                   <Button
                     variant="secondary"
@@ -76,7 +98,7 @@ export function SessionPromptDock(props: {
                     onClick={() => props.onDecide("always")}
                     disabled={props.responding}
                   >
-                    {props.language.t("ui.permission.allowAlways")}
+                    {props.t("ui.permission.allowAlways")}
                   </Button>
                   <Button
                     variant="primary"
@@ -84,7 +106,7 @@ export function SessionPromptDock(props: {
                     onClick={() => props.onDecide("once")}
                     disabled={props.responding}
                   >
-                    {props.language.t("ui.permission.allowOnce")}
+                    {props.t("ui.permission.allowOnce")}
                   </Button>
                 </div>
               </div>
@@ -92,20 +114,22 @@ export function SessionPromptDock(props: {
           )}
         </Show>
 
-        <Show
-          when={props.promptReady}
-          fallback={
-            <div class="w-full min-h-32 md:min-h-40 rounded-md border border-border-weak-base bg-background-base/50 px-4 py-3 text-text-weak whitespace-pre-wrap pointer-events-none">
-              {props.handoffPrompt || props.language.t("prompt.loading")}
-            </div>
-          }
-        >
-          <PromptInput
-            ref={props.setInputRef}
-            newSessionWorktree={props.newSessionWorktree}
-            onNewSessionWorktreeReset={props.onNewSessionWorktreeReset}
-            onSubmit={props.onSubmit}
-          />
+        <Show when={!props.blocked}>
+          <Show
+            when={props.promptReady}
+            fallback={
+              <div class="w-full min-h-32 md:min-h-40 rounded-md border border-border-weak-base bg-background-base/50 px-4 py-3 text-text-weak whitespace-pre-wrap pointer-events-none">
+                {props.handoffPrompt || props.t("prompt.loading")}
+              </div>
+            }
+          >
+            <PromptInput
+              ref={props.inputRef}
+              newSessionWorktree={props.newSessionWorktree}
+              onNewSessionWorktreeReset={props.onNewSessionWorktreeReset}
+              onSubmit={props.onSubmit}
+            />
+          </Show>
         </Show>
       </div>
     </div>

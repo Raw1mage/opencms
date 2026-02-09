@@ -49,9 +49,9 @@ function formatInitError(error: InitError, t: Translator): string {
       return t("error.chain.mcpFailed", { name })
     }
     case "ProviderAuthError": {
-      const providerId = typeof data.providerId === "string" ? data.providerId : "unknown"
+      const providerID = typeof data.providerID === "string" ? data.providerID : "unknown"
       const message = typeof data.message === "string" ? data.message : safeJson(data.message)
-      return t("error.chain.providerAuthFailed", { provider: providerId, message })
+      return t("error.chain.providerAuthFailed", { provider: providerID, message })
     }
     case "APIError": {
       const message = typeof data.message === "string" ? data.message : t("error.chain.apiError")
@@ -72,8 +72,8 @@ function formatInitError(error: InitError, t: Translator): string {
       return lines.join("\n")
     }
     case "ProviderModelNotFoundError": {
-      const { providerId, modelID, suggestions } = data as {
-        providerId: string
+      const { providerID, modelID, suggestions } = data as {
+        providerID: string
         modelID: string
         suggestions?: string[]
       }
@@ -84,14 +84,14 @@ function formatInitError(error: InitError, t: Translator): string {
           : []
 
       return [
-        t("error.chain.modelNotFound", { provider: providerId, model: modelID }),
+        t("error.chain.modelNotFound", { provider: providerID, model: modelID }),
         ...suggestionsLine,
         t("error.chain.checkConfig"),
       ].join("\n")
     }
     case "ProviderInitError": {
-      const providerId = typeof data.providerId === "string" ? data.providerId : "unknown"
-      return t("error.chain.providerInitFailed", { provider: providerId })
+      const providerID = typeof data.providerID === "string" ? data.providerID : "unknown"
+      return t("error.chain.providerInitFailed", { provider: providerID })
     }
     case "ConfigJsonError": {
       const path = typeof data.path === "string" ? data.path : safeJson(data.path)

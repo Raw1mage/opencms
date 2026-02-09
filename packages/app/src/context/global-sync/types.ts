@@ -16,7 +16,6 @@ import type {
   SessionStatus,
   Todo,
   VcsInfo,
-  AppSkillsResponse,
 } from "@opencode-ai/sdk/v2/client"
 import type { Accessor } from "solid-js"
 import type { SetStoreFunction, Store } from "solid-js/store"
@@ -32,13 +31,10 @@ export type ProjectMeta = {
   }
 }
 
-export type Skill = AppSkillsResponse[number]
-
 export type State = {
   status: "loading" | "partial" | "complete"
   agent: Agent[]
   command: Command[]
-  skill: Skill[]
   project: string
   projectMeta: ProjectMeta | undefined
   icon: string | undefined
