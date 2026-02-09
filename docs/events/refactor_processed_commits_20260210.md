@@ -34,6 +34,20 @@
 | `40ebc3490`     | ported     | `350b3a02a`  | running spinner for bash tool                |
 | `56b340b5d`     | ported     | `a0f4faf89`  | ACP file write creates file when missing     |
 
+## 已整批同步（透過 merge origin/dev）
+
+以下 tail commits 已在 `d276822c0` 合併進 `cms`：
+
+- `7bca3fbf1` (web docs generate)
+- `e5ec2f999` (nix hashes)
+- `110f6804f` (nix hashes)
+- `a84bdd7cd` (app workspace fix)
+- `83708c295` (console cleanup)
+- `39c5da440` (docs links)
+- `ba740eaef` (console locale routing)
+- `3dc720ff9` (web locale routing)
+- `d9b4535d6` (acp generate)
+
 ## 已確認跳過
 
 | Upstream Commit | Status  | Reason                                 |
