@@ -34,6 +34,22 @@ const flowKeys = [
   "projectId",
 ]
 
+// FIX: Sensitive data redaction to prevent credential leaks (@event_20260209_tech_debt_review)
+const SENSITIVE_KEYS = new Set([
+  "refreshToken",
+  "token",
+  "apiKey",
+  "api_key",
+  "apiSecret",
+  "api_secret",
+  "password",
+  "passwd",
+  "secret",
+  "Authorization",
+  "X-API-Key",
+  "x-api-key",
+])
+
 function getTimestamp() {
   const d = new Date()
   const offset = 8 * 3600000 // UTC+8 for Asia/Taipei
@@ -41,9 +57,21 @@ function getTimestamp() {
   return nd.toISOString().replace("Z", "+08:00")
 }
 
+function redactSensitiveValue(value: unknown): string {
+  if (typeof value === "string") {
+    if (value.length <= 10) return "[REDACTED]"
+    return `[REDACTED-${value.length}chars]`
+  }
+  return "[REDACTED]"
+}
+
 function safe(value: unknown): string {
   const seen = new WeakSet<object>()
-  return JSON.stringify(value, (_, val) => {
+  return JSON.stringify(value, (key, val) => {
+    // FIX: Redact sensitive keys to prevent credential leaks
+    if (key && SENSITIVE_KEYS.has(key)) {
+      return redactSensitiveValue(val)
+    }
     if (val instanceof Error) return val.stack || val.message
     if (typeof val === "object" && val !== null) {
       if (seen.has(val)) return "[Circular]"
