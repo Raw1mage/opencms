@@ -266,8 +266,10 @@ export namespace Provider {
     "@ai-sdk/perplexity": createPerplexity,
     "@ai-sdk/vercel": createVercel,
     "@gitlab/gitlab-ai-provider": createGitLab,
-    // @ts-ignore (TODO: kill this code so we dont have to maintain it)
-    "@ai-sdk/github-copilot": createGitHubCopilotOpenAICompatible,
+    // GitHub Copilot provider with custom OpenAI-compatible implementation
+    // Type cast needed because OpenaiCompatibleProvider has a subset of SDK interface
+    // We only use language model capabilities, not embeddings or image models
+    "@ai-sdk/github-copilot": createGitHubCopilotOpenAICompatible as unknown as (options: any) => SDK,
   }
 
   type CustomModelLoader = (sdk: any, modelID: string, options?: Record<string, any>) => Promise<any>
@@ -396,14 +398,13 @@ export namespace Provider {
 
       const awsAccessKeyId = Env.get("AWS_ACCESS_KEY_ID")
 
-      // TODO: Using process.env directly because Env.set only updates a process.env shallow copy,
-      // until the scope of the Env API is clarified (test only or runtime?)
+      // AWS SDK and credential providers read from global process.env
+      // Env.set() now updates both instance state and process.env for SDK compatibility
       const awsBearerToken = iife(() => {
         const envToken = Env.get("AWS_BEARER_TOKEN_BEDROCK")
         if (envToken) return envToken
         if (auth?.type === "api") {
-          // eslint-disable-next-line no-restricted-syntax
-          process.env.AWS_BEARER_TOKEN_BEDROCK = auth.key
+          Env.set("AWS_BEARER_TOKEN_BEDROCK", auth.key)
           return auth.key
         }
         return undefined
@@ -580,14 +581,13 @@ export namespace Provider {
     },
     "sap-ai-core": async () => {
       const auth = await Auth.get("sap-ai-core")
-      // TODO: Using process.env directly because Env.set only updates a shallow copy (not process.env),
-      // until the scope of the Env API is clarified (test only or runtime?)
+      // SAP AI Core SDK reads from global process.env
+      // Env.set() now updates both instance state and process.env for SDK compatibility
       const envServiceKey = iife(() => {
         const envAICoreServiceKey = Env.get("AICORE_SERVICE_KEY")
         if (envAICoreServiceKey) return envAICoreServiceKey
         if (auth?.type === "api") {
-          // eslint-disable-next-line no-restricted-syntax
-          process.env.AICORE_SERVICE_KEY = auth.key
+          Env.set("AICORE_SERVICE_KEY", auth.key)
           return auth.key
         }
         return undefined
@@ -2282,7 +2282,7 @@ export namespace Provider {
         selected: best.providerId,
         modelID: best.modelID,
         candidateCount: candidates.length,
-        allCandidates: candidates.map(c => `${c.providerId}:${c.modelID}`).slice(0, 5)
+        allCandidates: candidates.map((c) => `${c.providerId}:${c.modelID}`).slice(0, 5),
       })
       return getModel(best.providerId, best.modelID)
     }
