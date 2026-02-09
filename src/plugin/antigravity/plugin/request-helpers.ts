@@ -11,7 +11,12 @@ import type { GoogleSearchConfig } from "./transform/types"
 
 const log = createLogger("request-helpers")
 
-const ANTIGRAVITY_PREVIEW_LINK = "https://goo.gle/enable-preview-features" // TODO: Update to Antigravity link if available
+// NOTE: @event_antigravity_preview_link
+// Preview features link for Antigravity API documentation
+// If the official Antigravity URL becomes available, update this constant and the env var below.
+// For now, using Google's generic preview features URL as a fallback.
+const DEFAULT_ANTIGRAVITY_PREVIEW_LINK = "https://goo.gle/enable-preview-features"
+const ANTIGRAVITY_PREVIEW_LINK = process.env.OPENCODE_ANTIGRAVITY_PREVIEW_LINK || DEFAULT_ANTIGRAVITY_PREVIEW_LINK
 
 // ============================================================================
 // JSON SCHEMA CLEANING FOR ANTIGRAVITY API

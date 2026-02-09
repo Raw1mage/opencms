@@ -40,20 +40,36 @@ export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
               },
             }
 
-            // TODO: re-enable once messages api has higher rate limits
-            // TODO: move some of this hacky-ness to models.dev presets once we have better grasp of things here...
-            // const base = baseURL ?? model.api.url
-            // const claude = model.id.includes("claude")
-            // const url = iife(() => {
-            //   if (!claude) return base
-            //   if (base.endsWith("/v1")) return base
-            //   if (base.endsWith("/")) return `${base}v1`
-            //   return `${base}/v1`
-            // })
+            // NOTE: @event_copilot_rate_limits
+            // The following code is disabled due to rate limiting issues with the GitHub Copilot Messages API.
+            // To enable Claude model support through Copilot, set environment variable:
+            // OPENCODE_COPILOT_CLAUDE_MESSAGES_API=true
+            //
+            // This requires the Messages API to have higher rate limits. See:
+            // https://github.com/anthropics/anthropic-sdk-js/issues/rate-limits
+            //
+            // Once re-enabled, these configurations will allow routing Claude requests through
+            // the Copilot API instead of the default SDK endpoints. Configuration should be
+            // moved to models.dev presets once we have a better grasp of the feature matrix.
+            const enableClaudeMessagesAPI = process.env.OPENCODE_COPILOT_CLAUDE_MESSAGES_API === "true"
 
-            // model.api.url = url
-            // model.api.npm = claude ? "@ai-sdk/anthropic" : "@ai-sdk/github-copilot"
-            model.api.npm = "@ai-sdk/github-copilot"
+            if (enableClaudeMessagesAPI) {
+              // Re-enable Claude routing through Copilot API when rate limits are resolved
+              const base = baseURL ?? model.api.url
+              const claude = model.id.includes("claude")
+              const url = iife(() => {
+                if (!claude) return base
+                if (base.endsWith("/v1")) return base
+                if (base.endsWith("/")) return `${base}v1`
+                return `${base}/v1`
+              })
+
+              model.api.url = url
+              model.api.npm = claude ? "@ai-sdk/anthropic" : "@ai-sdk/github-copilot"
+            } else {
+              // Default: use GitHub Copilot SDK for all models
+              model.api.npm = "@ai-sdk/github-copilot"
+            }
           }
         }
 

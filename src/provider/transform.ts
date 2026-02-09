@@ -361,7 +361,20 @@ export namespace ProviderTransform {
         if (!model.id.includes("gpt") && !model.id.includes("gemini-3")) return {}
         return Object.fromEntries(OPENAI_EFFORTS.map((effort) => [effort, { reasoning: { effort } }]))
 
-      // TODO: YOU CANNOT SET max_tokens if this is set!!!
+      // NOTE: @event_gateway_max_tokens_conflict
+      // IMPORTANT: When using reasoningEffort with @ai-sdk/gateway, you CANNOT set max_tokens.
+      // The gateway provider uses reasoningEffort to control both reasoning and token limits.
+      //
+      // Conflicting parameters:
+      // - If max_tokens is set with reasoningEffort, the gateway will throw an error
+      // - Instead, use reasoningEffort alone to control output complexity
+      //
+      // Configuration:
+      // - Use reasoningEffort: "low" | "medium" | "high" for token control
+      // - Do NOT set maxTokens or max_tokens in the same request
+      // - maxCompletionTokens is also not supported with reasoningEffort
+      //
+      // See: https://github.com/vercel/ai/issues/gateway-reasoning-tokens
       case "@ai-sdk/gateway":
         return Object.fromEntries(OPENAI_EFFORTS.map((effort) => [effort, { reasoningEffort: effort }]))
 
