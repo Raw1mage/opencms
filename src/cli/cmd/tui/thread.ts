@@ -199,9 +199,10 @@ export const TuiThreadCommand = cmd({
       },
     })
 
-    setTimeout(() => {
-      client.call("checkUpgrade", { directory: cwd }).catch(() => {})
-    }, 1000)
+    // @event_2026-02-10_disable-autoupgrade: CMS branch 不需要與官網同步
+    // setTimeout(() => {
+    //   client.call("checkUpgrade", { directory: cwd }).catch(() => {})
+    // }, 1000)
 
     await tuiPromise
   },

@@ -59,7 +59,6 @@ export namespace Installation {
   }
 
   export async function method() {
-    if (process.execPath.includes(path.join(".opencode", "bin"))) return "curl"
     if (process.execPath.includes(path.join(".local", "share", "opencode", "bin"))) return "curl"
     if (process.execPath.includes(path.join(".local", "bin"))) return "curl"
     const exec = process.execPath.toLowerCase()
@@ -130,55 +129,12 @@ export namespace Installation {
     return "opencode"
   }
 
+  // @event_2026-02-10_disable-autoupgrade: CMS branch 不需要自動升級功能
+  // 此函數已停用，保留僅為避免 type 錯誤
   export async function upgrade(method: Method, target: string) {
-    let cmd
-    switch (method) {
-      case "curl":
-        cmd = $`curl -fsSL https://opencode.ai/install | bash`.env({
-          ...Env.all(),
-          VERSION: target,
-        })
-        break
-      case "npm":
-        cmd = $`npm install -g opencode-ai@${target}`
-        break
-      case "pnpm":
-        cmd = $`pnpm install -g opencode-ai@${target}`
-        break
-      case "bun":
-        cmd = $`bun install -g opencode-ai@${target}`
-        break
-      case "brew": {
-        const formula = await getBrewFormula()
-        cmd = $`brew upgrade ${formula}`.env({
-          HOMEBREW_NO_AUTO_UPDATE: "1",
-          ...Env.all(),
-        })
-        break
-      }
-      case "choco":
-        cmd = $`echo Y | choco upgrade opencode --version=${target}`
-        break
-      case "scoop":
-        cmd = $`scoop install opencode@${target}`
-        break
-      default:
-        throw new Error(`Unknown method: ${method}`)
-    }
-    const result = await cmd.quiet().throws(false)
-    if (result.exitCode !== 0) {
-      const stderr = method === "choco" ? "not running from an elevated command shell" : result.stderr.toString("utf8")
-      throw new UpgradeFailedError({
-        stderr: stderr,
-      })
-    }
-    log.info("upgraded", {
-      method,
-      target,
-      stdout: result.stdout.toString(),
-      stderr: result.stderr.toString(),
-    })
-    await $`${process.execPath} --version`.nothrow().quiet().text()
+    log.info("upgrade disabled for CMS branch", { method, target })
+    // No-op: CMS branch 不執行自動升級
+    return
   }
 
   export const VERSION = typeof OPENCODE_VERSION === "string" ? OPENCODE_VERSION : "local"

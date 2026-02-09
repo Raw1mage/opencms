@@ -327,4 +327,76 @@ inotifywait -m -r ~/.opencode 2>/dev/null &
 
 ---
 
-**Status**: 根本原因已識別 85%（官方腳本 + Shell PATH），剩餘 15% 需監控確認 binary 的實際寫入者。
+**Status**: ✅ **RESOLVED** (2026-02-10)
+
+---
+
+## 最終解決方案 (Final Resolution)
+
+### 真正的根本原因
+
+經過完整追蹤,確認 binary 復活的**真正來源**是：
+
+**Tauri Desktop 應用的自動同步機制** (`packages/desktop/src-tauri/src/cli.rs`)
+
+```rust
+// Line 4 (修復前)
+const CLI_INSTALL_DIR: &str = ".opencode/bin";  // ❌ 硬編碼舊路徑
+
+// Line 95-142: sync_cli() 函數
+pub fn sync_cli(app: tauri::AppHandle) -> Result<(), String> {
+    if !is_cli_installed() {  // 檢查 ~/.opencode/bin/opencode 是否存在
+        return Ok(());
+    }
+
+    let cli_version = /* 讀取已安裝版本 */;
+    let app_version = app.package_info().version.clone();
+
+    if cli_version < app_version {
+        install_cli(app)?;  // 🔴 自動覆蓋舊版本
+    }
+}
+```
+
+**觸發條件**:
+
+1. Desktop 應用啟動時自動執行 `sync_cli()`
+2. 檢測到 `~/.opencode/bin/opencode` 存在
+3. 比較版本,若 CLI 版本較舊則自動覆蓋
+4. 因為 `CLI_INSTALL_DIR` 硬編碼為 `.opencode/bin`,導致持續往舊路徑寫入
+
+### 修復內容
+
+**檔案**: `packages/desktop/src-tauri/src/cli.rs:4-5`
+
+```diff
+- const CLI_INSTALL_DIR: &str = ".opencode/bin";
++ // @event_2026-02-10_desktop-cli-sync: Migrate to XDG Base Directory
++ // Legacy path: ~/.opencode/bin (deprecated)
++ // New path: ~/.local/bin (XDG compliant)
++ const CLI_INSTALL_DIR: &str = ".local/bin";
+```
+
+**清理操作**:
+
+```bash
+rm -rf ~/.opencode/bin
+rmdir ~/.opencode  # 若目錄為空則移除
+```
+
+### 驗證結果
+
+```bash
+$ which opencode
+/home/pkcs12/.local/bin/opencode
+
+$ opencode --version
+0.0.0-cms-202602091652
+
+$ ls ~/.opencode
+ls: cannot access '/home/pkcs12/.opencode': No such file or directory  # ✅ 已清理
+```
+
+---
+
+**Status**: ✅ **RESOLVED** - Tauri Desktop 的硬編碼路徑已修復,舊目錄已清理,問題不再復現。
