@@ -95,6 +95,7 @@ export function Prompt(props: PromptProps) {
   const kv = useKV()
   const [rateLimitKey, setRateLimitKey] = createSignal("")
   const [quotaRefresh, setQuotaRefresh] = createSignal(0)
+  const [footerTick, setFooterTick] = createSignal(0)
   const CODEX_ISSUER = "https://auth.openai.com"
   const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
   const CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
@@ -124,6 +125,32 @@ export function Prompt(props: PromptProps) {
     if (!lastCompletedAssistant()) return
     setQuotaRefresh((v) => v + 1)
   })
+
+  const footerInterval = setInterval(() => setFooterTick((t) => t + 1), 2000)
+  onCleanup(() => clearInterval(footerInterval))
+
+  const [activeAccountLabel] = createResource(
+    () => {
+      const current = local.model.current()
+      const providerId = current?.providerId
+      if (!providerId) return ""
+      return `${providerId}:${footerTick()}`
+    },
+    async (key) => {
+      const [providerId] = key.split(":")
+      if (!providerId) return undefined
+      try {
+        const fam = Account.parseFamily(providerId) || providerId
+        const activeId = await Account.getActive(fam)
+        if (!activeId) return undefined
+        const info = await Account.get(fam, activeId)
+        if (!info) return activeId
+        return Account.getDisplayName(activeId, info, providerId) || activeId
+      } catch {
+        return undefined
+      }
+    },
+  )
 
   function clampPercentage(value: number): number {
     if (!Number.isFinite(value)) return 0
@@ -1058,6 +1085,16 @@ export function Prompt(props: PromptProps) {
     return undefined
   })
 
+  const footerModelSummary = createMemo(() => {
+    const provider = local.model.parsed().provider
+    const model = local.model.parsed().model
+    const account = activeAccountLabel() || "--"
+    const quota = quotaHint()
+    const base = `${provider}  ${model}  ${account}`
+    const withQuota = quota ? `${base}  ${quota}` : base
+    return Locale.truncate(withQuota, 110)
+  })
+
   return (
     <>
       <Autocomplete
@@ -1300,13 +1337,14 @@ export function Prompt(props: PromptProps) {
               </text>
               <Show when={store.mode === "normal"}>
                 <box flexDirection="row" gap={1}>
-                  <text flexShrink={0} fg={keybind.leader ? theme.textMuted : theme.text}>
-                    {local.model.parsed().model}
+                  <text
+                    flexShrink={0}
+                    fg={keybind.leader ? theme.textMuted : theme.text}
+                    overflow="hidden"
+                    wrapMode="none"
+                  >
+                    {footerModelSummary()}
                   </text>
-                  <text fg={theme.textMuted}>{local.model.parsed().provider}</text>
-                  <Show when={quotaHint()}>
-                    <text fg={theme.textMuted}>· {quotaHint()}</text>
-                  </Show>
                   <Show when={showVariant()}>
                     <text fg={theme.textMuted}>·</text>
                     <text>

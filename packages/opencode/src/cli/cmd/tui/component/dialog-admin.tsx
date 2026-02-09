@@ -1112,7 +1112,26 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       isAlreadySelected,
     })
 
-    local.model.set({ providerId: resolvedProvider, modelID }, { recent: true, announce: true })
+    // FIX: In multi-account mode, local.model announce can read stale account cache.
+    // Build toast from the selected row/accountId to avoid misleading account labels.
+    local.model.set({ providerId: resolvedProvider, modelID }, { recent: true, announce: false })
+    try {
+      const providerInfo = sync.data.provider.find((x) => x.id === resolvedProvider)
+      const providerLabel = providerInfo?.name ?? resolvedProvider
+      const modelLabel = providerInfo?.models?.[modelID]?.name ?? modelID
+      let selectedAccountLabel = "default account"
+      if (accountId && accountId !== "-") {
+        const info = await Account.get(fam, accountId)
+        selectedAccountLabel = info ? Account.getDisplayName(accountId, info, resolvedProvider) : accountId
+      }
+      toast.show({
+        variant: "info",
+        message: `《${providerLabel}, ${selectedAccountLabel}, ${modelLabel}》`,
+        duration: 3000,
+      })
+    } catch {
+      // Best-effort toast rendering only
+    }
     setActivityTick((tick) => tick + 1)
 
     // If selecting an already-selected model, auto-exit the admin panel
