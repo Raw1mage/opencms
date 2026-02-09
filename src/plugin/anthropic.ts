@@ -12,6 +12,12 @@ const ATTRIBUTION_SALT = "59cf53e54c78"
 // STATE (Cross-request cache) - Sessions API deprecated, using ?beta=true strategy
 const TOOL_PREFIX = "mcp_"
 
+// Token refresh mutex — prevents concurrent refresh races
+// FIX: Multiple parallel requests detecting expired token would all trigger refresh,
+// potentially invalidating each other's tokens
+// @event_20260209_token_refresh_race
+let refreshPromise: Promise<void> | null = null
+
 /**
  * Recapitulates T8A function from official cli.js: sha256(salt + content[indices] + version)
  */
@@ -37,10 +43,7 @@ async function authorize(mode: "max" | "console") {
   url.searchParams.set("client_id", CLIENT_ID)
   url.searchParams.set("response_type", "code")
   url.searchParams.set("redirect_uri", "https://platform.claude.com/oauth/code/callback")
-  url.searchParams.set(
-    "scope",
-    "org:create_api_key user:profile user:inference",
-  )
+  url.searchParams.set("scope", "org:create_api_key user:profile user:inference")
   url.searchParams.set("code_challenge", pkce.challenge)
   url.searchParams.set("code_challenge_method", "S256")
   url.searchParams.set("state", pkce.verifier)
@@ -115,44 +118,58 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
             const auth = (await getAuth()) as any
             if (!auth) return fetch(reqInput, init)
 
-            // 1. Token Refresh
+            // 1. Token Refresh (with mutex to prevent concurrent refresh races)
+            // FIX: Use pending-promise pattern — only the first caller performs the refresh,
+            // subsequent concurrent callers await the same promise
+            // @event_20260209_token_refresh_race
             if (auth.type === "oauth" || auth.type === "subscription") {
               if (!auth.access || (auth.expires && auth.expires < Date.now())) {
-                log.info("Refreshing token for claude-cli...")
-                const response = await fetch("https://platform.claude.com/v1/oauth/token", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    grant_type: "refresh_token",
-                    refresh_token: auth.refresh,
-                    client_id: CLIENT_ID,
-                    scope: "org:create_api_key user:profile user:inference",
-                  }),
-                })
-                if (response.ok) {
-                  const json = await response.json()
-                  await client.auth.set({
-                    path: { id: auth.accountId || "claude-cli" },
-                    body: {
-                      type: auth.type,
-                      refresh: json.refresh_token ?? auth.refresh,
-                      access: json.access_token,
-                      expires: Date.now() + json.expires_in * 1000,
-                      orgID: auth.orgID,
-                      email: auth.email,
-                      name: auth.email,
-                    } as any,
-                  })
-                  auth.access = json.access_token
-                  auth.expires = Date.now() + json.expires_in * 1000
-                  log.info("Token refresh successful")
-                } else {
-                  // FIX: Handle refresh failure - log error and throw to prevent using expired token
-                  // @event_20260209_token_refresh_error_handling
-                  const errorText = await response.text().catch(() => "unknown error")
-                  log.error("Token refresh failed", { status: response.status, error: errorText })
-                  throw new Error(`Token refresh failed (${response.status}): ${errorText}. Please re-authenticate.`)
+                if (!refreshPromise) {
+                  refreshPromise = (async () => {
+                    try {
+                      log.info("Refreshing token for claude-cli...")
+                      const response = await fetch("https://platform.claude.com/v1/oauth/token", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          grant_type: "refresh_token",
+                          refresh_token: auth.refresh,
+                          client_id: CLIENT_ID,
+                          scope: "org:create_api_key user:profile user:inference",
+                        }),
+                      })
+                      if (response.ok) {
+                        const json = await response.json()
+                        await client.auth.set({
+                          path: { id: auth.accountId || "claude-cli" },
+                          body: {
+                            type: auth.type,
+                            refresh: json.refresh_token ?? auth.refresh,
+                            access: json.access_token,
+                            expires: Date.now() + json.expires_in * 1000,
+                            orgID: auth.orgID,
+                            email: auth.email,
+                            name: auth.email,
+                          } as any,
+                        })
+                        auth.access = json.access_token
+                        auth.expires = Date.now() + json.expires_in * 1000
+                        log.info("Token refresh successful")
+                      } else {
+                        // FIX: Handle refresh failure - log error and throw to prevent using expired token
+                        // @event_20260209_token_refresh_error_handling
+                        const errorText = await response.text().catch(() => "unknown error")
+                        log.error("Token refresh failed", { status: response.status, error: errorText })
+                        throw new Error(
+                          `Token refresh failed (${response.status}): ${errorText}. Please re-authenticate.`,
+                        )
+                      }
+                    } finally {
+                      refreshPromise = null
+                    }
+                  })()
                 }
+                await refreshPromise
               }
             }
 
@@ -254,8 +271,6 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                       parsed.system = [{ type: "text", text: CLAUDE_CODE_IDENTITY }, ...parsed.system]
                     }
                   } else if (typeof parsed.system === "string") {
-                    // String format: ALWAYS sanitize, then prepend identity if needed
-                    // parsed.system = parsed.system.replace(/OpenCode/g, "Claude Code").replace(/opencode/gi, "Claude")
                     if (!parsed.system.includes(CLAUDE_CODE_IDENTITY)) {
                       parsed.system = `${CLAUDE_CODE_IDENTITY}\n\n${parsed.system}`
                     }
@@ -278,10 +293,11 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                 })
 
                 // 3b. Add mcp_ prefix to tools definitions (only if tools exist)
+                // FIX: Guard against double-prefix when tools already have mcp_ prefix
                 if (parsed.tools && Array.isArray(parsed.tools)) {
                   parsed.tools = parsed.tools.map((tool: any) => ({
                     ...tool,
-                    name: tool.name ? `${TOOL_PREFIX}${tool.name}` : tool.name,
+                    name: tool.name && !tool.name.startsWith(TOOL_PREFIX) ? `${TOOL_PREFIX}${tool.name}` : tool.name,
                   }))
                 }
 
@@ -292,7 +308,7 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                       if (msg.content && Array.isArray(msg.content)) {
                         msg.content = msg.content
                           .map((block: any) => {
-                            if (block.type === "tool_use" && block.name) {
+                            if (block.type === "tool_use" && block.name && !block.name.startsWith(TOOL_PREFIX)) {
                               return { ...block, name: `${TOOL_PREFIX}${block.name}` }
                             }
                             if (block.type === "tool_result" && block.tool_use_id) {
@@ -334,26 +350,14 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
 
                 body = JSON.stringify(parsed)
 
-                // CRITICAL: Sanitize non-official Claude Code content
-                // Anthropic detects non-Claude-Code clients by checking for specific patterns:
-                // 1. "opencode" anywhere in paths
-                // 2. Non-official system prompt fragments like "best coding agent on the planet"
+                // NOTE: Post-stringify sanitization removed — regex on serialized JSON is fragile
+                // and the previous patterns (.replace(/You are Claude Code\.\s*/g, "")) contradicted
+                // the prepend logic above. All text manipulation now happens before JSON.stringify.
                 // @event_20260209_global_sanitization
-                body = body
-                  // Remove non-official prompt fragments that trigger detection
-                  .replace(/You are Claude Code, the best coding agent on the planet\.\s*/g, "")
-                  .replace(/, the best coding agent on the planet/g, "")
-                // Path sanitization removed - causes hallucinations in agent operations
-                // .replace(/\/opencode\//g, "/claude-code/")
-                // .replace(/\.config\/opencode/g, ".config/claude-code")
-                // .replace(/opencode\/skills/g, "claude-code/skills")
-                // .replace(/pkcs12\/opencode/g, "pkcs12/claude-code")
 
-                // DEBUG: Dump FINAL request body to file for analysis
-                const fs = await import("fs")
-                const debugPath = `/tmp/claude-cli-final-${Date.now()}.json`
-                fs.writeFileSync(debugPath, body)
-                log.debug("Final request dumped", { path: debugPath })
+                // Debug dump removed — writing full request body to disk is a security risk
+                // (contains auth tokens and user messages). Use log.debug for targeted debugging.
+                // @event_20260209_debug_dump_removed
               } catch (e) {
                 log.debug("Body parse error", { error: e })
               }
@@ -412,23 +416,42 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
             }
 
             // 4. Transform streaming response to remove mcp_ prefix from tool names
+            // FIX: Buffer incomplete lines to prevent chunk-boundary splits from breaking regex
+            // SSE format guarantees each event ends with \n, so we buffer until we have a complete line
+            // @event_20260209_streaming_chunk_boundary
             if (response.body) {
               const reader = response.body.getReader()
               const decoder = new TextDecoder()
               const encoder = new TextEncoder()
+              let remainder = ""
 
               const stream = new ReadableStream({
                 async pull(controller) {
                   const { done, value } = await reader.read()
                   if (done) {
+                    // Flush any remaining buffered content
+                    if (remainder) {
+                      const flushed = remainder.replace(/"name"\s*:\s*"mcp_([^"]+)"/g, '"name": "$1"')
+                      controller.enqueue(encoder.encode(flushed))
+                      remainder = ""
+                    }
                     controller.close()
                     return
                   }
 
-                  let text = decoder.decode(value, { stream: true })
-                  // Remove mcp_ prefix from tool names in response
-                  text = text.replace(/"name"\s*:\s*"mcp_([^"]+)"/g, '"name": "$1"')
-                  controller.enqueue(encoder.encode(text))
+                  const text = remainder + decoder.decode(value, { stream: true })
+                  // Find last newline — everything before it is complete lines, safe to transform
+                  const lastNewline = text.lastIndexOf("\n")
+                  if (lastNewline === -1) {
+                    // No complete line yet, buffer everything
+                    remainder = text
+                    return
+                  }
+                  const complete = text.slice(0, lastNewline + 1)
+                  remainder = text.slice(lastNewline + 1)
+                  // Remove mcp_ prefix from tool names in complete lines only
+                  const transformed = complete.replace(/"name"\s*:\s*"mcp_([^"]+)"/g, '"name": "$1"')
+                  controller.enqueue(encoder.encode(transformed))
                 },
               })
 
