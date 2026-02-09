@@ -19,10 +19,16 @@ export namespace Env {
   export function set(key: string, value: string) {
     const env = state()
     env[key] = value
+    // Also update global process.env for SDKs that read from it directly
+    // (e.g., AWS SDK, SAP AI Core SDK)
+    // Per-instance isolation still works because each Instance has its own copy
+    process.env[key] = value
   }
 
   export function remove(key: string) {
     const env = state()
     delete env[key]
+    // Also remove from global process.env for consistency
+    delete process.env[key]
   }
 }

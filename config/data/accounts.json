@@ -1,0 +1,174 @@
+{
+  "version": 2,
+  "families": {
+    "anthropic": {
+      "accounts": {}
+    },
+    "google": {
+      "activeAccount": "google-api-raw",
+      "accounts": {
+        "google-api-google-ivon0829": {
+          "type": "api",
+          "name": "google-ivon0829",
+          "apiKey": "AIzaSyAifQthKDSqwvRF969205IB0HE0D_J1V1w",
+          "addedAt": 1769612051135
+        },
+        "google-api-raw": {
+          "type": "api",
+          "name": "yeatsluo@gmail.com",
+          "apiKey": "AIzaSyCy4LTImueMiCjXvEfYDK0EO1zl4cll8xw",
+          "addedAt": 1769833685492
+        }
+      }
+    },
+    "openai": {
+      "activeAccount": "openai-subscription-ce659f58-9bfe-45bc-98d4-279a839ac8e4",
+      "accounts": {
+        "openai-subscription-ce659f58-9bfe-45bc-98d4-279a839ac8e4": {
+          "type": "subscription",
+          "name": "ce659f58-9bfe-45bc-98d4-279a839ac8e4",
+          "email": "ce659f58-9bfe-45bc-98d4-279a839ac8e4",
+          "refreshToken": "rt_YnT_IprHpjMA_6DDbPhsCjEgOy0ZDIw5rRvQFxVWAtY.sp-8osdNtz-py5Y9LyW9CWSBr73NLO0SuPDkztlNX6E",
+          "accessToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE5MzQ0ZTY1LWJiYzktNDRkMS1hOWQwLWY5NTdiMDc5YmQwZSIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsiaHR0cHM6Ly9hcGkub3BlbmFpLmNvbS92MSJdLCJjbGllbnRfaWQiOiJhcHBfRU1vYW1FRVo3M2YwQ2tYYVhwN2hyYW5uIiwiZXhwIjoxNzcwNDUxNDcxLCJodHRwczovL2FwaS5vcGVuYWkuY29tL2F1dGgiOnsiY2hhdGdwdF9hY2NvdW50X2lkIjoiY2U2NTlmNTgtOWJmZS00NWJjLTk4ZDQtMjc5YTgzOWFjOGU0IiwiY2hhdGdwdF9hY2NvdW50X3VzZXJfaWQiOiJ1c2VyLVozV09qaDJ4YVZPZktFNVlRUFBBRkZ5TV9fY2U2NTlmNTgtOWJmZS00NWJjLTk4ZDQtMjc5YTgzOWFjOGU0IiwiY2hhdGdwdF9jb21wdXRlX3Jlc2lkZW5jeSI6Im5vX2NvbnN0cmFpbnQiLCJjaGF0Z3B0X3BsYW5fdHlwZSI6InBsdXMiLCJjaGF0Z3B0X3VzZXJfaWQiOiJ1c2VyLVozV09qaDJ4YVZPZktFNVlRUFBBRkZ5TSIsInVzZXJfaWQiOiJ1c2VyLVozV09qaDJ4YVZPZktFNVlRUFBBRkZ5TSJ9LCJodHRwczovL2FwaS5vcGVuYWkuY29tL21mYSI6eyJyZXF1aXJlZCI6InllcyJ9LCJodHRwczovL2FwaS5vcGVuYWkuY29tL3Byb2ZpbGUiOnsiZW1haWwiOiJ5ZWF0c2x1b0BnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0sImlhdCI6MTc2OTU4NzQ3MCwiaXNzIjoiaHR0cHM6Ly9hdXRoLm9wZW5haS5jb20iLCJqdGkiOiJjYTAxNGFiMy02ZTZhLTQyOTAtOWI1MC1lODhkYmEyMWU5NDQiLCJuYmYiOjE3Njk1ODc0NzAsInB3ZF9hdXRoX3RpbWUiOjE3Njk1ODc0NjkxODEsInNjcCI6WyJvcGVuaWQiLCJwcm9maWxlIiwiZW1haWwiLCJvZmZsaW5lX2FjY2VzcyJdLCJzZXNzaW9uX2lkIjoiYXV0aHNlc3NfU0h1bXBLTnU4NlF0WnFIa09DdjJ4TjdLIiwic3ViIjoiZ29vZ2xlLW9hdXRoMnwxMTA0MDQ4MDkwMjQyMDcxNDUyMTAifQ.egy6reyZ7r0lTOzGcpSh25yL5NsujWQHuipXD758xkOtF3ru833lnDaR9PnLKboUYv-v6flU7aZ82KE62xokyFzWHSeplRwXHABAtpEZ3qyc7ytSghJn4anaJFj_-naNhdi2EOcz0bU7hXWOV6zzEZsJkKT38kX58SeRUf5yttoXGtWVZo17hY7kegpw7vktLAKZA9XYmXAbGGtW9vZnbv8yxD686xgWMSlsfkerxFreu96LiaWBI1o1zKbb5DyEasFutySwfaGqQZ6JI59eXYReBWTEDldwSl-VIChCZjUo4lisZYZPYxacDk1ZgIv0VkEu_5Sv6kgvp7ANLyPyYheTIcbA3p2bd0M1a9iWhwDSirgL7FUa-WqgEBporbazoB5WC7WZX5fmwgd3i1YB4rMpH9ujyW3LdrD8XFppPJP9Ol-Zz9H-836pQRtowlPVPyELMt0LbKRXmM6PktQnIUKSnzF3WcW0vXm_KxYHVj61R1NRL7-n4zZv3bp-GMcv_Z0O7lgngXABvTO3x3XdJo-vYeHet89Fsg9Dc07IDDE2NY-gAc3UChyT4Oh0xblJWUbC8Q9YFQ3z2yogQfpcNfltfqsdUEgn8YUSadRe8N9xgiAY8PCZrfeQqAApUeN4sRJWkIe1YgWmevNbvkucF2fq7L4eixj0znKW9OYQnT0",
+          "expiresAt": 1770451470194,
+          "accountId": "ce659f58-9bfe-45bc-98d4-279a839ac8e4",
+          "addedAt": 1769587470195
+        },
+        "openai-subscription-1a6223a6-f1ba-4268-87ee-7ee9bd656e14": {
+          "type": "subscription",
+          "name": "1a6223a6-f1ba-4268-87ee-7ee9bd656e14",
+          "email": "1a6223a6-f1ba-4268-87ee-7ee9bd656e14",
+          "refreshToken": "rt_vna1iu4AnDSLIit-IZxuaRgKUn2k7EYttYVOXxtUU3g.fQgBqUTtOnCAu8CIpK_w5A1z2UtUkJ7fYEoyc_2YUHI",
+          "accessToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE5MzQ0ZTY1LWJiYzktNDRkMS1hOWQwLWY5NTdiMDc5YmQwZSIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsiaHR0cHM6Ly9hcGkub3BlbmFpLmNvbS92MSJdLCJjbGllbnRfaWQiOiJhcHBfRU1vYW1FRVo3M2YwQ2tYYVhwN2hyYW5uIiwiZXhwIjoxNzcwNDUyMTAyLCJodHRwczovL2FwaS5vcGVuYWkuY29tL2F1dGgiOnsiY2hhdGdwdF9hY2NvdW50X2lkIjoiMWE2MjIzYTYtZjFiYS00MjY4LTg3ZWUtN2VlOWJkNjU2ZTE0IiwiY2hhdGdwdF9hY2NvdW50X3VzZXJfaWQiOiJ1c2VyLUZTemRVZVZVTURYMDZ2YnhsSjhBUEVDZ19fMWE2MjIzYTYtZjFiYS00MjY4LTg3ZWUtN2VlOWJkNjU2ZTE0IiwiY2hhdGdwdF9jb21wdXRlX3Jlc2lkZW5jeSI6Im5vX2NvbnN0cmFpbnQiLCJjaGF0Z3B0X3BsYW5fdHlwZSI6InBsdXMiLCJjaGF0Z3B0X3VzZXJfaWQiOiJ1c2VyLUZTemRVZVZVTURYMDZ2YnhsSjhBUEVDZyIsInVzZXJfaWQiOiJ1c2VyLUZTemRVZVZVTURYMDZ2YnhsSjhBUEVDZyJ9LCJodHRwczovL2FwaS5vcGVuYWkuY29tL21mYSI6eyJyZXF1aXJlZCI6InllcyJ9LCJodHRwczovL2FwaS5vcGVuYWkuY29tL3Byb2ZpbGUiOnsiZW1haWwiOiJpdm9uMDgyOUBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0sImlhdCI6MTc2OTU4ODEwMiwiaXNzIjoiaHR0cHM6Ly9hdXRoLm9wZW5haS5jb20iLCJqdGkiOiJmMDRiZGUwMy1iYTJlLTQ5NzktOTlhNS05ZjQyMTA0ZmEzNGYiLCJuYmYiOjE3Njk1ODgxMDIsInB3ZF9hdXRoX3RpbWUiOjE3Njk1ODgxMDA4NjIsInNjcCI6WyJvcGVuaWQiLCJwcm9maWxlIiwiZW1haWwiLCJvZmZsaW5lX2FjY2VzcyJdLCJzZXNzaW9uX2lkIjoiYXV0aHNlc3Nfc0o2azdna0l2Mzl5bFQ2Qk1Ld3g4Vm0wIiwic3ViIjoiZ29vZ2xlLW9hdXRoMnwxMTc1NTUwNTM1MjQ4ODY4NzE3MTAifQ.sTtlyvM7b6IvFq0H9Ijyrc8yu9wFSzpCLYx7v1-NEGEdVGIJexkE3wuFXGuPvHN_WXRe-u7KGXQ8lMWgeTDhGTfrQLyFiTnN2Xymp-OP6Habl8GUizvm9HTJ7uqHDGRDQiqokSMyeWrazYJJ-RuVTb-y63AcG0ogbq0Dp9s7pLdpAxxX_TfZDRgMI3K2s9eugTY3Xh94ggy4xHXHRoTVm5LojxYt797qPsoGMayEFis27FlHEiiBtAP3ji5FE130hqhL8s_chj2cGPfwJSwIXeIVZi8XrVcZWpRFAgptxDYaFxiovypjrp4WZBGEmy6W0wldzK_JAG_-kshvvRgbTQJRfhlsrWygGWFOd-yREuYNcSzYbbH0zFVxnyWfq4qQ__WN66ljK5kh33A1b4PwjRf31K6zIFPYM9ja8tzhNMiTS5_kc5aRoK3LHumFk6yKXoh6EombUH1GjEnO88rrAnfSQzRx0UHoGlVD61OCvAxaMF7WWJ2QuOfSULBU0l5oTfpmACQURCcBb0W11f0p3GylkPzkcivIH2O_VkYE1l2nJtEXlvEL37f1d_s2GWXjq9P9YZHwPjBuhtvoG4u_Do2uHczBF2bqLCCueQzvRCyH1DWnl31UcCAdIC4gOb-ij2rMqKHfhu2KplCai4X1AIZ24QqskYBHwDKpP-VYaNg",
+          "expiresAt": 1770452101333,
+          "accountId": "1a6223a6-f1ba-4268-87ee-7ee9bd656e14",
+          "addedAt": 1769588102333
+        }
+      }
+    },
+    "gemini-cli": {
+      "activeAccount": "gemini-cli-subscription-yeatsluo-gmail-com",
+      "accounts": {
+        "gemini-cli-subscription-ivon0829-gmail-com": {
+          "type": "subscription",
+          "name": "ivon0829@gmail.com",
+          "refreshToken": "1//0eShysO0-tHrlCgYIARAAGA4SNwF-L9IrA-oXc-QOPdUp4k9NaPBcR3ZBC895_HnWNKCOKwoW6gO_dTShfq4ri_ySznzQ6Ur4Jjo",
+          "accessToken": "ya29.a0AUMWg_L8SNxjMTFwXs2_ISRR3lZPUkKZzaXZGkQDfkP73FVRX4vgjuddR27TPoWJli4eLc3tnvLKZb07_NMGoVL7gmg5vCf_PWBYz4BZq7u-fywLw-KIjFa5cRlT0y2tIXQssujXgtVYQ7ozFL9MP5mDz_cC8y5GYiI-9qMQYRP08mOORdgu_kppMpW-DPzNtQRwr3XngBGL3waCgYKAUsSARYSFQHGX2MiqQ2SWWGYzzSRzyLC-IUYQQ0213",
+          "expiresAt": 1769898527064,
+          "addedAt": 1769612713396
+        },
+        "gemini-cli-subscription-yeatsluo-gmail-com": {
+          "type": "subscription",
+          "name": "yeatsluo@gmail.com",
+          "email": "yeatsluo@gmail.com",
+          "refreshToken": "1//0ehgScIGuTaVDCgYIARAAGA4SNwF-L9IrgQqr3GfOmDhNpHFjhyegWs0j-m4MUmvIfCi8Zo1mtQiev96nhRsYJR-SfgrNxaY3fLg",
+          "addedAt": 1769612836087
+        },
+        "gemini-cli-subscription-gemini-cli": {
+          "type": "subscription",
+          "name": "gemini-cli",
+          "refreshToken": "1//0ehgScIGuTaVDCgYIARAAGA4SNwF-L9IrgQqr3GfOmDhNpHFjhyegWs0j-m4MUmvIfCi8Zo1mtQiev96nhRsYJR-SfgrNxaY3fLg||silicon-era-q9hlq",
+          "accessToken": "ya29.a0AUMWg_LRSztOPZ8B4OkGzpqmrrS_6iJOL8kodt2xOk1IrBeclNtrcWcgyBRCp9KJ3bUSwQ7o5YIqbJpu79rp-jXoTgil-P5V2HSYH3InDZb9CLjK1O54D1GmeW-YcsHuYZE0_-AMzyv9bFNNZ8i-8NIBGLudnDYUSgDQb3xJKV9kvVpkb217okmzVqgQIqFdb3tyEni-jPilUQaCgYKAYMSARUSFQHGX2MiGuxXg_9tYH06Gn4ADEltyA0213",
+          "expiresAt": 1769848452329,
+          "addedAt": 1769844853403
+        },
+        "gemini-cli-api-gemini-cli": {
+          "type": "api",
+          "name": "gemini-cli",
+          "apiKey": "apikey",
+          "addedAt": 1769826678609
+        }
+      }
+    },
+    "opencode": {
+      "activeAccount": "opencode-api-opencode",
+      "accounts": {
+        "opencode-api-opencode": {
+          "type": "api",
+          "name": "yeatsluo@gmail.com",
+          "apiKey": "sk-4wgVFeLASNj8l2hRy10EuiubMGEfHqoX9QkxJzNJEbYqHaq0j2a229MPYyfMVpXR",
+          "addedAt": 1769700731039
+        }
+      }
+    },
+    "gitlab": {
+      "activeAccount": "gitlab-subscription-gitlab",
+      "accounts": {
+        "gitlab-subscription-gitlab": {
+          "type": "subscription",
+          "name": "gitlab",
+          "refreshToken": "db6d593fa3c9ab77cc7897a0da2006934fc82e6265b8bbce6321f6a9bb0de4f3",
+          "accessToken": "090eceeb02c4913b770e77972433a88f6318aae86fa8abef2c544012173ac2c5",
+          "expiresAt": 1769874058528,
+          "addedAt": 1769866858529
+        }
+      }
+    },
+    "github-copilot": {
+      "activeAccount": "github-copilot-subscription-github-copilot",
+      "accounts": {
+        "github-copilot-subscription-github-copilot": {
+          "type": "subscription",
+          "name": "yeatsluo@gmail.com",
+          "refreshToken": "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",
+          "accessToken": "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",
+          "expiresAt": 0,
+          "addedAt": 1769871337137
+        }
+      }
+    },
+    "antigravity": {
+      "activeAccount": "antigravity-subscription-yeatsluo-gmail-com",
+      "accounts": {
+        "antigravity-subscription-yeatsluo-gmail-com": {
+          "type": "subscription",
+          "name": "yeatsluo@gmail.com",
+          "email": "yeatsluo@gmail.com",
+          "refreshToken": "1//0efHYUhAxt5ngCgYIARAAGA4SNwF-L9Irap9h2ktSFAWaDLm-MdmAwVDbnFEwimvkvytsDFUDxuufYEURy1aSPdhz2DKlKhN4CxM",
+          "projectId": "silicon-era-q9hlq",
+          "addedAt": 1769880389393,
+          "fingerprint": {
+            "deviceId": "4e3e9893-0e7f-45dc-b0f2-9f2c724b50c6",
+            "sessionToken": "29693b83486b9c48564ab13becdd8ff8",
+            "userAgent": "antigravity/1.15.8 linux/x64",
+            "apiClient": "google-cloud-sdk vscode_cloudshelleditor/0.1",
+            "clientMetadata": {
+              "ideType": "VSCODE",
+              "platform": "LINUX",
+              "pluginType": "GEMINI",
+              "osVersion": "5.15.167.4",
+              "arch": "x64",
+              "sqmId": "{22E34D71-358D-4E37-B351-032F4652CFC6}"
+            },
+            "quotaUser": "device-1eefa5468af65019",
+            "createdAt": 1769881587676
+          }
+        },
+        "antigravity-subscription-ivon0829-gmail-com": {
+          "type": "subscription",
+          "name": "ivon0829@gmail.com",
+          "email": "ivon0829@gmail.com",
+          "refreshToken": "1//0ef4hIyj5viD5CgYIARAAGA4SNwF-L9Iri3B4gJZrYZHR2uNAUryG7xrUQrEBygUYfLsiR806wV-7ok-YuVOCyL30ux0jlwkrBfk",
+          "projectId": "unique-advice-7h40d",
+          "addedAt": 1769884367896,
+          "fingerprint": {
+            "deviceId": "d4fb5599-3f6c-4896-a21f-126a2c680969",
+            "sessionToken": "dd90a4b255dbd6539a3a9127713a4dc0",
+            "userAgent": "antigravity/1.15.8 darwin/x64",
+            "apiClient": "google-cloud-sdk vscode_cloudshelleditor/0.1",
+            "clientMetadata": {
+              "ideType": "INTELLIJ",
+              "platform": "MACOS",
+              "pluginType": "GEMINI",
+              "osVersion": "10.15.7",
+              "arch": "x64",
+              "sqmId": "{BEC498C8-AF90-489A-A77B-97706DA180E2}"
+            },
+            "quotaUser": "device-4a16e45de39e7c4c",
+            "createdAt": 1769884367969
+          }
+        }
+      }
+    }
+  }
+}
