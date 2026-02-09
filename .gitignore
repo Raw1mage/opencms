@@ -17,6 +17,9 @@ ts-dist
 refs
 Session.vim
 opencode.json
+/config/opencode/
+/templates/opencode.json
+/templates/backup/
 a.out
 target
 .scripts
@@ -28,4 +31,4 @@ logs/
 *.bun-build
 
 # Docker config (contains sensitive credentials)
-/config/
+# Note: /config/opencode/ is ignored separately above
