@@ -190,3 +190,17 @@ if (version !== CACHE_VERSION) {
   } catch (e) {}
   await Bun.file(path.join(Global.Path.cache, "version")).write(CACHE_VERSION)
 }
+
+// @event_2026-02-09_path_cleanup: Detect and warn about legacy .opencode directory
+if (os.platform() !== "win32") {
+  const legacyDir = path.join(os.homedir(), ".opencode")
+  const exists = await fs
+    .access(legacyDir)
+    .then(() => true)
+    .catch(() => false)
+  if (exists) {
+    console.warn("\n[WARNING] 偵測到遺留目錄: " + legacyDir)
+    console.warn("這可能會導致路徑衝突或 Session 偏移。")
+    console.warn("建議執行 `bun run install` 以完成遷移，或手動刪除該目錄。\n")
+  }
+}

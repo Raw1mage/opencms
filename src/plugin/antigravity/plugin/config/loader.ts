@@ -47,8 +47,14 @@ export function getUserConfigPath(): string {
 
 /**
  * Get the project-level config file path.
+ * Guards against treating the home directory legacy path as a project config.
  */
 export function getProjectConfigPath(directory: string): string {
+  // If we are scanning the home directory, ignore .opencode as a project config
+  // to prevent picking up the legacy ~/.opencode folder as a project root.
+  if (directory === homedir()) {
+    return join(directory, ".opencode-ignored", "antigravity.json")
+  }
   return join(directory, ".opencode", "antigravity.json")
 }
 

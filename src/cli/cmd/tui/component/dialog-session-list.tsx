@@ -84,7 +84,7 @@ export function DialogSessionList() {
         ) : undefined,
       })
 
-      // Add children with tree prefix
+      // Add children with tree prefix (restored original behavior)
       const sortedChildren = children.toSorted((a, b) => a.time.created - b.time.created)
       for (let i = 0; i < sortedChildren.length; i++) {
         const child = sortedChildren[i]
@@ -109,6 +109,11 @@ export function DialogSessionList() {
 
     return result
   })
+
+  // Navigation: left key closes dialog
+  const goBack = () => {
+    dialog.clear()
+  }
 
   onMount(() => {
     dialog.setSize("large")
@@ -146,6 +151,19 @@ export function DialogSessionList() {
           onTrigger: async (option) => {
             dialog.replace(() => <DialogSessionRename session={option.value} />)
           },
+        },
+        {
+          keybind: Keybind.parse("left")[0],
+          title: "(←)Exit",
+          label: "",
+          hidden: false,
+          onTrigger: goBack,
+        },
+        {
+          keybind: Keybind.parse("esc")[0],
+          title: "",
+          hidden: true,
+          onTrigger: goBack,
         },
       ]}
     />

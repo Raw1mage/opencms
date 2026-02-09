@@ -228,10 +228,33 @@ export namespace Config {
   })
 
   export async function installDependencies(dir: string) {
-    const pkg = path.join(dir, "package.json")
+    // @event_2026-02-09_path_cleanup: Never auto-initialize legacy or non-existent directories
+    if (dir.includes(".opencode") && dir.startsWith(os.homedir())) {
+      const legacyDir = path.join(os.homedir(), ".opencode")
+      // Strict check: if it IS the legacy dir, or inside it
+      if (dir === legacyDir || dir.startsWith(legacyDir + path.sep)) {
+        // Double check: if it is NOT inside a project (heuristic)
+        // Actually, just blocking the legacy root is safer for now.
+        // We allow subdirectories if they are legitimately returned by project scanning,
+        // but since we want to kill ~/.opencode, we should probably block it entirely unless it is the configured data dir (which it isn't, XDG is).
+        log.warn("Refusing to install dependencies in legacy directory", { dir })
+        return
+      }
+    }
 
+    // Additional safeguard: If dir IS homedir (unlikely for installDependencies but possible in some flows)
+    if (dir === os.homedir()) {
+      return
+    }
+
+    const pkg = path.join(dir, "package.json")
     if (!(await Bun.file(pkg).exists())) {
-      await Bun.write(pkg, "{}")
+      // Only auto-create package.json for standard XDG config/data dirs, not random .opencode folders
+      if (dir === Global.Path.config || dir === Global.Path.data) {
+        await Bun.write(pkg, "{}")
+      } else {
+        return
+      }
     }
 
     const gitignore = path.join(dir, ".gitignore")

@@ -4,6 +4,7 @@ import { env } from "node:process"
 import type { AntigravityConfig } from "./config"
 import { ensureGitignoreSync } from "./storage"
 import { debugCheckpoint } from "../../../util/debug"
+import { Global } from "../../../global"
 
 const MAX_BODY_PREVIEW_CHARS = 12000
 const MAX_BODY_VERBOSE_CHARS = 50000
@@ -51,7 +52,7 @@ function getConfigDir(): string {
  * Builds a timestamped log file path.
  */
 function createLogFilePath(): string {
-  return "/home/pkcs12/opencode/logs/debug.log"
+  return join(Global.Path.log, "debug.log")
 }
 
 /**
