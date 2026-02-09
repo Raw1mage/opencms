@@ -33,7 +33,7 @@ import { Flag } from "../flag/flag"
 import { ulid } from "ulid"
 import { spawn } from "child_process"
 import { Command } from "../command"
-import { $, fileURLToPath } from "bun"
+import { $, fileURLToPath, pathToFileURL } from "bun"
 import { ConfigMarkdown } from "../config/markdown"
 import { Config } from "../config/config"
 import { SessionSummary } from "./summary"
@@ -331,7 +331,7 @@ export namespace SessionPrompt {
         if (stats.isDirectory()) {
           return {
             type: "file",
-            url: `file://${filepath}`,
+            url: pathToFileURL(filepath).href,
             filename: name,
             mime: "application/x-directory",
           } satisfies PromptInput["parts"][number]
@@ -339,7 +339,7 @@ export namespace SessionPrompt {
 
         return {
           type: "file",
-          url: `file://${filepath}`,
+          url: pathToFileURL(filepath).href,
           filename: name,
           mime: "text/plain",
         } satisfies PromptInput["parts"][number]

@@ -140,6 +140,16 @@ export function getCapabilities(provider: Provider.Info, auth?: Auth.Info): Prov
     }
   }
 
+  // GitHub Copilot
+  if (id.includes("github-copilot")) {
+    return {
+      ...DEFAULT_CAPABILITIES,
+      skipMaxOutputTokens: true,
+      authType: "oauth",
+      family: "other",
+    }
+  }
+
   // LiteLLM proxy detection
   if (provider.options?.["litellmProxy"] === true || id.includes("litellm")) {
     return {

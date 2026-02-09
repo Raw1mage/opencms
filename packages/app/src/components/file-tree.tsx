@@ -2,17 +2,19 @@ import { useFile } from "@/context/file"
 import { FileIcon } from "@opencode-ai/ui/file-icon"
 import { Icon } from "@opencode-ai/ui/icon"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
-import {
-  createMemo,
-  Show,
-  splitProps,
-  type ComponentProps,
-  type ParentProps,
-} from "solid-js"
+import { createMemo, Show, splitProps, type ComponentProps, type ParentProps } from "solid-js"
 import { Dynamic } from "solid-js/web"
 import type { FileNode } from "@opencode-ai/sdk/v2"
 import { VList } from "virtua/solid"
 import { useFlattenedTree, type FlattenedNode } from "@/hooks/use-flattened-tree"
+
+function pathToFileUrl(filepath: string): string {
+  const encodedPath = filepath
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/")
+  return `file://${encodedPath}`
+}
 
 type Kind = "add" | "del" | "mix"
 
@@ -94,7 +96,7 @@ export default function FileTree(props: {
         onDragStart={(e: DragEvent) => {
           if (!draggable()) return
           e.dataTransfer?.setData("text/plain", `file:${local.node.path}`)
-          e.dataTransfer?.setData("text/uri-list", `file://${local.node.path}`)
+          e.dataTransfer?.setData("text/uri-list", pathToFileUrl(local.node.path))
           if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy"
 
           const dragImage = document.createElement("div")
@@ -244,14 +246,17 @@ export default function FileTree(props: {
     }
 
     return (
-      <Show when={node.type === "directory"} fallback={
-        <Wrapper>
-          <Node node={node} depth={depth} as="button" type="button" onClick={() => props.onFileClick?.(node)}>
-            <div class="w-4 shrink-0" />
-            <FileIcon node={node} class="text-icon-weak size-4" />
-          </Node>
-        </Wrapper>
-      }>
+      <Show
+        when={node.type === "directory"}
+        fallback={
+          <Wrapper>
+            <Node node={node} depth={depth} as="button" type="button" onClick={() => props.onFileClick?.(node)}>
+              <div class="w-4 shrink-0" />
+              <FileIcon node={node} class="text-icon-weak size-4" />
+            </Node>
+          </Wrapper>
+        }
+      >
         <Wrapper>
           <Node node={node} depth={depth} as="button" type="button" onClick={() => file.tree.toggle(node.path)}>
             <div class="size-4 flex items-center justify-center text-icon-weak">
@@ -265,9 +270,7 @@ export default function FileTree(props: {
 
   return (
     <div class={`flex flex-col gap-0.5 h-full min-h-0 ${props.class ?? ""}`}>
-      <VList data={flattened()}>
-        {(item) => <RenderNode item={item} />}
-      </VList>
+      <VList data={flattened()}>{(item) => <RenderNode item={item} />}</VList>
     </div>
   )
 }

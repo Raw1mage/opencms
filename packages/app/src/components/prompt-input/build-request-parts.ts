@@ -20,6 +20,12 @@ export function buildRequestParts(input: RequestPartsInput) {
   const toAbsolutePath = (path: string) =>
     path.startsWith("/") ? path : (sessionDirectory + "/" + path).replace("//", "/")
 
+  const encodeFilePath = (filepath: string): string =>
+    filepath
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/")
+
   const fileAttachments = prompt.filter((part) => part.type === "file") as FileAttachmentPart[]
   const agentAttachments = prompt.filter((part) => part.type === "agent") as AgentPart[]
 
@@ -32,7 +38,7 @@ export function buildRequestParts(input: RequestPartsInput) {
       id: Identifier.ascending("part"),
       type: "file" as const,
       mime: "text/plain",
-      url: `file://${absolute}${query}`,
+      url: `file://${encodeFilePath(absolute)}${query}`,
       filename: getFilename(attachment.path),
       source: {
         type: "file" as const,
@@ -77,7 +83,7 @@ export function buildRequestParts(input: RequestPartsInput) {
   const addContextFile = (input: { path: string; selection?: FileSelection; comment?: string }) => {
     const absolute = toAbsolutePath(input.path)
     const query = input.selection ? `?start=${input.selection.startLine}&end=${input.selection.endLine}` : ""
-    const url = `file://${absolute}${query}`
+    const url = `file://${encodeFilePath(absolute)}${query}`
 
     const comment = input.comment?.trim()
     if (!comment && usedUrls.has(url)) return

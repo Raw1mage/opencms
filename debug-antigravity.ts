@@ -1,4 +1,4 @@
-import { ANTIGRAVITY_ENDPOINT_PROD } from "./packages/opencode/src/plugin/antigravity/constants"
+import { ANTIGRAVITY_ENDPOINT_PROD } from "./src/plugin/antigravity/constants"
 
 async function test(modelInBody) {
   const url = `${ANTIGRAVITY_ENDPOINT_PROD}/v1internal:streamGenerateContent?alt=sse`

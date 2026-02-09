@@ -1,5 +1,674 @@
 [
   {
+    "commit_hash": "05355a6b5",
+    "subject": "fix(app): tooltip children focus loop",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/ui/src/components/tooltip.tsx"
+    ]
+  },
+  {
+    "commit_hash": "7ff51183c",
+    "subject": "chore: cleanup",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/components/session/session-header.tsx"
+    ]
+  },
+  {
+    "commit_hash": "bda0cbdec",
+    "subject": "chore: cleanup",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/components/session/session-header.tsx",
+      "packages/app/src/components/status-popover.tsx"
+    ]
+  },
+  {
+    "commit_hash": "acc53d9f6",
+    "subject": "chore(app): cleanup",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/ui/src/components/file-icon.tsx"
+    ]
+  },
+  {
+    "commit_hash": "30f0d3b39",
+    "subject": "fix(app): update tab file contents on change",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/context/file.tsx",
+      "packages/app/src/context/file/watcher.test.ts",
+      "packages/app/src/context/file/watcher.ts"
+    ]
+  },
+  {
+    "commit_hash": "03f3029dc",
+    "subject": "feat(app): polish Open in icon treatment",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/components/session/session-header.tsx",
+      "packages/ui/src/assets/icons/app/cursor.svg",
+      "packages/ui/src/assets/icons/app/finder.png",
+      "packages/ui/src/assets/icons/app/zed-dark.svg",
+      "packages/ui/src/assets/icons/app/zed.svg",
+      "packages/ui/src/components/app-icon.css",
+      "packages/ui/src/components/app-icon.tsx"
+    ]
+  },
+  {
+    "commit_hash": "aed7bb8c0",
+    "subject": "chore: remove unused themes (#12753)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/ui/src/theme/themes/deltarune.json",
+      "packages/ui/src/theme/themes/undertale.json",
+      "themes/deltarune.json",
+      "themes/undertale.json"
+    ]
+  },
+  {
+    "commit_hash": "dd2d232a9",
+    "subject": "fix: add fallback for when crypto.randomUUID is unavailable",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/components/prompt-input/attachments.ts",
+      "packages/app/src/context/comments.tsx"
+    ]
+  },
+  {
+    "commit_hash": "993ac55e3",
+    "subject": "fix(app): allow creating sessions on touch devices (#12765)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/pages/layout/sidebar-workspace.tsx"
+    ]
+  },
+  {
+    "commit_hash": "93a11dded",
+    "subject": "feat(desktop): add native Wayland toggle on Linux (#11971)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/components/settings-general.tsx",
+      "packages/app/src/context/platform.tsx",
+      "packages/app/src/i18n/en.ts",
+      "packages/app/src/index.ts",
+      "packages/desktop/src-tauri/src/lib.rs",
+      "packages/desktop/src-tauri/src/linux_display.rs",
+      "packages/desktop/src-tauri/src/main.rs",
+      "packages/desktop/src/bindings.ts",
+      "packages/desktop/src/index.tsx"
+    ]
+  },
+  {
+    "commit_hash": "94feb811c",
+    "subject": "app: include sandboxes in project unseen/error notifs",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/pages/layout/sidebar-items.tsx"
+    ]
+  },
+  {
+    "commit_hash": "b0ceec9b1",
+    "subject": "feat(desktop): persist currentSidecarUrl in state when isSidecar prop is true (#12792)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/context/server.tsx"
+    ]
+  },
+  {
+    "commit_hash": "40b111d92",
+    "subject": "chore: generate",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/context/server.tsx"
+    ]
+  },
+  {
+    "commit_hash": "520110e86",
+    "subject": "desktop: track currentSidecarUrl",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/context/server.tsx"
+    ]
+  },
+  {
+    "commit_hash": "d4a68b0f4",
+    "subject": "feat: exclude devtools from production builds (#12290)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/desktop/src-tauri/Cargo.toml"
+    ]
+  },
+  {
+    "commit_hash": "019cfd4a5",
+    "subject": "chore: generate",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/app.tsx",
+      "packages/app/src/context/server.tsx",
+      "packages/desktop/src/index.tsx"
+    ]
+  },
+  {
+    "commit_hash": "687210a55",
+    "subject": "feat(desktop): add isSidecar prop to AppInterface and logic to persist sidecar server urls (#12366)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/app.tsx",
+      "packages/app/src/context/server.tsx",
+      "packages/desktop/src/index.tsx"
+    ]
+  },
+  {
+    "commit_hash": "b12eab782",
+    "subject": "chore: generate",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/sdk/openapi.json"
+    ]
+  },
+  {
+    "commit_hash": "99ea1351c",
+    "subject": "tweak: add new ContextOverflowError type (#12777)",
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
+    "changed_files": [
+      "packages/opencode/src/provider/error.ts",
+      "packages/opencode/src/provider/transform.ts",
+      "packages/opencode/src/session/message-v2.ts",
+      "packages/opencode/src/session/retry.ts",
+      "packages/opencode/test/session/message-v2.test.ts",
+      "packages/sdk/js/src/v2/gen/types.gen.ts"
+    ]
+  },
+  {
+    "commit_hash": "d40dffb85",
+    "subject": "fix(provider): remove obsolete copilot model enablement instructions (#12739)",
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
+    "changed_files": [
+      "packages/opencode/src/provider/transform.ts",
+      "packages/web/src/content/docs/providers.mdx"
+    ]
+  },
+  {
+    "commit_hash": "0cd52f830",
+    "subject": "fix: enable thinking for all reasoning models on alibaba-cn (DashScope) (#12772)",
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
+    "changed_files": [
+      "packages/opencode/src/provider/transform.ts"
+    ]
+  },
+  {
+    "commit_hash": "62f38087b",
+    "subject": "fix: parse mid stream openai responses style errors to prevent infinite retries for errors that should STOP execution (#12768)",
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
+    "changed_files": [
+      "packages/opencode/src/session/message-v2.ts",
+      "packages/opencode/test/session/message-v2.test.ts"
+    ]
+  },
+  {
+    "commit_hash": "79879b43c",
+    "subject": "refactor(nix): use native Bun APIs and propagate errors (#12694)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "nix/scripts/canonicalize-node-modules.ts",
+      "nix/scripts/normalize-bun-binaries.ts"
+    ]
+  },
+  {
+    "commit_hash": "a598ecac1",
+    "subject": "fix(app): localize \"close tab\" in command pallete (#12756)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/i18n/ar.ts",
+      "packages/app/src/i18n/br.ts",
+      "packages/app/src/i18n/da.ts",
+      "packages/app/src/i18n/de.ts",
+      "packages/app/src/i18n/es.ts",
+      "packages/app/src/i18n/fr.ts",
+      "packages/app/src/i18n/ja.ts",
+      "packages/app/src/i18n/ko.ts",
+      "packages/app/src/i18n/no.ts",
+      "packages/app/src/i18n/pl.ts",
+      "packages/app/src/i18n/ru.ts",
+      "packages/app/src/i18n/th.ts",
+      "packages/app/src/i18n/zh.ts",
+      "packages/app/src/i18n/zht.ts"
+    ]
+  },
+  {
+    "commit_hash": "9ac54adbb",
+    "subject": "chore: cleanup",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "specs/19-workspace-i18n-audit-overview.md",
+      "specs/20-workspace-i18n-audit-ar.md",
+      "specs/21-workspace-i18n-audit-da.md",
+      "specs/22-workspace-i18n-audit-de.md",
+      "specs/23-workspace-i18n-audit-it.md"
+    ]
+  },
+  {
+    "commit_hash": "6490fb014",
+    "subject": "fix(console): zen workspace translation cleanup",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/console/app/src/i18n/ar.ts",
+      "packages/console/app/src/i18n/da.ts",
+      "packages/console/app/src/i18n/de.ts",
+      "packages/console/app/src/i18n/it.ts",
+      "packages/console/app/src/i18n/zh.ts",
+      "packages/console/app/src/i18n/zht.ts",
+      "specs/19-workspace-i18n-audit-overview.md",
+      "specs/20-workspace-i18n-audit-ar.md",
+      "specs/21-workspace-i18n-audit-da.md",
+      "specs/22-workspace-i18n-audit-de.md",
+      "specs/23-workspace-i18n-audit-it.md"
+    ]
+  },
+  {
+    "commit_hash": "43811b62d",
+    "subject": "chore: cleanup",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "specs/01-persist-payload-limits.md",
+      "specs/02-cache-eviction.md",
+      "specs/03-request-throttling.md",
+      "specs/04-scroll-spy-optimization.md",
+      "specs/05-modularize-and-dedupe.md",
+      "specs/06-app-i18n-audit.md",
+      "specs/07-ui-i18n-audit.md",
+      "specs/08-app-e2e-smoke-suite.md",
+      "specs/09-session-page-decomposition.md",
+      "specs/09-session-page-hot-paths.md",
+      "specs/10-file-content-eviction-accounting.md",
+      "specs/10-layout-page-decomposition.md",
+      "specs/11-layout-view-tabs-reactivity.md",
+      "specs/11-prompt-input-and-optimistic-state.md",
+      "specs/12-global-sync-domain-split.md",
+      "specs/12-session-context-metrics-shared.md",
+      "specs/13-file-context-domain-split.md",
+      "specs/13-file-tree-fetch-discipline.md",
+      "specs/14-comments-aggregation-index.md",
+      "specs/14-server-health-and-row-dedupe.md",
+      "specs/15-prompt-input-modularization.md",
+      "specs/15-runtime-adapter-type-safety.md",
+      "specs/16-i18n-hardening-and-parity.md",
+      "specs/16-terminal-cache-key-clarity.md",
+      "specs/17-unit-test-foundation.md",
+      "specs/18-parallel-workstream-map.md",
+      "specs/parallel-agent-plan.md",
+      "specs/perf-roadmap.md"
+    ]
+  },
+  {
+    "commit_hash": "de0f4ef80",
+    "subject": "fix(layout): improve workspace header truncation and item interaction (#12655)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/pages/layout/sidebar-workspace.tsx"
+    ]
+  },
+  {
+    "commit_hash": "9a7f54f21",
+    "subject": "chore: generate",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/ui/src/components/text-field.tsx"
+    ]
+  },
+  {
+    "commit_hash": "27c8a0814",
+    "subject": "ui: default TextField copy affordance to clipboard (#12714)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/components/session/session-header.tsx",
+      "packages/ui/src/components/text-field.tsx"
+    ]
+  },
+  {
+    "commit_hash": "80c1c59ed",
+    "subject": "wip: zen",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "infra/console.ts",
+      "packages/console/core/script/promote-models.ts",
+      "packages/console/core/script/pull-models.ts",
+      "packages/console/core/script/update-models.ts",
+      "packages/console/core/src/model.ts",
+      "packages/console/core/sst-env.d.ts",
+      "packages/console/function/sst-env.d.ts",
+      "packages/console/resource/sst-env.d.ts",
+      "packages/enterprise/sst-env.d.ts",
+      "packages/function/sst-env.d.ts",
+      "sst-env.d.ts"
+    ]
+  },
+  {
+    "commit_hash": "7c6b8d7a8",
+    "subject": "fix(ui): context stale in prompt input (#12695)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/components/session/session-context-metrics.test.ts",
+      "packages/app/src/components/session/session-context-metrics.ts"
+    ]
+  },
+  {
+    "commit_hash": "4187a5fe7",
+    "subject": "chore: update nix node_modules hashes",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "nix/hashes.json"
+    ]
+  },
+  {
+    "commit_hash": "d5c86b03b",
+    "subject": "chore: generate",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/components/prompt-input/submit.ts"
+    ]
+  },
+  {
+    "commit_hash": "bc25efdf7",
+    "subject": "refine(app): tighten slash autocomplete matching (#12647)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/components/prompt-input.tsx"
+    ]
+  },
+  {
+    "commit_hash": "c639200ed",
+    "subject": "fix(app): Toast when session is missing on prompt-submit (#12654)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/components/prompt-input/submit.ts",
+      "packages/app/src/i18n/ar.ts",
+      "packages/app/src/i18n/br.ts",
+      "packages/app/src/i18n/bs.ts",
+      "packages/app/src/i18n/da.ts",
+      "packages/app/src/i18n/de.ts",
+      "packages/app/src/i18n/en.ts",
+      "packages/app/src/i18n/es.ts",
+      "packages/app/src/i18n/fr.ts",
+      "packages/app/src/i18n/ja.ts",
+      "packages/app/src/i18n/ko.ts",
+      "packages/app/src/i18n/no.ts",
+      "packages/app/src/i18n/pl.ts",
+      "packages/app/src/i18n/ru.ts",
+      "packages/app/src/i18n/th.ts",
+      "packages/app/src/i18n/zh.ts",
+      "packages/app/src/i18n/zht.ts"
+    ]
+  },
+  {
+    "commit_hash": "d5036cf01",
+    "subject": "fix(desktop): add native clipboard image paste and fix text paste (#12682)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "bun.lock",
+      "packages/app/src/components/prompt-input.tsx",
+      "packages/app/src/components/prompt-input/attachments.ts",
+      "packages/app/src/context/platform.tsx",
+      "packages/desktop/package.json",
+      "packages/desktop/src-tauri/capabilities/default.json",
+      "packages/desktop/src/index.tsx"
+    ]
+  },
+  {
+    "commit_hash": "d1ebe0767",
+    "subject": "chore: refactoring and tests (#12629)",
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
+    "changed_files": [
+      "packages/app/playwright.config.ts",
+      "packages/app/script/e2e-local.ts",
+      "packages/app/src/context/global-sync/event-reducer.test.ts",
+      "packages/app/src/context/layout-scroll.test.ts",
+      "packages/app/src/pages/directory-layout.tsx",
+      "packages/app/src/pages/layout/deep-links.ts",
+      "packages/app/src/pages/layout/helpers.test.ts",
+      "packages/app/src/pages/layout/helpers.ts",
+      "packages/app/src/pages/session.tsx",
+      "packages/app/src/pages/session/helpers.test.ts",
+      "packages/app/src/pages/session/helpers.ts",
+      "packages/app/src/utils/persist.test.ts",
+      "packages/app/src/utils/persist.ts",
+      "packages/app/src/utils/server-health.test.ts",
+      "packages/app/src/utils/server-health.ts",
+      "packages/opencode/src/file/ripgrep.ts"
+    ]
+  },
+  {
+    "commit_hash": "19b1222cd",
+    "subject": "feat(nix): expose overlay for downstream use (#12643)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "flake.nix"
+    ]
+  },
+  {
+    "commit_hash": "7631060a8",
+    "subject": "feat(nix): disable build time models.dev fetching (#12644)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "nix/opencode.nix"
+    ]
+  },
+  {
+    "commit_hash": "85d0ed598",
+    "subject": "wip: zen",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/console/app/src/routes/zen/util/handler.ts",
+      "packages/console/core/src/model.ts"
+    ]
+  },
+  {
+    "commit_hash": "3408c1005",
+    "subject": "chore: update nix node_modules hashes",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "nix/hashes.json"
+    ]
+  },
+  {
+    "commit_hash": "ecaeb9e60",
+    "subject": "fix(app): respect terminal toggle keybind when terminal is focused (#12635)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/e2e/settings/settings-keybinds.spec.ts",
+      "packages/app/src/components/terminal.tsx"
+    ]
+  },
+  {
+    "commit_hash": "e772fc6e2",
+    "subject": "fix: revert \"feat(app): add web input focus shortcut (#12493)\" (#12639)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "bun.lock",
+      "packages/opencode/script/build.ts"
+    ]
+  },
+  {
+    "commit_hash": "4b7abc0a2",
+    "subject": "chore: generate",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "bun.lock"
+    ]
+  },
+  {
+    "commit_hash": "805207e09",
+    "subject": "feat(app): add web input focus shortcut (#12493)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "bun.lock",
+      "packages/app/src/i18n/ar.ts",
+      "packages/app/src/i18n/br.ts",
+      "packages/app/src/i18n/bs.ts",
+      "packages/app/src/i18n/da.ts",
+      "packages/app/src/i18n/de.ts",
+      "packages/app/src/i18n/en.ts",
+      "packages/app/src/i18n/es.ts",
+      "packages/app/src/i18n/fr.ts",
+      "packages/app/src/i18n/ja.ts",
+      "packages/app/src/i18n/ko.ts",
+      "packages/app/src/i18n/no.ts",
+      "packages/app/src/i18n/pl.ts",
+      "packages/app/src/i18n/ru.ts",
+      "packages/app/src/i18n/th.ts",
+      "packages/app/src/i18n/zh.ts",
+      "packages/app/src/i18n/zht.ts",
+      "packages/app/src/pages/session.tsx",
+      "packages/app/src/pages/session/use-session-commands.tsx",
+      "packages/opencode/script/build.ts"
+    ]
+  },
+  {
+    "commit_hash": "0e1f54364",
+    "subject": "fix(web): keep /share available to copy existing link (#12533)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/pages/session/use-session-commands.tsx"
+    ]
+  },
+  {
+    "commit_hash": "fb331f6cb",
+    "subject": "fix(app): disable 3 safari prompt-input annoyances (#12558)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/components/prompt-input.tsx"
+    ]
+  },
+  {
+    "commit_hash": "6bdd3528a",
+    "subject": "feat(app): drag-n-drop to @mention file (#12569)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/components/prompt-input.tsx",
+      "packages/app/src/components/prompt-input/attachments.ts",
+      "packages/app/src/components/prompt-input/drag-overlay.tsx",
+      "packages/app/src/i18n/ar.ts",
+      "packages/app/src/i18n/br.ts",
+      "packages/app/src/i18n/bs.ts",
+      "packages/app/src/i18n/da.ts",
+      "packages/app/src/i18n/de.ts",
+      "packages/app/src/i18n/en.ts",
+      "packages/app/src/i18n/es.ts",
+      "packages/app/src/i18n/fr.ts",
+      "packages/app/src/i18n/ja.ts",
+      "packages/app/src/i18n/ko.ts",
+      "packages/app/src/i18n/no.ts",
+      "packages/app/src/i18n/pl.ts",
+      "packages/app/src/i18n/ru.ts",
+      "packages/app/src/i18n/th.ts",
+      "packages/app/src/i18n/zh.ts",
+      "packages/app/src/i18n/zht.ts"
+    ]
+  },
+  {
+    "commit_hash": "4efbfcd08",
+    "subject": "fix(app): handle Windows paths in frontend file URL encoding (#12601)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/components/prompt-input/build-request-parts.test.ts",
+      "packages/app/src/components/prompt-input/build-request-parts.ts",
+      "packages/app/src/context/file/path.test.ts",
+      "packages/app/src/context/file/path.ts"
+    ]
+  },
+  {
+    "commit_hash": "9401029b1",
+    "subject": "fix(app): move workspace New session into header (#12624)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/app/src/pages/layout/sidebar-workspace.tsx"
+    ]
+  },
+  {
+    "commit_hash": "04f216902",
+    "subject": "wip: zen",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "packages/console/core/script/promote-models.ts",
+      "packages/console/core/script/pull-models.ts",
+      "packages/console/core/script/update-models.ts",
+      "packages/console/core/src/model.ts"
+    ]
+  },
+  {
+    "commit_hash": "8ad5262a8",
+    "subject": "chore: update flake.lock (#11919)",
+    "risk": "LOW",
+    "reasons": [],
+    "changed_files": [
+      "flake.lock"
+    ]
+  },
+  {
     "commit_hash": "79a706c66",
     "subject": "chore: generate",
     "risk": "LOW",
@@ -51,8 +720,10 @@
   {
     "commit_hash": "fbc08709d",
     "subject": "chore: generate",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/config/config.ts"
     ]
@@ -60,8 +731,10 @@
   {
     "commit_hash": "576a681a4",
     "subject": "feat: add models.dev schema ref for model autocomplete in opencode.json (#12528)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "bun.lock",
       "package.json",
@@ -81,8 +754,10 @@
   {
     "commit_hash": "a486b74b1",
     "subject": "feat(core): Set variant in assistant messages too (#12531)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/session/compaction.ts",
       "packages/opencode/src/session/message-v2.ts",
@@ -111,8 +786,10 @@
   {
     "commit_hash": "89064c34c",
     "subject": "fix(opencode): cleanup orphaned worktree directories (#12399)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/worktree/index.ts"
     ]
@@ -120,8 +797,10 @@
   {
     "commit_hash": "fde0b39b7",
     "subject": "fix: properly encode file URLs with special characters (#12424)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/app/src/components/file-tree.tsx",
       "packages/app/src/components/prompt-input/build-request-parts.ts",
@@ -149,8 +828,10 @@
   {
     "commit_hash": "e767801db",
     "subject": "chore: generate",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/session/prompt.ts"
     ]
@@ -177,8 +858,10 @@
   {
     "commit_hash": "def907ae4",
     "subject": "fix(opencode): SessionPrompt.shell() now triggers loop if messages are queued (#10987)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/server/routes/session.ts",
       "packages/opencode/src/session/prompt.ts"
@@ -231,8 +914,10 @@
   {
     "commit_hash": "a25cd2da7",
     "subject": "feat(opencode): use reasoning summary auto for gpt-5 models that are not chat (#12502)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/transform.ts"
     ]
@@ -240,8 +925,10 @@
   {
     "commit_hash": "918795d86",
     "subject": "chore: generate",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/run.ts"
     ]
@@ -249,8 +936,10 @@
   {
     "commit_hash": "84c5df19c",
     "subject": "feat(tui): add Claude Code-style --fork flag to duplicate sessions before continuing (resolves #11137) (#11340)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/run.ts",
       "packages/opencode/src/cli/cmd/tui/app.tsx",
@@ -321,8 +1010,10 @@
   {
     "commit_hash": "95ad6758a",
     "subject": "feat: add specific system prompt for Trinity model (#12144)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/session/prompt/trinity.txt",
       "packages/opencode/src/session/system.ts"
@@ -388,8 +1079,10 @@
   {
     "commit_hash": "3f7ca0494",
     "subject": "chore: generate",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/provider.ts"
     ]
@@ -397,8 +1090,10 @@
   {
     "commit_hash": "18749c1f4",
     "subject": "fix(opencode): correct prefix selection for amazon-bedrock provider in getSmallModel (#12281)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/provider.ts"
     ]
@@ -406,8 +1101,10 @@
   {
     "commit_hash": "9497cfdf4",
     "subject": "fix(app): don't rely on metadata.summary in task tool render (#12497)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/tool/task.ts",
       "packages/ui/src/components/message-part.tsx"
@@ -425,8 +1122,10 @@
   {
     "commit_hash": "449c5b44b",
     "subject": "feat(tui): restore footer to session view (#12245)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/routes/session/index.tsx"
     ]
@@ -434,8 +1133,10 @@
   {
     "commit_hash": "24dbc4654",
     "subject": "fix(github): handle step-start/step-finish parts in extractResponseText (#12470)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/github.ts",
       "packages/opencode/test/cli/github-action.test.ts"
@@ -454,8 +1155,10 @@
   {
     "commit_hash": "53298145a",
     "subject": "fix: add directory parameter to plugin client for multi-project support (#11344)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/plugin/index.ts"
     ]
@@ -635,8 +1338,10 @@
   {
     "commit_hash": "c07077f96",
     "subject": "fix: correct /data API usage and data format for importing share URLs (#7381)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/import.ts",
       "packages/opencode/src/share/share-next.ts",
@@ -992,8 +1697,10 @@
   {
     "commit_hash": "c35bd3982",
     "subject": "tui: parallelize skill downloads for faster loading",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "AGENTS.md",
       "packages/opencode/src/skill/discovery.ts",
@@ -1003,8 +1710,10 @@
   {
     "commit_hash": "266de27a0",
     "subject": "feat(skill): add skill discovery from URLs via well-known RFC",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/config/config.ts",
       "packages/opencode/src/skill/discovery.ts",
@@ -1033,8 +1742,10 @@
   {
     "commit_hash": "683d234d8",
     "subject": "feat(tui): highlight esc label on hover in dialog (#12383)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/component/dialog-provider.tsx",
       "packages/opencode/src/cli/cmd/tui/component/dialog-status.tsx",
@@ -1049,8 +1760,10 @@
   {
     "commit_hash": "229cdafcc",
     "subject": "fix(config): handle $ character with {file:} pattern (#12390)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/config/config.ts",
       "packages/opencode/test/config/config.test.ts"
@@ -1059,8 +1772,10 @@
   {
     "commit_hash": "154d0ebf5",
     "subject": "increase skill dialog width",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/component/dialog-skill.tsx"
     ]
@@ -1068,8 +1783,10 @@
   {
     "commit_hash": "2e9a63fe4",
     "subject": "fix(opencode): improve skills dialog readability (#12356)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/component/dialog-skill.tsx"
     ]
@@ -1110,8 +1827,10 @@
   {
     "commit_hash": "9ff423beb",
     "subject": "senior engineer senior engineering",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/plugin/index.ts"
     ]
@@ -1119,8 +1838,10 @@
   {
     "commit_hash": "1824db13c",
     "subject": "tweak: load user plugins after builtin (#12373)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/plugin/index.ts"
     ]
@@ -1128,8 +1849,10 @@
   {
     "commit_hash": "36637b3be",
     "subject": "chore: rm hardcoded conditional that was used for testing (#12371)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/plugin/codex.ts"
     ]
@@ -1137,8 +1860,10 @@
   {
     "commit_hash": "a45841396",
     "subject": "core: fix unhandled errors when aborting with queued messages (#12369)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/session/prompt.ts"
     ]
@@ -1146,8 +1871,10 @@
   {
     "commit_hash": "102d8e72b",
     "subject": "fix(tui): allow mouse escape via \"esc\" labels in dialogs  (#11421)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/component/dialog-provider.tsx",
       "packages/opencode/src/cli/cmd/tui/component/dialog-status.tsx",
@@ -1162,8 +1889,10 @@
   {
     "commit_hash": "09a0e921c",
     "subject": "fix(plugin): user plugins override built-in plugins for same provider (#12361)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/plugin/index.ts"
     ]
@@ -1208,8 +1937,10 @@
   {
     "commit_hash": "b55119581",
     "subject": "tweak: move codex 5.3 model definition to the plugin so that models.dev doesnt have to show unsupported model for others (#12344)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/plugin/codex.ts"
     ]
@@ -1350,8 +2081,10 @@
   {
     "commit_hash": "8ddef975b",
     "subject": "feat(acp): add session usage (#12299)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "bun.lock",
       "packages/opencode/package.json",
@@ -1361,8 +2094,10 @@
   {
     "commit_hash": "2f78705f6",
     "subject": "tweak: update transforms for gpt-5.3 (#12325)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/transform.ts"
     ]
@@ -1396,8 +2131,10 @@
   {
     "commit_hash": "47f00d23b",
     "subject": "enable 5.3 codex",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/plugin/codex.ts",
       "packages/opencode/src/plugin/index.ts"
@@ -1406,8 +2143,10 @@
   {
     "commit_hash": "40ebc3490",
     "subject": "feat(tui): add running spinner to bash tool in TUI (#12317)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/routes/session/index.tsx"
     ]
@@ -1424,8 +2163,10 @@
   {
     "commit_hash": "7c748ef08",
     "subject": "core: silently ignore proxy command failures to prevent config initialization crashes",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/config/config.ts"
     ]
@@ -1433,8 +2174,10 @@
   {
     "commit_hash": "fba5a79c4",
     "subject": "fix: ensure that github copilot plugin properly sets headers when used in other clients than tui (#12316)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/plugin/copilot.ts"
     ]
@@ -1451,8 +2194,10 @@
   {
     "commit_hash": "9adcf524e",
     "subject": "core: bundle GitLab auth plugin directly instead of dynamic install",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "bun.lock",
       "packages/opencode/package.json",
@@ -1475,8 +2220,10 @@
   {
     "commit_hash": "a1c46e05e",
     "subject": "core: fix plugin installation to use direct package.json manipulation instead of bun add",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/config/config.ts"
     ]
@@ -1612,8 +2359,10 @@
   {
     "commit_hash": "72de9fe7a",
     "subject": "fix(opencode): Fixes image reading with OpenAI-compatible providers like Kimi K2.5. (#11323)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/session/message-v2.ts"
     ]
@@ -1631,8 +2380,10 @@
   {
     "commit_hash": "8c8d88814",
     "subject": "Revert: feat: add models.dev schema ref for model autocomplete in ope\u2026 (#12242)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/config/config.ts",
       "packages/sdk/js/src/v2/gen/types.gen.ts",
@@ -1652,8 +2403,10 @@
   {
     "commit_hash": "9ef319f25",
     "subject": "feat: add models.dev schema ref for model autocomplete in opencode.json (#12112)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/config/config.ts"
     ]
@@ -1661,8 +2414,10 @@
   {
     "commit_hash": "64e2bf8bf",
     "subject": "tweak: adjust task tool description/input to alleviate tool call failures that sometimes occured w/ gpt models (#12214)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/tool/task.ts",
       "packages/opencode/src/tool/task.txt"
@@ -1671,8 +2426,10 @@
   {
     "commit_hash": "556adad67",
     "subject": "fix: wait for dependencies before loading custom tools and plugins (#12227)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/config/config.ts",
       "packages/opencode/src/plugin/index.ts",
@@ -1720,8 +2477,10 @@
   {
     "commit_hash": "4387f9fb9",
     "subject": "feat: Allow the function to hide or show thinking blocks to be bound to a key (resolves #12168) (#12171)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/routes/session/index.tsx",
       "packages/opencode/src/config/config.ts",
@@ -1732,8 +2491,10 @@
   {
     "commit_hash": "31e2feb34",
     "subject": "fix(tui): add hover states to question tool tabs (#12203)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/routes/session/question.tsx"
     ]
@@ -1751,8 +2512,10 @@
   {
     "commit_hash": "0d38e6903",
     "subject": "fix(core): skip dependency install in read-only config dirs (#12128)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/config/config.ts",
       "packages/opencode/test/config/config.test.ts"
@@ -1828,8 +2591,10 @@
   {
     "commit_hash": "d1686661c",
     "subject": "fix: ensure kimi-for-coding plan has thinking on by default for k2p5 (#12147)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/transform.ts"
     ]
@@ -1837,8 +2602,10 @@
   {
     "commit_hash": "305007aa0",
     "subject": "fix: cloudflare workers ai provider (#12157)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/provider.ts"
     ]
@@ -1846,8 +2613,10 @@
   {
     "commit_hash": "a2c28fc8d",
     "subject": "fix: ensure that plugin installs use --no-cache when using http proxy to prevent random hangs (see bun issue) (#12161)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/bun/index.ts",
       "packages/opencode/src/config/config.ts",
@@ -1905,8 +2674,10 @@
   {
     "commit_hash": "1721c6efd",
     "subject": "fix(core): session errors when attachment file not found",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/session/prompt.ts",
       "packages/opencode/test/session/prompt-missing-file.test.ts"
@@ -2049,8 +2820,10 @@
   {
     "commit_hash": "64bafce66",
     "subject": "restore direct osc52 (#12071)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/app.tsx",
       "packages/opencode/src/cli/cmd/tui/util/clipboard.ts"
@@ -2059,8 +2832,10 @@
   {
     "commit_hash": "5588453cb",
     "subject": "fix: revert change that caused headers to be double merged if provider was authed in multiple places (#12072)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/provider.ts"
     ]
@@ -2077,8 +2852,10 @@
   {
     "commit_hash": "8c1f1f13d",
     "subject": "docs: document the built in agents (#12066)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/provider.ts",
       "packages/web/src/content/docs/agents.mdx"
@@ -2087,8 +2864,10 @@
   {
     "commit_hash": "b942e0b4d",
     "subject": "fix: prevent double-prefixing of Bedrock cross-region inference models (#12056)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/provider.ts",
       "packages/opencode/test/provider/amazon-bedrock.test.ts"
@@ -2125,8 +2904,10 @@
   {
     "commit_hash": "6daa962aa",
     "subject": "fix: prioritize OPENCODE_CONFIG_DIR for AGENTS.md (#11536)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/session/instruction.ts",
       "packages/opencode/test/session/instruction.test.ts"
@@ -2161,8 +2942,10 @@
   {
     "commit_hash": "93e060272",
     "subject": "fix: prevent memory leaks from AbortController closures (#12024)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/tool/codesearch.ts",
       "packages/opencode/src/tool/webfetch.ts",
@@ -2188,8 +2971,10 @@
   {
     "commit_hash": "b5a4671c6",
     "subject": "Revert \"feat: add Trinity model system prompt support\" (#12029)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/session/prompt/trinity.txt",
       "packages/opencode/src/session/system.ts"
@@ -2198,8 +2983,10 @@
   {
     "commit_hash": "a68fedd4a",
     "subject": "chore: adjust way skill dirs are whitelisted (#12026)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/skill/skill.ts",
       "packages/opencode/test/skill/skill.test.ts"
@@ -2208,8 +2995,10 @@
   {
     "commit_hash": "015cd404e",
     "subject": "feat: add Trinity model system prompt support (#12025)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/session/prompt/trinity.txt",
       "packages/opencode/src/session/system.ts"
@@ -2254,8 +3043,10 @@
   {
     "commit_hash": "a30696f9b",
     "subject": "feat(plugin): add shell.env hook for manipulating environment in tools and shell (#12012)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/pty/index.ts",
       "packages/opencode/src/session/prompt.ts",
@@ -2267,8 +3058,10 @@
   {
     "commit_hash": "25bdd77b1",
     "subject": "fix(opencode): use official ai-gateway-provider package for Cloudflare AI Gateway (#12014)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "bun.lock",
       "packages/opencode/package.json",
@@ -2288,8 +3081,10 @@
   {
     "commit_hash": "95211a885",
     "subject": "feat(tui): allow theme colors in agent customization (#11444)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/context/local.tsx",
       "packages/opencode/src/config/config.ts",
@@ -2309,8 +3104,10 @@
   {
     "commit_hash": "17e62b050",
     "subject": "feat: add support for reading skills from .agents/skills directories (#11842)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/flag/flag.ts",
       "packages/opencode/src/skill/skill.ts",
@@ -2320,8 +3117,10 @@
   {
     "commit_hash": "ee84eb44e",
     "subject": "cli: add --thinking flag to show reasoning blocks in run command (#12013)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/run.ts"
     ]
@@ -2329,8 +3128,10 @@
   {
     "commit_hash": "82dd4b690",
     "subject": "fix: always fall back to native clipboard after OSC52 (#11994)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/util/clipboard.ts"
     ]
@@ -2338,8 +3139,10 @@
   {
     "commit_hash": "185858749",
     "subject": "chore: generate",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/provider.ts"
     ]
@@ -2347,8 +3150,10 @@
   {
     "commit_hash": "39a504773",
     "subject": "fix: provider headers from config not applied to fetch requests (#11788)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/provider.ts"
     ]
@@ -2356,8 +3161,10 @@
   {
     "commit_hash": "b7b734f51",
     "subject": "fix: ensure mcp tools are sanitized (#11984)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/transform.ts",
       "packages/opencode/src/session/prompt.ts"
@@ -2399,8 +3206,10 @@
   {
     "commit_hash": "60e616ec8",
     "subject": "feat: Add .slnx to C#/F# LSP root detection (#11928)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/lsp/server.ts"
     ]
@@ -2444,8 +3253,10 @@
   {
     "commit_hash": "397532962",
     "subject": "feat: improve skills, better prompting, fix permission asks after invoking skills, ensure agent knows where scripts/resources are (#11737)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       ".opencode/opencode.jsonc",
       "packages/opencode/src/agent/agent.ts",
@@ -2458,8 +3269,10 @@
   {
     "commit_hash": "54e14c1a1",
     "subject": "fix: exclude k2p5 from reasoning variants (#11918)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/transform.ts"
     ]
@@ -2467,8 +3280,10 @@
   {
     "commit_hash": "3741516fe",
     "subject": "fix: handle nested array items for Gemini schema validation (#11952)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/transform.ts",
       "packages/opencode/test/provider/transform.test.ts"
@@ -2563,8 +3378,10 @@
   {
     "commit_hash": "d116c227e",
     "subject": "fix(core): plugins are always reinstalled  (#9675)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/bun/index.ts",
       "packages/opencode/src/bun/registry.ts",
@@ -2595,8 +3412,10 @@
   {
     "commit_hash": "3adeed8f9",
     "subject": "fix(provider): strip properties/required from non-object types in Gemini schema (#11888)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/transform.ts",
       "packages/opencode/test/provider/transform.test.ts"
@@ -2605,8 +3424,10 @@
   {
     "commit_hash": "1275c71a6",
     "subject": "cli: make run non-interactive (#11814)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       ".opencode/opencode.jsonc",
       "packages/opencode/package.json",
@@ -2671,8 +3492,10 @@
   {
     "commit_hash": "188cc24bf",
     "subject": "chore: cleanup external_dir perm logic (#11845)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/agent/agent.ts",
       "packages/opencode/src/tool/bash.ts",
@@ -2683,8 +3506,10 @@
   {
     "commit_hash": "5e3162b7f",
     "subject": "chore: generate",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/component/prompt/autocomplete.tsx"
     ]
@@ -2692,8 +3517,10 @@
   {
     "commit_hash": "f9aa20913",
     "subject": "fix: fixes issue where the autocomplete tui dialog flickers while typing (#11641)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/component/prompt/autocomplete.tsx"
     ]
@@ -2701,8 +3528,10 @@
   {
     "commit_hash": "f86f654cd",
     "subject": "chore: rm dead code (#11849)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/bun/index.ts"
     ]
@@ -2730,8 +3559,10 @@
   {
     "commit_hash": "aa6b552c3",
     "subject": "Revert pr that was mistakenly merged (#11844)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/session/processor.ts",
       "packages/opencode/src/session/prompt.ts",
@@ -2754,8 +3585,10 @@
   {
     "commit_hash": "a9fca05d8",
     "subject": "feat(server): add --mdns-domain flag to customize mDNS hostname (#11796)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/web.ts",
       "packages/opencode/src/cli/network.ts",
@@ -2892,8 +3725,10 @@
   {
     "commit_hash": "3b93e8d95",
     "subject": "fix(app): added/deleted file status now correctly calculated",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/app/src/components/file-tree.tsx",
       "packages/app/src/pages/session.tsx",
@@ -2958,8 +3793,10 @@
   {
     "commit_hash": "965f32ad6",
     "subject": "fix(tui): respect terminal transparency in system theme (#8467)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/context/theme.tsx"
     ]
@@ -2976,8 +3813,10 @@
   {
     "commit_hash": "cf8b033be",
     "subject": "feat(provider): add User-Agent header for GitLab AI Gateway requests (#11818)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "bun.lock",
       "packages/opencode/package.json",
@@ -3030,8 +3869,10 @@
   {
     "commit_hash": "4369d7963",
     "subject": "tui: truncate session title in exit banner (#11797)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/routes/session/index.tsx"
     ]
@@ -3087,8 +3928,10 @@
   {
     "commit_hash": "52006c2fd",
     "subject": "feat(opencode): ormolu code formatter for haskell (#10274)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/format/formatter.ts",
       "packages/web/src/content/docs/formatters.mdx",
@@ -3237,8 +4080,10 @@
   {
     "commit_hash": "3982c7d99",
     "subject": "Use opentui OSC52 clipboard, again (#11744)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "bun.lock",
       "packages/opencode/package.json",
@@ -3268,8 +4113,10 @@
   {
     "commit_hash": "43354eeab",
     "subject": "fix: convert system message content to string for Copilot provider (#11600)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/sdk/copilot/chat/convert-to-openai-compatible-chat-messages.ts",
       "packages/opencode/test/provider/copilot/convert-to-copilot-messages.test.ts"
@@ -3278,8 +4125,10 @@
   {
     "commit_hash": "7a9290dc9",
     "subject": "tui: show exit message banner (#11733)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/context/exit.tsx",
       "packages/opencode/src/cli/cmd/tui/routes/session/index.tsx"
@@ -3288,8 +4137,10 @@
   {
     "commit_hash": "cfbe9d329",
     "subject": "Revert \"Use opentui OSC52 clipboard (#11718)\"",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "bun.lock",
       "nix/hashes.json",
@@ -3301,8 +4152,10 @@
   {
     "commit_hash": "f02499fa4",
     "subject": "fix(opencode): give OPENCODE_CONFIG_CONTENT proper priority for setting config based on docs (#11670)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/config/config.ts"
     ]
@@ -3310,8 +4163,10 @@
   {
     "commit_hash": "bd9d7b322",
     "subject": "fix: session title generation with OpenAI models. (#11678)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/transform.ts"
     ]
@@ -3319,8 +4174,10 @@
   {
     "commit_hash": "c69474846",
     "subject": "Simplify directory tree output for prompts (#11731)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/file/ripgrep.ts",
       "packages/opencode/src/session/system.ts"
@@ -3329,8 +4186,10 @@
   {
     "commit_hash": "0dc80df6f",
     "subject": "Add spinner animation for Task tool (#11725)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/component/dialog-session-list.tsx",
       "packages/opencode/src/cli/cmd/tui/component/spinner.tsx",
@@ -3340,8 +4199,10 @@
   {
     "commit_hash": "8e985e0a7",
     "subject": "Use opentui OSC52 clipboard (#11718)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "bun.lock",
       "nix/hashes.json",
@@ -3416,8 +4277,10 @@
   {
     "commit_hash": "83d0e48e3",
     "subject": "tui: fix task status to show current tool state from message store",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "AGENTS.md",
       "packages/opencode/src/cli/cmd/tui/routes/session/index.tsx",
@@ -3427,8 +4290,10 @@
   {
     "commit_hash": "6c9b2c37a",
     "subject": "core: allow starting new sessions after errors by fixing stuck session status",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/session/processor.ts",
       "packages/opencode/src/session/prompt.ts"
@@ -3583,8 +4448,10 @@
   {
     "commit_hash": "612b656d3",
     "subject": "fix: adjust resolve parts so that when messages with multiple @ references occur, the tool calls are properly ordered",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/session/processor.ts",
       "packages/opencode/src/session/prompt.ts",
@@ -3596,8 +4463,10 @@
   {
     "commit_hash": "cb6ec0a56",
     "subject": "fix(app): hide badge for builtin slash commands",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/app/src/components/prompt-input.tsx",
       "packages/opencode/src/command/index.ts"
@@ -3724,8 +4593,10 @@
   {
     "commit_hash": "91f2ac3cb",
     "subject": "test(app): workspace tests (#11659)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/app/e2e/actions.ts",
       "packages/app/e2e/projects/workspaces.spec.ts",
@@ -3739,8 +4610,10 @@
   {
     "commit_hash": "ec720145f",
     "subject": "fix: when using codex sub, send the custom agent prompts as a separate developer message (previously sent as user message but api allows for instructions AND developer messages) (#11667)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/session/llm.ts"
+    ],
     "changed_files": [
       "packages/opencode/src/session/llm.ts"
     ]
@@ -3748,8 +4621,10 @@
   {
     "commit_hash": "f6948d0ff",
     "subject": "fix: variant logic for anthropic models through openai compat endpoint (#11665)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/transform.ts",
       "packages/opencode/test/provider/transform.test.ts"
@@ -3767,8 +4642,10 @@
   {
     "commit_hash": "ca5e85d6e",
     "subject": "fix: prompt caching for opus on bedrock (#11664)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/transform.ts",
       "packages/opencode/test/provider/transform.test.ts"
@@ -3806,8 +4683,10 @@
   {
     "commit_hash": "f15755684",
     "subject": "fix(opencode): scope agent variant to model (#11410)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/agent/agent.ts",
       "packages/opencode/src/config/config.ts",
@@ -3819,8 +4698,10 @@
   {
     "commit_hash": "16145af48",
     "subject": "fix: prevent duplicate AGENTS.md injection when reading instruction files (#11581)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/session/instruction.ts",
       "packages/opencode/test/session/instruction.test.ts"
@@ -3829,8 +4710,10 @@
   {
     "commit_hash": "eace76e52",
     "subject": "fix: opencode hanging when using client.app.log() during initialization (#11642)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/server/server.ts"
     ]
@@ -3838,8 +4721,10 @@
   {
     "commit_hash": "cc1d3732b",
     "subject": "fix(tui): remove outer backtick wrapper in session transcript tool formatting (#11566)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/util/transcript.ts",
       "packages/opencode/test/cli/tui/transcript.test.ts"
@@ -3870,8 +4755,10 @@
   {
     "commit_hash": "3577d829c",
     "subject": "fix: allow user plugins to override built-in auth plugins (#11058)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/auth.ts",
       "packages/opencode/test/plugin/auth-override.test.ts"
@@ -3889,8 +4776,10 @@
   {
     "commit_hash": "23c803707",
     "subject": "fix(app): binary file handling in file view (#11312)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/app/src/i18n/ar.ts",
       "packages/app/src/i18n/br.ts",
@@ -3968,8 +4857,10 @@
   {
     "commit_hash": "d1d744749",
     "subject": "fix: ensure switching anthropic models mid convo on copilot works without errors, fix issue with reasoning opaque not being picked up for gemini models (#11569)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/sdk/copilot/chat/convert-to-openai-compatible-chat-messages.ts",
       "packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts",
@@ -3980,8 +4871,10 @@
   {
     "commit_hash": "c3faeae9d",
     "subject": "fix: correct pluralization of match count in grep and glob tools (#11565)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/routes/session/index.tsx"
     ]
@@ -3989,8 +4882,10 @@
   {
     "commit_hash": "94baf1f72",
     "subject": "fix(tui): remove extra padding between search and results in dialog-select (#11564)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/ui/dialog-select.tsx"
     ]
@@ -3998,8 +4893,10 @@
   {
     "commit_hash": "9b8b9e28e",
     "subject": "feat(tui): add UI for skill tool in session view (#11561)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/routes/session/index.tsx"
     ]
@@ -4007,8 +4904,10 @@
   {
     "commit_hash": "2a56a1d6e",
     "subject": "fix(tui): conditionally render bash tool output (#11558)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/routes/session/index.tsx"
     ]
@@ -4025,8 +4924,10 @@
   {
     "commit_hash": "d4c90b2df",
     "subject": "fix: issue where you couldn't @ folders/files that started with a \".\" (#11553)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/file/ripgrep.ts",
       "packages/opencode/test/file/ripgrep.test.ts"
@@ -4035,8 +4936,10 @@
   {
     "commit_hash": "5b784871f",
     "subject": "feat: add skill dialog for selecting and inserting skills (#11547)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/component/dialog-skill.tsx",
       "packages/opencode/src/cli/cmd/tui/component/prompt/autocomplete.tsx",
@@ -4115,8 +5018,10 @@
   {
     "commit_hash": "e70d98432",
     "subject": "tui: enable password authentication for remote session attachment",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/app.tsx",
       "packages/opencode/src/cli/cmd/tui/attach.ts",
@@ -4126,8 +5031,10 @@
   {
     "commit_hash": "da7c87480",
     "subject": "tweak: show actual retry error message instead of generic error msg (#11520)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/session/retry.ts",
       "packages/opencode/test/session/retry.test.ts"
@@ -4136,8 +5043,10 @@
   {
     "commit_hash": "a19ef17bc",
     "subject": "fix(provider): use process.env directly for runtime env mutations (#11482)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/provider.ts"
     ]
@@ -4156,8 +5065,10 @@
   {
     "commit_hash": "35f64b80f",
     "subject": "docs: fix documentation issues (#11435)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/component/tips.tsx",
       "packages/web/src/content/docs/lsp.mdx",
@@ -4167,8 +5078,10 @@
   {
     "commit_hash": "feca42b02",
     "subject": "feat(opencode): add reasoning variants support for SAP AI Core (#8753)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/transform.ts"
     ]
@@ -4176,8 +5089,10 @@
   {
     "commit_hash": "53f118c57",
     "subject": "Revert \"feat(app): add skill slash commands\" (#11484)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/app/src/components/prompt-input.tsx",
       "packages/app/src/context/global-sync.tsx",
@@ -4189,8 +5104,10 @@
   {
     "commit_hash": "786ae0a58",
     "subject": "feat(app): add skill slash commands (#11369)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/app/src/components/prompt-input.tsx",
       "packages/app/src/context/global-sync.tsx",
@@ -4202,8 +5119,10 @@
   {
     "commit_hash": "f73f88fb5",
     "subject": "fix(pty): Add UTF-8 encoding defaults for Windows PTY (#11459)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/pty/index.ts"
     ]
@@ -4358,8 +5277,10 @@
   {
     "commit_hash": "6ecd011e5",
     "subject": "tui: allow specifying custom models file path via OPENCODE_MODELS_PATH",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       ".github/workflows/test.yml",
       "packages/opencode/src/flag/flag.ts",
@@ -4379,8 +5300,10 @@
   {
     "commit_hash": "d005e70f5",
     "subject": "core: ensure models configuration is not empty before loading",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/models.ts"
     ]
@@ -4397,8 +5320,10 @@
   {
     "commit_hash": "81ac41e08",
     "subject": "feat: make skills invokable as slash commands in the TUI (#11390)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/component/prompt/autocomplete.tsx",
       "packages/opencode/src/command/index.ts",
@@ -4410,8 +5335,10 @@
   {
     "commit_hash": "c0e71c426",
     "subject": "fix: don't --follow by default for grep and other things using ripgrep (#11415)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/file/ripgrep.ts",
       "packages/opencode/src/tool/grep.ts"
@@ -4429,8 +5356,10 @@
   {
     "commit_hash": "90f39bf67",
     "subject": "core: prevent parallel test runs from contaminating environment variables",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/env/index.ts"
     ]
@@ -4438,8 +5367,10 @@
   {
     "commit_hash": "95bf01a75",
     "subject": "fix: ensure the mistral ordering fixes also apply to devstral (#11412)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/transform.ts"
     ]
@@ -4483,8 +5414,10 @@
   {
     "commit_hash": "644f0d4e9",
     "subject": "chore: generate",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/sdk/copilot/chat/convert-to-openai-compatible-chat-messages.ts",
       "packages/opencode/src/provider/sdk/copilot/chat/get-response-metadata.ts",
@@ -4503,8 +5436,10 @@
   {
     "commit_hash": "d9f18e400",
     "subject": "feat(opencode): add copilot specific provider to properly handle copilot reasoning tokens (#8900)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/provider.ts",
       "packages/opencode/src/provider/sdk/copilot/README.md",
@@ -4544,8 +5479,10 @@
   {
     "commit_hash": "3542f3e40",
     "subject": "Revert \"feat: make skills invokable as slash commands in the TUI\"",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/component/prompt/autocomplete.tsx",
       "packages/opencode/src/command/index.ts",
@@ -4565,8 +5502,10 @@
   {
     "commit_hash": "85126556b",
     "subject": "feat: make skills invokable as slash commands in the TUI",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/cli/cmd/tui/"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/tui/component/prompt/autocomplete.tsx",
       "packages/opencode/src/command/index.ts",
@@ -4577,8 +5516,10 @@
   {
     "commit_hash": "252b2c450",
     "subject": "chore: generate",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/transform.ts",
       "packages/opencode/test/provider/transform.test.ts"
@@ -4587,8 +5528,10 @@
   {
     "commit_hash": "0c32afbc3",
     "subject": "fix(provider): use snake_case for thinking param with OpenAI-compatible APIs (#10109)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/transform.ts",
       "packages/opencode/test/provider/transform.test.ts"
@@ -4609,8 +5552,10 @@
   {
     "commit_hash": "1a6461e8b",
     "subject": "fix: ensure ask question tool isn't included when using acp (#11379)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/cli/cmd/acp.ts",
       "packages/opencode/src/flag/flag.ts"
@@ -4637,8 +5582,10 @@
   {
     "commit_hash": "e7ff7143b",
     "subject": "fix: handle redirected_statement treesitter node in bash permissions (#6737)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/tool/bash.ts",
       "packages/opencode/test/tool/bash.test.ts"
@@ -4647,8 +5594,10 @@
   {
     "commit_hash": "2c36cbb87",
     "subject": "refactor(provider): remove google-vertex-anthropic special case in ge\u2026 (#10743)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/provider.ts"
     ]
@@ -4693,8 +5642,10 @@
   {
     "commit_hash": "4a56491e4",
     "subject": "fix(provider): exclude chat models from textVerbosity setting (#11363)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/provider/"
+    ],
     "changed_files": [
       "packages/opencode/src/provider/transform.ts",
       "packages/opencode/test/provider/transform.test.ts"
@@ -4792,8 +5743,10 @@
   {
     "commit_hash": "7d0777a7f",
     "subject": "chore(tui): remove unused experimental keys (#11195)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "MEDIUM",
+    "reasons": [
+      "Touches source code (non-critical)"
+    ],
     "changed_files": [
       "packages/opencode/src/config/config.ts"
     ]
@@ -5218,8 +6171,10 @@
   {
     "commit_hash": "11d486707",
     "subject": "fix: rm ai sdk middleware that was preventing <think> blocks from being sent back as assistant message content (#11270)",
-    "risk": "LOW",
-    "reasons": [],
+    "risk": "HIGH",
+    "reasons": [
+      "Touches critical path: packages/opencode/src/session/llm.ts"
+    ],
     "changed_files": [
       "packages/opencode/src/session/llm.ts"
     ]
