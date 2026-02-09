@@ -122,38 +122,30 @@ describe("loadAccounts", () => {
      * - File exists but couldn't be read (DANGEROUS - would overwrite!)
      */
 
-    it("returns null on permission denied (EACCES)", async () => {
+    it("throws on permission denied (EACCES)", async () => {
       const error = new Error("EACCES") as NodeJS.ErrnoException
       error.code = "EACCES"
       vi.mocked(fs.readFile).mockRejectedValue(error)
 
-      const result = await storageModule.loadAccounts()
-
-      expect(result).toBeNull()
+      await expect(storageModule.loadAccounts()).rejects.toThrow()
     })
 
-    it("returns null on JSON parse error", async () => {
+    it("throws on JSON parse error", async () => {
       vi.mocked(fs.readFile).mockResolvedValue("{ invalid json }}}")
 
-      const result = await storageModule.loadAccounts()
-
-      expect(result).toBeNull()
+      await expect(storageModule.loadAccounts()).rejects.toThrow(/corrupted/)
     })
 
-    it("returns null on invalid storage format", async () => {
+    it("throws on invalid storage format (missing accounts)", async () => {
       vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ version: 3, notAccounts: [] }))
 
-      const result = await storageModule.loadAccounts()
-
-      expect(result).toBeNull()
+      await expect(storageModule.loadAccounts()).rejects.toThrow()
     })
 
-    it("returns null on unknown version", async () => {
+    it("throws on unknown version", async () => {
       vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ version: 999, accounts: [] }))
 
-      const result = await storageModule.loadAccounts()
-
-      expect(result).toBeNull()
+      await expect(storageModule.loadAccounts()).rejects.toThrow(/Unknown account storage version/)
     })
   })
 

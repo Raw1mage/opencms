@@ -700,6 +700,7 @@ export class AccountManager {
     const current = this.getCurrentAccountForFamily(family)
     if (current) {
       clearExpiredRateLimits(current)
+      // FIX Issue #147: Check if current account is rate-limited for the REQUESTED headerStyle
       const isLimitedForRequestedStyle = isRateLimitedForHeaderStyle(current, family, headerStyle, model)
       if (!isLimitedForRequestedStyle && !this.isAccountCoolingDown(current)) {
         this.markTouchedForQuota(current, quotaKey)
@@ -707,6 +708,8 @@ export class AccountManager {
       }
     }
 
+    // FIX Issue #147: Pass headerStyle to getNextForFamily to ensure we skip accounts
+    // that are rate-limited for the REQUESTED headerStyle, even if other styles are available
     const next = this.getNextForFamily(family, model, headerStyle)
     if (next) {
       this.markTouchedForQuota(next, quotaKey)

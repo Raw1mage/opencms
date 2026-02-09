@@ -160,6 +160,10 @@ function mergeAccountStorage(
 /**
  * @deprecated Use Account.list("antigravity") from src/account/index.ts instead.
  * This function is kept for backward compatibility with tests.
+ *
+ * FIX: Issue #89 - Distinguish between ENOENT and other read errors
+ * - ENOENT (file doesn't exist): Return null (safe to create new)
+ * - Other errors (permissions, corruption, etc.): Throw error (dangerous to overwrite)
  */
 export async function loadAccounts(): Promise<AccountStorageV3 | null> {
   try {
@@ -167,8 +171,25 @@ export async function loadAccounts(): Promise<AccountStorageV3 | null> {
     let data: AnyAccountStorage
 
     if (existsSync(path)) {
-      const content = await fs.readFile(path, "utf-8")
-      data = JSON.parse(content) as AnyAccountStorage
+      try {
+        const content = await fs.readFile(path, "utf-8")
+        data = JSON.parse(content) as AnyAccountStorage
+      } catch (readError) {
+        // FIX #89: If file exists but we can't read it, throw the error
+        // Don't return null - that would make persistAccountPool think it's safe to overwrite
+        const err = readError as NodeJS.ErrnoException | Error
+        if (err instanceof SyntaxError) {
+          // JSON parse error - file is corrupted
+          log.error("Account storage file is corrupted (invalid JSON)", { error: String(err) })
+          throw new Error(`Account storage corrupted: ${err.message}`)
+        } else if ("code" in err && err.code) {
+          // File system error (EACCES, EIO, etc.)
+          log.error("Failed to read account storage file", { code: err.code, error: String(err) })
+          throw new Error(`Cannot read account storage (${err.code}): ${err.message}`)
+        } else {
+          throw new Error(`Unexpected error reading account storage: ${String(readError)}`)
+        }
+      }
     } else {
       data = { version: 3, accounts: [], activeIndex: 0 }
     }
@@ -264,8 +285,11 @@ export async function loadAccounts(): Promise<AccountStorageV3 | null> {
       storage = migrateV2ToV3(migrateV1ToV2(data))
     } else if (data.version === 2) {
       storage = migrateV2ToV3(data)
+    } else if (data.version === 3) {
+      storage = data as AccountStorageV3
     } else {
-      storage = data
+      // FIX #89: Unknown version should be treated as error, not silently ignored
+      throw new Error(`Unknown account storage version: ${data.version}`)
     }
 
     const deduplicated = deduplicateAccountsByEmail(storage.accounts)
@@ -278,8 +302,16 @@ export async function loadAccounts(): Promise<AccountStorageV3 | null> {
       activeIndexByFamily: storage.activeIndexByFamily || { claude: activeIndex, gemini: activeIndex },
     }
   } catch (error) {
-    log.error("Failed to load account storage", { error: String(error) })
-    return null
+    // FIX #89: Check if this is ENOENT (file doesn't exist)
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
+      // Safe to return null - file doesn't exist
+      return null
+    }
+
+    // For all other errors, log and re-throw so caller can handle appropriately
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    log.error("Failed to load account storage", { error: errorMsg })
+    throw error
   }
 }
 
