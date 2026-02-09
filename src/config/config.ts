@@ -24,11 +24,13 @@ import { LSPServer } from "../lsp/server"
 import { BunProc } from "@/bun"
 import { Installation } from "@/installation"
 import { ConfigMarkdown } from "./markdown"
-import { existsSync } from "fs"
+import { constants, existsSync } from "fs"
 import { Bus } from "@/bus"
 import { GlobalBus } from "@/bus/global"
 import { Event } from "../server/event"
 import { Env } from "@/env"
+import { proxied } from "@/util/proxied"
+import { iife } from "@/util/iife"
 
 export namespace Config {
   const log = Log.create({ service: "config" })
@@ -137,6 +139,7 @@ export namespace Config {
       log.debug("loading config from OPENCODE_CONFIG_DIR", { path: Flag.OPENCODE_CONFIG_DIR })
     }
 
+    const deps: Promise<void>[] = []
     for (const dir of unique(directories)) {
       if (dir === Global.Path.config || dir.endsWith(".opencode") || dir === Flag.OPENCODE_CONFIG_DIR) {
         for (const file of ["opencode.jsonc", "opencode.json"]) {
@@ -149,9 +152,9 @@ export namespace Config {
         }
       }
 
-      const exists = existsSync(path.join(dir, "node_modules"))
       const installing = installDependencies(dir)
-      if (!exists) await installing
+      deps.push(installing)
+      if (await needsInstall(dir)) await installing
 
       result.command = mergeDeep(result.command ?? {}, await loadCommand(dir))
       result.agent = mergeDeep(result.agent, await loadAgent(dir))
@@ -224,10 +227,23 @@ export namespace Config {
     return {
       config: result,
       directories,
+      deps,
     }
   })
 
+  export async function waitForDependencies() {
+    const deps = await state().then((x) => x.deps)
+    await Promise.all(deps)
+  }
+
   export async function installDependencies(dir: string) {
+    // Some config dirs may be read-only.
+    // Installing deps there will fail; skip installation in that case.
+    if (!(await isWritable(dir))) {
+      log.debug("config dir is not writable, skipping dependency install", { dir })
+      return
+    }
+
     // @event_2026-02-09_path_cleanup: Never auto-initialize legacy or non-existent directories
     if (dir.includes(".opencode") && dir.startsWith(os.homedir())) {
       const legacyDir = path.join(os.homedir(), ".opencode")
@@ -248,29 +264,69 @@ export namespace Config {
     }
 
     const pkg = path.join(dir, "package.json")
-    if (!(await Bun.file(pkg).exists())) {
-      // Only auto-create package.json for standard XDG config/data dirs, not random .opencode folders
-      if (dir === Global.Path.config || dir === Global.Path.data) {
-        await Bun.write(pkg, "{}")
-      } else {
-        return
-      }
+    const targetVersion = Installation.isLocal() ? "*" : Installation.VERSION
+
+    const json = await Bun.file(pkg)
+      .json()
+      .catch(() => ({}))
+    json.dependencies = {
+      ...json.dependencies,
+      "@opencode-ai/plugin": targetVersion,
+    }
+    await Bun.write(pkg, JSON.stringify(json, null, 2))
+    if (process.env.NODE_ENV !== "test") {
+      await new Promise((resolve) => setTimeout(resolve, 3000))
     }
 
     const gitignore = path.join(dir, ".gitignore")
     const hasGitIgnore = await Bun.file(gitignore).exists()
     if (!hasGitIgnore) await Bun.write(gitignore, ["node_modules", "package.json", "bun.lock", ".gitignore"].join("\n"))
 
-    await BunProc.run(
-      ["add", "@opencode-ai/plugin@" + (Installation.isLocal() ? "latest" : Installation.VERSION), "--exact"],
-      {
-        cwd: dir,
-      },
-    ).catch(() => {})
-
     // Install any additional dependencies defined in the package.json
     // This allows local plugins and custom tools to use external packages
-    await BunProc.run(["install"], { cwd: dir }).catch(() => {})
+    await BunProc.run(
+      [
+        "install",
+        // TODO: get rid of this case (see: https://github.com/oven-sh/bun/issues/19936)
+        ...(proxied() ? ["--no-cache"] : []),
+      ],
+      { cwd: dir },
+    ).catch(() => {})
+  }
+
+  async function isWritable(dir: string) {
+    try {
+      await fs.access(dir, constants.W_OK)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  async function needsInstall(dir: string) {
+    // Some config dirs may be read-only.
+    // Installing deps there will fail; skip installation in that case.
+    const writable = await isWritable(dir)
+    if (!writable) {
+      log.debug("config dir is not writable, skipping dependency install", { dir })
+      return false
+    }
+
+    const nodeModules = path.join(dir, "node_modules")
+    if (!existsSync(nodeModules)) return true
+
+    const pkg = path.join(dir, "package.json")
+    const pkgFile = Bun.file(pkg)
+    const pkgExists = await pkgFile.exists()
+    if (!pkgExists) return true
+
+    const parsed = await pkgFile.json().catch(() => null)
+    const dependencies = parsed?.dependencies ?? {}
+    const depVersion = dependencies["@opencode-ai/plugin"]
+    if (!depVersion) return true
+
+    const targetVersion = Installation.isLocal() ? "*" : Installation.VERSION
+    return depVersion !== targetVersion
   }
 
   function rel(item: string, patterns: string[]) {
@@ -616,6 +672,7 @@ export namespace Config {
 
   export const Skills = z.object({
     paths: z.array(z.string()).optional().describe("Additional paths to skill folders"),
+    urls: z.array(z.string()).optional().describe("URLs to download skills from"),
   })
   export type Skills = z.infer<typeof Skills>
 

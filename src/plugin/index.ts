@@ -11,6 +11,7 @@ import { CodexAuthPlugin } from "./codex"
 import { Session } from "../session"
 import { NamedError } from "@opencode-ai/util/error"
 import { CopilotAuthPlugin } from "./copilot"
+import GitlabAuthPlugin from "@gitlab/opencode-gitlab-auth"
 
 import { AntigravityOAuthPlugin, AntigravityLegacyOAuthPlugin } from "./antigravity"
 import { GeminiCLIOAuthPlugin } from "./gemini-cli"
@@ -19,14 +20,12 @@ import { AnthropicAuthPlugin } from "./anthropic"
 export namespace Plugin {
   const log = Log.create({ service: "plugin" })
 
-  // GitLab auth still uses npm package
-  const BUILTIN = ["@gitlab/opencode-gitlab-auth@1.3.2"]
-
   // Built-in plugins that are directly imported (not installed from npm)
   // AnthropicAuthPlugin is internal to use correct Claude Code headers for OAuth
   const INTERNAL_PLUGINS: { name: string; plugin: PluginInstance }[] = [
     { name: "codex", plugin: CodexAuthPlugin },
     { name: "copilot", plugin: CopilotAuthPlugin },
+    { name: "gitlab", plugin: GitlabAuthPlugin as any },
     { name: "antigravity", plugin: AntigravityOAuthPlugin as any },
     { name: "antigravity-legacy", plugin: AntigravityLegacyOAuthPlugin as any },
     { name: "gemini-cli", plugin: GeminiCLIOAuthPlugin as any },
@@ -59,16 +58,16 @@ export namespace Plugin {
     }
 
     const plugins = [...(config.plugin ?? [])]
-    if (!Flag.OPENCODE_DISABLE_DEFAULT_PLUGINS) {
-      plugins.push(...BUILTIN)
-    }
+    if (plugins.length) await Config.waitForDependencies()
 
     for (let plugin of plugins) {
       // Skip plugins that are now handled internally
       if (
         plugin.includes("opencode-openai-codex-auth") ||
         plugin.includes("opencode-copilot-auth") ||
-        plugin.includes("opencode-anthropic-auth")
+        plugin.includes("opencode-anthropic-auth") ||
+        plugin.includes("opencode-gitlab-auth") ||
+        plugin.includes("opencode-gemini-auth")
       )
         continue
       log.info("loading plugin", { path: plugin })
@@ -76,19 +75,16 @@ export namespace Plugin {
         const lastAtIndex = plugin.lastIndexOf("@")
         const pkg = lastAtIndex > 0 ? plugin.substring(0, lastAtIndex) : plugin
         const version = lastAtIndex > 0 ? plugin.substring(lastAtIndex + 1) : "latest"
-        const builtin = BUILTIN.some((x) => x.startsWith(pkg + "@"))
         plugin = await BunProc.install(pkg, version).catch((err) => {
-          if (!builtin) throw err
-
           const message = err instanceof Error ? err.message : String(err)
-          log.error("failed to install builtin plugin", {
+          log.error("failed to install plugin", {
             pkg,
             version,
             error: message,
           })
           Bus.publish(Session.Event.Error, {
             error: new NamedError.Unknown({
-              message: `Failed to install built-in plugin ${pkg}@${version}: ${message}`,
+              message: `Failed to install plugin ${pkg}@${version}: ${message}`,
             }).toObject(),
           })
 
