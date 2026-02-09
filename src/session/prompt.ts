@@ -48,6 +48,7 @@ import { TuiEvent } from "@/cli/cmd/tui/event"
 import { iife } from "@/util/iife"
 import { Shell } from "@/shell/shell"
 import { Truncate } from "@/tool/truncation"
+import { Env } from "@/env"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -1859,7 +1860,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
       detached: process.platform !== "win32",
       stdio: ["ignore", "pipe", "pipe"],
       env: {
-        ...process.env,
+        ...Env.all(),
         TERM: "dumb",
       },
     })

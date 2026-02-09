@@ -8,6 +8,7 @@ import { readableStreamToText } from "bun"
 import { Lock } from "../util/lock"
 import { PackageRegistry } from "./registry"
 import { proxied } from "@/util/proxied"
+import { Env } from "@/env"
 
 export namespace BunProc {
   const log = Log.create({ service: "bun" })
@@ -22,7 +23,7 @@ export namespace BunProc {
       stdout: "pipe",
       stderr: "pipe",
       env: {
-        ...process.env,
+        ...Env.all(),
         ...options?.env,
         BUN_BE_BUN: "1",
       },

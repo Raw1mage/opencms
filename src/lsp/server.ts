@@ -10,6 +10,7 @@ import { Filesystem } from "../util/filesystem"
 import { Instance } from "../project/instance"
 import { Flag } from "../flag/flag"
 import { Archive } from "../util/archive"
+import { Env } from "@/env"
 
 export namespace LSPServer {
   const log = Log.create({ service: "lsp.server" })
@@ -100,7 +101,7 @@ export namespace LSPServer {
       const proc = spawn(BunProc.which(), ["x", "typescript-language-server", "--stdio"], {
         cwd: root,
         env: {
-          ...process.env,
+          ...Env.all(),
           BUN_BE_BUN: "1",
         },
       })
@@ -136,7 +137,7 @@ export namespace LSPServer {
           await Bun.spawn([BunProc.which(), "install", "@vue/language-server"], {
             cwd: Global.Path.bin,
             env: {
-              ...process.env,
+              ...Env.all(),
               BUN_BE_BUN: "1",
             },
             stdout: "pipe",
@@ -151,7 +152,7 @@ export namespace LSPServer {
       const proc = spawn(binary, args, {
         cwd: root,
         env: {
-          ...process.env,
+          ...Env.all(),
           BUN_BE_BUN: "1",
         },
       })
@@ -211,7 +212,7 @@ export namespace LSPServer {
       const proc = spawn(BunProc.which(), [serverPath, "--stdio"], {
         cwd: root,
         env: {
-          ...process.env,
+          ...Env.all(),
           BUN_BE_BUN: "1",
         },
       })
@@ -344,7 +345,7 @@ export namespace LSPServer {
       const proc = spawn(bin, args, {
         cwd: root,
         env: {
-          ...process.env,
+          ...Env.all(),
           BUN_BE_BUN: "1",
         },
       })
@@ -365,7 +366,7 @@ export namespace LSPServer {
     extensions: [".go"],
     async spawn(root) {
       let bin = Bun.which("gopls", {
-        PATH: process.env["PATH"] + path.delimiter + Global.Path.bin,
+        PATH: Env.get("PATH") + path.delimiter + Global.Path.bin,
       })
       if (!bin) {
         if (!Bun.which("go")) return
@@ -374,7 +375,7 @@ export namespace LSPServer {
         log.info("installing gopls")
         const proc = Bun.spawn({
           cmd: ["go", "install", "golang.org/x/tools/gopls@latest"],
-          env: { ...process.env, GOBIN: Global.Path.bin },
+          env: { ...Env.all(), GOBIN: Global.Path.bin },
           stdout: "pipe",
           stderr: "pipe",
           stdin: "pipe",
@@ -403,7 +404,7 @@ export namespace LSPServer {
     extensions: [".rb", ".rake", ".gemspec", ".ru"],
     async spawn(root) {
       let bin = Bun.which("rubocop", {
-        PATH: process.env["PATH"] + path.delimiter + Global.Path.bin,
+        PATH: Env.get("PATH") + path.delimiter + Global.Path.bin,
       })
       if (!bin) {
         const ruby = Bun.which("ruby")
@@ -459,7 +460,7 @@ export namespace LSPServer {
 
       const initialization: Record<string, string> = {}
 
-      const potentialVenvPaths = [process.env["VIRTUAL_ENV"], path.join(root, ".venv"), path.join(root, "venv")].filter(
+      const potentialVenvPaths = [Env.get("VIRTUAL_ENV"), path.join(root, ".venv"), path.join(root, "venv")].filter(
         (p): p is string => p !== undefined,
       )
       for (const venvPath of potentialVenvPaths) {
@@ -516,7 +517,7 @@ export namespace LSPServer {
           await Bun.spawn([BunProc.which(), "install", "pyright"], {
             cwd: Global.Path.bin,
             env: {
-              ...process.env,
+              ...Env.all(),
               BUN_BE_BUN: "1",
             },
           }).exited
@@ -528,7 +529,7 @@ export namespace LSPServer {
 
       const initialization: Record<string, string> = {}
 
-      const potentialVenvPaths = [process.env["VIRTUAL_ENV"], path.join(root, ".venv"), path.join(root, "venv")].filter(
+      const potentialVenvPaths = [Env.get("VIRTUAL_ENV"), path.join(root, ".venv"), path.join(root, "venv")].filter(
         (p): p is string => p !== undefined,
       )
       for (const venvPath of potentialVenvPaths) {
@@ -545,7 +546,7 @@ export namespace LSPServer {
       const proc = spawn(binary, args, {
         cwd: root,
         env: {
-          ...process.env,
+          ...Env.all(),
           BUN_BE_BUN: "1",
         },
       })
@@ -602,7 +603,7 @@ export namespace LSPServer {
           await $`mix deps.get && mix compile && mix elixir_ls.release2 -o release`
             .quiet()
             .cwd(path.join(Global.Path.bin, "elixir-ls-master"))
-            .env({ MIX_ENV: "prod", ...process.env })
+            .env({ MIX_ENV: "prod", ...Env.all() })
 
           log.info(`installed elixir-ls`, {
             path: elixirLsPath,
@@ -624,7 +625,7 @@ export namespace LSPServer {
     root: NearestRoot(["build.zig"]),
     async spawn(root) {
       let bin = Bun.which("zls", {
-        PATH: process.env["PATH"] + path.delimiter + Global.Path.bin,
+        PATH: Env.get("PATH") + path.delimiter + Global.Path.bin,
       })
 
       if (!bin) {
@@ -736,7 +737,7 @@ export namespace LSPServer {
     extensions: [".cs"],
     async spawn(root) {
       let bin = Bun.which("csharp-ls", {
-        PATH: process.env["PATH"] + path.delimiter + Global.Path.bin,
+        PATH: Env.get("PATH") + path.delimiter + Global.Path.bin,
       })
       if (!bin) {
         if (!Bun.which("dotnet")) {
@@ -776,7 +777,7 @@ export namespace LSPServer {
     extensions: [".fs", ".fsi", ".fsx", ".fsscript"],
     async spawn(root) {
       let bin = Bun.which("fsautocomplete", {
-        PATH: process.env["PATH"] + path.delimiter + Global.Path.bin,
+        PATH: Env.get("PATH") + path.delimiter + Global.Path.bin,
       })
       if (!bin) {
         if (!Bun.which("dotnet")) {
@@ -1050,7 +1051,7 @@ export namespace LSPServer {
           await Bun.spawn([BunProc.which(), "install", "svelte-language-server"], {
             cwd: Global.Path.bin,
             env: {
-              ...process.env,
+              ...Env.all(),
               BUN_BE_BUN: "1",
             },
             stdout: "pipe",
@@ -1065,7 +1066,7 @@ export namespace LSPServer {
       const proc = spawn(binary, args, {
         cwd: root,
         env: {
-          ...process.env,
+          ...Env.all(),
           BUN_BE_BUN: "1",
         },
       })
@@ -1097,7 +1098,7 @@ export namespace LSPServer {
           await Bun.spawn([BunProc.which(), "install", "@astrojs/language-server"], {
             cwd: Global.Path.bin,
             env: {
-              ...process.env,
+              ...Env.all(),
               BUN_BE_BUN: "1",
             },
             stdout: "pipe",
@@ -1112,7 +1113,7 @@ export namespace LSPServer {
       const proc = spawn(binary, args, {
         cwd: root,
         env: {
-          ...process.env,
+          ...Env.all(),
           BUN_BE_BUN: "1",
         },
       })
@@ -1342,7 +1343,7 @@ export namespace LSPServer {
           await Bun.spawn([BunProc.which(), "install", "yaml-language-server"], {
             cwd: Global.Path.bin,
             env: {
-              ...process.env,
+              ...Env.all(),
               BUN_BE_BUN: "1",
             },
             stdout: "pipe",
@@ -1357,7 +1358,7 @@ export namespace LSPServer {
       const proc = spawn(binary, args, {
         cwd: root,
         env: {
-          ...process.env,
+          ...Env.all(),
           BUN_BE_BUN: "1",
         },
       })
@@ -1381,7 +1382,7 @@ export namespace LSPServer {
     extensions: [".lua"],
     async spawn(root) {
       let bin = Bun.which("lua-language-server", {
-        PATH: process.env["PATH"] + path.delimiter + Global.Path.bin,
+        PATH: Env.get("PATH") + path.delimiter + Global.Path.bin,
       })
 
       if (!bin) {
@@ -1521,7 +1522,7 @@ export namespace LSPServer {
           await Bun.spawn([BunProc.which(), "install", "intelephense"], {
             cwd: Global.Path.bin,
             env: {
-              ...process.env,
+              ...Env.all(),
               BUN_BE_BUN: "1",
             },
             stdout: "pipe",
@@ -1536,7 +1537,7 @@ export namespace LSPServer {
       const proc = spawn(binary, args, {
         cwd: root,
         env: {
-          ...process.env,
+          ...Env.all(),
           BUN_BE_BUN: "1",
         },
       })
@@ -1618,7 +1619,7 @@ export namespace LSPServer {
           await Bun.spawn([BunProc.which(), "install", "bash-language-server"], {
             cwd: Global.Path.bin,
             env: {
-              ...process.env,
+              ...Env.all(),
               BUN_BE_BUN: "1",
             },
             stdout: "pipe",
@@ -1633,7 +1634,7 @@ export namespace LSPServer {
       const proc = spawn(binary, args, {
         cwd: root,
         env: {
-          ...process.env,
+          ...Env.all(),
           BUN_BE_BUN: "1",
         },
       })
@@ -1649,7 +1650,7 @@ export namespace LSPServer {
     root: NearestRoot([".terraform.lock.hcl", "terraform.tfstate", "*.tf"]),
     async spawn(root) {
       let bin = Bun.which("terraform-ls", {
-        PATH: process.env["PATH"] + path.delimiter + Global.Path.bin,
+        PATH: Env.get("PATH") + path.delimiter + Global.Path.bin,
       })
 
       if (!bin) {
@@ -1739,7 +1740,7 @@ export namespace LSPServer {
     root: NearestRoot([".latexmkrc", "latexmkrc", ".texlabroot", "texlabroot"]),
     async spawn(root) {
       let bin = Bun.which("texlab", {
-        PATH: process.env["PATH"] + path.delimiter + Global.Path.bin,
+        PATH: Env.get("PATH") + path.delimiter + Global.Path.bin,
       })
 
       if (!bin) {
@@ -1837,7 +1838,7 @@ export namespace LSPServer {
           await Bun.spawn([BunProc.which(), "install", "dockerfile-language-server-nodejs"], {
             cwd: Global.Path.bin,
             env: {
-              ...process.env,
+              ...Env.all(),
               BUN_BE_BUN: "1",
             },
             stdout: "pipe",
@@ -1852,7 +1853,7 @@ export namespace LSPServer {
       const proc = spawn(binary, args, {
         cwd: root,
         env: {
-          ...process.env,
+          ...Env.all(),
           BUN_BE_BUN: "1",
         },
       })
@@ -1925,7 +1926,7 @@ export namespace LSPServer {
         process: spawn(nixd, [], {
           cwd: root,
           env: {
-            ...process.env,
+            ...Env.all(),
           },
         }),
       }
@@ -1938,7 +1939,7 @@ export namespace LSPServer {
     root: NearestRoot(["typst.toml"]),
     async spawn(root) {
       let bin = Bun.which("tinymist", {
-        PATH: process.env["PATH"] + path.delimiter + Global.Path.bin,
+        PATH: Env.get("PATH") + path.delimiter + Global.Path.bin,
       })
 
       if (!bin) {

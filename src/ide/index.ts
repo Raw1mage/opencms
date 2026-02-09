@@ -4,6 +4,7 @@ import { spawn } from "bun"
 import z from "zod"
 import { NamedError } from "@opencode-ai/util/error"
 import { Log } from "../util/log"
+import { Env } from "@/env"
 
 const SUPPORTED_IDES = [
   { name: "Windsurf" as const, cmd: "windsurf" },
@@ -35,8 +36,8 @@ export namespace Ide {
   )
 
   export function ide() {
-    if (process.env["TERM_PROGRAM"] === "vscode") {
-      const v = process.env["GIT_ASKPASS"]
+    if (Env.get("TERM_PROGRAM") === "vscode") {
+      const v = Env.get("GIT_ASKPASS")
       for (const ide of SUPPORTED_IDES) {
         if (v?.includes(ide.name)) return ide.name
       }
@@ -45,7 +46,7 @@ export namespace Ide {
   }
 
   export function alreadyInstalled() {
-    return process.env["OPENCODE_CALLER"] === "vscode" || process.env["OPENCODE_CALLER"] === "vscode-insiders"
+    return Env.get("OPENCODE_CALLER") === "vscode" || Env.get("OPENCODE_CALLER") === "vscode-insiders"
   }
 
   export async function install(ide: (typeof SUPPORTED_IDES)[number]["name"]) {

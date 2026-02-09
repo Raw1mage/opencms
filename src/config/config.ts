@@ -28,6 +28,7 @@ import { existsSync } from "fs"
 import { Bus } from "@/bus"
 import { GlobalBus } from "@/bus/global"
 import { Event } from "../server/event"
+import { Env } from "@/env"
 
 export namespace Config {
   const log = Log.create({ service: "config" })
@@ -39,13 +40,13 @@ export namespace Config {
       case "darwin":
         return "/Library/Application Support/opencode"
       case "win32":
-        return path.join(process.env.ProgramData || "C:\\ProgramData", "opencode")
+        return path.join(Env.get("ProgramData") || "C:\\ProgramData", "opencode")
       default:
         return "/etc/opencode"
     }
   }
 
-  const managedConfigDir = process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR || getManagedConfigDir()
+  const managedConfigDir = Env.get("OPENCODE_TEST_MANAGED_CONFIG_DIR") || getManagedConfigDir()
 
   // Custom merge function that concatenates array fields instead of replacing them
   function mergeConfigConcatArrays(target: Info, source: Info): Info {
@@ -67,6 +68,7 @@ export namespace Config {
     let result: Info = {}
     for (const [key, value] of Object.entries(auth)) {
       if (value.type === "wellknown") {
+        // eslint-disable-next-line
         process.env[value.key] = value.token
         log.debug("fetching remote config", { url: `${key}/.well-known/opencode` })
         const response = await fetch(`${key}/.well-known/opencode`)
@@ -1194,7 +1196,7 @@ export namespace Config {
   async function load(text: string, configFilepath: string) {
     const original = text
     text = text.replace(/\{env:([^}]+)\}/g, (_, varName) => {
-      return process.env[varName] || ""
+      return Env.get(varName) || ""
     })
 
     const fileMatches = text.match(/\{file:[^}]+\}/g)

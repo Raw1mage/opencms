@@ -3,10 +3,11 @@ import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { CliRenderer } from "@opentui/core"
+import { Env } from "@/env"
 
 export namespace Editor {
   export async function open(opts: { value: string; renderer: CliRenderer }): Promise<string | undefined> {
-    const editor = process.env["VISUAL"] || process.env["EDITOR"]
+    const editor = Env.get("VISUAL") || Env.get("EDITOR")
     if (!editor) return
 
     const filepath = join(tmpdir(), `${Date.now()}.md`)

@@ -323,9 +323,14 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   onCleanup(() => clearInterval(activityInterval))
 
   const [activityProviders] = createResource<Record<string, Provider.Info>>(() => Provider.list().catch(() => ({})))
-  const [activityAccounts] = createResource<Record<string, Account.ProviderData>>(() =>
-    Account.listAll().catch(() => ({})),
-  )
+  const [activityAccounts] = createResource(refreshSignal, async () => {
+    try {
+      await Account.refresh()
+      return await Account.listAll()
+    } catch (e) {
+      return {}
+    }
+  })
   const [quotaGroups] = createResource(quotaRefresh, async () => {
     try {
       const storage = await loadAccounts()
@@ -1018,12 +1023,18 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     return { items, stats: { ready, limited, total: ready + limited } }
   })
 
-  const selectActivity = (value: string) => {
+  const selectActivity = async (value: string) => {
     if (!value || value === "_header" || value === "empty") return
     const [accountId, providerId, ...rest] = value.split(":")
     const modelID = rest.join(":")
     if (!providerId || !modelID) return
     const resolvedProvider = Account.parseProvider(providerId) || providerId
+
+    // FIX: Set the selected account as active
+    const fam = family(providerId) || providerId
+    if (accountId && accountId !== "-") {
+      await handleSetActive(fam, accountId)
+    }
 
     // Check if selecting an already-selected model (triggers auto-exit)
     // @event_20260208_double_enter_model_exit

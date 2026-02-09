@@ -2,6 +2,7 @@ import { createServer } from "node:http"
 import { readFileSync, existsSync } from "node:fs"
 
 import { ANTIGRAVITY_REDIRECT_URI } from "../constants"
+import { Env } from "@/env"
 
 interface OAuthListenerOptions {
   /**
@@ -47,7 +48,7 @@ function isOrbStackDockerHost(): boolean {
     }
 
     // Check hostname pattern (OrbStack uses specific patterns)
-    const hostname = process.env.HOSTNAME || ""
+    const hostname = Env.get("HOSTNAME") || ""
     if (hostname.startsWith("orbstack-") || hostname.endsWith(".orb") || hostname === "orbstack") {
       return true
     }
@@ -94,10 +95,10 @@ function isWSL(): boolean {
  * Detect remote/SSH environment where localhost may not be accessible from browser.
  */
 function isRemoteEnvironment(): boolean {
-  if (process.env.SSH_CLIENT || process.env.SSH_TTY || process.env.SSH_CONNECTION) {
+  if (Env.get("SSH_CLIENT") || Env.get("SSH_TTY") || Env.get("SSH_CONNECTION")) {
     return true
   }
-  if (process.env.REMOTE_CONTAINERS || process.env.CODESPACES) {
+  if (Env.get("REMOTE_CONTAINERS") || Env.get("CODESPACES")) {
     return true
   }
   return false
@@ -114,7 +115,7 @@ function isRemoteEnvironment(): boolean {
  */
 function getBindAddress(): string {
   // Allow user override via environment variable
-  const envBind = process.env.OPENCODE_ANTIGRAVITY_OAUTH_BIND
+  const envBind = Env.get("OPENCODE_ANTIGRAVITY_OAUTH_BIND")
   if (envBind) {
     return envBind
   }

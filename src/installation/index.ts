@@ -6,6 +6,7 @@ import { NamedError } from "@opencode-ai/util/error"
 import { Log } from "../util/log"
 import { iife } from "@/util/iife"
 import { Flag } from "../flag/flag"
+import { Env } from "@/env"
 
 declare global {
   const OPENCODE_VERSION: string
@@ -134,7 +135,7 @@ export namespace Installation {
     switch (method) {
       case "curl":
         cmd = $`curl -fsSL https://opencode.ai/install | bash`.env({
-          ...process.env,
+          ...Env.all(),
           VERSION: target,
         })
         break
@@ -151,7 +152,7 @@ export namespace Installation {
         const formula = await getBrewFormula()
         cmd = $`brew upgrade ${formula}`.env({
           HOMEBREW_NO_AUTO_UPDATE: "1",
-          ...process.env,
+          ...Env.all(),
         })
         break
       }

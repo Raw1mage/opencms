@@ -1,3 +1,4 @@
+import { Env } from "@/env"
 import { Log } from "@/util/log"
 import { bootstrap } from "../bootstrap"
 import { cmd } from "./cmd"
@@ -20,7 +21,7 @@ export const AcpCommand = cmd({
     })
   },
   handler: async (args) => {
-    process.env.OPENCODE_CLIENT = "acp"
+    Env.set("OPENCODE_CLIENT", "acp")
     await bootstrap(process.cwd(), async () => {
       const opts = await resolveNetworkOptions(args)
       const server = Server.listen(opts)

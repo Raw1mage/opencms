@@ -3,7 +3,8 @@ import fs from "fs"
 import path from "path"
 // @event_2026-02-07_install
 import { Global } from "../global"
-
+// FIX: Use process.env directly to avoid circular dependency
+// Env → Instance → Log → debug.ts → Env (@event_20260209_circular_dep)
 const root = Global.Path.log
 const file = path.join(root, "debug.log")
 export const DEBUG_LOG_PATH = file
@@ -35,9 +36,8 @@ const flowKeys = [
 
 function getTimestamp() {
   const d = new Date()
-  const utc = d.getTime() + d.getTimezoneOffset() * 60000
   const offset = 8 * 3600000 // UTC+8 for Asia/Taipei
-  const nd = new Date(utc + offset)
+  const nd = new Date(d.getTime() + offset)
   return nd.toISOString().replace("Z", "+08:00")
 }
 

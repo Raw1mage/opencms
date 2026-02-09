@@ -1,4 +1,5 @@
 import { $ } from "bun"
+import { Env } from "@/env"
 import { platform, release } from "os"
 import clipboardy from "clipboardy"
 import { lazy } from "../../../../util/lazy.js"
@@ -13,9 +14,9 @@ function isWsl(): boolean {
   // release() typically contains "microsoft" (e.g. "...microsoft-standard-WSL2+").
   const r = release().toLowerCase()
   return (
-    !!process.env["WSL_INTEROP"] ||
-    !!process.env["WSL_DISTRO_NAME"] ||
-    !!process.env["WSLENV"] ||
+    !!Env.get("WSL_INTEROP") ||
+    !!Env.get("WSL_DISTRO_NAME") ||
+    !!Env.get("WSLENV") ||
     r.includes("microsoft") ||
     r.includes("wsl")
   )
@@ -28,7 +29,7 @@ function hasWslInterop(): boolean {
   // 2. binfmt handler path (may not exist on all WSL2 configurations)
   // 3. powershell.exe is actually in PATH (most reliable)
   return (
-    !!process.env["WSL_INTEROP"] ||
+    !!Env.get("WSL_INTEROP") ||
     existsSync("/proc/sys/fs/binfmt_misc/WSLInterop") ||
     Boolean(Bun.which("powershell.exe"))
   )
@@ -103,7 +104,7 @@ function parseDataUrl(input: string): { data: string; mime: string } | undefined
 }
 
 async function readRemoteImage(): Promise<Clipboard.Content | undefined> {
-  const filepath = process.env["OPENCODE_CLIPBOARD_IMAGE_PATH"]
+  const filepath = Env.get("OPENCODE_CLIPBOARD_IMAGE_PATH")
   debugCheckpoint("clipboard", "readRemoteImage:check", {
     hasEnv: !!filepath,
     filepath,
@@ -119,7 +120,7 @@ async function readRemoteImage(): Promise<Clipboard.Content | undefined> {
   })
   if (!info) return
 
-  const ttl = Number(process.env["OPENCODE_CLIPBOARD_IMAGE_TTL_MS"] ?? "30000")
+  const ttl = Number(Env.get("OPENCODE_CLIPBOARD_IMAGE_TTL_MS") ?? "30000")
   if (Number.isFinite(ttl) && ttl > 0 && Date.now() - info.mtimeMs > ttl) return
 
   const file = Bun.file(filepath)
@@ -149,7 +150,7 @@ function writeOsc52(text: string): void {
   const base64 = Buffer.from(text).toString("base64")
   const osc52 = `\x1b]52;c;${base64}\x07`
   // tmux and screen require DCS passthrough wrapping
-  const passthrough = process.env["TMUX"] || process.env["STY"]
+  const passthrough = Env.get("TMUX") || Env.get("STY")
   const sequence = passthrough ? `\x1bPtmux;\x1b${osc52}\x1b\\` : osc52
   process.stdout.write(sequence)
 }
@@ -162,7 +163,7 @@ export namespace Clipboard {
 
   export async function read(): Promise<Content | undefined> {
     debugCheckpoint("clipboard", "read:start", {
-      hasRemotePath: Boolean(process.env["OPENCODE_CLIPBOARD_IMAGE_PATH"]),
+      hasRemotePath: Boolean(Env.get("OPENCODE_CLIPBOARD_IMAGE_PATH")),
       platform: platform(),
     })
 
@@ -201,10 +202,10 @@ export namespace Clipboard {
       const hasXclip = Boolean(Bun.which("xclip"))
 
       // Try Wayland first
-      if (process.env["WAYLAND_DISPLAY"]) {
+      if (Env.get("WAYLAND_DISPLAY")) {
         if (!hasWlPaste) {
           debugCheckpoint("clipboard", "read:wayland:missing_wl_paste", {
-            waylandDisplay: process.env["WAYLAND_DISPLAY"],
+            waylandDisplay: Env.get("WAYLAND_DISPLAY"),
           })
         }
         for (const mime of types) {
@@ -323,7 +324,7 @@ export namespace Clipboard {
     }
 
     if (os === "linux") {
-      if (process.env["WAYLAND_DISPLAY"] && Bun.which("wl-copy")) {
+      if (Env.get("WAYLAND_DISPLAY") && Bun.which("wl-copy")) {
         return async (text: string) => {
           const proc = Bun.spawn(["wl-copy"], { stdin: "pipe", stdout: "ignore", stderr: "ignore" })
           proc.stdin.write(text)

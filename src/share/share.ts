@@ -3,6 +3,7 @@ import { Installation } from "../installation"
 import { Session } from "../session"
 import { MessageV2 } from "../session/message-v2"
 import { Log } from "../util/log"
+import { Env } from "@/env"
 
 export namespace Share {
   const log = Log.create({ service: "share" })
@@ -67,10 +68,10 @@ export namespace Share {
   }
 
   export const URL =
-    process.env["OPENCODE_API"] ??
+    Env.get("OPENCODE_API") ??
     (Installation.isPreview() || Installation.isLocal() ? "https://api.dev.opencode.ai" : "https://api.opencode.ai")
 
-  const disabled = process.env["OPENCODE_DISABLE_SHARE"] === "true" || process.env["OPENCODE_DISABLE_SHARE"] === "1"
+  const disabled = Env.get("OPENCODE_DISABLE_SHARE") === "true" || Env.get("OPENCODE_DISABLE_SHARE") === "1"
 
   export async function create(sessionID: string) {
     if (disabled) return { url: "", secret: "" }

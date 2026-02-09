@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process"
 import { debugCheckpoint } from "../../util/debug"
+import { Env } from "@/env"
 
 import { GEMINI_PROVIDER_ID, GEMINI_REDIRECT_URI } from "./constants"
 import { authorizeGemini, exchangeGeminiWithVerifier } from "./gemini/oauth"
@@ -39,9 +40,9 @@ export const GeminiCLIOAuthPlugin = async ({ client }: any): Promise<any> => ({
           : undefined
       const projectIdFromConfig =
         providerOptions && typeof providerOptions.projectId === "string" ? providerOptions.projectId.trim() : ""
-      const projectIdFromEnv = process.env.OPENCODE_GEMINI_PROJECT_ID?.trim() ?? ""
+      const projectIdFromEnv = Env.get("OPENCODE_GEMINI_PROJECT_ID")?.trim() ?? ""
       const googleProjectIdFromEnv =
-        process.env.GOOGLE_CLOUD_PROJECT?.trim() ?? process.env.GOOGLE_CLOUD_PROJECT_ID?.trim() ?? ""
+        Env.get("GOOGLE_CLOUD_PROJECT")?.trim() ?? Env.get("GOOGLE_CLOUD_PROJECT_ID")?.trim() ?? ""
       const configuredProjectId = projectIdFromEnv || projectIdFromConfig || googleProjectIdFromEnv || undefined
 
       if (provider.models) {
@@ -155,9 +156,9 @@ export const GeminiCLIOAuthPlugin = async ({ client }: any): Promise<any> => ({
               return result
             }
 
-            const projectFromEnv = process.env.OPENCODE_GEMINI_PROJECT_ID?.trim() ?? ""
+            const projectFromEnv = Env.get("OPENCODE_GEMINI_PROJECT_ID")?.trim() ?? ""
             const googleProjectFromEnv =
-              process.env.GOOGLE_CLOUD_PROJECT?.trim() ?? process.env.GOOGLE_CLOUD_PROJECT_ID?.trim() ?? ""
+              Env.get("GOOGLE_CLOUD_PROJECT")?.trim() ?? Env.get("GOOGLE_CLOUD_PROJECT_ID")?.trim() ?? ""
             const configuredProjectId = projectFromEnv || googleProjectFromEnv || undefined
 
             try {
@@ -192,10 +193,10 @@ export const GeminiCLIOAuthPlugin = async ({ client }: any): Promise<any> => ({
           }
 
           const isHeadless = !!(
-            process.env.SSH_CONNECTION ||
-            process.env.SSH_CLIENT ||
-            process.env.SSH_TTY ||
-            process.env.OPENCODE_HEADLESS
+            Env.get("SSH_CONNECTION") ||
+            Env.get("SSH_CLIENT") ||
+            Env.get("SSH_TTY") ||
+            Env.get("OPENCODE_HEADLESS")
           )
 
           let listener: OAuthListener | null = null

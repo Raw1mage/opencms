@@ -7,6 +7,7 @@ import z from "zod"
 import { Config } from "../config/config"
 import { Instance } from "../project/instance"
 import { Scheduler } from "../scheduler"
+import { Env } from "@/env"
 
 export namespace Snapshot {
   const log = Log.create({ service: "snapshot" })
@@ -55,7 +56,7 @@ export namespace Snapshot {
     if (await fs.mkdir(git, { recursive: true })) {
       await $`git init`
         .env({
-          ...process.env,
+          ...Env.all(),
           GIT_DIR: git,
           GIT_WORK_TREE: Instance.worktree,
         })

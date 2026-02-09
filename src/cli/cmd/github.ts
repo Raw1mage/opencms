@@ -26,6 +26,7 @@ import { Provider } from "../../provider/provider"
 import { Bus } from "../../bus"
 import { MessageV2 } from "../../session/message-v2"
 import { SessionPrompt } from "@/session/prompt"
+import { Env } from "@/env"
 import { $ } from "bun"
 
 type GitHubAuthor = {
@@ -489,7 +490,7 @@ export const GithubRunCommand = cmd({
 
       try {
         if (useGithubToken) {
-          const githubToken = process.env["GITHUB_TOKEN"]
+          const githubToken = Env.get("GITHUB_TOKEN")
           if (!githubToken) {
             throw new Error(
               "GITHUB_TOKEN environment variable is not set. When using use_github_token, you must provide GITHUB_TOKEN.",
@@ -649,7 +650,7 @@ export const GithubRunCommand = cmd({
       process.exit(exitCode)
 
       function normalizeModel() {
-        const value = process.env["MODEL"]
+        const value = Env.get("MODEL")
         if (!value) throw new Error(`Environment variable "MODEL" is not set`)
 
         const { providerId, modelID } = Provider.parseModel(value)
@@ -660,13 +661,13 @@ export const GithubRunCommand = cmd({
       }
 
       function normalizeRunId() {
-        const value = process.env["GITHUB_RUN_ID"]
+        const value = Env.get("GITHUB_RUN_ID")
         if (!value) throw new Error(`Environment variable "GITHUB_RUN_ID" is not set`)
         return value
       }
 
       function normalizeShare() {
-        const value = process.env["SHARE"]
+        const value = Env.get("SHARE")
         if (!value) return undefined
         if (value === "true") return true
         if (value === "false") return false
@@ -674,7 +675,7 @@ export const GithubRunCommand = cmd({
       }
 
       function normalizeUseGithubToken() {
-        const value = process.env["USE_GITHUB_TOKEN"]
+        const value = Env.get("USE_GITHUB_TOKEN")
         if (!value) return false
         if (value === "true") return true
         if (value === "false") return false
@@ -682,7 +683,7 @@ export const GithubRunCommand = cmd({
       }
 
       function normalizeOidcBaseUrl(): string {
-        const value = process.env["OIDC_BASE_URL"]
+        const value = Env.get("OIDC_BASE_URL")
         if (!value) return "https://api.opencode.ai"
         return value.replace(/\/+$/, "")
       }
@@ -717,7 +718,7 @@ export const GithubRunCommand = cmd({
       }
 
       async function getUserPrompt() {
-        const customPrompt = process.env["PROMPT"]
+        const customPrompt = Env.get("PROMPT")
         // For repo events and issues events, PROMPT is required since there's no comment to extract from
         if (isRepoEvent || isIssuesEvent) {
           if (!customPrompt) {
@@ -732,7 +733,7 @@ export const GithubRunCommand = cmd({
         }
 
         const reviewContext = getReviewCommentContext()
-        const mentions = (process.env["MENTIONS"] || "/opencode,/oc")
+        const mentions = (Env.get("MENTIONS") || "/opencode,/oc")
           .split(",")
           .map((m) => m.trim().toLowerCase())
           .filter(Boolean)

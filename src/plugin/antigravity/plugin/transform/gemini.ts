@@ -8,6 +8,7 @@
  */
 
 import type { RequestPayload, ThinkingConfig, ThinkingTier, GoogleSearchConfig } from "./types"
+import { Env } from "@/env"
 
 /**
  * Transform a JSON Schema to Gemini-compatible format.
@@ -198,7 +199,7 @@ const VALID_ASPECT_RATIOS = ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9
  */
 export function buildImageGenerationConfig(): ImageConfig {
   // Read aspect ratio from environment or default to 1:1
-  const aspectRatio = process.env.OPENCODE_IMAGE_ASPECT_RATIO || "1:1"
+  const aspectRatio = Env.get("OPENCODE_IMAGE_ASPECT_RATIO") || "1:1"
 
   if (VALID_ASPECT_RATIOS.includes(aspectRatio)) {
     return { aspectRatio }

@@ -3,6 +3,8 @@ import { constants as fsConstants } from "fs"
 import { xdgData, xdgCache, xdgConfig, xdgState } from "xdg-basedir"
 import path from "path"
 import os from "os"
+// FIX: Use process.env directly to avoid circular dependency
+// Env → Instance → Log → debug.ts → Global → Env (@event_20260209_circular_dep)
 
 const app = "opencode"
 

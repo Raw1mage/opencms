@@ -44,6 +44,7 @@ import { GlobalRoutes } from "./routes/global"
 import { AccountRoutes } from "./routes/account"
 import { RotationRoutes } from "./routes/rotation"
 import { MDNS } from "./mdns"
+import { Env } from "@/env"
 
 // @ts-ignore This global is needed to prevent ai-sdk from logging warnings to stdout https://github.com/vercel/ai/blob/2dc67e0ef538307f21368db32d5a12345d98831b/packages/ai/src/logger/log-warnings.ts#L85
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -541,7 +542,7 @@ export namespace Server {
         )
         .get("/*", async (c, next) => {
           // Try to serve local frontend if OPENCODE_FRONTEND_PATH is set
-          const frontendPath = process.env.OPENCODE_FRONTEND_PATH
+          const frontendPath = Env.get("OPENCODE_FRONTEND_PATH")
           if (frontendPath) {
             const reqPath = c.req.path === "/" ? "/index.html" : c.req.path
             const filePath = path.join(frontendPath, reqPath)
