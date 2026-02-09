@@ -778,7 +778,8 @@ export namespace SessionPrompt {
         sessionID,
         system: [
           ...(await SystemPrompt.environment(activeModel)),
-          // Skip instruction prompts (AGENTS.md/CLAUDE.md) for subagent sessions
+          // Include instruction prompts (AGENTS.md/CLAUDE.md) for all sessions (including subagents)
+          // to ensure consistent behavioral standards across the system.
           ...instructionPrompts,
         ],
         messages: [

@@ -15,13 +15,7 @@ import { createStore } from "solid-js/store"
 import { createFocusSignal } from "@solid-primitives/active-element"
 import { useLocal } from "@/context/local"
 import { useFile } from "@/context/file"
-import {
-  ContentPart,
-  DEFAULT_PROMPT,
-  isPromptEqual,
-  Prompt,
-  usePrompt,
-} from "@/context/prompt"
+import { ContentPart, DEFAULT_PROMPT, isPromptEqual, Prompt, usePrompt } from "@/context/prompt"
 import { useLayout } from "@/context/layout"
 import { useSDK } from "@/context/sdk"
 import { useNavigate, useParams } from "@solidjs/router"
@@ -31,6 +25,7 @@ import { Button } from "@opencode-ai/ui/button"
 import { Icon } from "@opencode-ai/ui/icon"
 import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { IconButton } from "@opencode-ai/ui/icon-button"
+import { Spinner } from "@opencode-ai/ui/spinner"
 import { Select } from "@opencode-ai/ui/select"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useProviders } from "@/hooks/use-providers"
@@ -47,11 +42,7 @@ import { promptPlaceholder } from "./prompt-input/placeholder"
 import { createPromptAttachments, ACCEPTED_FILE_TYPES } from "./prompt-input/attachments"
 import { createPromptSubmit } from "./prompt-input/submit"
 import { PromptPopover, type AtOption, type SlashCommand } from "./prompt-input/slash-popover"
-import {
-  promptLength,
-  prependHistoryEntry,
-  navigatePromptHistory,
-} from "./prompt-input/history"
+import { promptLength, prependHistoryEntry, navigatePromptHistory } from "./prompt-input/history"
 import {
   createTextFragment,
   getCursorPosition,
@@ -1021,11 +1012,14 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
               <IconButton
                 type="submit"
                 disabled={!prompt.dirty() && !working()}
-                icon={working() ? "stop" : "arrow-up"}
                 variant="primary"
                 class="h-6 w-4.5"
                 aria-label={working() ? language.t("prompt.action.stop") : language.t("prompt.action.send")}
-              />
+              >
+                <Show when={working()} fallback={<Icon name="arrow-up" />}>
+                  <Spinner class="h-full w-full" />
+                </Show>
+              </IconButton>
             </Tooltip>
           </div>
         </div>
