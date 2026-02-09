@@ -179,7 +179,7 @@ export namespace ProviderTransform {
         cacheControl: { type: "ephemeral" },
       },
       bedrock: {
-        cachePoint: { type: "ephemeral" },
+        cachePoint: { type: "default" },
       },
       openaiCompatible: {
         cache_control: { type: "ephemeral" },
@@ -190,7 +190,8 @@ export namespace ProviderTransform {
     }
 
     for (const msg of unique([...system, ...final])) {
-      const shouldUseContentOptions = providerId !== "anthropic" && Array.isArray(msg.content) && msg.content.length > 0
+      const useMessageLevelOptions = providerId === "anthropic" || providerId.includes("bedrock")
+      const shouldUseContentOptions = !useMessageLevelOptions && Array.isArray(msg.content) && msg.content.length > 0
 
       if (shouldUseContentOptions) {
         const lastContent = msg.content[msg.content.length - 1]
@@ -413,6 +414,30 @@ export namespace ProviderTransform {
       case "@ai-sdk/deepinfra":
       // https://v5.ai-sdk.dev/providers/ai-sdk-providers/deepinfra
       case "@ai-sdk/openai-compatible":
+        // When using openai-compatible SDK with Claude/Anthropic models,
+        // use snake_case (budget_tokens) for thinking params.
+        if (
+          model.providerId === "anthropic" ||
+          model.api.id.includes("anthropic") ||
+          model.api.id.includes("claude") ||
+          model.id.includes("anthropic") ||
+          model.id.includes("claude")
+        ) {
+          return {
+            high: {
+              thinking: {
+                type: "enabled",
+                budget_tokens: 16000,
+              },
+            },
+            max: {
+              thinking: {
+                type: "enabled",
+                budget_tokens: 31999,
+              },
+            },
+          }
+        }
         return Object.fromEntries(WIDELY_SUPPORTED_EFFORTS.map((effort) => [effort, { reasoningEffort: effort }]))
 
       case "@ai-sdk/azure":
@@ -728,11 +753,18 @@ export namespace ProviderTransform {
       result["isClaudeCode"] = true
     }
 
-    if (model.providerId === "openai" || model.api.id.includes("gpt-5")) {
-      if (model.api.id.includes("5.")) {
-        return { ...result, reasoningEffort: "low" }
+    if (
+      model.providerId === "openai" ||
+      model.api.npm === "@ai-sdk/openai" ||
+      model.api.npm === "@ai-sdk/github-copilot"
+    ) {
+      if (model.api.id.includes("gpt-5")) {
+        if (model.api.id.includes("5.")) {
+          return { ...result, store: false, reasoningEffort: "low" }
+        }
+        return { ...result, store: false, reasoningEffort: "minimal" }
       }
-      return { ...result, reasoningEffort: "minimal" }
+      return { ...result, store: false }
     }
     if (model.providerId === "google-api") {
       // gemini-3 uses thinkingLevel, gemini-2.5 uses thinkingBudget
@@ -765,9 +797,19 @@ export namespace ProviderTransform {
     const standardLimit = Math.min(modelCap, globalLimit)
 
     // Handle thinking mode for @ai-sdk/anthropic, @ai-sdk/google-vertex/anthropic (budgetTokens)
-    if (npm === "@ai-sdk/anthropic" || npm === "@ai-sdk/google-vertex/anthropic") {
+    // and @ai-sdk/openai-compatible with Claude (budget_tokens).
+    if (
+      npm === "@ai-sdk/anthropic" ||
+      npm === "@ai-sdk/google-vertex/anthropic" ||
+      npm === "@ai-sdk/openai-compatible"
+    ) {
       const thinking = options?.["thinking"]
-      const budgetTokens = typeof thinking?.["budgetTokens"] === "number" ? thinking["budgetTokens"] : 0
+      const budgetTokens =
+        typeof thinking?.["budgetTokens"] === "number"
+          ? thinking["budgetTokens"]
+          : typeof thinking?.["budget_tokens"] === "number"
+            ? thinking["budget_tokens"]
+            : 0
       const enabled = thinking?.["type"] === "enabled"
       if (enabled && budgetTokens > 0) {
         // Return text tokens so that text + thinking <= model cap, preferring 32k text when possible.
@@ -832,8 +874,20 @@ export namespace ProviderTransform {
           result.required = result.required.filter((field: any) => field in result.properties)
         }
 
-        if (result.type === "array" && result.items == null) {
-          result.items = {}
+        if (result.type === "array") {
+          if (result.items == null) {
+            result.items = {}
+          }
+          // Ensure nested array items have a type for Gemini validation.
+          if (typeof result.items === "object" && !Array.isArray(result.items) && !result.items.type) {
+            result.items.type = "string"
+          }
+        }
+
+        // Remove properties/required from non-object types (Gemini rejects these)
+        if (result.type && result.type !== "object") {
+          delete result.properties
+          delete result.required
         }
 
         return result

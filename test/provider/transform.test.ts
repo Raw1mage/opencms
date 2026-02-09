@@ -103,6 +103,36 @@ describe("ProviderTransform.options - setCacheKey", () => {
   })
 })
 
+describe("ProviderTransform.smallOptions", () => {
+  test("sets store=false for OpenAI models used in title generation", () => {
+    const model = {
+      providerId: "openai",
+      api: {
+        id: "gpt-4.1",
+        npm: "@ai-sdk/openai",
+      },
+    } as any
+
+    const result = ProviderTransform.smallOptions(model)
+    expect(result.store).toBe(false)
+    expect(result.reasoningEffort).toBeUndefined()
+  })
+
+  test("uses low reasoningEffort for gpt-5.x and keeps store=false", () => {
+    const model = {
+      providerId: "openai",
+      api: {
+        id: "gpt-5.3-codex",
+        npm: "@ai-sdk/openai",
+      },
+    } as any
+
+    const result = ProviderTransform.smallOptions(model)
+    expect(result.store).toBe(false)
+    expect(result.reasoningEffort).toBe("low")
+  })
+})
+
 describe("ProviderTransform.maxOutputTokens", () => {
   test("returns 32k when modelLimit > 32k", () => {
     const modelLimit = 100000
@@ -193,6 +223,25 @@ describe("ProviderTransform.maxOutputTokens", () => {
       }
       const result = ProviderTransform.maxOutputTokens("@ai-sdk/anthropic", options, modelLimit, OUTPUT_TOKEN_MAX)
       expect(result).toBe(OUTPUT_TOKEN_MAX)
+    })
+  })
+
+  describe("openai-compatible with snake_case thinking budget", () => {
+    test("reads thinking.budget_tokens when present", () => {
+      const modelLimit = 50000
+      const options = {
+        thinking: {
+          type: "enabled",
+          budget_tokens: 30000,
+        },
+      }
+      const result = ProviderTransform.maxOutputTokens(
+        "@ai-sdk/openai-compatible",
+        options,
+        modelLimit,
+        OUTPUT_TOKEN_MAX,
+      )
+      expect(result).toBe(20000)
     })
   })
 })
@@ -1024,7 +1073,7 @@ describe("ProviderTransform.message - claude w/bedrock custom inference profile"
     expect(result[0].providerOptions?.bedrock).toEqual(
       expect.objectContaining({
         cachePoint: {
-          type: "ephemeral",
+          type: "default",
         },
       }),
     )
