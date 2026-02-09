@@ -7,6 +7,7 @@ import { $ } from "bun"
 import fs from "fs/promises"
 import path from "path"
 import os from "os"
+import { Env } from "@/env"
 
 interface UninstallArgs {
   keepConfig: boolean
@@ -235,9 +236,9 @@ async function executeUninstall(method: Installation.Method, targets: RemovalTar
 }
 
 async function getShellConfigFile(): Promise<string | null> {
-  const shell = path.basename(process.env.SHELL || "bash")
+  const shell = path.basename(Env.get("SHELL") || "bash")
   const home = os.homedir()
-  const xdgConfig = process.env.XDG_CONFIG_HOME || path.join(home, ".config")
+  const xdgConfig = Env.get("XDG_CONFIG_HOME") || path.join(home, ".config")
 
   const configFiles: Record<string, string[]> = {
     fish: [path.join(xdgConfig, "fish", "config.fish")],

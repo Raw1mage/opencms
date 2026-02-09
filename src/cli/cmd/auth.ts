@@ -11,6 +11,7 @@ import { Global } from "../../global"
 import { Plugin } from "../../plugin"
 import { Instance } from "../../project/instance"
 import type { Hooks } from "@opencode-ai/plugin"
+import { Env } from "@/env"
 
 type PluginAuth = NonNullable<Hooks["auth"]>
 
@@ -220,7 +221,7 @@ export const AuthListCommand = cmd({
 
     for (const [providerId, provider] of Object.entries(database)) {
       for (const envVar of provider.env) {
-        if (process.env[envVar]) {
+        if (Env.get(envVar)) {
           activeEnvVars.push({
             provider: provider.name || providerId,
             envVar,

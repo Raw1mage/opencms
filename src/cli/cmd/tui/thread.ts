@@ -9,6 +9,7 @@ import { Log } from "@/util/log"
 import { withNetworkOptions, resolveNetworkOptions } from "@/cli/network"
 import type { Event } from "@opencode-ai/sdk/v2"
 import type { EventSource } from "./context/sdk"
+import { Env } from "@/env"
 
 declare global {
   const OPENCODE_WORKER_PATH: string
@@ -74,7 +75,7 @@ export const TuiThreadCommand = cmd({
       }),
   handler: async (args) => {
     // Resolve relative paths against PWD to preserve behavior when using --cwd flag
-    const baseCwd = process.env.PWD ?? process.cwd()
+    const baseCwd = Env.get("PWD") ?? process.cwd()
     const cwd = args.project ? path.resolve(baseCwd, args.project) : process.cwd()
     const localWorker = new URL("./worker.ts", import.meta.url)
     const distWorker = new URL("./cli/cmd/tui/worker.js", import.meta.url)
@@ -92,7 +93,7 @@ export const TuiThreadCommand = cmd({
 
     const worker = new Worker(workerPath, {
       env: Object.fromEntries(
-        Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
+        Object.entries(Env.all()).filter((entry): entry is [string, string] => entry[1] !== undefined),
       ),
     })
     worker.onerror = (e) => {

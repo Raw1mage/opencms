@@ -10,6 +10,7 @@ import { Config } from "../config/config"
 import { spawn } from "child_process"
 import { Instance } from "../project/instance"
 import { Flag } from "@/flag/flag"
+import { Env } from "@/env"
 
 export namespace LSP {
   const log = Log.create({ service: "lsp" })
@@ -115,7 +116,7 @@ export namespace LSP {
               process: spawn(item.command[0], item.command.slice(1), {
                 cwd: root,
                 env: {
-                  ...process.env,
+                  ...Env.all(),
                   ...item.env,
                 },
               }),

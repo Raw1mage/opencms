@@ -12,6 +12,7 @@ import { NamedError } from "@opencode-ai/util/error"
 import { withTimeout } from "../util/timeout"
 import { Instance } from "../project/instance"
 import { Filesystem } from "../util/filesystem"
+import { Env } from "@/env"
 
 const DIAGNOSTICS_DEBOUNCE_MS = 150
 
@@ -78,7 +79,7 @@ export namespace LSPClient {
     ])
     connection.listen()
 
-    const skipInit = process.env["OPENCODE_TEST_LSP_SKIP_INIT"] === "1"
+    const skipInit = Env.get("OPENCODE_TEST_LSP_SKIP_INIT") === "1"
     if (!skipInit) {
       l.info("sending initialize")
       await withTimeout(

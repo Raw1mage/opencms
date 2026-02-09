@@ -23,6 +23,7 @@ import { BusEvent } from "../bus/bus-event"
 import { Bus } from "@/bus"
 import { TuiEvent } from "@/cli/cmd/tui/event"
 import open from "open"
+import { Env } from "@/env"
 
 export namespace MCP {
   const log = Log.create({ service: "mcp" })
@@ -414,7 +415,7 @@ export namespace MCP {
         args,
         cwd,
         env: {
-          ...process.env,
+          ...Env.all(),
           ...(cmd === "opencode" ? { BUN_BE_BUN: "1" } : {}),
           ...mcp.environment,
         },

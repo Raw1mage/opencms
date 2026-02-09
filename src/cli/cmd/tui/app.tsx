@@ -51,6 +51,7 @@ import open from "open"
 import { writeHeapSnapshot } from "v8"
 import { PromptRefProvider, usePromptRef } from "./context/prompt"
 import { debugCheckpoint } from "@/util/debug"
+import { Env } from "@/env"
 
 async function getTerminalBackgroundColor(): Promise<"dark" | "light"> {
   // can't set raw mode if not a TTY
@@ -284,7 +285,7 @@ function App() {
           sessionID: args.sessionID,
         })
       }
-      const autoAdmin = process.env.OPENCODE_ADMIN_AUTO === "1"
+      const autoAdmin = Env.get("OPENCODE_ADMIN_AUTO") === "1"
       if (args.admin || autoAdmin) {
         if (autoAdmin) debugCheckpoint("admin", "auto panel")
         dialog.replace(() => <DialogAdmin />)
