@@ -459,6 +459,9 @@ export const RunCommand = cmd({
 
       if (baseID && args.fork) {
         const forked = await sdk.session.fork({ sessionID: baseID })
+        if (forked.error) {
+          console.error("Fork failed:", forked.error)
+        }
         return forked.data?.id
       }
 
@@ -466,6 +469,9 @@ export const RunCommand = cmd({
 
       const name = title()
       const result = await sdk.session.create({ title: name, permission: rules })
+      if (result.error) {
+        console.error("Session creation failed:", JSON.stringify(result.error, null, 2))
+      }
       return result.data?.id
     }
 
@@ -687,7 +693,16 @@ export const RunCommand = cmd({
         const request = new Request(input, init)
         return Server.App().fetch(request)
       }) as typeof globalThis.fetch
-      const sdk = createOpencodeClient({ baseUrl: "http://opencode.internal", fetch: fetchFn })
+
+      const headers: Record<string, string> = {}
+      if (Flag.OPENCODE_SERVER_PASSWORD) {
+        const username = Flag.OPENCODE_SERVER_USERNAME ?? "opencode"
+        const password = Flag.OPENCODE_SERVER_PASSWORD
+        const auth = btoa(`${username}:${password}`)
+        headers["Authorization"] = `Basic ${auth}`
+      }
+
+      const sdk = createOpencodeClient({ baseUrl: "http://opencode.internal", fetch: fetchFn, headers })
       await execute(sdk)
     })
   },
