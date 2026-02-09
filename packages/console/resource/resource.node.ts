@@ -20,12 +20,16 @@ export const Resource = new Proxy(
         }
         // @ts-ignore
         if (value.type === "sst.cloudflare.Kv") {
+          const cloudflareApiToken =
+            (ResourceBase as any)["CLOUDFLARE_API_TOKEN"]?.value ?? process.env.CLOUDFLARE_API_TOKEN
+          const cloudflareAccountId =
+            (ResourceBase as any)["CLOUDFLARE_DEFAULT_ACCOUNT_ID"]?.value ?? process.env.CLOUDFLARE_DEFAULT_ACCOUNT_ID
           const client = new Cloudflare({
-            apiToken: ResourceBase.CLOUDFLARE_API_TOKEN.value,
+            apiToken: cloudflareApiToken,
           })
           // @ts-ignore
           const namespaceId = value.namespaceId
-          const accountId = ResourceBase.CLOUDFLARE_DEFAULT_ACCOUNT_ID.value
+          const accountId = cloudflareAccountId
           return {
             get: (k: string | string[]) => {
               const isMulti = Array.isArray(k)
