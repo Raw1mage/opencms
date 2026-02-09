@@ -360,19 +360,23 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV2 {
     }
     let isFirstChunk = true
     const providerOptionsName = this.providerOptionsName
+    const chunkSchema = this.chunkSchema // Capture for closure
     let isActiveReasoning = false
     let isActiveText = false
     let reasoningOpaque: string | undefined
 
     return {
       stream: response.pipeThrough(
-        new TransformStream<ParseResult<z.infer<typeof this.chunkSchema>>, LanguageModelV2StreamPart>({
+        new TransformStream<ParseResult<z.infer<typeof chunkSchema>>, LanguageModelV2StreamPart>({
           start(controller) {
             controller.enqueue({ type: "stream-start", warnings })
           },
 
-          // TODO we lost type safety on Chunk, most likely due to the error schema. MUST FIX
-          transform(chunk, controller) {
+          // Fixed: Explicitly type chunk parameter to restore type safety
+          transform(
+            chunk: ParseResult<z.infer<typeof chunkSchema>>,
+            controller: TransformStreamDefaultController<LanguageModelV2StreamPart>,
+          ) {
             // Emit raw chunk if requested (before anything else)
             if (options.includeRawChunks) {
               controller.enqueue({ type: "raw", rawValue: chunk.rawValue })
