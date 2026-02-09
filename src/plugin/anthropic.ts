@@ -176,7 +176,10 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
             // Merge required betas with any incoming betas from SDK
             // claude-code-20250219 is CRITICAL - it identifies the request as Claude Code
             const incomingBeta = requestHeaders.get("anthropic-beta") || ""
-            const incomingBetasList = incomingBeta.split(",").map((b) => b.trim()).filter(Boolean)
+            const incomingBetasList = incomingBeta
+              .split(",")
+              .map((b) => b.trim())
+              .filter(Boolean)
             const requiredBetas = ["oauth-2025-04-20", "claude-code-20250219", "interleaved-thinking-2025-05-14"]
             const mergedBetas = [...new Set([...requiredBetas, ...incomingBetasList])].join(",")
             requestHeaders.set("anthropic-beta", mergedBetas)
@@ -232,7 +235,6 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                         if (item.type === "text" && item.text) {
                           return {
                             ...item,
-                            text: item.text.replace(/OpenCode/g, "Claude Code").replace(/opencode/gi, "Claude"),
                           }
                         }
                         return item
@@ -249,14 +251,11 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                     // Then prepend identity if not present
                     const firstText = parsed.system.find((item: any) => item.type === "text")
                     if (!firstText?.text?.includes(CLAUDE_CODE_IDENTITY)) {
-                      parsed.system = [
-                        { type: "text", text: CLAUDE_CODE_IDENTITY },
-                        ...parsed.system,
-                      ]
+                      parsed.system = [{ type: "text", text: CLAUDE_CODE_IDENTITY }, ...parsed.system]
                     }
                   } else if (typeof parsed.system === "string") {
                     // String format: ALWAYS sanitize, then prepend identity if needed
-                    parsed.system = parsed.system.replace(/OpenCode/g, "Claude Code").replace(/opencode/gi, "Claude")
+                    // parsed.system = parsed.system.replace(/OpenCode/g, "Claude Code").replace(/opencode/gi, "Claude")
                     if (!parsed.system.includes(CLAUDE_CODE_IDENTITY)) {
                       parsed.system = `${CLAUDE_CODE_IDENTITY}\n\n${parsed.system}`
                     }
@@ -270,11 +269,12 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                 log.debug("System prompt check", {
                   hasSystem: !!parsed.system,
                   systemType: typeof parsed.system,
-                  systemPreview: typeof parsed.system === "string"
-                    ? parsed.system.slice(0, 80)
-                    : Array.isArray(parsed.system)
-                      ? parsed.system[0]?.text?.slice(0, 80)
-                      : "unknown",
+                  systemPreview:
+                    typeof parsed.system === "string"
+                      ? parsed.system.slice(0, 80)
+                      : Array.isArray(parsed.system)
+                        ? parsed.system[0]?.text?.slice(0, 80)
+                        : "unknown",
                 })
 
                 // 3b. Add mcp_ prefix to tools definitions (only if tools exist)
@@ -315,7 +315,11 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                       }
                       return msg
                     })
-                    .filter((msg: any) => msg !== null && (typeof msg.content !== "object" || (Array.isArray(msg.content) && msg.content.length > 0)))
+                    .filter(
+                      (msg: any) =>
+                        msg !== null &&
+                        (typeof msg.content !== "object" || (Array.isArray(msg.content) && msg.content.length > 0)),
+                    )
 
                   // 3d. Add billing header from last user message
                   const lastMessage = parsed.messages[parsed.messages.length - 1]
@@ -339,11 +343,11 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                   // Remove non-official prompt fragments that trigger detection
                   .replace(/You are Claude Code, the best coding agent on the planet\.\s*/g, "")
                   .replace(/, the best coding agent on the planet/g, "")
-                  // Path sanitization
-                  .replace(/\/opencode\//g, "/claude-code/")
-                  .replace(/\.config\/opencode/g, ".config/claude-code")
-                  .replace(/opencode\/skills/g, "claude-code/skills")
-                  .replace(/pkcs12\/opencode/g, "pkcs12/claude-code")
+                // Path sanitization removed - causes hallucinations in agent operations
+                // .replace(/\/opencode\//g, "/claude-code/")
+                // .replace(/\.config\/opencode/g, ".config/claude-code")
+                // .replace(/opencode\/skills/g, "claude-code/skills")
+                // .replace(/pkcs12\/opencode/g, "pkcs12/claude-code")
 
                 // DEBUG: Dump FINAL request body to file for analysis
                 const fs = await import("fs")
@@ -366,7 +370,7 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
             const allHeadersArray = Array.from(requestHeaders.entries())
             log.debug("Request headers FULL", {
               headers: allHeadersArray.map(([k, v]) =>
-                k.toLowerCase() === "authorization" ? `${k}: ${v.slice(0, 30)}...` : `${k}: ${v}`
+                k.toLowerCase() === "authorization" ? `${k}: ${v.slice(0, 30)}...` : `${k}: ${v}`,
               ),
             })
             if (body && typeof body === "string") {
@@ -374,7 +378,7 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                 const bodyParsed = JSON.parse(body)
                 const toolNames = bodyParsed.tools?.map((t: any) => t.name) || []
                 const hasToolUse = bodyParsed.messages?.some((m: any) =>
-                  m.content?.some?.((c: any) => c.type === "tool_use")
+                  m.content?.some?.((c: any) => c.type === "tool_use"),
                 )
                 // Check for cache_control in system and messages
                 const hasCacheInSystem = JSON.stringify(bodyParsed.system).includes("cache_control")
