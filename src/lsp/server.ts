@@ -29,11 +29,12 @@ export namespace LSPServer {
 
   const NearestRoot = (includePatterns: string[], excludePatterns?: string[]): RootFunction => {
     return async (file) => {
+      const stopAt = Instance.directory
       if (excludePatterns) {
         const excludedFiles = Filesystem.up({
           targets: excludePatterns,
           start: path.dirname(file),
-          stop: Instance.directory,
+          stop: stopAt,
         })
         const excluded = await excludedFiles.next()
         await excludedFiles.return()
@@ -42,11 +43,11 @@ export namespace LSPServer {
       const files = Filesystem.up({
         targets: includePatterns,
         start: path.dirname(file),
-        stop: Instance.directory,
+        stop: stopAt,
       })
       const first = await files.next()
       await files.return()
-      if (!first.value) return Instance.directory
+      if (!first.value) return stopAt
       return path.dirname(first.value)
     }
   }
@@ -90,7 +91,7 @@ export namespace LSPServer {
   export const Typescript: Info = {
     id: "typescript",
     root: NearestRoot(
-      ["package-lock.json", "bun.lockb", "bun.lock", "pnpm-lock.yaml", "yarn.lock"],
+      ["tsconfig.json", "package-lock.json", "bun.lockb", "bun.lock", "pnpm-lock.yaml", "yarn.lock"],
       ["deno.json", "deno.jsonc"],
     ),
     extensions: [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"],
@@ -111,6 +112,7 @@ export namespace LSPServer {
           tsserver: {
             path: tsserver,
           },
+          rootPath: root,
         },
       }
     },
@@ -119,7 +121,7 @@ export namespace LSPServer {
   export const Vue: Info = {
     id: "vue",
     extensions: [".vue"],
-    root: NearestRoot(["package-lock.json", "bun.lockb", "bun.lock", "pnpm-lock.yaml", "yarn.lock"]),
+    root: NearestRoot(["tsconfig.json", "package-lock.json", "bun.lockb", "bun.lock", "pnpm-lock.yaml", "yarn.lock"]),
     async spawn(root) {
       let binary = Bun.which("vue-language-server")
       const args: string[] = []
