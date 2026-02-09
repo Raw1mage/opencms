@@ -203,8 +203,18 @@ export const GithubInstallCommand = cmd({
           await installGitHubApp()
 
           const providers = await ModelsDev.get().then((p) => {
-            // TODO: add guide for copilot, for now just hide it
-            delete p["github-copilot"]
+            // NOTE: @event_copilot_provider_hidden
+            // GitHub Copilot provider is currently hidden from the install flow.
+            // This is because Copilot requires GitHub Enterprise authentication setup.
+            //
+            // To enable Copilot testing, set: OPENCODE_ENABLE_COPILOT_SETUP=true
+            // Issue tracking Copilot integration: github.com/anomalyco/opencode/issues/copilot-setup
+            //
+            // Copilot can still be used if manually configured in provider settings.
+            const enableCopilotSetup = process.env.OPENCODE_ENABLE_COPILOT_SETUP === "true"
+            if (!enableCopilotSetup) {
+              delete p["github-copilot"]
+            }
             return p
           })
 

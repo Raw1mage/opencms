@@ -14,9 +14,31 @@ import { PermissionNext } from "@/permission/next"
 import { Provider } from "../provider/provider"
 import { debugCheckpoint } from "@/util/debug"
 
+// NOTE: @event_task_tool_complex_input
+// Updated schema to support both simple string and complex structured input.
+// This allows passing additional metadata and task configuration alongside the prompt.
+// The prompt can be:
+// - A simple string: "Write unit tests for auth module"
+// - A JSON object: { "type": "testing", "content": "...", "metadata": { "priority": "high" } }
 const parameters = z.object({
   description: z.string().describe("A short (3-5 words) description of the task"),
-  prompt: z.string().describe("The task for the agent to perform"),
+  // Support both simple text and complex structured input
+  // TODO #3: Enhanced to accept union type for flexibility
+  prompt: z
+    .union([
+      z.string(),
+      z.object({
+        type: z
+          .enum(["analysis", "implementation", "review", "testing", "documentation"])
+          .describe("Task category type"),
+        content: z.string().describe("Task content and requirements"),
+        metadata: z
+          .record(z.string(), z.unknown())
+          .optional()
+          .describe("Optional task metadata (priority, tags, etc.)"),
+      }),
+    ])
+    .describe("The task for the agent to perform. Supports: simple string or JSON object with type/content/metadata"),
   subagent_type: z.string().describe("The type of specialized agent to use for this task"),
   session_id: z.string().describe("Existing Task session to continue").optional(),
   command: z.string().describe("The command that triggered this task").optional(),
@@ -161,7 +183,22 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       }
       ctx.abort.addEventListener("abort", cancel)
       using _ = defer(() => ctx.abort.removeEventListener("abort", cancel))
-      const promptParts = await SessionPrompt.resolvePromptParts(params.prompt)
+
+      // Normalize prompt: convert complex structured input to simple string for resolvePromptParts
+      // This maintains backward compatibility while supporting the new complex input format
+      let normalizedPrompt: string
+      if (typeof params.prompt === "string") {
+        normalizedPrompt = params.prompt
+      } else {
+        // Convert structured input to human-readable format with metadata hint
+        let structured = `[${params.prompt.type.toUpperCase()}]\n${params.prompt.content}`
+        if (params.prompt.metadata && Object.keys(params.prompt.metadata).length > 0) {
+          structured += `\n\nMetadata: ${JSON.stringify(params.prompt.metadata, null, 2)}`
+        }
+        normalizedPrompt = structured
+      }
+
+      const promptParts = await SessionPrompt.resolvePromptParts(normalizedPrompt)
 
       // const modelInfo = await Provider.getModel(model.providerId, model.modelID).catch(() => undefined)
       // const auto = params.description.toLowerCase().startsWith("auto ")

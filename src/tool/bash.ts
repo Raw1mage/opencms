@@ -52,15 +52,24 @@ const parser = lazy(async () => {
   return p
 })
 
-// TODO: we may wanna rename this tool so it works better on other shells
+// NOTE: @event_bash_shell_support
+// Tool is named "bash" for backward compatibility, but it supports any POSIX-compatible shell
+// (bash, zsh, fish, sh, ksh, etc.). The actual shell used is detected at runtime via Shell.acceptable().
+// For more details, see: src/shell/shell.ts
 export const BashTool = Tool.define("bash", async () => {
   const shell = Shell.acceptable()
   log.info("bash tool using shell", { shell })
 
-  return {
-    description: DESCRIPTION.replaceAll("${directory}", Instance.directory)
+  // Update description to clarify shell support
+  const updatedDescription =
+    `Executes a given shell command in a persistent shell session (supports bash, zsh, fish, sh, and other POSIX shells) with optional timeout, ensuring proper handling and security measures.\n\n` +
+    `Currently using: ${shell}\n\n` +
+    DESCRIPTION.replaceAll("${directory}", Instance.directory)
       .replaceAll("${maxLines}", String(Truncate.MAX_LINES))
-      .replaceAll("${maxBytes}", String(Truncate.MAX_BYTES)),
+      .replaceAll("${maxBytes}", String(Truncate.MAX_BYTES))
+
+  return {
+    description: updatedDescription,
     parameters: z.object({
       command: z.string().describe("The command to execute"),
       timeout: z.number().describe("Optional timeout in milliseconds").optional(),
