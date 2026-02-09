@@ -39,7 +39,7 @@ async function authorize(mode: "max" | "console") {
   url.searchParams.set("redirect_uri", "https://platform.claude.com/oauth/code/callback")
   url.searchParams.set(
     "scope",
-    "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers",
+    "org:create_api_key user:profile user:inference",
   )
   url.searchParams.set("code_challenge", pkce.challenge)
   url.searchParams.set("code_challenge_method", "S256")
@@ -126,7 +126,7 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                     grant_type: "refresh_token",
                     refresh_token: auth.refresh,
                     client_id: CLIENT_ID,
-                    scope: "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers",
+                    scope: "org:create_api_key user:profile user:inference",
                   }),
                 })
                 if (response.ok) {
