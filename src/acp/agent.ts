@@ -159,7 +159,6 @@ export namespace ACP {
                 const metadata = permission.metadata || {}
                 const filepath = typeof metadata["filepath"] === "string" ? metadata["filepath"] : ""
                 const diff = typeof metadata["diff"] === "string" ? metadata["diff"] : ""
-
                 const file = Bun.file(filepath)
                 const content = (await file.exists()) ? await file.text() : ""
                 const newContent = getNewContent(content, diff)
