@@ -16,7 +16,7 @@ export function SessionPromptDock(props: any) {
       <div
         classList={{
           "w-full px-4 pointer-events-auto": true,
-          "md:max-w-200 md:mx-auto 3xl:max-w-[1200px]": props.centered,
+          "md:max-w-200 md:mx-auto 2xl:max-w-[1000px]": props.centered,
         }}
       >
         <Show when={props.questionRequest()} keyed>
