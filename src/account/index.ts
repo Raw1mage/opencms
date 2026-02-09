@@ -20,7 +20,7 @@ export namespace Account {
   export const PROVIDERS = [
     "google-api",
     "openai",
-    "anthropic",
+    "claude-cli",
     "antigravity",
     "gemini-cli",
     "gitlab",
@@ -185,6 +185,19 @@ export namespace Account {
         return { version: CURRENT_VERSION, families: {} }
       }
       let storage = parsed.data
+
+      // One-time migration from 'anthropic' to 'claude-cli'
+      if (storage.families.anthropic) {
+        log.info("Migrating anthropic accounts to claude-cli...")
+        storage.families["claude-cli"] = storage.families["claude-cli"] || { accounts: {} }
+        Object.assign(storage.families["claude-cli"].accounts, storage.families.anthropic.accounts)
+        if (!storage.families["claude-cli"].activeAccount) {
+          storage.families["claude-cli"].activeAccount = storage.families.anthropic.activeAccount
+        }
+        delete storage.families.anthropic
+        await save(storage)
+      }
+
       if (storage.version < 2) {
         storage = await migrateToV2(storage)
         await save(storage)
@@ -588,16 +601,17 @@ export namespace Account {
    */
   export function getProviderLabel(provider: string): string {
     const map: Record<string, string> = {
-      "google-api": "Google API",
-      openai: "OpenAI",
-      anthropic: "Anthropic",
-      antigravity: "Antigravity",
-      "gemini-cli": "Gemini CLI",
-      opencode: "Opencode",
-      gitlab: "GitLab",
-      "github-copilot": "GitHub Copilot",
+      "google-api": "google-api",
+      openai: "openai",
+      anthropic: "anthropic",
+      "claude-cli": "claude-cli",
+      antigravity: "antigravity",
+      "gemini-cli": "gemini-cli",
+      opencode: "opencode",
+      gitlab: "gitlab",
+      "github-copilot": "github-copilot",
     }
-    return map[provider] || provider.charAt(0).toUpperCase() + provider.slice(1)
+    return map[provider] || provider
   }
 
   async function migrateToV2(storage: any): Promise<Storage> {

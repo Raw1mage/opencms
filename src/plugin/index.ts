@@ -30,7 +30,7 @@ export namespace Plugin {
     { name: "antigravity", plugin: AntigravityOAuthPlugin as any },
     { name: "antigravity-legacy", plugin: AntigravityLegacyOAuthPlugin as any },
     { name: "gemini-cli", plugin: GeminiCLIOAuthPlugin as any },
-    { name: "anthropic", plugin: AnthropicAuthPlugin as any },
+    { name: "claude-cli", plugin: AnthropicAuthPlugin as any },
   ]
 
   // Cached state

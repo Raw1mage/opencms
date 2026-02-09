@@ -399,9 +399,10 @@ export namespace Provider {
       // TODO: Using process.env directly because Env.set only updates a process.env shallow copy,
       // until the scope of the Env API is clarified (test only or runtime?)
       const awsBearerToken = iife(() => {
-        const envToken = process.env.AWS_BEARER_TOKEN_BEDROCK
+        const envToken = Env.get("AWS_BEARER_TOKEN_BEDROCK")
         if (envToken) return envToken
         if (auth?.type === "api") {
+          // eslint-disable-next-line no-restricted-syntax
           process.env.AWS_BEARER_TOKEN_BEDROCK = auth.key
           return auth.key
         }
@@ -582,16 +583,17 @@ export namespace Provider {
       // TODO: Using process.env directly because Env.set only updates a shallow copy (not process.env),
       // until the scope of the Env API is clarified (test only or runtime?)
       const envServiceKey = iife(() => {
-        const envAICoreServiceKey = process.env.AICORE_SERVICE_KEY
+        const envAICoreServiceKey = Env.get("AICORE_SERVICE_KEY")
         if (envAICoreServiceKey) return envAICoreServiceKey
         if (auth?.type === "api") {
+          // eslint-disable-next-line no-restricted-syntax
           process.env.AICORE_SERVICE_KEY = auth.key
           return auth.key
         }
         return undefined
       })
-      const deploymentId = process.env.AICORE_DEPLOYMENT_ID
-      const resourceGroup = process.env.AICORE_RESOURCE_GROUP
+      const deploymentId = Env.get("AICORE_DEPLOYMENT_ID")
+      const resourceGroup = Env.get("AICORE_RESOURCE_GROUP")
 
       return {
         autoload: !!envServiceKey,
@@ -912,6 +914,9 @@ export namespace Provider {
     debugCheckpoint("provider", "models.dev loaded", { providerCount: Object.keys(modelsDev).length })
     const database = mapValues(modelsDev, fromModelsDevProvider)
 
+    // Remove legacy 'anthropic' provider entirely to prevent user confusion
+    delete database["anthropic"]
+
     // Inject github-copilot with bundled default models if not in models.dev or if models are empty
     if (!database["github-copilot"] || Object.keys(database["github-copilot"].models || {}).length === 0) {
       debugCheckpoint("provider", "injecting copilot defaults")
@@ -1157,56 +1162,52 @@ export namespace Provider {
       }
     }
 
-    // If anthropic failed to inherit or it exists but has no models, populate manually
-    if (!database["anthropic"] || Object.keys(database["anthropic"].models).length === 0) {
-      if (!database["anthropic"]) {
-        database["anthropic"] = {
-          id: "anthropic",
-          name: "Anthropic",
-          source: "custom",
-          env: ["ANTHROPIC_API_KEY"],
-          options: {},
-          models: {},
-        }
-      }
+    // Initialize claude-cli provider (Official Protocol Mimicry)
+    // Replacing the legacy 'anthropic' provider entirely.
+    const claudeCliModels = [
+      { id: "claude-3-haiku-20240307", name: "Claude Haiku 3", reasoning: false, context: 200000 },
+      { id: "claude-haiku-4-5", name: "Claude Haiku 4.5", reasoning: false, context: 200000 },
+      { id: "claude-3-opus-20240229", name: "Claude Opus 3", reasoning: true, context: 200000 },
+      { id: "claude-opus-4-5", name: "Claude Opus 4.5", reasoning: true, context: 200000 },
+      { id: "claude-opus-4-6", name: "Claude Opus 4.6", reasoning: true, context: 200000 },
+      { id: "claude-3-5-sonnet-latest", name: "Claude Sonnet 4", reasoning: true, context: 200000 },
+      { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5", reasoning: true, context: 200000 },
+    ]
 
-      const anthropicModels = [
-        { id: "claude-opus-4-6", name: "Claude 4.6 Opus" },
-        { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet" },
-        { id: "claude-3-7-sonnet-latest", name: "Claude 3.7 Sonnet (Latest)" },
-        { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet (New)" },
-        { id: "claude-3-5-haiku-20241022", name: "Claude 3.5 Haiku" },
-        { id: "claude-3-opus-20240229", name: "Claude 3 Opus" },
-        { id: "claude-3-sonnet-20240229", name: "Claude 3 Sonnet" },
-        { id: "claude-3-haiku-20240307", name: "Claude 3 Haiku" },
-        { id: "claude-3-5-sonnet-latest", name: "Claude 3.5 Sonnet (Latest)" },
-      ]
+    database["claude-cli"] = {
+      id: "claude-cli",
+      name: "claude-cli",
+      source: "custom",
+      env: ["ANTHROPIC_API_KEY"],
+      options: {},
+      models: {},
+    }
 
-      for (const m of anthropicModels) {
-        const isReasoning = m.id.includes("thinking") || m.id.includes("opus-4.6") || m.id.includes("3.7-sonnet")
-        database["anthropic"].models[m.id] = {
-          id: m.id,
-          name: m.name,
-          providerId: "anthropic",
-          family: "claude",
-          api: { id: m.id, url: "", npm: "@ai-sdk/anthropic" },
-          status: "active",
-          capabilities: {
-            temperature: true,
-            reasoning: isReasoning,
-            attachment: true,
-            interleaved: isReasoning ? { field: "reasoning_content" } : false,
-            input: { text: true, image: true, audio: false, video: false, pdf: true },
-            output: { text: true, audio: false, image: false, video: false, pdf: false },
-            toolcall: true,
-          },
-          cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
-          limit: { context: 200000, output: 8192 },
-          options: {},
-          variants: {},
-          headers: {},
-          release_date: "2025-01-01",
-        }
+    for (const m of claudeCliModels) {
+      database["claude-cli"].models[m.id] = {
+        id: m.id,
+        name: m.name,
+        providerId: "claude-cli",
+        family: "claude",
+        // PHASE 1: Revert to standard Anthropic SDK for basic Haiku compatibility.
+        // We rely on transform.ts logic (isClaudeCode flag) to prevent cache_control pollution.
+        api: { id: m.id, url: "", npm: "@ai-sdk/anthropic" },
+        status: "active",
+        capabilities: {
+          temperature: true,
+          reasoning: m.reasoning,
+          attachment: true,
+          interleaved: m.reasoning ? { field: "reasoning_content" } : false,
+          input: { text: true, image: true, audio: false, video: false, pdf: true },
+          output: { text: true, audio: false, image: false, video: false, pdf: false },
+          toolcall: true,
+        },
+        cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+        limit: { context: m.context, output: 8192 },
+        options: {},
+        variants: {},
+        headers: {},
+        release_date: "2025-01-01",
       }
     }
 
@@ -1632,10 +1633,27 @@ export namespace Provider {
       const family = plugin.auth.provider
       if (disabled.has(family)) continue
 
-      // For github-copilot plugin, check if auth exists for either github-copilot or github-copilot-enterprise
+      // Check if auth exists at family level OR at any account level
+      // FIX: Auth may be stored under account ID (e.g., "claude-cli-subscription-xxx")
+      // rather than base family ID (e.g., "claude-cli")
+      // @event_20260209_fix_model_activities_account_select
       let hasFamilyAuth = false
       const familyAuth = await Auth.get(family)
       if (familyAuth) hasFamilyAuth = true
+
+      // Check account-level auth if no family-level auth
+      if (!hasFamilyAuth) {
+        const familyData = allFamilies[family]
+        if (familyData) {
+          for (const accountId of Object.keys(familyData.accounts)) {
+            const accountAuth = await Auth.get(accountId)
+            if (accountAuth) {
+              hasFamilyAuth = true
+              break
+            }
+          }
+        }
+      }
 
       // Special handling for github-copilot: also check for enterprise auth
       if (family === "github-copilot" && !hasFamilyAuth) {
@@ -1673,6 +1691,24 @@ export namespace Provider {
           }
         })
         await Promise.all(accountLoaderPromises)
+
+        // FIX: Inherit custom fetch from first account to base provider if base has none
+        // This ensures base provider (e.g., "claude-cli") works when account provider
+        // (e.g., "claude-cli-subscription-xxx") has the actual auth/fetch configured
+        // @event_20260209_base_provider_fetch_inheritance
+        if (providers[family] && !providers[family].options?.fetch) {
+          for (const accountId of Object.keys(familyData.accounts)) {
+            if (providers[accountId]?.options?.fetch) {
+              log.info("inheriting custom fetch from account to base provider", { family, accountId })
+              providers[family].options = mergeDeep(providers[family].options, {
+                fetch: providers[accountId].options.fetch,
+                apiKey: providers[accountId].options.apiKey,
+                isClaudeCode: providers[accountId].options.isClaudeCode,
+              }) as any
+              break
+            }
+          }
+        }
       }
 
       // Special handling for legacy antigravity accounts (Parallelized)
@@ -1968,7 +2004,13 @@ export namespace Provider {
         })
       }
 
-      const key = Bun.hash.xxHash32(JSON.stringify({ providerId: model.providerId, npm: model.api.npm, options }))
+      // FIX: Include hasCustomFetch in cache key since JSON.stringify ignores functions
+      // Without this, SDKs with/without custom fetch would share the same cache key
+      // @event_20260209_sdk_cache_key_fix
+      const hasCustomFetch = typeof options["fetch"] === "function"
+      const key = Bun.hash.xxHash32(
+        JSON.stringify({ providerId: model.providerId, npm: model.api.npm, options, hasCustomFetch }),
+      )
       const existing = s.sdk.get(key)
       if (existing) return existing
 
@@ -2176,6 +2218,7 @@ export namespace Provider {
 
   export async function getSmallModel(providerId: string) {
     const cfg = await Config.get()
+    log.debug("getSmallModel called", { providerId, configSmallModel: cfg.small_model })
 
     // User-configured small model takes priority (but check health)
     if (cfg.small_model) {
@@ -2234,6 +2277,13 @@ export namespace Provider {
     // Return first healthy candidate
     if (candidates.length > 0) {
       const best = candidates[0]
+      log.debug("getSmallModel selected", {
+        requested: providerId,
+        selected: best.providerId,
+        modelID: best.modelID,
+        candidateCount: candidates.length,
+        allCandidates: candidates.map(c => `${c.providerId}:${c.modelID}`).slice(0, 5)
+      })
       return getModel(best.providerId, best.modelID)
     }
 
