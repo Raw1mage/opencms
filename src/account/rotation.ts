@@ -345,6 +345,7 @@ export type RateLimitReason =
   | "MODEL_CAPACITY_EXHAUSTED"
   | "SERVER_ERROR"
   | "AUTH_FAILED"
+  | "TOKEN_REFRESH_FAILED"
   | "UNKNOWN"
 
 const QUOTA_EXHAUSTED_BACKOFFS = [600_000, 3_600_000, 14_400_000, 86_400_000] as const
@@ -353,6 +354,7 @@ const MODEL_CAPACITY_EXHAUSTED_BASE_BACKOFF = 45_000
 const MODEL_CAPACITY_EXHAUSTED_JITTER_MAX = 30_000
 const SERVER_ERROR_BACKOFF = 20_000
 const AUTH_FAILED_BACKOFF = 3_600_000 // 1 hour
+const TOKEN_REFRESH_FAILED_BACKOFF = 18_000_000 // 5 hours
 const UNKNOWN_BACKOFF = 3_600_000 // 1 hour (was 60s)
 const MIN_BACKOFF_MS = 2_000
 
@@ -387,6 +389,12 @@ export function parseRateLimitReason(
   // Message Text Scanning
   if (message) {
     const lower = message.toLowerCase()
+
+    // Check for specific token refresh failure that requires 5h cooldown
+    if (lower.includes("token refresh failed") && lower.includes("invalid_scope")) {
+      return "TOKEN_REFRESH_FAILED"
+    }
+
     if (lower.includes("capacity") || lower.includes("overloaded") || lower.includes("resource exhausted")) {
       return "MODEL_CAPACITY_EXHAUSTED"
     }
@@ -435,6 +443,8 @@ export function calculateBackoffMs(
       return SERVER_ERROR_BACKOFF
     case "AUTH_FAILED":
       return AUTH_FAILED_BACKOFF
+    case "TOKEN_REFRESH_FAILED":
+      return TOKEN_REFRESH_FAILED_BACKOFF
     case "UNKNOWN":
     default:
       return UNKNOWN_BACKOFF
@@ -843,6 +853,14 @@ export function isRateLimitError(error: unknown): boolean {
   const message = (error as any).message ?? ""
   if (typeof message === "string" && message.length > 0) {
     const lower = message.toLowerCase()
+
+    // Check for specific token refresh failure that requires 5h cooldown
+    // We treat this as a rate limit to trigger rotation
+    if (lower.includes("token refresh failed") && lower.includes("invalid_scope")) {
+      log.debug("isRateLimitError: matched invalid_scope token error")
+      return true
+    }
+
     // Only match very specific rate limit patterns, not generic "error" messages
     if (
       lower.includes("429") ||
@@ -871,6 +889,13 @@ export function isAuthError(error: unknown): boolean {
   const message = (error as any).message ?? ""
   if (typeof message === "string" && message.length > 0) {
     const lower = message.toLowerCase()
+
+    // Special case: "token refresh failed" with "invalid_scope" is treated as a rate limit
+    // so we exclude it from hard auth errors to allow rotation
+    if (lower.includes("token refresh failed") && lower.includes("invalid_scope")) {
+      return false
+    }
+
     return (
       lower.includes("token refresh failed") ||
       lower.includes("authentication failed") ||
