@@ -1,25 +1,7 @@
-import { Bus } from "@/bus"
-import { Config } from "@/config/config"
-import { Flag } from "@/flag/flag"
-import { Installation } from "@/installation"
+// @event_2026-02-10_disable-autoupgrade: CMS branch 不需要自動升級功能
+// 此檔案已停用，保留僅為避免 import 錯誤
 
 export async function upgrade() {
-  const config = await Config.global()
-  const method = await Installation.method()
-  const latest = await Installation.latest(method).catch(() => {})
-  if (!latest) return
-  if (Installation.VERSION === latest) return
-
-  if (config.autoupdate === false || Flag.OPENCODE_DISABLE_AUTOUPDATE) {
-    return
-  }
-  if (config.autoupdate === "notify") {
-    await Bus.publish(Installation.Event.UpdateAvailable, { version: latest })
-    return
-  }
-
-  if (method === "unknown") return
-  await Installation.upgrade(method, latest)
-    .then(() => Bus.publish(Installation.Event.Updated, { version: latest }))
-    .catch(() => {})
+  // No-op: CMS branch 不執行自動升級
+  return
 }

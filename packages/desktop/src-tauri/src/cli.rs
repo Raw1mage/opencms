@@ -1,7 +1,10 @@
 use tauri::{AppHandle, Manager, path::BaseDirectory};
 use tauri_plugin_shell::{ShellExt, process::Command};
 
-const CLI_INSTALL_DIR: &str = ".opencode/bin";
+// @event_2026-02-10_desktop-cli-sync: Migrate to XDG Base Directory
+// Legacy path: ~/.opencode/bin (deprecated)
+// New path: ~/.local/bin (XDG compliant)
+const CLI_INSTALL_DIR: &str = ".local/bin";
 const CLI_BINARY_NAME: &str = "opencode";
 
 #[derive(serde::Deserialize)]
