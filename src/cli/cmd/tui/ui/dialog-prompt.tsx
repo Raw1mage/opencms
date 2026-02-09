@@ -21,6 +21,7 @@ export function DialogPrompt(props: DialogPromptProps) {
   let textarea: TextareaRenderable
   let submitBtn: any
 
+  const [escHover, setEscHover] = createSignal(false)
   const [text, setText] = createSignal(props.value ?? "")
   let lastValidValue = props.value ?? ""
 
@@ -112,7 +113,16 @@ export function DialogPrompt(props: DialogPromptProps) {
           <Show when={props.onCancel}>
             <text fg={theme.textMuted}>left back</text>
           </Show>
-          <text fg={theme.textMuted}>esc</text>
+          <box
+            paddingLeft={1}
+            paddingRight={1}
+            backgroundColor={escHover() ? theme.primary : undefined}
+            onMouseOver={() => setEscHover(true)}
+            onMouseOut={() => setEscHover(false)}
+            onMouseUp={() => dialog.clear()}
+          >
+            <text fg={escHover() ? theme.selectedListItemText : theme.textMuted}>esc</text>
+          </box>
         </box>
       </box>
       <box gap={1}>

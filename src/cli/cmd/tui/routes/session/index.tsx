@@ -77,6 +77,7 @@ import { QuestionPrompt } from "./question"
 import { DialogExportOptions } from "../../ui/dialog-export-options"
 import { formatTranscript } from "../../util/transcript"
 import { UI } from "@/cli/ui.ts"
+import { Spinner } from "@tui/component/spinner"
 
 addDefaultParsers(parsers.parsers)
 
@@ -1105,6 +1106,9 @@ export function Session() {
                 sessionID={route.sessionID}
               />
             </box>
+            <Show when={!sidebarVisible() || !wide()}>
+              <Footer />
+            </Show>
           </Show>
           <Toast />
         </box>
@@ -1606,7 +1610,13 @@ function InlineTool(props: {
   )
 }
 
-function BlockTool(props: { title: string; children: JSX.Element; onClick?: () => void; part?: ToolPart }) {
+function BlockTool(props: {
+  title: string
+  children: JSX.Element
+  onClick?: () => void
+  part?: ToolPart
+  spinner?: boolean
+}) {
   const { theme } = useTheme()
   const renderer = useRenderer()
   const [hover, setHover] = createSignal(false)
@@ -1629,9 +1639,11 @@ function BlockTool(props: { title: string; children: JSX.Element; onClick?: () =
         props.onClick?.()
       }}
     >
-      <text paddingLeft={3} fg={theme.textMuted} marginBottom={1}>
-        {props.title}
-      </text>
+      <box paddingLeft={3} marginBottom={1}>
+        <Show when={props.spinner} fallback={<text fg={theme.textMuted}>{props.title}</text>}>
+          <Spinner color={theme.textMuted}>{props.title}</Spinner>
+        </Show>
+      </box>
       {props.children}
       <Show when={error()}>
         <text fg={theme.error} marginTop={1}>
@@ -1645,6 +1657,7 @@ function BlockTool(props: { title: string; children: JSX.Element; onClick?: () =
 function Bash(props: ToolProps<typeof BashTool>) {
   const { theme } = useTheme()
   const sync = useSync()
+  const isRunning = createMemo(() => props.part.state.status === "running")
   const output = createMemo(() => stripAnsi(props.metadata.output?.trim() ?? ""))
   const [expanded, setExpanded] = createSignal(false)
   const lines = createMemo(() => output().split("\n"))
@@ -1737,6 +1750,7 @@ function Bash(props: ToolProps<typeof BashTool>) {
         <BlockTool
           title={title()}
           part={props.part}
+          spinner={isRunning()}
           onClick={overflow() ? () => setExpanded((prev) => !prev) : undefined}
         >
           <box gap={1}>
