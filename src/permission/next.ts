@@ -231,9 +231,13 @@ export namespace PermissionNext {
           pending.resolve()
         }
 
-        // TODO: we don't save the permission ruleset to disk yet until there's
-        // UI to manage it
-        // await Storage.write(["permission", Instance.project.id], s.approved)
+        // FIX: Save the permission ruleset to disk (@event_20260209_tech_debt_review)
+        // This persists user-approved permission rules across sessions
+        try {
+          await Storage.write(["permission", Instance.project.id], s.approved)
+        } catch (error) {
+          log.warn("Failed to save permission ruleset", { error: String(error) })
+        }
         return
       }
     },
