@@ -166,7 +166,7 @@ export namespace Storage {
           if (!entry.isFile() || !entry.name.endsWith(".json")) continue
           const sessionID = path.basename(entry.name, ".json")
           const oldInfo = path.join(projectPath, entry.name)
-          const newSessionDir = path.join(projectPath, sessionID)
+          const newSessionDir = path.join(sessionRoot, sessionID) // Fixed: Flat session directory
           const newInfo = path.join(newSessionDir, "info.json")
 
           await fs.mkdir(newSessionDir, { recursive: true }).catch(() => {})
@@ -253,6 +253,55 @@ export namespace Storage {
               if (content) await Bun.write(newPath, content)
             }
           }
+        }
+      }
+    },
+    // @event_2026-02-11_session_index_backfill
+    // 1. Move sessions that were accidentally migrated into session/<projectID>/<sessionID>/ info session/<sessionID>/
+    // 2. Ensure every session has an entry in index/session/
+    async (dir) => {
+      const sessionRoot = path.join(dir, "session")
+      const entries = await fs.readdir(sessionRoot, { withFileTypes: true }).catch(() => [] as any[])
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue
+
+        // If it's a project directory (not starting with 'ses_'), check for sessions inside
+        if (!entry.name.startsWith("ses_")) {
+          const projectID = entry.name
+          const projectPath = path.join(sessionRoot, projectID)
+          const subEntries = await fs.readdir(projectPath, { withFileTypes: true }).catch(() => [] as any[])
+          for (const sub of subEntries) {
+            if (!sub.isDirectory() || !sub.name.startsWith("ses_")) continue
+            const sessionID = sub.name
+            const oldPath = path.join(projectPath, sessionID)
+            const newPath = path.join(sessionRoot, sessionID)
+            if (!(await Bun.file(path.join(newPath, "info.json")).exists())) {
+              log.info(`re-migrating session ${sessionID} from project ${projectID}`)
+              await fs.mkdir(newPath, { recursive: true }).catch(() => {})
+              // Move all contents
+              const files = await fs.readdir(oldPath).catch(() => [] as string[])
+              for (const f of files) {
+                await fs.rename(path.join(oldPath, f), path.join(newPath, f)).catch(() => {})
+              }
+            }
+          }
+          // Cleanup empty project dir
+          const remaining = await fs.readdir(projectPath).catch(() => [] as string[])
+          if (remaining.length === 0) {
+            await fs.rmdir(projectPath).catch(() => {})
+          }
+        }
+      }
+
+      // Backfill index for all sessions now in the flat directory
+      const finalEntries = await fs.readdir(sessionRoot, { withFileTypes: true }).catch(() => [] as any[])
+      for (const entry of finalEntries) {
+        if (!entry.isDirectory() || !entry.name.startsWith("ses_")) continue
+        const sessionID = entry.name
+        const info = await readJSON<{ projectID: string }>(path.join(sessionRoot, sessionID, "info.json"))
+        if (info?.projectID) {
+          await upsertSessionIndex(dir, sessionID, info.projectID)
         }
       }
     },
@@ -485,21 +534,41 @@ export namespace Storage {
     try {
       if (prefix[0] === "session") {
         const ids = new Set<string>()
-        const flatRoot = path.join(dir, "session")
-        const flatEntries = await fs.readdir(flatRoot, { withFileTypes: true }).catch(() => [] as any[])
 
-        for (const entry of flatEntries) {
-          if (!entry.isDirectory()) continue
-          const info = path.join(flatRoot, entry.name, "info.json")
-          if (await Bun.file(info).exists()) {
+        // Optimization: Use index directory if it exists and has entries
+        const indexRoot = path.join(dir, ...SESSION_INDEX_DIR)
+        const indexEntries = await fs.readdir(indexRoot, { withFileTypes: true }).catch(() => [] as any[])
+
+        if (indexEntries.length > 0) {
+          for (const entry of indexEntries) {
+            if (!entry.isFile() || !entry.name.endsWith(".json")) continue
+            const id = path.basename(entry.name, ".json")
             if (prefix[1]) {
-              // Backward compatibility: filter by projectID
-              const sessionInfo = await readJSON<{ projectID?: string }>(info)
-              if (sessionInfo?.projectID === prefix[1]) {
-                ids.add(entry.name)
+              const indexed = await readJSON<{ projectID: string }>(path.join(indexRoot, entry.name))
+              if (indexed?.projectID === prefix[1]) {
+                ids.add(id)
               }
             } else {
-              ids.add(entry.name)
+              ids.add(id)
+            }
+          }
+        } else {
+          // Fallback to directory scanning
+          const flatRoot = path.join(dir, "session")
+          const flatEntries = await fs.readdir(flatRoot, { withFileTypes: true }).catch(() => [] as any[])
+
+          for (const entry of flatEntries) {
+            if (!entry.isDirectory()) continue
+            const info = path.join(flatRoot, entry.name, "info.json")
+            if (await Bun.file(info).exists()) {
+              if (prefix[1]) {
+                const sessionInfo = await readJSON<{ projectID?: string }>(info)
+                if (sessionInfo?.projectID === prefix[1]) {
+                  ids.add(entry.name)
+                }
+              } else {
+                ids.add(entry.name)
+              }
             }
           }
         }
