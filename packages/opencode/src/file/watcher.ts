@@ -6,8 +6,6 @@ import { Log } from "../util/log"
 import { FileIgnore } from "./ignore"
 import { Config } from "../config/config"
 import path from "path"
-// @ts-ignore
-import { createWrapper } from "@parcel/watcher/wrapper"
 import { lazy } from "@/util/lazy"
 import { withTimeout } from "@/util/timeout"
 import type ParcelWatcher from "@parcel/watcher"
@@ -34,6 +32,9 @@ export namespace FileWatcher {
 
   const watcher = lazy((): typeof import("@parcel/watcher") | undefined => {
     try {
+      const { createWrapper } = require("@parcel/watcher/wrapper") as {
+        createWrapper: (binding: unknown) => typeof import("@parcel/watcher")
+      }
       const binding = require(
         `@parcel/watcher-${process.platform}-${process.arch}${process.platform === "linux" ? `-${OPENCODE_LIBC || "glibc"}` : ""}`,
       )

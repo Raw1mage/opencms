@@ -20,6 +20,7 @@ import { debugCheckpoint } from "../util/debug"
 import { checkAccountsQuota, type QuotaGroup, type QuotaGroupSummary } from "../plugin/antigravity/plugin/quota"
 import { loadAccounts } from "../plugin/antigravity/plugin/storage"
 import { getModelFamily as getAntigravityModelFamily } from "../plugin/antigravity/plugin/transform/model-resolver"
+import type { PluginClient } from "../plugin/antigravity/plugin/types"
 
 const log = Log.create({ service: "rotation3d" })
 
@@ -361,7 +362,12 @@ export async function buildFallbackCandidates(
     const storage = await loadAccounts()
     if (storage && storage.accounts.length > 0) {
       debugCheckpoint("rotation3d", "antigravity_quota:start", { accountCount: storage.accounts.length })
-      const results = await checkAccountsQuota(storage.accounts, {} as any)
+      const noopClient = {
+        auth: {
+          set: async () => true,
+        },
+      } as unknown as PluginClient
+      const results = await checkAccountsQuota(storage.accounts, noopClient)
 
       // Build coreAccountId mapping (same logic as admin panel)
       const coreByToken = new Map<string, string>()
@@ -370,8 +376,10 @@ export async function buildFallbackCandidates(
       for (const [family, data] of Object.entries(coreAll)) {
         if (family !== "antigravity") continue
         for (const [coreId, info] of Object.entries(data.accounts || {})) {
-          if ((info as any).refreshToken) coreByToken.set((info as any).refreshToken, coreId)
-          if ((info as any).email) coreByEmail.set((info as any).email, coreId)
+          if (info.type === "subscription") {
+            if (info.refreshToken) coreByToken.set(info.refreshToken, coreId)
+            if (info.email) coreByEmail.set(info.email, coreId)
+          }
         }
       }
 
@@ -488,7 +496,8 @@ export async function buildFallbackCandidates(
     return {
       ...vector,
       healthScore: healthTracker.getScore(vector.accountId),
-      isRateLimited: rateLimitTracker.isRateLimited(vector.accountId, vector.providerId, vector.modelID) || isQuotaLimited,
+      isRateLimited:
+        rateLimitTracker.isRateLimited(vector.accountId, vector.providerId, vector.modelID) || isQuotaLimited,
       waitTimeMs: effectiveWaitTime,
       priority: 0,
       reason,
@@ -565,8 +574,9 @@ export async function buildFallbackCandidates(
           // Apply manual tags if present
           if (fav.tags && candidate.capabilities) {
             for (const tag of fav.tags) {
-              // @ts-ignore
-              candidate.capabilities[tag] = true
+              if (tag in candidate.capabilities) {
+                ;(candidate.capabilities as Record<string, boolean>)[tag] = true
+              }
             }
           }
           candidates.push(candidate)
@@ -580,9 +590,10 @@ export async function buildFallbackCandidates(
   // 4. Get inherent free opencode zen models as rescue fallback
   const opencodeProvider = providers["opencode"]
   if (opencodeProvider?.models) {
-    for (const [modelId, model] of Object.entries(opencodeProvider.models)) {
-      const m = model as any
-      if (m.cost.input > 0 || m.cost.output > 0) continue
+    for (const [modelId, model] of Object.entries(
+      opencodeProvider.models as Record<string, { cost: { input: number; output: number } }>,
+    )) {
+      if (model.cost.input > 0 || model.cost.output > 0) continue
 
       let accountId = "public"
       const family = Account.parseFamily("opencode")
