@@ -241,6 +241,7 @@ async function openBrowser(url: string): Promise<boolean> {
       stdio: "ignore",
       shell: false,
     })
+    child.once("error", () => {})
     child.unref()
   }
 

@@ -337,6 +337,9 @@ export const GithubInstallCommand = cmd({
                   : process.platform === "win32"
                     ? spawn("explorer.exe", [url], { detached: true, stdio: "ignore", shell: false })
                     : spawn("xdg-open", [url], { detached: true, stdio: "ignore", shell: false })
+              child.once("error", () => {
+                prompts.log.warn(`Could not open browser. Please visit: ${url}`)
+              })
               child.unref()
             } catch {
               prompts.log.warn(`Could not open browser. Please visit: ${url}`)
