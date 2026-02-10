@@ -1,4 +1,4 @@
-import { exec } from "node:child_process"
+import { spawn } from "node:child_process"
 import { tool } from "@opencode-ai/plugin"
 import {
   ANTIGRAVITY_ENDPOINT_FALLBACKS,
@@ -223,25 +223,46 @@ function shouldSkipLocalServer(): boolean {
 }
 
 async function openBrowser(url: string): Promise<boolean> {
+  const parsedUrl = (() => {
+    try {
+      return new URL(url)
+    } catch {
+      return undefined
+    }
+  })()
+  if (!parsedUrl || (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:")) {
+    return false
+  }
+
+  const safeUrl = parsedUrl.toString()
+  const launch = (command: string, args: string[]) => {
+    const child = spawn(command, args, {
+      detached: true,
+      stdio: "ignore",
+      shell: false,
+    })
+    child.unref()
+  }
+
   try {
     if (process.platform === "darwin") {
-      exec(`open "${url}"`)
+      launch("open", [safeUrl])
       return true
     }
     if (process.platform === "win32") {
-      exec(`start "" "${url}"`)
+      launch("explorer.exe", [safeUrl])
       return true
     }
     if (isWSL()) {
       try {
-        exec(`wslview "${url}"`)
+        launch("wslview", [safeUrl])
         return true
       } catch {}
     }
     if (!process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
       return false
     }
-    exec(`xdg-open "${url}"`)
+    launch("xdg-open", [safeUrl])
     return true
   } catch {
     return false
@@ -1411,11 +1432,7 @@ export const createAntigravityPlugin =
               strippedPrompt = strippedPrompt.replace(headerMatch[0], "").trim()
             }
 
-            const optimizedAgents = [
-              "<behavioral_guidelines>",
-              agentsContent,
-              "</behavioral_guidelines>",
-            ].join("\n")
+            const optimizedAgents = ["<behavioral_guidelines>", agentsContent, "</behavioral_guidelines>"].join("\n")
 
             // Reconstruct: Header -> Optimized Guidelines -> Rest
             output.system[0] = [header, optimizedAgents, strippedPrompt].filter(Boolean).join("\n\n")
