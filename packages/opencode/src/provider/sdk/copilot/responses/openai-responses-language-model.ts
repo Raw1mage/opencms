@@ -355,7 +355,7 @@ export class OpenAIResponsesLanguageModel implements LanguageModelV2 {
         details: "flex processing is only available for o3, o4-mini, and gpt-5 models",
       })
       // Remove from args if not supported
-      delete (baseArgs as any).service_tier
+      delete (baseArgs as { service_tier?: unknown }).service_tier
     }
 
     // Validate priority processing support
@@ -367,7 +367,7 @@ export class OpenAIResponsesLanguageModel implements LanguageModelV2 {
           "priority processing is only available for supported models (gpt-4, gpt-5, gpt-5-mini, o3, o4-mini) and requires Enterprise access. gpt-5-nano is not supported",
       })
       // Remove from args if not supported
-      delete (baseArgs as any).service_tier
+      delete (baseArgs as { service_tier?: unknown }).service_tier
     }
 
     const {

@@ -44,6 +44,7 @@ import {
 import { Bus } from "@/bus"
 import { TuiEvent } from "@/cli/cmd/tui/event"
 import { debugCheckpoint } from "@/util/debug"
+import type { OAuthAuthDetails, PluginClient } from "@/plugin/antigravity/plugin/types"
 
 export namespace LLM {
   const log = Log.create({ service: "llm" })
@@ -250,7 +251,7 @@ export namespace LLM {
           ] as ModelMessage[])
         : filteredSystem.map(
             (x): ModelMessage => ({
-              role: capabilities.systemMessageRole as any,
+              role: "system",
               content: x,
             }),
           )
@@ -329,7 +330,7 @@ export namespace LLM {
               // Get account info to build auth details
               const info = await Account.get("antigravity", accountId)
               if (info && info.type === "subscription") {
-                let auth: any = {
+                let auth: OAuthAuthDetails = {
                   type: "oauth",
                   refresh: formatRefreshParts({
                     refreshToken: info.refreshToken,
@@ -342,7 +343,12 @@ export namespace LLM {
 
                 // Refresh token if needed
                 if (!auth.access || !auth.expires || Date.now() >= auth.expires - 300000) {
-                  const refreshed = await refreshAccessToken(auth, {} as any, "antigravity")
+                  const noopClient = {
+                    auth: {
+                      set: async () => true,
+                    },
+                  } as unknown as PluginClient
+                  const refreshed = await refreshAccessToken(auth, noopClient, "antigravity")
                   if (refreshed) {
                     auth = refreshed
                     // Determine project ID from refreshed token or existing info
@@ -672,7 +678,8 @@ export namespace LLM {
     const isSameModel = fallback.modelID === currentModel.id
 
     const fallbackReason = isVectorRateLimited(currentVector) ? "rate-limit" : "unknown"
-    const purpose = (fallback as any).purpose || fallbackReason
+    const purposeValue = (fallback as unknown as Record<string, unknown>).purpose
+    const purpose = typeof purposeValue === "string" ? purposeValue : fallbackReason
     const reasonLabel = PURPOSE_LABELS[purpose] || fallback.reason
     const fromStr = `${currentAccountId}(${currentModel.id})`
     const toStr = `${fallback.accountId}(${fallback.modelID})`
