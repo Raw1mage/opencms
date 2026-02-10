@@ -97,7 +97,7 @@ type TemplateManifestEntry = {
 }
 
 const SENSITIVE_FILES = new Set(["accounts.json", "mcp-auth.json"])
-const templatesDir = path.join(import.meta.dir, "../../templates")
+const templatesDir = path.join(import.meta.dir, "../../../../templates")
 const manifestPath = path.join(templatesDir, "manifest.json")
 
 const resolveTargetDir = (target?: TemplateTarget) => {

@@ -38,7 +38,7 @@ Status: In Progress
 
 - `/home/pkcs12/opencode/src/**` → `/home/pkcs12/opencode/packages/opencode/src/**`
 - `/home/pkcs12/opencode/test/**` → `/home/pkcs12/opencode/packages/opencode/test/**`
-- `/home/pkcs12/opencode/templates/**` → `/home/pkcs12/opencode/packages/opencode/templates/**`（以 `origin/dev` 實際結構為準）
+- `/home/pkcs12/opencode/templates/**` → **保留於 repo root（cms overlay）**
 
 ---
 
@@ -87,10 +87,10 @@ Status: In Progress
 
 ## Phase D — 目錄回遷（使用 git mv，嚴禁混邏輯）
 
-### Batch D1: templates
+### Batch D1: templates（已調整策略）
 
-- `git mv /home/pkcs12/opencode/templates → /home/pkcs12/opencode/packages/opencode/templates`
-- 修正引用路徑（僅 import/path，不改行為）。
+- `templates` 為 cms 專屬 overlay，不與 `origin/dev` 強制同位。
+- 目標：固定保留於 `/home/pkcs12/opencode/templates`，僅維護引用路徑正確。
 
 ### Batch D2: test
 
@@ -178,6 +178,6 @@ Status: In Progress
 - [ ] Batch A1：Tooling path normalization
 - [ ] Batch B1：Docs path cleanup
 - [ ] Batch C1：雙路徑相容 shim
-- [ ] Batch D1：templates 回遷
+- [x] Batch D1：templates 保留 root（cms overlay）
 - [ ] Batch D2：test 回遷
 - [ ] Batch D3：src 分層回遷

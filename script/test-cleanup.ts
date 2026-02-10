@@ -6,7 +6,7 @@ import path from "path"
 import { Global } from "../packages/opencode/src/global"
 
 const repoRoot = process.cwd()
-const templatesDir = path.join(repoRoot, "packages/opencode/templates")
+const templatesDir = path.join(repoRoot, "templates")
 const manifestPath = path.join(templatesDir, "manifest.json")
 
 const ensureDir = (dir: string) => {
