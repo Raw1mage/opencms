@@ -276,21 +276,70 @@ function ansiToRgba(code: number): RGBA {
   return RGBA.fromInts(0, 0, 0)
 }
 
+function parseHexToRgb(hex: string): { r: number; g: number; b: number } | undefined {
+  const match = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
+  if (!match) return undefined
+  const value = match[1]
+  return {
+    r: parseInt(value.slice(0, 2), 16),
+    g: parseInt(value.slice(2, 4), 16),
+    b: parseInt(value.slice(4, 6), 16),
+  }
+}
+
+function hasLowContrast(bgHex?: string, fgHex?: string): boolean {
+  if (!bgHex || !fgHex) return true
+  const bg = parseHexToRgb(bgHex)
+  const fg = parseHexToRgb(fgHex)
+  if (!bg || !fg) return true
+  const toLinear = (x: number) => {
+    const v = x / 255
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+  }
+  const luminance = (rgb: { r: number; g: number; b: number }) =>
+    0.2126 * toLinear(rgb.r) + 0.7152 * toLinear(rgb.g) + 0.0722 * toLinear(rgb.b)
+  const l1 = luminance(bg)
+  const l2 = luminance(fg)
+  const lighter = Math.max(l1, l2)
+  const darker = Math.min(l1, l2)
+  const ratio = (lighter + 0.05) / (darker + 0.05)
+  return ratio < 1.25
+}
+
+function isInvalidSystemPalette(colors: TerminalColors): boolean {
+  const bg = colors.defaultBackground ?? colors.palette[0]
+  const fg = colors.defaultForeground ?? colors.palette[7]
+  if (!bg || !fg) return true
+  if (bg.toLowerCase() === fg.toLowerCase()) return true
+  if (hasLowContrast(bg, fg)) return true
+  return false
+}
+
 export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
   name: "Theme",
   init: (props: { mode: "dark" | "light" }) => {
     const sync = useSync()
     const kv = useKV()
+    const normalizeActiveTheme = (value: unknown) => {
+      const raw = typeof value === "string" ? value : "opencode"
+      // FIX: In some terminals, system palette/theme may render effectively invisible.
+      // Prefer opencode theme by default unless explicitly re-enabled.
+      // @event_20260210_tui_safe_theme_default
+      if (raw === "system" && process.env.OPENCODE_TUI_ALLOW_SYSTEM_THEME !== "1") {
+        return "opencode"
+      }
+      return raw
+    }
     const [store, setStore] = createStore({
       themes: DEFAULT_THEMES,
       mode: kv.get("theme_mode", props.mode),
-      active: (sync.data.config.theme ?? kv.get("theme", "opencode")) as string,
+      active: normalizeActiveTheme(sync.data.config.theme ?? kv.get("theme", "opencode")),
       ready: false,
     })
 
     createEffect(() => {
       const theme = sync.data.config.theme
-      if (theme) setStore("active", theme)
+      if (theme) setStore("active", normalizeActiveTheme(theme))
     })
 
     function init() {
@@ -321,7 +370,7 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
           size: 16,
         })
         .then((colors) => {
-          if (!colors.palette[0]) {
+          if (!colors.palette[0] || isInvalidSystemPalette(colors)) {
             if (store.active === "system") {
               setStore(
                 produce((draft) => {
@@ -359,8 +408,9 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
     return {
       theme: new Proxy(values(), {
         get(_target, prop) {
-          // @ts-expect-error
-          return values()[prop]
+          if (typeof prop !== "string") return undefined
+          const current = values()
+          return current[prop as keyof typeof current]
         },
       }),
       get selected() {
