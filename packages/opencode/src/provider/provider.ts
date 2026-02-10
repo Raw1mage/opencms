@@ -1694,7 +1694,7 @@ export namespace Provider {
           log.info("loading plugin for family", { family })
           const options = await plugin.auth.loader(() => Auth.get(family) as any, providers[family])
           if (options) {
-            providers[family].options = mergeDeep(providers[family].options, options) as any
+            providers[family].options = mergeDeep(providers[family].options, options) as Info["options"]
           }
         } else {
           log.warn("family provider not found in providers list, skipping plugin load", { family })
@@ -1711,7 +1711,7 @@ export namespace Provider {
 
           const accountOptions = await plugin.auth.loader(() => Auth.get(accountId) as any, providers[accountId])
           if (accountOptions) {
-            providers[accountId].options = mergeDeep(providers[accountId].options, accountOptions) as any
+            providers[accountId].options = mergeDeep(providers[accountId].options, accountOptions) as Info["options"]
           }
         })
         await Promise.all(accountLoaderPromises)
@@ -1728,7 +1728,7 @@ export namespace Provider {
                 fetch: providers[accountId].options.fetch,
                 apiKey: providers[accountId].options.apiKey,
                 isClaudeCode: providers[accountId].options.isClaudeCode,
-              }) as any
+              }) as Info["options"]
               break
             }
           }
@@ -1741,7 +1741,7 @@ export namespace Provider {
           if (providers[accountID] && plugin.auth?.loader) {
             const accountOptions = await plugin.auth.loader(() => Auth.get(accountID) as any, providers[accountID])
             if (accountOptions) {
-              providers[accountID].options = mergeDeep(providers[accountID].options, accountOptions) as any
+              providers[accountID].options = mergeDeep(providers[accountID].options, accountOptions) as Info["options"]
             }
           }
         })
@@ -1762,7 +1762,7 @@ export namespace Provider {
               providers[enterpriseProviderID].options = mergeDeep(
                 providers[enterpriseProviderID].options,
                 enterpriseOptions,
-              ) as any
+              ) as Info["options"]
             }
           }
         }
@@ -1828,7 +1828,10 @@ export namespace Provider {
 
         if (providers[effectiveId]) {
           // Merge options, prioritizing account-specific options (from plugin loaders)
-          providers[effectiveId].options = mergeDeep(baseProvider.options, providers[effectiveId].options ?? {}) as any
+          providers[effectiveId].options = mergeDeep(
+            baseProvider.options,
+            providers[effectiveId].options ?? {},
+          ) as Info["options"]
         }
       }
     }

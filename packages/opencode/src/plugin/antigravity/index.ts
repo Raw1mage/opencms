@@ -2213,9 +2213,13 @@ export const createAntigravityPlugin =
                           const waitTimeFormatted = formatWaitTime(backoffMs)
 
                           // Throw error with 429 status for processor's 3D rotation to handle
-                          const rateLimitError = new Error(
+                          const rateLimitError: Error & {
+                            status?: number
+                            statusCode?: number
+                            retryAfter?: number
+                          } = new Error(
                             `Rate limited for ${family}. Reason: ${rateLimitReason}. Cooldown: ${waitTimeFormatted}`,
-                          ) as any
+                          )
                           rateLimitError.status = 429
                           rateLimitError.statusCode = 429
                           rateLimitError.retryAfter = Math.ceil(backoffMs / 1000)
