@@ -1,6 +1,6 @@
-import { ANTIGRAVITY_ENDPOINT_PROD } from "./src/plugin/antigravity/constants"
+import { ANTIGRAVITY_ENDPOINT_PROD } from "./packages/opencode/src/plugin/antigravity/constants"
 
-async function test(modelInBody) {
+async function test(modelInBody: string) {
   const url = `${ANTIGRAVITY_ENDPOINT_PROD}/v1internal:streamGenerateContent?alt=sse`
   console.log(`\nTesting: ${url} with model in body: ${modelInBody}`)
   try {
@@ -21,7 +21,7 @@ async function test(modelInBody) {
     const text = await res.text()
     console.log(`Body excerpt: ${text.slice(0, 200)}`)
   } catch (err) {
-    console.log(`Error: ${err.message}`)
+    console.log(`Error: ${err instanceof Error ? err.message : String(err)}`)
   }
 }
 

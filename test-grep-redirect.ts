@@ -1,5 +1,4 @@
-import { GrepTool } from "./src/tool/grep"
-import { Identifier } from "./src/id/id"
+import { GrepTool } from "./packages/opencode/src/tool/grep"
 
 const mockCtx: any = {
   ask: async () => {},

@@ -1,5 +1,5 @@
-import { Account } from "./src/account"
-import { Instance } from "./src/project/instance"
+import { Account } from "./packages/opencode/src/account"
+import { Instance } from "./packages/opencode/src/project/instance"
 
 async function run() {
   await Instance.provide({
@@ -24,7 +24,7 @@ async function run() {
       // 2. Dump globalAccountManager snapshot
       console.log("\n=== globalAccountManager Snapshot ===")
       try {
-        const { globalAccountManager } = await import("./src/plugin/antigravity/index")
+        const { globalAccountManager } = await import("./packages/opencode/src/plugin/antigravity/index")
         if (globalAccountManager) {
           const snapshot = globalAccountManager.getAccountsSnapshot()
           console.log(`Snapshot length: ${snapshot.length}`)

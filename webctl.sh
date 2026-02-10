@@ -113,7 +113,7 @@ init_dirs() {
 do_build_binary() {
     log_info "Building opencode binary..."
 
-    cd "${SCRIPT_DIR}/packages/opencode"
+    cd "${SCRIPT_DIR}"
 
     # Check if bun is available
     if ! command -v bun &> /dev/null; then
@@ -225,7 +225,7 @@ do_build() {
     cd "${SCRIPT_DIR}"
 
     # Check if binary exists, build if not
-    if [ ! -f "packages/opencode/dist/opencode-linux-x64/bin/opencode" ]; then
+    if [ ! -f "dist/opencode-linux-x64/bin/opencode" ]; then
         log_warn "Binary not found, building locally first..."
         do_build_binary
     fi

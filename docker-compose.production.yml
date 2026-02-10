@@ -3,7 +3,7 @@
 # =============================================================================
 #
 # Prerequisites:
-#   1. Build binary: cd packages/opencode && bun run build --single
+#   1. Build binary: bun run build --single
 #   2. Sync config:  ./scripts/sync-config.sh
 #   3. Build image:  docker-compose -f docker-compose.production.yml build
 #
