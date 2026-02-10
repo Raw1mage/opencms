@@ -45,6 +45,36 @@ const parameters = z.object({
   model: z.string().describe("Optional model ID to use for this task (e.g. 'openai/gpt-5.1-codex-mini')").optional(),
 })
 
+function normalizeTitleText(text: string) {
+  return text
+    .replace(/^#+\s*/gm, "")
+    .replace(/^[-*]\s+/gm, "")
+    .replace(/^\d+\.\s+/gm, "")
+    .replace(/^user request:\s*/i, "")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+function extractPromptSummary(prompt: z.infer<typeof parameters>["prompt"]) {
+  const raw = typeof prompt === "string" ? prompt : prompt.content
+  const lines = raw
+    .split("\n")
+    .map((line) => normalizeTitleText(line))
+    .filter(Boolean)
+  const first = lines.find((line) => !/^objective|^context|^constraints|^requirements/i.test(line)) ?? lines[0] ?? ""
+  const clipped = first.length > 72 ? first.slice(0, 69) + "..." : first
+  return clipped
+}
+
+function createSubsessionTitle(params: z.infer<typeof parameters>, agentName: string) {
+  const description = normalizeTitleText(params.description)
+  const promptSummary = extractPromptSummary(params.prompt)
+  const genericDescription = /^(auto\s+\w+\s+task|task|subtask|auto task)$/i.test(description)
+  const base = !description || genericDescription || description.length < 8 ? promptSummary || description : description
+  const withAgent = `${base || "Subtask"} (@${agentName})`
+  return withAgent.length > 96 ? withAgent.slice(0, 93) + "..." : withAgent
+}
+
 export const TaskTool = Tool.define("task", async (ctx) => {
   const agents = await Agent.list().then((x) => x.filter((a) => a.mode !== "primary"))
 
@@ -100,7 +130,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
 
         return await Session.create({
           parentID: ctx.sessionID,
-          title: params.description + ` (@${agent.name} subagent)`,
+          title: createSubsessionTitle(params, agent.name),
           permission: [
             {
               permission: "todowrite",

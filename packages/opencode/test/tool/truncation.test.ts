@@ -65,12 +65,12 @@ describe("Truncate", () => {
 
     test("uses default MAX_LINES and MAX_BYTES", () => {
       expect(Truncate.MAX_LINES).toBe(2000)
-      expect(Truncate.MAX_BYTES).toBe(50 * 1024)
+      expect(Truncate.MAX_BYTES).toBe(256 * 1024)
     })
 
     test("large single-line file truncates with byte message", async () => {
       const content = await Bun.file(path.join(FIXTURES_DIR, "models-api.json")).text()
-      const result = await Truncate.output(content)
+      const result = await Truncate.output(content, { maxBytes: 10 * 1024 })
 
       expect(result.truncated).toBe(true)
       expect(result.content).toContain("bytes truncated...")
@@ -86,7 +86,7 @@ describe("Truncate", () => {
       expect(result.content).toContain("Grep")
       if (!result.truncated) throw new Error("expected truncated")
       expect(result.outputPath).toBeDefined()
-      expect(result.outputPath).toContain("tool_")
+      expect(result.outputPath).toContain("output_tool_")
 
       const written = await Bun.file(result.outputPath).text()
       expect(written).toBe(lines)
@@ -124,27 +124,30 @@ describe("Truncate", () => {
 
   describe("cleanup", () => {
     const DAY_MS = 24 * 60 * 60 * 1000
+    const TEST_SESSION_ROOT = path.join(Truncate.DIR, "truncation-test-project", "truncation-test-session")
+    const TEST_DIR = path.join(TEST_SESSION_ROOT, "output")
     let oldFile: string
     let recentFile: string
 
     afterAll(async () => {
       await fs.unlink(oldFile).catch(() => {})
       await fs.unlink(recentFile).catch(() => {})
+      await fs.rm(TEST_SESSION_ROOT, { recursive: true, force: true }).catch(() => {})
     })
 
-    test("deletes files older than 7 days and preserves recent files", async () => {
-      await fs.mkdir(Truncate.DIR, { recursive: true })
+    test("deletes files older than retention and preserves recent files", async () => {
+      await fs.mkdir(TEST_DIR, { recursive: true })
 
       // Create an old file (10 days ago)
       const oldTimestamp = Date.now() - 10 * DAY_MS
       const oldId = Identifier.create("tool", false, oldTimestamp)
-      oldFile = path.join(Truncate.DIR, oldId)
+      oldFile = path.join(TEST_DIR, `output_${oldId}`)
       await Bun.write(Bun.file(oldFile), "old content")
 
-      // Create a recent file (3 days ago)
-      const recentTimestamp = Date.now() - 3 * DAY_MS
+      // Create a recent file (3 hours ago)
+      const recentTimestamp = Date.now() - 3 * 60 * 60 * 1000
       const recentId = Identifier.create("tool", false, recentTimestamp)
-      recentFile = path.join(Truncate.DIR, recentId)
+      recentFile = path.join(TEST_DIR, `output_${recentId}`)
       await Bun.write(Bun.file(recentFile), "recent content")
 
       await Truncate.cleanup()

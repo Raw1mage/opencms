@@ -7,14 +7,16 @@ import path from "path"
 import type { AssistantMessage, Part as MessagePart } from "@opencode-ai/sdk/v2"
 import { Global } from "@/global"
 import { Installation } from "@/installation"
-import { useKeybind } from "../../context/keybind"
 import { useDirectory } from "../../context/directory"
 import { useKV } from "../../context/kv"
 import { useRoute } from "../../context/route"
 import { TodoItem } from "../../component/todo-item"
+import { useLocal } from "../../context/local"
 
 const STATUS_LABELS: Record<string, string> = {
-  idle: "Done",
+  busy: "Running",
+  working: "Working",
+  idle: "",
   error: "Error",
   retry: "Retrying",
   compacting: "Compacting",
@@ -89,6 +91,7 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
   const directory = useDirectory()
   const kv = useKV()
   const route = useRoute()
+  const local = useLocal()
 
   const monitorStatusColors = {
     busy: theme.success,
@@ -112,10 +115,42 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
     // Actually, usually [A] and [S] are redundant if there is only one active agent.
     // Let's filter out 'session' level entries if there is an 'agent' level entry for the same sessionID.
     const agentSessionIDs = new Set(raw.filter((x) => x.level === "agent").map((x) => x.sessionID))
-    return raw.filter((x) => {
+    const deduped = raw.filter((x) => {
       if (x.level === "session" && agentSessionIDs.has(x.sessionID)) return false
       return true
     })
+
+    // @event_2026-02-11_monitor_main_session_fallback:
+    // When only the main session exists (or nothing is actively running), keep one
+    // monitor row so users can still see main session status.
+    if (deduped.length === 0 && session()) {
+      const status = sync.data.session_status?.[session()!.id] ?? { type: "idle" as const }
+      return [
+        {
+          id: `session:${session()!.id}:fallback`,
+          level: session()!.parentID ? "sub-session" : "session",
+          sessionID: session()!.id,
+          title: formatIsoTitle(session()!.title || "Untitled session"),
+          parentID: session()!.parentID,
+          agent: undefined,
+          status,
+          model: undefined,
+          requests: 0,
+          tokens: {
+            input: 0,
+            output: 0,
+            reasoning: 0,
+            cache: { read: 0, write: 0 },
+          },
+          totalTokens: 0,
+          activeTool: undefined,
+          activeToolStatus: undefined,
+          updated: session()!.time.updated,
+        },
+      ]
+    }
+
+    return deduped
   })
   const activeRouteSessionID = createMemo(() => (route.data.type === "session" ? route.data.sessionID : undefined))
 
@@ -165,14 +200,21 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                     const dotColor = monitorStatusColors[statusType] ?? theme.textMuted
                     const statusLabel = STATUS_LABELS[statusType]
                     const levelLabel = LEVEL_LABELS[info.level] ?? info.level
-                    const modelLabel = info.model ? `${info.model.providerId}/${info.model.modelID}` : "No model"
+                    const currentModel = local.model.current()
+                    const fallbackModel =
+                      info.sessionID === props.sessionID && currentModel
+                        ? `${currentModel.providerId}/${currentModel.modelID}`
+                        : undefined
+                    const modelLabel = info.model
+                      ? `${info.model.providerId}/${info.model.modelID}`
+                      : (fallbackModel ?? "")
                     const title = formatIsoTitle(info.title || "Untitled session")
                     const agentSuffix = info.agent ? ` (${info.agent})` : ""
                     const isActiveSession = activeRouteSessionID() === info.sessionID
                     const metaLabel =
                       info.level === "tool"
-                        ? `${modelLabel}`
-                        : `${modelLabel} ${info.requests} reqs ${info.totalTokens.toLocaleString()} tok`
+                        ? modelLabel
+                        : `${modelLabel ? `${modelLabel} ` : ""}${info.requests} reqs ${info.totalTokens.toLocaleString()} tok`
                     const toolLabel = info.activeTool
                       ? `Tool: ${info.activeTool} (${info.activeToolStatus ?? "pending"})`
                       : null

@@ -5,11 +5,15 @@ import { Identifier } from "../id/id"
 import { PermissionNext } from "../permission/next"
 import type { Agent } from "../agent/agent"
 import { Scheduler } from "../scheduler"
+import { Storage } from "../storage/storage"
 
 export namespace Truncate {
   export const MAX_LINES = 2000
   export const MAX_BYTES = 256 * 1024
-  export const DIR = path.join(Global.Path.data, "tool-output")
+  // @event_2026-02-11_session_storage_unify:
+  // Store truncated outputs under each session folder:
+  // storage/session/<project>/<session>/output/output_tool_*
+  export const DIR = path.join(Global.Path.data, "storage", "session")
   export const GLOB = path.join(DIR, "*")
   const RETENTION_MS = 24 * 60 * 60 * 1000 // 24 hours
   const HOUR_MS = 60 * 60 * 1000
@@ -33,24 +37,24 @@ export namespace Truncate {
 
   export async function cleanup() {
     const cutoff = Identifier.timestamp(Identifier.create("tool", false, Date.now() - RETENTION_MS))
-    const glob = new Bun.Glob("**/tool_*")
+    const glob = new Bun.Glob("**/output/output_*")
     const entries = await Array.fromAsync(glob.scan({ cwd: DIR, onlyFiles: true })).catch(() => [] as string[])
     for (const entry of entries) {
       const filename = path.basename(entry)
-      if (Identifier.timestamp(filename) >= cutoff) continue
+      const identifier = filename.startsWith("output_") ? filename.slice("output_".length) : filename
+      if (Identifier.timestamp(identifier) >= cutoff) continue
       await fs.unlink(path.join(DIR, entry)).catch(() => {})
     }
 
-    // Also clean up empty session directories
-    const sessionDirs = await fs.readdir(DIR).catch(() => [] as string[])
-    for (const dir of sessionDirs) {
+    // Clean up empty output directories
+    const outputDirs = await Array.fromAsync(new Bun.Glob("**/output").scan({ cwd: DIR, onlyFiles: false })).catch(
+      () => [] as string[],
+    )
+    for (const dir of outputDirs) {
       const fullPath = path.join(DIR, dir)
-      const stats = await fs.stat(fullPath).catch(() => null)
-      if (stats?.isDirectory()) {
-        const files = await fs.readdir(fullPath).catch(() => [])
-        if (files.length === 0) {
-          await fs.rmdir(fullPath).catch(() => {})
-        }
+      const files = await fs.readdir(fullPath).catch(() => [])
+      if (files.length === 0) {
+        await fs.rmdir(fullPath).catch(() => {})
       }
     }
   }
@@ -109,9 +113,11 @@ export namespace Truncate {
     const preview = out.join("\n")
 
     const id = Identifier.ascending("tool")
-    const dir = sessionID ? path.join(DIR, sessionID) : DIR
+    const outputName = `output_${id}`
+    const sessionDir = sessionID ? await Storage.sessionDirectory(sessionID) : undefined
+    const dir = sessionDir ? path.join(sessionDir, "output") : path.join(Global.Path.data, "storage", "output")
     await fs.mkdir(dir, { recursive: true }).catch(() => {})
-    const filepath = path.join(dir, id)
+    const filepath = path.join(dir, outputName)
     await Bun.write(Bun.file(filepath), text)
 
     const hint = hasTaskTool(agent)
