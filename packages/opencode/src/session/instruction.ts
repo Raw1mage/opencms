@@ -16,6 +16,15 @@ const FILES = [
   "CONTEXT.md", // deprecated
 ]
 
+const SKIP_PROMPT_DIRS = new Set(["templates"])
+
+function shouldSkipPromptDir(root: string, dir: string) {
+  const relative = path.relative(root, dir)
+  if (!relative || relative.startsWith("..")) return false
+  const [first] = relative.split(path.sep)
+  return first ? SKIP_PROMPT_DIRS.has(first) : false
+}
+
 function globalFiles() {
   // @event_2026-02-07_install: XDG-only global instruction lookup
   const files = [path.join(Global.Path.config, "AGENTS.md")]
@@ -177,6 +186,10 @@ export namespace InstructionPrompt {
     const root = path.resolve(Instance.directory)
 
     while (current.startsWith(root) && current !== root) {
+      if (shouldSkipPromptDir(root, current)) {
+        current = path.dirname(current)
+        continue
+      }
       const found = await find(current)
 
       if (found && found !== target && !system.has(found) && !already.has(found) && !isClaimed(messageID, found)) {

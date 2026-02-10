@@ -67,4 +67,24 @@ describe("InstructionPrompt.resolve", () => {
       },
     })
   })
+
+  test("skips AGENTS.md under templates directory", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "templates", "AGENTS.md"), "# Template Instructions")
+        await Bun.write(path.join(dir, "templates", "fixtures", "data.json"), "{}")
+      },
+    })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const results = await InstructionPrompt.resolve(
+          [],
+          path.join(tmp.path, "templates", "fixtures", "data.json"),
+          "test-message-templates",
+        )
+        expect(results).toEqual([])
+      },
+    })
+  })
 })
