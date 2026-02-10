@@ -45,6 +45,8 @@ import type { WebFetchTool } from "@/tool/webfetch"
 import type { TaskTool } from "@/tool/task"
 import type { QuestionTool } from "@/tool/question"
 import type { SkillTool } from "@/tool/skill"
+import type { CodeSearchTool } from "@/tool/codesearch"
+import type { WebSearchTool } from "@/tool/websearch"
 import { useKeyboard, useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
 import { useSDK } from "@tui/context/sdk"
 import { useCommandDialog } from "@tui/component/dialog-command"
@@ -530,7 +532,7 @@ export function Session() {
     {
       title: conceal() ? "Disable code concealment" : "Enable code concealment",
       value: "session.toggle.conceal",
-      keybind: "messages_toggle_conceal" as any,
+      keybind: "messages_toggle_conceal",
       category: "Session",
       onSelect: (dialog) => {
         setConceal((prev) => !prev)
@@ -1904,16 +1906,18 @@ function List(props: ToolProps<typeof ListTool>) {
 }
 
 function WebFetch(props: ToolProps<typeof WebFetchTool>) {
+  const input = props.input as { url?: string }
+  const url = input.url
   return (
-    <InlineTool icon="%" pending="Fetching from the web..." complete={(props.input as any).url} part={props.part}>
-      WebFetch {(props.input as any).url}
+    <InlineTool icon="%" pending="Fetching from the web..." complete={url} part={props.part}>
+      WebFetch {url}
     </InlineTool>
   )
 }
 
-function CodeSearch(props: ToolProps<any>) {
-  const input = props.input as any
-  const metadata = props.metadata as any
+function CodeSearch(props: ToolProps<typeof CodeSearchTool>) {
+  const input = props.input as { query?: string }
+  const metadata = props.metadata as { results?: number }
   return (
     <InlineTool icon="◇" pending="Searching code..." complete={input.query} part={props.part}>
       Exa Code Search "{input.query}" <Show when={metadata.results}>({metadata.results} results)</Show>
@@ -1921,9 +1925,9 @@ function CodeSearch(props: ToolProps<any>) {
   )
 }
 
-function WebSearch(props: ToolProps<any>) {
-  const input = props.input as any
-  const metadata = props.metadata as any
+function WebSearch(props: ToolProps<typeof WebSearchTool>) {
+  const input = props.input as { query?: string }
+  const metadata = props.metadata as { numResults?: number }
   return (
     <InlineTool icon="◈" pending="Searching web..." complete={input.query} part={props.part}>
       Exa Web Search "{input.query}" <Show when={metadata.numResults}>({metadata.numResults} results)</Show>
@@ -1969,7 +1973,8 @@ function Task(props: ToolProps<typeof TaskTool>) {
             </text>
             <Show when={current()}>
               {(item) => {
-                const title = item().state.status === "completed" ? (item().state as any).title : ""
+                const state = item().state
+                const title = "title" in state && typeof state.title === "string" ? state.title : ""
                 return (
                   <text style={{ fg: item().state.status === "error" ? theme.error : theme.textMuted }}>
                     └ {Locale.titlecase(item().tool)} {title}

@@ -28,7 +28,7 @@ export interface DialogSelectProps<T> {
     disabled?: boolean
     label?: string
     hidden?: boolean
-    onTrigger: (option: DialogSelectOption<T>) => void
+    onTrigger: (option: DialogSelectOption<T> | undefined) => void
   }[]
   current?: T
   keybindLayout?: "inline" | "columns"
@@ -272,7 +272,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
         // Always trigger keybind - let handler deal with null selection
         // This allows keybinds like "Add" to work even with empty lists
         evt.preventDefault()
-        item.onTrigger(s as any)
+        item.onTrigger(s)
       }
     }
   })
