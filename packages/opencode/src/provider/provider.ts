@@ -192,7 +192,7 @@ export namespace Provider {
       id: model.id,
       name: model.name,
       providerId,
-      family: (model.family || "openai") as any,
+      family: model.family || "openai",
       api: {
         id: model.id,
         url: "https://api.githubcopilot.com",
@@ -1287,7 +1287,7 @@ export namespace Provider {
           id: m.id,
           name: m.name,
           providerId: "antigravity",
-          family: m.family as any,
+          family: m.family,
           api: { id: m.id, url: "https://generativelanguage.googleapis.com", npm: "@ai-sdk/google" },
           status: "active",
           capabilities: {
