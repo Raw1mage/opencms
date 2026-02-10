@@ -49,6 +49,8 @@ import { Account } from "@/account"
 import { checkAccountsQuota, type QuotaGroup } from "@/plugin/antigravity/plugin/quota"
 import { loadAccounts, saveAccounts } from "@/plugin/antigravity/plugin/storage"
 import { getModelFamily } from "@/plugin/antigravity/plugin/transform/model-resolver"
+import type { PluginClient } from "@/plugin/antigravity/plugin/types"
+import z from "zod"
 
 export type PromptProps = {
   sessionID?: string
@@ -96,6 +98,16 @@ export function Prompt(props: PromptProps) {
   const CODEX_ISSUER = "https://auth.openai.com"
   const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
   const CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
+  const CodexUsageSchema = z
+    .object({
+      rate_limit: z
+        .object({
+          primary_window: z.object({ used_percent: z.number().optional() }).optional(),
+          secondary_window: z.object({ used_percent: z.number().optional() }).optional(),
+        })
+        .optional(),
+    })
+    .passthrough()
 
   const isRateLimitMessage = (message: string) => {
     const text = message.toLowerCase()
@@ -194,7 +206,12 @@ export function Prompt(props: PromptProps) {
     try {
       const storage = await loadAccounts()
       if (!storage || storage.accounts.length === 0) return null
-      const results = await checkAccountsQuota(storage.accounts, {} as any)
+      const noopClient = {
+        auth: {
+          set: async () => true,
+        },
+      } as unknown as PluginClient
+      const results = await checkAccountsQuota(storage.accounts, noopClient)
 
       let shouldSave = false
       for (const res of results) {
@@ -248,9 +265,9 @@ export function Prompt(props: PromptProps) {
 
       const response = await fetch(CODEX_USAGE_URL, { headers })
       if (!response.ok) return null
-      const usage = (await response.json()) as any
-      const hourlyUsed = usage?.rate_limit?.primary_window?.used_percent ?? 0
-      const weeklyUsed = usage?.rate_limit?.secondary_window?.used_percent ?? 0
+      const usage = CodexUsageSchema.safeParse(await response.json())
+      const hourlyUsed = usage.success ? (usage.data.rate_limit?.primary_window?.used_percent ?? 0) : 0
+      const weeklyUsed = usage.success ? (usage.data.rate_limit?.secondary_window?.used_percent ?? 0) : 0
       const hourlyRemaining = clampPercentage(100 - hourlyUsed)
       const weeklyRemaining = clampPercentage(100 - weeklyUsed)
       return { hourlyRemaining, weeklyRemaining }

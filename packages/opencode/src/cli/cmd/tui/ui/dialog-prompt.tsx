@@ -21,6 +21,8 @@ export function DialogPrompt(props: DialogPromptProps) {
   let textarea: TextareaRenderable
   let submitBtn: any
 
+  const getTextareaValue = (val: string | { text?: string }) => (typeof val === "string" ? val : (val.text ?? ""))
+
   const [escHover, setEscHover] = createSignal(false)
   const [text, setText] = createSignal(props.value ?? "")
   let lastValidValue = props.value ?? ""
@@ -146,7 +148,7 @@ export function DialogPrompt(props: DialogPromptProps) {
             }
           }}
           onContentChange={(val) => {
-            const next = typeof val === "string" ? val : (val as any).text
+            const next = getTextareaValue(val)
             debugCheckpoint("dialog-prompt", "onContentChange", {
               rawVal: typeof val === "string" ? val : JSON.stringify(val),
               next,
