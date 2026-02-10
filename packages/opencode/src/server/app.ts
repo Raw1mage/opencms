@@ -45,7 +45,7 @@ import { Env } from "@/env"
 // Declare external CORS whitelist (set by server.ts)
 declare global {
   var __CORS_WHITELIST: string[]
-  var AI_SDK_LOG_WARNINGS: boolean
+  var AI_SDK_LOG_WARNINGS: false | ((...args: unknown[]) => unknown)
 }
 
 const log = Log.create({ service: "server" })
@@ -55,7 +55,6 @@ const log = Log.create({ service: "server" })
  * This is extracted from server.ts to fix TypeScript type inference issues with lazy().
  */
 export function createApp(app: Hono): Hono {
-  // @ts-ignore app is passed in as pre-created Hono instance
   return app
     .onError((err, c) => {
       log.error("failed", {

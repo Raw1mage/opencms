@@ -12,8 +12,16 @@ import { Plugin } from "../../plugin"
 import { Instance } from "../../project/instance"
 import type { Hooks } from "@opencode-ai/plugin"
 import { Env } from "@/env"
+import z from "zod"
 
 type PluginAuth = NonNullable<Hooks["auth"]>
+
+const WellKnownAuthCommandSchema = z.object({
+  auth: z.object({
+    command: z.array(z.string()).min(1),
+    env: z.string().min(1),
+  }),
+})
 
 /**
  * Handle plugin-based authentication flow.
@@ -258,7 +266,9 @@ export const AuthLoginCommand = cmd({
         UI.empty()
         prompts.intro("Add credential")
         if (args.url) {
-          const wellknown = await fetch(`${args.url}/.well-known/opencode`).then((x) => x.json() as any)
+          const wellknown = await fetch(`${args.url}/.well-known/opencode`).then(async (x) => {
+            return WellKnownAuthCommandSchema.parse(await x.json())
+          })
           prompts.log.info(`Running \`${wellknown.auth.command.join(" ")}\``)
           const proc = Bun.spawn({
             cmd: wellknown.auth.command,
