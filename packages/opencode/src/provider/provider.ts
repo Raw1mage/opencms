@@ -2123,11 +2123,11 @@ export namespace Provider {
           }
         }
 
-        return fetchFn(input, {
+        const requestInit: RequestInit & { timeout?: false } = {
           ...opts,
-          // @ts-ignore see here: https://github.com/oven-sh/bun/issues/16682
           timeout: false,
-        })
+        }
+        return fetchFn(input, requestInit)
       }
 
       // Special case: google-vertex-anthropic uses a subpath import
