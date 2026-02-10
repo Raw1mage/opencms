@@ -257,7 +257,9 @@ export const SessionRoutes = lazy(() =>
       ),
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
-        await Session.remove(sessionID)
+        Session.remove(sessionID).catch((err) => {
+          log.error("REMOVE_FAILED", { sessionID, error: err })
+        })
         return c.json(true)
       },
     )

@@ -327,42 +327,51 @@ export namespace Session {
     },
   )
 
-  export async function* list() {
-    for (const item of await Storage.list(["session"])) {
+  export async function* list(projectID?: string, parentID?: string) {
+    for (const item of await Storage.list(["session", projectID!, parentID!])) {
       yield Storage.read<Info>(item)
     }
   }
 
   export const children = fn(Identifier.schema("session"), async (parentID) => {
     const result = [] as Session.Info[]
-    for (const item of await Storage.list(["session"])) {
-      const session = await Storage.read<Info>(item)
-      if (session.parentID !== parentID) continue
+    for await (const session of list(undefined, parentID)) {
       result.push(session)
     }
     return result
   })
 
   export const remove = fn(Identifier.schema("session"), async (sessionID) => {
-    const project = Instance.project
     try {
       const session = await get(sessionID)
-      // Recursively delete child sessions
-      for (const child of await children(sessionID)) {
-        await remove(child.id)
-      }
-      await unshare(sessionID).catch(() => {})
-      for (const msg of await Storage.list(["message", sessionID])) {
-        for (const part of await Storage.list(["part", msg.at(-1)!])) {
-          await Storage.remove(part)
-        }
-        await Storage.remove(msg)
-      }
-      await Storage.remove(["session", sessionID])
+      if (!session) return
 
+      // 1. Publish Deleted event immediately for Optimistic UI response
       Bus.publish(Event.Deleted, {
         info: session,
       })
+
+      // 2. Perform heavy cleanup in parallel
+      const cleanup = async () => {
+        try {
+          // Recursively delete child sessions in parallel
+          const subs = await children(sessionID)
+          await Promise.all(subs.map((child) => remove(child.id)))
+
+          // Cleanup sharing and storage
+          await unshare(sessionID).catch(() => {})
+
+          // Note: Storage.remove(["session", id]) already performs recursive directory removal,
+          // so we don't need to manually list and remove messages/parts one by one.
+          await Storage.remove(["session", sessionID])
+        } catch (err) {
+          log.error(`Background cleanup failed for session ${sessionID}`, err)
+        }
+      }
+
+      // We still await the top-level logic here to ensure consistency in code flow,
+      // but the API layer will handle the actual backgrounding.
+      await cleanup()
     } catch (e) {
       log.error(e)
     }

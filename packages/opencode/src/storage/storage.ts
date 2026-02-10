@@ -299,9 +299,87 @@ export namespace Storage {
       for (const entry of finalEntries) {
         if (!entry.isDirectory() || !entry.name.startsWith("ses_")) continue
         const sessionID = entry.name
-        const info = await readJSON<{ projectID: string }>(path.join(sessionRoot, sessionID, "info.json"))
+        const info = await readJSON<{ projectID: string; parentID?: string }>(
+          path.join(sessionRoot, sessionID, "info.json"),
+        )
         if (info?.projectID) {
-          await upsertSessionIndex(dir, sessionID, info.projectID)
+          await upsertSessionIndex(dir, sessionID, info.projectID, info.parentID)
+        }
+      }
+    },
+    // @event_2026-02-11_rescue_orphaned_sessions
+    // Rescue sessions that have messages in storage/message/<sid> but no info.json in storage/session/
+    async (dir) => {
+      const sessionRoot = path.join(dir, "session")
+      const messageRoot = path.join(dir, "message")
+      const legacyMessageDirs = await fs.readdir(messageRoot).catch(() => [] as string[])
+
+      for (const sid of legacyMessageDirs) {
+        if (!sid.startsWith("ses_")) continue
+        const newSessionDir = path.join(sessionRoot, sid)
+        const infoPath = path.join(newSessionDir, "info.json")
+
+        if (await Bun.file(infoPath).exists()) continue
+
+        const oldMsgDir = path.join(messageRoot, sid)
+        const msgFiles = (await fs.readdir(oldMsgDir).catch(() => [] as string[])).filter((f) => f.endsWith(".json"))
+        if (msgFiles.length === 0) continue
+
+        log.info(`rescuing orphaned session ${sid}`)
+        await fs.mkdir(newSessionDir, { recursive: true }).catch(() => {})
+
+        let firstMsg: any = {}
+        try {
+          // Sort messages by name (timestamp based) to find the earliest
+          const sortedMsgs = msgFiles.sort()
+          firstMsg = await Bun.file(path.join(oldMsgDir, sortedMsgs[0])).json()
+        } catch (e) {
+          log.error(`failed to read first message for rescue of ${sid}`, e)
+        }
+
+        const info: any = {
+          id: sid,
+          slug: sid,
+          version: "local",
+          projectID: firstMsg.projectID || "global",
+          directory: firstMsg.path?.root || "/home/pkcs12/opencode",
+          title: "Rescued Session",
+          time: {
+            created: firstMsg.time?.created || Date.now(),
+            updated: Date.now(),
+          },
+        }
+
+        await Bun.write(infoPath, JSON.stringify(info, null, 2))
+        await upsertSessionIndex(dir, sid, info.projectID, info.parentID)
+
+        // Migrate messages to new structure: session/<sid>/messages/<mid>/info.json
+        const newMsgRoot = path.join(newSessionDir, "messages")
+        for (const msgFile of msgFiles) {
+          const mid = path.basename(msgFile, ".json")
+          const targetMsgDir = path.join(newMsgRoot, mid)
+          const targetMsgInfo = path.join(targetMsgDir, "info.json")
+
+          await fs.mkdir(targetMsgDir, { recursive: true }).catch(() => {})
+          if (!(await Bun.file(targetMsgInfo).exists())) {
+            await fs.copyFile(path.join(oldMsgDir, msgFile), targetMsgInfo).catch(() => {})
+          }
+        }
+      }
+    },
+    // @event_2026-02-11_session_index_v2
+    // Backfill parentID into session index files
+    async (dir) => {
+      const sessionRoot = path.join(dir, "session")
+      const finalEntries = await fs.readdir(sessionRoot, { withFileTypes: true }).catch(() => [] as any[])
+      for (const entry of finalEntries) {
+        if (!entry.isDirectory() || !entry.name.startsWith("ses_")) continue
+        const sessionID = entry.name
+        const info = await readJSON<{ projectID: string; parentID?: string }>(
+          path.join(sessionRoot, sessionID, "info.json"),
+        )
+        if (info?.projectID) {
+          await upsertSessionIndex(dir, sessionID, info.projectID, info.parentID)
         }
       }
     },
@@ -335,10 +413,10 @@ export namespace Storage {
     return path.join(dir, ...MESSAGE_INDEX_DIR, `${messageID}.json`)
   }
 
-  async function upsertSessionIndex(dir: string, sessionID: string, projectID: string) {
+  async function upsertSessionIndex(dir: string, sessionID: string, projectID: string, parentID?: string) {
     const target = sessionIndexPath(dir, sessionID)
     await fs.mkdir(path.dirname(target), { recursive: true }).catch(() => {})
-    await Bun.write(target, JSON.stringify({ projectID }, null, 2))
+    await Bun.write(target, JSON.stringify({ projectID, parentID }, null, 2))
   }
 
   async function upsertMessageIndex(dir: string, messageID: string, projectID: string, sessionID: string) {
@@ -348,13 +426,13 @@ export namespace Storage {
   }
 
   async function resolveSessionProjectID(dir: string, sessionID: string): Promise<string | undefined> {
-    const indexed = await readJSON<{ projectID: string }>(sessionIndexPath(dir, sessionID))
+    const indexed = await readJSON<{ projectID: string; parentID?: string }>(sessionIndexPath(dir, sessionID))
     if (indexed?.projectID) return indexed.projectID
 
     const infoPath = sessionInfoPath(dir, sessionID)
-    const info = await readJSON<{ projectID: string }>(infoPath)
+    const info = await readJSON<{ projectID: string; parentID?: string }>(infoPath)
     if (info?.projectID) {
-      await upsertSessionIndex(dir, sessionID, info.projectID)
+      await upsertSessionIndex(dir, sessionID, info.projectID, info.parentID)
       return info.projectID
     }
   }
@@ -442,6 +520,10 @@ export namespace Storage {
         await fs.rm(sessionDir, { recursive: true, force: true }).catch(() => {})
         await fs.unlink(sessionIndexPath(dir, sessionID)).catch(() => {})
 
+        // Cleanup legacy message directory if it exists
+        const legacyMsgDir = path.join(dir, "message", sessionID)
+        await fs.rm(legacyMsgDir, { recursive: true, force: true }).catch(() => {})
+
         // Best-effort cleanup of message indexes for this session
         const msgIndexDir = path.join(dir, ...MESSAGE_INDEX_DIR)
         const entries = await fs.readdir(msgIndexDir, { withFileTypes: true }).catch(() => [] as any[])
@@ -501,13 +583,14 @@ export namespace Storage {
       if (key[0] === "session" && key[1] && !key[2]) {
         const info = content as any
         if (info.projectID) {
-          await upsertSessionIndex(dir, key[1], info.projectID)
+          await upsertSessionIndex(dir, key[1], info.projectID, info.parentID)
         }
       }
 
       // Old format: ["session", projectID, sessionID] (backward compatibility)
       if (key[0] === "session" && key[1] && key[2]) {
-        await upsertSessionIndex(dir, key[2], key[1])
+        const info = content as any
+        await upsertSessionIndex(dir, key[2], key[1], info?.parentID)
       }
 
       if (key[0] === "message" && key[1] && key[2]) {
@@ -543,11 +626,13 @@ export namespace Storage {
           for (const entry of indexEntries) {
             if (!entry.isFile() || !entry.name.endsWith(".json")) continue
             const id = path.basename(entry.name, ".json")
-            if (prefix[1]) {
-              const indexed = await readJSON<{ projectID: string }>(path.join(indexRoot, entry.name))
-              if (indexed?.projectID === prefix[1]) {
-                ids.add(id)
-              }
+            if (prefix[1] || prefix[2]) {
+              const indexed = await readJSON<{ projectID: string; parentID?: string }>(
+                path.join(indexRoot, entry.name),
+              )
+              if (prefix[1] && indexed?.projectID !== prefix[1]) continue
+              if (prefix[2] && indexed?.parentID !== prefix[2]) continue
+              ids.add(id)
             } else {
               ids.add(id)
             }
@@ -561,11 +646,11 @@ export namespace Storage {
             if (!entry.isDirectory()) continue
             const info = path.join(flatRoot, entry.name, "info.json")
             if (await Bun.file(info).exists()) {
-              if (prefix[1]) {
-                const sessionInfo = await readJSON<{ projectID?: string }>(info)
-                if (sessionInfo?.projectID === prefix[1]) {
-                  ids.add(entry.name)
-                }
+              if (prefix[1] || prefix[2]) {
+                const sessionInfo = await readJSON<{ projectID?: string; parentID?: string }>(info)
+                if (prefix[1] && sessionInfo?.projectID !== prefix[1]) continue
+                if (prefix[2] && sessionInfo?.parentID !== prefix[2]) continue
+                ids.add(entry.name)
               } else {
                 ids.add(entry.name)
               }
