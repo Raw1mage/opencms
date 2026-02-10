@@ -32,6 +32,8 @@ export function DialogProviderManualAdd(props: Props) {
   let refURL: TextareaRenderable | undefined
   let refModels: TextareaRenderable | undefined
 
+  const getTextareaValue = (v: string | { text?: string }) => (typeof v === "string" ? v : (v.text ?? ""))
+
   const refs = () => [refId, refURL, refModels]
 
   const canSubmit = () => providerId().trim() && baseURL().trim() && modelIDs().trim()
@@ -71,30 +73,25 @@ export function DialogProviderManualAdd(props: Props) {
 
     setStatus("saving")
     try {
-      const modelsConfig: Record<string, any> = {}
+      const modelsConfig: Record<string, { id: string; name: string }> = {}
       for (const id of mIDs) {
         modelsConfig[id] = {
           id,
           name: id,
-          capabilities: {
-            input: { text: true },
-            output: { text: true },
-          },
         }
       }
 
-      const newConfig = {
+      const newConfig: Config.Info = {
         provider: {
           [pID]: {
             name: pID,
             api: pURL,
-            source: "custom",
             models: modelsConfig,
           },
         },
       }
 
-      await Config.updateGlobal(newConfig as any)
+      await Config.updateGlobal(newConfig)
       await sync.bootstrap()
       dialog.pop()
       props.onSelect(pID)
@@ -164,7 +161,7 @@ export function DialogProviderManualAdd(props: Props) {
             textColor={theme.text}
             cursorColor={theme.primary}
             backgroundColor={focusedField() === 0 ? theme.backgroundElement : undefined}
-            onContentChange={(v) => setProviderID(typeof v === "string" ? v : (v as any).text || "")}
+            onContentChange={(v) => setProviderID(getTextareaValue(v))}
             onKeyDown={handleEnter(0)}
           />
         </box>
@@ -178,7 +175,7 @@ export function DialogProviderManualAdd(props: Props) {
             textColor={theme.text}
             cursorColor={theme.primary}
             backgroundColor={focusedField() === 1 ? theme.backgroundElement : undefined}
-            onContentChange={(v) => setBaseURL(typeof v === "string" ? v : (v as any).text || "")}
+            onContentChange={(v) => setBaseURL(getTextareaValue(v))}
             onKeyDown={handleEnter(1)}
           />
         </box>
@@ -192,7 +189,7 @@ export function DialogProviderManualAdd(props: Props) {
             textColor={theme.text}
             cursorColor={theme.primary}
             backgroundColor={focusedField() === 2 ? theme.backgroundElement : undefined}
-            onContentChange={(v) => setModelIDs(typeof v === "string" ? v : (v as any).text || "")}
+            onContentChange={(v) => setModelIDs(getTextareaValue(v))}
             onKeyDown={handleEnter(2)}
           />
         </box>
