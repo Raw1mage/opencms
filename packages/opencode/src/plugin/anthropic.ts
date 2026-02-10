@@ -1,4 +1,5 @@
 import type { Hooks, PluginInput } from "@opencode-ai/plugin"
+import { createHash } from "node:crypto"
 import { Log } from "../util/log"
 import { generatePKCE } from "@openauthjs/openauth/pkce"
 
@@ -26,9 +27,31 @@ function calculateAttributionHash(content: string): string {
   const chars = indices.map((idx) => content[idx] || "0").join("")
   const input = `${ATTRIBUTION_SALT}${chars}${VERSION}`
 
-  // @ts-ignore
-  const hash = new Bun.CryptoHasher("sha256").update(input).digest("hex")
+  const hash = createHash("sha256").update(input).digest("hex")
   return hash.slice(0, 3)
+}
+
+type ClaudeOAuthAuth = {
+  type: "oauth" | "subscription"
+  refresh: string
+  access?: string
+  expires?: number
+  accountId?: string
+  orgID?: string
+  email?: string
+}
+
+function isClaudeOAuthAuth(value: unknown): value is ClaudeOAuthAuth {
+  if (!value || typeof value !== "object") return false
+  const type = (value as { type?: unknown }).type
+  return type === "oauth" || type === "subscription"
+}
+
+function toUrlString(input: RequestInfo | URL): string {
+  if (typeof input === "string") return input
+  if (input instanceof URL) return input.toString()
+  if (input instanceof Request) return input.url
+  return String(input)
 }
 
 function getBillingHeader(content: string): string {
@@ -83,8 +106,9 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
     auth: {
       provider: "claude-cli", // Primary registration
       async loader(getAuth, provider) {
-        const auth = (await getAuth()) as any
-        if (!auth || (auth.type !== "oauth" && auth.type !== "subscription")) return {}
+        const loadedAuth = await getAuth()
+        if (!isClaudeOAuthAuth(loadedAuth)) return {}
+        const auth = loadedAuth
 
         // Reset costs for subscription
         for (const model of Object.values(provider.models)) {
@@ -104,7 +128,7 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
           fetch: async (reqInput: RequestInfo | URL, init?: RequestInit) => {
             // DEBUG: Log INCOMING request from SDK (before any modifications)
             const sdkHeaders = new Headers(init?.headers)
-            const sdkUrl = typeof reqInput === "string" ? reqInput : (reqInput as any).url || String(reqInput)
+            const sdkUrl = toUrlString(reqInput)
             log.debug("SDK INCOMING", {
               url: sdkUrl,
               method: init?.method,
@@ -115,8 +139,9 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
               allHeaders: Array.from(sdkHeaders.keys()),
             })
 
-            const auth = (await getAuth()) as any
-            if (!auth) return fetch(reqInput, init)
+            const latestAuth = await getAuth()
+            if (!isClaudeOAuthAuth(latestAuth)) return fetch(reqInput, init)
+            const auth = latestAuth
 
             // 1. Token Refresh (with mutex to prevent concurrent refresh races)
             // FIX: Use pending-promise pattern — only the first caller performs the refresh,
@@ -149,7 +174,6 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                             expires: Date.now() + json.expires_in * 1000,
                             orgID: auth.orgID,
                             email: auth.email,
-                            name: auth.email,
                           } as any,
                         })
                         auth.access = json.access_token
@@ -218,7 +242,7 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
             let requestInput = reqInput
             let requestUrl: URL | null = null
             try {
-              const urlStr = typeof reqInput === "string" ? reqInput : (reqInput as any).url || reqInput.toString()
+              const urlStr = toUrlString(reqInput)
               // Handle relative URLs by prepending Anthropic's base URL
               if (urlStr.startsWith("/")) {
                 const normalizedPath = urlStr.startsWith("/v1/") ? urlStr : `/v1${urlStr}`
@@ -489,9 +513,8 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                     orgID: profile.organizationUuid || profile.organization_uuid,
                     email,
                     accountId: email,
-                    name: email,
                     provider: "claude-cli",
-                  } as any
+                  }
                 } catch (e) {
                   return credentials
                 }

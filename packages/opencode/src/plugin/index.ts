@@ -25,19 +25,21 @@ export namespace Plugin {
   const INTERNAL_PLUGINS: { name: string; plugin: PluginInstance }[] = [
     { name: "codex", plugin: CodexAuthPlugin },
     { name: "copilot", plugin: CopilotAuthPlugin },
-    { name: "gitlab", plugin: GitlabAuthPlugin as any },
-    { name: "antigravity", plugin: AntigravityOAuthPlugin as any },
-    { name: "antigravity-legacy", plugin: AntigravityLegacyOAuthPlugin as any },
-    { name: "gemini-cli", plugin: GeminiCLIOAuthPlugin as any },
-    { name: "claude-cli", plugin: AnthropicAuthPlugin as any },
+    { name: "gitlab", plugin: GitlabAuthPlugin },
+    { name: "antigravity", plugin: AntigravityOAuthPlugin as PluginInstance },
+    { name: "antigravity-legacy", plugin: AntigravityLegacyOAuthPlugin as PluginInstance },
+    { name: "gemini-cli", plugin: GeminiCLIOAuthPlugin as PluginInstance },
+    { name: "claude-cli", plugin: AnthropicAuthPlugin },
   ]
 
   // Cached state
   const state = Instance.state(async (): Promise<{ hooks: Hooks[]; input: PluginInput }> => {
     const client = createOpencodeClient({
       baseUrl: "http://localhost:1080",
-      // @ts-ignore - fetch type incompatibility
-      fetch: async (...args) => Server.App().fetch(...args),
+      fetch: ((input: RequestInfo | URL, init?: RequestInit) => {
+        const request = input instanceof Request ? input : new Request(input, init)
+        return Server.App().fetch(request)
+      }) as typeof fetch,
     })
     const config = await Config.get()
     const hooks: Hooks[] = []
@@ -121,10 +123,7 @@ export namespace Plugin {
     for (const hook of await state().then((x) => x.hooks)) {
       const fn = hook[name]
       if (!fn) continue
-      // @ts-expect-error if you feel adventurous, please fix the typing, make sure to bump the try-counter if you
-      // give up.
-      // try-counter: 2
-      await fn(input, output)
+      await (fn as (input: Input, output: Output) => Promise<void>)(input, output)
     }
     return output
   }
@@ -136,10 +135,12 @@ export namespace Plugin {
   export async function discoverModels() {
     const hooks = await state().then((x) => x.hooks)
     const results: any[] = []
+    type HookWithModels = Hooks & { models?: () => Promise<unknown> }
     for (const hook of hooks) {
-      if ((hook as any).models) {
+      const modelHook = hook as HookWithModels
+      if (modelHook.models) {
         try {
-          const models = await (hook as any).models()
+          const models = await modelHook.models()
           if (Array.isArray(models)) {
             results.push(...models)
           }
@@ -164,8 +165,9 @@ export namespace Plugin {
     const hooks = await state().then((x) => x.hooks)
     const config = await Config.get()
     for (const hook of hooks) {
-      // @ts-expect-error this is because we haven't moved plugin to sdk v2
-      await hook.config?.(config)
+      if (hook.config) {
+        await (hook.config as (input: typeof config) => Promise<void>)(config)
+      }
     }
     Bus.subscribeAll(async (input) => {
       const hooks = await state().then((x) => x.hooks)
