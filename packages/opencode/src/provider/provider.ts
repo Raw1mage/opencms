@@ -1440,8 +1440,7 @@ export namespace Provider {
           source: "api",
           key: provider.key,
         })
-        // @ts-ignore
-      } else if (provider.type === "oauth" || provider.type === "subscription") {
+      } else if (provider.type === "oauth" || provider.type === "wellknown") {
         mergeProvider(providerId, {
           source: "custom",
         })
