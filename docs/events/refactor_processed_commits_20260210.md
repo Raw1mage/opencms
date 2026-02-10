@@ -62,6 +62,23 @@
 | `d52ee41b3`     | skipped | `nix/hashes.json`，非 cms 核心執行路徑          |
 | `371e106fa`     | skipped | cleanup 與後續 `19809e768` 同區域，已由後者覆蓋 |
 
+## 已處理（round2: origin/dev delta）
+
+| Upstream Commit | Status     | Local Commit | Note                                               |
+| --------------- | ---------- | ------------ | -------------------------------------------------- |
+| `63cd76341`     | skipped    | -            | Revert 版本字樣；cms 保留 TUI 版本可觀測性         |
+| `32394b699`     | skipped    | -            | Revert ESC hover；cms 保留既有互動樣式             |
+| `12262862c`     | skipped    | -            | Revert connected providers；cms 多帳號情境保留提示 |
+| `31f893f8c`     | integrated | `17fdf9329`  | 手動移植語義到 `scripts/beta.ts`（PR number 排序） |
+| `439e7ec1f`     | skipped    | -            | `.github/VOUCHED.td` 治理檔，非 runtime            |
+| `20cf3fc67`     | skipped    | -            | `.github/workflows` CI 調整，非 cms runtime        |
+| `705200e19`     | skipped    | -            | `packages/web` docs generated                      |
+| `85fa8abd5`     | skipped    | -            | `packages/web` docs translations                   |
+| `3118cab2d`     | skipped    | -            | vouch/trust 管理流程，非 cms runtime               |
+| `371e106fa`     | skipped    | -            | app cleanup 已被已移植修復覆蓋                     |
+| `389afef33`     | skipped    | -            | `packages/web` docs generated                      |
+| `274bb948e`     | skipped    | -            | locale markdown docs 修正                          |
+
 ## 下次比對建議流程
 
 1. 先讀本檔，建立忽略清單（`processed + skipped`）。
