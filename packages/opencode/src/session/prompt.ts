@@ -1814,8 +1814,8 @@ NOTE: At any point in time through this workflow you should feel free to ask the
       },
       zsh: {
         args: [
-          "-c",
           "-l",
+          "-c",
           `
             [[ -f ~/.zshenv ]] && source ~/.zshenv >/dev/null 2>&1 || true
             [[ -f "\${ZDOTDIR:-$HOME}/.zshrc" ]] && source "\${ZDOTDIR:-$HOME}/.zshrc" >/dev/null 2>&1 || true
@@ -1825,8 +1825,8 @@ NOTE: At any point in time through this workflow you should feel free to ask the
       },
       bash: {
         args: [
-          "-c",
           "-l",
+          "-c",
           `
             shopt -s expand_aliases
             [[ -f ~/.bashrc ]] && source ~/.bashrc >/dev/null 2>&1 || true
