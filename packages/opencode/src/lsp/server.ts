@@ -11,6 +11,7 @@ import { Instance } from "../project/instance"
 import { Flag } from "../flag/flag"
 import { Archive } from "../util/archive"
 import { Env } from "@/env"
+import z from "zod"
 
 export namespace LSPServer {
   const log = Log.create({ service: "lsp.server" })
@@ -19,6 +20,15 @@ export namespace LSPServer {
       .stat(p)
       .then(() => true)
       .catch(() => false)
+
+  const GitHubReleaseSchema = z.object({
+    assets: z.array(
+      z.object({
+        name: z.string(),
+        browser_download_url: z.string().url(),
+      }),
+    ),
+  })
 
   export interface Handle {
     process: ChildProcessWithoutNullStreams
@@ -646,7 +656,11 @@ export namespace LSPServer {
           return
         }
 
-        const release = (await releaseResponse.json()) as any
+        const release = GitHubReleaseSchema.safeParse(await releaseResponse.json())
+        if (!release.success) {
+          log.error("Invalid zls release payload from GitHub")
+          return
+        }
 
         const platform = process.platform
         const arch = process.arch
@@ -681,7 +695,7 @@ export namespace LSPServer {
           return
         }
 
-        const asset = release.assets.find((a: any) => a.name === assetName)
+        const asset = release.data.assets.find((a) => a.name === assetName)
         if (!asset) {
           log.error(`Could not find asset ${assetName} in latest zls release`)
           return

@@ -1,5 +1,6 @@
 import { Account } from "./index"
 import { Log } from "../util/log"
+import z from "zod"
 
 const log = Log.create({ service: "openai-quota" })
 
@@ -29,6 +30,17 @@ type CodexTokenResponse = {
   refresh_token?: string
   expires_in?: number
 }
+
+const CodexUsageSchema = z
+  .object({
+    rate_limit: z
+      .object({
+        primary_window: z.object({ used_percent: z.number().optional() }).optional(),
+        secondary_window: z.object({ used_percent: z.number().optional() }).optional(),
+      })
+      .optional(),
+  })
+  .passthrough()
 
 type CodexIdTokenClaims = {
   chatgpt_account_id?: string
@@ -146,9 +158,9 @@ export async function getOpenAIQuotas(): Promise<Record<string, OpenAIQuota | nu
           continue
         }
 
-        const usage = (await response.json()) as any
-        const hourlyUsed = usage?.rate_limit?.primary_window?.used_percent ?? 0
-        const weeklyUsed = usage?.rate_limit?.secondary_window?.used_percent ?? 0
+        const usage = CodexUsageSchema.safeParse(await response.json())
+        const hourlyUsed = usage.success ? (usage.data.rate_limit?.primary_window?.used_percent ?? 0) : 0
+        const weeklyUsed = usage.success ? (usage.data.rate_limit?.secondary_window?.used_percent ?? 0) : 0
         const hourlyRemaining = clampPercentage(100 - hourlyUsed)
         const weeklyRemaining = clampPercentage(100 - weeklyUsed)
 

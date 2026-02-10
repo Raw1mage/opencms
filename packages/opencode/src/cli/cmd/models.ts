@@ -7,7 +7,7 @@ import { UI } from "../ui"
 import { EOL } from "os"
 import { Account } from "../../account"
 import { modelRegistry } from "../../plugin/antigravity/plugin/model-registry"
-import { AccountManager } from "../../plugin/antigravity/plugin/accounts" // Import explicitly
+import { AccountManager, type ManagedAccount } from "../../plugin/antigravity/plugin/accounts" // Import explicitly
 
 // Define specific models for Antigravity as fallback
 const ANTIGRAVITY_MODELS = [
@@ -112,9 +112,9 @@ export const ModelsCommand = cmd({
         if (googleFamily && googleFamily.accounts) {
           const accounts = Object.values(googleFamily.accounts)
           // Find first account with apiKey
-          const acc = accounts.find((a: any) => a.apiKey)
-          if (acc && (acc as any).apiKey) {
-            const apiKey = (acc as any).apiKey
+          const acc = accounts.find((a): a is Account.ApiAccount => a.type === "api")
+          if (acc) {
+            const apiKey = acc.apiKey
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`)
             if (response.ok) {
               const data = await response.json()
@@ -250,7 +250,7 @@ export const ModelsCommand = cmd({
           const accountsArr = Object.entries(familyData.accounts)
 
           if (accountsArr.length === 0) continue
-          
+
           // Apply alias for display
           const displayFamilyName = Account.getProviderLabel(familyName)
 
@@ -261,7 +261,7 @@ export const ModelsCommand = cmd({
             const activeMark = isActive ? UI.Style.TEXT_SUCCESS + "●" + UI.Style.TEXT_NORMAL : "○"
 
             // 1. Find matched account FIRST to get metadata
-            let matchedAcc: any = undefined
+            let matchedAcc: ManagedAccount | undefined = undefined
             let displayNameOverride: string | null = null
 
             if (familyName === "antigravity" && agSnapshot.length > 0) {
@@ -270,17 +270,17 @@ export const ModelsCommand = cmd({
               const match = id.match(/antigravity-subscription-(\d+)/)
               if (match) {
                 const index = parseInt(match[1]) - 1
-                matchedAcc = agSnapshot.find((a: any) => a.index === index)
+                matchedAcc = agSnapshot.find((a) => a.index === index)
               } else {
                 // Fallback: try direct index match if ID happens to be just number
-                matchedAcc = agSnapshot.find((a: any) => String(a.index) === id)
+                matchedAcc = agSnapshot.find((a) => String(a.index) === id)
               }
 
               if (matchedAcc && matchedAcc.email) {
                 displayNameOverride = matchedAcc.email
               }
-            } else if (agSnapshot.length > 0 && "email" in info && (info as any).email) {
-              matchedAcc = agSnapshot.find((a: any) => a.email === (info as any).email)
+            } else if (agSnapshot.length > 0 && "email" in info && typeof info.email === "string") {
+              matchedAcc = agSnapshot.find((a) => a.email === info.email)
             }
 
             // 2. Determine Display Name
