@@ -123,8 +123,8 @@ export namespace Provider {
         headers["x-initiator"] = "user"
       } else {
         // Generic OpenAI-compatible endpoint
-        url = baseURL ? `${baseURL}/models` : (null as any)
-        if (!url) return null
+        if (!baseURL) return null
+        url = `${baseURL}/models`
       }
 
       log.info("Fetching models from provider", { providerId, url })

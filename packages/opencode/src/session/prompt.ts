@@ -50,7 +50,6 @@ import { Shell } from "@/shell/shell"
 import { Truncate } from "@/tool/truncation"
 import { Env } from "@/env"
 
-// @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
 
 import { buildFallbackCandidates, type ModelVector } from "../account/rotation3d"

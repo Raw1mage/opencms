@@ -45,6 +45,7 @@ import { Env } from "@/env"
 // Declare external CORS whitelist (set by server.ts)
 declare global {
   var __CORS_WHITELIST: string[]
+  var AI_SDK_LOG_WARNINGS: boolean
 }
 
 const log = Log.create({ service: "server" })
