@@ -41,6 +41,7 @@ import { createTogetherAI } from "@ai-sdk/togetherai"
 import { createPerplexity } from "@ai-sdk/perplexity"
 import { createVercel } from "@ai-sdk/vercel"
 import { createGitLab } from "@gitlab/gitlab-ai-provider"
+import type { Auth as SDKAuth } from "@opencode-ai/sdk"
 import { ProviderTransform } from "./transform"
 
 export namespace Provider {
@@ -1657,6 +1658,14 @@ export namespace Provider {
       const family = plugin.auth.provider
       if (disabled.has(family)) continue
 
+      const loadAuth = async (providerId: string): Promise<SDKAuth> => {
+        const auth = await Auth.get(providerId)
+        if (!auth) {
+          throw new Error(`Auth not found for provider: ${providerId}`)
+        }
+        return auth
+      }
+
       // Check if auth exists at family level OR at any account level
       // FIX: Auth may be stored under account ID (e.g., "claude-cli-subscription-xxx")
       // rather than base family ID (e.g., "claude-cli")
@@ -1692,7 +1701,7 @@ export namespace Provider {
       if (familyAuth) {
         if (providers[family]) {
           log.info("loading plugin for family", { family })
-          const options = await plugin.auth.loader(() => Auth.get(family) as any, providers[family])
+          const options = await plugin.auth.loader(() => loadAuth(family), providers[family])
           if (options) {
             providers[family].options = mergeDeep(providers[family].options, options) as Info["options"]
           }
@@ -1709,7 +1718,7 @@ export namespace Provider {
         const accountLoaderPromises = Object.keys(familyData.accounts).map(async (accountId) => {
           if (!providers[accountId] || !plugin.auth?.loader) return
 
-          const accountOptions = await plugin.auth.loader(() => Auth.get(accountId) as any, providers[accountId])
+          const accountOptions = await plugin.auth.loader(() => loadAuth(accountId), providers[accountId])
           if (accountOptions) {
             providers[accountId].options = mergeDeep(providers[accountId].options, accountOptions) as Info["options"]
           }
@@ -1739,7 +1748,7 @@ export namespace Provider {
       if (family === "antigravity" || family === "google-api") {
         const legacyLoaderPromises = Object.keys(antigravityAccounts).map(async (accountID) => {
           if (providers[accountID] && plugin.auth?.loader) {
-            const accountOptions = await plugin.auth.loader(() => Auth.get(accountID) as any, providers[accountID])
+            const accountOptions = await plugin.auth.loader(() => loadAuth(accountID), providers[accountID])
             if (accountOptions) {
               providers[accountID].options = mergeDeep(providers[accountID].options, accountOptions) as Info["options"]
             }
@@ -1755,7 +1764,7 @@ export namespace Provider {
           const enterpriseAuth = await Auth.get(enterpriseProviderID)
           if (enterpriseAuth) {
             const enterpriseOptions = await plugin.auth.loader(
-              () => Auth.get(enterpriseProviderID) as any,
+              () => loadAuth(enterpriseProviderID),
               providers[enterpriseProviderID],
             )
             if (enterpriseOptions) {
