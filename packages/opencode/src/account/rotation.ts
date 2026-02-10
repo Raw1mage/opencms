@@ -348,6 +348,20 @@ export type RateLimitReason =
   | "TOKEN_REFRESH_FAILED"
   | "UNKNOWN"
 
+type ErrorWithMetadata = {
+  status?: number
+  statusCode?: number
+  code?: number | string
+  message?: string
+  error?: { type?: string }
+  headers?: Record<string, string | number | undefined>
+  retryAfter?: number | string
+}
+
+function asErrorWithMetadata(error: unknown): ErrorWithMetadata | undefined {
+  return error && typeof error === "object" ? (error as ErrorWithMetadata) : undefined
+}
+
 const QUOTA_EXHAUSTED_BACKOFFS = [600_000, 3_600_000, 14_400_000, 86_400_000] as const
 const RATE_LIMIT_EXCEEDED_BACKOFF = 3_600_000 // 1 hour (was 60s)
 const MODEL_CAPACITY_EXHAUSTED_BASE_BACKOFF = 45_000
@@ -837,10 +851,11 @@ export function initGlobalTrackers(healthConfig?: Partial<HealthScoreConfig>): v
  * - Server-side errors (500, 503) which are handled differently
  */
 export function isRateLimitError(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false
+  const errorObj = asErrorWithMetadata(error)
+  if (!errorObj) return false
 
   // Check for explicit 429 status code
-  const status = (error as any).status ?? (error as any).statusCode ?? (error as any).code
+  const status = errorObj.status ?? errorObj.statusCode ?? errorObj.code
 
   // Only treat as rate limit if we have an EXPLICIT 429
   // Do not assume rate limit for errors without a status
@@ -850,7 +865,7 @@ export function isRateLimitError(error: unknown): boolean {
   }
 
   // Check for explicit rate limit message patterns (strict matching)
-  const message = (error as any).message ?? ""
+  const message = errorObj.message ?? ""
   if (typeof message === "string" && message.length > 0) {
     const lower = message.toLowerCase()
 
@@ -881,12 +896,13 @@ export function isRateLimitError(error: unknown): boolean {
  * Utility to check if an error is an authentication error
  */
 export function isAuthError(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false
+  const errorObj = asErrorWithMetadata(error)
+  if (!errorObj) return false
 
-  const status = (error as any).status ?? (error as any).statusCode ?? (error as any).code
+  const status = errorObj.status ?? errorObj.statusCode ?? errorObj.code
   if (status === 401 || status === 403) return true
 
-  const message = (error as any).message ?? ""
+  const message = errorObj.message ?? ""
   if (typeof message === "string" && message.length > 0) {
     const lower = message.toLowerCase()
 
@@ -913,10 +929,11 @@ export function extractRateLimitDetails(error: unknown): {
   reason: RateLimitReason
   retryAfterMs?: number
 } {
-  const errorObj = error as any
+  const errorObj = asErrorWithMetadata(error)
   const status = errorObj?.status ?? errorObj?.statusCode
   const message = errorObj?.message ?? ""
-  const reasonHint = errorObj?.error?.type ?? errorObj?.code
+  const reasonHintValue = errorObj?.error?.type ?? errorObj?.code
+  const reasonHint = typeof reasonHintValue === "string" ? reasonHintValue : undefined
 
   const reason = parseRateLimitReason(reasonHint, message, status)
 
@@ -1176,12 +1193,13 @@ const REGISTRY_KEY = Symbol.for("opencode.modelHealthRegistry")
  * Uses Symbol.for to ensure singleton across module boundaries.
  */
 export function getModelHealthRegistry(): ModelHealthRegistry {
-  const g = globalThis as any
+  const g = globalThis as typeof globalThis & {
+    [REGISTRY_KEY]?: ModelHealthRegistry
+  }
   if (!g[REGISTRY_KEY]) {
     g[REGISTRY_KEY] = new ModelHealthRegistry()
     debugCheckpoint("health", "registry.create", {
       message: "Created new ModelHealthRegistry singleton (globalThis)",
-      instanceId: (g[REGISTRY_KEY] as any).instanceId,
     })
   }
   return g[REGISTRY_KEY]

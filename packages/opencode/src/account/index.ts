@@ -546,12 +546,13 @@ export namespace Account {
     const { JWT } = require("../util/jwt") // Lazy import to avoid cycle if any
 
     // 1. Try JWT Decoding (OpenAI / Google OAuth)
-    let email = info.type === "subscription" && info.accessToken ? JWT.getEmail(info.accessToken) : (info as any).email
+    let email =
+      info.type === "subscription" ? (info.accessToken ? JWT.getEmail(info.accessToken) : info.email) : undefined
     if (!email && info.type === "subscription" && info.refreshToken) email = JWT.getEmail(info.refreshToken)
 
     // 2. Check accountId and name fields for email patterns
     if (!email || email === provider) {
-      if ((info as any).accountId && (info as any).accountId.includes("@")) email = (info as any).accountId
+      if (info.type === "subscription" && info.accountId && info.accountId.includes("@")) email = info.accountId
       else if (info.name && info.name.includes("@")) email = info.name
     }
 
@@ -691,8 +692,9 @@ export namespace Account {
           const provider = parseProviderFromLegacyId(providerId)
           if (!provider || !PROVIDERS.includes(provider as Provider)) continue
 
-          const authInfo = auth as any
-          if (authInfo.type === "api") {
+          if (!auth || typeof auth !== "object") continue
+          const authInfo = auth as Record<string, unknown>
+          if (authInfo.type === "api" && typeof authInfo.key === "string") {
             // Migrate all API keys
             if (!storage.families[provider]) {
               storage.families[provider] = { accounts: {} }
@@ -708,7 +710,7 @@ export namespace Account {
               storage.families[provider].activeAccount = accountId
             }
             hasMigrated = true
-          } else if (authInfo.type === "oauth") {
+          } else if (authInfo.type === "oauth" && typeof authInfo.refresh === "string") {
             // Only migrate OAuth for providers without separate multi-account files
             // Google and OpenAI have their own account files, Anthropic doesn't
             if (provider === "google" || provider === "google-api" || provider === "openai") {
@@ -729,16 +731,18 @@ export namespace Account {
             const accountId = generateId(
               provider,
               "subscription",
-              authInfo.accountId || providerId.replace(`${provider}-`, "") || "default",
+              (typeof authInfo.accountId === "string" ? authInfo.accountId : undefined) ||
+                providerId.replace(`${provider}-`, "") ||
+                "default",
             )
             storage.families[provider].accounts[accountId] = {
               type: "subscription",
-              name: authInfo.accountId || providerId,
-              email: authInfo.accountId,
+              name: (typeof authInfo.accountId === "string" ? authInfo.accountId : undefined) || providerId,
+              email: typeof authInfo.accountId === "string" ? authInfo.accountId : undefined,
               refreshToken: authInfo.refresh,
-              accessToken: authInfo.access,
-              expiresAt: authInfo.expires,
-              accountId: authInfo.accountId,
+              accessToken: typeof authInfo.access === "string" ? authInfo.access : undefined,
+              expiresAt: typeof authInfo.expires === "number" ? authInfo.expires : undefined,
+              accountId: typeof authInfo.accountId === "string" ? authInfo.accountId : undefined,
               addedAt: Date.now(),
             }
             if (!storage.families[provider].activeAccount) {
@@ -983,16 +987,15 @@ export namespace Account {
     // Build candidate list
     const candidates: AccountCandidate[] = []
     for (const [id, info] of Object.entries(providerData.accounts)) {
-      const lastUsed = info.type === "subscription" ? ((info as any).lastUsed ?? 0) : 0
+      const infoWithUsage = info as Info & { lastUsed?: number }
+      const lastUsed = infoWithUsage.type === "subscription" ? (infoWithUsage.lastUsed ?? 0) : 0
       candidates.push({
         id,
         lastUsed,
         healthScore: healthTracker.getScore(id),
         isRateLimited: rateLimitTracker.isRateLimited(id, provider, model),
         isCoolingDown:
-          info.type === "subscription" && (info as any).coolingDownUntil
-            ? Date.now() < (info as any).coolingDownUntil
-            : false,
+          info.type === "subscription" && info.coolingDownUntil ? Date.now() < info.coolingDownUntil : false,
       })
     }
 
