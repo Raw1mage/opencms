@@ -264,6 +264,8 @@ export namespace Storage {
       .catch(() => undefined)
   }
 
+  // @event_2026-02-11_remove_projectid_layer
+  // Phase 1: Keep writing to old paths, prepare infrastructure for new flat paths
   function sessionInfoPath(dir: string, projectID: string, sessionID: string) {
     return path.join(dir, "session", projectID, sessionID, "info.json")
   }
@@ -300,17 +302,19 @@ export namespace Storage {
     const indexed = await readJSON<{ projectID: string }>(sessionIndexPath(dir, sessionID))
     if (indexed?.projectID) return indexed.projectID
 
-    const matchNew = await Array.fromAsync(
+    // Scan nested structure: session/<projectID>/<sessionID>/info.json
+    const matchNested = await Array.fromAsync(
       new Bun.Glob(`session/*/${sessionID}/info.json`).scan({ cwd: dir, onlyFiles: true }),
     )
-    if (matchNew[0]) {
-      const projectID = matchNew[0].split(path.sep)[1]
+    if (matchNested[0]) {
+      const projectID = matchNested[0].split(path.sep)[1]
       if (projectID) {
         await upsertSessionIndex(dir, sessionID, projectID)
         return projectID
       }
     }
 
+    // Scan old flat files: session/<projectID>/<sessionID>.json
     const matchOld = await Array.fromAsync(
       new Bun.Glob(`session/*/${sessionID}.json`).scan({ cwd: dir, onlyFiles: true }),
     )
@@ -330,11 +334,12 @@ export namespace Storage {
     const indexed = await readJSON<{ projectID: string; sessionID: string }>(messageIndexPath(dir, messageID))
     if (indexed?.projectID && indexed?.sessionID) return indexed
 
-    const matchNew = await Array.fromAsync(
+    // Scan nested structure: session/<projectID>/<sessionID>/messages/<messageID>/info.json
+    const matchNested = await Array.fromAsync(
       new Bun.Glob(`session/*/*/messages/${messageID}/info.json`).scan({ cwd: dir, onlyFiles: true }),
     )
-    if (matchNew[0]) {
-      const parts = matchNew[0].split(path.sep)
+    if (matchNested[0]) {
+      const parts = matchNested[0].split(path.sep)
       const projectID = parts[1]
       const sessionID = parts[2]
       if (projectID && sessionID) {
@@ -343,6 +348,7 @@ export namespace Storage {
       }
     }
 
+    // Legacy path: message/*/<messageID>.json
     const matchOld = await Array.fromAsync(
       new Bun.Glob(`message/*/${messageID}.json`).scan({ cwd: dir, onlyFiles: true }),
     )
@@ -359,9 +365,16 @@ export namespace Storage {
   async function resolvePath(dir: string, key: string[]): Promise<string> {
     const [domain, a, b] = key
     if (domain === "session" && a && b) {
-      const nextPath = sessionInfoPath(dir, a, b)
-      if (await Bun.file(nextPath).exists()) return nextPath
-      return path.join(dir, "session", a, `${b}.json`)
+      // Current callers pass: ["session", projectID, sessionID]
+      // Check old paths in order of priority
+      const oldNestedPath = path.join(dir, "session", a, b, "info.json")
+      if (await Bun.file(oldNestedPath).exists()) return oldNestedPath
+
+      const oldFlatPath = path.join(dir, "session", a, `${b}.json`)
+      if (await Bun.file(oldFlatPath).exists()) return oldFlatPath
+
+      // Default to nested path for writes (current standard)
+      return oldNestedPath
     }
 
     if (domain === "message" && a && b) {
@@ -391,7 +404,12 @@ export namespace Storage {
     const dir = await state().then((x) => x.dir)
     const projectID = await resolveSessionProjectID(dir, sessionID)
     if (!projectID) return
-    return path.join(dir, "session", projectID, sessionID)
+
+    // Check current standard path
+    const standardPath = path.join(dir, "session", projectID, sessionID)
+    if (await Bun.file(path.join(standardPath, "info.json")).exists()) {
+      return standardPath
+    }
   }
 
   const state = lazy(async () => {
@@ -417,9 +435,10 @@ export namespace Storage {
     return withErrorHandling(async () => {
       if (key[0] === "session" && key[1] && key[2]) {
         // Remove whole session directory (metadata, messages, parts, outputs) as one unit.
+        const sessionID = key[2]
         const sessionDir = path.dirname(target)
         await fs.rm(sessionDir, { recursive: true, force: true }).catch(() => {})
-        await fs.unlink(sessionIndexPath(dir, key[2])).catch(() => {})
+        await fs.unlink(sessionIndexPath(dir, sessionID)).catch(() => {})
 
         // Best-effort cleanup of message indexes for this session
         const msgIndexDir = path.join(dir, ...MESSAGE_INDEX_DIR)
@@ -430,7 +449,7 @@ export namespace Storage {
             .map(async (entry) => {
               const p = path.join(msgIndexDir, entry.name)
               const index = await readJSON<{ sessionID?: string }>(p)
-              if (index?.sessionID === key[2]) await fs.unlink(p).catch(() => {})
+              if (index?.sessionID === sessionID) await fs.unlink(p).catch(() => {})
             }),
         )
         return
@@ -503,13 +522,15 @@ export namespace Storage {
     const dir = await state().then((x) => x.dir)
     try {
       if (prefix[0] === "session" && prefix[1]) {
-        const root = path.join(dir, "session", prefix[1])
-        const entries = await fs.readdir(root, { withFileTypes: true }).catch(() => [] as any[])
+        const projectID = prefix[1]
         const ids = new Set<string>()
 
-        for (const entry of entries) {
+        // Scan standard nested structure: session/<projectID>/*
+        const nestedRoot = path.join(dir, "session", projectID)
+        const nestedEntries = await fs.readdir(nestedRoot, { withFileTypes: true }).catch(() => [] as any[])
+        for (const entry of nestedEntries) {
           if (entry.isDirectory()) {
-            const info = path.join(root, entry.name, "info.json")
+            const info = path.join(nestedRoot, entry.name, "info.json")
             if (await Bun.file(info).exists()) ids.add(entry.name)
           }
           if (entry.isFile() && entry.name.endsWith(".json")) {
@@ -519,7 +540,7 @@ export namespace Storage {
 
         return Array.from(ids)
           .sort()
-          .map((id) => ["session", prefix[1]!, id])
+          .map((id) => ["session", projectID, id])
       }
 
       if (prefix[0] === "message" && prefix[1]) {
@@ -528,15 +549,17 @@ export namespace Storage {
         const ids = new Set<string>()
 
         if (projectID) {
-          const root = path.join(dir, "session", projectID, sessionID, "messages")
-          const entries = await fs.readdir(root, { withFileTypes: true }).catch(() => [] as any[])
-          for (const entry of entries) {
+          // Standard nested path
+          const nestedRoot = path.join(dir, "session", projectID, sessionID, "messages")
+          const nestedEntries = await fs.readdir(nestedRoot, { withFileTypes: true }).catch(() => [] as any[])
+          for (const entry of nestedEntries) {
             if (!entry.isDirectory()) continue
-            const info = path.join(root, entry.name, "info.json")
+            const info = path.join(nestedRoot, entry.name, "info.json")
             if (await Bun.file(info).exists()) ids.add(entry.name)
           }
         }
 
+        // Legacy path
         const legacyRoot = path.join(dir, "message", sessionID)
         const legacy = await fs.readdir(legacyRoot, { withFileTypes: true }).catch(() => [] as any[])
         for (const file of legacy) {
@@ -556,13 +579,15 @@ export namespace Storage {
         const ids = new Set<string>()
 
         if (scope) {
-          const root = path.join(dir, "session", scope.projectID, scope.sessionID, "messages", messageID, "parts")
-          const entries = await fs.readdir(root, { withFileTypes: true }).catch(() => [] as any[])
-          for (const entry of entries) {
+          // Standard nested path
+          const nestedRoot = path.join(dir, "session", scope.projectID, scope.sessionID, "messages", messageID, "parts")
+          const nestedEntries = await fs.readdir(nestedRoot, { withFileTypes: true }).catch(() => [] as any[])
+          for (const entry of nestedEntries) {
             if (entry.isFile() && entry.name.endsWith(".json")) ids.add(path.basename(entry.name, ".json"))
           }
         }
 
+        // Legacy path
         const legacyRoot = path.join(dir, "part", messageID)
         const legacy = await fs.readdir(legacyRoot, { withFileTypes: true }).catch(() => [] as any[])
         for (const file of legacy) {
