@@ -56,6 +56,7 @@ import { buildFallbackCandidates, type ModelVector } from "../account/rotation3d
 
 export namespace SessionPrompt {
   const log = Log.create({ service: "session.prompt" })
+  const MAX_LIVE_OUTPUT_METADATA = 50_000
   export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
   const WORKFLOW_KEYWORDS = [
     "分工",
@@ -1866,15 +1867,17 @@ NOTE: At any point in time through this workflow you should feel free to ask the
     })
 
     let output = ""
+    const outputForMetadata = () =>
+      output.length > MAX_LIVE_OUTPUT_METADATA ? output.slice(0, MAX_LIVE_OUTPUT_METADATA) + "\n\n..." : output
 
     proc.stdout?.on("data", (chunk) => {
       output += chunk.toString()
       if (part.state.status === "running") {
         part.state.metadata = {
-          output: output,
+          output: outputForMetadata(),
           description: "",
         }
-        Session.updatePart(part)
+        void Session.updatePart(part)
       }
     })
 
@@ -1882,10 +1885,10 @@ NOTE: At any point in time through this workflow you should feel free to ask the
       output += chunk.toString()
       if (part.state.status === "running") {
         part.state.metadata = {
-          output: output,
+          output: outputForMetadata(),
           description: "",
         }
-        Session.updatePart(part)
+        void Session.updatePart(part)
       }
     })
 
@@ -1907,8 +1910,14 @@ NOTE: At any point in time through this workflow you should feel free to ask the
     abort.addEventListener("abort", abortHandler, { once: true })
 
     await new Promise<void>((resolve) => {
-      proc.on("close", () => {
+      proc.once("close", () => {
         exited = true
+        abort.removeEventListener("abort", abortHandler)
+        resolve()
+      })
+      proc.once("error", (error) => {
+        exited = true
+        output += `\n\n<metadata>Failed to execute shell command: ${error instanceof Error ? error.message : String(error)}</metadata>`
         abort.removeEventListener("abort", abortHandler)
         resolve()
       })
