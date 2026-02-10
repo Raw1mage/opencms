@@ -1258,7 +1258,13 @@ export namespace Provider {
         }
       }
 
-      const manualModels = [
+      const manualModels: Array<{
+        id: string
+        name: string
+        family: string
+        reasoning?: boolean
+        image?: boolean
+      }> = [
         { id: "claude-opus-4-6-thinking", name: "Claude 4.6 Opus (Thinking)", family: "claude", reasoning: true },
         { id: "claude-opus-4-6", name: "Claude 4.6 Opus", family: "claude" },
         { id: "claude-opus-4-5-thinking", name: "Claude 4.5 Opus (Thinking)", family: "claude", reasoning: true },
@@ -1289,7 +1295,7 @@ export namespace Provider {
             reasoning: m.reasoning || false,
             attachment: true,
             toolcall: true,
-            input: { text: true, image: (m as any).image ?? true, audio: false, video: false, pdf: false },
+            input: { text: true, image: m.image ?? true, audio: false, video: false, pdf: false },
             output: { text: true, audio: false, image: false, video: false, pdf: false },
             interleaved: false,
           },
