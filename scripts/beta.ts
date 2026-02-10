@@ -19,7 +19,7 @@ async function main() {
   }
 
   const allPRs: PR[] = JSON.parse(prsResult.stdout)
-  const prs = allPRs.filter((pr) => !pr.isDraft)
+  const prs = allPRs.filter((pr) => !pr.isDraft).sort((a: PR, b: PR) => a.number - b.number)
 
   console.log(`Found ${prs.length} open non-draft contributor PRs`)
 
