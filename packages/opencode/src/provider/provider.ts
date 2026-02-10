@@ -144,20 +144,34 @@ export namespace Provider {
 
       const data = await response.json()
 
+      const normalizeModelEntry = (entry: unknown): { id: string; name: string } | null => {
+        if (typeof entry === "string" && entry.trim().length > 0) {
+          const id = entry.trim()
+          return { id, name: id }
+        }
+        if (!entry || typeof entry !== "object") return null
+        const idRaw = (entry as Record<string, unknown>).id
+        if (typeof idRaw !== "string" || idRaw.trim().length === 0) return null
+        const id = idRaw.trim()
+        const nameRaw = (entry as Record<string, unknown>).name
+        const name = typeof nameRaw === "string" && nameRaw.trim().length > 0 ? nameRaw.trim() : id
+        return { id, name }
+      }
+
       // Parse OpenAI-style /models response
       if (data.data && Array.isArray(data.data)) {
-        return data.data.map((m: any) => ({
-          id: m.id,
-          name: m.name || m.id,
-        }))
+        const models = data.data
+          .map(normalizeModelEntry)
+          .filter((x: ReturnType<typeof normalizeModelEntry>): x is { id: string; name: string } => x !== null)
+        return models.length > 0 ? models : null
       }
 
       // Parse simple array response
       if (Array.isArray(data)) {
-        return data.map((m: any) => ({
-          id: typeof m === "string" ? m : m.id,
-          name: typeof m === "string" ? m : m.name || m.id,
-        }))
+        const models = data
+          .map(normalizeModelEntry)
+          .filter((x: ReturnType<typeof normalizeModelEntry>): x is { id: string; name: string } => x !== null)
+        return models.length > 0 ? models : null
       }
 
       return null
