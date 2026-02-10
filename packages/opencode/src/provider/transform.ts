@@ -1,6 +1,7 @@
 import type { APICallError, ModelMessage } from "ai"
 import { mergeDeep, unique } from "remeda"
 import type { JSONSchema } from "zod/v4/core"
+import type { JSONValue } from "ai"
 import type { Provider } from "./provider"
 import type { ModelsDev } from "./models"
 import { iife } from "@/util/iife"
@@ -141,13 +142,19 @@ export namespace ProviderTransform {
 
           // Include reasoning_content | reasoning_details directly on the message for all assistant messages
           if (reasoningText) {
+            const openaiCompatible =
+              msg.providerOptions &&
+              typeof msg.providerOptions === "object" &&
+              "openaiCompatible" in msg.providerOptions
+                ? (msg.providerOptions as { openaiCompatible?: Record<string, JSONValue> }).openaiCompatible
+                : undefined
             return {
               ...msg,
               content: filteredContent,
               providerOptions: {
                 ...msg.providerOptions,
                 openaiCompatible: {
-                  ...(msg.providerOptions as any)?.openaiCompatible,
+                  ...openaiCompatible,
                   [field]: reasoningText,
                 },
               },

@@ -448,12 +448,22 @@ export namespace Session {
     }),
     (input) => {
       const cacheReadInputTokens = input.usage.cachedInputTokens ?? 0
-      const cacheWriteInputTokens = (input.metadata?.["anthropic"]?.["cacheCreationInputTokens"] ??
-        // @ts-expect-error
-        input.metadata?.["bedrock"]?.["usage"]?.["cacheWriteInputTokens"] ??
-        // @ts-expect-error
-        input.metadata?.["venice"]?.["usage"]?.["cacheCreationInputTokens"] ??
-        0) as number
+      const readNumber = (value: unknown) => (typeof value === "number" ? value : undefined)
+      const readNestedNumber = (obj: unknown, key: string, nestedKey?: string) => {
+        if (!obj || typeof obj !== "object") return undefined
+        const record = obj as Record<string, unknown>
+        const target = nestedKey
+          ? record[key] && typeof record[key] === "object"
+            ? (record[key] as Record<string, unknown>)[nestedKey]
+            : undefined
+          : record[key]
+        return readNumber(target)
+      }
+
+      const anthropicCacheWrite = readNestedNumber(input.metadata?.["anthropic"], "cacheCreationInputTokens")
+      const bedrockCacheWrite = readNestedNumber(input.metadata?.["bedrock"], "usage", "cacheWriteInputTokens")
+      const veniceCacheWrite = readNestedNumber(input.metadata?.["venice"], "usage", "cacheCreationInputTokens")
+      const cacheWriteInputTokens = anthropicCacheWrite ?? bedrockCacheWrite ?? veniceCacheWrite ?? 0
 
       const excludesCachedTokens = !!(input.metadata?.["anthropic"] || input.metadata?.["bedrock"])
       const adjustedInputTokens = excludesCachedTokens
