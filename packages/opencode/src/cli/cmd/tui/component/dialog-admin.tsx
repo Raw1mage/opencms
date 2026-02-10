@@ -42,8 +42,54 @@ import { Provider } from "@/provider/provider"
 import { probeModelAvailability } from "../util/model-probe"
 import { Auth } from "@/auth"
 import { checkAccountsQuota, type QuotaGroup, type QuotaGroupSummary } from "@/plugin/antigravity/plugin/quota"
-import { loadAccounts, saveAccounts } from "@/plugin/antigravity/plugin/storage"
+import { loadAccounts, saveAccounts, type AccountMetadataV3 } from "@/plugin/antigravity/plugin/storage"
 import { getModelFamily } from "@/plugin/antigravity/plugin/transform/model-resolver"
+import type { PluginClient } from "@/plugin/antigravity/plugin/types"
+import z from "zod"
+
+type DialogAdminOption = DialogSelectOption<unknown> & {
+  coreId?: string
+  coreFamily?: string
+  category?: string
+}
+
+type ProviderSelectionValue = {
+  family: string
+  isUnconfigured?: boolean
+}
+
+type ModelSelectionValue = {
+  providerId: string
+  modelID: string
+  origin?: "recent" | "favorite"
+}
+
+function asDialogAdminOption(option: DialogSelectOption<unknown> | undefined): DialogAdminOption {
+  return option as DialogAdminOption
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
+
+function asProviderSelectionValue(value: unknown): ProviderSelectionValue | undefined {
+  if (!isObjectRecord(value) || typeof value.family !== "string") return undefined
+  return {
+    family: value.family,
+    isUnconfigured: value.isUnconfigured === true,
+  }
+}
+
+function asModelSelectionValue(value: unknown): ModelSelectionValue | undefined {
+  if (!isObjectRecord(value)) return undefined
+  if (typeof value.providerId !== "string" || typeof value.modelID !== "string") return undefined
+  const origin = value.origin === "recent" || value.origin === "favorite" ? value.origin : undefined
+  return {
+    providerId: value.providerId,
+    modelID: value.modelID,
+    origin,
+  }
+}
 
 // Helper to check connectivity
 function useConnected() {
@@ -78,6 +124,23 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   const CODEX_ISSUER = "https://auth.openai.com"
   const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
   const CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
+  const CodexUsageSchema = z
+    .object({
+      rate_limit: z
+        .object({
+          primary_window: z.object({ used_percent: z.number().optional() }).optional(),
+          secondary_window: z.object({ used_percent: z.number().optional() }).optional(),
+        })
+        .optional(),
+    })
+    .passthrough()
+  const EmptyPluginClient = new Proxy({}, { get: () => () => undefined }) as unknown as PluginClient
+
+  type CodexUsage = z.infer<typeof CodexUsageSchema>
+  const parseCodexUsage = (value: unknown): CodexUsage | undefined => {
+    const parsed = CodexUsageSchema.safeParse(value)
+    return parsed.success ? parsed.data : undefined
+  }
 
   // Navigation State
   // steps: root -> account_select -> model_select
@@ -335,7 +398,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     try {
       const storage = await loadAccounts()
       if (!storage || storage.accounts.length === 0) return null
-      const results = await checkAccountsQuota(storage.accounts, {} as any)
+      const results = await checkAccountsQuota(storage.accounts, EmptyPluginClient)
 
       let shouldSave = false
       for (const res of results) {
@@ -418,7 +481,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             results[id] = null
             continue
           }
-          const usage = (await response.json()) as any
+          const usage = parseCodexUsage(await response.json())
           const hourlyUsed = usage?.rate_limit?.primary_window?.used_percent ?? 0
           const weeklyUsed = usage?.rate_limit?.secondary_window?.used_percent ?? 0
           const hourlyRemaining = clampPercentage(100 - hourlyUsed)
@@ -758,10 +821,11 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         const data = await response.json()
         const modelList = Array.isArray(data.models) ? data.models : []
         const normalized = modelList
-          .map((model: any) => {
-            const rawName = typeof model.name === "string" ? model.name : ""
+          .map((model: unknown) => {
+            const item = isObjectRecord(model) ? model : {}
+            const rawName = typeof item.name === "string" ? item.name : ""
             const id = rawName.replace(/^models\//, "")
-            const title = model.displayName || id || rawName
+            const title = typeof item.displayName === "string" ? item.displayName : id || rawName
             if (!id) return null
             return { id, title }
           })
@@ -1296,9 +1360,9 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
           description: accountTotal >= 1 ? `${accountTotal} account${accountTotal === 1 ? "" : "s"}` : undefined,
           gutter:
             activeCount > 0 ? (
-              <text fg={theme.success as any}>●</text>
+              <text fg={theme.success}>●</text>
             ) : effectivelyHidden ? (
-              <text fg={theme.textMuted as any}>○</text>
+              <text fg={theme.textMuted}>○</text>
             ) : undefined,
           onSelect: () => {
             debugCheckpoint("admin", "select family", { family: fam })
@@ -1342,7 +1406,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
       if (fam !== "antigravity") {
         const familyData = coreAll()?.[fam]
-        const accountsWithFamily: Array<{ id: string; info: any; coreFamily: string }> = []
+        const accountsWithFamily: Array<{ id: string; info: Account.Info; coreFamily: string }> = []
         if (familyData?.accounts) {
           for (const [id, info] of Object.entries(familyData.accounts)) {
             accountsWithFamily.push({ id, info, coreFamily: fam })
@@ -1366,7 +1430,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             coreFamily: coreFamily,
             name: displayName,
             active: activeId === id,
-            email: info?.email,
+            email: info.type === "subscription" ? info.email : undefined,
           })
         }
       }
@@ -1378,7 +1442,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
         for (const entry of Object.entries(core)) {
           const id = entry[0]
-          const info = entry[1] as any
+          const info = entry[1]
           if (info?.type !== "subscription") continue
           if (info.refreshToken) coreByToken.set(info.refreshToken, id)
           if (info.email) coreByEmail.set(info.email, id)
@@ -1389,14 +1453,14 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         if (!manager || agAccounts.length === 0) {
           for (const p of syncProviders) {
             // Skip generic provider entries that don't represent real accounts
-            const pAny = p as any
-            if (!pAny.email && !pAny.refreshToken && p.id === "antigravity") {
+            const providerMeta = p as unknown as { email?: string; refreshToken?: string }
+            if (!providerMeta.email && !providerMeta.refreshToken && p.id === "antigravity") {
               continue
             }
             accountMap.set(p.id, {
               id: p.id,
               coreId: p.id,
-              name: owner(p as any) || p.name || p.id,
+              name: owner(p) || p.name || p.id,
               active: p.active,
               email: p.email,
             })
@@ -1416,7 +1480,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
           const syncMatch = syncProviders.find((p) => p.id === id)
           const name =
             acc.email ||
-            (syncMatch ? owner(syncMatch as any) || syncMatch.name : null) ||
+            (syncMatch ? owner(syncMatch) || syncMatch.name : null) ||
             (acc.parts.projectId ? `Project: ${acc.parts.projectId}` : `Account ${acc.index + 1}`)
 
           const isActive = activeId ? activeId === coreId : manager?.getActiveIndex() === acc.index
@@ -1524,10 +1588,11 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         filter(([mid]) => hiddenCheck(mid)),
         map(([mid, info]) => {
           const isFav = favorites.some((f) => f.providerId === baseProviderID && f.modelID === mid)
-          const pAny = p as any
+          const providerRateLimit = p as unknown as { coolingDownUntil?: number; cooldownReason?: string }
 
-          const isRateLimited = pAny.coolingDownUntil && pAny.coolingDownUntil > Date.now()
-          const isBlocked = !!pAny.cooldownReason
+          const isRateLimited =
+            typeof providerRateLimit.coolingDownUntil === "number" && providerRateLimit.coolingDownUntil > Date.now()
+          const isBlocked = Boolean(providerRateLimit.cooldownReason)
           const isActionable = isRateLimited || isBlocked
 
           return {
@@ -1537,10 +1602,12 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             gutter: isFav ? <text fg={theme.accent}>⭐</text> : undefined,
             description: iife(() => {
               if (isRateLimited) {
-                const remaining = Math.ceil((pAny.coolingDownUntil - Date.now()) / 1000 / 60)
+                const remaining = Math.ceil(
+                  ((providerRateLimit.coolingDownUntil ?? Date.now()) - Date.now()) / 1000 / 60,
+                )
                 return `⏳ Rate limited (${remaining}m)`
               }
-              if (isBlocked) return `⛔ ${pAny.cooldownReason}`
+              if (isBlocked) return `⛔ ${providerRateLimit.cooldownReason}`
               return undefined
             }),
             disabled: (providerId === "opencode" && mid.includes("-nano")) || (isBlocked && !isRateLimited),
@@ -1551,7 +1618,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               info.name ?? mid,
               shouldShowFree(providerId, info),
               isActionable,
-              isRateLimited ? Math.max(0, pAny.coolingDownUntil - Date.now()) : 0,
+              isRateLimited ? Math.max(0, (providerRateLimit.coolingDownUntil ?? Date.now()) - Date.now()) : 0,
             ),
             onSelect: () => {
               debugCheckpoint("admin", "select model", { provider: baseProviderID, model: mid })
@@ -1780,7 +1847,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     }
   }
 
-  const goForward = (option: DialogSelectOption<any>) => {
+  const goForward = (option: DialogSelectOption<unknown> | undefined) => {
     if (dialog.stack.length > 1) return
     if (page() === "activities") {
       setPageLogged("providers", "right to providers")
@@ -1841,11 +1908,11 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             title: "Favorites",
             label: "F",
             disabled: !connected() || step() !== "model_select",
-            onTrigger: (option: any) => {
-              const val = option.value
-              if (val && typeof val === "object" && val.providerId && val.modelID) {
-                debugCheckpoint("admin", "toggle favorite", { provider: val.providerId, model: val.modelID })
-                local.model.toggleFavorite(val, { skipValidation: true })
+            onTrigger: (option) => {
+              const model = asModelSelectionValue(option?.value)
+              if (model) {
+                debugCheckpoint("admin", "toggle favorite", { provider: model.providerId, model: model.modelID })
+                local.model.toggleFavorite(model, { skipValidation: true })
               }
             },
           },
@@ -1884,8 +1951,8 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                   label: "",
                   disabled: false,
                   // @event_2026-02-06:fix-model-activities - Add delete key to remove from favorites in activities page
-                  onTrigger: (option: any) => {
-                    const val = option.value
+                  onTrigger: (option: DialogSelectOption<unknown> | undefined) => {
+                    const val = option?.value
                     if (val && typeof val === "string") {
                       const parts = val.split(":")
                       if (parts.length >= 3) {
@@ -1987,15 +2054,16 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             title: "(E)dit",
             label: "",
             disabled: step() !== "account_select",
-            onTrigger: async (option: any) => {
-              const val = option.value
+            onTrigger: async (option) => {
+              const adminOption = asDialogAdminOption(option)
+              const val = adminOption.value
               if (typeof val !== "string" || val.startsWith("__")) return
               const fam = selectedFamily()
               if (!fam) return
 
               // Use coreFamily for account lookup (accounts may be stored in different family than displayed)
-              const accountId = option.coreId || val
-              const lookupFamily = option.coreFamily || fam
+              const accountId = adminOption.coreId || val
+              const lookupFamily = adminOption.coreFamily || fam
               const accountInfo = await Account.get(lookupFamily, accountId)
               if (!accountInfo) {
                 toast.show({ message: "Account not found", variant: "error", duration: 2000 })
@@ -2032,15 +2100,16 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             title: "(V)iew",
             label: "",
             disabled: step() !== "account_select",
-            onTrigger: async (option: any) => {
-              const val = option.value
+            onTrigger: async (option) => {
+              const adminOption = asDialogAdminOption(option)
+              const val = adminOption.value
               if (typeof val !== "string" || val.startsWith("__")) return
               const fam = selectedFamily()
               if (!fam) return
 
               // Use coreFamily for account lookup (accounts may be stored in different family than displayed)
-              const accountId = option.coreId || val
-              const lookupFamily = option.coreFamily || fam
+              const accountId = adminOption.coreId || val
+              const lookupFamily = adminOption.coreFamily || fam
               const accountInfo = await Account.get(lookupFamily, accountId)
               if (!accountInfo) {
                 toast.show({ message: "Account not found", variant: "error", duration: 2000 })
@@ -2075,35 +2144,33 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                   title: step() === "model_select" ? "Hide" : step() === "root" ? "Hide" : "(Del)ete",
                   label: "",
                   disabled: !connected(),
-                  onTrigger: async (option: any) => {
-                    const val = option.value
+                  onTrigger: async (option: DialogSelectOption<unknown> | undefined) => {
+                    const adminOption = asDialogAdminOption(option)
+                    const val = adminOption.value
 
                     // Hide provider on root step
-                    if (step() === "root" && val && typeof val === "object" && val.family) {
-                      // Provider entry with { family, isUnconfigured }
-                      const optionObj = option as any
-                      if (optionObj.category === "Providers") {
-                        const fam = val.family
-                        const isUnconfigured = val.isUnconfigured
-                        // Check if not already hidden
-                        const isInHiddenList = local.model.isProviderHidden(fam)
-                        const effectivelyHidden = isUnconfigured ? !isInHiddenList : isInHiddenList
-                        if (!effectivelyHidden) {
-                          debugCheckpoint("admin", "hide provider", { family: fam, isUnconfigured })
-                          // For unconfigured: toggle removes from list (makes it hidden again)
-                          // For configured: toggle adds to list (makes it hidden)
-                          local.model.toggleHiddenProvider(fam)
-                          toast.show({ message: `Provider "${fam}" hidden`, variant: "info", duration: 2000 })
-                        }
-                        return
+                    const providerSelection = asProviderSelectionValue(val)
+                    if (step() === "root" && providerSelection && adminOption.category === "Providers") {
+                      const fam = providerSelection.family
+                      const isUnconfigured = providerSelection.isUnconfigured
+                      // Check if not already hidden
+                      const isInHiddenList = local.model.isProviderHidden(fam)
+                      const effectivelyHidden = isUnconfigured ? !isInHiddenList : isInHiddenList
+                      if (!effectivelyHidden) {
+                        debugCheckpoint("admin", "hide provider", { family: fam, isUnconfigured })
+                        // For unconfigured: toggle removes from list (makes it hidden again)
+                        // For configured: toggle adds to list (makes it hidden)
+                        local.model.toggleHiddenProvider(fam)
+                        toast.show({ message: `Provider "${fam}" hidden`, variant: "info", duration: 2000 })
                       }
+                      return
                     }
 
                     if (step() === "account_select" && typeof val === "string" && val !== "__add_account__") {
                       const fam = selectedFamily()
                       if (fam) {
                         // Use coreFamily for account operations (accounts may be stored in different family than displayed)
-                        const lookupFamily = option.coreFamily || fam
+                        const lookupFamily = adminOption.coreFamily || fam
                         debugCheckpoint("admin", "delete account prompt", { family: lookupFamily, id: val })
                         const confirmed = await DialogConfirm.show(
                           dialog,
@@ -2115,7 +2182,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                           try {
                             // Remove from core Account module (single source of truth)
                             // Use the mapped coreId and coreFamily for correct lookup
-                            const coreId = option.coreId || val
+                            const coreId = adminOption.coreId || val
                             await Account.remove(lookupFamily, coreId)
                             await Account.refresh()
 
@@ -2133,7 +2200,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                             setSelectedFamily(fam)
                             forceRefresh()
                             lockBackOnce()
-                          } catch (e: any) {
+                          } catch (e: unknown) {
                             debugCheckpoint("admin", "delete account error", {
                               family: fam,
                               error: String(e instanceof Error ? e.stack || e.message : e),
@@ -2147,8 +2214,8 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
                     if (step() === "model_select" || step() === "root") {
                       // Only handle model values (objects)
-                      if (typeof val === "object" && val.providerId && val.modelID) {
-                        const modelVal = val as any
+                      const modelVal = asModelSelectionValue(val)
+                      if (modelVal) {
                         debugCheckpoint("admin", "delete model action", {
                           origin: modelVal.origin,
                           provider: modelVal.providerId,
@@ -2168,33 +2235,33 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             title: "Unhide",
             label: "Ins",
             disabled: !showHidden(),
-            onTrigger: (option: any) => {
-              const val = option.value as any
+            onTrigger: (option) => {
+              const adminOption = asDialogAdminOption(option)
+              const val = adminOption.value
 
               // Unhide provider on root step
-              if (step() === "root" && val && typeof val === "object" && val.family) {
-                const optionObj = option as any
-                if (optionObj.category === "Providers") {
-                  const fam = val.family
-                  const isUnconfigured = val.isUnconfigured
-                  // Check if effectively hidden
-                  const isInHiddenList = local.model.isProviderHidden(fam)
-                  const effectivelyHidden = isUnconfigured ? !isInHiddenList : isInHiddenList
-                  if (effectivelyHidden) {
-                    debugCheckpoint("admin", "unhide provider", { family: fam, isUnconfigured })
-                    // For unconfigured: toggle adds to list (makes it shown)
-                    // For configured: toggle removes from list (makes it shown)
-                    local.model.toggleHiddenProvider(fam)
-                    toast.show({ message: `Provider "${fam}" unhidden`, variant: "info", duration: 2000 })
-                  }
-                  return
+              const providerSelection = asProviderSelectionValue(val)
+              if (step() === "root" && providerSelection && adminOption.category === "Providers") {
+                const fam = providerSelection.family
+                const isUnconfigured = providerSelection.isUnconfigured
+                // Check if effectively hidden
+                const isInHiddenList = local.model.isProviderHidden(fam)
+                const effectivelyHidden = isUnconfigured ? !isInHiddenList : isInHiddenList
+                if (effectivelyHidden) {
+                  debugCheckpoint("admin", "unhide provider", { family: fam, isUnconfigured })
+                  // For unconfigured: toggle adds to list (makes it shown)
+                  // For configured: toggle removes from list (makes it shown)
+                  local.model.toggleHiddenProvider(fam)
+                  toast.show({ message: `Provider "${fam}" unhidden`, variant: "info", duration: 2000 })
                 }
+                return
               }
 
               // Unhide model
-              if (val && typeof val === "object" && val.providerId && val.modelID) {
-                debugCheckpoint("admin", "unhide model", { provider: val.providerId, model: val.modelID })
-                local.model.toggleHidden(val)
+              const model = asModelSelectionValue(val)
+              if (model) {
+                debugCheckpoint("admin", "unhide model", { provider: model.providerId, model: model.modelID })
+                local.model.toggleHidden(model)
               }
             },
           },
@@ -3280,11 +3347,15 @@ function DialogAccountView(props: {
 
   // Mask sensitive fields
   const maskedInfo = createMemo(() => {
-    const info = { ...props.accountInfo } as any
+    const info: Record<string, unknown> = { ...props.accountInfo }
+    const maskToken = (token: string) => {
+      if (token.length <= 12) return token
+      return token.slice(0, 8) + "..." + token.slice(-4)
+    }
     // Mask sensitive fields
-    if (info.apiKey) info.apiKey = info.apiKey.slice(0, 8) + "..." + info.apiKey.slice(-4)
-    if (info.refreshToken) info.refreshToken = info.refreshToken.slice(0, 8) + "..." + info.refreshToken.slice(-4)
-    if (info.accessToken) info.accessToken = info.accessToken.slice(0, 8) + "..." + info.accessToken.slice(-4)
+    if (typeof info.apiKey === "string") info.apiKey = maskToken(info.apiKey)
+    if (typeof info.refreshToken === "string") info.refreshToken = maskToken(info.refreshToken)
+    if (typeof info.accessToken === "string") info.accessToken = maskToken(info.accessToken)
     return info
   })
 
