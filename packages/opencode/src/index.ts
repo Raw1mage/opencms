@@ -30,6 +30,7 @@ import { PrCommand } from "./cli/cmd/pr"
 import { SessionCommand } from "./cli/cmd/session"
 import { AdminCommand } from "./cli/cmd/admin"
 import { migrateFlattenStorage } from "./cli/cmd/migrate-flatten-storage"
+import { cleanupStorageSymlinks } from "./cli/cmd/cleanup-storage-symlinks"
 import { debugInit, debugCheckpoint } from "./util/debug"
 
 debugInit()
@@ -112,6 +113,7 @@ const cli = yargs(hideBin(process.argv))
   .command(SessionCommand)
   .command(AdminCommand)
   .command(migrateFlattenStorage)
+  .command(cleanupStorageSymlinks)
   .fail((msg, err) => {
     if (
       msg?.startsWith("Unknown argument") ||
