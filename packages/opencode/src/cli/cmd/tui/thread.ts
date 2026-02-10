@@ -78,6 +78,12 @@ export const TuiThreadCommand = cmd({
         describe: "agent to use",
       }),
   handler: async (args) => {
+    if (!process.stdin.isTTY || !process.stdout.isTTY) {
+      UI.error("OpenCode TUI requires an interactive terminal (TTY).")
+      UI.error("Please run in a real terminal and avoid output panels/piped execution.")
+      process.exit(1)
+    }
+
     if (args.fork && !args.continue && !args.session) {
       UI.error("--fork requires --continue or --session")
       process.exit(1)
