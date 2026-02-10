@@ -482,7 +482,7 @@ export namespace SessionProcessor {
                   triedCount: triedVectors.size,
                 })
               } else {
-                const fallback = await LLM.handleRateLimitFallback(streamInput.model, "account-first", triedVectors)
+                const fallback = await LLM.handleRateLimitFallback(streamInput.model, "account-first", triedVectors, e)
                 if (fallback) {
                   log.info("Switching to fallback model (temporary error)", {
                     from: streamInput.model.id,
@@ -522,7 +522,7 @@ export namespace SessionProcessor {
               // Trigger rotation to find a working model
               fallbackAttempts++
               if (fallbackAttempts <= MAX_FALLBACK_ATTEMPTS) {
-                const fallback = await LLM.handleRateLimitFallback(streamInput.model, "account-first", triedVectors)
+                const fallback = await LLM.handleRateLimitFallback(streamInput.model, "account-first", triedVectors, e)
                 if (fallback) {
                   log.info("Switching to fallback model (permanent error)", {
                     from: streamInput.model.id,

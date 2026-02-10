@@ -278,11 +278,11 @@ export namespace LLM {
           })
 
           if (accountId) {
-            const healthTracker = getHealthTracker()
-            const rateLimitTracker = getRateLimitTracker()
+            const { Account } = await import("@/account")
+            await Account.recordFailure(accountId, input.model.providerId)
 
-            // 1. Heavy penalty on health score
-            healthTracker.recordFailure(accountId)
+            const { getRateLimitTracker } = await import("@/account/rotation")
+            const rateLimitTracker = getRateLimitTracker()
 
             // 2. Hard block for 1 hour to prevent retries
             rateLimitTracker.markRateLimited(
@@ -391,11 +391,8 @@ export namespace LLM {
 
           // Update account-level tracking (with account dimension)
           if (accountId) {
-            const healthTracker = getHealthTracker()
-            const rateLimitTracker = getRateLimitTracker()
-
-            healthTracker.recordRateLimit(accountId)
-            rateLimitTracker.markRateLimited(accountId, input.model.providerId, reason, backoffMs, input.model.id)
+            const { Account } = await import("@/account")
+            await Account.recordRateLimit(accountId, input.model.providerId, reason, backoffMs, input.model.id)
           }
 
           l.warn("Rate limit detected", {
@@ -569,11 +566,12 @@ export namespace LLM {
     // Update account-level tracking
     const accountId = await getAccountIdForProvider(providerId)
     if (accountId) {
-      const healthTracker = getHealthTracker()
-      healthTracker.recordSuccess(accountId)
+      const { Account } = await import("@/account")
+      await Account.recordSuccess(accountId, providerId)
 
       // Clear rate limit for this specific account:provider:model combination
       if (modelID) {
+        const { getRateLimitTracker } = await import("@/account/rotation")
         const rateLimitTracker = getRateLimitTracker()
         rateLimitTracker.clear(accountId, providerId, modelID)
       }
@@ -603,11 +601,13 @@ export namespace LLM {
    * @param currentModel - The model that hit rate limit
    * @param strategy - Fallback selection strategy
    * @param triedVectors - Set of already-tried "provider:account:model" keys to avoid infinite loops
+   * @param error - Optional error object that triggered the fallback
    */
   export async function handleRateLimitFallback(
     currentModel: Provider.Model,
     strategy: FallbackStrategy = "account-first",
     triedVectors: Set<string> = new Set(),
+    error?: unknown,
   ): Promise<Provider.Model | null> {
     const { Account } = await import("@/account")
     const { getRateLimitTracker } = await import("@/account/rotation")
@@ -666,7 +666,7 @@ export namespace LLM {
         triedCount: triedVectors.size,
       })
       // If it has been tried, recursively call again to find a *new* fallback
-      return handleRateLimitFallback(currentModel, strategy, triedVectors)
+      return handleRateLimitFallback(currentModel, strategy, triedVectors, error)
     }
 
     // Mark as tried
@@ -681,9 +681,26 @@ export namespace LLM {
     const purposeValue = (fallback as unknown as Record<string, unknown>).purpose
     const purpose = typeof purposeValue === "string" ? purposeValue : fallbackReason
     const reasonLabel = PURPOSE_LABELS[purpose] || fallback.reason
-    const fromStr = `${currentAccountId}(${currentModel.id})`
-    const toStr = `${fallback.accountId}(${fallback.modelID})`
-    const toastMsg = `[Rotation: ${reasonLabel}] ${fromStr} → ${toStr}`
+
+    // Extract error label from error object or fallback to reason label
+    let errorLabel = `(${reasonLabel})`
+    if (error) {
+      const errorObject = error && typeof error === "object" ? (error as Record<string, any>) : undefined
+      const data =
+        errorObject?.data && typeof errorObject.data === "object"
+          ? (errorObject.data as Record<string, any>)
+          : undefined
+      const status = errorObject?.status ?? errorObject?.statusCode ?? data?.status
+      const message = errorObject?.message ?? data?.message ?? String(error)
+      errorLabel = `(${status ?? "Error"})${message}`
+    }
+
+    const fromAcc = Account.getShortId(currentAccountId, currentModel.providerId)
+    const toAcc = Account.getShortId(fallback.accountId, fallback.providerId)
+
+    const fromStr = `${currentModel.providerId},${currentModel.id},${fromAcc}`
+    const toStr = `${fallback.providerId},${fallback.modelID},${toAcc}`
+    const toastMsg = `${errorLabel} ${fromStr}->${toStr}`
 
     log.info("3D fallback selected", {
       reason: fallback.reason,
@@ -713,11 +730,6 @@ export namespace LLM {
     if (isSameModel && !isSameAccount && isSameProvider) {
       await Account.setActive(family, fallback.accountId)
 
-      const accountInfo = await Account.get(family, fallback.accountId)
-      const displayName = accountInfo
-        ? Account.getDisplayName(fallback.accountId, accountInfo, family)
-        : fallback.accountId
-
       // Notify user of account rotation (debounced)
       const now1 = Date.now()
       if (now1 - lastRotationToastAt >= TOAST_DEBOUNCE_MS) {
@@ -743,7 +755,7 @@ export namespace LLM {
       })
       // If fallback model info can't be found, add it to tried and search again
       triedVectors.add(fallbackKey)
-      return handleRateLimitFallback(currentModel, strategy, triedVectors)
+      return handleRateLimitFallback(currentModel, strategy, triedVectors, error)
     }
 
     // If different account in a different provider family, set that account active too

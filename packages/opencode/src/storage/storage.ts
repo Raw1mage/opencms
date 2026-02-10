@@ -265,17 +265,17 @@ export namespace Storage {
   }
 
   // @event_2026-02-11_remove_projectid_layer
-  // Phase 1: Keep writing to old paths, prepare infrastructure for new flat paths
-  function sessionInfoPath(dir: string, projectID: string, sessionID: string) {
-    return path.join(dir, "session", projectID, sessionID, "info.json")
+  // Phase 2: Write to flat paths, symlinks ensure backward compatibility
+  function sessionInfoPath(dir: string, _projectID: string, sessionID: string) {
+    return path.join(dir, "session", sessionID, "info.json")
   }
 
-  function messageInfoPath(dir: string, projectID: string, sessionID: string, messageID: string) {
-    return path.join(dir, "session", projectID, sessionID, "messages", messageID, "info.json")
+  function messageInfoPath(dir: string, _projectID: string, sessionID: string, messageID: string) {
+    return path.join(dir, "session", sessionID, "messages", messageID, "info.json")
   }
 
-  function partPath(dir: string, projectID: string, sessionID: string, messageID: string, partID: string) {
-    return path.join(dir, "session", projectID, sessionID, "messages", messageID, "parts", `${partID}.json`)
+  function partPath(dir: string, _projectID: string, sessionID: string, messageID: string, partID: string) {
+    return path.join(dir, "session", sessionID, "messages", messageID, "parts", `${partID}.json`)
   }
 
   function sessionIndexPath(dir: string, sessionID: string) {
@@ -365,16 +365,21 @@ export namespace Storage {
   async function resolvePath(dir: string, key: string[]): Promise<string> {
     const [domain, a, b] = key
     if (domain === "session" && a && b) {
-      // Current callers pass: ["session", projectID, sessionID]
-      // Check old paths in order of priority
+      // Callers pass: ["session", projectID, sessionID]
+      // Try new flat path first (written after migration)
+      const newPath = path.join(dir, "session", b, "info.json")
+      if (await Bun.file(newPath).exists()) return newPath
+
+      // Fall back to old nested path (symlink or pre-migration data)
       const oldNestedPath = path.join(dir, "session", a, b, "info.json")
       if (await Bun.file(oldNestedPath).exists()) return oldNestedPath
 
+      // Fall back to very old flat file
       const oldFlatPath = path.join(dir, "session", a, `${b}.json`)
       if (await Bun.file(oldFlatPath).exists()) return oldFlatPath
 
-      // Default to nested path for writes (current standard)
-      return oldNestedPath
+      // Default to new path for writes
+      return newPath
     }
 
     if (domain === "message" && a && b) {
@@ -402,13 +407,20 @@ export namespace Storage {
 
   export async function sessionDirectory(sessionID: string): Promise<string | undefined> {
     const dir = await state().then((x) => x.dir)
+
+    // Try new flat path first
+    const newPath = path.join(dir, "session", sessionID)
+    if (await Bun.file(path.join(newPath, "info.json")).exists()) {
+      return newPath
+    }
+
+    // Fall back to old nested path (via symlink or pre-migration)
     const projectID = await resolveSessionProjectID(dir, sessionID)
     if (!projectID) return
 
-    // Check current standard path
-    const standardPath = path.join(dir, "session", projectID, sessionID)
-    if (await Bun.file(path.join(standardPath, "info.json")).exists()) {
-      return standardPath
+    const oldPath = path.join(dir, "session", projectID, sessionID)
+    if (await Bun.file(path.join(oldPath, "info.json")).exists()) {
+      return oldPath
     }
   }
 
@@ -525,7 +537,23 @@ export namespace Storage {
         const projectID = prefix[1]
         const ids = new Set<string>()
 
-        // Scan standard nested structure: session/<projectID>/*
+        // Scan new flat structure: session/* with matching projectID
+        const flatRoot = path.join(dir, "session")
+        const flatEntries = await fs.readdir(flatRoot, { withFileTypes: true }).catch(() => [] as any[])
+        for (const entry of flatEntries) {
+          if (!entry.isDirectory()) continue
+          if (entry.name === projectID) continue // Skip old projectID directory itself
+
+          const info = path.join(flatRoot, entry.name, "info.json")
+          if (await Bun.file(info).exists()) {
+            const sessionInfo = await readJSON<{ projectID?: string }>(info)
+            if (sessionInfo?.projectID === projectID) {
+              ids.add(entry.name)
+            }
+          }
+        }
+
+        // Also scan old nested structure: session/<projectID>/* (symlinks or pre-migration)
         const nestedRoot = path.join(dir, "session", projectID)
         const nestedEntries = await fs.readdir(nestedRoot, { withFileTypes: true }).catch(() => [] as any[])
         for (const entry of nestedEntries) {
@@ -548,8 +576,17 @@ export namespace Storage {
         const projectID = await resolveSessionProjectID(dir, sessionID)
         const ids = new Set<string>()
 
+        // Try new flat path first
+        const flatRoot = path.join(dir, "session", sessionID, "messages")
+        const flatEntries = await fs.readdir(flatRoot, { withFileTypes: true }).catch(() => [] as any[])
+        for (const entry of flatEntries) {
+          if (!entry.isDirectory()) continue
+          const info = path.join(flatRoot, entry.name, "info.json")
+          if (await Bun.file(info).exists()) ids.add(entry.name)
+        }
+
         if (projectID) {
-          // Standard nested path
+          // Also check old nested path (symlink or pre-migration)
           const nestedRoot = path.join(dir, "session", projectID, sessionID, "messages")
           const nestedEntries = await fs.readdir(nestedRoot, { withFileTypes: true }).catch(() => [] as any[])
           for (const entry of nestedEntries) {
@@ -579,7 +616,14 @@ export namespace Storage {
         const ids = new Set<string>()
 
         if (scope) {
-          // Standard nested path
+          // Try new flat path first
+          const flatRoot = path.join(dir, "session", scope.sessionID, "messages", messageID, "parts")
+          const flatEntries = await fs.readdir(flatRoot, { withFileTypes: true }).catch(() => [] as any[])
+          for (const entry of flatEntries) {
+            if (entry.isFile() && entry.name.endsWith(".json")) ids.add(path.basename(entry.name, ".json"))
+          }
+
+          // Also check old nested path (symlink or pre-migration)
           const nestedRoot = path.join(dir, "session", scope.projectID, scope.sessionID, "messages", messageID, "parts")
           const nestedEntries = await fs.readdir(nestedRoot, { withFileTypes: true }).catch(() => [] as any[])
           for (const entry of nestedEntries) {

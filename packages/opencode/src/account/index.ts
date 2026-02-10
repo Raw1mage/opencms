@@ -484,11 +484,30 @@ export namespace Account {
   }
 
   /**
-   * Generate a unique account ID
+   * Get a short, readable version of an account ID.
+   * Removes provider and type prefixes if present.
+   */
+  export function getShortId(id: string, provider: string): string {
+    if (!id) return id
+    // Pattern: {provider}-subscription-{name}
+    const subPrefix = `${provider}-subscription-`
+    if (id.startsWith(subPrefix)) return id.slice(subPrefix.length)
+
+    const apiPrefix = `${provider}-api-`
+    if (id.startsWith(apiPrefix)) return id.slice(apiPrefix.length)
+
+    // Fallback for cases where it might be provider-name
+    if (id.startsWith(`${provider}-`)) return id.slice(provider.length + 1)
+
+    return id
+  }
+
+  /**
+   * Generate a unique account ID within a provider.
+   * Simple and clean: just the name/suffix.
    */
   export function generateId(provider: string, type: "api" | "subscription", name?: string): string {
-    const suffix = name?.toLowerCase().replace(/[^a-z0-9]/g, "-") || Date.now().toString(36)
-    return `${provider}-${type}-${suffix}`
+    return name?.toLowerCase().replace(/[^a-z0-9]/g, "-") || Date.now().toString(36)
   }
 
   /**
@@ -992,7 +1011,7 @@ export namespace Account {
       candidates.push({
         id,
         lastUsed,
-        healthScore: healthTracker.getScore(id),
+        healthScore: healthTracker.getScore(id, provider),
         isRateLimited: rateLimitTracker.isRateLimited(id, provider, model),
         isCoolingDown:
           info.type === "subscription" && info.coolingDownUntil ? Date.now() < info.coolingDownUntil : false,
@@ -1020,10 +1039,10 @@ export namespace Account {
    * Record a successful request for an account.
    * Improves health score.
    */
-  export async function recordSuccess(accountId: string): Promise<void> {
+  export async function recordSuccess(accountId: string, provider: string): Promise<void> {
     const { getHealthTracker } = await import("./rotation")
-    getHealthTracker().recordSuccess(accountId)
-    log.debug("Recorded success", { accountId })
+    getHealthTracker().recordSuccess(accountId, provider)
+    log.debug("Recorded success", { accountId, provider })
   }
 
   /**
@@ -1048,7 +1067,7 @@ export namespace Account {
     const healthTracker = rotation.getHealthTracker()
     const rateLimitTracker = rotation.getRateLimitTracker()
 
-    healthTracker.recordRateLimit(accountId)
+    healthTracker.recordRateLimit(accountId, provider)
     rateLimitTracker.markRateLimited(accountId, provider, reason as RateLimitReason, backoffMs, model)
 
     log.info("Recorded rate limit", { accountId, provider, reason, backoffMs, model })
@@ -1058,10 +1077,10 @@ export namespace Account {
    * Record a failure for an account.
    * Reduces health score more significantly than rate limits.
    */
-  export async function recordFailure(accountId: string): Promise<void> {
+  export async function recordFailure(accountId: string, provider: string): Promise<void> {
     const { getHealthTracker } = await import("./rotation")
-    getHealthTracker().recordFailure(accountId)
-    log.warn("Recorded failure", { accountId })
+    getHealthTracker().recordFailure(accountId, provider)
+    log.warn("Recorded failure", { accountId, provider })
   }
 
   /**

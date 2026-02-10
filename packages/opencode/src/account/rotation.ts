@@ -169,8 +169,8 @@ export class HealthScoreTracker {
   private persistToFile(): void {
     const state = readUnifiedState()
     const data: Record<string, HealthScoreState> = {}
-    for (const [accountId, scoreState] of this.scores) {
-      data[accountId] = scoreState
+    for (const [key, scoreState] of this.scores) {
+      data[key] = scoreState
     }
     state.accountHealth = data
     writeUnifiedState(state)
@@ -183,19 +183,26 @@ export class HealthScoreTracker {
   private loadFromFile(): void {
     const state = readUnifiedState()
     this.scores.clear()
-    for (const [accountId, scoreState] of Object.entries(state.accountHealth)) {
-      this.scores.set(accountId, scoreState)
+    for (const [key, scoreState] of Object.entries(state.accountHealth)) {
+      this.scores.set(key, scoreState)
     }
+  }
+
+  private makeKey(provider: string, accountId: string): string {
+    // If accountId already contains provider (legacy), don't double it
+    if (accountId.startsWith(`${provider}:`) || accountId.startsWith(`${provider}-`)) return accountId
+    return `${provider}:${accountId}`
   }
 
   /**
    * Get current health score for an account, applying time-based recovery.
    */
-  getScore(accountId: string): number {
+  getScore(accountId: string, provider: string): number {
     // @event_2026-02-06:rotation_unify - Load latest state from file
     this.loadFromFile()
 
-    const state = this.scores.get(accountId)
+    const key = this.makeKey(provider, accountId)
+    const state = this.scores.get(key)
     if (!state) {
       return this.config.initial
     }
@@ -211,14 +218,15 @@ export class HealthScoreTracker {
   /**
    * Record a successful request - improves health score.
    */
-  recordSuccess(accountId: string): void {
+  recordSuccess(accountId: string, provider: string): void {
     // @event_2026-02-06:rotation_unify - Load latest state from file first
     this.loadFromFile()
 
     const now = Date.now()
-    const current = this.getScore(accountId)
+    const key = this.makeKey(provider, accountId)
+    const current = this.getScore(accountId, provider)
 
-    this.scores.set(accountId, {
+    this.scores.set(key, {
       score: Math.min(this.config.maxScore, current + this.config.successReward),
       lastUpdated: now,
       lastSuccess: now,
@@ -228,23 +236,24 @@ export class HealthScoreTracker {
     // @event_2026-02-06:rotation_unify - Persist for cross-process access
     this.persistToFile()
 
-    log.debug("Account health: success recorded", { accountId, newScore: this.scores.get(accountId)?.score })
+    log.debug("Account health: success recorded", { provider, accountId, newScore: this.scores.get(key)?.score })
   }
 
   /**
    * Record a rate limit hit - moderate penalty.
    */
-  recordRateLimit(accountId: string): void {
+  recordRateLimit(accountId: string, provider: string): void {
     // @event_2026-02-06:rotation_unify - Load latest state from file first
     this.loadFromFile()
 
     const now = Date.now()
-    const state = this.scores.get(accountId)
-    const current = this.getScore(accountId)
+    const key = this.makeKey(provider, accountId)
+    const state = this.scores.get(key)
+    const current = this.getScore(accountId, provider)
     const newScore = Math.max(0, current + this.config.rateLimitPenalty)
     const newFailures = (state?.consecutiveFailures ?? 0) + 1
 
-    this.scores.set(accountId, {
+    this.scores.set(key, {
       score: newScore,
       lastUpdated: now,
       lastSuccess: state?.lastSuccess ?? 0,
@@ -255,6 +264,7 @@ export class HealthScoreTracker {
     this.persistToFile()
 
     log.info("Account health: rate limit recorded", {
+      provider,
       accountId,
       newScore,
       consecutiveFailures: newFailures,
@@ -264,17 +274,18 @@ export class HealthScoreTracker {
   /**
    * Record a failure (auth, network, etc.) - larger penalty.
    */
-  recordFailure(accountId: string): void {
+  recordFailure(accountId: string, provider: string): void {
     // @event_2026-02-06:rotation_unify - Load latest state from file first
     this.loadFromFile()
 
     const now = Date.now()
-    const state = this.scores.get(accountId)
-    const current = this.getScore(accountId)
+    const key = this.makeKey(provider, accountId)
+    const state = this.scores.get(key)
+    const current = this.getScore(accountId, provider)
     const newScore = Math.max(0, current + this.config.failurePenalty)
     const newFailures = (state?.consecutiveFailures ?? 0) + 1
 
-    this.scores.set(accountId, {
+    this.scores.set(key, {
       score: newScore,
       lastUpdated: now,
       lastSuccess: state?.lastSuccess ?? 0,
@@ -285,6 +296,7 @@ export class HealthScoreTracker {
     this.persistToFile()
 
     log.info("Account health: failure recorded", {
+      provider,
       accountId,
       newScore,
       consecutiveFailures: newFailures,
@@ -294,26 +306,28 @@ export class HealthScoreTracker {
   /**
    * Check if account is healthy enough to use.
    */
-  isUsable(accountId: string): boolean {
-    return this.getScore(accountId) >= this.config.minUsable
+  isUsable(accountId: string, provider: string): boolean {
+    return this.getScore(accountId, provider) >= this.config.minUsable
   }
 
   /**
    * Get consecutive failure count for an account.
    */
-  getConsecutiveFailures(accountId: string): number {
+  getConsecutiveFailures(accountId: string, provider: string): number {
     // @event_2026-02-06:rotation_unify - Load latest state from file
     this.loadFromFile()
-    return this.scores.get(accountId)?.consecutiveFailures ?? 0
+    const key = this.makeKey(provider, accountId)
+    return this.scores.get(key)?.consecutiveFailures ?? 0
   }
 
   /**
    * Reset health state for an account (e.g., after removal).
    */
-  reset(accountId: string): void {
+  reset(accountId: string, provider: string): void {
     // @event_2026-02-06:rotation_unify - Load latest, modify, persist
     this.loadFromFile()
-    this.scores.delete(accountId)
+    const key = this.makeKey(provider, accountId)
+    this.scores.delete(key)
     this.persistToFile()
   }
 
@@ -489,10 +503,10 @@ export class RateLimitTracker {
   private persistToFile(): void {
     const state = readUnifiedState()
     const data: Record<string, Record<string, RateLimitState>> = {}
-    for (const [accountId, providerLimits] of this.limits) {
-      data[accountId] = {}
-      for (const [key, limitState] of providerLimits) {
-        data[accountId][key] = limitState
+    for (const [key, providerLimits] of this.limits) {
+      data[key] = {}
+      for (const [innerKey, limitState] of providerLimits) {
+        data[key][innerKey] = limitState
       }
     }
     state.rateLimits = data
@@ -506,13 +520,19 @@ export class RateLimitTracker {
   private loadFromFile(): void {
     const state = readUnifiedState()
     this.limits.clear()
-    for (const [accountId, providerData] of Object.entries(state.rateLimits)) {
+    for (const [key, providerData] of Object.entries(state.rateLimits)) {
       const providerLimits = new Map<string, RateLimitState>()
-      for (const [key, limitState] of Object.entries(providerData)) {
-        providerLimits.set(key, limitState)
+      for (const [innerKey, limitState] of Object.entries(providerData)) {
+        providerLimits.set(innerKey, limitState)
       }
-      this.limits.set(accountId, providerLimits)
+      this.limits.set(key, providerLimits)
     }
+  }
+
+  private makeKey(provider: string, accountId: string): string {
+    // If accountId already contains provider (legacy), don't double it
+    if (accountId.startsWith(`${provider}:`) || accountId.startsWith(`${provider}-`)) return accountId
+    return `${provider}:${accountId}`
   }
 
   /**
@@ -528,16 +548,17 @@ export class RateLimitTracker {
     // Load latest state from file first
     this.loadFromFile()
 
-    const key = model ? `${provider}:${model}` : provider
+    const key = this.makeKey(provider, accountId)
+    const modelKey = model ? `${provider}:${model}` : provider
     const now = Date.now()
 
-    let providerLimits = this.limits.get(accountId)
+    let providerLimits = this.limits.get(key)
     if (!providerLimits) {
       providerLimits = new Map()
-      this.limits.set(accountId, providerLimits)
+      this.limits.set(key, providerLimits)
     }
 
-    providerLimits.set(key, {
+    providerLimits.set(modelKey, {
       resetTime: now + backoffMs,
       reason,
       model,
@@ -547,8 +568,8 @@ export class RateLimitTracker {
     this.persistToFile()
 
     log.info("Account rate limited", {
-      accountId,
       provider,
+      accountId,
       model,
       reason,
       backoffMs,
@@ -562,9 +583,10 @@ export class RateLimitTracker {
   isRateLimited(accountId: string, provider: string, model?: string): boolean {
     // Load latest state from file
     this.loadFromFile()
-    this.clearExpired(accountId)
+    const key = this.makeKey(provider, accountId)
+    this.clearExpired(key)
 
-    const providerLimits = this.limits.get(accountId)
+    const providerLimits = this.limits.get(key)
     if (!providerLimits) return false
 
     // Check model-specific limit first
@@ -592,7 +614,8 @@ export class RateLimitTracker {
     // Load latest state from file
     this.loadFromFile()
 
-    const providerLimits = this.limits.get(accountId)
+    const key = this.makeKey(provider, accountId)
+    const providerLimits = this.limits.get(key)
     if (!providerLimits) return 0
 
     const now = Date.now()
@@ -619,17 +642,12 @@ export class RateLimitTracker {
   /**
    * Clear rate limit for an account
    */
-  clear(accountId: string, provider?: string, model?: string): void {
+  clear(accountId: string, provider: string, model?: string): void {
     // Load latest state from file
     this.loadFromFile()
 
-    if (!provider) {
-      this.limits.delete(accountId)
-      this.persistToFile()
-      return
-    }
-
-    const providerLimits = this.limits.get(accountId)
+    const key = this.makeKey(provider, accountId)
+    const providerLimits = this.limits.get(key)
     if (!providerLimits) return
 
     if (model) {
@@ -644,14 +662,14 @@ export class RateLimitTracker {
   /**
    * Clear expired rate limits for an account
    */
-  private clearExpired(accountId: string): void {
-    const providerLimits = this.limits.get(accountId)
+  private clearExpired(key: string): void {
+    const providerLimits = this.limits.get(key)
     if (!providerLimits) return
 
     const now = Date.now()
-    for (const [key, state] of providerLimits) {
+    for (const [innerKey, state] of providerLimits) {
       if (now >= state.resetTime) {
-        providerLimits.delete(key)
+        providerLimits.delete(innerKey)
       }
     }
   }
@@ -679,15 +697,19 @@ export class RateLimitTracker {
       reason: RateLimitReason
     }> = []
 
-    for (const [accountId, providerLimits] of this.limits) {
-      for (const [key, state] of providerLimits) {
+    for (const [key, providerLimits] of this.limits) {
+      for (const [innerKey, state] of providerLimits) {
         // Skip expired entries
         if (now >= state.resetTime) continue
 
         // Parse key: either "provider" or "provider:model"
-        const colonIdx = key.indexOf(":")
-        const providerId = colonIdx >= 0 ? key.slice(0, colonIdx) : key
-        const modelID = colonIdx >= 0 ? key.slice(colonIdx + 1) : state.model
+        const colonIdx = innerKey.indexOf(":")
+        const providerId = colonIdx >= 0 ? innerKey.slice(0, colonIdx) : innerKey
+        const modelID = colonIdx >= 0 ? innerKey.slice(colonIdx + 1) : state.model
+
+        // accountId might be the compound key provider:accountId
+        const accColonIdx = key.indexOf(":")
+        const accountId = accColonIdx >= 0 ? key.slice(accColonIdx + 1) : key
 
         result.push({
           accountId,

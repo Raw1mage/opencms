@@ -29,6 +29,7 @@ import { WebCommand } from "./cli/cmd/web"
 import { PrCommand } from "./cli/cmd/pr"
 import { SessionCommand } from "./cli/cmd/session"
 import { AdminCommand } from "./cli/cmd/admin"
+import { migrateFlattenStorage } from "./cli/cmd/migrate-flatten-storage"
 import { debugInit, debugCheckpoint } from "./util/debug"
 
 debugInit()
@@ -110,6 +111,7 @@ const cli = yargs(hideBin(process.argv))
   .command(PrCommand)
   .command(SessionCommand)
   .command(AdminCommand)
+  .command(migrateFlattenStorage)
   .fail((msg, err) => {
     if (
       msg?.startsWith("Unknown argument") ||

@@ -70,7 +70,6 @@ export namespace Config {
     let result: Info = {}
     for (const [key, value] of Object.entries(auth)) {
       if (value.type === "wellknown") {
-         
         process.env[value.key] = value.token
         log.debug("fetching remote config", { url: `${key}/.well-known/opencode` })
         const response = await fetch(`${key}/.well-known/opencode`)
@@ -124,20 +123,22 @@ export namespace Config {
     result.plugin = result.plugin || []
 
     // @event_2026-02-07_install: prefer XDG config/data, keep project .opencode
-    const directories = [
-      Global.Path.config,
-      Global.Path.data,
-      // Only scan project .opencode/ directories when project discovery is enabled
-      ...(!Flag.OPENCODE_DISABLE_PROJECT_CONFIG
-        ? await Array.fromAsync(
-            Filesystem.up({
-              targets: [".opencode"],
-              start: Instance.directory,
-              stop: Instance.worktree,
-            }),
-          )
-        : []),
-    ]
+    const projectOpencodeDirs = !Flag.OPENCODE_DISABLE_PROJECT_CONFIG
+      ? await Array.fromAsync(
+          Filesystem.up({
+            targets: [".opencode"],
+            start: Instance.directory,
+            stop: Instance.worktree,
+          }),
+        )
+      : []
+
+    // @event_2026-02-10_xdg_cleanup: Strictly exclude ~/.opencode from implicit loading
+    // to prevent legacy global config from bleeding into project configuration.
+    const legacyGlobalDir = path.join(os.homedir(), ".opencode")
+    const filteredProjectDirs = projectOpencodeDirs.filter((dir) => dir !== legacyGlobalDir)
+
+    const directories = [Global.Path.config, Global.Path.data, ...filteredProjectDirs]
 
     if (Flag.OPENCODE_CONFIG_DIR) {
       directories.push(Flag.OPENCODE_CONFIG_DIR)
@@ -249,18 +250,11 @@ export namespace Config {
       return
     }
 
-    // @event_2026-02-09_path_cleanup: Never auto-initialize legacy or non-existent directories
-    if (dir.includes(".opencode") && dir.startsWith(os.homedir())) {
-      const legacyDir = path.join(os.homedir(), ".opencode")
-      // Strict check: if it IS the legacy dir, or inside it
-      if (dir === legacyDir || dir.startsWith(legacyDir + path.sep)) {
-        // Double check: if it is NOT inside a project (heuristic)
-        // Actually, just blocking the legacy root is safer for now.
-        // We allow subdirectories if they are legitimately returned by project scanning,
-        // but since we want to kill ~/.opencode, we should probably block it entirely unless it is the configured data dir (which it isn't, XDG is).
-        log.warn("Refusing to install dependencies in legacy directory", { dir })
-        return
-      }
+    // @event_2026-02-10_xdg_cleanup: Refuse to install deps in legacy global directory
+    const legacyGlobalDir = path.join(os.homedir(), ".opencode")
+    if (dir === legacyGlobalDir || dir.startsWith(legacyGlobalDir + path.sep)) {
+      log.warn("Refusing to install dependencies in legacy global directory", { dir })
+      return
     }
 
     // Additional safeguard: If dir IS homedir (unlikely for installDependencies but possible in some flows)

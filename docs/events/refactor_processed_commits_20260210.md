@@ -88,3 +88,19 @@
 ---
 
 最後更新：2026-02-10
+
+## 已處理（Round 3 - origin/dev delta (2026-02-10) @ 2026-02-10T14:42:02.716Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `4a73d51acd6cc2610fa962a424a6d7049520f560` | integrated | - | fix(app): workspace reset issues - behavioral-fix, medium risk, score 2 |
+| `83853cc5e6f5b3d262403692f96e370661312aaf` | integrated | - | fix(app): new session in workspace choosing wrong workspace - behavioral-fix, low risk, score 3 |
+| `2bccfd7462ea75be5c5c98a21d7dfaf518e7611d` | integrated | - | chore: fix norwegian i18n issues - infra, low risk, score 2 |
+| `0732ab3393f8870ac582db1e07e3e21843c22659` | integrated | - | fix: absolute paths for sidebar session navigation - behavioral-fix, low risk, score 3 |
+| `87795384de062abad50f86775e4803e4a23d51fc` | skipped | - | chore: fix typos and GitHub capitalization - touches protected prompt files, medium risk, score 1 |
+| `19ad7ad80916836560ce9903b58a02be63ea4715` | integrated | - | chore: fix test - infra, low risk, score 2 |
+| `4c4e30cd714d316f44d99b91f846e2be666a26db` | skipped | - | fix(docs): locale translations - docs only, low value for cms branch, score -2 |
+| `c607c01fb9acc72d2d041fb6eb9d4dff0f49814f` | integrated | - | chore: fix e2e tests - infra, low risk, score 2 |
+| `18b6257119b8abe27d9c76369b69dbfc4d6e028b` | skipped | - | chore: generate - auto-generated docs, low value for cms branch, score -2 |
+| `65c966928393a2a7b03af267e8d3279d3370440c` | integrated | - | test(e2e): redo & undo test - feature test, low risk, score 2 |
+| `1e03a55acdb1e80b747d0604d698f4cbef97ace1` | integrated | - | fix(app): persist defensiveness - behavioral-fix, low risk, score 3 |
