@@ -87,25 +87,9 @@ async function getCurrentProject(): Promise<Project.Info> {
 }
 
 async function getAllSessions(): Promise<Session.Info[]> {
-  const sessions: Session.Info[] = []
-
-  const projectKeys = await Storage.list(["project"])
-  const projects = await Promise.all(projectKeys.map((key) => Storage.read<Project.Info>(key)))
-
-  for (const project of projects) {
-    if (!project) continue
-
-    const sessionKeys = await Storage.list(["session", project.id])
-    const projectSessions = await Promise.all(sessionKeys.map((key) => Storage.read<Session.Info>(key)))
-
-    for (const session of projectSessions) {
-      if (session) {
-        sessions.push(session)
-      }
-    }
-  }
-
-  return sessions
+  const sessionKeys = await Storage.list(["session"])
+  const sessions = await Promise.all(sessionKeys.map((key) => Storage.read<Session.Info>(key)))
+  return sessions.filter((x): x is Session.Info => !!x)
 }
 
 export async function aggregateSessionStats(days?: number, projectFilter?: string): Promise<SessionStats> {

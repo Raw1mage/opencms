@@ -265,8 +265,8 @@ export namespace Storage {
   }
 
   // @event_2026-02-11_remove_projectid_layer
-  // Phase 2: Write to flat paths, symlinks ensure backward compatibility
-  function sessionInfoPath(dir: string, _projectID: string, sessionID: string) {
+  // Final Phase: Removed redundant projectID layer
+  function sessionInfoPath(dir: string, sessionID: string) {
     return path.join(dir, "session", sessionID, "info.json")
   }
 
@@ -363,42 +363,52 @@ export namespace Storage {
   }
 
   async function resolvePath(dir: string, key: string[]): Promise<string> {
-    const [domain, a, b] = key
-    if (domain === "session" && a && b) {
-      // Callers pass: ["session", projectID, sessionID]
-      // Try new flat path first (written after migration)
-      const newPath = path.join(dir, "session", b, "info.json")
+    const [domain, a, b, c] = key
+    if (domain === "session" && a) {
+      // New format: ["session", sessionID]
+      // Old format: ["session", projectID, sessionID]
+      const sessionID = b ?? a
+
+      // Try new flat path first
+      const newPath = sessionInfoPath(dir, sessionID)
       if (await Bun.file(newPath).exists()) return newPath
 
-      // Fall back to old nested path (symlink or pre-migration data)
-      const oldNestedPath = path.join(dir, "session", a, b, "info.json")
-      if (await Bun.file(oldNestedPath).exists()) return oldNestedPath
+      // Fall back to old nested path (if a was projectID)
+      if (b) {
+        const oldNestedPath = path.join(dir, "session", a, b, "info.json")
+        if (await Bun.file(oldNestedPath).exists()) return oldNestedPath
 
-      // Fall back to very old flat file
-      const oldFlatPath = path.join(dir, "session", a, `${b}.json`)
-      if (await Bun.file(oldFlatPath).exists()) return oldFlatPath
+        const oldFlatPath = path.join(dir, "session", a, `${b}.json`)
+        if (await Bun.file(oldFlatPath).exists()) return oldFlatPath
+      }
 
       // Default to new path for writes
       return newPath
     }
 
     if (domain === "message" && a && b) {
-      const projectID = await resolveSessionProjectID(dir, a)
-      if (projectID) {
-        const nextPath = messageInfoPath(dir, projectID, a, b)
-        if (await Bun.file(nextPath).exists()) return nextPath
-      }
-      const legacyPath = path.join(dir, "message", a, `${b}.json`)
+      // ["message", sessionID, messageID]
+      const sessionID = a
+      const messageID = b
+      const nextPath = messageInfoPath(dir, "", sessionID, messageID)
+      if (await Bun.file(nextPath).exists()) return nextPath
+
+      const legacyPath = path.join(dir, "message", sessionID, `${messageID}.json`)
       if (await Bun.file(legacyPath).exists()) return legacyPath
     }
 
     if (domain === "part" && a && b) {
-      const scope = await resolveMessageScope(dir, a)
+      // ["part", messageID, partID]
+      const messageID = a
+      const partID = b
+
+      const scope = await resolveMessageScope(dir, messageID)
       if (scope) {
-        const nextPath = partPath(dir, scope.projectID, scope.sessionID, a, b)
+        const nextPath = partPath(dir, "", scope.sessionID, messageID, partID)
         if (await Bun.file(nextPath).exists()) return nextPath
       }
-      const legacyPath = path.join(dir, "part", a, `${b}.json`)
+
+      const legacyPath = path.join(dir, "part", messageID, `${partID}.json`)
       if (await Bun.file(legacyPath).exists()) return legacyPath
     }
 
@@ -445,8 +455,30 @@ export namespace Storage {
     const dir = await state().then((x) => x.dir)
     const target = await resolvePath(dir, key)
     return withErrorHandling(async () => {
+      // New format: ["session", sessionID]
+      if (key[0] === "session" && key[1] && !key[2]) {
+        const sessionID = key[1]
+        const sessionDir = path.dirname(target)
+        await fs.rm(sessionDir, { recursive: true, force: true }).catch(() => {})
+        await fs.unlink(sessionIndexPath(dir, sessionID)).catch(() => {})
+
+        // Best-effort cleanup of message indexes for this session
+        const msgIndexDir = path.join(dir, ...MESSAGE_INDEX_DIR)
+        const entries = await fs.readdir(msgIndexDir, { withFileTypes: true }).catch(() => [] as any[])
+        await Promise.all(
+          entries
+            .filter((x) => x.isFile() && x.name.endsWith(".json"))
+            .map(async (entry) => {
+              const p = path.join(msgIndexDir, entry.name)
+              const index = await readJSON<{ sessionID?: string }>(p)
+              if (index?.sessionID === sessionID) await fs.unlink(p).catch(() => {})
+            }),
+        )
+        return
+      }
+
+      // Old format: ["session", projectID, sessionID] (backward compatibility)
       if (key[0] === "session" && key[1] && key[2]) {
-        // Remove whole session directory (metadata, messages, parts, outputs) as one unit.
         const sessionID = key[2]
         const sessionDir = path.dirname(target)
         await fs.rm(sessionDir, { recursive: true, force: true }).catch(() => {})
@@ -507,6 +539,15 @@ export namespace Storage {
       using _ = await Lock.write(target)
       await Bun.write(target, JSON.stringify(content, null, 2))
 
+      // New format: ["session", sessionID]
+      if (key[0] === "session" && key[1] && !key[2]) {
+        const info = content as any
+        if (info.projectID) {
+          await upsertSessionIndex(dir, key[1], info.projectID)
+        }
+      }
+
+      // Old format: ["session", projectID, sessionID] (backward compatibility)
       if (key[0] === "session" && key[1] && key[2]) {
         await upsertSessionIndex(dir, key[2], key[1])
       }
@@ -533,11 +574,32 @@ export namespace Storage {
   export async function list(prefix: string[]) {
     const dir = await state().then((x) => x.dir)
     try {
+      // New format: ["session"]
+      if (prefix[0] === "session" && !prefix[1]) {
+        const ids = new Set<string>()
+        const flatRoot = path.join(dir, "session")
+        const flatEntries = await fs.readdir(flatRoot, { withFileTypes: true }).catch(() => [] as any[])
+
+        for (const entry of flatEntries) {
+          if (!entry.isDirectory()) continue
+
+          const info = path.join(flatRoot, entry.name, "info.json")
+          if (await Bun.file(info).exists()) {
+            ids.add(entry.name)
+          }
+        }
+
+        return Array.from(ids)
+          .sort()
+          .map((id) => ["session", id])
+      }
+
+      // Old format: ["session", projectID] (backward compatibility)
       if (prefix[0] === "session" && prefix[1]) {
         const projectID = prefix[1]
         const ids = new Set<string>()
 
-        // Scan new flat structure: session/* with matching projectID
+        // Scan flat structure with matching projectID
         const flatRoot = path.join(dir, "session")
         const flatEntries = await fs.readdir(flatRoot, { withFileTypes: true }).catch(() => [] as any[])
         for (const entry of flatEntries) {
