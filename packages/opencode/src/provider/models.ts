@@ -8,7 +8,6 @@ import { lazy } from "@/util/lazy"
 
 // Try to import bundled snapshot (generated at build time)
 // Falls back to undefined in dev mode when snapshot doesn't exist
-/* @ts-ignore */
 
 export namespace ModelsDev {
   const log = Log.create({ service: "models.dev" })
@@ -88,7 +87,6 @@ export namespace ModelsDev {
     const file = Bun.file(Flag.OPENCODE_MODELS_PATH ?? filepath)
     const result = await file.json().catch(() => {})
     if (result) return result
-    // @ts-ignore
     const snapshot = await import("./models-snapshot")
       .then((m) => m.snapshot as Record<string, unknown>)
       .catch(() => undefined)
@@ -144,7 +142,7 @@ export namespace ModelsDev {
     // Merge snapshot models into result so that locally-added models
     // are always available even when a cached models.json takes priority.
     const snapshotData = await import("./models-snapshot")
-      .then((m) => m.snapshot as Record<string, Provider>)
+      .then((m) => m.snapshot as unknown as Record<string, Provider>)
       .catch(() => undefined)
     if (snapshotData) {
       for (const [providerKey, snapshotProvider] of Object.entries(snapshotData)) {

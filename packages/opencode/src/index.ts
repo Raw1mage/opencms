@@ -1,4 +1,5 @@
 import yargs from "yargs"
+import type { CommandModule } from "yargs"
 import { hideBin } from "yargs/helpers"
 import { RunCommand } from "./cli/cmd/run"
 import { GenerateCommand } from "./cli/cmd/generate"
@@ -131,7 +132,7 @@ const tui = await (async () => {
 })()
 
 for (const cmd of tui) {
-  cli.command(cmd as any)
+  cli.command(cmd as unknown as CommandModule)
 }
 
 try {
