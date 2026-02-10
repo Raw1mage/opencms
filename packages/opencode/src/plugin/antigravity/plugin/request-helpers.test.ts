@@ -1643,7 +1643,7 @@ describe("deduplicateThinkingText", () => {
         },
       ],
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const result1 = deduplicateThinkingText(chunk1, buffer) as any
     expect(result1.candidates[0].content.parts[0].text).toBe("Hello ")
 
@@ -1656,7 +1656,7 @@ describe("deduplicateThinkingText", () => {
         },
       ],
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const result2 = deduplicateThinkingText(chunk2, buffer) as any
     expect(result2.candidates[0].content.parts[0].text).toBe("world")
   })
@@ -1684,7 +1684,7 @@ describe("deduplicateThinkingText", () => {
         },
       ],
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const result2 = deduplicateThinkingText(chunk2, buffer) as any
     expect(result2.candidates[0].content.parts).toHaveLength(1)
     expect(result2.candidates[0].content.parts[0].text).toBe("Regular text")
@@ -1696,14 +1696,14 @@ describe("deduplicateThinkingText", () => {
     const chunk1 = {
       content: [{ type: "thinking", thinking: "First " }],
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const result1 = deduplicateThinkingText(chunk1, buffer) as any
     expect(result1.content[0].thinking).toBe("First ")
 
     const chunk2 = {
       content: [{ type: "thinking", thinking: "First part" }],
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const result2 = deduplicateThinkingText(chunk2, buffer) as any
     expect(result2.content[0].thinking).toBe("part")
   })
@@ -1731,7 +1731,7 @@ describe("deduplicateThinkingText", () => {
         },
       ],
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const result2 = deduplicateThinkingText(chunk2, buffer) as any
     expect(result2.candidates[0].content.parts[0].text).toBe("New thought")
   })
@@ -1748,7 +1748,7 @@ describe("deduplicateThinkingText", () => {
         },
       ],
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const result = deduplicateThinkingText(chunk, buffer) as any
     expect(result.candidates[0].content.parts[1].text).toBe("Regular text")
     expect(result.candidates[0].content.parts[2].functionCall.name).toBe("test")
