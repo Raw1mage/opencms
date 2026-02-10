@@ -97,10 +97,17 @@ export namespace ACP {
         })
         for await (const event of events.stream) {
           if (this.eventAbort.signal.aborted) return
-          const payload = (event as any)?.payload
+          const payload =
+            event && typeof event === "object" && "payload" in event
+              ? (event as { payload?: unknown }).payload
+              : undefined
           if (!payload) continue
+          const payloadType =
+            payload && typeof payload === "object" && "type" in payload
+              ? (payload as { type?: unknown }).type
+              : undefined
           await this.handleEvent(payload as Event).catch((error) => {
-            log.error("failed to handle event", { error, type: payload.type })
+            log.error("failed to handle event", { error, type: payloadType })
           })
         }
       }
@@ -1488,12 +1495,12 @@ export namespace ACP {
   }
 
   function buildAvailableModels(
-    providers: Array<{ id: string; name: string; models: Record<string, any> }>,
+    providers: Array<{ id: string; name: string; models: Record<string, Provider.Model> }>,
     options: { includeVariants?: boolean } = {},
   ): ModelOption[] {
     const includeVariants = options.includeVariants ?? false
     return providers.flatMap((provider) => {
-      const models = Provider.sort(Object.values(provider.models) as any)
+      const models = Provider.sort(Object.values(provider.models))
       return models.flatMap((model) => {
         const base: ModelOption = {
           modelId: `${provider.id}/${model.id}`,
