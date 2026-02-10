@@ -81,7 +81,7 @@ export const ImportCommand = cmd({
         return
       }
 
-      await Storage.write(["session", Instance.project.id, exportData.info.id], exportData.info)
+      await Storage.write(["session", exportData.info.id], exportData.info)
 
       for (const msg of exportData.messages) {
         await Storage.write(["message", exportData.info.id, msg.info.id], msg.info)

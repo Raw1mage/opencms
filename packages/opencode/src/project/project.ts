@@ -252,7 +252,7 @@ export namespace Project {
     const globalProject = await Storage.read<Info>(["project", "global"]).catch(() => undefined)
     if (!globalProject) return
 
-    const globalSessions = await Storage.list(["session", "global"]).catch(() => [])
+    const globalSessions = await Storage.list(["session"]).catch(() => [])
     if (globalSessions.length === 0) return
 
     log.info("migrating sessions from global", { newProjectID, worktree, count: globalSessions.length })
@@ -261,12 +261,12 @@ export namespace Project {
       const sessionID = key[key.length - 1]
       const session = await Storage.read<Session.Info>(key).catch(() => undefined)
       if (!session) return
+      if (session.projectID !== "global") return
       if (session.directory && session.directory !== worktree) return
 
       session.projectID = newProjectID
       log.info("migrating session", { sessionID, from: "global", to: newProjectID })
-      await Storage.write(["session", newProjectID, sessionID], session)
-      await Storage.remove(key)
+      await Storage.write(["session", sessionID], session)
     }).catch((error) => {
       log.error("failed to migrate sessions from global to project", { error, projectId: newProjectID })
     })

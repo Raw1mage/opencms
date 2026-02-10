@@ -224,7 +224,7 @@ export namespace Session {
       },
     }
     log.info("created", result)
-    await Storage.write(["session", Instance.project.id, result.id], result)
+    await Storage.write(["session", result.id], result)
     Bus.publish(Event.Created, {
       info: result,
     })
@@ -253,7 +253,7 @@ export namespace Session {
   }
 
   export const get = fn(Identifier.schema("session"), async (id) => {
-    const read = await Storage.read<Info>(["session", Instance.project.id, id])
+    const read = await Storage.read<Info>(["session", id])
     return read as Info
   })
 
@@ -294,8 +294,7 @@ export namespace Session {
   })
 
   export async function update(id: string, editor: (session: Info) => void, options?: { touch?: boolean }) {
-    const project = Instance.project
-    const result = await Storage.update<Info>(["session", project.id, id], (draft) => {
+    const result = await Storage.update<Info>(["session", id], (draft) => {
       editor(draft)
       if (options?.touch !== false) {
         draft.time.updated = Date.now()
@@ -329,16 +328,14 @@ export namespace Session {
   )
 
   export async function* list() {
-    const project = Instance.project
-    for (const item of await Storage.list(["session", project.id])) {
+    for (const item of await Storage.list(["session"])) {
       yield Storage.read<Info>(item)
     }
   }
 
   export const children = fn(Identifier.schema("session"), async (parentID) => {
-    const project = Instance.project
     const result = [] as Session.Info[]
-    for (const item of await Storage.list(["session", project.id])) {
+    for (const item of await Storage.list(["session"])) {
       const session = await Storage.read<Info>(item)
       if (session.parentID !== parentID) continue
       result.push(session)
@@ -361,7 +358,7 @@ export namespace Session {
         }
         await Storage.remove(msg)
       }
-      await Storage.remove(["session", project.id, sessionID])
+      await Storage.remove(["session", sessionID])
 
       Bus.publish(Event.Deleted, {
         info: session,
