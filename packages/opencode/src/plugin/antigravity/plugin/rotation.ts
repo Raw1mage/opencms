@@ -57,6 +57,7 @@ export const DEFAULT_HEALTH_SCORE_CONFIG: HealthScoreConfig = {
 function indexToAccountId(accountIndex: number): string {
   return `antigravity-account-${accountIndex}`
 }
+const ANTIGRAVITY_PROVIDER = "antigravity"
 
 /**
  * Adapter that wraps the global file-based HealthScoreTracker.
@@ -81,49 +82,49 @@ export class HealthScoreTracker {
    * Get current health score for an account, applying time-based recovery.
    */
   getScore(accountIndex: number): number {
-    return this.globalTracker.getScore(indexToAccountId(accountIndex))
+    return this.globalTracker.getScore(indexToAccountId(accountIndex), ANTIGRAVITY_PROVIDER)
   }
 
   /**
    * Record a successful request - improves health score.
    */
   recordSuccess(accountIndex: number): void {
-    this.globalTracker.recordSuccess(indexToAccountId(accountIndex))
+    this.globalTracker.recordSuccess(indexToAccountId(accountIndex), ANTIGRAVITY_PROVIDER)
   }
 
   /**
    * Record a rate limit hit - moderate penalty.
    */
   recordRateLimit(accountIndex: number): void {
-    this.globalTracker.recordRateLimit(indexToAccountId(accountIndex))
+    this.globalTracker.recordRateLimit(indexToAccountId(accountIndex), ANTIGRAVITY_PROVIDER)
   }
 
   /**
    * Record a failure (auth, network, etc.) - larger penalty.
    */
   recordFailure(accountIndex: number): void {
-    this.globalTracker.recordFailure(indexToAccountId(accountIndex))
+    this.globalTracker.recordFailure(indexToAccountId(accountIndex), ANTIGRAVITY_PROVIDER)
   }
 
   /**
    * Check if account is healthy enough to use.
    */
   isUsable(accountIndex: number): boolean {
-    return this.globalTracker.isUsable(indexToAccountId(accountIndex))
+    return this.globalTracker.isUsable(indexToAccountId(accountIndex), ANTIGRAVITY_PROVIDER)
   }
 
   /**
    * Get consecutive failure count for an account.
    */
   getConsecutiveFailures(accountIndex: number): number {
-    return this.globalTracker.getConsecutiveFailures(indexToAccountId(accountIndex))
+    return this.globalTracker.getConsecutiveFailures(indexToAccountId(accountIndex), ANTIGRAVITY_PROVIDER)
   }
 
   /**
    * Reset health state for an account (e.g., after removal).
    */
   reset(accountIndex: number): void {
-    this.globalTracker.reset(indexToAccountId(accountIndex))
+    this.globalTracker.reset(indexToAccountId(accountIndex), ANTIGRAVITY_PROVIDER)
   }
 
   /**
@@ -134,8 +135,9 @@ export class HealthScoreTracker {
     const result = new Map<number, { score: number; consecutiveFailures: number }>()
     const globalSnapshot = this.globalTracker.getSnapshot()
     for (const [id, data] of globalSnapshot) {
-      if (id.startsWith("antigravity-account-")) {
-        const index = parseInt(id.replace("antigravity-account-", ""), 10)
+      const normalized = id.startsWith(`${ANTIGRAVITY_PROVIDER}:`) ? id.slice(`${ANTIGRAVITY_PROVIDER}:`.length) : id
+      if (normalized.startsWith("antigravity-account-")) {
+        const index = parseInt(normalized.replace("antigravity-account-", ""), 10)
         if (!isNaN(index)) {
           result.set(index, data)
         }

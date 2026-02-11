@@ -334,7 +334,9 @@ export namespace Storage {
           const sortedMsgs = msgFiles.sort()
           firstMsg = await Bun.file(path.join(oldMsgDir, sortedMsgs[0])).json()
         } catch (e) {
-          log.error(`failed to read first message for rescue of ${sid}`, e)
+          log.error(`failed to read first message for rescue of ${sid}`, {
+            error: e,
+          })
         }
 
         const info: any = {

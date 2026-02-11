@@ -1614,7 +1614,7 @@ function InlineTool(props: {
     onCleanup(() => clearInterval(timer))
   })
   const elapsed = createMemo(() => {
-    if (!running()) return ""
+    if (props.part.state.status !== "running") return ""
     const start = props.part.state.time?.start
     if (!start) return ""
     const seconds = Math.max(0, Math.floor((now() - start) / 1000))
@@ -2018,7 +2018,7 @@ function Task(props: ToolProps<typeof TaskTool>) {
     onCleanup(() => clearInterval(timer))
   })
   const elapsed = createMemo(() => {
-    if (!running()) return ""
+    if (props.part.state.status !== "running") return ""
     const start = props.part.state.time?.start
     if (!start) return ""
     const seconds = Math.max(0, Math.floor((now() - start) / 1000))

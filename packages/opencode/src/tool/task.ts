@@ -146,7 +146,12 @@ async function publishBridgedEvent(event: { type: string; properties: any }) {
 type WorkerRequest = {
   id: string
   sessionID: string
-  resolve: () => void
+  createdAt: number
+  dispatchedAt?: number
+  firstEventAt?: number
+  lastEventAt?: number
+  eventCount: number
+  resolve: (result: WorkerRunResult) => void
   reject: (error: Error) => void
 }
 
@@ -157,7 +162,30 @@ type TaskWorker = {
   ready: boolean
   readyPromise: Promise<void>
   readyResolve: () => void
+  lastHeartbeatAt?: number
   current?: WorkerRequest
+}
+
+type WorkerRunResult = {
+  workerID: string
+  requestID: string
+  sessionID: string
+  createdAt: number
+  dispatchedAt?: number
+  firstEventAt?: number
+  lastEventAt?: number
+  eventCount: number
+  doneAt: number
+}
+
+function extractEventSessionID(event: any): string | undefined {
+  const properties = event?.properties
+  if (!properties) return
+  if (typeof properties.sessionID === "string") return properties.sessionID
+  if (typeof properties.info?.sessionID === "string") return properties.info.sessionID
+  if (typeof properties.part?.sessionID === "string") return properties.part.sessionID
+  if (typeof properties.info?.id === "string" && event?.type?.startsWith("session.")) return properties.info.id
+  return
 }
 
 const workers: TaskWorker[] = []
@@ -215,6 +243,8 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
     if (!reader) return
     const decoder = new TextDecoder()
     let buffer = ""
+    let bridgedEvents = 0
+    let bridgeParseErrors = 0
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
@@ -229,9 +259,18 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
           const payload = line.slice(BRIDGE_PREFIX.length)
           try {
             const event = JSON.parse(payload)
+            bridgedEvents += 1
+            const sid = extractEventSessionID(event)
+            if (worker.current && sid === worker.current.sessionID) {
+              const now = Date.now()
+              worker.current.eventCount += 1
+              worker.current.lastEventAt = now
+              if (!worker.current.firstEventAt) worker.current.firstEventAt = now
+            }
             void publishBridgedEvent(event).catch(() => { })
           } catch {
             // ignore invalid bridge payload
+            bridgeParseErrors += 1
           }
           continue
         }
@@ -248,6 +287,12 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
         if (msg?.type === "ready") {
           worker.ready = true
           worker.readyResolve()
+          worker.lastHeartbeatAt = Date.now()
+          continue
+        }
+
+        if (msg?.type === "heartbeat") {
+          worker.lastHeartbeatAt = Date.now()
           continue
         }
 
@@ -255,9 +300,42 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
           const req = worker.current
           worker.current = undefined
           worker.busy = false
-          if (msg.ok) req.resolve()
+          if (!req) continue
+          if (msg.ok)
+            req.resolve({
+              workerID: worker.id,
+              requestID: req.id,
+              sessionID: req.sessionID,
+              createdAt: req.createdAt,
+              dispatchedAt: req.dispatchedAt,
+              firstEventAt: req.firstEventAt,
+              lastEventAt: req.lastEventAt,
+              eventCount: req.eventCount,
+              doneAt: Date.now(),
+            })
           else req.reject(new Error(msg.error || "worker run failed"))
           void ensureStandbyWorker(config)
+        }
+
+        if (msg?.type === "canceled" && worker.current?.sessionID === msg.sessionID) {
+          const req = worker.current
+          worker.current = undefined
+          worker.busy = false
+          if (!req) continue
+          req.reject(new Error("worker run canceled"))
+          void ensureStandbyWorker(config)
+          continue
+        }
+
+        if (msg?.type === "error") {
+          if (worker.current && msg.id === worker.current.id) {
+            const req = worker.current
+            worker.current = undefined
+            worker.busy = false
+            req.reject(new Error(msg.error || "worker error"))
+            void ensureStandbyWorker(config)
+          }
+          continue
         }
       }
     }
@@ -269,6 +347,7 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
     removeWorker(worker.id)
     if (req) req.reject(new Error("worker process exited unexpectedly"))
     log.debug("task worker exited", { workerID, exitCode: await proc.exited.catch(() => -1) })
+    log.debug("task worker bridge stats", { workerID, bridgedEvents, bridgeParseErrors })
   })().catch(() => {
     removeWorker(worker.id)
     if (!worker.ready) worker.readyResolve()
@@ -279,6 +358,7 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
 }
 
 async function getReadyWorker(config: Awaited<ReturnType<typeof Config.get>>) {
+  const log = Log.create({ service: "task.worker" })
   const idleReady = workers.find((w) => !w.busy && w.ready)
   if (idleReady) return idleReady
 
@@ -286,6 +366,7 @@ async function getReadyWorker(config: Awaited<ReturnType<typeof Config.get>>) {
   if (existing) {
     await Promise.race([existing.readyPromise, Bun.sleep(WORKER_READY_TIMEOUT_MS)])
     if (existing.ready) return existing
+    log.warn("existing worker not ready within timeout", { workerID: existing.id, timeoutMs: WORKER_READY_TIMEOUT_MS })
   }
 
   const worker = spawnWorker(config)
@@ -295,6 +376,7 @@ async function getReadyWorker(config: Awaited<ReturnType<typeof Config.get>>) {
 }
 
 async function ensureStandbyWorker(config: Awaited<ReturnType<typeof Config.get>>) {
+  const log = Log.create({ service: "task.worker" })
   if (workers.some((w) => !w.busy && w.ready)) return
   if (standbySpawn) return standbySpawn
   standbySpawn = (async () => {
@@ -304,6 +386,7 @@ async function ensureStandbyWorker(config: Awaited<ReturnType<typeof Config.get>
       if (!worker.ready) {
         ProcessSupervisor.kill(worker.id)
         removeWorker(worker.id)
+        log.warn("standby worker failed readiness and was killed", { workerID: worker.id })
       }
     } finally {
       standbySpawn = undefined
@@ -317,46 +400,76 @@ async function dispatchToWorker(
     sessionID: string
     config: Awaited<ReturnType<typeof Config.get>>
     abort: AbortSignal
+    onPhase?: (phase: string, data?: Record<string, unknown>) => void
   },
 ) {
-  const worker = await getReadyWorker(input.config)
-  worker.busy = true
-  void ensureStandbyWorker(input.config)
-
-  const requestID = Identifier.ascending("message")
-  const done = new Promise<void>((resolve, reject) => {
-    worker.current = {
-      id: requestID,
-      sessionID: input.sessionID,
-      resolve,
-      reject,
-    }
-  })
-
-  worker.proc.stdin?.write(
-    JSON.stringify({
-      type: "run",
-      id: requestID,
-      sessionID: input.sessionID,
-    }) + "\n",
-  )
-
+  let worker: TaskWorker | undefined
+  let requestID: string | undefined
   const onAbort = () => {
+    input.onPhase?.("worker_abort_signal")
+    if (!worker || !requestID) return
     try {
-      worker.proc.stdin?.write(
+      const stdin = worker.proc.stdin
+      if (typeof stdin !== "number") {
+        stdin?.write(
         JSON.stringify({
           type: "cancel",
           id: requestID,
           sessionID: input.sessionID,
         }) + "\n",
-      )
+        )
+      }
+      input.onPhase?.("worker_cancel_sent", { workerID: worker.id, requestID })
     } catch {
       // ignore
     }
   }
   input.abort.addEventListener("abort", onAbort)
   try {
-    await done
+    if (input.abort.aborted) throw new Error("task canceled before worker assignment")
+
+    worker = await getReadyWorker(input.config)
+    input.onPhase?.("worker_assigned", { workerID: worker.id })
+    if (input.abort.aborted) {
+      throw new Error("task canceled before worker dispatch")
+    }
+
+    worker.busy = true
+    void ensureStandbyWorker(input.config)
+
+    requestID = Identifier.ascending("message")
+    const done = new Promise<WorkerRunResult>((resolve, reject) => {
+      worker!.current = {
+        id: requestID!,
+        sessionID: input.sessionID,
+        createdAt: Date.now(),
+        eventCount: 0,
+        resolve,
+        reject,
+      }
+    })
+
+    worker.current!.dispatchedAt = Date.now()
+    const stdin = worker.proc.stdin
+    if (typeof stdin !== "number") {
+      stdin?.write(
+      JSON.stringify({
+        type: "run",
+        id: requestID,
+        sessionID: input.sessionID,
+      }) + "\n",
+      )
+    }
+    input.onPhase?.("worker_dispatched", { workerID: worker.id, requestID })
+
+    const result = await done
+    input.onPhase?.("worker_done", {
+      workerID: result.workerID,
+      requestID: result.requestID,
+      eventCount: result.eventCount,
+      hasFirstEvent: !!result.firstEventAt,
+    })
+    return result
   } finally {
     input.abort.removeEventListener("abort", onAbort)
   }
@@ -381,6 +494,39 @@ export const TaskTool = Tool.define("task", async (ctx) => {
     description,
     parameters,
     async execute(params: z.infer<typeof parameters>, ctx) {
+      const telemetryLog = Log.create({ service: "task.telemetry" })
+      const startedAt = Date.now()
+      const marks = new Map<string, number>()
+      let assignedWorkerID: string | undefined
+      let subSessionID: string | undefined
+      const mark = (name: string, data?: Record<string, unknown>) => {
+        const now = Date.now()
+        marks.set(name, now)
+        debugCheckpoint("task.timeline", name, {
+          callID: ctx.callID,
+          sessionID: ctx.sessionID,
+          elapsedMs: now - startedAt,
+          ...data,
+        })
+      }
+      const elapsedFromStart = () => Date.now() - startedAt
+      const stageOnTimeout = () => {
+        if (!marks.has("worker_assigned")) return "queue"
+        if (!marks.has("worker_dispatched")) return "dispatch"
+        if (!marks.has("first_bridge_event")) return "modeling"
+        return "finalize"
+      }
+      using __telemetry = defer(() => {
+        telemetryLog.info("task lifecycle timing", {
+          callID: ctx.callID,
+          parentSessionID: ctx.sessionID,
+          subSessionID,
+          totalMs: Date.now() - startedAt,
+          timeline: Array.from(marks.entries()).map(([name, ts]) => ({ name, ms: ts - startedAt })),
+        })
+      })
+
+      mark("start", { subagentType: params.subagent_type, hasSessionID: !!params.session_id })
       debugCheckpoint("task", "Task tool execute started", {
         description: params.description,
         subagent_type: params.subagent_type,
@@ -389,6 +535,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       })
 
       const config = await Config.get()
+      mark("config_loaded")
 
       // Skip permission check when user explicitly invoked via @ or command subtask
       if (!ctx.extra?.bypassAgentCheck) {
@@ -402,10 +549,12 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           },
         })
       }
+      mark("permission_checked", { bypassed: !!ctx.extra?.bypassAgentCheck })
 
       const agent = await Agent.get(params.subagent_type)
       if (!agent) throw new Error(`Unknown agent type: ${params.subagent_type} is not a valid agent type`)
       debugCheckpoint("task", "Agent loaded", { agentName: agent.name, agentModel: agent.model })
+      mark("agent_loaded", { agent: agent.name })
 
       const hasTaskPermission = agent.permission.some((rule) => rule.permission === "task")
       const toolWhitelist = toolWhitelistForSubagent(agent.name)
@@ -455,6 +604,8 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           ],
         })
       })
+      mark("subsession_ready", { subSessionID: session.id })
+      subSessionID = session.id
       const msg = await MessageV2.get({ sessionID: ctx.sessionID, messageID: ctx.messageID })
       if (msg.info.role !== "assistant") throw new Error("Not an assistant message")
 
@@ -471,6 +622,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         parentModel: { modelID: msg.info.modelID, providerId: msg.info.providerId },
         finalModel: model,
       })
+      mark("model_resolved", { providerId: model.providerId, modelID: model.modelID })
 
       ctx.metadata({
         title: params.description,
@@ -525,6 +677,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       }
 
       const promptParts = await SessionPrompt.resolvePromptParts(normalizedPrompt)
+      mark("prompt_parts_resolved", { partCount: promptParts.length })
 
       // Add USER message to the session before spawning execution process
       // This mimics what SessionPrompt.prompt does but allows us to execute the loop in a separate process
@@ -553,6 +706,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           sessionID: session.id,
         })
       }
+      mark("subsession_seeded")
 
       debugCheckpoint("task", "Dispatching subagent session to worker", { sessionID: session.id })
 
@@ -585,7 +739,8 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       const sampleChildActivity = async () => {
         const messages = await Session.messages({ sessionID: session.id })
         const last = messages.at(-1)?.info
-        const signature = `${messages.length}:${last?.id ?? ""}:${last?.time.completed ?? last?.time.created ?? 0}`
+        const lastTime = last?.time as { created?: number; completed?: number } | undefined
+        const signature = `${messages.length}:${last?.id ?? ""}:${lastTime?.completed ?? lastTime?.created ?? 0}`
         if (signature !== lastSignature) {
           lastSignature = signature
           lastActivityTime = Date.now()
@@ -630,19 +785,43 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             sessionID: session.id,
             config,
             abort: ctx.abort,
-          }).then(() => ({ type: "done" as const })),
+            onPhase: (phase, data) => {
+              if (phase === "worker_assigned" && typeof data?.workerID === "string") {
+                assignedWorkerID = data.workerID
+              }
+              mark(phase, data)
+            },
+          }).then((run) => ({ type: "done" as const, run })),
           timeoutPromise,
         ])
 
         if (result === "timeout") {
+          mark("timed_out", { stage: stageOnTimeout(), timeoutMs: SUBAGENT_TIMEOUT_MS })
           Log.create({ service: "task" }).error("Subagent execution timed out, killing process", {
             callID: ctx.callID,
             sessionID: session.id,
             timeoutMs: SUBAGENT_TIMEOUT_MS,
+            timeoutStage: stageOnTimeout(),
+            elapsedMs: elapsedFromStart(),
+            workerID: assignedWorkerID,
+            workerHeartbeatAgeMs: (() => {
+              if (!assignedWorkerID) return undefined
+              const worker = workers.find((w) => w.id === assignedWorkerID)
+              if (!worker?.lastHeartbeatAt) return undefined
+              return Date.now() - worker.lastHeartbeatAt
+            })(),
           })
           SessionPrompt.cancel(session.id)
           throw new Error(`Subagent execution timed out after ${SUBAGENT_TIMEOUT_MS / 1000} seconds`)
         }
+        if (result.type === "done" && result.run.firstEventAt) {
+          marks.set("first_bridge_event", result.run.firstEventAt)
+        }
+        mark("worker_completed", {
+          eventCount: result.type === "done" ? result.run.eventCount : 0,
+          firstEventMs:
+            result.type === "done" && result.run.firstEventAt ? result.run.firstEventAt - startedAt : undefined,
+        })
       } finally {
         clearInterval(activityPoll)
         clearInterval(heartbeatTimer)
@@ -653,6 +832,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
 
       // Read the result from the session logs
       const messages = await Session.messages({ sessionID: session.id })
+      mark("result_loaded", { messageCount: messages.length })
       const assistantMessages = messages.filter((x) => x.info.role === "assistant")
       if (assistantMessages.length === 0) {
         throw new Error("Subagent exited without assistant output")
@@ -677,6 +857,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         }))
 
       const output = text + "\n\n" + ["<task_metadata>", `session_id: ${session.id}`, "</task_metadata>"].join("\n")
+      mark("finished", { outputChars: output.length, toolSummaryCount: summary.length })
 
       return {
         title: params.description,

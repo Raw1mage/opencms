@@ -1158,10 +1158,10 @@ export namespace Account {
       result.push({
         id,
         name: info.name,
-        healthScore: healthTracker.getScore(id),
+        healthScore: healthTracker.getScore(id, provider),
         isRateLimited: rateLimitTracker.isRateLimited(id, provider),
         waitTimeMs: rateLimitTracker.getWaitTime(id, provider),
-        consecutiveFailures: healthTracker.getConsecutiveFailures(id),
+        consecutiveFailures: healthTracker.getConsecutiveFailures(id, provider),
       })
     }
 

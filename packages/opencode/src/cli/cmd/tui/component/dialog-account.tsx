@@ -157,7 +157,8 @@ export function DialogAccount() {
     return result
   })
 
-  const handleDelete = async (option: DialogSelectOption<AccountOption>) => {
+  const handleDelete = async (option: DialogSelectOption<AccountOption> | undefined) => {
+    if (!option) return
     const selected = option.value
     const confirmed = await DialogConfirm.show(
       dialog,

@@ -339,10 +339,15 @@ export class HealthScoreTracker {
     this.loadFromFile()
 
     const result = new Map<string, { score: number; consecutiveFailures: number }>()
-    for (const [id] of this.scores) {
-      result.set(id, {
-        score: this.getScore(id),
-        consecutiveFailures: this.getConsecutiveFailures(id),
+    for (const [key, state] of this.scores) {
+      const split = key.indexOf(":")
+      const score =
+        split > 0
+          ? this.getScore(key.slice(split + 1), key.slice(0, split))
+          : state.score
+      result.set(key, {
+        score,
+        consecutiveFailures: state.consecutiveFailures,
       })
     }
     return result
@@ -378,7 +383,7 @@ function asErrorWithMetadata(error: unknown): ErrorWithMetadata | undefined {
 
 const QUOTA_EXHAUSTED_BACKOFFS = [600_000, 3_600_000, 14_400_000, 86_400_000] as const
 const RATE_LIMIT_EXCEEDED_BACKOFF = 3_600_000 // 1 hour (was 60s)
-const MODEL_CAPACITY_EXHAUSTED_BASE_BACKOFF = 45_000
+const MODEL_CAPACITY_EXHAUSTED_BASE_BACKOFF = 300_000 // 5 minutes
 const MODEL_CAPACITY_EXHAUSTED_JITTER_MAX = 30_000
 const SERVER_ERROR_BACKOFF = 20_000
 const AUTH_FAILED_BACKOFF = 3_600_000 // 1 hour

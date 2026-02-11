@@ -208,7 +208,7 @@ export namespace ModelScoring {
 
     const currentVector: ModelVector = {
       providerId: activeModel.providerId,
-      modelID: activeModel.id,
+      modelID: activeModel.modelID,
       accountId: activeAccountId,
     }
 

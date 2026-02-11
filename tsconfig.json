@@ -8,7 +8,6 @@
     "types": [],
     "noUncheckedIndexedAccess": false,
     "customConditions": ["browser"],
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./packages/opencode/src/*"],
       "@tui/*": ["./packages/opencode/src/cli/cmd/tui/*"]

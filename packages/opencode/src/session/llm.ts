@@ -53,6 +53,7 @@ export namespace LLM {
 
   // Toast debouncing for rate-limit and rotation notifications
   const TOAST_DEBOUNCE_MS = 15_000
+  const MODEL_CAPACITY_MIN_BACKOFF_MS = 300_000
   let lastRateLimitToastAt = 0
   let lastRotationToastAt = 0
 
@@ -310,7 +311,9 @@ export namespace LLM {
         // Removed ModelHealthRegistry (global) - use RateLimitTracker (per-account) only
         if (isRateLimitError(error)) {
           const { reason, retryAfterMs } = extractRateLimitDetails(error)
-          const consecutiveFailures = accountId ? getHealthTracker().getConsecutiveFailures(accountId) : 0
+          const consecutiveFailures = accountId
+            ? getHealthTracker().getConsecutiveFailures(accountId, input.model.providerId)
+            : 0
           let backoffMs = calculateBackoffMs(reason, consecutiveFailures, retryAfterMs)
 
           // @event_user_request: antigravity rate limit check
@@ -387,6 +390,11 @@ export namespace LLM {
             } catch (e) {
               l.warn("Failed to fetch cockpit backoff", { error: e })
             }
+          }
+
+          // Guardrail: keep 503/529 cooldown at least 5 minutes across all subagents.
+          if (reason === "MODEL_CAPACITY_EXHAUSTED" && backoffMs < MODEL_CAPACITY_MIN_BACKOFF_MS) {
+            backoffMs = MODEL_CAPACITY_MIN_BACKOFF_MS
           }
 
           // Update account-level tracking (with account dimension)
@@ -626,12 +634,12 @@ export namespace LLM {
     // Mark current vector as rate-limited to prevent bouncing back to it
     const rateLimitTracker = getRateLimitTracker()
     if (!rateLimitTracker.isRateLimited(currentAccountId, currentModel.providerId, currentModel.id)) {
-      // Apply cooldown (60 seconds) to prevent immediate retry
+      // Apply cooldown (5 minutes) to prevent immediate retry storms across subagents
       rateLimitTracker.markRateLimited(
         currentAccountId,
         currentModel.providerId,
         "RATE_LIMIT_EXCEEDED",
-        60_000,
+        300_000,
         currentModel.id,
       )
       log.info("Marked current vector as rate-limited to prevent bounce-back", {

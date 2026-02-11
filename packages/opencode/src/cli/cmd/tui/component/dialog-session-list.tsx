@@ -149,6 +149,7 @@ export function DialogSessionList() {
           keybind: keybind.all.session_rename?.[0],
           title: "rename",
           onTrigger: async (option) => {
+            if (!option) return
             dialog.replace(() => <DialogSessionRename session={option.value} />)
           },
         },

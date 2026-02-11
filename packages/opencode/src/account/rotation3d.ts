@@ -500,7 +500,7 @@ export async function buildFallbackCandidates(
 
     return {
       ...vector,
-      healthScore: healthTracker.getScore(vector.accountId),
+      healthScore: healthTracker.getScore(vector.accountId, vector.providerId),
       isRateLimited:
         rateLimitTracker.isRateLimited(vector.accountId, vector.providerId, vector.modelID) || isQuotaLimited,
       waitTimeMs: effectiveWaitTime,

@@ -84,7 +84,7 @@ export const RotationRoutes = lazy(() =>
 
         for (const [family, familyData] of Object.entries(allFamilies)) {
           for (const [accountId, info] of Object.entries(familyData.accounts)) {
-            const healthScore = healthTracker.getScore(accountId)
+            const healthScore = healthTracker.getScore(accountId, family)
             const isRateLimited = rateLimitTracker.isRateLimited(accountId, family)
 
             // Determine account type
@@ -103,7 +103,7 @@ export const RotationRoutes = lazy(() =>
               rateLimitResetAt: isRateLimited
                 ? Date.now() + rateLimitTracker.getWaitTime(accountId, family)
                 : undefined,
-              consecutiveFailures: healthTracker.getConsecutiveFailures(accountId),
+              consecutiveFailures: healthTracker.getConsecutiveFailures(accountId, family),
               lastSuccess: undefined, // Could add if needed
             })
           }
@@ -380,7 +380,7 @@ async function getRecommendationForTask(taskType: string, preferSubscription: bo
 
   for (const [family, familyData] of Object.entries(allFamilies)) {
     for (const [accountId, info] of Object.entries(familyData.accounts)) {
-      const healthScore = healthTracker.getScore(accountId)
+      const healthScore = healthTracker.getScore(accountId, family)
       const isRateLimited = rateLimitTracker.isRateLimited(accountId, family)
 
       if (isRateLimited || healthScore < 30) continue

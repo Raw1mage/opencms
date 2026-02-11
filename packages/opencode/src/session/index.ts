@@ -365,7 +365,9 @@ export namespace Session {
           // so we don't need to manually list and remove messages/parts one by one.
           await Storage.remove(["session", sessionID])
         } catch (err) {
-          log.error(`Background cleanup failed for session ${sessionID}`, err)
+          log.error(`Background cleanup failed for session ${sessionID}`, {
+            error: err,
+          })
         }
       }
 

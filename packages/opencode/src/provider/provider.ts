@@ -2423,7 +2423,7 @@ export namespace Provider {
         if (info.type !== "subscription" && (info.type as string) !== "oauth") continue
 
         // Check health and rate limit
-        const healthScore = healthTracker.getScore(accountId)
+        const healthScore = healthTracker.getScore(accountId, family)
         const isRateLimited = rateLimitTracker.isRateLimited(accountId, family)
 
         if (healthScore < 50 || isRateLimited) continue

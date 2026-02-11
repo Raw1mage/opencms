@@ -43,11 +43,26 @@ export const AttachCommand = cmd({
       const auth = `Basic ${Buffer.from(`opencode:${password}`).toString("base64")}`
       return { Authorization: auth }
     })()
+    const fetchWithAuth: typeof fetch | undefined = headers
+      ? Object.assign(
+          (input: URL | RequestInfo, init?: RequestInit) => {
+            const merged = new Headers(init?.headers)
+            for (const [key, value] of Object.entries(headers)) {
+              merged.set(key, value)
+            }
+            return fetch(input, {
+              ...init,
+              headers: merged,
+            })
+          },
+          { preconnect: fetch.preconnect },
+        )
+      : undefined
     await tui({
       url: args.url,
       args: { sessionID: args.session },
       directory,
-      headers,
+      fetch: fetchWithAuth,
     })
   },
 })

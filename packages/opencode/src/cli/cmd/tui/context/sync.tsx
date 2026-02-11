@@ -436,7 +436,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       })
     }
 
-    sdk.event.on(TuiEvent.ProviderRefresh.type, () => {
+    ;(sdk.event.on as (event: string, handler: () => void) => void)(TuiEvent.ProviderRefresh.type, () => {
       refreshProviders().catch((e) => {
         Log.Default.error("provider refresh failed", { error: e })
       })

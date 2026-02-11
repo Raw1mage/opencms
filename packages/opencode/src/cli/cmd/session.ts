@@ -138,6 +138,19 @@ export const SessionWorkerCommand = cmd({
       }
 
       send({ type: "ready" })
+      const heartbeat = setInterval(() => {
+        send({ type: "heartbeat", pid: process.pid, ts: Date.now() })
+      }, 5000)
+      if (typeof heartbeat.unref === "function") heartbeat.unref()
+
+      let activeRun:
+        | {
+            id: string
+            sessionID: string
+            cancelRequested: boolean
+          }
+        | undefined
+
       for await (const raw of rl) {
         const line = raw.trim()
         if (!line) continue
@@ -145,37 +158,70 @@ export const SessionWorkerCommand = cmd({
         try {
           msg = JSON.parse(line)
         } catch {
-          send({ type: "error", error: "invalid_json" })
+          send({ type: "error", error: "invalid_json", raw: line.slice(0, 200) })
           continue
         }
 
         if (msg?.type === "run" && typeof msg.id === "string" && typeof msg.sessionID === "string") {
-          const teardownBridge = setupTaskEventBridge(msg.sessionID)
-          try {
-            await SessionPrompt.loop(msg.sessionID)
-            send({ type: "done", id: msg.id, sessionID: msg.sessionID, ok: true })
-          } catch (error) {
+          if (activeRun) {
             send({
-              type: "done",
+              type: "error",
               id: msg.id,
               sessionID: msg.sessionID,
-              ok: false,
-              error: error instanceof Error ? error.message : String(error),
+              error: "worker_busy",
+              activeSessionID: activeRun.sessionID,
             })
-          } finally {
-            teardownBridge?.()
+            continue
           }
+          activeRun = {
+            id: msg.id,
+            sessionID: msg.sessionID,
+            cancelRequested: false,
+          }
+          const runRef = activeRun
+          const teardownBridge = setupTaskEventBridge(runRef.sessionID)
+          void (async () => {
+            try {
+              await SessionPrompt.loop(runRef.sessionID)
+              if (runRef.cancelRequested) {
+                send({
+                  type: "done",
+                  id: runRef.id,
+                  sessionID: runRef.sessionID,
+                  ok: false,
+                  error: "canceled",
+                })
+              } else {
+                send({ type: "done", id: runRef.id, sessionID: runRef.sessionID, ok: true })
+              }
+            } catch (error) {
+              send({
+                type: "done",
+                id: runRef.id,
+                sessionID: runRef.sessionID,
+                ok: false,
+                error: error instanceof Error ? error.message : String(error),
+              })
+            } finally {
+              teardownBridge?.()
+              if (activeRun === runRef) activeRun = undefined
+            }
+          })()
           continue
         }
 
         if (msg?.type === "cancel" && typeof msg.sessionID === "string") {
+          if (activeRun && activeRun.sessionID === msg.sessionID) {
+            activeRun.cancelRequested = true
+          }
           SessionPrompt.cancel(msg.sessionID)
           send({ type: "canceled", sessionID: msg.sessionID })
           continue
         }
 
-        send({ type: "error", error: "unknown_command" })
+        send({ type: "error", error: "unknown_command", command: msg?.type })
       }
+      clearInterval(heartbeat)
     })
   },
 })

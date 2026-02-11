@@ -277,7 +277,7 @@ export namespace SessionMonitor {
             if (part.state.status !== "pending" && part.state.status !== "running") continue
             const processState = ProcessSupervisor.sessionState(session.id)
             const isProcessActive = processState === "running" || processState === "stalled"
-            const startedAt = part.state.status === "running" ? part.state.time.start : info.time.created
+            const startedAt = part.state.status === "running" ? part.state.time.start : message.info.time.created
             if (!isProcessActive && Date.now() - startedAt > TOOL_ACTIVE_WINDOW_MS) continue
             if (!tool.name) {
               tool.name = part.tool
