@@ -2,7 +2,6 @@ import { Ripgrep } from "../file/ripgrep"
 
 import { Instance } from "../project/instance"
 
-import PROMPT_ANTHROPIC from "./prompt/anthropic.txt"
 import PROMPT_CLAUDE_CODE from "./prompt/claude-code.txt"
 import PROMPT_ANTHROPIC_WITHOUT_TODO from "./prompt/qwen.txt"
 import PROMPT_BEAST from "./prompt/beast.txt"
@@ -24,10 +23,7 @@ export namespace SystemPrompt {
       return [PROMPT_BEAST]
     if (model.api.id.includes("gemini-")) return [PROMPT_GEMINI]
     if (model.api.id.includes("claude")) {
-      if (model.api.id.includes("opus-4.6") || model.api.id.includes("3.7-sonnet")) {
-        return [PROMPT_CLAUDE_CODE]
-      }
-      return [PROMPT_ANTHROPIC]
+      return [PROMPT_CLAUDE_CODE]
     }
     return [PROMPT_ANTHROPIC_WITHOUT_TODO]
   }

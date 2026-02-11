@@ -8,7 +8,7 @@ const log = Log.create({ service: "plugin.claude-cli" })
 
 // GLOBAL CONSTANTS
 const CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
-const VERSION = "2.1.37"
+const VERSION = "2.1.39"
 const ATTRIBUTION_SALT = "59cf53e54c78"
 
 // STATE (Cross-request cache) - Sessions API deprecated, using ?beta=true strategy
@@ -67,7 +67,10 @@ async function authorize(mode: "max" | "console") {
   url.searchParams.set("client_id", CLIENT_ID)
   url.searchParams.set("response_type", "code")
   url.searchParams.set("redirect_uri", "https://platform.claude.com/oauth/code/callback")
-  url.searchParams.set("scope", "org:create_api_key user:profile user:inference")
+  url.searchParams.set(
+    "scope",
+    "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers",
+  )
   url.searchParams.set("code_challenge", pkce.challenge)
   url.searchParams.set("code_challenge_method", "S256")
   url.searchParams.set("state", pkce.verifier)
@@ -161,7 +164,8 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                           grant_type: "refresh_token",
                           refresh_token: auth.refresh,
                           client_id: CLIENT_ID,
-                          scope: "org:create_api_key user:profile user:inference",
+                          scope:
+                            "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers",
                         }),
                       })
                       if (response.ok) {
