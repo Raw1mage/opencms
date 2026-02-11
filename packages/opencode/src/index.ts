@@ -30,6 +30,7 @@ import { PrCommand } from "./cli/cmd/pr"
 import { SessionCommand } from "./cli/cmd/session"
 import { AdminCommand } from "./cli/cmd/admin"
 import { debugInit, debugCheckpoint } from "./util/debug"
+import { ProcessSupervisor } from "./process/supervisor"
 
 debugInit()
 debugCheckpoint("app", "start", { args: process.argv.slice(2) })
@@ -175,6 +176,10 @@ try {
   }
   process.exitCode = 1
 } finally {
+  // FIX: @event_20260211_bun_orphan_fix
+  // Graceful shutdown: cleanup all registered child processes
+  // before exiting to prevent orphan processes
+  await ProcessSupervisor.disposeAll()
   // Some subprocesses don't react properly to SIGTERM and similar signals.
   // Most notably, some docker-container-based MCP servers don't handle such signals unless
   // run using `docker run --init`.

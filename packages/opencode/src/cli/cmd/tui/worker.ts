@@ -139,7 +139,9 @@ export const rpc = {
   async shutdown() {
     Log.Default.info("worker shutting down")
     if (eventStream.abort) eventStream.abort.abort()
+    // FIX: @event_20260211_bun_orphan_fix
     // Kill all subagent processes before disposing instances
+    // This is now called from both thread.ts signal handler AND worker shutdown
     await ProcessSupervisor.disposeAll()
     await Instance.disposeAll()
     if (server) server.stop(true)
