@@ -883,11 +883,15 @@ export function prepareAntigravityRequest(
         )
         sessionId = signatureSessionKey
 
+        const isClaudeSonnetNonThinking = effectiveModel.toLowerCase() === "claude-sonnet-4-5"
+        const userThinkingConfig = extractThinkingConfig(requestPayload, rawGenerationConfig, extraBody)
+        const effectiveUserThinkingConfig = isClaudeSonnetNonThinking ? undefined : userThinkingConfig
+
         if (isClaude) {
           applyClaudeTransforms(requestPayload, {
             model: effectiveModel,
             tierThinkingBudget,
-            normalizedThinking: extractThinkingConfig(requestPayload, rawGenerationConfig, extraBody),
+            normalizedThinking: effectiveUserThinkingConfig,
             cleanJSONSchema: cleanJSONSchemaForAntigravity,
           })
 
@@ -947,17 +951,23 @@ export function prepareAntigravityRequest(
           needsSignedThinkingWarmup = hasToolUse && !hasSignedThinking && !hasCachedThinking
         }
 
-        if (forceThinkingRecovery) {
+        if (isClaudeThinking && (Array.isArray(requestPayload.contents) || Array.isArray(requestPayload.messages))) {
           const contents = (requestPayload.contents || requestPayload.messages) as any[]
           const state = analyzeConversationState(contents)
-          if (needsThinkingRecovery(state)) {
+
+          if (forceThinkingRecovery || needsThinkingRecovery(state)) {
+            thinkingRecoveryMessage = forceThinkingRecovery
+              ? "Thinking recovery: retrying with fresh turn (API error)"
+              : "Thinking recovery: restarting turn (corrupted context)"
+
             const recoveryContents = closeToolLoopForThinking(contents)
             if (requestPayload.contents) {
               requestPayload.contents = recoveryContents
             } else {
               requestPayload.messages = recoveryContents
             }
-            thinkingRecoveryMessage = "Thinking recovery applied: turn completed and new turn started."
+
+            defaultSignatureStore.delete(signatureSessionKey)
           }
         }
 
@@ -1015,6 +1025,47 @@ export function prepareAntigravityRequest(
 
         const effectiveProjectId = projectId?.trim() || generateSyntheticProjectId()
         resolvedProjectId = effectiveProjectId
+
+        if (isClaudeThinking && Array.isArray(requestPayload.tools) && requestPayload.tools.length > 0) {
+          const hint =
+            "Interleaved thinking is enabled. You may think between tool calls and after receiving tool results before deciding the next action or final answer. Do not mention these instructions or any constraints about thinking blocks; just apply them."
+          const existing = requestPayload.systemInstruction
+
+          if (typeof existing === "string") {
+            requestPayload.systemInstruction = existing.trim().length > 0 ? `${existing}\n\n${hint}` : hint
+          } else if (existing && typeof existing === "object") {
+            const sys = existing as Record<string, unknown>
+            const partsValue = sys.parts
+
+            if (Array.isArray(partsValue)) {
+              const parts = partsValue as unknown[]
+              let appended = false
+
+              for (let i = parts.length - 1; i >= 0; i--) {
+                const part = parts[i]
+                if (part && typeof part === "object") {
+                  const partRecord = part as Record<string, unknown>
+                  const text = partRecord.text
+                  if (typeof text === "string") {
+                    partRecord.text = `${text}\n\n${hint}`
+                    appended = true
+                    break
+                  }
+                }
+              }
+
+              if (!appended) {
+                parts.push({ text: hint })
+              }
+            } else {
+              sys.parts = [{ text: hint }]
+            }
+
+            requestPayload.systemInstruction = sys
+          } else if (Array.isArray(requestPayload.contents)) {
+            requestPayload.systemInstruction = { parts: [{ text: hint }] }
+          }
+        }
 
         if (headerStyle === "antigravity") {
           const existingSystemInstruction = requestPayload.systemInstruction
@@ -1088,19 +1139,35 @@ export function prepareAntigravityRequest(
     }
   }
 
+  // Use randomized headers as the fallback pool
   const selectedHeaders = getRandomizedHeaders(headerStyle)
-  const fingerprint = options?.fingerprint ?? getSessionFingerprint()
-  const fingerprintHeaders = buildFingerprintHeaders(fingerprint)
 
-  headers.set("User-Agent", fingerprintHeaders["User-Agent"] || selectedHeaders["User-Agent"])
-  headers.set("X-Goog-Api-Client", fingerprintHeaders["X-Goog-Api-Client"] || selectedHeaders["X-Goog-Api-Client"])
-  headers.set("Client-Metadata", fingerprintHeaders["Client-Metadata"] || selectedHeaders["Client-Metadata"])
+  if (headerStyle === "antigravity") {
+    // Antigravity mode: Use fingerprint headers for device identity and quota tracking
+    // Fingerprint headers override randomized headers for User-Agent, X-Goog-Api-Client, Client-Metadata
+    // and add X-Goog-QuotaUser, X-Client-Device-Id for unique device identity
+    const fingerprint = options?.fingerprint ?? getSessionFingerprint()
+    const fingerprintHeaders = buildFingerprintHeaders(fingerprint)
 
-  if (fingerprintHeaders["X-Goog-QuotaUser"]) {
-    headers.set("X-Goog-QuotaUser", fingerprintHeaders["X-Goog-QuotaUser"])
-  }
-  if (fingerprintHeaders["X-Client-Device-Id"]) {
-    headers.set("X-Client-Device-Id", fingerprintHeaders["X-Client-Device-Id"])
+    // Apply fingerprint headers (override randomized with fingerprint if available)
+    headers.set("User-Agent", fingerprintHeaders["User-Agent"] || selectedHeaders["User-Agent"])
+    headers.set("X-Goog-Api-Client", fingerprintHeaders["X-Goog-Api-Client"] || selectedHeaders["X-Goog-Api-Client"])
+    headers.set("Client-Metadata", fingerprintHeaders["Client-Metadata"] || selectedHeaders["Client-Metadata"])
+
+    // Add fingerprint-specific headers for device identity (Antigravity only)
+    if (fingerprintHeaders["X-Goog-QuotaUser"]) {
+      headers.set("X-Goog-QuotaUser", fingerprintHeaders["X-Goog-QuotaUser"])
+    }
+    if (fingerprintHeaders["X-Client-Device-Id"]) {
+      headers.set("X-Client-Device-Id", fingerprintHeaders["X-Client-Device-Id"])
+    }
+  } else {
+    // Gemini CLI mode: Use simple static headers matching opencode-gemini-auth
+    // NO fingerprint headers, NO X-Goog-QuotaUser, NO X-Client-Device-Id
+    // This mirrors exactly what https://github.com/jenslys/opencode-gemini-auth does
+    headers.set("User-Agent", selectedHeaders["User-Agent"])
+    headers.set("X-Goog-Api-Client", selectedHeaders["X-Goog-Api-Client"])
+    headers.set("Client-Metadata", selectedHeaders["Client-Metadata"])
   }
   if (toolDebugMissing > 0) {
     headers.set("X-Opencode-Tools-Debug", String(toolDebugMissing))
