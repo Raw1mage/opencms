@@ -14,20 +14,33 @@ const log = createLogger("request-helpers")
 /**
  * Basic JSON Schema interface to replace 'any' usages.
  */
-interface JsonSchema {
+export interface JsonSchema {
   type?: string | string[]
   description?: string
   properties?: Record<string, JsonSchema>
   items?: JsonSchema | JsonSchema[]
   required?: string[]
-  enum?: any[]
-  const?: any
+  enum?: unknown[]
+  const?: unknown
   allOf?: JsonSchema[]
   anyOf?: JsonSchema[]
   oneOf?: JsonSchema[]
   additionalProperties?: boolean | JsonSchema
   $ref?: string
-  [key: string]: any // For custom or unsupported keywords
+  format?: string
+  default?: unknown
+  // Constraints
+  minLength?: number
+  maxLength?: number
+  pattern?: string
+  minItems?: number
+  maxItems?: number
+  exclusiveMinimum?: number | boolean
+  exclusiveMaximum?: number | boolean
+  minimum?: number
+  maximum?: number
+  // Index signature for extensibility
+  [key: string]: unknown
 }
 
 // NOTE: @event_antigravity_preview_link
@@ -178,16 +191,16 @@ function addEnumHints(schema: JsonSchema): JsonSchema {
  * Phase 1d: Adds additionalProperties hints.
  * { additionalProperties: false } → adds "(No extra properties allowed)" to description
  */
-function addAdditionalPropertiesHints(schema: any): any {
+function addAdditionalPropertiesHints(schema: JsonSchema): JsonSchema {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => addAdditionalPropertiesHints(item))
+    return (schema as JsonSchema[]).map((item) => addAdditionalPropertiesHints(item)) as any
   }
 
-  let result: any = { ...schema }
+  let result: JsonSchema = { ...schema }
 
   if (result.additionalProperties === false) {
     result = appendDescriptionHint(result, "No extra properties allowed")
@@ -196,7 +209,7 @@ function addAdditionalPropertiesHints(schema: any): any {
   // Recursively process nested objects
   for (const [key, value] of Object.entries(result)) {
     if (key !== "additionalProperties" && typeof value === "object" && value !== null) {
-      result[key] = addAdditionalPropertiesHints(value)
+      result[key] = addAdditionalPropertiesHints(value as JsonSchema)
     }
   }
 
@@ -207,16 +220,16 @@ function addAdditionalPropertiesHints(schema: any): any {
  * Phase 1e: Moves unsupported constraints to description hints.
  * { minLength: 1, maxLength: 100 } → adds "(minLength: 1) (maxLength: 100)" to description
  */
-function moveConstraintsToDescription(schema: any): any {
+function moveConstraintsToDescription(schema: JsonSchema): JsonSchema {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => moveConstraintsToDescription(item))
+    return (schema as JsonSchema[]).map((item) => moveConstraintsToDescription(item)) as any
   }
 
-  let result: any = { ...schema }
+  let result: JsonSchema = { ...schema }
 
   // Move constraint values to description
   for (const constraint of UNSUPPORTED_CONSTRAINTS) {
@@ -228,7 +241,7 @@ function moveConstraintsToDescription(schema: any): any {
   // Recursively process nested objects
   for (const [key, value] of Object.entries(result)) {
     if (typeof value === "object" && value !== null) {
-      result[key] = moveConstraintsToDescription(value)
+      result[key] = moveConstraintsToDescription(value as JsonSchema)
     }
   }
 
@@ -240,20 +253,20 @@ function moveConstraintsToDescription(schema: any): any {
  * { allOf: [{ properties: { a: ... } }, { properties: { b: ... } }] }
  * → { properties: { a: ..., b: ... } }
  */
-function mergeAllOf(schema: any): any {
+function mergeAllOf(schema: JsonSchema): JsonSchema {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => mergeAllOf(item))
+    return (schema as JsonSchema[]).map((item) => mergeAllOf(item)) as any
   }
 
-  let result: any = { ...schema }
+  let result: JsonSchema = { ...schema }
 
   // If this object has allOf, merge its contents
   if (Array.isArray(result.allOf)) {
-    const merged: any = {}
+    const merged: JsonSchema = {}
     const mergedRequired: string[] = []
 
     for (const item of result.allOf) {
@@ -303,7 +316,7 @@ function mergeAllOf(schema: any): any {
   // Recursively process nested objects
   for (const [key, value] of Object.entries(result)) {
     if (typeof value === "object" && value !== null) {
-      result[key] = mergeAllOf(value)
+      result[key] = mergeAllOf(value as JsonSchema)
     }
   }
 
@@ -314,7 +327,7 @@ function mergeAllOf(schema: any): any {
  * Scores a schema option for selection in anyOf/oneOf flattening.
  * Higher score = more preferred.
  */
-function scoreSchemaOption(schema: any): { score: number; typeName: string } {
+function scoreSchemaOption(schema: JsonSchema): { score: number; typeName: string } {
   if (!schema || typeof schema !== "object") {
     return { score: 0, typeName: "unknown" }
   }
@@ -332,12 +345,12 @@ function scoreSchemaOption(schema: any): { score: number; typeName: string } {
   }
 
   // Any other non-null type
-  if (type && type !== "null") {
+  if (typeof type === "string") {
     return { score: 1, typeName: type }
   }
 
   // Null or no type
-  return { score: 0, typeName: type || "null" }
+  return { score: 0, typeName: typeof type === "string" ? type : "null" }
 }
 
 /**
@@ -349,7 +362,7 @@ function scoreSchemaOption(schema: any): { score: number; typeName: string } {
  * - anyOf: [{ enum: ["a"] }, { enum: ["b"] }]
  * - anyOf: [{ type: "string", const: "a" }, { type: "string", const: "b" }]
  */
-function tryMergeEnumFromUnion(options: any[]): string[] | null {
+function tryMergeEnumFromUnion(options: JsonSchema[]): string[] | null {
   if (!Array.isArray(options) || options.length === 0) {
     return null
   }
@@ -405,21 +418,21 @@ function tryMergeEnumFromUnion(options: any[]): string[] | null {
  * { anyOf: [{ const: "a" }, { const: "b" }] }
  * → { type: "string", enum: ["a", "b"] }
  */
-function flattenAnyOfOneOf(schema: any): any {
+function flattenAnyOfOneOf(schema: JsonSchema): JsonSchema {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => flattenAnyOfOneOf(item))
+    return (schema as JsonSchema[]).map((item) => flattenAnyOfOneOf(item)) as any
   }
 
-  let result: any = { ...schema }
+  let result: JsonSchema = { ...schema }
 
   // Process anyOf or oneOf
   for (const unionKey of ["anyOf", "oneOf"] as const) {
-    if (Array.isArray(result[unionKey]) && result[unionKey].length > 0) {
-      const options = result[unionKey]
+    if (Array.isArray(result[unionKey]) && result[unionKey]!.length > 0) {
+      const options = result[unionKey] as JsonSchema[]
       const parentDesc = typeof result.description === "string" ? result.description : ""
 
       // First, check if this is an enum pattern (anyOf with const/enum values)
@@ -485,7 +498,7 @@ function flattenAnyOfOneOf(schema: any): any {
   // Recursively process nested objects
   for (const [key, value] of Object.entries(result)) {
     if (typeof value === "object" && value !== null) {
-      result[key] = flattenAnyOfOneOf(value)
+      result[key] = flattenAnyOfOneOf(value as JsonSchema)
     }
   }
 
@@ -496,16 +509,16 @@ function flattenAnyOfOneOf(schema: any): any {
  * Phase 2c: Flattens type arrays to single type with nullable hint.
  * { type: ["string", "null"] } → { type: "string", description: "(nullable)" }
  */
-function flattenTypeArrays(schema: any, nullableFields?: Map<string, string[]>, currentPath?: string): any {
+function flattenTypeArrays(schema: JsonSchema, nullableFields?: Map<string, string[]>, currentPath?: string): JsonSchema {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item, idx) => flattenTypeArrays(item, nullableFields, `${currentPath || ""}[${idx}]`))
+    return (schema as JsonSchema[]).map((item, idx) => flattenTypeArrays(item, nullableFields, `${currentPath || ""}[${idx}]`)) as any
   }
 
-  let result: any = { ...schema }
+  let result: JsonSchema = { ...schema }
   const localNullableFields = nullableFields || new Map<string, string[]>()
 
   // Handle type array
@@ -531,7 +544,7 @@ function flattenTypeArrays(schema: any, nullableFields?: Map<string, string[]>, 
 
   // Recursively process properties
   if (result.properties && typeof result.properties === "object") {
-    const newProps: any = {}
+    const newProps: Record<string, JsonSchema> = {}
     for (const [propKey, propValue] of Object.entries(result.properties)) {
       const propPath = currentPath ? `${currentPath}.properties.${propKey}` : `properties.${propKey}`
       const processed = flattenTypeArrays(propValue, localNullableFields, propPath)
@@ -568,7 +581,7 @@ function flattenTypeArrays(schema: any, nullableFields?: Map<string, string[]>, 
   // Recursively process other nested objects
   for (const [key, value] of Object.entries(result)) {
     if (key !== "properties" && typeof value === "object" && value !== null) {
-      result[key] = flattenTypeArrays(value, localNullableFields, `${currentPath || ""}.${key}`)
+      result[key] = flattenTypeArrays(value as JsonSchema, localNullableFields, `${currentPath || ""}.${key}`)
     }
   }
 
@@ -579,16 +592,16 @@ function flattenTypeArrays(schema: any, nullableFields?: Map<string, string[]>, 
  * Phase 3: Removes unsupported keywords after hints have been extracted.
  * @param insideProperties - When true, keys are property NAMES (preserve); when false, keys are JSON Schema keywords (filter).
  */
-function removeUnsupportedKeywords(schema: any, insideProperties: boolean = false): any {
+function removeUnsupportedKeywords(schema: JsonSchema, insideProperties: boolean = false): JsonSchema {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => removeUnsupportedKeywords(item, false))
+    return (schema as JsonSchema[]).map((item) => removeUnsupportedKeywords(item, false)) as any
   }
 
-  const result: any = {}
+  const result: JsonSchema = {}
   for (const [key, value] of Object.entries(schema)) {
     if (!insideProperties && (UNSUPPORTED_KEYWORDS as readonly string[]).includes(key)) {
       continue
@@ -596,13 +609,13 @@ function removeUnsupportedKeywords(schema: any, insideProperties: boolean = fals
 
     if (typeof value === "object" && value !== null) {
       if (key === "properties") {
-        const propertiesResult: any = {}
+        const propertiesResult: Record<string, JsonSchema> = {}
         for (const [propName, propSchema] of Object.entries(value as object)) {
-          propertiesResult[propName] = removeUnsupportedKeywords(propSchema, false)
+          propertiesResult[propName] = removeUnsupportedKeywords(propSchema as JsonSchema, false)
         }
         result[key] = propertiesResult
       } else {
-        result[key] = removeUnsupportedKeywords(value, false)
+        result[key] = removeUnsupportedKeywords(value as JsonSchema, false)
       }
     } else {
       result[key] = value
@@ -614,16 +627,16 @@ function removeUnsupportedKeywords(schema: any, insideProperties: boolean = fals
 /**
  * Phase 3b: Cleans up required fields - removes entries that don't exist in properties.
  */
-function cleanupRequiredFields(schema: any): any {
+function cleanupRequiredFields(schema: JsonSchema): JsonSchema {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => cleanupRequiredFields(item))
+    return (schema as JsonSchema[]).map((item) => cleanupRequiredFields(item)) as any
   }
 
-  let result: any = { ...schema }
+  let result: JsonSchema = { ...schema }
 
   // Clean up required array if properties exist
   if (Array.isArray(result.required) && result.properties && typeof result.properties === "object") {
@@ -640,7 +653,7 @@ function cleanupRequiredFields(schema: any): any {
   // Recursively process nested objects
   for (const [key, value] of Object.entries(result)) {
     if (typeof value === "object" && value !== null) {
-      result[key] = cleanupRequiredFields(value)
+      result[key] = cleanupRequiredFields(value as JsonSchema)
     }
   }
 
@@ -651,16 +664,16 @@ function cleanupRequiredFields(schema: any): any {
  * Phase 4: Adds placeholder property for empty object schemas.
  * Claude VALIDATED mode requires at least one property.
  */
-function addEmptySchemaPlaceholder(schema: any): any {
+function addEmptySchemaPlaceholder(schema: JsonSchema): JsonSchema {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => addEmptySchemaPlaceholder(item))
+    return (schema as JsonSchema[]).map((item) => addEmptySchemaPlaceholder(item)) as any
   }
 
-  let result: any = { ...schema }
+  let result: JsonSchema = { ...schema }
 
   // Check if this is an empty object schema
   const isObjectType = result.type === "object"
@@ -683,7 +696,7 @@ function addEmptySchemaPlaceholder(schema: any): any {
   // Recursively process nested objects
   for (const [key, value] of Object.entries(result)) {
     if (typeof value === "object" && value !== null) {
-      result[key] = addEmptySchemaPlaceholder(value)
+      result[key] = addEmptySchemaPlaceholder(value as JsonSchema)
     }
   }
 
@@ -696,7 +709,7 @@ function addEmptySchemaPlaceholder(schema: any): any {
  *
  * Ported from CLIProxyAPI's CleanJSONSchemaForAntigravity (gemini_schema.go)
  */
-export function cleanJSONSchemaForAntigravity(schema: any): any {
+export function cleanJSONSchemaForAntigravity(schema: JsonSchema): JsonSchema {
   if (!schema || typeof schema !== "object") {
     return schema
   }
@@ -728,6 +741,35 @@ export function cleanJSONSchemaForAntigravity(schema: any): any {
 // ============================================================================
 // END JSON SCHEMA CLEANING
 // ============================================================================
+
+interface GeminiPart {
+  text?: string
+  thought?: boolean
+  thoughtSignature?: string
+  signature?: string
+  type?: string // Anthropic-style
+  thinking?: string // Anthropic-style
+  functionCall?: {
+    name: string
+    args: Record<string, unknown>
+  }
+  inlineData?: {
+    mimeType: string
+    data: string
+  }
+  cache_control?: unknown
+  [key: string]: unknown
+}
+
+interface GeminiContent {
+  role?: string
+  parts: GeminiPart[]
+}
+
+interface GeminiCandidate {
+  content: GeminiContent
+  [key: string]: unknown
+}
 
 export interface AntigravityApiError {
   code?: number
@@ -1386,7 +1428,7 @@ export function deepFilterThinkingBlocks(
  * thinking parts (type: "thinking") to reasoning format.
  * Claude responses through Antigravity may use candidates structure with Anthropic-style parts.
  */
-function transformGeminiCandidate(candidate: any): any {
+function transformGeminiCandidate(candidate: GeminiCandidate): GeminiCandidate {
   if (!candidate || typeof candidate !== "object") {
     return candidate
   }
@@ -1397,7 +1439,7 @@ function transformGeminiCandidate(candidate: any): any {
   }
 
   const thinkingTexts: string[] = []
-  const transformedParts = content.parts.map((part: any) => {
+  const transformedParts = content.parts.map((part: GeminiPart) => {
     if (!part || typeof part !== "object") {
       return part
     }
@@ -1531,7 +1573,7 @@ export function transformThinkingParts(response: unknown): unknown {
 
   // Handle Gemini-style candidates array
   if (Array.isArray(resp.candidates)) {
-    result.candidates = resp.candidates.map(transformGeminiCandidate)
+    result.candidates = (resp.candidates as GeminiCandidate[]).map(transformGeminiCandidate)
   }
 
   // Add reasoning_content if we found any thinking blocks (for Anthropic-style)
