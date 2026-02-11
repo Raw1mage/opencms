@@ -5,7 +5,6 @@
     "lib": ["ES2022"],
     "sourceMap": true,
     "rootDir": "src",
-    "typeRoots": ["./node_modules/@types"],
     "strict": true /* enable all strict type-checking options */,
     "skipLibCheck": true
     /* Additional Checks */

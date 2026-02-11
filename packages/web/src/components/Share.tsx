@@ -281,7 +281,7 @@ export default function Share(props: {
         result.tokens.output += msg.tokens.output
         result.tokens.reasoning += msg.tokens.reasoning
 
-        result.models[`${msg.providerID} ${msg.modelID}`] = [msg.providerID, msg.modelID]
+        result.models[`${msg.providerId} ${msg.modelID}`] = [msg.providerId, msg.modelID]
 
         if (msg.path.root) {
           result.rootDir = msg.path.root
@@ -532,7 +532,7 @@ export function fromV1(v1: Message.Info): MessageWithParts {
         reasoning: 0,
       },
       modelID: v1.metadata.assistant!.modelID,
-      providerID: v1.metadata.assistant!.providerID,
+      providerId: v1.metadata.assistant!.providerId,
       mode: "build",
       error: v1.metadata.error,
       parts: v1.parts.flatMap((part, index): MessageV2.Part[] => {
@@ -612,7 +612,7 @@ export function fromV1(v1: Message.Info): MessageWithParts {
       role: "user",
       agent: "user",
       model: {
-        providerID: "",
+        providerId: "",
         modelID: "",
       },
       time: {

@@ -14,6 +14,7 @@ import { Agent } from "@/agent/agent"
 import { Plugin } from "@/plugin"
 import { Config } from "@/config/config"
 import { ProviderTransform } from "@/provider/transform"
+import { SessionPrompt } from "./prompt"
 
 export namespace SessionCompaction {
   const log = Log.create({ service: "session.compaction" })
@@ -40,7 +41,16 @@ export namespace SessionCompaction {
       input.tokens.input + input.tokens.output + input.tokens.cache.read + input.tokens.cache.write
 
     const reserved =
-      config.compaction?.reserved ?? Math.min(COMPACTION_BUFFER, ProviderTransform.maxOutputTokens(input.model))
+      config.compaction?.reserved ??
+      Math.min(
+        COMPACTION_BUFFER,
+        ProviderTransform.maxOutputTokens(
+          input.model.providerId,
+          {},
+          input.model.limit.output || 32_000,
+          SessionPrompt.OUTPUT_TOKEN_MAX,
+        ),
+      )
     const usable = input.model.limit.input ? input.model.limit.input - reserved : context - reserved
     return count >= usable
   }

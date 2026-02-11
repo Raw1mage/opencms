@@ -189,8 +189,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             const a = agent.current()
             const m = current()
             if (!a || !m) return undefined
+            const model = a.model ? { providerID: a.model.providerId, modelID: a.model.modelID } : undefined
             return getConfiguredAgentVariant({
-              agent: { model: a.model, variant: a.variant },
+              agent: { model, variant: a.variant },
               model: { providerID: m.provider.id, modelID: m.id, variants: m.variants },
             })
           },
