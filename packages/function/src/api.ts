@@ -7,7 +7,7 @@ import { Octokit } from "@octokit/rest"
 import { Resource } from "sst"
 
 type Env = {
-  SYNC_SERVER: DurableObjectNamespace<SyncServer>
+  SYNC_SERVER: any
   Bucket: R2Bucket
   WEB_DOMAIN: string
 }
@@ -40,8 +40,8 @@ export class SyncServer extends DurableObject<Env> {
 
     const data = await this.ctx.storage.list()
     Array.from(data.entries())
-      .filter(([key, _]) => key.startsWith("session/"))
-      .map(([key, content]) => server.send(JSON.stringify({ key, content })))
+      .filter(([key, _]: [string, any]) => key.startsWith("session/"))
+      .map(([key, content]: [string, any]) => server.send(JSON.stringify({ key, content })))
 
     return new Response(null, {
       status: 101,
@@ -49,9 +49,9 @@ export class SyncServer extends DurableObject<Env> {
     })
   }
 
-  async webSocketMessage(ws, message) {}
+  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {}
 
-  async webSocketClose(ws, code, reason, wasClean) {
+  async webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean) {
     ws.close(code, "Durable Object is closing WebSocket")
   }
 
@@ -92,8 +92,8 @@ export class SyncServer extends DurableObject<Env> {
   public async getData() {
     const data = (await this.ctx.storage.list()) as Map<string, any>
     return Array.from(data.entries())
-      .filter(([key, _]) => key.startsWith("session/"))
-      .map(([key, content]) => ({ key, content }))
+      .filter(([key, _]: [string, any]) => key.startsWith("session/"))
+      .map(([key, content]: [string, any]) => ({ key, content }))
   }
 
   public async assertSecret(secret: string) {
@@ -133,7 +133,7 @@ export default new Hono<{ Bindings: Env }>()
     const sessionID = body.sessionID
     const short = SyncServer.shortName(sessionID)
     const id = c.env.SYNC_SERVER.idFromName(short)
-    const stub = c.env.SYNC_SERVER.get(id)
+    const stub = c.env.SYNC_SERVER.get(id) as any
     const secret = await stub.share(sessionID)
     return c.json({
       secret,
@@ -145,7 +145,7 @@ export default new Hono<{ Bindings: Env }>()
     const sessionID = body.sessionID
     const secret = body.secret
     const id = c.env.SYNC_SERVER.idFromName(SyncServer.shortName(sessionID))
-    const stub = c.env.SYNC_SERVER.get(id)
+    const stub = c.env.SYNC_SERVER.get(id) as any
     await stub.assertSecret(secret)
     await stub.clear()
     return c.json({})
@@ -156,7 +156,7 @@ export default new Hono<{ Bindings: Env }>()
     const adminSecret = body.adminSecret
     if (adminSecret !== Resource.ADMIN_SECRET.value) throw new Error("Invalid admin secret")
     const id = c.env.SYNC_SERVER.idFromName(sessionShortName)
-    const stub = c.env.SYNC_SERVER.get(id)
+    const stub = c.env.SYNC_SERVER.get(id) as any
     await stub.clear()
     return c.json({})
   })
@@ -169,7 +169,7 @@ export default new Hono<{ Bindings: Env }>()
     }>()
     const name = SyncServer.shortName(body.sessionID)
     const id = c.env.SYNC_SERVER.idFromName(name)
-    const stub = c.env.SYNC_SERVER.get(id)
+    const stub = c.env.SYNC_SERVER.get(id) as any
     await stub.assertSecret(body.secret)
     await stub.publish(body.key, body.content)
     return c.json({})
@@ -182,17 +182,16 @@ export default new Hono<{ Bindings: Env }>()
     const id = c.req.query("id")
     console.log("share_poll", id)
     if (!id) return c.text("Error: Share ID is required", { status: 400 })
-    const stub = c.env.SYNC_SERVER.get(c.env.SYNC_SERVER.idFromName(id))
+    const stub = c.env.SYNC_SERVER.get(c.env.SYNC_SERVER.idFromName(id)) as any
     return stub.fetch(c.req.raw)
   })
   .get("/share_data", async (c) => {
     const id = c.req.query("id")
     console.log("share_data", id)
     if (!id) return c.text("Error: Share ID is required", { status: 400 })
-    const stub = c.env.SYNC_SERVER.get(c.env.SYNC_SERVER.idFromName(id))
-    const data = await stub.getData()
-
-    let info
+    const stub = c.env.SYNC_SERVER.get(c.env.SYNC_SERVER.idFromName(id)) as any
+    const data = (await stub.getData()) as { key: string; content: any }[]
+    let info: any
     const messages: Record<string, any> = {}
     data.forEach((d) => {
       const [root, type, ...splits] = d.key.split("/")
@@ -289,7 +288,9 @@ export default new Hono<{ Bindings: Env }>()
         audience: EXPECTED_AUDIENCE,
       })
       const sub = payload.sub // e.g. 'repo:my-org/my-repo:ref:refs/heads/main'
-      const parts = sub.split(":")[1].split("/")
+      if (!sub) throw new Error("Invalid token: missing sub")
+      const parts = sub.split(":")[1]?.split("/")
+      if (!parts || parts.length < 2) throw new Error("Invalid token: malformed sub")
       owner = parts[0]
       repo = parts[1]
     } catch (err) {
@@ -336,6 +337,7 @@ export default new Hono<{ Bindings: Env }>()
       // Verify permissions
       const userClient = new Octokit({ auth: token })
       const { data: repoData } = await userClient.repos.get({ owner, repo })
+      if (!repoData.permissions) throw new Error("User permissions not found")
       if (!repoData.permissions.admin && !repoData.permissions.push && !repoData.permissions.maintain)
         throw new Error("User does not have write permissions")
 
@@ -375,6 +377,8 @@ export default new Hono<{ Bindings: Env }>()
   .get("/get_github_app_installation", async (c) => {
     const owner = c.req.query("owner")
     const repo = c.req.query("repo")
+
+    if (!owner || !repo) return c.json({ error: "Owner and repo are required" }, { status: 400 })
 
     const auth = createAppAuth({
       appId: Resource.GITHUB_APP_ID.value,

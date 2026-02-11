@@ -1,7 +1,7 @@
 import { usePlatform } from "@/context/platform"
 import { makePersisted, type AsyncStorage, type SyncStorage } from "@solid-primitives/storage"
 import { checksum } from "@opencode-ai/util/encode"
-import { createResource, type Accessor } from "solid-js"
+import { createResource, type Accessor, onCleanup } from "solid-js"
 import type { SetStoreFunction, Store } from "solid-js/store"
 
 type InitType = Promise<string> | string | null
@@ -340,6 +340,7 @@ export function persisted<T>(
 ): PersistedWithReady<T> {
   const platform = usePlatform()
   const config: PersistTarget = typeof target === "string" ? { key: target } : target
+  let timeout: ReturnType<typeof setTimeout>
 
   const defaults = snapshot(store[0])
   const legacy = config.legacy ?? []
@@ -393,7 +394,8 @@ export function persisted<T>(
           return null
         },
         setItem: (key, value) => {
-          current.setItem(key, value)
+          if (timeout) clearTimeout(timeout)
+          timeout = setTimeout(() => current.setItem(key, value), 1000)
         },
         removeItem: (key) => {
           current.removeItem(key)
@@ -438,7 +440,8 @@ export function persisted<T>(
         return null
       },
       setItem: async (key, value) => {
-        await current.setItem(key, value)
+        if (timeout) clearTimeout(timeout)
+        timeout = setTimeout(() => current.setItem(key, value), 1000)
       },
       removeItem: async (key) => {
         await current.removeItem(key)
@@ -459,6 +462,8 @@ export function persisted<T>(
     },
     { initialValue: !isAsync },
   )
+
+  onCleanup(() => clearTimeout(timeout))
 
   return [state, setState, init, () => ready() === true]
 }
