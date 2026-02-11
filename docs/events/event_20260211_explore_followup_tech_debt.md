@@ -1,8 +1,12 @@
 # Event: Explore Follow-up Technical Debt
 
 Date: 2026-02-11
-Status: Open
-Scope: Subagent workflow, session monitor behavior
+Status: Done (Verified 2026-02-11)
+
+## Summary of Completion
+
+- **TD-1 (Nested Tasks)**: Policy-based nested `task` invocation has been implemented. Subagents now have controlled permission to spawn sub-subagents, with verified guardrails and lifecycle management.
+- **TD-2 (Sidebar Monitor)**: Monitor logic has been refined to filter out stale/inactive subsessions. The TUI sidebar now accurately reflects active work while pruning idle entries.
 
 ## Context
 
