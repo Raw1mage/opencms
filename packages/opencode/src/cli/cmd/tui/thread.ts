@@ -148,8 +148,23 @@ export const TuiThreadCommand = cmd({
 
     const handleTerminalExit = (signal: string) => {
       resetTerminal()
-      worker.terminate()
-      process.exit(signal === "SIGINT" ? 130 : 143)
+
+      // Attempt clean shutdown with timeout to ensure subagents/LSPs are cleaned up
+      const exit = () => {
+        worker.terminate()
+        process.exit(signal === "SIGINT" ? 130 : 143)
+      }
+
+      // Hard timeout in case shutdown hangs
+      const timeout = setTimeout(exit, 1000)
+
+      client
+        .call("shutdown", undefined)
+        .catch(() => { }) // Ignore errors during shutdown
+        .finally(() => {
+          clearTimeout(timeout)
+          exit()
+        })
     }
 
     process.on("SIGINT", () => handleTerminalExit("SIGINT"))

@@ -12,7 +12,59 @@ import { defer } from "@/util/defer"
 import { Config } from "../config/config"
 import { PermissionNext } from "@/permission/next"
 import { Provider } from "../provider/provider"
+import { Log } from "@/util/log"
 import { debugCheckpoint } from "@/util/debug"
+
+// Explicit Process Management for Subagents
+// @class TaskProcessManager
+// Responsible for tracking and cleaning up ephemeral subagent processes.
+export namespace TaskProcessManager {
+  const log = Log.create({ service: "task.process" })
+  const active = new Map<string, Bun.Subprocess>()
+
+  export function register(id: string, proc: Bun.Subprocess) {
+    if (active.has(id)) {
+      log.warn("Overwriting existing process for task", { id })
+      kill(id)
+    }
+    active.set(id, proc)
+    log.debug("Registered subagent process", { id, pid: proc.pid })
+
+    // Self-cleanup on exit
+    proc.exited.finally(() => {
+      if (active.get(id) === proc) {
+        active.delete(id)
+        log.debug("Unregistered subagent process (exited)", { id, pid: proc.pid })
+      }
+    })
+  }
+
+  export function kill(id: string) {
+    const proc = active.get(id)
+    if (proc) {
+      log.info("Killing subagent process", { id, pid: proc.pid })
+      try {
+        proc.kill()
+      } catch (e) {
+        log.error("Failed to kill process", { id, error: e })
+      }
+      active.delete(id)
+    }
+  }
+
+  export async function disposeAll() {
+    if (active.size === 0) return
+    log.info("Disposing all subagent processes", { count: active.size })
+    for (const [id, proc] of active) {
+      try {
+        proc.kill()
+      } catch (e) {
+        log.error("Failed to kill process during disposeAll", { id, error: e })
+      }
+    }
+    active.clear()
+  }
+}
 
 // NOTE: @event_task_tool_complex_input
 // Updated schema to support both simple string and complex structured input.
@@ -124,7 +176,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
 
       const session = await iife(async () => {
         if (params.session_id) {
-          const found = await Session.get(params.session_id).catch(() => {})
+          const found = await Session.get(params.session_id).catch(() => { })
           if (found) return found
         }
 
@@ -145,12 +197,12 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             ...(hasTaskPermission
               ? []
               : [
-                  {
-                    permission: "task" as const,
-                    pattern: "*" as const,
-                    action: "deny" as const,
-                  },
-                ]),
+                {
+                  permission: "task" as const,
+                  pattern: "*" as const,
+                  action: "deny" as const,
+                },
+              ]),
             ...(config.experimental?.primary_tools?.map((t) => ({
               pattern: "*",
               action: "allow" as const,
@@ -165,9 +217,9 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       const modelArg = params.model ? Provider.parseModel(params.model) : undefined
       const model = modelArg ??
         agent.model ?? {
-          modelID: msg.info.modelID,
-          providerId: msg.info.providerId,
-        }
+        modelID: msg.info.modelID,
+        providerId: msg.info.providerId,
+      }
 
       debugCheckpoint("task", "Model resolved for subagent", {
         modelArg,
@@ -230,71 +282,136 @@ export const TaskTool = Tool.define("task", async (ctx) => {
 
       const promptParts = await SessionPrompt.resolvePromptParts(normalizedPrompt)
 
-      // const modelInfo = await Provider.getModel(model.providerId, model.modelID).catch(() => undefined)
-      // const auto = params.description.toLowerCase().startsWith("auto ")
-      // const allowImages = !auto && (modelInfo?.capabilities?.input?.image ?? false)
-
-      // Extract image attachments from parent session's messages and pass to subagent
-      // This allows images pasted by the user (displayed as [Image N]) to be visible to subagents
-      /*
-      const parentUserMessage = ctx.messages.findLast((m) => m.info.role === "user")
-      if (parentUserMessage) {
-        const imageAttachments = parentUserMessage.parts.filter(
-          (part): part is MessageV2.FilePart => part.type === "file" && part.mime?.startsWith("image/"),
-        )
-        for (const img of imageAttachments) {
-          if (!allowImages) {
-            debugCheckpoint("task", "Skipping image for subagent", {
-              filename: img.filename,
-              mime: img.mime,
-              reason: auto ? "auto_task" : "model_no_image_support",
-            })
-            continue
-          }
-          if (img.url.startsWith("data:")) {
-            const match = img.url.match(/^data:([^;]+);base64,(.*)$/)
-            if (!match || !match[2]) {
-              debugCheckpoint("task", "Skipping invalid image data URL", {
-                filename: img.filename,
-                mime: img.mime,
-              })
-              continue
-            }
-          }
-          debugCheckpoint("task", "Passing image to subagent", {
-            filename: img.filename,
-            mime: img.mime,
-          })
-          promptParts.push({
-            type: "file",
-            url: img.url,
-            mime: img.mime,
-            filename: img.filename,
-          })
-        }
-      }
-      */
-
-      const result = await SessionPrompt.prompt({
-        messageID,
+      // Add USER message to the session before spawning execution process
+      // This mimics what SessionPrompt.prompt does but allows us to execute the loop in a separate process
+      const userMessageInfo: MessageV2.User = {
+        id: Identifier.ascending("message"),
+        role: "user",
         sessionID: session.id,
+        agent: agent.name,
         model: {
           modelID: model.modelID,
           providerId: model.providerId,
         },
-        agent: agent.name,
-        tools: {
-          todowrite: false,
-          todoread: false,
-          ...(hasTaskPermission ? {} : { task: false }),
-          ...Object.fromEntries((config.experimental?.primary_tools ?? []).map((t) => [t, false])),
+        time: {
+          created: Date.now(),
         },
-        parts: promptParts,
-      }).finally(() => {
-        unsub()
+        variant: "normal", // Default variant
+      }
+
+      await Session.updateMessage(userMessageInfo)
+
+      for (const part of promptParts) {
+        await Session.updatePart({
+          ...part,
+          id: Identifier.ascending("part"),
+          messageID: userMessageInfo.id,
+          sessionID: session.id,
+        })
+      }
+
+      // Execute the session loop in a separate process
+      // This ensures that the subagent lifecycle is isolated and ends when it needs interaction
+      const scriptPath = process.argv[1]
+      const isBun = process.argv[0].endsWith("bun")
+
+      // Determine the command to run
+      // In dev: bun run src/index.ts session step <id>
+      // In prod: opencode session step <id>
+      const cmd = isBun && scriptPath.endsWith(".ts")
+        ? [process.argv[0], "run", scriptPath, "session", "step", session.id]
+        : [process.argv[0], "session", "step", session.id]
+
+      debugCheckpoint("task", "Spawning subagent process", { cmd })
+
+      const proc = Bun.spawn(cmd, {
+        env: {
+          ...process.env,
+          // Ensure subagent inherits environment but knows it's non-interactive if needed
+          OPENCODE_NON_INTERACTIVE: "1"
+        },
+        stdout: "inherit",
+        stderr: "inherit"
       })
 
+      // Register process for explicit management
+      TaskProcessManager.register(ctx.callID, proc)
+
+      // Link abort signal to process kill via Manager
+      const cleanup = () => {
+        TaskProcessManager.kill(ctx.callID)
+      }
+      ctx.abort.addEventListener("abort", cleanup)
+
+      // Default timeout: 10 minutes per subagent execution
+      // This prevents zombie processes that hang indefinitely
+      const SUBAGENT_TIMEOUT_MS = config.experimental?.task_timeout ?? 10 * 60 * 1000
+
+      // Activity tracking: monitor session updates to detect stalled processes
+      let lastActivityTime = Date.now()
+      const activityUnsub = Bus.subscribe(MessageV2.Event.PartUpdated, (evt) => {
+        if (evt.properties.part.sessionID === session.id) {
+          lastActivityTime = Date.now()
+        }
+      })
+
+      // Heartbeat check: if no activity for too long, process may be zombified
+      const HEARTBEAT_INTERVAL_MS = 30_000 // Check every 30 seconds
+      const HEARTBEAT_STALE_MS = 120_000 // Consider stale after 2 minutes of no activity
+
+      const heartbeatTimer = setInterval(() => {
+        const staleDuration = Date.now() - lastActivityTime
+        if (staleDuration > HEARTBEAT_STALE_MS) {
+          Log.create({ service: "task" }).warn("Subagent appears stalled, no activity detected", {
+            callID: ctx.callID,
+            sessionID: session.id,
+            staleDurationMs: staleDuration,
+          })
+        }
+      }, HEARTBEAT_INTERVAL_MS)
+
+      try {
+        // Race between process exit and timeout
+        const timeoutPromise = new Promise<"timeout">((resolve) => {
+          setTimeout(() => resolve("timeout"), SUBAGENT_TIMEOUT_MS)
+        })
+
+        const result = await Promise.race([
+          proc.exited.then(() => "exited" as const),
+          timeoutPromise,
+        ])
+
+        if (result === "timeout") {
+          Log.create({ service: "task" }).error("Subagent execution timed out, killing process", {
+            callID: ctx.callID,
+            sessionID: session.id,
+            timeoutMs: SUBAGENT_TIMEOUT_MS,
+          })
+          TaskProcessManager.kill(ctx.callID)
+          throw new Error(`Subagent execution timed out after ${SUBAGENT_TIMEOUT_MS / 1000} seconds`)
+        }
+      } finally {
+        clearInterval(heartbeatTimer)
+        activityUnsub()
+        ctx.abort.removeEventListener("abort", cleanup)
+        unsub()
+      }
+
+      // Read the result from the session logs
       const messages = await Session.messages({ sessionID: session.id })
+      const lastMessage = messages.at(-1)
+
+      if (!lastMessage) {
+        throw new Error("Subagent execution completed with no messages")
+      }
+
+      // If the last message is from the assistant, returns its text as the output
+      // If the subagent crashed or failed, we might see an error event in logs, but here we check message history
+      const text = lastMessage.parts.findLast((x) => x.type === "text")?.text ?? ""
+
+      // Check for error in message info if applicable (though V2 messages structure stores errors differently generally)
+      // We rely on the text output primarily for the "result"
+
       const isToolPart = (part: MessageV2.Part): part is MessageV2.ToolPart => part.type === "tool"
       const summary = messages
         .filter((x) => x.info.role === "assistant")
@@ -307,27 +424,6 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             title: part.state.status === "completed" ? part.state.title : undefined,
           },
         }))
-      const text = result.parts.findLast((x) => x.type === "text")?.text ?? ""
-      const maybeError = (() => {
-        const info = result.info
-        if (!info || typeof info !== "object" || !("error" in info)) return undefined
-        const err = (info as { error?: unknown }).error
-        if (!err) return undefined
-        if (err instanceof Error) return err.message
-        if (
-          typeof err === "object" &&
-          err &&
-          "message" in err &&
-          typeof (err as { message?: unknown }).message === "string"
-        ) {
-          return (err as { message: string }).message
-        }
-        return JSON.stringify(err)
-      })()
-
-      if (maybeError) {
-        throw new Error(`Subagent task failed: ${maybeError}`)
-      }
 
       const output = text + "\n\n" + ["<task_metadata>", `session_id: ${session.id}`, "</task_metadata>"].join("\n")
 

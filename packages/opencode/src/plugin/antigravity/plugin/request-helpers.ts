@@ -11,6 +11,25 @@ import type { GoogleSearchConfig } from "./transform/types"
 
 const log = createLogger("request-helpers")
 
+/**
+ * Basic JSON Schema interface to replace 'any' usages.
+ */
+interface JsonSchema {
+  type?: string | string[]
+  description?: string
+  properties?: Record<string, JsonSchema>
+  items?: JsonSchema | JsonSchema[]
+  required?: string[]
+  enum?: any[]
+  const?: any
+  allOf?: JsonSchema[]
+  anyOf?: JsonSchema[]
+  oneOf?: JsonSchema[]
+  additionalProperties?: boolean | JsonSchema
+  $ref?: string
+  [key: string]: any // For custom or unsupported keywords
+}
+
 // NOTE: @event_antigravity_preview_link
 // Preview features link for Antigravity API documentation
 // If the official Antigravity URL becomes available, update this constant and the env var below.
@@ -60,7 +79,7 @@ const UNSUPPORTED_KEYWORDS = [
 /**
  * Appends a hint to a schema's description field.
  */
-function appendDescriptionHint(schema: any, hint: string): any {
+function appendDescriptionHint(schema: JsonSchema, hint: string): JsonSchema {
   if (!schema || typeof schema !== "object") {
     return schema
   }
@@ -73,13 +92,13 @@ function appendDescriptionHint(schema: any, hint: string): any {
  * Phase 1a: Converts $ref to description hints.
  * $ref: "#/$defs/Foo" → { type: "object", description: "See: Foo" }
  */
-function convertRefsToHints(schema: any): any {
+function convertRefsToHints(schema: JsonSchema): JsonSchema {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => convertRefsToHints(item))
+    return (schema as JsonSchema[]).map((item) => convertRefsToHints(item)) as any
   }
 
   // If this object has $ref, replace it with a hint
@@ -93,9 +112,9 @@ function convertRefsToHints(schema: any): any {
   }
 
   // Recursively process all properties
-  const result: any = {}
+  const result: JsonSchema = {}
   for (const [key, value] of Object.entries(schema)) {
-    result[key] = convertRefsToHints(value)
+    result[key] = convertRefsToHints(value as JsonSchema)
   }
   return result
 }
@@ -104,21 +123,21 @@ function convertRefsToHints(schema: any): any {
  * Phase 1b: Converts const to enum.
  * { const: "foo" } → { enum: ["foo"] }
  */
-function convertConstToEnum(schema: any): any {
+function convertConstToEnum(schema: JsonSchema): JsonSchema {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => convertConstToEnum(item))
+    return (schema as JsonSchema[]).map((item) => convertConstToEnum(item)) as any
   }
 
-  const result: any = {}
+  const result: JsonSchema = {}
   for (const [key, value] of Object.entries(schema)) {
     if (key === "const" && !schema.enum) {
       result.enum = [value]
     } else {
-      result[key] = convertConstToEnum(value)
+      result[key] = convertConstToEnum(value as JsonSchema)
     }
   }
   return result
@@ -128,16 +147,16 @@ function convertConstToEnum(schema: any): any {
  * Phase 1c: Adds enum hints to description.
  * { enum: ["a", "b", "c"] } → adds "(Allowed: a, b, c)" to description
  */
-function addEnumHints(schema: any): any {
+function addEnumHints(schema: JsonSchema): JsonSchema {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => addEnumHints(item))
+    return (schema as JsonSchema[]).map((item) => addEnumHints(item)) as any
   }
 
-  let result: any = { ...schema }
+  let result: JsonSchema = { ...schema }
 
   // Add enum hint if enum has 2-10 items
   if (Array.isArray(result.enum) && result.enum.length > 1 && result.enum.length <= 10) {
@@ -148,7 +167,7 @@ function addEnumHints(schema: any): any {
   // Recursively process nested objects
   for (const [key, value] of Object.entries(result)) {
     if (key !== "enum" && typeof value === "object" && value !== null) {
-      result[key] = addEnumHints(value)
+      result[key] = addEnumHints(value as JsonSchema)
     }
   }
 

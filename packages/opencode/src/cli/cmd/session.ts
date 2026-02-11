@@ -38,8 +38,36 @@ function pagerCmd(): string[] {
 export const SessionCommand = cmd({
   command: "session",
   describe: "manage sessions",
-  builder: (yargs: Argv) => yargs.command(SessionListCommand).demandCommand(),
-  async handler() {},
+  builder: (yargs: Argv) =>
+    yargs.command(SessionListCommand).command(SessionStepCommand).demandCommand(),
+  async handler() { },
+})
+
+export const SessionStepCommand = cmd({
+  command: "step <sessionID>",
+  describe: "run a session step",
+  builder: (yargs: Argv) =>
+    yargs.positional("sessionID", {
+      type: "string",
+      describe: "session id to run",
+    }),
+  handler: async (args) => {
+    // Force non-interactive mode for step command
+    process.env.OPENCODE_NON_INTERACTIVE = "1"
+
+    await bootstrap(process.cwd(), async () => {
+      // Import SessionPrompt inside handler to avoid circular deps during init
+      const { SessionPrompt } = await import("../../session/prompt")
+      const sessionID = args.sessionID as string
+
+      try {
+        await SessionPrompt.loop(sessionID)
+      } catch (error) {
+        console.error("Session step failed:", error)
+        process.exit(1)
+      }
+    })
+  },
 })
 
 export const SessionListCommand = cmd({
