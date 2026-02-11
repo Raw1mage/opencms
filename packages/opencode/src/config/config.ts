@@ -267,7 +267,7 @@ export namespace Config {
 
     const json = await Bun.file(pkg)
       .json()
-      .catch(() => ({}))
+      .catch(() => ({})) // Default to empty object if package.json missing or invalid
     json.dependencies = {
       ...json.dependencies,
       "@opencode-ai/plugin": targetVersion,
@@ -290,7 +290,9 @@ export namespace Config {
         ...(proxied() ? ["--no-cache"] : []),
       ],
       { cwd: dir },
-    ).catch(() => {})
+    ).catch((err) => {
+      log.warn("Dependency installation failed", { dir, err })
+    })
   }
 
   async function isWritable(dir: string) {
@@ -1266,7 +1268,9 @@ export namespace Config {
           await Bun.write(path.join(Global.Path.config, "config.json"), JSON.stringify(result, null, 2))
           await fs.unlink(legacy)
         })
-        .catch(() => {})
+        .catch(() => {
+          // Expected failure if file is not TOML or doesn't exist
+        })
     }
 
     return result
@@ -1358,7 +1362,9 @@ export namespace Config {
         parsed.data.$schema = "https://opencode.ai/config.json"
         // Write the $schema to the original text to preserve variables like {env:VAR}
         const updated = original.replace(/^\s*\{/, '{\n  "$schema": "https://opencode.ai/config.json",')
-        await Bun.write(configFilepath, updated).catch(() => {})
+        await Bun.write(configFilepath, updated).catch((err) => {
+          log.debug("Failed to auto-insert $schema into config", { configFilepath, err })
+        })
       }
       const data = parsed.data
       if (data.plugin) {

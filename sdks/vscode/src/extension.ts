@@ -78,7 +78,9 @@ export function activate(context: vscode.ExtensionContext) {
         await fetch(`http://localhost:${port}/app`)
         connected = true
         break
-      } catch (e) {}
+      } catch (e) {
+        // Expected failure during polling while server is starting
+      }
 
       tries--
     } while (tries > 0)
