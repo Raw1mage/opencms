@@ -54,8 +54,10 @@ export namespace InstructionPrompt {
   const state = Instance.state(() => {
     return {
       claims: new Map<string, Set<string>>(),
+      systemCache: new Map<string, { value: string[]; at: number }>(),
     }
   })
+  const SYSTEM_CACHE_TTL_MS = 10_000
 
   function isClaimed(messageID: string, filepath: string) {
     const claimed = state().claims.get(messageID)
@@ -125,6 +127,17 @@ export namespace InstructionPrompt {
 
   export async function system() {
     const config = await Config.get()
+    const cacheKey = JSON.stringify({
+      directory: Instance.directory,
+      worktree: Instance.worktree,
+      instructions: config.instructions ?? [],
+      disableProject: !!Flag.OPENCODE_DISABLE_PROJECT_CONFIG,
+      configDir: Flag.OPENCODE_CONFIG_DIR ?? "",
+      disableClaudePrompt: !!Flag.OPENCODE_DISABLE_CLAUDE_CODE_PROMPT,
+    })
+    const cached = state().systemCache.get(cacheKey)
+    if (cached && Date.now() - cached.at < SYSTEM_CACHE_TTL_MS) return cached.value
+
     const paths = await systemPaths()
 
     const files = Array.from(paths).map(async (p) => {
@@ -149,7 +162,9 @@ export namespace InstructionPrompt {
         .then((x) => (x ? "Instructions from: " + url + "\n" + x : "")),
     )
 
-    return Promise.all([...files, ...fetches]).then((result) => result.filter(Boolean))
+    const value = await Promise.all([...files, ...fetches]).then((result) => result.filter(Boolean))
+    state().systemCache.set(cacheKey, { value, at: Date.now() })
+    return value
   }
 
   export function loaded(messages: MessageV2.WithParts[]) {

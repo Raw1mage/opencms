@@ -2,12 +2,15 @@ import z from "zod"
 import { Session } from "./index"
 import { SessionStatus } from "./status"
 import { MessageV2 } from "./message-v2"
+import { ProcessSupervisor } from "@/process/supervisor"
 
 export namespace SessionMonitor {
   // FIX: /session/top scanned all sessions/messages on every poll, causing 8-12s responses
   // and making TUI appear frozen. Add short cache + in-flight dedupe.
   // @event_20260210_session_top_snapshot_cache
   const SNAPSHOT_CACHE_MS = 1500
+  const WORKING_STALE_MS = 3 * 60 * 1000
+  const TOOL_ACTIVE_WINDOW_MS = 3 * 60 * 1000
   let snapshotCache: { at: number; data: Info[] } | undefined
   let snapshotInFlight: Promise<Info[]> | undefined
 
@@ -136,15 +139,24 @@ export namespace SessionMonitor {
           write: 0,
         },
       })
-      const statusFrom = (current: SessionStatus.Info, last?: MessageV2.Info) => {
+      const statusFrom = (current: SessionStatus.Info, sessionID: string, last?: MessageV2.Info) => {
         if (current.type !== "idle") return current
         if (!last) return { type: "pending" } as Status
+        const processState = ProcessSupervisor.sessionState(sessionID)
         if (last.role === "assistant" && last.error) {
           const err = last.error as { message?: string; data?: { message?: string } } | undefined
           return { type: "error", message: err?.message || err?.data?.message || "Unknown error" } as Status
         }
-        if (last.role === "assistant" && !last.time.completed) return { type: "working" } as Status
-        if (last.role === "user") return { type: "working" } as Status
+        if (last.role === "assistant" && !last.time.completed) {
+          const lastTime = last.time.created ?? 0
+          const stale = Date.now() - lastTime > WORKING_STALE_MS
+          if (!stale || processState === "running" || processState === "stalled") return { type: "working" } as Status
+          return { type: "idle" } as Status
+        }
+        if (last.role === "user") {
+          if (processState === "running" || processState === "stalled") return { type: "working" } as Status
+          return { type: "idle" } as Status
+        }
         return current
       }
       const toolStatus = (state: z.infer<typeof MessageV2.ToolState>) => {
@@ -263,6 +275,10 @@ export namespace SessionMonitor {
           for (const part of message.parts) {
             if (part.type !== "tool") continue
             if (part.state.status !== "pending" && part.state.status !== "running") continue
+            const processState = ProcessSupervisor.sessionState(session.id)
+            const isProcessActive = processState === "running" || processState === "stalled"
+            const startedAt = part.state.status === "running" ? part.state.time.start : info.time.created
+            if (!isProcessActive && Date.now() - startedAt > TOOL_ACTIVE_WINDOW_MS) continue
             if (!tool.name) {
               tool.name = part.tool
               tool.status = part.state.status
@@ -312,7 +328,7 @@ export namespace SessionMonitor {
         }
         const status = session.time.compacting
           ? ({ type: "compacting" } as Status)
-          : statusFrom(SessionStatus.get(session.id), latest.value)
+          : statusFrom(SessionStatus.get(session.id), session.id, latest.value)
         const level = session.parentID ? "sub-session" : "session"
 
         if (model.value && activeStatuses.has(status.type)) {
@@ -335,7 +351,7 @@ export namespace SessionMonitor {
         }
 
         for (const [name, info] of agents) {
-          const status = statusFrom({ type: "idle" }, info.latest)
+          const status = statusFrom({ type: "idle" }, session.id, info.latest)
           const level = session.parentID ? "sub-agent" : "agent"
           if (info.model && activeStatuses.has(status.type)) {
             result.push({

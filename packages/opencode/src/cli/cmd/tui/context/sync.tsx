@@ -490,27 +490,43 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           if (last.role === "user") return "working"
           return last.time.completed ? "idle" : "working"
         },
-        async sync(sessionID: string) {
-          if (fullSyncedSessions.has(sessionID)) return
+        async sync(sessionID: string, options?: { force?: boolean }) {
+          if (!options?.force && fullSyncedSessions.has(sessionID)) return
           const [session, messages, todo, diff] = await Promise.all([
             sdk.client.session.get({ sessionID }, { throwOnError: true }),
             sdk.client.session.messages({ sessionID, limit: 100 }),
             sdk.client.session.todo({ sessionID }),
             sdk.client.session.diff({ sessionID }),
           ])
-          setStore(
-            produce((draft) => {
-              const match = Binary.search(draft.session, sessionID, (s) => s.id)
-              if (match.found) draft.session[match.index] = session.data!
-              if (!match.found) draft.session.splice(match.index, 0, session.data!)
-              draft.todo[sessionID] = todo.data ?? []
-              draft.message[sessionID] = messages.data!.map((x) => x.info)
-              for (const message of messages.data!) {
-                draft.part[message.info.id] = message.parts
-              }
-              draft.session_diff[sessionID] = diff.data ?? []
-            }),
-          )
+          const nextMessages = messages.data ?? []
+
+          batch(() => {
+            const match = Binary.search(store.session, sessionID, (s) => s.id)
+            if (match.found) {
+              setStore("session", match.index, reconcile(session.data!))
+            } else {
+              setStore(
+                "session",
+                produce((draft) => {
+                  draft.splice(match.index, 0, session.data!)
+                }),
+              )
+            }
+
+            setStore("todo", sessionID, reconcile(todo.data ?? []))
+            setStore(
+              "message",
+              sessionID,
+              reconcile(
+                nextMessages.map((x) => x.info),
+                { key: "id", merge: true },
+              ),
+            )
+            for (const message of nextMessages) {
+              setStore("part", message.info.id, reconcile(message.parts, { key: "id", merge: true }))
+            }
+            setStore("session_diff", sessionID, reconcile(diff.data ?? []))
+          })
           fullSyncedSessions.add(sessionID)
         },
       },

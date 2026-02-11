@@ -7,6 +7,7 @@ import {
   For,
   Match,
   on,
+  onCleanup,
   Show,
   Switch,
   useContext,
@@ -190,6 +191,45 @@ export function Session() {
         return navigate({ type: "home" })
       })
   })
+
+  createEffect(
+    on(
+      [() => route.sessionID, () => session()?.parentID],
+      ([sessionID, parentID]) => {
+        if (!parentID) return
+        let stopped = false
+        let timer: ReturnType<typeof setTimeout> | undefined
+        const FAST_POLL_MS = 200
+        const SLOW_POLL_MS = 1500
+
+        const nextDelay = () => {
+          const sessionMessages = sync.data.message[sessionID] ?? []
+          const last = sessionMessages.at(-1)
+          if (!last) return FAST_POLL_MS
+          if (last.role === "user") return FAST_POLL_MS
+          if (!last.time.completed) return FAST_POLL_MS
+          return SLOW_POLL_MS
+        }
+
+        const poll = () => {
+          if (stopped) return
+          sync.session
+            .sync(sessionID, { force: true })
+            .catch(() => {})
+            .finally(() => {
+              timer = setTimeout(poll, nextDelay())
+            })
+        }
+
+        poll()
+        onCleanup(() => {
+          stopped = true
+          if (timer) clearTimeout(timer)
+        })
+      },
+      { defer: true },
+    ),
+  )
 
   const toast = useToast()
   const sdk = useSDK()
@@ -1565,6 +1605,21 @@ function InlineTool(props: {
   })
 
   const error = createMemo(() => (props.part.state.status === "error" ? props.part.state.error : undefined))
+  const running = createMemo(() => props.part.state.status === "running")
+  const [now, setNow] = createSignal(Date.now())
+  createEffect(() => {
+    if (!running()) return
+    setNow(Date.now())
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    onCleanup(() => clearInterval(timer))
+  })
+  const elapsed = createMemo(() => {
+    if (!running()) return ""
+    const start = props.part.state.time?.start
+    if (!start) return ""
+    const seconds = Math.max(0, Math.floor((now() - start) / 1000))
+    return ` (${seconds}s)`
+  })
 
   const denied = createMemo(
     () =>
@@ -1601,7 +1656,7 @@ function InlineTool(props: {
       }}
     >
       <text paddingLeft={3} fg={fg()} attributes={denied() ? TextAttributes.STRIKETHROUGH : undefined}>
-        <Show fallback={<>~ {props.pending}</>} when={props.complete}>
+        <Show fallback={<>~ {props.pending}{elapsed()}</>} when={props.complete}>
           <span style={{ fg: props.iconColor }}>{props.icon}</span> {props.children}
         </Show>
       </text>
@@ -1954,6 +2009,21 @@ function Task(props: ToolProps<typeof TaskTool>) {
 
   const current = createMemo(() => tools().findLast((x) => x.state.status !== "pending"))
   const color = createMemo(() => local.agent.color(props.input.subagent_type ?? "unknown"))
+  const running = createMemo(() => props.part.state.status === "running")
+  const [now, setNow] = createSignal(Date.now())
+  createEffect(() => {
+    if (!running()) return
+    setNow(Date.now())
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    onCleanup(() => clearInterval(timer))
+  })
+  const elapsed = createMemo(() => {
+    if (!running()) return ""
+    const start = props.part.state.time?.start
+    if (!start) return ""
+    const seconds = Math.max(0, Math.floor((now() - start) / 1000))
+    return ` (${seconds}s)`
+  })
 
   return (
     <Switch>
@@ -1969,7 +2039,7 @@ function Task(props: ToolProps<typeof TaskTool>) {
         >
           <box>
             <text style={{ fg: theme.textMuted }}>
-              {props.input.description} ({tools().length} toolcalls)
+              {props.input.description} ({tools().length} toolcalls){elapsed()}
             </text>
             <Show when={current()}>
               {(item) => {

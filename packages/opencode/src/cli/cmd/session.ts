@@ -7,6 +7,8 @@ import { Locale } from "../../util/locale"
 import { Flag } from "../../flag/flag"
 import { EOL } from "os"
 import path from "path"
+import { Bus } from "@/bus"
+import { createInterface } from "node:readline"
 
 function pagerCmd(): string[] {
   const lessOptions = ["-R", "-S"]
@@ -39,7 +41,7 @@ export const SessionCommand = cmd({
   command: "session",
   describe: "manage sessions",
   builder: (yargs: Argv) =>
-    yargs.command(SessionListCommand).command(SessionStepCommand).demandCommand(),
+    yargs.command(SessionListCommand).command(SessionStepCommand).command(SessionWorkerCommand).demandCommand(),
   async handler() { },
 })
 
@@ -59,12 +61,120 @@ export const SessionStepCommand = cmd({
       // Import SessionPrompt inside handler to avoid circular deps during init
       const { SessionPrompt } = await import("../../session/prompt")
       const sessionID = args.sessionID as string
+      const teardownBridge = setupTaskEventBridge(sessionID)
 
       try {
         await SessionPrompt.loop(sessionID)
       } catch (error) {
         console.error("Session step failed:", error)
         process.exit(1)
+      } finally {
+        teardownBridge?.()
+      }
+    })
+  },
+})
+
+const BRIDGE_PREFIX = "__OPENCODE_BRIDGE_EVENT__ "
+const WORKER_PREFIX = "__OPENCODE_WORKER__ "
+const BRIDGE_EVENT_TYPES = new Set([
+  "message.updated",
+  "message.removed",
+  "message.part.updated",
+  "message.part.removed",
+  "session.updated",
+  "session.diff",
+  "session.status",
+  "todo.updated",
+  "permission.asked",
+  "permission.replied",
+  "question.asked",
+  "question.replied",
+  "question.rejected",
+])
+
+function setupTaskEventBridge(sessionID: string) {
+  if (process.env.OPENCODE_TASK_EVENT_BRIDGE !== "1") return
+
+  const extractSessionID = (event: any): string | undefined => {
+    const properties = event?.properties
+    if (!properties) return
+    if (typeof properties.sessionID === "string") return properties.sessionID
+    if (typeof properties.info?.sessionID === "string") return properties.info.sessionID
+    if (typeof properties.part?.sessionID === "string") return properties.part.sessionID
+    if (typeof properties.info?.id === "string" && event?.type?.startsWith("session.")) return properties.info.id
+    return
+  }
+
+  const unsub = Bus.subscribeAll((event) => {
+    if (!BRIDGE_EVENT_TYPES.has(event?.type)) return
+    if (extractSessionID(event) !== sessionID) return
+    try {
+      process.stdout.write(BRIDGE_PREFIX + JSON.stringify(event) + "\n")
+    } catch {
+      // Ignore transport write failures in child process.
+    }
+  })
+
+  return () => unsub()
+}
+
+export const SessionWorkerCommand = cmd({
+  command: "worker",
+  describe: "run a long-lived subagent worker",
+  handler: async () => {
+    process.env.OPENCODE_NON_INTERACTIVE = "1"
+    process.env.OPENCODE_TASK_EVENT_BRIDGE = "1"
+
+    await bootstrap(process.cwd(), async () => {
+      const { SessionPrompt } = await import("../../session/prompt")
+      const rl = createInterface({
+        input: process.stdin,
+        crlfDelay: Infinity,
+      })
+
+      const send = (payload: Record<string, unknown>) => {
+        process.stdout.write(WORKER_PREFIX + JSON.stringify(payload) + "\n")
+      }
+
+      send({ type: "ready" })
+      for await (const raw of rl) {
+        const line = raw.trim()
+        if (!line) continue
+        let msg: any
+        try {
+          msg = JSON.parse(line)
+        } catch {
+          send({ type: "error", error: "invalid_json" })
+          continue
+        }
+
+        if (msg?.type === "run" && typeof msg.id === "string" && typeof msg.sessionID === "string") {
+          const teardownBridge = setupTaskEventBridge(msg.sessionID)
+          try {
+            await SessionPrompt.loop(msg.sessionID)
+            send({ type: "done", id: msg.id, sessionID: msg.sessionID, ok: true })
+          } catch (error) {
+            send({
+              type: "done",
+              id: msg.id,
+              sessionID: msg.sessionID,
+              ok: false,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          } finally {
+            teardownBridge?.()
+          }
+          continue
+        }
+
+        if (msg?.type === "cancel" && typeof msg.sessionID === "string") {
+          SessionPrompt.cancel(msg.sessionID)
+          send({ type: "canceled", sessionID: msg.sessionID })
+          continue
+        }
+
+        send({ type: "error", error: "unknown_command" })
       }
     })
   },

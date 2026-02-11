@@ -14,57 +14,11 @@ import { PermissionNext } from "@/permission/next"
 import { Provider } from "../provider/provider"
 import { Log } from "@/util/log"
 import { debugCheckpoint } from "@/util/debug"
-
-// Explicit Process Management for Subagents
-// @class TaskProcessManager
-// Responsible for tracking and cleaning up ephemeral subagent processes.
-export namespace TaskProcessManager {
-  const log = Log.create({ service: "task.process" })
-  const active = new Map<string, Bun.Subprocess>()
-
-  export function register(id: string, proc: Bun.Subprocess) {
-    if (active.has(id)) {
-      log.warn("Overwriting existing process for task", { id })
-      kill(id)
-    }
-    active.set(id, proc)
-    log.debug("Registered subagent process", { id, pid: proc.pid })
-
-    // Self-cleanup on exit
-    proc.exited.finally(() => {
-      if (active.get(id) === proc) {
-        active.delete(id)
-        log.debug("Unregistered subagent process (exited)", { id, pid: proc.pid })
-      }
-    })
-  }
-
-  export function kill(id: string) {
-    const proc = active.get(id)
-    if (proc) {
-      log.info("Killing subagent process", { id, pid: proc.pid })
-      try {
-        proc.kill()
-      } catch (e) {
-        log.error("Failed to kill process", { id, error: e })
-      }
-      active.delete(id)
-    }
-  }
-
-  export async function disposeAll() {
-    if (active.size === 0) return
-    log.info("Disposing all subagent processes", { count: active.size })
-    for (const [id, proc] of active) {
-      try {
-        proc.kill()
-      } catch (e) {
-        log.error("Failed to kill process during disposeAll", { id, error: e })
-      }
-    }
-    active.clear()
-  }
-}
+import { fileURLToPath } from "url"
+import { ProcessSupervisor } from "@/process/supervisor"
+import { SessionStatus } from "@/session/status"
+import { Question } from "@/question"
+import { Todo } from "@/session/todo"
 
 // NOTE: @event_task_tool_complex_input
 // Updated schema to support both simple string and complex structured input.
@@ -127,6 +81,287 @@ function createSubsessionTitle(params: z.infer<typeof parameters>, agentName: st
   return withAgent.length > 96 ? withAgent.slice(0, 93) + "..." : withAgent
 }
 
+function toolWhitelistForSubagent(agentName: string): string[] | undefined {
+  const name = agentName.toLowerCase()
+  if (name === "explore") {
+    return ["read", "glob", "grep", "list", "bash", "webfetch", "websearch", "codesearch", "question"]
+  }
+  if (name === "review" || name === "testing" || name === "docs") {
+    return ["read", "glob", "grep", "list", "bash", "webfetch", "websearch", "codesearch", "question"]
+  }
+  if (name === "coding") {
+    return ["read", "glob", "grep", "list", "bash", "edit", "write", "apply_patch", "question"]
+  }
+  return undefined
+}
+
+const BRIDGE_PREFIX = "__OPENCODE_BRIDGE_EVENT__ "
+const WORKER_PREFIX = "__OPENCODE_WORKER__ "
+const WORKER_READY_TIMEOUT_MS = 15_000
+
+async function publishBridgedEvent(event: { type: string; properties: any }) {
+  switch (event.type) {
+    case MessageV2.Event.Updated.type:
+      await Bus.publish(MessageV2.Event.Updated, event.properties)
+      return
+    case MessageV2.Event.Removed.type:
+      await Bus.publish(MessageV2.Event.Removed, event.properties)
+      return
+    case MessageV2.Event.PartUpdated.type:
+      await Bus.publish(MessageV2.Event.PartUpdated, event.properties)
+      return
+    case MessageV2.Event.PartRemoved.type:
+      await Bus.publish(MessageV2.Event.PartRemoved, event.properties)
+      return
+    case Session.Event.Updated.type:
+      await Bus.publish(Session.Event.Updated, event.properties)
+      return
+    case Session.Event.Diff.type:
+      await Bus.publish(Session.Event.Diff, event.properties)
+      return
+    case SessionStatus.Event.Status.type:
+      await Bus.publish(SessionStatus.Event.Status, event.properties)
+      return
+    case Todo.Event.Updated.type:
+      await Bus.publish(Todo.Event.Updated, event.properties)
+      return
+    case PermissionNext.Event.Asked.type:
+      await Bus.publish(PermissionNext.Event.Asked, event.properties)
+      return
+    case PermissionNext.Event.Replied.type:
+      await Bus.publish(PermissionNext.Event.Replied, event.properties)
+      return
+    case Question.Event.Asked.type:
+      await Bus.publish(Question.Event.Asked, event.properties)
+      return
+    case Question.Event.Replied.type:
+      await Bus.publish(Question.Event.Replied, event.properties)
+      return
+    case Question.Event.Rejected.type:
+      await Bus.publish(Question.Event.Rejected, event.properties)
+      return
+  }
+}
+
+type WorkerRequest = {
+  id: string
+  sessionID: string
+  resolve: () => void
+  reject: (error: Error) => void
+}
+
+type TaskWorker = {
+  id: string
+  proc: Bun.Subprocess
+  busy: boolean
+  ready: boolean
+  readyPromise: Promise<void>
+  readyResolve: () => void
+  current?: WorkerRequest
+}
+
+const workers: TaskWorker[] = []
+let workerSeq = 0
+let standbySpawn: Promise<void> | undefined
+
+function buildWorkerCmd() {
+  const indexScript = fileURLToPath(new URL("../index.ts", import.meta.url))
+  const isBun = /(^|\/)bun(\.exe)?$/.test(process.argv[0])
+  return isBun ? [process.argv[0], "run", indexScript, "session", "worker"] : [process.argv[0], "session", "worker"]
+}
+
+function removeWorker(id: string) {
+  const index = workers.findIndex((w) => w.id === id)
+  if (index >= 0) workers.splice(index, 1)
+}
+
+function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
+  const workerID = `task-worker-${++workerSeq}`
+  const proc = Bun.spawn(buildWorkerCmd(), {
+    env: {
+      ...process.env,
+      OPENCODE_NON_INTERACTIVE: "1",
+      OPENCODE_TASK_EVENT_BRIDGE: "1",
+    },
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "inherit",
+  })
+
+  let readyResolve = () => { }
+  const readyPromise = new Promise<void>((resolve) => {
+    readyResolve = resolve
+  })
+
+  const worker: TaskWorker = {
+    id: workerID,
+    proc,
+    busy: false,
+    ready: false,
+    readyPromise,
+    readyResolve,
+  }
+  workers.push(worker)
+
+  ProcessSupervisor.register({
+    id: workerID,
+    kind: "task-subagent",
+    process: proc,
+  })
+
+  const log = Log.create({ service: "task.worker" })
+  ; (async () => {
+    const reader = proc.stdout?.getReader()
+    if (!reader) return
+    const decoder = new TextDecoder()
+    let buffer = ""
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      while (true) {
+        const newline = buffer.indexOf("\n")
+        if (newline === -1) break
+        const line = buffer.slice(0, newline)
+        buffer = buffer.slice(newline + 1)
+
+        if (line.startsWith(BRIDGE_PREFIX)) {
+          const payload = line.slice(BRIDGE_PREFIX.length)
+          try {
+            const event = JSON.parse(payload)
+            void publishBridgedEvent(event).catch(() => { })
+          } catch {
+            // ignore invalid bridge payload
+          }
+          continue
+        }
+
+        if (!line.startsWith(WORKER_PREFIX)) continue
+        const payload = line.slice(WORKER_PREFIX.length)
+        let msg: any
+        try {
+          msg = JSON.parse(payload)
+        } catch {
+          continue
+        }
+
+        if (msg?.type === "ready") {
+          worker.ready = true
+          worker.readyResolve()
+          continue
+        }
+
+        if (msg?.type === "done" && worker.current?.id === msg.id) {
+          const req = worker.current
+          worker.current = undefined
+          worker.busy = false
+          if (msg.ok) req.resolve()
+          else req.reject(new Error(msg.error || "worker run failed"))
+          void ensureStandbyWorker(config)
+        }
+      }
+    }
+
+    if (!worker.ready) worker.readyResolve()
+    const req = worker.current
+    worker.current = undefined
+    worker.busy = false
+    removeWorker(worker.id)
+    if (req) req.reject(new Error("worker process exited unexpectedly"))
+    log.debug("task worker exited", { workerID, exitCode: await proc.exited.catch(() => -1) })
+  })().catch(() => {
+    removeWorker(worker.id)
+    if (!worker.ready) worker.readyResolve()
+    if (worker.current) worker.current.reject(new Error("worker stream failed"))
+  })
+
+  return worker
+}
+
+async function getReadyWorker(config: Awaited<ReturnType<typeof Config.get>>) {
+  const idleReady = workers.find((w) => !w.busy && w.ready)
+  if (idleReady) return idleReady
+
+  const existing = workers.find((w) => !w.busy)
+  if (existing) {
+    await Promise.race([existing.readyPromise, Bun.sleep(WORKER_READY_TIMEOUT_MS)])
+    if (existing.ready) return existing
+  }
+
+  const worker = spawnWorker(config)
+  await Promise.race([worker.readyPromise, Bun.sleep(WORKER_READY_TIMEOUT_MS)])
+  if (!worker.ready) throw new Error("subagent worker failed to become ready")
+  return worker
+}
+
+async function ensureStandbyWorker(config: Awaited<ReturnType<typeof Config.get>>) {
+  if (workers.some((w) => !w.busy && w.ready)) return
+  if (standbySpawn) return standbySpawn
+  standbySpawn = (async () => {
+    try {
+      const worker = spawnWorker(config)
+      await Promise.race([worker.readyPromise, Bun.sleep(WORKER_READY_TIMEOUT_MS)])
+      if (!worker.ready) {
+        ProcessSupervisor.kill(worker.id)
+        removeWorker(worker.id)
+      }
+    } finally {
+      standbySpawn = undefined
+    }
+  })()
+  return standbySpawn
+}
+
+async function dispatchToWorker(
+  input: {
+    sessionID: string
+    config: Awaited<ReturnType<typeof Config.get>>
+    abort: AbortSignal
+  },
+) {
+  const worker = await getReadyWorker(input.config)
+  worker.busy = true
+  void ensureStandbyWorker(input.config)
+
+  const requestID = Identifier.ascending("message")
+  const done = new Promise<void>((resolve, reject) => {
+    worker.current = {
+      id: requestID,
+      sessionID: input.sessionID,
+      resolve,
+      reject,
+    }
+  })
+
+  worker.proc.stdin?.write(
+    JSON.stringify({
+      type: "run",
+      id: requestID,
+      sessionID: input.sessionID,
+    }) + "\n",
+  )
+
+  const onAbort = () => {
+    try {
+      worker.proc.stdin?.write(
+        JSON.stringify({
+          type: "cancel",
+          id: requestID,
+          sessionID: input.sessionID,
+        }) + "\n",
+      )
+    } catch {
+      // ignore
+    }
+  }
+  input.abort.addEventListener("abort", onAbort)
+  try {
+    await done
+  } finally {
+    input.abort.removeEventListener("abort", onAbort)
+  }
+}
+
 export const TaskTool = Tool.define("task", async (ctx) => {
   const agents = await Agent.list().then((x) => x.filter((a) => a.mode !== "primary"))
 
@@ -173,6 +408,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       debugCheckpoint("task", "Agent loaded", { agentName: agent.name, agentModel: agent.model })
 
       const hasTaskPermission = agent.permission.some((rule) => rule.permission === "task")
+      const toolWhitelist = toolWhitelistForSubagent(agent.name)
 
       const session = await iife(async () => {
         if (params.session_id) {
@@ -180,10 +416,18 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           if (found) return found
         }
 
+        const narrowedPermissions: PermissionNext.Ruleset = toolWhitelist
+          ? [
+            { permission: "*", pattern: "*", action: "deny" },
+            ...toolWhitelist.map((permission) => ({ permission, pattern: "*", action: "allow" as const })),
+          ]
+          : []
+
         return await Session.create({
           parentID: ctx.sessionID,
           title: createSubsessionTitle(params, agent.name),
           permission: [
+            ...narrowedPermissions,
             {
               permission: "todowrite",
               pattern: "*",
@@ -310,36 +554,22 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         })
       }
 
-      // Execute the session loop in a separate process
-      // This ensures that the subagent lifecycle is isolated and ends when it needs interaction
-      const scriptPath = process.argv[1]
-      const isBun = process.argv[0].endsWith("bun")
+      debugCheckpoint("task", "Dispatching subagent session to worker", { sessionID: session.id })
 
-      // Determine the command to run
-      // In dev: bun run src/index.ts session step <id>
-      // In prod: opencode session step <id>
-      const cmd = isBun && scriptPath.endsWith(".ts")
-        ? [process.argv[0], "run", scriptPath, "session", "step", session.id]
-        : [process.argv[0], "session", "step", session.id]
-
-      debugCheckpoint("task", "Spawning subagent process", { cmd })
-
-      const proc = Bun.spawn(cmd, {
-        env: {
-          ...process.env,
-          // Ensure subagent inherits environment but knows it's non-interactive if needed
-          OPENCODE_NON_INTERACTIVE: "1"
-        },
-        stdout: "inherit",
-        stderr: "inherit"
-      })
-
-      // Register process for explicit management
-      TaskProcessManager.register(ctx.callID, proc)
+      // Register logical task run in supervisor for monitor visibility.
+      if (ctx.callID) {
+        ProcessSupervisor.register({
+          id: ctx.callID,
+          kind: "task-subagent",
+          sessionID: session.id,
+          parentSessionID: ctx.sessionID,
+        })
+      }
 
       // Link abort signal to process kill via Manager
       const cleanup = () => {
-        TaskProcessManager.kill(ctx.callID)
+        if (ctx.callID) ProcessSupervisor.kill(ctx.callID)
+        SessionPrompt.cancel(session.id)
       }
       ctx.abort.addEventListener("abort", cleanup)
 
@@ -347,13 +577,31 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       // This prevents zombie processes that hang indefinitely
       const SUBAGENT_TIMEOUT_MS = config.experimental?.task_timeout ?? 10 * 60 * 1000
 
-      // Activity tracking: monitor session updates to detect stalled processes
+      // Activity tracking: sample child session state from storage.
+      // Child process events are not available via the in-process bus.
       let lastActivityTime = Date.now()
-      const activityUnsub = Bus.subscribe(MessageV2.Event.PartUpdated, (evt) => {
-        if (evt.properties.part.sessionID === session.id) {
+      let lastSignature = ""
+      const ACTIVITY_POLL_INTERVAL_MS = 2_000
+      const sampleChildActivity = async () => {
+        const messages = await Session.messages({ sessionID: session.id })
+        const last = messages.at(-1)?.info
+        const signature = `${messages.length}:${last?.id ?? ""}:${last?.time.completed ?? last?.time.created ?? 0}`
+        if (signature !== lastSignature) {
+          lastSignature = signature
           lastActivityTime = Date.now()
+          if (ctx.callID) ProcessSupervisor.touch(ctx.callID)
         }
-      })
+      }
+      await sampleChildActivity()
+      const activityPoll = setInterval(() => {
+        void sampleChildActivity().catch((error) => {
+          Log.create({ service: "task" }).debug("Failed to poll subagent activity", {
+            callID: ctx.callID,
+            sessionID: session.id,
+            error: error instanceof Error ? error.message : String(error),
+          })
+        })
+      }, ACTIVITY_POLL_INTERVAL_MS)
 
       // Heartbeat check: if no activity for too long, process may be zombified
       const HEARTBEAT_INTERVAL_MS = 30_000 // Check every 30 seconds
@@ -362,6 +610,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       const heartbeatTimer = setInterval(() => {
         const staleDuration = Date.now() - lastActivityTime
         if (staleDuration > HEARTBEAT_STALE_MS) {
+          if (ctx.callID) ProcessSupervisor.markStalled(ctx.callID)
           Log.create({ service: "task" }).warn("Subagent appears stalled, no activity detected", {
             callID: ctx.callID,
             sessionID: session.id,
@@ -377,7 +626,11 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         })
 
         const result = await Promise.race([
-          proc.exited.then(() => "exited" as const),
+          dispatchToWorker({
+            sessionID: session.id,
+            config,
+            abort: ctx.abort,
+          }).then(() => ({ type: "done" as const })),
           timeoutPromise,
         ])
 
@@ -387,27 +640,25 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             sessionID: session.id,
             timeoutMs: SUBAGENT_TIMEOUT_MS,
           })
-          TaskProcessManager.kill(ctx.callID)
+          SessionPrompt.cancel(session.id)
           throw new Error(`Subagent execution timed out after ${SUBAGENT_TIMEOUT_MS / 1000} seconds`)
         }
       } finally {
+        clearInterval(activityPoll)
         clearInterval(heartbeatTimer)
-        activityUnsub()
         ctx.abort.removeEventListener("abort", cleanup)
         unsub()
+        if (ctx.callID) ProcessSupervisor.kill(ctx.callID)
       }
 
       // Read the result from the session logs
       const messages = await Session.messages({ sessionID: session.id })
-      const lastMessage = messages.at(-1)
-
-      if (!lastMessage) {
-        throw new Error("Subagent execution completed with no messages")
+      const assistantMessages = messages.filter((x) => x.info.role === "assistant")
+      if (assistantMessages.length === 0) {
+        throw new Error("Subagent exited without assistant output")
       }
-
-      // If the last message is from the assistant, returns its text as the output
-      // If the subagent crashed or failed, we might see an error event in logs, but here we check message history
-      const text = lastMessage.parts.findLast((x) => x.type === "text")?.text ?? ""
+      const lastAssistant = assistantMessages.at(-1)!
+      const text = lastAssistant.parts.findLast((x) => x.type === "text")?.text ?? ""
 
       // Check for error in message info if applicable (though V2 messages structure stores errors differently generally)
       // We rely on the text output primarily for the "result"

@@ -10,7 +10,7 @@ import { GlobalBus } from "@/bus/global"
 import { createOpencodeClient, type Event } from "@opencode-ai/sdk/v2"
 import type { BunWebSocketData } from "hono/bun"
 import { Flag } from "@/flag/flag"
-import { TaskProcessManager } from "@/tool/task"
+import { ProcessSupervisor } from "@/process/supervisor"
 
 await Log.init({
   print: process.argv.includes("--print-logs"),
@@ -133,14 +133,14 @@ export const rpc = {
   },
   async reload() {
     Config.global.reset()
-    await TaskProcessManager.disposeAll()
+    await ProcessSupervisor.disposeAll()
     await Instance.disposeAll()
   },
   async shutdown() {
     Log.Default.info("worker shutting down")
     if (eventStream.abort) eventStream.abort.abort()
     // Kill all subagent processes before disposing instances
-    await TaskProcessManager.disposeAll()
+    await ProcessSupervisor.disposeAll()
     await Instance.disposeAll()
     if (server) server.stop(true)
   },

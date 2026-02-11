@@ -387,6 +387,8 @@ export namespace SessionPrompt {
 
     let step = 0
     const session = await Session.get(sessionID)
+    const cachedInstructionPrompts = await InstructionPrompt.system()
+    const environmentCache = new Map<string, string[]>()
     debugCheckpoint("prompt", "loop:session_loaded", {
       sessionID,
       parentID: session.parentID,
@@ -770,7 +772,13 @@ export namespace SessionPrompt {
       // Determine if we should load instruction prompts
       // Subagent sessions (parentID set) or subagent modes still need to adhere to the core constitution
       // to ensure consistent behavioral standards (e.g., Read-Before-Write, Absolute Paths).
-      const instructionPrompts = await InstructionPrompt.system()
+      const instructionPrompts = cachedInstructionPrompts
+      const environmentKey = `${activeModel.providerId}/${activeModel.api.id}`
+      let environmentPrompts = environmentCache.get(environmentKey)
+      if (!environmentPrompts) {
+        environmentPrompts = await SystemPrompt.environment(activeModel)
+        environmentCache.set(environmentKey, environmentPrompts)
+      }
       debugCheckpoint("prompt", "loop:instruction_decision", {
         sessionID,
         parentID: session.parentID,
@@ -785,7 +793,7 @@ export namespace SessionPrompt {
         abort,
         sessionID,
         system: [
-          ...(await SystemPrompt.environment(activeModel)),
+          ...environmentPrompts,
           // Include instruction prompts (AGENTS.md/CLAUDE.md) for all sessions (including subagents)
           // to ensure consistent behavioral standards across the system.
           ...instructionPrompts,
@@ -880,14 +888,17 @@ export namespace SessionPrompt {
         }
       },
       async ask(req) {
+        const ruleset = PermissionNext.merge(input.agent.permission, input.session.permission ?? [])
         await PermissionNext.ask({
           ...req,
           sessionID: input.session.id,
           tool: { messageID: input.processor.message.id, callID: options.toolCallId },
-          ruleset: PermissionNext.merge(input.agent.permission, input.session.permission ?? []),
+          ruleset,
         })
       },
     })
+    const ruleset = PermissionNext.merge(input.agent.permission, input.session.permission ?? [])
+    const toolAllowed = (toolID: string) => PermissionNext.evaluate(toolID, "*", ruleset).action !== "deny"
 
     const registryTools = await ToolRegistry.tools(
       { modelID: input.model.api.id, providerId: input.model.providerId },
@@ -900,6 +911,7 @@ export namespace SessionPrompt {
     })
     const seen = new Map<string, string | undefined>()
     for (const item of registryTools) {
+      if (!toolAllowed(item.id)) continue
       const prev = seen.get(item.id)
       if (prev) {
         debugCheckpoint("tool.resolve", "duplicate", {
@@ -969,6 +981,7 @@ export namespace SessionPrompt {
     }
 
     for (const [key, item] of Object.entries(await MCP.tools())) {
+      if (!toolAllowed(key)) continue
       const execute = item.execute
       if (!execute) continue
 

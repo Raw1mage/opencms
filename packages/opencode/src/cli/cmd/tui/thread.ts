@@ -115,12 +115,6 @@ export const TuiThreadCommand = cmd({
       Log.Default.error(e)
     }
     const client = Rpc.client<typeof rpc>(worker)
-    process.on("uncaughtException", (e) => {
-      Log.Default.error(e)
-    })
-    process.on("unhandledRejection", (e) => {
-      Log.Default.error(e)
-    })
     process.on("SIGUSR2", async () => {
       await client.call("reload", undefined)
     })
@@ -145,6 +139,19 @@ export const TuiThreadCommand = cmd({
         process.stdin.setRawMode(false)
       }
     }
+
+    process.on("uncaughtException", (e) => {
+      Log.Default.error(e)
+      resetTerminal()
+      worker.terminate()
+      process.exit(1)
+    })
+    process.on("unhandledRejection", (e) => {
+      Log.Default.error(e)
+      resetTerminal()
+      worker.terminate()
+      process.exit(1)
+    })
 
     const handleTerminalExit = (signal: string) => {
       resetTerminal()
