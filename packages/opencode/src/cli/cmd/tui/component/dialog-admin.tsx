@@ -1997,6 +1997,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               if (page() === "activities") {
                 debugCheckpoint("admin.activities", "refresh")
                 setActivityTick((tick) => tick + 1)
+                setQuotaRefresh((n) => n + 1) // Trigger API quota fetch
                 return
               }
               debugCheckpoint("admin", "refresh google models", { provider: selectedProviderID() })
