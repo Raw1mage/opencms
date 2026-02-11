@@ -190,6 +190,7 @@ function isWSL(): boolean {
     const release = readFileSync("/proc/version", "utf8").toLowerCase()
     return release.includes("microsoft") || release.includes("wsl")
   } catch {
+    // Ignore error on non-Linux platforms or if /proc/version is inaccessible
     return false
   }
 }
@@ -258,14 +259,17 @@ async function openBrowser(url: string): Promise<boolean> {
       try {
         launch("wslview", [safeUrl])
         return true
-      } catch {}
+      } catch {
+        // Fallback to xdg-open if wslview fails
+      }
     }
     if (!process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
       return false
     }
     launch("xdg-open", [safeUrl])
     return true
-  } catch {
+  } catch (error) {
+    debugCheckpoint("ANTIGRAVITY", "OPEN_BROWSER_FAILED", { error: String(error) })
     return false
   }
 }
@@ -1457,8 +1461,8 @@ export const createAntigravityPlugin =
           if (!isOAuthAuth(auth)) {
             try {
               await clearAccounts()
-            } catch {
-              // ignore
+            } catch (error) {
+              log.debug("Failed to clear stale accounts", { error: String(error) })
             }
             return {}
           }
@@ -3131,6 +3135,7 @@ export const createAntigravityPlugin =
                       try {
                         listener = await startOAuthListener()
                       } catch {
+                        // Failed to start listener, will fallback to manual
                         listener = null
                       }
                     }
@@ -3159,7 +3164,9 @@ export const createAntigravityPlugin =
 
                             try {
                               await listener.close()
-                            } catch {}
+                            } catch {
+                              // Ignore close error
+                            }
 
                             return promptManualOAuthInput(fallbackState)
                           }
@@ -3186,7 +3193,9 @@ export const createAntigravityPlugin =
                       } finally {
                         try {
                           await listener.close()
-                        } catch {}
+                        } catch {
+                          // Ignore close error
+                        }
                       }
                     }
 
@@ -3218,7 +3227,9 @@ export const createAntigravityPlugin =
                         variant: "success",
                       },
                     })
-                  } catch {}
+                  } catch {
+                    // TUI toast optional
+                  }
 
                   try {
                     if (refreshAccountIndex !== undefined) {
@@ -3293,7 +3304,9 @@ export const createAntigravityPlugin =
                   if (finalStorage) {
                     actualAccountCount = finalStorage.accounts.length
                   }
-                } catch {}
+                } catch {
+                  // Fall back to accounts.length if we can't read storage
+                }
 
                 const successMessage =
                   refreshAccountIndex !== undefined
@@ -3324,6 +3337,7 @@ export const createAntigravityPlugin =
                 try {
                   listener = await startOAuthListener()
                 } catch {
+                  // Failed to start listener, will fallback to manual
                   listener = null
                 }
               }
@@ -3334,7 +3348,9 @@ export const createAntigravityPlugin =
               if (!useManualFlow) {
                 const browserOpened = await openBrowser(authorization.url)
                 if (!browserOpened) {
-                  listener?.close().catch(() => {})
+                  listener?.close().catch(() => {
+                    // Ignore close error
+                  })
                   listener = null
                 }
               }
@@ -3392,7 +3408,9 @@ export const createAntigravityPlugin =
                               variant: "success",
                             },
                           })
-                        } catch {}
+                        } catch {
+                          // TUI toast optional
+                        }
                       }
 
                       return result
@@ -3404,7 +3422,9 @@ export const createAntigravityPlugin =
                     } finally {
                       try {
                         await listener.close()
-                      } catch {}
+                      } catch {
+                        // Ignore close error
+                      }
                     }
                   },
                 }
@@ -3489,6 +3509,7 @@ function toWarmupStreamUrl(value: RequestInfo): string {
     url.searchParams.set("alt", "sse")
     return url.toString()
   } catch {
+    // Invalid URL, return original
     return urlString
   }
 }

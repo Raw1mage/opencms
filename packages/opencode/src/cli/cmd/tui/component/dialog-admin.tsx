@@ -353,7 +353,9 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       if (mod.refreshGlobalAccountManager) {
         await mod.refreshGlobalAccountManager()
       }
-    } catch {}
+    } catch {
+      // Refresh optional
+    }
   }
   const [coreAg] = createResource(refreshSignal, async () => {
     try {

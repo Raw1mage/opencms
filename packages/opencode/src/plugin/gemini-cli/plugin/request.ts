@@ -89,6 +89,7 @@ function transformOpenAIToolCalls(requestPayload: Record<string, unknown>): void
                 try {
                   args = JSON.parse(argsStr) as Record<string, unknown>
                 } catch {
+                  // Fallback for invalid JSON args
                   args = {}
                 }
               }
@@ -214,7 +215,9 @@ function transformStreamingLine(line: string): string {
     if (parsed.response !== undefined) {
       return `data: ${JSON.stringify(parsed.response)}`
     }
-  } catch (_) {}
+  } catch (_) {
+    // Ignore JSON parse errors for non-JSON lines
+  }
   return line
 }
 
@@ -268,7 +271,9 @@ function transformStreamingPayloadStream(stream: ReadableStream<Uint8Array>): Re
     },
     cancel(reason) {
       if (reader) {
-        reader.cancel(reason).catch(() => {})
+        reader.cancel(reason).catch(() => {
+          // Ignore cancel error
+        })
       }
     },
   })

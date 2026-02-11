@@ -509,13 +509,19 @@ function flattenAnyOfOneOf(schema: JsonSchema): JsonSchema {
  * Phase 2c: Flattens type arrays to single type with nullable hint.
  * { type: ["string", "null"] } → { type: "string", description: "(nullable)" }
  */
-function flattenTypeArrays(schema: JsonSchema, nullableFields?: Map<string, string[]>, currentPath?: string): JsonSchema {
+function flattenTypeArrays(
+  schema: JsonSchema,
+  nullableFields?: Map<string, string[]>,
+  currentPath?: string,
+): JsonSchema {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return (schema as JsonSchema[]).map((item, idx) => flattenTypeArrays(item, nullableFields, `${currentPath || ""}[${idx}]`)) as any
+    return (schema as JsonSchema[]).map((item, idx) =>
+      flattenTypeArrays(item, nullableFields, `${currentPath || ""}[${idx}]`),
+    ) as any
   }
 
   let result: JsonSchema = { ...schema }
@@ -709,12 +715,12 @@ function addEmptySchemaPlaceholder(schema: JsonSchema): JsonSchema {
  *
  * Ported from CLIProxyAPI's CleanJSONSchemaForAntigravity (gemini_schema.go)
  */
-export function cleanJSONSchemaForAntigravity(schema: JsonSchema): JsonSchema {
+export function cleanJSONSchemaForAntigravity(schema: unknown): JsonSchema {
   if (!schema || typeof schema !== "object") {
-    return schema
+    return schema as JsonSchema
   }
 
-  let result = schema
+  let result = schema as JsonSchema
 
   // Phase 1: Convert and add hints
   result = convertRefsToHints(result)
