@@ -281,7 +281,10 @@ export default function Share(props: {
         result.tokens.output += msg.tokens.output
         result.tokens.reasoning += msg.tokens.reasoning
 
-        result.models[`${msg.providerId} ${msg.modelID}`] = [msg.providerId, msg.modelID]
+        const providerId = msg.providerId ?? (msg as { providerID?: string }).providerID
+        if (providerId) {
+          result.models[`${providerId} ${msg.modelID}`] = [providerId, msg.modelID]
+        }
 
         if (msg.path.root) {
           result.rootDir = msg.path.root

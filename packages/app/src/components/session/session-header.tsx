@@ -244,6 +244,11 @@ export function SessionHeader() {
       .share({ sessionID: session.id, directory: projectDirectory() })
       .catch((error) => {
         console.error("Failed to share session", error)
+        showToast({
+          variant: "error",
+          title: language.t("common.requestFailed"),
+          description: error instanceof Error ? error.message : String(error),
+        })
       })
       .finally(() => {
         setState("share", false)
@@ -258,6 +263,11 @@ export function SessionHeader() {
       .unshare({ sessionID: session.id, directory: projectDirectory() })
       .catch((error) => {
         console.error("Failed to unshare session", error)
+        showToast({
+          variant: "error",
+          title: language.t("common.requestFailed"),
+          description: error instanceof Error ? error.message : String(error),
+        })
       })
       .finally(() => {
         setState("unshare", false)

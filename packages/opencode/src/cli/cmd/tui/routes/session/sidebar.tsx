@@ -104,18 +104,42 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
   }
 
   const activeStatuses = new Set(["busy", "working", "retry", "compacting", "pending"])
+  const branchSessionIDs = createMemo(() => {
+    const current = session()
+    if (!current) return undefined
+    const parentMap = new Map<string, string[]>()
+    for (const info of sync.data.session) {
+      if (!info.parentID) continue
+      const children = parentMap.get(info.parentID) ?? []
+      children.push(info.id)
+      parentMap.set(info.parentID, children)
+    }
+    const ids = new Set<string>()
+    const stack = [current.id]
+    while (stack.length > 0) {
+      const id = stack.pop()!
+      if (ids.has(id)) continue
+      ids.add(id)
+      const children = parentMap.get(id)
+      if (children) stack.push(...children)
+    }
+    return ids
+  })
+
   const monitorEntries = createMemo(() => {
+    const branchSet = branchSessionIDs()
     const raw = (sync.data.monitor ?? [])
       .filter((x) => activeStatuses.has(x.status.type))
       .slice()
       .sort((a, b) => b.updated - a.updated)
+    const scoped = branchSet && branchSet.size > 0 ? raw.filter((x) => branchSet.has(x.sessionID)) : raw
 
     // Deduplicate: If an 'agent' entry and a 'session' entry have the same sessionID and are updated at similar times,
     // prefer the 'agent' entry (or just show one).
     // Actually, usually [A] and [S] are redundant if there is only one active agent.
     // Let's filter out 'session' level entries if there is an 'agent' level entry for the same sessionID.
-    const agentSessionIDs = new Set(raw.filter((x) => x.level === "agent").map((x) => x.sessionID))
-    const deduped = raw.filter((x) => {
+    const agentSessionIDs = new Set(scoped.filter((x) => x.level === "agent").map((x) => x.sessionID))
+    const deduped = scoped.filter((x) => {
       if (x.level === "session" && agentSessionIDs.has(x.sessionID)) return false
       return true
     })
