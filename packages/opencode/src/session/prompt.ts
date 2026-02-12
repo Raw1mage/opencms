@@ -456,6 +456,7 @@ Current directory, README, and core skills are already provided in <preloaded_co
             created: Date.now(),
           },
         })) as MessageV2.Assistant
+        const taskPromptInput = task.prompt_input ?? task.prompt
         let part = (await Session.updatePart({
           id: Identifier.ascending("part"),
           messageID: assistantMessage.id,
@@ -466,7 +467,7 @@ Current directory, README, and core skills are already provided in <preloaded_co
           state: {
             status: "running",
             input: {
-              prompt: task.prompt,
+              prompt: taskPromptInput,
               description: task.description,
               subagent_type: task.agent,
               command: task.command,
@@ -483,7 +484,7 @@ Current directory, README, and core skills are already provided in <preloaded_co
           messageID: assistantMessage.id,
           toolID: TaskTool.id,
           args: {
-            prompt: task.prompt,
+            prompt: taskPromptInput,
             description: task.description,
             subagent_type: task.agent,
             command: task.command,
@@ -1810,8 +1811,16 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               providerId: taskModel.providerId,
               modelID: taskModel.modelID,
             },
-            // TODO: how can we make task tool accept a more complex input?
             prompt: templateParts.find((y) => y.type === "text")?.text ?? "",
+            prompt_input: {
+              type: "implementation" as const,
+              content: templateParts.find((y) => y.type === "text")?.text ?? "",
+              metadata: {
+                source: "command",
+                command: input.command,
+                partTypes: templateParts.map((part) => part.type),
+              },
+            },
           },
         ]
       : [...templateParts, ...(input.parts ?? [])]

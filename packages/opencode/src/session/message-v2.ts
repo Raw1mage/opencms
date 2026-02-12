@@ -181,6 +181,16 @@ export namespace MessageV2 {
   export const SubtaskPart = PartBase.extend({
     type: z.literal("subtask"),
     prompt: z.string(),
+    prompt_input: z
+      .union([
+        z.string(),
+        z.object({
+          type: z.enum(["analysis", "implementation", "review", "testing", "documentation"]),
+          content: z.string(),
+          metadata: z.record(z.string(), z.unknown()).optional(),
+        }),
+      ])
+      .optional(),
     description: z.string(),
     agent: z.string(),
     model: z
