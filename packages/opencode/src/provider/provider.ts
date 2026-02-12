@@ -786,6 +786,7 @@ export namespace Provider {
       cost: z.object({
         input: z.number(),
         output: z.number(),
+        reasoning: z.number().optional(),
         cache: z.object({
           read: z.number(),
           write: z.number(),
@@ -794,6 +795,7 @@ export namespace Provider {
           .object({
             input: z.number(),
             output: z.number(),
+            reasoning: z.number().optional(),
             cache: z.object({
               read: z.number(),
               write: z.number(),
@@ -857,6 +859,7 @@ export namespace Provider {
       cost: {
         input: model.cost?.input ?? 0,
         output: model.cost?.output ?? 0,
+        reasoning: model.cost?.reasoning,
         cache: {
           read: model.cost?.cache_read ?? 0,
           write: model.cost?.cache_write ?? 0,
@@ -869,6 +872,7 @@ export namespace Provider {
               },
               input: model.cost.context_over_200k.input,
               output: model.cost.context_over_200k.output,
+              reasoning: model.cost.context_over_200k.reasoning,
             }
           : undefined,
       },
