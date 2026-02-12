@@ -48,6 +48,7 @@ import { lastModel } from "./last-model"
 import { renderCommandTemplate } from "./command-template"
 import { executeHandledCommand } from "./command-handler-executor"
 import { prepareCommandPrompt } from "./command-prompt-prep"
+import { dispatchCommandPrompt } from "./command-dispatcher"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
 
@@ -1166,32 +1167,20 @@ export namespace SessionPrompt {
       resolvePromptParts,
     })
 
-    await Plugin.trigger(
-      "command.execute.before",
-      {
-        command: input.command,
-        sessionID: input.sessionID,
-        arguments: input.arguments,
-      },
-      { parts },
-    )
-
-    const result = (await prompt({
+    return dispatchCommandPrompt({
+      commandName: input.command,
       sessionID: input.sessionID,
-      messageID: input.messageID,
-      model: userModel,
-      agent: userAgent,
+      argumentsText: input.arguments,
       parts,
-      variant: input.variant,
-    })) as MessageV2.WithParts
-
-    Bus.publish(Command.Event.Executed, {
-      name: input.command,
-      sessionID: input.sessionID,
-      arguments: input.arguments,
-      messageID: result.info.id,
+      invoke: () =>
+        prompt({
+          sessionID: input.sessionID,
+          messageID: input.messageID,
+          model: userModel,
+          agent: userAgent,
+          parts,
+          variant: input.variant,
+        }) as Promise<MessageV2.WithParts>,
     })
-
-    return result
   }
 }
