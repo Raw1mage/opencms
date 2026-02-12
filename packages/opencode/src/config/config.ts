@@ -29,7 +29,6 @@ import { Bus } from "@/bus"
 import { GlobalBus } from "@/bus/global"
 import { Event } from "../server/event"
 import { Env } from "@/env"
-import { proxied } from "@/util/proxied"
 import { iife } from "@/util/iife"
 
 export namespace Config {
@@ -283,14 +282,7 @@ export namespace Config {
 
     // Install any additional dependencies defined in the package.json
     // This allows local plugins and custom tools to use external packages
-    await BunProc.run(
-      [
-        "install",
-        // TODO: get rid of this case (see: https://github.com/oven-sh/bun/issues/19936)
-        ...(proxied() ? ["--no-cache"] : []),
-      ],
-      { cwd: dir },
-    ).catch((err) => {
+    await BunProc.run(["install"], { cwd: dir }).catch((err) => {
       log.warn("Dependency installation failed", { dir, err })
     })
   }
