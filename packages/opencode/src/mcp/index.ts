@@ -409,10 +409,21 @@ export namespace MCP {
     if (mcp.type === "local") {
       const [cmd, ...args] = mcp.command
       const cwd = Instance.directory
+
+      // Auto-inject CWD for filesystem MCP if not already present
+      const finalArgs = [...args]
+      if (key === "filesystem") {
+        const hasParent = finalArgs.some((arg) => cwd.startsWith(arg))
+        if (!hasParent && !finalArgs.includes(cwd)) {
+          log.info("auto-injecting cwd into filesystem mcp", { key, cwd })
+          finalArgs.push(cwd)
+        }
+      }
+
       const transport = new StdioClientTransport({
         stderr: "pipe",
         command: cmd,
-        args,
+        args: finalArgs,
         cwd,
         env: {
           ...Env.all(),

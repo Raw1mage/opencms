@@ -12,11 +12,19 @@ This reference guides the agent through the interactive merge process.
 
 Iterate through the commits in `divergence.json`. For each commit (prioritizing High/Medium risk), ask the user for guidance.
 
+Before asking, do a short per-commit analysis and summarize in one line:
+
+- `Logical Type` (Behavioral Fix / Feature / UX / Protocol / Infra / Docs)
+- `Value Score` (`fit/user/ops/risk = ...`, each axis -1/0/+1)
+- `Default Recommendation` (`ported` / `integrated` / `skipped`)
+
 ### Question Templates
 
 **For High Risk Commits (Critical Path):**
 
 > "Commit `{hash}` (`{subject}`) touches critical paths: `{reasons}`.
+> Logical Type: `{logical_type}`
+> Value Score: `fit/user/ops/risk = {f}/{u}/{o}/{r} => {total}`
 > This involves core architecture (Providers/Accounts/Rotation3D) or the Admin Panel.
 > **Options:**
 >
@@ -29,6 +37,8 @@ Iterate through the commits in `divergence.json`. For each commit (prioritizing 
 **For Medium Risk Commits (Source Code):**
 
 > "Commit `{hash}` (`{subject}`) modifies source code.
+> Logical Type: `{logical_type}`
+> Value Score: `fit/user/ops/risk = {f}/{u}/{o}/{r} => {total}`
 > **Options:**
 >
 > 1. Cherry-pick directly.
@@ -56,15 +66,21 @@ Based on user responses, generate a `docs/events/refactor_plan_YYYYMMDD.md` file
 
 ## Actions
 
-| Commit | Action             | Notes                        |
-| :----- | :----------------- | :--------------------------- |
-| {hash} | {Skip/Manual/Pick} | {User notes or risk details} |
+| Commit | Logical Type | Value Score | Decision              | Notes                        |
+| :----- | :----------- | :---------- | :-------------------- | :--------------------------- |
+| {hash} | {Type}       | {f/u/o/r=t} | {Skip/Port/Integrate} | {User notes or risk details} |
 
 ## Execution Queue
 
 1. [ ] Cherry-pick Low risk items.
 2. [ ] Manual port of {hash} (High Risk).
 3. [ ] ...
+
+## Mapping to Ledger
+
+| Upstream Commit | Status                      | Local Commit      | Note              |
+| :-------------- | :-------------------------- | :---------------- | :---------------- |
+| {hash}          | {ported/integrated/skipped} | {local-hash or -} | {final rationale} |
 ```
 
 ## Phase 4: Execution

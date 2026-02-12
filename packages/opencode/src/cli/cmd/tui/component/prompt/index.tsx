@@ -540,9 +540,6 @@ export function Prompt(props: PromptProps) {
         category: "Session",
         keybind: "editor_open",
         value: "prompt.editor",
-        slash: {
-          name: "editor",
-        },
         onSelect: async (dialog) => {
           dialog.clear()
 

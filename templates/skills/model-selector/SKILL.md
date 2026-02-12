@@ -9,10 +9,15 @@ description: 根據任務類型分析並建議最適合的模型選擇策略。
 
 ### 1. Antigravity
 
-- **額度**：5 小時 reset，無限再生
+- **模型分組**：這個provider下面包含多個模型，目前分為兩個主要系列
+  - **主系列**：Gemini系列
+  - **副系列**：Claude系列
+- **額度**：
+  - **主系列**：5 小時 reset，無限再生
+  - **副系列**：有週用量限制，可用量極小
 - **優勢**：推理能力強
 - **適用**：系統預設主對話
-- **注意**：容易發散跳針，需嚴謹 system prompt 控制穩定性
+- **注意**：優先使用Gemini系列模型。針對需要大量思考的任務，可以考慮使用Claude系列模型，但要注意用量限制。Claude系列模型容易忘記system prompt的內容，需要經常提醒它重新加載AGENTS.md。
 
 ### 2. Gemini-cli
 
@@ -43,70 +48,9 @@ description: 根據任務類型分析並建議最適合的模型選擇策略。
 ### 6. Claude-cli
 
 - **額度**：有 5 小時用量限制，以及每週用量限制。計算公式不明。
-- **模型 (範例)**：Haiku 4.5, Opus 4.6, Sonnet 4.5 等。實際可用清單請執行 `/models` 查看。
+- **模型**：Haiku 4.5, Opus 4.6, Sonnet 4.5 等。實際可用清單請執行 `/models` 查看。
 - **適用**：超級強大的程式代碼救火隊。
 - **注意**：珍貴的付費資源，除非使用者要求，沒事不要主動輪用。
-
----
-
-## 系統機制
-
-- **rotation3d**：動態多帳號多模型切換，善用上述資源
-- **用量監控**：Antigravity、OpenAI 已實作
-
----
-
-## Fallback 機制
-
-當模型遇到 rate limit 或錯誤時，依序嘗試下一個 Provider。
-
-```
-Primary → Fallback 1 → Fallback 2 → Last Resort → HALT
-```
-
-### Rate Limit 偵測
-
-偵測以下錯誤模式並觸發 fallback：
-
-- `429 Too Many Requests`
-- `rate_limit_exceeded`
-- `quota exceeded`
-- `resource_exhausted`
-- `capacity` errors
-- Timeout > 60 seconds
-
-### Fallback 報告格式
-
-```
-[MODEL FALLBACK]
-Agent: <agent name>
-Failed Provider: <provider that failed>
-Error: <brief error description>
-Switching to: <fallback provider>
-Attempt: <n of max>
-```
-
-### Halt 協議
-
-當所有 Provider 都用盡時：
-
-```
-[WORKFLOW HALTED]
-Agent: <agent name>
-Reason: All providers exhausted
-Tried:
-  1. <provider 1>: <error>
-  2. <provider 2>: <error>
-  ...
-
-Action Required: User intervention needed
-Options:
-  - Wait for rate limits to reset
-  - Provide alternative API keys
-  - Reduce task scope and retry
-```
-
-**重要**：不可靜默繼續，必須停止並回報使用者。
 
 ---
 
@@ -146,7 +90,44 @@ Options:
 
 **特徵**：小型 subagent、tool call、簡單查詢
 
-**建議**：GMICloud（試玩）、Antigravity
+**建議**：Antigravity、Claude-cli
+
+---
+
+## 系統機制
+
+- **rotation3d**：動態多帳號多模型切換系統。
+  - **自動模式**：系統根據負載與額度自動分配。
+  - **LLM 控制模式**：Agent 可根據任務複雜度，透過 `Task` 工具的 `subagent_type` 或直接執行指令干預切換。
+- **用量監控**：Antigravity、OpenAI 已實作。
+
+---
+
+## LLM 主動換模指引 (LLM-Driven Switching)
+
+當你發現當前模型表現不佳（如：邏輯死循環、無法理解複雜 Context、頻繁出錯）時，**你必須**考慮切換模型。
+
+### 1. 指令控制 (Direct Command)
+
+在 `EXECUTION` 階段，你可以直接在 Bash 中執行以下指令：
+
+- `/models list`：查看當前可用模型與 Provider 狀態。
+- `/models set <provider>:<model>`：強制切換當前 Session 的模型。
+- `/admin`：進入管理介面調整全域權重。
+
+### 2. 任務分發控制 (Task Dispatch)
+
+在呼叫 `Task()` 工具時，透過設定 `subagent_type` 觸發 `rotation3d` 的特定路由：
+
+- 若需高精準度：指定 `subagent_type: "coding"` (通常路由至 OpenAI/Claude)。
+- 若需處理海量資料：指定 `subagent_type: "batch"` (路由至 Gemini-cli)。
+- 若需快速驗證：指定 `subagent_type: "lightweight"` (路由至 Flash 系模型)。
+
+### 3. 換模決策時機
+
+- **升級 (Upscale)**：當 Antigravity (Gemini) 無法解決複雜邏輯時，主動切換至 OpenAI 或 Claude-cli。
+- **降級 (Downscale)**：當執行簡單檔案操作或查詢時，應主動切換回 Antigravity 以節省高價值額度。
+- **逃生 (Escape)**：遇到 Provider 故障或持續 Rate Limit 時，立即切換至備用 Provider。
 
 ---
 
@@ -156,5 +137,5 @@ Options:
 [模型建議]
 任務類型：<類型>
 建議 Provider：<provider>
-操作方式：使用 /admin 切換模型
+操作方式：使用 /admin 或/models 切換模型
 ```

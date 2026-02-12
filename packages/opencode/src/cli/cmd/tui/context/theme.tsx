@@ -1,6 +1,7 @@
 import { SyntaxStyle, RGBA, type TerminalColors } from "@opentui/core"
 import path from "path"
-import { createEffect, createMemo, onMount } from "solid-js"
+import { watch } from "fs"
+import { createEffect, createMemo, onMount, onCleanup } from "solid-js"
 import { useSync } from "@tui/context/sync"
 import { createSimpleContext } from "./helper"
 import aura from "./theme/aura.json" with { type: "json" }
@@ -41,6 +42,7 @@ import { useRenderer } from "@opentui/solid"
 import { createStore, produce } from "solid-js/store"
 import { Global } from "@/global"
 import { Filesystem } from "@/util/filesystem"
+import { iife } from "@/util/iife"
 
 type ThemeColors = {
   primary: RGBA
@@ -363,6 +365,28 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
     }
 
     onMount(init)
+
+    // Watch for external changes to opencode.json for theme updates
+    iife(() => {
+      const configPath = path.join(Global.Path.config, "opencode.json")
+      try {
+        const watcher = watch(configPath, (event) => {
+          if (event === "change") {
+            Bun.file(configPath)
+              .json()
+              .then((config) => {
+                if (config.theme) {
+                  setStore("active", normalizeActiveTheme(config.theme))
+                }
+              })
+              .catch(() => {})
+          }
+        })
+        onCleanup(() => watcher.close())
+      } catch (e) {
+        // File might not exist yet or other watch error
+      }
+    })
 
     function resolveSystemTheme() {
       renderer

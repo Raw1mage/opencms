@@ -1,9 +1,10 @@
 import { createStore } from "solid-js/store"
-import { batch, createEffect, createMemo, createResource } from "solid-js"
+import { batch, createEffect, createMemo, createResource, onCleanup } from "solid-js"
 import { useSync } from "@tui/context/sync"
 import { useTheme } from "@tui/context/theme"
 import { uniqueBy } from "remeda"
 import path from "path"
+import { watch } from "fs"
 import { Global } from "@/global"
 import { iife } from "@/util/iife"
 import { createSimpleContext } from "./helper"
@@ -178,6 +179,48 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           }),
         )
       }
+
+      // Watch for external changes to model.json
+      const watcher = watch(path.join(Global.Path.state, "model.json"), (event) => {
+        if (event === "change") {
+          file
+            .json()
+            .then((x) => {
+              batch(() => {
+                if (Array.isArray(x.recent)) setModelStore("recent", x.recent)
+                if (Array.isArray(x.favorite)) setModelStore("favorite", x.favorite)
+                if (Array.isArray(x.hidden)) setModelStore("hidden", x.hidden)
+                if (Array.isArray(x.hiddenProviders)) setModelStore("hiddenProviders", x.hiddenProviders)
+                if (typeof x.variant === "object" && x.variant !== null) setModelStore("variant", x.variant)
+              })
+            })
+            .catch(() => {})
+        }
+      })
+
+      onCleanup(() => {
+        watcher.close()
+      })
+
+      // Watch for external changes to opencode.json for default_agent updates
+      iife(() => {
+        const configPath = path.join(Global.Path.config, "opencode.json")
+        try {
+          const watcher = watch(configPath, (event) => {
+            if (event === "change") {
+              Bun.file(configPath)
+                .json()
+                .then((config) => {
+                  if (config.default_agent) {
+                    agent.set(config.default_agent)
+                  }
+                })
+                .catch(() => {})
+            }
+          })
+          onCleanup(() => watcher.close())
+        } catch (e) {}
+      })
 
       // Auto-cleanup removed: allow favorites/recent even if model ID is not in provider.models
 
