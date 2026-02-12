@@ -85,6 +85,9 @@ function generateSessionToken(): string {
   return crypto.randomBytes(16).toString("hex")
 }
 
+const CHROME_VERSION = "138.0.7204.235"
+const ELECTRON_VERSION = "37.3.1"
+
 /**
  * Generate a randomized device fingerprint.
  * Each fingerprint represents a unique "device" identity.
@@ -103,10 +106,19 @@ export function generateFingerprint(): Fingerprint {
           ? "LINUX"
           : randomFrom(PLATFORMS)
 
+  let userAgent = ""
+  if (platform === "win32") {
+    userAgent = `Mozilla/5.0 (Windows NT 10.0; Win64; ${arch}) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${ANTIGRAVITY_VERSION} Chrome/${CHROME_VERSION} Electron/${ELECTRON_VERSION} Safari/537.36`
+  } else if (platform === "darwin") {
+    userAgent = `Mozilla/5.0 (Macintosh; Intel Mac OS X ${osVersion.replace(/\./g, "_")}) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${ANTIGRAVITY_VERSION} Chrome/${CHROME_VERSION} Electron/${ELECTRON_VERSION} Safari/537.36`
+  } else {
+    userAgent = `Mozilla/5.0 (X11; Linux ${arch}) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${ANTIGRAVITY_VERSION} Chrome/${CHROME_VERSION} Electron/${ELECTRON_VERSION} Safari/537.36`
+  }
+
   return {
     deviceId: generateDeviceId(),
     sessionToken: generateSessionToken(),
-    userAgent: `antigravity/${ANTIGRAVITY_VERSION} ${platform}/${arch}`,
+    userAgent,
     apiClient: randomFrom(SDK_CLIENTS),
     clientMetadata: {
       ideType: randomFrom(IDE_TYPES),
@@ -139,10 +151,19 @@ export function collectCurrentFingerprint(): Fingerprint {
           ? "LINUX"
           : "PLATFORM_UNSPECIFIED"
 
+  let userAgent = ""
+  if (platform === "win32") {
+    userAgent = `Mozilla/5.0 (Windows NT 10.0; Win64; ${arch}) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${ANTIGRAVITY_VERSION} Chrome/${CHROME_VERSION} Electron/${ELECTRON_VERSION} Safari/537.36`
+  } else if (platform === "darwin") {
+    userAgent = `Mozilla/5.0 (Macintosh; Intel Mac OS X ${osRelease.replace(/\./g, "_")}) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${ANTIGRAVITY_VERSION} Chrome/${CHROME_VERSION} Electron/${ELECTRON_VERSION} Safari/537.36`
+  } else {
+    userAgent = `Mozilla/5.0 (X11; Linux ${arch}) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${ANTIGRAVITY_VERSION} Chrome/${CHROME_VERSION} Electron/${ELECTRON_VERSION} Safari/537.36`
+  }
+
   return {
     deviceId: generateDeviceId(),
     sessionToken: generateSessionToken(),
-    userAgent: `antigravity/${ANTIGRAVITY_VERSION} ${platform}/${arch}`,
+    userAgent,
     apiClient: "google-cloud-sdk vscode_cloudshelleditor/0.1",
     clientMetadata: {
       ideType: "VSCODE",
