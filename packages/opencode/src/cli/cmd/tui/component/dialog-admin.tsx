@@ -1876,7 +1876,8 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   }
 
   const selectCurrent = createMemo(() => {
-    if (page() === "activities") return activityValue()
+    // Model Activities uses inline status markers (e.g. ✅), so avoid leading "●" current marker.
+    if (page() === "activities") return undefined
     if (step() === "account_select") {
       const first = options().find((option) => {
         if (!("disabled" in option)) return true

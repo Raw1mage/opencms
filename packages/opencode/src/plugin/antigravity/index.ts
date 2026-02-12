@@ -55,8 +55,9 @@ import { checkAccountsQuota, fetchModelQuotaResetTime, getCockpitBackoffMs } fro
 import { initDiskSignatureCache } from "./plugin/cache"
 import { createProactiveRefreshQueue, type ProactiveRefreshQueue } from "./plugin/refresh-queue"
 import { initLogger, createLogger } from "./plugin/logger"
-import { initHealthTracker, getHealthTracker, initTokenTracker, getTokenTracker } from "./plugin/rotation"
+import { getHealthTracker as getGlobalHealthTracker } from "../../account/rotation"
 import { executeSearch } from "./plugin/search"
+import { initAntigravityVersion } from "./plugin/version"
 import type {
   GetAuth,
   LoaderResult,
@@ -857,6 +858,9 @@ export const createAntigravityPlugin =
     const config = loadConfig(directory)
     initRuntimeConfig(config)
 
+    // Initialize runtime Antigravity version (remote fetch with fallback)
+    await initAntigravityVersion()
+
     // Initialize debug with config
     initializeDebug(config)
 
@@ -1191,7 +1195,7 @@ export const createAntigravityPlugin =
               }
             }
             const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(hardcodedAccount.index)
-            getHealthTracker().recordFailure(hardcodedAccount.index)
+            getGlobalHealthTracker().recordFailure(`antigravity-account-${hardcodedAccount.index}`, "antigravity")
             if (shouldCooldown) {
               accountManager.markAccountCoolingDown(hardcodedAccount, cooldownMs, "auth-failure")
               accountManager.markRateLimited(hardcodedAccount, cooldownMs, "gemini", "antigravity", hardcodedModel)
@@ -1231,7 +1235,7 @@ export const createAntigravityPlugin =
           resetAccountFailureState(hardcodedAccount.index)
         } catch (error) {
           const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(hardcodedAccount.index)
-          getHealthTracker().recordFailure(hardcodedAccount.index)
+          getGlobalHealthTracker().recordFailure(`antigravity-account-${hardcodedAccount.index}`, "antigravity")
           if (shouldCooldown) {
             accountManager.markAccountCoolingDown(hardcodedAccount, cooldownMs, "project-error")
             accountManager.markRateLimited(hardcodedAccount, cooldownMs, "gemini", "antigravity", hardcodedModel)
@@ -1347,7 +1351,7 @@ export const createAntigravityPlugin =
                 }
               }
               const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(selected.index)
-              getHealthTracker().recordFailure(selected.index)
+              getGlobalHealthTracker().recordFailure(`antigravity-account-${selected.index}`, "antigravity")
               if (shouldCooldown) {
                 accountManager.markAccountCoolingDown(selected, cooldownMs, "auth-failure")
                 accountManager.markRateLimited(selected, cooldownMs, "gemini", "antigravity", SEARCH_MODEL)
@@ -1385,7 +1389,7 @@ export const createAntigravityPlugin =
             resetAccountFailureState(selected.index)
           } catch (error) {
             const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(selected.index)
-            getHealthTracker().recordFailure(selected.index)
+            getGlobalHealthTracker().recordFailure(`antigravity-account-${selected.index}`, "antigravity")
             const err = (error instanceof Error ? error : new Error(String(error))) as Error
             lastError = err
             const message = err.message
@@ -1474,7 +1478,7 @@ export const createAntigravityPlugin =
 
     return {
       event: eventHandler,
-      "experimental.chat.system.transform": async (input, output) => {
+      "experimental.chat.system.transform": async (input: any, output: any) => {
         try {
           const modelId = input.model?.id?.toLowerCase() || ""
           if (!modelId.includes("gemini")) return
@@ -1910,7 +1914,7 @@ export const createAntigravityPlugin =
                     const refreshed = await refreshAccessToken(authRecord, client, providerId)
                     if (!refreshed) {
                       const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index)
-                      getHealthTracker().recordFailure(account.index)
+                      getGlobalHealthTracker().recordFailure(`antigravity-account-${account.index}`, "antigravity")
                       lastError = new Error("Antigravity token refresh failed")
                       if (shouldCooldown) {
                         accountManager.markAccountCoolingDown(account, cooldownMs, "auth-failure")
@@ -1968,7 +1972,7 @@ export const createAntigravityPlugin =
                     }
 
                     const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index)
-                    getHealthTracker().recordFailure(account.index)
+                    getGlobalHealthTracker().recordFailure(`antigravity-account-${account.index}`, "antigravity")
                     lastError = error instanceof Error ? error : new Error(String(error))
                     if (shouldCooldown) {
                       accountManager.markAccountCoolingDown(account, cooldownMs, "auth-failure")
@@ -2000,7 +2004,7 @@ export const createAntigravityPlugin =
                   resetAccountFailureState(account.index)
                 } catch (error) {
                   const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index)
-                  getHealthTracker().recordFailure(account.index)
+                  getGlobalHealthTracker().recordFailure(`antigravity-account-${account.index}`, "antigravity")
                   lastError = error instanceof Error ? error : new Error(String(error))
                   if (shouldCooldown) {
                     accountManager.markAccountCoolingDown(account, cooldownMs, "project-error")
@@ -2255,7 +2259,6 @@ export const createAntigravityPlugin =
                     if (response.status === 429 || response.status === 503 || response.status === 529) {
                       // Refund token on rate limit
                       if (tokenConsumed) {
-                        getTokenTracker().refund(account.index)
                         tokenConsumed = false
                       }
 
@@ -2340,7 +2343,7 @@ export const createAntigravityPlugin =
                           backoffMs,
                           model || undefined,
                         )
-                        getHealthTracker().recordRateLimit(account.index)
+                        getGlobalHealthTracker().recordRateLimit(`antigravity-account-${account.index}`, "antigravity")
 
                         const waitTimeFormatted = formatWaitTime(backoffMs)
                         const statusCode = response.status
@@ -2400,7 +2403,7 @@ export const createAntigravityPlugin =
                     // @event_2026-02-06:rotation_unify - Removed redundant ModelHealthRegistry.markSuccess
                     if (response.ok) {
                       account.consecutiveFailures = 0
-                      getHealthTracker().recordSuccess(account.index)
+                      getGlobalHealthTracker().recordSuccess(`antigravity-account-${account.index}`, "antigravity")
                       accountManager.markAccountUsed(account.index)
                       debugCheckpoint("ANTIGRAVITY", "REQUEST_SUCCESS", {
                         family,
@@ -2546,7 +2549,6 @@ export const createAntigravityPlugin =
 
                     // Refund token on network/API error (only if consumed)
                     if (tokenConsumed) {
-                      getTokenTracker().refund(account.index)
                       tokenConsumed = false
                     }
 

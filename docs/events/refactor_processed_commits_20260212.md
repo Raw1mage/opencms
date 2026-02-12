@@ -108,3 +108,9 @@
 | `f252e3234` | integrated | `aff114671` | fix(app): translations |
 | `42bea5d29` | integrated | `aff114671` | release: v1.1.59 |
 | `94cb6390a` | integrated | `aff114671` | chore: generate |
+
+## 已處理（origin_dev_antigravity_update @ 2026-02-12T11:05:00.707Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `f7e0c50` | integrated | `f7e0c50` | Sync Antigravity Auth Plugin v1.5.1 (Spoofing, Versioning) |

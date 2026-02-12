@@ -10,7 +10,7 @@
 
 import * as crypto from "node:crypto"
 import * as os from "node:os"
-import { ANTIGRAVITY_VERSION } from "../constants"
+import { getAntigravityVersion } from "../constants"
 
 const OS_VERSIONS: Record<string, string[]> = {
   darwin: ["10.15.7", "11.6.8", "12.6.3", "13.5.2", "14.2.1", "14.5"],
@@ -20,26 +20,21 @@ const OS_VERSIONS: Record<string, string[]> = {
 
 const ARCHITECTURES = ["x64", "arm64"]
 
-const IDE_TYPES = ["IDE_UNSPECIFIED", "VSCODE", "INTELLIJ", "ANDROID_STUDIO", "CLOUD_SHELL_EDITOR"]
+const IDE_TYPES = ["ANTIGRAVITY"] as const
 
-const PLATFORMS = ["PLATFORM_UNSPECIFIED", "WINDOWS", "MACOS", "LINUX"]
+const PLATFORMS = ["WINDOWS", "MACOS"] as const
 
 const SDK_CLIENTS = [
   "google-cloud-sdk vscode_cloudshelleditor/0.1",
   "google-cloud-sdk vscode/1.86.0",
   "google-cloud-sdk vscode/1.87.0",
-  "google-cloud-sdk intellij/2024.1",
-  "google-cloud-sdk android-studio/2024.1",
-  "gcloud-python/1.2.0 grpc-google-iam-v1/0.12.6",
+  "google-cloud-sdk vscode/1.96.0",
 ]
 
 export interface ClientMetadata {
   ideType: string
   platform: string
   pluginType: string
-  osVersion: string
-  arch: string
-  sqmId?: string
 }
 
 export interface Fingerprint {
@@ -48,8 +43,9 @@ export interface Fingerprint {
   userAgent: string
   apiClient: string
   clientMetadata: ClientMetadata
-  quotaUser: string
   createdAt: number
+  /** @deprecated Kept for backward compat with stored fingerprints */
+  quotaUser?: string
 }
 
 /**
@@ -67,13 +63,9 @@ export const MAX_FINGERPRINT_HISTORY = 5
 
 export interface FingerprintHeaders {
   "User-Agent": string
-  "X-Goog-Api-Client": string
-  "Client-Metadata": string
-  "X-Goog-QuotaUser": string
-  "X-Client-Device-Id": string
 }
 
-function randomFrom<T>(arr: T[]): T {
+function randomFrom<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]!
 }
 
@@ -85,50 +77,27 @@ function generateSessionToken(): string {
   return crypto.randomBytes(16).toString("hex")
 }
 
-const CHROME_VERSION = "138.0.7204.235"
-const ELECTRON_VERSION = "37.3.1"
-
 /**
  * Generate a randomized device fingerprint.
  * Each fingerprint represents a unique "device" identity.
  */
 export function generateFingerprint(): Fingerprint {
-  const platform = randomFrom(["darwin", "win32", "linux"])
+  const platform = randomFrom(["darwin", "win32"] as const)
   const arch = randomFrom(ARCHITECTURES)
-  const osVersion = randomFrom(OS_VERSIONS[platform] ?? OS_VERSIONS.linux!)
+  // const osVersion = randomFrom(OS_VERSIONS[platform] ?? OS_VERSIONS.darwin!)
 
-  const matchingPlatform =
-    platform === "darwin"
-      ? "MACOS"
-      : platform === "win32"
-        ? "WINDOWS"
-        : platform === "linux"
-          ? "LINUX"
-          : randomFrom(PLATFORMS)
-
-  let userAgent = ""
-  if (platform === "win32") {
-    userAgent = `Mozilla/5.0 (Windows NT 10.0; Win64; ${arch}) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${ANTIGRAVITY_VERSION} Chrome/${CHROME_VERSION} Electron/${ELECTRON_VERSION} Safari/537.36`
-  } else if (platform === "darwin") {
-    userAgent = `Mozilla/5.0 (Macintosh; Intel Mac OS X ${osVersion.replace(/\./g, "_")}) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${ANTIGRAVITY_VERSION} Chrome/${CHROME_VERSION} Electron/${ELECTRON_VERSION} Safari/537.36`
-  } else {
-    userAgent = `Mozilla/5.0 (X11; Linux ${arch}) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${ANTIGRAVITY_VERSION} Chrome/${CHROME_VERSION} Electron/${ELECTRON_VERSION} Safari/537.36`
-  }
+  const matchingPlatform = platform === "win32" ? "WINDOWS" : "MACOS"
 
   return {
     deviceId: generateDeviceId(),
     sessionToken: generateSessionToken(),
-    userAgent,
+    userAgent: `antigravity/${getAntigravityVersion()} ${platform}/${arch}`,
     apiClient: randomFrom(SDK_CLIENTS),
     clientMetadata: {
       ideType: randomFrom(IDE_TYPES),
       platform: matchingPlatform,
       pluginType: "GEMINI",
-      osVersion: osVersion,
-      arch: arch,
-      sqmId: `{${crypto.randomUUID().toUpperCase()}}`,
     },
-    quotaUser: `device-${crypto.randomBytes(8).toString("hex")}`,
     createdAt: Date.now(),
   }
 }
@@ -140,40 +109,19 @@ export function generateFingerprint(): Fingerprint {
 export function collectCurrentFingerprint(): Fingerprint {
   const platform = os.platform()
   const arch = os.arch()
-  const osRelease = os.release()
 
-  const matchingPlatform =
-    platform === "darwin"
-      ? "MACOS"
-      : platform === "win32"
-        ? "WINDOWS"
-        : platform === "linux"
-          ? "LINUX"
-          : "PLATFORM_UNSPECIFIED"
-
-  let userAgent = ""
-  if (platform === "win32") {
-    userAgent = `Mozilla/5.0 (Windows NT 10.0; Win64; ${arch}) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${ANTIGRAVITY_VERSION} Chrome/${CHROME_VERSION} Electron/${ELECTRON_VERSION} Safari/537.36`
-  } else if (platform === "darwin") {
-    userAgent = `Mozilla/5.0 (Macintosh; Intel Mac OS X ${osRelease.replace(/\./g, "_")}) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${ANTIGRAVITY_VERSION} Chrome/${CHROME_VERSION} Electron/${ELECTRON_VERSION} Safari/537.36`
-  } else {
-    userAgent = `Mozilla/5.0 (X11; Linux ${arch}) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${ANTIGRAVITY_VERSION} Chrome/${CHROME_VERSION} Electron/${ELECTRON_VERSION} Safari/537.36`
-  }
+  const matchingPlatform = platform === "win32" ? "WINDOWS" : "MACOS"
 
   return {
     deviceId: generateDeviceId(),
     sessionToken: generateSessionToken(),
-    userAgent,
+    userAgent: `antigravity/${getAntigravityVersion()} ${platform}/${arch}`,
     apiClient: "google-cloud-sdk vscode_cloudshelleditor/0.1",
     clientMetadata: {
-      ideType: "VSCODE",
+      ideType: "ANTIGRAVITY",
       platform: matchingPlatform,
       pluginType: "GEMINI",
-      osVersion: osRelease,
-      arch: arch,
-      sqmId: `{${crypto.randomUUID().toUpperCase()}}`, // Session-specific for current device
     },
-    quotaUser: `device-${crypto.createHash("sha256").update(os.hostname()).digest("hex").slice(0, 16)}`,
     createdAt: Date.now(),
   }
 }
@@ -189,10 +137,6 @@ export function buildFingerprintHeaders(fingerprint: Fingerprint | null): Partia
 
   return {
     "User-Agent": fingerprint.userAgent,
-    "X-Goog-Api-Client": fingerprint.apiClient,
-    "Client-Metadata": JSON.stringify(fingerprint.clientMetadata),
-    "X-Goog-QuotaUser": fingerprint.quotaUser,
-    "X-Client-Device-Id": fingerprint.deviceId,
   }
 }
 

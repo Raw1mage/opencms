@@ -894,7 +894,7 @@ export function prepareAntigravityRequest(
             model: effectiveModel,
             tierThinkingBudget,
             normalizedThinking: effectiveUserThinkingConfig,
-            cleanJSONSchema: cleanJSONSchemaForAntigravity,
+            cleanJSONSchema: cleanJSONSchemaForAntigravity as any,
           })
 
           if (
@@ -1145,31 +1145,23 @@ export function prepareAntigravityRequest(
   const selectedHeaders = getRandomizedHeaders(headerStyle)
 
   if (headerStyle === "antigravity") {
-    // Antigravity mode: Use fingerprint headers for device identity and quota tracking
-    // Fingerprint headers override randomized headers for User-Agent, X-Goog-Api-Client, Client-Metadata
-    // and add X-Goog-QuotaUser, X-Client-Device-Id for unique device identity
+    // Use randomized headers as the fallback pool for Antigravity mode
+    const selectedHeaders = getRandomizedHeaders("antigravity", requestedModel)
+
+    // Antigravity mode: Match Antigravity Manager behavior
+    // AM only sends User-Agent on content requests — no X-Goog-Api-Client, no Client-Metadata header
+    // (ideType=ANTIGRAVITY goes in request body metadata via project.ts, not as a header)
     const fingerprint = options?.fingerprint ?? getSessionFingerprint()
     const fingerprintHeaders = buildFingerprintHeaders(fingerprint)
 
-    // Apply fingerprint headers (override randomized with fingerprint if available)
     headers.set("User-Agent", fingerprintHeaders["User-Agent"] || selectedHeaders["User-Agent"])
-    headers.set("X-Goog-Api-Client", fingerprintHeaders["X-Goog-Api-Client"] || selectedHeaders["X-Goog-Api-Client"])
-    headers.set("Client-Metadata", fingerprintHeaders["Client-Metadata"] || selectedHeaders["Client-Metadata"])
-
-    // Add fingerprint-specific headers for device identity (Antigravity only)
-    if (fingerprintHeaders["X-Goog-QuotaUser"]) {
-      headers.set("X-Goog-QuotaUser", fingerprintHeaders["X-Goog-QuotaUser"])
-    }
-    if (fingerprintHeaders["X-Client-Device-Id"]) {
-      headers.set("X-Client-Device-Id", fingerprintHeaders["X-Client-Device-Id"])
-    }
   } else {
     // Gemini CLI mode: Use simple static headers matching opencode-gemini-auth
     // NO fingerprint headers, NO X-Goog-QuotaUser, NO X-Client-Device-Id
     // This mirrors exactly what https://github.com/jenslys/opencode-gemini-auth does
-    headers.set("User-Agent", selectedHeaders["User-Agent"])
-    headers.set("X-Goog-Api-Client", selectedHeaders["X-Goog-Api-Client"])
-    headers.set("Client-Metadata", selectedHeaders["Client-Metadata"])
+    headers.set("User-Agent", GEMINI_CLI_HEADERS["User-Agent"])
+    headers.set("X-Goog-Api-Client", GEMINI_CLI_HEADERS["X-Goog-Api-Client"])
+    headers.set("Client-Metadata", GEMINI_CLI_HEADERS["Client-Metadata"])
   }
   if (toolDebugMissing > 0) {
     headers.set("X-Opencode-Tools-Debug", String(toolDebugMissing))

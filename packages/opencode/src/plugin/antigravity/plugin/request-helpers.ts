@@ -104,7 +104,7 @@ function convertRefsToHints(schema: JsonSchema | JsonSchema[]): JsonSchema | Jso
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => convertRefsToHints(item))
+    return schema.map((item) => convertRefsToHints(item)) as JsonSchema[]
   }
 
   // If this object has $ref, replace it with a hint
@@ -112,7 +112,8 @@ function convertRefsToHints(schema: JsonSchema | JsonSchema[]): JsonSchema | Jso
     const refVal = (schema as JsonSchema).$ref!
     const defName = refVal.includes("/") ? refVal.split("/").pop() : refVal
     const hint = `See: ${defName}`
-    const existingDesc = typeof (schema as JsonSchema).description === "string" ? (schema as JsonSchema).description : ""
+    const existingDesc =
+      typeof (schema as JsonSchema).description === "string" ? (schema as JsonSchema).description : ""
     const newDescription = existingDesc ? `${existingDesc} (${hint})` : hint
     return { type: "object", description: newDescription }
   }
@@ -135,7 +136,7 @@ function convertConstToEnum(schema: JsonSchema | JsonSchema[]): JsonSchema | Jso
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => convertConstToEnum(item))
+    return schema.map((item) => convertConstToEnum(item)) as JsonSchema[]
   }
 
   const result: JsonSchema = {}
@@ -159,7 +160,7 @@ function addEnumHints(schema: JsonSchema | JsonSchema[]): JsonSchema | JsonSchem
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => addEnumHints(item))
+    return schema.map((item) => addEnumHints(item)) as JsonSchema[]
   }
 
   let result: JsonSchema = { ...schema }
@@ -190,7 +191,7 @@ function addAdditionalPropertiesHints(schema: JsonSchema | JsonSchema[]): JsonSc
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => addAdditionalPropertiesHints(item))
+    return schema.map((item) => addAdditionalPropertiesHints(item)) as JsonSchema[]
   }
 
   let result: JsonSchema = { ...schema }
@@ -219,7 +220,7 @@ function moveConstraintsToDescription(schema: JsonSchema | JsonSchema[]): JsonSc
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => moveConstraintsToDescription(item))
+    return schema.map((item) => moveConstraintsToDescription(item)) as JsonSchema[]
   }
 
   let result: JsonSchema = { ...schema }
@@ -252,7 +253,7 @@ function mergeAllOf(schema: JsonSchema | JsonSchema[]): JsonSchema | JsonSchema[
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => mergeAllOf(item))
+    return schema.map((item) => mergeAllOf(item)) as JsonSchema[]
   }
 
   let result: JsonSchema = { ...schema }
@@ -417,7 +418,7 @@ function flattenAnyOfOneOf(schema: JsonSchema | JsonSchema[]): JsonSchema | Json
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => flattenAnyOfOneOf(item))
+    return schema.map((item) => flattenAnyOfOneOf(item)) as JsonSchema[]
   }
 
   let result: JsonSchema = { ...schema }
@@ -464,7 +465,7 @@ function flattenAnyOfOneOf(schema: JsonSchema | JsonSchema[]): JsonSchema | Json
       }
 
       // Select the best option and flatten it recursively
-      let selected = flattenAnyOfOneOf(options[bestIdx]) || { type: "string" }
+      let selected = (flattenAnyOfOneOf(options[bestIdx]) as JsonSchema) || { type: "string" }
 
       // Preserve parent description
       if (parentDesc) {
@@ -514,7 +515,7 @@ function flattenTypeArrays(
   if (Array.isArray(schema)) {
     return schema.map((item, idx) =>
       flattenTypeArrays(item, nullableFields, `${currentPath || ""}[${idx}]`),
-    )
+    ) as JsonSchema[]
   }
 
   let result: JsonSchema = { ...schema }
@@ -546,7 +547,7 @@ function flattenTypeArrays(
     const newProps: Record<string, JsonSchema> = {}
     for (const [propKey, propValue] of Object.entries(result.properties)) {
       const propPath = currentPath ? `${currentPath}.properties.${propKey}` : `properties.${propKey}`
-      const processed = flattenTypeArrays(propValue, localNullableFields, propPath)
+      const processed = flattenTypeArrays(propValue, localNullableFields, propPath) as JsonSchema
       newProps[propKey] = processed
 
       // Track nullable fields for required array cleanup
@@ -591,13 +592,16 @@ function flattenTypeArrays(
  * Phase 3: Removes unsupported keywords after hints have been extracted.
  * @param insideProperties - When true, keys are property NAMES (preserve); when false, keys are JSON Schema keywords (filter).
  */
-function removeUnsupportedKeywords(schema: JsonSchema | JsonSchema[], insideProperties: boolean = false): JsonSchema | JsonSchema[] {
+function removeUnsupportedKeywords(
+  schema: JsonSchema | JsonSchema[],
+  insideProperties: boolean = false,
+): JsonSchema | JsonSchema[] {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => removeUnsupportedKeywords(item, false))
+    return schema.map((item) => removeUnsupportedKeywords(item)) as JsonSchema[]
   }
 
   const result: JsonSchema = {}
@@ -610,7 +614,7 @@ function removeUnsupportedKeywords(schema: JsonSchema | JsonSchema[], insideProp
       if (key === "properties") {
         const propertiesResult: Record<string, JsonSchema> = {}
         for (const [propName, propSchema] of Object.entries(value as object)) {
-          propertiesResult[propName] = removeUnsupportedKeywords(propSchema as JsonSchema, false)
+          propertiesResult[propName] = removeUnsupportedKeywords(propSchema as JsonSchema, false) as JsonSchema
         }
         result[key] = propertiesResult
       } else {
@@ -632,7 +636,7 @@ function cleanupRequiredFields(schema: JsonSchema | JsonSchema[]): JsonSchema | 
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => cleanupRequiredFields(item))
+    return schema.map((item) => cleanupRequiredFields(item)) as JsonSchema[]
   }
 
   let result: JsonSchema = { ...schema }
@@ -669,7 +673,7 @@ function addEmptySchemaPlaceholder(schema: JsonSchema | JsonSchema[]): JsonSchem
   }
 
   if (Array.isArray(schema)) {
-    return schema.map((item) => addEmptySchemaPlaceholder(item))
+    return schema.map((item) => addEmptySchemaPlaceholder(item)) as JsonSchema[]
   }
 
   let result: JsonSchema = { ...schema }
@@ -2612,7 +2616,10 @@ export function assignToolIdsToContents(contents: GeminiContent[]): {
  * @param pendingCallIdsByName - Map of function names to pending call IDs
  * @returns Modified contents with matched response IDs
  */
-export function matchResponseIdsToContents(contents: GeminiContent[], pendingCallIdsByName: Map<string, string[]>): GeminiContent[] {
+export function matchResponseIdsToContents(
+  contents: GeminiContent[],
+  pendingCallIdsByName: Map<string, string[]>,
+): GeminiContent[] {
   if (!Array.isArray(contents)) {
     return contents
   }
@@ -2667,7 +2674,9 @@ export function applyToolPairingFixes(
   // Fix Gemini format (contents[])
   if (Array.isArray(payload.contents)) {
     // First pass: assign IDs to functionCalls
-    const { contents: contentsWithIds, pendingCallIdsByName } = assignToolIdsToContents(payload.contents as GeminiContent[])
+    const { contents: contentsWithIds, pendingCallIdsByName } = assignToolIdsToContents(
+      payload.contents as GeminiContent[],
+    )
 
     // Second pass: match functionResponse IDs
     const contentsWithMatchedIds = matchResponseIdsToContents(contentsWithIds, pendingCallIdsByName)

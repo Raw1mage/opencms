@@ -484,7 +484,8 @@ function Option(props: {
         fg={props.active ? fg : props.current ? theme.primary : theme.text}
         attributes={props.active ? TextAttributes.BOLD : undefined}
         overflow="hidden"
-        wrapMode={props.truncate === "none" ? "word" : "none"}
+        // Keep option rows single-line to avoid selected-row wrapping artifacts.
+        wrapMode="none"
         paddingLeft={3}
       >
         {title()}

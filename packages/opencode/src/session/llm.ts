@@ -708,12 +708,14 @@ export namespace LLM {
       errorLabel = `(${status ?? "Error"})${message}`
     }
 
+    const sanitizedErrorLabel = errorLabel.replace(/\s*Retry later or choose another model\.?/gi, "").trim()
+
     const fromAcc = Account.getShortId(currentAccountId, currentModel.providerId)
     const toAcc = Account.getShortId(fallback.accountId, fallback.providerId)
 
     const fromStr = `${currentModel.providerId},${currentModel.id},${fromAcc}`
     const toStr = `${fallback.providerId},${fallback.modelID},${toAcc}`
-    const toastMsg = `${errorLabel} ${fromStr}->${toStr}`
+    const toastMsg = `${sanitizedErrorLabel}\n${fromStr}->\n${toStr}`
 
     log.info("3D fallback selected", {
       reason: fallback.reason,
@@ -748,7 +750,6 @@ export namespace LLM {
       if (now1 - lastRotationToastAt >= TOAST_DEBOUNCE_MS) {
         lastRotationToastAt = now1
         Bus.publish(TuiEvent.ToastShow, {
-          title: "Account Rotated",
           message: toastMsg,
           variant: "info",
           duration: 8000,
@@ -784,7 +785,6 @@ export namespace LLM {
     if (now2 - lastRotationToastAt >= TOAST_DEBOUNCE_MS) {
       lastRotationToastAt = now2
       Bus.publish(TuiEvent.ToastShow, {
-        title: "Model Rotated",
         message: toastMsg,
         variant: "info",
         duration: 8000,
