@@ -1,14 +1,14 @@
 import { formatRefreshParts, parseRefreshParts } from "./auth"
 import type { RateLimitStateV3, ModelFamily, HeaderStyle, CooldownReason, AccountMetadataV3 } from "./storage"
 import type { OAuthAuthDetails, RefreshParts } from "./types"
-import type { AccountSelectionStrategy } from "./config/schema"
+// import type { AccountSelectionStrategy } from "./config/schema"
 import { getHealthTracker, getTokenTracker, selectHybridAccount, type AccountWithMetrics } from "./rotation"
 import { generateFingerprint, type Fingerprint, type FingerprintVersion, MAX_FINGERPRINT_HISTORY } from "./fingerprint"
 import { Account } from "../../../account"
 import { debugCheckpoint } from "../../../util/debug"
 
 export type { ModelFamily, HeaderStyle, CooldownReason } from "./storage"
-export type { AccountSelectionStrategy } from "./config/schema"
+// export type { AccountSelectionStrategy } from "./config/schema"
 
 export type RateLimitReason =
   | "QUOTA_EXHAUSTED"
@@ -640,52 +640,26 @@ export class AccountManager {
   getCurrentOrNextForFamily(
     family: ModelFamily,
     model?: string | null,
-    strategy: AccountSelectionStrategy = "sticky",
+    // strategy: AccountSelectionStrategy = "sticky", // Deprecated/Removed
+    _strategy: string | null = null, // Placeholder to avoid breaking signature immediately if used elsewhere
     headerStyle: HeaderStyle = "antigravity",
     pidOffsetEnabled: boolean = false,
   ): ManagedAccount | null {
     const quotaKey = getQuotaKey(family, headerStyle, model)
 
-    if (strategy === "round-robin") {
-      const next = this.getNextForFamily(family, model, headerStyle)
-      if (next) {
-        this.markTouchedForQuota(next, quotaKey)
-        this.currentAccountIndexByFamily[family] = next.index
-      }
-      return next
-    }
+    debugCheckpoint("ANTIGRAVITY_ROTATION", "getCurrentOrNextForFamily: start", {
+      family,
+      model,
+      // strategy,
+      headerStyle,
+      quotaKey,
+      currentIndices: { ...this.currentAccountIndexByFamily },
+    })
 
-    if (strategy === "hybrid") {
-      const healthTracker = getHealthTracker()
-      const tokenTracker = getTokenTracker()
-
-      const accountsWithMetrics: AccountWithMetrics[] = this.accounts
-        .filter((acc) => acc.enabled !== false)
-        .map((acc) => {
-          clearExpiredRateLimits(acc)
-          return {
-            index: acc.index,
-            lastUsed: acc.lastUsed,
-            healthScore: healthTracker.getScore(acc.index),
-            isRateLimited: isRateLimitedForFamily(acc, family, model),
-            isCoolingDown: this.isAccountCoolingDown(acc),
-          }
-        })
-
-      // Get current account index for stickiness
-      const currentIndex = this.currentAccountIndexByFamily[family] ?? null
-
-      const selectedIndex = selectHybridAccount(accountsWithMetrics, tokenTracker, currentIndex)
-      if (selectedIndex !== null) {
-        const selected = this.accounts[selectedIndex]
-        if (selected) {
-          selected.lastUsed = nowMs()
-          this.markTouchedForQuota(selected, quotaKey)
-          this.currentAccountIndexByFamily[family] = selected.index
-          return selected
-        }
-      }
-    }
+    /* Strategy logic removed - always sticky/next
+    if (strategy === "round-robin") { ... }
+    if (strategy === "hybrid") { ... }
+    */
 
     // Fallback: sticky selection (used when hybrid finds no candidates)
     // PID-based offset for multi-session distribution (opt-in)
@@ -695,6 +669,11 @@ export class AccountManager {
       const baseIndex = this.currentAccountIndexByFamily[family] ?? 0
       this.currentAccountIndexByFamily[family] = (baseIndex + pidOffset) % this.accounts.length
       this.sessionOffsetApplied[family] = true
+      debugCheckpoint("ANTIGRAVITY_ROTATION", "applied pid_offset", {
+        pid: process.pid,
+        offset: pidOffset,
+        newIndex: this.currentAccountIndexByFamily[family],
+      })
     }
 
     const current = this.getCurrentAccountForFamily(family)
@@ -702,10 +681,23 @@ export class AccountManager {
       clearExpiredRateLimits(current)
       // FIX Issue #147: Check if current account is rate-limited for the REQUESTED headerStyle
       const isLimitedForRequestedStyle = isRateLimitedForHeaderStyle(current, family, headerStyle, model)
-      if (!isLimitedForRequestedStyle && !this.isAccountCoolingDown(current)) {
+      const isCooling = this.isAccountCoolingDown(current)
+
+      if (!isLimitedForRequestedStyle && !isCooling) {
         this.markTouchedForQuota(current, quotaKey)
+        debugCheckpoint("ANTIGRAVITY_ROTATION", "sticky: keeping current", {
+          index: current.index,
+          email: current.email,
+        })
         return current
       }
+
+      debugCheckpoint("ANTIGRAVITY_ROTATION", "sticky: current unavailable", {
+        index: current.index,
+        isLimitedForRequestedStyle,
+        isCooling,
+        headerStyle,
+      })
     }
 
     // FIX Issue #147: Pass headerStyle to getNextForFamily to ensure we skip accounts
@@ -714,6 +706,12 @@ export class AccountManager {
     if (next) {
       this.markTouchedForQuota(next, quotaKey)
       this.currentAccountIndexByFamily[family] = next.index
+      debugCheckpoint("ANTIGRAVITY_ROTATION", "sticky: switched to next", {
+        index: next.index,
+        email: next.email,
+      })
+    } else {
+      debugCheckpoint("ANTIGRAVITY_ROTATION", "sticky: no available accounts found")
     }
     return next
   }
@@ -725,11 +723,19 @@ export class AccountManager {
   ): ManagedAccount | null {
     const available = this.accounts.filter((a) => {
       clearExpiredRateLimits(a)
-      return (
-        a.enabled !== false &&
-        !isRateLimitedForHeaderStyle(a, family, headerStyle, model) &&
-        !this.isAccountCoolingDown(a)
-      )
+      const limited = isRateLimitedForHeaderStyle(a, family, headerStyle, model)
+      const cooling = this.isAccountCoolingDown(a)
+      const available = a.enabled !== false && !limited && !cooling
+
+      if (!available) {
+        // debugCheckpoint("ANTIGRAVITY_ROTATION", "account skipped", {
+        //   index: a.index,
+        //   enabled: a.enabled,
+        //   limited,
+        //   cooling,
+        // })
+      }
+      return available
     })
 
     if (available.length === 0) {
@@ -792,6 +798,16 @@ export class AccountManager {
     const backoffMs = calculateBackoffMs(reason, failures - 1, retryAfterMs)
     const key = getQuotaKey(family, headerStyle, model)
     account.rateLimitResetTimes[key] = now + backoffMs
+
+    debugCheckpoint("ANTIGRAVITY_ROTATION", "markRateLimitedWithReason", {
+      index: account.index,
+      family,
+      reason,
+      failures,
+      backoffMs,
+      key,
+      retryAfterMs,
+    })
 
     return backoffMs
   }

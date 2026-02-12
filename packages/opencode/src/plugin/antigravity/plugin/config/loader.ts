@@ -12,12 +12,7 @@
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { homedir } from "node:os"
-import {
-  AccountSelectionStrategySchema,
-  AntigravityConfigSchema,
-  DEFAULT_CONFIG,
-  type AntigravityConfig,
-} from "./schema"
+import { AntigravityConfigSchema, DEFAULT_CONFIG, type AntigravityConfig } from "./schema"
 import { createLogger } from "../logger"
 
 const log = createLogger("config")
@@ -167,10 +162,8 @@ function applyEnvOverrides(config: AntigravityConfig): AntigravityConfig {
         ? false
         : config.auto_update,
 
-    // OPENCODE_ANTIGRAVITY_ACCOUNT_SELECTION_STRATEGY=sticky|round-robin|hybrid
-    account_selection_strategy: env.OPENCODE_ANTIGRAVITY_ACCOUNT_SELECTION_STRATEGY
-      ? AccountSelectionStrategySchema.catch("sticky").parse(env.OPENCODE_ANTIGRAVITY_ACCOUNT_SELECTION_STRATEGY)
-      : config.account_selection_strategy,
+    // OPENCODE_ANTIGRAVITY_ACCOUNT_SELECTION_STRATEGY deprecated
+    // account_selection_strategy removed from env override
 
     // OPENCODE_ANTIGRAVITY_PID_OFFSET_ENABLED=1
     pid_offset_enabled:

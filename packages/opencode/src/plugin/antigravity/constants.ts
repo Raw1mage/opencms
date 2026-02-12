@@ -38,9 +38,10 @@ export const ANTIGRAVITY_ENDPOINT_PROD = "https://cloudcode-pa.googleapis.com"
  * Shared across request handling and project discovery to mirror CLIProxy behavior.
  */
 export const ANTIGRAVITY_ENDPOINT_FALLBACKS = [
-  ANTIGRAVITY_ENDPOINT_DAILY,
-  ANTIGRAVITY_ENDPOINT_AUTOPUSH,
   ANTIGRAVITY_ENDPOINT_PROD,
+  // Sandbox endpoints disabled as they are not available for regular users and trigger 403s
+  // ANTIGRAVITY_ENDPOINT_DAILY,
+  // ANTIGRAVITY_ENDPOINT_AUTOPUSH,
 ] as const
 
 /**
@@ -54,9 +55,9 @@ export const ANTIGRAVITY_LOAD_ENDPOINTS = [
 ] as const
 
 /**
- * Primary endpoint to use (daily sandbox - same as CLIProxy/Vibeproxy).
+ * Primary endpoint to use (production - matches official Antigravity behavior).
  */
-export const ANTIGRAVITY_ENDPOINT = ANTIGRAVITY_ENDPOINT_DAILY
+export const ANTIGRAVITY_ENDPOINT = ANTIGRAVITY_ENDPOINT_PROD
 
 /**
  * Gemini CLI endpoint (production).
@@ -102,9 +103,11 @@ export const GEMINI_CLI_HEADERS = {
 const ANTIGRAVITY_PLATFORMS = ["windows/amd64", "darwin/arm64", "linux/amd64", "darwin/amd64", "linux/arm64"] as const
 
 // Derive user agents from version (keeps them in sync automatically)
-const ANTIGRAVITY_USER_AGENTS = ANTIGRAVITY_PLATFORMS.map(
-  (platform) => `antigravity/${ANTIGRAVITY_VERSION} ${platform}`,
-)
+const ANTIGRAVITY_USER_AGENTS = [
+  `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${ANTIGRAVITY_VERSION} Chrome/138.0.7204.235 Electron/37.3.1 Safari/537.36`,
+  `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${ANTIGRAVITY_VERSION} Chrome/138.0.7204.235 Electron/37.3.1 Safari/537.36`,
+  `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/${ANTIGRAVITY_VERSION} Chrome/138.0.7204.235 Electron/37.3.1 Safari/537.36`,
+] as const
 
 const ANTIGRAVITY_API_CLIENTS = [
   "google-cloud-sdk vscode_cloudshelleditor/0.1",

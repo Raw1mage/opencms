@@ -724,6 +724,74 @@ function headerStyleToQuotaKey(headerStyle: HeaderStyle, family: ModelFamily): s
   return headerStyle === "antigravity" ? "gemini-antigravity" : "gemini-cli"
 }
 
+// =============================================================================
+// RPM Throttle — per-account per-family sliding window
+// FIX: Avoid triggering upstream soft-bans by limiting request frequency
+// =============================================================================
+
+/** Sliding window of request timestamps, keyed by `${accountIndex}:${family}` */
+const rpmWindows = new Map<string, number[]>()
+
+/**
+ * Wait if necessary to stay within the RPM limit.
+ * Returns the number of milliseconds waited (0 if no wait was needed).
+ */
+async function enforceRpmLimit(
+  accountIndex: number,
+  family: string,
+  rpmLimit: number,
+  signal?: AbortSignal | null,
+): Promise<number> {
+  if (rpmLimit <= 0) return 0
+
+  const key = `${accountIndex}:${family}`
+  const now = Date.now()
+  const windowMs = 60_000 // 1 minute sliding window
+
+  // Get or create timestamps array
+  let timestamps = rpmWindows.get(key)
+  if (!timestamps) {
+    timestamps = []
+    rpmWindows.set(key, timestamps)
+  }
+
+  // Purge entries older than 1 minute
+  const cutoff = now - windowMs
+  while (timestamps.length > 0 && timestamps[0]! < cutoff) {
+    timestamps.shift()
+  }
+
+  // If under limit, record and proceed
+  if (timestamps.length < rpmLimit) {
+    timestamps.push(now)
+    return 0
+  }
+
+  // Over limit — calculate wait time until oldest entry expires
+  const oldestTs = timestamps[0]!
+  const waitMs = oldestTs + windowMs - now + Math.floor(Math.random() * 500) // +jitter
+  if (waitMs > 0) {
+    debugCheckpoint("ANTIGRAVITY", "RPM_THROTTLE", {
+      accountIndex,
+      family,
+      rpmLimit,
+      currentCount: timestamps.length,
+      waitMs,
+    })
+    await sleep(waitMs, signal)
+  }
+
+  // Purge again after waiting, then record
+  const nowAfter = Date.now()
+  const cutoff2 = nowAfter - windowMs
+  while (timestamps.length > 0 && timestamps[0]! < cutoff2) {
+    timestamps.shift()
+  }
+  timestamps.push(nowAfter)
+
+  return waitMs > 0 ? waitMs : 0
+}
+
 // Track consecutive non-429 failures per account to prevent infinite loops
 const accountFailureState = new Map<number, { consecutiveFailures: number; lastFailureAt: number }>()
 const MAX_CONSECUTIVE_FAILURES = 5
@@ -796,26 +864,26 @@ export const createAntigravityPlugin =
     initLogger(client)
 
     // Initialize health tracker for hybrid strategy
-    if (config.health_score) {
-      initHealthTracker({
-        initial: config.health_score.initial,
-        successReward: config.health_score.success_reward,
-        rateLimitPenalty: config.health_score.rate_limit_penalty,
-        failurePenalty: config.health_score.failure_penalty,
-        recoveryRatePerHour: config.health_score.recovery_rate_per_hour,
-        minUsable: config.health_score.min_usable,
-        maxScore: config.health_score.max_score,
-      })
-    }
+    // if (config.health_score) {
+    //   initHealthTracker({
+    //     initial: config.health_score.initial,
+    //     successReward: config.health_score.success_reward,
+    //     rateLimitPenalty: config.health_score.rate_limit_penalty,
+    //     failurePenalty: config.health_score.failure_penalty,
+    //     recoveryRatePerHour: config.health_score.recovery_rate_per_hour,
+    //     minUsable: config.health_score.min_usable,
+    //     maxScore: config.health_score.max_score,
+    //   })
+    // }
 
     // Initialize token tracker for hybrid strategy
-    if (config.token_bucket) {
-      initTokenTracker({
-        maxTokens: config.token_bucket.max_tokens,
-        regenerationRatePerMinute: config.token_bucket.regeneration_rate_per_minute,
-        initialTokens: config.token_bucket.initial_tokens,
-      })
-    }
+    // if (config.token_bucket) {
+    //   initTokenTracker({
+    //     maxTokens: config.token_bucket.max_tokens,
+    //     regenerationRatePerMinute: config.token_bucket.regeneration_rate_per_minute,
+    //     initialTokens: config.token_bucket.initial_tokens,
+    //   })
+    // }
 
     // Initialize disk signature cache if keep_thinking is enabled
     // This integrates with the in-memory cacheSignature/getCachedSignature functions
@@ -1253,7 +1321,7 @@ export const createAntigravityPlugin =
           const account = accountManager.getCurrentOrNextForFamily(
             "gemini",
             SEARCH_MODEL,
-            config.account_selection_strategy,
+            "sticky",
             "antigravity",
             config.pid_offset_enabled,
           )
@@ -1659,45 +1727,38 @@ export const createAntigravityPlugin =
                 }
 
                 const pickAccount = async () => {
-                  if (config.account_rotation !== "fixed") {
-                    return accountManager.getCurrentOrNextForFamily(
-                      family,
-                      model,
-                      config.account_selection_strategy,
-                      "antigravity",
-                      config.pid_offset_enabled,
-                    )
-                  }
-
-                  const fixed = accountManager.getPinnedForFamily(family)
-                  if (!fixed) return null
+                  // Single source of truth: use whatever account rotation3d has set via Account.setActive().
+                  // syncActiveFromAccountModule() (called above) already synced the index.
+                  // This plugin does NOT decide which account to use — rotation3d does.
+                  const pinned = accountManager.getPinnedForFamily(family)
+                  if (!pinned) return null
 
                   // Strict Protocol Selection by Provider ID
-                  const fixedCoreId = fixed._coreAccountId
-                  const fixedProviderID = (fixedCoreId ? Account.parseProvider(fixedCoreId) : providerId) ?? providerId
-                  const headerStyle = getHeaderStyleFromUrl(urlString, family, fixedProviderID)
+                  const pinnedCoreId = pinned._coreAccountId
+                  const pinnedProviderID =
+                    (pinnedCoreId ? Account.parseProvider(pinnedCoreId) : providerId) ?? providerId
+                  const headerStyle = getHeaderStyleFromUrl(urlString, family, pinnedProviderID)
 
                   const explicitQuota = isExplicitQuotaFromUrl(urlString)
-                  let limited = accountManager.isRateLimitedForHeaderStyle(fixed, family, headerStyle, model)
-                  const cooling = accountManager.isAccountCoolingDown(fixed)
+                  let limited = accountManager.isRateLimitedForHeaderStyle(pinned, family, headerStyle, model)
+                  const cooling = accountManager.isAccountCoolingDown(pinned)
 
-                  // FIX: Avoid stale local Claude cooldown in fixed mode.
+                  // FIX: Avoid stale local Claude cooldown.
                   // Local rateLimitResetTimes may become stale while cockpit already reports
-                  // available quota (remainingFraction > 0). Re-validate once with cockpit
-                  // before hard-blocking fixed account selection.
-                  if (limited && !cooling && family === "claude" && fixed.access && fixed.parts.projectId && model) {
+                  // available quota (remainingFraction > 0). Re-validate once with cockpit.
+                  if (limited && !cooling && family === "claude" && pinned.access && pinned.parts.projectId && model) {
                     try {
-                      const quota = await fetchModelQuotaResetTime(fixed.access, fixed.parts.projectId, model)
+                      const quota = await fetchModelQuotaResetTime(pinned.access, pinned.parts.projectId, model)
                       if (quota.remainingFraction !== null && quota.remainingFraction > 0) {
-                        delete fixed.rateLimitResetTimes.claude
-                        fixed.consecutiveFailures = 0
+                        delete pinned.rateLimitResetTimes.claude
+                        pinned.consecutiveFailures = 0
                         accountManager.requestSaveToDisk()
                         limited = false
 
                         debugCheckpoint("ANTIGRAVITY", "fixed_quota_revalidated", {
                           family,
                           model,
-                          accountIndex: fixed.index,
+                          accountIndex: pinned.index,
                           remainingFraction: quota.remainingFraction,
                           resetTimeMs: quota.resetTimeMs,
                         })
@@ -1706,17 +1767,19 @@ export const createAntigravityPlugin =
                       debugCheckpoint("ANTIGRAVITY", "fixed_quota_revalidate_failed", {
                         family,
                         model,
-                        accountIndex: fixed.index,
+                        accountIndex: pinned.index,
                         error: e instanceof Error ? e.message : String(e),
                       })
                     }
                   }
 
-                  if (!limited && !cooling) return fixed
+                  if (!limited && !cooling) return pinned
 
+                  // Account is unavailable — throw to let rotation3d decide next move.
+                  // Do NOT attempt internal fallback. rotation3d is the single authority.
                   const waitMs = accountManager.getMinWaitTimeForFamily(family, model, headerStyle, explicitQuota) || 0
                   const waitTimeFormatted = waitMs > 0 ? formatWaitTime(waitMs) : "later"
-                  const cooldownReason = accountManager.getAccountCooldownReason(fixed)
+                  const cooldownReason = accountManager.getAccountCooldownReason(pinned)
                   const reasonLabel = cooling
                     ? `cooling down${cooldownReason ? ` (${cooldownReason})` : ""}`
                     : "temporarily unavailable"
@@ -1751,6 +1814,14 @@ export const createAntigravityPlugin =
                   const waitMs =
                     accountManager.getMinWaitTimeForFamily(family, model, headerStyle, explicitQuota) || 60_000
                   const waitSecValue = Math.max(1, Math.ceil(waitMs / 1000))
+
+                  debugCheckpoint("ANTIGRAVITY_ROTATION", "all_accounts_limited", {
+                    family,
+                    waitMs,
+                    waitSecValue,
+                    accountCount,
+                    headerStyle,
+                  })
 
                   pushDebug(`all-rate-limited family=${family} accounts=${accountCount} waitMs=${waitMs}`)
                   if (isDebugEnabled()) {
@@ -1808,7 +1879,7 @@ export const createAntigravityPlugin =
                 const effectiveProviderID = coreId ? Account.parseProvider(coreId) : providerId
 
                 pushDebug(
-                  `selected idx=${account.index} email=${account.email ?? ""} family=${family} accounts=${accountCount} provider=${effectiveProviderID} strategy=${config.account_selection_strategy}`,
+                  `selected idx=${account.index} email=${account.email ?? ""} family=${family} accounts=${accountCount} provider=${effectiveProviderID}`,
                 )
                 if (isDebugEnabled()) {
                   logAccountContext("Selected", {
@@ -2029,7 +2100,6 @@ export const createAntigravityPlugin =
                 }
 
                 // Try endpoint fallbacks with single header style based on model suffix
-                let shouldSwitchAccount = false
 
                 // Strict Protocol Selection by Provider ID
                 // Note: effectiveProviderID is derived from account.id or providerId in the outer scope
@@ -2060,305 +2130,166 @@ export const createAntigravityPlugin =
                       headerStyle = alternateStyle
                       pushDebug(`quota fallback: ${headerStyle}`)
                     } else {
-                      shouldSwitchAccount = true
+                      // Account is rate limited on all quota styles — throw to rotation3d
+                      const preLimitError: Error & { status?: number; statusCode?: number; retryAfter?: number } =
+                        new Error(`Account pre-check: rate limited for ${family}/${headerStyle}`)
+                      preLimitError.status = 429
+                      preLimitError.statusCode = 429
+                      preLimitError.retryAfter = 120
+                      throw preLimitError
                     }
                   } else {
-                    shouldSwitchAccount = true
+                    // Account is rate limited — throw to rotation3d
+                    const preLimitError: Error & { status?: number; statusCode?: number; retryAfter?: number } =
+                      new Error(`Account pre-check: rate limited for ${family}/${headerStyle}`)
+                    preLimitError.status = 429
+                    preLimitError.statusCode = 429
+                    preLimitError.retryAfter = 120
+                    throw preLimitError
                   }
                 }
 
-                while (!shouldSwitchAccount) {
-                  // Flag to force thinking recovery on retry after API error
-                  let forceThinkingRecovery = false
-                  let forceDisableThinking = false
+                // Flag to force thinking recovery on retry after API error
+                let forceThinkingRecovery = false
+                let forceDisableThinking = false
 
-                  // Track if token was consumed (for hybrid strategy refund on error)
-                  let tokenConsumed = false
+                // Track if token was consumed (for hybrid strategy refund on error)
+                let tokenConsumed = false
 
-                  // Track capacity retries per endpoint to prevent infinite loops
-                  let capacityRetryCount = 0
-                  let lastEndpointIndex = -1
+                // Track capacity retries per endpoint to prevent infinite loops
+                let capacityRetryCount = 0
+                let lastEndpointIndex = -1
 
-                  for (let i = 0; i < ANTIGRAVITY_ENDPOINT_FALLBACKS.length; i++) {
-                    // Reset capacity retry counter when switching to a new endpoint
-                    if (i !== lastEndpointIndex) {
-                      capacityRetryCount = 0
-                      lastEndpointIndex = i
+                for (let i = 0; i < ANTIGRAVITY_ENDPOINT_FALLBACKS.length; i++) {
+                  // Reset capacity retry counter when switching to a new endpoint
+                  if (i !== lastEndpointIndex) {
+                    capacityRetryCount = 0
+                    lastEndpointIndex = i
+                  }
+
+                  const currentEndpoint = ANTIGRAVITY_ENDPOINT_FALLBACKS[i]
+
+                  // @event_2026-02-06:antigravity_v145_integration
+                  // #233: Skip sandbox endpoints for Gemini CLI models - they only work with production endpoint
+                  if (headerStyle === "gemini-cli" && currentEndpoint !== ANTIGRAVITY_ENDPOINT_PROD) {
+                    pushDebug(`Skipping sandbox endpoint ${currentEndpoint} for gemini-cli headerStyle`)
+                    continue
+                  }
+
+                  try {
+                    const prepared = prepareAntigravityRequest(
+                      input,
+                      init,
+                      accessToken,
+                      projectContext.effectiveProjectId,
+                      currentEndpoint,
+                      headerStyle,
+                      forceThinkingRecovery,
+                      {
+                        claudeToolHardening: config.claude_tool_hardening,
+                        fingerprint: account.fingerprint,
+                        forceDisableThinking,
+                      },
+                    )
+
+                    debugCheckpoint("ANTIGRAVITY", "REQUEST_PREPARED", {
+                      family,
+                      model,
+                      effectiveModel: prepared.effectiveModel,
+                      accountIndex: account.index,
+                      endpoint: currentEndpoint,
+                    })
+
+                    const originalUrl = toUrlString(input)
+                    const resolvedUrl = toUrlString(prepared.request)
+                    pushDebug(`endpoint=${currentEndpoint}`)
+                    pushDebug(`resolved=${resolvedUrl}`)
+                    const debugContext = startAntigravityDebugRequest({
+                      originalUrl,
+                      resolvedUrl,
+                      method: prepared.init.method,
+                      headers: prepared.init.headers,
+                      body: prepared.init.body,
+                      streaming: prepared.streaming,
+                      projectId: projectContext.effectiveProjectId,
+                    })
+
+                    await runThinkingWarmup(prepared, projectContext.effectiveProjectId)
+
+                    if (config.request_jitter_max_ms > 0) {
+                      const jitterMs = Math.floor(Math.random() * config.request_jitter_max_ms)
+                      if (jitterMs > 0) {
+                        await sleep(jitterMs, abortSignal)
+                      }
                     }
 
-                    const currentEndpoint = ANTIGRAVITY_ENDPOINT_FALLBACKS[i]
+                    // RPM Throttle — disabled; soft-ban root cause is protocol, not frequency
+                    // await enforceRpmLimit(account.index, family, config.rpm_limit, abortSignal)
 
-                    // @event_2026-02-06:antigravity_v145_integration
-                    // #233: Skip sandbox endpoints for Gemini CLI models - they only work with production endpoint
-                    if (headerStyle === "gemini-cli" && currentEndpoint !== ANTIGRAVITY_ENDPOINT_PROD) {
-                      pushDebug(`Skipping sandbox endpoint ${currentEndpoint} for gemini-cli headerStyle`)
-                      continue
-                    }
+                    // Consume token for hybrid strategy
+                    // Refunded later if request fails (429 or network error)
+                    // Legacy strategy check removed - now always consumes if token tracker active?
+                    // Actually, let's keep it conditional on strategy but hardcode to false or remove strategy check
+                    // Since we are removing strategy config, let's assume no hybrid token tracking for now or default to false
+                    // if (config.account_selection_strategy === "hybrid") {
+                    //   tokenConsumed = getTokenTracker().consume(account.index)
+                    // }
 
-                    try {
-                      const prepared = prepareAntigravityRequest(
-                        input,
-                        init,
-                        accessToken,
-                        projectContext.effectiveProjectId,
-                        currentEndpoint,
-                        headerStyle,
-                        forceThinkingRecovery,
-                        {
-                          claudeToolHardening: config.claude_tool_hardening,
-                          fingerprint: account.fingerprint,
-                          forceDisableThinking,
-                        },
-                      )
+                    debugCheckpoint("ANTIGRAVITY", "FETCH_START", {
+                      family,
+                      model,
+                      accountIndex: account.index,
+                    })
 
-                      debugCheckpoint("ANTIGRAVITY", "REQUEST_PREPARED", {
-                        family,
-                        model,
-                        effectiveModel: prepared.effectiveModel,
-                        accountIndex: account.index,
-                        endpoint: currentEndpoint,
-                      })
+                    const response = await fetch(prepared.request, prepared.init)
 
-                      const originalUrl = toUrlString(input)
-                      const resolvedUrl = toUrlString(prepared.request)
-                      pushDebug(`endpoint=${currentEndpoint}`)
-                      pushDebug(`resolved=${resolvedUrl}`)
-                      const debugContext = startAntigravityDebugRequest({
-                        originalUrl,
-                        resolvedUrl,
-                        method: prepared.init.method,
-                        headers: prepared.init.headers,
-                        body: prepared.init.body,
-                        streaming: prepared.streaming,
-                        projectId: projectContext.effectiveProjectId,
-                      })
+                    debugCheckpoint("ANTIGRAVITY", "FETCH_COMPLETE", {
+                      family,
+                      model,
+                      accountIndex: account.index,
+                      status: response.status,
+                    })
+                    pushDebug(`status=${response.status} ${response.statusText}`)
 
-                      await runThinkingWarmup(prepared, projectContext.effectiveProjectId)
-
-                      if (config.request_jitter_max_ms > 0) {
-                        const jitterMs = Math.floor(Math.random() * config.request_jitter_max_ms)
-                        if (jitterMs > 0) {
-                          await sleep(jitterMs, abortSignal)
-                        }
+                    // Handle 429 rate limit (or Service Overloaded) with improved logic
+                    if (response.status === 429 || response.status === 503 || response.status === 529) {
+                      // Refund token on rate limit
+                      if (tokenConsumed) {
+                        getTokenTracker().refund(account.index)
+                        tokenConsumed = false
                       }
 
-                      // Consume token for hybrid strategy
-                      // Refunded later if request fails (429 or network error)
-                      if (config.account_selection_strategy === "hybrid") {
-                        tokenConsumed = getTokenTracker().consume(account.index)
-                      }
+                      const defaultRetryMs = (config.default_retry_after_seconds ?? 60) * 1000
+                      const maxBackoffMs = (config.max_backoff_seconds ?? 60) * 1000
+                      const headerRetryMs = retryAfterMsFromResponse(response, defaultRetryMs)
+                      const bodyInfo = await extractRetryInfoFromBody(response)
+                      const serverRetryMs = bodyInfo.retryDelayMs ?? headerRetryMs
 
-                      debugCheckpoint("ANTIGRAVITY", "FETCH_START", {
-                        family,
-                        model,
-                        accountIndex: account.index,
-                      })
+                      // [Enhanced Parsing] Pass status to handling logic
+                      const rateLimitReason = parseRateLimitReason(bodyInfo.reason, bodyInfo.message, response.status)
 
-                      const response = await fetch(prepared.request, prepared.init)
+                      // All error types (503/429/529) go directly to rotation.
+                      // No retry on same account — rotate immediately, assign cooldown by error type.
+                      // 503/529 (soft-ban): 120s cooldown — recovers quickly
+                      // 429 QUOTA_EXHAUSTED: use cockpit reset time or server retry-after
+                      // 429 RATE_LIMIT_EXCEEDED: use server retry-after
 
-                      debugCheckpoint("ANTIGRAVITY", "FETCH_COMPLETE", {
-                        family,
-                        model,
-                        accountIndex: account.index,
-                        status: response.status,
-                      })
-                      pushDebug(`status=${response.status} ${response.statusText}`)
-
-                      // Handle 429 rate limit (or Service Overloaded) with improved logic
-                      if (response.status === 429 || response.status === 503 || response.status === 529) {
-                        // Refund token on rate limit
-                        if (tokenConsumed) {
-                          getTokenTracker().refund(account.index)
-                          tokenConsumed = false
-                        }
-
-                        const defaultRetryMs = (config.default_retry_after_seconds ?? 60) * 1000
-                        const maxBackoffMs = (config.max_backoff_seconds ?? 60) * 1000
-                        const headerRetryMs = retryAfterMsFromResponse(response, defaultRetryMs)
-                        const bodyInfo = await extractRetryInfoFromBody(response)
-                        const serverRetryMs = bodyInfo.retryDelayMs ?? headerRetryMs
-
-                        // [Enhanced Parsing] Pass status to handling logic
-                        const rateLimitReason = parseRateLimitReason(bodyInfo.reason, bodyInfo.message, response.status)
-
-                        if (config.account_rotation === "fixed") {
-                          // Calculate fallback backoff, then try cockpit for real reset time
-                          let backoffMs = calculateBackoffMs(
-                            rateLimitReason,
-                            account.consecutiveFailures ?? 0,
-                            serverRetryMs,
-                          )
-
-                          // Query cockpit for real reset time (non-blocking, fallback to calculated value)
-                          debugCheckpoint("ANTIGRAVITY", "cockpit_query_check_fixed", {
-                            hasAccess: !!account.access,
-                            hasProjectId: !!account.parts.projectId,
-                            hasModel: !!model,
-                            model,
-                            accountIndex: account.index,
-                            family,
-                          })
-                          if (account.access && account.parts.projectId && model) {
-                            try {
-                              const cockpitResult = await getCockpitBackoffMs(
-                                account.access,
-                                account.parts.projectId,
-                                model,
-                                backoffMs,
-                              )
-                              debugCheckpoint("ANTIGRAVITY", "cockpit_query_result_fixed", {
-                                fromCockpit: cockpitResult.fromCockpit,
-                                backoffMs: cockpitResult.backoffMs,
-                                resetTimeMs: cockpitResult.resetTimeMs,
-                                model,
-                                accountIndex: account.index,
-                              })
-                              if (cockpitResult.fromCockpit) {
-                                backoffMs = cockpitResult.backoffMs
-                                pushDebug(
-                                  `429 fixed: cockpit reset ${new Date(cockpitResult.resetTimeMs!).toISOString()}, backoff=${backoffMs}ms`,
-                                )
-                              } else {
-                                pushDebug(
-                                  `429 fixed: no cockpit reset time for model=${model}, using fallback=${backoffMs}ms`,
-                                )
-                              }
-                            } catch (e) {
-                              const errMsg = e instanceof Error ? e.message : String(e)
-                              debugCheckpoint("ANTIGRAVITY", "cockpit_query_error_fixed", {
-                                error: errMsg,
-                                model,
-                                accountIndex: account.index,
-                              })
-                              pushDebug(`429 fixed: cockpit query failed: ${errMsg}`)
-                            }
-                          } else {
-                            pushDebug(
-                              `429 fixed: cockpit skip: access=${!!account.access} projectId=${!!account.parts.projectId} model=${model}`,
-                            )
-                          }
-
-                          // Enforce hard cooldown for all HTTP 503 responses.
-                          // Root cause is often external/provider-side instability,
-                          // so we quarantine the account-model pair for 1 hour to
-                          // prevent repeated rotate3d thrashing.
-                          if (response.status === 503) {
-                            backoffMs = Math.max(backoffMs, 3_600_000)
-                          }
-
-                          accountManager.markRateLimitedWithReason(
-                            account,
-                            family,
-                            headerStyle,
-                            model,
-                            rateLimitReason,
-                            serverRetryMs,
-                            config.failure_ttl_seconds * 1000,
-                          )
-                          accountManager.requestSaveToDisk()
-
-                          // Report to global rate limit tracker for 3D rotation
-                          const { getRateLimitTracker } = await import("../../account/rotation")
-                          const coreAccountId = account._coreAccountId || `antigravity-account-${account.index}`
-                          getRateLimitTracker().markRateLimited(
-                            coreAccountId,
-                            "antigravity",
-                            rateLimitReason,
-                            backoffMs,
-                            model || undefined,
-                          )
-
-                          const waitTimeFormatted = formatWaitTime(backoffMs)
-                          const isCapacityError =
-                            rateLimitReason === "MODEL_CAPACITY_EXHAUSTED" ||
-                            response.status === 503 ||
-                            response.status === 529
-                          const errorLabel = isCapacityError ? "Model capacity exhausted" : "Rate limited"
-                          const statusCode = isCapacityError ? 503 : 429
-
-                          // Throw typed transient error for processor's 3D rotation to handle
-                          const rateLimitError: Error & {
-                            status?: number
-                            statusCode?: number
-                            retryAfter?: number
-                          } = new Error(
-                            `${errorLabel} for ${family}. Reason: ${rateLimitReason}. Cooldown: ${waitTimeFormatted}`,
-                          )
-                          rateLimitError.status = statusCode
-                          rateLimitError.statusCode = statusCode
-                          rateLimitError.retryAfter = Math.ceil(backoffMs / 1000)
-
-                          throw rateLimitError
-                        }
-
-                        // STRATEGY 1: CAPACITY / SERVER ERROR (Transient)
-                        // Goal: Wait and Retry SAME Account. DO NOT LOCK.
-                        // We handle this FIRST to avoid calling getRateLimitBackoff() and polluting the global rate limit state for transient errors.
-                        if (rateLimitReason === "MODEL_CAPACITY_EXHAUSTED" || rateLimitReason === "SERVER_ERROR") {
-                          // Exponential backoff with jitter for capacity errors: 1s → 2s → 4s → 8s (max)
-                          // Matches Antigravity-Manager's ExponentialBackoff(1s, 8s)
-                          const baseDelayMs = 1000
-                          const maxDelayMs = 8000
-                          const exponentialDelay = Math.min(baseDelayMs * Math.pow(2, capacityRetryCount), maxDelayMs)
-                          // Add ±10% jitter to prevent thundering herd
-                          const jitter = exponentialDelay * (0.9 + Math.random() * 0.2)
-                          const waitMs = Math.round(jitter)
-                          const waitSec = Math.round(waitMs / 1000)
-
-                          pushDebug(
-                            `Server busy (${rateLimitReason}) on account ${account.index}, exponential backoff ${waitMs}ms (attempt ${capacityRetryCount + 1})`,
-                          )
-
-                          await showToast(`⏳ Server busy (${response.status}). Retrying in ${waitSec}s...`, "warning")
-
-                          await sleep(waitMs, abortSignal)
-
-                          // CRITICAL FIX: Decrement i so that the loop 'continue' retries the SAME endpoint index
-                          // (i++ in the loop will bring it back to the current index)
-                          // But limit retries to prevent infinite loops (Greptile feedback)
-                          if (capacityRetryCount < 3) {
-                            capacityRetryCount++
-                            i -= 1
-                            continue
-                          } else {
-                            pushDebug(
-                              `Max capacity retries (3) exhausted for endpoint ${currentEndpoint}, regenerating fingerprint...`,
-                            )
-                            // Regenerate fingerprint to get fresh device identity before trying next endpoint
-                            const newFingerprint = accountManager.regenerateAccountFingerprint(account.index)
-                            if (newFingerprint) {
-                              pushDebug(`Fingerprint regenerated for account ${account.index}`)
-                            }
-                            continue
-                          }
-                        }
-
-                        // STRATEGY 2: RATE LIMIT EXCEEDED (RPM) / QUOTA EXHAUSTED / UNKNOWN
-                        // Goal: Lock and Rotate (Standard Logic)
-
-                        // Only now do we call getRateLimitBackoff, which increments the global failure tracker
-                        const quotaKey = headerStyleToQuotaKey(headerStyle, family)
-                        const { attempt, delayMs, isDuplicate } = getRateLimitBackoff(
-                          account.index,
-                          quotaKey,
-                          serverRetryMs,
-                        )
-
-                        // Calculate potential backoffs - prefer cockpit's real reset time over hardcoded values
-                        const smartBackoffMs = calculateBackoffMs(
+                      // Unified error handling: mark rate limited + throw to rotation3d.
+                      // NO internal account switching. rotation3d is the single authority.
+                      {
+                        // Calculate fallback backoff, then try cockpit for real reset time
+                        let backoffMs = calculateBackoffMs(
                           rateLimitReason,
                           account.consecutiveFailures ?? 0,
                           serverRetryMs,
                         )
-                        let effectiveDelayMs = Math.max(delayMs, smartBackoffMs)
-                        let cockpitResetTimeMs: number | undefined
+                        let isAuthoritativeBackoff = false
 
                         // Query cockpit for real reset time (non-blocking, fallback to calculated value)
                         debugCheckpoint("ANTIGRAVITY", "cockpit_query_check", {
                           hasAccess: !!account.access,
                           hasProjectId: !!account.parts.projectId,
                           hasModel: !!model,
-                          model,
                           accountIndex: account.index,
                           family,
                         })
@@ -2368,7 +2299,7 @@ export const createAntigravityPlugin =
                               account.access,
                               account.parts.projectId,
                               model,
-                              effectiveDelayMs,
+                              backoffMs,
                             )
                             debugCheckpoint("ANTIGRAVITY", "cockpit_query_result", {
                               fromCockpit: cockpitResult.fromCockpit,
@@ -2378,158 +2309,26 @@ export const createAntigravityPlugin =
                               accountIndex: account.index,
                             })
                             if (cockpitResult.fromCockpit) {
-                              effectiveDelayMs = cockpitResult.backoffMs
-                              cockpitResetTimeMs = cockpitResult.resetTimeMs
+                              backoffMs = cockpitResult.backoffMs
+                              isAuthoritativeBackoff = true
                               pushDebug(
-                                `429 cockpit reset: ${new Date(cockpitResetTimeMs!).toISOString()}, backoff=${effectiveDelayMs}ms`,
-                              )
-                            } else {
-                              pushDebug(
-                                `429 cockpit: no reset time available for model=${model}, using fallback=${effectiveDelayMs}ms`,
+                                `429: cockpit reset ${new Date(cockpitResult.resetTimeMs!).toISOString()}, backoff=${backoffMs}ms`,
                               )
                             }
                           } catch (e) {
-                            // Cockpit query failed, use calculated backoff
                             const errMsg = e instanceof Error ? e.message : String(e)
-                            debugCheckpoint("ANTIGRAVITY", "cockpit_query_error", {
-                              error: errMsg,
-                              model,
-                              accountIndex: account.index,
-                            })
-                            pushDebug(`429 cockpit query failed: ${errMsg}`)
+                            pushDebug(`429: cockpit query failed: ${errMsg}`)
                           }
-                        } else {
-                          pushDebug(
-                            `429 cockpit skip: access=${!!account.access} projectId=${!!account.parts.projectId} model=${model}`,
-                          )
                         }
 
-                        pushDebug(
-                          `429 idx=${account.index} email=${account.email ?? ""} family=${family} delayMs=${effectiveDelayMs} attempt=${attempt} reason=${rateLimitReason}${cockpitResetTimeMs ? " (from cockpit)" : ""}`,
-                        )
-                        if (bodyInfo.message) {
-                          pushDebug(`429 message=${bodyInfo.message}`)
-                        }
-                        if (bodyInfo.quotaResetTime) {
-                          pushDebug(`429 quotaResetTime=${bodyInfo.quotaResetTime}`)
-                        }
-                        if (bodyInfo.reason) {
-                          pushDebug(`429 reason=${bodyInfo.reason}`)
+                        // 503/529 soft-ban: short cooldown (120s) — observed to recover quickly.
+                        // Only apply if cockpit didn't provide an authoritative reset time.
+                        // 429 QUOTA_EXHAUSTED: use cockpit/server time (can be hours).
+                        if ((response.status === 503 || response.status === 529) && !isAuthoritativeBackoff) {
+                          backoffMs = 120_000 // 2 minutes
                         }
 
-                        logRateLimitEvent(
-                          account.index,
-                          account.email,
-                          family,
-                          response.status,
-                          effectiveDelayMs,
-                          bodyInfo,
-                        )
-
-                        // Centralized debug logging for rate limit analysis
-                        debugCheckpoint("ANTIGRAVITY", `RATE_LIMIT status=${response.status}`, {
-                          accountIndex: account.index,
-                          email: account.email,
-                          family,
-                          attempt,
-                          reason: rateLimitReason,
-                          effectiveDelayMs,
-                          message: bodyInfo.message,
-                          quotaResetTime: bodyInfo.quotaResetTime,
-                          endpoint: currentEndpoint,
-                          headerStyle,
-                        })
-
-                        await logResponseBody(debugContext, response, 429)
-
-                        getHealthTracker().recordRateLimit(account.index)
-
-                        const { getRateLimitTracker } = await import("../../account/rotation")
-                        // @event_2026-02-06:rotation_unify - Use RateLimitTracker only (with account dimension)
-                        getRateLimitTracker().markRateLimited(
-                          account._coreAccountId || `antigravity-account-${account.index}`,
-                          "antigravity",
-                          rateLimitReason,
-                          effectiveDelayMs,
-                          model || undefined,
-                        )
-
-                        const accountLabel = account.email || `Account ${account.index + 1}`
-
-                        // Progressive retry for standard 429s: 1st 429 → 1s then switch (if enabled) or retry same
-                        if (attempt === 1 && rateLimitReason !== "QUOTA_EXHAUSTED") {
-                          await showToast(`Rate limited. Quick retry in 1s...`, "warning")
-                          await sleep(FIRST_RETRY_DELAY_MS, abortSignal)
-
-                          // CacheFirst mode: wait for same account if within threshold (preserves prompt cache)
-                          if (config.scheduling_mode === "cache_first") {
-                            const maxCacheFirstWaitMs = config.max_cache_first_wait_seconds * 1000
-                            // effectiveDelayMs is the backoff calculated for this account
-                            if (effectiveDelayMs <= maxCacheFirstWaitMs) {
-                              pushDebug(`cache_first: waiting ${effectiveDelayMs}ms for same account to recover`)
-                              await showToast(
-                                `⏳ Waiting ${Math.ceil(effectiveDelayMs / 1000)}s for same account (prompt cache preserved)...`,
-                                "info",
-                              )
-                              accountManager.markRateLimitedWithReason(
-                                account,
-                                family,
-                                headerStyle,
-                                model,
-                                rateLimitReason,
-                                serverRetryMs,
-                              )
-                              // Sync to global rate limit tracker for 3D rotation
-                              getRateLimitTracker().markRateLimited(
-                                account._coreAccountId || `antigravity-account-${account.index}`,
-                                "antigravity",
-                                rateLimitReason,
-                                effectiveDelayMs,
-                                model || undefined,
-                              )
-                              await sleep(effectiveDelayMs, abortSignal)
-                              // Retry same endpoint after wait
-                              i -= 1
-                              continue
-                            }
-                            // Wait time exceeds threshold, fall through to switch
-                            pushDebug(
-                              `cache_first: wait ${effectiveDelayMs}ms exceeds max ${maxCacheFirstWaitMs}ms, switching account`,
-                            )
-                          }
-
-                          if (config.switch_on_first_rate_limit && accountCount > 1) {
-                            const switchBackoffMs = calculateBackoffMs(
-                              rateLimitReason,
-                              account.consecutiveFailures ?? 0,
-                              serverRetryMs,
-                            )
-                            accountManager.markRateLimitedWithReason(
-                              account,
-                              family,
-                              headerStyle,
-                              model,
-                              rateLimitReason,
-                              serverRetryMs,
-                              config.failure_ttl_seconds * 1000,
-                            )
-                            // Sync to global rate limit tracker for 3D rotation
-                            getRateLimitTracker().markRateLimited(
-                              account._coreAccountId || `antigravity-account-${account.index}`,
-                              "antigravity",
-                              rateLimitReason,
-                              switchBackoffMs,
-                              model || undefined,
-                            )
-                            shouldSwitchAccount = true
-                            break
-                          }
-
-                          // Same endpoint retry for first RPM hit
-                          i -= 1
-                          continue
-                        }
-
+                        // Mark account as rate limited locally
                         accountManager.markRateLimitedWithReason(
                           account,
                           family,
@@ -2539,383 +2338,290 @@ export const createAntigravityPlugin =
                           serverRetryMs,
                           config.failure_ttl_seconds * 1000,
                         )
-                        // Sync to global rate limit tracker for 3D rotation
-                        getRateLimitTracker().markRateLimited(
-                          account._coreAccountId || `antigravity-account-${account.index}`,
-                          "antigravity",
-                          rateLimitReason,
-                          effectiveDelayMs,
-                          model || undefined,
-                        )
-
                         accountManager.requestSaveToDisk()
 
-                        // @event_2026-02-06:antigravity_v145_integration
-                        // For Gemini, preserve preferred quota across ALL accounts before fallback
-                        // cli_first: preserve gemini-cli, otherwise preserve antigravity
-                        if (family === "gemini") {
-                          if (headerStyle === "antigravity" && !cliFirst) {
-                            // Check if any other account has Antigravity quota for this model
-                            if (hasOtherAccountWithAntigravity(account)) {
-                              pushDebug(
-                                `antigravity exhausted on account ${account.index}, but available on others. Switching account.`,
-                              )
-                              await showToast(`Rate limited again. Switching account in 5s...`, "warning")
-                              await sleep(SWITCH_ACCOUNT_DELAY_MS, abortSignal)
-                              shouldSwitchAccount = true
-                              break
-                            }
+                        // Report to global rate limit tracker for rotation3d
+                        const { getRateLimitTracker } = await import("../../account/rotation")
+                        const coreAccountId = account._coreAccountId || `antigravity-account-${account.index}`
+                        getRateLimitTracker().markRateLimited(
+                          coreAccountId,
+                          "antigravity",
+                          rateLimitReason,
+                          backoffMs,
+                          model || undefined,
+                        )
+                        getHealthTracker().recordRateLimit(account.index)
 
-                            // All accounts exhausted for Antigravity on THIS model.
-                            // Before falling back to gemini-cli, check if it's the last option (automatic fallback)
-                            if (config.quota_fallback && !explicitQuota) {
-                              const alternateStyle = accountManager.getAvailableHeaderStyle(account, family, model)
-                              if (alternateStyle && alternateStyle !== headerStyle) {
-                                const safeModelName = model || "this model"
-                                await showToast(
-                                  `Antigravity quota exhausted for ${safeModelName}. Switching to Gemini CLI quota...`,
-                                  "warning",
-                                )
-                                headerStyle = alternateStyle
-                                pushDebug(`quota fallback: ${headerStyle}`)
-                                continue
-                              }
-                            }
-                          } else if (headerStyle === "gemini-cli" && cliFirst) {
-                            // cli_first mode: try alternate style (antigravity) after gemini-cli exhausted
-                            if (config.quota_fallback && !explicitQuota) {
-                              const alternateStyle = accountManager.getAvailableHeaderStyle(account, family, model)
-                              if (alternateStyle && alternateStyle !== headerStyle) {
-                                const safeModelName = model || "this model"
-                                await showToast(
-                                  `Gemini CLI quota exhausted for ${safeModelName}. Switching to Antigravity quota...`,
-                                  "warning",
-                                )
-                                headerStyle = alternateStyle
-                                pushDebug(`quota fallback (cli_first): ${headerStyle}`)
-                                continue
-                              }
-                            }
-                          }
-                        }
+                        const waitTimeFormatted = formatWaitTime(backoffMs)
+                        const isCapacityError = response.status === 503 || response.status === 529
+                        const errorLabel = isCapacityError ? "Service unavailable" : "Rate limited"
+                        const statusCode = isCapacityError ? 503 : 429
 
-                        const quotaName = headerStyle === "antigravity" ? "Antigravity" : "Gemini CLI"
+                        // Throw typed transient error — rotation3d decides next move
+                        const rateLimitError: Error & {
+                          status?: number
+                          statusCode?: number
+                          retryAfter?: number
+                        } = new Error(
+                          `${errorLabel} for ${family}. Reason: ${rateLimitReason}. Cooldown: ${waitTimeFormatted}`,
+                        )
+                        rateLimitError.status = statusCode
+                        rateLimitError.statusCode = statusCode
+                        rateLimitError.retryAfter = Math.ceil(backoffMs / 1000)
 
-                        if (accountCount > 1) {
-                          const quotaMsg = bodyInfo.quotaResetTime ? ` (quota resets ${bodyInfo.quotaResetTime})` : ``
-                          await showToast(`Rate limited again. Switching account in 5s...${quotaMsg}`, "warning")
-                          await sleep(SWITCH_ACCOUNT_DELAY_MS, abortSignal)
-
-                          lastFailure = {
-                            response,
-                            streaming: prepared.streaming,
-                            debugContext,
-                            requestedModel: prepared.requestedModel,
-                            projectId: prepared.projectId,
-                            endpoint: prepared.endpoint,
-                            effectiveModel: prepared.effectiveModel,
-                            sessionId: prepared.sessionId,
-                            toolDebugMissing: prepared.toolDebugMissing,
-                            toolDebugSummary: prepared.toolDebugSummary,
-                            toolDebugPayload: prepared.toolDebugPayload,
-                          }
-                          shouldSwitchAccount = true
-                          break
-                        } else {
-                          // Single account: exponential backoff (1s, 2s, 4s, 8s... max 60s)
-                          const expBackoffMs = Math.min(FIRST_RETRY_DELAY_MS * Math.pow(2, attempt - 1), 60000)
-                          const expBackoffFormatted =
-                            expBackoffMs >= 1000 ? `${Math.round(expBackoffMs / 1000)}s` : `${expBackoffMs}ms`
-                          await showToast(
-                            `Rate limited. Retrying in ${expBackoffFormatted} (attempt ${attempt})...`,
-                            "warning",
-                          )
-
-                          lastFailure = {
-                            response,
-                            streaming: prepared.streaming,
-                            debugContext,
-                            requestedModel: prepared.requestedModel,
-                            projectId: prepared.projectId,
-                            endpoint: prepared.endpoint,
-                            effectiveModel: prepared.effectiveModel,
-                            sessionId: prepared.sessionId,
-                            toolDebugMissing: prepared.toolDebugMissing,
-                            toolDebugSummary: prepared.toolDebugSummary,
-                            toolDebugPayload: prepared.toolDebugPayload,
-                          }
-
-                          await sleep(expBackoffMs, abortSignal)
-                          shouldSwitchAccount = true
-                          break
-                        }
+                        throw rateLimitError
                       }
+                    }
 
-                      // Success - reset rate limit backoff state for this quota
-                      const quotaKey = headerStyleToQuotaKey(headerStyle, family)
-                      resetRateLimitState(account.index, quotaKey)
-                      resetAccountFailureState(account.index)
+                    // Success - reset rate limit backoff state for this quota
+                    const quotaKey = headerStyleToQuotaKey(headerStyle, family)
+                    resetRateLimitState(account.index, quotaKey)
+                    resetAccountFailureState(account.index)
 
-                      const shouldRetryEndpoint =
-                        response.status === 403 || response.status === 404 || response.status >= 500
+                    const shouldRetryEndpoint =
+                      response.status === 403 || response.status === 404 || response.status >= 500
 
-                      if (shouldRetryEndpoint) {
-                        await logResponseBody(debugContext, response, response.status)
-                      }
+                    if (shouldRetryEndpoint) {
+                      await logResponseBody(debugContext, response, response.status)
+                    }
 
-                      if (shouldRetryEndpoint && i < ANTIGRAVITY_ENDPOINT_FALLBACKS.length - 1) {
-                        lastFailure = {
-                          response,
-                          streaming: prepared.streaming,
-                          debugContext,
-                          requestedModel: prepared.requestedModel,
-                          projectId: prepared.projectId,
-                          endpoint: prepared.endpoint,
-                          effectiveModel: prepared.effectiveModel,
-                          sessionId: prepared.sessionId,
-                          toolDebugMissing: prepared.toolDebugMissing,
-                          toolDebugSummary: prepared.toolDebugSummary,
-                          toolDebugPayload: prepared.toolDebugPayload,
-                        }
-                        continue
-                      }
-
-                      // Success or non-retryable error - return the response
-                      // @event_2026-02-06:rotation_unify - Removed redundant ModelHealthRegistry.markSuccess
-                      if (response.ok) {
-                        account.consecutiveFailures = 0
-                        getHealthTracker().recordSuccess(account.index)
-                        accountManager.markAccountUsed(account.index)
-                        debugCheckpoint("ANTIGRAVITY", "REQUEST_SUCCESS", {
-                          family,
-                          model,
-                          accountIndex: account.index,
-                          email: account.email,
-                          status: response.status,
-                        })
-                      }
-                      logAntigravityDebugResponse(debugContext, response, {
-                        note: response.ok ? "Success" : `Error ${response.status}`,
-                      })
-                      if (!response.ok) {
-                        await logResponseBody(debugContext, response, response.status)
-
-                        // Handle 404 "Not Found" or 400 "Prompt too long" with synthetic response to avoid session lock
-                        if (response.status === 404 || response.status === 400) {
-                          const cloned = response.clone()
-                          const bodyText = await cloned.text()
-
-                          // [Auto-Fallback] if checking capabilities failed or backend is stricter than expected:
-                          // If the model rejects the thinking config (e.g. "Thinking_config... only enabled when thinking is enabled"),
-                          // we implicitly know this model DOES NOT support thinking.
-                          // Instead of crashing, we forcibly disable thinking (forceDisableThinking=true) and retry transparently.
-                          // This matches User request to "fallback automatically" without hardcoded allowlists.
-                          if (
-                            response.status === 400 &&
-                            bodyText.includes(
-                              "Thinking_config.include_thoughts is only enabled when thinking is enabled",
-                            )
-                          ) {
-                            if (!forceDisableThinking) {
-                              pushDebug("Thinking config error detected - retrying with thinking disabled")
-                              forceDisableThinking = true
-                              i = -1
-                              continue
-                            }
-                          }
-
-                          if (response.status === 404) {
-                            const debugInfo = `\n\n[Debug Info]\nAccount: #${account.index} (${account.email || "Unknown"})\nRequested Model: ${prepared.requestedModel || "Unknown"}\nEffective Model: ${prepared.effectiveModel || "Unknown"}\nProject: ${prepared.projectId || "Unknown"}\nEndpoint: ${prepared.endpoint || "Unknown"}\nStatus: 404 Not Found\nRequest ID: ${response.headers.get("x-request-id") || "N/A"}`
-                            const errorMessage = `[Antigravity Error] Resource not found (404).\n\nThis usually means the project ID is invalid for the selected endpoint, or the model is not supported on this endpoint.${debugInfo}`
-                            return createSyntheticErrorResponse(errorMessage, prepared.requestedModel)
-                          }
-
-                          if (bodyText.includes("Prompt is too long") || bodyText.includes("prompt_too_long")) {
-                            await showToast("Context too long - use /compact to reduce size", "warning")
-                            const errorMessage = `[Antigravity Error] Context is too long for this model.\n\nPlease use /compact to reduce context size, then retry your request.\n\nAlternatively, you can:\n- Use /clear to start fresh\n- Use /undo to remove recent messages\n- Switch to a model with larger context window`
-                            return createSyntheticErrorResponse(errorMessage, prepared.requestedModel)
-                          }
-                          // [Fix for "Always repeats 400 error"]
-                          // If we get a 400 that is NOT "prompt too long" and NOT "thinking config",
-                          // it might be a transient issue or account-specific issue.
-                          // Instead of returning a synthetic error immediately, throw an error to trigger
-                          // the existing rotation logic (switch endpoint or account).
-                          // This allows finding a working path if one exists.
-                          const errorMsg = `Antigravity 400 Error: ${bodyText.substring(0, 200)}...`
-                          pushDebug(`Triggering rotation for 400 error: ${errorMsg}`)
-                          throw new Error(errorMsg)
-                        }
-                      }
-
-                      // Empty response retry logic (ported from LLM-API-Key-Proxy)
-                      // For non-streaming responses, check if the response body is empty
-                      // and retry if so (up to config.empty_response_max_attempts times)
-                      if (response.ok && !prepared.streaming) {
-                        const maxAttempts = config.empty_response_max_attempts ?? 4
-                        const retryDelayMs = config.empty_response_retry_delay_ms ?? 2000
-
-                        // Clone to check body without consuming original
-                        const clonedForCheck = response.clone()
-                        const bodyText = await clonedForCheck.text()
-
-                        if (isEmptyResponseBody(bodyText)) {
-                          // Track empty response attempts per request
-                          const emptyAttemptKey = `${prepared.sessionId ?? "none"}:${prepared.effectiveModel ?? "unknown"}`
-                          const currentAttempts = (emptyResponseAttempts.get(emptyAttemptKey) ?? 0) + 1
-                          emptyResponseAttempts.set(emptyAttemptKey, currentAttempts)
-
-                          pushDebug(`empty-response: attempt ${currentAttempts}/${maxAttempts}`)
-
-                          if (currentAttempts < maxAttempts) {
-                            await showToast(
-                              `Empty response received. Retrying (${currentAttempts}/${maxAttempts})...`,
-                              "warning",
-                            )
-                            await sleep(retryDelayMs, abortSignal)
-                            continue // Retry the endpoint loop
-                          }
-
-                          // Clean up and throw after max attempts
-                          emptyResponseAttempts.delete(emptyAttemptKey)
-                          throw new EmptyResponseError(
-                            "antigravity",
-                            prepared.effectiveModel ?? "unknown",
-                            currentAttempts,
-                          )
-                        }
-
-                        // Clean up successful attempt tracking
-                        const emptyAttemptKeyClean = `${prepared.sessionId ?? "none"}:${prepared.effectiveModel ?? "unknown"}`
-                        emptyResponseAttempts.delete(emptyAttemptKeyClean)
-                      }
-
-                      const transformedResponse = await transformAntigravityResponse(
+                    if (shouldRetryEndpoint && i < ANTIGRAVITY_ENDPOINT_FALLBACKS.length - 1) {
+                      lastFailure = {
                         response,
-                        prepared.streaming,
+                        streaming: prepared.streaming,
                         debugContext,
-                        prepared.requestedModel,
-                        prepared.projectId,
-                        prepared.endpoint,
-                        prepared.effectiveModel,
-                        prepared.sessionId,
-                        prepared.toolDebugMissing,
-                        prepared.toolDebugSummary,
-                        prepared.toolDebugPayload,
-                        debugLines,
-                      )
-
-                      // Check for context errors and show appropriate toast
-                      const contextError = transformedResponse.headers.get("x-antigravity-context-error")
-                      if (contextError) {
-                        if (contextError === "prompt_too_long") {
-                          await showToast(
-                            "Context too long - use /compact to reduce size, or trim your request",
-                            "warning",
-                          )
-                        } else if (contextError === "tool_pairing") {
-                          await showToast(
-                            "Tool call/result mismatch - use /compact to fix, or /undo last message",
-                            "warning",
-                          )
-                        }
+                        requestedModel: prepared.requestedModel,
+                        projectId: prepared.projectId,
+                        endpoint: prepared.endpoint,
+                        effectiveModel: prepared.effectiveModel,
+                        sessionId: prepared.sessionId,
+                        toolDebugMissing: prepared.toolDebugMissing,
+                        toolDebugSummary: prepared.toolDebugSummary,
+                        toolDebugPayload: prepared.toolDebugPayload,
                       }
+                      continue
+                    }
 
-                      return transformedResponse
-                    } catch (error) {
-                      debugCheckpoint("ANTIGRAVITY", "REQUEST_ERROR", {
+                    // Success or non-retryable error - return the response
+                    // @event_2026-02-06:rotation_unify - Removed redundant ModelHealthRegistry.markSuccess
+                    if (response.ok) {
+                      account.consecutiveFailures = 0
+                      getHealthTracker().recordSuccess(account.index)
+                      accountManager.markAccountUsed(account.index)
+                      debugCheckpoint("ANTIGRAVITY", "REQUEST_SUCCESS", {
                         family,
                         model,
                         accountIndex: account.index,
-                        error: error instanceof Error ? error.message : String(error),
-                        errorStack: error instanceof Error ? error.stack?.substring(0, 500) : undefined,
+                        email: account.email,
+                        status: response.status,
                       })
+                    }
+                    logAntigravityDebugResponse(debugContext, response, {
+                      note: response.ok ? "Success" : `Error ${response.status}`,
+                    })
+                    if (!response.ok) {
+                      await logResponseBody(debugContext, response, response.status)
 
-                      // Refund token on network/API error (only if consumed)
-                      if (tokenConsumed) {
-                        getTokenTracker().refund(account.index)
-                        tokenConsumed = false
-                      }
+                      // Handle 404 "Not Found" or 400 "Prompt too long" with synthetic response to avoid session lock
+                      if (response.status === 404 || response.status === 400) {
+                        const cloned = response.clone()
+                        const bodyText = await cloned.text()
 
-                      // Handle recoverable thinking errors - retry with forced recovery
-                      if (error instanceof Error && error.message === "THINKING_RECOVERY_NEEDED") {
-                        // Only retry once with forced recovery to avoid infinite loops
-                        if (!forceThinkingRecovery) {
-                          pushDebug("thinking-recovery: API error detected, retrying with forced recovery")
-                          forceThinkingRecovery = true
-                          i = -1 // Will become 0 after loop increment, restart endpoint loop
-                          continue
+                        // [Auto-Fallback] if checking capabilities failed or backend is stricter than expected:
+                        // If the model rejects the thinking config (e.g. "Thinking_config... only enabled when thinking is enabled"),
+                        // we implicitly know this model DOES NOT support thinking.
+                        // Instead of crashing, we forcibly disable thinking (forceDisableThinking=true) and retry transparently.
+                        // This matches User request to "fallback automatically" without hardcoded allowlists.
+                        if (
+                          response.status === 400 &&
+                          bodyText.includes("Thinking_config.include_thoughts is only enabled when thinking is enabled")
+                        ) {
+                          if (!forceDisableThinking) {
+                            pushDebug("Thinking config error detected - retrying with thinking disabled")
+                            forceDisableThinking = true
+                            i = -1
+                            continue
+                          }
                         }
 
-                        // Already tried with forced recovery, give up and return error
-                        const recoveryError =
-                          error && typeof error === "object" ? (error as { originalError?: unknown }) : undefined
-                        const originalError =
-                          recoveryError?.originalError && typeof recoveryError.originalError === "object"
-                            ? (recoveryError.originalError as { error?: { message?: string } })
-                            : {
-                                error: { message: "Thinking recovery triggered" },
-                              }
+                        if (response.status === 404) {
+                          const debugInfo = `\n\n[Debug Info]\nAccount: #${account.index} (${account.email || "Unknown"})\nRequested Model: ${prepared.requestedModel || "Unknown"}\nEffective Model: ${prepared.effectiveModel || "Unknown"}\nProject: ${prepared.projectId || "Unknown"}\nEndpoint: ${prepared.endpoint || "Unknown"}\nStatus: 404 Not Found\nRequest ID: ${response.headers.get("x-request-id") || "N/A"}`
+                          const errorMessage = `[Antigravity Error] Resource not found (404).\n\nThis usually means the project ID is invalid for the selected endpoint, or the model is not supported on this endpoint.${debugInfo}`
+                          return createSyntheticErrorResponse(errorMessage, prepared.requestedModel)
+                        }
 
-                        const recoveryMessage = `${originalError.error?.message || "Session recovery failed"}\n\n[RECOVERY] Thinking block corruption could not be resolved. Try starting a new session.`
+                        if (bodyText.includes("Prompt is too long") || bodyText.includes("prompt_too_long")) {
+                          await showToast("Context too long - use /compact to reduce size", "warning")
+                          const errorMessage = `[Antigravity Error] Context is too long for this model.\n\nPlease use /compact to reduce context size, then retry your request.\n\nAlternatively, you can:\n- Use /clear to start fresh\n- Use /undo to remove recent messages\n- Switch to a model with larger context window`
+                          return createSyntheticErrorResponse(errorMessage, prepared.requestedModel)
+                        }
+                        // [Fix for "Always repeats 400 error"]
+                        // If we get a 400 that is NOT "prompt too long" and NOT "thinking config",
+                        // it might be a transient issue or account-specific issue.
+                        // Instead of returning a synthetic error immediately, throw an error to trigger
+                        // the existing rotation logic (switch endpoint or account).
+                        // This allows finding a working path if one exists.
+                        const errorMsg = `Antigravity 400 Error: ${bodyText.substring(0, 200)}...`
+                        pushDebug(`Triggering rotation for 400 error: ${errorMsg}`)
+                        throw new Error(errorMsg)
+                      }
+                    }
 
-                        return new Response(
-                          JSON.stringify({
-                            type: "error",
-                            error: {
-                              type: "unrecoverable_error",
-                              message: recoveryMessage,
-                            },
-                          }),
-                          {
-                            status: 400,
-                            headers: { "Content-Type": "application/json" },
-                          },
+                    // Empty response retry logic (ported from LLM-API-Key-Proxy)
+                    // For non-streaming responses, check if the response body is empty
+                    // and retry if so (up to config.empty_response_max_attempts times)
+                    if (response.ok && !prepared.streaming) {
+                      const maxAttempts = config.empty_response_max_attempts ?? 4
+                      const retryDelayMs = config.empty_response_retry_delay_ms ?? 2000
+
+                      // Clone to check body without consuming original
+                      const clonedForCheck = response.clone()
+                      const bodyText = await clonedForCheck.text()
+
+                      if (isEmptyResponseBody(bodyText)) {
+                        // Track empty response attempts per request
+                        const emptyAttemptKey = `${prepared.sessionId ?? "none"}:${prepared.effectiveModel ?? "unknown"}`
+                        const currentAttempts = (emptyResponseAttempts.get(emptyAttemptKey) ?? 0) + 1
+                        emptyResponseAttempts.set(emptyAttemptKey, currentAttempts)
+
+                        pushDebug(`empty-response: attempt ${currentAttempts}/${maxAttempts}`)
+
+                        if (currentAttempts < maxAttempts) {
+                          await showToast(
+                            `Empty response received. Retrying (${currentAttempts}/${maxAttempts})...`,
+                            "warning",
+                          )
+                          await sleep(retryDelayMs, abortSignal)
+                          continue // Retry the endpoint loop
+                        }
+
+                        // Clean up and throw after max attempts
+                        emptyResponseAttempts.delete(emptyAttemptKey)
+                        throw new EmptyResponseError(
+                          "antigravity",
+                          prepared.effectiveModel ?? "unknown",
+                          currentAttempts,
                         )
                       }
 
-                      if (i < ANTIGRAVITY_ENDPOINT_FALLBACKS.length - 1) {
-                        lastError = error instanceof Error ? error : new Error(String(error))
+                      // Clean up successful attempt tracking
+                      const emptyAttemptKeyClean = `${prepared.sessionId ?? "none"}:${prepared.effectiveModel ?? "unknown"}`
+                      emptyResponseAttempts.delete(emptyAttemptKeyClean)
+                    }
+
+                    const transformedResponse = await transformAntigravityResponse(
+                      response,
+                      prepared.streaming,
+                      debugContext,
+                      prepared.requestedModel,
+                      prepared.projectId,
+                      prepared.endpoint,
+                      prepared.effectiveModel,
+                      prepared.sessionId,
+                      prepared.toolDebugMissing,
+                      prepared.toolDebugSummary,
+                      prepared.toolDebugPayload,
+                      debugLines,
+                    )
+
+                    // Check for context errors and show appropriate toast
+                    const contextError = transformedResponse.headers.get("x-antigravity-context-error")
+                    if (contextError) {
+                      if (contextError === "prompt_too_long") {
+                        await showToast(
+                          "Context too long - use /compact to reduce size, or trim your request",
+                          "warning",
+                        )
+                      } else if (contextError === "tool_pairing") {
+                        await showToast(
+                          "Tool call/result mismatch - use /compact to fix, or /undo last message",
+                          "warning",
+                        )
+                      }
+                    }
+
+                    return transformedResponse
+                  } catch (error) {
+                    debugCheckpoint("ANTIGRAVITY", "REQUEST_ERROR", {
+                      family,
+                      model,
+                      accountIndex: account.index,
+                      error: error instanceof Error ? error.message : String(error),
+                      errorStack: error instanceof Error ? error.stack?.substring(0, 500) : undefined,
+                    })
+
+                    // Refund token on network/API error (only if consumed)
+                    if (tokenConsumed) {
+                      getTokenTracker().refund(account.index)
+                      tokenConsumed = false
+                    }
+
+                    // Handle recoverable thinking errors - retry with forced recovery
+                    if (error instanceof Error && error.message === "THINKING_RECOVERY_NEEDED") {
+                      // Only retry once with forced recovery to avoid infinite loops
+                      if (!forceThinkingRecovery) {
+                        pushDebug("thinking-recovery: API error detected, retrying with forced recovery")
+                        forceThinkingRecovery = true
+                        i = -1 // Will become 0 after loop increment, restart endpoint loop
                         continue
                       }
 
-                      // All endpoints failed for this account - track failure and try next account
-                      const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index)
-                      lastError = error instanceof Error ? error : new Error(String(error))
-                      if (shouldCooldown) {
-                        accountManager.markAccountCoolingDown(account, cooldownMs, "network-error")
-                        accountManager.markRateLimited(account, cooldownMs, family, headerStyle, model)
-                        pushDebug(`endpoint-error: cooldown ${cooldownMs}ms after ${failures} failures`)
-                      }
-                      shouldSwitchAccount = true
-                      break
-                    }
-                  }
-                } // end headerStyleLoop
+                      // Already tried with forced recovery, give up and return error
+                      const recoveryError =
+                        error && typeof error === "object" ? (error as { originalError?: unknown }) : undefined
+                      const originalError =
+                        recoveryError?.originalError && typeof recoveryError.originalError === "object"
+                          ? (recoveryError.originalError as { error?: { message?: string } })
+                          : {
+                              error: { message: "Thinking recovery triggered" },
+                            }
 
-                if (shouldSwitchAccount) {
-                  // Avoid tight retry loops when there's only one account.
-                  if (accountCount <= 1) {
-                    if (lastFailure) {
-                      return transformAntigravityResponse(
-                        lastFailure.response,
-                        lastFailure.streaming,
-                        lastFailure.debugContext,
-                        lastFailure.requestedModel,
-                        lastFailure.projectId,
-                        lastFailure.endpoint,
-                        lastFailure.effectiveModel,
-                        lastFailure.sessionId,
-                        lastFailure.toolDebugMissing,
-                        lastFailure.toolDebugSummary,
-                        lastFailure.toolDebugPayload,
-                        debugLines,
+                      const recoveryMessage = `${originalError.error?.message || "Session recovery failed"}\n\n[RECOVERY] Thinking block corruption could not be resolved. Try starting a new session.`
+
+                      return new Response(
+                        JSON.stringify({
+                          type: "error",
+                          error: {
+                            type: "unrecoverable_error",
+                            message: recoveryMessage,
+                          },
+                        }),
+                        {
+                          status: 400,
+                          headers: { "Content-Type": "application/json" },
+                        },
                       )
                     }
 
-                    throw lastError || new Error("All Antigravity endpoints failed")
-                  }
+                    // Rate limit / soft-ban errors must NOT be retried on other endpoints
+                    // — throw immediately to rotation3d
+                    const errStatus = (error as any)?.status ?? (error as any)?.statusCode
+                    if (errStatus === 429 || errStatus === 503 || errStatus === 529) {
+                      throw error
+                    }
 
-                  continue
+                    if (i < ANTIGRAVITY_ENDPOINT_FALLBACKS.length - 1) {
+                      lastError = error instanceof Error ? error : new Error(String(error))
+                      continue
+                    }
+
+                    // All endpoints failed for this account - throw to rotation3d
+                    const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index)
+                    lastError = error instanceof Error ? error : new Error(String(error))
+                    if (shouldCooldown) {
+                      accountManager.markAccountCoolingDown(account, cooldownMs, "network-error")
+                      accountManager.markRateLimited(account, cooldownMs, family, headerStyle, model)
+                      pushDebug(`endpoint-error: cooldown ${cooldownMs}ms after ${failures} failures`)
+                    }
+
+                    // Throw to let rotation3d handle account switching
+                    const networkError: Error & { status?: number; statusCode?: number; retryAfter?: number } =
+                      new Error(`All endpoints failed for account ${account.index}: ${lastError.message}`)
+                    networkError.status = 503
+                    networkError.statusCode = 503
+                    networkError.retryAfter = Math.ceil((cooldownMs || 60_000) / 1000)
+                    throw networkError
+                  }
                 }
 
                 // If we get here without returning, something went wrong

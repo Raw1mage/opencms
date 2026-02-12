@@ -18,27 +18,7 @@ import { z } from "zod"
  * - `round-robin`: Rotate to next account on every request. Maximum throughput.
  * - `hybrid` (default): Deterministic selection based on health score + token bucket + LRU freshness.
  */
-export const AccountSelectionStrategySchema = z.enum(["sticky", "round-robin", "hybrid"])
-export type AccountSelectionStrategy = z.infer<typeof AccountSelectionStrategySchema>
 
-/**
- * Scheduling mode for rate limit behavior.
- *
- * - `cache_first`: Wait for same account to recover (preserves prompt cache). Default.
- * - `balance`: Switch account immediately on rate limit. Maximum availability.
- * - `performance_first`: Round-robin distribution for maximum throughput.
- */
-export const SchedulingModeSchema = z.enum(["cache_first", "balance", "performance_first"])
-export type SchedulingMode = z.infer<typeof SchedulingModeSchema>
-
-/**
- * Toast visibility scope for session-aware toast filtering.
- * @event_2026-02-06:antigravity_v145_integration
- *
- * - `root_only` (default): Only show toasts for root sessions (no parentID).
- *   Subagents and background tasks won't show toast notifications.
- * - `all`: Show toasts for all sessions including subagents and background tasks.
- */
 export const ToastScopeSchema = z.enum(["root_only", "all"])
 export type ToastScope = z.infer<typeof ToastScopeSchema>
 
@@ -286,7 +266,7 @@ export const AntigravityConfigSchema = z.object({
    * Env override: OPENCODE_ANTIGRAVITY_ACCOUNT_SELECTION_STRATEGY
    * @default "hybrid"
    */
-  account_selection_strategy: AccountSelectionStrategySchema.default("hybrid"),
+  // account_selection_strategy: AccountSelectionStrategySchema.default("hybrid"),
 
   /**
    * Account rotation mode for request routing.
@@ -294,7 +274,7 @@ export const AntigravityConfigSchema = z.object({
    * - fixed: always use the active account from /admin
    * @default "auto"
    */
-  account_rotation: z.enum(["auto", "fixed"]).default("fixed"),
+  // account_rotation: z.enum(["auto", "fixed"]).default("fixed"),
 
   /**
    * Enable PID-based account offset for multi-session distribution.
@@ -316,7 +296,7 @@ export const AntigravityConfigSchema = z.object({
    *
    * @default true
    */
-  switch_on_first_rate_limit: z.boolean().default(true),
+  // switch_on_first_rate_limit: z.boolean().default(true),
 
   /**
    * Scheduling mode for rate limit behavior.
@@ -328,7 +308,7 @@ export const AntigravityConfigSchema = z.object({
    * Env override: OPENCODE_ANTIGRAVITY_SCHEDULING_MODE
    * @default "cache_first"
    */
-  scheduling_mode: SchedulingModeSchema.default("cache_first"),
+  // scheduling_mode: SchedulingModeSchema.default("cache_first"),
 
   /**
    * Maximum seconds to wait for same account in cache_first mode.
@@ -336,7 +316,7 @@ export const AntigravityConfigSchema = z.object({
    *
    * @default 60
    */
-  max_cache_first_wait_seconds: z.number().min(5).max(300).default(60),
+  // max_cache_first_wait_seconds: z.number().min(5).max(300).default(60),
 
   /**
    * TTL in seconds for failure count expiration.
@@ -364,6 +344,15 @@ export const AntigravityConfigSchema = z.object({
   max_backoff_seconds: z.number().min(5).max(300).default(60),
 
   /**
+   * Maximum requests per minute per account per model family (claude/gemini).
+   * Throttles outgoing requests to avoid triggering upstream soft-bans.
+   * Set to 0 to disable RPM throttling.
+   *
+   * @default 5
+   */
+  rpm_limit: z.number().min(0).max(60).default(5),
+
+  /**
    * Maximum random delay in milliseconds before each API request.
    * Adds timing jitter to break predictable request cadence patterns.
    * Set to 0 to disable request jitter.
@@ -376,29 +365,13 @@ export const AntigravityConfigSchema = z.object({
   // Health Score (used by hybrid strategy)
   // =========================================================================
 
-  health_score: z
-    .object({
-      initial: z.number().min(0).max(100).default(70),
-      success_reward: z.number().min(0).max(10).default(1),
-      rate_limit_penalty: z.number().min(-50).max(0).default(-10),
-      failure_penalty: z.number().min(-100).max(0).default(-20),
-      recovery_rate_per_hour: z.number().min(0).max(20).default(2),
-      min_usable: z.number().min(0).max(100).default(50),
-      max_score: z.number().min(50).max(100).default(100),
-    })
-    .optional(),
+  // health_score: z.object({...}).optional(),
 
   // =========================================================================
   // Token Bucket (for hybrid strategy)
   // =========================================================================
 
-  token_bucket: z
-    .object({
-      max_tokens: z.number().min(1).max(1000).default(50),
-      regeneration_rate_per_minute: z.number().min(0.1).max(60).default(6),
-      initial_tokens: z.number().min(1).max(1000).default(50),
-    })
-    .optional(),
+  // token_bucket: z.object({...}).optional(),
 
   // =========================================================================
   // Auto-Update
@@ -435,15 +408,16 @@ export const DEFAULT_CONFIG: AntigravityConfig = {
   max_rate_limit_wait_seconds: 300,
   quota_fallback: false,
   cli_first: false,
-  account_selection_strategy: "hybrid",
-  account_rotation: "fixed",
+  // account_selection_strategy: "hybrid",
+  // account_rotation: "fixed",
   pid_offset_enabled: false,
-  switch_on_first_rate_limit: true,
-  scheduling_mode: "cache_first",
-  max_cache_first_wait_seconds: 60,
+  // switch_on_first_rate_limit: true,
+  // scheduling_mode: "cache_first",
+  // max_cache_first_wait_seconds: 60,
   failure_ttl_seconds: 3600,
   default_retry_after_seconds: 60,
   max_backoff_seconds: 60,
+  rpm_limit: 5,
   request_jitter_max_ms: 0,
   auto_update: true,
   signature_cache: {
@@ -452,6 +426,7 @@ export const DEFAULT_CONFIG: AntigravityConfig = {
     disk_ttl_seconds: 172800,
     write_interval_seconds: 60,
   },
+  /*
   health_score: {
     initial: 70,
     success_reward: 1,
@@ -466,4 +441,5 @@ export const DEFAULT_CONFIG: AntigravityConfig = {
     regeneration_rate_per_minute: 6,
     initial_tokens: 50,
   },
+  */
 }
