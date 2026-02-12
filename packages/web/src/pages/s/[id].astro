@@ -20,6 +20,11 @@ function tx(key: string) {
   return t(key)
 }
 
+type ShareData = {
+  info?: Session.Info
+  messages: Record<string, { role?: string; modelID?: string }>
+}
+
 const messages = {
   locale: formatLocale,
   link_to_message: tx("share.link_to_message"),
@@ -70,10 +75,30 @@ const messages = {
 }
 
 const id = Astro.params.id || ""
-const res = await fetch(`${apiUrl}/share_data?id=${id}`)
-const data = (await res.json()) as {
-  info?: Session.Info
-  messages: Record<string, { role?: string; modelID?: string }>
+let data: ShareData | undefined
+
+try {
+  const res = await fetch(`${apiUrl}/share_data?id=${id}`)
+  if (!res.ok) {
+    return new Response(null, {
+      status: res.status === 404 ? 404 : 502,
+      statusText: res.status === 404 ? tx("share.not_found") : tx("share.error_connection_failed"),
+    })
+  }
+  data = (await res.json()) as ShareData
+} catch (error) {
+  console.error("Failed to load share data", error)
+  return new Response(null, {
+    status: 502,
+    statusText: tx("share.error_connection_failed"),
+  })
+}
+
+if (!data) {
+  return new Response(null, {
+    status: 502,
+    statusText: tx("share.error_connection_failed"),
+  })
 }
 
 if (!data.info) {

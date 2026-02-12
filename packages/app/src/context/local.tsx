@@ -189,7 +189,17 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             const a = agent.current()
             const m = current()
             if (!a || !m) return undefined
-            const model = a.model ? { providerID: a.model.providerId, modelID: a.model.modelID } : undefined
+            const agentModel = a.model as
+              | {
+                  providerId?: string
+                  providerID?: string
+                  modelID?: string
+                  modelId?: string
+                }
+              | undefined
+            const providerID = agentModel?.providerID ?? agentModel?.providerId
+            const modelID = agentModel?.modelID ?? agentModel?.modelId
+            const model = providerID && modelID ? { providerID, modelID } : undefined
             return getConfiguredAgentVariant({
               agent: { model, variant: a.variant },
               model: { providerID: m.provider.id, modelID: m.id, variants: m.variants },

@@ -179,7 +179,9 @@ export function Part(props: PartProps) {
         )}
         {props.part.type === "step-start" && props.message.role === "assistant" && (
           <div data-component="step-start">
-            <div data-slot="provider">{props.message.providerId}</div>
+            <div data-slot="provider">
+              {props.message.providerId ?? (props.message as { providerID?: string }).providerID}
+            </div>
             <div data-slot="model">{props.message.modelID}</div>
           </div>
         )}
