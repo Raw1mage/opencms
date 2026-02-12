@@ -41,6 +41,8 @@ import {
   rewriteAntigravityPreviewAccessError,
   transformThinkingParts,
   type AntigravityApiBody,
+  type AntigravityRequestPayload,
+  type GeminiContent,
 } from "./request-helpers"
 import { CLAUDE_TOOL_SYSTEM_INSTRUCTION, CLAUDE_DESCRIPTION_PROMPT, ANTIGRAVITY_SYSTEM_INSTRUCTION } from "../constants"
 import { analyzeConversationState, closeToolLoopForThinking, needsThinkingRecovery } from "./thinking-recovery"
@@ -136,7 +138,7 @@ function extractConversationSeedFromMessages(messages: any[]): string {
   return [systemText, userText || fallbackUserText].filter(Boolean).join("|")
 }
 
-function extractConversationSeedFromContents(contents: any[]): string {
+function extractConversationSeedFromContents(contents: GeminiContent[]): string {
   const users = contents.filter((content) => content?.role === "user")
   const firstUser = users[0]
   const lastUser = users.length > 0 ? users[users.length - 1] : undefined
@@ -381,10 +383,10 @@ function hasSignedThinkingPart(part: any): boolean {
 }
 
 function ensureThinkingBeforeToolUseInContents(
-  contents: any[],
+  contents: GeminiContent[],
   signatureSessionKey: string,
   options?: { allowSentinel?: boolean },
-): any[] {
+): GeminiContent[] {
   const allowSentinel = options?.allowSentinel !== false
   debug("ensureThinkingBeforeToolUseInContents called", {
     contentCount: contents?.length,
@@ -392,7 +394,7 @@ function ensureThinkingBeforeToolUseInContents(
     allowSentinel,
   })
 
-  return contents.map((content: any, idx: number) => {
+  return contents.map((content: GeminiContent, idx: number) => {
     if (!content || typeof content !== "object" || !Array.isArray(content.parts)) {
       return content
     }
@@ -505,8 +507,8 @@ function ensureMessageThinkingSignature(block: any, sessionId: string): any {
   return block
 }
 
-function hasToolUseInContents(contents: any[]): boolean {
-  return contents.some((content: any) => {
+function hasToolUseInContents(contents: GeminiContent[]): boolean {
+  return contents.some((content: GeminiContent) => {
     if (!content || typeof content !== "object" || !Array.isArray(content.parts)) {
       return false
     }
@@ -514,8 +516,8 @@ function hasToolUseInContents(contents: any[]): boolean {
   })
 }
 
-function hasSignedThinkingInContents(contents: any[]): boolean {
-  return contents.some((content: any) => {
+function hasSignedThinkingInContents(contents: GeminiContent[]): boolean {
+  return contents.some((content: GeminiContent) => {
     if (!content || typeof content !== "object" || !Array.isArray(content.parts)) {
       return false
     }
@@ -753,9 +755,9 @@ export function prepareAntigravityRequest(
         const wrappedBody = {
           ...parsedBody,
           model: effectiveModel,
-        } as Record<string, unknown>
+        } as AntigravityRequestPayload
 
-        const requestRoot = wrappedBody.request
+        const requestRoot = wrappedBody.request as AntigravityRequestPayload
         const requestObjects: Array<Record<string, unknown>> = []
 
         if (requestRoot && typeof requestRoot === "object") {

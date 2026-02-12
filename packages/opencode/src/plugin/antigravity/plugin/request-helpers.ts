@@ -8,40 +8,33 @@ import {
 } from "../constants"
 import { processImageData } from "./image-saver"
 import type { GoogleSearchConfig } from "./transform/types"
+import {
+  type JsonSchema,
+  type GeminiPart,
+  type GeminiContent,
+  type GeminiCandidate,
+  type AntigravityApiError,
+  type AntigravityApiBody,
+  type AntigravityUsageMetadata,
+  type ThinkingConfig,
+  type VariantThinkingConfig,
+  type AntigravityRequestPayload,
+} from "./types"
+
+export {
+  type JsonSchema,
+  type GeminiPart,
+  type GeminiContent,
+  type GeminiCandidate,
+  type AntigravityApiError,
+  type AntigravityApiBody,
+  type AntigravityUsageMetadata,
+  type ThinkingConfig,
+  type VariantThinkingConfig,
+  type AntigravityRequestPayload,
+}
 
 const log = createLogger("request-helpers")
-
-/**
- * Basic JSON Schema interface to replace 'any' usages.
- */
-export interface JsonSchema {
-  type?: string | string[]
-  description?: string
-  properties?: Record<string, JsonSchema>
-  items?: JsonSchema | JsonSchema[]
-  required?: string[]
-  enum?: unknown[]
-  const?: unknown
-  allOf?: JsonSchema[]
-  anyOf?: JsonSchema[]
-  oneOf?: JsonSchema[]
-  additionalProperties?: boolean | JsonSchema
-  $ref?: string
-  format?: string
-  default?: unknown
-  // Constraints
-  minLength?: number
-  maxLength?: number
-  pattern?: string
-  minItems?: number
-  maxItems?: number
-  exclusiveMinimum?: number | boolean
-  exclusiveMaximum?: number | boolean
-  minimum?: number
-  maximum?: number
-  // Index signature for extensibility
-  [key: string]: unknown
-}
 
 // NOTE: @event_antigravity_preview_link
 // Preview features link for Antigravity API documentation
@@ -105,21 +98,21 @@ function appendDescriptionHint(schema: JsonSchema, hint: string): JsonSchema {
  * Phase 1a: Converts $ref to description hints.
  * $ref: "#/$defs/Foo" → { type: "object", description: "See: Foo" }
  */
-function convertRefsToHints(schema: JsonSchema): JsonSchema {
+function convertRefsToHints(schema: JsonSchema | JsonSchema[]): JsonSchema | JsonSchema[] {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return (schema as JsonSchema[]).map((item) => convertRefsToHints(item)) as any
+    return schema.map((item) => convertRefsToHints(item))
   }
 
   // If this object has $ref, replace it with a hint
-  if (typeof schema.$ref === "string") {
-    const refVal = schema.$ref
+  if (typeof (schema as JsonSchema).$ref === "string") {
+    const refVal = (schema as JsonSchema).$ref!
     const defName = refVal.includes("/") ? refVal.split("/").pop() : refVal
     const hint = `See: ${defName}`
-    const existingDesc = typeof schema.description === "string" ? schema.description : ""
+    const existingDesc = typeof (schema as JsonSchema).description === "string" ? (schema as JsonSchema).description : ""
     const newDescription = existingDesc ? `${existingDesc} (${hint})` : hint
     return { type: "object", description: newDescription }
   }
@@ -136,18 +129,18 @@ function convertRefsToHints(schema: JsonSchema): JsonSchema {
  * Phase 1b: Converts const to enum.
  * { const: "foo" } → { enum: ["foo"] }
  */
-function convertConstToEnum(schema: JsonSchema): JsonSchema {
+function convertConstToEnum(schema: JsonSchema | JsonSchema[]): JsonSchema | JsonSchema[] {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return (schema as JsonSchema[]).map((item) => convertConstToEnum(item)) as any
+    return schema.map((item) => convertConstToEnum(item))
   }
 
   const result: JsonSchema = {}
   for (const [key, value] of Object.entries(schema)) {
-    if (key === "const" && !schema.enum) {
+    if (key === "const" && !(schema as JsonSchema).enum) {
       result.enum = [value]
     } else {
       result[key] = convertConstToEnum(value as JsonSchema)
@@ -160,13 +153,13 @@ function convertConstToEnum(schema: JsonSchema): JsonSchema {
  * Phase 1c: Adds enum hints to description.
  * { enum: ["a", "b", "c"] } → adds "(Allowed: a, b, c)" to description
  */
-function addEnumHints(schema: JsonSchema): JsonSchema {
+function addEnumHints(schema: JsonSchema | JsonSchema[]): JsonSchema | JsonSchema[] {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return (schema as JsonSchema[]).map((item) => addEnumHints(item)) as any
+    return schema.map((item) => addEnumHints(item))
   }
 
   let result: JsonSchema = { ...schema }
@@ -191,13 +184,13 @@ function addEnumHints(schema: JsonSchema): JsonSchema {
  * Phase 1d: Adds additionalProperties hints.
  * { additionalProperties: false } → adds "(No extra properties allowed)" to description
  */
-function addAdditionalPropertiesHints(schema: JsonSchema): JsonSchema {
+function addAdditionalPropertiesHints(schema: JsonSchema | JsonSchema[]): JsonSchema | JsonSchema[] {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return (schema as JsonSchema[]).map((item) => addAdditionalPropertiesHints(item)) as any
+    return schema.map((item) => addAdditionalPropertiesHints(item))
   }
 
   let result: JsonSchema = { ...schema }
@@ -220,13 +213,13 @@ function addAdditionalPropertiesHints(schema: JsonSchema): JsonSchema {
  * Phase 1e: Moves unsupported constraints to description hints.
  * { minLength: 1, maxLength: 100 } → adds "(minLength: 1) (maxLength: 100)" to description
  */
-function moveConstraintsToDescription(schema: JsonSchema): JsonSchema {
+function moveConstraintsToDescription(schema: JsonSchema | JsonSchema[]): JsonSchema | JsonSchema[] {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return (schema as JsonSchema[]).map((item) => moveConstraintsToDescription(item)) as any
+    return schema.map((item) => moveConstraintsToDescription(item))
   }
 
   let result: JsonSchema = { ...schema }
@@ -253,13 +246,13 @@ function moveConstraintsToDescription(schema: JsonSchema): JsonSchema {
  * { allOf: [{ properties: { a: ... } }, { properties: { b: ... } }] }
  * → { properties: { a: ..., b: ... } }
  */
-function mergeAllOf(schema: JsonSchema): JsonSchema {
+function mergeAllOf(schema: JsonSchema | JsonSchema[]): JsonSchema | JsonSchema[] {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return (schema as JsonSchema[]).map((item) => mergeAllOf(item)) as any
+    return schema.map((item) => mergeAllOf(item))
   }
 
   let result: JsonSchema = { ...schema }
@@ -418,13 +411,13 @@ function tryMergeEnumFromUnion(options: JsonSchema[]): string[] | null {
  * { anyOf: [{ const: "a" }, { const: "b" }] }
  * → { type: "string", enum: ["a", "b"] }
  */
-function flattenAnyOfOneOf(schema: JsonSchema): JsonSchema {
+function flattenAnyOfOneOf(schema: JsonSchema | JsonSchema[]): JsonSchema | JsonSchema[] {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return (schema as JsonSchema[]).map((item) => flattenAnyOfOneOf(item)) as any
+    return schema.map((item) => flattenAnyOfOneOf(item))
   }
 
   let result: JsonSchema = { ...schema }
@@ -510,18 +503,18 @@ function flattenAnyOfOneOf(schema: JsonSchema): JsonSchema {
  * { type: ["string", "null"] } → { type: "string", description: "(nullable)" }
  */
 function flattenTypeArrays(
-  schema: JsonSchema,
+  schema: JsonSchema | JsonSchema[],
   nullableFields?: Map<string, string[]>,
   currentPath?: string,
-): JsonSchema {
+): JsonSchema | JsonSchema[] {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return (schema as JsonSchema[]).map((item, idx) =>
+    return schema.map((item, idx) =>
       flattenTypeArrays(item, nullableFields, `${currentPath || ""}[${idx}]`),
-    ) as any
+    )
   }
 
   let result: JsonSchema = { ...schema }
@@ -598,13 +591,13 @@ function flattenTypeArrays(
  * Phase 3: Removes unsupported keywords after hints have been extracted.
  * @param insideProperties - When true, keys are property NAMES (preserve); when false, keys are JSON Schema keywords (filter).
  */
-function removeUnsupportedKeywords(schema: JsonSchema, insideProperties: boolean = false): JsonSchema {
+function removeUnsupportedKeywords(schema: JsonSchema | JsonSchema[], insideProperties: boolean = false): JsonSchema | JsonSchema[] {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return (schema as JsonSchema[]).map((item) => removeUnsupportedKeywords(item, false)) as any
+    return schema.map((item) => removeUnsupportedKeywords(item, false))
   }
 
   const result: JsonSchema = {}
@@ -633,13 +626,13 @@ function removeUnsupportedKeywords(schema: JsonSchema, insideProperties: boolean
 /**
  * Phase 3b: Cleans up required fields - removes entries that don't exist in properties.
  */
-function cleanupRequiredFields(schema: JsonSchema): JsonSchema {
+function cleanupRequiredFields(schema: JsonSchema | JsonSchema[]): JsonSchema | JsonSchema[] {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return (schema as JsonSchema[]).map((item) => cleanupRequiredFields(item)) as any
+    return schema.map((item) => cleanupRequiredFields(item))
   }
 
   let result: JsonSchema = { ...schema }
@@ -670,13 +663,13 @@ function cleanupRequiredFields(schema: JsonSchema): JsonSchema {
  * Phase 4: Adds placeholder property for empty object schemas.
  * Claude VALIDATED mode requires at least one property.
  */
-function addEmptySchemaPlaceholder(schema: JsonSchema): JsonSchema {
+function addEmptySchemaPlaceholder(schema: JsonSchema | JsonSchema[]): JsonSchema | JsonSchema[] {
   if (!schema || typeof schema !== "object") {
     return schema
   }
 
   if (Array.isArray(schema)) {
-    return (schema as JsonSchema[]).map((item) => addEmptySchemaPlaceholder(item)) as any
+    return schema.map((item) => addEmptySchemaPlaceholder(item))
   }
 
   let result: JsonSchema = { ...schema }
@@ -715,12 +708,12 @@ function addEmptySchemaPlaceholder(schema: JsonSchema): JsonSchema {
  *
  * Ported from CLIProxyAPI's CleanJSONSchemaForAntigravity (gemini_schema.go)
  */
-export function cleanJSONSchemaForAntigravity(schema: unknown): JsonSchema {
+export function cleanJSONSchemaForAntigravity(schema: unknown): JsonSchema | JsonSchema[] {
   if (!schema || typeof schema !== "object") {
     return schema as JsonSchema
   }
 
-  let result = schema as JsonSchema
+  let result = schema as JsonSchema | JsonSchema[]
 
   // Phase 1: Convert and add hints
   result = convertRefsToHints(result)
@@ -747,70 +740,6 @@ export function cleanJSONSchemaForAntigravity(schema: unknown): JsonSchema {
 // ============================================================================
 // END JSON SCHEMA CLEANING
 // ============================================================================
-
-interface GeminiPart {
-  text?: string
-  thought?: boolean
-  thoughtSignature?: string
-  signature?: string
-  type?: string // Anthropic-style
-  thinking?: string // Anthropic-style
-  functionCall?: {
-    name: string
-    args: Record<string, unknown>
-  }
-  inlineData?: {
-    mimeType: string
-    data: string
-  }
-  cache_control?: unknown
-  [key: string]: unknown
-}
-
-interface GeminiContent {
-  role?: string
-  parts: GeminiPart[]
-}
-
-interface GeminiCandidate {
-  content: GeminiContent
-  [key: string]: unknown
-}
-
-export interface AntigravityApiError {
-  code?: number
-  message?: string
-  status?: string
-  [key: string]: unknown
-}
-
-/**
- * Minimal representation of Antigravity API responses we touch.
- */
-export interface AntigravityApiBody {
-  response?: unknown
-  error?: AntigravityApiError
-  [key: string]: unknown
-}
-
-/**
- * Usage metadata exposed by Antigravity responses. Fields are optional to reflect partial payloads.
- */
-export interface AntigravityUsageMetadata {
-  totalTokenCount?: number
-  promptTokenCount?: number
-  candidatesTokenCount?: number
-  cachedContentTokenCount?: number
-  thoughtsTokenCount?: number
-}
-
-/**
- * Normalized thinking configuration accepted by Antigravity.
- */
-export interface ThinkingConfig {
-  thinkingBudget?: number
-  includeThoughts?: boolean
-}
 
 /**
  * Default token budget for thinking/reasoning. 16000 tokens provides sufficient
@@ -860,20 +789,6 @@ export function extractThinkingConfig(
   }
 
   return undefined
-}
-
-/**
- * Variant thinking config extracted from OpenCode's providerOptions.
- */
-export interface VariantThinkingConfig {
-  /** Gemini 3 native thinking level (low/medium/high) */
-  thinkingLevel?: string
-  /** Numeric thinking budget for Claude and Gemini 2.5 */
-  thinkingBudget?: number
-  /** Whether to include thoughts in output */
-  includeThoughts?: boolean
-  /** Google Search configuration */
-  googleSearch?: GoogleSearchConfig
 }
 
 /**
@@ -2085,12 +2000,12 @@ export function recursivelyParseJsonStrings(
  * @param contents - Array of Gemini-style content messages
  * @returns Fixed contents array with matched tool responses
  */
-export function fixToolResponseGrouping(contents: any[]): any[] {
+export function fixToolResponseGrouping(contents: GeminiContent[]): GeminiContent[] {
   if (!Array.isArray(contents) || contents.length === 0) {
     return contents
   }
 
-  const newContents: any[] = []
+  const newContents: GeminiContent[] = []
 
   // Track pending tool call groups that need responses
   const pendingGroups: Array<{
@@ -2261,7 +2176,7 @@ export function fixToolResponseGrouping(contents: any[]): any[] {
  * @param contents - Array of Gemini-style content messages
  * @returns Object with mismatch details
  */
-export function detectToolIdMismatches(contents: any[]): {
+export function detectToolIdMismatches(contents: GeminiContent[]): {
   hasMismatches: boolean
   expectedIds: string[]
   foundIds: string[]
@@ -2651,8 +2566,8 @@ export function injectToolHardeningInstruction(payload: Record<string, unknown>,
  * @param contents - Gemini-style contents array
  * @returns Object with modified contents and pending call IDs map
  */
-export function assignToolIdsToContents(contents: any[]): {
-  contents: any[]
+export function assignToolIdsToContents(contents: GeminiContent[]): {
+  contents: GeminiContent[]
   pendingCallIdsByName: Map<string, string[]>
   toolCallCounter: number
 } {
@@ -2663,12 +2578,12 @@ export function assignToolIdsToContents(contents: any[]): {
   let toolCallCounter = 0
   const pendingCallIdsByName = new Map<string, string[]>()
 
-  const newContents = contents.map((content: any) => {
+  const newContents = contents.map((content: GeminiContent) => {
     if (!content || !Array.isArray(content.parts)) {
       return content
     }
 
-    const newParts = content.parts.map((part: any) => {
+    const newParts = content.parts.map((part: GeminiPart) => {
       if (part && typeof part === "object" && part.functionCall) {
         const call = { ...part.functionCall }
         if (!call.id) {
@@ -2697,19 +2612,19 @@ export function assignToolIdsToContents(contents: any[]): {
  * @param pendingCallIdsByName - Map of function names to pending call IDs
  * @returns Modified contents with matched response IDs
  */
-export function matchResponseIdsToContents(contents: any[], pendingCallIdsByName: Map<string, string[]>): any[] {
+export function matchResponseIdsToContents(contents: GeminiContent[], pendingCallIdsByName: Map<string, string[]>): GeminiContent[] {
   if (!Array.isArray(contents)) {
     return contents
   }
 
-  return contents.map((content: any) => {
+  return contents.map((content: GeminiContent) => {
     if (!content || !Array.isArray(content.parts)) {
       return content
     }
 
-    const newParts = content.parts.map((part: any) => {
+    const newParts = content.parts.map((part: GeminiPart) => {
       if (part && typeof part === "object" && part.functionResponse) {
-        const resp = { ...part.functionResponse }
+        const resp = { ...(part.functionResponse as Record<string, any>) }
         if (!resp.id && typeof resp.name === "string") {
           const queue = pendingCallIdsByName.get(resp.name)
           if (queue && queue.length > 0) {
@@ -2739,7 +2654,7 @@ export function matchResponseIdsToContents(contents: any[], pendingCallIdsByName
  * @returns Object with fix applied status
  */
 export function applyToolPairingFixes(
-  payload: Record<string, unknown>,
+  payload: AntigravityRequestPayload,
   isClaude: boolean,
 ): { contentsFixed: boolean; messagesFixed: boolean } {
   let contentsFixed = false
@@ -2752,7 +2667,7 @@ export function applyToolPairingFixes(
   // Fix Gemini format (contents[])
   if (Array.isArray(payload.contents)) {
     // First pass: assign IDs to functionCalls
-    const { contents: contentsWithIds, pendingCallIdsByName } = assignToolIdsToContents(payload.contents as any[])
+    const { contents: contentsWithIds, pendingCallIdsByName } = assignToolIdsToContents(payload.contents as GeminiContent[])
 
     // Second pass: match functionResponse IDs
     const contentsWithMatchedIds = matchResponseIdsToContents(contentsWithIds, pendingCallIdsByName)
