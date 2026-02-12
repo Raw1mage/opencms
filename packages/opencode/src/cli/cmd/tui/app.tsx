@@ -243,6 +243,37 @@ function App() {
   const sdk = useSDK()
   const toast = useToast()
   const { theme, mode, setMode } = useTheme()
+
+  createEffect(() => {
+    const trigger = kv.get("ui_trigger")
+    if (!trigger) return
+
+    // Clear trigger immediately
+    kv.set("ui_trigger", null)
+
+    switch (trigger) {
+      case "session.list":
+        dialog.replace(() => <DialogSessionList />)
+        break
+      case "model.list":
+        dialog.replace(() => <DialogModel />)
+        break
+      case "provider.list":
+        dialog.replace(() => <DialogProviderList />)
+        break
+      case "admin.panel":
+        dialog.replace(() => <DialogAdmin />)
+        break
+      case "help.show":
+        dialog.replace(() => <DialogHelp />)
+        break
+      case "session.new":
+        route.navigate({ type: "home" })
+        dialog.clear()
+        break
+    }
+  })
+
   const sync = useSync()
   const exit = useExit()
   const promptRef = usePromptRef()
@@ -376,10 +407,7 @@ function App() {
       keybind: "session_list",
       category: "Session",
       suggested: sync.data.session.length > 0,
-      slash: {
-        name: "sessions",
-        aliases: ["resume", "continue"],
-      },
+      slash: { name: "session" },
       onSelect: () => {
         dialog.replace(() => <DialogSessionList />)
       },
@@ -390,10 +418,6 @@ function App() {
       value: "session.new",
       keybind: "session_new",
       category: "Session",
-      slash: {
-        name: "new",
-        aliases: ["clear"],
-      },
       onSelect: () => {
         const current = promptRef.current
         // Don't require focus - if there's any text, preserve it
@@ -411,9 +435,7 @@ function App() {
       keybind: "model_list",
       suggested: true,
       category: "Agent",
-      slash: {
-        name: "models",
-      },
+      slash: { name: "model" },
       onSelect: () => {
         dialog.replace(() => <DialogModel />)
       },
@@ -463,9 +485,6 @@ function App() {
       value: "agent.list",
       keybind: "agent_list",
       category: "Agent",
-      slash: {
-        name: "agents",
-      },
       onSelect: () => {
         dialog.replace(() => <DialogAgent />)
       },
@@ -474,9 +493,6 @@ function App() {
       title: "Toggle MCPs",
       value: "mcp.list",
       category: "Agent",
-      slash: {
-        name: "mcps",
-      },
       onSelect: () => {
         dialog.replace(() => <DialogMcp />)
       },
@@ -505,9 +521,7 @@ function App() {
       title: "Connect provider",
       value: "provider.connect",
       suggested: !connected(),
-      slash: {
-        name: "connect",
-      },
+      slash: { name: "connect" },
       onSelect: () => {
         dialog.replace(() => <DialogProviderList />)
       },
@@ -517,9 +531,6 @@ function App() {
       title: "View status",
       keybind: "status_view",
       value: "opencode.status",
-      slash: {
-        name: "status",
-      },
       onSelect: () => {
         dialog.replace(() => <DialogStatus />)
       },
@@ -538,9 +549,7 @@ function App() {
       value: "admin.panel",
       keybind: "admin_panel" as const,
       category: "System",
-      slash: {
-        name: "admin",
-      },
+      slash: { name: "admin" },
       onSelect: () => {
         debugCheckpoint("admin", "open panel")
         dialog.replace(() => <DialogAdmin />)
@@ -550,9 +559,6 @@ function App() {
       title: "Switch theme",
       value: "theme.switch",
       keybind: "theme_list",
-      slash: {
-        name: "themes",
-      },
       onSelect: () => {
         dialog.replace(() => <DialogThemeList />)
       },
@@ -568,11 +574,17 @@ function App() {
       category: "System",
     },
     {
+      title: "Command Palette",
+      value: "command.list",
+      slash: { name: "menu" },
+      onSelect: () => {
+        command.show()
+      },
+      category: "System",
+    },
+    {
       title: "Help",
       value: "help.show",
-      slash: {
-        name: "help",
-      },
       onSelect: () => {
         dialog.replace(() => <DialogHelp />)
       },
@@ -590,10 +602,6 @@ function App() {
     {
       title: "Exit the app",
       value: "app.exit",
-      slash: {
-        name: "exit",
-        aliases: ["quit", "q"],
-      },
       onSelect: () => exit(),
       category: "System",
     },

@@ -228,18 +228,22 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
 
       // Allow navigation in search mode
       if (evt.name === "up" || (evt.ctrl && evt.name === "p")) {
+        evt.preventDefault()
         move(-1)
         return
       }
       if (evt.name === "down" || (evt.ctrl && evt.name === "n")) {
+        evt.preventDefault()
         move(1)
         return
       }
       if (evt.name === "pageup") {
+        evt.preventDefault()
         move(-10)
         return
       }
       if (evt.name === "pagedown") {
+        evt.preventDefault()
         move(10)
         return
       }
@@ -257,12 +261,30 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     }
 
     // Normal mode: navigation
-    if (evt.name === "up" || (evt.ctrl && evt.name === "p")) move(-1)
-    if (evt.name === "down" || (evt.ctrl && evt.name === "n")) move(1)
-    if (evt.name === "pageup") move(-10)
-    if (evt.name === "pagedown") move(10)
-    if (evt.name === "home") moveTo(0)
-    if (evt.name === "end") moveTo(flat().length - 1)
+    if (evt.name === "up" || (evt.ctrl && evt.name === "p")) {
+      evt.preventDefault()
+      move(-1)
+    }
+    if (evt.name === "down" || (evt.ctrl && evt.name === "n")) {
+      evt.preventDefault()
+      move(1)
+    }
+    if (evt.name === "pageup") {
+      evt.preventDefault()
+      move(-10)
+    }
+    if (evt.name === "pagedown") {
+      evt.preventDefault()
+      move(10)
+    }
+    if (evt.name === "home") {
+      evt.preventDefault()
+      moveTo(0)
+    }
+    if (evt.name === "end") {
+      evt.preventDefault()
+      moveTo(flat().length - 1)
+    }
 
     if (evt.name === "return") {
       const option = selected()
@@ -303,7 +325,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
 
   return (
     <box gap={1} paddingBottom={1}>
-      <box paddingLeft={4} paddingRight={2}>
+      <box paddingLeft={4} paddingRight={4}>
         <box flexDirection="row" justifyContent="space-between">
           <text fg={theme.text} attributes={TextAttributes.BOLD}>
             {props.title}
@@ -390,7 +412,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                         }}
                         backgroundColor={active() ? (option.bg ?? theme.primary) : RGBA.fromInts(0, 0, 0, 0)}
                         paddingLeft={(!props.hideCurrentIndicator && current()) || option.gutter ? 1 : 3}
-                        paddingRight={0}
+                        paddingRight={4}
                         gap={1}
                       >
                         <Option
@@ -412,7 +434,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
         </scrollbox>
       </Show>
       <Show when={keybinds().length} fallback={<box flexShrink={0} />}>
-        <box paddingRight={2} paddingLeft={4} flexShrink={0} paddingTop={1}>
+        <box paddingRight={4} paddingLeft={4} flexShrink={0} paddingTop={1}>
           <Show
             when={props.keybindLayout === "columns"}
             fallback={

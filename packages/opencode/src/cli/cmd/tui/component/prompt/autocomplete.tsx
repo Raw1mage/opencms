@@ -345,39 +345,18 @@ export function Autocomplete(props: {
   const commands = createMemo((): AutocompleteOption[] => {
     const results: AutocompleteOption[] = [...command.slashes()]
 
-    for (const serverCommand of sync.data.command) {
-      results.push({
-        display: "/" + serverCommand.name + (serverCommand.mcp ? " (MCP)" : ""),
-        description: serverCommand.description,
-        onSelect: () => {
-          const newText = "/" + serverCommand.name + " "
-          const cursor = props.input().logicalCursor
-          props.input().deleteRange(0, 0, cursor.row, cursor.col)
-          props.input().insertText(newText)
-          props.input().cursorOffset = Bun.stringWidth(newText)
-        },
-      })
-    }
+    // 僅保留核心管理指令，其餘隱藏以符合 0 指令對話優先原則
+    const whitelist = ["/admin", "/session", "/model", "/connect", "/menu"]
+    const filtered = results.filter((item) => {
+      const display = item.display.trim()
+      return whitelist.some((w) => display === w || item.aliases?.some((a) => a === w))
+    })
 
-    for (const skill of sync.data.skill) {
-      results.push({
-        display: "/skill:" + skill.name,
-        description: skill.description,
-        onSelect: () => {
-          const newText = `Load the "${skill.name}" skill and follow its instructions.`
-          const cursor = props.input().logicalCursor
-          props.input().deleteRange(0, 0, cursor.row, cursor.col)
-          props.input().insertText(newText)
-          props.input().cursorOffset = Bun.stringWidth(newText)
-        },
-      })
-    }
+    filtered.sort((a, b) => a.display.localeCompare(b.display))
 
-    results.sort((a, b) => a.display.localeCompare(b.display))
-
-    const max = firstBy(results, [(x) => x.display.length, "desc"])?.display.length
-    if (!max) return results
-    return results.map((item) => ({
+    const max = firstBy(filtered, [(x) => x.display.length, "desc"])?.display.length
+    if (!max) return filtered
+    return filtered.map((item) => ({
       ...item,
       display: item.display.padEnd(max + 2),
     }))
