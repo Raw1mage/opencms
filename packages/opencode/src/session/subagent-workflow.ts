@@ -2,6 +2,7 @@ import { Agent } from "../agent/agent"
 import { Provider } from "../provider/provider"
 import { iife } from "@/util/iife"
 import { MessageV2 } from "./message-v2"
+import { Config } from "../config/config"
 
 export const WORKFLOW_KEYWORDS = [
   "分工",
@@ -38,6 +39,57 @@ function rolePrompt(role: string, text: string) {
   if (role === "testing") return "Suggest a focused test/verification plan.\n\nUser request:\n" + text
   if (role === "docs") return "List documentation or changelog updates needed.\n\nUser request:\n" + text
   return "Provide a concise subtask response.\n\nUser request:\n" + text
+}
+
+type WorkflowInputPart = {
+  type: string
+  mime?: string
+  text?: string
+}
+
+export async function maybeInjectWorkflowSubtasks(input: {
+  parts: WorkflowInputPart[]
+  agent: Agent.Info
+  noReply?: boolean
+}) {
+  if (input.agent.mode === "subagent") return input.parts
+  if (input.noReply) return input.parts
+  if (input.parts.some((part) => part.type === "subtask" || part.type === "agent")) return input.parts
+  const hasImage = input.parts.some((part) => part.type === "file" && part.mime?.startsWith("image/"))
+  if (hasImage) return input.parts
+
+  const cfg = await Config.get()
+  const workflow = cfg.experimental?.subagent_workflow
+  if (workflow?.enabled !== true) return input.parts
+
+  const text = input.parts
+    .filter((part: WorkflowInputPart) => part.type === "text")
+    .map((part: WorkflowInputPart) => part.text ?? "")
+    .join("\n\n")
+    .trim()
+  if (!text) return input.parts
+
+  const keywords = workflow?.keywords ?? WORKFLOW_KEYWORDS
+  const roles = workflow?.roles ?? WORKFLOW_ROLES
+  const minChars = workflow?.min_chars ?? WORKFLOW_MIN_CHARS
+  const minLines = workflow?.min_lines ?? WORKFLOW_MIN_LINES
+  const normalized = text.toLowerCase()
+  const hasKeyword = keywords.some((keyword) => keyword && normalized.includes(keyword.toLowerCase()))
+  const lines = text.split(/\r?\n/).filter((line: string) => line.trim().length > 0)
+  const hasList = /(^|\n)\s*[-*]\s+/.test(text) || /(^|\n)\s*\d+\.\s+/.test(text)
+  const hasFiles = input.parts.some((part: WorkflowInputPart) => part.type === "file")
+  const nonTrivial = text.length >= minChars || lines.length >= minLines || hasList || hasFiles || input.parts.length > 1
+  if (!hasKeyword && !nonTrivial) return input.parts
+
+  const overrides = workflow?.models ?? {}
+  const tasks = await buildWorkflowSubtasks({
+    text,
+    roles,
+    overrides,
+  })
+
+  if (tasks.length === 0) return input.parts
+  return [...tasks.reverse(), ...input.parts]
 }
 
 export async function buildWorkflowSubtasks(input: {

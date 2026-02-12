@@ -26,27 +26,19 @@ import { Flag } from "../flag/flag"
 import { ulid } from "ulid"
 import { Command } from "../command"
 import { fileURLToPath } from "bun"
-import { Config } from "../config/config"
 import { SessionSummary } from "./summary"
 import { NamedError } from "@opencode-ai/util/error"
 import { fn } from "@/util/fn"
 import { SessionProcessor } from "./processor"
 import { resolveTools } from "./resolve-tools"
 import { resolveImageRequest, stripImageParts } from "./image-router"
-import {
-  buildWorkflowSubtasks,
-  WORKFLOW_KEYWORDS,
-  WORKFLOW_MIN_CHARS,
-  WORKFLOW_MIN_LINES,
-  WORKFLOW_ROLES,
-} from "./subagent-workflow"
+import { maybeInjectWorkflowSubtasks } from "./subagent-workflow"
 import { TaskTool } from "@/tool/task"
 import { Tool } from "@/tool/tool"
 import { ToolInvoker } from "./tool-invoker"
 import { PermissionNext } from "@/permission/next"
 import { SessionStatus } from "./status"
 import { TuiEvent } from "@/cli/cmd/tui/event"
-import { iife } from "@/util/iife"
 import { executeShellCommand } from "./shell-executor"
 import { getPreloadedContext } from "./preloaded-context"
 import { insertReminders } from "./reminders"
@@ -666,48 +658,11 @@ export namespace SessionPrompt {
         ? agent.variant
         : undefined)
 
-    const partsInput = await iife(async () => {
-      if (!agent) return input.parts
-      if (agent.mode === "subagent") return input.parts
-      if (input.noReply) return input.parts
-      if (input.parts.some((part) => part.type === "subtask" || part.type === "agent")) return input.parts
-      const hasImage = input.parts.some((part) => part.type === "file" && part.mime?.startsWith("image/"))
-      if (hasImage) return input.parts
-
-      const cfg = await Config.get()
-      const workflow = cfg.experimental?.subagent_workflow
-      if (workflow?.enabled !== true) return input.parts
-
-      const text = input.parts
-        .filter((part) => part.type === "text")
-        .map((part) => part.text)
-        .join("\n\n")
-        .trim()
-      if (!text) return input.parts
-
-      const keywords = workflow?.keywords ?? WORKFLOW_KEYWORDS
-      const roles = workflow?.roles ?? WORKFLOW_ROLES
-      const minChars = workflow?.min_chars ?? WORKFLOW_MIN_CHARS
-      const minLines = workflow?.min_lines ?? WORKFLOW_MIN_LINES
-      const normalized = text.toLowerCase()
-      const hasKeyword = keywords.some((keyword) => keyword && normalized.includes(keyword.toLowerCase()))
-      const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0)
-      const hasList = /(^|\n)\s*[-*]\s+/.test(text) || /(^|\n)\s*\d+\.\s+/.test(text)
-      const hasFiles = input.parts.some((part) => part.type === "file")
-      const nonTrivial =
-        text.length >= minChars || lines.length >= minLines || hasList || hasFiles || input.parts.length > 1
-      if (!hasKeyword && !nonTrivial) return input.parts
-
-      const overrides = workflow?.models ?? {}
-      const tasks = await buildWorkflowSubtasks({
-        text,
-        roles,
-        overrides,
-      })
-
-      if (tasks.length === 0) return input.parts
-      return [...tasks.reverse(), ...input.parts]
-    })
+    const partsInput: PromptInput["parts"] = (await maybeInjectWorkflowSubtasks({
+      parts: input.parts,
+      agent,
+      noReply: input.noReply,
+    })) as PromptInput["parts"]
 
     const info: MessageV2.Info = {
       id: input.messageID ?? Identifier.ascending("message"),
