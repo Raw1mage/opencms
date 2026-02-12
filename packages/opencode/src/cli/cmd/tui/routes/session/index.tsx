@@ -369,9 +369,6 @@ export function Session() {
       keybind: "session_share",
       category: "Session",
       enabled: sync.data.config.share !== "disabled",
-      slash: {
-        name: "share",
-      },
       onSelect: async (dialog) => {
         const copy = (url: string) =>
           Clipboard.copy(url)
@@ -397,9 +394,6 @@ export function Session() {
       value: "session.rename",
       keybind: "session_rename",
       category: "Session",
-      slash: {
-        name: "rename",
-      },
       onSelect: (dialog) => {
         dialog.replace(() => <DialogSessionRename session={route.sessionID} />)
       },
@@ -409,9 +403,6 @@ export function Session() {
       value: "session.timeline",
       keybind: "session_timeline",
       category: "Session",
-      slash: {
-        name: "timeline",
-      },
       onSelect: (dialog) => {
         dialog.replace(() => (
           <DialogTimeline
@@ -432,9 +423,6 @@ export function Session() {
       value: "session.fork",
       keybind: "session_fork",
       category: "Session",
-      slash: {
-        name: "fork",
-      },
       onSelect: (dialog) => {
         dialog.replace(() => (
           <DialogForkFromTimeline
@@ -454,10 +442,6 @@ export function Session() {
       value: "session.compact",
       keybind: "session_compact",
       category: "Session",
-      slash: {
-        name: "compact",
-        aliases: ["summarize"],
-      },
       onSelect: (dialog) => {
         const selectedModel = local.model.current()
         if (!selectedModel) {
@@ -482,9 +466,6 @@ export function Session() {
       keybind: "session_unshare",
       category: "Session",
       enabled: !!session()?.share?.url,
-      slash: {
-        name: "unshare",
-      },
       onSelect: async (dialog) => {
         await sdk.client.session
           .unshare({
@@ -500,9 +481,6 @@ export function Session() {
       value: "session.undo",
       keybind: "messages_undo",
       category: "Session",
-      slash: {
-        name: "undo",
-      },
       onSelect: async (dialog) => {
         const status = sync.data.session_status?.[route.sessionID]
         if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {})
@@ -539,9 +517,6 @@ export function Session() {
       keybind: "messages_redo",
       category: "Session",
       enabled: !!session()?.revert?.messageID,
-      slash: {
-        name: "redo",
-      },
       onSelect: (dialog) => {
         dialog.clear()
         const messageID = session()?.revert?.messageID
@@ -588,10 +563,6 @@ export function Session() {
       title: showTimestamps() ? "Hide timestamps" : "Show timestamps",
       value: "session.toggle.timestamps",
       category: "Session",
-      slash: {
-        name: "timestamps",
-        aliases: ["toggle-timestamps"],
-      },
       onSelect: (dialog) => {
         setTimestamps((prev) => (prev === "show" ? "hide" : "show"))
         dialog.clear()
@@ -601,10 +572,6 @@ export function Session() {
       title: showThinking() ? "Hide thinking" : "Show thinking",
       value: "session.toggle.thinking",
       category: "Session",
-      slash: {
-        name: "thinking",
-        aliases: ["toggle-thinking"],
-      },
       onSelect: (dialog) => {
         setShowThinking((prev) => !prev)
         dialog.clear()
@@ -813,9 +780,6 @@ export function Session() {
       title: "Copy session transcript",
       value: "session.copy",
       category: "Session",
-      slash: {
-        name: "copy",
-      },
       onSelect: async (dialog) => {
         try {
           const sessionData = session()
@@ -843,9 +807,6 @@ export function Session() {
       value: "session.export",
       keybind: "session_export",
       category: "Session",
-      slash: {
-        name: "export",
-      },
       onSelect: async (dialog) => {
         try {
           const sessionData = session()
@@ -1661,7 +1622,15 @@ function InlineTool(props: {
       }}
     >
       <text paddingLeft={3} fg={fg()} attributes={denied() ? TextAttributes.STRIKETHROUGH : undefined}>
-        <Show fallback={<>~ {props.pending}{elapsed()}</>} when={props.complete}>
+        <Show
+          fallback={
+            <>
+              ~ {props.pending}
+              {elapsed()}
+            </>
+          }
+          when={props.complete}
+        >
           <span style={{ fg: props.iconColor }}>{props.icon}</span> {props.children}
         </Show>
       </text>

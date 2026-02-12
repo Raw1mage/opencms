@@ -822,7 +822,7 @@ export namespace Config {
       model_cycle_favorite: z.string().optional().default("none").describe("Next favorite model"),
       model_cycle_favorite_reverse: z.string().optional().default("none").describe("Previous favorite model"),
       admin_panel: z.string().optional().default("none").describe("Open admin panel"),
-      command_list: z.string().optional().default("ctrl+p").describe("List available commands"),
+      command_list: z.string().optional().default("ctrl+p,<leader>p").describe("List available commands"),
       agent_list: z.string().optional().default("<leader>a").describe("List agents"),
       agent_cycle: z.string().optional().default("tab").describe("Next agent"),
       agent_cycle_reverse: z.string().optional().default("shift+tab").describe("Previous agent"),
