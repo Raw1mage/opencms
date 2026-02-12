@@ -158,7 +158,7 @@
         ]
       }
     },
-    "/auth/{providerId}": {
+    "/auth/{providerID}": {
       "put": {
         "operationId": "auth.set",
         "summary": "Set auth credentials",
@@ -188,7 +188,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "providerId",
+            "name": "providerID",
             "schema": {
               "type": "string"
             },
@@ -240,7 +240,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "providerId",
+            "name": "providerID",
             "schema": {
               "type": "string"
             },
@@ -1425,53 +1425,6 @@
         ]
       }
     },
-    "/session/top": {
-      "get": {
-        "operationId": "session.top",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "summary": "Get session monitor snapshot",
-        "description": "Retrieve the latest top-like session monitor snapshot for active sessions.",
-        "responses": {
-          "200": {
-            "description": "Session monitor snapshot",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SessionMonitorInfo"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
-                }
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.session.top({\n  ...\n})"
-          }
-        ]
-      }
-    },
     "/session/{sessionID}": {
       "get": {
         "operationId": "session.get",
@@ -1876,7 +1829,7 @@
                   "modelID": {
                     "type": "string"
                   },
-                  "providerId": {
+                  "providerID": {
                     "type": "string"
                   },
                   "messageID": {
@@ -1884,7 +1837,7 @@
                     "pattern": "^msg.*"
                   }
                 },
-                "required": ["modelID", "providerId", "messageID"]
+                "required": ["modelID", "providerID", "messageID"]
               }
             }
           }
@@ -2255,7 +2208,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "providerId": {
+                  "providerID": {
                     "type": "string"
                   },
                   "modelID": {
@@ -2266,7 +2219,7 @@
                     "type": "boolean"
                   }
                 },
-                "required": ["providerId", "modelID"]
+                "required": ["providerID", "modelID"]
               }
             }
           }
@@ -2442,14 +2395,14 @@
                   "model": {
                     "type": "object",
                     "properties": {
-                      "providerId": {
+                      "providerID": {
                         "type": "string"
                       },
                       "modelID": {
                         "type": "string"
                       }
                     },
-                    "required": ["providerId", "modelID"]
+                    "required": ["providerID", "modelID"]
                   },
                   "agent": {
                     "type": "string"
@@ -2466,6 +2419,9 @@
                     "additionalProperties": {
                       "type": "boolean"
                     }
+                  },
+                  "format": {
+                    "$ref": "#/components/schemas/OutputFormat"
                   },
                   "system": {
                     "type": "string"
@@ -2818,14 +2774,14 @@
                   "model": {
                     "type": "object",
                     "properties": {
-                      "providerId": {
+                      "providerID": {
                         "type": "string"
                       },
                       "modelID": {
                         "type": "string"
                       }
                     },
-                    "required": ["providerId", "modelID"]
+                    "required": ["providerID", "modelID"]
                   },
                   "agent": {
                     "type": "string"
@@ -2842,6 +2798,9 @@
                     "additionalProperties": {
                       "type": "boolean"
                     }
+                  },
+                  "format": {
+                    "$ref": "#/components/schemas/OutputFormat"
                   },
                   "system": {
                     "type": "string"
@@ -3087,14 +3046,14 @@
                   "model": {
                     "type": "object",
                     "properties": {
-                      "providerId": {
+                      "providerID": {
                         "type": "string"
                       },
                       "modelID": {
                         "type": "string"
                       }
                     },
-                    "required": ["providerId", "modelID"]
+                    "required": ["providerID", "modelID"]
                   },
                   "command": {
                     "type": "string"
@@ -3948,7 +3907,7 @@
         ]
       }
     },
-    "/provider/{providerId}/oauth/authorize": {
+    "/provider/{providerID}/oauth/authorize": {
       "post": {
         "operationId": "provider.oauth.authorize",
         "parameters": [
@@ -3961,7 +3920,7 @@
           },
           {
             "in": "path",
-            "name": "providerId",
+            "name": "providerID",
             "schema": {
               "type": "string"
             },
@@ -4017,7 +3976,7 @@
         ]
       }
     },
-    "/provider/{providerId}/oauth/callback": {
+    "/provider/{providerID}/oauth/callback": {
       "post": {
         "operationId": "provider.oauth.callback",
         "parameters": [
@@ -4030,7 +3989,7 @@
           },
           {
             "in": "path",
-            "name": "providerId",
+            "name": "providerID",
             "schema": {
               "type": "string"
             },
@@ -4086,6 +4045,341 @@
           {
             "lang": "js",
             "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.provider.oauth.callback({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/find": {
+      "get": {
+        "operationId": "find.text",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pattern",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "summary": "Find text",
+        "description": "Search for text patterns across files in the project using ripgrep.",
+        "responses": {
+          "200": {
+            "description": "Matches",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "object",
+                        "properties": {
+                          "text": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["text"]
+                      },
+                      "lines": {
+                        "type": "object",
+                        "properties": {
+                          "text": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["text"]
+                      },
+                      "line_number": {
+                        "type": "number"
+                      },
+                      "absolute_offset": {
+                        "type": "number"
+                      },
+                      "submatches": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "match": {
+                              "type": "object",
+                              "properties": {
+                                "text": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["text"]
+                            },
+                            "start": {
+                              "type": "number"
+                            },
+                            "end": {
+                              "type": "number"
+                            }
+                          },
+                          "required": ["match", "start", "end"]
+                        }
+                      }
+                    },
+                    "required": ["path", "lines", "line_number", "absolute_offset", "submatches"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.find.text({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/find/file": {
+      "get": {
+        "operationId": "find.files",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "dirs",
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"]
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "type": "string",
+              "enum": ["file", "directory"]
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "summary": "Find files",
+        "description": "Search for files or directories by name or pattern in the project directory.",
+        "responses": {
+          "200": {
+            "description": "File paths",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.find.files({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/find/symbol": {
+      "get": {
+        "operationId": "find.symbols",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "summary": "Find symbols",
+        "description": "Search for workspace symbols like functions, classes, and variables using LSP.",
+        "responses": {
+          "200": {
+            "description": "Symbols",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Symbol"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.find.symbols({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/file": {
+      "get": {
+        "operationId": "file.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "summary": "List files",
+        "description": "List files and directories in a specified path.",
+        "responses": {
+          "200": {
+            "description": "Files and directories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FileNode"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.file.list({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/file/content": {
+      "get": {
+        "operationId": "file.read",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "summary": "Read file",
+        "description": "Read the content of a specified file.",
+        "responses": {
+          "200": {
+            "description": "File content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileContent"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.file.read({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/file/status": {
+      "get": {
+        "operationId": "file.status",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Get file status",
+        "description": "Get the git status of all files in the project.",
+        "responses": {
+          "200": {
+            "description": "File status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/File"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.file.status({\n  ...\n})"
           }
         ]
       }
@@ -5153,1478 +5447,6 @@
         ]
       }
     },
-    "/account": {
-      "get": {
-        "operationId": "account.listAll",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "summary": "List all accounts",
-        "description": "Get a list of all configured accounts grouped by provider family, with detailed status for Antigravity pool.",
-        "responses": {
-          "200": {
-            "description": "List of accounts by family",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "families": {
-                      "type": "object",
-                      "propertyNames": {
-                        "type": "string"
-                      },
-                      "additionalProperties": {
-                        "type": "object",
-                        "properties": {
-                          "activeAccount": {
-                            "type": "string"
-                          },
-                          "accounts": {
-                            "type": "object",
-                            "propertyNames": {
-                              "type": "string"
-                            },
-                            "additionalProperties": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "type": {
-                                      "type": "string",
-                                      "const": "api"
-                                    },
-                                    "name": {
-                                      "type": "string"
-                                    },
-                                    "apiKey": {
-                                      "type": "string"
-                                    },
-                                    "addedAt": {
-                                      "type": "number"
-                                    }
-                                  },
-                                  "required": ["type", "name", "apiKey", "addedAt"]
-                                },
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "type": {
-                                      "type": "string",
-                                      "const": "subscription"
-                                    },
-                                    "name": {
-                                      "type": "string"
-                                    },
-                                    "email": {
-                                      "type": "string"
-                                    },
-                                    "refreshToken": {
-                                      "type": "string"
-                                    },
-                                    "accessToken": {
-                                      "type": "string"
-                                    },
-                                    "expiresAt": {
-                                      "type": "number"
-                                    },
-                                    "projectId": {
-                                      "type": "string"
-                                    },
-                                    "managedProjectId": {
-                                      "type": "string"
-                                    },
-                                    "accountId": {
-                                      "type": "string"
-                                    },
-                                    "addedAt": {
-                                      "type": "number"
-                                    },
-                                    "rateLimitResetTimes": {
-                                      "type": "object",
-                                      "propertyNames": {
-                                        "type": "string"
-                                      },
-                                      "additionalProperties": {
-                                        "type": "number"
-                                      }
-                                    },
-                                    "coolingDownUntil": {
-                                      "type": "number"
-                                    },
-                                    "cooldownReason": {
-                                      "type": "string"
-                                    },
-                                    "fingerprint": {
-                                      "type": "object",
-                                      "propertyNames": {
-                                        "type": "string"
-                                      },
-                                      "additionalProperties": {}
-                                    }
-                                  },
-                                  "required": ["type", "name", "refreshToken", "addedAt"]
-                                }
-                              ]
-                            }
-                          }
-                        },
-                        "required": ["accounts"]
-                      }
-                    },
-                    "antigravity": {}
-                  },
-                  "required": ["families"]
-                }
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.account.listAll({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/account/{family}/active": {
-      "post": {
-        "operationId": "account.setActive",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "family",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "summary": "Set active account",
-        "description": "Set the active account for a specific provider family.",
-        "responses": {
-          "200": {
-            "description": "Active account set successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "accountId": {
-                    "type": "string"
-                  }
-                },
-                "required": ["accountId"]
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.account.setActive({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/account/antigravity/toggle": {
-      "post": {
-        "operationId": "account.antigravityToggle",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "summary": "Toggle Antigravity account",
-        "description": "Enable or disable a specific account in the Antigravity pool.",
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "index": {
-                    "type": "number"
-                  },
-                  "enabled": {
-                    "type": "boolean"
-                  }
-                },
-                "required": ["index", "enabled"]
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.account.antigravityToggle({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/account/auth/{family}/login": {
-      "get": {
-        "operationId": "account.login",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "family",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "summary": "Trigger login",
-        "description": "Get the login URL for a provider family.",
-        "responses": {
-          "200": {
-            "description": "Login URL info"
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.account.login({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/account/{family}/{accountId}": {
-      "delete": {
-        "operationId": "account.remove",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "family",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          },
-          {
-            "in": "path",
-            "name": "accountId",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "summary": "Remove account",
-        "description": "Remove a specific account.",
-        "responses": {
-          "200": {
-            "description": "Account removed successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
-                }
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.account.remove({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/accounts": {
-      "get": {
-        "operationId": "account.listAll",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "summary": "List all accounts",
-        "description": "Get a list of all configured accounts grouped by provider family, with detailed status for Antigravity pool.",
-        "responses": {
-          "200": {
-            "description": "List of accounts by family",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "families": {
-                      "type": "object",
-                      "propertyNames": {
-                        "type": "string"
-                      },
-                      "additionalProperties": {
-                        "type": "object",
-                        "properties": {
-                          "activeAccount": {
-                            "type": "string"
-                          },
-                          "accounts": {
-                            "type": "object",
-                            "propertyNames": {
-                              "type": "string"
-                            },
-                            "additionalProperties": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "type": {
-                                      "type": "string",
-                                      "const": "api"
-                                    },
-                                    "name": {
-                                      "type": "string"
-                                    },
-                                    "apiKey": {
-                                      "type": "string"
-                                    },
-                                    "addedAt": {
-                                      "type": "number"
-                                    }
-                                  },
-                                  "required": ["type", "name", "apiKey", "addedAt"]
-                                },
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "type": {
-                                      "type": "string",
-                                      "const": "subscription"
-                                    },
-                                    "name": {
-                                      "type": "string"
-                                    },
-                                    "email": {
-                                      "type": "string"
-                                    },
-                                    "refreshToken": {
-                                      "type": "string"
-                                    },
-                                    "accessToken": {
-                                      "type": "string"
-                                    },
-                                    "expiresAt": {
-                                      "type": "number"
-                                    },
-                                    "projectId": {
-                                      "type": "string"
-                                    },
-                                    "managedProjectId": {
-                                      "type": "string"
-                                    },
-                                    "accountId": {
-                                      "type": "string"
-                                    },
-                                    "addedAt": {
-                                      "type": "number"
-                                    },
-                                    "rateLimitResetTimes": {
-                                      "type": "object",
-                                      "propertyNames": {
-                                        "type": "string"
-                                      },
-                                      "additionalProperties": {
-                                        "type": "number"
-                                      }
-                                    },
-                                    "coolingDownUntil": {
-                                      "type": "number"
-                                    },
-                                    "cooldownReason": {
-                                      "type": "string"
-                                    },
-                                    "fingerprint": {
-                                      "type": "object",
-                                      "propertyNames": {
-                                        "type": "string"
-                                      },
-                                      "additionalProperties": {}
-                                    }
-                                  },
-                                  "required": ["type", "name", "refreshToken", "addedAt"]
-                                }
-                              ]
-                            }
-                          }
-                        },
-                        "required": ["accounts"]
-                      }
-                    },
-                    "antigravity": {}
-                  },
-                  "required": ["families"]
-                }
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.account.listAll({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/accounts/{family}/active": {
-      "post": {
-        "operationId": "account.setActive",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "family",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "summary": "Set active account",
-        "description": "Set the active account for a specific provider family.",
-        "responses": {
-          "200": {
-            "description": "Active account set successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "accountId": {
-                    "type": "string"
-                  }
-                },
-                "required": ["accountId"]
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.account.setActive({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/accounts/antigravity/toggle": {
-      "post": {
-        "operationId": "account.antigravityToggle",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "summary": "Toggle Antigravity account",
-        "description": "Enable or disable a specific account in the Antigravity pool.",
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "index": {
-                    "type": "number"
-                  },
-                  "enabled": {
-                    "type": "boolean"
-                  }
-                },
-                "required": ["index", "enabled"]
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.account.antigravityToggle({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/accounts/auth/{family}/login": {
-      "get": {
-        "operationId": "account.login",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "family",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "summary": "Trigger login",
-        "description": "Get the login URL for a provider family.",
-        "responses": {
-          "200": {
-            "description": "Login URL info"
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.account.login({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/accounts/{family}/{accountId}": {
-      "delete": {
-        "operationId": "account.remove",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "family",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          },
-          {
-            "in": "path",
-            "name": "accountId",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "summary": "Remove account",
-        "description": "Remove a specific account.",
-        "responses": {
-          "200": {
-            "description": "Account removed successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
-                }
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.account.remove({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/rotation/status": {
-      "get": {
-        "operationId": "rotation.status",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "summary": "Get rotation status",
-        "description": "Get real-time status of all accounts, rate limits, and model health for the 3D rotation system.",
-        "responses": {
-          "200": {
-            "description": "Rotation status",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "accounts": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "provider": {
-                            "type": "string"
-                          },
-                          "family": {
-                            "type": "string"
-                          },
-                          "type": {
-                            "type": "string",
-                            "enum": ["subscription", "api", "oauth"]
-                          },
-                          "healthScore": {
-                            "type": "number"
-                          },
-                          "isRateLimited": {
-                            "type": "boolean"
-                          },
-                          "rateLimitResetAt": {
-                            "type": "number"
-                          },
-                          "consecutiveFailures": {
-                            "type": "number"
-                          },
-                          "lastSuccess": {
-                            "type": "number"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "provider",
-                          "family",
-                          "type",
-                          "healthScore",
-                          "isRateLimited",
-                          "consecutiveFailures"
-                        ]
-                      }
-                    },
-                    "modelHealth": {
-                      "type": "object",
-                      "propertyNames": {
-                        "type": "string"
-                      },
-                      "additionalProperties": {
-                        "type": "object",
-                        "properties": {
-                          "healthScore": {
-                            "type": "number"
-                          },
-                          "isAvailable": {
-                            "type": "boolean"
-                          },
-                          "lastRateLimit": {
-                            "type": "number"
-                          }
-                        },
-                        "required": ["healthScore", "isAvailable"]
-                      }
-                    },
-                    "recommended": {
-                      "type": "object",
-                      "properties": {
-                        "dialog": {
-                          "type": "object",
-                          "properties": {
-                            "providerId": {
-                              "type": "string"
-                            },
-                            "accountId": {
-                              "type": "string"
-                            },
-                            "modelID": {
-                              "type": "string"
-                            }
-                          },
-                          "required": ["providerId", "accountId", "modelID"]
-                        },
-                        "task": {
-                          "type": "object",
-                          "properties": {
-                            "providerId": {
-                              "type": "string"
-                            },
-                            "accountId": {
-                              "type": "string"
-                            },
-                            "modelID": {
-                              "type": "string"
-                            }
-                          },
-                          "required": ["providerId", "accountId", "modelID"]
-                        },
-                        "background": {
-                          "type": "object",
-                          "properties": {
-                            "providerId": {
-                              "type": "string"
-                            },
-                            "accountId": {
-                              "type": "string"
-                            },
-                            "modelID": {
-                              "type": "string"
-                            }
-                          },
-                          "required": ["providerId", "accountId", "modelID"]
-                        }
-                      }
-                    },
-                    "timestamp": {
-                      "type": "number"
-                    }
-                  },
-                  "required": ["accounts", "modelHealth", "recommended", "timestamp"]
-                }
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.rotation.status({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/rotation/recommend": {
-      "post": {
-        "operationId": "rotation.recommend",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "summary": "Get model recommendation",
-        "description": "Get the best model vector recommendation for a specific task type.",
-        "responses": {
-          "200": {
-            "description": "Recommended model vector",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "vector": {
-                      "type": "object",
-                      "properties": {
-                        "providerId": {
-                          "type": "string"
-                        },
-                        "accountId": {
-                          "type": "string"
-                        },
-                        "modelID": {
-                          "type": "string"
-                        }
-                      },
-                      "required": ["providerId", "accountId", "modelID"]
-                    },
-                    "candidates": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "vector": {
-                            "type": "object",
-                            "properties": {
-                              "providerId": {
-                                "type": "string"
-                              },
-                              "accountId": {
-                                "type": "string"
-                              },
-                              "modelID": {
-                                "type": "string"
-                              }
-                            },
-                            "required": ["providerId", "accountId", "modelID"]
-                          },
-                          "score": {
-                            "type": "number"
-                          },
-                          "reason": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["vector", "score", "reason"]
-                      }
-                    },
-                    "fallbackChain": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "providerId": {
-                            "type": "string"
-                          },
-                          "accountId": {
-                            "type": "string"
-                          },
-                          "modelID": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["providerId", "accountId", "modelID"]
-                      }
-                    }
-                  },
-                  "required": ["candidates", "fallbackChain"]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "taskType": {
-                    "default": "dialog",
-                    "type": "string",
-                    "enum": ["dialog", "task", "background", "coding", "review"]
-                  },
-                  "preferSubscription": {
-                    "default": true,
-                    "type": "boolean"
-                  },
-                  "currentVector": {
-                    "type": "object",
-                    "properties": {
-                      "providerId": {
-                        "type": "string"
-                      },
-                      "accountId": {
-                        "type": "string"
-                      },
-                      "modelID": {
-                        "type": "string"
-                      }
-                    },
-                    "required": ["providerId", "accountId", "modelID"]
-                  }
-                }
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.rotation.recommend({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/rotation/fallback": {
-      "post": {
-        "operationId": "rotation.fallback",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "summary": "Get fallback for rate-limited model",
-        "description": "When a model is rate-limited, get the best fallback option.",
-        "responses": {
-          "200": {
-            "description": "Fallback recommendation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "fallback": {
-                      "type": "object",
-                      "properties": {
-                        "providerId": {
-                          "type": "string"
-                        },
-                        "accountId": {
-                          "type": "string"
-                        },
-                        "modelID": {
-                          "type": "string"
-                        }
-                      },
-                      "required": ["providerId", "accountId", "modelID"]
-                    },
-                    "reason": {
-                      "type": "string"
-                    },
-                    "waitTimeMs": {
-                      "type": "number"
-                    }
-                  },
-                  "required": ["reason"]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "current": {
-                    "type": "object",
-                    "properties": {
-                      "providerId": {
-                        "type": "string"
-                      },
-                      "accountId": {
-                        "type": "string"
-                      },
-                      "modelID": {
-                        "type": "string"
-                      }
-                    },
-                    "required": ["providerId", "accountId", "modelID"]
-                  },
-                  "strategy": {
-                    "default": "account-first",
-                    "type": "string",
-                    "enum": ["account-first", "model-first", "provider-first", "any-available"]
-                  }
-                },
-                "required": ["current"]
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.rotation.fallback({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/find": {
-      "get": {
-        "operationId": "find.text",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "pattern",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "summary": "Find text",
-        "description": "Search for text patterns across files in the project using ripgrep.",
-        "responses": {
-          "200": {
-            "description": "Matches",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "path": {
-                        "type": "object",
-                        "properties": {
-                          "text": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["text"]
-                      },
-                      "lines": {
-                        "type": "object",
-                        "properties": {
-                          "text": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["text"]
-                      },
-                      "line_number": {
-                        "type": "number"
-                      },
-                      "absolute_offset": {
-                        "type": "number"
-                      },
-                      "submatches": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "match": {
-                              "type": "object",
-                              "properties": {
-                                "text": {
-                                  "type": "string"
-                                }
-                              },
-                              "required": ["text"]
-                            },
-                            "start": {
-                              "type": "number"
-                            },
-                            "end": {
-                              "type": "number"
-                            }
-                          },
-                          "required": ["match", "start", "end"]
-                        }
-                      }
-                    },
-                    "required": ["path", "lines", "line_number", "absolute_offset", "submatches"]
-                  }
-                }
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.find.text({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/find/file": {
-      "get": {
-        "operationId": "find.files",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          },
-          {
-            "in": "query",
-            "name": "dirs",
-            "schema": {
-              "type": "string",
-              "enum": ["true", "false"]
-            }
-          },
-          {
-            "in": "query",
-            "name": "type",
-            "schema": {
-              "type": "string",
-              "enum": ["file", "directory"]
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 200
-            }
-          }
-        ],
-        "summary": "Find files",
-        "description": "Search for files or directories by name or pattern in the project directory.",
-        "responses": {
-          "200": {
-            "description": "File paths",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.find.files({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/find/symbol": {
-      "get": {
-        "operationId": "find.symbols",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "summary": "Find symbols",
-        "description": "Search for workspace symbols like functions, classes, and variables using LSP.",
-        "responses": {
-          "200": {
-            "description": "Symbols",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Symbol"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.find.symbols({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/file": {
-      "get": {
-        "operationId": "file.list",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "summary": "List files",
-        "description": "List files and directories in a specified path.",
-        "responses": {
-          "200": {
-            "description": "Files and directories",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/FileNode"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.file.list({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/file/content": {
-      "get": {
-        "operationId": "file.read",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "summary": "Read file",
-        "description": "Read the content of a specified file.",
-        "responses": {
-          "200": {
-            "description": "File content",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FileContent"
-                }
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.file.read({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/file/status": {
-      "get": {
-        "operationId": "file.status",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "directory",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "summary": "Get file status",
-        "description": "Get the git status of all files in the project.",
-        "responses": {
-          "200": {
-            "description": "File status",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/File"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.file.status({\n  ...\n})"
-          }
-        ]
-      }
-    },
     "/instance/dispose": {
       "post": {
         "operationId": "instance.dispose",
@@ -6910,9 +5732,12 @@
                       },
                       "location": {
                         "type": "string"
+                      },
+                      "content": {
+                        "type": "string"
                       }
                     },
-                    "required": ["name", "description", "location"]
+                    "required": ["name", "description", "location", "content"]
                   }
                 }
               }
@@ -7254,6 +6079,52 @@
         },
         "required": ["type", "properties"]
       },
+      "OutputFormatText": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "text"
+          }
+        },
+        "required": ["type"]
+      },
+      "JSONSchema": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {}
+      },
+      "OutputFormatJsonSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "json_schema"
+          },
+          "schema": {
+            "$ref": "#/components/schemas/JSONSchema"
+          },
+          "retryCount": {
+            "default": 2,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["type", "schema"]
+      },
+      "OutputFormat": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/OutputFormatText"
+          },
+          {
+            "$ref": "#/components/schemas/OutputFormatJsonSchema"
+          }
+        ]
+      },
       "FileDiff": {
         "type": "object",
         "properties": {
@@ -7271,6 +6142,10 @@
           },
           "deletions": {
             "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["added", "deleted", "modified"]
           }
         },
         "required": ["file", "before", "after", "additions", "deletions"]
@@ -7297,6 +6172,9 @@
             },
             "required": ["created"]
           },
+          "format": {
+            "$ref": "#/components/schemas/OutputFormat"
+          },
           "summary": {
             "type": "object",
             "properties": {
@@ -7321,14 +6199,14 @@
           "model": {
             "type": "object",
             "properties": {
-              "providerId": {
+              "providerID": {
                 "type": "string"
               },
               "modelID": {
                 "type": "string"
               }
             },
-            "required": ["providerId", "modelID"]
+            "required": ["providerID", "modelID"]
           },
           "system": {
             "type": "string"
@@ -7358,14 +6236,14 @@
           "data": {
             "type": "object",
             "properties": {
-              "providerId": {
+              "providerID": {
                 "type": "string"
               },
               "message": {
                 "type": "string"
               }
             },
-            "required": ["providerId", "message"]
+            "required": ["providerID", "message"]
           }
         },
         "required": ["name", "data"]
@@ -7414,6 +6292,50 @@
             "type": "object",
             "properties": {
               "message": {
+                "type": "string"
+              }
+            },
+            "required": ["message"]
+          }
+        },
+        "required": ["name", "data"]
+      },
+      "StructuredOutputError": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "const": "StructuredOutputError"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "retries": {
+                "type": "number"
+              }
+            },
+            "required": ["message", "retries"]
+          }
+        },
+        "required": ["name", "data"]
+      },
+      "ContextOverflowError": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "const": "ContextOverflowError"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "responseBody": {
                 "type": "string"
               }
             },
@@ -7508,6 +6430,12 @@
                 "$ref": "#/components/schemas/MessageAbortedError"
               },
               {
+                "$ref": "#/components/schemas/StructuredOutputError"
+              },
+              {
+                "$ref": "#/components/schemas/ContextOverflowError"
+              },
+              {
                 "$ref": "#/components/schemas/APIError"
               }
             ]
@@ -7518,7 +6446,7 @@
           "modelID": {
             "type": "string"
           },
-          "providerId": {
+          "providerID": {
             "type": "string"
           },
           "mode": {
@@ -7575,6 +6503,10 @@
             },
             "required": ["input", "output", "reasoning", "cache"]
           },
+          "structured": {},
+          "variant": {
+            "type": "string"
+          },
           "finish": {
             "type": "string"
           }
@@ -7586,7 +6518,7 @@
           "time",
           "parentID",
           "modelID",
-          "providerId",
+          "providerID",
           "mode",
           "agent",
           "path",
@@ -7720,14 +6652,14 @@
           "model": {
             "type": "object",
             "properties": {
-              "providerId": {
+              "providerID": {
                 "type": "string"
               },
               "modelID": {
                 "type": "string"
               }
             },
-            "required": ["providerId", "modelID"]
+            "required": ["providerID", "modelID"]
           },
           "command": {
             "type": "string"
@@ -8529,121 +7461,6 @@
         },
         "required": ["type", "properties"]
       },
-      "Event.tui.prompt.append": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "tui.prompt.append"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "text": {
-                "type": "string"
-              }
-            },
-            "required": ["text"]
-          }
-        },
-        "required": ["type", "properties"]
-      },
-      "Event.tui.command.execute": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "tui.command.execute"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "command": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "enum": [
-                      "session.list",
-                      "session.new",
-                      "session.share",
-                      "session.interrupt",
-                      "session.compact",
-                      "session.page.up",
-                      "session.page.down",
-                      "session.line.up",
-                      "session.line.down",
-                      "session.half.page.up",
-                      "session.half.page.down",
-                      "session.first",
-                      "session.last",
-                      "prompt.clear",
-                      "prompt.submit",
-                      "agent.cycle"
-                    ]
-                  },
-                  {
-                    "type": "string"
-                  }
-                ]
-              }
-            },
-            "required": ["command"]
-          }
-        },
-        "required": ["type", "properties"]
-      },
-      "Event.tui.toast.show": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "tui.toast.show"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "title": {
-                "type": "string"
-              },
-              "message": {
-                "type": "string"
-              },
-              "variant": {
-                "type": "string",
-                "enum": ["info", "success", "warning", "error"]
-              },
-              "duration": {
-                "description": "Duration in milliseconds",
-                "default": 5000,
-                "type": "number"
-              }
-            },
-            "required": ["message", "variant"]
-          }
-        },
-        "required": ["type", "properties"]
-      },
-      "Event.tui.session.select": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "tui.session.select"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "description": "Session ID to navigate to",
-                "type": "string",
-                "pattern": "^ses"
-              }
-            },
-            "required": ["sessionID"]
-          }
-        },
-        "required": ["type", "properties"]
-      },
       "SessionStatus": {
         "anyOf": [
           {
@@ -8974,6 +7791,121 @@
         },
         "required": ["type", "properties"]
       },
+      "Event.tui.prompt.append": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tui.prompt.append"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": ["text"]
+          }
+        },
+        "required": ["type", "properties"]
+      },
+      "Event.tui.command.execute": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tui.command.execute"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "session.list",
+                      "session.new",
+                      "session.share",
+                      "session.interrupt",
+                      "session.compact",
+                      "session.page.up",
+                      "session.page.down",
+                      "session.line.up",
+                      "session.line.down",
+                      "session.half.page.up",
+                      "session.half.page.down",
+                      "session.first",
+                      "session.last",
+                      "prompt.clear",
+                      "prompt.submit",
+                      "agent.cycle"
+                    ]
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "required": ["command"]
+          }
+        },
+        "required": ["type", "properties"]
+      },
+      "Event.tui.toast.show": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tui.toast.show"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "variant": {
+                "type": "string",
+                "enum": ["info", "success", "warning", "error"]
+              },
+              "duration": {
+                "description": "Duration in milliseconds",
+                "default": 5000,
+                "type": "number"
+              }
+            },
+            "required": ["message", "variant"]
+          }
+        },
+        "required": ["type", "properties"]
+      },
+      "Event.tui.session.select": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tui.session.select"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "description": "Session ID to navigate to",
+                "type": "string",
+                "pattern": "^ses"
+              }
+            },
+            "required": ["sessionID"]
+          }
+        },
+        "required": ["type", "properties"]
+      },
       "Event.mcp.tools.changed": {
         "type": "object",
         "properties": {
@@ -9278,6 +8210,12 @@
                     "$ref": "#/components/schemas/MessageAbortedError"
                   },
                   {
+                    "$ref": "#/components/schemas/StructuredOutputError"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ContextOverflowError"
+                  },
+                  {
                     "$ref": "#/components/schemas/APIError"
                   }
                 ]
@@ -9507,18 +8445,6 @@
             "$ref": "#/components/schemas/Event.permission.replied"
           },
           {
-            "$ref": "#/components/schemas/Event.tui.prompt.append"
-          },
-          {
-            "$ref": "#/components/schemas/Event.tui.command.execute"
-          },
-          {
-            "$ref": "#/components/schemas/Event.tui.toast.show"
-          },
-          {
-            "$ref": "#/components/schemas/Event.tui.session.select"
-          },
-          {
             "$ref": "#/components/schemas/Event.session.status"
           },
           {
@@ -9541,6 +8467,18 @@
           },
           {
             "$ref": "#/components/schemas/Event.todo.updated"
+          },
+          {
+            "$ref": "#/components/schemas/Event.tui.prompt.append"
+          },
+          {
+            "$ref": "#/components/schemas/Event.tui.command.execute"
+          },
+          {
+            "$ref": "#/components/schemas/Event.tui.toast.show"
+          },
+          {
+            "$ref": "#/components/schemas/Event.tui.session.select"
           },
           {
             "$ref": "#/components/schemas/Event.mcp.tools.changed"
@@ -9820,11 +8758,6 @@
             "default": "none",
             "type": "string"
           },
-          "admin_panel": {
-            "description": "Open admin panel",
-            "default": "none",
-            "type": "string"
-          },
           "command_list": {
             "description": "List available commands",
             "default": "ctrl+p",
@@ -10074,6 +9007,11 @@
             "description": "Toggle tips on home screen",
             "default": "<leader>h",
             "type": "string"
+          },
+          "display_thinking": {
+            "description": "Toggle thinking blocks visibility",
+            "default": "none",
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -10100,6 +9038,10 @@
           "mdns": {
             "description": "Enable mDNS service discovery",
             "type": "boolean"
+          },
+          "mdnsDomain": {
+            "description": "Custom domain name for mDNS service (default: opencode.local)",
+            "type": "string"
           },
           "cors": {
             "description": "Additional domains to allow for CORS",
@@ -10258,9 +9200,17 @@
             "additionalProperties": {}
           },
           "color": {
-            "description": "Hex color code for the agent (e.g., #FF5733)",
-            "type": "string",
-            "pattern": "^#[0-9a-fA-F]{6}$"
+            "description": "Hex color code (e.g., #FF5733) or theme color (e.g., primary)",
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              },
+              {
+                "type": "string",
+                "enum": ["primary", "secondary", "accent", "success", "warning", "error", "info"]
+              }
+            ]
           },
           "steps": {
             "description": "Maximum number of agentic iterations before forcing text-only response",
@@ -10724,6 +9674,13 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "urls": {
+                "description": "URLs to fetch skills from (e.g., https://example.com/.well-known/skills/)",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
               }
             }
           },
@@ -11045,69 +10002,6 @@
           "experimental": {
             "type": "object",
             "properties": {
-              "hook": {
-                "type": "object",
-                "properties": {
-                  "file_edited": {
-                    "type": "object",
-                    "propertyNames": {
-                      "type": "string"
-                    },
-                    "additionalProperties": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "command": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
-                          },
-                          "environment": {
-                            "type": "object",
-                            "propertyNames": {
-                              "type": "string"
-                            },
-                            "additionalProperties": {
-                              "type": "string"
-                            }
-                          }
-                        },
-                        "required": ["command"]
-                      }
-                    }
-                  },
-                  "session_completed": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "command": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "environment": {
-                          "type": "object",
-                          "propertyNames": {
-                            "type": "string"
-                          },
-                          "additionalProperties": {
-                            "type": "string"
-                          }
-                        }
-                      },
-                      "required": ["command"]
-                    }
-                  }
-                }
-              },
-              "chatMaxRetries": {
-                "description": "Number of retries for chat completions on failure",
-                "type": "number"
-              },
               "disable_paste_summary": {
                 "type": "boolean"
               },
@@ -11129,51 +10023,6 @@
               "continue_loop_on_deny": {
                 "description": "Continue the agent loop when a tool call is denied",
                 "type": "boolean"
-              },
-              "subagent_workflow": {
-                "type": "object",
-                "properties": {
-                  "enabled": {
-                    "description": "Enable automatic subagent workflow",
-                    "type": "boolean"
-                  },
-                  "keywords": {
-                    "description": "Keywords that trigger subagent delegation",
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "roles": {
-                    "description": "Ordered subagent roles to execute",
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "min_chars": {
-                    "description": "Minimum characters to treat as non-trivial",
-                    "type": "integer",
-                    "exclusiveMinimum": 0,
-                    "maximum": 9007199254740991
-                  },
-                  "min_lines": {
-                    "description": "Minimum lines to treat as non-trivial",
-                    "type": "integer",
-                    "exclusiveMinimum": 0,
-                    "maximum": 9007199254740991
-                  },
-                  "models": {
-                    "description": "Per-role model overrides in provider/model format",
-                    "type": "object",
-                    "propertyNames": {
-                      "type": "string"
-                    },
-                    "additionalProperties": {
-                      "type": "string"
-                    }
-                  }
-                }
               },
               "mcp_timeout": {
                 "description": "Timeout in milliseconds for model context protocol (MCP) requests",
@@ -11224,9 +10073,6 @@
             "type": "number"
           },
           "accountId": {
-            "type": "string"
-          },
-          "email": {
             "type": "string"
           },
           "enterpriseUrl": {
@@ -11302,7 +10148,7 @@
           "id": {
             "type": "string"
           },
-          "providerId": {
+          "providerID": {
             "type": "string"
           },
           "api": {
@@ -11505,7 +10351,7 @@
         },
         "required": [
           "id",
-          "providerId",
+          "providerID",
           "api",
           "name",
           "capabilities",
@@ -11545,18 +10391,6 @@
               "type": "string"
             },
             "additionalProperties": {}
-          },
-          "active": {
-            "type": "boolean"
-          },
-          "email": {
-            "type": "string"
-          },
-          "coolingDownUntil": {
-            "type": "number"
-          },
-          "cooldownReason": {
-            "type": "string"
           },
           "models": {
             "type": "object",
@@ -11660,141 +10494,6 @@
           }
         },
         "required": ["name", "uri", "client"]
-      },
-      "SessionMonitorLevel": {
-        "type": "string",
-        "enum": ["session", "sub-session", "agent", "sub-agent", "tool"]
-      },
-      "SessionMonitorStatus": {
-        "anyOf": [
-          {
-            "$ref": "#/components/schemas/SessionStatus"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "type": {
-                "type": "string",
-                "const": "working"
-              }
-            },
-            "required": ["type"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "type": {
-                "type": "string",
-                "const": "compacting"
-              }
-            },
-            "required": ["type"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "type": {
-                "type": "string",
-                "const": "pending"
-              }
-            },
-            "required": ["type"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "type": {
-                "type": "string",
-                "const": "error"
-              },
-              "message": {
-                "type": "string"
-              }
-            },
-            "required": ["type"]
-          }
-        ]
-      },
-      "SessionMonitorInfo": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "level": {
-            "$ref": "#/components/schemas/SessionMonitorLevel"
-          },
-          "sessionID": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "parentID": {
-            "type": "string"
-          },
-          "agent": {
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/SessionMonitorStatus"
-          },
-          "model": {
-            "type": "object",
-            "properties": {
-              "providerId": {
-                "type": "string"
-              },
-              "modelID": {
-                "type": "string"
-              }
-            },
-            "required": ["providerId", "modelID"]
-          },
-          "requests": {
-            "type": "number"
-          },
-          "tokens": {
-            "type": "object",
-            "properties": {
-              "input": {
-                "type": "number"
-              },
-              "output": {
-                "type": "number"
-              },
-              "reasoning": {
-                "type": "number"
-              },
-              "cache": {
-                "type": "object",
-                "properties": {
-                  "read": {
-                    "type": "number"
-                  },
-                  "write": {
-                    "type": "number"
-                  }
-                },
-                "required": ["read", "write"]
-              }
-            },
-            "required": ["input", "output", "reasoning", "cache"]
-          },
-          "totalTokens": {
-            "type": "number"
-          },
-          "activeTool": {
-            "type": "string"
-          },
-          "activeToolStatus": {
-            "type": "string"
-          },
-          "updated": {
-            "type": "number"
-          }
-        },
-        "required": ["id", "level", "sessionID", "title", "status", "requests", "tokens", "totalTokens", "updated"]
       },
       "TextPartInput": {
         "type": "object",
@@ -11919,14 +10618,14 @@
           "model": {
             "type": "object",
             "properties": {
-              "providerId": {
+              "providerID": {
                 "type": "string"
               },
               "modelID": {
                 "type": "string"
               }
             },
-            "required": ["providerId", "modelID"]
+            "required": ["providerID", "modelID"]
           },
           "command": {
             "type": "string"
@@ -11978,81 +10677,6 @@
           }
         },
         "required": ["url", "method", "instructions"]
-      },
-      "MCPStatusConnected": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "const": "connected"
-          }
-        },
-        "required": ["status"]
-      },
-      "MCPStatusDisabled": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "const": "disabled"
-          }
-        },
-        "required": ["status"]
-      },
-      "MCPStatusFailed": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "const": "failed"
-          },
-          "error": {
-            "type": "string"
-          }
-        },
-        "required": ["status", "error"]
-      },
-      "MCPStatusNeedsAuth": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "const": "needs_auth"
-          }
-        },
-        "required": ["status"]
-      },
-      "MCPStatusNeedsClientRegistration": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "const": "needs_client_registration"
-          },
-          "error": {
-            "type": "string"
-          }
-        },
-        "required": ["status", "error"]
-      },
-      "MCPStatus": {
-        "anyOf": [
-          {
-            "$ref": "#/components/schemas/MCPStatusConnected"
-          },
-          {
-            "$ref": "#/components/schemas/MCPStatusDisabled"
-          },
-          {
-            "$ref": "#/components/schemas/MCPStatusFailed"
-          },
-          {
-            "$ref": "#/components/schemas/MCPStatusNeedsAuth"
-          },
-          {
-            "$ref": "#/components/schemas/MCPStatusNeedsClientRegistration"
-          }
-        ]
       },
       "Symbol": {
         "type": "object",
@@ -12194,6 +10818,81 @@
         },
         "required": ["path", "added", "removed", "status"]
       },
+      "MCPStatusConnected": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "connected"
+          }
+        },
+        "required": ["status"]
+      },
+      "MCPStatusDisabled": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "disabled"
+          }
+        },
+        "required": ["status"]
+      },
+      "MCPStatusFailed": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "failed"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": ["status", "error"]
+      },
+      "MCPStatusNeedsAuth": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "needs_auth"
+          }
+        },
+        "required": ["status"]
+      },
+      "MCPStatusNeedsClientRegistration": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "needs_client_registration"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": ["status", "error"]
+      },
+      "MCPStatus": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/MCPStatusConnected"
+          },
+          {
+            "$ref": "#/components/schemas/MCPStatusDisabled"
+          },
+          {
+            "$ref": "#/components/schemas/MCPStatusFailed"
+          },
+          {
+            "$ref": "#/components/schemas/MCPStatusNeedsAuth"
+          },
+          {
+            "$ref": "#/components/schemas/MCPStatusNeedsClientRegistration"
+          }
+        ]
+      },
       "Path": {
         "type": "object",
         "properties": {
@@ -12239,8 +10938,9 @@
           "model": {
             "type": "string"
           },
-          "mcp": {
-            "type": "boolean"
+          "source": {
+            "type": "string",
+            "enum": ["command", "mcp", "skill"]
           },
           "template": {
             "anyOf": [
@@ -12260,9 +10960,6 @@
             "items": {
               "type": "string"
             }
-          },
-          "source": {
-            "type": "string"
           }
         },
         "required": ["name", "template", "hints"]
@@ -12304,11 +11001,11 @@
               "modelID": {
                 "type": "string"
               },
-              "providerId": {
+              "providerID": {
                 "type": "string"
               }
             },
-            "required": ["modelID", "providerId"]
+            "required": ["modelID", "providerID"]
           },
           "variant": {
             "type": "string"
