@@ -28,7 +28,6 @@ import { ListTool } from "../tool/ls"
 import { FileTime } from "../file/time"
 import { Flag } from "../flag/flag"
 import { ulid } from "ulid"
-import { spawn } from "child_process"
 import { Command } from "../command"
 import { $, fileURLToPath, pathToFileURL } from "bun"
 import { ConfigMarkdown } from "../config/markdown"
@@ -45,8 +44,7 @@ import { PermissionNext } from "@/permission/next"
 import { SessionStatus } from "./status"
 import { TuiEvent } from "@/cli/cmd/tui/event"
 import { iife } from "@/util/iife"
-import { Shell } from "@/shell/shell"
-import { Env } from "@/env"
+import { executeShellCommand } from "./shell-executor"
 import { Global } from "../global"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -125,7 +123,6 @@ ${skills}
 Current directory, README, and core skills are already provided in <preloaded_context>. DO NOT run ls, read README, or load core skills.
 `
   }
-  const MAX_LIVE_OUTPUT_METADATA = 50_000
   export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
   const WORKFLOW_KEYWORDS = [
     "分工",
@@ -1637,131 +1634,20 @@ NOTE: At any point in time through this workflow you should feel free to ask the
       },
     }
     await Session.updatePart(part)
-    const shell = Shell.preferred()
-    const shellName = (
-      process.platform === "win32" ? path.win32.basename(shell, ".exe") : path.basename(shell)
-    ).toLowerCase()
-
-    const invocations: Record<string, { args: string[] }> = {
-      nu: {
-        args: ["-c", input.command],
-      },
-      fish: {
-        args: ["-c", input.command],
-      },
-      zsh: {
-        args: [
-          "-l",
-          "-c",
-          `
-            [[ -f ~/.zshenv ]] && source ~/.zshenv >/dev/null 2>&1 || true
-            [[ -f "\${ZDOTDIR:-$HOME}/.zshrc" ]] && source "\${ZDOTDIR:-$HOME}/.zshrc" >/dev/null 2>&1 || true
-            eval ${JSON.stringify(input.command)}
-          `,
-        ],
-      },
-      bash: {
-        args: [
-          "-l",
-          "-c",
-          `
-            shopt -s expand_aliases
-            [[ -f ~/.bashrc ]] && source ~/.bashrc >/dev/null 2>&1 || true
-            eval ${JSON.stringify(input.command)}
-          `,
-        ],
-      },
-      // Windows cmd
-      cmd: {
-        args: ["/c", input.command],
-      },
-      // Windows PowerShell
-      powershell: {
-        args: ["-NoProfile", "-Command", input.command],
-      },
-      pwsh: {
-        args: ["-NoProfile", "-Command", input.command],
-      },
-      // Fallback: any shell that doesn't match those above
-      //  - No -l, for max compatibility
-      "": {
-        args: ["-c", `${input.command}`],
-      },
-    }
-
-    const matchingInvocation = invocations[shellName] ?? invocations[""]
-    const args = matchingInvocation?.args
-
-    const proc = spawn(shell, args, {
+    const { output } = await executeShellCommand({
+      command: input.command,
+      abort,
       cwd: Instance.directory,
-      detached: process.platform !== "win32",
-      stdio: ["ignore", "pipe", "pipe"],
-      env: {
-        ...Env.all(),
-        TERM: "dumb",
+      onLiveOutput: (liveOutput) => {
+        if (part.state.status === "running") {
+          part.state.metadata = {
+            output: liveOutput,
+            description: "",
+          }
+          void Session.updatePart(part)
+        }
       },
     })
-
-    let output = ""
-    const outputForMetadata = () =>
-      output.length > MAX_LIVE_OUTPUT_METADATA ? output.slice(0, MAX_LIVE_OUTPUT_METADATA) + "\n\n..." : output
-
-    proc.stdout?.on("data", (chunk) => {
-      output += chunk.toString()
-      if (part.state.status === "running") {
-        part.state.metadata = {
-          output: outputForMetadata(),
-          description: "",
-        }
-        void Session.updatePart(part)
-      }
-    })
-
-    proc.stderr?.on("data", (chunk) => {
-      output += chunk.toString()
-      if (part.state.status === "running") {
-        part.state.metadata = {
-          output: outputForMetadata(),
-          description: "",
-        }
-        void Session.updatePart(part)
-      }
-    })
-
-    let aborted = false
-    let exited = false
-
-    const kill = () => Shell.killTree(proc, { exited: () => exited })
-
-    if (abort.aborted) {
-      aborted = true
-      await kill()
-    }
-
-    const abortHandler = () => {
-      aborted = true
-      void kill()
-    }
-
-    abort.addEventListener("abort", abortHandler, { once: true })
-
-    await new Promise<void>((resolve) => {
-      proc.once("close", () => {
-        exited = true
-        abort.removeEventListener("abort", abortHandler)
-        resolve()
-      })
-      proc.once("error", (error) => {
-        exited = true
-        output += `\n\n<metadata>Failed to execute shell command: ${error instanceof Error ? error.message : String(error)}</metadata>`
-        abort.removeEventListener("abort", abortHandler)
-        resolve()
-      })
-    })
-
-    if (aborted) {
-      output += "\n\n" + ["<metadata>", "User aborted the command", "</metadata>"].join("\n")
-    }
     msg.time.completed = Date.now()
     await Session.updateMessage(msg)
     if (part.state.status === "running") {
