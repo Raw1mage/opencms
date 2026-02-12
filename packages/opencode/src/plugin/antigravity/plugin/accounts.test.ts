@@ -1,13 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import {
-  AccountManager,
-  type ModelFamily,
-  type HeaderStyle,
-  parseRateLimitReason,
-  calculateBackoffMs,
-  type RateLimitReason,
-} from "./accounts"
+import { AccountManager, type ModelFamily, type HeaderStyle, type RateLimitReason } from "./accounts"
+import { parseRateLimitReason, calculateBackoffMs } from "../../../account/rotation"
 import { Account } from "../../../account"
 import type { AccountStorageV3 } from "./storage"
 import type { OAuthAuthDetails } from "./types"
@@ -1204,28 +1198,31 @@ describe("AccountManager", () => {
       })
 
       it("applies exponential backoff for QUOTA_EXHAUSTED", () => {
-        expect(calculateBackoffMs("QUOTA_EXHAUSTED", 0)).toBe(60_000)
-        expect(calculateBackoffMs("QUOTA_EXHAUSTED", 1)).toBe(300_000)
-        expect(calculateBackoffMs("QUOTA_EXHAUSTED", 2)).toBe(1_800_000)
-        expect(calculateBackoffMs("QUOTA_EXHAUSTED", 3)).toBe(7_200_000)
-        expect(calculateBackoffMs("QUOTA_EXHAUSTED", 10)).toBe(7_200_000)
+        // rotation.ts uses: [600_000, 3_600_000, 14_400_000, 86_400_000]
+        expect(calculateBackoffMs("QUOTA_EXHAUSTED", 0)).toBe(600_000)
+        expect(calculateBackoffMs("QUOTA_EXHAUSTED", 1)).toBe(3_600_000)
+        expect(calculateBackoffMs("QUOTA_EXHAUSTED", 2)).toBe(14_400_000)
+        expect(calculateBackoffMs("QUOTA_EXHAUSTED", 3)).toBe(86_400_000)
+        expect(calculateBackoffMs("QUOTA_EXHAUSTED", 10)).toBe(86_400_000)
       })
 
       it("returns fixed backoff for RATE_LIMIT_EXCEEDED", () => {
-        expect(calculateBackoffMs("RATE_LIMIT_EXCEEDED", 0)).toBe(30_000)
-        expect(calculateBackoffMs("RATE_LIMIT_EXCEEDED", 5)).toBe(30_000)
+        // rotation.ts uses 3_600_000 (1 hour)
+        expect(calculateBackoffMs("RATE_LIMIT_EXCEEDED", 0)).toBe(3_600_000)
+        expect(calculateBackoffMs("RATE_LIMIT_EXCEEDED", 5)).toBe(3_600_000)
       })
 
       it("returns short backoff for MODEL_CAPACITY_EXHAUSTED", () => {
-        // Base backoff is 45s with ±15s jitter (range: 30s to 60s)
+        // rotation.ts: Base 300s (5min) with ±15s jitter (range: 285s to 315s)
         const result = calculateBackoffMs("MODEL_CAPACITY_EXHAUSTED", 0)
-        expect(result).toBeGreaterThanOrEqual(30_000)
-        expect(result).toBeLessThanOrEqual(60_000)
+        expect(result).toBeGreaterThanOrEqual(285_000)
+        expect(result).toBeLessThanOrEqual(315_000)
       })
 
       it("returns explicit backoff for 503/529 status reasons", () => {
-        expect(calculateBackoffMs("SERVICE_UNAVAILABLE_503", 0)).toBe(120_000)
-        expect(calculateBackoffMs("SITE_OVERLOADED_529", 0)).toBe(120_000)
+        // rotation.ts uses 300_000 (5 minutes) for both
+        expect(calculateBackoffMs("SERVICE_UNAVAILABLE_503", 0)).toBe(300_000)
+        expect(calculateBackoffMs("SITE_OVERLOADED_529", 0)).toBe(300_000)
       })
 
       it("returns soft retry for SERVER_ERROR", () => {
@@ -1233,7 +1230,8 @@ describe("AccountManager", () => {
       })
 
       it("returns default backoff for UNKNOWN", () => {
-        expect(calculateBackoffMs("UNKNOWN", 0)).toBe(60_000)
+        // rotation.ts uses 3_600_000 (1 hour)
+        expect(calculateBackoffMs("UNKNOWN", 0)).toBe(3_600_000)
       })
     })
 

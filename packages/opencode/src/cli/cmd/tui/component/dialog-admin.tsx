@@ -1876,8 +1876,9 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   }
 
   const selectCurrent = createMemo(() => {
-    // Model Activities uses inline status markers (e.g. ✅), so avoid leading "●" current marker.
-    if (page() === "activities") return undefined
+    // @event_20260212_activity_cursor_follow - Return activityValue for activities page
+    // This enables automatic cursor following when sorting changes
+    if (page() === "activities") return activityValue()
     if (step() === "account_select") {
       const first = options().find((option) => {
         if (!("disabled" in option)) return true
