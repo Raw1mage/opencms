@@ -56,6 +56,7 @@ import { renderCommandTemplate } from "./command-template"
 import { executeHandledCommand } from "./command-handler-executor"
 import { prepareCommandPrompt } from "./command-prompt-prep"
 import { dispatchCommandPrompt } from "./command-dispatcher"
+import { persistUserMessage } from "./user-message-persist"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
 
@@ -1022,25 +1023,15 @@ export namespace SessionPrompt {
         ),
       )
 
-    await Plugin.trigger(
-      "chat.message",
-      {
-        sessionID: input.sessionID,
-        agent: input.agent,
-        model: input.model,
-        messageID: input.messageID,
-        variant: input.variant,
-      },
-      {
-        message: info,
-        parts,
-      },
-    )
-
-    await Session.updateMessage(info)
-    for (const part of parts) {
-      await Session.updatePart(part)
-    }
+    await persistUserMessage({
+      info,
+      parts,
+      sessionID: input.sessionID,
+      agent: input.agent,
+      model: input.model,
+      messageID: input.messageID,
+      variant: input.variant,
+    })
 
     return {
       info,
