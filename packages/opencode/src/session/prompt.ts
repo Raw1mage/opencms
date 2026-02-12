@@ -1,6 +1,4 @@
 import path from "path"
-import os from "os"
-import fs from "fs/promises"
 import z from "zod"
 import { Identifier } from "../id/id"
 import { MessageV2 } from "./message-v2"
@@ -27,7 +25,7 @@ import { FileTime } from "../file/time"
 import { Flag } from "../flag/flag"
 import { ulid } from "ulid"
 import { Command } from "../command"
-import { $, fileURLToPath, pathToFileURL } from "bun"
+import { $, fileURLToPath } from "bun"
 import { ConfigMarkdown } from "../config/markdown"
 import { Config } from "../config/config"
 import { SessionSummary } from "./summary"
@@ -54,6 +52,7 @@ import { executeShellCommand } from "./shell-executor"
 import { getPreloadedContext } from "./preloaded-context"
 import { insertReminders } from "./reminders"
 import { ensureTitle } from "./title-manager"
+import { resolvePromptParts as resolvePromptPartsInner } from "./prompt-part-resolver"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
 
@@ -184,59 +183,7 @@ export namespace SessionPrompt {
   })
 
   export async function resolvePromptParts(template: string): Promise<PromptInput["parts"]> {
-    const parts: PromptInput["parts"] = [
-      {
-        type: "text",
-        text: template,
-      },
-    ]
-    const matches = ConfigMarkdown.files(template)
-    const seen = new Set<string>()
-    const names = matches
-      .map((match) => match[1])
-      .filter((name) => {
-        if (seen.has(name)) return false
-        seen.add(name)
-        return true
-      })
-    const resolved = await Promise.all(
-      names.map(async (name) => {
-        const filepath = name.startsWith("~/")
-          ? path.join(os.homedir(), name.slice(2))
-          : path.resolve(Instance.worktree, name)
-
-        const stats = await fs.stat(filepath).catch(() => undefined)
-        if (!stats) {
-          const agent = await Agent.get(name)
-          if (!agent) return undefined
-          return {
-            type: "agent",
-            name: agent.name,
-          } satisfies PromptInput["parts"][number]
-        }
-
-        if (stats.isDirectory()) {
-          return {
-            type: "file",
-            url: pathToFileURL(filepath).href,
-            filename: name,
-            mime: "application/x-directory",
-          } satisfies PromptInput["parts"][number]
-        }
-
-        return {
-          type: "file",
-          url: pathToFileURL(filepath).href,
-          filename: name,
-          mime: "text/plain",
-        } satisfies PromptInput["parts"][number]
-      }),
-    )
-    for (const item of resolved) {
-      if (!item) continue
-      parts.push(item)
-    }
-    return parts
+    return (await resolvePromptPartsInner(template)) as PromptInput["parts"]
   }
 
   function start(sessionID: string) {
