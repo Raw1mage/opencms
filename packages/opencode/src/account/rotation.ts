@@ -906,11 +906,13 @@ export function isRateLimitError(error: unknown): boolean {
   if (typeof message === "string" && message.length > 0) {
     const lower = message.toLowerCase()
 
-    // Check for specific token refresh failure that requires 5h cooldown
-    // We treat this as a rate limit to trigger rotation
+    // FIX: invalid_scope is an AUTH error (expired OAuth grant), not a rate limit.
+    // Treating it as rate limit causes useless rotation across all claude-cli vectors
+    // sharing the same broken refresh token. Must stop and ask user to re-authenticate.
+    // @event_20260212_invalid_scope_no_rotate
     if (lower.includes("token refresh failed") && lower.includes("invalid_scope")) {
-      log.debug("isRateLimitError: matched invalid_scope token error")
-      return true
+      log.debug("isRateLimitError: invalid_scope is auth error, NOT rate limit — skipping")
+      return false
     }
 
     // Only match very specific rate limit patterns, not generic "error" messages
@@ -943,11 +945,11 @@ export function isAuthError(error: unknown): boolean {
   if (typeof message === "string" && message.length > 0) {
     const lower = message.toLowerCase()
 
-    // Special case: "token refresh failed" with "invalid_scope" is treated as a rate limit
-    // so we exclude it from hard auth errors to allow rotation
-    if (lower.includes("token refresh failed") && lower.includes("invalid_scope")) {
-      return false
-    }
+    // FIX: invalid_scope means the OAuth grant is dead — this IS an auth error.
+    // Must trigger hard stop + toast to ask user to re-authenticate.
+    // Previously excluded to allow rotation, but rotation is useless when all
+    // vectors share the same broken refresh token.
+    // @event_20260212_invalid_scope_no_rotate
 
     return (
       lower.includes("token refresh failed") ||
