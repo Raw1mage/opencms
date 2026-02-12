@@ -42,6 +42,7 @@ import { fn } from "@/util/fn"
 import { SessionProcessor } from "./processor"
 import { TaskTool } from "@/tool/task"
 import { Tool } from "@/tool/tool"
+import { ToolInvoker } from "./tool-invoker"
 import { PermissionNext } from "@/permission/next"
 import { SessionStatus } from "./status"
 import { TuiEvent } from "@/cli/cmd/tui/event"
@@ -522,8 +523,7 @@ Current directory, README, and core skills are already provided in <preloaded_co
       })
       const task = tasks.pop()
 
-      // pending subtask
-      // TODO: centralize "invoke tool" logic
+      // pending subtask (invocation routed via ToolInvoker)
       if (task?.type === "subtask") {
         const taskTool = await TaskTool.init()
         const taskModel = task.model ? await Provider.getModel(task.model.providerId, task.model.modelID) : model
@@ -572,73 +572,50 @@ Current directory, README, and core skills are already provided in <preloaded_co
             },
           },
         })) as MessageV2.ToolPart
-        const taskArgs = {
-          prompt: task.prompt,
-          description: task.description,
-          subagent_type: task.agent,
-          command: task.command,
-        }
-        await Plugin.trigger(
-          "tool.execute.before",
-          {
-            tool: "task",
-            sessionID,
-            callID: part.id,
-          },
-          { args: taskArgs },
-        )
         let executionError: Error | undefined
         const taskAgent = await Agent.get(task.agent)
-        const taskCtx: Tool.Context = {
-          agent: task.agent,
+        const result = await ToolInvoker.execute(TaskTool, {
+          sessionID,
           messageID: assistantMessage.id,
-          sessionID: sessionID,
-          abort,
-          callID: part.callID,
-          extra: { bypassAgentCheck: true },
-          messages: msgs,
-          async metadata(input) {
-            await Session.updatePart({
-              ...part,
-              type: "tool",
-              state: {
-                ...part.state,
-                ...input,
-              },
-            } satisfies MessageV2.ToolPart)
+          toolID: TaskTool.id,
+          args: {
+            prompt: task.prompt,
+            description: task.description,
+            subagent_type: task.agent,
+            command: task.command,
           },
-          async ask(req) {
+          agent: task.agent,
+          abort,
+          messages: msgs,
+          extra: { bypassAgentCheck: true },
+          callID: part.callID,
+          onMetadata: (input) => {
+            // Metadata persistence can be handled here if needed in the future
+          },
+          onAsk: async (req) => {
             await PermissionNext.ask({
               ...req,
               sessionID: sessionID,
               ruleset: PermissionNext.merge(taskAgent.permission, session.permission ?? []),
             })
           },
-        }
-        const result = await taskTool.execute(taskArgs, taskCtx).catch((error) => {
+        }).catch((error) => {
           executionError = error
           log.error("subtask execution failed", { error, agent: task.agent, description: task.description })
           return undefined
         })
-        await Plugin.trigger(
-          "tool.execute.after",
-          {
-            tool: "task",
-            sessionID,
-            callID: part.id,
-          },
-          result,
-        )
         assistantMessage.finish = "tool-calls"
         assistantMessage.time.completed = Date.now()
         await Session.updateMessage(assistantMessage)
         if (result && part.state.status === "running") {
-          const attachments = result.attachments?.map((attachment) => ({
-            ...attachment,
-            id: Identifier.ascending("part"),
-            messageID: assistantMessage.id,
-            sessionID: assistantMessage.sessionID,
-          }))
+          const attachments = result.attachments?.map(
+            (attachment: Omit<MessageV2.FilePart, "id" | "messageID" | "sessionID">) => ({
+              ...attachment,
+              id: Identifier.ascending("part"),
+              messageID: assistantMessage.id,
+              sessionID: assistantMessage.sessionID,
+            }),
+          )
           await Session.updatePart({
             ...part,
             state: {
@@ -934,41 +911,6 @@ Current directory, README, and core skills are already provided in <preloaded_co
       trace: input.session.id,
     })
 
-    const context = (args: any, options: ToolCallOptions): Tool.Context => ({
-      sessionID: input.session.id,
-      abort: options.abortSignal!,
-      messageID: input.processor.message.id,
-      callID: options.toolCallId,
-      extra: { model: input.model, bypassAgentCheck: input.bypassAgentCheck },
-      agent: input.agent.name,
-      messages: input.messages,
-      metadata: async (val: { title?: string; metadata?: any }) => {
-        const match = input.processor.partFromToolCall(options.toolCallId)
-        if (match && match.state.status === "running") {
-          await Session.updatePart({
-            ...match,
-            state: {
-              title: val.title,
-              metadata: val.metadata,
-              status: "running",
-              input: args,
-              time: {
-                start: Date.now(),
-              },
-            },
-          })
-        }
-      },
-      async ask(req) {
-        const ruleset = PermissionNext.merge(input.agent.permission, input.session.permission ?? [])
-        await PermissionNext.ask({
-          ...req,
-          sessionID: input.session.id,
-          tool: { messageID: input.processor.message.id, callID: options.toolCallId },
-          ruleset,
-        })
-      },
-    })
     const ruleset = PermissionNext.merge(input.agent.permission, input.session.permission ?? [])
     const toolAllowed = (toolID: string) => PermissionNext.evaluate(toolID, "*", ruleset).action !== "deny"
 
@@ -1000,53 +942,43 @@ Current directory, README, and core skills are already provided in <preloaded_co
         description: item.description,
         inputSchema: jsonSchema(schema as Record<string, unknown>),
         async execute(args, options) {
-          const ctx = context(args, options)
-          debugCheckpoint("tool.call", "start", {
-            tool: item.id,
-            sessionID: ctx.sessionID,
-            messageID: ctx.messageID,
-            callID: ctx.callID,
-            agent: ctx.agent,
-            providerId: input.model.providerId,
-            modelID: input.model.api.id,
-            trace: ctx.callID,
-          })
-          await Plugin.trigger(
-            "tool.execute.before",
-            {
-              tool: item.id,
-              sessionID: ctx.sessionID,
-              callID: ctx.callID,
+          const result = await ToolInvoker.execute(item, {
+            sessionID: input.session.id,
+            messageID: input.processor.message.id,
+            toolID: item.id,
+            args,
+            agent: input.agent.name,
+            abort: options.abortSignal!,
+            messages: input.messages,
+            extra: { model: input.model, bypassAgentCheck: input.bypassAgentCheck },
+            callID: options.toolCallId,
+            onMetadata: async (val) => {
+              const match = input.processor.partFromToolCall(options.toolCallId)
+              if (match && match.state.status === "running") {
+                await Session.updatePart({
+                  ...match,
+                  state: {
+                    title: val.title,
+                    metadata: val.metadata,
+                    status: "running",
+                    input: args,
+                    time: {
+                      start: Date.now(),
+                    },
+                  },
+                })
+              }
             },
-            {
-              args,
+            onAsk: async (req) => {
+              const ruleset = PermissionNext.merge(input.agent.permission, input.session.permission ?? [])
+              await PermissionNext.ask({
+                ...req,
+                sessionID: input.session.id,
+                tool: { messageID: input.processor.message.id, callID: options.toolCallId },
+                ruleset,
+              })
             },
-          )
-          const result = await item.execute(args, ctx).catch((error) => {
-            debugCheckpoint("tool.call", "error", {
-              tool: item.id,
-              sessionID: ctx.sessionID,
-              callID: ctx.callID,
-              message: error instanceof Error ? error.message : String(error),
-              trace: ctx.callID,
-            })
-            throw error
           })
-          debugCheckpoint("tool.call", "end", {
-            tool: item.id,
-            sessionID: ctx.sessionID,
-            callID: ctx.callID,
-            trace: ctx.callID,
-          })
-          await Plugin.trigger(
-            "tool.execute.after",
-            {
-              tool: item.id,
-              sessionID: ctx.sessionID,
-              callID: ctx.callID,
-            },
-            result,
-          )
           return result
         },
       })
@@ -1057,39 +989,39 @@ Current directory, README, and core skills are already provided in <preloaded_co
       const execute = item.execute
       if (!execute) continue
 
-      // Wrap execute to add plugin hooks and format output
+      // Wrap execute with ToolInvoker + output normalization
       item.execute = async (args, opts) => {
-        const ctx = context(args, opts)
-
-        await Plugin.trigger(
-          "tool.execute.before",
+        const result = await ToolInvoker.execute(
           {
-            tool: key,
-            sessionID: ctx.sessionID,
-            callID: opts.toolCallId,
+            execute: async (_args: unknown, ctx: Tool.Context) => {
+              await ctx.ask({
+                permission: key,
+                metadata: {},
+                patterns: ["*"],
+                always: ["*"],
+              })
+              return execute(args, opts)
+            },
           },
           {
+            sessionID: input.session.id,
+            messageID: input.processor.message.id,
+            toolID: key,
             args,
-          },
-        )
-
-        await ctx.ask({
-          permission: key,
-          metadata: {},
-          patterns: ["*"],
-          always: ["*"],
-        })
-
-        const result = await execute(args, opts)
-
-        await Plugin.trigger(
-          "tool.execute.after",
-          {
-            tool: key,
-            sessionID: ctx.sessionID,
+            agent: input.agent.name,
+            abort: opts.abortSignal!,
+            messages: input.messages,
+            extra: { model: input.model, bypassAgentCheck: input.bypassAgentCheck },
             callID: opts.toolCallId,
+            onAsk: async (req) => {
+              await PermissionNext.ask({
+                ...req,
+                sessionID: input.session.id,
+                tool: { messageID: input.processor.message.id, callID: opts.toolCallId },
+                ruleset,
+              })
+            },
           },
-          result,
         )
 
         const textParts: string[] = []
@@ -1120,7 +1052,7 @@ Current directory, README, and core skills are already provided in <preloaded_co
           }
         }
 
-        const truncated = await Truncate.output(textParts.join("\n\n"), {}, input.agent, ctx.sessionID)
+        const truncated = await Truncate.output(textParts.join("\n\n"), {}, input.agent, input.session.id)
         const metadata = {
           ...(result.metadata ?? {}),
           truncated: truncated.truncated,

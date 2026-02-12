@@ -1,24 +1,140 @@
-/**
- * ToolInvoker: Centralized tool invocation module
- *
- * This module provides a unified interface for invoking tools (Task, Bash, etc.)
- * with consistent error handling and a testable API.
- *
- * Motivation:
- * - Reduces duplication of tool invocation logic across the codebase
- * - Provides consistent error handling and logging
- * - Makes testing easier through dependency injection
- * - Centralizes configuration and version management
- *
- * TODO #2 Resolution: Extracted tool invocation logic into a dedicated namespace
- * with consistent patterns for error handling and result reporting.
- */
-
 import { Log } from "../util/log"
+import { MessageV2 } from "./message-v2"
+import { Plugin } from "../plugin"
+import { Tool } from "../tool/tool"
+import { ulid } from "ulid"
+import { debugCheckpoint } from "@/util/debug"
 
 const log = Log.create({ service: "tool-invoker" })
 
+type ToolMetadataInput = Parameters<Tool.Context["metadata"]>[0]
+type ToolAskInput = Parameters<Tool.Context["ask"]>[0]
+type ToolExecutionResult = Awaited<ReturnType<Awaited<ReturnType<Tool.Info["init"]>>["execute"]>>
+
+type InitializedTool<TResult = ToolExecutionResult> = {
+  execute(args: unknown, ctx: Tool.Context): Promise<TResult>
+}
+
+type InvokableTool<TResult = ToolExecutionResult> = Tool.Info | InitializedTool<TResult>
+
+function hasInit<TResult>(tool: InvokableTool<TResult>): tool is Tool.Info {
+  return typeof (tool as Tool.Info).init === "function"
+}
+
 export namespace ToolInvoker {
+  /**
+   * Options for tool invocation
+   */
+  export interface InvokeOptions {
+    sessionID: string
+    messageID: string // Assistant message ID that contains the tool call
+    toolID: string
+    args: unknown
+    agent: string
+    abort: AbortSignal
+    messages: MessageV2.WithParts[]
+    extra?: Record<string, unknown>
+    callID?: string // External callID (e.g. from AI SDK or TaskTool loop)
+    onMetadata?: (input: ToolMetadataInput) => void | Promise<void>
+    onAsk?: (input: ToolAskInput) => Promise<void>
+  }
+
+  /**
+   * Executes a tool with standardized lifecycle management.
+   * Centralizes Plugin hooks and Tool Context creation.
+   */
+  export async function execute(tool: Tool.Info, options: InvokeOptions): Promise<ToolExecutionResult>
+  export async function execute<TResult>(tool: InitializedTool<TResult>, options: InvokeOptions): Promise<TResult>
+  export async function execute<TResult>(
+    tool: InvokableTool<TResult>,
+    options: InvokeOptions,
+  ): Promise<TResult | ToolExecutionResult> {
+    const {
+      sessionID,
+      messageID,
+      toolID,
+      args,
+      agent,
+      abort,
+      messages,
+      extra,
+      callID: providedCallID,
+      onMetadata,
+      onAsk,
+    } = options
+    const callID = providedCallID ?? ulid()
+
+    debugCheckpoint("tool.invoke", "start", {
+      tool: toolID,
+      sessionID,
+      messageID,
+      callID,
+      agent,
+    })
+
+    await Plugin.trigger(
+      "tool.execute.before",
+      {
+        tool: toolID,
+        sessionID,
+        callID,
+      },
+      { args },
+    )
+
+    const ctx: Tool.Context = {
+      sessionID,
+      messageID,
+      agent,
+      abort,
+      callID,
+      extra,
+      messages,
+      metadata: async (input) => {
+        if (onMetadata) {
+          await onMetadata(input)
+        }
+      },
+      ask: async (input) => {
+        if (onAsk) {
+          await onAsk(input)
+        }
+      },
+    }
+
+    try {
+      const toolInstance = hasInit(tool) ? await tool.init({ agent: { name: agent } as any }) : tool
+      const result = await toolInstance.execute(args, ctx)
+
+      debugCheckpoint("tool.invoke", "end", {
+        tool: toolID,
+        sessionID,
+        callID,
+      })
+
+      await Plugin.trigger(
+        "tool.execute.after",
+        {
+          tool: toolID,
+          sessionID,
+          callID,
+        },
+        result,
+      )
+
+      return result
+    } catch (error) {
+      debugCheckpoint("tool.invoke", "error", {
+        tool: toolID,
+        sessionID,
+        callID,
+        message: error instanceof Error ? error.message : String(error),
+      })
+      log.error("tool execution failed", { toolID, error })
+      throw error
+    }
+  }
+
   /**
    * Error class for tool invocation failures
    */
@@ -35,11 +151,6 @@ export namespace ToolInvoker {
 
   /**
    * Input configuration for task tool invocation
-   *
-   * TODO #3 Resolution: Updated to accept both simple strings and complex structured input
-   * The input field now uses a union type to support:
-   * - Simple text string: for basic task descriptions
-   * - Structured object: for complex tasks with metadata
    */
   export interface TaskInvokeInput {
     /** Structured or text input - supports both formats */
@@ -73,9 +184,6 @@ export namespace ToolInvoker {
 
   /**
    * Normalizes task input - converts complex structures to simple text for tool compatibility
-   *
-   * @param input - The input to normalize
-   * @returns Normalized text representation
    */
   export function normalizeTaskInput(
     input:
@@ -90,7 +198,6 @@ export namespace ToolInvoker {
       return input
     }
 
-    // Convert structured input to human-readable format
     let result = `[${input.type.toUpperCase()}]\n${input.content}`
     if (input.metadata && Object.keys(input.metadata).length > 0) {
       result += `\n\nMetadata: ${JSON.stringify(input.metadata, null, 2)}`
@@ -100,24 +207,16 @@ export namespace ToolInvoker {
 
   /**
    * Internal helper for tool invocation with consistent error handling
-   *
-   * @param toolName - Name of the tool being invoked
-   * @param fn - Function that performs the actual tool invocation
-   * @returns InvocationResult with success status and data
    */
-  export async function _invokeWithErrorHandling<T>(
-    toolName: string,
-    fn: () => Promise<T>,
-  ): Promise<InvocationResult<T>> {
+  export async function _invokeWithErrorHandling<T>(toolName: string, fn: () => Promise<T>): Promise<InvocationResult<T>> {
     const startTime = Date.now()
 
     try {
       log.debug(`Invoking ${toolName} tool`)
       const result = await fn()
-
       const duration = Date.now() - startTime
-      log.info(`${toolName} tool invocation succeeded`, { duration })
 
+      log.info(`${toolName} tool invocation succeeded`, { duration })
       return {
         success: true,
         data: result,
@@ -142,9 +241,6 @@ export namespace ToolInvoker {
 
   /**
    * Checks if a tool invocation result succeeded
-   *
-   * @param result - The invocation result to check
-   * @returns true if the invocation succeeded
    */
   export function isSuccess<T>(result: InvocationResult<T>): result is InvocationResult<T> & { data: T } {
     return result.success && result.data !== undefined
@@ -152,9 +248,6 @@ export namespace ToolInvoker {
 
   /**
    * Gets detailed error information from an invocation result
-   *
-   * @param result - The invocation result
-   * @returns Error details if failed, undefined if succeeded
    */
   export function getErrorDetails(result: InvocationResult) {
     if (result.success) return undefined
@@ -166,20 +259,6 @@ export namespace ToolInvoker {
 
   /**
    * Retries a tool invocation with exponential backoff
-   *
-   * @param fn - Function to invoke
-   * @param maxAttempts - Maximum number of attempts (default: 3)
-   * @param initialDelayMs - Initial delay in milliseconds (default: 1000)
-   * @returns InvocationResult from the successful invocation
-   *
-   * @example
-   * const result = await ToolInvoker.withRetry(
-   *   () => ToolInvoker._invokeWithErrorHandling("task", async () => {
-   *     // perform task invocation
-   *   }),
-   *   3,
-   *   1000
-   * )
    */
   export async function withRetry<T>(
     fn: () => Promise<InvocationResult<T>>,
@@ -190,7 +269,6 @@ export namespace ToolInvoker {
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const result = await fn()
-
       if (result.success) {
         return result
       }
