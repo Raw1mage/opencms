@@ -548,7 +548,9 @@ export namespace SessionProcessor {
             })
             const error = MessageV2.fromError(e, { providerId: input.model.providerId })
             if (MessageV2.ContextOverflowError.isInstance(error)) {
-              // TODO: Handle context overflow error
+              // FIX: context overflow should trigger compaction instead of terminal error (@event_20260213_typecheck_and_review)
+              needsCompaction = true
+              break
             }
             const retry = SessionRetry.retryable(error)
             if (retry !== undefined) {
