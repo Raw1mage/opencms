@@ -55,6 +55,7 @@ import { resolvePromptParts as resolvePromptPartsInner } from "./prompt-part-res
 import { lastModel } from "./last-model"
 import { renderCommandTemplate } from "./command-template"
 import { executeHandledCommand } from "./command-handler-executor"
+import { prepareCommandPrompt } from "./command-prompt-prep"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
 
@@ -1302,87 +1303,21 @@ export namespace SessionPrompt {
       })
     }
 
-    const command = commandInfo
-    const agentName = command.agent ?? input.agent ?? (await Agent.defaultAgent())
-
-    const templateCommand = await command.template
+    const templateCommand = await commandInfo.template
     const template = await renderCommandTemplate({
       templateCommand,
       argumentsText: input.arguments,
     })
-
-    const taskModel = await (async () => {
-      if (command.model) {
-        return Provider.parseModel(command.model)
-      }
-      if (command.agent) {
-        const cmdAgent = await Agent.get(command.agent)
-        if (cmdAgent?.model) {
-          return cmdAgent.model
-        }
-      }
-      if (input.model) return Provider.parseModel(input.model)
-      return await lastModel(input.sessionID)
-    })()
-
-    try {
-      await Provider.getModel(taskModel.providerId, taskModel.modelID)
-    } catch (e) {
-      if (Provider.ModelNotFoundError.isInstance(e)) {
-        const { providerId, modelID, suggestions } = e.data
-        const hint = suggestions?.length ? ` Did you mean: ${suggestions.join(", ")}?` : ""
-        Bus.publish(Session.Event.Error, {
-          sessionID: input.sessionID,
-          error: new NamedError.Unknown({ message: `Model not found: ${providerId}/${modelID}.${hint}` }).toObject(),
-        })
-      }
-      throw e
-    }
-    const agent = await Agent.get(agentName)
-    if (!agent) {
-      const available = await Agent.list().then((agents) => agents.filter((a) => !a.hidden).map((a) => a.name))
-      const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
-      const error = new NamedError.Unknown({ message: `Agent not found: "${agentName}".${hint}` })
-      Bus.publish(Session.Event.Error, {
-        sessionID: input.sessionID,
-        error: error.toObject(),
-      })
-      throw error
-    }
-
-    const templateParts = await resolvePromptParts(template)
-    const isSubtask = (agent.mode === "subagent" && command.subtask !== false) || command.subtask === true
-    const parts = isSubtask
-      ? [
-          {
-            type: "subtask" as const,
-            agent: agent.name,
-            description: command.description ?? "",
-            command: input.command,
-            model: {
-              providerId: taskModel.providerId,
-              modelID: taskModel.modelID,
-            },
-            prompt: templateParts.find((y) => y.type === "text")?.text ?? "",
-            prompt_input: {
-              type: "implementation" as const,
-              content: templateParts.find((y) => y.type === "text")?.text ?? "",
-              metadata: {
-                source: "command",
-                command: input.command,
-                partTypes: templateParts.map((part) => part.type),
-              },
-            },
-          },
-        ]
-      : [...templateParts, ...(input.parts ?? [])]
-
-    const userAgent = isSubtask ? (input.agent ?? (await Agent.defaultAgent())) : agentName
-    const userModel = isSubtask
-      ? input.model
-        ? Provider.parseModel(input.model)
-        : await lastModel(input.sessionID)
-      : taskModel
+    const { parts, userAgent, userModel } = await prepareCommandPrompt({
+      commandInfo: commandInfo,
+      commandName: input.command,
+      sessionID: input.sessionID,
+      inputAgent: input.agent,
+      inputModel: input.model,
+      inputParts: input.parts,
+      template,
+      resolvePromptParts,
+    })
 
     await Plugin.trigger(
       "command.execute.before",
