@@ -21,7 +21,7 @@ describe("useSessionBackfill", () => {
       rafCallbacks.push(cb)
       return 0
     }
-    // @ts-ignore
+    // @ts-expect-error Missing in Bun test DOM environment
     window.requestIdleCallback = (cb) => {
       idleCallbacks.push(cb)
       return 0

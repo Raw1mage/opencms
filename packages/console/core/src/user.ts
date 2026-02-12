@@ -143,7 +143,7 @@ export namespace User {
           to: email,
           subject: `You've been invited to join the ${emailInfo.workspaceName} workspace on OpenCode`,
           body: render(
-            // @ts-ignore
+            // @ts-expect-error JSX Email component return type mismatch
             InviteEmail({
               inviter: emailInfo.inviterEmail,
               assetsUrl: `https://opencode.ai/email`,

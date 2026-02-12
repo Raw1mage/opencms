@@ -177,7 +177,7 @@ export const SortableWorkspace = (props: {
 
   return (
     <div
-      // @ts-ignore
+      // @ts-expect-error SolidJS custom directive type mismatch
       use:sortable
       classList={{
         "opacity-30": sortable.isActiveDraggable,

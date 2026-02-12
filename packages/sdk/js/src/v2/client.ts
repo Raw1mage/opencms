@@ -8,7 +8,7 @@ export { type Config as OpencodeClientConfig, OpencodeClient }
 export function createOpencodeClient(config?: Config & { directory?: string }) {
   if (!config?.fetch) {
     const customFetch: any = (req: any) => {
-      // @ts-ignore
+      // @ts-expect-error Bun/Node fetch extension for timeout
       req.timeout = false
       return fetch(req)
     }

@@ -97,7 +97,7 @@ export default {
         //        }),
       },
       storage: CloudflareStorage({
-        // @ts-ignore
+        // @ts-expect-error KVNamespace type mismatch with OpenAuth storage interface
         namespace: env.AuthStorage,
       }),
       subjects,
