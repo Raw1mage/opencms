@@ -1,4 +1,4 @@
-import { createEffect, on, onCleanup } from "solid-js"
+import { createEffect, createMemo, on, onCleanup } from "solid-js"
 import { UserMessage } from "@opencode-ai/sdk/v2"
 
 export const anchor = (id: string) => `message-${id}`
@@ -76,6 +76,10 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
         }
       : rawInput
 
+  const visibleUserMessages = createMemo(() => input.visibleUserMessages())
+  const messageById = createMemo(() => new Map(visibleUserMessages().map((m) => [m.id, m])))
+  const messageIndex = createMemo(() => new Map(visibleUserMessages().map((m, i) => [m.id, i])))
+
   const clearMessageHash = () => {
     if (!window.location.hash) return
     window.history.replaceState(null, "", window.location.href.replace(/#.*$/, ""))
@@ -85,11 +89,22 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
     window.history.replaceState(null, "", `#${input.anchor(id)}`)
   }
 
-  const scrollToMessage = (message: UserMessage, behavior: ScrollBehavior = "smooth") => {
-    input.setActiveMessage(message)
+  // Shadowing the exported scrollToElement with the one from the commit that is bound to input.scroller
+  const scrollToElement = (el: HTMLElement, behavior: ScrollBehavior) => {
+    const root = input.scroller()
+    if (!root) return false
 
-    const msgs = input.visibleUserMessages()
-    const index = msgs.findIndex((m) => m.id === message.id)
+    const a = el.getBoundingClientRect()
+    const b = root.getBoundingClientRect()
+    const top = a.top - b.top + root.scrollTop
+    root.scrollTo({ top, behavior })
+    return true
+  }
+
+  const scrollToMessage = (message: UserMessage, behavior: ScrollBehavior = "smooth") => {
+    if (input.currentMessageId() !== message.id) input.setActiveMessage(message)
+
+    const index = messageIndex().get(message.id) ?? -1
     if (index !== -1 && index < input.turnStart()) {
       input.setTurnStart(index)
       input.scheduleTurnBackfill()
@@ -100,11 +115,11 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
           requestAnimationFrame(() => {
             const next = document.getElementById(input.anchor(message.id))
             if (!next) return
-            scrollToElement(input.scroller(), next, behavior)
+            scrollToElement(next, behavior)
           })
           return
         }
-        scrollToElement(input.scroller(), el, behavior)
+        scrollToElement(el, behavior)
       })
 
       updateHash(message.id)
@@ -117,11 +132,11 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
       requestAnimationFrame(() => {
         const next = document.getElementById(input.anchor(message.id))
         if (!next) return
-        if (!scrollToElement(input.scroller(), next, behavior)) return
+        if (!scrollToElement(next, behavior)) return
       })
       return
     }
-    if (scrollToElement(input.scroller(), el, behavior)) {
+    if (scrollToElement(el, behavior)) {
       updateHash(message.id)
       return
     }
@@ -129,7 +144,7 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
     requestAnimationFrame(() => {
       const next = document.getElementById(input.anchor(message.id))
       if (!next) return
-      if (!scrollToElement(input.scroller(), next, behavior)) return
+      if (!scrollToElement(next, behavior)) return
     })
     updateHash(message.id)
   }
@@ -146,7 +161,7 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
     const messageId = messageIdFromHash(hash)
     if (messageId) {
       input.autoScroll.pause()
-      const msg = input.visibleUserMessages().find((m) => m.id === messageId)
+      const msg = messageById().get(messageId)
       if (msg) {
         scrollToMessage(msg, behavior)
         return
@@ -157,7 +172,7 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
     const target = document.getElementById(hash)
     if (target) {
       input.autoScroll.pause()
-      scrollToElement(input.scroller(), target, behavior)
+      scrollToElement(target, behavior)
       return
     }
 
@@ -183,14 +198,14 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
   createEffect(() => {
     if (!input.sessionID() || !input.messagesReady()) return
 
-    input.visibleUserMessages().length
+    visibleUserMessages()
     input.turnStart()
 
     const targetId = input.pendingMessage() ?? messageIdFromHash(window.location.hash)
     if (!targetId) return
     if (input.currentMessageId() === targetId) return
 
-    const msg = input.visibleUserMessages().find((m) => m.id === targetId)
+    const msg = messageById().get(targetId)
     if (!msg) return
 
     if (input.pendingMessage() === targetId) input.setPendingMessage(undefined)
