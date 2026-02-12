@@ -341,10 +341,7 @@ export class HealthScoreTracker {
     const result = new Map<string, { score: number; consecutiveFailures: number }>()
     for (const [key, state] of this.scores) {
       const split = key.indexOf(":")
-      const score =
-        split > 0
-          ? this.getScore(key.slice(split + 1), key.slice(0, split))
-          : state.score
+      const score = split > 0 ? this.getScore(key.slice(split + 1), key.slice(0, split)) : state.score
       result.set(key, {
         score,
         consecutiveFailures: state.consecutiveFailures,
@@ -361,6 +358,8 @@ export class HealthScoreTracker {
 export type RateLimitReason =
   | "QUOTA_EXHAUSTED"
   | "RATE_LIMIT_EXCEEDED"
+  | "SERVICE_UNAVAILABLE_503"
+  | "SITE_OVERLOADED_529"
   | "MODEL_CAPACITY_EXHAUSTED"
   | "SERVER_ERROR"
   | "AUTH_FAILED"
@@ -383,6 +382,8 @@ function asErrorWithMetadata(error: unknown): ErrorWithMetadata | undefined {
 
 const QUOTA_EXHAUSTED_BACKOFFS = [600_000, 3_600_000, 14_400_000, 86_400_000] as const
 const RATE_LIMIT_EXCEEDED_BACKOFF = 3_600_000 // 1 hour (was 60s)
+const SERVICE_UNAVAILABLE_503_BACKOFF = 300_000 // 5 minutes
+const SITE_OVERLOADED_529_BACKOFF = 300_000 // 5 minutes
 const MODEL_CAPACITY_EXHAUSTED_BASE_BACKOFF = 300_000 // 5 minutes
 const MODEL_CAPACITY_EXHAUSTED_JITTER_MAX = 30_000
 const SERVER_ERROR_BACKOFF = 20_000
@@ -403,8 +404,9 @@ export function parseRateLimitReason(
   message: string | undefined,
   status?: number,
 ): RateLimitReason {
-  // Status Code Checks
-  if (status === 529 || status === 503) return "MODEL_CAPACITY_EXHAUSTED"
+  // Status Code Checks (preserve official HTTP semantics)
+  if (status === 503) return "SERVICE_UNAVAILABLE_503"
+  if (status === 529) return "SITE_OVERLOADED_529"
   if (status === 500) return "SERVER_ERROR"
 
   // Explicit Reason String
@@ -414,6 +416,10 @@ export function parseRateLimitReason(
         return "QUOTA_EXHAUSTED"
       case "RATE_LIMIT_EXCEEDED":
         return "RATE_LIMIT_EXCEEDED"
+      case "SERVICE_UNAVAILABLE_503":
+        return "SERVICE_UNAVAILABLE_503"
+      case "SITE_OVERLOADED_529":
+        return "SITE_OVERLOADED_529"
       case "MODEL_CAPACITY_EXHAUSTED":
         return "MODEL_CAPACITY_EXHAUSTED"
     }
@@ -470,6 +476,10 @@ export function calculateBackoffMs(
     }
     case "RATE_LIMIT_EXCEEDED":
       return RATE_LIMIT_EXCEEDED_BACKOFF
+    case "SERVICE_UNAVAILABLE_503":
+      return SERVICE_UNAVAILABLE_503_BACKOFF
+    case "SITE_OVERLOADED_529":
+      return SITE_OVERLOADED_529_BACKOFF
     case "MODEL_CAPACITY_EXHAUSTED":
       return MODEL_CAPACITY_EXHAUSTED_BASE_BACKOFF + generateJitter(MODEL_CAPACITY_EXHAUSTED_JITTER_MAX)
     case "SERVER_ERROR":

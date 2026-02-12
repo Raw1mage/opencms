@@ -2268,11 +2268,11 @@ export const createAntigravityPlugin =
                       // [Enhanced Parsing] Pass status to handling logic
                       const rateLimitReason = parseRateLimitReason(bodyInfo.reason, bodyInfo.message, response.status)
 
-                      // All error types (503/429/529) go directly to rotation.
-                      // No retry on same account — rotate immediately, assign cooldown by error type.
-                      // 503/529 (soft-ban): 120s cooldown — recovers quickly
-                      // 429 QUOTA_EXHAUSTED: use cockpit reset time or server retry-after
-                      // 429 RATE_LIMIT_EXCEEDED: use server retry-after
+                      // All transient HTTP errors (429/503/529) go directly to rotation.
+                      // Keep status semantics explicit:
+                      // - 429: rate-limit/quota handling
+                      // - 503: Service Unavailable
+                      // - 529: Site Overloaded
 
                       // Unified error handling: mark rate limited + throw to rotation3d.
                       // NO internal account switching. rotation3d is the single authority.
@@ -2283,8 +2283,6 @@ export const createAntigravityPlugin =
                           account.consecutiveFailures ?? 0,
                           serverRetryMs,
                         )
-                        let isAuthoritativeBackoff = false
-
                         // Query cockpit for real reset time (non-blocking, fallback to calculated value)
                         debugCheckpoint("ANTIGRAVITY", "cockpit_query_check", {
                           hasAccess: !!account.access,
@@ -2310,7 +2308,6 @@ export const createAntigravityPlugin =
                             })
                             if (cockpitResult.fromCockpit) {
                               backoffMs = cockpitResult.backoffMs
-                              isAuthoritativeBackoff = true
                               pushDebug(
                                 `429: cockpit reset ${new Date(cockpitResult.resetTimeMs!).toISOString()}, backoff=${backoffMs}ms`,
                               )
@@ -2319,13 +2316,6 @@ export const createAntigravityPlugin =
                             const errMsg = e instanceof Error ? e.message : String(e)
                             pushDebug(`429: cockpit query failed: ${errMsg}`)
                           }
-                        }
-
-                        // 503/529 soft-ban: short cooldown (120s) — observed to recover quickly.
-                        // Only apply if cockpit didn't provide an authoritative reset time.
-                        // 429 QUOTA_EXHAUSTED: use cockpit/server time (can be hours).
-                        if ((response.status === 503 || response.status === 529) && !isAuthoritativeBackoff) {
-                          backoffMs = 120_000 // 2 minutes
                         }
 
                         // Mark account as rate limited locally
@@ -2353,9 +2343,13 @@ export const createAntigravityPlugin =
                         getHealthTracker().recordRateLimit(account.index)
 
                         const waitTimeFormatted = formatWaitTime(backoffMs)
-                        const isCapacityError = response.status === 503 || response.status === 529
-                        const errorLabel = isCapacityError ? "Service unavailable" : "Rate limited"
-                        const statusCode = isCapacityError ? 503 : 429
+                        const statusCode = response.status
+                        const errorLabel =
+                          statusCode === 503
+                            ? "Service unavailable"
+                            : statusCode === 529
+                              ? "Site overloaded"
+                              : "Rate limited"
 
                         // Throw typed transient error — rotation3d decides next move
                         const rateLimitError: Error & {

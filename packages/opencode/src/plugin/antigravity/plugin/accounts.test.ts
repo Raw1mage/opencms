@@ -1175,6 +1175,11 @@ describe("AccountManager", () => {
         expect(parseRateLimitReason("MODEL_CAPACITY_EXHAUSTED", undefined)).toBe("MODEL_CAPACITY_EXHAUSTED")
       })
 
+      it("preserves official status semantics for 503 and 529", () => {
+        expect(parseRateLimitReason(undefined, undefined, 503)).toBe("SERVICE_UNAVAILABLE_503")
+        expect(parseRateLimitReason(undefined, undefined, 529)).toBe("SITE_OVERLOADED_529")
+      })
+
       it("falls back to message parsing when reason is absent", () => {
         expect(parseRateLimitReason(undefined, "Rate limit exceeded per minute")).toBe("RATE_LIMIT_EXCEEDED")
         expect(parseRateLimitReason(undefined, "Too many requests")).toBe("RATE_LIMIT_EXCEEDED")
@@ -1216,6 +1221,11 @@ describe("AccountManager", () => {
         const result = calculateBackoffMs("MODEL_CAPACITY_EXHAUSTED", 0)
         expect(result).toBeGreaterThanOrEqual(30_000)
         expect(result).toBeLessThanOrEqual(60_000)
+      })
+
+      it("returns explicit backoff for 503/529 status reasons", () => {
+        expect(calculateBackoffMs("SERVICE_UNAVAILABLE_503", 0)).toBe(120_000)
+        expect(calculateBackoffMs("SITE_OVERLOADED_529", 0)).toBe(120_000)
       })
 
       it("returns soft retry for SERVER_ERROR", () => {

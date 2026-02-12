@@ -13,6 +13,8 @@ export type { ModelFamily, HeaderStyle, CooldownReason } from "./storage"
 export type RateLimitReason =
   | "QUOTA_EXHAUSTED"
   | "RATE_LIMIT_EXCEEDED"
+  | "SERVICE_UNAVAILABLE_503"
+  | "SITE_OVERLOADED_529"
   | "MODEL_CAPACITY_EXHAUSTED"
   | "SERVER_ERROR"
   | "UNKNOWN"
@@ -24,6 +26,8 @@ export interface RateLimitBackoffResult {
 
 const QUOTA_EXHAUSTED_BACKOFFS = [60_000, 300_000, 1_800_000, 7_200_000] as const
 const RATE_LIMIT_EXCEEDED_BACKOFF = 30_000
+const SERVICE_UNAVAILABLE_503_BACKOFF = 120_000
+const SITE_OVERLOADED_529_BACKOFF = 120_000
 // Increased from 15s to 45s base + jitter to reduce retry pressure on capacity errors
 const MODEL_CAPACITY_EXHAUSTED_BASE_BACKOFF = 45_000
 const MODEL_CAPACITY_EXHAUSTED_JITTER_MAX = 30_000 // ±15s jitter range
@@ -44,9 +48,9 @@ export function parseRateLimitReason(
   message: string | undefined,
   status?: number,
 ): RateLimitReason {
-  // 1. Status Code Checks (Rust parity)
-  // 529 = Site Overloaded, 503 = Service Unavailable -> Capacity issues
-  if (status === 529 || status === 503) return "MODEL_CAPACITY_EXHAUSTED"
+  // 1. Status Code Checks (preserve official HTTP semantics)
+  if (status === 503) return "SERVICE_UNAVAILABLE_503"
+  if (status === 529) return "SITE_OVERLOADED_529"
   // 500 = Internal Server Error -> Treat as Server Error (soft wait)
   if (status === 500) return "SERVER_ERROR"
 
@@ -57,6 +61,10 @@ export function parseRateLimitReason(
         return "QUOTA_EXHAUSTED"
       case "RATE_LIMIT_EXCEEDED":
         return "RATE_LIMIT_EXCEEDED"
+      case "SERVICE_UNAVAILABLE_503":
+        return "SERVICE_UNAVAILABLE_503"
+      case "SITE_OVERLOADED_529":
+        return "SITE_OVERLOADED_529"
       case "MODEL_CAPACITY_EXHAUSTED":
         return "MODEL_CAPACITY_EXHAUSTED"
     }
@@ -115,6 +123,10 @@ export function calculateBackoffMs(
     }
     case "RATE_LIMIT_EXCEEDED":
       return RATE_LIMIT_EXCEEDED_BACKOFF // 30s
+    case "SERVICE_UNAVAILABLE_503":
+      return SERVICE_UNAVAILABLE_503_BACKOFF
+    case "SITE_OVERLOADED_529":
+      return SITE_OVERLOADED_529_BACKOFF
     case "MODEL_CAPACITY_EXHAUSTED":
       // Apply jitter to prevent thundering herd on capacity errors
       return MODEL_CAPACITY_EXHAUSTED_BASE_BACKOFF + generateJitter(MODEL_CAPACITY_EXHAUSTED_JITTER_MAX)

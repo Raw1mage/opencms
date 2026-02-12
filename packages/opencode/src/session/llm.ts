@@ -392,8 +392,13 @@ export namespace LLM {
             }
           }
 
-          // Guardrail: keep 503/529 cooldown at least 5 minutes across all subagents.
-          if (reason === "MODEL_CAPACITY_EXHAUSTED" && backoffMs < MODEL_CAPACITY_MIN_BACKOFF_MS) {
+          // Guardrail: keep 503/529/capacity cooldown at least 5 minutes across all subagents.
+          if (
+            (reason === "SERVICE_UNAVAILABLE_503" ||
+              reason === "SITE_OVERLOADED_529" ||
+              reason === "MODEL_CAPACITY_EXHAUSTED") &&
+            backoffMs < MODEL_CAPACITY_MIN_BACKOFF_MS
+          ) {
             backoffMs = MODEL_CAPACITY_MIN_BACKOFF_MS
           }
 
@@ -798,6 +803,10 @@ export namespace LLM {
         return "Quota exhausted"
       case "RATE_LIMIT_EXCEEDED":
         return "Rate limit exceeded"
+      case "SERVICE_UNAVAILABLE_503":
+        return "Service unavailable (503)"
+      case "SITE_OVERLOADED_529":
+        return "Site overloaded (529)"
       case "MODEL_CAPACITY_EXHAUSTED":
         return "Model at capacity"
       case "SERVER_ERROR":
