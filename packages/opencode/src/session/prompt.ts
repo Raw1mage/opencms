@@ -49,6 +49,7 @@ import { iife } from "@/util/iife"
 import { Shell } from "@/shell/shell"
 import { Truncate } from "@/tool/truncation"
 import { Env } from "@/env"
+import { Global } from "../global"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
 
@@ -56,6 +57,76 @@ import { buildFallbackCandidates, type ModelVector } from "../account/rotation3d
 
 export namespace SessionPrompt {
   const log = Log.create({ service: "session.prompt" })
+  async function getPreloadedContext(sessionID: string): Promise<string> {
+    const root = Instance.worktree
+    let listing = ""
+    try {
+      const files = await fs.readdir(root)
+      listing = files.slice(0, 50).join("\n")
+      if (files.length > 50) listing += "\n... (truncated)"
+    } catch (e) {
+      listing = String(e)
+    }
+
+    let readme = ""
+    try {
+      const candidates = ["README.md", "readme.md", "README.txt", "README"]
+      for (const candidate of candidates) {
+        const p = path.join(root, candidate)
+        const exists = await fs
+          .stat(p)
+          .then(() => true)
+          .catch(() => false)
+        if (exists) {
+          readme = await fs.readFile(p, "utf-8")
+          readme = readme.slice(0, 1000)
+          break
+        }
+      }
+    } catch (e) {
+      readme = "Error reading README"
+    }
+
+    let skills = ""
+    const skillNames = ["model-selector", "agent-workflow"]
+    const skillDirs = [path.join(root, ".opencode", "skills"), path.join(Global.Path.data, "skills")]
+
+    for (const name of skillNames) {
+      let content = ""
+      for (const dir of skillDirs) {
+        const p = path.join(dir, name, "SKILL.md")
+        const exists = await fs
+          .stat(p)
+          .then(() => true)
+          .catch(() => false)
+        if (exists) {
+          content = await fs.readFile(p, "utf-8")
+          break
+        }
+      }
+      if (content) {
+        skills += `\n<skill name="${name}">\n${content}\n</skill>`
+      }
+    }
+
+    return `
+<preloaded_context>
+<env_context>
+<cwd_listing>
+${listing}
+</cwd_listing>
+<readme_summary>
+${readme}
+</readme_summary>
+</env_context>
+<skill_context>
+${skills}
+</skill_context>
+</preloaded_context>
+
+Current directory, README, and core skills are already provided in <preloaded_context>. DO NOT run ls, read README, or load core skills.
+`
+  }
   const MAX_LIVE_OUTPUT_METADATA = 50_000
   export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
   const WORKFLOW_KEYWORDS = [
@@ -793,6 +864,7 @@ export namespace SessionPrompt {
         abort,
         sessionID,
         system: [
+          await getPreloadedContext(sessionID),
           ...environmentPrompts,
           // Include instruction prompts (AGENTS.md/CLAUDE.md) for all sessions (including subagents)
           // to ensure consistent behavioral standards across the system.
@@ -1099,7 +1171,7 @@ export namespace SessionPrompt {
 
       const cfg = await Config.get()
       const workflow = cfg.experimental?.subagent_workflow
-      if (workflow?.enabled === false) return input.parts
+      if (workflow?.enabled !== true) return input.parts
 
       const text = input.parts
         .filter((part) => part.type === "text")

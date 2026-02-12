@@ -2,14 +2,10 @@
 
 ---
 
-## 工作階段啟動 - 必備技能 (Session Start - Required Skills)
+## 工作階段啟動 (Session Start)
 
-工作階段啟動時，請立即載入以下技能：
-
-```javascript
-skill({ name: "model-selector" }) // 針對任務最佳化模型選擇
-skill({ name: "agent-workflow" }) // 多重 Agent 協作編排
-```
+- **Environment**: Current directory (`cwd`) and `README.md` are pre-loaded in `<preloaded_context>/<env_context>`.
+- **Core Skills**: `model-selector` and `agent-workflow` are pre-loaded in `<preloaded_context>/<skill_context>`. **DO NOT** load them again.
 
 ---
 
