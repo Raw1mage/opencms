@@ -53,6 +53,7 @@ import { getPreloadedContext } from "./preloaded-context"
 import { insertReminders } from "./reminders"
 import { ensureTitle } from "./title-manager"
 import { resolvePromptParts as resolvePromptPartsInner } from "./prompt-part-resolver"
+import { lastModel } from "./last-model"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
 
@@ -649,13 +650,6 @@ export namespace SessionPrompt {
     }
     throw new Error("Impossible")
   })
-
-  async function lastModel(sessionID: string) {
-    for await (const item of MessageV2.stream(sessionID)) {
-      if (item.info.role === "user" && item.info.model) return item.info.model
-    }
-    return Provider.defaultModel()
-  }
 
   async function createUserMessage(input: PromptInput) {
     const agent = await Agent.get(input.agent ?? (await Agent.defaultAgent()))
