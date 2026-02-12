@@ -377,12 +377,14 @@ server.registerTool(
   {
     title: "Refacting Merger Daily Delta",
     description:
-      "Analyze target branch vs source branch delta (default origin/dev), apply refactor-from-src methodology, and return commit-level logical type/value score/recommended decision for daily catch-up.",
+      "Analyze target ref vs source ref delta, apply refactor-from-src methodology, and return commit-level logical type/value score/recommended decision. Source and target must be explicitly specified by the user — do NOT assume defaults; ask the user if not provided.",
     inputSchema: z
       .object({
-        sourceRemote: z.string().default("origin").describe("Source remote, e.g. origin or upstream"),
-        sourceBranch: z.string().default("dev").describe("Source branch, e.g. dev or main"),
-        targetRef: z.string().default("HEAD").describe("Target ref to compare from, usually HEAD"),
+        sourceRemote: z.string().describe("Source remote (e.g. origin, upstream). Must be explicitly specified."),
+        sourceBranch: z.string().describe("Source branch (e.g. dev, main). Must be explicitly specified."),
+        targetRef: z
+          .string()
+          .describe("Target ref to compare from (e.g. HEAD, cms, main). Must be explicitly specified."),
         ledgerPath: z
           .string()
           .optional()
@@ -421,9 +423,9 @@ server.registerTool(
       .object({
         topic: z.string().min(1).describe("Plan topic suffix, e.g. origin_dev_delta_round3"),
         outputPath: z.string().min(1).describe("Output markdown path (absolute or repo-relative)"),
-        sourceRemote: z.string().default("origin"),
-        sourceBranch: z.string().default("dev"),
-        targetRef: z.string().default("HEAD"),
+        sourceRemote: z.string().describe("Source remote (e.g. origin, upstream). Must be explicitly specified."),
+        sourceBranch: z.string().describe("Source branch (e.g. dev, main). Must be explicitly specified."),
+        targetRef: z.string().describe("Target ref to compare from (e.g. HEAD, cms). Must be explicitly specified."),
         ledgerPath: z.string().optional(),
         includeProcessed: z.boolean().default(false),
       })
@@ -613,12 +615,12 @@ server.registerTool(
   {
     title: "Refacting Merger Wizard Hint",
     description:
-      "Return guided next-step hints for wizard phases (analysis/planning/approval/execution/ledger) following refactor-from-src workflow.",
+      "Return guided next-step hints for wizard phases (analysis/planning/approval/execution/ledger) following refactor-from-src workflow. Source and target must be explicitly specified.",
     inputSchema: z
       .object({
         phase: z.enum(["analysis", "planning", "approval", "execution", "ledger"]),
-        sourceRef: z.string().default("origin/dev"),
-        targetRef: z.string().default("HEAD"),
+        sourceRef: z.string().describe("Source ref (e.g. origin/dev, upstream/main). Must be explicitly specified."),
+        targetRef: z.string().describe("Target ref (e.g. HEAD, cms). Must be explicitly specified."),
       })
       .strict(),
     annotations: {

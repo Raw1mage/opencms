@@ -114,3 +114,39 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `f7e0c50` | integrated | `f7e0c50` | Sync Antigravity Auth Plugin v1.5.1 (Spoofing, Versioning) |
+
+## 已處理（Round: claude-code submodule sync 2026-02-12 @ 2026-02-12T13:14:13.215Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `81b5a6a08` | integrated | - | fix(app):workspace reset (#13170) |
+| `8f56ed5b8` | integrated | - | chore: generate |
+| `fbabce112` | integrated | - | fix(app): translations |
+| `6b30e0b75` | skipped | - | chore: update docs sync workflow - 與 cms 無關 |
+| `e3471526f` | integrated | - | add square logo variants to brand page |
+| `6b4d617df` | skipped | - | feat: adjust read tool dirs - medium risk, cms 已有自訂 read |
+| `006d673ed` | skipped | - | tweak: read tool offset 1 indexed - medium risk, cms 已有自訂 |
+| `e2a33f75e` | integrated | - | Update VOUCHED list |
+| `8c7b35ad0` | skipped | - | tweak: compaction check - medium risk |
+| `125727d09` | integrated | - | upgrade opentui to 0.1.79 (#13036) |
+| `264dd213f` | integrated | - | chore: update nix node_modules hashes |
+| `c856f875a` | integrated | - | chore: upgrade bun to 1.3.9 (#13223) |
+| `8577eb8ec` | integrated | - | chore: update nix node_modules hashes |
+| `3befd0c6c` | skipped | - | tweak: use promise all for mcp listTools - medium risk |
+| `8eea53a41` | skipped | - | docs(ar): localization cleanup - 與 cms 無關 |
+| `aea68c386` | skipped | - | fix(docs): locale translations - 與 cms 無關 |
+| `81ca2df6a` | integrated | - | fix(app): guard randomUUID in insecure browser contexts (#13237) |
+| `bf5a01edd` | skipped | - | feat: Venice variant generation - high risk, 與 cms 無關 |
+| `135f8ffb2` | skipped | - | feat(tui): toggle hide session header - high risk |
+| `5bdf1c4b9` | integrated | - | Update VOUCHED list |
+| `ad2087094` | skipped | - | support custom api url per model - high risk |
+| `66780195d` | integrated | - | chore: generate |
+| `e269788a8` | skipped | - | feat: structured outputs SDK - high risk, 涉及 llm/session 核心 |
+| `f6e7aefa7` | integrated | - | chore: generate |
+| `8f9742d98` | skipped | - | fix(win32): ffi raw input - high risk, platform specific |
+| `03de51bd3` | integrated | - | release: v1.1.60 |
+| `d86f24b6b` | integrated | - | zen: return cost |
+| `624dd94b5` | skipped | - | tweak: tool outputs more llm friendly - medium risk |
+| `1413d77b1` | integrated | - | desktop: sqlite migration progress bar (#13294) |
+| `0eaeb4588` | integrated | - | Testing SignPath Integration (#13308) |
+| `fa97475ee` | integrated | - | ci: move test-signing policy |
