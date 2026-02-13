@@ -623,7 +623,6 @@ export namespace Account {
     const map: Record<string, string> = {
       "google-api": "google-api",
       openai: "openai",
-      anthropic: "anthropic",
       "claude-cli": "claude-cli",
       antigravity: "antigravity",
       "gemini-cli": "gemini-cli",
@@ -701,7 +700,7 @@ export namespace Account {
     // - OAuth: only migrate for providers that DON'T have separate multi-account files
     //   - Google OAuth: skip (comes from antigravity-accounts.json)
     //   - OpenAI OAuth: skip (comes from openai-codex-accounts.json)
-    //   - Anthropic OAuth: migrate (no separate multi-account file)
+    //   - claude-cli OAuth: migrate (no separate multi-account file)
     const authPath = path.join(Global.Path.data, "auth.json")
     const authFile = Bun.file(authPath)
     if (await authFile.exists()) {
@@ -731,17 +730,9 @@ export namespace Account {
             hasMigrated = true
           } else if (authInfo.type === "oauth" && typeof authInfo.refresh === "string") {
             // Only migrate OAuth for providers without separate multi-account files
-            // Google and OpenAI have their own account files, Anthropic doesn't
+            // Google and OpenAI have their own account files
             if (provider === "google" || provider === "google-api" || provider === "openai") {
               continue // Skip - will be migrated from antigravity/codex account files
-            }
-            // Skip Anthropic if already present (avoid duplicates with new format)
-            if (
-              provider === "anthropic" &&
-              storage.families["anthropic"] &&
-              Object.keys(storage.families["anthropic"].accounts).length > 0
-            ) {
-              continue
             }
 
             if (!storage.families[provider]) {
@@ -772,18 +763,6 @@ export namespace Account {
         }
       } catch (e) {
         log.warn("Failed to migrate auth.json", { error: e })
-      }
-    }
-
-    // Post-migrate cleanup: Remove legacy account ID if new format exists for Anthropic
-    if (
-      storage.families["anthropic"] &&
-      storage.families["anthropic"].accounts["anthropic"] &&
-      storage.families["anthropic"].accounts["anthropic-subscription-anthropic"]
-    ) {
-      delete storage.families["anthropic"].accounts["anthropic"]
-      if (storage.families["anthropic"].activeAccount === "anthropic") {
-        storage.families["anthropic"].activeAccount = "anthropic-subscription-anthropic"
       }
     }
 

@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process"
 import { tool } from "@opencode-ai/plugin"
+import { z } from "zod"
 import {
   ANTIGRAVITY_ENDPOINT_FALLBACKS,
   ANTIGRAVITY_ENDPOINT_PROD,
@@ -981,14 +982,14 @@ export const createAntigravityPlugin =
       description:
         "Search the web using Google Search and analyze URLs. Returns real-time information from the internet with source citations. Uses Antigravity OAuth when configured; otherwise uses Gemini CLI OAuth. Use this when you need up-to-date information about current events, recent developments, or any topic that may have changed. You can also provide specific URLs to analyze. IMPORTANT: If the user mentions or provides any URLs in their query, you MUST extract those URLs and pass them in the 'urls' parameter for direct analysis.",
       args: {
-        query: tool.schema.string().describe("The search query or question to answer using web search"),
-        urls: tool.schema
-          .array(tool.schema.string())
+        query: z.string().describe("The search query or question to answer using web search"),
+        urls: z
+          .array(z.string())
           .optional()
           .describe(
             "List of specific URLs to fetch and analyze. IMPORTANT: Always extract and include any URLs mentioned by the user in their query here.",
           ),
-        thinking: tool.schema
+        thinking: z
           .boolean()
           .optional()
           .default(true)

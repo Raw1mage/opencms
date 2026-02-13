@@ -197,7 +197,7 @@ export namespace ProviderTransform {
     }
 
     for (const msg of unique([...system, ...final])) {
-      const useMessageLevelOptions = providerId === "anthropic" || providerId.includes("bedrock")
+      const useMessageLevelOptions = providerId === "claude-cli" || providerId.includes("bedrock")
       const shouldUseContentOptions = !useMessageLevelOptions && Array.isArray(msg.content) && msg.content.length > 0
 
       if (shouldUseContentOptions) {
@@ -256,7 +256,7 @@ export namespace ProviderTransform {
     msgs = unsupportedParts(msgs, model)
     msgs = normalizeMessages(msgs, model, options)
     if (
-      model.providerId === "anthropic" ||
+      model.providerId === "claude-cli" ||
       model.api.id.includes("anthropic") ||
       model.api.id.includes("claude") ||
       model.id.includes("anthropic") ||
@@ -424,7 +424,7 @@ export namespace ProviderTransform {
         // When using openai-compatible SDK with Claude/Anthropic models,
         // use snake_case (budget_tokens) for thinking params.
         if (
-          model.providerId === "anthropic" ||
+          model.providerId === "claude-cli" ||
           model.api.id.includes("anthropic") ||
           model.api.id.includes("claude") ||
           model.id.includes("anthropic") ||

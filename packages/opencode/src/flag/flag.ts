@@ -13,7 +13,7 @@ export namespace Flag {
   export const OPENCODE_DISABLE_PRUNE = truthy("OPENCODE_DISABLE_PRUNE")
   export const OPENCODE_DISABLE_TERMINAL_TITLE = truthy("OPENCODE_DISABLE_TERMINAL_TITLE")
   export const OPENCODE_PERMISSION = process.env["OPENCODE_PERMISSION"]
-  export const OPENCODE_PERMISSION_MODE = process.env["OPENCODE_PERMISSION_MODE"]
+  export declare const OPENCODE_PERMISSION_MODE: string | undefined
   export const OPENCODE_DISABLE_DEFAULT_PLUGINS = truthy("OPENCODE_DISABLE_DEFAULT_PLUGINS")
   export const OPENCODE_DISABLE_LSP_DOWNLOAD = truthy("OPENCODE_DISABLE_LSP_DOWNLOAD")
   export const OPENCODE_ENABLE_EXPERIMENTAL_MODELS = truthy("OPENCODE_ENABLE_EXPERIMENTAL_MODELS")
@@ -88,6 +88,17 @@ Object.defineProperty(Flag, "OPENCODE_CONFIG_DIR", {
 Object.defineProperty(Flag, "OPENCODE_CLIENT", {
   get() {
     return process.env["OPENCODE_CLIENT"] ?? "cli"
+  },
+  enumerable: true,
+  configurable: false,
+})
+
+// Dynamic getter for OPENCODE_PERMISSION_MODE
+// This must be evaluated at access time, not module load time,
+// because tests and runtime flows may override this env var dynamically.
+Object.defineProperty(Flag, "OPENCODE_PERMISSION_MODE", {
+  get() {
+    return process.env["OPENCODE_PERMISSION_MODE"]
   },
   enumerable: true,
   configurable: false,

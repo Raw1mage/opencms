@@ -1,20 +1,26 @@
 import { describe, expect, test, mock, beforeEach, afterEach } from "bun:test"
 import { createRoot, createSignal } from "solid-js"
+import { isServer } from "solid-js/web"
 import { useSessionHashScroll, anchor } from "../use-session-hash-scroll"
+
+const testIfClient = isServer ? test.skip : test
 
 describe("useSessionHashScroll", () => {
   let rafCallbacks: FrameRequestCallback[] = []
   let originalRAF = window.requestAnimationFrame
+  let originalGlobalRAF = globalThis.requestAnimationFrame
   let originalReplaceState = window.history.replaceState
   let replaceStateCalls: string[] = []
 
   beforeEach(() => {
     rafCallbacks = []
     replaceStateCalls = []
-    window.requestAnimationFrame = (cb) => {
+    const raf = (cb: FrameRequestCallback) => {
       rafCallbacks.push(cb)
       return 0
     }
+    window.requestAnimationFrame = raf
+    globalThis.requestAnimationFrame = raf
     window.history.replaceState = (_state, _title, url) => {
       if (url) replaceStateCalls.push(url.toString())
     }
@@ -23,13 +29,14 @@ describe("useSessionHashScroll", () => {
 
   afterEach(() => {
     window.requestAnimationFrame = originalRAF
+    globalThis.requestAnimationFrame = originalGlobalRAF
     window.history.replaceState = originalReplaceState
     window.location.hash = ""
   })
 
-  test("scrolls to message from hash on load", async () => {
+  testIfClient("scrolls to message from hash on load", async () => {
     window.location.hash = `#${anchor("msg-1")}`
-    
+
     await new Promise<void>((resolve) => {
       createRoot((dispose) => {
         const [messagesReady, setMessagesReady] = createSignal(false)
@@ -48,7 +55,9 @@ describe("useSessionHashScroll", () => {
           messages: () => [{ id: "msg-1", role: "user" } as any],
           messagesReady,
           onActiveChange: () => {},
-          onPauseAutoScroll: () => { pausedAutoScroll = true },
+          onPauseAutoScroll: () => {
+            pausedAutoScroll = true
+          },
           onForceScrollToBottom: () => {},
           activeMessageId: () => undefined,
           turnStart,
@@ -63,7 +72,7 @@ describe("useSessionHashScroll", () => {
 
         // Wait for Effect and RAF
         setTimeout(() => {
-          rafCallbacks.forEach(cb => cb(0))
+          rafCallbacks.forEach((cb) => cb(0))
           expect(pausedAutoScroll).toBe(true)
           dispose()
           resolve()
@@ -72,7 +81,7 @@ describe("useSessionHashScroll", () => {
     })
   })
 
-  test("updates hash when scrollToMessage is called", () => {
+  testIfClient("updates hash when scrollToMessage is called", () => {
     createRoot((dispose) => {
       const scroller = document.createElement("div")
       const msgEl = document.createElement("div")
@@ -93,13 +102,13 @@ describe("useSessionHashScroll", () => {
       })
 
       scrollToMessage({ id: "msg-2" } as any)
-      
+
       expect(replaceStateCalls).toContain(`#${anchor("msg-2")}`)
       dispose()
     })
   })
 
-  test("triggers backfill if message is before turnStart", () => {
+  testIfClient("triggers backfill if message is before turnStart", () => {
     createRoot((dispose) => {
       const scroller = document.createElement("div")
       document.body.appendChild(scroller)
@@ -110,7 +119,7 @@ describe("useSessionHashScroll", () => {
         messages: () => [
           { id: "msg-0", role: "user" } as any,
           { id: "msg-1", role: "user" } as any,
-          { id: "msg-2", role: "user" } as any
+          { id: "msg-2", role: "user" } as any,
         ],
         messagesReady: () => true,
         onActiveChange: () => {},
@@ -118,11 +127,13 @@ describe("useSessionHashScroll", () => {
         onForceScrollToBottom: () => {},
         activeMessageId: () => undefined,
         turnStart: () => 2, // Only rendering from index 2
-        onBackfill: (idx) => { backfillTo = idx },
+        onBackfill: (idx) => {
+          backfillTo = idx
+        },
       })
 
       scrollToMessage({ id: "msg-1" } as any)
-      
+
       expect(backfillTo).toBe(1)
       dispose()
     })

@@ -133,6 +133,26 @@ export const SessionWorkerCommand = cmd({
         crlfDelay: Infinity,
       })
 
+      let activeRun:
+        | {
+          id: string
+          sessionID: string
+          cancelRequested: boolean
+        }
+        | undefined
+
+      const cleanup = async () => {
+        if (activeRun) {
+          SessionPrompt.cancel(activeRun.sessionID)
+          // Wait for async tool cleanup (child processes)
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+        }
+        process.exit(0)
+      }
+
+      process.on("SIGTERM", cleanup)
+      process.on("SIGINT", cleanup)
+
       const send = (payload: Record<string, unknown>) => {
         process.stdout.write(WORKER_PREFIX + JSON.stringify(payload) + "\n")
       }
@@ -142,14 +162,6 @@ export const SessionWorkerCommand = cmd({
         send({ type: "heartbeat", pid: process.pid, ts: Date.now() })
       }, 5000)
       if (typeof heartbeat.unref === "function") heartbeat.unref()
-
-      let activeRun:
-        | {
-            id: string
-            sessionID: string
-            cancelRequested: boolean
-          }
-        | undefined
 
       for await (const raw of rl) {
         const line = raw.trim()

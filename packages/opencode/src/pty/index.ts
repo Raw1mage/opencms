@@ -9,6 +9,7 @@ import { Instance } from "../project/instance"
 import { lazy } from "@opencode-ai/util/lazy"
 import { Shell } from "@/shell/shell"
 import { Plugin } from "@/plugin"
+import { debugCheckpoint } from "@/util/debug"
 
 export namespace Pty {
   const log = Log.create({ service: "pty" })
@@ -90,7 +91,12 @@ export namespace Pty {
       for (const session of sessions.values()) {
         try {
           session.process.kill()
-        } catch {}
+        } catch (error) {
+          debugCheckpoint("pty", "failed to kill session process during cleanup", {
+            sessionID: session.info.id,
+            error: error instanceof Error ? error.message : String(error),
+          })
+        }
         for (const ws of session.subscribers) {
           ws.close()
         }
@@ -210,7 +216,12 @@ export namespace Pty {
     log.info("removing session", { id })
     try {
       session.process.kill()
-    } catch {}
+    } catch (error) {
+      debugCheckpoint("pty", "failed to kill session process during remove", {
+        sessionID: id,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
     for (const ws of session.subscribers) {
       ws.close()
     }

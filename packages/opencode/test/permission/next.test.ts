@@ -1,9 +1,30 @@
-import { test, expect } from "bun:test"
+import { afterAll, test, expect } from "bun:test"
 import os from "os"
 import { PermissionNext } from "../../src/permission/next"
 import { Instance } from "../../src/project/instance"
 import { Storage } from "../../src/storage/storage"
 import { tmpdir } from "../fixture/fixture"
+
+const originalPermissionMode = process.env.OPENCODE_PERMISSION_MODE
+process.env.OPENCODE_PERMISSION_MODE = "ask"
+
+afterAll(() => {
+  if (originalPermissionMode === undefined) {
+    delete process.env.OPENCODE_PERMISSION_MODE
+    return
+  }
+  process.env.OPENCODE_PERMISSION_MODE = originalPermissionMode
+})
+
+async function waitForPendingPermission(requestID: string, timeoutMs = 2000) {
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    const pending = await PermissionNext.list()
+    if (pending.some((item) => item.id === requestID)) return
+    await Bun.sleep(10)
+  }
+  throw new Error(`Timed out waiting for pending permission request: ${requestID}`)
+}
 
 // fromConfig tests
 
@@ -531,6 +552,8 @@ test("reply - once resolves the pending ask", async () => {
         ruleset: [],
       })
 
+      await waitForPendingPermission("permission_test1")
+
       await PermissionNext.reply({
         requestID: "permission_test1",
         reply: "once",
@@ -556,6 +579,8 @@ test("reply - reject throws RejectedError", async () => {
         ruleset: [],
       })
 
+      await waitForPendingPermission("permission_test2")
+
       await PermissionNext.reply({
         requestID: "permission_test2",
         reply: "reject",
@@ -580,6 +605,8 @@ test("reply - always persists approval and resolves", async () => {
         always: ["ls"],
         ruleset: [],
       })
+
+      await waitForPendingPermission("permission_test3")
 
       await PermissionNext.reply({
         requestID: "permission_test3",
@@ -631,6 +658,9 @@ test("reply - reject cancels all pending for same session", async () => {
         always: [],
         ruleset: [],
       })
+
+      await waitForPendingPermission("permission_test4a")
+      await waitForPendingPermission("permission_test4b")
 
       // Catch rejections before they become unhandled
       const result1 = askPromise1.catch((e) => e)

@@ -17,6 +17,14 @@ export namespace Storage {
 
   type Migration = (dir: string) => Promise<void>
 
+  const warnMigration = (operation: string, target: string, error: unknown) => {
+    log.warn("session storage migration step failed", {
+      operation,
+      target,
+      error,
+    })
+  }
+
   export const NotFoundError = NamedError.create(
     "NotFoundError",
     z.object({
@@ -169,18 +177,23 @@ export namespace Storage {
           const newSessionDir = path.join(sessionRoot, sessionID) // Fixed: Flat session directory
           const newInfo = path.join(newSessionDir, "info.json")
 
-          await fs.mkdir(newSessionDir, { recursive: true }).catch(() => {})
+          await fs
+            .mkdir(newSessionDir, { recursive: true })
+            .catch((error) => warnMigration("mkdir", newSessionDir, error))
           if (!(await Bun.file(newInfo).exists())) {
             const content = await Bun.file(oldInfo)
               .text()
-              .catch(() => "")
+              .catch((error) => {
+                warnMigration("read", oldInfo, error)
+                return ""
+              })
             if (content) await Bun.write(newInfo, content)
           }
 
           await Bun.write(
             path.join(dir, ...SESSION_INDEX_DIR, `${sessionID}.json`),
             JSON.stringify({ projectID }, null, 2),
-          ).catch(() => {})
+          ).catch((error) => warnMigration("write", path.join(dir, ...SESSION_INDEX_DIR, `${sessionID}.json`), error))
 
           // Migrate messages for session
           const oldMessageDir = path.join(messageRoot, sessionID)
@@ -192,18 +205,23 @@ export namespace Storage {
             const newMessageDir = path.join(newSessionDir, "messages", messageID)
             const newMessageInfo = path.join(newMessageDir, "info.json")
 
-            await fs.mkdir(newMessageDir, { recursive: true }).catch(() => {})
+            await fs
+              .mkdir(newMessageDir, { recursive: true })
+              .catch((error) => warnMigration("mkdir", newMessageDir, error))
             if (!(await Bun.file(newMessageInfo).exists())) {
               const content = await Bun.file(oldMessageInfo)
                 .text()
-                .catch(() => "")
+                .catch((error) => {
+                  warnMigration("read", oldMessageInfo, error)
+                  return ""
+                })
               if (content) await Bun.write(newMessageInfo, content)
             }
 
             await Bun.write(
               path.join(dir, ...MESSAGE_INDEX_DIR, `${messageID}.json`),
               JSON.stringify({ projectID, sessionID }, null, 2),
-            ).catch(() => {})
+            ).catch((error) => warnMigration("write", path.join(dir, ...MESSAGE_INDEX_DIR, `${messageID}.json`), error))
 
             // Migrate parts for message
             const oldPartsDir = path.join(partRoot, messageID)
@@ -213,11 +231,16 @@ export namespace Storage {
               const partID = path.basename(partFile.name, ".json")
               const oldPartPath = path.join(oldPartsDir, partFile.name)
               const newPartPath = path.join(newMessageDir, "parts", `${partID}.json`)
-              await fs.mkdir(path.dirname(newPartPath), { recursive: true }).catch(() => {})
+              await fs
+                .mkdir(path.dirname(newPartPath), { recursive: true })
+                .catch((error) => warnMigration("mkdir", path.dirname(newPartPath), error))
               if (!(await Bun.file(newPartPath).exists())) {
                 const content = await Bun.file(oldPartPath)
                   .text()
-                  .catch(() => "")
+                  .catch((error) => {
+                    warnMigration("read", oldPartPath, error)
+                    return ""
+                  })
                 if (content) await Bun.write(newPartPath, content)
               }
             }
@@ -231,11 +254,16 @@ export namespace Storage {
             const oldPath = path.join(oldToolOutputDir, out.name)
             const targetName = out.name.startsWith("output_") ? out.name : `output_${out.name}`
             const newPath = path.join(newSessionDir, "output", targetName)
-            await fs.mkdir(path.dirname(newPath), { recursive: true }).catch(() => {})
+            await fs
+              .mkdir(path.dirname(newPath), { recursive: true })
+              .catch((error) => warnMigration("mkdir", path.dirname(newPath), error))
             if (!(await Bun.file(newPath).exists())) {
               const content = await Bun.file(oldPath)
                 .text()
-                .catch(() => "")
+                .catch((error) => {
+                  warnMigration("read", oldPath, error)
+                  return ""
+                })
               if (content) await Bun.write(newPath, content)
             }
           }
@@ -245,11 +273,16 @@ export namespace Storage {
             if (!msgFile.isFile() || !msgFile.name.startsWith("output_")) continue
             const oldPath = path.join(oldMessageDir, msgFile.name)
             const newPath = path.join(newSessionDir, "output", msgFile.name)
-            await fs.mkdir(path.dirname(newPath), { recursive: true }).catch(() => {})
+            await fs
+              .mkdir(path.dirname(newPath), { recursive: true })
+              .catch((error) => warnMigration("mkdir", path.dirname(newPath), error))
             if (!(await Bun.file(newPath).exists())) {
               const content = await Bun.file(oldPath)
                 .text()
-                .catch(() => "")
+                .catch((error) => {
+                  warnMigration("read", oldPath, error)
+                  return ""
+                })
               if (content) await Bun.write(newPath, content)
             }
           }
@@ -278,18 +311,22 @@ export namespace Storage {
             const newPath = path.join(sessionRoot, sessionID)
             if (!(await Bun.file(path.join(newPath, "info.json")).exists())) {
               log.info(`re-migrating session ${sessionID} from project ${projectID}`)
-              await fs.mkdir(newPath, { recursive: true }).catch(() => {})
+              await fs.mkdir(newPath, { recursive: true }).catch((error) => warnMigration("mkdir", newPath, error))
               // Move all contents
               const files = await fs.readdir(oldPath).catch(() => [] as string[])
               for (const f of files) {
-                await fs.rename(path.join(oldPath, f), path.join(newPath, f)).catch(() => {})
+                const fromPath = path.join(oldPath, f)
+                const toPath = path.join(newPath, f)
+                await fs
+                  .rename(fromPath, toPath)
+                  .catch((error) => warnMigration("rename", `${fromPath} -> ${toPath}`, error))
               }
             }
           }
           // Cleanup empty project dir
           const remaining = await fs.readdir(projectPath).catch(() => [] as string[])
           if (remaining.length === 0) {
-            await fs.rmdir(projectPath).catch(() => {})
+            await fs.rmdir(projectPath).catch((error) => warnMigration("rmdir", projectPath, error))
           }
         }
       }

@@ -253,9 +253,9 @@ async function getRecommendedModels(accounts: z.infer<typeof AccountStatusSchema
   const subscriptionAccounts = healthyAccounts.filter((a) => a.type === "subscription" || a.type === "oauth")
 
   // Priority order for dialog model
-  const dialogPriority = ["opencode", "anthropic", "openai", "google-api"]
+  const dialogPriority = ["opencode", "claude-cli", "openai", "google-api"]
   // Priority order for background tasks (prefer cheaper)
-  const backgroundPriority = ["opencode", "anthropic", "openai"]
+  const backgroundPriority = ["opencode", "claude-cli", "openai"]
 
   const recommended: {
     dialog?: ModelVector
@@ -312,7 +312,7 @@ async function getDefaultModelForProvider(providerId: string): Promise<string | 
 
     // Priority models by provider
     const modelPriority: Record<string, string[]> = {
-      anthropic: ["claude-sonnet-4", "claude-opus-4-5", "claude-3-5-sonnet-20241022"],
+      "claude-cli": ["claude-sonnet-4", "claude-opus-4-5", "claude-3-5-sonnet-20241022"],
       openai: ["gpt-4o", "gpt-5", "o3-mini"],
       google: ["gemini-2.0-flash", "gemini-2.5-pro"],
       opencode: ["big-pickle", "claude-sonnet-4"],
@@ -339,7 +339,7 @@ async function getSmallModelForProvider(providerId: string): Promise<string | un
     if (!provider?.models) return undefined
 
     const smallModels: Record<string, string[]> = {
-      anthropic: ["claude-3-5-haiku-20241022", "claude-3-haiku-20240307"],
+      "claude-cli": ["claude-3-5-haiku-20241022", "claude-3-haiku-20240307"],
       openai: ["gpt-4o-mini", "gpt-3.5-turbo"],
       google: ["gemini-2.0-flash-lite", "gemini-1.5-flash"],
       opencode: ["gpt-5-nano"],

@@ -1,6 +1,6 @@
 import { describe, expect, test, mock, beforeEach, afterEach } from "bun:test"
 import { createRoot, createSignal } from "solid-js"
-import { useSessionBackfill } from "../use-session-backfill"
+import { isServer } from "solid-js/web"
 
 // Mock router using a signal to allow dynamic changes
 const [mockParams, setMockParams] = createSignal({ id: "test-session" })
@@ -8,31 +8,42 @@ mock.module("@solidjs/router", () => ({
   useParams: () => mockParams(),
 }))
 
+const { useSessionBackfill } = await import("../use-session-backfill")
+const testIfClient = isServer ? test.skip : test
+
 describe("useSessionBackfill", () => {
   let rafCallbacks: FrameRequestCallback[] = []
   let idleCallbacks: Function[] = []
   let originalRAF = window.requestAnimationFrame
+  let originalGlobalRAF = globalThis.requestAnimationFrame
   let originalRIC = window.requestIdleCallback
+  let originalGlobalRIC = globalThis.requestIdleCallback
 
   beforeEach(() => {
     rafCallbacks = []
     idleCallbacks = []
-    window.requestAnimationFrame = (cb) => {
+    const raf = (cb: FrameRequestCallback) => {
       rafCallbacks.push(cb)
       return 0
     }
-    window.requestIdleCallback = (cb) => {
+    const ric = (cb: IdleRequestCallback) => {
       idleCallbacks.push(cb)
       return 0
     }
+    window.requestAnimationFrame = raf
+    globalThis.requestAnimationFrame = raf
+    window.requestIdleCallback = ric
+    globalThis.requestIdleCallback = ric
   })
 
   afterEach(() => {
     window.requestAnimationFrame = originalRAF
+    globalThis.requestAnimationFrame = originalGlobalRAF
     window.requestIdleCallback = originalRIC
+    globalThis.requestIdleCallback = originalGlobalRIC
   })
 
-  test("initializes backfill on session load", async () => {
+  testIfClient("initializes backfill on session load", async () => {
     let backfillValue = -1
 
     await new Promise<void>((resolve, reject) => {
@@ -68,7 +79,7 @@ describe("useSessionBackfill", () => {
     expect(backfillValue).toBe(80)
   })
 
-  test("adjusts scroll top when backfilling", async () => {
+  testIfClient("adjusts scroll top when backfilling", async () => {
     await new Promise<void>((resolve) => {
       createRoot((dispose) => {
         const [turnStart, setTurnStart] = createSignal(40)

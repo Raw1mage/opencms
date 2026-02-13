@@ -469,7 +469,7 @@ export namespace LLM {
               "x-opencode-request": input.user.id,
               "x-opencode-client": Flag.OPENCODE_CLIENT,
             }
-          : input.model.providerId !== "anthropic"
+          : input.model.providerId !== "claude-cli"
             ? {
                 "User-Agent": `opencode/${Installation.VERSION}`,
               }

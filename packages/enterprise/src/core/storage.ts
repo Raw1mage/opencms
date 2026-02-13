@@ -83,8 +83,38 @@ export namespace Storage {
     return createAdapter(client, `https://${accountId}.r2.cloudflarestorage.com`, process.env.OPENCODE_STORAGE_BUCKET!)
   }
 
+  const memoryState = new Map<string, string>()
+  function memory(): Adapter {
+    return {
+      async read(path: string): Promise<string | undefined> {
+        return memoryState.get(path)
+      },
+      async write(path: string, value: string): Promise<void> {
+        memoryState.set(path, value)
+      },
+      async remove(path: string): Promise<void> {
+        memoryState.delete(path)
+      },
+      async list(options?: { prefix?: string; limit?: number; after?: string; before?: string }): Promise<string[]> {
+        const prefix = options?.prefix || ""
+        const afterPath = options?.after ? prefix + options.after + ".json" : undefined
+        const beforePath = options?.before ? prefix + options.before + ".json" : undefined
+
+        const keys = [...memoryState.keys()]
+          .filter((key) => key.startsWith(prefix))
+          .sort()
+          .filter((key) => (afterPath ? key > afterPath : true))
+          .filter((key) => (beforePath ? key < beforePath : true))
+
+        if (options?.limit) return keys.slice(0, options.limit)
+        return keys
+      },
+    }
+  }
+
   const adapter = lazy(() => {
     const type = process.env.OPENCODE_STORAGE_ADAPTER
+    if (!type && process.env.NODE_ENV === "test") return memory()
     if (type === "r2") return r2()
     if (type === "s3") return s3()
     throw new Error("No storage adapter configured")

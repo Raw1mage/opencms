@@ -1295,7 +1295,11 @@ export function Prompt(props: PromptProps) {
                         return
                       }
                     }
-                  } catch {}
+                  } catch (error) {
+                    debugCheckpoint("tui.prompt", "failed to process pasted image", {
+                      error: error instanceof Error ? error.message : String(error),
+                    })
+                  }
                 }
 
                 const lineCount = (pastedContent.match(/\n/g)?.length ?? 0) + 1

@@ -1,6 +1,7 @@
 import { APICallError } from "ai"
 import { STATUS_CODES } from "http"
 import { iife } from "@/util/iife"
+import { debugCheckpoint } from "@/util/debug"
 
 export namespace ProviderError {
   // Adapted from overflow detection patterns in:
@@ -74,7 +75,11 @@ export namespace ProviderError {
         if (errMsg && typeof errMsg === "string") {
           return `${msg}: ${errMsg}`
         }
-      } catch {}
+      } catch (error) {
+        debugCheckpoint("provider.error", "failed to parse api response body json", {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
 
       return `${msg}: ${e.responseBody}`
     }).trim()

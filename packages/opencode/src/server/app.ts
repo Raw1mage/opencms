@@ -184,7 +184,30 @@ export function createApp(app: Hono): Hono {
     )
     .use(async (c, next) => {
       if (c.req.path === "/log") return next()
-      const raw = c.req.query("directory") || c.req.header("x-opencode-directory") || process.cwd()
+      const directoryFromQuery = c.req.query("directory")
+      const directoryFromHeader = c.req.header("x-opencode-directory")
+      const hasDirectoryOverride = Boolean(directoryFromQuery || directoryFromHeader)
+      const requestHost = (() => {
+        try {
+          return new URL(c.req.url).hostname
+        } catch {
+          return ""
+        }
+      })()
+      const isLoopbackHost =
+        requestHost === "localhost" || requestHost === "127.0.0.1" || requestHost === "::1" || requestHost === "[::1]"
+
+      const raw =
+        hasDirectoryOverride && !Flag.OPENCODE_SERVER_PASSWORD && !isLoopbackHost
+          ? process.cwd()
+          : (directoryFromQuery ?? directoryFromHeader ?? process.cwd())
+
+      if (hasDirectoryOverride && !Flag.OPENCODE_SERVER_PASSWORD && !isLoopbackHost) {
+        log.warn("Ignoring directory override on unsecured non-loopback request", {
+          path: c.req.path,
+          host: requestHost,
+        })
+      }
       const directory = (() => {
         try {
           return decodeURIComponent(raw)
@@ -533,8 +556,20 @@ export function createApp(app: Hono): Hono {
       // Try to serve local frontend if OPENCODE_FRONTEND_PATH is set
       const frontendPath = Env.get("OPENCODE_FRONTEND_PATH")
       if (frontendPath) {
-        const reqPath = c.req.path === "/" ? "/index.html" : c.req.path
-        const filePath = path.join(frontendPath, reqPath)
+        const resolvedFrontendPath = path.resolve(frontendPath)
+        const reqPath = c.req.path === "/" ? "index.html" : c.req.path.replace(/^\/+/, "")
+        const filePath = path.resolve(resolvedFrontendPath, reqPath)
+        const withinFrontendRoot =
+          filePath === resolvedFrontendPath || filePath.startsWith(resolvedFrontendPath + path.sep)
+
+        if (!withinFrontendRoot) {
+          log.warn("Rejected frontend file request outside configured frontend root", {
+            reqPath: c.req.path,
+            frontendPath: resolvedFrontendPath,
+          })
+          return next()
+        }
+
         const ext = path.extname(filePath).toLowerCase()
         const file = Bun.file(filePath)
         if (await file.exists()) {
@@ -560,7 +595,7 @@ export function createApp(app: Hono): Hono {
         }
         // For SPA routing, serve index.html for non-file paths
         if (!ext || ext === "") {
-          const indexPath = path.join(frontendPath, "index.html")
+          const indexPath = path.resolve(resolvedFrontendPath, "index.html")
           const indexFile = Bun.file(indexPath)
           if (await indexFile.exists()) {
             return new Response(indexFile, {

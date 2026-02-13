@@ -22,6 +22,7 @@ import { type SystemError } from "bun"
 import type { Provider } from "@/provider/provider"
 import { Token } from "../util/token"
 import { Bus } from "@/bus"
+import { debugCheckpoint } from "@/util/debug"
 
 export namespace MessageV2 {
   export const OutputLengthError = NamedError.create("MessageOutputLengthError", z.object({}))
@@ -768,7 +769,11 @@ export namespace MessageV2 {
               },
             ).toObject()
           }
-        } catch {}
+        } catch (error) {
+          debugCheckpoint("message-v2", "failed to parse unknown stream error", {
+            error: error instanceof Error ? error.message : String(error),
+          })
+        }
         return new NamedError.Unknown({ message: String(e) }, { cause: e }).toObject()
     }
   }

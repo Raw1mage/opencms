@@ -230,7 +230,7 @@ export const ModelsCommand = cmd({
         }
 
         // Order providers
-        const order = ["antigravity", "gemini-cli", "anthropic", "openai", "opencode", "google-api"]
+        const order = ["antigravity", "gemini-cli", "claude-cli", "openai", "opencode", "google-api"]
         const sortedFamilies = Object.keys(families).sort((a, b) => {
           // Map a to sort key if needed, mostly 'google-api' is in sort list
           const idxA = order.indexOf(a)

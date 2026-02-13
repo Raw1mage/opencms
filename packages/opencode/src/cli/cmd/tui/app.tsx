@@ -69,7 +69,11 @@ async function getTerminalBackgroundColor(): Promise<"dark" | "light"> {
     const cleanup = () => {
       try {
         if (process.stdin.isTTY && process.stdin.isRaw) process.stdin.setRawMode(false)
-      } catch {}
+      } catch (error) {
+        debugCheckpoint("tui.startup", "failed to restore stdin raw mode", {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
       process.stdin.removeListener("data", handler)
       clearTimeout(timeout)
     }

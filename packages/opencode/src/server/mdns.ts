@@ -1,5 +1,6 @@
 import { Log } from "@/util/log"
 import { Bonjour } from "bonjour-service"
+import { debugCheckpoint } from "@/util/debug"
 
 const log = Log.create({ service: "mdns" })
 
@@ -37,7 +38,11 @@ export namespace MDNS {
       if (bonjour) {
         try {
           bonjour.destroy()
-        } catch {}
+        } catch (error) {
+          debugCheckpoint("mdns", "destroy after publish failure failed", {
+            error: error instanceof Error ? error.message : String(error),
+          })
+        }
       }
       bonjour = undefined
       currentPort = undefined

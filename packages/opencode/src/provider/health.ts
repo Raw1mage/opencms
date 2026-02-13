@@ -5,6 +5,7 @@ import { withTimeout } from "@/util/timeout"
 import { Auth } from "../auth"
 import { Account } from "../account"
 import { JWT } from "@/util/jwt"
+import { debugCheckpoint } from "@/util/debug"
 
 export namespace ProviderHealth {
   const log = Log.create({ service: "provider-health" })
@@ -417,7 +418,11 @@ export namespace ProviderHealth {
           return { status: "RATE_LIMITED", error: "Rate Limited", retryAfter }
         }
       }
-    } catch {}
+    } catch (error) {
+      debugCheckpoint("provider.health", "failed to parse structured error body", {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
 
     // 2. RATE_LIMITED - Authenticated but rate limit exceeded
     if (

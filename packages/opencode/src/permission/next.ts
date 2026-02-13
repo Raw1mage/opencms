@@ -131,15 +131,6 @@ export namespace PermissionNext {
     async (input) => {
       const cfg = await Config.get()
 
-      // Auto-allow all permissions if mode is set to "auto"
-      if (cfg.permissionMode === "auto") {
-        log.info("auto-allowing permission", {
-          permission: input.permission,
-          patterns: input.patterns,
-        })
-        return
-      }
-
       const s = await state()
       const { ruleset, ...request } = input
       for (const pattern of request.patterns ?? []) {
@@ -148,6 +139,13 @@ export namespace PermissionNext {
         if (rule.action === "deny")
           throw new DeniedError(ruleset.filter((r) => Wildcard.match(request.permission, r.permission)))
         if (rule.action === "ask") {
+          if (cfg.permissionMode === "auto") {
+            log.info("auto-allowing permission", {
+              permission: request.permission,
+              pattern,
+            })
+            continue
+          }
           const id = input.id ?? Identifier.ascending("permission")
           return new Promise<void>((resolve, reject) => {
             const info: Request = {

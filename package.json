@@ -12,7 +12,7 @@
     "check": "bun run lint && bun run typecheck",
     "lint": "eslint .",
     "typecheck": "bun turbo typecheck",
-    "test": "bun test",
+    "test": "bun test packages/*/test packages/*/*/test packages/opencode/src packages/console/*/src packages/enterprise/src && bun run --cwd /home/pkcs12/projects/opencode/packages/app test:unit",
     "build": "bun run script/build.ts",
     "install": "bun run script/install.ts",
     "prepare": "husky",

@@ -200,15 +200,29 @@ export namespace SessionPrompt {
       let lastAssistant: MessageV2.Assistant | undefined
       let lastFinished: MessageV2.Assistant | undefined
       let tasks: (MessageV2.CompactionPart | MessageV2.SubtaskPart)[] = []
+      const processedCompactionParents = new Set<string>()
       for (let i = msgs.length - 1; i >= 0; i--) {
         const msg = msgs[i]
+        if (msg.info.role === "assistant") {
+          if (msg.info.parentID) {
+            processedCompactionParents.add(msg.info.parentID)
+          }
+          if (!lastAssistant) lastAssistant = msg.info as MessageV2.Assistant
+          if (!lastFinished && msg.info.finish) lastFinished = msg.info as MessageV2.Assistant
+        }
         if (!lastUser && msg.info.role === "user") lastUser = msg.info as MessageV2.User
-        if (!lastAssistant && msg.info.role === "assistant") lastAssistant = msg.info as MessageV2.Assistant
-        if (!lastFinished && msg.info.role === "assistant" && msg.info.finish)
-          lastFinished = msg.info as MessageV2.Assistant
         if (lastUser && lastFinished) break
-        const task = msg.parts.filter((part) => part.type === "compaction" || part.type === "subtask")
-        if (task && !lastFinished) {
+        const task = msg.parts.filter((part): part is MessageV2.CompactionPart | MessageV2.SubtaskPart => {
+          if (part.type === "compaction") {
+            // Prevent re-processing the same compaction request when a child assistant
+            // message already exists (including failed/unfinished attempts).
+            // Otherwise, a failed compaction can get stuck in a retry loop that keeps
+            // spawning empty summary messages and blocks normal replies.
+            return !processedCompactionParents.has(msg.info.id)
+          }
+          return part.type === "subtask"
+        })
+        if (task.length > 0 && !lastFinished) {
           tasks.push(...task)
         }
       }

@@ -16,6 +16,7 @@ const SUPPORTED_IDES = [
 
 export namespace Ide {
   const log = Log.create({ service: "ide" })
+  const readEnv = (key: string) => process.env[key] ?? Env.get(key)
 
   export const Event = {
     Installed: BusEvent.define(
@@ -36,8 +37,8 @@ export namespace Ide {
   )
 
   export function ide() {
-    if (Env.get("TERM_PROGRAM") === "vscode") {
-      const v = Env.get("GIT_ASKPASS")
+    if (readEnv("TERM_PROGRAM") === "vscode") {
+      const v = readEnv("GIT_ASKPASS")
       for (const ide of SUPPORTED_IDES) {
         if (v?.includes(ide.name)) return ide.name
       }
@@ -46,7 +47,7 @@ export namespace Ide {
   }
 
   export function alreadyInstalled() {
-    return Env.get("OPENCODE_CALLER") === "vscode" || Env.get("OPENCODE_CALLER") === "vscode-insiders"
+    return readEnv("OPENCODE_CALLER") === "vscode" || readEnv("OPENCODE_CALLER") === "vscode-insiders"
   }
 
   export async function install(ide: (typeof SUPPORTED_IDES)[number]["name"]) {

@@ -52,7 +52,10 @@ const build = (messages: Message[], providers: Provider[]): Metrics => {
   const message = lastAssistantWithTokens(messages)
   if (!message) return { totalCost, context: undefined }
 
-  const provider = providers.find((item) => item.id === message.providerId)
+  const providerID =
+    (message as AssistantMessage & { providerId?: string }).providerId ??
+    (message as AssistantMessage & { providerID?: string }).providerID
+  const provider = providers.find((item) => item.id === providerID)
   const model = provider?.models[message.modelID]
   const limit = model?.limit.context
   const total = tokenTotal(message)
@@ -63,7 +66,7 @@ const build = (messages: Message[], providers: Provider[]): Metrics => {
       message,
       provider,
       model,
-      providerLabel: provider?.name ?? message.providerId,
+      providerLabel: provider?.name ?? providerID,
       modelLabel: model?.name ?? message.modelID,
       limit,
       input: message.tokens.input,

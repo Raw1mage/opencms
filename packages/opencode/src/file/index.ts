@@ -241,15 +241,20 @@ export namespace File {
     return mimeType.startsWith("image/")
   }
 
-  let projectRootReal: string | undefined
+  let projectRootRealCache: { directory: string; root: string } | undefined
   async function getProjectRootReal(): Promise<string> {
-    if (projectRootReal) return projectRootReal
+    const directory = Instance.directory
+    if (projectRootRealCache?.directory === directory) return projectRootRealCache.root
+
+    let root: string
     try {
-      projectRootReal = await fs.promises.realpath(Instance.directory)
+      root = await fs.promises.realpath(directory)
     } catch {
-      projectRootReal = Instance.directory
+      root = directory
     }
-    return projectRootReal
+
+    projectRootRealCache = { directory, root }
+    return root
   }
 
   function isWithinRoot(candidate: string, root: string): boolean {
@@ -593,15 +598,8 @@ export namespace File {
       }
       ignored = ig.ignores.bind(ig)
     }
-    const resolved = dir ? path.join(Instance.directory, dir) : Instance.directory
-
-    const withinProject = await isWithinProject(resolved)
-    if (!withinProject) {
-      log.warn("path escapes project directory", {
-        context: "list",
-        path: resolved,
-      })
-    }
+    const requested = dir ? path.join(Instance.directory, dir) : Instance.directory
+    const resolved = await assertWithinProject(requested)
 
     const nodes: Node[] = []
     for (const entry of await fs.promises

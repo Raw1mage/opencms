@@ -47,7 +47,7 @@ export namespace Auth {
     const families = [
       "google-api",
       "openai",
-      "anthropic",
+      "claude-cli",
       "github-copilot",
       "antigravity",
       "gemini-cli",
