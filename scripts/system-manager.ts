@@ -628,6 +628,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           await fs.cp(legacyMessagesDir, path.join(STORAGE_BASE, "message", newID), { recursive: true })
         }
 
+        let kv: any = {}
+        try {
+          kv = JSON.parse(await fs.readFile(KV_PATH, "utf-8"))
+        } catch (e) {}
+        kv.ui_trigger = "session.list.refresh"
+        await fs.writeFile(KV_PATH, JSON.stringify(kv, null, 2))
+
         return { content: [{ type: "text", text: `Forked session ${sessionID} to new session ${newID}` }] }
       }
     }

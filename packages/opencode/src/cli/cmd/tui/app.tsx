@@ -243,6 +243,7 @@ function App() {
   const sdk = useSDK()
   const toast = useToast()
   const { theme, mode, setMode } = useTheme()
+  const sync = useSync()
 
   createEffect(() => {
     const trigger = kv.get("ui_trigger")
@@ -254,6 +255,11 @@ function App() {
     switch (trigger) {
       case "session.list":
         dialog.replace(() => <DialogSessionList />)
+        break
+      case "session.list.refresh":
+        sync.bootstrap().finally(() => {
+          dialog.replace(() => <DialogSessionList />)
+        })
         break
       case "model.list":
         dialog.replace(() => <DialogModel />)
@@ -274,7 +280,6 @@ function App() {
     }
   })
 
-  const sync = useSync()
   const exit = useExit()
   const promptRef = usePromptRef()
 

@@ -154,6 +154,14 @@ export function DialogSessionList() {
           },
         },
         {
+          keybind: Keybind.parse("r")[0],
+          title: "(R)efresh",
+          label: "",
+          onTrigger: async () => {
+            await sync.bootstrap()
+          },
+        },
+        {
           keybind: Keybind.parse("left")[0],
           title: "(←)Exit",
           label: "",
