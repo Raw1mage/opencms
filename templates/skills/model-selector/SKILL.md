@@ -1,141 +1,90 @@
 ---
 name: model-selector
-description: 根據任務類型分析並建議最適合的模型選擇策略。
+description: 根據任務類型、當前系統負載與 API 配額，動態路由任務至最佳模型。支援流量整形與故障轉移。
 ---
 
-# 模型選擇指引
+# 模型選擇與負載均衡指引 (Load Balancing Edition)
 
-## Provider 資源特性
+本指引旨在解決單一 Provider 的 Rate Limit 問題，透過分散流量來最大化系統吞吐量。
 
-### 1. Antigravity
+## Provider 資源池 (Resource Pool)
 
-- **模型分組**：這個provider下面包含多個模型，目前分為兩個主要系列
-  - **主系列**：Gemini系列
-  - **副系列**：Claude系列
-- **額度**：
-  - **主系列**：5 小時 reset，無限再生
-  - **副系列**：有週用量限制，可用量極小
-- **優勢**：推理能力強
-- **適用**：系統預設主對話
-- **注意**：優先使用Gemini系列模型。針對需要大量思考的任務，可以考慮使用Claude系列模型，但要注意用量限制。Claude系列模型容易忘記system prompt的內容，需要經常提醒它重新加載AGENTS.md。
+我們將模型依據「智力/成本/速度」分為三層 (Tier)，並實施跨 Provider 的調度。
 
-### 2. Gemini-cli
+### Tier 1: 戰略核心 (High Intellect / High Cost)
 
-- **額度**：120 req/min, 1500 req/day
-- **適用**：每一個要求丟一個中大型任務包
-- **注意**：稀缺資源，描述完整讓它一次跑久
+_適用於：架構設計、複雜除錯、Refactoring Plan、根因分析_
 
-### 3. OpenAI
+1.  **OpenAI (GPT-4o)**: 邏輯最強，但 Rate Limit 最嚴格。**保留給關鍵路徑**。
+2.  **Claude-cli (Opus/Sonnet)**: 程式碼能力極強，適合大型重構。**稀缺資源**。
+3.  **Antigravity (Gemini-Pro)**: 預設主腦，推理能力強，額度相對寬鬆。
 
-- **額度**：task-based 計算，5hr & 週限制
-- **優勢**：品質高
-- **適用**：程式主力
-- **注意**：稀缺資源，計費複雜
+### Tier 2: 戰術執行 (Standard / Medium Cost)
 
-### 4. Google-API
+_適用於：單元測試撰寫、單一函式實作、文件補全_
 
-- **額度**：Gemini 3 Flash / 2.5 Flash / 2.5 Flash lite 各 20 次/日
-- **適用**：額外補充戰力，每一個要求丟一個中大型任務包
-- **注意**：沒事不要跟它說話，會浪費次數
+1.  **OpenAI (GPT-4o-mini)**: 速度快，適合高頻呼叫。
+2.  **Antigravity (Claude-Sonnet 3.5)**: 透過 Antigravity 封裝的 Claude，共用額度池。
+3.  **Gemini-cli (Pro)**: 適合批次處理大型 Context。
 
-### 5. GMICloud
+### Tier 3: 快速支援 (Fast / Low Cost)
 
-- **額度**：$0.5/M tokens (in), $2.18/M tokens (out)，現現 $25
-- **模型**：Deepseek R1
-- **適用**：小型 subagent、tool call 試玩
-- **注意**：短期試用額度
+_適用於：翻譯、格式化、簡單腳本、Log 分析_
 
-### 6. Claude-cli
-
-- **額度**：有 5 小時用量限制，以及每週用量限制。計算公式不明。
-- **模型**：Haiku 4.5, Opus 4.6, Sonnet 4.5 等。實際可用清單請執行 `/models` 查看。
-- **適用**：超級強大的程式代碼救火隊。
-- **注意**：珍貴的付費資源，除非使用者要求，沒事不要主動輪用。
+1.  **Google-API (Flash)**: 極快，免費額度有限，適合一次性大量 Token 輸入。
+2.  **GMICloud (Deepseek)**: 低價選項，適合非關鍵任務。
 
 ---
 
-## 任務類型分類
+## 流量路由策略 (Traffic Routing Strategy)
 
-### 程式編碼 (Coding)
+為了避免觸發 429 錯誤，Orchestrator 必須遵循以下路由原則：
 
-**特徵**：撰寫、除錯、重構、實作功能
+### 1. 分散原則 (Distribution Principle)
 
-**建議**：OpenAI（品質高）、Antigravity（額度寬鬆）
+**不要把所有雞蛋放在同一個籃子裡。**
 
-### 文件撰寫 (Writing)
+- 如果主 Agent 正在使用 **Antigravity (Gemini)** 進行思考：
+  - Subagent A (Coding) 應優先指派給 **OpenAI**。
+  - Subagent B (Docs) 應優先指派給 **Claude** 或 **Google-API**。
+- **目標**：同時利用三個不同 Provider 的 Rate Limit 額度池。
 
-**特徵**：文章、文件、翻譯、使用者介面文字
+### 2. 任務類型路由表
 
-**建議**：Antigravity（額度寬鬆）
+| 任務類型 (Task Type)          | 建議 Subagent Type | 優先 Provider 序列 (Primary -> Failover)        |
+| :---------------------------- | :----------------- | :---------------------------------------------- |
+| **複雜編碼 (Complex Coding)** | \`coding\`         | OpenAI (GPT-4) -> Claude-cli -> Antigravity     |
+| **日常維護 (Routine Maint)**  | \`coding-light\`   | OpenAI (4o-mini) -> Gemini-cli -> Google-API    |
+| **大量分析 (Batch Analysis)** | \`batch\`          | Gemini-cli -> Antigravity -> OpenAI             |
+| **文件撰寫 (Docs)**           | \`docs\`           | Antigravity -> Claude-cli -> OpenAI             |
+| **快速查詢 (Quick Info)**     | \`lightweight\`    | Google-API (Flash) -> GMICloud -> OpenAI (mini) |
 
-### 分析推理 (Analysis)
+### 3. 換模決策與故障轉移 (Failover)
 
-**特徵**：資料分析、程式碼審查、架構分析、問題解決
+當收到 `429 Too Many Requests` 或回應過慢時：
 
-**建議**：Antigravity（推理能力）、OpenAI（深度分析）
-
-### 規劃設計 (Planning)
-
-**特徵**：系統設計、複雜規劃、多步驟推理
-
-**建議**：OpenAI（品質高）、Gemini-cli（一次完整任務）
-
-### 批量任務 (Batch)
-
-**特徵**：每一個要求丟一個中大型任務包、需長時間執行
-
-**建議**：Gemini-cli、Google-API
-
-### 輕量任務 (Lightweight)
-
-**特徵**：小型 subagent、tool call、簡單查詢
-
-**建議**：Antigravity、Claude-cli
-
----
-
-## 系統機制
-
-- **rotation3d**：動態多帳號多模型切換系統。
-  - **自動模式**：系統根據負載與額度自動分配。
-  - **LLM 控制模式**：Agent 可根據任務複雜度，透過 `Task` 工具的 `subagent_type` 或直接執行指令干預切換。
-- **用量監控**：Antigravity、OpenAI 已實作。
-
----
-
-## LLM 主動換模指引 (LLM-Driven Switching)
-
-當你發現當前模型表現不佳（如：邏輯死循環、無法理解複雜 Context、頻繁出錯）時，**你必須**考慮切換模型。
-
-### 1. 指令控制 (Direct Command)
-
-在 `EXECUTION` 階段，你可以直接在 Bash 中執行以下指令：
-
-- `/models list`：查看當前可用模型與 Provider 狀態。
-- `/models set <provider>:<model>`：強制切換當前 Session 的模型。
-- `/admin`：進入管理介面調整全域權重。
-
-### 2. 任務分發控制 (Task Dispatch)
-
-在呼叫 `Task()` 工具時，透過設定 `subagent_type` 觸發 `rotation3d` 的特定路由：
-
-- 若需高精準度：指定 `subagent_type: "coding"` (通常路由至 OpenAI/Claude)。
-- 若需處理海量資料：指定 `subagent_type: "batch"` (路由至 Gemini-cli)。
-- 若需快速驗證：指定 `subagent_type: "lightweight"` (路由至 Flash 系模型)。
-
-### 3. 換模決策時機
-
-- **升級 (Upscale)**：當 Antigravity (Gemini) 無法解決複雜邏輯時，主動切換至 OpenAI 或 Claude-cli。
-- **降級 (Downscale)**：當執行簡單檔案操作或查詢時，應主動切換回 Antigravity 以節省高價值額度。
-- **逃生 (Escape)**：遇到 Provider 故障或持續 Rate Limit 時，立即切換至備用 Provider。
+1.  **立即切換 (Circuit Break)**: 標記當前 Provider 為「冷卻中 (Cooldown)」。
+2.  **異質備援 (Heterogeneous Failover)**:
+    - OpenAI 失敗 -> 轉 Gemini
+    - Gemini 失敗 -> 轉 Claude
+    - Claude 失敗 -> 轉 OpenAI
+    - _避免在同一個 Provider 的不同模型間切換 (通常共用 Quota)_。
+3.  **操作指令**:
+    - 使用 \`system-manager_switch_model\` 進行手動切換。
+    - 在 \`Task\` 工具中明確指定 \`model\` 參數來繞過預設路由。
 
 ---
 
 ## 建議輸出格式
 
-```
-[模型建議]
-任務類型：<類型>
-建議 Provider：<provider>
-操作方式：使用 /admin 或/models 切換模型
+在分析階段 (Analysis) 結束後，請輸出路由計畫：
+
+```text
+[資源調度計畫]
+- 任務複雜度: High
+- 預估 Token: ~4k
+- 策略: 分散負載
+  - 主控: Antigravity (Gemini)
+  - Subagent (Coding): 指派給 OpenAI (GPT-4o) 以分散 Antigravity 負載
+  - Subagent (Docs): 指派給 Google-API (Flash) 節省高階額度
 ```
