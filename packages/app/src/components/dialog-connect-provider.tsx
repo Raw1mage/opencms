@@ -258,7 +258,7 @@ export function DialogConnectProvider(props: { provider: string }) {
 
       setFormStore("error", undefined)
       await globalSDK.client.auth.set({
-        providerID: props.provider,
+        providerId: props.provider,
         auth: {
           type: "api",
           key: apiKey,
@@ -336,7 +336,7 @@ export function DialogConnectProvider(props: { provider: string }) {
       setFormStore("error", undefined)
       const result = await globalSDK.client.provider.oauth
         .callback({
-          providerID: props.provider,
+          providerId: props.provider,
           method: store.methodIndex,
           code,
         })
@@ -393,7 +393,7 @@ export function DialogConnectProvider(props: { provider: string }) {
 
         const result = await globalSDK.client.provider.oauth
           .callback({
-            providerID: props.provider,
+            providerId: props.provider,
             method: store.methodIndex,
           })
           .then((value) => (value.error ? { ok: false as const, error: value.error } : { ok: true as const }))

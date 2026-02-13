@@ -2,7 +2,7 @@ import { createEffect } from "solid-js"
 import { usePrompt } from "@/context/prompt"
 import { useTerminal, type LocalPTY } from "@/context/terminal"
 import { useLanguage } from "@/context/language"
-import { useFile } from "@/context/file"
+import { useFile, type SelectedLineRange } from "@/context/file"
 import { handoff } from "./utils/handoff"
 
 interface HandoffOptions {
@@ -55,13 +55,14 @@ export function useSessionHandoff(options: HandoffOptions) {
   createEffect(() => {
     if (!file.ready()) return
     handoff.files = Object.fromEntries(
-      options.tabs()
+      options
+        .tabs()
         .all()
         .flatMap((tab) => {
           const path = file.pathFromTab(tab)
           if (!path) return []
           return [[path, file.selectedLines(path) ?? null] as const]
         }),
-    )
+    ) as Record<string, SelectedLineRange | null>
   })
 }

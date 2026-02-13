@@ -1,4 +1,4 @@
-import { onCleanup, Show, Match, Switch, createMemo, createEffect, createSignal, on, type JSX } from "solid-js"
+import { onCleanup, Show, Match, Switch, createMemo, createEffect, createSignal, on, batch, type JSX } from "solid-js"
 import { createMediaQuery } from "@solid-primitives/media"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { useLocal } from "@/context/local"
@@ -43,7 +43,7 @@ import { MessageTimeline } from "./message-timeline"
 import { FileTabContent } from "./file-tabs"
 import { TerminalPanel } from "./terminal-panel"
 import { SessionPromptDock } from "./session-prompt-dock"
-import { closestMessage, scheduleScrollSpy, cancelScrollSpy } from "./scroll-spy"
+import { closestMessage, createScrollSpy } from "./scroll-spy"
 import { markScrollGesture, isScrollGestureActive } from "./message-gesture"
 import { useSessionHashScroll, anchor, scrollToElement } from "./use-session-hash-scroll"
 import { useSessionBackfill } from "./use-session-backfill"
@@ -938,7 +938,28 @@ export default function Page() {
   onCleanup(() => {
     cancelTurnBackfill()
     document.removeEventListener("keydown", handleKeyDown)
-    cancelScrollSpy()
+    spy.destroy()
+  })
+
+  const [titleState, setTitleState] = createStore({
+    draft: "",
+    editing: false,
+    saving: false,
+    menuOpen: false,
+    pendingRename: false,
+  })
+
+  const [scroll, setScroll] = createStore({ overflow: false, bottom: true })
+
+  const spy = createScrollSpy({
+    onActive: (id) => setStore("messageId", id),
+  })
+
+  createEffect(() => {
+    const title = info()?.title
+    if (title && !titleState.editing) {
+      setTitleState("draft", title)
+    }
   })
 
   return (
@@ -946,12 +967,13 @@ export default function Page() {
       <SessionHeader />
       <div class="flex-1 min-h-0 flex flex-col md:flex-row">
         <SessionMobileTabs
-          id={params.id}
-          isDesktop={isDesktop()}
+          open={!!params.id}
+          mobileTab={store.mobileTab}
           hasReview={hasReview()}
           reviewCount={reviewCount()}
-          language={language}
-          setMobileTab={(tab: "session" | "changes") => setStore("mobileTab", tab)}
+          t={(k, v) => language.t(k as any, v)}
+          onSession={() => setStore("mobileTab", "session")}
+          onChanges={() => setStore("mobileTab", "changes")}
         />
 
         {/* Session panel */}
@@ -1020,29 +1042,95 @@ export default function Page() {
                     }
                   >
                     <MessageTimeline
-                      params={params}
-                      info={info}
-                      centered={centered}
-                      store={store}
-                      setStore={setStore}
-                      historyMore={historyMore}
-                      historyLoading={historyLoading}
-                      language={language}
-                      sync={sync}
-                      renderedUserMessages={renderedUserMessages}
-                      lastUserMessage={lastUserMessage}
-                      autoScroll={autoScroll}
-                      resumeScroll={resumeScroll}
-                      markScrollGesture={markScrollGestureHandler}
-                      hasScrollGesture={hasScrollGesture}
-                      scheduleScrollSpy={(container: HTMLDivElement) =>
-                        scheduleScrollSpy(container, (id) => setStore("messageId", id))
+                      mobileChanges={mobileChanges()}
+                      mobileFallback={
+                        <NewSessionView
+                          worktree={newSessionWorktree()}
+                          onWorktreeChange={(value) => {
+                            if (value === "create") {
+                              setStore("newSessionWorktree", value)
+                              return
+                            }
+                            setStore("newSessionWorktree", "main")
+                            const target = value === "main" ? sync.project?.worktree : value
+                            if (!target) return
+                            if (target === sync.data.path.directory) return
+                            layout.projects.open(target)
+                            navigate(`/${base64Encode(target)}/session`)
+                          }}
+                        />
                       }
-                      anchor={anchor}
+                      scroll={scroll}
+                      onResumeScroll={resumeScroll}
                       setScrollRef={setScrollRef}
-                      touchGesture={touchGesture()}
-                      setTouchGesture={setTouchGesture}
-                      navigate={navigate}
+                      onScheduleScrollState={(el) => {
+                        spy.setContainer(el)
+                        setScroll({
+                          overflow: el.scrollHeight > el.clientHeight,
+                          bottom: el.scrollHeight - el.scrollTop - el.clientHeight < 10,
+                        })
+                      }}
+                      onAutoScrollHandleScroll={() => autoScroll.pause()}
+                      onMarkScrollGesture={markScrollGestureHandler}
+                      hasScrollGesture={hasScrollGesture}
+                      isDesktop={isDesktop()}
+                      onScrollSpyScroll={spy.onScroll}
+                      onAutoScrollInteraction={() => autoScroll.pause()}
+                      showHeader={!isDesktop()}
+                      centered={centered()}
+                      title={(info() as any)?.title}
+                      parentID={(info() as any)?.parentID}
+                      openTitleEditor={() => {
+                        batch(() => {
+                          setTitleState({
+                            editing: true,
+                            draft: (info() as any)?.title || language.t("app.name.desktop" as any),
+                            menuOpen: false,
+                          })
+                        })
+                      }}
+                      closeTitleEditor={() => setTitleState("editing", false)}
+                      saveTitleEditor={async () => {
+                        const id = params.id
+                        if (!id) return
+                        setTitleState("saving", true)
+                        await sdk.client.session.update({ sessionID: id, title: titleState.draft }).catch(() => {})
+                        batch(() => {
+                          setTitleState("saving", false)
+                          setTitleState("editing", false)
+                        })
+                      }}
+                      titleRef={(el) => setTimeout(() => el.focus(), 0)}
+                      titleState={titleState}
+                      onTitleDraft={(v) => setTitleState("draft", v)}
+                      onTitleMenuOpen={(v) => setTitleState("menuOpen", v)}
+                      onTitlePendingRename={(v) => setTitleState("pendingRename", v)}
+                      onNavigateParent={() => {
+                        const parent = info()?.parentID
+                        if (parent) navigate(`/${params.dir}/${parent}`)
+                      }}
+                      sessionID={params.id!}
+                      onArchiveSession={async (id) => {
+                        await sync.session.archive(id)
+                        navigate(`/${params.dir}`)
+                      }}
+                      onDeleteSession={async (id) => {
+                        await sdk.client.session.delete({ sessionID: id })
+                        navigate(`/${params.dir}`)
+                      }}
+                      t={(k, v) => language.t(k as any, v as any)}
+                      setContentRef={() => {}}
+                      turnStart={store.turnStart}
+                      onRenderEarlier={() => setStore("turnStart", 0)}
+                      historyMore={historyMore()}
+                      historyLoading={historyLoading()}
+                      onLoadEarlier={() => params.id && sync.session.history.loadMore(params.id)}
+                      renderedUserMessages={renderedUserMessages()}
+                      anchor={anchor}
+                      onRegisterMessage={spy.register}
+                      onUnregisterMessage={spy.unregister}
+                      expanded={store.expanded}
+                      onToggleExpanded={(id) => setStore("expanded", id, (v) => !v)}
                     />
                   </Show>
                 </Show>
@@ -1071,16 +1159,16 @@ export default function Page() {
 
           {/* Prompt input */}
           <SessionPromptDock
-            view={view()}
-            layout={layout}
             centered={centered()}
+            blocked={false}
             permissionRequest={request}
             promptReady={prompt.ready()}
             handoffPrompt={handoff.prompt}
-            language={language}
+            t={(k, v) => language.t(k as any, v as any)}
             responding={ui.responding}
             onDecide={decide}
-            setInputRef={(el: HTMLDivElement) => (inputRef = el)}
+            questionRequest={() => undefined}
+            inputRef={(el: HTMLDivElement) => (inputRef = el)}
             newSessionWorktree={newSessionWorktree()}
             onNewSessionWorktreeReset={() => setStore("newSessionWorktree", "main")}
             onSubmit={resumeScroll}
@@ -1099,38 +1187,50 @@ export default function Page() {
         </div>
 
         <SessionSidePanel
-          isDesktop={isDesktop()}
+          open={!isDesktop() || layout.fileTree.opened()}
+          reviewOpen={hasReview()}
           language={language}
-          fileTreeTab={fileTreeTab}
-          setFileTreeTab={setFileTreeTabValue}
-          handleDragStart={handleDragStart}
-          handleDragEnd={handleDragEnd}
-          handleDragOver={handleDragOver}
-          activeTab={activeTab}
-          openTab={openTab}
-          contextOpen={contextOpen}
-          tabs={tabs}
-          openedTabs={openedTabs}
+          layout={layout}
           command={command}
           dialog={dialog}
-          showAllFiles={showAllFiles}
-          messages={messages}
-          visibleUserMessages={visibleUserMessages}
-          view={view}
-          info={info}
           file={file}
-          codeComponent={codeComponent}
           comments={comments}
-          addCommentToContext={addCommentToContext}
-          activeDraggable={store.activeDraggable}
-          layout={layout}
-          activeDiff={activeDiff}
-          focusReviewDiff={focusReviewDiff}
-          reviewCount={reviewCount}
-          diffFiles={diffFiles}
-          kinds={kinds}
+          hasReview={hasReview()}
+          reviewCount={reviewCount()}
+          reviewTab={true}
+          contextOpen={contextOpen}
+          openedTabs={openedTabs}
+          activeTab={activeTab}
+          activeFileTab={() => {
+            const active = tabs().active()
+            if (!active) return undefined
+            if (active === "context" || active === "review" || active === "empty") return undefined
+            return active
+          }}
+          tabs={tabs}
+          openTab={openTab}
+          showAllFiles={showAllFiles}
           reviewPanel={reviewPanel}
-          onCleanup={onCleanup}
+          vm={{
+            messages,
+            visibleUserMessages,
+            view,
+            info,
+          }}
+          handoffFiles={() => handoff.files}
+          codeComponent={codeComponent}
+          addCommentToContext={addCommentToContext}
+          activeDraggable={() => store.activeDraggable}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragOver={handleDragOver}
+          fileTreeTab={fileTreeTab}
+          setFileTreeTabValue={setFileTreeTabValue}
+          diffsReady={diffsReady()}
+          diffFiles={diffFiles()}
+          kinds={kinds()}
+          activeDiff={activeDiff()}
+          focusReviewDiff={focusReviewDiff}
         />
       </div>
 

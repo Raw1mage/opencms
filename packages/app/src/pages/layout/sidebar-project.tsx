@@ -319,7 +319,6 @@ export const SortableProject = (props: {
   )
 
   return (
-    // @ts-expect-error SolidJS custom directive type mismatch
     <div use:sortable classList={{ "opacity-30": sortable.isActiveDraggable }}>
       <Show when={preview()} fallback={tile()}>
         <HoverCard
