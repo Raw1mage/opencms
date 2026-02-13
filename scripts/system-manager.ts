@@ -27,6 +27,15 @@ const CODEX_ISSUER = "https://auth.openai.com"
 const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 const CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
 
+async function pathExists(targetPath: string) {
+  try {
+    await fs.access(targetPath)
+    return true
+  } catch {
+    return false
+  }
+}
+
 const THEME_DIR = path.join(REPO_ROOT, "packages", "opencode", "src", "cli", "cmd", "tui", "context", "theme")
 const DEFAULT_THEMES = [
   "aura",
@@ -579,16 +588,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       if (operation === "fork") {
         const newID = "ses_" + Math.random().toString(36).substring(2, 15)
-        const newDir = `${STORAGE_BASE}/session/${newID}`
+        const newDir = path.join(STORAGE_BASE, "session", newID)
         await fs.mkdir(newDir, { recursive: true })
 
         const session = JSON.parse(await fs.readFile(sessionInfoPath, "utf-8"))
         session.id = newID
         session.parentID = undefined
         session.title = `Fork of ${session.title || sessionID}`
+        session.time = {
+          created: Date.now(),
+          updated: Date.now(),
+        }
 
-        await fs.writeFile(`${newDir}/info.json`, JSON.stringify(session, null, 2))
-        await execAsync(`cp -r ${STORAGE_BASE}/message/${sessionID} ${STORAGE_BASE}/message/${newID}`)
+        const sourceMessagesDir = path.join(STORAGE_BASE, "session", sessionID, "messages")
+        const legacyMessagesDir = path.join(STORAGE_BASE, "message", sessionID)
+        const targetMessagesDir = path.join(newDir, "messages")
+
+        const hasSourceMessages = await pathExists(sourceMessagesDir)
+        const hasLegacyMessages = await pathExists(legacyMessagesDir)
+
+        if (!hasSourceMessages && !hasLegacyMessages) {
+          await fs.rm(newDir, { recursive: true, force: true }).catch(() => {})
+          throw new Error(
+            `Cannot fork session ${sessionID}: no persisted message history found. Use a session ID from session.list/UI and try again.`,
+          )
+        }
+
+        await fs.writeFile(path.join(newDir, "info.json"), JSON.stringify(session, null, 2))
+        if (hasSourceMessages) {
+          await fs.cp(sourceMessagesDir, targetMessagesDir, { recursive: true })
+        } else {
+          await fs.mkdir(path.join(STORAGE_BASE, "message"), { recursive: true }).catch(() => {})
+          await fs.cp(legacyMessagesDir, path.join(STORAGE_BASE, "message", newID), { recursive: true })
+        }
 
         return { content: [{ type: "text", text: `Forked session ${sessionID} to new session ${newID}` }] }
       }
