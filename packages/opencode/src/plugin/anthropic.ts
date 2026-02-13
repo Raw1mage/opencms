@@ -157,6 +157,17 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                   refreshPromise = (async () => {
                     try {
                       log.info("Refreshing token for claude-cli...")
+                      // FIX: Use exact scope list from official Claude CLI (v2.1.37+)
+                      // The original code included "org:create_api_key" which is NOT in the
+                      // official refresh token request, causing "invalid_scope" error.
+                      // Official scope: ["user:profile", "user:inference", "user:sessions:claude_code", "user:mcp_servers"]
+                      // @event_20260214_oauth_refresh_invalid_scope
+                      const REFRESH_SCOPES = [
+                        "user:profile",
+                        "user:inference",
+                        "user:sessions:claude_code",
+                        "user:mcp_servers",
+                      ]
                       const response = await fetch("https://platform.claude.com/v1/oauth/token", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -164,8 +175,7 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                           grant_type: "refresh_token",
                           refresh_token: auth.refresh,
                           client_id: CLIENT_ID,
-                          scope:
-                            "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers",
+                          scope: REFRESH_SCOPES.join(" "),
                         }),
                       })
                       if (response.ok) {
