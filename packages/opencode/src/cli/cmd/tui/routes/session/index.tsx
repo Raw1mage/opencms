@@ -83,6 +83,8 @@ import { formatTranscript } from "../../util/transcript"
 import { UI } from "@/cli/ui.ts"
 addDefaultParsers(parsers.parsers)
 
+const consumedSessionRouteInitTokens = new Set<string>()
+
 class CustomSpeedScroll implements ScrollAcceleration {
   constructor(private speed: number) {}
 
@@ -234,11 +236,18 @@ export function Session() {
   const toast = useToast()
   const sdk = useSDK()
 
-  // Handle initial prompt from fork
+  const [promptMounted, setPromptMounted] = createSignal(false)
+
+  // Handle initial prompt from route once per token
   createEffect(() => {
-    if (route.initialPrompt && prompt) {
-      prompt.set(route.initialPrompt)
-    }
+    if (!promptMounted()) return
+    if (!route.initialPrompt || !prompt) return
+
+    const token = route.initialPromptToken
+    if (token && consumedSessionRouteInitTokens.has(token)) return
+
+    prompt.set(route.initialPrompt)
+    if (token) consumedSessionRouteInitTokens.add(token)
   })
 
   let lastSwitch: string | undefined = undefined
@@ -1100,11 +1109,8 @@ export function Session() {
                 visible={!session()?.parentID && permissions().length === 0 && questions().length === 0}
                 ref={(r) => {
                   prompt = r
+                  setPromptMounted(true)
                   promptRef.set(r)
-                  // Apply initial prompt when prompt component mounts (e.g., from fork)
-                  if (route.initialPrompt) {
-                    r.set(route.initialPrompt)
-                  }
                 }}
                 disabled={permissions().length > 0 || questions().length > 0}
                 onSubmit={() => {

@@ -14,9 +14,11 @@ import { usePromptRef } from "../context/prompt"
 import { Installation } from "@/installation"
 import { useKV } from "../context/kv"
 import { useCommandDialog } from "../component/dialog-command"
+import { debugCheckpoint } from "@/util/debug"
 
 // TODO: what is the best way to do this?
-let once = false
+let processPromptConsumed = false
+const consumedRouteInitTokens = new Set<string>()
 
 export function Home() {
   const sync = useSync()
@@ -77,13 +79,44 @@ export function Home() {
   let prompt: PromptRef
   const args = useArgs()
   onMount(() => {
-    if (once) return
     if (route.initialPrompt) {
+      const token = route.initialPromptToken
+      if (token && consumedRouteInitTokens.has(token)) {
+        debugCheckpoint("tui.home.init", "route_prompt_skipped", {
+          init_source: "route",
+          init_token: token,
+          guard_hit_reason: "route_token_consumed",
+        })
+        return
+      }
+
       prompt.set(route.initialPrompt)
-      once = true
-    } else if (args.prompt) {
+      if (token) consumedRouteInitTokens.add(token)
+      debugCheckpoint("tui.home.init", "route_prompt_applied", {
+        init_source: "route",
+        init_token: token,
+        guard_hit_reason: token ? "none" : "missing_token",
+      })
+      return
+    }
+
+    if (args.prompt) {
+      if (processPromptConsumed) {
+        debugCheckpoint("tui.home.init", "args_prompt_skipped", {
+          init_source: "process",
+          init_token: "args.prompt",
+          guard_hit_reason: "process_prompt_consumed",
+        })
+        return
+      }
+
       prompt.set({ input: args.prompt, parts: [] })
-      once = true
+      processPromptConsumed = true
+      debugCheckpoint("tui.home.init", "args_prompt_applied", {
+        init_source: "process",
+        init_token: "args.prompt",
+        guard_hit_reason: "none",
+      })
       prompt.submit()
     }
   })

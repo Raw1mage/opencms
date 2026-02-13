@@ -3,15 +3,21 @@ import { createSimpleContext } from "./helper"
 import type { PromptInfo } from "../component/prompt/history"
 import { Env } from "@/env"
 
+function createInitPromptToken() {
+  return `init_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+}
+
 export type HomeRoute = {
   type: "home"
   initialPrompt?: PromptInfo
+  initialPromptToken?: string
 }
 
 export type SessionRoute = {
   type: "session"
   sessionID: string
   initialPrompt?: PromptInfo
+  initialPromptToken?: string
 }
 
 export type Route = HomeRoute | SessionRoute
@@ -32,6 +38,10 @@ export const { use: useRoute, provider: RouteProvider } = createSimpleContext({
         return store
       },
       navigate(route: Route) {
+        if (route.initialPrompt && !route.initialPromptToken) {
+          setStore({ ...route, initialPromptToken: createInitPromptToken() })
+          return
+        }
         setStore(route)
       },
     }
