@@ -1908,7 +1908,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     const maxTitle = activityItems.reduce((max, item) => Math.max(max, item.title.length), 0)
     const headerTitle = `Model Activities (${activityData().stats.ready}/${activityData().stats.total})`
     const baseWidth = Math.max(maxTitle, headerTitle.length)
-    const desired = baseWidth + 8
+    const desired = baseWidth + 12
     dialog.setWidth(desired)
   })
 
