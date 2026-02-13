@@ -81,6 +81,7 @@ import { QuestionPrompt } from "./question"
 import { DialogExportOptions } from "../../ui/dialog-export-options"
 import { formatTranscript } from "../../util/transcript"
 import { UI } from "@/cli/ui.ts"
+import { clone } from "remeda"
 addDefaultParsers(parsers.parsers)
 
 const consumedSessionRouteInitTokens = new Set<string>()
@@ -246,7 +247,10 @@ export function Session() {
     const token = route.initialPromptToken
     if (token && consumedSessionRouteInitTokens.has(token)) return
 
-    prompt.set(route.initialPrompt)
+    prompt.set({
+      input: route.initialPrompt.input,
+      parts: clone(route.initialPrompt.parts),
+    })
     if (token) consumedSessionRouteInitTokens.add(token)
   })
 

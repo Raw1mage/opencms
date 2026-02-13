@@ -36,7 +36,7 @@ import { KeybindProvider } from "@tui/context/keybind"
 import { ThemeProvider, useTheme } from "@tui/context/theme"
 import { Home } from "@tui/routes/home"
 import { Session } from "@tui/routes/session"
-import { PromptHistoryProvider } from "./component/prompt/history"
+import { PromptHistoryProvider, type PromptInfo } from "./component/prompt/history"
 import { FrecencyProvider } from "./component/prompt/frecency"
 import { PromptStashProvider } from "./component/prompt/stash"
 import { DialogAlert } from "./ui/dialog-alert"
@@ -52,6 +52,7 @@ import { writeHeapSnapshot } from "v8"
 import { PromptRefProvider, usePromptRef } from "./context/prompt"
 import { debugCheckpoint } from "@/util/debug"
 import { Env } from "@/env"
+import { clone } from "remeda"
 
 async function getTerminalBackgroundColor(): Promise<"dark" | "light"> {
   // FIX: terminal raw-mode probing can hang/derail some emulators/bridges.
@@ -225,6 +226,14 @@ export function tui(input: {
   })
 }
 
+function clonePromptInfo(prompt?: PromptInfo): PromptInfo | undefined {
+  if (!prompt?.input) return undefined
+  return {
+    input: prompt.input,
+    parts: clone(prompt.parts),
+  }
+}
+
 function App() {
   const route = useRoute()
   const dimensions = useTerminalDimensions()
@@ -273,10 +282,16 @@ function App() {
       case "help.show":
         dialog.replace(() => <DialogHelp />)
         break
-      case "session.new":
-        route.navigate({ type: "home" })
+      case "session.new": {
+        const current = promptRef.current
+        const currentPrompt = clonePromptInfo(current?.current)
+        route.navigate({
+          type: "home",
+          initialPrompt: currentPrompt,
+        })
         dialog.clear()
         break
+      }
     }
   })
 
@@ -427,7 +442,7 @@ function App() {
       onSelect: () => {
         const current = promptRef.current
         // Don't require focus - if there's any text, preserve it
-        const currentPrompt = current?.current?.input ? current.current : undefined
+        const currentPrompt = clonePromptInfo(current?.current)
         route.navigate({
           type: "home",
           initialPrompt: currentPrompt,

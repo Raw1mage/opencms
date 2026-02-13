@@ -1,4 +1,4 @@
-import { createStore } from "solid-js/store"
+import { createStore, reconcile } from "solid-js/store"
 import { createSimpleContext } from "./helper"
 import type { PromptInfo } from "../component/prompt/history"
 import { Env } from "@/env"
@@ -38,11 +38,14 @@ export const { use: useRoute, provider: RouteProvider } = createSimpleContext({
         return store
       },
       navigate(route: Route) {
-        if (route.initialPrompt && !route.initialPromptToken) {
-          setStore({ ...route, initialPromptToken: createInitPromptToken() })
-          return
-        }
-        setStore(route)
+        const normalizedRoute =
+          route.initialPrompt && !route.initialPromptToken
+            ? { ...route, initialPromptToken: createInitPromptToken() }
+            : route
+
+        // Replace root store instead of shallow merge so stale keys from previous route
+        // (eg. initialPrompt on home) won't leak into next route.
+        setStore(reconcile(normalizedRoute, { merge: false }))
       },
     }
   },

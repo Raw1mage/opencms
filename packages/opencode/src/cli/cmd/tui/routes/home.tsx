@@ -15,6 +15,7 @@ import { Installation } from "@/installation"
 import { useKV } from "../context/kv"
 import { useCommandDialog } from "../component/dialog-command"
 import { debugCheckpoint } from "@/util/debug"
+import { clone } from "remeda"
 
 // TODO: what is the best way to do this?
 let processPromptConsumed = false
@@ -79,6 +80,12 @@ export function Home() {
   let prompt: PromptRef
   const args = useArgs()
   onMount(() => {
+    debugCheckpoint("tui.home.init", "init_enter", {
+      init_source: route.initialPrompt ? "route" : args.prompt ? "process" : "none",
+      init_token: route.initialPromptToken ?? (args.prompt ? "args.prompt" : "none"),
+      guard_hit_reason: "entry",
+    })
+
     if (route.initialPrompt) {
       const token = route.initialPromptToken
       if (token && consumedRouteInitTokens.has(token)) {
@@ -90,7 +97,10 @@ export function Home() {
         return
       }
 
-      prompt.set(route.initialPrompt)
+      prompt.set({
+        input: route.initialPrompt.input,
+        parts: clone(route.initialPrompt.parts),
+      })
       if (token) consumedRouteInitTokens.add(token)
       debugCheckpoint("tui.home.init", "route_prompt_applied", {
         init_source: "route",
@@ -118,7 +128,14 @@ export function Home() {
         guard_hit_reason: "none",
       })
       prompt.submit()
+      return
     }
+
+    debugCheckpoint("tui.home.init", "init_no_source", {
+      init_source: "none",
+      init_token: "none",
+      guard_hit_reason: "no_initial_prompt",
+    })
   })
   const directory = useDirectory()
 
