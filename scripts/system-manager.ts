@@ -7,6 +7,7 @@ import { promisify } from "util"
 import os from "os"
 import path from "path"
 import { fileURLToPath } from "url"
+import { validateForkResult, validateForkSource } from "./system-manager-session"
 
 const execAsync = promisify(exec)
 
@@ -604,15 +605,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const legacyMessagesDir = path.join(STORAGE_BASE, "message", sessionID)
         const targetMessagesDir = path.join(newDir, "messages")
 
-        const hasSourceMessages = await pathExists(sourceMessagesDir)
-        const hasLegacyMessages = await pathExists(legacyMessagesDir)
-
-        if (!hasSourceMessages && !hasLegacyMessages) {
+        const sourceValidation = await validateForkSource(STORAGE_BASE, sessionID)
+        if (sourceValidation.fatal.length > 0) {
           await fs.rm(newDir, { recursive: true, force: true }).catch(() => {})
-          throw new Error(
-            `Cannot fork session ${sessionID}: no persisted message history found. Use a session ID from session.list/UI and try again.`,
-          )
+          throw new Error(sourceValidation.fatal.join("; "))
         }
+
+        const hasSourceMessages = await pathExists(sourceMessagesDir)
 
         await fs.writeFile(path.join(newDir, "info.json"), JSON.stringify(session, null, 2))
         const sessionIndexDir = path.join(STORAGE_BASE, "index", "session")
@@ -628,6 +627,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           await fs.cp(legacyMessagesDir, path.join(STORAGE_BASE, "message", newID), { recursive: true })
         }
 
+        const forkValidation = await validateForkResult(STORAGE_BASE, newID)
+        if (forkValidation.fatal.length > 0) {
+          await fs.rm(newDir, { recursive: true, force: true }).catch(() => {})
+          throw new Error(`Forked session validation failed: ${forkValidation.fatal.join("; ")}`)
+        }
+
         let kv: any = {}
         try {
           kv = JSON.parse(await fs.readFile(KV_PATH, "utf-8"))
@@ -635,7 +640,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         kv.ui_trigger = "session.list.refresh"
         await fs.writeFile(KV_PATH, JSON.stringify(kv, null, 2))
 
-        return { content: [{ type: "text", text: `Forked session ${sessionID} to new session ${newID}` }] }
+        const warnings = [...sourceValidation.warnings, ...forkValidation.warnings]
+        const warningText = warnings.length > 0 ? `\nWarnings: ${warnings.join(" | ")}` : ""
+        return {
+          content: [{ type: "text", text: `Forked session ${sessionID} to new session ${newID}${warningText}` }],
+        }
       }
     }
 
