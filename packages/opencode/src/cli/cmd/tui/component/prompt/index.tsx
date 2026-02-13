@@ -470,6 +470,17 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
+        title: "Exit shell mode",
+        value: "prompt.shell.exit",
+        category: "Prompt",
+        hidden: true,
+        enabled: store.mode === "shell",
+        onSelect: (dialog) => {
+          setStore("mode", "normal")
+          dialog.clear()
+        },
+      },
+      {
         title: "Paste",
         value: "prompt.paste",
         keybind: "input_paste",
@@ -513,9 +524,8 @@ export function Prompt(props: PromptProps) {
         onSelect: (dialog) => {
           if (autocomplete.visible) return
           if (!input.focused) return
-          // TODO: this should be its own command
           if (store.mode === "shell") {
-            setStore("mode", "normal")
+            command.trigger("prompt.shell.exit")
             return
           }
           if (!props.sessionID) return
