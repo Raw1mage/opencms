@@ -291,7 +291,7 @@ export async function buildUserMessageParts(input: {
             }
 
             if (part.mime === "application/x-directory") {
-              const args = { path: filepath }
+              const args = { filePath: filepath }
               const listCtx: Tool.Context = {
                 sessionID: input.sessionID,
                 abort: new AbortController().signal,
@@ -302,7 +302,7 @@ export async function buildUserMessageParts(input: {
                 metadata: async () => {},
                 ask: async () => {},
               }
-              const result = await ListTool.init().then((t) => t.execute(args, listCtx))
+              const result = await ReadTool.init().then((t) => t.execute(args, listCtx))
               return [
                 {
                   id: Identifier.ascending("part"),
@@ -310,7 +310,7 @@ export async function buildUserMessageParts(input: {
                   sessionID: input.sessionID,
                   type: "text",
                   synthetic: true,
-                  text: `Called the list tool with the following input: ${JSON.stringify(args)}`,
+                  text: `Called the Read tool with the following input: ${JSON.stringify(args)}`,
                 },
                 {
                   id: Identifier.ascending("part"),
