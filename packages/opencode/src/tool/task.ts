@@ -29,7 +29,6 @@ import { Todo } from "@/session/todo"
 const parameters = z.object({
   description: z.string().describe("A short (3-5 words) description of the task"),
   // Support both simple text and complex structured input
-  // TODO #3: Enhanced to accept union type for flexibility
   prompt: z
     .union([
       z.string(),
