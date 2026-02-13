@@ -1,4 +1,4 @@
-import { A, createAsync, useNavigate } from "@solidjs/router"
+import { A, createAsync, query, redirect, useNavigate } from "@solidjs/router"
 import "./workspace.css"
 import { Title } from "@solidjs/meta"
 import { github } from "~/lib/github"
@@ -8,12 +8,45 @@ import { createList } from "solid-list"
 import { useLanguage } from "~/context/language"
 import { LanguagePicker } from "~/component/language-picker"
 import { useI18n } from "~/context/i18n"
+import { getActor } from "~/context/auth"
+import { withActor } from "~/context/auth.withActor"
+import { Actor } from "@opencode-ai/console-core/actor.js"
+import { and, Database, eq, isNull } from "@opencode-ai/console-core/drizzle/index.js"
+import { WorkspaceTable } from "@opencode-ai/console-core/schema/workspace.sql.js"
+import { UserTable } from "@opencode-ai/console-core/schema/user.sql.js"
+
+const getWorkspaces = query(async () => {
+  "use server"
+  const actor = await getActor()
+  if (actor.type === "public") throw redirect("/auth/authorize?continue=/black/workspace")
+
+  return withActor(async () => {
+    return Database.use((tx) =>
+      tx
+        .select({
+          id: WorkspaceTable.id,
+          name: WorkspaceTable.name,
+          slug: WorkspaceTable.slug,
+        })
+        .from(UserTable)
+        .innerJoin(WorkspaceTable, eq(UserTable.workspaceID, WorkspaceTable.id))
+        .where(
+          and(
+            eq(UserTable.accountID, Actor.account()),
+            isNull(WorkspaceTable.timeDeleted),
+            isNull(UserTable.timeDeleted),
+          ),
+        ),
+    )
+  })
+}, "black.workspace.workspaces")
 
 export default function BlackWorkspace() {
   const navigate = useNavigate()
   const language = useLanguage()
   const i18n = useI18n()
   const githubData = createAsync(() => github())
+  const workspaceRows = createAsync(() => getWorkspaces())
   const starCount = createMemo(() =>
     githubData()?.stars
       ? new Intl.NumberFormat(language.tag(language.locale()), {
@@ -23,26 +56,18 @@ export default function BlackWorkspace() {
       : config.github.starsFormatted.compact,
   )
 
-  // TODO: Frank, replace with real workspaces
-  const workspaces = [
-    { id: "wrk_123", n: 1 },
-    { id: "wrk_456", n: 2 },
-    { id: "wrk_789", n: 3 },
-    { id: "wrk_111", n: 4 },
-    { id: "wrk_222", n: 5 },
-    { id: "wrk_333", n: 6 },
-    { id: "wrk_444", n: 7 },
-    { id: "wrk_555", n: 8 },
-  ].map((workspace) => ({
-    ...workspace,
-    name: i18n.t("black.workspace.name", { n: workspace.n }),
-  }))
+  const workspaces = createMemo(() =>
+    (workspaceRows() ?? []).map((workspace, index) => ({
+      id: workspace.id,
+      name: workspace.name || workspace.slug || i18n.t("black.workspace.name", { n: index + 1 }),
+    })),
+  )
 
   let listRef: HTMLUListElement | undefined
 
   const { active, setActive, onKeyDown } = createList({
-    items: () => workspaces.map((w) => w.id),
-    initialActive: workspaces[0]?.id ?? null,
+    items: () => workspaces().map((w) => w.id),
+    initialActive: null,
     handleTab: true,
   })
 
@@ -55,6 +80,12 @@ export default function BlackWorkspace() {
     if (!id || !listRef) return
     const el = listRef.querySelector(`[data-id="${id}"]`)
     el?.scrollIntoView({ block: "nearest" })
+  })
+
+  createEffect(() => {
+    if (!active() && workspaces().length > 0) {
+      setActive(workspaces()[0].id)
+    }
   })
 
   return (
@@ -195,7 +226,7 @@ export default function BlackWorkspace() {
               }
             }}
           >
-            <For each={workspaces}>
+            <For each={workspaces()}>
               {(workspace) => (
                 <li
                   data-slot="workspace"
