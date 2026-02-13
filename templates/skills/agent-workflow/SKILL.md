@@ -1,178 +1,120 @@
 ---
 name: agent-workflow
-description: 定義 Agent 的標準作業程序(SOP)、狀態機轉、多 Agent 協作規範與錯誤處理機制。當需要執行複雜任務、除錯或管理 Subagent 時使用。
+description: 定義 Agent 的標準作業程序(SOP)。整合 Token-Efficient Development Guide，強調最小充分回覆 (MSR)、阻塞式提問與結構化輸出。
 ---
 
-# Agent 工作流程標準規範
+# Agent 工作流程標準規範 (Token-Efficient Edition)
+
+本規範強制執行「更少 Token、更快收斂」的開發模式。
+
+## 核心原則 (Core Principles)
+
+1.  **最小充分回覆 (MSR)**: 只回覆結論、變更與下一步。禁止長篇教學或冗詞。
+2.  **先做後解釋**: 能給 Code/Patch 就不要純文字解釋。
+3.  **單一事實來源 (SSOT)**: 依據 `README`, `package.json`, `CI config` 為準。不要憑空猜測框架版本。
 
 ## 核心狀態機 (Core State Machine)
 
 ```mermaid
 graph TD
-    Start[收到任務] --> Analysis[ANALYSIS: 分析與偵察]
-    Analysis --> Planning[PLANNING: 規劃與模型選擇]
-    Planning --> Waiting[WAITING_APPROVAL: 等待授權]
-    Waiting -->|User Reject| Analysis
-    Waiting -->|User Approve| Execution[EXECUTION: 執行與協作]
-    Execution -->|Task Failed| Planning
+    Start[收到任務] --> Analysis[ANALYSIS: 靜態分析與假設]
+    Analysis --> Planning[PLANNING: 批次規劃]
+    Planning --> Waiting[WAITING_APPROVAL: 僅阻塞時等待]
+    Waiting -->|Approve/Assumption| Execution[EXECUTION: 批次執行]
+    Execution -->|Rate Limit| Backoff[BACKOFF: 退避]
+    Backoff --> Execution
     Execution -->|Success| Finish[結束]
 ```
 
-### 1. ANALYSIS (分析與偵察)
+### 1. ANALYSIS (靜態分析與假設)
 
-- **目標**: 徹底理解需求與現有環境，避免盲目行動。
-- **允許工具**: `read`, `glob`, `grep`, `ls`, `mcp_question`
-- **禁止工具**: `edit`, `write`, `rm`, `task`
-- **必要動作**:
-  1. **需求釐清**: 使用多選題向用戶確認模糊點。
-  2. **環境偵察**:
-     - 檢查專案根目錄設定檔 (`package.json`, `Cargo.toml`, `pyproject.toml` 等)。
-     - 確認既有的 Linting/Formatting 規則 (`.eslintrc`, `.prettierrc`, `.editorconfig`)。
-     - 確認測試框架與指令。
-  3. **歷史檢索**: 檢查 `docs/events/` 確認是否有相關聯的過往任務。
-- **轉換條件**: 足夠理解需求與環境限制 → 進入 PLANNING。
+- **目標**: 建立執行所需的最小資訊集。
+- **SSOT 檢查**: 優先讀取 `package.json`, `go.mod`, `README.md` 確認技術堆疊。
+- **阻塞式提問 (Blocking Questions Only)**:
+  - **只有**在「不問就會做錯」時才停下來問（如：API Schema 不明、破壞性操作）。
+  - **非阻塞問題**: 建立合理假設 (Assumption)，標記為 `TODO` 或在 Commit Message 註記，然後繼續。
+  - **提問限制**: 最多 2 個問題，且必須是「二分決策 (A/B)」或「選項題」。
 
-### 2. PLANNING (規劃與模型選擇)
+### 2. PLANNING (批次規劃)
 
-- **目標**: 制定可執行的步驟，並決定資源分配。
-- **允許工具**: `todowrite`, `skill(model-selector)`
-- **禁止工具**: `edit`, `write`, `rm`, `task` (除非用於驗證思路)
-- **必要動作**:
-  1. **擬定計畫**: 拆解任務為原子化的步驟。
-  2. **模型決策**: 呼叫 `model-selector` 決定部分任務是否外包給 Subagent 以及使用何種模型。
-  3. **撰寫文件**: 將計畫輸出至 `docs/events/event_<date>_<topic>.md`。
-- **轉換條件**: 計畫已輸出並向用戶展示 → 進入 WAITING_APPROVAL。
+- **Task Batching**: 將相關修改合併為單一 Request。
+- **Assumption Protocol**:
+  - 若資訊不足，先給出「最佳假設下的可行方案」。
+  - 例：「假設使用 JWT Auth (依據 package.json)，將實作 Bearer Token 驗證。」
 
-### 3. WAITING_APPROVAL (等待授權)
+### 3. EXECUTION (批次執行)
 
-- **目標**: 確保用戶同意執行方向。
-- **觸發詞**: "OK", "Proceed", "開始", "Y", "好", "Go"
-- **轉換條件**: 用戶確認 → 進入 EXECUTION。
-
-### 4. EXECUTION (執行與協作)
-
-- **目標**: 精確執行計畫，維持系統穩定。
-- **允許工具**: 所有工具
-- **原則**:
-  - **最小改動**: 優先修改現有檔案，避免非必要的檔案創建。
-  - **測試驅動**: 修改後必須執行測試或驗證指令。
-  - **即時紀錄**: 遇到阻礙時更新 Event 文件。
+- **Context Handover**: 僅提供必要的程式碼片段 (Snippet)，嚴禁倒整個檔案。
+- **Output Format**: 強制 Subagent 使用標準回報格式 (見下文)。
 
 ---
 
-## 多 Agent 編排規範 (Orchestration)
+## 輸出格式規範 (Standardized Output)
 
-### 角色定義
+Orchestrator 與 Subagent **必須**遵守以下輸出結構，以減少 Token 消耗：
 
-- **Orchestrator (Main Agent)**: 負責大腦工作。任務分解、脈絡交接、Code Review、結果彙整。
-- **Subagent (Worker)**: 負責手腳工作。單一任務執行、測試編寫、模組實作。
+### 1. 一般任務回報 (Result / Changes / Next)
 
-### 脈絡交接 (Context Handover)
+```text
+Result: [一句話總結完成了什麼]
+Changes:
+  - [修改檔案 A]: [關鍵變更]
+  - [修改檔案 B]: [關鍵變更]
+Next:
+  - [若需要使用者操作，列出 1-3 點]
+```
 
-Subagent 是無狀態的 (Stateless)，Orchestrator 必須在 `Task` prompt 中包含所有必要資訊：
+### 2. 程式碼輸出 (Code Delivery)
 
-1. **目標 (Objective)**: 一句話描述要做什麼。
-2. **限制 (Constraints)**: 禁止修改的範圍、必須遵循的 Coding Style。
-3. **脈絡 (Context)**: **關鍵！**
-   - 相關檔案的**絕對路徑**。
-   - 相關程式碼片段 (Snippets)。
-   - 依賴的函式庫版本。
-4. **輸出格式 (Output Format)**: 指定 JSON 或特定 Markdown 格式以便解析。
+- **優先順序**: **Diff/Patch** > 單檔完整內容 > 片段。
+- **禁止**: 貼上一大段未修改的程式碼。
+- **指令**: 只提供「可複製貼上」且必要的指令 (最多 5 行)。
 
-### 調用範例
+### 3. 測試與錯誤回報
+
+- **格式**: `passed/failed`、失敗的測試名稱、**第一個** Stack Trace 重點。
+- **禁止**: 貼上整份 Log。請使用 `grep` 或摘要。
+
+---
+
+## 協作與脈絡管理 (Context & Orchestration)
+
+### Orchestrator 指派任務模版
+
+當呼叫 Subagent 時，Prompt 必須包含明確的省 Token 指令：
 
 ```javascript
 Task({
-  subagent_type: "coding", // 依據 model-selector 建議選擇
-  description: "實作 User Authentication API",
+  subagent_type: "coding",
+  description: "[Batch] 實作登入功能",
   prompt: `
     # 目標
-    實作 POST /api/login 接口。
+    實作 JWT 登入 API。
 
-    # 脈絡
-    - 路由定義: /src/routes/auth.ts
-    - 資料庫模型: /src/models/User.ts (已存在)
-    - 工具函式: /src/utils/jwt.ts
+    # 脈絡 (Pruned)
+    - Schema: /src/schema/auth.zod.ts (L10-L40)
+    - Utils: /src/utils/jwt.ts (Signature Only)
 
-    # 限制
-    - 使用既有的 Zod 驗證 schema。
-    - 嚴禁修改 User.ts 模型定義。
-    - 錯誤處理需符合 /src/middlewares/error.ts 規範。
+    # 假設 (Assumptions)
+    - 假設 Token 時效為 1h (若錯誤請標註 TODO)。
+    - 假設使用現有的 Redis Client。
 
-    # 輸出
-    完成後回報修改的檔案列表與測試結果。
+    # 輸出規範 (Strict)
+    - 嚴禁廢話。
+    - 使用 "Result / Changes / Next" 格式。
+    - 程式碼優先提供 Diff 或 Patch。
   `,
-});
+})
 ```
 
----
+### Rate Limit 處理
 
-## 問題診斷與修復 (Issue Handling SOP)
+1.  **429/Overload**: 立即暫停，標記該 Provider 冷卻。
+2.  **Context Overflow**: 執行 **Log Compression**。
+    - 回覆用戶：「Log 過長，我只需要：1. Error Summary, 2. First Stack Trace, 3. Config Snippet。」
 
-當處理 Bug 或錯誤時，嚴格執行 **RCA (Root Cause Analysis)** 流程：
+## 安全與品質底線
 
-1. **重現 (Reproduce)**:
-   - 建立最小重現腳本 (Reproduction Script)。
-   - **禁止**在未重現問題前嘗試修復 (猜測式修復通常會導致更多問題)。
-
-2. **定位 (Locate)**:
-   - 優先檢查日誌 `~/.local/share/opencode/log/debug.log`。
-   - 使用 `grep` 搜尋錯誤訊息關鍵字。
-   - 插入 Debug Log 追蹤資料流。
-
-3. **修復 (Fix)**:
-   - 確保修復方案不破壞現有邏輯 (Regression Test)。
-   - 必須附上代碼註解：`// FIX: <issue_description> (@event_<date>)`。
-
-4. **紀錄 (Document)**:
-   - 在 `docs/events/` 文件中紀錄「症狀」、「成因」、「解決方案」。
-
----
-
-## 知識紀錄 (Knowledge Management)
-
-### Event 文件格式
-
-檔案命名: `docs/events/event_<YYYYMMDD>_<feature_slug>.md`
-
-```markdown
-# Event: <Feature Name / Issue ID>
-
-Date: YYYY-MM-DD
-Status: In Progress | Done | Blocked
-
-## 1. 需求分析
-
-- [ ] 需求 A
-- [ ] 需求 B
-
-## 2. 執行計畫
-
-- [x] 步驟 1 (Done)
-- [ ] 步驟 2 (Pending)
-
-## 3. 關鍵決策與發現
-
-- 選擇使用 library X 因為...
-- 發現既有模組 Y 存在 bug...
-
-## 4. 遺留問題 (Pending Issues)
-
-- [ ] 效能優化待處理
-```
-
----
-
-## 安全操作守則
-
-1. **檔案刪除 (`rm`)**:
-   - 絕對禁止使用 `rm -rf *` 或未指定路徑的通配符。
-   - 流程：列出擬刪除清單 (`ls`) → 請求用戶確認 → 執行刪除。
-
-2. **大規模重構**:
-   - 先建立新的分支或備份關鍵檔案。
-   - 採用「平行變更 (Parallel Change)」模式：新增新介面 → 遷移呼叫端 → 移除舊介面。
-
-3. **讀寫操作**:
-   - **Read First**: 永遠先讀取檔案確認內容再進行 `edit`。
-   - **Verify Later**: 修改後務必再次讀取或執行 Linter 確認語法正確。
+1.  **不做「假設式正確」**: 不確定 API 是否存在時，先 `grep` 確認，不要幻覺。
+2.  **隱私**: 不輸出 Secrets (.env)，排查時要求「遮罩後」的片段。
+3.  **一致性**: 遵循專案既有的 Lint/Format 規則，不另起爐灶。

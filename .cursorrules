@@ -1,0 +1,1 @@
+/home/pkcs12/.config/opencode/AGENTS.md
