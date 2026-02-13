@@ -34,3 +34,6 @@ logs/
 # Ignore only the auth/account files
 /config/opencode/*-accounts.json
 /config/opencode/mcp-auth.json
+
+# machine-local state (path usage telemetry)
+/config/state/frecency.jsonl
