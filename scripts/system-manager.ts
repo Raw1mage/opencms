@@ -615,6 +615,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         await fs.writeFile(path.join(newDir, "info.json"), JSON.stringify(session, null, 2))
+        const sessionIndexDir = path.join(STORAGE_BASE, "index", "session")
+        await fs.mkdir(sessionIndexDir, { recursive: true }).catch(() => {})
+        await fs.writeFile(
+          path.join(sessionIndexDir, `${newID}.json`),
+          JSON.stringify({ projectID: session.projectID, parentID: session.parentID }, null, 2),
+        )
         if (hasSourceMessages) {
           await fs.cp(sourceMessagesDir, targetMessagesDir, { recursive: true })
         } else {
