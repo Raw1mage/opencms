@@ -358,8 +358,20 @@ export const CUSTOM_LOADERS: Record<string, CustomLoader> = {
     autoload: false,
     options: { headers: { "X-Cerebras-3rd-Party-Integration": "opencode" } },
   }),
-  gmicloud: async () => ({
-    autoload: true,
-    options: { baseURL: "https://api.gmi-serving.com/v1" },
-  }),
+  gmicloud: async (input) => {
+    const apiKey = await (async () => {
+      const envKey = Env.get("GMI_API_KEY")
+      if (envKey) return envKey
+      const auth = await Auth.get(input.id)
+      if (auth?.type === "api") return auth.key
+      return undefined
+    })()
+    return {
+      autoload: !!apiKey,
+      options: {
+        baseURL: "https://api.gmi-serving.com/v1",
+        apiKey: apiKey ?? "",
+      },
+    }
+  },
 }
