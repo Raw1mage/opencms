@@ -736,12 +736,20 @@ export namespace Provider {
         },
       }
     },
-    gmicloud: async () => {
+    gmicloud: async (input) => {
       // @event_2026-02-06:gmicloud_provider
+      const apiKey = await (async () => {
+        const envKey = Env.get("GMI_API_KEY")
+        if (envKey) return envKey
+        const auth = await Auth.get(input.id)
+        if (auth?.type === "api") return auth.key
+        return undefined
+      })()
       return {
-        autoload: true,
+        autoload: !!apiKey,
         options: {
           baseURL: "https://api.gmi-serving.com/v1",
+          apiKey: apiKey ?? "",
         },
       }
     },
