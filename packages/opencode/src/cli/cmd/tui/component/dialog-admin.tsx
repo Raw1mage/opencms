@@ -1344,8 +1344,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         const familyData = coreAll()?.[fam]
         const allIds = familyData ? Object.keys(familyData.accounts || {}) : []
         const isFamilySuffix = (id: string) => id === `${fam}-subscription-${fam}` || id === `${fam}-api-${fam}`
-        const isGeneric = (id: string) =>
-          id === fam || id === "google-api" || id === "gemini-cli" || id === "antigravity" || isFamilySuffix(id)
+        const isGeneric = (id: string) => id === fam || id === "google-api" || id === "antigravity" || isFamilySuffix(id)
         const hasSpecific = allIds.some((id) => !isGeneric(id))
         const filteredIds = allIds.filter((id) => (hasSpecific ? !isGeneric(id) : true))
         const accountTotal = familyData ? filteredIds.length : providers.length
@@ -1438,8 +1437,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         const activeId = familyData?.activeAccount
 
         const isFamilySuffix = (id: string) => id === `${fam}-subscription-${fam}` || id === `${fam}-api-${fam}`
-        const isGeneric = (id: string) =>
-          id === fam || id === "google-api" || id === "gemini-cli" || id === "antigravity" || isFamilySuffix(id)
+        const isGeneric = (id: string) => id === fam || id === "google-api" || id === "antigravity" || isFamilySuffix(id)
         const hasSpecific = accountsWithFamily.some((a) => !isGeneric(a.id))
 
         for (const { id, info, coreFamily } of accountsWithFamily) {
@@ -1540,7 +1538,11 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               })
               await handleSetActive(p.coreFamily || fam, p.coreId || p.id, p.id)
               await refreshAntigravity()
-              setSelectedProviderID(fam)
+              // Don't override selectedProviderID here — handleSetActive already sets the correct value:
+              // - antigravity → "antigravity" (generic)
+              // - anthropic → "anthropic" (generic)
+              // - github-copilot → family (generic)
+              // - others (google-api, etc.) → accountId (account-specific, for correct API key)
               setStepLogged("model_select", "select account")
             },
           }
@@ -1591,8 +1593,11 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
       const showAll = showHidden()
       const isGoogleProvider = family(providerId) === "google-api"
-      // Use base family ID for model values (favorites, validation expect base provider ID like "google-api", not account-specific "google-api-xxx")
+      // Use base family ID for favorites/hidden checks (they expect base provider ID like "google-api")
       const baseProviderID = family(providerId) || providerId
+      // Use the actual provider ID (account-specific when selected) for model selection
+      // This ensures getSDK() uses the correct API key for the selected account
+      const modelProviderID = providerId
       const hiddenCheck = (mid: string) => {
         if (showAll) return true
         return !local.model.hidden().some((h) => h.providerId === baseProviderID && h.modelID === mid)
@@ -1643,8 +1648,8 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               isRateLimited ? Math.max(0, (providerRateLimit.coolingDownUntil ?? Date.now()) - Date.now()) : 0,
             ),
             onSelect: () => {
-              debugCheckpoint("admin", "select model", { provider: baseProviderID, model: mid })
-              probeAndSelectModel(baseProviderID, mid)
+              debugCheckpoint("admin", "select model", { provider: modelProviderID, model: mid })
+              probeAndSelectModel(modelProviderID, mid)
             },
           }
         }),
@@ -1665,8 +1670,8 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                 description: "Google AI Studio list",
                 footer: undefined,
                 onSelect: () => {
-                  debugCheckpoint("admin", "select dynamic model", { provider: baseProviderID, model: model.id })
-                  probeAndSelectModel(baseProviderID, model.id)
+                  debugCheckpoint("admin", "select dynamic model", { provider: modelProviderID, model: model.id })
+                  probeAndSelectModel(modelProviderID, model.id)
                 },
               }
             })

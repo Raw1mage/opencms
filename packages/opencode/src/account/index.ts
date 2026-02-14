@@ -202,6 +202,46 @@ export namespace Account {
         storage = await migrateToV2(storage)
         await save(storage)
       }
+
+      // Fix: add {provider}-{type}- prefix to account IDs that are missing it.
+      // A broken generateId (commit 3bf52500a) produced bare names like "default",
+      // "yeatsluo-g-ncu-edu-tw" instead of "gemini-cli-api-default",
+      // "google-api-api-yeatsluo-g-ncu-edu-tw", causing parseProvider() to fail
+      // and the admin panel to show them as separate providers.
+      let fixedIds = false
+      for (const [fam, data] of Object.entries(storage.families)) {
+        const renames: Array<[string, string]> = []
+        for (const [id, info] of Object.entries(data.accounts)) {
+          // Already has the correct prefix — skip
+          if (id.startsWith(`${fam}-api-`) || id.startsWith(`${fam}-subscription-`)) continue
+          // Build the correct ID
+          const suffix = id === fam || id === "default"
+            ? (info.name?.toLowerCase().replace(/[^a-z0-9]/g, "-") || "default")
+            : id
+          let newId = `${fam}-${info.type}-${suffix}`
+          // Avoid collision with an existing account — append a counter
+          if (data.accounts[newId]) {
+            let counter = 2
+            while (data.accounts[`${newId}-${counter}`]) counter++
+            newId = `${newId}-${counter}`
+          }
+          if (newId !== id) {
+            renames.push([id, newId])
+          }
+        }
+        for (const [oldId, newId] of renames) {
+          data.accounts[newId] = data.accounts[oldId]
+          delete data.accounts[oldId]
+          if (data.activeAccount === oldId) {
+            data.activeAccount = newId
+          }
+          fixedIds = true
+        }
+      }
+      if (fixedIds) {
+        await save(storage)
+      }
+
       return storage
     } catch (e) {
       log.error("Failed to load accounts.json", { error: e })
@@ -503,11 +543,12 @@ export namespace Account {
   }
 
   /**
-   * Generate a unique account ID within a provider.
-   * Simple and clean: just the name/suffix.
+   * Generate a unique account ID.
+   * Format: {provider}-{type}-{suffix} to allow parseProvider() to resolve the family.
    */
   export function generateId(provider: string, type: "api" | "subscription", name?: string): string {
-    return name?.toLowerCase().replace(/[^a-z0-9]/g, "-") || Date.now().toString(36)
+    const suffix = name?.toLowerCase().replace(/[^a-z0-9]/g, "-") || Date.now().toString(36)
+    return `${provider}-${type}-${suffix}`
   }
 
   /**
