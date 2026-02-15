@@ -41,6 +41,8 @@ export namespace Account {
     name: z.string(),
     apiKey: z.string(),
     addedAt: z.number(),
+    projectId: z.string().optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
   })
   export type ApiAccount = z.infer<typeof ApiAccount>
 

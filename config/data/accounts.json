@@ -63,20 +63,6 @@
           "email": "yeatsluo@gmail.com",
           "refreshToken": "1//0ehgScIGuTaVDCgYIARAAGA4SNwF-L9IrgQqr3GfOmDhNpHFjhyegWs0j-m4MUmvIfCi8Zo1mtQiev96nhRsYJR-SfgrNxaY3fLg",
           "addedAt": 1769612836087
-        },
-        "gemini-cli-subscription-gemini-cli": {
-          "type": "subscription",
-          "name": "gemini-cli",
-          "refreshToken": "1//0ehgScIGuTaVDCgYIARAAGA4SNwF-L9IrgQqr3GfOmDhNpHFjhyegWs0j-m4MUmvIfCi8Zo1mtQiev96nhRsYJR-SfgrNxaY3fLg||silicon-era-q9hlq",
-          "accessToken": "ya29.a0AUMWg_LRSztOPZ8B4OkGzpqmrrS_6iJOL8kodt2xOk1IrBeclNtrcWcgyBRCp9KJ3bUSwQ7o5YIqbJpu79rp-jXoTgil-P5V2HSYH3InDZb9CLjK1O54D1GmeW-YcsHuYZE0_-AMzyv9bFNNZ8i-8NIBGLudnDYUSgDQb3xJKV9kvVpkb217okmzVqgQIqFdb3tyEni-jPilUQaCgYKAYMSARUSFQHGX2MiGuxXg_9tYH06Gn4ADEltyA0213",
-          "expiresAt": 1769848452329,
-          "addedAt": 1769844853403
-        },
-        "gemini-cli-api-gemini-cli": {
-          "type": "api",
-          "name": "gemini-cli",
-          "apiKey": "apikey",
-          "addedAt": 1769826678609
         }
       }
     },

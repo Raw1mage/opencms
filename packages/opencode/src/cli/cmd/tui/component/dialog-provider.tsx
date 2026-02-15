@@ -295,9 +295,12 @@ function ApiMethod(props: ApiMethodProps) {
   const sdk = useSDK()
   const sync = useSync()
   const { theme } = useTheme()
-  const needsName = () => props.providerId === "google-api"
-  const [step, setStep] = createSignal<"name" | "api">(needsName() ? "name" : "api")
+  const isGeminiCli = () => props.providerId === "gemini-cli"
+  const needsName = () => props.providerId === "google-api" || isGeminiCli()
+  const [step, setStep] = createSignal<"name" | "project" | "api">(needsName() ? "name" : "api")
   const [name, setName] = createSignal("")
+  const [projectId, setProjectId] = createSignal("")
+  const toast = useToast()
 
   const providerKey = () => {
     if (!needsName()) return props.providerId
@@ -320,8 +323,29 @@ function ApiMethod(props: ApiMethodProps) {
             }
             Log.Default.info("Account name confirmed", { name: trimmed })
             setName(trimmed)
+            if (isGeminiCli()) {
+              setStep("project")
+            } else {
+              setStep("api")
+            }
+          }}
+        />
+      </Match>
+      <Match when={step() === "project"}>
+        <DialogPrompt
+          title="Project ID"
+          placeholder="e.g. my-gcp-project-id"
+          onConfirm={(value) => {
+            const trimmed = value.trim()
+            if (!trimmed) {
+              Log.Default.warn("Empty project ID submitted")
+              return
+            }
+            Log.Default.info("Project ID confirmed", { projectId: trimmed })
+            setProjectId(trimmed)
             setStep("api")
           }}
+          onCancel={() => setStep("name")}
         />
       </Match>
       <Match when={step() === "api"}>
@@ -355,14 +379,18 @@ function ApiMethod(props: ApiMethodProps) {
               auth: {
                 type: "api",
                 key: trimmed,
+                // @ts-ignore - SDK types might be outdated but server supports it
+                projectId: projectId() || undefined,
               },
             })
+            toast.show({ message: "Account added successfully", variant: "success" })
             await sdk.client.instance.dispose()
             await sync.bootstrap()
-            dialog.replace(() => <DialogModel providerId={props.providerId} />)
+            dialog.clear()
           }}
           onCancel={() => {
-            if (needsName()) setStep("name")
+            if (isGeminiCli()) setStep("project")
+            else if (needsName()) setStep("name")
             else dialog.clear()
           }}
         />

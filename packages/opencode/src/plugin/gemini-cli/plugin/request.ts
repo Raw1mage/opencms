@@ -1,4 +1,4 @@
-import { CODE_ASSIST_HEADERS, GEMINI_CODE_ASSIST_ENDPOINT } from "../constants"
+import { CODE_ASSIST_HEADERS, GEMINI_CODE_ASSIST_ENDPOINT, GEMINI_PUBLIC_ENDPOINT } from "../constants"
 import { logGeminiDebugResponse, type GeminiDebugContext } from "./debug"
 import {
   enhanceGeminiErrorResponse,
@@ -288,6 +288,7 @@ export function prepareGeminiRequest(
   init: RequestInit | undefined,
   accessToken: string,
   projectId: string,
+  isApiKey: boolean = false,
 ): { request: RequestInfo; init: RequestInit; streaming: boolean; requestedModel?: string } {
   const baseInit: RequestInit = { ...init }
   const headers = new Headers(init?.headers ?? {})
@@ -300,8 +301,13 @@ export function prepareGeminiRequest(
     }
   }
 
-  headers.set("Authorization", `Bearer ${accessToken}`)
-  headers.delete("x-api-key")
+  if (isApiKey) {
+    headers.set("x-goog-api-key", accessToken)
+    headers.delete("Authorization")
+  } else {
+    headers.set("Authorization", `Bearer ${accessToken}`)
+    headers.delete("x-api-key")
+  }
 
   const match = toRequestUrlString(input).match(/\/models\/([^:]+):(\w+)/)
   if (!match) {
@@ -315,13 +321,23 @@ export function prepareGeminiRequest(
   const [, rawModel = "", rawAction = ""] = match
   const effectiveModel = MODEL_FALLBACKS[rawModel] ?? rawModel
   const streaming = rawAction === STREAM_ACTION
-  const transformedUrl = `${GEMINI_CODE_ASSIST_ENDPOINT}/v1internal:${rawAction}${streaming ? "?alt=sse" : ""}`
+  
+  // Choose endpoint and URL structure based on auth type
+  let transformedUrl: string
+  if (isApiKey) {
+    // Public API: /v1beta/models/{model}:{action}
+    transformedUrl = `${GEMINI_PUBLIC_ENDPOINT}/v1beta/models/${effectiveModel}:${rawAction}${streaming ? "?alt=sse" : ""}`
+  } else {
+    // Internal API: /v1internal:{action} (model is in body)
+    transformedUrl = `${GEMINI_CODE_ASSIST_ENDPOINT}/v1internal:${rawAction}${streaming ? "?alt=sse" : ""}`
+  }
 
   let body = baseInit.body
   debugCheckpoint("gemini-request", "prepareGeminiRequest processing body", {
     hasBody: !!baseInit.body,
     bodyType: typeof baseInit.body,
     bodyLength: typeof baseInit.body === "string" ? baseInit.body.length : 0,
+    isApiKey,
   })
 
   if (typeof baseInit.body === "string" && baseInit.body) {
@@ -338,6 +354,8 @@ export function prepareGeminiRequest(
 
       if (isWrapped) {
         debugCheckpoint("gemini-request", "Body already wrapped, skipping transformation")
+        // If it's already wrapped but we are in API key mode, we might need to UNWRAP it
+        // But assuming upstream sends standard Gemini format unless it's already our internal wrapper
         const wrappedBody = {
           ...parsedBody,
           model: effectiveModel,
@@ -395,15 +413,21 @@ export function prepareGeminiRequest(
           delete requestPayload.model
         }
 
-        const wrappedBody = {
-          project: projectId,
-          model: effectiveModel,
-          request: requestPayload,
+        if (isApiKey) {
+          // Public API: Use payload directly
+          body = JSON.stringify(requestPayload)
+        } else {
+          // Internal API: Wrap payload
+          const wrappedBody = {
+            project: projectId,
+            model: effectiveModel,
+            request: requestPayload,
+          }
+          body = JSON.stringify(wrappedBody)
         }
-
-        body = JSON.stringify(wrappedBody)
       }
     } catch (error) {
+      debugCheckpoint("gemini-request", "Failed to transform Gemini request body", { error })
       console.error("Failed to transform Gemini request body:", error)
     }
   }
@@ -533,6 +557,7 @@ export async function transformGeminiResponse(
 
     return new Response(text, init)
   } catch (error) {
+    debugCheckpoint("gemini-request", "Failed to transform Gemini response", { error })
     logGeminiDebugResponse(debugContext, response, {
       error,
       note: "Failed to transform Gemini response",

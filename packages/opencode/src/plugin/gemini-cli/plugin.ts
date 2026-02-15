@@ -28,284 +28,135 @@ import type {
 export const GeminiCLIOAuthPlugin = async ({ client }: any): Promise<any> => ({
   auth: {
     provider: GEMINI_PROVIDER_ID,
-    loader: async (getAuth: GetAuth, provider: Provider): Promise<LoaderResult | null> => {
-      const auth = await getAuth()
-      if (!isOAuthAuth(auth)) {
-        return null
-      }
-
-      const providerOptions =
-        provider && typeof provider === "object"
-          ? ((provider as { options?: Record<string, unknown> }).options ?? undefined)
-          : undefined
-      const projectIdFromConfig =
-        providerOptions && typeof providerOptions.projectId === "string" ? providerOptions.projectId.trim() : ""
-      const projectIdFromEnv = Env.get("OPENCODE_GEMINI_PROJECT_ID")?.trim() ?? ""
-      const googleProjectIdFromEnv =
-        Env.get("GOOGLE_CLOUD_PROJECT")?.trim() ?? Env.get("GOOGLE_CLOUD_PROJECT_ID")?.trim() ?? ""
-      const configuredProjectId = projectIdFromEnv || projectIdFromConfig || googleProjectIdFromEnv || undefined
-
-      if (provider.models) {
-        for (const model of Object.values(provider.models)) {
-          if (model) {
-            model.cost = { input: 0, output: 0 }
+        loader: async (getAuth: GetAuth, provider: Provider): Promise<LoaderResult | null> => {
+          const auth = await getAuth()
+          
+          // Strict check: Block OAuth/Subscription accounts for Gemini CLI due to TOS violation
+          // Only allow API Key auth
+          if (auth?.type !== "api") {
+            return null
           }
-        }
-      }
-
-      return {
-        apiKey: "",
-        async fetch(input, init) {
-          const inputUrl = typeof input === "string" ? input : (input as Request).url
-          debugCheckpoint("gemini-cli", "Custom fetch called", { url: inputUrl })
-
-          if (!isGenerativeLanguageRequest(input)) {
-            debugCheckpoint("gemini-cli", "Not a generative language request, using default fetch")
-            return fetch(input, init)
-          }
-
-          debugCheckpoint("gemini-cli", "Is generative language request, processing...")
-
-          const latestAuth = await getAuth()
-
-          if (!isOAuthAuth(latestAuth)) {
-            debugCheckpoint("gemini-cli", "No OAuth auth, using default fetch", { authType: latestAuth?.type })
-            return fetch(input, init)
-          }
-
-          debugCheckpoint("gemini-cli", "OAuth auth present, proceeding with transformation")
-
-          let authRecord = latestAuth
-          if (accessTokenExpired(authRecord)) {
-            // console.log("GeminiCLI: Token expired, refreshing...");
-            const refreshed = await refreshAccessToken(authRecord, client)
-            if (!refreshed) {
-              console.log("GeminiCLI: Refresh failed")
-              return fetch(input, init)
-            }
-            authRecord = refreshed
-          }
-
-          const accessToken = authRecord.access
-          if (!accessToken) {
-            return fetch(input, init)
-          }
-
-          /**
-           * Ensures we have a usable project context for the current auth snapshot.
-           */
-          async function resolveProjectContext(): Promise<ProjectContextResult> {
-            try {
-              return await ensureProjectContext(authRecord, client, configuredProjectId)
-            } catch (error) {
-              if (error instanceof Error) {
-                console.error(error.message)
-              }
-              throw error
-            }
-          }
-
-          const projectContext = await resolveProjectContext()
-
-          const {
-            request,
-            init: transformedInit,
-            streaming,
-            requestedModel,
-          } = prepareGeminiRequest(input, init, accessToken, projectContext.effectiveProjectId)
-
-          debugCheckpoint("gemini-cli", "Request prepared", {
-            originalUrl: toUrlString(input),
-            transformedUrl: toUrlString(request),
-            streaming,
-            requestedModel,
-            hasBody: !!transformedInit.body,
-          })
-
-          const originalUrl = toUrlString(input)
-          const resolvedUrl = toUrlString(request)
-          const debugContext = startGeminiDebugRequest({
-            originalUrl,
-            resolvedUrl,
-            method: transformedInit.method,
-            headers: transformedInit.headers,
-            body: transformedInit.body,
-            streaming,
-            projectId: projectContext.effectiveProjectId,
-          })
-
-          const response = await fetchWithRetry(request, transformedInit)
-          return transformGeminiResponse(response, streaming, debugContext, requestedModel)
-        },
-      }
-    },
-    methods: [
-      {
-        label: "OAuth with Google (Gemini CLI)",
-        type: "oauth",
-        authorize: async () => {
-          const maybeHydrateProjectId = async (
-            result: GeminiTokenExchangeResult,
-          ): Promise<GeminiTokenExchangeResult> => {
-            if (result.type !== "success") {
-              return result
-            }
-
-            const accessToken = result.access
-            if (!accessToken) {
-              return result
-            }
-
-            const projectFromEnv = Env.get("OPENCODE_GEMINI_PROJECT_ID")?.trim() ?? ""
-            const googleProjectFromEnv =
-              Env.get("GOOGLE_CLOUD_PROJECT")?.trim() ?? Env.get("GOOGLE_CLOUD_PROJECT_ID")?.trim() ?? ""
-            const configuredProjectId = projectFromEnv || googleProjectFromEnv || undefined
-
-            try {
-              const authSnapshot = {
-                type: "oauth",
-                refresh: result.refresh,
-                access: result.access,
-                expires: result.expires,
-              } satisfies OAuthAuthDetails
-              const projectContext = await resolveProjectContextFromAccessToken(
-                authSnapshot,
-                accessToken,
-                configuredProjectId,
-              )
-
-              if (projectContext.auth.refresh !== result.refresh) {
-                if (isGeminiDebugEnabled()) {
-                  logGeminiDebugMessage(
-                    `OAuth project resolved during auth: ${projectContext.effectiveProjectId || "none"}`,
-                  )
-                }
-                return { ...result, refresh: projectContext.auth.refresh }
-              }
-            } catch (error) {
-              if (isGeminiDebugEnabled()) {
-                const message = error instanceof Error ? error.message : String(error)
-                console.warn(`[Gemini OAuth] Project resolution skipped: ${message}`)
+    
+          const providerOptions =
+            provider && typeof provider === "object"
+              ? ((provider as { options?: Record<string, unknown> }).options ?? undefined)
+              : undefined
+          const projectIdFromConfig =
+            providerOptions && typeof providerOptions.projectId === "string" ? providerOptions.projectId.trim() : ""
+          const projectIdFromEnv = Env.get("OPENCODE_GEMINI_PROJECT_ID")?.trim() ?? ""
+          const googleProjectIdFromEnv =
+            Env.get("GOOGLE_CLOUD_PROJECT")?.trim() ?? Env.get("GOOGLE_CLOUD_PROJECT_ID")?.trim() ?? ""
+          const configuredProjectId = projectIdFromEnv || projectIdFromConfig || googleProjectIdFromEnv || undefined
+    
+          if (provider.models) {
+            for (const model of Object.values(provider.models)) {
+              if (model) {
+                model.cost = { input: 0, output: 0 }
               }
             }
-
-            return result
           }
-
-          const isHeadless = !!(
-            Env.get("SSH_CONNECTION") ||
-            Env.get("SSH_CLIENT") ||
-            Env.get("SSH_TTY") ||
-            Env.get("OPENCODE_HEADLESS")
-          )
-
-          let listener: OAuthListener | null = null
-          if (!isHeadless) {
-            try {
-              listener = await startOAuthListener()
-            } catch (error) {
-              if (error instanceof Error) {
-                console.log(
-                  `Warning: Couldn't start the local callback listener (${error.message}). You'll need to paste the callback URL or authorization code.`,
-                )
-              } else {
-                console.log(
-                  "Warning: Couldn't start the local callback listener. You'll need to paste the callback URL or authorization code.",
-                )
-              }
-            }
-          } else {
-            console.log("Headless environment detected. You'll need to paste the callback URL or authorization code.")
-          }
-
-          const authorization = await authorizeGemini()
-          if (!isHeadless) {
-            openBrowserUrl(authorization.url)
-          }
-
-          if (listener) {
-            return {
-              url: authorization.url,
-              instructions:
-                "Complete the sign-in flow in your browser. We'll automatically detect the redirect back to localhost.",
-              method: "auto",
-              callback: async (): Promise<GeminiTokenExchangeResult> => {
-                try {
-                  const callbackUrl = await listener.waitForCallback()
-                  const code = callbackUrl.searchParams.get("code")
-                  const state = callbackUrl.searchParams.get("state")
-
-                  if (!code || !state) {
-                    return {
-                      type: "failed",
-                      error: "Missing code or state in callback URL",
-                    }
-                  }
-
-                  if (state !== authorization.state) {
-                    return {
-                      type: "failed",
-                      error: "State mismatch in callback URL (possible CSRF attempt)",
-                    }
-                  }
-
-                  return await maybeHydrateProjectId(await exchangeGeminiWithVerifier(code, authorization.verifier))
-                } catch (error) {
-                  return {
-                    type: "failed",
-                    error: error instanceof Error ? error.message : "Unknown error",
-                  }
-                } finally {
-                  try {
-                    await listener?.close()
-                  } catch {}
-                }
-              },
-            }
-          }
-
+    
           return {
-            url: authorization.url,
-            instructions:
-              "Complete OAuth in your browser, then paste the full redirected URL (e.g., http://localhost:8085/oauth2callback?code=...&state=...) or just the authorization code.",
-            method: "code",
-            callback: async (callbackUrl: string): Promise<GeminiTokenExchangeResult> => {
-              try {
-                const { code, state } = parseOAuthCallbackInput(callbackUrl)
-
-                if (!code) {
-                  return {
-                    type: "failed",
-                    error: "Missing authorization code in callback input",
-                  }
-                }
-
-                if (state && state !== authorization.state) {
-                  return {
-                    type: "failed",
-                    error: "State mismatch in callback input (possible CSRF attempt)",
-                  }
-                }
-
-                return await maybeHydrateProjectId(await exchangeGeminiWithVerifier(code, authorization.verifier))
-              } catch (error) {
-                return {
-                  type: "failed",
-                  error: error instanceof Error ? error.message : "Unknown error",
-                }
+            apiKey: "",
+            async fetch(input, init) {
+              const inputUrl = typeof input === "string" ? input : (input as Request).url
+              debugCheckpoint("gemini-cli", "Custom fetch called", { url: inputUrl })
+    
+              if (!isGenerativeLanguageRequest(input)) {
+                debugCheckpoint("gemini-cli", "Not a generative language request, using default fetch")
+                return fetch(input, init)
               }
+    
+              debugCheckpoint("gemini-cli", "Is generative language request, processing...")
+    
+              const latestAuth = await getAuth()
+    
+                        if (!latestAuth || latestAuth.type !== "api") {
+                          debugCheckpoint("gemini-cli", "Invalid or missing auth - blocking request", { authType: latestAuth?.type })
+                          return new Response(
+                            JSON.stringify({
+                              error: {
+                                code: 401,
+                                message: "Gemini CLI: API Key required. Subscription accounts are disabled.",
+                                status: "UNAUTHENTICATED",
+                              },
+                            }),
+                            { status: 401, headers: { "Content-Type": "application/json" } },
+                          )
+                        }    
+              debugCheckpoint("gemini-cli", "Auth present, proceeding with transformation", { authType: latestAuth.type })
+    
+              const authRecord = latestAuth
+              const accessToken = authRecord.key
+              const isApiKey = true
+              let projectId = configuredProjectId
+    
+              // For API accounts, we might have stored projectId in the account data
+              // @ts-ignore - ApiAuth type might not show projectId yet but it's there at runtime if set
+              if (authRecord.projectId) {
+                 // @ts-ignore
+                 projectId = authRecord.projectId
+              }
+    
+              if (!accessToken) {
+                return fetch(input, init)
+              }
+    
+              /**
+               * Ensures we have a usable project context for the current auth snapshot.
+               */
+              async function resolveProjectContext(): Promise<ProjectContextResult> {
+                const res: ProjectContextResult = {
+                    auth: authRecord as any,
+                    effectiveProjectId: projectId || "",
+                }
+                return res
+              }
+    
+              const projectContext = await resolveProjectContext()
+    
+              const {
+                request,
+                init: transformedInit,
+                streaming,
+                requestedModel,
+              } = prepareGeminiRequest(input, init, accessToken, projectContext.effectiveProjectId, isApiKey)
+    
+              debugCheckpoint("gemini-cli", "Request prepared", {
+                originalUrl: toUrlString(input),
+                transformedUrl: toUrlString(request),
+                streaming,
+                requestedModel,
+                hasBody: !!transformedInit.body,
+                isApiKey,
+              })
+    
+              const originalUrl = toUrlString(input)
+              const resolvedUrl = toUrlString(request)
+              const debugContext = startGeminiDebugRequest({
+                originalUrl,
+                resolvedUrl,
+                method: transformedInit.method,
+                headers: transformedInit.headers,
+                body: transformedInit.body,
+                streaming,
+                projectId: projectContext.effectiveProjectId,
+              })
+    
+              const response = await fetchWithRetry(request, transformedInit)
+              return transformGeminiResponse(response, streaming, debugContext, requestedModel)
             },
           }
         },
+        methods: [
+          {
+            provider: GEMINI_PROVIDER_ID,
+            label: "Manually enter API Key",
+            type: "api",
+          },
+        ],
       },
-      {
-        provider: GEMINI_PROVIDER_ID,
-        label: "Manually enter API Key",
-        type: "api",
-      },
-    ],
-  },
-})
+    })
 
 export const GoogleOAuthPlugin = GeminiCLIOAuthPlugin
 

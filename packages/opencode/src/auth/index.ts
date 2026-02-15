@@ -25,6 +25,7 @@ export namespace Auth {
     .object({
       type: z.literal("api"),
       key: z.string(),
+      projectId: z.string().optional(),
     })
     .meta({ ref: "ApiAuth" })
 
@@ -126,6 +127,9 @@ export namespace Auth {
     const family = parseFamily(providerId)
     const activeInfo = await Account.getActiveInfo(family)
     if (activeInfo) {
+      if (family === "gemini-cli" && activeInfo.type === "subscription") {
+        return undefined
+      }
       return accountToAuth(activeInfo)
     }
 
@@ -189,6 +193,7 @@ export namespace Auth {
         name: label,
         apiKey: info.key,
         addedAt: Date.now(),
+        projectId: info.projectId,
       })
     } else if (info.type === "oauth") {
       // Priority: 1. explicit email, 2. JWT decode from access token, 3. JWT decode from refresh token

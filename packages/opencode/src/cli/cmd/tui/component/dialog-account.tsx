@@ -34,6 +34,19 @@ export function DialogAccount() {
     try {
       const all = await Account.listAll()
       setFamilies(all)
+
+      // Auto-switch away from invalid gemini-cli accounts
+      if (all["gemini-cli"]) {
+        const gemini = all["gemini-cli"]
+        const activeId = gemini.activeAccount
+        if (activeId && gemini.accounts[activeId]?.type === "subscription") {
+          const apiId = Object.keys(gemini.accounts).find((id) => gemini.accounts[id].type === "api")
+          if (apiId) {
+            await setActive("gemini-cli", apiId)
+            toast.show({ message: "Switched to API Key account", variant: "info" })
+          }
+        }
+      }
     } catch (e) {
       console.error("Failed to load accounts:", e)
     }
@@ -80,7 +93,11 @@ export function DialogAccount() {
       if (accounts.length === 0) continue
 
       // Sort: active first, then API vs Subscription, then Name
-      const sorted = accounts.sort(([idA, a], [idB, b]) => {
+      const sorted = accounts.filter(([id, acc]) => {
+        // Filter out subscription accounts for gemini-cli
+        if (family === "gemini-cli" && acc.type === "subscription") return false
+        return true
+      }).sort(([idA, a], [idB, b]) => {
         const activeId = familyData.activeAccount
         const isActiveA = idA === activeId
         const isActiveB = idB === activeId
@@ -121,6 +138,8 @@ export function DialogAccount() {
           description = info.email
         } else if (info.type === "subscription" && info.projectId) {
           description = `Project: ${info.projectId}`
+        } else if (info.type === "api" && (info as any).projectId) {
+          description = `Project: ${(info as any).projectId}`
         }
 
         if (status) {
