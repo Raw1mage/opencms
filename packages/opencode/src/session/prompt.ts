@@ -567,7 +567,7 @@ export namespace SessionPrompt {
       const environmentKey = `${activeModel.providerId}/${activeModel.api.id}`
       let environmentPrompts = environmentCache.get(environmentKey)
       if (!environmentPrompts) {
-        environmentPrompts = await SystemPrompt.environment(activeModel)
+        environmentPrompts = await SystemPrompt.environment(activeModel, sessionID, session.parentID)
         environmentCache.set(environmentKey, environmentPrompts)
       }
       debugCheckpoint("prompt", "loop:instruction_decision", {
@@ -586,9 +586,9 @@ export namespace SessionPrompt {
         system: [
           await getPreloadedContext(sessionID),
           ...environmentPrompts,
-          // Include instruction prompts (AGENTS.md/CLAUDE.md) for all sessions (including subagents)
-          // to ensure consistent behavioral standards across the system.
-          ...instructionPrompts,
+          // Only include heavy instruction prompts (AGENTS.md) for Main Agents (no parentID).
+          // Subagents should rely on the task description and SYSTEM.md.
+          ...(session.parentID ? [] : instructionPrompts),
         ],
         messages: [
           ...MessageV2.toModelMessages(sessionMessages, activeModel),

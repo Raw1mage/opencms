@@ -74,6 +74,12 @@ export namespace LLM {
 
   export type StreamOutput = StreamTextResult<ToolSet, unknown>
 
+  async function isSubagentSession(sessionID: string): Promise<boolean> {
+    const { Session: SessionMod } = await import("@/session")
+    const info = await SessionMod.get(sessionID)
+    return !!info?.parentID
+  }
+
   export async function stream(input: StreamInput) {
     debugCheckpoint("llm", "LLM.stream started", {
       modelID: input.model.id,
@@ -124,20 +130,35 @@ export namespace LLM {
     const usesInstructions = capabilities.useInstructionsOption
 
     const system = []
-    system.push(
-      [
-        // use agent prompt if available
-        ...(input.agent.prompt ? [input.agent.prompt] : []),
-        // For providers using instructions option, skip SystemPrompt.provider() since it's sent via options.instructions
-        ...(usesInstructions ? [] : SystemPrompt.provider(input.model)),
-        // any custom prompt passed into this call
-        ...input.system,
-        // any custom prompt from last user message
-        ...(input.user.system ? [input.user.system] : []),
-      ]
-        .filter((x) => x)
-        .join("\n"),
-    )
+    const systemParts = [
+      // 1. BIOS Driver Layer (Base identity and technical instructions)
+      // For providers using instructions option, skip SystemPrompt.provider() since it's sent via options.instructions
+      ...(usesInstructions ? [] : await SystemPrompt.provider(input.model)),
+
+      // 2. User Agent Custom Prompt
+      ...(input.agent.prompt ? [input.agent.prompt] : []),
+
+      // 3. Dynamic Session/Task Prompts
+      ...input.system,
+
+      // 4. Custom prompt from last user message
+      ...(input.user.system ? [input.user.system] : []),
+
+      // 5. CORE SYSTEM PROMPT (Red Light Rules)
+      // Forced at the very bottom to leverage Recency Bias.
+      // This is the single source of truth for the cms branch personality.
+      `\n\n--- CRITICAL OPERATIONAL BOUNDARY ---\n\n`,
+      ...(await SystemPrompt.system(await isSubagentSession(input.sessionID))),
+
+      // 6. Role Identity Reinforcement
+      // Tells the model exactly who it is in this specific request.
+      `\n\n[IDENTITY REINFORCEMENT]\n` +
+        `Session ID: ${input.sessionID}\n` +
+        `Current Role: ${(await isSubagentSession(input.sessionID)) ? "Subagent" : "Main Agent"}\n` +
+        `Session Context: ${(await isSubagentSession(input.sessionID)) ? "Sub-task" : "Main-task Orchestration"}`,
+    ]
+
+    system.push(systemParts.filter((x) => x).join("\n"))
 
     const header = system[0]
     const original = clone(system)
