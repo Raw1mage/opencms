@@ -10,7 +10,7 @@ import { ModelsDev } from "./models"
 import { NamedError } from "@opencode-ai/util/error"
 import { Auth } from "../auth"
 import { Account } from "../account"
-import { getRateLimitTracker } from "../account/rotation"
+import { getRateLimitTracker, getHealthTracker } from "../account/rotation"
 import { Env } from "../env"
 import { Instance } from "../project/instance"
 import { Flag } from "../flag/flag"
@@ -2292,16 +2292,41 @@ export namespace Provider {
    * @event_2026-02-06:rotation_unify
    * Check if a model is available for a specific provider.
    * Uses RateLimitTracker with account dimension for per-account rate limiting.
+   *
+   * @event_2026-02-15:fix_is_model_available
+   * Previously only checked the ACTIVE account. If the active account was rate limited,
+   * the model was declared unavailable even if other accounts were healthy.
+   * Now checks ALL accounts in the family. Returns true if ANY account is usable.
    */
   async function isModelAvailable(pid: string, modelID: string): Promise<boolean> {
     const family = Account.parseFamily(pid)
     if (!family) return true // No family = no account tracking, assume available
 
-    const accountId = await Account.getActive(family)
-    if (!accountId) return true // No active account, assume available
+    // Get all accounts for this family
+    const accounts = await Account.list(family).catch(() => ({}))
+    const accountIds = Object.keys(accounts)
+
+    if (accountIds.length === 0) return true // No accounts found, assume default/env auth is okay
 
     const tracker = getRateLimitTracker()
-    return !tracker.isRateLimited(accountId, pid, modelID)
+    const healthTracker = getHealthTracker() // Also check health score
+
+    // Check if ANY account is available
+    // An account is available if:
+    // 1. It is NOT rate limited for this model
+    // 2. AND it is NOT rate limited for the provider
+    // 3. AND it has a usable health score
+    for (const accountId of accountIds) {
+      const isRateLimited = tracker.isRateLimited(accountId, pid, modelID)
+      const isUsable = healthTracker.isUsable(accountId, pid)
+
+      if (!isRateLimited && isUsable) {
+        return true
+      }
+    }
+
+    // If we reached here, ALL accounts are either rate limited or unhealthy
+    return false
   }
 
   export async function getSmallModel(providerId: string) {

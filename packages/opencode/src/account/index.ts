@@ -1061,10 +1061,10 @@ export namespace Account {
    * Record a successful request for an account.
    * Improves health score.
    */
-  export async function recordSuccess(accountId: string, provider: string): Promise<void> {
+  export async function recordSuccess(accountId: string, provider: string, model?: string): Promise<void> {
     const { getHealthTracker } = await import("./rotation")
-    getHealthTracker().recordSuccess(accountId, provider)
-    log.debug("Recorded success", { accountId, provider })
+    getHealthTracker().recordSuccess(accountId, provider, model)
+    log.debug("Recorded success", { accountId, provider, model })
   }
 
   /**
@@ -1089,7 +1089,7 @@ export namespace Account {
     const healthTracker = rotation.getHealthTracker()
     const rateLimitTracker = rotation.getRateLimitTracker()
 
-    healthTracker.recordRateLimit(accountId, provider)
+    healthTracker.recordRateLimit(accountId, provider, model)
     rateLimitTracker.markRateLimited(accountId, provider, reason as RateLimitReason, backoffMs, model)
 
     log.info("Recorded rate limit", { accountId, provider, reason, backoffMs, model })
@@ -1099,10 +1099,10 @@ export namespace Account {
    * Record a failure for an account.
    * Reduces health score more significantly than rate limits.
    */
-  export async function recordFailure(accountId: string, provider: string): Promise<void> {
+  export async function recordFailure(accountId: string, provider: string, model?: string): Promise<void> {
     const { getHealthTracker } = await import("./rotation")
-    getHealthTracker().recordFailure(accountId, provider)
-    log.warn("Recorded failure", { accountId, provider })
+    getHealthTracker().recordFailure(accountId, provider, model)
+    log.warn("Recorded failure", { accountId, provider, model })
   }
 
   /**

@@ -991,20 +991,15 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         const isCurrentAccount = isCurrentModel && activeAccountId && activeAccountId === accountId
         const rowSuffix = isCurrentAccount ? " ✅" : ""
 
-        const stats = RequestMonitor.get().getStats(providerId, accountId || "unknown", modelId)
+        const monitor = RequestMonitor.get()
+        const stats = monitor.getStats(providerId, accountId || "unknown", modelId)
+        const limits = monitor.getModelLimits(providerId, modelId)
+        const status = monitor.getStatus(providerId, accountId || "unknown", modelId)
 
-        const limit = getModelRPDLimit(modelId)
-        let rpdDisplay = ""
+        let displayStatus = "--"
         if (accountFamily === "google-api" || accountFamily === "gemini-cli") {
-          if (limit !== undefined) {
-            rpdDisplay = `${stats.rpd}/${limit}`
-          } else {
-            rpdDisplay = `${stats.rpd} RPD`
-          }
+          displayStatus = `${stats.rpd}/${limits.rpd}`
         }
-
-        // Pad the RPD display to align cleanly
-        // const statusPrefix = rpdDisplay.padStart(12) // Removed in favor of unified displayStatus
 
         const modelKey = `${providerId}:${modelId}`
         const modelEntry = modelLimits.get(`${accountId}:${providerId}:${modelId}`)
@@ -1059,11 +1054,8 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         // Previously required state2d.available, now shows quota regardless of rate limit history
         const quotaFooter = formatQuotaFooter(accountId, providerId, modelId, modelDisplayName, fallbackFree, false, 0)
 
-        let displayStatus = "--"
         if (quotaFooter) {
           displayStatus = quotaFooter
-        } else if (rpdDisplay) {
-          displayStatus = rpdDisplay
         }
 
         const statusColumn = displayStatus.padStart(16)
