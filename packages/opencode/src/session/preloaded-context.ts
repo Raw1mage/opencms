@@ -34,7 +34,9 @@ export async function getPreloadedContext(_sessionID?: string): Promise<string> 
   }
 
   let skills = ""
-  const skillNames = ["model-selector", "agent-workflow"]
+  // Core skills are no longer pre-loaded to save tokens.
+  // Agents are expected to load them dynamically via the `skill` tool as per AGENTS.md instructions.
+  const skillNames: string[] = [] 
   const skillDirs = [path.join(root, ".opencode", "skills"), path.join(Global.Path.data, "skills")]
 
   for (const name of skillNames) {

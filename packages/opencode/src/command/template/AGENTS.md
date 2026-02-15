@@ -5,7 +5,7 @@
 ## 工作階段啟動 (Session Start)
 
 - **Environment**: Current directory (`cwd`) and `README.md` are pre-loaded in `<preloaded_context>/<env_context>`.
-- **Core Skills**: `model-selector` and `agent-workflow` are pre-loaded in `<preloaded_context>/<skill_context>`. **DO NOT** load them again.
+- **Core Skills**: NOT loaded by default. You **MUST** load `agent-workflow` via `skill` tool at the start of the session to establish the operational protocol.
 
 ---
 
