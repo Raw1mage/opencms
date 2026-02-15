@@ -1,13 +1,9 @@
-export const ModelLimits: Record<string, number> = {
-  "gemini-2.5-flash": 20,
-  "gemini-2.5-pro": 1500,
-  "gemini-2.0-flash": 1500,
-  "gemini-2.0-flash-exp": 1500,
-  "gemini-2.0-flash-lite": 1500,
-  "gemini-2.0-pro-exp": 1500,
-  "gemini-2.5-flash-lite": 20,
-  "gemini-3-pro": 1500,
-  "gemini-3-flash": 20,
+export const ModelLimits: Record<string, number | undefined> = {
+  "gemini-3-pro": 250,
+  "gemini-2.5-flash-lite": undefined,
+  "gemini-3-flash": 10000,
+  "gemini-2.5-pro": 1000,
+  "gemini-2.5-flash": 10000,
 }
 
 export function getModelRPDLimit(modelId: string): number | undefined {

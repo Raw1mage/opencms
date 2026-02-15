@@ -6,7 +6,12 @@ import { generateFingerprint, type Fingerprint, type FingerprintVersion, MAX_FIN
 import { Account } from "../../../account"
 import { debugCheckpoint } from "../../../util/debug"
 // Import unified rate limit handling from global rotation layer
-import { parseRateLimitReason, calculateBackoffMs, type RateLimitReason } from "../../../account/rotation"
+import {
+  parseRateLimitReason,
+  calculateBackoffMs,
+  type RateLimitReason,
+  getRateLimitTracker,
+} from "../../../account/rotation"
 
 export type { ModelFamily, HeaderStyle, CooldownReason } from "./storage"
 // export type { AccountSelectionStrategy } from "./config/schema"
@@ -647,6 +652,22 @@ export class AccountManager {
   ): void {
     const key = getQuotaKey(family, headerStyle, model)
     account.rateLimitResetTimes[key] = nowMs() + retryAfterMs
+
+    // Sync to global tracker for UI/Rotation3D visibility
+    if (account._coreAccountId) {
+      const providerId = headerStyle === "gemini-cli" ? "gemini-cli" : "antigravity"
+      // Map cooldownReason to RateLimitReason if possible, or default
+      const reason: RateLimitReason =
+        (account.cooldownReason as RateLimitReason) || (retryAfterMs > 60000 ? "RATE_LIMIT_LONG" : "RATE_LIMIT_SHORT")
+
+      getRateLimitTracker().markRateLimited(
+        account._coreAccountId,
+        providerId,
+        reason,
+        retryAfterMs,
+        model || undefined,
+      )
+    }
   }
 
   /**
@@ -684,6 +705,12 @@ export class AccountManager {
     const backoffMs = calculateBackoffMs(reason, failures - 1, retryAfterMs)
     const key = getQuotaKey(family, headerStyle, model)
     account.rateLimitResetTimes[key] = now + backoffMs
+
+    // Sync to global tracker for UI/Rotation3D visibility
+    if (account._coreAccountId) {
+      const providerId = headerStyle === "gemini-cli" ? "gemini-cli" : "antigravity"
+      getRateLimitTracker().markRateLimited(account._coreAccountId, providerId, reason, backoffMs, model || undefined)
+    }
 
     debugCheckpoint("ANTIGRAVITY_ROTATION", "markRateLimitedWithReason", {
       index: account.index,

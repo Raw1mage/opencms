@@ -320,18 +320,24 @@ export namespace LLM {
         // Removed ModelHealthRegistry (global) - use RateLimitTracker (per-account) only
         if (isRateLimitError(error)) {
           const { reason, retryAfterMs } = extractRateLimitDetails(error)
-          const consecutiveFailures = accountId
-            ? getHealthTracker().getConsecutiveFailures(accountId, input.model.providerId)
-            : 0
-          let backoffMs = calculateBackoffMs(reason, consecutiveFailures, retryAfterMs)
 
-          // @event_user_request: antigravity rate limit check
-          // For Antigravity, fetch real reset time from cockpit instead of guessing.
-          // This prevents unnecessary hopping when the cooldown is actually short, or ensures we wait long enough.
+          // Absolute 3D Counter for RPD Detection (Reset 16:00 Taipei)
+          const dailyFailures = accountId
+            ? getRateLimitTracker().incrementDailyFailureCount(accountId, input.model.providerId, input.model.id)
+            : 0
+
+          const consecutiveFailures = accountId
+            ? getHealthTracker().getConsecutiveFailures(accountId, input.model.providerId, input.model.id)
+            : 0
+
+          let backoffMs = calculateBackoffMs(reason, consecutiveFailures, retryAfterMs, dailyFailures)
+
+          // @event_user_request: antigravity/openai rate limit check
+          // For Antigravity/OpenAI, fetch real reset time from cockpit instead of guessing.
           if (
-            input.model.providerId === "antigravity" &&
+            (input.model.providerId === "antigravity" || input.model.providerId === "openai") &&
             accountId &&
-            reason !== "TOKEN_REFRESH_FAILED" // Trust the 5h backoff for token errors
+            reason !== "TOKEN_REFRESH_FAILED"
           ) {
             try {
               const { Account } = await import("@/account")
@@ -339,8 +345,7 @@ export namespace LLM {
               const { refreshAccessToken } = await import("@/plugin/antigravity/plugin/token")
               const { formatRefreshParts } = await import("@/plugin/antigravity/plugin/auth")
 
-              // Get account info to build auth details
-              const info = await Account.get("antigravity", accountId)
+              const info = await Account.get(input.model.providerId, accountId)
               if (info && info.type === "subscription") {
                 let auth: OAuthAuthDetails = {
                   type: "oauth",
@@ -353,46 +358,22 @@ export namespace LLM {
                   expires: info.expiresAt,
                 }
 
-                // Refresh token if needed
                 if (!auth.access || !auth.expires || Date.now() >= auth.expires - 300000) {
-                  const noopClient = {
-                    auth: {
-                      set: async () => true,
-                    },
-                  } as unknown as PluginClient
+                  const noopClient = { auth: { set: async () => true } } as unknown as PluginClient
                   const refreshed = await refreshAccessToken(auth, noopClient, "antigravity")
                   if (refreshed) {
                     auth = refreshed
-                    // Determine project ID from refreshed token or existing info
-                    // We need a project ID for the cockpit call
                     const pId = info.projectId || info.managedProjectId
                     if (pId && auth.access) {
                       const result = await getCockpitBackoffMs(auth.access, pId, input.model.id, backoffMs)
-                      if (result.fromCockpit) {
-                        backoffMs = result.backoffMs
-                        l.info("Updated rate limit backoff from cockpit", {
-                          model: input.model.id,
-                          originalBackoff: calculateBackoffMs(reason, consecutiveFailures, retryAfterMs),
-                          newBackoff: backoffMs,
-                          resetTimeMs: result.resetTimeMs,
-                        })
-                      }
+                      if (result.fromCockpit) backoffMs = result.backoffMs
                     }
                   }
                 } else {
-                  // Token is valid, use it directly
                   const pId = info.projectId || info.managedProjectId
                   if (pId && auth.access) {
                     const result = await getCockpitBackoffMs(auth.access, pId, input.model.id, backoffMs)
-                    if (result.fromCockpit) {
-                      backoffMs = result.backoffMs
-                      l.info("Updated rate limit backoff from cockpit", {
-                        model: input.model.id,
-                        originalBackoff: calculateBackoffMs(reason, consecutiveFailures, retryAfterMs),
-                        newBackoff: backoffMs,
-                        resetTimeMs: result.resetTimeMs,
-                      })
-                    }
+                    if (result.fromCockpit) backoffMs = result.backoffMs
                   }
                 }
               }
@@ -401,7 +382,25 @@ export namespace LLM {
             }
           }
 
+          // @event_20260215_strict_rpd: If rate limit occurs while RPM is obviously low, assume RPD
+          const monitor = RequestMonitor.get()
+          const stats = monitor.getStats(input.model.providerId, accountId || "unknown", input.model.id)
+          const limits = monitor.getModelLimits(input.model.providerId, input.model.id)
+          const isNotRPMViolation = stats.rpm < limits.rpm
+
+          if (isNotRPMViolation && reason !== "RATE_LIMIT_SHORT") {
+            const { getNextQuotaReset } = await import("@/account/rotation")
+            const msUntilReset = getNextQuotaReset() - Date.now()
+            backoffMs = Math.max(msUntilReset, 60_000)
+            l.info("Detected obvious RPD violation (RPM is below limit), cooling down until 16:00 Taipei", {
+              rpm: stats.rpm,
+              limit: limits.rpm,
+              backoffMinutes: Math.round(backoffMs / 60000),
+            })
+          }
+
           // Guardrail: keep 503/529/capacity cooldown at least 5 minutes across all subagents.
+          const MODEL_CAPACITY_MIN_BACKOFF_MS = 300_000
           if (
             (reason === "SERVICE_UNAVAILABLE_503" ||
               reason === "SITE_OVERLOADED_529" ||
@@ -411,9 +410,13 @@ export namespace LLM {
             backoffMs = MODEL_CAPACITY_MIN_BACKOFF_MS
           }
 
+          // If daily failures are high, we can also force the status to RPD in the monitor
+          // to ensure UI displays it correctly before the next success.
+
           // Update account-level tracking (with account dimension)
           if (accountId) {
             const { Account } = await import("@/account")
+            // 3D Standard: Always include model ID to ensure (provider, model, account) consistency.
             await Account.recordRateLimit(accountId, input.model.providerId, reason, backoffMs, input.model.id)
           }
 
@@ -648,7 +651,56 @@ export namespace LLM {
     // Mark current vector as rate-limited to prevent bouncing back to it
     const rateLimitTracker = getRateLimitTracker()
     if (!rateLimitTracker.isRateLimited(currentAccountId, currentModel.providerId, currentModel.id)) {
-      const { reason } = error ? extractRateLimitDetails(error) : { reason: "RATE_LIMIT_EXCEEDED" as RateLimitReason }
+      let { reason, retryAfterMs } = error
+        ? extractRateLimitDetails(error)
+        : { reason: "RATE_LIMIT_EXCEEDED" as RateLimitReason, retryAfterMs: undefined }
+
+      // @event_20260215_paid_account_fix
+      // For Antigravity/OpenAI, attempt to fetch real reset time from cockpit during 3D rotation too.
+      // This matches the precision used in the stream() onError handler.
+      if ((currentModel.providerId === "antigravity" || currentModel.providerId === "openai") && currentAccountId) {
+        try {
+          const { Account: AccountMod } = await import("@/account")
+          const { getCockpitBackoffMs } = await import("@/plugin/antigravity/plugin/quota")
+          const { refreshAccessToken } = await import("@/plugin/antigravity/plugin/token")
+          const { formatRefreshParts } = await import("@/plugin/antigravity/plugin/auth")
+
+          const info = await AccountMod.get(currentModel.providerId, currentAccountId)
+          if (info && info.type === "subscription") {
+            let auth: OAuthAuthDetails = {
+              type: "oauth",
+              refresh: formatRefreshParts({
+                refreshToken: info.refreshToken,
+                projectId: info.projectId,
+                managedProjectId: info.managedProjectId,
+              }),
+              access: info.accessToken,
+              expires: info.expiresAt,
+            }
+
+            // Refresh token if needed
+            if (!auth.access || !auth.expires || Date.now() >= auth.expires - 300000) {
+              const noopClient = { auth: { set: async () => true } } as unknown as PluginClient
+              const refreshed = await refreshAccessToken(auth, noopClient, currentModel.providerId)
+              if (refreshed) auth = refreshed
+            }
+
+            const pId = info.projectId || info.managedProjectId
+            if (pId && auth.access) {
+              const cockpitResult = await getCockpitBackoffMs(auth.access, pId, currentModel.id, 0)
+              if (cockpitResult.fromCockpit) {
+                retryAfterMs = cockpitResult.backoffMs
+                log.info("Updated rate limit backoff from cockpit during 3D fallback", {
+                  model: currentModel.id,
+                  newBackoff: retryAfterMs,
+                })
+              }
+            }
+          }
+        } catch (e) {
+          log.warn("Failed to fetch cockpit backoff during fallback", { error: e })
+        }
+      }
 
       // ONLY mark as rate-limited if it's a temporary/rate-limit error.
       // Do NOT mark as 429 if it's a permanent error like "model not found".
@@ -666,12 +718,82 @@ export namespace LLM {
       if (isTemporary) {
         // Calculate dynamic backoff instead of hardcoded 5 minutes
         // We need consecutive failures to calculate backoff properly if it's exponential
-        const consecutiveFailures = currentAccountId
-          ? getHealthTracker().getConsecutiveFailures(currentAccountId, currentModel.providerId)
+
+        // Absolute 3D Counter for RPD Detection (Reset 16:00 Taipei)
+        const dailyFailures = currentAccountId
+          ? getRateLimitTracker().incrementDailyFailureCount(currentAccountId, currentModel.providerId, currentModel.id)
           : 0
-        const backoffMs = calculateBackoffMs(reason, consecutiveFailures)
+
+        const consecutiveFailures = currentAccountId
+          ? getHealthTracker().getConsecutiveFailures(currentAccountId, currentModel.providerId, currentModel.id)
+          : 0
+        let backoffMs = calculateBackoffMs(reason, consecutiveFailures, retryAfterMs, dailyFailures)
+
+        // @event_user_request: antigravity/openai rate limit check
+        // For Antigravity/OpenAI, fetch real reset time from cockpit instead of guessing.
+        if ((currentModel.providerId === "antigravity" || currentModel.providerId === "openai") && currentAccountId) {
+          try {
+            const { Account } = await import("@/account")
+            const { getCockpitBackoffMs } = await import("@/plugin/antigravity/plugin/quota")
+            const { refreshAccessToken } = await import("@/plugin/antigravity/plugin/token")
+            const { formatRefreshParts } = await import("@/plugin/antigravity/plugin/auth")
+
+            const info = await Account.get(currentModel.providerId, currentAccountId)
+            if (info && info.type === "subscription") {
+              let auth: OAuthAuthDetails = {
+                type: "oauth",
+                refresh: formatRefreshParts({
+                  refreshToken: info.refreshToken,
+                  projectId: info.projectId,
+                  managedProjectId: info.managedProjectId,
+                }),
+                access: info.accessToken,
+                expires: info.expiresAt,
+              }
+
+              if (!auth.access || !auth.expires || Date.now() >= auth.expires - 300000) {
+                const noopClient = { auth: { set: async () => true } } as unknown as PluginClient
+                const refreshed = await refreshAccessToken(auth, noopClient, "antigravity")
+                if (refreshed) {
+                  auth = refreshed
+                  const pId = info.projectId || info.managedProjectId
+                  if (pId && auth.access) {
+                    const result = await getCockpitBackoffMs(auth.access, pId, currentModel.id, backoffMs)
+                    if (result.fromCockpit) backoffMs = result.backoffMs
+                  }
+                }
+              } else {
+                const pId = info.projectId || info.managedProjectId
+                if (pId && auth.access) {
+                  const result = await getCockpitBackoffMs(auth.access, pId, currentModel.id, backoffMs)
+                  if (result.fromCockpit) backoffMs = result.backoffMs
+                }
+              }
+            }
+          } catch (e) {
+            log.warn("Failed to fetch cockpit backoff during fallback", { error: e })
+          }
+        }
+
+        // @event_20260215_strict_rpd: If rate limit occurs while RPM is obviously low, assume RPD
+        const monitor = RequestMonitor.get()
+        const stats = monitor.getStats(currentModel.providerId, currentAccountId || "unknown", currentModel.id)
+        const limits = monitor.getModelLimits(currentModel.providerId, currentModel.id)
+        const isNotRPMViolation = stats.rpm < limits.rpm
+
+        if (isNotRPMViolation && reason !== "RATE_LIMIT_SHORT") {
+          const { getNextQuotaReset } = await import("@/account/rotation")
+          const msUntilReset = getNextQuotaReset() - Date.now()
+          backoffMs = Math.max(msUntilReset, 60_000)
+          log.info("Detected obvious RPD violation during fallback, cooling down until 16:00 Taipei", {
+            rpm: stats.rpm,
+            limit: limits.rpm,
+            backoffMinutes: Math.round(backoffMs / 60000),
+          })
+        }
 
         // Apply cooldown to prevent immediate retry storms
+        // 3D Standard: Always include model ID to ensure (provider, model, account) consistency.
         rateLimitTracker.markRateLimited(currentAccountId, currentModel.providerId, reason, backoffMs, currentModel.id)
         log.info("Marked current vector as rate-limited to prevent bounce-back", {
           provider: currentModel.providerId,

@@ -37,6 +37,43 @@ interface UnifiedRotationState {
   version: number
   accountHealth: Record<string, HealthScoreState>
   rateLimits: Record<string, Record<string, RateLimitState>>
+  // Key: "provider:accountId[:model]" -> { count, lastReset }
+  dailyRateLimitCounts: Record<string, { count: number; lastReset: number }>
+}
+
+/**
+ * Get the timestamp of the next quota reset (16:00 Asia/Taipei).
+ */
+export function getNextQuotaReset(): number {
+  const now = new Date()
+  const resetHourUTC = 8 // 16:00 Taipei is 08:00 UTC
+  const nextReset = new Date(now)
+  nextReset.setUTCHours(resetHourUTC, 0, 0, 0)
+
+  if (now.getTime() >= nextReset.getTime()) {
+    // Already passed today's reset, next one is tomorrow
+    nextReset.setUTCDate(nextReset.getUTCDate() + 1)
+  }
+  return nextReset.getTime()
+}
+
+/**
+ * Get the start of the current quota day (16:00 Asia/Taipei = 08:00 UTC).
+ * RPD limits reset at this exact time.
+ */
+export function getQuotaDayStart(): number {
+  const now = new Date()
+  const resetHourUTC = 8 // 16:00 Taipei is 08:00 UTC
+  const todayReset = new Date(now)
+  todayReset.setUTCHours(resetHourUTC, 0, 0, 0)
+
+  if (now.getTime() < todayReset.getTime()) {
+    // Before 16:00 today, the "day" started at 16:00 yesterday
+    const yesterdayReset = new Date(todayReset)
+    yesterdayReset.setUTCDate(yesterdayReset.getUTCDate() - 1)
+    return yesterdayReset.getTime()
+  }
+  return todayReset.getTime()
 }
 
 /**
@@ -54,11 +91,17 @@ function readUnifiedState(): UnifiedRotationState {
         version: data.version ?? 1,
         accountHealth: data.accountHealth ?? {},
         rateLimits: data.rateLimits ?? {},
+        dailyRateLimitCounts: data.dailyRateLimitCounts ?? {},
       }
     }
 
     // Backwards compatibility: migrate from legacy files
-    const state: UnifiedRotationState = { version: 1, accountHealth: {}, rateLimits: {} }
+    const state: UnifiedRotationState = {
+      version: 1,
+      accountHealth: {},
+      rateLimits: {},
+      dailyRateLimitCounts: {},
+    }
 
     // Read legacy rate-limits.json
     if (fs.existsSync(LEGACY_RATE_LIMITS_FILE)) {
@@ -92,7 +135,7 @@ function readUnifiedState(): UnifiedRotationState {
 
     return state
   } catch {
-    return { version: 1, accountHealth: {}, rateLimits: {} }
+    return { version: 1, accountHealth: {}, rateLimits: {}, dailyRateLimitCounts: {} }
   }
 }
 
@@ -155,15 +198,25 @@ interface HealthScoreState {
  * Subagents will see rate limits from the parent process immediately.
  */
 export class HealthScoreTracker {
-  private readonly scores = new Map<string, HealthScoreState>()
   private readonly config: HealthScoreConfig
+  // Key: "provider:accountId[:model]" -> health state
+  private readonly scores = new Map<string, HealthScoreState>()
 
   constructor(config: Partial<HealthScoreConfig> = {}) {
     this.config = { ...DEFAULT_HEALTH_SCORE_CONFIG, ...config }
+    this.loadFromFile()
+  }
+
+  private makeKey(provider: string, accountId: string, model?: string): string {
+    // 3D Standard: Consistency across (provider, model, account)
+    if (model) return `${provider}:${accountId}:${model}`
+    // If accountId already contains provider (legacy), don't double it
+    if (accountId.startsWith(`${provider}:`) || accountId.startsWith(`${provider}-`)) return accountId
+    return `${provider}:${accountId}`
   }
 
   /**
-   * Persist current state to unified state file for cross-process access.
+   * Persist current state to shared file for cross-process access.
    * @event_2026-02-06:rotation_unify - Now uses unified rotation-state.json
    */
   private persistToFile(): void {
@@ -184,24 +237,16 @@ export class HealthScoreTracker {
     const state = readUnifiedState()
     this.scores.clear()
     for (const [key, scoreState] of Object.entries(state.accountHealth)) {
-      this.scores.set(key, scoreState)
+      this.scores.set(key, scoreState as HealthScoreState)
     }
   }
 
-  private makeKey(provider: string, accountId: string): string {
-    // If accountId already contains provider (legacy), don't double it
-    if (accountId.startsWith(`${provider}:`) || accountId.startsWith(`${provider}-`)) return accountId
-    return `${provider}:${accountId}`
-  }
-
   /**
-   * Get current health score for an account, applying time-based recovery.
+   * Get current health score for an account/model, applying time-based recovery.
    */
-  getScore(accountId: string, provider: string): number {
-    // @event_2026-02-06:rotation_unify - Load latest state from file
+  getScore(accountId: string, provider: string, model?: string): number {
     this.loadFromFile()
-
-    const key = this.makeKey(provider, accountId)
+    const key = this.makeKey(provider, accountId, model)
     const state = this.scores.get(key)
     if (!state) {
       return this.config.initial
@@ -218,13 +263,11 @@ export class HealthScoreTracker {
   /**
    * Record a successful request - improves health score.
    */
-  recordSuccess(accountId: string, provider: string): void {
-    // @event_2026-02-06:rotation_unify - Load latest state from file first
+  recordSuccess(accountId: string, provider: string, model?: string): void {
     this.loadFromFile()
-
     const now = Date.now()
-    const key = this.makeKey(provider, accountId)
-    const current = this.getScore(accountId, provider)
+    const key = this.makeKey(provider, accountId, model)
+    const current = this.getScore(accountId, provider, model)
 
     this.scores.set(key, {
       score: Math.min(this.config.maxScore, current + this.config.successReward),
@@ -233,23 +276,19 @@ export class HealthScoreTracker {
       consecutiveFailures: 0,
     })
 
-    // @event_2026-02-06:rotation_unify - Persist for cross-process access
     this.persistToFile()
-
-    log.debug("Account health: success recorded", { provider, accountId, newScore: this.scores.get(key)?.score })
+    log.debug("Account health: success recorded", { provider, accountId, model, newScore: this.scores.get(key)?.score })
   }
 
   /**
    * Record a rate limit hit - moderate penalty.
    */
-  recordRateLimit(accountId: string, provider: string): void {
-    // @event_2026-02-06:rotation_unify - Load latest state from file first
+  recordRateLimit(accountId: string, provider: string, model?: string): void {
     this.loadFromFile()
-
     const now = Date.now()
-    const key = this.makeKey(provider, accountId)
+    const key = this.makeKey(provider, accountId, model)
     const state = this.scores.get(key)
-    const current = this.getScore(accountId, provider)
+    const current = this.getScore(accountId, provider, model)
     const newScore = Math.max(0, current + this.config.rateLimitPenalty)
     const newFailures = (state?.consecutiveFailures ?? 0) + 1
 
@@ -260,12 +299,11 @@ export class HealthScoreTracker {
       consecutiveFailures: newFailures,
     })
 
-    // @event_2026-02-06:rotation_unify - Persist for cross-process access
     this.persistToFile()
-
     log.info("Account health: rate limit recorded", {
       provider,
       accountId,
+      model,
       newScore,
       consecutiveFailures: newFailures,
     })
@@ -274,14 +312,12 @@ export class HealthScoreTracker {
   /**
    * Record a failure (auth, network, etc.) - larger penalty.
    */
-  recordFailure(accountId: string, provider: string): void {
-    // @event_2026-02-06:rotation_unify - Load latest state from file first
+  recordFailure(accountId: string, provider: string, model?: string): void {
     this.loadFromFile()
-
     const now = Date.now()
-    const key = this.makeKey(provider, accountId)
+    const key = this.makeKey(provider, accountId, model)
     const state = this.scores.get(key)
-    const current = this.getScore(accountId, provider)
+    const current = this.getScore(accountId, provider, model)
     const newScore = Math.max(0, current + this.config.failurePenalty)
     const newFailures = (state?.consecutiveFailures ?? 0) + 1
 
@@ -292,41 +328,38 @@ export class HealthScoreTracker {
       consecutiveFailures: newFailures,
     })
 
-    // @event_2026-02-06:rotation_unify - Persist for cross-process access
     this.persistToFile()
-
     log.info("Account health: failure recorded", {
       provider,
       accountId,
+      model,
       newScore,
       consecutiveFailures: newFailures,
     })
   }
 
   /**
-   * Check if account is healthy enough to use.
+   * Check if account/model is healthy enough to use.
    */
-  isUsable(accountId: string, provider: string): boolean {
-    return this.getScore(accountId, provider) >= this.config.minUsable
+  isUsable(accountId: string, provider: string, model?: string): boolean {
+    return this.getScore(accountId, provider, model) >= this.config.minUsable
   }
 
   /**
-   * Get consecutive failure count for an account.
+   * Get consecutive failure count for an account/model.
    */
-  getConsecutiveFailures(accountId: string, provider: string): number {
-    // @event_2026-02-06:rotation_unify - Load latest state from file
+  getConsecutiveFailures(accountId: string, provider: string, model?: string): number {
     this.loadFromFile()
-    const key = this.makeKey(provider, accountId)
+    const key = this.makeKey(provider, accountId, model)
     return this.scores.get(key)?.consecutiveFailures ?? 0
   }
 
   /**
-   * Reset health state for an account (e.g., after removal).
+   * Reset health state for an account/model (e.g., after removal).
    */
-  reset(accountId: string, provider: string): void {
-    // @event_2026-02-06:rotation_unify - Load latest, modify, persist
+  reset(accountId: string, provider: string, model?: string): void {
     this.loadFromFile()
-    const key = this.makeKey(provider, accountId)
+    const key = this.makeKey(provider, accountId, model)
     this.scores.delete(key)
     this.persistToFile()
   }
@@ -335,15 +368,11 @@ export class HealthScoreTracker {
    * Get all scores for debugging/logging.
    */
   getSnapshot(): Map<string, { score: number; consecutiveFailures: number }> {
-    // @event_2026-02-06:rotation_unify - Load latest state from file
     this.loadFromFile()
-
     const result = new Map<string, { score: number; consecutiveFailures: number }>()
     for (const [key, state] of this.scores) {
-      const split = key.indexOf(":")
-      const score = split > 0 ? this.getScore(key.slice(split + 1), key.slice(0, split)) : state.score
       result.set(key, {
-        score,
+        score: state.score,
         consecutiveFailures: state.consecutiveFailures,
       })
     }
@@ -383,7 +412,9 @@ function asErrorWithMetadata(error: unknown): ErrorWithMetadata | undefined {
 }
 
 const QUOTA_EXHAUSTED_BACKOFFS = [3_600_000, 14_400_000, 86_400_000] as const
-const RATE_LIMIT_EXCEEDED_BACKOFF = 3_600_000 // 1 hour (was 60s)
+const RATE_LIMIT_PROBE_BACKOFF = 60_000 // 1 minute safe bet for RPM
+const RATE_LIMIT_LONG_BACKOFF = 86_400_000 // 24 hours for RPD
+const RATE_LIMIT_EXCEEDED_BACKOFF = 300_000 // 5 minutes default
 const SERVICE_UNAVAILABLE_503_BACKOFF = 300_000 // 5 minutes
 const SITE_OVERLOADED_529_BACKOFF = 300_000 // 5 minutes
 const MODEL_CAPACITY_EXHAUSTED_BASE_BACKOFF = 300_000 // 5 minutes
@@ -391,7 +422,7 @@ const MODEL_CAPACITY_EXHAUSTED_JITTER_MAX = 30_000
 const SERVER_ERROR_BACKOFF = 20_000
 const AUTH_FAILED_BACKOFF = 3_600_000 // 1 hour
 const TOKEN_REFRESH_FAILED_BACKOFF = 18_000_000 // 5 hours
-const UNKNOWN_BACKOFF = 3_600_000 // 1 hour (was 60s)
+const UNKNOWN_BACKOFF = 300_000 // 5 minutes
 const MIN_BACKOFF_MS = 2_000
 
 function generateJitter(maxJitterMs: number): number {
@@ -446,7 +477,10 @@ export function parseRateLimitReason(
       lower.includes("per second") ||
       lower.includes("requests per minute") ||
       lower.includes("tokens per minute") ||
-      /\b(tpm|rpm|rps|tps)\b/.test(lower)
+      lower.includes("minute limit") ||
+      lower.includes("rpm") ||
+      lower.includes("tpm") ||
+      lower.includes("tps")
     ) {
       return "RATE_LIMIT_SHORT"
     }
@@ -455,22 +489,18 @@ export function parseRateLimitReason(
     if (
       lower.includes("per day") ||
       lower.includes("daily") ||
-      lower.includes("limit reached") ||
-      lower.includes("quota")
+      lower.includes("limit reached for the day") ||
+      lower.includes("rpd")
     ) {
       return "RATE_LIMIT_LONG"
     }
 
-    if (
-      lower.includes("per minute") ||
-      lower.includes("rate limit") ||
-      lower.includes("too many requests") ||
-      lower.includes("token refresh failed")
-    ) {
-      return "RATE_LIMIT_EXCEEDED"
-    }
-    if (lower.includes("exhausted") || lower.includes("quota")) {
+    if (lower.includes("quota")) {
       return "QUOTA_EXHAUSTED"
+    }
+
+    if (lower.includes("rate limit") || lower.includes("too many requests") || lower.includes("token refresh failed")) {
+      return "RATE_LIMIT_EXCEEDED"
     }
   }
 
@@ -488,6 +518,7 @@ export function calculateBackoffMs(
   reason: RateLimitReason,
   consecutiveFailures: number,
   retryAfterMs?: number | null,
+  dailyFailures: number = 0,
 ): number {
   if (retryAfterMs && retryAfterMs > 0) {
     return Math.max(retryAfterMs, MIN_BACKOFF_MS)
@@ -502,12 +533,19 @@ export function calculateBackoffMs(
       // Short-term RPM/TPM limit: 5 minutes is usually enough to clear rolling windows
       return 300_000 // 5 minutes
     case "RATE_LIMIT_LONG":
-      // Long-term Daily limit: 24 hours to be safe
-      return 86_400_000 // 24 hours
+      // Long-term Daily limit: Until the next 16:00 Taipei reset
+      return Math.max(getNextQuotaReset() - Date.now(), 60_000)
     case "RATE_LIMIT_EXCEEDED":
-      // Generic rate limit (unknown duration): 1 hour default
-      // @event_20260215_free_tier_cooldown: 1 hour for free tier 429s
-      return 3_600_000 // 1 hour
+    case "UNKNOWN":
+    default: {
+      // @event_20260215_daily_rpd: Use absolute daily counter for RPD detection
+      // 1st failure in the quota day: 1 minute (Probe RPM)
+      // 2nd+ failure in the same quota day: 1 hour (Suspected RPD)
+      if (dailyFailures <= 1) {
+        return RATE_LIMIT_PROBE_BACKOFF
+      }
+      return 3_600_000 // 1 hour confirm RPD
+    }
     case "SERVICE_UNAVAILABLE_503":
       return SERVICE_UNAVAILABLE_503_BACKOFF
     case "SITE_OVERLOADED_529":
@@ -520,10 +558,6 @@ export function calculateBackoffMs(
       return AUTH_FAILED_BACKOFF
     case "TOKEN_REFRESH_FAILED":
       return TOKEN_REFRESH_FAILED_BACKOFF
-    case "UNKNOWN":
-    default:
-      // @event_20260215_free_tier_cooldown: 1 hour for unknown 429s (safer default for free tier)
-      return 3_600_000 // 1 hour
   }
 }
 
@@ -626,6 +660,43 @@ export class RateLimitTracker {
   }
 
   /**
+   * Get absolute daily failure count for a 3D vector, handles 16:00 Taipei reset.
+   */
+  getDailyFailureCount(accountId: string, provider: string, model?: string): number {
+    const state = readUnifiedState()
+    const quotaDayStart = getQuotaDayStart()
+    const key = model ? `${provider}:${accountId}:${model}` : `${provider}:${accountId}`
+    const counter = state.dailyRateLimitCounts[key]
+
+    if (!counter || counter.lastReset < quotaDayStart) {
+      return 0
+    }
+    return counter.count
+  }
+
+  /**
+   * Increment absolute daily failure count for a 3D vector.
+   */
+  incrementDailyFailureCount(accountId: string, provider: string, model?: string): number {
+    const state = readUnifiedState()
+    const quotaDayStart = getQuotaDayStart()
+    const now = Date.now()
+    const key = model ? `${provider}:${accountId}:${model}` : `${provider}:${accountId}`
+
+    let counter = state.dailyRateLimitCounts[key]
+    if (!counter || counter.lastReset < quotaDayStart) {
+      counter = { count: 1, lastReset: now }
+    } else {
+      counter.count++
+      counter.lastReset = now
+    }
+
+    state.dailyRateLimitCounts[key] = counter
+    writeUnifiedState(state)
+    return counter.count
+  }
+
+  /**
    * Check if an account is rate limited for a provider/model
    */
   isRateLimited(accountId: string, provider: string, model?: string): boolean {
@@ -637,22 +708,17 @@ export class RateLimitTracker {
     const providerLimits = this.limits.get(key)
     if (!providerLimits) return false
 
-    // Check model-specific limit first
+    // 3D Standard: Must check the exact (provider, model, account) combination.
+    // If model is provided, ONLY check that specific model.
     if (model) {
       const modelKey = `${provider}:${model}`
       const modelLimit = providerLimits.get(modelKey)
-      if (modelLimit && Date.now() < modelLimit.resetTime) {
-        return true
-      }
+      return modelLimit !== undefined && Date.now() < modelLimit.resetTime
     }
 
-    // Check provider-level limit
+    // If no model provided, check if the provider itself is limited (fallback or manual block)
     const providerLimit = providerLimits.get(provider)
-    if (providerLimit && Date.now() < providerLimit.resetTime) {
-      return true
-    }
-
-    return false
+    return providerLimit !== undefined && Date.now() < providerLimit.resetTime
   }
 
   /**
