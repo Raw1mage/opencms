@@ -23,6 +23,8 @@ const ANTIGRAVITY_ACCOUNTS_PATH = path.join(XDG_CONFIG_HOME, "opencode", "antigr
 const CONFIG_PATH = path.join(XDG_CONFIG_HOME, "opencode", "opencode.json")
 const MODEL_STATE_PATH = path.join(XDG_STATE_HOME, "opencode", "model.json")
 const KV_PATH = path.join(XDG_STATE_HOME, "opencode", "kv.json")
+const ROTATION_STATE_PATH = path.join(XDG_STATE_HOME, "opencode", "rotation-state.json")
+const USAGE_STATS_PATH = path.join(XDG_CONFIG_HOME, "opencode", "usage-stats.json")
 const STORAGE_BASE = path.join(XDG_DATA_HOME, "opencode", "storage")
 const CODEX_ISSUER = "https://auth.openai.com"
 const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
@@ -35,6 +37,20 @@ async function pathExists(targetPath: string) {
   } catch {
     return false
   }
+}
+
+function getQuotaDayStart(): number {
+  const now = new Date()
+  const resetHourUTC = 8 // 16:00 Taipei is 08:00 UTC
+  const todayReset = new Date(now)
+  todayReset.setUTCHours(resetHourUTC, 0, 0, 0)
+
+  if (now.getTime() < todayReset.getTime()) {
+    const yesterdayReset = new Date(todayReset)
+    yesterdayReset.setUTCDate(yesterdayReset.getUTCDate() - 1)
+    return yesterdayReset.getTime()
+  }
+  return todayReset.getTime()
 }
 
 const THEME_DIR = path.join(REPO_ROOT, "packages", "opencode", "src", "cli", "cmd", "tui", "context", "theme")
@@ -302,6 +318,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (name === "get_system_status") {
       const accounts = JSON.parse(await fs.readFile(ACCOUNTS_PATH, "utf-8"))
       const config = JSON.parse(await fs.readFile(CONFIG_PATH, "utf-8"))
+
+      let rotationState: any = { rateLimits: {}, accountHealth: {} }
+      try {
+        if (await pathExists(ROTATION_STATE_PATH)) {
+          rotationState = JSON.parse(await fs.readFile(ROTATION_STATE_PATH, "utf-8"))
+        }
+      } catch (e) {}
+
+      let usageStats: any = {}
+      try {
+        if (await pathExists(USAGE_STATS_PATH)) {
+          usageStats = JSON.parse(await fs.readFile(USAGE_STATS_PATH, "utf-8"))
+        }
+      } catch (e) {}
+
       let antigravityDetailed: any = null
       try {
         antigravityDetailed = JSON.parse(await fs.readFile(ANTIGRAVITY_ACCOUNTS_PATH, "utf-8"))
@@ -335,12 +366,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 }
               }
 
+              // Cross-reference with rotation state for cooldowns across ALL providers
+              const rotationKey = `${fname}:${id}`
+              const cooldowns = rotationState.rateLimits[rotationKey] || {}
+
+              // Gather real-time usage (RPM/RPD) from usage-stats
+              const modelUsage: Record<string, any> = {}
+              for (const [key, stats] of Object.entries(usageStats)) {
+                if (key.startsWith(`${fname}:${id}:`)) {
+                  const modelId = key.split(":").slice(2).join(":")
+                  modelUsage[modelId] = stats
+                }
+              }
+
               return {
                 name: a.name,
                 email: a.email,
                 id: id,
                 usage: usage,
                 detailed: detailedInfo,
+                cooldowns: cooldowns,
+                model_usage: modelUsage,
                 reset: a.rateLimitResetTimes,
               }
             }),
@@ -365,6 +411,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 config_provider: config.provider,
                 theme: config.theme,
                 agent: config.default_agent,
+                next_reset_1600_taipei: new Date(getQuotaDayStart() + 86400000).toISOString(),
               },
               null,
               2,
