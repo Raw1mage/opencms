@@ -1023,7 +1023,52 @@ export function extractRateLimitDetails(error: unknown): {
     }
   }
 
+  // Fallback: Try to extract from error message (common in Gemini 429s where headers are lost)
+  // Example: "Please retry in 23s"
+  if (!retryAfterMs && message) {
+    const retryMatch = message.match(/Please retry in ([0-9.]+(?:ms|s|m|h))/i)
+    if (retryMatch?.[1]) {
+      retryAfterMs = parseRetryDelayValue(retryMatch[1])
+    }
+
+    // Also check for "after X" pattern
+    if (!retryAfterMs) {
+      const resetMatch = message.match(/after\s+([0-9.]+(?:ms|s|m|h))/i)
+      if (resetMatch?.[1]) {
+        retryAfterMs = parseRetryDelayValue(resetMatch[1])
+      }
+    }
+  }
+
   return { reason, retryAfterMs }
+}
+
+/**
+ * Parses retry delay values from strings (e.g., "23s", "1m").
+ * Helper for message-based extraction.
+ */
+function parseRetryDelayValue(value: string): number | undefined {
+  const trimmed = value.trim().toLowerCase()
+  if (!trimmed) return undefined
+
+  if (trimmed.endsWith("ms")) {
+    const ms = Number(trimmed.slice(0, -2))
+    return Number.isFinite(ms) && ms > 0 ? Math.round(ms) : undefined
+  }
+  if (trimmed.endsWith("s")) {
+    const s = Number(trimmed.slice(0, -1))
+    return Number.isFinite(s) && s > 0 ? Math.round(s * 1000) : undefined
+  }
+  if (trimmed.endsWith("m")) {
+    const m = Number(trimmed.slice(0, -1))
+    return Number.isFinite(m) && m > 0 ? Math.round(m * 60 * 1000) : undefined
+  }
+  if (trimmed.endsWith("h")) {
+    const h = Number(trimmed.slice(0, -1))
+    return Number.isFinite(h) && h > 0 ? Math.round(h * 60 * 60 * 1000) : undefined
+  }
+
+  return undefined
 }
 
 // ============================================================================

@@ -18,6 +18,7 @@ import { DialogProvider } from "./dialog-provider"
 import { DialogAccount } from "./dialog-account"
 import { useKeybind } from "../context/keybind"
 import { useTheme } from "@tui/context/theme"
+import { RequestMonitor } from "@/account/monitor"
 import { iife } from "@/util/iife"
 import { Account } from "@/account"
 import { Keybind } from "@/util/keybind"
@@ -38,6 +39,7 @@ import { debugCheckpoint, debugSpan } from "@/util/debug"
 import { useExit } from "@tui/context/exit"
 import { DialogModelProbe } from "./dialog-model-probe"
 import { getModelHealthRegistry, getRateLimitTracker } from "@/account/rotation"
+import { getModelRPDLimit } from "@/account/limits"
 import { Provider } from "@/provider/provider"
 import { probeModelAvailability } from "../util/model-probe"
 import { Auth } from "@/auth"
@@ -384,7 +386,12 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   })
 
   const [activityTick, setActivityTick] = createSignal(0)
-  const activityInterval = setInterval(() => setActivityTick((t) => t + 1), 1000)
+  const activityInterval = setInterval(() => {
+    RequestMonitor.get()
+      .sync()
+      .catch(() => {})
+    setActivityTick((t) => t + 1)
+  }, 1000)
   onCleanup(() => clearInterval(activityInterval))
 
   const [activityProviders] = createResource<Record<string, Provider.Info>>(() => Provider.list().catch(() => ({})))
@@ -707,7 +714,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
     const percent = getQuotaPercent(accountId, providerId, modelID, displayName)
     if (typeof percent === "number") return `${percent}%`
-    if (fallbackFree) return "100%"
+    // if (fallbackFree) return "100%" // Removed to show RPD instead
     if (family(providerId) === "antigravity") return "--"
     return undefined
   }
@@ -984,14 +991,30 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         const isCurrentAccount = isCurrentModel && activeAccountId && activeAccountId === accountId
         const rowSuffix = isCurrentAccount ? " ✅" : ""
 
+        const stats = RequestMonitor.get().getStats(providerId, accountId || "unknown", modelId)
+
+        const limit = getModelRPDLimit(modelId)
+        let rpdDisplay = ""
+        if (accountFamily === "google-api" || accountFamily === "gemini-cli") {
+          if (limit !== undefined) {
+            rpdDisplay = `${stats.rpd}/${limit}`
+          } else {
+            rpdDisplay = `${stats.rpd} RPD`
+          }
+        }
+
+        // Pad the RPD display to align cleanly
+        // const statusPrefix = rpdDisplay.padStart(12) // Removed in favor of unified displayStatus
+
         const modelKey = `${providerId}:${modelId}`
         const modelEntry = modelLimits.get(`${accountId}:${providerId}:${modelId}`)
         if (modelEntry && modelEntry.waitMs > 0) {
           limited += 1
-          const statusText = `⏳ ${formatWait(modelEntry.waitMs)}${rowSuffix}`
+          const waitTime = `⏳ ${formatWait(modelEntry.waitMs)}`
+          const statusText = `${waitTime.padStart(16)}${rowSuffix}`
           items.push({
             value: `${accountId}:${providerId}:${modelId}`,
-            title: `${titleProviderCol} ${titleModelCol} ${branchColValue}${accountCol}  ${statusText}`,
+            title: `${titleProviderCol} ${titleModelCol} ${branchColValue}${accountCol} ${statusText}`,
             description: "",
             category: "",
             footer: "",
@@ -1003,10 +1026,11 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         const providerLimit = providerLimits.get(`${accountId}:${providerId}`)
         if (providerLimit && providerLimit.waitMs > 0) {
           limited += 1
-          const statusText = `⏳ ${formatWait(providerLimit.waitMs)}${rowSuffix}`
+          const waitTime = `⏳ ${formatWait(providerLimit.waitMs)}`
+          const statusText = `${waitTime.padStart(16)}${rowSuffix}`
           items.push({
             value: `${accountId}:${providerId}:${modelId}`,
-            title: `${titleProviderCol} ${titleModelCol} ${branchColValue}${accountCol}  ${statusText}`,
+            title: `${titleProviderCol} ${titleModelCol} ${branchColValue}${accountCol} ${statusText}`,
             description: "",
             category: "",
             footer: "",
@@ -1018,10 +1042,11 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         const state2d = snapshot2D.get(modelKey)
         if (state2d && state2d.waitMs > 0) {
           limited += 1
-          const statusText = `⏳ ${formatWait(state2d.waitMs)}${rowSuffix}`
+          const waitTime = `⏳ ${formatWait(state2d.waitMs)}`
+          const statusText = `${waitTime.padStart(16)}${rowSuffix}`
           items.push({
             value: `${accountId}:${providerId}:${modelId}`,
-            title: `${titleProviderCol} ${titleModelCol} ${branchColValue}${accountCol}  ${statusText}`,
+            title: `${titleProviderCol} ${titleModelCol} ${branchColValue}${accountCol} ${statusText}`,
             description: "",
             category: "",
             footer: "",
@@ -1033,12 +1058,22 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         // @event_2026-02-06:rotation_unify - Show quota for all models with quota data
         // Previously required state2d.available, now shows quota regardless of rate limit history
         const quotaFooter = formatQuotaFooter(accountId, providerId, modelId, modelDisplayName, fallbackFree, false, 0)
+
+        let displayStatus = "--"
+        if (quotaFooter) {
+          displayStatus = quotaFooter
+        } else if (rpdDisplay) {
+          displayStatus = rpdDisplay
+        }
+
+        const statusColumn = displayStatus.padStart(16)
+
         if (quotaFooter || (state2d && state2d.available)) {
           ready += 1
-          const readyFooter = (quotaFooter ?? "✓ Ready") + rowSuffix
+          const readyFooter = `${statusColumn}${rowSuffix}`
           items.push({
             value: `${accountId}:${providerId}:${modelId}`,
-            title: `${titleProviderCol} ${titleModelCol} ${branchColValue}${accountCol}  ${readyFooter}`,
+            title: `${titleProviderCol} ${titleModelCol} ${branchColValue}${accountCol} ${readyFooter}`,
             description: "",
             category: "",
             footer: "",
@@ -1049,7 +1084,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
         items.push({
           value: `${accountId}:${providerId}:${modelId}`,
-          title: `${titleProviderCol} ${titleModelCol} ${branchColValue}${accountCol}  -${rowSuffix}`,
+          title: `${titleProviderCol} ${titleModelCol} ${branchColValue}${accountCol} ${statusColumn}${rowSuffix}`,
           description: "",
           category: "",
           footer: "",
@@ -1073,7 +1108,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       const headerAccount = "Account".padEnd(widths.account)
       items.unshift({
         value: "_header",
-        title: `${headerProvider} ${headerModel} ${headerBranch}${headerAccount}  Status`,
+        title: `${headerProvider} ${headerModel} ${headerBranch}${headerAccount} Status`,
         description: "",
         category: "",
         footer: "",
@@ -1344,7 +1379,8 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         const familyData = coreAll()?.[fam]
         const allIds = familyData ? Object.keys(familyData.accounts || {}) : []
         const isFamilySuffix = (id: string) => id === `${fam}-subscription-${fam}` || id === `${fam}-api-${fam}`
-        const isGeneric = (id: string) => id === fam || id === "google-api" || id === "antigravity" || isFamilySuffix(id)
+        const isGeneric = (id: string) =>
+          id === fam || id === "google-api" || id === "antigravity" || isFamilySuffix(id)
         const hasSpecific = allIds.some((id) => !isGeneric(id))
         const filteredIds = allIds.filter((id) => (hasSpecific ? !isGeneric(id) : true))
         const accountTotal = familyData ? filteredIds.length : providers.length
@@ -1437,7 +1473,8 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         const activeId = familyData?.activeAccount
 
         const isFamilySuffix = (id: string) => id === `${fam}-subscription-${fam}` || id === `${fam}-api-${fam}`
-        const isGeneric = (id: string) => id === fam || id === "google-api" || id === "antigravity" || isFamilySuffix(id)
+        const isGeneric = (id: string) =>
+          id === fam || id === "google-api" || id === "antigravity" || isFamilySuffix(id)
         const hasSpecific = accountsWithFamily.some((a) => !isGeneric(a.id))
 
         for (const { id, info, coreFamily } of accountsWithFamily) {

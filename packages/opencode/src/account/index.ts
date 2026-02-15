@@ -10,6 +10,7 @@ import type { AccountCandidate, RateLimitReason } from "./rotation"
 // Re-export rotation modules for global account rotation
 export * from "./rotation"
 export * from "./rotation3d"
+export * from "./monitor"
 
 const log = Log.create({ service: "account" })
 
@@ -217,9 +218,8 @@ export namespace Account {
           // Already has the correct prefix — skip
           if (id.startsWith(`${fam}-api-`) || id.startsWith(`${fam}-subscription-`)) continue
           // Build the correct ID
-          const suffix = id === fam || id === "default"
-            ? (info.name?.toLowerCase().replace(/[^a-z0-9]/g, "-") || "default")
-            : id
+          const suffix =
+            id === fam || id === "default" ? info.name?.toLowerCase().replace(/[^a-z0-9]/g, "-") || "default" : id
           let newId = `${fam}-${info.type}-${suffix}`
           // Avoid collision with an existing account — append a counter
           if (data.accounts[newId]) {

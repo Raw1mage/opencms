@@ -46,6 +46,8 @@ import { TuiEvent } from "@/cli/cmd/tui/event"
 import { debugCheckpoint } from "@/util/debug"
 import type { OAuthAuthDetails, PluginClient } from "@/plugin/antigravity/plugin/types"
 
+import { RequestMonitor } from "@/account/monitor"
+
 export namespace LLM {
   const log = Log.create({ service: "llm" })
 
@@ -265,6 +267,13 @@ export namespace LLM {
     const accountId = currentAccountId
 
     return streamText({
+      onFinish: async (event) => {
+        const usage = event.usage as any
+        const totalTokens = usage
+          ? (usage.promptTokens || usage.inputTokens || 0) + (usage.completionTokens || usage.outputTokens || 0)
+          : 0
+        RequestMonitor.get().recordRequest(input.model.providerId, accountId || "unknown", input.model.id, totalTokens)
+      },
       async onError(error) {
         l.error("stream error", {
           error: error instanceof Error ? { message: error.message, stack: error.stack, name: error.name } : error,
