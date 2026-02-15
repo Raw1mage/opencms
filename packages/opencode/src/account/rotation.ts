@@ -380,7 +380,7 @@ function asErrorWithMetadata(error: unknown): ErrorWithMetadata | undefined {
   return error && typeof error === "object" ? (error as ErrorWithMetadata) : undefined
 }
 
-const QUOTA_EXHAUSTED_BACKOFFS = [600_000, 3_600_000, 14_400_000, 86_400_000] as const
+const QUOTA_EXHAUSTED_BACKOFFS = [3_600_000, 14_400_000, 86_400_000] as const
 const RATE_LIMIT_EXCEEDED_BACKOFF = 3_600_000 // 1 hour (was 60s)
 const SERVICE_UNAVAILABLE_503_BACKOFF = 300_000 // 5 minutes
 const SITE_OVERLOADED_529_BACKOFF = 300_000 // 5 minutes
@@ -475,7 +475,8 @@ export function calculateBackoffMs(
       return QUOTA_EXHAUSTED_BACKOFFS[index] ?? UNKNOWN_BACKOFF
     }
     case "RATE_LIMIT_EXCEEDED":
-      return RATE_LIMIT_EXCEEDED_BACKOFF
+      // @event_20260215_free_tier_cooldown: 1 hour for free tier 429s
+      return 3_600_000 // 1 hour
     case "SERVICE_UNAVAILABLE_503":
       return SERVICE_UNAVAILABLE_503_BACKOFF
     case "SITE_OVERLOADED_529":
@@ -490,7 +491,8 @@ export function calculateBackoffMs(
       return TOKEN_REFRESH_FAILED_BACKOFF
     case "UNKNOWN":
     default:
-      return UNKNOWN_BACKOFF
+      // @event_20260215_free_tier_cooldown: 1 hour for unknown 429s (safer default for free tier)
+      return 3_600_000 // 1 hour
   }
 }
 

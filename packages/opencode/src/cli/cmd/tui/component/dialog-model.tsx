@@ -61,6 +61,11 @@ export function DialogModel(props: { providerId?: string }) {
 
   const normalizeProviderForRotation = (providerId: string) => {
     const fam = family(providerId)
+    // Fix: if family is an email (e.g. from legacy account ID), map to known provider
+    if (fam && fam.includes("@")) {
+      if (fam.endsWith("gmail.com")) return "google-api"
+      // Default fallback for other emails if needed
+    }
     return fam ?? providerId
   }
 
@@ -242,8 +247,8 @@ export function DialogModel(props: { providerId?: string }) {
         const modelIndent = favorite ? "     " : "      "
         list.push({
           value: { kind: "model", providerId: fam, modelID: mid } as ModelOptionValue,
-          title: `${modelIndent}${branch} ${meta.name}`,
-          gutter: favorite ? <text fg={theme.accent}>★ </text> : undefined,
+          title: `${modelIndent}${branch} ${meta.name} ${favorite ? "★" : ""}`,
+          gutter: undefined,
           description:
             meta.cooldownUntil && meta.cooldownUntil > Date.now()
               ? `⏳ Rate limited (${Math.ceil((meta.cooldownUntil - Date.now()) / 1000 / 60)}m)`
@@ -293,6 +298,13 @@ export function DialogModel(props: { providerId?: string }) {
             const val = option?.value as OptionValue | undefined
             if (!val || val.kind !== "model") return
             local.model.toggleFavorite({ providerId: val.providerId, modelID: val.modelID }, { skipValidation: true })
+            // Auto-unhide when adding to favorites
+            const isHidden = local.model
+              .hidden()
+              .some((h) => h.providerId === val.providerId && h.modelID === val.modelID)
+            if (isHidden) {
+              local.model.toggleHidden({ providerId: val.providerId, modelID: val.modelID })
+            }
           },
         },
         {
@@ -310,6 +322,13 @@ export function DialogModel(props: { providerId?: string }) {
             if (val.kind !== "model") return
             if (val.origin === "favorite") {
               local.model.toggleFavorite({ providerId: val.providerId, modelID: val.modelID }, { skipValidation: true })
+              // Auto-hide when removing from favorites
+              const isHidden = local.model
+                .hidden()
+                .some((h) => h.providerId === val.providerId && h.modelID === val.modelID)
+              if (!isHidden) {
+                local.model.toggleHidden({ providerId: val.providerId, modelID: val.modelID })
+              }
               return
             }
             local.model.toggleHidden({ providerId: val.providerId, modelID: val.modelID })

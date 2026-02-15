@@ -669,7 +669,7 @@ function getRateLimitBackoff(
   accountIndex: number,
   quotaKey: string,
   serverRetryAfterMs: number | null,
-  maxBackoffMs: number = 60_000,
+  maxBackoffMs: number = 3_600_000,
 ): { attempt: number; delayMs: number; isDuplicate: boolean } {
   const now = Date.now()
   const stateKey = `${accountIndex}:${quotaKey}`
