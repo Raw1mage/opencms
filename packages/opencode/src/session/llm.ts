@@ -146,12 +146,12 @@ export namespace LLM {
     system.push(systemParts.filter((x) => x).join("\n"))
 
     // 7. Model-specific prompt optimization (inline, no hook indirection)
-    // Gemini models respond better when AGENTS.md/CLAUDE.md instructions are
+    // Gemini models respond better when AGENTS.md instructions are
     // wrapped in <behavioral_guidelines> XML tags with restructured ordering.
     const modelId = input.model?.id?.toLowerCase() || ""
     if (modelId.includes("gemini") && system[0]) {
       const mainPrompt = system[0]
-      const agentsBlockRegex = /Instructions from: .*?(?:AGENTS|CLAUDE)\.md[\s\S]*?(?=\nInstructions from:|<env>|$)/g
+      const agentsBlockRegex = /Instructions from: .*?AGENTS\.md[\s\S]*?(?=\nInstructions from:|<env>|$)/g
       const matches = mainPrompt.match(agentsBlockRegex)
       if (matches && matches.length > 0) {
         const agentsContent = matches.join("\n\n").trim()

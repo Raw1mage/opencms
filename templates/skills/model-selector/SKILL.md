@@ -64,11 +64,15 @@ _適用於：翻譯、格式化、簡單腳本、Log 分析_
 當收到 `429 Too Many Requests` 或回應過慢時：
 
 1.  **立即切換 (Circuit Break)**: 標記當前 Provider 為「冷卻中 (Cooldown)」。
-2.  **異質備援 (Heterogeneous Failover)**:
-    - OpenAI 失敗 -> 轉 Gemini
-    - Gemini 失敗 -> 轉 Claude
-    - Claude 失敗 -> 轉 OpenAI
-    - _避免在同一個 Provider 的不同模型間切換 (通常共用 Quota)_。
+2.  **異質備援與輪替優先級 (Heterogeneous Failover & Rotation Priority)**:
+    - 當主控或當前 Provider 失效/觸發 Rate Limit 時，應依序嘗試以下序列：
+      1. **github-copilot** (最優先，具備多樣化高階模型)
+      2. **gemini-cli** (穩定且 Context 長度大)
+      3. **gmicloud** (低延遲備選)
+      4. **openai** (關鍵路徑保留)
+      5. **claude-cli** (最後防線)
+    - _原則_：優先耗用訂閱制或寬鬆配額的資源，將受限資源 (如 OpenAI) 留給高難度任務。
+    - _注意_：避免在同一個 Provider 的不同模型間切換 (通常共用 Quota)。
 3.  **操作指令**:
     - 使用 \`system-manager_switch_model\` 進行手動切換。
     - 在 \`Task\` 工具中明確指定 \`model\` 參數來繞過預設路由。

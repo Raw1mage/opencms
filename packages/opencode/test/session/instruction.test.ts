@@ -4,86 +4,66 @@ import { InstructionPrompt } from "../../src/session/instruction"
 import { Instance } from "../../src/project/instance"
 import { tmpdir } from "../fixture/fixture"
 
-describe("InstructionPrompt.resolve", () => {
-  test("returns empty when AGENTS.md is at project root (already in systemPaths)", async () => {
+describe("InstructionPrompt.systemPaths", () => {
+  test("finds .opencode/AGENTS.md at project root", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, ".opencode", "AGENTS.md"), "# Project Instructions")
+      },
+    })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const paths = await InstructionPrompt.systemPaths()
+        expect(paths.has(path.resolve(tmp.path, ".opencode", "AGENTS.md"))).toBe(true)
+      },
+    })
+  })
+
+  test("ignores AGENTS.md at project root (not in .opencode/)", async () => {
     await using tmp = await tmpdir({
       init: async (dir) => {
         await Bun.write(path.join(dir, "AGENTS.md"), "# Root Instructions")
-        await Bun.write(path.join(dir, "src", "file.ts"), "const x = 1")
       },
     })
     await Instance.provide({
       directory: tmp.path,
       fn: async () => {
-        const system = await InstructionPrompt.systemPaths()
-        expect(system.has(path.join(tmp.path, "AGENTS.md"))).toBe(true)
-
-        const results = await InstructionPrompt.resolve([], path.join(tmp.path, "src", "file.ts"), "test-message-1")
-        expect(results).toEqual([])
+        const paths = await InstructionPrompt.systemPaths()
+        expect(paths.has(path.resolve(tmp.path, "AGENTS.md"))).toBe(false)
       },
     })
   })
 
-  test("returns AGENTS.md from subdirectory (not in systemPaths)", async () => {
+  test("ignores AGENTS.md in subdirectories", async () => {
     await using tmp = await tmpdir({
       init: async (dir) => {
-        await Bun.write(path.join(dir, "subdir", "AGENTS.md"), "# Subdir Instructions")
-        await Bun.write(path.join(dir, "subdir", "nested", "file.ts"), "const x = 1")
+        await Bun.write(path.join(dir, "packages", "app", "AGENTS.md"), "# Subdir Instructions")
       },
     })
     await Instance.provide({
       directory: tmp.path,
       fn: async () => {
-        const system = await InstructionPrompt.systemPaths()
-        expect(system.has(path.join(tmp.path, "subdir", "AGENTS.md"))).toBe(false)
-
-        const results = await InstructionPrompt.resolve(
-          [],
-          path.join(tmp.path, "subdir", "nested", "file.ts"),
-          "test-message-2",
-        )
-        expect(results.length).toBe(1)
-        expect(results[0].filepath).toBe(path.join(tmp.path, "subdir", "AGENTS.md"))
+        const paths = await InstructionPrompt.systemPaths()
+        expect(paths.has(path.resolve(tmp.path, "packages", "app", "AGENTS.md"))).toBe(false)
       },
     })
   })
 
-  test("doesn't reload AGENTS.md when reading it directly", async () => {
+  test("ignores CLAUDE.md and CONTEXT.md at project level", async () => {
     await using tmp = await tmpdir({
       init: async (dir) => {
-        await Bun.write(path.join(dir, "subdir", "AGENTS.md"), "# Subdir Instructions")
-        await Bun.write(path.join(dir, "subdir", "nested", "file.ts"), "const x = 1")
+        await Bun.write(path.join(dir, ".opencode", "CLAUDE.md"), "# Claude Instructions")
+        await Bun.write(path.join(dir, "CONTEXT.md"), "# Context")
       },
     })
     await Instance.provide({
       directory: tmp.path,
       fn: async () => {
-        const filepath = path.join(tmp.path, "subdir", "AGENTS.md")
-        const system = await InstructionPrompt.systemPaths()
-        expect(system.has(filepath)).toBe(false)
-
-        const results = await InstructionPrompt.resolve([], filepath, "test-message-2")
-        expect(results).toEqual([])
-      },
-    })
-  })
-
-  test("skips AGENTS.md under templates directory", async () => {
-    await using tmp = await tmpdir({
-      init: async (dir) => {
-        await Bun.write(path.join(dir, "templates", "AGENTS.md"), "# Template Instructions")
-        await Bun.write(path.join(dir, "templates", "fixtures", "data.json"), "{}")
-      },
-    })
-    await Instance.provide({
-      directory: tmp.path,
-      fn: async () => {
-        const results = await InstructionPrompt.resolve(
-          [],
-          path.join(tmp.path, "templates", "fixtures", "data.json"),
-          "test-message-templates",
-        )
-        expect(results).toEqual([])
+        const paths = await InstructionPrompt.systemPaths()
+        // Should not contain CLAUDE.md or CONTEXT.md (only global AGENTS.md may exist)
+        expect(paths.has(path.resolve(tmp.path, ".opencode", "CLAUDE.md"))).toBe(false)
+        expect(paths.has(path.resolve(tmp.path, "CONTEXT.md"))).toBe(false)
       },
     })
   })

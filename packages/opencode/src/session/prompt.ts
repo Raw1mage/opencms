@@ -511,8 +511,6 @@ export namespace SessionPrompt {
         model: activeModel,
         abort,
       })
-      using _ = defer(() => InstructionPrompt.clear(processor.message.id))
-
       // Check if user explicitly invoked an agent via @ in this turn
       const lastUserMsg = msgs.findLast((m) => m.info.role === "user")
       const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
@@ -639,7 +637,6 @@ export namespace SessionPrompt {
       system: input.system,
       parts: input.parts,
     })
-    using _ = defer(() => InstructionPrompt.clear(info.id))
 
     const safePartsInput = partsInput as PromptInput["parts"]
     const parts = await buildUserMessageParts({

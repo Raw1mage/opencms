@@ -1,6 +1,5 @@
 import { type ModelVector, isVectorRateLimited, findFallback, type RotationPurpose } from "../account/rotation3d"
-import { InstructionPrompt } from "../session/instruction"
-import { Instance } from "../project/instance"
+import { loadInstructionJSON } from "../session/instruction-policy"
 import { mergeDeep } from "remeda"
 import z from "zod"
 import { debugCheckpoint } from "@/util/debug"
@@ -98,34 +97,7 @@ export namespace ModelScoring {
   })
 
   async function load() {
-    const paths = await InstructionPrompt.systemPaths()
-    const list = Array.from(paths).filter((p) => p.endsWith("AGENTS.md"))
-    const root = Instance.worktree
-    const order = list.toSorted((a, b) => {
-      const aLocal = a.startsWith(root) ? 0 : 1
-      const bLocal = b.startsWith(root) ? 0 : 1
-      if (aLocal !== bLocal) return aLocal - bLocal
-      return a.localeCompare(b)
-    })
-    for (const item of order) {
-      const text = await Bun.file(item)
-        .text()
-        .catch(() => "")
-      if (!text) continue
-      const match = text.match(/```opencode-model-scoring\s*([\s\S]*?)```/m)
-      if (!match) continue
-      const raw = match[1]?.trim()
-      if (!raw) continue
-      let json: unknown
-      try {
-        json = JSON.parse(raw)
-      } catch {
-        continue
-      }
-      const parsed = Schema.safeParse(json)
-      if (!parsed.success) continue
-      return parsed.data
-    }
+    return loadInstructionJSON("opencode-model-scoring", Schema)
   }
 
   async function rules(): Promise<Rule> {
@@ -204,7 +176,7 @@ export namespace ModelScoring {
     // Get current model preference if any
     const activeModel = await Provider.defaultModel()
     const activeFamily = Account.parseFamily(activeModel.providerId)
-    const activeAccountId = activeFamily ? (await Account.getActive(activeFamily)) ?? "public" : "public"
+    const activeAccountId = activeFamily ? ((await Account.getActive(activeFamily)) ?? "public") : "public"
 
     const currentVector: ModelVector = {
       providerId: activeModel.providerId,

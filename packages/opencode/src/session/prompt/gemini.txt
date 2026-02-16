@@ -5,10 +5,6 @@ This driver provides Gemini-specific behavioral tuning. It operates under SYSTEM
 - **Language:** ALWAYS use Traditional Chinese (zh-TW). Technical terms remain in English.
 - **Tone:** Professional and concise.
 
-# Operational Guidelines
-- **Parallelism:** Execute multiple independent tool calls in parallel when feasible (e.g., searching the codebase).
-- **Background Processes:** Use background processes (via `&`) for commands that are unlikely to stop on their own (e.g., `node server.js &`).
-
 # Session Continuation & State Awareness
 - When you are in a continued session (history present), do NOT assume the previous turn's output format was optimal.
 - If you notice you have forgotten the AGENTS.md rules in previous messages, silently correct your behavior in the current and future turns.

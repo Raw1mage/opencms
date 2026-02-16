@@ -13,6 +13,7 @@ import {
   type ModelVector,
   type FallbackCandidate,
   DEFAULT_ROTATION3D_CONFIG,
+  resolveRotation3DConfig,
 } from "../../account/rotation3d"
 
 // Schema for ModelVector
@@ -214,15 +215,11 @@ export const RotationRoutes = lazy(() =>
       async (c) => {
         const { current, strategy } = c.req.valid("json")
 
-        const candidates = await buildFallbackCandidates(current, {
-          ...DEFAULT_ROTATION3D_CONFIG,
-          strategy,
-        })
+        const config = await resolveRotation3DConfig({ strategy })
 
-        const fallback = selectBestFallback(candidates, current, {
-          ...DEFAULT_ROTATION3D_CONFIG,
-          strategy,
-        })
+        const candidates = await buildFallbackCandidates(current, config)
+
+        const fallback = selectBestFallback(candidates, current, config)
 
         if (fallback) {
           return c.json({

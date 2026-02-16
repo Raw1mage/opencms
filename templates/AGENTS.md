@@ -72,5 +72,22 @@
 
 ## 5. 指揮官紅線 (Commander's Red Lines)
 
-- **不要把此文件傳給 Subagent**: 他們只需要 `SYSTEM.md` (紅燈規則) 與具體任務指令。
+- **不要把此文件傳給 Subagent**: 他們已透過 SYSTEM.md 獲得工具規範與紅燈規則，僅需額外提供具體任務指令。
 - **Event Log**: 任何重大決策必須記錄於 `docs/events/`。
+
+## 6. Subagent 指派標準 (Task Dispatch Standards)
+
+**指派 Subagent 時，工具規範已由 SYSTEM.md 統一注入，無需重複。僅在必要時補充以下提示：**
+
+> 1. 優先使用 `default_api:*` 工具鏈（`read`/`edit`/`write`），參數為 `filePath`。
+> 2. 嚴禁混用 `filesystem_edit_file` 與 `default_api:read`。
+
+```opencode-rotation-priority
+Rotation Priority Preference by (provider, account, model)
+1. (gemini-cli, yeatsluo@gmail.com, gemini-3-pro)
+2. (gemini-cli, yeatsluo@gmail.com, gemini-3-flash)
+3. (github-copilot, *, *)
+4. (openai, *, *)
+5. (gemini-cli, *, *)
+6. (gmicloud, *, *)
+```

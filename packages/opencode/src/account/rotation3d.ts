@@ -21,6 +21,13 @@ import { checkAccountsQuota, type QuotaGroup, type QuotaGroupSummary } from "../
 import { loadAccounts } from "../plugin/antigravity/plugin/storage"
 import { resolveAntigravityQuotaGroup } from "../plugin/antigravity/plugin/quota-group"
 import type { PluginClient } from "../plugin/antigravity/plugin/types"
+import {
+  loadInstructionBlock,
+  loadInstructionJSON,
+  parseRotationPriorityText,
+  type RotationPriorityRule,
+} from "../session/instruction-policy"
+import z from "zod"
 
 const log = Log.create({ service: "rotation3d" })
 
@@ -91,6 +98,12 @@ export interface Rotation3DConfig {
   maxCandidates: number
   /** Minimum health score for candidates */
   minHealthScore: number
+  /** Provider priority list (first = highest priority) */
+  providerPriority: string[]
+  /** Score weight per provider priority step */
+  providerPriorityWeight: number
+  /** Optional ordered rule list for (provider, account, model) */
+  priorityRules?: RotationPriorityRule[]
 }
 
 export const DEFAULT_ROTATION3D_CONFIG: Rotation3DConfig = {
@@ -98,6 +111,65 @@ export const DEFAULT_ROTATION3D_CONFIG: Rotation3DConfig = {
   allowTierDowngrade: true,
   maxCandidates: 50, // Allow many candidates to find a working model
   minHealthScore: 30,
+  providerPriority: [],
+  providerPriorityWeight: 120,
+  priorityRules: undefined,
+}
+
+const ROTATION_POLICY_SCHEMA = z.object({
+  strategy: z.enum(["account-first", "model-first", "provider-first", "any-available"]).optional(),
+  allowTierDowngrade: z.boolean().optional(),
+  maxCandidates: z.number().int().min(1).max(200).optional(),
+  minHealthScore: z.number().min(0).max(100).optional(),
+  providerPriority: z.array(z.string()).optional(),
+  providerPriorityWeight: z.number().min(0).max(1000).optional(),
+  priorityRules: z
+    .array(
+      z.object({
+        providerId: z.string(),
+        accountId: z.string().optional(),
+        modelID: z.string().optional(),
+        providerTokens: z.array(z.string()).optional(),
+        accountTokens: z.array(z.string()).optional(),
+        modelTokens: z.array(z.string()).optional(),
+      }),
+    )
+    .optional(),
+})
+
+const ROTATION_PRIORITY_TEXT_BLOCK = "opencode-rotation-priority"
+
+const ROTATION_POLICY_CACHE_TTL_MS = 10_000
+const rotationPolicyCache: { value?: Partial<Rotation3DConfig>; at: number } = { value: undefined, at: 0 }
+
+async function loadRotationPolicyFromInstructions(): Promise<Partial<Rotation3DConfig> | undefined> {
+  const jsonBlock = await loadInstructionJSON("opencode-rotation3d", ROTATION_POLICY_SCHEMA)
+  if (jsonBlock) return jsonBlock
+
+  const textBlock = await loadInstructionBlock(ROTATION_PRIORITY_TEXT_BLOCK)
+  if (!textBlock?.raw) return undefined
+
+  const policy = parseRotationPriorityText(textBlock.raw)
+  if (!policy?.rules?.length) return undefined
+
+  return {
+    providerPriority: policy.providerPriority ?? [],
+    priorityRules: policy.rules,
+  }
+}
+
+export async function resolveRotation3DConfig(overrides?: Partial<Rotation3DConfig>): Promise<Rotation3DConfig> {
+  const now = Date.now()
+  if (!rotationPolicyCache.value || now - rotationPolicyCache.at > ROTATION_POLICY_CACHE_TTL_MS) {
+    rotationPolicyCache.value = await loadRotationPolicyFromInstructions()
+    rotationPolicyCache.at = now
+  }
+
+  return {
+    ...DEFAULT_ROTATION3D_CONFIG,
+    ...rotationPolicyCache.value,
+    ...overrides,
+  }
 }
 
 // ============================================================================
@@ -137,9 +209,10 @@ export function getVectorWaitTime(vector: ModelVector): number {
 function scoreCandidateByStrategy(
   candidate: FallbackCandidate,
   current: ModelVector,
-  strategy: FallbackStrategy,
+  config: Rotation3DConfig,
   purpose: RotationPurpose = "generic",
 ): number {
+  const strategy = config.strategy
   const isSameProvider = candidate.providerId === current.providerId
   const isSameAccount = candidate.accountId === current.accountId
   const isSameModel = candidate.modelID === current.modelID
@@ -207,6 +280,50 @@ function scoreCandidateByStrategy(
   // Penalty for wait time (1 point per second of wait)
   score -= candidate.waitTimeMs / 1000
 
+  // Provider priority weighting (higher = better)
+  if (config.providerPriority.length > 0 && config.providerPriorityWeight > 0) {
+    const index = config.providerPriority.indexOf(candidate.providerId)
+    if (index >= 0) {
+      const rankScore = (config.providerPriority.length - index) * config.providerPriorityWeight
+      score += rankScore
+    }
+  }
+
+  // Priority rules weighting (supports fuzzy tokens; more specific rules get larger boost)
+  if (config.priorityRules && config.priorityRules.length > 0) {
+    const normalizeTokens = (value: string): string[] =>
+      value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+        .split(" ")
+        .filter(Boolean)
+
+    const candidateProviderTokens = normalizeTokens(candidate.providerId)
+    const candidateAccountTokens = normalizeTokens(candidate.accountId)
+    const candidateModelTokens = normalizeTokens(candidate.modelID)
+
+    for (let i = 0; i < config.priorityRules.length; i++) {
+      const rule = config.priorityRules[i]
+
+      const providerTokens = rule.providerTokens ?? normalizeTokens(rule.providerId)
+      const accountTokens = rule.accountTokens ?? (rule.accountId ? normalizeTokens(rule.accountId) : undefined)
+      const modelTokens = rule.modelTokens ?? (rule.modelID ? normalizeTokens(rule.modelID) : undefined)
+
+      const providerMatch = providerTokens.every((token) => candidateProviderTokens.includes(token))
+      if (!providerMatch) continue
+
+      if (accountTokens && !accountTokens.every((token) => candidateAccountTokens.includes(token))) continue
+      if (modelTokens && !modelTokens.every((token) => candidateModelTokens.includes(token))) continue
+
+      const specificity = (accountTokens ? 1 : 0) + (modelTokens ? 1 : 0)
+      const base = (config.priorityRules.length - i) * 1000
+      const specificityBoost = specificity * 250
+      score += base + specificityBoost
+      break
+    }
+  }
+
   return score
 }
 
@@ -254,7 +371,7 @@ export function selectBestFallback(
   const scored = available
     .map((c) => ({
       ...c,
-      priority: scoreCandidateByStrategy(c, current, config.strategy, purpose),
+      priority: scoreCandidateByStrategy(c, current, config, purpose),
     }))
     .sort((a, b) => b.priority - a.priority)
     .slice(0, config.maxCandidates)
@@ -646,7 +763,7 @@ export async function findFallback(
   config?: Partial<Rotation3DConfig> & { purpose?: RotationPurpose },
   triedKeys?: Set<string>,
 ): Promise<FallbackCandidate | null> {
-  const fullConfig = { ...DEFAULT_ROTATION3D_CONFIG, ...config }
+  const fullConfig = await resolveRotation3DConfig(config)
   const candidates = await buildFallbackCandidates(current, fullConfig)
   return selectBestFallback(candidates, current, fullConfig, triedKeys, config?.purpose || "generic")
 }

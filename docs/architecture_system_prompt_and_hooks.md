@@ -167,18 +167,23 @@ System prompt 在每次 LLM 呼叫時於 `session/llm.ts:118-170` 組裝。共 7
 <directories>...</directories>
 ```
 
-#### 3c. AGENTS.md / CLAUDE.md / CONTEXT.md
+#### 3c. AGENTS.md（確定性兩源模型）
 
-**檔案**：`session/instruction.ts:53-225`
+**檔案**：`session/instruction.ts`
 
-載入邏輯（`InstructionPrompt.system()` → `instruction.ts:128-168`）：
+載入邏輯（`InstructionPrompt.system()` → `instruction.ts:68-99`）：
 
-1. 透過 `Filesystem.findUp()` 從工作目錄向上搜尋 `AGENTS.md`、`CLAUDE.md`、`CONTEXT.md`（`instruction.ts:86-96`）
-2. 載入全域檔案（`instruction.ts:28-38`）：
-   - `~/.config/opencode/AGENTS.md`
-   - `~/.claude/CLAUDE.md`（除非 `OPENCODE_DISABLE_CLAUDE_CODE_PROMPT` 旗標啟用）
-   - `$OPENCODE_CONFIG_DIR/AGENTS.md`（若設定）
-3. 載入 `config.instructions` 中的額外路徑或 URL（`instruction.ts:104-123`）
+1. **全域**：`~/.config/opencode/AGENTS.md`（單一固定路徑，無備援）
+2. **專案**：`<project-root>/.opencode/AGENTS.md`（固定路徑，無 `findUp` 遍歷）
+3. **用戶指定**：`opencode.json` → `instructions` 欄位中的絕對路徑或 URL（用戶主動配置）
+
+**已移除**（2026-02-16）：
+
+- `CLAUDE.md` / `CONTEXT.md` 相容性
+- `~/.claude/CLAUDE.md` 備援
+- `$OPENCODE_CONFIG_DIR/AGENTS.md` 備援
+- `resolve()` 子目錄沿途自動拾取機制（read 工具不再注入子目錄 AGENTS.md）
+- `OPENCODE_DISABLE_CLAUDE_CODE_PROMPT` 旗標依賴
 
 **重要**：僅在 Main Agent session（無 `parentID`）才包含指令 prompt（`prompt.ts:589-591`）。Subagent 依賴任務描述與 SYSTEM.md。
 
@@ -249,7 +254,7 @@ System prompt 在每次 LLM 呼叫時於 `session/llm.ts:118-170` 組裝。共 7
 **XDG 管理**：❌（程式碼邏輯，正確行為）  
 **觸發條件**：僅在 `model.id` 包含 `"gemini"` 時執行
 
-功能：擷取所有 `AGENTS.md` / `CLAUDE.md` 區塊，包裹於 `<behavioral_guidelines>` XML 標籤中，並將 `IMPORTANT:` header 提前至最頂部。目的是利用 Gemini 對 XML 結構的較佳注意力分配。
+功能：擷取所有 `AGENTS.md` 區塊，包裹於 `<behavioral_guidelines>` XML 標籤中，並將 `IMPORTANT:` header 提前至最頂部。目的是利用 Gemini 對 XML 結構的較佳注意力分配。
 
 ```typescript
 // llm.ts:152-153
@@ -613,7 +618,7 @@ ls ~/.config/opencode/prompts/agents/
 | `session/system.ts`            | `SystemPrompt` namespace：seed、load、provider、agent、system | `45-237`             |
 | `session/prompt.ts`            | Session prompt 迴圈：`input.system` 組裝                      | `586-592`            |
 | `session/preloaded-context.ts` | Preloaded context：CWD 列表、README、Skills                   | `6-77`               |
-| `session/instruction.ts`       | AGENTS.md / CLAUDE.md 搜尋與載入                              | `53-225`             |
+| `session/instruction.ts`       | AGENTS.md 確定性兩源載入（全域 + 專案 `.opencode/`）          | `16-99`              |
 | `agent/agent.ts`               | Agent 定義：`getNativeAgents()`、config 合併                  | `70-290`             |
 | `plugin/index.ts`              | Plugin 註冊表、`Plugin.trigger()`                             | `20-35`              |
 | `config/config.ts`             | Config schema（含 `experimental.hook` stub）                  | `1189-1210`          |
@@ -644,10 +649,9 @@ ls ~/.config/opencode/prompts/agents/
 
 ### 設定檔（執行期）
 
-| 檔案                          | 位置                                | 職責                                                  |
-| ----------------------------- | ----------------------------------- | ----------------------------------------------------- |
-| `opencode.json`               | 專案根目錄                          | Agent 設定覆蓋、permission、experimental.hook（stub） |
-| `accounts.json`               | `~/.local/share/opencode/data/`     | 帳號儲存（OAuth token、API key）                      |
-| `AGENTS.md`                   | 專案根目錄 或 `~/.config/opencode/` | 指揮官指令（Main Agent 專用）                         |
-| `CLAUDE.md`                   | 專案根目錄 或 `~/.claude/`          | Claude Code 相容指令                                  |
-| `~/.config/opencode/prompts/` | XDG config                          | 所有可覆蓋的 prompt 檔案                              |
+| 檔案                          | 位置                                            | 職責                                                  |
+| ----------------------------- | ----------------------------------------------- | ----------------------------------------------------- |
+| `opencode.json`               | 專案根目錄                                      | Agent 設定覆蓋、permission、experimental.hook（stub） |
+| `accounts.json`               | `~/.local/share/opencode/data/`                 | 帳號儲存（OAuth token、API key）                      |
+| `AGENTS.md`                   | `~/.config/opencode/` 或 `<project>/.opencode/` | 指揮官指令（Main Agent 專用，確定性兩源）             |
+| `~/.config/opencode/prompts/` | XDG config                                      | 所有可覆蓋的 prompt 檔案                              |
