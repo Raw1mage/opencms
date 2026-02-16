@@ -16,7 +16,8 @@ import { SessionCompaction } from "./compaction"
 import { PermissionNext } from "@/permission/next"
 import { Question } from "@/question"
 import { debugCheckpoint } from "@/util/debug"
-import { isRateLimitError } from "@/account/rotation"
+import { isRateLimitError, getRateLimitTracker } from "@/account/rotation"
+import { isVectorRateLimited } from "@/account/rotation3d"
 import { Global } from "@/global"
 import path from "path"
 
@@ -151,6 +152,58 @@ export namespace SessionProcessor {
         const shouldBreak = (await Config.get()).experimental?.continue_loop_on_deny !== true
         while (true) {
           try {
+            // Pre-flight rate-limit check: read shared rotation-state.json
+            // before hitting the API. If the current vector is already marked
+            // rate-limited (by this process or another subagent), proactively
+            // switch to a fallback model without wasting an API request.
+            {
+              const { Account } = await import("@/account")
+              const family = Account.parseFamily(streamInput.model.providerId)
+              const accountId = family ? await Account.getActive(family) : undefined
+              if (accountId) {
+                const vector = {
+                  providerId: streamInput.model.providerId,
+                  accountId,
+                  modelID: streamInput.model.id,
+                }
+                if (isVectorRateLimited(vector)) {
+                  const waitMs = getRateLimitTracker().getWaitTime(
+                    accountId,
+                    streamInput.model.providerId,
+                    streamInput.model.id,
+                  )
+                  debugCheckpoint(
+                    "rotation3d",
+                    "Pre-flight: current vector is rate-limited, switching before API call",
+                    {
+                      providerId: streamInput.model.providerId,
+                      modelID: streamInput.model.id,
+                      accountId,
+                      waitMs,
+                      sessionID: input.sessionID,
+                      fallbackAttempts,
+                    },
+                  )
+                  fallbackAttempts++
+                  if (fallbackAttempts <= MAX_FALLBACK_ATTEMPTS) {
+                    const fallback = await LLM.handleRateLimitFallback(streamInput.model, "account-first", triedVectors)
+                    if (fallback) {
+                      log.info("Pre-flight: switched to fallback model", {
+                        from: streamInput.model.id,
+                        to: fallback.id,
+                        fallbackAttempts,
+                      })
+                      streamInput.model = fallback
+                      input.model = fallback
+                      input.assistantMessage.modelID = fallback.id
+                      input.assistantMessage.providerId = fallback.providerId
+                      await Session.updateMessage(input.assistantMessage)
+                    }
+                  }
+                }
+              }
+            }
+
             let currentText: MessageV2.TextPart | undefined
             let reasoningMap: Record<string, MessageV2.ReasoningPart> = {}
             const stream = await LLM.stream(streamInput)
