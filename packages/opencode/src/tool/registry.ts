@@ -166,11 +166,10 @@ export namespace ToolRegistry {
       }
 
       // use apply tool in same format as codex
-      // UNLOCKED: Allow all models to access all tools. Let the model decide.
-      // const usePatch =
-      //   model.modelID.includes("gpt-") && !model.modelID.includes("oss") && !model.modelID.includes("gpt-4")
-      // if (t.id === "apply_patch") return usePatch
-      // if (t.id === "edit" || t.id === "write") return !usePatch
+      const usePatch =
+        model.modelID.includes("gpt-") && !model.modelID.includes("oss") && !model.modelID.includes("gpt-4")
+      if (t.id === "apply_patch") return usePatch
+      if (t.id === "edit" || t.id === "write") return !usePatch
 
       return true
     })

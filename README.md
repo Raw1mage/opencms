@@ -107,6 +107,16 @@ This is used internally and can be invoked using `@general` in messages.
 
 Learn more about [agents](https://opencode.ai/docs/agents).
 
+### Configuration
+
+OpenCode uses markdown files for configuration, allowing you to use natural language to control agent behavior.
+
+- **`.opencode/AGENTS.md`** - Project-specific instructions. Use this to define coding style, project architecture, or specific rules for this codebase.
+
+  > **Note**: Legacy `CLAUDE.md` and `CONTEXT.md` files are no longer supported. Please migrate your instructions to `AGENTS.md`.
+
+- **`~/.config/opencode/AGENTS.md`** - Global instructions applied to all projects.
+
 ### Documentation
 
 For more info on how to configure OpenCode, [**head over to our docs**](https://opencode.ai/docs).
