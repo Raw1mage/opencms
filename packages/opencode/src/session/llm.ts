@@ -139,7 +139,6 @@ export namespace LLM {
       // 6. Role Identity Reinforcement
       // Tells the model exactly who it is in this specific request.
       `\n\n[IDENTITY REINFORCEMENT]\n` +
-        `Session ID: ${input.sessionID}\n` +
         `Current Role: ${(await isSubagentSession(input.sessionID)) ? "Subagent" : "Main Agent"}\n` +
         `Session Context: ${(await isSubagentSession(input.sessionID)) ? "Sub-task" : "Main-task Orchestration"}`,
     ]

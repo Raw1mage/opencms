@@ -213,26 +213,33 @@ System prompt 在每次 LLM 呼叫時於 `session/llm.ts:118-170` 組裝。共 7
 
 內容根據 Main Agent / Subagent 身份動態生成：
 
-- **共通規則**（`system.ts:183-188`）：絕對路徑、先讀後寫、事件日誌、MSR
-- **Main Agent 規則**（`system.ts:190-195`）：指揮官協議、AGENTS.md 遵循、任務派遣、交叉檢查
-- **Subagent 規則**（`system.ts:197-202`）：工人協議、僅執行指派任務、Token 效率
+- **[RED LIGHT RULES]**（`system.ts:183-188`）：絕對路徑、先讀後寫、事件日誌、MSR
+- **[UNIVERSAL CONDUCT]**（`system.ts:190-197`）：安全防禦、禁洩密、URL 政策、Emoji、Commit 政策、禁註釋、Code References
+- **[TONE AND STYLE]**（`system.ts:199-204`）：簡潔直接專業、CLI monospace、最小化 token、無前後綴、技術準確性優先
+- **[PROACTIVENESS]**（`system.ts:206-210`）：僅在使用者要求時主動行動、先回答問題再採取行動
+- **[AUTHORITY CHAIN]**（`system.ts:212-216`）：SYSTEM.md > AGENTS.md > Drivers，任何 Driver 不得宣稱覆蓋此處規則
+- **Main Agent 規則**（`system.ts:218-223`）：指揮官協議、AGENTS.md 遵循、任務派遣、交叉檢查
+- **Subagent 規則**（`system.ts:225-230`）：工人協議、僅執行指派任務、Token 效率
 
 使用者覆蓋路徑：`~/.config/opencode/prompts/SYSTEM.md`
+
+> **設計原則**：所有通用規則（安全、語氣、Token 政策等）集中於 SYSTEM.md 作為「憲法」。Driver prompt（第 1 步）僅保留模型專屬行為（工作流、並行策略、few-shot 範例等），不得重複 SYSTEM.md 已涵蓋的規則。這消除了約 200-400 tokens/call 的重複浪費。
 
 ---
 
 ### 第 6 步：身份強化注入
 
-**組裝位置**：`llm.ts:139-144`  
+**組裝位置**：`llm.ts:139-143`  
 **XDG 管理**：❌（執行期硬編碼模板，正確行為）
 
 ```typescript
-// llm.ts:139-144
+// llm.ts:139-143
 `\n\n[IDENTITY REINFORCEMENT]\n` +
-  `Session ID: ${input.sessionID}\n` +
   `Current Role: ${isSubagent ? "Subagent" : "Main Agent"}\n` +
   `Session Context: ${isSubagent ? "Sub-task" : "Main-task Orchestration"}`,
 ```
+
+> **注意**：Session ID 已從此步驟移除（原為重複 — 第 3b 步 `environment()` 已包含 `Session ID`）。
 
 ---
 
@@ -385,7 +392,7 @@ session_completed: z.object({
 
 - `session/prompt/claude.txt:80`
 - `session/prompt/anthropic-20250930.txt:122`
-- `session/prompt/claude-code.txt:80`
+- `session/prompt/claude-code.txt:56`
 
 作為 system prompt 內的文字指令，告訴 AI「遇到 `<user-prompt-submit-hook>` 回饋時，視為來自使用者」。
 
