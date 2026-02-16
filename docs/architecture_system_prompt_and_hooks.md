@@ -31,9 +31,29 @@ System prompt 在每次 LLM 呼叫時於 `packages/opencode/src/session/llm.ts:1
 
 ### 第 2 步：Agent 自訂 Prompt
 
-`input.agent.prompt` 在 `llm.ts:125` 被讀取。定義於 `packages/opencode/src/agent/agent.ts:132-216`。
+`input.agent.prompt` 在 `llm.ts:125` 被讀取。定義於 `packages/opencode/src/agent/agent.ts:75-225`。
 
-每個原生 agent 都有自己的 prompt 檔案，位於 `agent/prompt/*.txt`（coding、review、testing、docs、explore、compaction、title、summary）。`general` 和 `build` agent 沒有 prompt。
+每個原生 agent 都有自己的 prompt 檔案。**已遷移至 XDG 管理**：
+
+- 內建預設：`packages/opencode/src/agent/prompt/<name>.txt`
+- 使用者覆蓋：`~/.config/opencode/prompts/agents/<name>.txt`
+- 載入機制：`SystemPrompt.agentPrompt("<name>")` → `loadPrompt("agents/<name>.txt", builtin)`
+
+| Agent      | 類型     | 有 Prompt | XDG 路徑                                           |
+| ---------- | -------- | --------- | -------------------------------------------------- |
+| build      | primary  | ❌        | —                                                  |
+| plan       | primary  | ❌        | —                                                  |
+| general    | subagent | ❌        | —                                                  |
+| coding     | subagent | ✅        | `~/.config/opencode/prompts/agents/coding.txt`     |
+| review     | subagent | ✅        | `~/.config/opencode/prompts/agents/review.txt`     |
+| testing    | subagent | ✅        | `~/.config/opencode/prompts/agents/testing.txt`    |
+| docs       | subagent | ✅        | `~/.config/opencode/prompts/agents/docs.txt`       |
+| explore    | subagent | ✅        | `~/.config/opencode/prompts/agents/explore.txt`    |
+| compaction | primary  | ✅        | `~/.config/opencode/prompts/agents/compaction.txt` |
+| title      | primary  | ✅        | `~/.config/opencode/prompts/agents/title.txt`      |
+| summary    | primary  | ✅        | `~/.config/opencode/prompts/agents/summary.txt`    |
+
+首次啟動後，`seedAll()` 會自動將內建 prompt 複製到 XDG 目錄。之後編輯 XDG 檔案即可覆蓋預設行為，無需重新編譯。
 
 ---
 
@@ -176,3 +196,170 @@ System prompt 在每次 LLM 呼叫時於 `packages/opencode/src/session/llm.ts:1
 出現於 3 個 driver prompt 文字檔中（`claude.txt:80`、`anthropic-20250930.txt:122`、`claude-code.txt:80`），作為 system prompt 內的文字指令告訴 AI「遇到此 hook 回饋時，視為來自使用者」。
 
 **這不是已實作的 hook 機制**，僅為 prompt 中的概念性文字。系統中沒有任何 `user-prompt-submit-hook` 的程式碼實作。
+
+---
+
+## 如何擴充新的 Agent Type
+
+### 情境 A：純 prompt 自訂（不改程式碼）
+
+如果你只想新增或覆蓋 agent prompt 的文字內容：
+
+1. **編輯 XDG 檔案**：直接修改 `~/.config/opencode/prompts/agents/<name>.txt`
+2. **即時生效**：`loadPrompt()` 使用 `mtime` 快取策略，檔案修改後下次 LLM 呼叫自動載入新內容
+3. **還原預設**：刪除 XDG 檔案，系統會自動 fallback 到內建 prompt
+
+### 情境 B：新增原生 Agent Type（需改程式碼）
+
+完整流程，共 4 個檔案、5 個步驟：
+
+```
+步驟 1  建立 prompt 檔案
+        ↓
+步驟 2  在 system.ts 註冊到 AGENT_PROMPTS
+        ↓
+步驟 3  在 agent.ts 的 getNativeAgents() 加入定義
+        ↓
+步驟 4  （可選）在 opencode.json agent config 做額外設定
+        ↓
+步驟 5  啟動 → seedAll() 自動 seed 到 XDG
+```
+
+#### 步驟 1：建立 prompt 檔案
+
+```bash
+# 範例：新增一個 "security" agent
+cat > packages/opencode/src/agent/prompt/security.txt << 'EOF'
+You are a security review subagent. Evaluate code for security vulnerabilities.
+
+Focus on:
+- Input validation and sanitization
+- Authentication and authorization flaws
+- Injection attacks (SQL, XSS, command injection)
+- Sensitive data exposure
+
+Do not run tools or modify code. Output a concise security findings report.
+EOF
+```
+
+#### 步驟 2：在 `system.ts` 註冊
+
+```typescript
+// packages/opencode/src/session/system.ts
+
+// 1. 加入 import
+import PROMPT_AGENT_SECURITY from "../agent/prompt/security.txt"
+
+// 2. 加入 AGENT_PROMPTS 登記
+const AGENT_PROMPTS: Record<string, string> = {
+  coding: PROMPT_AGENT_CODING,
+  review: PROMPT_AGENT_REVIEW,
+  // ...existing entries...
+  security: PROMPT_AGENT_SECURITY, // ← 新增
+}
+```
+
+#### 步驟 3：在 `agent.ts` 的 `getNativeAgents()` 加入定義
+
+```typescript
+// packages/opencode/src/agent/agent.ts
+
+async function getNativeAgents(...) {
+  const [coding, review, ..., security] = await Promise.all([
+    SystemPrompt.agentPrompt("coding"),
+    SystemPrompt.agentPrompt("review"),
+    // ...existing entries...
+    SystemPrompt.agentPrompt("security"),  // ← 新增
+  ])
+
+  return {
+    // ...existing agents...
+    security: {
+      name: "security",
+      description: "Reviews code for security vulnerabilities and attack surfaces.",
+      permission: sub,
+      options: {},
+      prompt: security,
+      mode: "subagent",
+      native: true,
+    },
+  }
+}
+```
+
+#### 步驟 4：（可選）`opencode.json` 設定
+
+使用者可在 `opencode.json` 覆蓋任何原生 agent 的設定：
+
+```jsonc
+{
+  "agent": {
+    "security": {
+      "model": "anthropic/claude-sonnet-4-20250514", // 指定專用模型
+      "description": "Custom security reviewer", // 覆蓋描述
+      "prompt": "你是安全專家...", // 直接覆蓋 prompt（優先級高於 XDG 檔案）
+      "temperature": 0.2,
+      "steps": 5,
+    },
+  },
+}
+```
+
+**Prompt 優先級**（由高到低）：
+
+1. `opencode.json` 中 `agent.<name>.prompt` — 最高
+2. `~/.config/opencode/prompts/agents/<name>.txt` — XDG 覆蓋
+3. `packages/opencode/src/agent/prompt/<name>.txt` — 內建預設
+
+#### 步驟 5：驗證
+
+```bash
+# 啟動後檢查 XDG 目錄
+ls ~/.config/opencode/prompts/agents/
+# 應包含 security.txt
+
+# 在 TUI 中用 /agent 切換確認可見
+```
+
+### 情境 C：停用原生 Agent
+
+在 `opencode.json` 中：
+
+```jsonc
+{
+  "agent": {
+    "docs": { "disable": true },
+  },
+}
+```
+
+### XDG Prompt 管理全貌
+
+```
+~/.config/opencode/prompts/
+├── SYSTEM.md                        ← 第 5 步：核心系統規則
+├── drivers/                         ← 第 1 步：BIOS Driver
+│   ├── claude-code.txt
+│   ├── anthropic.txt
+│   ├── beast.txt
+│   ├── gemini.txt
+│   ├── qwen.txt
+│   ├── trinity.txt
+│   ├── codex.txt
+│   └── gpt-5.txt
+├── agents/                          ← 第 2 步：Agent Prompt（本次新增）
+│   ├── coding.txt
+│   ├── review.txt
+│   ├── testing.txt
+│   ├── docs.txt
+│   ├── explore.txt
+│   ├── compaction.txt
+│   ├── title.txt
+│   └── summary.txt
+└── session/                         ← 其他 session prompt 資源
+    ├── plan.txt
+    ├── plan-reminder-anthropic.txt
+    ├── max-steps.txt
+    ├── build-switch.txt
+    └── instructions.txt
+```

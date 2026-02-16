@@ -19,7 +19,39 @@ import PROMPT_MAX_STEPS from "./prompt/max-steps.txt"
 import PROMPT_BUILD_SWITCH from "./prompt/build-switch.txt"
 import PROMPT_COPILOT_GPT5 from "./prompt/copilot-gpt-5.txt"
 
+import PROMPT_AGENT_CODING from "../agent/prompt/coding.txt"
+import PROMPT_AGENT_REVIEW from "../agent/prompt/review.txt"
+import PROMPT_AGENT_TESTING from "../agent/prompt/testing.txt"
+import PROMPT_AGENT_DOCS from "../agent/prompt/docs.txt"
+import PROMPT_AGENT_EXPLORE from "../agent/prompt/explore.txt"
+import PROMPT_AGENT_COMPACTION from "../agent/prompt/compaction.txt"
+import PROMPT_AGENT_SUMMARY from "../agent/prompt/summary.txt"
+import PROMPT_AGENT_TITLE from "../agent/prompt/title.txt"
+
 import type { Provider } from "@/provider/provider"
+
+/**
+ * Built-in agent prompt registry.
+ * Maps agent name → build-time imported content.
+ * Used as fallback when no XDG override exists at ~/.config/opencode/prompts/agents/<name>.txt
+ *
+ * To add a new agent type:
+ * 1. Create the prompt file: packages/opencode/src/agent/prompt/<name>.txt
+ * 2. Import it above: import PROMPT_AGENT_XXX from "../agent/prompt/<name>.txt"
+ * 3. Register it here: "<name>": PROMPT_AGENT_XXX
+ * 4. Reference it in agent.ts getNativeAgents(): prompt: await SystemPrompt.agentPrompt("<name>")
+ * 5. Run the app once — seedAll() will auto-create ~/.config/opencode/prompts/agents/<name>.txt
+ */
+const AGENT_PROMPTS: Record<string, string> = {
+  coding: PROMPT_AGENT_CODING,
+  review: PROMPT_AGENT_REVIEW,
+  testing: PROMPT_AGENT_TESTING,
+  docs: PROMPT_AGENT_DOCS,
+  explore: PROMPT_AGENT_EXPLORE,
+  compaction: PROMPT_AGENT_COMPACTION,
+  summary: PROMPT_AGENT_SUMMARY,
+  title: PROMPT_AGENT_TITLE,
+}
 
 export namespace SystemPrompt {
   // Cache for prompt contents: filename -> { content, mtime }
@@ -54,6 +86,8 @@ export namespace SystemPrompt {
       "session/max-steps.txt": PROMPT_MAX_STEPS,
       "session/build-switch.txt": PROMPT_BUILD_SWITCH,
       "session/instructions.txt": PROMPT_CODEX.trim(),
+      // Agent prompts — XDG-managed for user customization
+      ...Object.fromEntries(Object.entries(AGENT_PROMPTS).map(([name, content]) => [`agents/${name}.txt`, content])),
     }
 
     for (const [filename, content] of Object.entries(assets)) {
@@ -99,6 +133,18 @@ export namespace SystemPrompt {
 
   export async function instructions() {
     return loadPrompt("session/instructions.txt", PROMPT_CODEX.trim())
+  }
+
+  /**
+   * Load an agent prompt from XDG config, falling back to built-in content.
+   * Path: ~/.config/opencode/prompts/agents/<name>.txt
+   *
+   * Returns undefined if the agent name has no registered prompt (e.g., "build", "plan", "general").
+   */
+  export async function agentPrompt(name: string): Promise<string | undefined> {
+    const internal = AGENT_PROMPTS[name]
+    if (!internal) return undefined
+    return loadPrompt(`agents/${name}.txt`, internal)
   }
 
   export async function provider(model: Provider.Model): Promise<string[]> {

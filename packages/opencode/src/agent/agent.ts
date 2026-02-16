@@ -9,14 +9,9 @@ import { Auth } from "../auth"
 import { ProviderTransform } from "../provider/transform"
 
 import PROMPT_GENERATE from "./generate.txt"
-import PROMPT_COMPACTION from "./prompt/compaction.txt"
-import PROMPT_EXPLORE from "./prompt/explore.txt"
-import PROMPT_CODING from "./prompt/coding.txt"
-import PROMPT_REVIEW from "./prompt/review.txt"
-import PROMPT_TESTING from "./prompt/testing.txt"
-import PROMPT_DOCS from "./prompt/docs.txt"
-import PROMPT_SUMMARY from "./prompt/summary.txt"
-import PROMPT_TITLE from "./prompt/title.txt"
+// Agent prompts are now XDG-managed via SystemPrompt.agentPrompt().
+// See: ~/.config/opencode/prompts/agents/<name>.txt
+// Built-in defaults: packages/opencode/src/agent/prompt/<name>.txt
 import { PermissionNext } from "@/permission/next"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
 import { Global } from "@/global"
@@ -72,11 +67,23 @@ export namespace Agent {
     })
   }
 
-  function getNativeAgents(
+  async function getNativeAgents(
     defaults: PermissionNext.Ruleset,
     user: PermissionNext.Ruleset,
     sub: PermissionNext.Ruleset,
-  ): Record<string, Info> {
+  ): Promise<Record<string, Info>> {
+    // Load all agent prompts concurrently from XDG config (with built-in fallback)
+    const [coding, review, testing, docs, explore, compaction, title, summary] = await Promise.all([
+      SystemPrompt.agentPrompt("coding"),
+      SystemPrompt.agentPrompt("review"),
+      SystemPrompt.agentPrompt("testing"),
+      SystemPrompt.agentPrompt("docs"),
+      SystemPrompt.agentPrompt("explore"),
+      SystemPrompt.agentPrompt("compaction"),
+      SystemPrompt.agentPrompt("title"),
+      SystemPrompt.agentPrompt("summary"),
+    ])
+
     return {
       build: {
         name: "build",
@@ -129,7 +136,7 @@ export namespace Agent {
         description: "Implements changes and proposes concrete code edits.",
         permission: sub,
         options: {},
-        prompt: PROMPT_CODING,
+        prompt: coding,
         mode: "subagent",
         native: true,
       },
@@ -138,7 +145,7 @@ export namespace Agent {
         description: "Reviews changes for correctness, edge cases, and risks.",
         permission: sub,
         options: {},
-        prompt: PROMPT_REVIEW,
+        prompt: review,
         mode: "subagent",
         native: true,
       },
@@ -147,7 +154,7 @@ export namespace Agent {
         description: "Defines test and verification strategy.",
         permission: sub,
         options: {},
-        prompt: PROMPT_TESTING,
+        prompt: testing,
         mode: "subagent",
         native: true,
       },
@@ -156,7 +163,7 @@ export namespace Agent {
         description: "Identifies documentation updates and release notes.",
         permission: sub,
         options: {},
-        prompt: PROMPT_DOCS,
+        prompt: docs,
         mode: "subagent",
         native: true,
       },
@@ -182,7 +189,7 @@ export namespace Agent {
           user,
         ),
         description: `Fast agent specialized for exploring codebases. Use this when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), or answer questions about the codebase (eg. "how do API endpoints work?"). When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions.`,
-        prompt: PROMPT_EXPLORE,
+        prompt: explore,
         options: {},
         mode: "subagent",
         native: true,
@@ -192,7 +199,7 @@ export namespace Agent {
         mode: "primary",
         native: true,
         hidden: true,
-        prompt: PROMPT_COMPACTION,
+        prompt: compaction,
         permission: PermissionNext.merge(defaults, PermissionNext.fromConfig({ "*": "deny" }), user),
         options: {},
       },
@@ -204,7 +211,7 @@ export namespace Agent {
         hidden: true,
         temperature: 0.5,
         permission: PermissionNext.merge(defaults, PermissionNext.fromConfig({ "*": "deny" }), user),
-        prompt: PROMPT_TITLE,
+        prompt: title,
       },
       summary: {
         name: "summary",
@@ -213,7 +220,7 @@ export namespace Agent {
         native: true,
         hidden: true,
         permission: PermissionNext.merge(defaults, PermissionNext.fromConfig({ "*": "deny" }), user),
-        prompt: PROMPT_SUMMARY,
+        prompt: summary,
       },
     }
   }
@@ -231,7 +238,7 @@ export namespace Agent {
       user,
     )
 
-    const result = getNativeAgents(defaults, user, sub)
+    const result = await getNativeAgents(defaults, user, sub)
 
     for (const [key, value] of Object.entries(cfg.agent ?? {})) {
       if (value.disable) {
