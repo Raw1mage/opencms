@@ -81,6 +81,7 @@ export namespace SystemPrompt {
       "drivers/trinity.txt": PROMPT_TRINITY,
       "drivers/codex.txt": PROMPT_CODEX,
       "drivers/gpt-5.txt": PROMPT_COPILOT_GPT5,
+      "drivers/deepseek.txt": PROMPT_BEAST,
       "session/plan.txt": PROMPT_PLAN,
       "session/plan-reminder-anthropic.txt": PROMPT_PLAN_REMINDER_ANTHROPIC,
       "session/max-steps.txt": PROMPT_MAX_STEPS,
@@ -169,6 +170,9 @@ export namespace SystemPrompt {
     } else if (model.api.id.includes("claude")) {
       internal = PROMPT_CLAUDE_CODE
       name = "claude-code"
+    } else if (model.api.id.toLowerCase().includes("deepseek")) {
+      internal = PROMPT_BEAST
+      name = "deepseek"
     }
 
     return [await loadPrompt(`drivers/${name}.txt`, internal)]
@@ -285,13 +289,12 @@ ${isSubagent ? subagentRules : mainAgentRules}
         `  Today's date: ${new Date().toDateString()}`,
         `</env>`,
         `<directories>`,
-        `  ${
-          project.vcs === "git" && false
-            ? await Ripgrep.tree({
-                cwd: Instance.directory,
-                limit: 50,
-              })
-            : ""
+        `  ${project.vcs === "git" && false
+          ? await Ripgrep.tree({
+            cwd: Instance.directory,
+            limit: 50,
+          })
+          : ""
         }`,
         `</directories>`,
       ].join("\n"),

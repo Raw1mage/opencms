@@ -48,7 +48,11 @@ export namespace ProviderTransform {
   ): ModelMessage[] {
     // Anthropic and Google reject messages with empty content - filter out empty string messages
     // and remove empty text/reasoning parts from array content
-    if (model.api.npm === "@ai-sdk/anthropic" || model.api.npm === "@ai-sdk/google") {
+    if (
+      model.api.npm === "@ai-sdk/anthropic" ||
+      model.api.npm === "@ai-sdk/google" ||
+      model.api.id.toLowerCase().includes("deepseek")
+    ) {
       msgs = msgs
         .map((msg) => {
           if (typeof msg.content === "string") {
@@ -144,8 +148,8 @@ export namespace ProviderTransform {
           if (reasoningText) {
             const openaiCompatible =
               msg.providerOptions &&
-              typeof msg.providerOptions === "object" &&
-              "openaiCompatible" in msg.providerOptions
+                typeof msg.providerOptions === "object" &&
+                "openaiCompatible" in msg.providerOptions
                 ? (msg.providerOptions as { openaiCompatible?: Record<string, JSONValue> }).openaiCompatible
                 : undefined
             return {
@@ -311,6 +315,7 @@ export namespace ProviderTransform {
       }
       return 0.6
     }
+    if (id.includes("deepseek")) return 0.6
     return undefined
   }
 
@@ -320,6 +325,7 @@ export namespace ProviderTransform {
     if (id.includes("minimax-m2") || id.includes("kimi-k2.5") || id.includes("kimi-k2p5") || id.includes("gemini")) {
       return 0.95
     }
+    if (id.includes("deepseek")) return 0.95
     return undefined
   }
 
