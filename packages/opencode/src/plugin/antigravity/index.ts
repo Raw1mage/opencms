@@ -1480,46 +1480,9 @@ export const createAntigravityPlugin =
 
     return {
       event: eventHandler,
-      "experimental.chat.system.transform": async (input: any, output: any) => {
-        try {
-          const modelId = input.model?.id?.toLowerCase() || ""
-          if (!modelId.includes("gemini")) return
-
-          const system = output.system
-          if (!system || system.length === 0) return
-
-          const mainPrompt = system[0]
-          if (!mainPrompt) return
-
-          // 1. Identify AGENTS.md content
-          const agentsBlockRegex =
-            /Instructions from: .*?(?:AGENTS|CLAUDE)\.md[\s\S]*?(?=\nInstructions from:|<env>|$)/g
-          const matches = mainPrompt.match(agentsBlockRegex)
-
-          if (matches && matches.length > 0) {
-            const agentsContent = matches.join("\n\n").trim()
-            let strippedPrompt = mainPrompt.replace(agentsBlockRegex, "").trim()
-
-            // 2. Identify Identity/Start and any immediate IMPORTANT/CRITICAL mandates
-            // Since identity is now removed, we look for the IMPORTANT block at the start
-            const headerRegex = /^(IMPORTANT:[\s\S]*?)(?=\n# |$)/
-            const headerMatch = strippedPrompt.match(headerRegex)
-
-            let header = ""
-            if (headerMatch) {
-              header = headerMatch[1].trim()
-              strippedPrompt = strippedPrompt.replace(headerMatch[0], "").trim()
-            }
-
-            const optimizedAgents = ["<behavioral_guidelines>", agentsContent, "</behavioral_guidelines>"].join("\n")
-
-            // Reconstruct: Header -> Optimized Guidelines -> Rest
-            output.system[0] = [header, optimizedAgents, strippedPrompt].filter(Boolean).join("\n\n")
-          }
-        } catch (error) {
-          console.error("[Antigravity] Failed to transform system prompt:", error)
-        }
-      },
+      // NOTE: Gemini system prompt optimization (behavioral_guidelines XML wrapping)
+      // has been moved to llm.ts as inline step 7 of the system prompt assembly pipeline.
+      // This keeps the prompt loading architecture clean: bios -> SYSTEM.md -> AGENTS.md -> model optimization.
       tool: {
         google_search: googleSearchTool,
       },

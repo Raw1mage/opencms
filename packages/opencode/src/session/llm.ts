@@ -26,21 +26,11 @@ import { Flag } from "@/flag/flag"
 import { PermissionNext } from "@/permission/next"
 import { Auth } from "@/auth"
 
-import {
-  findFallback,
-  type ModelVector,
-  type FallbackStrategy,
-  isVectorRateLimited,
-} from "@/account/rotation3d"
+import { findFallback, type ModelVector, type FallbackStrategy, isVectorRateLimited } from "@/account/rotation3d"
 import { Bus } from "@/bus"
 import { TuiEvent } from "@/cli/cmd/tui/event"
 import { debugCheckpoint } from "@/util/debug"
-import {
-  RateLimitJudge,
-  isRateLimitError,
-  isAuthError,
-  formatRateLimitReason,
-} from "@/account/rate-limit-judge"
+import { RateLimitJudge, isRateLimitError, isAuthError, formatRateLimitReason } from "@/account/rate-limit-judge"
 
 import { RequestMonitor } from "@/account/monitor"
 
@@ -149,12 +139,35 @@ export namespace LLM {
       // 6. Role Identity Reinforcement
       // Tells the model exactly who it is in this specific request.
       `\n\n[IDENTITY REINFORCEMENT]\n` +
-      `Session ID: ${input.sessionID}\n` +
-      `Current Role: ${(await isSubagentSession(input.sessionID)) ? "Subagent" : "Main Agent"}\n` +
-      `Session Context: ${(await isSubagentSession(input.sessionID)) ? "Sub-task" : "Main-task Orchestration"}`,
+        `Session ID: ${input.sessionID}\n` +
+        `Current Role: ${(await isSubagentSession(input.sessionID)) ? "Subagent" : "Main Agent"}\n` +
+        `Session Context: ${(await isSubagentSession(input.sessionID)) ? "Sub-task" : "Main-task Orchestration"}`,
     ]
 
     system.push(systemParts.filter((x) => x).join("\n"))
+
+    // 7. Model-specific prompt optimization (inline, no hook indirection)
+    // Gemini models respond better when AGENTS.md/CLAUDE.md instructions are
+    // wrapped in <behavioral_guidelines> XML tags with restructured ordering.
+    const modelId = input.model?.id?.toLowerCase() || ""
+    if (modelId.includes("gemini") && system[0]) {
+      const mainPrompt = system[0]
+      const agentsBlockRegex = /Instructions from: .*?(?:AGENTS|CLAUDE)\.md[\s\S]*?(?=\nInstructions from:|<env>|$)/g
+      const matches = mainPrompt.match(agentsBlockRegex)
+      if (matches && matches.length > 0) {
+        const agentsContent = matches.join("\n\n").trim()
+        let strippedPrompt = mainPrompt.replace(agentsBlockRegex, "").trim()
+        const headerRegex = /^(IMPORTANT:[\s\S]*?)(?=\n# |$)/
+        const headerMatch = strippedPrompt.match(headerRegex)
+        let header = ""
+        if (headerMatch) {
+          header = headerMatch[1].trim()
+          strippedPrompt = strippedPrompt.replace(headerMatch[0], "").trim()
+        }
+        const optimizedAgents = `<behavioral_guidelines>\n${agentsContent}\n</behavioral_guidelines>`
+        system[0] = [header, optimizedAgents, strippedPrompt].filter(Boolean).join("\n\n")
+      }
+    }
 
     const header = system[0]
     const original = clone(system)
@@ -178,11 +191,11 @@ export namespace LLM {
     const base = input.small
       ? ProviderTransform.smallOptions(input.model, provider.options)
       : ProviderTransform.options({
-        model: input.model,
-        sessionID: input.sessionID,
-        providerOptions: provider.options,
-        accountId: currentAccountId,
-      })
+          model: input.model,
+          sessionID: input.sessionID,
+          providerOptions: provider.options,
+          accountId: currentAccountId,
+        })
     const options: Record<string, any> = pipe(
       base,
       mergeDeep(input.model.options),
@@ -229,11 +242,11 @@ export namespace LLM {
     const maxOutputTokens = capabilities.skipMaxOutputTokens
       ? undefined
       : ProviderTransform.maxOutputTokens(
-        input.model.api.npm,
-        params.options,
-        input.model.limit.output,
-        OUTPUT_TOKEN_MAX,
-      )
+          input.model.api.npm,
+          params.options,
+          input.model.limit.output,
+          OUTPUT_TOKEN_MAX,
+        )
 
     const tools = await resolveTools(input)
 
@@ -264,17 +277,17 @@ export namespace LLM {
     const systemMessages =
       capabilities.systemMessageRole === "user"
         ? ([
-          {
-            role: "user",
-            content: filteredSystem.join("\n\n"),
-          },
-        ] as ModelMessage[])
+            {
+              role: "user",
+              content: filteredSystem.join("\n\n"),
+            },
+          ] as ModelMessage[])
         : filteredSystem.map(
-          (x): ModelMessage => ({
-            role: "system",
-            content: x,
-          }),
-        )
+            (x): ModelMessage => ({
+              role: "system",
+              content: x,
+            }),
+          )
 
     const streamMessages = [...systemMessages, ...input.messages]
 
@@ -311,7 +324,7 @@ export namespace LLM {
             message: `Auth failed for ${accountId}. Please re-authenticate.`,
             variant: "error",
             duration: 15000,
-          }).catch(() => { })
+          }).catch(() => {})
           return
         }
 
@@ -329,7 +342,7 @@ export namespace LLM {
               message: `${input.model.id}: ${reasonText}. Cooling down for ${waitMinutes}m.`,
               variant: "warning",
               duration: 8000,
-            }).catch(() => { })
+            }).catch(() => {})
           }
         }
       },
@@ -366,15 +379,15 @@ export namespace LLM {
         ...(accountId ? { "x-opencode-account-id": accountId } : {}),
         ...(input.model.providerId.startsWith("opencode")
           ? {
-            "x-opencode-project": Instance.project.id,
-            "x-opencode-session": input.sessionID,
-            "x-opencode-request": input.user.id,
-            "x-opencode-client": Flag.OPENCODE_CLIENT,
-          }
+              "x-opencode-project": Instance.project.id,
+              "x-opencode-session": input.sessionID,
+              "x-opencode-request": input.user.id,
+              "x-opencode-client": Flag.OPENCODE_CLIENT,
+            }
           : input.model.providerId !== "claude-cli"
             ? {
-              "User-Agent": `opencode/${Installation.VERSION}`,
-            }
+                "User-Agent": `opencode/${Installation.VERSION}`,
+              }
             : undefined),
         ...input.model.headers,
         ...headers,
@@ -633,7 +646,7 @@ export namespace LLM {
           message: toastMsg,
           variant: "info",
           duration: 8000,
-        }).catch(() => { })
+        }).catch(() => {})
       }
 
       // Return currentModel here, as the rotation only changed the account, not the model object itself
@@ -668,7 +681,7 @@ export namespace LLM {
         message: toastMsg,
         variant: "info",
         duration: 8000,
-      }).catch(() => { })
+      }).catch(() => {})
     }
 
     return fallbackModel
