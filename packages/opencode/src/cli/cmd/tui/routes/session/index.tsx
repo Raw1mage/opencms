@@ -65,7 +65,7 @@ import { DialogSessionRename } from "../../component/dialog-session-rename"
 import { Sidebar } from "./sidebar"
 import { Flag } from "@/flag/flag"
 import { LANGUAGE_EXTENSIONS } from "@/lsp/language"
-import parsers from "../../../../../../../../parsers-config.ts"
+import parsers from "../../parsers-config.ts"
 import { Clipboard } from "../../util/clipboard"
 import { Toast, useToast } from "../../ui/toast"
 import { useKV } from "../../context/kv.tsx"
@@ -87,13 +87,13 @@ addDefaultParsers(parsers.parsers)
 const consumedSessionRouteInitTokens = new Set<string>()
 
 class CustomSpeedScroll implements ScrollAcceleration {
-  constructor(private speed: number) {}
+  constructor(private speed: number) { }
 
   tick(_now?: number): number {
     return this.speed
   }
 
-  reset(): void {}
+  reset(): void { }
 }
 
 const context = createContext<{
@@ -218,7 +218,7 @@ export function Session() {
           if (stopped) return
           sync.session
             .sync(sessionID, { force: true })
-            .catch(() => {})
+            .catch(() => { })
             .finally(() => {
               timer = setTimeout(poll, nextDelay())
             })
@@ -496,7 +496,7 @@ export function Session() {
       category: "Session",
       onSelect: async (dialog) => {
         const status = sync.data.session_status?.[route.sessionID]
-        if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {})
+        if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => { })
         const revert = session()?.revert?.messageID
         const message = messages().findLast((x) => (!revert || x.id < revert) && x.role === "user")
         if (!message) return

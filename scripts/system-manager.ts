@@ -394,7 +394,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
           return {
             family: fname,
-            active: data.activeAccount,
+            // REFACTOR: Renamed from 'active' to 'selectedAccount' to prevent AI confusion.
+            // 'active' implies the provider is enabled/visible, but here it only means
+            // "which account is currently selected". The provider might still be hidden.
+            selectedAccount: data.activeAccount,
             accounts: accountList,
           }
         }),

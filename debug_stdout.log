@@ -1,2 +1,0 @@
-$ cd packages/opencode && bun --conditions=browser ./src/index.ts
-]11;?2;default]112[0 q[?25h[?25h

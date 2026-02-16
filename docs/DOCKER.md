@@ -8,10 +8,10 @@
 
 ### 本機 config 目錄 (建置時)
 
-執行 `./scripts/sync-config.sh` 後產生：
+執行 `./docker/sync-config.sh` 後產生：
 
 ```
-./config/
+./docker/
 ├── opencode/                  # XDG_CONFIG_HOME/opencode
 │   ├── opencode.json          # 主配置檔
 │   ├── commands/              # 自訂命令
@@ -52,7 +52,7 @@
 
 ```bash
 # 執行設定腳本 (需要 root 權限)
-sudo ./scripts/docker-setup.sh
+sudo ./docker/docker-setup.sh
 ```
 
 ### 2. 同步配置文件
@@ -61,7 +61,7 @@ sudo ./scripts/docker-setup.sh
 
 ```bash
 # 同步配置 (從 ~/.config/opencode, ~/.local/share/opencode 等)
-./scripts/sync-config.sh
+./docker/sync-config.sh
 ```
 
 這會複製以下檔案：
@@ -76,21 +76,21 @@ sudo ./scripts/docker-setup.sh
 
 ```bash
 # 使用 webctl.sh (自動同步配置並建置)
-./webctl.sh build
+./docker/webctl.sh build
 
 # 或手動建置
-./scripts/sync-config.sh
-docker build -f Dockerfile.production -t opencode:latest .
+./docker/sync-config.sh
+docker build -f docker/Dockerfile.production -t opencode:latest .
 ```
 
 ### 4. 啟動容器
 
 ```bash
 # 使用 webctl.sh (建議)
-./webctl.sh start
+./docker/webctl.sh start
 
 # 或使用 docker-compose
-docker-compose -f docker-compose.production.yml --profile web up -d
+docker-compose -f docker/docker-compose.production.yml --profile web up -d
 ```
 
 ## 配置說明
@@ -134,11 +134,11 @@ docker exec opencode opencode --version
 
 ```bash
 # 啟動 Web 服務
-docker-compose -f docker-compose.production.yml --profile web up -d
+docker-compose -f docker/docker-compose.production.yml --profile web up -d
 
 # 設定密碼 (建議)
 export OPENCODE_SERVER_PASSWORD="your-secure-password"
-docker-compose -f docker-compose.production.yml --profile web up -d
+docker-compose -f docker/docker-compose.production.yml --profile web up -d
 ```
 
 ### 查看日誌
@@ -196,13 +196,13 @@ tar -czvf opencode-backup-$(date +%Y%m%d).tar.gz /opt/opencode
 
 ```bash
 # 停止容器
-docker-compose -f docker-compose.production.yml down
+docker-compose -f docker/docker-compose.production.yml down
 
 # 還原備份
 tar -xzvf opencode-backup-YYYYMMDD.tar.gz -C /
 
 # 重新啟動
-docker-compose -f docker-compose.production.yml up -d
+docker-compose -f docker/docker-compose.production.yml up -d
 ```
 
 ## 故障排除

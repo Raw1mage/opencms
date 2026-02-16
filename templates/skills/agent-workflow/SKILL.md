@@ -81,13 +81,17 @@ Next:
 
 ### Orchestrator 指派任務模版
 
-當呼叫 Subagent 時，Prompt 必須包含明確的省 Token 指令：
+當呼叫 Subagent 時，Prompt 必須包含明確的省 Token 指令，並**強制注入安全協議**：
 
 ```javascript
 Task({
   subagent_type: "coding",
   description: "[Batch] 實作登入功能",
   prompt: `
+    # 安全協議 (Mandatory Protocol)
+    - 編輯前必須使用 default_api:read 讀取檔案。
+    - 禁止盲目編輯 (Check timestamp)。
+
     # 目標
     實作 JWT 登入 API。
 

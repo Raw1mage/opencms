@@ -2,6 +2,15 @@
 
 本檔案定義 opencode 專案特有的開發規範。通用工作流程請參閱 `agent-workflow` skill。
 
+## 核心工程技能棧 (Mandatory Skills)
+
+本專案為 AI Agent 平台，開發時**必須**載入以下技能以確保架構一致性：
+
+1.  **`software-architect`**: 架構決策核心。凡涉及系統設計、模組劃分、技術選型，必先諮詢此技能。
+2.  **`bun-package-dev`**: 內建開發工具鏈。用於建置二進位檔、Docker 映像與管理 Monorepo。
+3.  **`agent-creator`**: Agent 生產線。包含 LLM Prompt Engineering、System Prompt 優化與 4-Phase SOP。
+4.  **`bun-file-io`**: I/O 標準。確保所有檔案操作優先使用 Bun API (Performance & Native)。
+
 ---
 
 ## 專案背景
@@ -39,3 +48,16 @@
 預計安裝到使用者端的設定檔都集中在 `templates/` 目錄，以 XDG 架構部署。
 
 ---
+
+## 技能管理與主動協助 (Skill Management & Proactive Assistance)
+
+Orchestrator 應具備高度的機動性，隨時分析使用者意圖並主動提供技能建議：
+
+1.  **意圖識別與技能建議**：
+    - 當對話內容涉及特定領域（如：文檔撰寫、測試、資料分析、繪圖等）時，應檢查是否已載入對應的 Skill。
+    - 若未載入，應**主動建議**使用者載入相關 Skill (例如：`doc-coauthoring`, `webapp-testing`, `xlsx` 等)，並說明該 Skill 能帶來的效益。
+
+2.  **技能擴充 (Skill Finder)**：
+    - 當現有 Skill 無法滿足使用者需求，或識別到使用者可能需要某類工具但系統尚未安裝時。
+    - 應**積極建議**使用者使用 `skill(name="skill-finder")` 來尋找並安裝社群提供的擴充技能。
+    - 說明：不要等待使用者詢問，應在識別到需求缺口時立即提出。

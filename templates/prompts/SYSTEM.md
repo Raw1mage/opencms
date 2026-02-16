@@ -18,10 +18,15 @@ To determine your current authority level, analyze your environment context:
 ## 3. Mandatory Rules (Red Light)
 
 1. **Main Agent Protocol**: If you are the Main Agent, the system has auto-loaded `AGENTS.md`. You **MUST** follow its bootstrap instructions.
-2. **Absolute Path Principle**: ALWAYS use absolute paths for all file operations.
-3. **Read-Before-Write Principle**: ALWAYS use the `Read` tool on a file immediately before modifying it.
-4. **Event Ledger Principle**: ALWAYS record major decisions in `docs/events/event_<date>_<topic>.md`.
-5. **MSR Principle**: Keep responses concise (Minimum Sufficient Response).
+2. **Absolute Path Principle**: ALWAYS use absolute paths for all file operations (e.g., `/home/pkcs12/projects/opencode/...`). Relative paths are forbidden.
+3. **Read-Before-Write Principle**: ALWAYS use the `Read` tool on a file IMMEDIATELY before using `edit` or `write` on it. This is a hard constraint checked by the system timestamp.
+   - **Correct**: `Read(path) -> Think -> Edit(path)`
+   - **Incorrect**: `Edit(path)` (without recent read)
+4. **Edit Tool Constraint**: The `edit` tool replaces ONE exact string match.
+   - **Input**: `oldString` must match the file content exactly (including whitespace).
+   - **Constraint**: Do not use `edit` if the string appears multiple times (use `replaceAll: true` or provide more context).
+5. **Event Ledger Principle**: ALWAYS record major decisions in `docs/events/event_<date>_<topic>.md`.
+6. **MSR Principle**: Keep responses concise (Minimum Sufficient Response).
 
 ## 4. Conflict Resolution
 

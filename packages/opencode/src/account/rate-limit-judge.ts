@@ -20,14 +20,14 @@ import { Bus } from "../bus"
 import { BusEvent } from "../bus/bus-event"
 import z from "zod"
 import {
-    isRateLimitError as _isRateLimitError,
-    isAuthError as _isAuthError,
-    extractRateLimitDetails,
-    calculateBackoffMs,
-    getHealthTracker,
-    getRateLimitTracker,
-    getNextQuotaReset,
-    type RateLimitReason,
+  isRateLimitError as _isRateLimitError,
+  isAuthError as _isAuthError,
+  extractRateLimitDetails,
+  calculateBackoffMs,
+  getHealthTracker,
+  getRateLimitTracker,
+  getNextQuotaReset,
+  type RateLimitReason,
 } from "./rotation"
 import { RequestMonitor } from "./monitor"
 
@@ -38,56 +38,56 @@ const log = Log.create({ service: "rate-limit-judge" })
 // ============================================================================
 
 export const RateLimitEvent = {
-    /**
-     * Fired when a rate limit is detected and classified.
-     * Subscribers:
-     *   - Rotation module → triggers 3D fallback
-     *   - Admin Panel (dialog-admin.tsx) → updates model status display
-     */
-    Detected: BusEvent.define(
-        "ratelimit.detected",
-        z.object({
-            providerId: z.string(),
-            accountId: z.string(),
-            modelId: z.string(),
-            reason: z.string(), // RateLimitReason
-            backoffMs: z.number(),
-            source: z.enum(["error-response", "rpm-inference", "rpd-inference", "cockpit"]),
-            dailyFailures: z.number(),
-            timestamp: z.number(),
-        }),
-    ),
+  /**
+   * Fired when a rate limit is detected and classified.
+   * Subscribers:
+   *   - Rotation module → triggers 3D fallback
+   *   - Admin Panel (dialog-admin.tsx) → updates model status display
+   */
+  Detected: BusEvent.define(
+    "ratelimit.detected",
+    z.object({
+      providerId: z.string(),
+      accountId: z.string(),
+      modelId: z.string(),
+      reason: z.string(), // RateLimitReason
+      backoffMs: z.number(),
+      source: z.enum(["error-response", "rpm-inference", "rpd-inference", "cockpit"]),
+      dailyFailures: z.number(),
+      timestamp: z.number(),
+    }),
+  ),
 
-    /**
-     * Fired when a rate limit is cleared (successful request).
-     * Subscribers:
-     *   - Admin Panel → removes rate limit indicator
-     */
-    Cleared: BusEvent.define(
-        "ratelimit.cleared",
-        z.object({
-            providerId: z.string(),
-            accountId: z.string(),
-            modelId: z.string(),
-            timestamp: z.number(),
-        }),
-    ),
+  /**
+   * Fired when a rate limit is cleared (successful request).
+   * Subscribers:
+   *   - Admin Panel → removes rate limit indicator
+   */
+  Cleared: BusEvent.define(
+    "ratelimit.cleared",
+    z.object({
+      providerId: z.string(),
+      accountId: z.string(),
+      modelId: z.string(),
+      timestamp: z.number(),
+    }),
+  ),
 
-    /**
-     * Fired when an authentication error is detected (hard stop).
-     * Subscribers:
-     *   - Admin Panel → shows re-authentication prompt
-     */
-    AuthFailed: BusEvent.define(
-        "ratelimit.auth_failed",
-        z.object({
-            providerId: z.string(),
-            accountId: z.string(),
-            modelId: z.string(),
-            message: z.string(),
-            timestamp: z.number(),
-        }),
-    ),
+  /**
+   * Fired when an authentication error is detected (hard stop).
+   * Subscribers:
+   *   - Admin Panel → shows re-authentication prompt
+   */
+  AuthFailed: BusEvent.define(
+    "ratelimit.auth_failed",
+    z.object({
+      providerId: z.string(),
+      accountId: z.string(),
+      modelId: z.string(),
+      message: z.string(),
+      timestamp: z.number(),
+    }),
+  ),
 }
 
 // ============================================================================
@@ -103,9 +103,9 @@ export type BackoffStrategy = "cockpit" | "counter" | "passive"
  * - passive: everyone else — rely on error response only
  */
 export function getBackoffStrategy(providerId: string): BackoffStrategy {
-    if (providerId === "antigravity" || providerId === "openai") return "cockpit"
-    if (providerId === "gemini-cli" || providerId === "google-api") return "counter"
-    return "passive"
+  if (providerId === "antigravity" || providerId === "openai") return "cockpit"
+  if (providerId === "gemini-cli" || providerId === "google-api") return "counter"
+  return "passive"
 }
 
 // ============================================================================
@@ -126,10 +126,10 @@ const MODEL_CAPACITY_MIN_BACKOFF_MS = 300_000 // 5 minutes
 // ============================================================================
 
 export interface JudgeResult {
-    reason: RateLimitReason
-    backoffMs: number
-    source: "error-response" | "rpm-inference" | "rpd-inference" | "cockpit"
-    dailyFailures: number
+  reason: RateLimitReason
+  backoffMs: number
+  source: "error-response" | "rpm-inference" | "rpd-inference" | "cockpit"
+  dailyFailures: number
 }
 
 // ============================================================================
@@ -137,274 +137,270 @@ export interface JudgeResult {
 // ============================================================================
 
 export namespace RateLimitJudge {
-    /**
-     * Analyze an error, classify the rate limit, calculate backoff, update trackers,
-     * and broadcast a Bus event — all in one call.
-     *
-     * This replaces the inline logic previously duplicated across:
-     * - llm.ts onError (L342-465)
-     * - llm.ts handleRateLimitFallback (L672-833)
-     *
-     * @returns JudgeResult with the classified reason, calculated backoff, and source
-     */
-    export async function judge(
-        providerId: string,
-        accountId: string,
-        modelId: string,
-        error: unknown,
-    ): Promise<JudgeResult> {
-        // Step 1: Extract reason + retryAfter from error
-        const { reason, retryAfterMs } = extractRateLimitDetails(error)
+  /**
+   * Analyze an error, classify the rate limit, calculate backoff, update trackers,
+   * and broadcast a Bus event — all in one call.
+   *
+   * This replaces the inline logic previously duplicated across:
+   * - llm.ts onError (L342-465)
+   * - llm.ts handleRateLimitFallback (L672-833)
+   *
+   * @returns JudgeResult with the classified reason, calculated backoff, and source
+   */
+  export async function judge(
+    providerId: string,
+    accountId: string,
+    modelId: string,
+    error: unknown,
+  ): Promise<JudgeResult> {
+    // Step 1: Extract reason + retryAfter from error
+    const { reason, retryAfterMs } = extractRateLimitDetails(error)
 
-        // Step 2: Increment daily failure counter (resets at 16:00 Taipei)
-        const rateLimitTracker = getRateLimitTracker()
-        const dailyFailures = rateLimitTracker.incrementDailyFailureCount(accountId, providerId, modelId)
+    // Step 2: Increment daily failure counter (resets at 16:00 Taipei)
+    const rateLimitTracker = getRateLimitTracker()
+    const dailyFailures = rateLimitTracker.incrementDailyFailureCount(accountId, providerId, modelId)
 
-        const consecutiveFailures = getHealthTracker().getConsecutiveFailures(accountId, providerId, modelId)
+    const consecutiveFailures = getHealthTracker().getConsecutiveFailures(accountId, providerId, modelId)
 
-        // Step 3: Calculate initial backoff
-        let backoffMs = calculateBackoffMs(reason, consecutiveFailures, retryAfterMs, dailyFailures)
-        let source: JudgeResult["source"] = "error-response"
+    // Step 3: Calculate initial backoff
+    let backoffMs = calculateBackoffMs(reason, consecutiveFailures, retryAfterMs, dailyFailures)
+    let source: JudgeResult["source"] = "error-response"
 
-        // Step 4: Apply provider-specific strategy
-        const strategy = getBackoffStrategy(providerId)
+    // Step 4: Apply provider-specific strategy
+    const strategy = getBackoffStrategy(providerId)
 
-        if (strategy === "cockpit" && reason !== "TOKEN_REFRESH_FAILED") {
-            // Cockpit strategy: query real quota reset time from cockpit API
-            const cockpitResult = await fetchCockpitBackoff(providerId, accountId, modelId, backoffMs)
-            if (cockpitResult.fromCockpit) {
-                backoffMs = cockpitResult.backoffMs
-                source = "cockpit"
-            }
-        }
-
-        if (strategy === "counter" || strategy === "passive") {
-            // Counter/Passive strategy: infer RPD from RPM stats
-            const inference = inferFromRequestLog(providerId, accountId, modelId, reason, backoffMs)
-            if (inference.adjusted) {
-                backoffMs = inference.backoffMs
-                source = inference.source
-            }
-        }
-
-        // Step 5: Apply guardrails (503/529/capacity minimum 5 minutes)
-        if (
-            (reason === "SERVICE_UNAVAILABLE_503" ||
-                reason === "SITE_OVERLOADED_529" ||
-                reason === "MODEL_CAPACITY_EXHAUSTED") &&
-            backoffMs < MODEL_CAPACITY_MIN_BACKOFF_MS
-        ) {
-            backoffMs = MODEL_CAPACITY_MIN_BACKOFF_MS
-        }
-
-        // Step 6: Update trackers
-        const { Account } = await import("./index")
-        await Account.recordRateLimit(accountId, providerId, reason, backoffMs, modelId)
-
-        log.info("Rate limit judged", {
-            providerId,
-            accountId,
-            modelId,
-            reason,
-            backoffMs,
-            source,
-            dailyFailures,
-            strategy,
-        })
-
-        // Step 7: Broadcast event
-        const result: JudgeResult = { reason, backoffMs, source, dailyFailures }
-
-        Bus.publish(RateLimitEvent.Detected, {
-            providerId,
-            accountId,
-            modelId,
-            reason,
-            backoffMs,
-            source,
-            dailyFailures,
-            timestamp: Date.now(),
-        }).catch(() => { })
-
-        return result
+    if (strategy === "cockpit" && reason !== "TOKEN_REFRESH_FAILED") {
+      // Cockpit strategy: query real quota reset time from cockpit API
+      const cockpitResult = await fetchCockpitBackoff(providerId, accountId, modelId, backoffMs)
+      if (cockpitResult.fromCockpit) {
+        backoffMs = cockpitResult.backoffMs
+        source = "cockpit"
+      }
     }
 
-    /**
-     * Record a successful request — clear rate limit state and broadcast Cleared event.
-     *
-     * Replaces llm.ts recordSuccess() inline logic.
-     */
-    export async function recordSuccess(
-        providerId: string,
-        accountId: string,
-        modelId: string,
-    ): Promise<void> {
-        log.info("Recording success", { providerId, accountId, modelId })
-
-        const { Account } = await import("./index")
-        await Account.recordSuccess(accountId, providerId)
-
-        // Clear rate limit for this specific 3D vector
-        const rateLimitTracker = getRateLimitTracker()
-        rateLimitTracker.clear(accountId, providerId, modelId)
-
-        Bus.publish(RateLimitEvent.Cleared, {
-            providerId,
-            accountId,
-            modelId,
-            timestamp: Date.now(),
-        }).catch(() => { })
+    if (strategy === "counter" || strategy === "passive") {
+      // Counter/Passive strategy: infer RPD from RPM stats
+      const inference = inferFromRequestLog(providerId, accountId, modelId, reason, backoffMs)
+      if (inference.adjusted) {
+        backoffMs = inference.backoffMs
+        source = inference.source
+      }
     }
 
-    /**
-     * Record an authentication failure — hard block + broadcast AuthFailed event.
-     *
-     * Replaces llm.ts onError auth handling (L303-337).
-     */
-    export async function recordAuthFailure(
-        providerId: string,
-        accountId: string,
-        modelId: string,
-        error: unknown,
-    ): Promise<void> {
-        log.error("Authentication failure recorded", { providerId, accountId, modelId })
-
-        const { Account } = await import("./index")
-        await Account.recordFailure(accountId, providerId)
-
-        // Hard block for 1 hour
-        const rateLimitTracker = getRateLimitTracker()
-        rateLimitTracker.markRateLimited(accountId, providerId, "AUTH_FAILED", 3_600_000, modelId)
-
-        const errorMessage =
-            error instanceof Error ? error.message : typeof error === "string" ? error : "Authentication failed"
-
-        Bus.publish(RateLimitEvent.AuthFailed, {
-            providerId,
-            accountId,
-            modelId,
-            message: errorMessage,
-            timestamp: Date.now(),
-        }).catch(() => { })
+    // Step 5: Apply guardrails (503/529/capacity minimum 5 minutes)
+    if (
+      (reason === "SERVICE_UNAVAILABLE_503" ||
+        reason === "SITE_OVERLOADED_529" ||
+        reason === "MODEL_CAPACITY_EXHAUSTED") &&
+      backoffMs < MODEL_CAPACITY_MIN_BACKOFF_MS
+    ) {
+      backoffMs = MODEL_CAPACITY_MIN_BACKOFF_MS
     }
 
-    /**
-     * Mark a specific 3D vector as rate-limited without going through full judge flow.
-     * Used by handleRateLimitFallback when marking current vector before searching for fallback.
-     *
-     * Steps:
-     * 1. Extract reason from error (if provided)
-     * 2. Apply provider-specific backoff (cockpit/counter/passive)
-     * 3. Update tracker
-     * 4. Broadcast event
-     *
-     * @returns The calculated backoff info
-     */
-    export async function markRateLimited(
-        providerId: string,
-        accountId: string,
-        modelId: string,
-        error?: unknown,
-    ): Promise<JudgeResult | null> {
-        // Check if already marked
-        const rateLimitTracker = getRateLimitTracker()
-        if (rateLimitTracker.isRateLimited(accountId, providerId, modelId)) {
-            return null // Already marked, skip
-        }
+    // Step 6: Update trackers
+    const { Account } = await import("./index")
+    await Account.recordRateLimit(accountId, providerId, reason, backoffMs, modelId)
 
-        let reason: RateLimitReason = "RATE_LIMIT_EXCEEDED"
-        let retryAfterMs: number | undefined
+    log.info("Rate limit judged", {
+      providerId,
+      accountId,
+      modelId,
+      reason,
+      backoffMs,
+      source,
+      dailyFailures,
+      strategy,
+    })
 
-        if (error) {
-            const details = extractRateLimitDetails(error)
-            reason = details.reason
-            retryAfterMs = details.retryAfterMs
-        }
+    // Step 7: Broadcast event
+    const result: JudgeResult = { reason, backoffMs, source, dailyFailures }
 
-        // Only mark temporary errors — don't mark permanent errors like "model not found"
-        const isTemporary =
-            reason === "RATE_LIMIT_EXCEEDED" ||
-            reason === "RATE_LIMIT_SHORT" ||
-            reason === "RATE_LIMIT_LONG" ||
-            reason === "QUOTA_EXHAUSTED" ||
-            reason === "SERVICE_UNAVAILABLE_503" ||
-            reason === "SITE_OVERLOADED_529" ||
-            reason === "MODEL_CAPACITY_EXHAUSTED" ||
-            reason === "SERVER_ERROR" ||
-            reason === "UNKNOWN"
+    Bus.publish(RateLimitEvent.Detected, {
+      providerId,
+      accountId,
+      modelId,
+      reason,
+      backoffMs,
+      source,
+      dailyFailures,
+      timestamp: Date.now(),
+    }).catch(() => {})
 
-        if (!isTemporary) {
-            log.warn("Not marking as rate-limited: error reason is not temporary", {
-                providerId,
-                modelId,
-                reason,
-            })
-            return null
-        }
+    return result
+  }
 
-        // Calculate backoff
-        const dailyFailures = rateLimitTracker.incrementDailyFailureCount(accountId, providerId, modelId)
-        const consecutiveFailures = getHealthTracker().getConsecutiveFailures(accountId, providerId, modelId)
-        let backoffMs = calculateBackoffMs(reason, consecutiveFailures, retryAfterMs, dailyFailures)
-        let source: JudgeResult["source"] = "error-response"
+  /**
+   * Record a successful request — clear rate limit state and broadcast Cleared event.
+   *
+   * Replaces llm.ts recordSuccess() inline logic.
+   */
+  export async function recordSuccess(providerId: string, accountId: string, modelId: string): Promise<void> {
+    log.info("Recording success", { providerId, accountId, modelId })
 
-        // Apply provider-specific strategy
-        const strategy = getBackoffStrategy(providerId)
+    const { Account } = await import("./index")
+    await Account.recordSuccess(accountId, providerId)
 
-        if (strategy === "cockpit" && reason !== "TOKEN_REFRESH_FAILED") {
-            const cockpitResult = await fetchCockpitBackoff(providerId, accountId, modelId, backoffMs)
-            if (cockpitResult.fromCockpit) {
-                backoffMs = cockpitResult.backoffMs
-                source = "cockpit"
-            }
-        }
+    // Clear rate limit for this specific 3D vector
+    const rateLimitTracker = getRateLimitTracker()
+    rateLimitTracker.clear(accountId, providerId, modelId)
 
-        if (strategy === "counter" || strategy === "passive") {
-            const inference = inferFromRequestLog(providerId, accountId, modelId, reason, backoffMs)
-            if (inference.adjusted) {
-                backoffMs = inference.backoffMs
-                source = inference.source
-            }
-        }
+    Bus.publish(RateLimitEvent.Cleared, {
+      providerId,
+      accountId,
+      modelId,
+      timestamp: Date.now(),
+    }).catch(() => {})
+  }
 
-        // Apply guardrails
-        if (
-            (reason === "SERVICE_UNAVAILABLE_503" ||
-                reason === "SITE_OVERLOADED_529" ||
-                reason === "MODEL_CAPACITY_EXHAUSTED") &&
-            backoffMs < MODEL_CAPACITY_MIN_BACKOFF_MS
-        ) {
-            backoffMs = MODEL_CAPACITY_MIN_BACKOFF_MS
-        }
+  /**
+   * Record an authentication failure — hard block + broadcast AuthFailed event.
+   *
+   * Replaces llm.ts onError auth handling (L303-337).
+   */
+  export async function recordAuthFailure(
+    providerId: string,
+    accountId: string,
+    modelId: string,
+    error: unknown,
+  ): Promise<void> {
+    log.error("Authentication failure recorded", { providerId, accountId, modelId })
 
-        // Mark in tracker
-        rateLimitTracker.markRateLimited(accountId, providerId, reason, backoffMs, modelId)
+    const { Account } = await import("./index")
+    await Account.recordFailure(accountId, providerId)
 
-        log.info("Marked current vector as rate-limited", {
-            providerId,
-            accountId,
-            modelId,
-            reason,
-            backoffMs,
-            source,
-        })
+    // Hard block for 1 hour
+    const rateLimitTracker = getRateLimitTracker()
+    rateLimitTracker.markRateLimited(accountId, providerId, "AUTH_FAILED", 3_600_000, modelId)
 
-        const result: JudgeResult = { reason, backoffMs, source, dailyFailures }
+    const errorMessage =
+      error instanceof Error ? error.message : typeof error === "string" ? error : "Authentication failed"
 
-        // Broadcast event
-        Bus.publish(RateLimitEvent.Detected, {
-            providerId,
-            accountId,
-            modelId,
-            reason,
-            backoffMs,
-            source,
-            dailyFailures,
-            timestamp: Date.now(),
-        }).catch(() => { })
+    Bus.publish(RateLimitEvent.AuthFailed, {
+      providerId,
+      accountId,
+      modelId,
+      message: errorMessage,
+      timestamp: Date.now(),
+    }).catch(() => {})
+  }
 
-        return result
+  /**
+   * Mark a specific 3D vector as rate-limited without going through full judge flow.
+   * Used by handleRateLimitFallback when marking current vector before searching for fallback.
+   *
+   * Steps:
+   * 1. Extract reason from error (if provided)
+   * 2. Apply provider-specific backoff (cockpit/counter/passive)
+   * 3. Update tracker
+   * 4. Broadcast event
+   *
+   * @returns The calculated backoff info
+   */
+  export async function markRateLimited(
+    providerId: string,
+    accountId: string,
+    modelId: string,
+    error?: unknown,
+  ): Promise<JudgeResult | null> {
+    // Check if already marked
+    const rateLimitTracker = getRateLimitTracker()
+    if (rateLimitTracker.isRateLimited(accountId, providerId, modelId)) {
+      return null // Already marked, skip
     }
+
+    let reason: RateLimitReason = "RATE_LIMIT_EXCEEDED"
+    let retryAfterMs: number | undefined
+
+    if (error) {
+      const details = extractRateLimitDetails(error)
+      reason = details.reason
+      retryAfterMs = details.retryAfterMs
+    }
+
+    // Only mark temporary errors — don't mark permanent errors like "model not found"
+    const isTemporary =
+      reason === "RATE_LIMIT_EXCEEDED" ||
+      reason === "RATE_LIMIT_SHORT" ||
+      reason === "RATE_LIMIT_LONG" ||
+      reason === "QUOTA_EXHAUSTED" ||
+      reason === "SERVICE_UNAVAILABLE_503" ||
+      reason === "SITE_OVERLOADED_529" ||
+      reason === "MODEL_CAPACITY_EXHAUSTED" ||
+      reason === "SERVER_ERROR" ||
+      reason === "UNKNOWN"
+
+    if (!isTemporary) {
+      log.warn("Not marking as rate-limited: error reason is not temporary", {
+        providerId,
+        modelId,
+        reason,
+      })
+      return null
+    }
+
+    // Calculate backoff
+    const dailyFailures = rateLimitTracker.incrementDailyFailureCount(accountId, providerId, modelId)
+    const consecutiveFailures = getHealthTracker().getConsecutiveFailures(accountId, providerId, modelId)
+    let backoffMs = calculateBackoffMs(reason, consecutiveFailures, retryAfterMs, dailyFailures)
+    let source: JudgeResult["source"] = "error-response"
+
+    // Apply provider-specific strategy
+    const strategy = getBackoffStrategy(providerId)
+
+    if (strategy === "cockpit" && reason !== "TOKEN_REFRESH_FAILED") {
+      const cockpitResult = await fetchCockpitBackoff(providerId, accountId, modelId, backoffMs)
+      if (cockpitResult.fromCockpit) {
+        backoffMs = cockpitResult.backoffMs
+        source = "cockpit"
+      }
+    }
+
+    if (strategy === "counter" || strategy === "passive") {
+      const inference = inferFromRequestLog(providerId, accountId, modelId, reason, backoffMs)
+      if (inference.adjusted) {
+        backoffMs = inference.backoffMs
+        source = inference.source
+      }
+    }
+
+    // Apply guardrails
+    if (
+      (reason === "SERVICE_UNAVAILABLE_503" ||
+        reason === "SITE_OVERLOADED_529" ||
+        reason === "MODEL_CAPACITY_EXHAUSTED") &&
+      backoffMs < MODEL_CAPACITY_MIN_BACKOFF_MS
+    ) {
+      backoffMs = MODEL_CAPACITY_MIN_BACKOFF_MS
+    }
+
+    // Mark in tracker
+    rateLimitTracker.markRateLimited(accountId, providerId, reason, backoffMs, modelId)
+
+    log.info("Marked current vector as rate-limited", {
+      providerId,
+      accountId,
+      modelId,
+      reason,
+      backoffMs,
+      source,
+    })
+
+    const result: JudgeResult = { reason, backoffMs, source, dailyFailures }
+
+    // Broadcast event
+    Bus.publish(RateLimitEvent.Detected, {
+      providerId,
+      accountId,
+      modelId,
+      reason,
+      backoffMs,
+      source,
+      dailyFailures,
+      timestamp: Date.now(),
+    }).catch(() => {})
+
+    return result
+  }
 }
 
 // ============================================================================
@@ -424,78 +420,78 @@ export namespace RateLimitJudge {
  * 4. Returns the cockpit-sourced backoff or the fallback value
  */
 async function fetchCockpitBackoff(
-    providerId: string,
-    accountId: string,
-    modelId: string,
-    fallbackBackoffMs: number,
+  providerId: string,
+  accountId: string,
+  modelId: string,
+  fallbackBackoffMs: number,
 ): Promise<{ backoffMs: number; fromCockpit: boolean }> {
-    try {
-        const { Account } = await import("./index")
-        const { getCockpitBackoffMs } = await import("../plugin/antigravity/plugin/quota")
-        const { refreshAccessToken } = await import("../plugin/antigravity/plugin/token")
-        const { formatRefreshParts } = await import("../plugin/antigravity/plugin/auth")
+  try {
+    const { Account } = await import("./index")
+    const { getCockpitBackoffMs } = await import("../plugin/antigravity/plugin/quota")
+    const { refreshAccessToken } = await import("../plugin/antigravity/plugin/token")
+    const { formatRefreshParts } = await import("../plugin/antigravity/plugin/auth")
 
-        const info = await Account.get(providerId, accountId)
-        if (!info || info.type !== "subscription") {
-            return { backoffMs: fallbackBackoffMs, fromCockpit: false }
-        }
-
-        // Build auth details from account info
-        type OAuthAuthDetails = {
-            type: "oauth"
-            refresh: string
-            access?: string
-            expires?: number
-        }
-
-        let auth: OAuthAuthDetails = {
-            type: "oauth",
-            refresh: formatRefreshParts({
-                refreshToken: info.refreshToken,
-                projectId: info.projectId,
-                managedProjectId: info.managedProjectId,
-            }),
-            access: info.accessToken,
-            expires: info.expiresAt,
-        }
-
-        // Refresh token if expired or about to expire
-        if (!auth.access || !auth.expires || Date.now() >= auth.expires - 300_000) {
-            const noopClient = { auth: { set: async () => true } } as any
-            const refreshed = await refreshAccessToken(auth, noopClient, providerId)
-            if (refreshed) {
-                auth = refreshed
-            } else {
-                return { backoffMs: fallbackBackoffMs, fromCockpit: false }
-            }
-        }
-
-        const projectId = info.projectId || info.managedProjectId
-        if (!projectId || !auth.access) {
-            return { backoffMs: fallbackBackoffMs, fromCockpit: false }
-        }
-
-        const result = await getCockpitBackoffMs(auth.access, projectId, modelId, fallbackBackoffMs)
-
-        if (result.fromCockpit) {
-            log.info("Got backoff from cockpit", {
-                providerId,
-                accountId,
-                modelId,
-                backoffMs: result.backoffMs,
-            })
-        }
-
-        return result
-    } catch (e) {
-        log.warn("Failed to fetch cockpit backoff", {
-            providerId,
-            accountId,
-            modelId,
-            error: e instanceof Error ? e.message : String(e),
-        })
-        return { backoffMs: fallbackBackoffMs, fromCockpit: false }
+    const info = await Account.get(providerId, accountId)
+    if (!info || info.type !== "subscription") {
+      return { backoffMs: fallbackBackoffMs, fromCockpit: false }
     }
+
+    // Build auth details from account info
+    type OAuthAuthDetails = {
+      type: "oauth"
+      refresh: string
+      access?: string
+      expires?: number
+    }
+
+    let auth: OAuthAuthDetails = {
+      type: "oauth",
+      refresh: formatRefreshParts({
+        refreshToken: info.refreshToken,
+        projectId: info.projectId,
+        managedProjectId: info.managedProjectId,
+      }),
+      access: info.accessToken,
+      expires: info.expiresAt,
+    }
+
+    // Refresh token if expired or about to expire
+    if (!auth.access || !auth.expires || Date.now() >= auth.expires - 300_000) {
+      const noopClient = { auth: { set: async () => true } } as any
+      const refreshed = await refreshAccessToken(auth, noopClient, providerId)
+      if (refreshed) {
+        auth = refreshed
+      } else {
+        return { backoffMs: fallbackBackoffMs, fromCockpit: false }
+      }
+    }
+
+    const projectId = info.projectId || info.managedProjectId
+    if (!projectId || !auth.access) {
+      return { backoffMs: fallbackBackoffMs, fromCockpit: false }
+    }
+
+    const result = await getCockpitBackoffMs(auth.access, projectId, modelId, fallbackBackoffMs)
+
+    if (result.fromCockpit) {
+      log.info("Got backoff from cockpit", {
+        providerId,
+        accountId,
+        modelId,
+        backoffMs: result.backoffMs,
+      })
+    }
+
+    return result
+  } catch (e) {
+    log.warn("Failed to fetch cockpit backoff", {
+      providerId,
+      accountId,
+      modelId,
+      error: e instanceof Error ? e.message : String(e),
+    })
+    return { backoffMs: fallbackBackoffMs, fromCockpit: false }
+  }
 }
 
 // ============================================================================
@@ -514,34 +510,34 @@ async function fetchCockpitBackoff(
  * - llm.ts handleRateLimitFallback (L799-814)
  */
 function inferFromRequestLog(
-    providerId: string,
-    accountId: string,
-    modelId: string,
-    reason: RateLimitReason,
-    currentBackoffMs: number,
+  providerId: string,
+  accountId: string,
+  modelId: string,
+  reason: RateLimitReason,
+  currentBackoffMs: number,
 ): { backoffMs: number; source: "rpm-inference" | "rpd-inference"; adjusted: boolean } {
-    const monitor = RequestMonitor.get()
-    const stats = monitor.getStats(providerId, accountId, modelId)
-    const limits = monitor.getModelLimits(providerId, modelId)
-    const isNotRPMViolation = stats.rpm < limits.rpm
+  const monitor = RequestMonitor.get()
+  const stats = monitor.getStats(providerId, accountId, modelId)
+  const limits = monitor.getModelLimits(providerId, modelId)
+  const isNotRPMViolation = stats.rpm < limits.rpm
 
-    if (isNotRPMViolation && reason !== "RATE_LIMIT_SHORT") {
-        const msUntilReset = getNextQuotaReset() - Date.now()
-        const adjustedBackoff = Math.max(msUntilReset, 60_000)
+  if (isNotRPMViolation && reason !== "RATE_LIMIT_SHORT") {
+    const msUntilReset = getNextQuotaReset() - Date.now()
+    const adjustedBackoff = Math.max(msUntilReset, 60_000)
 
-        log.info("Detected RPD violation (RPM below limit), cooling down until quota reset", {
-            providerId,
-            accountId,
-            modelId,
-            rpm: stats.rpm,
-            rpmLimit: limits.rpm,
-            backoffMinutes: Math.round(adjustedBackoff / 60_000),
-        })
+    log.info("Detected RPD violation (RPM below limit), cooling down until quota reset", {
+      providerId,
+      accountId,
+      modelId,
+      rpm: stats.rpm,
+      rpmLimit: limits.rpm,
+      backoffMinutes: Math.round(adjustedBackoff / 60_000),
+    })
 
-        return { backoffMs: adjustedBackoff, source: "rpd-inference", adjusted: true }
-    }
+    return { backoffMs: adjustedBackoff, source: "rpd-inference", adjusted: true }
+  }
 
-    return { backoffMs: currentBackoffMs, source: "rpm-inference", adjusted: false }
+  return { backoffMs: currentBackoffMs, source: "rpm-inference", adjusted: false }
 }
 
 // ============================================================================
@@ -549,28 +545,28 @@ function inferFromRequestLog(
 // ============================================================================
 
 export function formatRateLimitReason(reason: RateLimitReason): string {
-    switch (reason) {
-        case "QUOTA_EXHAUSTED":
-            return "Quota exhausted"
-        case "RATE_LIMIT_EXCEEDED":
-            return "Rate limit exceeded"
-        case "RATE_LIMIT_SHORT":
-            return "RPM/TPM limit"
-        case "RATE_LIMIT_LONG":
-            return "Daily limit"
-        case "SERVICE_UNAVAILABLE_503":
-            return "Service unavailable (503)"
-        case "SITE_OVERLOADED_529":
-            return "Site overloaded (529)"
-        case "MODEL_CAPACITY_EXHAUSTED":
-            return "Model at capacity"
-        case "SERVER_ERROR":
-            return "Server error"
-        case "AUTH_FAILED":
-            return "Authentication failed"
-        case "TOKEN_REFRESH_FAILED":
-            return "Token refresh failed"
-        default:
-            return "Rate limited"
-    }
+  switch (reason) {
+    case "QUOTA_EXHAUSTED":
+      return "Quota exhausted"
+    case "RATE_LIMIT_EXCEEDED":
+      return "Rate limit exceeded"
+    case "RATE_LIMIT_SHORT":
+      return "RPM/TPM limit"
+    case "RATE_LIMIT_LONG":
+      return "Daily limit"
+    case "SERVICE_UNAVAILABLE_503":
+      return "Service unavailable (503)"
+    case "SITE_OVERLOADED_529":
+      return "Site overloaded (529)"
+    case "MODEL_CAPACITY_EXHAUSTED":
+      return "Model at capacity"
+    case "SERVER_ERROR":
+      return "Server error"
+    case "AUTH_FAILED":
+      return "Authentication failed"
+    case "TOKEN_REFRESH_FAILED":
+      return "Token refresh failed"
+    default:
+      return "Rate limited"
+  }
 }

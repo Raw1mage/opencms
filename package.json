@@ -6,7 +6,7 @@
   "type": "module",
   "packageManager": "bun@1.3.9",
   "scripts": {
-    "dev": "OPENCODE_DEBUG_LOG=1 bun run sync:back && bash script/dev-sync-config.sh && bun --conditions=browser ./packages/opencode/src/index.ts",
+    "dev": "OPENCODE_DEBUG_LOG=1 bun run sync:back && bash script/dev-sync-config.sh && OPENCODE_DEBUG_LOG=1 bun --conditions=browser ./packages/opencode/src/index.ts",
     "check": "bun run lint && bun run typecheck",
     "lint": "eslint .",
     "typecheck": "bun turbo typecheck",
