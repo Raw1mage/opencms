@@ -202,7 +202,7 @@ export namespace LLM {
       mergeDeep(variant),
     )
     if (usesInstructions) {
-      options.instructions = SystemPrompt.instructions()
+      options.instructions = await SystemPrompt.instructions()
     }
 
     const params = await Plugin.trigger(
@@ -294,6 +294,20 @@ export namespace LLM {
 
     // Get account ID for rate limit tracking
     const accountId = currentAccountId
+    const requestProviderOptions = ProviderTransform.providerOptions(input.model, params.options)
+
+    const serializeError = (err: unknown): unknown => {
+      if (!(err instanceof Error)) return err
+      const base: Record<string, unknown> = {
+        name: err.name,
+        message: err.message,
+        stack: err.stack,
+      }
+      const withCause = err as Error & { cause?: unknown; issues?: unknown }
+      if (withCause.cause !== undefined) base.cause = serializeError(withCause.cause)
+      if (withCause.issues !== undefined) base.issues = withCause.issues
+      return base
+    }
 
     return streamText({
       onFinish: async (event) => {
@@ -304,9 +318,7 @@ export namespace LLM {
         RequestMonitor.get().recordRequest(input.model.providerId, accountId || "unknown", input.model.id, totalTokens)
       },
       async onError(error) {
-        l.error("stream error", {
-          error: error instanceof Error ? { message: error.message, stack: error.stack, name: error.name } : error,
-        })
+        l.error("stream error", { error: serializeError(error) })
 
         if (!accountId) return
 
@@ -369,7 +381,7 @@ export namespace LLM {
       temperature: params.temperature,
       topP: params.topP,
       topK: params.topK,
-      providerOptions: ProviderTransform.providerOptions(input.model, params.options),
+      providerOptions: requestProviderOptions,
       activeTools: Object.keys(tools).filter((x) => x !== "invalid"),
       tools,
       maxOutputTokens,
