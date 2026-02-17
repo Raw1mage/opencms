@@ -17,6 +17,50 @@ function mimeToModality(mime: string): Modality | undefined {
 }
 
 export namespace ProviderTransform {
+  const SDK_CONSTRUCTOR_OPTION_KEYS = new Set([
+    "apiKey",
+    "baseURL",
+    "headers",
+    "fetch",
+    "name",
+    "organization",
+    "project",
+    "timeout",
+  ])
+
+  const OPENAI_REQUEST_OPTION_KEYS = new Set([
+    "conversation",
+    "include",
+    "instructions",
+    "logprobs",
+    "maxCompletionTokens",
+    "maxToolCalls",
+    "metadata",
+    "parallelToolCalls",
+    "prediction",
+    "previousResponseId",
+    "promptCacheKey",
+    "promptCacheRetention",
+    "reasoningEffort",
+    "reasoningSummary",
+    "safetyIdentifier",
+    "serviceTier",
+    "store",
+    "strictJsonSchema",
+    "structuredOutputs",
+    "textVerbosity",
+    "truncation",
+    "user",
+  ])
+
+  function requestOptions(options: Record<string, any>) {
+    const sanitized = { ...options }
+    for (const key of SDK_CONSTRUCTOR_OPTION_KEYS) {
+      delete sanitized[key]
+    }
+    return sanitized
+  }
+
   // Maps npm package to the key the AI SDK expects for providerOptions
   function sdkKey(npm: string): string | undefined {
     switch (npm) {
@@ -797,7 +841,15 @@ export namespace ProviderTransform {
 
   export function providerOptions(model: Provider.Model, options: { [x: string]: any }) {
     const key = sdkKey(model.api.npm) ?? model.providerId
-    return { [key]: options }
+    const sanitized = requestOptions(options)
+    if (model.api.npm === "@ai-sdk/openai") {
+      for (const candidate of Object.keys(sanitized)) {
+        if (!OPENAI_REQUEST_OPTION_KEYS.has(candidate)) {
+          delete sanitized[candidate]
+        }
+      }
+    }
+    return { [key]: sanitized }
   }
 
   export function maxOutputTokens(

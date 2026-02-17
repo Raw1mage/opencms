@@ -133,6 +133,36 @@ describe("ProviderTransform.smallOptions", () => {
   })
 })
 
+describe("ProviderTransform.providerOptions", () => {
+  const model = {
+    providerId: "openai",
+    api: {
+      id: "gpt-5.3-codex",
+      npm: "@ai-sdk/openai",
+    },
+  } as any
+
+  test("strips SDK-constructor keys from request provider options", () => {
+    const result = ProviderTransform.providerOptions(model, {
+      apiKey: "test-key",
+      fetch: () => Promise.resolve(new Response()),
+      baseURL: "https://api.openai.com/v1",
+      reasoningEffort: "medium",
+      include: ["reasoning.encrypted_content"],
+      store: false,
+      customFlag: true,
+    })
+
+    expect(result.openai.apiKey).toBeUndefined()
+    expect(result.openai.fetch).toBeUndefined()
+    expect(result.openai.baseURL).toBeUndefined()
+    expect(result.openai.reasoningEffort).toBe("medium")
+    expect(result.openai.include).toEqual(["reasoning.encrypted_content"])
+    expect(result.openai.store).toBe(false)
+    expect(result.openai.customFlag).toBeUndefined()
+  })
+})
+
 describe("ProviderTransform.maxOutputTokens", () => {
   test("returns 32k when modelLimit > 32k", () => {
     const modelLimit = 100000
