@@ -50,30 +50,30 @@ export interface PluginContext {
 
 export type AuthPrompt =
   | {
-      type: "text"
-      key: string
-      message: string
-      placeholder?: string
-      validate?: (value: string) => string | undefined
-      condition?: (inputs: Record<string, string>) => boolean
-    }
+    type: "text"
+    key: string
+    message: string
+    placeholder?: string
+    validate?: (value: string) => string | undefined
+    condition?: (inputs: Record<string, string>) => boolean
+  }
   | {
-      type: "select"
-      key: string
-      message: string
-      options: Array<{ label: string; value: string; hint?: string }>
-      condition?: (inputs: Record<string, string>) => boolean
-    }
+    type: "select"
+    key: string
+    message: string
+    options: Array<{ label: string; value: string; hint?: string }>
+    condition?: (inputs: Record<string, string>) => boolean
+  }
 
 export type OAuthAuthorizationResult = { url: string; instructions: string } & (
   | {
-      method: "auto"
-      callback: () => Promise<AntigravityTokenExchangeResult>
-    }
+    method: "auto"
+    callback: () => Promise<AntigravityTokenExchangeResult>
+  }
   | {
-      method: "code"
-      callback: (code: string) => Promise<AntigravityTokenExchangeResult>
-    }
+    method: "code"
+    callback: (code: string) => Promise<AntigravityTokenExchangeResult>
+  }
 )
 
 export interface AuthMethod {
@@ -94,7 +94,7 @@ export interface PluginEventPayload {
 export interface PluginResult {
   auth: {
     provider: string
-    loader: (getAuth: GetAuth, provider: Provider) => Promise<LoaderResult | Record<string, unknown>>
+    loader: (getAuth: GetAuth, provider: Provider) => Promise<LoaderResult | Record<string, unknown> | null>
     methods: AuthMethod[]
   }
   event?: (payload: PluginEventPayload) => void
@@ -243,12 +243,12 @@ export interface AntigravityRequestPayload {
   contents?: GeminiContent[]
   messages?: unknown[] // Anthropic style messages
   systemInstruction?:
-    | {
-        role?: string
-        parts: GeminiPart[]
-      }
-    | string
-    | { parts: { text: string }[] }
+  | {
+    role?: string
+    parts: GeminiPart[]
+  }
+  | string
+  | { parts: { text: string }[] }
   tools?: unknown[]
   toolConfig?: unknown
   generationConfig?: Record<string, unknown>

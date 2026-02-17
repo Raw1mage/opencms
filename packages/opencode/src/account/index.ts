@@ -144,7 +144,7 @@ export namespace Account {
             to: filepath,
             size: legacySize,
           })
-          await fs.mkdir(path.dirname(filepath), { recursive: true }).catch(() => {})
+          await fs.mkdir(path.dirname(filepath), { recursive: true }).catch(() => { })
           try {
             await fs.rename(legacyOpencodeFilepath, filepath)
           } catch (error) {
@@ -153,7 +153,7 @@ export namespace Account {
             await fs.copyFile(legacyOpencodeFilepath, filepath)
             await fs.rm(legacyOpencodeFilepath, { force: true })
           }
-          await fs.chmod(filepath, 0o600).catch(() => {})
+          await fs.chmod(filepath, 0o600).catch(() => { })
           exists = true
         }
       }
@@ -164,7 +164,7 @@ export namespace Account {
       const legacyFile = Bun.file(legacyFilepath)
       if (await legacyFile.exists()) {
         log.info("Migrating accounts.json from legacy path", { from: legacyFilepath, to: filepath })
-        await fs.mkdir(path.dirname(filepath), { recursive: true }).catch(() => {})
+        await fs.mkdir(path.dirname(filepath), { recursive: true }).catch(() => { })
         await Bun.write(filepath, await legacyFile.text())
         await fs.chmod(filepath, 0o600)
         exists = true
@@ -254,14 +254,21 @@ export namespace Account {
   async function save(storage: Storage): Promise<void> {
     debugCheckpoint("Account.save", "Writing", { path: filepath })
     try {
-      const file = Bun.file(filepath)
       const content = JSON.stringify(storage, null, 2)
       debugCheckpoint("Account.save", "Content ready", {
         length: content.length,
         families: Object.keys(storage.families),
       })
-      await Bun.write(file, content)
+
+      // Primary save to ~/.config
+      await Bun.write(filepath, content)
       await fs.chmod(filepath, 0o600)
+
+      // Shadow save to ~/.local/share (just in case)
+      await fs.mkdir(path.dirname(legacyFilepath), { recursive: true }).catch(() => { })
+      await Bun.write(legacyFilepath, content)
+      await fs.chmod(legacyFilepath, 0o600).catch(() => { })
+
       _mtime = await getDiskMtime()
       debugCheckpoint("Account.save", "Write successful")
     } catch (e) {
@@ -521,8 +528,21 @@ export namespace Account {
   export async function getActiveInfo(provider: string): Promise<Info | undefined> {
     const storage = await state()
     const activeId = storage.families[provider]?.activeAccount
+    debugCheckpoint("account", "getActiveInfo", {
+      provider,
+      activeId,
+      hasFamilyEntry: !!storage.families[provider],
+      familyKeys: Object.keys(storage.families),
+    })
     if (!activeId) return undefined
-    return storage.families[provider]?.accounts[activeId]
+    const info = storage.families[provider]?.accounts[activeId]
+    debugCheckpoint("account", "getActiveInfo result", {
+      provider,
+      activeId,
+      hasInfo: !!info,
+      infoType: info?.type,
+    })
+    return info
   }
 
   /**
@@ -785,8 +805,8 @@ export namespace Account {
               provider,
               "subscription",
               (typeof authInfo.accountId === "string" ? authInfo.accountId : undefined) ||
-                providerId.replace(`${provider}-`, "") ||
-                "default",
+              providerId.replace(`${provider}-`, "") ||
+              "default",
             )
             storage.families[provider].accounts[accountId] = {
               type: "subscription",

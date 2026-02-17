@@ -10,7 +10,7 @@ import { Link } from "../ui/link"
 import { useTheme } from "../context/theme"
 import { TextAttributes } from "@opentui/core"
 import type { ProviderAuthAuthorization } from "@opencode-ai/sdk/v2"
-import { DialogModel } from "./dialog-model"
+// DialogModel import removed - no longer showing model selection after account addition
 import { useKeyboard } from "@opentui/solid"
 import { Clipboard } from "@tui/util/clipboard"
 import { useToast } from "../ui/toast"
@@ -189,7 +189,8 @@ function AutoMethod(props: AutoMethodProps) {
     }
     await sdk.client.instance.dispose()
     await sync.bootstrap()
-    dialog.replace(() => <DialogModel providerId={props.providerId} />)
+    // Return to account manager instead of showing legacy model selection page
+    dialog.clear()
   })
 
   return (
@@ -260,7 +261,8 @@ function CodeMethod(props: CodeMethodProps) {
           toast.show({ message: "Authentication successful!", variant: "success" })
           await sdk.client.instance.dispose()
           await sync.bootstrap()
-          dialog.replace(() => <DialogModel providerId={props.providerId} />)
+          // Return to account manager instead of showing legacy model selection page
+          dialog.clear()
           return
         }
         setError(true)
