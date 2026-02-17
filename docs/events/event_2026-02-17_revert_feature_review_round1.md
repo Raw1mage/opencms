@@ -34,5 +34,6 @@ Goal: Evaluate **behavioral value** vs **stability risk** before any re-apply.
 - Implemented: status dialog version display (`63cd76341` target behavior).
 - Implemented: interactive `esc` dismiss affordance via shared `DialogDismiss` component (`32394b699` target behavior).
 - Implemented: models.dev schema metadata on config model fields (`8c8d88814` target behavior with compatibility-preserving scope).
-- Implemented: guarded favorite-model auto-cycle on rate-limit retry before opening admin dialog (`dc5b85188` target behavior, adapted to current code).
+- Reverted after review: guarded favorite-model auto-cycle on rate-limit retry (`dc5b85188` related behavior) was removed to preserve rotation central-control authority and avoid duplicate fallback logic in TUI.
+- Final decision for `dc5b85188`: keep this behavior out of TUI layer; any retry/fallback strategy changes must stay in session/rotation central path.
 - Decision change for plugin exports (`c5dc075a8`): direct `dist` exports break monorepo typecheck; kept source exports and retained publish-time rewrite mechanism.
