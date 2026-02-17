@@ -19,6 +19,7 @@ import { ProcessSupervisor } from "@/process/supervisor"
 import { SessionStatus } from "@/session/status"
 import { Question } from "@/question"
 import { Todo } from "@/session/todo"
+import { ActivityBeacon } from "@/util/activity-beacon"
 
 // NOTE: @event_task_tool_complex_input
 // Updated schema to support both simple string and complex structured input.
@@ -97,8 +98,10 @@ function toolWhitelistForSubagent(agentName: string): string[] | undefined {
 const BRIDGE_PREFIX = "__OPENCODE_BRIDGE_EVENT__ "
 const WORKER_PREFIX = "__OPENCODE_WORKER__ "
 const WORKER_READY_TIMEOUT_MS = 15_000
+const beacon = ActivityBeacon.scope("tool.task")
 
 async function publishBridgedEvent(event: { type: string; properties: any }) {
+  beacon.hit("bridge.publish")
   switch (event.type) {
     case MessageV2.Event.Updated.type:
       await Bus.publish(MessageV2.Event.Updated, event.properties)
@@ -200,9 +203,11 @@ function buildWorkerCmd() {
 function removeWorker(id: string) {
   const index = workers.findIndex((w) => w.id === id)
   if (index >= 0) workers.splice(index, 1)
+  beacon.setGauge("worker.total", workers.length)
 }
 
 function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
+  beacon.hit("worker.spawn")
   const workerID = `task-worker-${++workerSeq}`
   const proc = Bun.spawn(buildWorkerCmd(), {
     env: {
@@ -215,7 +220,7 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
     stderr: "inherit",
   })
 
-  let readyResolve = () => { }
+  let readyResolve = () => {}
   const readyPromise = new Promise<void>((resolve) => {
     readyResolve = resolve
   })
@@ -229,6 +234,7 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
     readyResolve,
   }
   workers.push(worker)
+  beacon.setGauge("worker.total", workers.length)
 
   ProcessSupervisor.register({
     id: workerID,
@@ -237,7 +243,7 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
   })
 
   const log = Log.create({ service: "task.worker" })
-  ; (async () => {
+  ;(async () => {
     const reader = proc.stdout?.getReader()
     if (!reader) return
     const decoder = new TextDecoder()
@@ -255,10 +261,12 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
         buffer = buffer.slice(newline + 1)
 
         if (line.startsWith(BRIDGE_PREFIX)) {
+          beacon.hit("worker.bridge_line")
           const payload = line.slice(BRIDGE_PREFIX.length)
           try {
             const event = JSON.parse(payload)
             bridgedEvents += 1
+            beacon.hit("worker.bridge_event")
             const sid = extractEventSessionID(event)
             if (worker.current && sid === worker.current.sessionID) {
               const now = Date.now()
@@ -266,10 +274,11 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
               worker.current.lastEventAt = now
               if (!worker.current.firstEventAt) worker.current.firstEventAt = now
             }
-            void publishBridgedEvent(event).catch(() => { })
+            void publishBridgedEvent(event).catch(() => {})
           } catch {
             // ignore invalid bridge payload
             bridgeParseErrors += 1
+            beacon.hit("worker.bridge_parse_error")
           }
           continue
         }
@@ -284,6 +293,7 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
         }
 
         if (msg?.type === "ready") {
+          beacon.hit("worker.ready")
           worker.ready = true
           worker.readyResolve()
           worker.lastHeartbeatAt = Date.now()
@@ -291,11 +301,13 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
         }
 
         if (msg?.type === "heartbeat") {
+          beacon.hit("worker.heartbeat")
           worker.lastHeartbeatAt = Date.now()
           continue
         }
 
         if (msg?.type === "done" && worker.current?.id === msg.id) {
+          beacon.hit("worker.done")
           const req = worker.current
           worker.current = undefined
           worker.busy = false
@@ -317,6 +329,7 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
         }
 
         if (msg?.type === "canceled" && worker.current?.sessionID === msg.sessionID) {
+          beacon.hit("worker.canceled")
           const req = worker.current
           worker.current = undefined
           worker.busy = false
@@ -327,6 +340,7 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
         }
 
         if (msg?.type === "error") {
+          beacon.hit("worker.error")
           if (worker.current && msg.id === worker.current.id) {
             const req = worker.current
             worker.current = undefined
@@ -357,6 +371,9 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
 }
 
 async function getReadyWorker(config: Awaited<ReturnType<typeof Config.get>>) {
+  beacon.hit("worker.get_ready")
+  beacon.setGauge("worker.busy", workers.filter((w) => w.busy).length)
+  beacon.setGauge("worker.ready", workers.filter((w) => w.ready).length)
   const log = Log.create({ service: "task.worker" })
   const idleReady = workers.find((w) => !w.busy && w.ready)
   if (idleReady) return idleReady
@@ -375,6 +392,7 @@ async function getReadyWorker(config: Awaited<ReturnType<typeof Config.get>>) {
 }
 
 async function ensureStandbyWorker(config: Awaited<ReturnType<typeof Config.get>>) {
+  beacon.hit("worker.ensure_standby")
   const log = Log.create({ service: "task.worker" })
   if (workers.some((w) => !w.busy && w.ready)) return
   if (standbySpawn) return standbySpawn
@@ -394,14 +412,13 @@ async function ensureStandbyWorker(config: Awaited<ReturnType<typeof Config.get>
   return standbySpawn
 }
 
-async function dispatchToWorker(
-  input: {
-    sessionID: string
-    config: Awaited<ReturnType<typeof Config.get>>
-    abort: AbortSignal
-    onPhase?: (phase: string, data?: Record<string, unknown>) => void
-  },
-) {
+async function dispatchToWorker(input: {
+  sessionID: string
+  config: Awaited<ReturnType<typeof Config.get>>
+  abort: AbortSignal
+  onPhase?: (phase: string, data?: Record<string, unknown>) => void
+}) {
+  beacon.hit("worker.dispatch")
   let worker: TaskWorker | undefined
   let requestID: string | undefined
   const onAbort = () => {
@@ -411,11 +428,11 @@ async function dispatchToWorker(
       const stdin = worker.proc.stdin
       if (typeof stdin !== "number") {
         stdin?.write(
-        JSON.stringify({
-          type: "cancel",
-          id: requestID,
-          sessionID: input.sessionID,
-        }) + "\n",
+          JSON.stringify({
+            type: "cancel",
+            id: requestID,
+            sessionID: input.sessionID,
+          }) + "\n",
         )
       }
       input.onPhase?.("worker_cancel_sent", { workerID: worker.id, requestID })
@@ -428,6 +445,7 @@ async function dispatchToWorker(
     if (input.abort.aborted) throw new Error("task canceled before worker assignment")
 
     worker = await getReadyWorker(input.config)
+    beacon.hit("worker.assigned")
     input.onPhase?.("worker_assigned", { workerID: worker.id })
     if (input.abort.aborted) {
       throw new Error("task canceled before worker dispatch")
@@ -452,16 +470,17 @@ async function dispatchToWorker(
     const stdin = worker.proc.stdin
     if (typeof stdin !== "number") {
       stdin?.write(
-      JSON.stringify({
-        type: "run",
-        id: requestID,
-        sessionID: input.sessionID,
-      }) + "\n",
+        JSON.stringify({
+          type: "run",
+          id: requestID,
+          sessionID: input.sessionID,
+        }) + "\n",
       )
     }
     input.onPhase?.("worker_dispatched", { workerID: worker.id, requestID })
 
     const result = await done
+    beacon.hit("worker.result")
     input.onPhase?.("worker_done", {
       workerID: result.workerID,
       requestID: result.requestID,
@@ -560,15 +579,15 @@ export const TaskTool = Tool.define("task", async (ctx) => {
 
       const session = await iife(async () => {
         if (params.session_id) {
-          const found = await Session.get(params.session_id).catch(() => { })
+          const found = await Session.get(params.session_id).catch(() => {})
           if (found) return found
         }
 
         const narrowedPermissions: PermissionNext.Ruleset = toolWhitelist
           ? [
-            { permission: "*", pattern: "*", action: "deny" },
-            ...toolWhitelist.map((permission) => ({ permission, pattern: "*", action: "allow" as const })),
-          ]
+              { permission: "*", pattern: "*", action: "deny" },
+              ...toolWhitelist.map((permission) => ({ permission, pattern: "*", action: "allow" as const })),
+            ]
           : []
 
         return await Session.create({
@@ -589,12 +608,12 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             ...(hasTaskPermission
               ? []
               : [
-                {
-                  permission: "task" as const,
-                  pattern: "*" as const,
-                  action: "deny" as const,
-                },
-              ]),
+                  {
+                    permission: "task" as const,
+                    pattern: "*" as const,
+                    action: "deny" as const,
+                  },
+                ]),
             ...(config.experimental?.primary_tools?.map((t) => ({
               pattern: "*",
               action: "allow" as const,
@@ -611,9 +630,9 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       const modelArg = params.model ? Provider.parseModel(params.model) : undefined
       const model = modelArg ??
         agent.model ?? {
-        modelID: msg.info.modelID,
-        providerId: msg.info.providerId,
-      }
+          modelID: msg.info.modelID,
+          providerId: msg.info.providerId,
+        }
 
       debugCheckpoint("task", "Model resolved for subagent", {
         modelArg,
@@ -730,11 +749,18 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       // This prevents zombie processes that hang indefinitely
       const SUBAGENT_TIMEOUT_MS = config.experimental?.task_timeout ?? 10 * 60 * 1000
 
-      // Activity tracking: sample child session state from storage.
-      // Child process events are not available via the in-process bus.
+      // Activity tracking strategy (v2): heartbeat/event-first with low-frequency storage fallback.
+      // Keep orphan/zombie safety by preserving stale detection + supervisor stall markers.
       let lastActivityTime = Date.now()
       let lastSignature = ""
-      const ACTIVITY_POLL_INTERVAL_MS = 2_000
+      let lastFallbackPollAt = 0
+
+      const updateActivity = () => {
+        lastActivityTime = Date.now()
+        if (ctx.callID) ProcessSupervisor.touch(ctx.callID)
+      }
+
+      const FALLBACK_POLL_INTERVAL_MS = 60_000
       const sampleChildActivity = async () => {
         const messages = await Session.messages({ sessionID: session.id })
         const last = messages.at(-1)?.info
@@ -742,27 +768,45 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         const signature = `${messages.length}:${last?.id ?? ""}:${lastTime?.completed ?? lastTime?.created ?? 0}`
         if (signature !== lastSignature) {
           lastSignature = signature
-          lastActivityTime = Date.now()
-          if (ctx.callID) ProcessSupervisor.touch(ctx.callID)
+          updateActivity()
+          return true
         }
+        return false
       }
-      await sampleChildActivity()
-      const activityPoll = setInterval(() => {
-        void sampleChildActivity().catch((error) => {
-          Log.create({ service: "task" }).debug("Failed to poll subagent activity", {
-            callID: ctx.callID,
-            sessionID: session.id,
-            error: error instanceof Error ? error.message : String(error),
-          })
-        })
-      }, ACTIVITY_POLL_INTERVAL_MS)
+
+      // Prime baseline once, then rely on worker heartbeat/events unless stale.
+      await sampleChildActivity().catch(() => false)
 
       // Heartbeat check: if no activity for too long, process may be zombified
-      const HEARTBEAT_INTERVAL_MS = 30_000 // Check every 30 seconds
+      const HEARTBEAT_INTERVAL_MS = 10_000 // Check frequently with cheap in-memory signals
       const HEARTBEAT_STALE_MS = 120_000 // Consider stale after 2 minutes of no activity
 
       const heartbeatTimer = setInterval(() => {
+        const worker = assignedWorkerID ? workers.find((w) => w.id === assignedWorkerID) : undefined
+        const workerHeartbeatAge = worker?.lastHeartbeatAt ? Date.now() - worker.lastHeartbeatAt : undefined
+        const workerEventAge = worker?.current?.lastEventAt ? Date.now() - worker.current.lastEventAt : undefined
+
+        if (
+          (workerHeartbeatAge !== undefined && workerHeartbeatAge < HEARTBEAT_STALE_MS) ||
+          (workerEventAge !== undefined && workerEventAge < HEARTBEAT_STALE_MS)
+        ) {
+          updateActivity()
+        }
+
         const staleDuration = Date.now() - lastActivityTime
+
+        // Emergency storage probe only when activity appears stale and not too frequently.
+        if (staleDuration > HEARTBEAT_INTERVAL_MS && Date.now() - lastFallbackPollAt > FALLBACK_POLL_INTERVAL_MS) {
+          lastFallbackPollAt = Date.now()
+          void sampleChildActivity().catch((error) => {
+            Log.create({ service: "task" }).debug("Failed to fallback-poll subagent activity", {
+              callID: ctx.callID,
+              sessionID: session.id,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          })
+        }
+
         if (staleDuration > HEARTBEAT_STALE_MS) {
           if (ctx.callID) ProcessSupervisor.markStalled(ctx.callID)
           Log.create({ service: "task" }).warn("Subagent appears stalled, no activity detected", {
@@ -822,7 +866,6 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             result.type === "done" && result.run.firstEventAt ? result.run.firstEventAt - startedAt : undefined,
         })
       } finally {
-        clearInterval(activityPoll)
         clearInterval(heartbeatTimer)
         ctx.abort.removeEventListener("abort", cleanup)
         unsub()

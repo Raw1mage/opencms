@@ -108,8 +108,27 @@ export const SessionRoutes = lazy(() =>
           ...errors(400),
         },
       }),
+      validator(
+        "query",
+        z.object({
+          sessionID: z.string().optional().meta({ description: "Restrict monitor snapshot to one session" }),
+          includeDescendants: z.coerce
+            .boolean()
+            .optional()
+            .meta({ description: "Include descendant sessions when sessionID is provided" }),
+          maxMessages: z.coerce
+            .number()
+            .optional()
+            .meta({ description: "Limit messages scanned per session for monitor snapshot" }),
+        }),
+      ),
       async (c) => {
-        const result = await SessionMonitor.snapshot()
+        const query = c.req.valid("query")
+        const result = await SessionMonitor.snapshot({
+          sessionID: query.sessionID,
+          includeDescendants: query.includeDescendants,
+          maxMessages: query.maxMessages,
+        })
         return c.json(result)
       },
     )

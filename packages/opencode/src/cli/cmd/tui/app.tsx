@@ -53,6 +53,7 @@ import { PromptRefProvider, usePromptRef } from "./context/prompt"
 import { debugCheckpoint } from "@/util/debug"
 import { Env } from "@/env"
 import { clone } from "remeda"
+import { ActivityBeacon } from "@/util/activity-beacon"
 
 async function getTerminalBackgroundColor(): Promise<"dark" | "light"> {
   // FIX: terminal raw-mode probing can hang/derail some emulators/bridges.
@@ -156,6 +157,53 @@ export function tui(input: {
     }
 
     debugCheckpoint("tui.startup", "render_init")
+
+    const isVscodeTerminal =
+      process.env.TERM_PROGRAM === "vscode" ||
+      !!process.env.VSCODE_PID ||
+      !!process.env.VSCODE_IPC_HOOK_CLI ||
+      !!process.env.VSCODE_INJECTION
+
+    // Performance: allow lowering TUI render FPS.
+    // VS Code integrated terminal tends to be more CPU-sensitive, so we default lower there.
+    const targetFps = (() => {
+      const raw = process.env.OPENCODE_TUI_FPS
+      if (!raw) return isVscodeTerminal ? 15 : 60
+      const n = Number(raw)
+      if (!Number.isFinite(n)) return isVscodeTerminal ? 15 : 60
+      return Math.max(1, Math.min(60, Math.floor(n)))
+    })()
+
+    // Keep mouse clicks available by default for UI affordances (sidebar toggles, dialogs).
+    // High-churn motion events remain separately gated by OPENCODE_TUI_MOUSE_MOVE.
+    // Override with OPENCODE_TUI_MOUSE=1 or OPENCODE_TUI_MOUSE=0.
+    const useMouse = (() => {
+      const raw = process.env.OPENCODE_TUI_MOUSE
+      if (raw === undefined) return true
+      return raw !== "0"
+    })()
+
+    // Default: movement disabled (reduces background event churn).
+    // Enable with OPENCODE_TUI_MOUSE_MOVE=1.
+    const enableMouseMovement = process.env.OPENCODE_TUI_MOUSE_MOVE === "1"
+
+    // Resize debounce: VS Code can emit frequent resize updates.
+    const debounceDelay = (() => {
+      const raw = process.env.OPENCODE_TUI_DEBOUNCE_MS
+      if (!raw) return isVscodeTerminal ? 250 : 100
+      const n = Number(raw)
+      if (!Number.isFinite(n)) return isVscodeTerminal ? 250 : 100
+      return Math.max(0, Math.min(2000, Math.floor(n)))
+    })()
+
+    debugCheckpoint("tui.startup", "render_options", {
+      targetFps,
+      debounceDelay,
+      useMouse,
+      enableMouseMovement,
+      isVscodeTerminal,
+    })
+
     render(
       () => {
         return (
@@ -208,8 +256,16 @@ export function tui(input: {
         )
       },
       {
-        targetFps: 60,
-        gatherStats: false,
+        debounceDelay,
+        targetFps,
+        // Some render paths use maxFps as the primary cap.
+        // Keep them aligned so OPENCODE_TUI_FPS reliably throttles rendering.
+        maxFps: targetFps,
+        // Diagnostics / perf tuning
+        useThread: process.env.OPENCODE_TUI_USE_THREAD === "1",
+        gatherStats: process.env.OPENCODE_TUI_GATHER_STATS === "1",
+        useMouse,
+        enableMouseMovement,
         exitOnCtrlC: false,
         // FIX: Some terminal emulators/bridges mishandle Kitty keyboard negotiation,
         // causing black-screen/unresponsive startup states.
@@ -244,6 +300,9 @@ function App() {
   const renderer = useRenderer()
   renderer.disableStdoutInterception()
   onMount(() => {
+    // Prefer renderer "auto" mode so it can go idle when nothing changes.
+    // This is important for low CPU usage when the TUI is not being interacted with.
+    renderer.auto()
     debugCheckpoint("app", "mount")
   })
   onCleanup(() => {
@@ -252,11 +311,18 @@ function App() {
   const dialog = useDialog()
   const local = useLocal()
   const kv = useKV()
+  const defaultAnimationsEnabled = process.env.TERM_PROGRAM === "vscode" || process.env.VSCODE_PID ? false : true
   const command = useCommandDialog()
   const sdk = useSDK()
   const toast = useToast()
   const { theme, mode, setMode } = useTheme()
   const sync = useSync()
+  const beacon = ActivityBeacon.scope("tui.app")
+
+  createEffect(() => {
+    beacon.setGauge("route", route.data.type)
+    beacon.setGauge("dialog_count", dialog.stack.length)
+  })
 
   createEffect(() => {
     const trigger = kv.get("ui_trigger")
@@ -694,11 +760,11 @@ function App() {
       },
     },
     {
-      title: kv.get("animations_enabled", true) ? "Disable animations" : "Enable animations",
+      title: kv.get("animations_enabled", defaultAnimationsEnabled) ? "Disable animations" : "Enable animations",
       value: "app.toggle.animations",
       category: "System",
       onSelect: (dialog) => {
-        kv.set("animations_enabled", !kv.get("animations_enabled", true))
+        kv.set("animations_enabled", !kv.get("animations_enabled", defaultAnimationsEnabled))
         dialog.clear()
       },
     },

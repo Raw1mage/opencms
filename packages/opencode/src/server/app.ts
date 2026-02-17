@@ -41,6 +41,7 @@ import { GlobalRoutes } from "./routes/global"
 import { AccountRoutes } from "./routes/account"
 import { RotationRoutes } from "./routes/rotation"
 import { Env } from "@/env"
+import { ActivityBeacon } from "@/util/activity-beacon"
 
 // Declare external CORS whitelist (set by server.ts)
 declare global {
@@ -48,6 +49,7 @@ declare global {
 }
 
 const log = Log.create({ service: "server" })
+const beacon = ActivityBeacon.scope("server.app")
 
 /**
  * Initialize and configure the Hono application with all middleware and routes.
@@ -103,6 +105,7 @@ export function createApp(app: Hono): Hono {
       return basicAuth({ username, password })(c, next)
     })
     .use(async (c, next) => {
+      beacon.hit("request")
       const skipLogging = c.req.path === "/log"
       if (!skipLogging) {
         log.info("request", {
@@ -514,6 +517,7 @@ export function createApp(app: Hono): Hono {
         },
       }),
       async (c) => {
+        beacon.hit("event.connected")
         log.info("event connected")
         return streamSSE(c, async (stream) => {
           stream.writeSSE({
@@ -523,6 +527,7 @@ export function createApp(app: Hono): Hono {
             }),
           })
           const unsub = Bus.subscribeAll(async (event) => {
+            beacon.hit("event.publish")
             await stream.writeSSE({
               data: JSON.stringify(event),
             })
@@ -533,6 +538,7 @@ export function createApp(app: Hono): Hono {
 
           // Send heartbeat every 30s to prevent WKWebView timeout (60s default)
           const heartbeat = setInterval(() => {
+            beacon.hit("event.heartbeat")
             stream.writeSSE({
               data: JSON.stringify({
                 type: "server.heartbeat",
@@ -546,6 +552,7 @@ export function createApp(app: Hono): Hono {
               clearInterval(heartbeat)
               unsub()
               resolve()
+              beacon.hit("event.disconnected")
               log.info("event disconnected")
             })
           })

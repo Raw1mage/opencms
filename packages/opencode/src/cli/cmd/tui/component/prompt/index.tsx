@@ -51,6 +51,7 @@ import { loadAccounts, saveAccounts } from "@/plugin/antigravity/plugin/storage"
 import { resolveAntigravityQuotaGroup } from "@/plugin/antigravity/plugin/quota-group"
 import type { PluginClient } from "@/plugin/antigravity/plugin/types"
 import z from "zod"
+import { createTimerCoordinator } from "../../util/timer-coordinator"
 
 export type PromptProps = {
   sessionID?: string
@@ -87,6 +88,26 @@ export function Prompt(props: PromptProps) {
   const dialog = useDialog()
   const toast = useToast()
   const status = createMemo(() => sync.data.session_status?.[props.sessionID ?? ""] ?? { type: "idle" })
+  const retryStatus = createMemo(() => {
+    const s = status()
+    if (s.type !== "retry") return
+    return s
+  })
+  const retryMessage = createMemo(() => {
+    const r = retryStatus()
+    if (!r) return
+    if (r.message.includes("exceeded your current quota") && r.message.includes("gemini")) {
+      return "gemini is way too hot right now"
+    }
+    if (r.message.length > 80) return r.message.slice(0, 80) + "..."
+    return r.message
+  })
+  const retryIsTruncated = createMemo(() => {
+    const r = retryStatus()
+    if (!r) return false
+    return r.message.length > 120
+  })
+  const [retrySeconds, setRetrySeconds] = createSignal(0)
   const history = usePromptHistory()
   const stash = usePromptStash()
   const command = useCommandDialog()
@@ -95,7 +116,13 @@ export function Prompt(props: PromptProps) {
   const kv = useKV()
   const [rateLimitKey, setRateLimitKey] = createSignal("")
   const [quotaRefresh, setQuotaRefresh] = createSignal(0)
+  const [lastQuotaRefreshMarker, setLastQuotaRefreshMarker] = createSignal<string>("")
   const [footerTick, setFooterTick] = createSignal(0)
+  const timers = createTimerCoordinator("prompt")
+  onCleanup(() => timers.dispose())
+  const perfProbeMode = process.env.OPENCODE_TUI_PERF_PROBE === "1"
+  const disableFooterMeta = perfProbeMode || process.env.OPENCODE_TUI_DISABLE_FOOTER_META === "1"
+  const defaultAnimationsEnabled = process.env.TERM_PROGRAM === "vscode" || process.env.VSCODE_PID ? false : true
   const CODEX_ISSUER = "https://auth.openai.com"
   const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
   const CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
@@ -122,15 +149,48 @@ export function Prompt(props: PromptProps) {
   })
 
   createEffect(() => {
-    if (!lastCompletedAssistant()) return
+    const last = lastCompletedAssistant()
+    const completed =
+      last && "completed" in last.time && typeof last.time.completed === "number" ? last.time.completed : undefined
+    if (!last || completed === undefined) return
+    const marker = `${last.id}:${completed}`
+    if (marker === lastQuotaRefreshMarker()) return
+    setLastQuotaRefreshMarker(marker)
     setQuotaRefresh((v) => v + 1)
   })
 
-  const footerInterval = setInterval(() => setFooterTick((t) => t + 1), 2000)
-  onCleanup(() => clearInterval(footerInterval))
+  const footerRefreshMs = (() => {
+    if (disableFooterMeta) return 60000
+    const raw = process.env.OPENCODE_TUI_FOOTER_REFRESH_MS
+    if (!raw) return 15000
+    const n = Number(raw)
+    if (!Number.isFinite(n)) return 15000
+    return Math.max(1000, Math.min(120000, Math.floor(n)))
+  })()
+  if (!disableFooterMeta) {
+    timers.scheduleInterval("footer-tick", () => setFooterTick((t) => t + 1), footerRefreshMs)
+  } else {
+    timers.clear("footer-tick")
+  }
+
+  createEffect(() => {
+    const retry = retryStatus()
+    if (!retry) {
+      timers.clear("retry-countdown")
+      setRetrySeconds(0)
+      return
+    }
+    const update = () => {
+      const next = retryStatus()?.next
+      if (next) setRetrySeconds(Math.round((next - Date.now()) / 1000))
+    }
+    update()
+    timers.scheduleInterval("retry-countdown", update, 1000)
+  })
 
   const [activeAccountLabel] = createResource(
     () => {
+      if (disableFooterMeta) return undefined
       const current = local.model.current()
       const providerId = current?.providerId
       if (!providerId) return ""
@@ -225,6 +285,7 @@ export function Prompt(props: PromptProps) {
   }
 
   const [quotaGroups] = createResource(quotaRefresh, async () => {
+    if (disableFooterMeta) return null
     try {
       const storage = await loadAccounts()
       if (!storage || storage.accounts.length === 0) return null
@@ -255,6 +316,7 @@ export function Prompt(props: PromptProps) {
   })
 
   const [codexQuota] = createResource(quotaRefresh, async () => {
+    if (disableFooterMeta) return null
     try {
       const auth = await Auth.get("openai")
       if (!auth || auth.type !== "oauth") return null
@@ -1066,6 +1128,7 @@ export function Prompt(props: PromptProps) {
   })
 
   const quotaHint = createMemo(() => {
+    if (disableFooterMeta) return undefined
     const current = local.model.current()
     if (!current) return undefined
     if (current.providerId === "openai" || Account.parseFamily(current.providerId) === "openai") {
@@ -1090,6 +1153,7 @@ export function Prompt(props: PromptProps) {
   const footerModelSummary = createMemo(() => {
     const provider = local.model.parsed().provider
     const model = local.model.parsed().model
+    if (disableFooterMeta) return Locale.truncate(`${provider}  ${model}`, 110)
     const account = activeAccountLabel() || "--"
     const quota = quotaHint()
     const base = `${provider}  ${model}  ${account}`
@@ -1398,67 +1462,39 @@ export function Prompt(props: PromptProps) {
             >
               <box flexShrink={0} flexDirection="row" gap={1}>
                 <box marginLeft={1}>
-                  <Show when={kv.get("animations_enabled", true)} fallback={<text fg={theme.textMuted}>[⋯]</text>}>
+                  <Show
+                    when={!perfProbeMode && kv.get("animations_enabled", defaultAnimationsEnabled)}
+                    fallback={<text fg={theme.textMuted}>[⋯]</text>}
+                  >
                     <spinner color={spinnerDef().color} frames={spinnerDef().frames} interval={40} />
                   </Show>
                 </box>
                 <box flexDirection="row" gap={1} flexShrink={0}>
-                  {(() => {
-                    const retry = createMemo(() => {
-                      const s = status()
-                      if (s.type !== "retry") return
-                      return s
-                    })
-                    const message = createMemo(() => {
-                      const r = retry()
-                      if (!r) return
-                      if (r.message.includes("exceeded your current quota") && r.message.includes("gemini"))
-                        return "gemini is way too hot right now"
-                      if (r.message.length > 80) return r.message.slice(0, 80) + "..."
-                      return r.message
-                    })
-                    const isTruncated = createMemo(() => {
-                      const r = retry()
-                      if (!r) return false
-                      return r.message.length > 120
-                    })
-                    const [seconds, setSeconds] = createSignal(0)
-                    onMount(() => {
-                      const timer = setInterval(() => {
-                        const next = retry()?.next
-                        if (next) setSeconds(Math.round((next - Date.now()) / 1000))
-                      }, 1000)
-
-                      onCleanup(() => {
-                        clearInterval(timer)
-                      })
-                    })
-                    const handleMessageClick = () => {
-                      const r = retry()
-                      if (!r) return
-                      if (isTruncated()) {
-                        DialogAlert.show(dialog, "Retry Error", r.message)
+                  <Show when={retryStatus()}>
+                    {(retry) => {
+                      const handleMessageClick = () => {
+                        const r = retry()
+                        if (retryIsTruncated()) {
+                          DialogAlert.show(dialog, "Retry Error", r.message)
+                        }
                       }
-                    }
 
-                    const retryText = () => {
-                      const r = retry()
-                      if (!r) return ""
-                      const baseMessage = message()
-                      const truncatedHint = isTruncated() ? " ..." : ""
-                      const duration = formatDuration(seconds())
-                      const retryInfo = ` [retrying ${duration ? `in ${duration} ` : ""}attempt #${r.attempt}]`
-                      return baseMessage + truncatedHint + retryInfo
-                    }
+                      const retryText = () => {
+                        const r = retry()
+                        const baseMessage = retryMessage() ?? ""
+                        const truncatedHint = retryIsTruncated() ? " ..." : ""
+                        const duration = formatDuration(retrySeconds())
+                        const retryInfo = ` [retrying ${duration ? `in ${duration} ` : ""}attempt #${r.attempt}]`
+                        return baseMessage + truncatedHint + retryInfo
+                      }
 
-                    return (
-                      <Show when={retry()}>
+                      return (
                         <box onMouseUp={handleMessageClick}>
                           <text fg={theme.error}>{retryText()}</text>
                         </box>
-                      </Show>
-                    )
-                  })()}
+                      )
+                    }}
+                  </Show>
                 </box>
               </box>
               <text fg={store.interrupt > 0 ? theme.primary : theme.text}>

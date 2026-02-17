@@ -11,6 +11,7 @@ import { createOpencodeClient, type Event } from "@opencode-ai/sdk/v2"
 import type { BunWebSocketData } from "hono/bun"
 import { Flag } from "@/flag/flag"
 import { ProcessSupervisor } from "@/process/supervisor"
+import { ActivityBeacon } from "@/util/activity-beacon"
 
 await Log.init({
   print: process.argv.includes("--print-logs"),
@@ -44,7 +45,10 @@ const eventStream = {
   abort: undefined as AbortController | undefined,
 }
 
+const beacon = ActivityBeacon.scope("tui.worker")
+
 const startEventStream = (directory: string) => {
+  beacon.hit("event_stream.start")
   if (eventStream.abort) eventStream.abort.abort()
   const abort = new AbortController()
   eventStream.abort = abort
@@ -66,6 +70,7 @@ const startEventStream = (directory: string) => {
 
   ;(async () => {
     while (!signal.aborted) {
+      beacon.hit("event_stream.subscribe_attempt")
       const events = await Promise.resolve(
         sdk.event.subscribe(
           {},
@@ -76,11 +81,13 @@ const startEventStream = (directory: string) => {
       ).catch(() => undefined)
 
       if (!events) {
+        beacon.hit("event_stream.subscribe_empty")
         await Bun.sleep(250)
         continue
       }
 
       for await (const event of events.stream) {
+        beacon.hit("event_stream.event")
         Rpc.emit("event", event as Event)
       }
 
@@ -89,6 +96,7 @@ const startEventStream = (directory: string) => {
       }
     }
   })().catch((error) => {
+    beacon.hit("event_stream.error")
     Log.Default.error("event stream error", {
       error: error instanceof Error ? error.message : error,
     })
@@ -99,6 +107,7 @@ startEventStream(process.cwd())
 
 export const rpc = {
   async fetch(input: { url: string; method: string; headers: Record<string, string>; body?: string }) {
+    beacon.hit("rpc.fetch")
     const headers = { ...input.headers }
     const auth = getAuthorizationHeader()
     if (auth && !headers["authorization"] && !headers["Authorization"]) {
@@ -118,11 +127,13 @@ export const rpc = {
     }
   },
   async server(input: { port: number; hostname: string; mdns?: boolean; cors?: string[] }) {
+    beacon.hit("rpc.server")
     if (server) await server.stop(true)
     server = Server.listen(input)
     return { url: server.url.toString() }
   },
   async checkUpgrade(input: { directory: string }) {
+    beacon.hit("rpc.check_upgrade")
     await Instance.provide({
       directory: input.directory,
       init: InstanceBootstrap,
@@ -132,11 +143,13 @@ export const rpc = {
     })
   },
   async reload() {
+    beacon.hit("rpc.reload")
     Config.global.reset()
     await ProcessSupervisor.disposeAll()
     await Instance.disposeAll()
   },
   async shutdown() {
+    beacon.hit("rpc.shutdown")
     Log.Default.info("worker shutting down")
     if (eventStream.abort) eventStream.abort.abort()
     // FIX: @event_20260211_bun_orphan_fix

@@ -1,31 +1,41 @@
 export namespace Rpc {
+  type WireMessage =
+    | { type: "rpc.request"; method: string; input: unknown; id: number }
+    | { type: "rpc.result"; result: unknown; id: number }
+    | { type: "rpc.event"; event: string; data: unknown }
+
+  function decodeMessage(data: unknown): WireMessage {
+    if (typeof data === "string") return JSON.parse(data) as WireMessage
+    return data as WireMessage
+  }
+
   type Definition = {
     [method: string]: (input: any) => any
   }
 
   export function listen(rpc: Definition) {
     onmessage = async (evt) => {
-      const parsed = JSON.parse(evt.data)
+      const parsed = decodeMessage(evt.data)
       if (parsed.type === "rpc.request") {
         const result = await rpc[parsed.method](parsed.input)
-        postMessage(JSON.stringify({ type: "rpc.result", result, id: parsed.id }))
+        postMessage({ type: "rpc.result", result, id: parsed.id } satisfies WireMessage)
       }
     }
   }
 
   export function emit(event: string, data: unknown) {
-    postMessage(JSON.stringify({ type: "rpc.event", event, data }))
+    postMessage({ type: "rpc.event", event, data } satisfies WireMessage)
   }
 
   export function client<T extends Definition>(target: {
-    postMessage: (data: string) => void | null
+    postMessage: (data: unknown) => void | null
     onmessage: ((this: Worker, ev: MessageEvent<any>) => any) | null
   }) {
     const pending = new Map<number, (result: any) => void>()
     const listeners = new Map<string, Set<(data: any) => void>>()
     let id = 0
     target.onmessage = async (evt) => {
-      const parsed = JSON.parse(evt.data)
+      const parsed = decodeMessage(evt.data)
       if (parsed.type === "rpc.result") {
         const resolve = pending.get(parsed.id)
         if (resolve) {
@@ -47,7 +57,12 @@ export namespace Rpc {
         const requestId = id++
         return new Promise((resolve) => {
           pending.set(requestId, resolve)
-          target.postMessage(JSON.stringify({ type: "rpc.request", method, input, id: requestId }))
+          target.postMessage({
+            type: "rpc.request",
+            method: String(method),
+            input,
+            id: requestId,
+          } satisfies WireMessage)
         })
       },
       on<Data>(event: string, handler: (data: Data) => void) {

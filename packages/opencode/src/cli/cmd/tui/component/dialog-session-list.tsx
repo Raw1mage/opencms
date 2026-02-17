@@ -21,6 +21,7 @@ export function DialogSessionList() {
   const { theme } = useTheme()
   const sdk = useSDK()
   const kv = useKV()
+  const defaultAnimationsEnabled = process.env.TERM_PROGRAM === "vscode" || process.env.VSCODE_PID ? false : true
 
   const [search, setSearch] = createDebouncedSignal("", 150)
 
@@ -78,7 +79,10 @@ export function DialogSessionList() {
         category,
         footer: Locale.time(root.time.updated),
         gutter: isWorking ? (
-          <Show when={kv.get("animations_enabled", true)} fallback={<text fg={theme.textMuted}>[⋯]</text>}>
+          <Show
+            when={kv.get("animations_enabled", defaultAnimationsEnabled)}
+            fallback={<text fg={theme.textMuted}>[⋯]</text>}
+          >
             <spinner frames={spinnerFrames} interval={80} color={theme.primary} />
           </Show>
         ) : undefined,
@@ -99,7 +103,10 @@ export function DialogSessionList() {
           category, // Same category as parent
           footer: Locale.time(child.time.updated),
           gutter: childWorking ? (
-            <Show when={kv.get("animations_enabled", true)} fallback={<text fg={theme.textMuted}>[⋯]</text>}>
+            <Show
+              when={kv.get("animations_enabled", defaultAnimationsEnabled)}
+              fallback={<text fg={theme.textMuted}>[⋯]</text>}
+            >
               <spinner frames={spinnerFrames} interval={80} color={theme.accent} />
             </Show>
           ) : undefined,

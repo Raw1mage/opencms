@@ -80,6 +80,7 @@ import { PermissionPrompt } from "./permission"
 import { QuestionPrompt } from "./question"
 import { DialogExportOptions } from "../../ui/dialog-export-options"
 import { formatTranscript } from "../../util/transcript"
+import { createTimerCoordinator } from "../../util/timer-coordinator"
 import { UI } from "@/cli/ui.ts"
 import { clone } from "remeda"
 addDefaultParsers(parsers.parsers)
@@ -87,13 +88,13 @@ addDefaultParsers(parsers.parsers)
 const consumedSessionRouteInitTokens = new Set<string>()
 
 class CustomSpeedScroll implements ScrollAcceleration {
-  constructor(private speed: number) { }
+  constructor(private speed: number) {}
 
   tick(_now?: number): number {
     return this.speed
   }
 
-  reset(): void { }
+  reset(): void {}
 }
 
 const context = createContext<{
@@ -155,7 +156,8 @@ export function Session() {
   const [showAssistantMetadata, setShowAssistantMetadata] = kv.signal("assistant_metadata_visibility", true)
   const [showScrollbar, setShowScrollbar] = kv.signal("scrollbar_visible", false)
   const [diffWrapMode] = kv.signal<"word" | "none">("diff_wrap_mode", "word")
-  const [animationsEnabled, setAnimationsEnabled] = kv.signal("animations_enabled", true)
+  const defaultAnimationsEnabled = process.env.TERM_PROGRAM === "vscode" || process.env.VSCODE_PID ? false : true
+  const [animationsEnabled, setAnimationsEnabled] = kv.signal("animations_enabled", defaultAnimationsEnabled)
 
   const wide = createMemo(() => dimensions().width > 120)
   const sidebarVisible = createMemo(() => {
@@ -201,7 +203,7 @@ export function Session() {
       ([sessionID, parentID]) => {
         if (!parentID) return
         let stopped = false
-        let timer: ReturnType<typeof setTimeout> | undefined
+        const timerID = `child-session-sync:${sessionID}`
         const FAST_POLL_MS = 200
         const SLOW_POLL_MS = 1500
 
@@ -218,16 +220,16 @@ export function Session() {
           if (stopped) return
           sync.session
             .sync(sessionID, { force: true })
-            .catch(() => { })
+            .catch(() => {})
             .finally(() => {
-              timer = setTimeout(poll, nextDelay())
+              timers.schedule(timerID, poll, nextDelay())
             })
         }
 
         poll()
         onCleanup(() => {
           stopped = true
-          if (timer) clearTimeout(timer)
+          timers.clear(timerID)
         })
       },
       { defer: true },
@@ -236,6 +238,9 @@ export function Session() {
 
   const toast = useToast()
   const sdk = useSDK()
+
+  const timers = createTimerCoordinator("route.session")
+  onCleanup(() => timers.dispose())
 
   const [promptMounted, setPromptMounted] = createSignal(false)
 
@@ -496,7 +501,7 @@ export function Session() {
       category: "Session",
       onSelect: async (dialog) => {
         const status = sync.data.session_status?.[route.sessionID]
-        if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => { })
+        if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {})
         const revert = session()?.revert?.messageID
         const message = messages().findLast((x) => (!revert || x.id < revert) && x.role === "user")
         if (!message) return
@@ -1582,12 +1587,16 @@ function InlineTool(props: {
 
   const error = createMemo(() => (props.part.state.status === "error" ? props.part.state.error : undefined))
   const running = createMemo(() => props.part.state.status === "running")
+  const timers = createTimerCoordinator("route.session.inline-tool")
+  onCleanup(() => timers.dispose())
   const [now, setNow] = createSignal(Date.now())
   createEffect(() => {
-    if (!running()) return
+    if (!running()) {
+      timers.clear("elapsed")
+      return
+    }
     setNow(Date.now())
-    const timer = setInterval(() => setNow(Date.now()), 1000)
-    onCleanup(() => clearInterval(timer))
+    timers.scheduleInterval("elapsed", () => setNow(Date.now()), 1000)
   })
   const elapsed = createMemo(() => {
     if (props.part.state.status !== "running") return ""
@@ -1975,12 +1984,16 @@ function Task(props: ToolProps<typeof TaskTool>) {
   const current = createMemo(() => tools().findLast((x) => x.state.status !== "pending"))
   const color = createMemo(() => local.agent.color(props.input.subagent_type ?? "unknown"))
   const running = createMemo(() => props.part.state.status === "running")
+  const timers = createTimerCoordinator("route.session.task-tool")
+  onCleanup(() => timers.dispose())
   const [now, setNow] = createSignal(Date.now())
   createEffect(() => {
-    if (!running()) return
+    if (!running()) {
+      timers.clear("elapsed")
+      return
+    }
     setNow(Date.now())
-    const timer = setInterval(() => setNow(Date.now()), 1000)
-    onCleanup(() => clearInterval(timer))
+    timers.scheduleInterval("elapsed", () => setNow(Date.now()), 1000)
   })
   const elapsed = createMemo(() => {
     if (props.part.state.status !== "running") return ""
