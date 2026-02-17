@@ -2,6 +2,7 @@ import { TextAttributes } from "@opentui/core"
 import { useTheme } from "../context/theme"
 import { useDialog, type DialogContext } from "./dialog"
 import { useKeyboard } from "@opentui/solid"
+import { DialogDismiss } from "./dialog-dismiss"
 
 export type DialogAlertProps = {
   title: string
@@ -25,9 +26,7 @@ export function DialogAlert(props: DialogAlertProps) {
         <text attributes={TextAttributes.BOLD} fg={theme.text}>
           {props.title}
         </text>
-        <text fg={theme.textMuted} onMouseUp={() => dialog.clear()}>
-          esc
-        </text>
+        <DialogDismiss onDismiss={() => dialog.clear()} />
       </box>
       <box paddingBottom={1}>
         <text fg={theme.textMuted}>{props.message}</text>

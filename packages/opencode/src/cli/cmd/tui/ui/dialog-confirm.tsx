@@ -5,6 +5,7 @@ import { createStore } from "solid-js/store"
 import { For } from "solid-js"
 import { useKeyboard } from "@opentui/solid"
 import { Locale } from "@/util/locale"
+import { DialogDismiss } from "./dialog-dismiss"
 
 export type DialogConfirmProps = {
   title: string
@@ -41,9 +42,7 @@ export function DialogConfirm(props: DialogConfirmProps) {
         <text attributes={TextAttributes.BOLD} fg={theme.text}>
           {props.title}
         </text>
-        <text fg={theme.textMuted} onMouseUp={() => dialog.clear()}>
-          esc
-        </text>
+        <DialogDismiss onDismiss={() => dialog.clear()} />
       </box>
       <box paddingBottom={1}>
         <text fg={theme.textMuted}>{props.message}</text>

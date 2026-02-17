@@ -10,6 +10,7 @@ import { useDialog, type DialogContext } from "@tui/ui/dialog"
 import { useKeybind } from "@tui/context/keybind"
 import { Keybind } from "@/util/keybind"
 import { Locale } from "@/util/locale"
+import { DialogDismiss } from "./dialog-dismiss"
 
 export interface DialogSelectProps<T> {
   title: string
@@ -330,9 +331,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
           <text fg={theme.text} attributes={TextAttributes.BOLD}>
             {props.title}
           </text>
-          <text fg={theme.textMuted} onMouseUp={() => dialog.clear()}>
-            esc
-          </text>
+          <DialogDismiss onDismiss={() => dialog.clear()} />
         </box>
         <Show when={!props.hideInput}>
           <box paddingTop={1}>

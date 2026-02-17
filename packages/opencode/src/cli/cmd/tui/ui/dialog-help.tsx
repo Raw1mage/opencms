@@ -3,6 +3,7 @@ import { useTheme } from "@tui/context/theme"
 import { useDialog } from "./dialog"
 import { useKeyboard } from "@opentui/solid"
 import { useKeybind } from "@tui/context/keybind"
+import { DialogDismiss } from "./dialog-dismiss"
 
 export function DialogHelp() {
   const dialog = useDialog()
@@ -21,9 +22,7 @@ export function DialogHelp() {
         <text attributes={TextAttributes.BOLD} fg={theme.text}>
           Help
         </text>
-        <text fg={theme.textMuted} onMouseUp={() => dialog.clear()}>
-          esc/enter
-        </text>
+        <DialogDismiss label="esc/enter" onDismiss={() => dialog.clear()} />
       </box>
       <box paddingBottom={1}>
         <text fg={theme.textMuted}>

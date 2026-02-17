@@ -7,6 +7,7 @@ import { useDialog } from "@tui/ui/dialog"
 import { useSDK } from "../context/sdk"
 import { DialogPrompt } from "../ui/dialog-prompt"
 import { Link } from "../ui/link"
+import { DialogDismiss } from "../ui/dialog-dismiss"
 import { useTheme } from "../context/theme"
 import { TextAttributes } from "@opentui/core"
 import type { ProviderAuthAuthorization } from "@opencode-ai/sdk/v2"
@@ -147,7 +148,7 @@ export function DialogProvider(props: { providerId?: string }) {
           <text attributes={TextAttributes.BOLD} fg={theme.text}>
             Connect a provider
           </text>
-          <text fg={theme.textMuted}>esc</text>
+          <DialogDismiss onDismiss={() => dialog.clear()} />
         </box>
         <text fg={theme.textMuted}>Opening authentication...</text>
       </box>
