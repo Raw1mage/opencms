@@ -30,8 +30,25 @@ import {
   type RateLimitReason,
 } from "./rotation"
 import { RequestMonitor } from "./monitor"
+import { debugCheckpoint } from "../util/debug"
 
 const log = Log.create({ service: "rate-limit-judge" })
+
+function serializeErrorForDebug(error: unknown): Record<string, unknown> {
+  const obj = error && typeof error === "object" ? (error as Record<string, unknown>) : undefined
+  const data = obj?.data && typeof obj.data === "object" ? (obj.data as Record<string, unknown>) : undefined
+  return {
+    status: obj?.status ?? obj?.statusCode ?? data?.status,
+    code: obj?.code ?? data?.code,
+    name: obj?.name,
+    message: obj?.message ?? data?.message,
+    responseHeaders: data?.responseHeaders,
+    responseBody: data?.responseBody,
+    headers: obj?.headers ?? data?.headers,
+    errorType: data?.error && typeof data.error === "object" ? (data.error as Record<string, unknown>).type : undefined,
+    raw: error,
+  }
+}
 
 // ============================================================================
 // Bus Events — real-time notifications to Rotation, Admin Panel, etc.
@@ -153,8 +170,23 @@ export namespace RateLimitJudge {
     modelId: string,
     error: unknown,
   ): Promise<JudgeResult> {
+    debugCheckpoint("rotation.judge", "judge:start", {
+      providerId,
+      accountId,
+      modelID: modelId,
+      errorDetail: serializeErrorForDebug(error),
+    })
+
     // Step 1: Extract reason + retryAfter from error
     const { reason, retryAfterMs } = extractRateLimitDetails(error)
+
+    debugCheckpoint("rotation.judge", "judge:classified", {
+      providerId,
+      accountId,
+      modelID: modelId,
+      reason,
+      retryAfterMs,
+    })
 
     // Step 2: Increment daily failure counter (resets at 16:00 Taipei)
     const rateLimitTracker = getRateLimitTracker()
@@ -168,6 +200,17 @@ export namespace RateLimitJudge {
 
     // Step 4: Apply provider-specific strategy
     const strategy = getBackoffStrategy(providerId)
+
+    debugCheckpoint("rotation.judge", "judge:strategy", {
+      providerId,
+      accountId,
+      modelID: modelId,
+      strategy,
+      reason,
+      initialBackoffMs: backoffMs,
+      dailyFailures,
+      consecutiveFailures,
+    })
 
     if (strategy === "cockpit" && reason !== "TOKEN_REFRESH_FAILED") {
       // Cockpit strategy: query real quota reset time from cockpit API
@@ -205,6 +248,17 @@ export namespace RateLimitJudge {
       providerId,
       accountId,
       modelId,
+      reason,
+      backoffMs,
+      source,
+      dailyFailures,
+      strategy,
+    })
+
+    debugCheckpoint("rotation.judge", "judge:result", {
+      providerId,
+      accountId,
+      modelID: modelId,
       reason,
       backoffMs,
       source,
@@ -302,9 +356,21 @@ export namespace RateLimitJudge {
     modelId: string,
     error?: unknown,
   ): Promise<JudgeResult | null> {
+    debugCheckpoint("rotation.judge", "markRateLimited:start", {
+      providerId,
+      accountId,
+      modelID: modelId,
+      errorDetail: error ? serializeErrorForDebug(error) : undefined,
+    })
+
     // Check if already marked
     const rateLimitTracker = getRateLimitTracker()
     if (rateLimitTracker.isRateLimited(accountId, providerId, modelId)) {
+      debugCheckpoint("rotation.judge", "markRateLimited:skip_already_marked", {
+        providerId,
+        accountId,
+        modelID: modelId,
+      })
       return null // Already marked, skip
     }
 
@@ -333,6 +399,12 @@ export namespace RateLimitJudge {
       log.warn("Not marking as rate-limited: error reason is not temporary", {
         providerId,
         modelId,
+        reason,
+      })
+      debugCheckpoint("rotation.judge", "markRateLimited:skip_not_temporary", {
+        providerId,
+        accountId,
+        modelID: modelId,
         reason,
       })
       return null
@@ -383,6 +455,19 @@ export namespace RateLimitJudge {
       reason,
       backoffMs,
       source,
+    })
+
+    debugCheckpoint("rotation.judge", "markRateLimited:result", {
+      providerId,
+      accountId,
+      modelID: modelId,
+      reason,
+      backoffMs,
+      source,
+      dailyFailures,
+      strategy,
+      retryAfterMs,
+      consecutiveFailures,
     })
 
     const result: JudgeResult = { reason, backoffMs, source, dailyFailures }

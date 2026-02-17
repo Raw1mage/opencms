@@ -309,6 +309,25 @@ export namespace LLM {
       return base
     }
 
+    const serializeErrorForDebug = (err: unknown): Record<string, unknown> => {
+      const baseError = serializeError(err)
+      const obj = err && typeof err === "object" ? (err as Record<string, unknown>) : undefined
+      const data = obj?.data && typeof obj.data === "object" ? (obj.data as Record<string, unknown>) : undefined
+      return {
+        error: baseError,
+        status: obj?.status ?? obj?.statusCode ?? data?.status,
+        code: obj?.code ?? data?.code,
+        name: obj?.name,
+        message: obj?.message ?? data?.message,
+        responseHeaders: data?.responseHeaders,
+        responseBody: data?.responseBody,
+        headers: obj?.headers ?? data?.headers,
+        errorType:
+          data?.error && typeof data.error === "object" ? (data.error as Record<string, unknown>).type : undefined,
+        data,
+      }
+    }
+
     return streamText({
       onFinish: async (event) => {
         const usage = event.usage as any
@@ -319,6 +338,14 @@ export namespace LLM {
       },
       async onError(error) {
         l.error("stream error", { error: serializeError(error) })
+
+        debugCheckpoint("rotation.error", "LLM onError received provider error", {
+          providerId: input.model.providerId,
+          modelID: input.model.id,
+          accountId,
+          sessionID: input.sessionID,
+          errorDetail: serializeErrorForDebug(error),
+        })
 
         if (!accountId) return
 

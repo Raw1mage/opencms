@@ -37,3 +37,10 @@ Goal: Evaluate **behavioral value** vs **stability risk** before any re-apply.
 - Reverted after review: guarded favorite-model auto-cycle on rate-limit retry (`dc5b85188` related behavior) was removed to preserve rotation central-control authority and avoid duplicate fallback logic in TUI.
 - Final decision for `dc5b85188`: keep this behavior out of TUI layer; any retry/fallback strategy changes must stay in session/rotation central path.
 - Decision change for plugin exports (`c5dc075a8`): direct `dist` exports break monorepo typecheck; kept source exports and retained publish-time rewrite mechanism.
+
+## Logging policy update (P1 follow-up)
+
+- New operational requirement: make `debug.log` the single source of truth for rotation/rate-limit incident forensics.
+- Implemented instrumentation in first-receive path (`session/llm.ts` onError): record raw provider error envelope (status/code/message/headers/responseBody/data) at first touch.
+- Implemented instrumentation in decision path (`account/rate-limit-judge.ts`): record `judge:start`, `judge:classified`, `judge:strategy`, `judge:result`, and `markRateLimited:*` lifecycle checkpoints.
+- Purpose: stop keyword-guess tuning without evidence; use real captured payloads to iteratively refine 429 semantic classification.
