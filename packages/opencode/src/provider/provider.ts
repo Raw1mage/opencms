@@ -89,16 +89,16 @@ export namespace Provider {
     family: string
     reasoning?: boolean
   }> = [
-    // Free tier models (most likely available)
-    { id: "claude-haiku-4.5", name: "Claude Haiku 4.5", family: "claude" },
-    { id: "gpt-4o-mini", name: "GPT-4o Mini", family: "openai" },
-    // Pro/Enterprise tier models (may require paid subscription)
-    { id: "claude-sonnet-4", name: "Claude Sonnet 4", family: "claude" },
-    { id: "gpt-4o", name: "GPT-4o", family: "openai" },
-    { id: "o1", name: "OpenAI o1", family: "openai", reasoning: true },
-    { id: "o1-mini", name: "OpenAI o1 Mini", family: "openai", reasoning: true },
-    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", family: "gemini" },
-  ]
+      // Free tier models (most likely available)
+      { id: "claude-haiku-4.5", name: "Claude Haiku 4.5", family: "claude" },
+      { id: "gpt-4o-mini", name: "GPT-4o Mini", family: "openai" },
+      // Pro/Enterprise tier models (may require paid subscription)
+      { id: "claude-sonnet-4", name: "Claude Sonnet 4", family: "claude" },
+      { id: "gpt-4o", name: "GPT-4o", family: "openai" },
+      { id: "o1", name: "OpenAI o1", family: "openai", reasoning: true },
+      { id: "o1-mini", name: "OpenAI o1 Mini", family: "openai", reasoning: true },
+      { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", family: "gemini" },
+    ]
 
   /**
    * Fetch models dynamically from a provider's API.
@@ -883,14 +883,14 @@ export namespace Provider {
         },
         experimentalOver200K: model.cost?.context_over_200k
           ? {
-              cache: {
-                read: model.cost.context_over_200k.cache_read ?? 0,
-                write: model.cost.context_over_200k.cache_write ?? 0,
-              },
-              input: model.cost.context_over_200k.input,
-              output: model.cost.context_over_200k.output,
-              reasoning: model.cost.context_over_200k.reasoning,
-            }
+            cache: {
+              read: model.cost.context_over_200k.cache_read ?? 0,
+              write: model.cost.context_over_200k.cache_write ?? 0,
+            },
+            input: model.cost.context_over_200k.input,
+            output: model.cost.context_over_200k.output,
+            reasoning: model.cost.context_over_200k.reasoning,
+          }
           : undefined,
       },
       limit: {
@@ -1290,22 +1290,22 @@ export namespace Provider {
         reasoning?: boolean
         image?: boolean
       }> = [
-        { id: "claude-opus-4-6-thinking", name: "Claude 4.6 Opus (Thinking)", family: "claude", reasoning: true },
-        { id: "claude-opus-4-6", name: "Claude 4.6 Opus", family: "claude" },
-        { id: "claude-opus-4-5-thinking", name: "Claude 4.5 Opus (Thinking)", family: "claude", reasoning: true },
-        { id: "claude-opus-4-5", name: "Claude 4.5 Opus", family: "claude" },
-        { id: "claude-sonnet-4-5-thinking", name: "Claude 4.5 Sonnet (Thinking)", family: "claude", reasoning: true },
-        { id: "claude-sonnet-4-5", name: "Claude 4.5 Sonnet", family: "claude" },
-        { id: "gemini-3-pro-high", name: "Gemini 3 Pro (High)", family: "gemini-pro", image: false },
-        { id: "gemini-3-pro-low", name: "Gemini 3 Pro (Low)", family: "gemini-pro" },
-        { id: "gemini-3-flash", name: "Gemini 3 Flash (New)", family: "gemini-flash" },
-        { id: "claude-opus-4-1", name: "Claude Opus 4.1", family: "claude" },
-        { id: "claude-opus-4-2", name: "Claude Opus 4.2", family: "claude" },
-        { id: "gpt-oss-120b-medium", name: "GPT-OSS 120B (Medium)", family: "gpt-oss" },
-        { id: "gpt-5.1-codex", name: "GPT-5.1 Codex", family: "openai" },
-        { id: "claude-3-7-sonnet-thinking", name: "Claude 3.7 Sonnet (Thinking)", family: "claude", reasoning: true },
-        { id: "claude-3-7-sonnet", name: "Claude 3.7 Sonnet", family: "claude" },
-      ]
+          { id: "claude-opus-4-6-thinking", name: "Claude 4.6 Opus (Thinking)", family: "claude", reasoning: true },
+          { id: "claude-opus-4-6", name: "Claude 4.6 Opus", family: "claude" },
+          { id: "claude-opus-4-5-thinking", name: "Claude 4.5 Opus (Thinking)", family: "claude", reasoning: true },
+          { id: "claude-opus-4-5", name: "Claude 4.5 Opus", family: "claude" },
+          { id: "claude-sonnet-4-5-thinking", name: "Claude 4.5 Sonnet (Thinking)", family: "claude", reasoning: true },
+          { id: "claude-sonnet-4-5", name: "Claude 4.5 Sonnet", family: "claude" },
+          { id: "gemini-3-pro-high", name: "Gemini 3 Pro (High)", family: "gemini-pro", image: false },
+          { id: "gemini-3-pro-low", name: "Gemini 3 Pro (Low)", family: "gemini-pro" },
+          { id: "gemini-3-flash", name: "Gemini 3 Flash (New)", family: "gemini-flash" },
+          { id: "claude-opus-4-1", name: "Claude Opus 4.1", family: "claude" },
+          { id: "claude-opus-4-2", name: "Claude Opus 4.2", family: "claude" },
+          { id: "gpt-oss-120b-medium", name: "GPT-OSS 120B (Medium)", family: "gpt-oss" },
+          { id: "gpt-5.1-codex", name: "GPT-5.1 Codex", family: "openai" },
+          { id: "claude-3-7-sonnet-thinking", name: "Claude 3.7 Sonnet (Thinking)", family: "claude", reasoning: true },
+          { id: "claude-3-7-sonnet", name: "Claude 3.7 Sonnet", family: "claude" },
+        ]
 
       for (const m of manualModels) {
         database["antigravity"].models[m.id] = {
@@ -1372,7 +1372,9 @@ export namespace Provider {
         },
       },
     }
-    mergeProvider("gmicloud", { source: "custom" })
+    // NOTE: Do NOT call mergeProvider("gmicloud") here.
+    // gmicloud requires an API key; the custom loader at line ~1906 will merge it
+    // only when autoload=true (i.e., GMI_API_KEY is set or auth is stored).
 
     // Ensure Antigravity provider is always available if populated (even if no account active)
     // This prevents fallback to Codex when account sync is flaky or during transitions
@@ -1389,6 +1391,17 @@ export namespace Provider {
     }
 
     // Ensure Gemini CLI provider is always available if populated
+    // @event_2026-02-17: ensure gemini-cli inherits from google-api if missing from database
+    if (!database["gemini-cli"] && (database["google-api"] || database["google"])) {
+      const base = database["google-api"] || database["google"]
+      database["gemini-cli"] = {
+        ...base,
+        id: "gemini-cli",
+        name: "Gemini CLI",
+        models: mapValues(base.models, (m) => ({ ...m, providerId: "gemini-cli" })),
+      }
+    }
+
     if (database["gemini-cli"]) {
       log.info("Gemini CLI database entry", {
         modelCount: Object.keys(database["gemini-cli"].models).length,
@@ -1901,11 +1914,24 @@ export namespace Provider {
       }
       debugCheckpoint("provider", "custom loader start", { providerId })
       const result = await fn(data)
-      debugCheckpoint("provider", "custom loader end", { providerId, autoload: result?.autoload })
+      debugCheckpoint("provider", "custom loader end", {
+        providerId,
+        autoload: result?.autoload,
+        hasOptions: !!result?.options,
+        optionKeys: result?.options ? Object.keys(result.options) : [],
+        hasApiKeyInResult: !!result?.options?.apiKey,
+        providerExistsInProviders: !!providers[providerId],
+      })
       if (result && (result.autoload || providers[providerId])) {
         if (result.getModel) modelLoaders[providerId] = result.getModel
         const opts = result.options ?? {}
         const patch: Partial<Info> = providers[providerId] ? { options: opts } : { source: "custom", options: opts }
+        debugCheckpoint("provider", "merging custom loader result", {
+          providerId,
+          patchKeys: Object.keys(patch),
+          patchHasOptions: !!patch.options,
+          patchOptionsKeys: patch.options ? Object.keys(patch.options) : [],
+        })
         mergeProvider(providerId, patch)
       }
     }
@@ -2044,6 +2070,16 @@ export namespace Provider {
       const provider = s.providers[model.providerId]
       const options = { ...provider.options }
 
+      debugCheckpoint("provider", "getSDK start", {
+        providerId: model.providerId,
+        modelID: model.id,
+        hasProvider: !!provider,
+        providerSource: provider?.source,
+        hasProviderKey: !!provider?.key,
+        optionsApiKey: options.apiKey ? `exists (${options.apiKey.substring(0, 10)}...)` : "missing",
+        optionKeys: Object.keys(options),
+        baseURL: options.baseURL,
+      })
       log.info("getSDK debug", {
         providerId: model.providerId,
         modelID: model.id,
@@ -2185,6 +2221,22 @@ export namespace Provider {
         return fetchFn(input, requestInit)
       }
 
+      // Filter out model-level options that shouldn't be passed to SDK constructor
+      // These options are meant for request/model configuration, not provider initialization
+      // @event_2026-02-17: Fix AI_InvalidArgumentError for openai provider
+      const MODEL_LEVEL_OPTIONS = [
+        "reasoningEffort",
+        "reasoningSummary",
+        "textVerbosity",
+        "include",
+        "store",
+        "thinkingConfig",
+      ]
+      const sdkOptions = { ...options }
+      for (const key of MODEL_LEVEL_OPTIONS) {
+        delete sdkOptions[key]
+      }
+
       // Special case: google-vertex-anthropic uses a subpath import
       const bundledKey =
         model.providerId === "google-vertex-anthropic" ? "@ai-sdk/google-vertex/anthropic" : model.api.npm
@@ -2193,7 +2245,7 @@ export namespace Provider {
         log.info("using bundled provider", { providerId: model.providerId, pkg: bundledKey })
         const loaded = bundledFn({
           name: model.providerId,
-          ...options,
+          ...sdkOptions,
         })
         s.sdk.set(key, loaded)
         return loaded as SDK
@@ -2212,7 +2264,7 @@ export namespace Provider {
       const fn = mod[Object.keys(mod).find((key) => key.startsWith("create"))!]
       const loaded = fn({
         name: model.providerId,
-        ...options,
+        ...sdkOptions,
       })
       s.sdk.set(key, loaded)
       return loaded as SDK

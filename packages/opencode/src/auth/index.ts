@@ -105,9 +105,13 @@ export namespace Auth {
    */
   export async function get(providerId: string): Promise<Info | undefined> {
     const { Account } = await import("../account")
+    const { debugCheckpoint } = await import("../util/debug")
+
+    debugCheckpoint("auth", "Auth.get called", { providerId })
 
     // 1. Try exact match by account ID
     const exactMatch = await Account.getById(providerId)
+    debugCheckpoint("auth", "Exact match result", { providerId, hasMatch: !!exactMatch })
     if (exactMatch) {
       return accountToAuth(exactMatch.info)
     }
@@ -127,7 +131,16 @@ export namespace Auth {
 
     // 3. Get active account for this provider family
     const family = parseFamily(providerId)
+    debugCheckpoint("auth", "Parsed family", { providerId, family })
+
     const activeInfo = await Account.getActiveInfo(family)
+    debugCheckpoint("auth", "Active info result", {
+      providerId,
+      family,
+      hasActiveInfo: !!activeInfo,
+      activeInfoType: activeInfo?.type,
+    })
+
     if (activeInfo) {
       if (family === "gemini-cli" && activeInfo.type === "subscription") {
         return undefined

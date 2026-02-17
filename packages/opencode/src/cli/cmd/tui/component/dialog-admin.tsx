@@ -378,7 +378,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   const activityInterval = setInterval(() => {
     RequestMonitor.get()
       .sync()
-      .catch(() => {})
+      .catch(() => { })
     setActivityTick((t) => t + 1)
   }, 1000)
   onCleanup(() => clearInterval(activityInterval))
@@ -832,9 +832,9 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
           })
           .filter(Boolean)
           .filter((m: { id: string; title: string }) => isGoogleModelWhitelisted(m.id)) as {
-          id: string
-          title: string
-        }[]
+            id: string
+            title: string
+          }[]
         setGoogleModels(normalized)
       } catch (error) {
         setGoogleModelError(error instanceof Error ? error.message : String(error))
@@ -1154,8 +1154,8 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     const accountData =
       activityAccounts()?.[cur.providerId] ?? activityAccounts()?.[family(cur.providerId) ?? cur.providerId]
     const activeAccountId = accountData?.activeAccount
-    if (!activeAccountId) return undefined
-    return `${activeAccountId}:${cur.providerId}:${cur.modelID}`
+    // @event_20260217_cursor_follow_fix - Fallback to "-" account if none active
+    return `${activeAccountId ?? "-"}:${cur.providerId}:${cur.modelID}`
   })
 
   // ---- OPTION GENERATION ----
@@ -1654,22 +1654,22 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       const existingIds = new Set(baseEntries.map((entry) => entry.value.modelID))
       const dynamicEntries = isGoogleProvider
         ? googleModels()
-            .filter((model) => hiddenCheck(model.id) && !existingIds.has(model.id))
-            .map((model) => {
-              const isFav = favorites.some((f) => f.providerId === baseProviderID && f.modelID === model.id)
-              return {
-                value: { providerId: baseProviderID, modelID: model.id },
-                modelTitle: model.title,
-                category: "Models",
-                gutter: isFav ? <text fg={theme.accent}>⭐</text> : undefined,
-                description: "Google AI Studio list",
-                footer: undefined,
-                onSelect: () => {
-                  debugCheckpoint("admin", "select dynamic model", { provider: modelProviderID, model: model.id })
-                  probeAndSelectModel(modelProviderID, model.id)
-                },
-              }
-            })
+          .filter((model) => hiddenCheck(model.id) && !existingIds.has(model.id))
+          .map((model) => {
+            const isFav = favorites.some((f) => f.providerId === baseProviderID && f.modelID === model.id)
+            return {
+              value: { providerId: baseProviderID, modelID: model.id },
+              modelTitle: model.title,
+              category: "Models",
+              gutter: isFav ? <text fg={theme.accent}>⭐</text> : undefined,
+              description: "Google AI Studio list",
+              footer: undefined,
+              onSelect: () => {
+                debugCheckpoint("admin", "select dynamic model", { provider: modelProviderID, model: model.id })
+                probeAndSelectModel(modelProviderID, model.id)
+              },
+            }
+          })
         : []
 
       const combined = sortBy([...baseEntries, ...dynamicEntries], (entry) => entry.modelTitle)
@@ -1942,53 +1942,53 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
           },
           ...(page() === "providers"
             ? [
-                {
-                  keybind: Keybind.parse("s")[0],
-                  title: showHidden() ? "Hide" : "Showall",
-                  label: "S",
-                  disabled: !connected() || (step() !== "model_select" && step() !== "root"),
-                  onTrigger: () => {
-                    const next = !showHidden()
-                    debugCheckpoint("admin", "toggle show hidden", { enabled: next, step: step() })
-                    setShowHidden(next)
-                  },
+              {
+                keybind: Keybind.parse("s")[0],
+                title: showHidden() ? "Hide" : "Showall",
+                label: "S",
+                disabled: !connected() || (step() !== "model_select" && step() !== "root"),
+                onTrigger: () => {
+                  const next = !showHidden()
+                  debugCheckpoint("admin", "toggle show hidden", { enabled: next, step: step() })
+                  setShowHidden(next)
                 },
-              ]
+              },
+            ]
             : []),
           ...(page() === "activities"
             ? [
-                {
-                  keybind: Keybind.parse("s")[0],
-                  title: "(S)ort",
-                  label: activitySort() === "usage" ? "Usage" : activitySort() === "provider" ? "Provider" : "Model",
-                  disabled: false,
-                  onTrigger: () => {
-                    const next =
-                      activitySort() === "usage" ? "provider" : activitySort() === "provider" ? "model" : "usage"
-                    debugCheckpoint("admin.activities", "sort", { mode: next })
-                    setActivitySort(next)
-                  },
+              {
+                keybind: Keybind.parse("s")[0],
+                title: "(S)ort",
+                label: activitySort() === "usage" ? "Usage" : activitySort() === "provider" ? "Provider" : "Model",
+                disabled: false,
+                onTrigger: () => {
+                  const next =
+                    activitySort() === "usage" ? "provider" : activitySort() === "provider" ? "model" : "usage"
+                  debugCheckpoint("admin.activities", "sort", { mode: next })
+                  setActivitySort(next)
                 },
-                {
-                  keybind: Keybind.parse("delete")[0],
-                  title: "(D)elete",
-                  label: "",
-                  disabled: false,
-                  // @event_2026-02-06:fix-model-activities - Add delete key to remove from favorites in activities page
-                  onTrigger: (option: DialogSelectOption<unknown> | undefined) => {
-                    const val = option?.value
-                    if (val && typeof val === "string") {
-                      const parts = val.split(":")
-                      if (parts.length >= 3) {
-                        const providerId = parts[1]
-                        const modelID = parts[2]
-                        debugCheckpoint("admin.activities", "delete favorite", { providerId, modelID })
-                        local.model.toggleFavorite({ providerId, modelID }, { skipValidation: true })
-                      }
+              },
+              {
+                keybind: Keybind.parse("delete")[0],
+                title: "(D)elete",
+                label: "",
+                disabled: false,
+                // @event_2026-02-06:fix-model-activities - Add delete key to remove from favorites in activities page
+                onTrigger: (option: DialogSelectOption<unknown> | undefined) => {
+                  const val = option?.value
+                  if (val && typeof val === "string") {
+                    const parts = val.split(":")
+                    if (parts.length >= 3) {
+                      const providerId = parts[1]
+                      const modelID = parts[2]
+                      debugCheckpoint("admin.activities", "delete favorite", { providerId, modelID })
+                      local.model.toggleFavorite({ providerId, modelID }, { skipValidation: true })
                     }
-                  },
+                  }
                 },
-              ]
+              },
+            ]
             : []),
           {
             keybind: Keybind.parse("r")[0],
@@ -2164,97 +2164,97 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
           ...(page() === "activities"
             ? []
             : [
-                {
-                  keybind: Keybind.parse("delete")[0],
-                  title: step() === "model_select" ? "Hide" : step() === "root" ? "Hide" : "(Del)ete",
-                  label: "",
-                  disabled: !connected(),
-                  onTrigger: async (option: DialogSelectOption<unknown> | undefined) => {
-                    const adminOption = asDialogAdminOption(option)
-                    const val = adminOption.value
+              {
+                keybind: Keybind.parse("delete")[0],
+                title: step() === "model_select" ? "Hide" : step() === "root" ? "Hide" : "(Del)ete",
+                label: "",
+                disabled: !connected(),
+                onTrigger: async (option: DialogSelectOption<unknown> | undefined) => {
+                  const adminOption = asDialogAdminOption(option)
+                  const val = adminOption.value
 
-                    // Hide provider on root step
-                    const providerSelection = asProviderSelectionValue(val)
-                    if (step() === "root" && providerSelection && adminOption.category === "Providers") {
-                      const fam = providerSelection.family
-                      const isUnconfigured = providerSelection.isUnconfigured
-                      // Check if not already hidden
-                      const isInHiddenList = local.model.isProviderHidden(fam)
-                      const effectivelyHidden = isUnconfigured ? !isInHiddenList : isInHiddenList
-                      if (!effectivelyHidden) {
-                        debugCheckpoint("admin", "hide provider", { family: fam, isUnconfigured })
-                        // For unconfigured: toggle removes from list (makes it hidden again)
-                        // For configured: toggle adds to list (makes it hidden)
-                        local.model.toggleHiddenProvider(fam)
-                        toast.show({ message: `Provider "${fam}" hidden`, variant: "info", duration: 2000 })
-                      }
-                      return
+                  // Hide provider on root step
+                  const providerSelection = asProviderSelectionValue(val)
+                  if (step() === "root" && providerSelection && adminOption.category === "Providers") {
+                    const fam = providerSelection.family
+                    const isUnconfigured = providerSelection.isUnconfigured
+                    // Check if not already hidden
+                    const isInHiddenList = local.model.isProviderHidden(fam)
+                    const effectivelyHidden = isUnconfigured ? !isInHiddenList : isInHiddenList
+                    if (!effectivelyHidden) {
+                      debugCheckpoint("admin", "hide provider", { family: fam, isUnconfigured })
+                      // For unconfigured: toggle removes from list (makes it hidden again)
+                      // For configured: toggle adds to list (makes it hidden)
+                      local.model.toggleHiddenProvider(fam)
+                      toast.show({ message: `Provider "${fam}" hidden`, variant: "info", duration: 2000 })
                     }
+                    return
+                  }
 
-                    if (step() === "account_select" && typeof val === "string" && val !== "__add_account__") {
-                      const fam = selectedFamily()
-                      if (fam) {
-                        // Use coreFamily for account operations (accounts may be stored in different family than displayed)
-                        const lookupFamily = adminOption.coreFamily || fam
-                        debugCheckpoint("admin", "delete account prompt", { family: lookupFamily, id: val })
-                        const confirmed = await DialogConfirm.show(
-                          dialog,
-                          "Delete Account",
-                          `Are you sure you want to delete this account?`,
-                        )
+                  if (step() === "account_select" && typeof val === "string" && val !== "__add_account__") {
+                    const fam = selectedFamily()
+                    if (fam) {
+                      // Use coreFamily for account operations (accounts may be stored in different family than displayed)
+                      const lookupFamily = adminOption.coreFamily || fam
+                      debugCheckpoint("admin", "delete account prompt", { family: lookupFamily, id: val })
+                      const confirmed = await DialogConfirm.show(
+                        dialog,
+                        "Delete Account",
+                        `Are you sure you want to delete this account?`,
+                      )
 
-                        if (confirmed) {
-                          try {
-                            // Remove from core Account module (single source of truth)
-                            // Use the mapped coreId and coreFamily for correct lookup
-                            const coreId = adminOption.coreId || val
-                            await Account.remove(lookupFamily, coreId)
-                            await Account.refresh()
+                      if (confirmed) {
+                        try {
+                          // Remove from core Account module (single source of truth)
+                          // Use the mapped coreId and coreFamily for correct lookup
+                          const coreId = adminOption.coreId || val
+                          await Account.remove(lookupFamily, coreId)
+                          await Account.refresh()
 
-                            // Reload AccountManager to sync in-memory state
-                            if (lookupFamily === "antigravity") {
-                              const manager = agManager()
-                              if (manager) {
-                                await manager.reloadFromAccountModule()
-                              }
+                          // Reload AccountManager to sync in-memory state
+                          if (lookupFamily === "antigravity") {
+                            const manager = agManager()
+                            if (manager) {
+                              await manager.reloadFromAccountModule()
                             }
-
-                            debugCheckpoint("admin", "delete account success", { family: lookupFamily, id: coreId })
-                            toast.show({ message: "Account deleted successfully", variant: "success" })
-                            await refreshAntigravity()
-                            setSelectedFamily(fam)
-                            forceRefresh()
-                            lockBackOnce()
-                          } catch (e: unknown) {
-                            debugCheckpoint("admin", "delete account error", {
-                              family: fam,
-                              error: String(e instanceof Error ? e.stack || e.message : e),
-                            })
-                            toast.error(e)
                           }
+
+                          debugCheckpoint("admin", "delete account success", { family: lookupFamily, id: coreId })
+                          toast.show({ message: "Account deleted successfully", variant: "success" })
+                          await refreshAntigravity()
+                          setSelectedFamily(fam)
+                          forceRefresh()
+                          lockBackOnce()
+                        } catch (e: unknown) {
+                          debugCheckpoint("admin", "delete account error", {
+                            family: fam,
+                            error: String(e instanceof Error ? e.stack || e.message : e),
+                          })
+                          toast.error(e)
                         }
                       }
-                      return
                     }
+                    return
+                  }
 
-                    if (step() === "model_select" || step() === "root") {
-                      // Only handle model values (objects)
-                      const modelVal = asModelSelectionValue(val)
-                      if (modelVal) {
-                        debugCheckpoint("admin", "delete model action", {
-                          origin: modelVal.origin,
-                          provider: modelVal.providerId,
-                          model: modelVal.modelID,
-                        })
-                        if (modelVal.origin === "recent") local.model.removeFromRecent(modelVal)
-                        else if (modelVal.origin === "favorite") {
-                          local.model.toggleFavorite(modelVal, { skipValidation: true })
-                        } else if (step() !== "root") local.model.toggleHidden(modelVal)
-                      }
+                  if (step() === "model_select" || step() === "root") {
+                    // Only handle model values (objects)
+                    const modelVal = asModelSelectionValue(val)
+                    if (modelVal) {
+                      debugCheckpoint("admin", "delete model action", {
+                        origin: modelVal.origin,
+                        provider: modelVal.providerId,
+                        model: modelVal.modelID,
+                      })
+                      if (modelVal.origin === "recent") local.model.removeFromRecent(modelVal)
+                      else if (modelVal.origin === "favorite") {
+                        local.model.toggleFavorite(modelVal, { skipValidation: true })
+                      } else if (step() !== "root") local.model.toggleHidden(modelVal)
                     }
-                  },
+                  }
                 },
-              ]),
+              },
+            ]),
           {
             keybind: Keybind.parse("insert")[0],
             title: "Unhide",

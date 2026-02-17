@@ -245,7 +245,7 @@ async function openBrowser(url: string): Promise<boolean> {
       stdio: "ignore",
       shell: false,
     })
-    child.once("error", () => {})
+    child.once("error", () => { })
     child.unref()
   }
 
@@ -855,565 +855,409 @@ function sleep(ms: number, signal?: AbortSignal | null): Promise<void> {
  */
 export const createAntigravityPlugin =
   (providerId: string) =>
-  async ({ client, directory }: PluginContext): Promise<PluginResult> => {
-    // Load configuration from files and environment variables
-    const config = loadConfig(directory)
-    initRuntimeConfig(config)
+    async ({ client, directory }: PluginContext): Promise<PluginResult> => {
+      // Load configuration from files and environment variables
+      const config = loadConfig(directory)
+      initRuntimeConfig(config)
 
-    // Initialize runtime Antigravity version (remote fetch with fallback)
-    await initAntigravityVersion()
+      // Initialize runtime Antigravity version (remote fetch with fallback)
+      await initAntigravityVersion()
 
-    // Initialize debug with config
-    initializeDebug(config)
+      // Initialize debug with config
+      initializeDebug(config)
 
-    // Initialize structured logger for TUI integration
-    initLogger(client)
+      // Initialize structured logger for TUI integration
+      initLogger(client)
 
-    // Initialize health tracker for hybrid strategy
-    // if (config.health_score) {
-    //   initHealthTracker({
-    //     initial: config.health_score.initial,
-    //     successReward: config.health_score.success_reward,
-    //     rateLimitPenalty: config.health_score.rate_limit_penalty,
-    //     failurePenalty: config.health_score.failure_penalty,
-    //     recoveryRatePerHour: config.health_score.recovery_rate_per_hour,
-    //     minUsable: config.health_score.min_usable,
-    //     maxScore: config.health_score.max_score,
-    //   })
-    // }
+      // Initialize health tracker for hybrid strategy
+      // if (config.health_score) {
+      //   initHealthTracker({
+      //     initial: config.health_score.initial,
+      //     successReward: config.health_score.success_reward,
+      //     rateLimitPenalty: config.health_score.rate_limit_penalty,
+      //     failurePenalty: config.health_score.failure_penalty,
+      //     recoveryRatePerHour: config.health_score.recovery_rate_per_hour,
+      //     minUsable: config.health_score.min_usable,
+      //     maxScore: config.health_score.max_score,
+      //   })
+      // }
 
-    // Initialize token tracker for hybrid strategy
-    // if (config.token_bucket) {
-    //   initTokenTracker({
-    //     maxTokens: config.token_bucket.max_tokens,
-    //     regenerationRatePerMinute: config.token_bucket.regeneration_rate_per_minute,
-    //     initialTokens: config.token_bucket.initial_tokens,
-    //   })
-    // }
+      // Initialize token tracker for hybrid strategy
+      // if (config.token_bucket) {
+      //   initTokenTracker({
+      //     maxTokens: config.token_bucket.max_tokens,
+      //     regenerationRatePerMinute: config.token_bucket.regeneration_rate_per_minute,
+      //     initialTokens: config.token_bucket.initial_tokens,
+      //   })
+      // }
 
-    // Initialize disk signature cache if keep_thinking is enabled
-    // This integrates with the in-memory cacheSignature/getCachedSignature functions
-    if (config.keep_thinking) {
-      initDiskSignatureCache(config.signature_cache)
-    }
-
-    // Initialize session recovery hook with full context
-    const sessionRecovery = createSessionRecoveryHook({ client, directory }, config)
-
-    const updateChecker = createAutoUpdateCheckerHook(client, directory, {
-      showStartupToast: true,
-      autoUpdate: config.auto_update,
-    })
-
-    // Event handler for session recovery and updates
-    const eventHandler = async (input: { event: { type: string; properties?: unknown } }) => {
-      // Forward to update checker
-      await updateChecker.event(input)
-
-      // @event_2026-02-06:antigravity_v145_integration
-      // Track if this is a child session (subagent, background task)
-      // Used to filter toasts based on toast_scope config
-      if (input.event.type === "session.created") {
-        const props = input.event.properties as { info?: { parentID?: string } } | undefined
-        if (props?.info?.parentID) {
-          isChildSession = true
-          childSessionParentID = props.info.parentID
-          log.debug("child-session-detected", { parentID: props.info.parentID })
-        } else {
-          // Reset for root sessions - important when plugin instance is reused
-          isChildSession = false
-          childSessionParentID = undefined
-          log.debug("root-session-detected", {})
-        }
+      // Initialize disk signature cache if keep_thinking is enabled
+      // This integrates with the in-memory cacheSignature/getCachedSignature functions
+      if (config.keep_thinking) {
+        initDiskSignatureCache(config.signature_cache)
       }
 
-      // Handle session recovery
-      if (sessionRecovery && input.event.type === "session.error") {
-        const props = input.event.properties as Record<string, unknown> | undefined
-        const sessionID = props?.sessionID as string | undefined
-        const messageID = props?.messageID as string | undefined
-        const error = props?.error
+      // Initialize session recovery hook with full context
+      const sessionRecovery = createSessionRecoveryHook({ client, directory }, config)
 
-        if (sessionRecovery.isRecoverableError(error)) {
-          const messageInfo = {
-            id: messageID,
-            role: "assistant" as const,
-            sessionID,
-            error,
+      const updateChecker = createAutoUpdateCheckerHook(client, directory, {
+        showStartupToast: true,
+        autoUpdate: config.auto_update,
+      })
+
+      // Event handler for session recovery and updates
+      const eventHandler = async (input: { event: { type: string; properties?: unknown } }) => {
+        // Forward to update checker
+        await updateChecker.event(input)
+
+        // @event_2026-02-06:antigravity_v145_integration
+        // Track if this is a child session (subagent, background task)
+        // Used to filter toasts based on toast_scope config
+        if (input.event.type === "session.created") {
+          const props = input.event.properties as { info?: { parentID?: string } } | undefined
+          if (props?.info?.parentID) {
+            isChildSession = true
+            childSessionParentID = props.info.parentID
+            log.debug("child-session-detected", { parentID: props.info.parentID })
+          } else {
+            // Reset for root sessions - important when plugin instance is reused
+            isChildSession = false
+            childSessionParentID = undefined
+            log.debug("root-session-detected", {})
           }
+        }
 
-          // handleSessionRecovery now does the actual fix (injects tool_result, etc.)
-          const recovered = await sessionRecovery.handleSessionRecovery(messageInfo)
+        // Handle session recovery
+        if (sessionRecovery && input.event.type === "session.error") {
+          const props = input.event.properties as Record<string, unknown> | undefined
+          const sessionID = props?.sessionID as string | undefined
+          const messageID = props?.messageID as string | undefined
+          const error = props?.error
 
-          // Only send "continue" AFTER successful tool_result_missing recovery
-          // (thinking recoveries already resume inside handleSessionRecovery)
-          if (recovered && sessionID && config.auto_resume) {
-            // For tool_result_missing, we need to send continue after injecting tool_results
-            await client.session
-              .prompt({
-                path: { id: sessionID },
-                body: { parts: [{ type: "text", text: config.resume_text }] },
-                query: { directory },
-              })
-              .catch(() => {})
+          if (sessionRecovery.isRecoverableError(error)) {
+            const messageInfo = {
+              id: messageID,
+              role: "assistant" as const,
+              sessionID,
+              error,
+            }
 
-            // @event_2026-02-06:antigravity_v145_integration
-            // Show success toast (respects toast_scope for child sessions)
-            const successToast = getRecoverySuccessToast()
-            log.debug("recovery-toast", { ...successToast, isChildSession, toastScope: config.toast_scope })
-            if (!(config.toast_scope === "root_only" && isChildSession)) {
-              await client.tui
-                .showToast({
-                  body: {
-                    title: successToast.title,
-                    message: successToast.message,
-                    variant: "success",
-                  },
+            // handleSessionRecovery now does the actual fix (injects tool_result, etc.)
+            const recovered = await sessionRecovery.handleSessionRecovery(messageInfo)
+
+            // Only send "continue" AFTER successful tool_result_missing recovery
+            // (thinking recoveries already resume inside handleSessionRecovery)
+            if (recovered && sessionID && config.auto_resume) {
+              // For tool_result_missing, we need to send continue after injecting tool_results
+              await client.session
+                .prompt({
+                  path: { id: sessionID },
+                  body: { parts: [{ type: "text", text: config.resume_text }] },
+                  query: { directory },
                 })
-                .catch(() => {})
+                .catch(() => { })
+
+              // @event_2026-02-06:antigravity_v145_integration
+              // Show success toast (respects toast_scope for child sessions)
+              const successToast = getRecoverySuccessToast()
+              log.debug("recovery-toast", { ...successToast, isChildSession, toastScope: config.toast_scope })
+              if (!(config.toast_scope === "root_only" && isChildSession)) {
+                await client.tui
+                  .showToast({
+                    body: {
+                      title: successToast.title,
+                      message: successToast.message,
+                      variant: "success",
+                    },
+                  })
+                  .catch(() => { })
+              }
             }
           }
         }
       }
-    }
 
-    // Create google_search tool with access to auth context
-    const googleSearchTool = tool({
-      description:
-        "Search the web using Google Search and analyze URLs. Returns real-time information from the internet with source citations. Uses Antigravity OAuth when configured; otherwise uses Gemini CLI OAuth. Use this when you need up-to-date information about current events, recent developments, or any topic that may have changed. You can also provide specific URLs to analyze. IMPORTANT: If the user mentions or provides any URLs in their query, you MUST extract those URLs and pass them in the 'urls' parameter for direct analysis.",
-      args: {
-        query: z.string().describe("The search query or question to answer using web search"),
-        urls: z
-          .array(z.string())
-          .optional()
-          .describe(
-            "List of specific URLs to fetch and analyze. IMPORTANT: Always extract and include any URLs mentioned by the user in their query here.",
-          ),
-        thinking: z
-          .boolean()
-          .optional()
-          .default(true)
-          .describe("Enable deep thinking for more thorough analysis (default: true)"),
-      },
-      async execute(args, ctx) {
-        log.debug("Google Search tool called", { query: args.query, urlCount: args.urls?.length ?? 0 })
-        debugCheckpoint("google_search", "start", {
-          query: args.query,
-          urlCount: args.urls?.length ?? 0,
-          thinking: args.thinking ?? true,
-        })
+      // Create google_search tool with access to auth context
+      const googleSearchTool = tool({
+        description:
+          "Search the web using Google Search and analyze URLs. Returns real-time information from the internet with source citations. Uses Antigravity OAuth when configured; otherwise uses Gemini CLI OAuth. Use this when you need up-to-date information about current events, recent developments, or any topic that may have changed. You can also provide specific URLs to analyze. IMPORTANT: If the user mentions or provides any URLs in their query, you MUST extract those URLs and pass them in the 'urls' parameter for direct analysis.",
+        args: {
+          query: z.string().describe("The search query or question to answer using web search"),
+          urls: z
+            .array(z.string())
+            .optional()
+            .describe(
+              "List of specific URLs to fetch and analyze. IMPORTANT: Always extract and include any URLs mentioned by the user in their query here.",
+            ),
+          thinking: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Enable deep thinking for more thorough analysis (default: true)"),
+        },
+        async execute(args, ctx) {
+          log.debug("Google Search tool called", { query: args.query, urlCount: args.urls?.length ?? 0 })
+          debugCheckpoint("google_search", "start", {
+            query: args.query,
+            urlCount: args.urls?.length ?? 0,
+            thinking: args.thinking ?? true,
+          })
 
-        const executeGeminiCliSearch = async (): Promise<{ ok: boolean; output: string; error?: string }> => {
-          debugCheckpoint("google_search", "gemini-cli: start")
-          const auth = await Auth.get("gemini-cli")
-          if (!auth || !isGeminiOAuth(auth)) {
-            debugCheckpoint("google_search", "gemini-cli: missing auth")
-            return {
-              ok: false,
-              output:
-                "Error: Gemini CLI OAuth is not configured. Please configure Gemini CLI OAuth (via /admin or accounts.json), or use an Antigravity account.",
-              error: "Gemini CLI OAuth is not configured",
+          const executeGeminiCliSearch = async (): Promise<{ ok: boolean; output: string; error?: string }> => {
+            debugCheckpoint("google_search", "gemini-cli: start")
+            const auth = await Auth.get("gemini-cli")
+            if (!auth || !isGeminiOAuth(auth)) {
+              debugCheckpoint("google_search", "gemini-cli: missing auth")
+              return {
+                ok: false,
+                output:
+                  "Error: Gemini CLI OAuth is not configured. Please configure Gemini CLI OAuth (via /admin or accounts.json), or use an Antigravity account.",
+                error: "Gemini CLI OAuth is not configured",
+              }
             }
-          }
 
-          const geminiClient: GeminiPluginClient = {
-            auth: {
-              set: async (input: { path: { id: string }; body: GeminiOAuthAuthDetails }) => {
-                if (input.body.type !== "oauth") return
-                const body = {
-                  type: "oauth" as const,
-                  refresh: input.body.refresh,
-                  access: input.body.access,
-                  expires: input.body.expires,
-                  accountId: input.body.accountId,
-                }
-                await client.auth.set({
-                  path: { id: input.path.id },
-                  body,
-                })
+            const geminiClient: GeminiPluginClient = {
+              auth: {
+                set: async (input: { path: { id: string }; body: GeminiOAuthAuthDetails }) => {
+                  if (input.body.type !== "oauth") return
+                  const body = {
+                    type: "oauth" as const,
+                    refresh: input.body.refresh,
+                    access: input.body.access,
+                    expires: input.body.expires,
+                    accountId: input.body.accountId,
+                  }
+                  await client.auth.set({
+                    path: { id: input.path.id },
+                    body,
+                  })
+                },
               },
-            },
-          }
+            }
 
-          let authRecord = {
-            type: "oauth" as const,
-            refresh: auth.refresh,
-            access: auth.access,
-            expires: auth.expires,
-          }
+            let authRecord = {
+              type: "oauth" as const,
+              refresh: auth.refresh,
+              access: auth.access,
+              expires: auth.expires,
+            }
 
-          if (geminiAccessTokenExpired(authRecord)) {
-            debugCheckpoint("google_search", "gemini-cli: access token expired, refreshing")
-            const refreshed = await refreshGeminiAccessToken(authRecord, geminiClient)
-            if (!refreshed) {
-              debugCheckpoint("google_search", "gemini-cli: refresh failed")
+            if (geminiAccessTokenExpired(authRecord)) {
+              debugCheckpoint("google_search", "gemini-cli: access token expired, refreshing")
+              const refreshed = await refreshGeminiAccessToken(authRecord, geminiClient)
+              if (!refreshed) {
+                debugCheckpoint("google_search", "gemini-cli: refresh failed")
+                return {
+                  ok: false,
+                  output:
+                    "Error: Gemini CLI access token refresh failed. Please reconfigure Gemini CLI OAuth (via /admin or accounts.json), or use an Antigravity account.",
+                  error: "Gemini CLI access token refresh failed",
+                }
+              }
+              if (refreshed.type !== "oauth") {
+                debugCheckpoint("google_search", "gemini-cli: unexpected auth type", { type: refreshed.type })
+                return {
+                  ok: false,
+                  output:
+                    "Error: Gemini CLI auth must be OAuth. Please configure Gemini CLI OAuth (via /admin or accounts.json), or use an Antigravity account.",
+                  error: "Gemini CLI auth must be OAuth",
+                }
+              }
+              authRecord = {
+                type: "oauth",
+                refresh: refreshed.refresh,
+                access: refreshed.access,
+                expires: refreshed.expires,
+              }
+            }
+
+            const accessToken = authRecord.access
+            if (!accessToken) {
+              debugCheckpoint("google_search", "gemini-cli: missing access token")
               return {
                 ok: false,
                 output:
-                  "Error: Gemini CLI access token refresh failed. Please reconfigure Gemini CLI OAuth (via /admin or accounts.json), or use an Antigravity account.",
-                error: "Gemini CLI access token refresh failed",
+                  "Error: Gemini CLI access token is missing. Please reconfigure Gemini CLI OAuth (via /admin or accounts.json), or use an Antigravity account.",
+                error: "Gemini CLI access token is missing",
               }
             }
-            if (refreshed.type !== "oauth") {
-              debugCheckpoint("google_search", "gemini-cli: unexpected auth type", { type: refreshed.type })
+
+            const configuredProjectId = process.env.OPENCODE_GEMINI_PROJECT_ID?.trim() || undefined
+            debugCheckpoint("google_search", "gemini-cli: resolve project context", {
+              configuredProjectId: configuredProjectId ? "set" : "unset",
+            })
+            const projectContext = await ensureGeminiProjectContext(authRecord, geminiClient, configuredProjectId).catch(
+              (error) => {
+                const message = error instanceof Error ? error.message : String(error)
+                return { error: message } as const
+              },
+            )
+
+            if ("error" in projectContext) {
+              debugCheckpoint("google_search", "gemini-cli: project context error", { error: projectContext.error })
               return {
                 ok: false,
-                output:
-                  "Error: Gemini CLI auth must be OAuth. Please configure Gemini CLI OAuth (via /admin or accounts.json), or use an Antigravity account.",
-                error: "Gemini CLI auth must be OAuth",
+                output: `Error: ${projectContext.error}`,
+                error: projectContext.error,
               }
             }
-            authRecord = {
-              type: "oauth",
-              refresh: refreshed.refresh,
-              access: refreshed.access,
-              expires: refreshed.expires,
+
+            if (!projectContext.effectiveProjectId) {
+              debugCheckpoint("google_search", "gemini-cli: missing project id")
+              return {
+                ok: false,
+                output: "Error: Gemini CLI project ID is missing. Set OPENCODE_GEMINI_PROJECT_ID and retry.",
+                error: "Gemini CLI project ID is missing",
+              }
             }
-          }
 
-          const accessToken = authRecord.access
-          if (!accessToken) {
-            debugCheckpoint("google_search", "gemini-cli: missing access token")
-            return {
-              ok: false,
-              output:
-                "Error: Gemini CLI access token is missing. Please reconfigure Gemini CLI OAuth (via /admin or accounts.json), or use an Antigravity account.",
-              error: "Gemini CLI access token is missing",
-            }
-          }
-
-          const configuredProjectId = process.env.OPENCODE_GEMINI_PROJECT_ID?.trim() || undefined
-          debugCheckpoint("google_search", "gemini-cli: resolve project context", {
-            configuredProjectId: configuredProjectId ? "set" : "unset",
-          })
-          const projectContext = await ensureGeminiProjectContext(authRecord, geminiClient, configuredProjectId).catch(
-            (error) => {
-              const message = error instanceof Error ? error.message : String(error)
-              return { error: message } as const
-            },
-          )
-
-          if ("error" in projectContext) {
-            debugCheckpoint("google_search", "gemini-cli: project context error", { error: projectContext.error })
-            return {
-              ok: false,
-              output: `Error: ${projectContext.error}`,
-              error: projectContext.error,
-            }
-          }
-
-          if (!projectContext.effectiveProjectId) {
-            debugCheckpoint("google_search", "gemini-cli: missing project id")
-            return {
-              ok: false,
-              output: "Error: Gemini CLI project ID is missing. Set OPENCODE_GEMINI_PROJECT_ID and retry.",
-              error: "Gemini CLI project ID is missing",
-            }
-          }
-
-          const projectId = projectContext.effectiveProjectId
-          debugCheckpoint("google_search", "gemini-cli: execute search", {
-            projectId,
-          })
-          const result = await executeSearch(
-            {
-              query: args.query,
-              urls: args.urls,
-              thinking: args.thinking,
-            },
-            accessToken,
-            projectId,
-            ctx.abort,
-            { headerStyle: "gemini-cli" },
-          )
-          if (result.ok) {
-            debugCheckpoint("google_search", "gemini-cli: search ok")
-            return { ok: true, output: result.output }
-          }
-          if (result.error === "Search returned empty response") {
-            debugCheckpoint("google_search", "gemini-cli: empty response, retry with fallback model")
-            const retry = await executeSearch(
+            const projectId = projectContext.effectiveProjectId
+            debugCheckpoint("google_search", "gemini-cli: execute search", {
+              projectId,
+            })
+            const result = await executeSearch(
               {
                 query: args.query,
                 urls: args.urls,
-                thinking: false,
+                thinking: args.thinking,
               },
               accessToken,
               projectId,
               ctx.abort,
-              { headerStyle: "gemini-cli", model: "gemini-2.5-flash" },
+              { headerStyle: "gemini-cli" },
             )
-            if (retry.ok) {
-              debugCheckpoint("google_search", "gemini-cli: retry ok")
-              return { ok: true, output: retry.output }
+            if (result.ok) {
+              debugCheckpoint("google_search", "gemini-cli: search ok")
+              return { ok: true, output: result.output }
             }
-            debugCheckpoint("google_search", "gemini-cli: retry failed", { error: retry.error })
-            return { ok: false, output: retry.output, error: retry.error }
-          }
-          debugCheckpoint("google_search", "gemini-cli: search failed", { error: result.error })
-          return { ok: false, output: result.output, error: result.error }
-        }
-
-        await refreshGlobalAccountManager()
-
-        let accountManager = globalAccountManager ?? (await AccountManager.loadFromDisk())
-        if (!globalAccountManager) {
-          globalAccountManager = accountManager
-        }
-
-        await accountManager.reloadFromAccountModule()
-        debugCheckpoint("google_search", "antigravity: reloaded accounts", {
-          count: accountManager.getAccountCount(),
-          activeIndex: accountManager.getActiveIndex(),
-          activeIndexByFamily: accountManager.getActiveIndexByFamily(),
-        })
-
-        const hardcodedEmail = "yeatsluo@gmail.com"
-        const hardcodedModel = "gemini-3-pro"
-        const hardcodedAccount = accountManager.getEnabledAccounts().find((account) => account.email === hardcodedEmail)
-        if (!hardcodedAccount) {
-          debugCheckpoint("google_search", "antigravity: hardcoded account not found", {
-            email: hardcodedEmail,
-          })
-          return `Error: google_search hardcoded account not found (${hardcodedEmail})`
-        }
-
-        debugCheckpoint("google_search", "antigravity: hardcoded account selected", {
-          email: hardcodedEmail,
-          model: hardcodedModel,
-          accountIndex: hardcodedAccount.index,
-        })
-
-        let authRecord = accountManager.toAuthDetails(hardcodedAccount)
-        if (accessTokenExpired(authRecord)) {
-          debugCheckpoint("google_search", "antigravity: access token expired, refreshing", {
-            accountIndex: hardcodedAccount.index,
-          })
-          const refreshed = await refreshAccessToken(authRecord, client, providerId).catch((error) => {
-            if (error instanceof AntigravityTokenRefreshError && error.code === "invalid_grant") {
-              const removed = accountManager.removeAccount(hardcodedAccount)
-              if (removed) {
-                accountManager.requestSaveToDisk()
+            if (result.error === "Search returned empty response") {
+              debugCheckpoint("google_search", "gemini-cli: empty response, retry with fallback model")
+              const retry = await executeSearch(
+                {
+                  query: args.query,
+                  urls: args.urls,
+                  thinking: false,
+                },
+                accessToken,
+                projectId,
+                ctx.abort,
+                { headerStyle: "gemini-cli", model: "gemini-2.5-flash" },
+              )
+              if (retry.ok) {
+                debugCheckpoint("google_search", "gemini-cli: retry ok")
+                return { ok: true, output: retry.output }
               }
+              debugCheckpoint("google_search", "gemini-cli: retry failed", { error: retry.error })
+              return { ok: false, output: retry.output, error: retry.error }
             }
-            const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(hardcodedAccount.index)
-            getGlobalHealthTracker().recordFailure(`antigravity-account-${hardcodedAccount.index}`, "antigravity")
-            if (shouldCooldown) {
-              accountManager.markAccountCoolingDown(hardcodedAccount, cooldownMs, "auth-failure")
-              accountManager.markRateLimited(hardcodedAccount, cooldownMs, "gemini", "antigravity", hardcodedModel)
-            }
-            return undefined
+            debugCheckpoint("google_search", "gemini-cli: search failed", { error: result.error })
+            return { ok: false, output: result.output, error: result.error }
+          }
+
+          await refreshGlobalAccountManager()
+
+          let accountManager = globalAccountManager ?? (await AccountManager.loadFromDisk())
+          if (!globalAccountManager) {
+            globalAccountManager = accountManager
+          }
+
+          await accountManager.reloadFromAccountModule()
+          debugCheckpoint("google_search", "antigravity: reloaded accounts", {
+            count: accountManager.getAccountCount(),
+            activeIndex: accountManager.getActiveIndex(),
+            activeIndexByFamily: accountManager.getActiveIndexByFamily(),
           })
 
-          if (!refreshed) {
-            debugCheckpoint("google_search", "antigravity: refresh failed", {
-              accountIndex: hardcodedAccount.index,
+          const hardcodedEmail = "yeatsluo@gmail.com"
+          const hardcodedModel = "gemini-3-pro"
+          const hardcodedAccount = accountManager.getEnabledAccounts().find((account) => account.email === hardcodedEmail)
+          if (!hardcodedAccount) {
+            debugCheckpoint("google_search", "antigravity: hardcoded account not found", {
+              email: hardcodedEmail,
             })
-            return "Error: google_search hardcoded account refresh failed"
+            return `Error: google_search hardcoded account not found (${hardcodedEmail})`
           }
 
-          resetAccountFailureState(hardcodedAccount.index)
-          accountManager.updateFromAuth(hardcodedAccount, refreshed)
-          accountManager.requestSaveToDisk()
-          await accountManager.flushSaveToDisk()
-          authRecord = refreshed
-          debugCheckpoint("google_search", "antigravity: refresh ok", {
-            accountIndex: hardcodedAccount.index,
-            expiresAt: authRecord.expires,
-          })
-        }
-
-        const token = authRecord.access ?? ""
-        if (!token) {
-          debugCheckpoint("google_search", "antigravity: missing access token", {
+          debugCheckpoint("google_search", "antigravity: hardcoded account selected", {
+            email: hardcodedEmail,
+            model: hardcodedModel,
             accountIndex: hardcodedAccount.index,
           })
-          return "Error: google_search hardcoded account missing access token"
-        }
 
-        let projectContext: ProjectContextResult
-        try {
-          projectContext = await ensureProjectContext(authRecord)
-          resetAccountFailureState(hardcodedAccount.index)
-        } catch (error) {
-          const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(hardcodedAccount.index)
-          getGlobalHealthTracker().recordFailure(`antigravity-account-${hardcodedAccount.index}`, "antigravity")
-          if (shouldCooldown) {
-            accountManager.markAccountCoolingDown(hardcodedAccount, cooldownMs, "project-error")
-            accountManager.markRateLimited(hardcodedAccount, cooldownMs, "gemini", "antigravity", hardcodedModel)
-          }
-          const message = error instanceof Error ? error.message : String(error)
-          debugCheckpoint("google_search", "antigravity: project context error", {
-            accountIndex: hardcodedAccount.index,
-            error: message,
-          })
-          return `Error: google_search hardcoded account project context error (${message})`
-        }
-
-        if (projectContext.auth !== authRecord) {
-          accountManager.updateFromAuth(hardcodedAccount, projectContext.auth)
-          authRecord = projectContext.auth
-          accountManager.requestSaveToDisk()
-          await accountManager.flushSaveToDisk()
-          const parts = parseRefreshParts(authRecord.refresh)
-          debugCheckpoint("google_search", "antigravity: project context persisted", {
-            accountIndex: hardcodedAccount.index,
-            projectId: parts.projectId,
-            managedProjectId: parts.managedProjectId,
-            effectiveProjectId: projectContext.effectiveProjectId,
-          })
-        }
-
-        const projectId = projectContext.effectiveProjectId
-        if (!projectId) {
-          debugCheckpoint("google_search", "antigravity: missing project id", {
-            accountIndex: hardcodedAccount.index,
-          })
-          return "Error: google_search hardcoded account missing project ID"
-        }
-
-        accountManager.markAccountUsed(hardcodedAccount.index)
-        accountManager.requestSaveToDisk()
-
-        debugCheckpoint("google_search", "antigravity: execute search", {
-          accountIndex: hardcodedAccount.index,
-          projectId,
-          model: hardcodedModel,
-          hardcoded: true,
-        })
-        const hardcodedResult = await executeSearch(
-          {
-            query: args.query,
-            urls: args.urls,
-            thinking: args.thinking,
-          },
-          token,
-          projectId,
-          ctx.abort,
-          { headerStyle: "antigravity", model: hardcodedModel },
-        )
-        if (hardcodedResult.ok) {
-          debugCheckpoint("google_search", "antigravity: search ok", {
-            accountIndex: hardcodedAccount.index,
-          })
-          return hardcodedResult.output
-        }
-
-        debugCheckpoint("google_search", "antigravity: search failed", {
-          accountIndex: hardcodedAccount.index,
-          error: hardcodedResult.error,
-        })
-        return `Error: google_search hardcoded account failed (${hardcodedResult.error ?? "Search failed"})`
-
-        const accountCount = accountManager.getAccountCount()
-        debugCheckpoint("google_search", "antigravity: account count", { count: accountCount })
-        if (accountCount === 0) {
-          debugCheckpoint("google_search", "antigravity: no accounts, fallback to gemini-cli")
-          const geminiResult = await executeGeminiCliSearch()
-          if (geminiResult.ok) {
-            debugCheckpoint("google_search", "gemini-cli: returned result after no antigravity accounts")
-            return geminiResult.output
-          }
-          debugCheckpoint("google_search", "google_search: both providers failed", {
-            antigravity: "no accounts",
-            geminiCli: geminiResult.error,
-          })
-          return `Error: google_search authentication failed for antigravity and gemini-cli. ${geminiResult.output}`
-        }
-
-        let lastError: Error | null = null
-
-        for (let attempt = 0; attempt < accountCount; attempt++) {
-          const account = accountManager.getCurrentOrNextForFamily(
-            "gemini",
-            SEARCH_MODEL,
-            "sticky",
-            "antigravity",
-            config.pid_offset_enabled,
-          )
-
-          if (!account) {
-            debugCheckpoint("google_search", "antigravity: no available account")
-            lastError = new Error("No available Antigravity accounts")
-            break
-          }
-
-          const selected = account as NonNullable<typeof account>
-          let authRecord = accountManager.toAuthDetails(selected)
+          let authRecord = accountManager.toAuthDetails(hardcodedAccount)
           if (accessTokenExpired(authRecord)) {
             debugCheckpoint("google_search", "antigravity: access token expired, refreshing", {
-              accountIndex: selected.index,
+              accountIndex: hardcodedAccount.index,
             })
             const refreshed = await refreshAccessToken(authRecord, client, providerId).catch((error) => {
-              lastError = error instanceof Error ? error : new Error(String(error))
               if (error instanceof AntigravityTokenRefreshError && error.code === "invalid_grant") {
-                const removed = accountManager.removeAccount(selected)
+                const removed = accountManager.removeAccount(hardcodedAccount)
                 if (removed) {
                   accountManager.requestSaveToDisk()
                 }
               }
-              const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(selected.index)
-              getGlobalHealthTracker().recordFailure(`antigravity-account-${selected.index}`, "antigravity")
+              const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(hardcodedAccount.index)
+              getGlobalHealthTracker().recordFailure(`antigravity-account-${hardcodedAccount.index}`, "antigravity")
               if (shouldCooldown) {
-                accountManager.markAccountCoolingDown(selected, cooldownMs, "auth-failure")
-                accountManager.markRateLimited(selected, cooldownMs, "gemini", "antigravity", SEARCH_MODEL)
+                accountManager.markAccountCoolingDown(hardcodedAccount, cooldownMs, "auth-failure")
+                accountManager.markRateLimited(hardcodedAccount, cooldownMs, "gemini", "antigravity", hardcodedModel)
               }
               return undefined
             })
 
             if (!refreshed) {
-              debugCheckpoint("google_search", "antigravity: refresh failed", { accountIndex: selected.index })
-              continue
+              debugCheckpoint("google_search", "antigravity: refresh failed", {
+                accountIndex: hardcodedAccount.index,
+              })
+              return "Error: google_search hardcoded account refresh failed"
             }
 
-            const refreshedAuth = refreshed as OAuthAuthDetails
-            resetAccountFailureState(selected.index)
-            accountManager.updateFromAuth(selected, refreshedAuth)
+            resetAccountFailureState(hardcodedAccount.index)
+            accountManager.updateFromAuth(hardcodedAccount, refreshed)
             accountManager.requestSaveToDisk()
             await accountManager.flushSaveToDisk()
-            authRecord = refreshedAuth
+            authRecord = refreshed
             debugCheckpoint("google_search", "antigravity: refresh ok", {
-              accountIndex: selected.index,
+              accountIndex: hardcodedAccount.index,
               expiresAt: authRecord.expires,
             })
           }
 
           const token = authRecord.access ?? ""
           if (!token) {
-            debugCheckpoint("google_search", "antigravity: missing access token", { accountIndex: selected.index })
-            lastError = new Error("Missing access token")
-            continue
+            debugCheckpoint("google_search", "antigravity: missing access token", {
+              accountIndex: hardcodedAccount.index,
+            })
+            return "Error: google_search hardcoded account missing access token"
           }
 
           let projectContext: ProjectContextResult
           try {
             projectContext = await ensureProjectContext(authRecord)
-            resetAccountFailureState(selected.index)
+            resetAccountFailureState(hardcodedAccount.index)
           } catch (error) {
-            const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(selected.index)
-            getGlobalHealthTracker().recordFailure(`antigravity-account-${selected.index}`, "antigravity")
-            const err = (error instanceof Error ? error : new Error(String(error))) as Error
-            lastError = err
-            const message = err.message
+            const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(hardcodedAccount.index)
+            getGlobalHealthTracker().recordFailure(`antigravity-account-${hardcodedAccount.index}`, "antigravity")
             if (shouldCooldown) {
-              accountManager.markAccountCoolingDown(selected, cooldownMs, "project-error")
-              accountManager.markRateLimited(selected, cooldownMs, "gemini", "antigravity", SEARCH_MODEL)
+              accountManager.markAccountCoolingDown(hardcodedAccount, cooldownMs, "project-error")
+              accountManager.markRateLimited(hardcodedAccount, cooldownMs, "gemini", "antigravity", hardcodedModel)
             }
+            const message = error instanceof Error ? error.message : String(error)
             debugCheckpoint("google_search", "antigravity: project context error", {
-              accountIndex: selected.index,
+              accountIndex: hardcodedAccount.index,
               error: message,
             })
-            continue
+            return `Error: google_search hardcoded account project context error (${message})`
           }
 
           if (projectContext.auth !== authRecord) {
-            accountManager.updateFromAuth(selected, projectContext.auth)
+            accountManager.updateFromAuth(hardcodedAccount, projectContext.auth)
             authRecord = projectContext.auth
             accountManager.requestSaveToDisk()
             await accountManager.flushSaveToDisk()
             const parts = parseRefreshParts(authRecord.refresh)
             debugCheckpoint("google_search", "antigravity: project context persisted", {
-              accountIndex: selected.index,
+              accountIndex: hardcodedAccount.index,
               projectId: parts.projectId,
               managedProjectId: parts.managedProjectId,
               effectiveProjectId: projectContext.effectiveProjectId,
@@ -1422,468 +1266,677 @@ export const createAntigravityPlugin =
 
           const projectId = projectContext.effectiveProjectId
           if (!projectId) {
-            debugCheckpoint("google_search", "antigravity: missing project id", { accountIndex: selected.index })
-            lastError = new Error("Missing project ID")
-            continue
+            debugCheckpoint("google_search", "antigravity: missing project id", {
+              accountIndex: hardcodedAccount.index,
+            })
+            return "Error: google_search hardcoded account missing project ID"
           }
 
-          const project = projectId
-
-          accountManager.markAccountUsed(selected.index)
+          accountManager.markAccountUsed(hardcodedAccount.index)
           accountManager.requestSaveToDisk()
 
           debugCheckpoint("google_search", "antigravity: execute search", {
-            accountIndex: selected.index,
-            projectId: project,
+            accountIndex: hardcodedAccount.index,
+            projectId,
+            model: hardcodedModel,
+            hardcoded: true,
           })
-          const result = await executeSearch(
+          const hardcodedResult = await executeSearch(
             {
               query: args.query,
               urls: args.urls,
               thinking: args.thinking,
             },
             token,
-            project,
+            projectId,
             ctx.abort,
-            { headerStyle: "antigravity" },
+            { headerStyle: "antigravity", model: hardcodedModel },
           )
-          if (result.ok) {
-            debugCheckpoint("google_search", "antigravity: search ok", { accountIndex: selected.index })
-            return result.output
+          if (hardcodedResult.ok) {
+            debugCheckpoint("google_search", "antigravity: search ok", {
+              accountIndex: hardcodedAccount.index,
+            })
+            return hardcodedResult.output
           }
 
           debugCheckpoint("google_search", "antigravity: search failed", {
-            accountIndex: selected.index,
-            error: result.error,
+            accountIndex: hardcodedAccount.index,
+            error: hardcodedResult.error,
           })
-          lastError = new Error(result.error ?? "Search failed")
-          continue
-        }
+          return `Error: google_search hardcoded account failed (${hardcodedResult.error ?? "Search failed"})`
 
-        debugCheckpoint("google_search", "antigravity: all attempts failed, trying gemini-cli", {
-          error: lastError?.message,
-        })
-        const geminiResult = await executeGeminiCliSearch()
-        if (geminiResult.ok) {
-          debugCheckpoint("google_search", "gemini-cli: returned result after antigravity failure")
-          return geminiResult.output
-        }
-
-        const antigravityError = lastError?.message ?? "No available Antigravity accounts"
-        debugCheckpoint("google_search", "google_search: both providers failed", {
-          antigravity: antigravityError,
-          geminiCli: geminiResult.error,
-        })
-        return `Error: google_search authentication failed for antigravity and gemini-cli. Antigravity: ${antigravityError}. Gemini CLI: ${geminiResult.error ?? "unknown error"}`
-      },
-    })
-
-    return {
-      event: eventHandler,
-      // NOTE: Gemini system prompt optimization (behavioral_guidelines XML wrapping)
-      // has been moved to llm.ts as inline step 7 of the system prompt assembly pipeline.
-      // This keeps the prompt loading architecture clean: bios -> SYSTEM.md -> AGENTS.md -> model optimization.
-      tool: {
-        google_search: googleSearchTool,
-      },
-      auth: {
-        provider: providerId,
-        loader: async (getAuth: GetAuth, provider: Provider): Promise<LoaderResult | Record<string, unknown>> => {
-          // Cache getAuth for tool access
-          cachedGetAuth = getAuth
-
-          const auth = await getAuth()
-
-          // If OpenCode has no valid OAuth auth, clear any stale account storage
-          if (!isOAuthAuth(auth)) {
-            try {
-              await clearAccounts()
-            } catch (error) {
-              log.debug("Failed to clear stale accounts", { error: String(error) })
+          const accountCount = accountManager.getAccountCount()
+          debugCheckpoint("google_search", "antigravity: account count", { count: accountCount })
+          if (accountCount === 0) {
+            debugCheckpoint("google_search", "antigravity: no accounts, fallback to gemini-cli")
+            const geminiResult = await executeGeminiCliSearch()
+            if (geminiResult.ok) {
+              debugCheckpoint("google_search", "gemini-cli: returned result after no antigravity accounts")
+              return geminiResult.output
             }
-            return {}
-          }
-
-          // Validate that stored accounts are in sync with OpenCode's auth
-          // If OpenCode's refresh token doesn't match any stored account, clear stale storage
-          const authParts = parseRefreshParts(auth.refresh)
-          const storedAccounts = await loadAccounts()
-
-          // Note: AccountManager now ensures the current auth is always included in accounts
-
-          const accountManager = await AccountManager.loadFromDisk(auth)
-          globalAccountManager = accountManager
-
-          // Initialize proactive refresh queue (if enabled)
-          if (accountManager.getAccountCount() > 0) {
-            accountManager.requestSaveToDisk()
-          }
-
-          // Initialize proactive token refresh queue (ported from LLM-API-Key-Proxy)
-          let refreshQueue: ProactiveRefreshQueue | null = null
-          if (config.proactive_token_refresh && accountManager.getAccountCount() > 0) {
-            refreshQueue = createProactiveRefreshQueue(client, providerId, {
-              enabled: config.proactive_token_refresh,
-              bufferSeconds: config.proactive_refresh_buffer_seconds,
-              checkIntervalSeconds: config.proactive_refresh_check_interval_seconds,
+            debugCheckpoint("google_search", "google_search: both providers failed", {
+              antigravity: "no accounts",
+              geminiCli: geminiResult.error,
             })
-            refreshQueue.setAccountManager(accountManager)
-            refreshQueue.start()
+            return `Error: google_search authentication failed for antigravity and gemini-cli. ${geminiResult.output}`
           }
 
-          if (isDebugEnabled()) {
-            const logPath = getLogFilePath()
-            if (logPath) {
-              try {
-                await client.tui.showToast({
-                  body: { message: `Debug log: ${logPath}`, variant: "info" },
-                })
-              } catch {
-                // TUI may not be available
-              }
+          let lastError: Error | null = null
+
+          for (let attempt = 0; attempt < accountCount; attempt++) {
+            const account = accountManager.getCurrentOrNextForFamily(
+              "gemini",
+              SEARCH_MODEL,
+              "sticky",
+              "antigravity",
+              config.pid_offset_enabled,
+            )
+
+            if (!account) {
+              debugCheckpoint("google_search", "antigravity: no available account")
+              lastError = new Error("No available Antigravity accounts")
+              break
             }
-          }
 
-          if (provider.models) {
-            for (const model of Object.values(provider.models)) {
-              if (model) {
-                model.cost = { input: 0, output: 0 }
-              }
-            }
-          }
-
-          return {
-            apiKey: "",
-            async fetch(input, init) {
-              const inputUrl = toUrlString(input)
-              debugCheckpoint("antigravity-plugin", "Custom fetch called", { url: inputUrl.substring(0, 100) })
-
-              if (!isGenerativeLanguageRequest(input)) {
-                debugCheckpoint("antigravity-plugin", "Not a generativelanguage request, using default fetch")
-                return fetch(input, init)
-              }
-
-              const latestAuth = await getAuth()
-              if (!isOAuthAuth(latestAuth)) {
-                debugCheckpoint("antigravity-plugin", "No OAuth auth, using default fetch", {
-                  authType: latestAuth?.type,
-                })
-                return fetch(input, init)
-              }
-
-              debugCheckpoint("antigravity-plugin", "OAuth auth present, proceeding with antigravity handling")
-
-              if (accountManager.getAccountCount() === 0) {
-                throw new Error("No Antigravity accounts configured. Run `opencode auth login`.")
-              }
-
-              const urlString = toUrlString(input)
-              const family = getModelFamilyFromUrl(urlString)
-              const model = extractModelFromUrl(urlString)
-
-              // Extract accountId from headers if present
-              const headers = init?.headers ? new Headers(init.headers) : new Headers()
-              const headerAccountId = headers.get("x-opencode-account-id") || undefined
-
-              // Determine base provider ID for protocol selection (Strict 3D Vector Logic)
-              // 1. Use accountId from header if available (most specific)
-              // 2. Fallback to plugin providerId
-              // 3. Normalize using Account.parseProvider to handle "google-api" -> "gemini-cli" mapping if needed
-              const rawProviderID = headerAccountId
-                ? (Account.parseProvider(headerAccountId) ?? providerId)
-                : providerId
-
-              // Top-level request tracking
-              debugCheckpoint("ANTIGRAVITY", "REQUEST_START", {
-                family,
-                model,
-                url: urlString.substring(0, 100), // Truncate for readability
-                accountCount: accountManager.getAccountCount(),
+            const selected = account as NonNullable<typeof account>
+            let authRecord = accountManager.toAuthDetails(selected)
+            if (accessTokenExpired(authRecord)) {
+              debugCheckpoint("google_search", "antigravity: access token expired, refreshing", {
+                accountIndex: selected.index,
               })
-
-              const debugLines: string[] = []
-              const pushDebug = (line: string) => {
-                if (!isDebugEnabled()) return
-                debugLines.push(line)
-              }
-              pushDebug(`request=${urlString}`)
-
-              type FailureContext = {
-                response: Response
-                streaming: boolean
-                debugContext: ReturnType<typeof startAntigravityDebugRequest>
-                requestedModel?: string
-                projectId?: string
-                endpoint?: string
-                effectiveModel?: string
-                sessionId?: string
-                toolDebugMissing?: number
-                toolDebugSummary?: string
-                toolDebugPayload?: string
-              }
-
-              let lastFailure: FailureContext | null = null
-              let lastError: Error | null = null
-              const abortSignal = init?.signal ?? undefined
-
-              // Helper to check if request was aborted
-              const checkAborted = () => {
-                if (abortSignal?.aborted) {
-                  debugCheckpoint("ANTIGRAVITY", "REQUEST_ABORTED", {
-                    family,
-                    model,
-                    reason:
-                      abortSignal.reason instanceof Error ? abortSignal.reason.message : String(abortSignal.reason),
-                  })
-                  throw abortSignal.reason instanceof Error ? abortSignal.reason : new Error("Aborted")
-                }
-              }
-
-              // Use while(true) loop to handle rate limits with backoff
-              // This ensures we wait and retry when all accounts are rate-limited
-              const quietMode = config.quiet_mode
-              const toastScope = config.toast_scope
-
-              // @event_2026-02-06:antigravity_v145_integration
-              // Helper to show toast without blocking on abort (respects quiet_mode and toast_scope)
-              const showToast = async (message: string, variant: "info" | "warning" | "success" | "error") => {
-                // Always log to debug regardless of toast filtering
-                log.debug("toast", { message, variant, isChildSession, toastScope })
-
-                if (quietMode) return
-                if (abortSignal?.aborted) return
-
-                // Filter toasts for child sessions when toast_scope is "root_only"
-                if (toastScope === "root_only" && isChildSession) {
-                  log.debug("toast-suppressed-child-session", { message, variant, parentID: childSessionParentID })
-                  return
-                }
-
-                if (variant === "warning" && message.toLowerCase().includes("rate")) {
-                  if (!shouldShowRateLimitToast(message)) {
-                    return
+              const refreshed = await refreshAccessToken(authRecord, client, providerId).catch((error) => {
+                lastError = error instanceof Error ? error : new Error(String(error))
+                if (error instanceof AntigravityTokenRefreshError && error.code === "invalid_grant") {
+                  const removed = accountManager.removeAccount(selected)
+                  if (removed) {
+                    accountManager.requestSaveToDisk()
                   }
                 }
+                const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(selected.index)
+                getGlobalHealthTracker().recordFailure(`antigravity-account-${selected.index}`, "antigravity")
+                if (shouldCooldown) {
+                  accountManager.markAccountCoolingDown(selected, cooldownMs, "auth-failure")
+                  accountManager.markRateLimited(selected, cooldownMs, "gemini", "antigravity", SEARCH_MODEL)
+                }
+                return undefined
+              })
 
+              if (!refreshed) {
+                debugCheckpoint("google_search", "antigravity: refresh failed", { accountIndex: selected.index })
+                continue
+              }
+
+              const refreshedAuth = refreshed as OAuthAuthDetails
+              resetAccountFailureState(selected.index)
+              accountManager.updateFromAuth(selected, refreshedAuth)
+              accountManager.requestSaveToDisk()
+              await accountManager.flushSaveToDisk()
+              authRecord = refreshedAuth
+              debugCheckpoint("google_search", "antigravity: refresh ok", {
+                accountIndex: selected.index,
+                expiresAt: authRecord.expires,
+              })
+            }
+
+            const token = authRecord.access ?? ""
+            if (!token) {
+              debugCheckpoint("google_search", "antigravity: missing access token", { accountIndex: selected.index })
+              lastError = new Error("Missing access token")
+              continue
+            }
+
+            let projectContext: ProjectContextResult
+            try {
+              projectContext = await ensureProjectContext(authRecord)
+              resetAccountFailureState(selected.index)
+            } catch (error) {
+              const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(selected.index)
+              getGlobalHealthTracker().recordFailure(`antigravity-account-${selected.index}`, "antigravity")
+              const err = (error instanceof Error ? error : new Error(String(error))) as Error
+              lastError = err
+              const message = err.message
+              if (shouldCooldown) {
+                accountManager.markAccountCoolingDown(selected, cooldownMs, "project-error")
+                accountManager.markRateLimited(selected, cooldownMs, "gemini", "antigravity", SEARCH_MODEL)
+              }
+              debugCheckpoint("google_search", "antigravity: project context error", {
+                accountIndex: selected.index,
+                error: message,
+              })
+              continue
+            }
+
+            if (projectContext.auth !== authRecord) {
+              accountManager.updateFromAuth(selected, projectContext.auth)
+              authRecord = projectContext.auth
+              accountManager.requestSaveToDisk()
+              await accountManager.flushSaveToDisk()
+              const parts = parseRefreshParts(authRecord.refresh)
+              debugCheckpoint("google_search", "antigravity: project context persisted", {
+                accountIndex: selected.index,
+                projectId: parts.projectId,
+                managedProjectId: parts.managedProjectId,
+                effectiveProjectId: projectContext.effectiveProjectId,
+              })
+            }
+
+            const projectId = projectContext.effectiveProjectId
+            if (!projectId) {
+              debugCheckpoint("google_search", "antigravity: missing project id", { accountIndex: selected.index })
+              lastError = new Error("Missing project ID")
+              continue
+            }
+
+            const project = projectId
+
+            accountManager.markAccountUsed(selected.index)
+            accountManager.requestSaveToDisk()
+
+            debugCheckpoint("google_search", "antigravity: execute search", {
+              accountIndex: selected.index,
+              projectId: project,
+            })
+            const result = await executeSearch(
+              {
+                query: args.query,
+                urls: args.urls,
+                thinking: args.thinking,
+              },
+              token,
+              project,
+              ctx.abort,
+              { headerStyle: "antigravity" },
+            )
+            if (result.ok) {
+              debugCheckpoint("google_search", "antigravity: search ok", { accountIndex: selected.index })
+              return result.output
+            }
+
+            debugCheckpoint("google_search", "antigravity: search failed", {
+              accountIndex: selected.index,
+              error: result.error,
+            })
+            lastError = new Error(result.error ?? "Search failed")
+            continue
+          }
+
+          debugCheckpoint("google_search", "antigravity: all attempts failed, trying gemini-cli", {
+            error: lastError?.message,
+          })
+          const geminiResult = await executeGeminiCliSearch()
+          if (geminiResult.ok) {
+            debugCheckpoint("google_search", "gemini-cli: returned result after antigravity failure")
+            return geminiResult.output
+          }
+
+          const antigravityError = lastError?.message ?? "No available Antigravity accounts"
+          debugCheckpoint("google_search", "google_search: both providers failed", {
+            antigravity: antigravityError,
+            geminiCli: geminiResult.error,
+          })
+          return `Error: google_search authentication failed for antigravity and gemini-cli. Antigravity: ${antigravityError}. Gemini CLI: ${geminiResult.error ?? "unknown error"}`
+        },
+      })
+
+      return {
+        event: eventHandler,
+        // NOTE: Gemini system prompt optimization (behavioral_guidelines XML wrapping)
+        // has been moved to llm.ts as inline step 7 of the system prompt assembly pipeline.
+        // This keeps the prompt loading architecture clean: bios -> SYSTEM.md -> AGENTS.md -> model optimization.
+        tool: {
+          google_search: googleSearchTool,
+        },
+        auth: {
+          provider: providerId,
+          loader: async (getAuth: GetAuth, provider: Provider): Promise<LoaderResult | Record<string, unknown> | null> => {
+            // Cache getAuth for tool access
+            cachedGetAuth = getAuth
+
+            const auth = await getAuth()
+
+            // If OpenCode has no valid OAuth auth, fall back to native handling
+            // @event_2026-02-17: allow API key accounts to pass through to native mechanism
+            if (!isOAuthAuth(auth)) {
+              return null
+            }
+
+            // Validate that stored accounts are in sync with OpenCode's auth
+            // If OpenCode's refresh token doesn't match any stored account, clear stale storage
+            const authParts = parseRefreshParts(auth.refresh)
+            const storedAccounts = await loadAccounts()
+
+            // Note: AccountManager now ensures the current auth is always included in accounts
+
+            const accountManager = await AccountManager.loadFromDisk(auth)
+            globalAccountManager = accountManager
+
+            // Initialize proactive refresh queue (if enabled)
+            if (accountManager.getAccountCount() > 0) {
+              accountManager.requestSaveToDisk()
+            }
+
+            // Initialize proactive token refresh queue (ported from LLM-API-Key-Proxy)
+            let refreshQueue: ProactiveRefreshQueue | null = null
+            if (config.proactive_token_refresh && accountManager.getAccountCount() > 0) {
+              refreshQueue = createProactiveRefreshQueue(client, providerId, {
+                enabled: config.proactive_token_refresh,
+                bufferSeconds: config.proactive_refresh_buffer_seconds,
+                checkIntervalSeconds: config.proactive_refresh_check_interval_seconds,
+              })
+              refreshQueue.setAccountManager(accountManager)
+              refreshQueue.start()
+            }
+
+            if (isDebugEnabled()) {
+              const logPath = getLogFilePath()
+              if (logPath) {
                 try {
                   await client.tui.showToast({
-                    body: { message, variant },
+                    body: { message: `Debug log: ${logPath}`, variant: "info" },
                   })
                 } catch {
                   // TUI may not be available
                 }
               }
+            }
 
-              const hasOtherAccountWithAntigravity = (currentAccount: any): boolean => {
-                if (family !== "gemini") return false
-                const otherAccounts = accountManager.getAccounts().filter((acc) => acc.index !== currentAccount.index)
-                return otherAccounts.some(
-                  (acc) => !accountManager.isRateLimitedForHeaderStyle(acc, family, "antigravity", model),
-                )
+            if (provider.models) {
+              for (const model of Object.values(provider.models)) {
+                if (model) {
+                  model.cost = { input: 0, output: 0 }
+                }
               }
+            }
 
-              while (true) {
-                // Check for abort at the start of each iteration
-                checkAborted()
+            return {
+              apiKey: "",
+              async fetch(input, init) {
+                const inputUrl = toUrlString(input)
+                debugCheckpoint("antigravity-plugin", "Custom fetch called", { url: inputUrl.substring(0, 100) })
 
-                // Sync with Account module to respect /admin changes
-                await accountManager.syncActiveFromAccountModule()
-
-                const accountCount = accountManager.getAccountCount()
-
-                if (accountCount === 0) {
-                  throw new Error("No Antigravity accounts available. Run `opencode auth login`.")
+                if (!isGenerativeLanguageRequest(input)) {
+                  debugCheckpoint("antigravity-plugin", "Not a generativelanguage request, using default fetch")
+                  return fetch(input, init)
                 }
 
-                const pickAccount = async () => {
-                  // Single source of truth: use whatever account rotation3d has set via Account.setActive().
-                  // syncActiveFromAccountModule() (called above) already synced the index.
-                  // This plugin does NOT decide which account to use — rotation3d does.
-                  const pinned = accountManager.getPinnedForFamily(family)
-                  if (!pinned) return null
+                const latestAuth = await getAuth()
+                if (!isOAuthAuth(latestAuth)) {
+                  debugCheckpoint("antigravity-plugin", "No OAuth auth, using default fetch", {
+                    authType: latestAuth?.type,
+                  })
+                  return fetch(input, init)
+                }
 
-                  // Strict Protocol Selection by Provider ID
-                  const pinnedCoreId = pinned._coreAccountId
-                  const pinnedProviderID =
-                    (pinnedCoreId ? Account.parseProvider(pinnedCoreId) : providerId) ?? providerId
-                  const headerStyle = getHeaderStyleFromUrl(urlString, family, pinnedProviderID)
+                debugCheckpoint("antigravity-plugin", "OAuth auth present, proceeding with antigravity handling")
 
-                  const explicitQuota = isExplicitQuotaFromUrl(urlString)
-                  let limited = accountManager.isRateLimitedForHeaderStyle(pinned, family, headerStyle, model)
-                  const cooling = accountManager.isAccountCoolingDown(pinned)
+                if (accountManager.getAccountCount() === 0) {
+                  throw new Error("No Antigravity accounts configured. Run `opencode auth login`.")
+                }
 
-                  // FIX: Avoid stale local Claude cooldown.
-                  // Local rateLimitResetTimes may become stale while cockpit already reports
-                  // available quota (remainingFraction > 0). Re-validate once with cockpit.
-                  if (limited && !cooling && family === "claude" && pinned.access && pinned.parts.projectId && model) {
-                    try {
-                      const quota = await fetchModelQuotaResetTime(pinned.access, pinned.parts.projectId, model)
-                      if (quota.remainingFraction !== null && quota.remainingFraction > 0) {
-                        delete pinned.rateLimitResetTimes.claude
-                        pinned.consecutiveFailures = 0
-                        accountManager.requestSaveToDisk()
-                        limited = false
+                const urlString = toUrlString(input)
+                const family = getModelFamilyFromUrl(urlString)
+                const model = extractModelFromUrl(urlString)
 
-                        debugCheckpoint("ANTIGRAVITY", "fixed_quota_revalidated", {
-                          family,
-                          model,
-                          accountIndex: pinned.index,
-                          remainingFraction: quota.remainingFraction,
-                          resetTimeMs: quota.resetTimeMs,
-                        })
-                      }
-                    } catch (e) {
-                      debugCheckpoint("ANTIGRAVITY", "fixed_quota_revalidate_failed", {
-                        family,
-                        model,
-                        accountIndex: pinned.index,
-                        error: e instanceof Error ? e.message : String(e),
-                      })
+                // Extract accountId from headers if present
+                const headers = init?.headers ? new Headers(init.headers) : new Headers()
+                const headerAccountId = headers.get("x-opencode-account-id") || undefined
+
+                // Determine base provider ID for protocol selection (Strict 3D Vector Logic)
+                // 1. Use accountId from header if available (most specific)
+                // 2. Fallback to plugin providerId
+                // 3. Normalize using Account.parseProvider to handle "google-api" -> "gemini-cli" mapping if needed
+                const rawProviderID = headerAccountId
+                  ? (Account.parseProvider(headerAccountId) ?? providerId)
+                  : providerId
+
+                // Top-level request tracking
+                debugCheckpoint("ANTIGRAVITY", "REQUEST_START", {
+                  family,
+                  model,
+                  url: urlString.substring(0, 100), // Truncate for readability
+                  accountCount: accountManager.getAccountCount(),
+                })
+
+                const debugLines: string[] = []
+                const pushDebug = (line: string) => {
+                  if (!isDebugEnabled()) return
+                  debugLines.push(line)
+                }
+                pushDebug(`request=${urlString}`)
+
+                type FailureContext = {
+                  response: Response
+                  streaming: boolean
+                  debugContext: ReturnType<typeof startAntigravityDebugRequest>
+                  requestedModel?: string
+                  projectId?: string
+                  endpoint?: string
+                  effectiveModel?: string
+                  sessionId?: string
+                  toolDebugMissing?: number
+                  toolDebugSummary?: string
+                  toolDebugPayload?: string
+                }
+
+                let lastFailure: FailureContext | null = null
+                let lastError: Error | null = null
+                const abortSignal = init?.signal ?? undefined
+
+                // Helper to check if request was aborted
+                const checkAborted = () => {
+                  if (abortSignal?.aborted) {
+                    debugCheckpoint("ANTIGRAVITY", "REQUEST_ABORTED", {
+                      family,
+                      model,
+                      reason:
+                        abortSignal.reason instanceof Error ? abortSignal.reason.message : String(abortSignal.reason),
+                    })
+                    throw abortSignal.reason instanceof Error ? abortSignal.reason : new Error("Aborted")
+                  }
+                }
+
+                // Use while(true) loop to handle rate limits with backoff
+                // This ensures we wait and retry when all accounts are rate-limited
+                const quietMode = config.quiet_mode
+                const toastScope = config.toast_scope
+
+                // @event_2026-02-06:antigravity_v145_integration
+                // Helper to show toast without blocking on abort (respects quiet_mode and toast_scope)
+                const showToast = async (message: string, variant: "info" | "warning" | "success" | "error") => {
+                  // Always log to debug regardless of toast filtering
+                  log.debug("toast", { message, variant, isChildSession, toastScope })
+
+                  if (quietMode) return
+                  if (abortSignal?.aborted) return
+
+                  // Filter toasts for child sessions when toast_scope is "root_only"
+                  if (toastScope === "root_only" && isChildSession) {
+                    log.debug("toast-suppressed-child-session", { message, variant, parentID: childSessionParentID })
+                    return
+                  }
+
+                  if (variant === "warning" && message.toLowerCase().includes("rate")) {
+                    if (!shouldShowRateLimitToast(message)) {
+                      return
                     }
                   }
 
-                  if (!limited && !cooling) return pinned
-
-                  // Account is unavailable — throw to let rotation3d decide next move.
-                  // Do NOT attempt internal fallback. rotation3d is the single authority.
-                  const waitMs = accountManager.getMinWaitTimeForFamily(family, model, headerStyle, explicitQuota) || 0
-                  const waitTimeFormatted = waitMs > 0 ? formatWaitTime(waitMs) : "later"
-                  const cooldownReason = accountManager.getAccountCooldownReason(pinned)
-                  const reasonLabel = cooling
-                    ? `cooling down${cooldownReason ? ` (${cooldownReason})` : ""}`
-                    : "temporarily unavailable"
-
-                  await showToast(
-                    `Selected account ${reasonLabel}. Retry ${waitTimeFormatted} or choose another model.`,
-                    "warning",
-                  )
-
-                  const unavailableError: Error & {
-                    status?: number
-                    statusCode?: number
-                    retryAfter?: number
-                  } = new Error(
-                    `Selected account ${reasonLabel} for ${family}. Retry ${waitTimeFormatted} or choose another model.`,
-                  )
-                  unavailableError.status = 503
-                  unavailableError.statusCode = 503
-                  unavailableError.retryAfter = Math.max(1, Math.ceil(waitMs / 1000))
-                  throw unavailableError
+                  try {
+                    await client.tui.showToast({
+                      body: { message, variant },
+                    })
+                  } catch {
+                    // TUI may not be available
+                  }
                 }
 
-                const account = await pickAccount()
+                const hasOtherAccountWithAntigravity = (currentAccount: any): boolean => {
+                  if (family !== "gemini") return false
+                  const otherAccounts = accountManager.getAccounts().filter((acc) => acc.index !== currentAccount.index)
+                  return otherAccounts.some(
+                    (acc) => !accountManager.isRateLimitedForHeaderStyle(acc, family, "antigravity", model),
+                  )
+                }
 
-                if (!account) {
-                  // Strict Protocol Selection by Provider ID (using fallback providerId as account is null)
-                  const fallbackProviderID = rawProviderID === "google-api" ? "gemini-cli" : rawProviderID
-                  const headerStyle = getHeaderStyleFromUrl(urlString, family, fallbackProviderID)
+                while (true) {
+                  // Check for abort at the start of each iteration
+                  checkAborted()
 
-                  const explicitQuota = isExplicitQuotaFromUrl(urlString)
-                  // All accounts are rate-limited - wait and retry
-                  const waitMs =
-                    accountManager.getMinWaitTimeForFamily(family, model, headerStyle, explicitQuota) || 60_000
-                  const waitSecValue = Math.max(1, Math.ceil(waitMs / 1000))
+                  // Sync with Account module to respect /admin changes
+                  await accountManager.syncActiveFromAccountModule()
 
-                  debugCheckpoint("ANTIGRAVITY_ROTATION", "all_accounts_limited", {
-                    family,
-                    waitMs,
-                    waitSecValue,
-                    accountCount,
-                    headerStyle,
-                  })
+                  const accountCount = accountManager.getAccountCount()
 
-                  pushDebug(`all-rate-limited family=${family} accounts=${accountCount} waitMs=${waitMs}`)
-                  if (isDebugEnabled()) {
-                    logAccountContext("All accounts rate-limited", {
-                      index: -1,
-                      family,
-                      totalAccounts: accountCount,
-                    })
-                    logRateLimitSnapshot(family, accountManager.getAccountsSnapshot())
+                  if (accountCount === 0) {
+                    throw new Error("No Antigravity accounts available. Run `opencode auth login`.")
                   }
 
-                  // If wait time exceeds max threshold, return error immediately instead of hanging
-                  // 0 means disabled (wait indefinitely)
-                  const maxWaitMs = (config.max_rate_limit_wait_seconds ?? 300) * 1000
-                  if (maxWaitMs > 0 && waitMs > maxWaitMs) {
-                    const waitTimeFormatted = formatWaitTime(waitMs)
-                    await showToast(
-                      `Rate limited for ${waitTimeFormatted}. Try again later or add another account.`,
-                      "error",
-                    )
+                  const pickAccount = async () => {
+                    // Single source of truth: use whatever account rotation3d has set via Account.setActive().
+                    // syncActiveFromAccountModule() (called above) already synced the index.
+                    // This plugin does NOT decide which account to use — rotation3d does.
+                    const pinned = accountManager.getPinnedForFamily(family)
+                    if (!pinned) return null
 
-                    // Return a proper rate limit error response
-                    throw new Error(
-                      `All ${accountCount} account(s) rate-limited for ${family}. ` +
-                        `Quota resets in ${waitTimeFormatted}. ` +
-                        `Add more accounts with \`opencode auth login\` or wait and retry.`,
-                    )
-                  }
+                    // Strict Protocol Selection by Provider ID
+                    const pinnedCoreId = pinned._coreAccountId
+                    const pinnedProviderID =
+                      (pinnedCoreId ? Account.parseProvider(pinnedCoreId) : providerId) ?? providerId
+                    const headerStyle = getHeaderStyleFromUrl(urlString, family, pinnedProviderID)
 
-                  if (!allAccountsRateLimitedToastShown) {
+                    const explicitQuota = isExplicitQuotaFromUrl(urlString)
+                    let limited = accountManager.isRateLimitedForHeaderStyle(pinned, family, headerStyle, model)
+                    const cooling = accountManager.isAccountCoolingDown(pinned)
+
+                    // FIX: Avoid stale local Claude cooldown.
+                    // Local rateLimitResetTimes may become stale while cockpit already reports
+                    // available quota (remainingFraction > 0). Re-validate once with cockpit.
+                    if (limited && !cooling && family === "claude" && pinned.access && pinned.parts.projectId && model) {
+                      try {
+                        const quota = await fetchModelQuotaResetTime(pinned.access, pinned.parts.projectId, model)
+                        if (quota.remainingFraction !== null && quota.remainingFraction > 0) {
+                          delete pinned.rateLimitResetTimes.claude
+                          pinned.consecutiveFailures = 0
+                          accountManager.requestSaveToDisk()
+                          limited = false
+
+                          debugCheckpoint("ANTIGRAVITY", "fixed_quota_revalidated", {
+                            family,
+                            model,
+                            accountIndex: pinned.index,
+                            remainingFraction: quota.remainingFraction,
+                            resetTimeMs: quota.resetTimeMs,
+                          })
+                        }
+                      } catch (e) {
+                        debugCheckpoint("ANTIGRAVITY", "fixed_quota_revalidate_failed", {
+                          family,
+                          model,
+                          accountIndex: pinned.index,
+                          error: e instanceof Error ? e.message : String(e),
+                        })
+                      }
+                    }
+
+                    if (!limited && !cooling) return pinned
+
+                    // Account is unavailable — throw to let rotation3d decide next move.
+                    // Do NOT attempt internal fallback. rotation3d is the single authority.
+                    const waitMs = accountManager.getMinWaitTimeForFamily(family, model, headerStyle, explicitQuota) || 0
+                    const waitTimeFormatted = waitMs > 0 ? formatWaitTime(waitMs) : "later"
+                    const cooldownReason = accountManager.getAccountCooldownReason(pinned)
+                    const reasonLabel = cooling
+                      ? `cooling down${cooldownReason ? ` (${cooldownReason})` : ""}`
+                      : "temporarily unavailable"
+
                     await showToast(
-                      `All ${accountCount} account(s) rate-limited for ${family}. Waiting ${waitSecValue}s...`,
+                      `Selected account ${reasonLabel}. Retry ${waitTimeFormatted} or choose another model.`,
                       "warning",
                     )
-                    allAccountsRateLimitedToastShown = true
-                    debugCheckpoint("ANTIGRAVITY", "ALL_ACCOUNTS_RATE_LIMITED", {
+
+                    const unavailableError: Error & {
+                      status?: number
+                      statusCode?: number
+                      retryAfter?: number
+                    } = new Error(
+                      `Selected account ${reasonLabel} for ${family}. Retry ${waitTimeFormatted} or choose another model.`,
+                    )
+                    unavailableError.status = 503
+                    unavailableError.statusCode = 503
+                    unavailableError.retryAfter = Math.max(1, Math.ceil(waitMs / 1000))
+                    throw unavailableError
+                  }
+
+                  const account = await pickAccount()
+
+                  if (!account) {
+                    // Strict Protocol Selection by Provider ID (using fallback providerId as account is null)
+                    const fallbackProviderID = rawProviderID === "google-api" ? "gemini-cli" : rawProviderID
+                    const headerStyle = getHeaderStyleFromUrl(urlString, family, fallbackProviderID)
+
+                    const explicitQuota = isExplicitQuotaFromUrl(urlString)
+                    // All accounts are rate-limited - wait and retry
+                    const waitMs =
+                      accountManager.getMinWaitTimeForFamily(family, model, headerStyle, explicitQuota) || 60_000
+                    const waitSecValue = Math.max(1, Math.ceil(waitMs / 1000))
+
+                    debugCheckpoint("ANTIGRAVITY_ROTATION", "all_accounts_limited", {
                       family,
-                      accountCount,
                       waitMs,
                       waitSecValue,
+                      accountCount,
+                      headerStyle,
+                    })
+
+                    pushDebug(`all-rate-limited family=${family} accounts=${accountCount} waitMs=${waitMs}`)
+                    if (isDebugEnabled()) {
+                      logAccountContext("All accounts rate-limited", {
+                        index: -1,
+                        family,
+                        totalAccounts: accountCount,
+                      })
+                      logRateLimitSnapshot(family, accountManager.getAccountsSnapshot())
+                    }
+
+                    // If wait time exceeds max threshold, return error immediately instead of hanging
+                    // 0 means disabled (wait indefinitely)
+                    const maxWaitMs = (config.max_rate_limit_wait_seconds ?? 300) * 1000
+                    if (maxWaitMs > 0 && waitMs > maxWaitMs) {
+                      const waitTimeFormatted = formatWaitTime(waitMs)
+                      await showToast(
+                        `Rate limited for ${waitTimeFormatted}. Try again later or add another account.`,
+                        "error",
+                      )
+
+                      // Return a proper rate limit error response
+                      throw new Error(
+                        `All ${accountCount} account(s) rate-limited for ${family}. ` +
+                        `Quota resets in ${waitTimeFormatted}. ` +
+                        `Add more accounts with \`opencode auth login\` or wait and retry.`,
+                      )
+                    }
+
+                    if (!allAccountsRateLimitedToastShown) {
+                      await showToast(
+                        `All ${accountCount} account(s) rate-limited for ${family}. Waiting ${waitSecValue}s...`,
+                        "warning",
+                      )
+                      allAccountsRateLimitedToastShown = true
+                      debugCheckpoint("ANTIGRAVITY", "ALL_ACCOUNTS_RATE_LIMITED", {
+                        family,
+                        accountCount,
+                        waitMs,
+                        waitSecValue,
+                      })
+                    }
+
+                    // Wait for the rate-limit cooldown to expire, then retry
+                    await sleep(waitMs, abortSignal)
+                    continue
+                  }
+
+                  // Account is available - reset the toast flag
+                  resetAllAccountsRateLimitedToast()
+
+                  // Determine base provider ID for protocol selection
+                  // This normalizes "antigravity-subscription-1" -> "antigravity"
+                  const coreId = account._coreAccountId
+                  const effectiveProviderID = coreId ? Account.parseProvider(coreId) : providerId
+
+                  pushDebug(
+                    `selected idx=${account.index} email=${account.email ?? ""} family=${family} accounts=${accountCount} provider=${effectiveProviderID}`,
+                  )
+                  if (isDebugEnabled()) {
+                    logAccountContext("Selected", {
+                      index: account.index,
+                      email: account.email,
+                      family,
+                      totalAccounts: accountCount,
+                      rateLimitState: account.rateLimitResetTimes,
                     })
                   }
 
-                  // Wait for the rate-limit cooldown to expire, then retry
-                  await sleep(waitMs, abortSignal)
-                  continue
-                }
+                  // Show toast when switching to a different account (debounced, quiet_mode handled by showToast)
+                  if (accountCount > 1 && accountManager.shouldShowAccountToast(account.index)) {
+                    const accountLabel = account.email || `Account ${account.index + 1}`
+                    // Calculate position among enabled accounts (not absolute index)
+                    const enabledAccounts = accountManager.getEnabledAccounts()
+                    const enabledPosition = enabledAccounts.findIndex((a) => a.index === account.index) + 1
+                    await showToast(`Using ${accountLabel} (${enabledPosition}/${accountCount})`, "info")
+                    accountManager.markToastShown(account.index)
+                  }
 
-                // Account is available - reset the toast flag
-                resetAllAccountsRateLimitedToast()
+                  accountManager.requestSaveToDisk()
 
-                // Determine base provider ID for protocol selection
-                // This normalizes "antigravity-subscription-1" -> "antigravity"
-                const coreId = account._coreAccountId
-                const effectiveProviderID = coreId ? Account.parseProvider(coreId) : providerId
+                  let authRecord = accountManager.toAuthDetails(account)
 
-                pushDebug(
-                  `selected idx=${account.index} email=${account.email ?? ""} family=${family} accounts=${accountCount} provider=${effectiveProviderID}`,
-                )
-                if (isDebugEnabled()) {
-                  logAccountContext("Selected", {
-                    index: account.index,
-                    email: account.email,
-                    family,
-                    totalAccounts: accountCount,
-                    rateLimitState: account.rateLimitResetTimes,
-                  })
-                }
+                  if (accessTokenExpired(authRecord)) {
+                    try {
+                      const refreshed = await refreshAccessToken(authRecord, client, providerId)
+                      if (!refreshed) {
+                        const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index)
+                        getGlobalHealthTracker().recordFailure(`antigravity-account-${account.index}`, "antigravity")
+                        lastError = new Error("Antigravity token refresh failed")
+                        if (shouldCooldown) {
+                          accountManager.markAccountCoolingDown(account, cooldownMs, "auth-failure")
+                          // Use headerStyle determined by providerId if possible, else "antigravity" as safe default for auth errors
+                          const errorHeaderStyle =
+                            providerId === "gemini-cli"
+                              ? "gemini-cli"
+                              : providerId === "antigravity"
+                                ? "antigravity"
+                                : "antigravity"
+                          accountManager.markRateLimited(account, cooldownMs, family, errorHeaderStyle, model)
+                          pushDebug(`token-refresh-failed: cooldown ${cooldownMs}ms after ${failures} failures`)
+                        }
+                        continue
+                      }
+                      resetAccountFailureState(account.index)
+                      accountManager.updateFromAuth(account, refreshed)
+                      authRecord = refreshed
+                      try {
+                        await accountManager.saveToDisk()
+                      } catch (error) {
+                        log.error("Failed to persist refreshed auth", { error: String(error) })
+                      }
+                    } catch (error) {
+                      if (error instanceof AntigravityTokenRefreshError && error.code === "invalid_grant") {
+                        const removed = accountManager.removeAccount(account)
+                        if (removed) {
+                          log.warn("Removed revoked account from pool - reauthenticate via `opencode auth login`")
+                          try {
+                            await accountManager.saveToDisk()
+                          } catch (persistError) {
+                            log.error("Failed to persist revoked account removal", { error: String(persistError) })
+                          }
+                        }
 
-                // Show toast when switching to a different account (debounced, quiet_mode handled by showToast)
-                if (accountCount > 1 && accountManager.shouldShowAccountToast(account.index)) {
-                  const accountLabel = account.email || `Account ${account.index + 1}`
-                  // Calculate position among enabled accounts (not absolute index)
-                  const enabledAccounts = accountManager.getEnabledAccounts()
-                  const enabledPosition = enabledAccounts.findIndex((a) => a.index === account.index) + 1
-                  await showToast(`Using ${accountLabel} (${enabledPosition}/${accountCount})`, "info")
-                  accountManager.markToastShown(account.index)
-                }
+                        if (accountManager.getAccountCount() === 0) {
+                          try {
+                            await client.auth.set({
+                              path: { id: providerId },
+                              body: { type: "oauth", refresh: "", access: "", expires: 0 },
+                            })
+                          } catch (storeError) {
+                            log.error("Failed to clear stored Antigravity OAuth credentials", {
+                              error: String(storeError),
+                            })
+                          }
 
-                accountManager.requestSaveToDisk()
+                          throw new Error(
+                            "All Antigravity accounts have invalid refresh tokens. Run `opencode auth login` and reauthenticate.",
+                          )
+                        }
 
-                let authRecord = accountManager.toAuthDetails(account)
+                        lastError = error
+                        continue
+                      }
 
-                if (accessTokenExpired(authRecord)) {
-                  try {
-                    const refreshed = await refreshAccessToken(authRecord, client, providerId)
-                    if (!refreshed) {
                       const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index)
                       getGlobalHealthTracker().recordFailure(`antigravity-account-${account.index}`, "antigravity")
-                      lastError = new Error("Antigravity token refresh failed")
+                      lastError = error instanceof Error ? error : new Error(String(error))
                       if (shouldCooldown) {
                         accountManager.markAccountCoolingDown(account, cooldownMs, "auth-failure")
-                        // Use headerStyle determined by providerId if possible, else "antigravity" as safe default for auth errors
                         const errorHeaderStyle =
                           providerId === "gemini-cli"
                             ? "gemini-cli"
@@ -1891,215 +1944,167 @@ export const createAntigravityPlugin =
                               ? "antigravity"
                               : "antigravity"
                         accountManager.markRateLimited(account, cooldownMs, family, errorHeaderStyle, model)
-                        pushDebug(`token-refresh-failed: cooldown ${cooldownMs}ms after ${failures} failures`)
+                        pushDebug(`token-refresh-error: cooldown ${cooldownMs}ms after ${failures} failures`)
                       }
                       continue
                     }
+                  }
+
+                  const accessToken = authRecord.access
+                  if (!accessToken) {
+                    lastError = new Error("Missing access token")
+                    if (accountCount <= 1) {
+                      throw lastError
+                    }
+                    continue
+                  }
+
+                  let projectContext: ProjectContextResult
+                  try {
+                    projectContext = await ensureProjectContext(authRecord)
                     resetAccountFailureState(account.index)
-                    accountManager.updateFromAuth(account, refreshed)
-                    authRecord = refreshed
-                    try {
-                      await accountManager.saveToDisk()
-                    } catch (error) {
-                      log.error("Failed to persist refreshed auth", { error: String(error) })
-                    }
                   } catch (error) {
-                    if (error instanceof AntigravityTokenRefreshError && error.code === "invalid_grant") {
-                      const removed = accountManager.removeAccount(account)
-                      if (removed) {
-                        log.warn("Removed revoked account from pool - reauthenticate via `opencode auth login`")
-                        try {
-                          await accountManager.saveToDisk()
-                        } catch (persistError) {
-                          log.error("Failed to persist revoked account removal", { error: String(persistError) })
-                        }
-                      }
-
-                      if (accountManager.getAccountCount() === 0) {
-                        try {
-                          await client.auth.set({
-                            path: { id: providerId },
-                            body: { type: "oauth", refresh: "", access: "", expires: 0 },
-                          })
-                        } catch (storeError) {
-                          log.error("Failed to clear stored Antigravity OAuth credentials", {
-                            error: String(storeError),
-                          })
-                        }
-
-                        throw new Error(
-                          "All Antigravity accounts have invalid refresh tokens. Run `opencode auth login` and reauthenticate.",
-                        )
-                      }
-
-                      lastError = error
-                      continue
-                    }
-
                     const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index)
                     getGlobalHealthTracker().recordFailure(`antigravity-account-${account.index}`, "antigravity")
                     lastError = error instanceof Error ? error : new Error(String(error))
                     if (shouldCooldown) {
-                      accountManager.markAccountCoolingDown(account, cooldownMs, "auth-failure")
-                      const errorHeaderStyle =
-                        providerId === "gemini-cli"
-                          ? "gemini-cli"
-                          : providerId === "antigravity"
-                            ? "antigravity"
-                            : "antigravity"
-                      accountManager.markRateLimited(account, cooldownMs, family, errorHeaderStyle, model)
-                      pushDebug(`token-refresh-error: cooldown ${cooldownMs}ms after ${failures} failures`)
+                      accountManager.markAccountCoolingDown(account, cooldownMs, "project-error")
+                      accountManager.markRateLimited(account, cooldownMs, family, "antigravity", model)
+                      pushDebug(`project-context-error: cooldown ${cooldownMs}ms after ${failures} failures`)
                     }
                     continue
                   }
-                }
 
-                const accessToken = authRecord.access
-                if (!accessToken) {
-                  lastError = new Error("Missing access token")
-                  if (accountCount <= 1) {
-                    throw lastError
-                  }
-                  continue
-                }
-
-                let projectContext: ProjectContextResult
-                try {
-                  projectContext = await ensureProjectContext(authRecord)
-                  resetAccountFailureState(account.index)
-                } catch (error) {
-                  const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index)
-                  getGlobalHealthTracker().recordFailure(`antigravity-account-${account.index}`, "antigravity")
-                  lastError = error instanceof Error ? error : new Error(String(error))
-                  if (shouldCooldown) {
-                    accountManager.markAccountCoolingDown(account, cooldownMs, "project-error")
-                    accountManager.markRateLimited(account, cooldownMs, family, "antigravity", model)
-                    pushDebug(`project-context-error: cooldown ${cooldownMs}ms after ${failures} failures`)
-                  }
-                  continue
-                }
-
-                if (projectContext.auth !== authRecord) {
-                  accountManager.updateFromAuth(account, projectContext.auth)
-                  authRecord = projectContext.auth
-                  try {
-                    await accountManager.saveToDisk()
-                  } catch (error) {
-                    log.error("Failed to persist project context", { error: String(error) })
-                  }
-                }
-
-                const runThinkingWarmup = async (
-                  prepared: ReturnType<typeof prepareAntigravityRequest>,
-                  projectId: string,
-                ): Promise<void> => {
-                  if (!prepared.needsSignedThinkingWarmup || !prepared.sessionId) {
-                    return
+                  if (projectContext.auth !== authRecord) {
+                    accountManager.updateFromAuth(account, projectContext.auth)
+                    authRecord = projectContext.auth
+                    try {
+                      await accountManager.saveToDisk()
+                    } catch (error) {
+                      log.error("Failed to persist project context", { error: String(error) })
+                    }
                   }
 
-                  if (!trackWarmupAttempt(prepared.sessionId)) {
-                    return
-                  }
+                  const runThinkingWarmup = async (
+                    prepared: ReturnType<typeof prepareAntigravityRequest>,
+                    projectId: string,
+                  ): Promise<void> => {
+                    if (!prepared.needsSignedThinkingWarmup || !prepared.sessionId) {
+                      return
+                    }
 
-                  const warmupBody = buildThinkingWarmupBody(
-                    typeof prepared.init.body === "string" ? prepared.init.body : undefined,
-                    Boolean(
-                      prepared.effectiveModel?.toLowerCase().includes("claude") &&
+                    if (!trackWarmupAttempt(prepared.sessionId)) {
+                      return
+                    }
+
+                    const warmupBody = buildThinkingWarmupBody(
+                      typeof prepared.init.body === "string" ? prepared.init.body : undefined,
+                      Boolean(
+                        prepared.effectiveModel?.toLowerCase().includes("claude") &&
                         prepared.effectiveModel?.toLowerCase().includes("thinking"),
-                    ),
-                  )
-                  if (!warmupBody) {
-                    return
-                  }
-
-                  const warmupUrl = toWarmupStreamUrl(prepared.request)
-                  const warmupHeaders = new Headers(prepared.init.headers ?? {})
-                  warmupHeaders.set("accept", "text/event-stream")
-
-                  const warmupInit: RequestInit = {
-                    ...prepared.init,
-                    method: prepared.init.method ?? "POST",
-                    headers: warmupHeaders,
-                    body: warmupBody,
-                  }
-
-                  const warmupDebugContext = startAntigravityDebugRequest({
-                    originalUrl: warmupUrl,
-                    resolvedUrl: warmupUrl,
-                    method: warmupInit.method,
-                    headers: warmupHeaders,
-                    body: warmupBody,
-                    streaming: true,
-                    projectId,
-                  })
-
-                  try {
-                    pushDebug("thinking-warmup: start")
-                    debugCheckpoint("ANTIGRAVITY", "thinking-warmup: starting", {
-                      sessionId: prepared.sessionId,
-                      url: warmupUrl,
-                    })
-                    const warmupResponse = await fetch(warmupUrl, warmupInit)
-                    const transformed = await transformAntigravityResponse(
-                      warmupResponse,
-                      true,
-                      warmupDebugContext,
-                      prepared.requestedModel,
-                      projectId,
-                      warmupUrl,
-                      prepared.effectiveModel,
-                      prepared.sessionId,
+                      ),
                     )
-                    await transformed.text()
-                    markWarmupSuccess(prepared.sessionId)
-                    pushDebug("thinking-warmup: done")
-                    debugCheckpoint("ANTIGRAVITY", "thinking-warmup: completed", {
-                      sessionId: prepared.sessionId,
-                      status: warmupResponse.status,
+                    if (!warmupBody) {
+                      return
+                    }
+
+                    const warmupUrl = toWarmupStreamUrl(prepared.request)
+                    const warmupHeaders = new Headers(prepared.init.headers ?? {})
+                    warmupHeaders.set("accept", "text/event-stream")
+
+                    const warmupInit: RequestInit = {
+                      ...prepared.init,
+                      method: prepared.init.method ?? "POST",
+                      headers: warmupHeaders,
+                      body: warmupBody,
+                    }
+
+                    const warmupDebugContext = startAntigravityDebugRequest({
+                      originalUrl: warmupUrl,
+                      resolvedUrl: warmupUrl,
+                      method: warmupInit.method,
+                      headers: warmupHeaders,
+                      body: warmupBody,
+                      streaming: true,
+                      projectId,
                     })
-                  } catch (error) {
-                    clearWarmupAttempt(prepared.sessionId)
-                    const errorMsg = error instanceof Error ? error.message : String(error)
-                    pushDebug(`thinking-warmup: failed ${errorMsg}`)
-                    debugCheckpoint("ANTIGRAVITY", "thinking-warmup: FAILED", {
-                      sessionId: prepared.sessionId,
-                      error: errorMsg,
-                    })
+
+                    try {
+                      pushDebug("thinking-warmup: start")
+                      debugCheckpoint("ANTIGRAVITY", "thinking-warmup: starting", {
+                        sessionId: prepared.sessionId,
+                        url: warmupUrl,
+                      })
+                      const warmupResponse = await fetch(warmupUrl, warmupInit)
+                      const transformed = await transformAntigravityResponse(
+                        warmupResponse,
+                        true,
+                        warmupDebugContext,
+                        prepared.requestedModel,
+                        projectId,
+                        warmupUrl,
+                        prepared.effectiveModel,
+                        prepared.sessionId,
+                      )
+                      await transformed.text()
+                      markWarmupSuccess(prepared.sessionId)
+                      pushDebug("thinking-warmup: done")
+                      debugCheckpoint("ANTIGRAVITY", "thinking-warmup: completed", {
+                        sessionId: prepared.sessionId,
+                        status: warmupResponse.status,
+                      })
+                    } catch (error) {
+                      clearWarmupAttempt(prepared.sessionId)
+                      const errorMsg = error instanceof Error ? error.message : String(error)
+                      pushDebug(`thinking-warmup: failed ${errorMsg}`)
+                      debugCheckpoint("ANTIGRAVITY", "thinking-warmup: FAILED", {
+                        sessionId: prepared.sessionId,
+                        error: errorMsg,
+                      })
+                    }
                   }
-                }
 
-                // Try endpoint fallbacks with single header style based on model suffix
+                  // Try endpoint fallbacks with single header style based on model suffix
 
-                // Strict Protocol Selection by Provider ID
-                // Note: effectiveProviderID is derived from account.id or providerId in the outer scope
-                const baseHeaderStyle = getHeaderStyleFromUrl(urlString, family, effectiveProviderID ?? providerId)
-                const explicitQuota = isExplicitQuotaFromUrl(urlString)
-                // @event_2026-02-06:antigravity_v145_integration
-                // Apply cli_first preference for Gemini models
-                const cliFirst = getCliFirst(config)
-                let headerStyle = resolvePreferredHeaderStyle(baseHeaderStyle, family, explicitQuota, cliFirst)
-                pushDebug(
-                  `headerStyle=${headerStyle} baseStyle=${baseHeaderStyle} cliFirst=${cliFirst} explicit=${explicitQuota}`,
-                )
-                if (account.fingerprint) {
+                  // Strict Protocol Selection by Provider ID
+                  // Note: effectiveProviderID is derived from account.id or providerId in the outer scope
+                  const baseHeaderStyle = getHeaderStyleFromUrl(urlString, family, effectiveProviderID ?? providerId)
+                  const explicitQuota = isExplicitQuotaFromUrl(urlString)
+                  // @event_2026-02-06:antigravity_v145_integration
+                  // Apply cli_first preference for Gemini models
+                  const cliFirst = getCliFirst(config)
+                  let headerStyle = resolvePreferredHeaderStyle(baseHeaderStyle, family, explicitQuota, cliFirst)
                   pushDebug(
-                    `fingerprint: quotaUser=${account.fingerprint.quotaUser} deviceId=${account.fingerprint.deviceId.slice(0, 8)}...`,
+                    `headerStyle=${headerStyle} baseStyle=${baseHeaderStyle} cliFirst=${cliFirst} explicit=${explicitQuota}`,
                   )
-                }
+                  if (account.fingerprint) {
+                    pushDebug(
+                      `fingerprint: quotaUser=${account.fingerprint.quotaUser} deviceId=${account.fingerprint.deviceId.slice(0, 8)}...`,
+                    )
+                  }
 
-                // Check if this header style is rate-limited for this account
-                if (accountManager.isRateLimitedForHeaderStyle(account, family, headerStyle, model)) {
-                  // Quota fallback: try alternate quota on same account (if enabled and not explicit)
-                  if (config.quota_fallback && !explicitQuota && family === "gemini") {
-                    const alternateStyle = accountManager.getAvailableHeaderStyle(account, family, model)
-                    if (alternateStyle && alternateStyle !== headerStyle) {
-                      const quotaName = headerStyle === "gemini-cli" ? "Gemini CLI" : "Antigravity"
-                      const altQuotaName = alternateStyle === "gemini-cli" ? "Gemini CLI" : "Antigravity"
-                      await showToast(`${quotaName} quota exhausted, using ${altQuotaName} quota`, "warning")
-                      headerStyle = alternateStyle
-                      pushDebug(`quota fallback: ${headerStyle}`)
+                  // Check if this header style is rate-limited for this account
+                  if (accountManager.isRateLimitedForHeaderStyle(account, family, headerStyle, model)) {
+                    // Quota fallback: try alternate quota on same account (if enabled and not explicit)
+                    if (config.quota_fallback && !explicitQuota && family === "gemini") {
+                      const alternateStyle = accountManager.getAvailableHeaderStyle(account, family, model)
+                      if (alternateStyle && alternateStyle !== headerStyle) {
+                        const quotaName = headerStyle === "gemini-cli" ? "Gemini CLI" : "Antigravity"
+                        const altQuotaName = alternateStyle === "gemini-cli" ? "Gemini CLI" : "Antigravity"
+                        await showToast(`${quotaName} quota exhausted, using ${altQuotaName} quota`, "warning")
+                        headerStyle = alternateStyle
+                        pushDebug(`quota fallback: ${headerStyle}`)
+                      } else {
+                        // Account is rate limited on all quota styles — throw to rotation3d
+                        const preLimitError: Error & { status?: number; statusCode?: number; retryAfter?: number } =
+                          new Error(`Account pre-check: rate limited for ${family}/${headerStyle}`)
+                        preLimitError.status = 429
+                        preLimitError.statusCode = 429
+                        preLimitError.retryAfter = 120
+                        throw preLimitError
+                      }
                     } else {
-                      // Account is rate limited on all quota styles — throw to rotation3d
+                      // Account is rate limited — throw to rotation3d
                       const preLimitError: Error & { status?: number; statusCode?: number; retryAfter?: number } =
                         new Error(`Account pre-check: rate limited for ${family}/${headerStyle}`)
                       preLimitError.status = 429
@@ -2107,624 +2112,847 @@ export const createAntigravityPlugin =
                       preLimitError.retryAfter = 120
                       throw preLimitError
                     }
-                  } else {
-                    // Account is rate limited — throw to rotation3d
-                    const preLimitError: Error & { status?: number; statusCode?: number; retryAfter?: number } =
-                      new Error(`Account pre-check: rate limited for ${family}/${headerStyle}`)
-                    preLimitError.status = 429
-                    preLimitError.statusCode = 429
-                    preLimitError.retryAfter = 120
-                    throw preLimitError
-                  }
-                }
-
-                // Flag to force thinking recovery on retry after API error
-                let forceThinkingRecovery = false
-                let forceDisableThinking = false
-
-                // Track if token was consumed (for hybrid strategy refund on error)
-                let tokenConsumed = false
-
-                // Track capacity retries per endpoint to prevent infinite loops
-                let capacityRetryCount = 0
-                let lastEndpointIndex = -1
-
-                for (let i = 0; i < ANTIGRAVITY_ENDPOINT_FALLBACKS.length; i++) {
-                  // Reset capacity retry counter when switching to a new endpoint
-                  if (i !== lastEndpointIndex) {
-                    capacityRetryCount = 0
-                    lastEndpointIndex = i
                   }
 
-                  const currentEndpoint = ANTIGRAVITY_ENDPOINT_FALLBACKS[i]
+                  // Flag to force thinking recovery on retry after API error
+                  let forceThinkingRecovery = false
+                  let forceDisableThinking = false
 
-                  // @event_2026-02-06:antigravity_v145_integration
-                  // #233: Skip sandbox endpoints for Gemini CLI models - they only work with production endpoint
-                  if (headerStyle === "gemini-cli" && currentEndpoint !== ANTIGRAVITY_ENDPOINT_PROD) {
-                    pushDebug(`Skipping sandbox endpoint ${currentEndpoint} for gemini-cli headerStyle`)
-                    continue
-                  }
+                  // Track if token was consumed (for hybrid strategy refund on error)
+                  let tokenConsumed = false
 
-                  try {
-                    const prepared = prepareAntigravityRequest(
-                      input,
-                      init,
-                      accessToken,
-                      projectContext.effectiveProjectId,
-                      currentEndpoint,
-                      headerStyle,
-                      forceThinkingRecovery,
-                      {
-                        claudeToolHardening: config.claude_tool_hardening,
-                        fingerprint: account.fingerprint,
-                        forceDisableThinking,
-                      },
-                    )
+                  // Track capacity retries per endpoint to prevent infinite loops
+                  let capacityRetryCount = 0
+                  let lastEndpointIndex = -1
 
-                    debugCheckpoint("ANTIGRAVITY", "REQUEST_PREPARED", {
-                      family,
-                      model,
-                      effectiveModel: prepared.effectiveModel,
-                      accountIndex: account.index,
-                      endpoint: currentEndpoint,
-                    })
-
-                    const originalUrl = toUrlString(input)
-                    const resolvedUrl = toUrlString(prepared.request)
-                    pushDebug(`endpoint=${currentEndpoint}`)
-                    pushDebug(`resolved=${resolvedUrl}`)
-                    const debugContext = startAntigravityDebugRequest({
-                      originalUrl,
-                      resolvedUrl,
-                      method: prepared.init.method,
-                      headers: prepared.init.headers,
-                      body: prepared.init.body,
-                      streaming: prepared.streaming,
-                      projectId: projectContext.effectiveProjectId,
-                    })
-
-                    await runThinkingWarmup(prepared, projectContext.effectiveProjectId)
-
-                    if (config.request_jitter_max_ms > 0) {
-                      const jitterMs = Math.floor(Math.random() * config.request_jitter_max_ms)
-                      if (jitterMs > 0) {
-                        await sleep(jitterMs, abortSignal)
-                      }
+                  for (let i = 0; i < ANTIGRAVITY_ENDPOINT_FALLBACKS.length; i++) {
+                    // Reset capacity retry counter when switching to a new endpoint
+                    if (i !== lastEndpointIndex) {
+                      capacityRetryCount = 0
+                      lastEndpointIndex = i
                     }
 
-                    // RPM Throttle — disabled; soft-ban root cause is protocol, not frequency
-                    // await enforceRpmLimit(account.index, family, config.rpm_limit, abortSignal)
+                    const currentEndpoint = ANTIGRAVITY_ENDPOINT_FALLBACKS[i]
 
-                    // Consume token for hybrid strategy
-                    // Refunded later if request fails (429 or network error)
-                    // Legacy strategy check removed - now always consumes if token tracker active?
-                    // Actually, let's keep it conditional on strategy but hardcode to false or remove strategy check
-                    // Since we are removing strategy config, let's assume no hybrid token tracking for now or default to false
-                    // if (config.account_selection_strategy === "hybrid") {
-                    //   tokenConsumed = getTokenTracker().consume(account.index)
-                    // }
+                    // @event_2026-02-06:antigravity_v145_integration
+                    // #233: Skip sandbox endpoints for Gemini CLI models - they only work with production endpoint
+                    if (headerStyle === "gemini-cli" && currentEndpoint !== ANTIGRAVITY_ENDPOINT_PROD) {
+                      pushDebug(`Skipping sandbox endpoint ${currentEndpoint} for gemini-cli headerStyle`)
+                      continue
+                    }
 
-                    debugCheckpoint("ANTIGRAVITY", "FETCH_START", {
-                      family,
-                      model,
-                      accountIndex: account.index,
-                    })
+                    try {
+                      const prepared = prepareAntigravityRequest(
+                        input,
+                        init,
+                        accessToken,
+                        projectContext.effectiveProjectId,
+                        currentEndpoint,
+                        headerStyle,
+                        forceThinkingRecovery,
+                        {
+                          claudeToolHardening: config.claude_tool_hardening,
+                          fingerprint: account.fingerprint,
+                          forceDisableThinking,
+                        },
+                      )
 
-                    const response = await fetch(prepared.request, prepared.init)
+                      debugCheckpoint("ANTIGRAVITY", "REQUEST_PREPARED", {
+                        family,
+                        model,
+                        effectiveModel: prepared.effectiveModel,
+                        accountIndex: account.index,
+                        endpoint: currentEndpoint,
+                      })
 
-                    debugCheckpoint("ANTIGRAVITY", "FETCH_COMPLETE", {
-                      family,
-                      model,
-                      accountIndex: account.index,
-                      status: response.status,
-                    })
-                    pushDebug(`status=${response.status} ${response.statusText}`)
+                      const originalUrl = toUrlString(input)
+                      const resolvedUrl = toUrlString(prepared.request)
+                      pushDebug(`endpoint=${currentEndpoint}`)
+                      pushDebug(`resolved=${resolvedUrl}`)
+                      const debugContext = startAntigravityDebugRequest({
+                        originalUrl,
+                        resolvedUrl,
+                        method: prepared.init.method,
+                        headers: prepared.init.headers,
+                        body: prepared.init.body,
+                        streaming: prepared.streaming,
+                        projectId: projectContext.effectiveProjectId,
+                      })
 
-                    // Handle 429 rate limit (or Service Overloaded) with improved logic
-                    if (response.status === 429 || response.status === 503 || response.status === 529) {
-                      // Refund token on rate limit
+                      await runThinkingWarmup(prepared, projectContext.effectiveProjectId)
+
+                      if (config.request_jitter_max_ms > 0) {
+                        const jitterMs = Math.floor(Math.random() * config.request_jitter_max_ms)
+                        if (jitterMs > 0) {
+                          await sleep(jitterMs, abortSignal)
+                        }
+                      }
+
+                      // RPM Throttle — disabled; soft-ban root cause is protocol, not frequency
+                      // await enforceRpmLimit(account.index, family, config.rpm_limit, abortSignal)
+
+                      // Consume token for hybrid strategy
+                      // Refunded later if request fails (429 or network error)
+                      // Legacy strategy check removed - now always consumes if token tracker active?
+                      // Actually, let's keep it conditional on strategy but hardcode to false or remove strategy check
+                      // Since we are removing strategy config, let's assume no hybrid token tracking for now or default to false
+                      // if (config.account_selection_strategy === "hybrid") {
+                      //   tokenConsumed = getTokenTracker().consume(account.index)
+                      // }
+
+                      debugCheckpoint("ANTIGRAVITY", "FETCH_START", {
+                        family,
+                        model,
+                        accountIndex: account.index,
+                      })
+
+                      const response = await fetch(prepared.request, prepared.init)
+
+                      debugCheckpoint("ANTIGRAVITY", "FETCH_COMPLETE", {
+                        family,
+                        model,
+                        accountIndex: account.index,
+                        status: response.status,
+                      })
+                      pushDebug(`status=${response.status} ${response.statusText}`)
+
+                      // Handle 429 rate limit (or Service Overloaded) with improved logic
+                      if (response.status === 429 || response.status === 503 || response.status === 529) {
+                        // Refund token on rate limit
+                        if (tokenConsumed) {
+                          tokenConsumed = false
+                        }
+
+                        const defaultRetryMs = (config.default_retry_after_seconds ?? 60) * 1000
+                        const maxBackoffMs = (config.max_backoff_seconds ?? 60) * 1000
+                        const headerRetryMs = retryAfterMsFromResponse(response, defaultRetryMs)
+                        const bodyInfo = await extractRetryInfoFromBody(response)
+                        const serverRetryMs = bodyInfo.retryDelayMs ?? headerRetryMs
+
+                        // [Enhanced Parsing] Pass status to handling logic
+                        const rateLimitReason = parseRateLimitReason(bodyInfo.reason, bodyInfo.message, response.status)
+
+                        // All transient HTTP errors (429/503/529) go directly to rotation.
+                        // Keep status semantics explicit:
+                        // - 429: rate-limit/quota handling
+                        // - 503: Service Unavailable
+                        // - 529: Site Overloaded
+
+                        // Unified error handling: mark rate limited + throw to rotation3d.
+                        // NO internal account switching. rotation3d is the single authority.
+                        {
+                          // Calculate fallback backoff, then try cockpit for real reset time
+                          let backoffMs = calculateBackoffMs(
+                            rateLimitReason,
+                            account.consecutiveFailures ?? 0,
+                            serverRetryMs,
+                          )
+                          // Query cockpit for real reset time (non-blocking, fallback to calculated value)
+                          debugCheckpoint("ANTIGRAVITY", "cockpit_query_check", {
+                            hasAccess: !!account.access,
+                            hasProjectId: !!account.parts.projectId,
+                            hasModel: !!model,
+                            accountIndex: account.index,
+                            family,
+                          })
+                          if (account.access && account.parts.projectId && model) {
+                            try {
+                              const cockpitResult = await getCockpitBackoffMs(
+                                account.access,
+                                account.parts.projectId,
+                                model,
+                                backoffMs,
+                              )
+                              debugCheckpoint("ANTIGRAVITY", "cockpit_query_result", {
+                                fromCockpit: cockpitResult.fromCockpit,
+                                backoffMs: cockpitResult.backoffMs,
+                                resetTimeMs: cockpitResult.resetTimeMs,
+                                model,
+                                accountIndex: account.index,
+                              })
+                              if (cockpitResult.fromCockpit) {
+                                backoffMs = cockpitResult.backoffMs
+                                pushDebug(
+                                  `429: cockpit reset ${new Date(cockpitResult.resetTimeMs!).toISOString()}, backoff=${backoffMs}ms`,
+                                )
+                              }
+                            } catch (e) {
+                              const errMsg = e instanceof Error ? e.message : String(e)
+                              pushDebug(`429: cockpit query failed: ${errMsg}`)
+                            }
+                          }
+
+                          // Mark account as rate limited locally
+                          accountManager.markRateLimitedWithReason(
+                            account,
+                            family,
+                            headerStyle,
+                            model,
+                            rateLimitReason,
+                            serverRetryMs,
+                            config.failure_ttl_seconds * 1000,
+                          )
+                          accountManager.requestSaveToDisk()
+
+                          // Report to global rate limit tracker for rotation3d
+                          const { getRateLimitTracker } = await import("../../account/rotation")
+                          const coreAccountId = account._coreAccountId || `antigravity-account-${account.index}`
+                          getRateLimitTracker().markRateLimited(
+                            coreAccountId,
+                            "antigravity",
+                            rateLimitReason,
+                            backoffMs,
+                            model || undefined,
+                          )
+                          getGlobalHealthTracker().recordRateLimit(`antigravity-account-${account.index}`, "antigravity")
+
+                          const waitTimeFormatted = formatWaitTime(backoffMs)
+                          const statusCode = response.status
+                          const errorLabel =
+                            statusCode === 503
+                              ? "Service unavailable"
+                              : statusCode === 529
+                                ? "Site overloaded"
+                                : "Rate limited"
+
+                          // Throw typed transient error — rotation3d decides next move
+                          const rateLimitError: Error & {
+                            status?: number
+                            statusCode?: number
+                            retryAfter?: number
+                          } = new Error(
+                            `${errorLabel} for ${family}. Reason: ${rateLimitReason}. Cooldown: ${waitTimeFormatted}`,
+                          )
+                          rateLimitError.status = statusCode
+                          rateLimitError.statusCode = statusCode
+                          rateLimitError.retryAfter = Math.ceil(backoffMs / 1000)
+
+                          throw rateLimitError
+                        }
+                      }
+
+                      // Success - reset rate limit backoff state for this quota
+                      const quotaKey = headerStyleToQuotaKey(headerStyle, family)
+                      resetRateLimitState(account.index, quotaKey)
+                      resetAccountFailureState(account.index)
+
+                      const shouldRetryEndpoint =
+                        response.status === 403 || response.status === 404 || response.status >= 500
+
+                      if (shouldRetryEndpoint) {
+                        await logResponseBody(debugContext, response, response.status)
+                      }
+
+                      if (shouldRetryEndpoint && i < ANTIGRAVITY_ENDPOINT_FALLBACKS.length - 1) {
+                        lastFailure = {
+                          response,
+                          streaming: prepared.streaming,
+                          debugContext,
+                          requestedModel: prepared.requestedModel,
+                          projectId: prepared.projectId,
+                          endpoint: prepared.endpoint,
+                          effectiveModel: prepared.effectiveModel,
+                          sessionId: prepared.sessionId,
+                          toolDebugMissing: prepared.toolDebugMissing,
+                          toolDebugSummary: prepared.toolDebugSummary,
+                          toolDebugPayload: prepared.toolDebugPayload,
+                        }
+                        continue
+                      }
+
+                      // Success or non-retryable error - return the response
+                      // @event_2026-02-06:rotation_unify - Removed redundant ModelHealthRegistry.markSuccess
+                      if (response.ok) {
+                        account.consecutiveFailures = 0
+                        getGlobalHealthTracker().recordSuccess(`antigravity-account-${account.index}`, "antigravity")
+                        accountManager.markAccountUsed(account.index)
+                        debugCheckpoint("ANTIGRAVITY", "REQUEST_SUCCESS", {
+                          family,
+                          model,
+                          accountIndex: account.index,
+                          email: account.email,
+                          status: response.status,
+                        })
+                      }
+                      logAntigravityDebugResponse(debugContext, response, {
+                        note: response.ok ? "Success" : `Error ${response.status}`,
+                      })
+                      if (!response.ok) {
+                        await logResponseBody(debugContext, response, response.status)
+
+                        // Handle 404 "Not Found" or 400 "Prompt too long" with synthetic response to avoid session lock
+                        if (response.status === 404 || response.status === 400) {
+                          const cloned = response.clone()
+                          const bodyText = await cloned.text()
+
+                          // [Auto-Fallback] if checking capabilities failed or backend is stricter than expected:
+                          // If the model rejects the thinking config (e.g. "Thinking_config... only enabled when thinking is enabled"),
+                          // we implicitly know this model DOES NOT support thinking.
+                          // Instead of crashing, we forcibly disable thinking (forceDisableThinking=true) and retry transparently.
+                          // This matches User request to "fallback automatically" without hardcoded allowlists.
+                          if (
+                            response.status === 400 &&
+                            bodyText.includes("Thinking_config.include_thoughts is only enabled when thinking is enabled")
+                          ) {
+                            if (!forceDisableThinking) {
+                              pushDebug("Thinking config error detected - retrying with thinking disabled")
+                              forceDisableThinking = true
+                              i = -1
+                              continue
+                            }
+                          }
+
+                          if (response.status === 404) {
+                            const debugInfo = `\n\n[Debug Info]\nAccount: #${account.index} (${account.email || "Unknown"})\nRequested Model: ${prepared.requestedModel || "Unknown"}\nEffective Model: ${prepared.effectiveModel || "Unknown"}\nProject: ${prepared.projectId || "Unknown"}\nEndpoint: ${prepared.endpoint || "Unknown"}\nStatus: 404 Not Found\nRequest ID: ${response.headers.get("x-request-id") || "N/A"}`
+                            const errorMessage = `[Antigravity Error] Resource not found (404).\n\nThis usually means the project ID is invalid for the selected endpoint, or the model is not supported on this endpoint.${debugInfo}`
+                            return createSyntheticErrorResponse(errorMessage, prepared.requestedModel)
+                          }
+
+                          if (bodyText.includes("Prompt is too long") || bodyText.includes("prompt_too_long")) {
+                            await showToast("Context too long - use /compact to reduce size", "warning")
+                            const errorMessage = `[Antigravity Error] Context is too long for this model.\n\nPlease use /compact to reduce context size, then retry your request.\n\nAlternatively, you can:\n- Use /clear to start fresh\n- Use /undo to remove recent messages\n- Switch to a model with larger context window`
+                            return createSyntheticErrorResponse(errorMessage, prepared.requestedModel)
+                          }
+                          // [Fix for "Always repeats 400 error"]
+                          // If we get a 400 that is NOT "prompt too long" and NOT "thinking config",
+                          // it might be a transient issue or account-specific issue.
+                          // Instead of returning a synthetic error immediately, throw an error to trigger
+                          // the existing rotation logic (switch endpoint or account).
+                          // This allows finding a working path if one exists.
+                          const errorMsg = `Antigravity 400 Error: ${bodyText.substring(0, 200)}...`
+                          pushDebug(`Triggering rotation for 400 error: ${errorMsg}`)
+                          throw new Error(errorMsg)
+                        }
+                      }
+
+                      // Empty response retry logic (ported from LLM-API-Key-Proxy)
+                      // For non-streaming responses, check if the response body is empty
+                      // and retry if so (up to config.empty_response_max_attempts times)
+                      if (response.ok && !prepared.streaming) {
+                        const maxAttempts = config.empty_response_max_attempts ?? 4
+                        const retryDelayMs = config.empty_response_retry_delay_ms ?? 2000
+
+                        // Clone to check body without consuming original
+                        const clonedForCheck = response.clone()
+                        const bodyText = await clonedForCheck.text()
+
+                        if (isEmptyResponseBody(bodyText)) {
+                          // Track empty response attempts per request
+                          const emptyAttemptKey = `${prepared.sessionId ?? "none"}:${prepared.effectiveModel ?? "unknown"}`
+                          const currentAttempts = (emptyResponseAttempts.get(emptyAttemptKey) ?? 0) + 1
+                          emptyResponseAttempts.set(emptyAttemptKey, currentAttempts)
+
+                          pushDebug(`empty-response: attempt ${currentAttempts}/${maxAttempts}`)
+
+                          if (currentAttempts < maxAttempts) {
+                            await showToast(
+                              `Empty response received. Retrying (${currentAttempts}/${maxAttempts})...`,
+                              "warning",
+                            )
+                            await sleep(retryDelayMs, abortSignal)
+                            continue // Retry the endpoint loop
+                          }
+
+                          // Clean up and throw after max attempts
+                          emptyResponseAttempts.delete(emptyAttemptKey)
+                          throw new EmptyResponseError(
+                            "antigravity",
+                            prepared.effectiveModel ?? "unknown",
+                            currentAttempts,
+                          )
+                        }
+
+                        // Clean up successful attempt tracking
+                        const emptyAttemptKeyClean = `${prepared.sessionId ?? "none"}:${prepared.effectiveModel ?? "unknown"}`
+                        emptyResponseAttempts.delete(emptyAttemptKeyClean)
+                      }
+
+                      const transformedResponse = await transformAntigravityResponse(
+                        response,
+                        prepared.streaming,
+                        debugContext,
+                        prepared.requestedModel,
+                        prepared.projectId,
+                        prepared.endpoint,
+                        prepared.effectiveModel,
+                        prepared.sessionId,
+                        prepared.toolDebugMissing,
+                        prepared.toolDebugSummary,
+                        prepared.toolDebugPayload,
+                        debugLines,
+                      )
+
+                      // Check for context errors and show appropriate toast
+                      const contextError = transformedResponse.headers.get("x-antigravity-context-error")
+                      if (contextError) {
+                        if (contextError === "prompt_too_long") {
+                          await showToast(
+                            "Context too long - use /compact to reduce size, or trim your request",
+                            "warning",
+                          )
+                        } else if (contextError === "tool_pairing") {
+                          await showToast(
+                            "Tool call/result mismatch - use /compact to fix, or /undo last message",
+                            "warning",
+                          )
+                        }
+                      }
+
+                      return transformedResponse
+                    } catch (error) {
+                      debugCheckpoint("ANTIGRAVITY", "REQUEST_ERROR", {
+                        family,
+                        model,
+                        accountIndex: account.index,
+                        error: error instanceof Error ? error.message : String(error),
+                        errorStack: error instanceof Error ? error.stack?.substring(0, 500) : undefined,
+                      })
+
+                      // Refund token on network/API error (only if consumed)
                       if (tokenConsumed) {
                         tokenConsumed = false
                       }
 
-                      const defaultRetryMs = (config.default_retry_after_seconds ?? 60) * 1000
-                      const maxBackoffMs = (config.max_backoff_seconds ?? 60) * 1000
-                      const headerRetryMs = retryAfterMsFromResponse(response, defaultRetryMs)
-                      const bodyInfo = await extractRetryInfoFromBody(response)
-                      const serverRetryMs = bodyInfo.retryDelayMs ?? headerRetryMs
-
-                      // [Enhanced Parsing] Pass status to handling logic
-                      const rateLimitReason = parseRateLimitReason(bodyInfo.reason, bodyInfo.message, response.status)
-
-                      // All transient HTTP errors (429/503/529) go directly to rotation.
-                      // Keep status semantics explicit:
-                      // - 429: rate-limit/quota handling
-                      // - 503: Service Unavailable
-                      // - 529: Site Overloaded
-
-                      // Unified error handling: mark rate limited + throw to rotation3d.
-                      // NO internal account switching. rotation3d is the single authority.
-                      {
-                        // Calculate fallback backoff, then try cockpit for real reset time
-                        let backoffMs = calculateBackoffMs(
-                          rateLimitReason,
-                          account.consecutiveFailures ?? 0,
-                          serverRetryMs,
-                        )
-                        // Query cockpit for real reset time (non-blocking, fallback to calculated value)
-                        debugCheckpoint("ANTIGRAVITY", "cockpit_query_check", {
-                          hasAccess: !!account.access,
-                          hasProjectId: !!account.parts.projectId,
-                          hasModel: !!model,
-                          accountIndex: account.index,
-                          family,
-                        })
-                        if (account.access && account.parts.projectId && model) {
-                          try {
-                            const cockpitResult = await getCockpitBackoffMs(
-                              account.access,
-                              account.parts.projectId,
-                              model,
-                              backoffMs,
-                            )
-                            debugCheckpoint("ANTIGRAVITY", "cockpit_query_result", {
-                              fromCockpit: cockpitResult.fromCockpit,
-                              backoffMs: cockpitResult.backoffMs,
-                              resetTimeMs: cockpitResult.resetTimeMs,
-                              model,
-                              accountIndex: account.index,
-                            })
-                            if (cockpitResult.fromCockpit) {
-                              backoffMs = cockpitResult.backoffMs
-                              pushDebug(
-                                `429: cockpit reset ${new Date(cockpitResult.resetTimeMs!).toISOString()}, backoff=${backoffMs}ms`,
-                              )
-                            }
-                          } catch (e) {
-                            const errMsg = e instanceof Error ? e.message : String(e)
-                            pushDebug(`429: cockpit query failed: ${errMsg}`)
-                          }
+                      // Handle recoverable thinking errors - retry with forced recovery
+                      if (error instanceof Error && error.message === "THINKING_RECOVERY_NEEDED") {
+                        // Only retry once with forced recovery to avoid infinite loops
+                        if (!forceThinkingRecovery) {
+                          pushDebug("thinking-recovery: API error detected, retrying with forced recovery")
+                          forceThinkingRecovery = true
+                          i = -1 // Will become 0 after loop increment, restart endpoint loop
+                          continue
                         }
 
-                        // Mark account as rate limited locally
-                        accountManager.markRateLimitedWithReason(
-                          account,
-                          family,
-                          headerStyle,
-                          model,
-                          rateLimitReason,
-                          serverRetryMs,
-                          config.failure_ttl_seconds * 1000,
-                        )
-                        accountManager.requestSaveToDisk()
-
-                        // Report to global rate limit tracker for rotation3d
-                        const { getRateLimitTracker } = await import("../../account/rotation")
-                        const coreAccountId = account._coreAccountId || `antigravity-account-${account.index}`
-                        getRateLimitTracker().markRateLimited(
-                          coreAccountId,
-                          "antigravity",
-                          rateLimitReason,
-                          backoffMs,
-                          model || undefined,
-                        )
-                        getGlobalHealthTracker().recordRateLimit(`antigravity-account-${account.index}`, "antigravity")
-
-                        const waitTimeFormatted = formatWaitTime(backoffMs)
-                        const statusCode = response.status
-                        const errorLabel =
-                          statusCode === 503
-                            ? "Service unavailable"
-                            : statusCode === 529
-                              ? "Site overloaded"
-                              : "Rate limited"
-
-                        // Throw typed transient error — rotation3d decides next move
-                        const rateLimitError: Error & {
-                          status?: number
-                          statusCode?: number
-                          retryAfter?: number
-                        } = new Error(
-                          `${errorLabel} for ${family}. Reason: ${rateLimitReason}. Cooldown: ${waitTimeFormatted}`,
-                        )
-                        rateLimitError.status = statusCode
-                        rateLimitError.statusCode = statusCode
-                        rateLimitError.retryAfter = Math.ceil(backoffMs / 1000)
-
-                        throw rateLimitError
-                      }
-                    }
-
-                    // Success - reset rate limit backoff state for this quota
-                    const quotaKey = headerStyleToQuotaKey(headerStyle, family)
-                    resetRateLimitState(account.index, quotaKey)
-                    resetAccountFailureState(account.index)
-
-                    const shouldRetryEndpoint =
-                      response.status === 403 || response.status === 404 || response.status >= 500
-
-                    if (shouldRetryEndpoint) {
-                      await logResponseBody(debugContext, response, response.status)
-                    }
-
-                    if (shouldRetryEndpoint && i < ANTIGRAVITY_ENDPOINT_FALLBACKS.length - 1) {
-                      lastFailure = {
-                        response,
-                        streaming: prepared.streaming,
-                        debugContext,
-                        requestedModel: prepared.requestedModel,
-                        projectId: prepared.projectId,
-                        endpoint: prepared.endpoint,
-                        effectiveModel: prepared.effectiveModel,
-                        sessionId: prepared.sessionId,
-                        toolDebugMissing: prepared.toolDebugMissing,
-                        toolDebugSummary: prepared.toolDebugSummary,
-                        toolDebugPayload: prepared.toolDebugPayload,
-                      }
-                      continue
-                    }
-
-                    // Success or non-retryable error - return the response
-                    // @event_2026-02-06:rotation_unify - Removed redundant ModelHealthRegistry.markSuccess
-                    if (response.ok) {
-                      account.consecutiveFailures = 0
-                      getGlobalHealthTracker().recordSuccess(`antigravity-account-${account.index}`, "antigravity")
-                      accountManager.markAccountUsed(account.index)
-                      debugCheckpoint("ANTIGRAVITY", "REQUEST_SUCCESS", {
-                        family,
-                        model,
-                        accountIndex: account.index,
-                        email: account.email,
-                        status: response.status,
-                      })
-                    }
-                    logAntigravityDebugResponse(debugContext, response, {
-                      note: response.ok ? "Success" : `Error ${response.status}`,
-                    })
-                    if (!response.ok) {
-                      await logResponseBody(debugContext, response, response.status)
-
-                      // Handle 404 "Not Found" or 400 "Prompt too long" with synthetic response to avoid session lock
-                      if (response.status === 404 || response.status === 400) {
-                        const cloned = response.clone()
-                        const bodyText = await cloned.text()
-
-                        // [Auto-Fallback] if checking capabilities failed or backend is stricter than expected:
-                        // If the model rejects the thinking config (e.g. "Thinking_config... only enabled when thinking is enabled"),
-                        // we implicitly know this model DOES NOT support thinking.
-                        // Instead of crashing, we forcibly disable thinking (forceDisableThinking=true) and retry transparently.
-                        // This matches User request to "fallback automatically" without hardcoded allowlists.
-                        if (
-                          response.status === 400 &&
-                          bodyText.includes("Thinking_config.include_thoughts is only enabled when thinking is enabled")
-                        ) {
-                          if (!forceDisableThinking) {
-                            pushDebug("Thinking config error detected - retrying with thinking disabled")
-                            forceDisableThinking = true
-                            i = -1
-                            continue
-                          }
-                        }
-
-                        if (response.status === 404) {
-                          const debugInfo = `\n\n[Debug Info]\nAccount: #${account.index} (${account.email || "Unknown"})\nRequested Model: ${prepared.requestedModel || "Unknown"}\nEffective Model: ${prepared.effectiveModel || "Unknown"}\nProject: ${prepared.projectId || "Unknown"}\nEndpoint: ${prepared.endpoint || "Unknown"}\nStatus: 404 Not Found\nRequest ID: ${response.headers.get("x-request-id") || "N/A"}`
-                          const errorMessage = `[Antigravity Error] Resource not found (404).\n\nThis usually means the project ID is invalid for the selected endpoint, or the model is not supported on this endpoint.${debugInfo}`
-                          return createSyntheticErrorResponse(errorMessage, prepared.requestedModel)
-                        }
-
-                        if (bodyText.includes("Prompt is too long") || bodyText.includes("prompt_too_long")) {
-                          await showToast("Context too long - use /compact to reduce size", "warning")
-                          const errorMessage = `[Antigravity Error] Context is too long for this model.\n\nPlease use /compact to reduce context size, then retry your request.\n\nAlternatively, you can:\n- Use /clear to start fresh\n- Use /undo to remove recent messages\n- Switch to a model with larger context window`
-                          return createSyntheticErrorResponse(errorMessage, prepared.requestedModel)
-                        }
-                        // [Fix for "Always repeats 400 error"]
-                        // If we get a 400 that is NOT "prompt too long" and NOT "thinking config",
-                        // it might be a transient issue or account-specific issue.
-                        // Instead of returning a synthetic error immediately, throw an error to trigger
-                        // the existing rotation logic (switch endpoint or account).
-                        // This allows finding a working path if one exists.
-                        const errorMsg = `Antigravity 400 Error: ${bodyText.substring(0, 200)}...`
-                        pushDebug(`Triggering rotation for 400 error: ${errorMsg}`)
-                        throw new Error(errorMsg)
-                      }
-                    }
-
-                    // Empty response retry logic (ported from LLM-API-Key-Proxy)
-                    // For non-streaming responses, check if the response body is empty
-                    // and retry if so (up to config.empty_response_max_attempts times)
-                    if (response.ok && !prepared.streaming) {
-                      const maxAttempts = config.empty_response_max_attempts ?? 4
-                      const retryDelayMs = config.empty_response_retry_delay_ms ?? 2000
-
-                      // Clone to check body without consuming original
-                      const clonedForCheck = response.clone()
-                      const bodyText = await clonedForCheck.text()
-
-                      if (isEmptyResponseBody(bodyText)) {
-                        // Track empty response attempts per request
-                        const emptyAttemptKey = `${prepared.sessionId ?? "none"}:${prepared.effectiveModel ?? "unknown"}`
-                        const currentAttempts = (emptyResponseAttempts.get(emptyAttemptKey) ?? 0) + 1
-                        emptyResponseAttempts.set(emptyAttemptKey, currentAttempts)
-
-                        pushDebug(`empty-response: attempt ${currentAttempts}/${maxAttempts}`)
-
-                        if (currentAttempts < maxAttempts) {
-                          await showToast(
-                            `Empty response received. Retrying (${currentAttempts}/${maxAttempts})...`,
-                            "warning",
-                          )
-                          await sleep(retryDelayMs, abortSignal)
-                          continue // Retry the endpoint loop
-                        }
-
-                        // Clean up and throw after max attempts
-                        emptyResponseAttempts.delete(emptyAttemptKey)
-                        throw new EmptyResponseError(
-                          "antigravity",
-                          prepared.effectiveModel ?? "unknown",
-                          currentAttempts,
-                        )
-                      }
-
-                      // Clean up successful attempt tracking
-                      const emptyAttemptKeyClean = `${prepared.sessionId ?? "none"}:${prepared.effectiveModel ?? "unknown"}`
-                      emptyResponseAttempts.delete(emptyAttemptKeyClean)
-                    }
-
-                    const transformedResponse = await transformAntigravityResponse(
-                      response,
-                      prepared.streaming,
-                      debugContext,
-                      prepared.requestedModel,
-                      prepared.projectId,
-                      prepared.endpoint,
-                      prepared.effectiveModel,
-                      prepared.sessionId,
-                      prepared.toolDebugMissing,
-                      prepared.toolDebugSummary,
-                      prepared.toolDebugPayload,
-                      debugLines,
-                    )
-
-                    // Check for context errors and show appropriate toast
-                    const contextError = transformedResponse.headers.get("x-antigravity-context-error")
-                    if (contextError) {
-                      if (contextError === "prompt_too_long") {
-                        await showToast(
-                          "Context too long - use /compact to reduce size, or trim your request",
-                          "warning",
-                        )
-                      } else if (contextError === "tool_pairing") {
-                        await showToast(
-                          "Tool call/result mismatch - use /compact to fix, or /undo last message",
-                          "warning",
-                        )
-                      }
-                    }
-
-                    return transformedResponse
-                  } catch (error) {
-                    debugCheckpoint("ANTIGRAVITY", "REQUEST_ERROR", {
-                      family,
-                      model,
-                      accountIndex: account.index,
-                      error: error instanceof Error ? error.message : String(error),
-                      errorStack: error instanceof Error ? error.stack?.substring(0, 500) : undefined,
-                    })
-
-                    // Refund token on network/API error (only if consumed)
-                    if (tokenConsumed) {
-                      tokenConsumed = false
-                    }
-
-                    // Handle recoverable thinking errors - retry with forced recovery
-                    if (error instanceof Error && error.message === "THINKING_RECOVERY_NEEDED") {
-                      // Only retry once with forced recovery to avoid infinite loops
-                      if (!forceThinkingRecovery) {
-                        pushDebug("thinking-recovery: API error detected, retrying with forced recovery")
-                        forceThinkingRecovery = true
-                        i = -1 // Will become 0 after loop increment, restart endpoint loop
-                        continue
-                      }
-
-                      // Already tried with forced recovery, give up and return error
-                      const recoveryError =
-                        error && typeof error === "object" ? (error as { originalError?: unknown }) : undefined
-                      const originalError =
-                        recoveryError?.originalError && typeof recoveryError.originalError === "object"
-                          ? (recoveryError.originalError as { error?: { message?: string } })
-                          : {
+                        // Already tried with forced recovery, give up and return error
+                        const recoveryError =
+                          error && typeof error === "object" ? (error as { originalError?: unknown }) : undefined
+                        const originalError =
+                          recoveryError?.originalError && typeof recoveryError.originalError === "object"
+                            ? (recoveryError.originalError as { error?: { message?: string } })
+                            : {
                               error: { message: "Thinking recovery triggered" },
                             }
 
-                      const recoveryMessage = `${originalError.error?.message || "Session recovery failed"}\n\n[RECOVERY] Thinking block corruption could not be resolved. Try starting a new session.`
+                        const recoveryMessage = `${originalError.error?.message || "Session recovery failed"}\n\n[RECOVERY] Thinking block corruption could not be resolved. Try starting a new session.`
 
-                      return new Response(
-                        JSON.stringify({
-                          type: "error",
-                          error: {
-                            type: "unrecoverable_error",
-                            message: recoveryMessage,
+                        return new Response(
+                          JSON.stringify({
+                            type: "error",
+                            error: {
+                              type: "unrecoverable_error",
+                              message: recoveryMessage,
+                            },
+                          }),
+                          {
+                            status: 400,
+                            headers: { "Content-Type": "application/json" },
                           },
-                        }),
-                        {
-                          status: 400,
-                          headers: { "Content-Type": "application/json" },
-                        },
-                      )
-                    }
-
-                    // Rate limit / soft-ban errors must NOT be retried on other endpoints
-                    // — throw immediately to rotation3d
-                    const errStatus = (error as any)?.status ?? (error as any)?.statusCode
-                    if (errStatus === 429 || errStatus === 503 || errStatus === 529) {
-                      throw error
-                    }
-
-                    if (i < ANTIGRAVITY_ENDPOINT_FALLBACKS.length - 1) {
-                      lastError = error instanceof Error ? error : new Error(String(error))
-                      continue
-                    }
-
-                    // All endpoints failed for this account - throw to rotation3d
-                    const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index)
-                    lastError = error instanceof Error ? error : new Error(String(error))
-                    if (shouldCooldown) {
-                      accountManager.markAccountCoolingDown(account, cooldownMs, "network-error")
-                      accountManager.markRateLimited(account, cooldownMs, family, headerStyle, model)
-                      pushDebug(`endpoint-error: cooldown ${cooldownMs}ms after ${failures} failures`)
-                    }
-
-                    // Throw to let rotation3d handle account switching
-                    const networkError: Error & { status?: number; statusCode?: number; retryAfter?: number } =
-                      new Error(`All endpoints failed for account ${account.index}: ${lastError.message}`)
-                    networkError.status = 503
-                    networkError.statusCode = 503
-                    networkError.retryAfter = Math.ceil((cooldownMs || 60_000) / 1000)
-                    throw networkError
-                  }
-                }
-
-                // If we get here without returning, something went wrong
-                if (lastFailure) {
-                  return transformAntigravityResponse(
-                    lastFailure.response,
-                    lastFailure.streaming,
-                    lastFailure.debugContext,
-                    lastFailure.requestedModel,
-                    lastFailure.projectId,
-                    lastFailure.endpoint,
-                    lastFailure.effectiveModel,
-                    lastFailure.sessionId,
-                    lastFailure.toolDebugMissing,
-                    lastFailure.toolDebugSummary,
-                    lastFailure.toolDebugPayload,
-                    debugLines,
-                  )
-                }
-
-                throw lastError || new Error("All Antigravity accounts failed")
-              }
-            },
-          }
-        },
-        methods: [
-          {
-            label: "OAuth with Google (Antigravity)",
-            type: "oauth",
-            authorize: async (inputs?: Record<string, string>) => {
-              const isHeadless = !!(
-                process.env.SSH_CONNECTION ||
-                process.env.SSH_CLIENT ||
-                process.env.SSH_TTY ||
-                process.env.OPENCODE_HEADLESS
-              )
-
-              // CLI flow (`opencode auth login`) passes an inputs object.
-              if (inputs) {
-                const accounts: Array<Extract<AntigravityTokenExchangeResult, { type: "success" }>> = []
-                const noBrowser = inputs.noBrowser === "true" || inputs["no-browser"] === "true"
-                const useManualMode = noBrowser || shouldSkipLocalServer()
-
-                // Check for existing accounts and prompt user for login mode
-                let startFresh = true
-                let refreshAccountIndex: number | undefined
-                const existingStorage = await loadAccounts()
-                if (existingStorage && existingStorage.accounts.length > 0) {
-                  let menuResult
-                  while (true) {
-                    const now = Date.now()
-                    const existingAccounts = existingStorage.accounts.map((acc, idx) => {
-                      let status: "active" | "rate-limited" | "expired" | "unknown" = "unknown"
-
-                      const rateLimits = acc.rateLimitResetTimes
-                      if (rateLimits) {
-                        const isRateLimited = Object.values(rateLimits).some(
-                          (resetTime) => typeof resetTime === "number" && resetTime > now,
                         )
-                        if (isRateLimited) {
-                          status = "rate-limited"
+                      }
+
+                      // Rate limit / soft-ban errors must NOT be retried on other endpoints
+                      // — throw immediately to rotation3d
+                      const errStatus = (error as any)?.status ?? (error as any)?.statusCode
+                      if (errStatus === 429 || errStatus === 503 || errStatus === 529) {
+                        throw error
+                      }
+
+                      if (i < ANTIGRAVITY_ENDPOINT_FALLBACKS.length - 1) {
+                        lastError = error instanceof Error ? error : new Error(String(error))
+                        continue
+                      }
+
+                      // All endpoints failed for this account - throw to rotation3d
+                      const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index)
+                      lastError = error instanceof Error ? error : new Error(String(error))
+                      if (shouldCooldown) {
+                        accountManager.markAccountCoolingDown(account, cooldownMs, "network-error")
+                        accountManager.markRateLimited(account, cooldownMs, family, headerStyle, model)
+                        pushDebug(`endpoint-error: cooldown ${cooldownMs}ms after ${failures} failures`)
+                      }
+
+                      // Throw to let rotation3d handle account switching
+                      const networkError: Error & { status?: number; statusCode?: number; retryAfter?: number } =
+                        new Error(`All endpoints failed for account ${account.index}: ${lastError.message}`)
+                      networkError.status = 503
+                      networkError.statusCode = 503
+                      networkError.retryAfter = Math.ceil((cooldownMs || 60_000) / 1000)
+                      throw networkError
+                    }
+                  }
+
+                  // If we get here without returning, something went wrong
+                  if (lastFailure) {
+                    return transformAntigravityResponse(
+                      lastFailure.response,
+                      lastFailure.streaming,
+                      lastFailure.debugContext,
+                      lastFailure.requestedModel,
+                      lastFailure.projectId,
+                      lastFailure.endpoint,
+                      lastFailure.effectiveModel,
+                      lastFailure.sessionId,
+                      lastFailure.toolDebugMissing,
+                      lastFailure.toolDebugSummary,
+                      lastFailure.toolDebugPayload,
+                      debugLines,
+                    )
+                  }
+
+                  throw lastError || new Error("All Antigravity accounts failed")
+                }
+              },
+            }
+          },
+          methods: [
+            {
+              label: "OAuth with Google (Antigravity)",
+              type: "oauth",
+              authorize: async (inputs?: Record<string, string>) => {
+                const isHeadless = !!(
+                  process.env.SSH_CONNECTION ||
+                  process.env.SSH_CLIENT ||
+                  process.env.SSH_TTY ||
+                  process.env.OPENCODE_HEADLESS
+                )
+
+                // CLI flow (`opencode auth login`) passes an inputs object.
+                if (inputs) {
+                  const accounts: Array<Extract<AntigravityTokenExchangeResult, { type: "success" }>> = []
+                  const noBrowser = inputs.noBrowser === "true" || inputs["no-browser"] === "true"
+                  const useManualMode = noBrowser || shouldSkipLocalServer()
+
+                  // Check for existing accounts and prompt user for login mode
+                  let startFresh = true
+                  let refreshAccountIndex: number | undefined
+                  const existingStorage = await loadAccounts()
+                  if (existingStorage && existingStorage.accounts.length > 0) {
+                    let menuResult
+                    while (true) {
+                      const now = Date.now()
+                      const existingAccounts = existingStorage.accounts.map((acc, idx) => {
+                        let status: "active" | "rate-limited" | "expired" | "unknown" = "unknown"
+
+                        const rateLimits = acc.rateLimitResetTimes
+                        if (rateLimits) {
+                          const isRateLimited = Object.values(rateLimits).some(
+                            (resetTime) => typeof resetTime === "number" && resetTime > now,
+                          )
+                          if (isRateLimited) {
+                            status = "rate-limited"
+                          } else {
+                            status = "active"
+                          }
                         } else {
                           status = "active"
                         }
-                      } else {
-                        status = "active"
+
+                        if (acc.coolingDownUntil && acc.coolingDownUntil > now) {
+                          status = "rate-limited"
+                        }
+
+                        return {
+                          email: acc.email,
+                          index: idx,
+                          addedAt: acc.addedAt,
+                          lastUsed: acc.lastUsed,
+                          status,
+                          isCurrentAccount: idx === (existingStorage.activeIndex ?? 0),
+                          enabled: acc.enabled !== false,
+                        }
+                      })
+
+                      menuResult = await promptLoginMode(existingAccounts)
+
+                      if (menuResult.mode === "check") {
+                        console.log("\nChecking quotas for all accounts...")
+                        const results = await checkAccountsQuota(existingStorage.accounts, client, providerId)
+                        for (const res of results) {
+                          const label = res.email || `Account ${res.index + 1}`
+                          const disabledStr = res.disabled ? " (disabled)" : ""
+                          console.log(`\n${res.index + 1}. ${label}${disabledStr}`)
+                          if (res.status === "error") {
+                            console.log(`   Error: ${res.error}`)
+                            continue
+                          }
+                          if (!res.quota || Object.keys(res.quota.groups).length === 0) {
+                            console.log("   No quota information available.")
+                            if (res.quota?.error) console.log(`   Error: ${res.quota.error}`)
+                            continue
+                          }
+                          const printGrp = (name: string, group: any) => {
+                            if (!group) return
+                            const remaining =
+                              typeof group.remainingFraction === "number"
+                                ? `${Math.round(group.remainingFraction * 100)}%`
+                                : "UNKNOWN"
+                            const resetStr = group.resetTime
+                              ? `, resets in ${formatWaitTime(Date.parse(group.resetTime) - Date.now())}`
+                              : ""
+                            console.log(`   ${name}: ${remaining}${resetStr}`)
+                          }
+                          printGrp("Claude", res.quota.groups.claude)
+                          printGrp("Gemini 3 Pro", res.quota.groups["gemini-pro"])
+                          printGrp("Gemini 3 Flash", res.quota.groups["gemini-flash"])
+                          if (res.updatedAccount) {
+                            existingStorage.accounts[res.index] = res.updatedAccount
+                            await saveAccounts(existingStorage)
+                          }
+                        }
+                        console.log("")
+                        continue
                       }
 
-                      if (acc.coolingDownUntil && acc.coolingDownUntil > now) {
-                        status = "rate-limited"
+                      if (menuResult.mode === "manage") {
+                        if (menuResult.toggleAccountIndex !== undefined) {
+                          const acc = existingStorage.accounts[menuResult.toggleAccountIndex]
+                          if (acc) {
+                            acc.enabled = acc.enabled === false
+                            await saveAccounts(existingStorage)
+                            console.log(
+                              `\nAccount ${acc.email || menuResult.toggleAccountIndex + 1} ${acc.enabled ? "enabled" : "disabled"}.\n`,
+                            )
+                          }
+                        }
+                        continue
                       }
 
+                      break
+                    }
+
+                    if (menuResult.mode === "cancel") {
                       return {
-                        email: acc.email,
-                        index: idx,
-                        addedAt: acc.addedAt,
-                        lastUsed: acc.lastUsed,
-                        status,
-                        isCurrentAccount: idx === (existingStorage.activeIndex ?? 0),
-                        enabled: acc.enabled !== false,
+                        url: "",
+                        instructions: "Authentication cancelled",
+                        method: "auto",
+                        callback: async () => ({ type: "failed", error: "Authentication cancelled" }),
                       }
-                    })
-
-                    menuResult = await promptLoginMode(existingAccounts)
-
-                    if (menuResult.mode === "check") {
-                      console.log("\nChecking quotas for all accounts...")
-                      const results = await checkAccountsQuota(existingStorage.accounts, client, providerId)
-                      for (const res of results) {
-                        const label = res.email || `Account ${res.index + 1}`
-                        const disabledStr = res.disabled ? " (disabled)" : ""
-                        console.log(`\n${res.index + 1}. ${label}${disabledStr}`)
-                        if (res.status === "error") {
-                          console.log(`   Error: ${res.error}`)
-                          continue
-                        }
-                        if (!res.quota || Object.keys(res.quota.groups).length === 0) {
-                          console.log("   No quota information available.")
-                          if (res.quota?.error) console.log(`   Error: ${res.quota.error}`)
-                          continue
-                        }
-                        const printGrp = (name: string, group: any) => {
-                          if (!group) return
-                          const remaining =
-                            typeof group.remainingFraction === "number"
-                              ? `${Math.round(group.remainingFraction * 100)}%`
-                              : "UNKNOWN"
-                          const resetStr = group.resetTime
-                            ? `, resets in ${formatWaitTime(Date.parse(group.resetTime) - Date.now())}`
-                            : ""
-                          console.log(`   ${name}: ${remaining}${resetStr}`)
-                        }
-                        printGrp("Claude", res.quota.groups.claude)
-                        printGrp("Gemini 3 Pro", res.quota.groups["gemini-pro"])
-                        printGrp("Gemini 3 Flash", res.quota.groups["gemini-flash"])
-                        if (res.updatedAccount) {
-                          existingStorage.accounts[res.index] = res.updatedAccount
-                          await saveAccounts(existingStorage)
-                        }
-                      }
-                      console.log("")
-                      continue
                     }
 
-                    if (menuResult.mode === "manage") {
-                      if (menuResult.toggleAccountIndex !== undefined) {
-                        const acc = existingStorage.accounts[menuResult.toggleAccountIndex]
-                        if (acc) {
-                          acc.enabled = acc.enabled === false
-                          await saveAccounts(existingStorage)
-                          console.log(
-                            `\nAccount ${acc.email || menuResult.toggleAccountIndex + 1} ${acc.enabled ? "enabled" : "disabled"}.\n`,
-                          )
+                    if (menuResult.deleteAccountIndex !== undefined) {
+                      const updatedAccounts = existingStorage.accounts.filter(
+                        (_, idx) => idx !== menuResult.deleteAccountIndex,
+                      )
+                      await saveAccounts({
+                        version: 3,
+                        accounts: updatedAccounts,
+                        activeIndex: 0,
+                        activeIndexByFamily: { claude: 0, gemini: 0 },
+                      })
+                      console.log("\nAccount deleted.\n")
+
+                      if (updatedAccounts.length > 0) {
+                        return {
+                          url: "",
+                          instructions: "Account deleted. Please run `opencode auth login` again to continue.",
+                          method: "auto",
+                          callback: async () => ({ type: "failed", error: "Account deleted - please re-run auth" }),
                         }
                       }
-                      continue
                     }
 
-                    break
+                    if (menuResult.refreshAccountIndex !== undefined) {
+                      refreshAccountIndex = menuResult.refreshAccountIndex
+                      const refreshEmail = existingStorage.accounts[refreshAccountIndex]?.email
+                      console.log(`\nRe-authenticating ${refreshEmail || "account"}...\n`)
+                      startFresh = false
+                    }
+
+                    if (menuResult.deleteAll) {
+                      await clearAccounts()
+                      console.log("\nAll accounts deleted.\n")
+                      startFresh = true
+                    } else {
+                      startFresh = menuResult.mode === "fresh"
+                    }
+
+                    if (startFresh && !menuResult.deleteAll) {
+                      console.log("\nStarting fresh - existing accounts will be replaced.\n")
+                    } else if (!startFresh) {
+                      console.log("\nAdding to existing accounts.\n")
+                    }
                   }
 
-                  if (menuResult.mode === "cancel") {
+                  while (accounts.length < MAX_OAUTH_ACCOUNTS) {
+                    console.log(`\n=== Antigravity OAuth (Account ${accounts.length + 1}) ===`)
+
+                    const projectId = await promptProjectId()
+
+                    const result = await (async (): Promise<AntigravityTokenExchangeResult> => {
+                      const authorization = await authorizeAntigravity(projectId)
+                      const fallbackState = getStateFromAuthorizationUrl(authorization.url)
+
+                      console.log("\nOAuth URL:\n" + authorization.url + "\n")
+
+                      if (useManualMode) {
+                        const browserOpened = await openBrowser(authorization.url)
+                        if (!browserOpened) {
+                          console.log("Could not open browser automatically.")
+                          console.log("Please open the URL above manually in your local browser.\n")
+                        }
+                        return promptManualOAuthInput(fallbackState)
+                      }
+
+                      let listener: OAuthListener | null = null
+                      if (!isHeadless) {
+                        try {
+                          listener = await startOAuthListener()
+                        } catch {
+                          // Failed to start listener, will fallback to manual
+                          listener = null
+                        }
+                      }
+
+                      if (!isHeadless) {
+                        await openBrowser(authorization.url)
+                      }
+
+                      if (listener) {
+                        try {
+                          const SOFT_TIMEOUT_MS = 30000
+                          const callbackPromise = listener.waitForCallback()
+                          const timeoutPromise = new Promise<never>((_, reject) =>
+                            setTimeout(() => reject(new Error("SOFT_TIMEOUT")), SOFT_TIMEOUT_MS),
+                          )
+
+                          let callbackUrl: URL
+                          try {
+                            callbackUrl = await Promise.race([callbackPromise, timeoutPromise])
+                          } catch (err) {
+                            if (err instanceof Error && err.message === "SOFT_TIMEOUT") {
+                              console.log("\n⏳ Automatic callback not received after 30 seconds.")
+                              console.log("You can paste the redirect URL manually.\n")
+                              console.log("OAuth URL (in case you need it again):")
+                              console.log(authorization.url + "\n")
+
+                              try {
+                                await listener.close()
+                              } catch {
+                                // Ignore close error
+                              }
+
+                              return promptManualOAuthInput(fallbackState)
+                            }
+                            throw err
+                          }
+
+                          const params = extractOAuthCallbackParams(callbackUrl)
+                          if (!params) {
+                            return { type: "failed", error: "Missing code or state in callback URL" }
+                          }
+
+                          return exchangeAntigravity(params.code, params.state)
+                        } catch (error) {
+                          if (error instanceof Error && error.message !== "SOFT_TIMEOUT") {
+                            return {
+                              type: "failed",
+                              error: error.message,
+                            }
+                          }
+                          return {
+                            type: "failed",
+                            error: error instanceof Error ? error.message : "Unknown error",
+                          }
+                        } finally {
+                          try {
+                            await listener.close()
+                          } catch {
+                            // Ignore close error
+                          }
+                        }
+                      }
+
+                      return promptManualOAuthInput(fallbackState)
+                    })()
+
+                    if (result.type === "failed") {
+                      if (accounts.length === 0) {
+                        return {
+                          url: "",
+                          instructions: `Authentication failed: ${result.error}`,
+                          method: "auto",
+                          callback: async () => result,
+                        }
+                      }
+
+                      console.warn(
+                        `[opencode-antigravity-auth] Skipping failed account ${accounts.length + 1}: ${result.error}`,
+                      )
+                      break
+                    }
+
+                    accounts.push(result)
+
+                    try {
+                      await client.tui.showToast({
+                        body: {
+                          message: `Account ${accounts.length} authenticated${result.email ? ` (${result.email})` : ""}`,
+                          variant: "success",
+                        },
+                      })
+                    } catch {
+                      // TUI toast optional
+                    }
+
+                    try {
+                      if (refreshAccountIndex !== undefined) {
+                        const currentStorage = await loadAccounts()
+                        if (currentStorage) {
+                          const updatedAccounts = [...currentStorage.accounts]
+                          const parts = parseRefreshParts(result.refresh)
+                          if (parts.refreshToken) {
+                            updatedAccounts[refreshAccountIndex] = {
+                              email: result.email ?? updatedAccounts[refreshAccountIndex]?.email,
+                              refreshToken: parts.refreshToken,
+                              projectId: parts.projectId ?? updatedAccounts[refreshAccountIndex]?.projectId,
+                              managedProjectId:
+                                parts.managedProjectId ?? updatedAccounts[refreshAccountIndex]?.managedProjectId,
+                              addedAt: updatedAccounts[refreshAccountIndex]?.addedAt ?? Date.now(),
+                              lastUsed: Date.now(),
+                            }
+                            await saveAccounts({
+                              version: 3,
+                              accounts: updatedAccounts,
+                              activeIndex: currentStorage.activeIndex,
+                              activeIndexByFamily: currentStorage.activeIndexByFamily,
+                            })
+                          }
+                        }
+                      } else {
+                        const isFirstAccount = accounts.length === 1
+                        await persistAccountPool([result], isFirstAccount && startFresh)
+                      }
+                    } catch (e) {
+                      console.error("[persistAccountPool] Failed to persist account:", e)
+                    }
+
+                    if (refreshAccountIndex !== undefined) {
+                      break
+                    }
+
+                    if (accounts.length >= MAX_OAUTH_ACCOUNTS) {
+                      break
+                    }
+
+                    // Get the actual deduplicated account count from storage for the prompt
+                    let currentAccountCount = accounts.length
+                    try {
+                      const currentStorage = await loadAccounts()
+                      if (currentStorage) {
+                        currentAccountCount = currentStorage.accounts.length
+                      }
+                    } catch {
+                      // Fall back to accounts.length if we can't read storage
+                    }
+
+                    const addAnother = await promptAddAnotherAccount(currentAccountCount)
+                    if (!addAnother) {
+                      break
+                    }
+                  }
+
+                  const primary = accounts[0]
+                  if (!primary) {
                     return {
                       url: "",
                       instructions: "Authentication cancelled",
@@ -2733,109 +2961,86 @@ export const createAntigravityPlugin =
                     }
                   }
 
-                  if (menuResult.deleteAccountIndex !== undefined) {
-                    const updatedAccounts = existingStorage.accounts.filter(
-                      (_, idx) => idx !== menuResult.deleteAccountIndex,
-                    )
-                    await saveAccounts({
-                      version: 3,
-                      accounts: updatedAccounts,
-                      activeIndex: 0,
-                      activeIndexByFamily: { claude: 0, gemini: 0 },
-                    })
-                    console.log("\nAccount deleted.\n")
-
-                    if (updatedAccounts.length > 0) {
-                      return {
-                        url: "",
-                        instructions: "Account deleted. Please run `opencode auth login` again to continue.",
-                        method: "auto",
-                        callback: async () => ({ type: "failed", error: "Account deleted - please re-run auth" }),
-                      }
+                  let actualAccountCount = accounts.length
+                  try {
+                    const finalStorage = await loadAccounts()
+                    if (finalStorage) {
+                      actualAccountCount = finalStorage.accounts.length
                     }
+                  } catch {
+                    // Fall back to accounts.length if we can't read storage
                   }
 
-                  if (menuResult.refreshAccountIndex !== undefined) {
-                    refreshAccountIndex = menuResult.refreshAccountIndex
-                    const refreshEmail = existingStorage.accounts[refreshAccountIndex]?.email
-                    console.log(`\nRe-authenticating ${refreshEmail || "account"}...\n`)
-                    startFresh = false
-                  }
+                  const successMessage =
+                    refreshAccountIndex !== undefined
+                      ? `Token refreshed successfully.`
+                      : `Multi-account setup complete (${actualAccountCount} account(s)).`
 
-                  if (menuResult.deleteAll) {
-                    await clearAccounts()
-                    console.log("\nAll accounts deleted.\n")
-                    startFresh = true
-                  } else {
-                    startFresh = menuResult.mode === "fresh"
-                  }
-
-                  if (startFresh && !menuResult.deleteAll) {
-                    console.log("\nStarting fresh - existing accounts will be replaced.\n")
-                  } else if (!startFresh) {
-                    console.log("\nAdding to existing accounts.\n")
+                  return {
+                    url: "",
+                    instructions: successMessage,
+                    method: "auto",
+                    callback: async (): Promise<AntigravityTokenExchangeResult> => primary,
                   }
                 }
 
-                while (accounts.length < MAX_OAUTH_ACCOUNTS) {
-                  console.log(`\n=== Antigravity OAuth (Account ${accounts.length + 1}) ===`)
+                // TUI flow (`/connect`) does not support per-account prompts.
+                // Default to adding new accounts (non-destructive).
+                // Users can run `opencode auth logout` first if they want a fresh start.
+                const projectId = ""
 
-                  const projectId = await promptProjectId()
+                // Check existing accounts count for toast message
+                const existingStorage = await loadAccounts()
+                const existingCount = existingStorage?.accounts.length ?? 0
 
-                  const result = await (async (): Promise<AntigravityTokenExchangeResult> => {
-                    const authorization = await authorizeAntigravity(projectId)
-                    const fallbackState = getStateFromAuthorizationUrl(authorization.url)
+                const useManualFlow = isHeadless || shouldSkipLocalServer()
 
-                    console.log("\nOAuth URL:\n" + authorization.url + "\n")
+                let listener: OAuthListener | null = null
+                if (!useManualFlow) {
+                  try {
+                    listener = await startOAuthListener()
+                  } catch {
+                    // Failed to start listener, will fallback to manual
+                    listener = null
+                  }
+                }
 
-                    if (useManualMode) {
-                      const browserOpened = await openBrowser(authorization.url)
-                      if (!browserOpened) {
-                        console.log("Could not open browser automatically.")
-                        console.log("Please open the URL above manually in your local browser.\n")
-                      }
-                      return promptManualOAuthInput(fallbackState)
-                    }
+                const authorization = await authorizeAntigravity(projectId)
+                const fallbackState = getStateFromAuthorizationUrl(authorization.url)
 
-                    let listener: OAuthListener | null = null
-                    if (!isHeadless) {
+                if (!useManualFlow) {
+                  const browserOpened = await openBrowser(authorization.url)
+                  if (!browserOpened) {
+                    listener?.close().catch(() => {
+                      // Ignore close error
+                    })
+                    listener = null
+                  }
+                }
+
+                if (listener) {
+                  return {
+                    url: authorization.url,
+                    instructions:
+                      "Complete sign-in in your browser. We'll automatically detect the redirect back to localhost.",
+                    method: "auto",
+                    callback: async (): Promise<AntigravityTokenExchangeResult> => {
+                      const CALLBACK_TIMEOUT_MS = 30000
                       try {
-                        listener = await startOAuthListener()
-                      } catch {
-                        // Failed to start listener, will fallback to manual
-                        listener = null
-                      }
-                    }
-
-                    if (!isHeadless) {
-                      await openBrowser(authorization.url)
-                    }
-
-                    if (listener) {
-                      try {
-                        const SOFT_TIMEOUT_MS = 30000
                         const callbackPromise = listener.waitForCallback()
                         const timeoutPromise = new Promise<never>((_, reject) =>
-                          setTimeout(() => reject(new Error("SOFT_TIMEOUT")), SOFT_TIMEOUT_MS),
+                          setTimeout(() => reject(new Error("CALLBACK_TIMEOUT")), CALLBACK_TIMEOUT_MS),
                         )
 
                         let callbackUrl: URL
                         try {
                           callbackUrl = await Promise.race([callbackPromise, timeoutPromise])
                         } catch (err) {
-                          if (err instanceof Error && err.message === "SOFT_TIMEOUT") {
-                            console.log("\n⏳ Automatic callback not received after 30 seconds.")
-                            console.log("You can paste the redirect URL manually.\n")
-                            console.log("OAuth URL (in case you need it again):")
-                            console.log(authorization.url + "\n")
-
-                            try {
-                              await listener.close()
-                            } catch {
-                              // Ignore close error
+                          if (err instanceof Error && err.message === "CALLBACK_TIMEOUT") {
+                            return {
+                              type: "failed",
+                              error: "Callback timeout - please use CLI with --no-browser flag for manual input",
                             }
-
-                            return promptManualOAuthInput(fallbackState)
                           }
                           throw err
                         }
@@ -2845,14 +3050,34 @@ export const createAntigravityPlugin =
                           return { type: "failed", error: "Missing code or state in callback URL" }
                         }
 
-                        return exchangeAntigravity(params.code, params.state)
-                      } catch (error) {
-                        if (error instanceof Error && error.message !== "SOFT_TIMEOUT") {
-                          return {
-                            type: "failed",
-                            error: error.message,
+                        const result = await exchangeAntigravity(params.code, params.state)
+                        if (result.type === "success") {
+                          try {
+                            await persistAccountPool([result], false)
+                          } catch (e) {
+                            console.error("[persistAccountPool] Failed to persist account (CLI callback):", e)
+                          }
+
+                          const newTotal = existingCount + 1
+                          const toastMessage =
+                            existingCount > 0
+                              ? `Added account${result.email ? ` (${result.email})` : ""} - ${newTotal} total`
+                              : `Authenticated${result.email ? ` (${result.email})` : ""}`
+
+                          try {
+                            await client.tui.showToast({
+                              body: {
+                                message: toastMessage,
+                                variant: "success",
+                              },
+                            })
+                          } catch {
+                            // TUI toast optional
                           }
                         }
+
+                        return result
+                      } catch (error) {
                         return {
                           type: "failed",
                           error: error instanceof Error ? error.message : "Unknown error",
@@ -2864,291 +3089,62 @@ export const createAntigravityPlugin =
                           // Ignore close error
                         }
                       }
-                    }
-
-                    return promptManualOAuthInput(fallbackState)
-                  })()
-
-                  if (result.type === "failed") {
-                    if (accounts.length === 0) {
-                      return {
-                        url: "",
-                        instructions: `Authentication failed: ${result.error}`,
-                        method: "auto",
-                        callback: async () => result,
-                      }
-                    }
-
-                    console.warn(
-                      `[opencode-antigravity-auth] Skipping failed account ${accounts.length + 1}: ${result.error}`,
-                    )
-                    break
-                  }
-
-                  accounts.push(result)
-
-                  try {
-                    await client.tui.showToast({
-                      body: {
-                        message: `Account ${accounts.length} authenticated${result.email ? ` (${result.email})` : ""}`,
-                        variant: "success",
-                      },
-                    })
-                  } catch {
-                    // TUI toast optional
-                  }
-
-                  try {
-                    if (refreshAccountIndex !== undefined) {
-                      const currentStorage = await loadAccounts()
-                      if (currentStorage) {
-                        const updatedAccounts = [...currentStorage.accounts]
-                        const parts = parseRefreshParts(result.refresh)
-                        if (parts.refreshToken) {
-                          updatedAccounts[refreshAccountIndex] = {
-                            email: result.email ?? updatedAccounts[refreshAccountIndex]?.email,
-                            refreshToken: parts.refreshToken,
-                            projectId: parts.projectId ?? updatedAccounts[refreshAccountIndex]?.projectId,
-                            managedProjectId:
-                              parts.managedProjectId ?? updatedAccounts[refreshAccountIndex]?.managedProjectId,
-                            addedAt: updatedAccounts[refreshAccountIndex]?.addedAt ?? Date.now(),
-                            lastUsed: Date.now(),
-                          }
-                          await saveAccounts({
-                            version: 3,
-                            accounts: updatedAccounts,
-                            activeIndex: currentStorage.activeIndex,
-                            activeIndexByFamily: currentStorage.activeIndexByFamily,
-                          })
-                        }
-                      }
-                    } else {
-                      const isFirstAccount = accounts.length === 1
-                      await persistAccountPool([result], isFirstAccount && startFresh)
-                    }
-                  } catch (e) {
-                    console.error("[persistAccountPool] Failed to persist account:", e)
-                  }
-
-                  if (refreshAccountIndex !== undefined) {
-                    break
-                  }
-
-                  if (accounts.length >= MAX_OAUTH_ACCOUNTS) {
-                    break
-                  }
-
-                  // Get the actual deduplicated account count from storage for the prompt
-                  let currentAccountCount = accounts.length
-                  try {
-                    const currentStorage = await loadAccounts()
-                    if (currentStorage) {
-                      currentAccountCount = currentStorage.accounts.length
-                    }
-                  } catch {
-                    // Fall back to accounts.length if we can't read storage
-                  }
-
-                  const addAnother = await promptAddAnotherAccount(currentAccountCount)
-                  if (!addAnother) {
-                    break
+                    },
                   }
                 }
 
-                const primary = accounts[0]
-                if (!primary) {
-                  return {
-                    url: "",
-                    instructions: "Authentication cancelled",
-                    method: "auto",
-                    callback: async () => ({ type: "failed", error: "Authentication cancelled" }),
-                  }
-                }
-
-                let actualAccountCount = accounts.length
-                try {
-                  const finalStorage = await loadAccounts()
-                  if (finalStorage) {
-                    actualAccountCount = finalStorage.accounts.length
-                  }
-                } catch {
-                  // Fall back to accounts.length if we can't read storage
-                }
-
-                const successMessage =
-                  refreshAccountIndex !== undefined
-                    ? `Token refreshed successfully.`
-                    : `Multi-account setup complete (${actualAccountCount} account(s)).`
-
-                return {
-                  url: "",
-                  instructions: successMessage,
-                  method: "auto",
-                  callback: async (): Promise<AntigravityTokenExchangeResult> => primary,
-                }
-              }
-
-              // TUI flow (`/connect`) does not support per-account prompts.
-              // Default to adding new accounts (non-destructive).
-              // Users can run `opencode auth logout` first if they want a fresh start.
-              const projectId = ""
-
-              // Check existing accounts count for toast message
-              const existingStorage = await loadAccounts()
-              const existingCount = existingStorage?.accounts.length ?? 0
-
-              const useManualFlow = isHeadless || shouldSkipLocalServer()
-
-              let listener: OAuthListener | null = null
-              if (!useManualFlow) {
-                try {
-                  listener = await startOAuthListener()
-                } catch {
-                  // Failed to start listener, will fallback to manual
-                  listener = null
-                }
-              }
-
-              const authorization = await authorizeAntigravity(projectId)
-              const fallbackState = getStateFromAuthorizationUrl(authorization.url)
-
-              if (!useManualFlow) {
-                const browserOpened = await openBrowser(authorization.url)
-                if (!browserOpened) {
-                  listener?.close().catch(() => {
-                    // Ignore close error
-                  })
-                  listener = null
-                }
-              }
-
-              if (listener) {
                 return {
                   url: authorization.url,
                   instructions:
-                    "Complete sign-in in your browser. We'll automatically detect the redirect back to localhost.",
-                  method: "auto",
-                  callback: async (): Promise<AntigravityTokenExchangeResult> => {
-                    const CALLBACK_TIMEOUT_MS = 30000
-                    try {
-                      const callbackPromise = listener.waitForCallback()
-                      const timeoutPromise = new Promise<never>((_, reject) =>
-                        setTimeout(() => reject(new Error("CALLBACK_TIMEOUT")), CALLBACK_TIMEOUT_MS),
-                      )
+                    "Visit the URL above, complete OAuth, then paste either the full redirect URL or the authorization code.",
+                  method: "code",
+                  callback: async (codeInput: string): Promise<AntigravityTokenExchangeResult> => {
+                    const params = parseOAuthCallbackInput(codeInput, fallbackState)
+                    if ("error" in params) {
+                      return { type: "failed", error: params.error }
+                    }
 
-                      let callbackUrl: URL
+                    const result = await exchangeAntigravity(params.code, params.state)
+                    if (result.type === "success") {
                       try {
-                        callbackUrl = await Promise.race([callbackPromise, timeoutPromise])
-                      } catch (err) {
-                        if (err instanceof Error && err.message === "CALLBACK_TIMEOUT") {
-                          return {
-                            type: "failed",
-                            error: "Callback timeout - please use CLI with --no-browser flag for manual input",
-                          }
-                        }
-                        throw err
+                        // TUI flow adds to existing accounts (non-destructive)
+                        await persistAccountPool([result], false)
+                      } catch (e) {
+                        console.error("[persistAccountPool] Failed to persist account (TUI callback):", e)
                       }
 
-                      const params = extractOAuthCallbackParams(callbackUrl)
-                      if (!params) {
-                        return { type: "failed", error: "Missing code or state in callback URL" }
-                      }
+                      // Show appropriate toast message
+                      const newTotal = existingCount + 1
+                      const toastMessage =
+                        existingCount > 0
+                          ? `Added account${result.email ? ` (${result.email})` : ""} - ${newTotal} total`
+                          : `Authenticated${result.email ? ` (${result.email})` : ""}`
 
-                      const result = await exchangeAntigravity(params.code, params.state)
-                      if (result.type === "success") {
-                        try {
-                          await persistAccountPool([result], false)
-                        } catch (e) {
-                          console.error("[persistAccountPool] Failed to persist account (CLI callback):", e)
-                        }
-
-                        const newTotal = existingCount + 1
-                        const toastMessage =
-                          existingCount > 0
-                            ? `Added account${result.email ? ` (${result.email})` : ""} - ${newTotal} total`
-                            : `Authenticated${result.email ? ` (${result.email})` : ""}`
-
-                        try {
-                          await client.tui.showToast({
-                            body: {
-                              message: toastMessage,
-                              variant: "success",
-                            },
-                          })
-                        } catch {
-                          // TUI toast optional
-                        }
-                      }
-
-                      return result
-                    } catch (error) {
-                      return {
-                        type: "failed",
-                        error: error instanceof Error ? error.message : "Unknown error",
-                      }
-                    } finally {
                       try {
-                        await listener.close()
+                        await client.tui.showToast({
+                          body: {
+                            message: toastMessage,
+                            variant: "success",
+                          },
+                        })
                       } catch {
-                        // Ignore close error
+                        // TUI may not be available
                       }
                     }
+
+                    return result
                   },
                 }
-              }
-
-              return {
-                url: authorization.url,
-                instructions:
-                  "Visit the URL above, complete OAuth, then paste either the full redirect URL or the authorization code.",
-                method: "code",
-                callback: async (codeInput: string): Promise<AntigravityTokenExchangeResult> => {
-                  const params = parseOAuthCallbackInput(codeInput, fallbackState)
-                  if ("error" in params) {
-                    return { type: "failed", error: params.error }
-                  }
-
-                  const result = await exchangeAntigravity(params.code, params.state)
-                  if (result.type === "success") {
-                    try {
-                      // TUI flow adds to existing accounts (non-destructive)
-                      await persistAccountPool([result], false)
-                    } catch (e) {
-                      console.error("[persistAccountPool] Failed to persist account (TUI callback):", e)
-                    }
-
-                    // Show appropriate toast message
-                    const newTotal = existingCount + 1
-                    const toastMessage =
-                      existingCount > 0
-                        ? `Added account${result.email ? ` (${result.email})` : ""} - ${newTotal} total`
-                        : `Authenticated${result.email ? ` (${result.email})` : ""}`
-
-                    try {
-                      await client.tui.showToast({
-                        body: {
-                          message: toastMessage,
-                          variant: "success",
-                        },
-                      })
-                    } catch {
-                      // TUI may not be available
-                    }
-                  }
-
-                  return result
-                },
-              }
+              },
             },
-          },
-          {
-            label: "Manually enter API Key",
-            type: "api",
-          },
-        ],
-      },
+            {
+              label: "Manually enter API Key",
+              type: "api",
+            },
+          ],
+        },
+      }
     }
-  }
 
 export const AntigravityCLIOAuthPlugin = createAntigravityPlugin(ANTIGRAVITY_PROVIDER_ID)
 export const AntigravityLegacyOAuthPlugin = createAntigravityPlugin("antigravity")
