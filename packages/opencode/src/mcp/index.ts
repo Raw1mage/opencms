@@ -154,6 +154,26 @@ export namespace MCP {
   type TransportWithAuth = StreamableHTTPClientTransport | SSEClientTransport
   const pendingOAuthTransports = new Map<string, TransportWithAuth>()
 
+  type ToolsCacheEntry = {
+    value: Record<string, Tool>
+    expiresAt: number
+    dirty: boolean
+  }
+
+  function parseToolsCacheMs() {
+    const raw = process.env.OPENCODE_MCP_TOOLS_CACHE_MS
+    if (!raw) return 30_000
+    const value = Number(raw)
+    if (!Number.isFinite(value)) return 30_000
+    return Math.max(1_000, Math.min(10 * 60_000, Math.floor(value)))
+  }
+
+  function invalidateToolsCache(cache: ToolsCacheEntry) {
+    cache.dirty = true
+    cache.expiresAt = 0
+    cache.value = {}
+  }
+
   // Prompt cache types
   type PromptInfo = Awaited<ReturnType<MCPClient["listPrompts"]>>["prompts"][number]
 
@@ -169,11 +189,17 @@ export namespace MCP {
       const config = cfg.mcp ?? {}
       const clients: Record<string, MCPClient> = {}
       const status: Record<string, Status> = {}
+      const skipAutoConnect = process.env.OPENCODE_SKIP_MCP_AUTO === "1"
 
       await Promise.all(
         Object.entries(config).map(async ([key, mcp]) => {
           if (!isMcpConfigured(mcp)) {
             log.error("Ignoring MCP config entry without type", { key })
+            return
+          }
+
+          if (skipAutoConnect) {
+            status[key] = { status: "disabled" }
             return
           }
 
@@ -193,9 +219,22 @@ export namespace MCP {
           }
         }),
       )
+
+      const toolsCache: ToolsCacheEntry = {
+        value: {},
+        expiresAt: 0,
+        dirty: true,
+      }
+
+      const unsubscribeToolsChanged = Bus.subscribe(ToolsChanged, () => {
+        invalidateToolsCache(toolsCache)
+      })
+
       return {
         status,
         clients,
+        toolsCache,
+        unsubscribeToolsChanged,
       }
     },
     async (state) => {
@@ -208,6 +247,7 @@ export namespace MCP {
           }),
         ),
       )
+      state.unsubscribeToolsChanged?.()
       pendingOAuthTransports.clear()
     },
   )
@@ -266,12 +306,14 @@ export namespace MCP {
         error: "unknown error",
       }
       s.status[name] = status
+      invalidateToolsCache(s.toolsCache)
       return {
         status,
       }
     }
     if (!result.mcpClient) {
       s.status[name] = result.status
+      invalidateToolsCache(s.toolsCache)
       return {
         status: s.status,
       }
@@ -285,6 +327,7 @@ export namespace MCP {
     }
     s.clients[name] = result.mcpClient
     s.status[name] = result.status
+    invalidateToolsCache(s.toolsCache)
 
     return {
       status: s.status,
@@ -562,6 +605,7 @@ export namespace MCP {
         status: "failed",
         error: "Unknown error during connection",
       }
+      invalidateToolsCache(s.toolsCache)
       return
     }
 
@@ -577,6 +621,7 @@ export namespace MCP {
       }
       s.clients[name] = result.mcpClient
     }
+    invalidateToolsCache(s.toolsCache)
   }
 
   export async function disconnect(name: string) {
@@ -589,15 +634,22 @@ export namespace MCP {
       delete s.clients[name]
     }
     s.status[name] = { status: "disabled" }
+    invalidateToolsCache(s.toolsCache)
   }
 
   export async function tools() {
-    const result: Record<string, Tool> = {}
     const s = await state()
+    const now = Date.now()
+    if (!s.toolsCache.dirty && s.toolsCache.expiresAt > now) {
+      return s.toolsCache.value
+    }
+
+    const result: Record<string, Tool> = {}
     const cfg = await Config.get()
     const config = cfg.mcp ?? {}
     const clientsSnapshot = await clients()
     const defaultTimeout = cfg.experimental?.mcp_timeout
+    const cacheMs = parseToolsCacheMs()
 
     for (const [clientName, client] of Object.entries(clientsSnapshot)) {
       // Only include tools from connected MCPs (skip disabled ones)
@@ -613,6 +665,7 @@ export namespace MCP {
         }
         s.status[clientName] = failedStatus
         delete s.clients[clientName]
+        invalidateToolsCache(s.toolsCache)
         return undefined
       })
       if (!toolsResult) {
@@ -627,6 +680,10 @@ export namespace MCP {
         result[sanitizedClientName + "_" + sanitizedToolName] = await convertMcpTool(mcpTool, client, timeout)
       }
     }
+
+    s.toolsCache.value = result
+    s.toolsCache.expiresAt = now + cacheMs
+    s.toolsCache.dirty = false
     return result
   }
 

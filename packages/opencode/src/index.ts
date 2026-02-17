@@ -74,7 +74,7 @@ const cli = yargs(hideBin(process.argv))
       dev: Installation.isLocal(),
       level: (() => {
         if (opts.logLevel) return opts.logLevel as Log.Level
-        if (Installation.isLocal()) return "DEBUG"
+        if (Installation.isLocal()) return "INFO"
         return "INFO"
       })(),
     })

@@ -27,10 +27,12 @@ import { createSimpleContext } from "./helper"
 import type { Snapshot } from "@/snapshot"
 import { useExit } from "./exit"
 import { useArgs } from "./args"
-import { batch, onMount } from "solid-js"
+import { batch, createEffect, on, onCleanup, onMount } from "solid-js"
 import { Log } from "@/util/log"
 import type { Path } from "@opencode-ai/sdk"
 import { TuiEvent } from "../event"
+import { createTimerCoordinator } from "../util/timer-coordinator"
+import { useRoute } from "@tui/context/route"
 
 export const { use: useSync, provider: SyncProvider } = createSimpleContext({
   name: "Sync",
@@ -111,9 +113,178 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
     })
 
     const sdk = useSDK()
+    const route = useRoute()
+
+    const exit = useExit()
+    const args = useArgs()
+
+    const isVscodeTerminal =
+      process.env.TERM_PROGRAM === "vscode" || !!process.env.VSCODE_PID || !!process.env.VSCODE_IPC_HOOK_CLI
+
+    const monitorPollingDisabled = process.env.OPENCODE_TUI_DISABLE_MONITOR_POLL === "1"
+    const monitorFallbackPollingEnabled = process.env.OPENCODE_TUI_MONITOR_FALLBACK_POLL === "1"
+
+    const parseMs = (value: string | undefined, fallback: number) => {
+      if (!value) return fallback
+      const n = Number(value)
+      if (!Number.isFinite(n)) return fallback
+      return Math.max(1000, Math.min(120000, Math.floor(n)))
+    }
+
+    const monitorActiveFallbackMs = parseMs(process.env.OPENCODE_TUI_MONITOR_POLL_MS, isVscodeTerminal ? 45000 : 20000)
+    const monitorIdleFallbackMs = parseMs(
+      process.env.OPENCODE_TUI_MONITOR_IDLE_POLL_MS,
+      isVscodeTerminal ? 120000 : 60000,
+    )
+    const monitorMinRefreshMs = parseMs(
+      process.env.OPENCODE_TUI_MONITOR_MIN_REFRESH_MS,
+      isVscodeTerminal ? 12000 : 6000,
+    )
+    const monitorEventDebounceMs = parseMs(process.env.OPENCODE_TUI_MONITOR_EVENT_DEBOUNCE_MS, 500)
+    const monitorMaxMessages = (() => {
+      const raw = process.env.OPENCODE_TUI_MONITOR_MAX_MESSAGES
+      if (!raw) return 80
+      const n = Number(raw)
+      if (!Number.isFinite(n)) return 80
+      return Math.max(20, Math.min(2000, Math.floor(n)))
+    })()
+    const monitorMessagePartEvents = process.env.OPENCODE_TUI_MONITOR_MESSAGE_PART_EVENTS === "1"
+
+    const timers = createTimerCoordinator("sync")
+    let monitorLastFetchedAt = 0
+    let monitorInFlight = false
+    let monitorPrimed = false
+
+    const isSessionRoute = () => route.data.type === "session"
+    const currentRouteSessionID = () => (route.data.type === "session" ? route.data.sessionID : undefined)
+
+    const isMonitorTrackingActive = () => {
+      if (monitorPollingDisabled || !isSessionRoute()) return false
+      const sessionID = currentRouteSessionID()
+      if (!sessionID) return false
+      const routeStatus = store.session_status?.[sessionID]
+      const routeBusy = !!routeStatus && routeStatus.type !== "idle"
+      return routeBusy
+    }
+
+    const stopMonitorTracking = () => {
+      timers.clear("monitor-refresh")
+      timers.clear("monitor-poll")
+      monitorPrimed = false
+      if (store.monitor.length > 0) setStore("monitor", [])
+    }
+
+    const scheduleMonitorFallback = (delay: number) => {
+      if (!monitorFallbackPollingEnabled) return
+      if (!isMonitorTrackingActive()) return
+      timers.schedule(
+        "monitor-poll",
+        () => {
+          void refreshMonitor(false)
+        },
+        delay,
+      )
+    }
+
+    const requestMonitorRefresh = (delay: number, force = false) => {
+      if (!isMonitorTrackingActive()) return
+      timers.schedule(
+        "monitor-refresh",
+        () => {
+          void refreshMonitor(force)
+        },
+        delay,
+      )
+    }
+
+    async function refreshMonitor(force: boolean) {
+      if (!isMonitorTrackingActive()) return
+      if (monitorInFlight) return
+      const now = Date.now()
+      if (!force && now - monitorLastFetchedAt < monitorMinRefreshMs) {
+        if (monitorFallbackPollingEnabled) {
+          scheduleMonitorFallback(monitorMinRefreshMs - (now - monitorLastFetchedAt))
+        }
+        return
+      }
+
+      monitorInFlight = true
+      try {
+        const sessionID = currentRouteSessionID()
+        const query = (
+          sessionID
+            ? {
+                sessionID,
+                includeDescendants: true,
+                maxMessages: monitorMaxMessages,
+              }
+            : {}
+        ) as any
+        const x = await sdk.client.session.top(query)
+        const next = x.data ?? []
+        setStore("monitor", reconcile(next))
+        monitorLastFetchedAt = Date.now()
+        if (monitorFallbackPollingEnabled) {
+          scheduleMonitorFallback(next.length > 0 ? monitorActiveFallbackMs : monitorIdleFallbackMs)
+        }
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e)
+        Log.Default.error("tui monitor poll failed", {
+          error: message,
+          name: e instanceof Error ? e.name : undefined,
+          stack: e instanceof Error ? e.stack : undefined,
+        })
+        if (monitorFallbackPollingEnabled) {
+          scheduleMonitorFallback(monitorIdleFallbackMs)
+        }
+      } finally {
+        monitorInFlight = false
+      }
+    }
+
+    function onMonitorRelevantEvent(eventType: string, event: any) {
+      if (monitorPollingDisabled || !isSessionRoute()) return
+      const routeSessionID = currentRouteSessionID()
+      if (!routeSessionID) return
+
+      if (
+        eventType === "session.status" &&
+        event?.properties?.sessionID === routeSessionID &&
+        event.properties?.status?.type === "idle"
+      ) {
+        stopMonitorTracking()
+        return
+      }
+
+      if (
+        eventType === "session.status" &&
+        event?.properties?.sessionID === routeSessionID &&
+        event.properties?.status?.type !== "idle"
+      ) {
+        if (!monitorPrimed) {
+          monitorPrimed = true
+          requestMonitorRefresh(0, true)
+        } else {
+          requestMonitorRefresh(monitorEventDebounceMs)
+        }
+        return
+      }
+
+      if (!isMonitorTrackingActive()) return
+      const monitorRelevantEvent =
+        eventType === "session.updated" ||
+        eventType === "session.created" ||
+        eventType === "session.deleted" ||
+        eventType === "session.diff" ||
+        (monitorMessagePartEvents && eventType.startsWith("message.part."))
+      if (monitorRelevantEvent) {
+        requestMonitorRefresh(monitorEventDebounceMs)
+      }
+    }
 
     sdk.event.listen((e) => {
       const event = e.details
+      onMonitorRelevantEvent(event.type, event)
       switch (event.type) {
         case "server.instance.disposed":
           bootstrap()
@@ -335,9 +506,6 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       }
     })
 
-    const exit = useExit()
-    const args = useArgs()
-
     async function bootstrap() {
       const start = Date.now() - 30 * 24 * 60 * 60 * 1000
       const sessionListPromise = sdk.client.session
@@ -442,26 +610,47 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       })
     })
 
-    const pollMonitor = () => {
-      sdk.client.session
-        .top()
-        .then((x) => setStore("monitor", reconcile(x.data ?? [])))
-        .catch((e) => {
-          const message = e instanceof Error ? e.message : String(e)
-          Log.Default.error("tui monitor poll failed", {
-            error: message,
-            name: e instanceof Error ? e.name : undefined,
-            stack: e instanceof Error ? e.stack : undefined,
-          })
-        })
-        .finally(() => {
-          setTimeout(pollMonitor, 2000)
-        })
-    }
-
     onMount(() => {
       bootstrap()
-      pollMonitor()
+    })
+
+    createEffect(
+      on(
+        () => route.data.type,
+        (type) => {
+          if (monitorPollingDisabled) return
+          if (type === "session") {
+            monitorLastFetchedAt = 0
+            if (isMonitorTrackingActive()) requestMonitorRefresh(0, true)
+            return
+          }
+          stopMonitorTracking()
+        },
+      ),
+    )
+
+    createEffect(
+      on(currentRouteSessionID, (sessionID, prevSessionID) => {
+        if (monitorPollingDisabled || !sessionID || sessionID === prevSessionID) return
+        monitorLastFetchedAt = 0
+        stopMonitorTracking()
+        if (isMonitorTrackingActive()) requestMonitorRefresh(0, true)
+      }),
+    )
+
+    createEffect(() => {
+      if (!isMonitorTrackingActive()) {
+        stopMonitorTracking()
+        return
+      }
+      if (monitorFallbackPollingEnabled) {
+        const hasActiveMonitor = (store.monitor ?? []).length > 0
+        scheduleMonitorFallback(hasActiveMonitor ? monitorActiveFallbackMs : monitorIdleFallbackMs)
+      }
+    })
+
+    onCleanup(() => {
+      timers.dispose()
     })
 
     const fullSyncedSessions = new Set<string>()

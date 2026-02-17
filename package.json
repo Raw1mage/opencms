@@ -6,7 +6,10 @@
   "type": "module",
   "packageManager": "bun@1.3.9",
   "scripts": {
-    "dev": "OPENCODE_DEBUG_LOG=1 bun run sync:back && bash script/dev-sync-config.sh && OPENCODE_DEBUG_LOG=1 bun --conditions=browser ./packages/opencode/src/index.ts",
+    "dev": "bun run sync:back && bash script/dev-sync-config.sh && OPENCODE_SKIP_MCP_AUTO=1 bun --conditions=browser ./packages/opencode/src/index.ts",
+    "dev:debug": "OPENCODE_DEBUG_LOG=1 bun run sync:back && bash script/dev-sync-config.sh && OPENCODE_DEBUG_LOG=1 bun --conditions=browser ./packages/opencode/src/index.ts",
+    "dev:full": "bun run sync:back && bash script/dev-sync-config.sh && bun --conditions=browser ./packages/opencode/src/index.ts",
+    "dev:perfprobe": "bun run sync:back && bash script/dev-sync-config.sh && OPENCODE_SKIP_MCP_AUTO=1 OPENCODE_TUI_PERF_PROBE=1 OPENCODE_TUI_DISABLE_FOOTER_META=1 OPENCODE_TUI_DISABLE_MONITOR_POLL=1 bun --conditions=browser ./packages/opencode/src/index.ts",
     "check": "bun run lint && bun run typecheck",
     "lint": "eslint .",
     "typecheck": "bun turbo typecheck",

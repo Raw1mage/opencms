@@ -42,7 +42,7 @@ export const SessionCommand = cmd({
   describe: "manage sessions",
   builder: (yargs: Argv) =>
     yargs.command(SessionListCommand).command(SessionStepCommand).command(SessionWorkerCommand).demandCommand(),
-  async handler() { },
+  async handler() {},
 })
 
 export const SessionStepCommand = cmd({
@@ -135,10 +135,10 @@ export const SessionWorkerCommand = cmd({
 
       let activeRun:
         | {
-          id: string
-          sessionID: string
-          cancelRequested: boolean
-        }
+            id: string
+            sessionID: string
+            cancelRequested: boolean
+          }
         | undefined
 
       const cleanup = async () => {
@@ -162,6 +162,15 @@ export const SessionWorkerCommand = cmd({
         send({ type: "heartbeat", pid: process.pid, ts: Date.now() })
       }, 5000)
       if (typeof heartbeat.unref === "function") heartbeat.unref()
+
+      const parentWatchdog = setInterval(() => {
+        // If parent is gone, exit proactively to avoid orphan/zombie lingering workers.
+        if (process.ppid === 1) {
+          send({ type: "error", error: "parent_orphaned", pid: process.pid })
+          void cleanup()
+        }
+      }, 5000)
+      if (typeof parentWatchdog.unref === "function") parentWatchdog.unref()
 
       for await (const raw of rl) {
         const line = raw.trim()
@@ -234,6 +243,7 @@ export const SessionWorkerCommand = cmd({
         send({ type: "error", error: "unknown_command", command: msg?.type })
       }
       clearInterval(heartbeat)
+      clearInterval(parentWatchdog)
     })
   },
 })
