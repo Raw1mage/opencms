@@ -44,3 +44,24 @@ Goal: Evaluate **behavioral value** vs **stability risk** before any re-apply.
 - Implemented instrumentation in first-receive path (`session/llm.ts` onError): record raw provider error envelope (status/code/message/headers/responseBody/data) at first touch.
 - Implemented instrumentation in decision path (`account/rate-limit-judge.ts`): record `judge:start`, `judge:classified`, `judge:strategy`, `judge:result`, and `markRateLimited:*` lifecycle checkpoints.
 - Purpose: stop keyword-guess tuning without evidence; use real captured payloads to iteratively refine 429 semantic classification.
+
+## Origin/dev commit memory (aligned vs ignored)
+
+### Aligned / kept in cms
+
+- `63cd76341` (version in status/session surfaces): aligned via `7deb3cb2a`.
+- `32394b699` (interactive esc affordance): aligned via `170507185`.
+- `8c8d88814` (models.dev schema metadata): aligned via `b7f6b7075`.
+- `12262862c` (connected providers in /connect): already present before this round.
+- `a7c5d5ac4` (session footer behavior): already present before this round.
+- `5588453cb` (header merge stability fix): explicitly kept (no revert).
+
+### Explicitly ignored / deferred in cms
+
+- `2e8082dd2` (desktop/WSL backend mode): ignored for current terminal-only roadmap.
+- `b5a4671c6` (Trinity prompt special-case): deferred; not in current provider scope.
+- `aa6b552c3` (attachment/part-id risky rollback context): deferred pending stronger evidence/tests.
+- `70cf609ce` / `2f76b49df` (large TUI polish bundles): deferred (not functional priority now).
+- `cfbe9d329` (OpenTUI OSC52 upgrade): deferred; remote clipboard path constrained by terminal/IDE helper capabilities.
+- `dc5b85188` (TUI-layer auto model switch): rejected in TUI layer and reverted (`30dacdeeb`); keep retry/fallback authority in central session/rotation path.
+- `c5dc075a8` (`dist` exports direct restore): not adopted directly; workspace keeps `src` exports and uses publish-time rewrite.
