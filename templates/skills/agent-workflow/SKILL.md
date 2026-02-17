@@ -41,11 +41,14 @@ graph TD
 - **Assumption Protocol**:
   - 若資訊不足，先給出「最佳假設下的可行方案」。
   - 例：「假設使用 JWT Auth (依據 package.json)，將實作 Bearer Token 驗證。」
+- **Template-First**: 對 recurring tasks（bugfix/refactor/docs/test）優先使用短模板，避免每輪重覆長指令。
 
 ### 3. EXECUTION (批次執行)
 
 - **Context Handover**: 僅提供必要的程式碼片段 (Snippet)，嚴禁倒整個檔案。
 - **Output Format**: 強制 Subagent 使用標準回報格式 (見下文)。
+- **Parallel-First**: 互相獨立的工具呼叫（查詢/搜尋/檢查）盡量同回合平行發送，減少 request round。
+- **Search-Then-Read**: 先 `glob/grep` 收斂，再 `read` 精讀，避免大面積讀檔。
 
 ---
 
@@ -53,15 +56,17 @@ graph TD
 
 Orchestrator 與 Subagent **必須**遵守以下輸出結構，以減少 Token 消耗：
 
-### 1. 一般任務回報 (Result / Changes / Next)
+### 1. 一般任務回報 (Result / Changes / Validation / Next)
 
 ```text
 Result: [一句話總結完成了什麼]
 Changes:
   - [修改檔案 A]: [關鍵變更]
   - [修改檔案 B]: [關鍵變更]
+Validation:
+  - [passed/failed]: [關鍵驗證或第一個錯誤重點]
 Next:
-  - [若需要使用者操作，列出 1-3 點]
+  - [可選；僅在需要使用者操作時列出 1-3 點]
 ```
 
 ### 2. 程式碼輸出 (Code Delivery)
@@ -74,6 +79,11 @@ Next:
 
 - **格式**: `passed/failed`、失敗的測試名稱、**第一個** Stack Trace 重點。
 - **禁止**: 貼上整份 Log。請使用 `grep` 或摘要。
+
+### 4. 差異導向回報 (Delta-Only)
+
+- 僅回報本輪「新增變更」與「最新驗證結果」。
+- 不重述前輪已確認資訊，除非使用者要求完整 recap。
 
 ---
 

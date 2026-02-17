@@ -82,6 +82,15 @@
 > 1. 優先使用 `default_api:*` 工具鏈（`read`/`edit`/`write`），參數為 `filePath`。
 > 2. 嚴禁混用 `filesystem_edit_file` 與 `default_api:read`。
 
+## 7. Token / Round 最佳化協議 (MSR+)
+
+1. **平行優先**：可獨立執行的工具呼叫（狀態檢查、搜尋、比對）一律同回合平行發送。
+2. **搜尋先行**：先 `glob/grep` 縮小範圍，再 `read` 精讀；避免一次讀大量無關檔案。
+3. **最小脈絡交接**：Task prompt 只傳「目標 / 限制 / 路徑 / 必要片段(行號)」，禁止整檔轉貼。
+4. **子代理短回報**：統一 `Result / Changes / Validation / Next(optional)`。
+5. **模板化調度**：重複任務（bugfix/refactor/docs/test）優先使用既有短模板，減少重複指令 token。
+6. **差異導向回覆**：僅回報新變更與驗證結果，不重述已確認背景。
+
 ```opencode-rotation-priority
 Rotation Priority Preference by (provider, account, model)
 1. (gemini-cli, yeatsluo@gmail.com, gemini-3-pro)
