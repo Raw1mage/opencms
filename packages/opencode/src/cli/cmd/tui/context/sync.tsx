@@ -149,6 +149,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       return Math.max(20, Math.min(2000, Math.floor(n)))
     })()
     const monitorMessagePartEvents = process.env.OPENCODE_TUI_MONITOR_MESSAGE_PART_EVENTS === "1"
+    const monitorToolPartEvents = process.env.OPENCODE_TUI_MONITOR_TOOL_EVENTS !== "0"
 
     const timers = createTimerCoordinator("sync")
     let monitorLastFetchedAt = 0
@@ -271,13 +272,27 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       }
 
       if (!isMonitorTrackingActive()) return
+      const part = event?.properties?.part
+      const toolPartEvent =
+        monitorToolPartEvents &&
+        (eventType === "message.part.updated" || eventType === "message.part.removed") &&
+        part?.type === "tool"
+      const toolPartRemovedEvent = monitorToolPartEvents && eventType === "message.part.removed"
       const monitorRelevantEvent =
         eventType === "session.updated" ||
         eventType === "session.created" ||
         eventType === "session.deleted" ||
         eventType === "session.diff" ||
+        toolPartEvent ||
+        toolPartRemovedEvent ||
         (monitorMessagePartEvents && eventType.startsWith("message.part."))
       if (monitorRelevantEvent) {
+        // Tool lifecycle transitions can be very short-lived; refresh immediately to avoid
+        // missing quick [T] activity in sidebar monitor.
+        if (toolPartEvent || toolPartRemovedEvent) {
+          requestMonitorRefresh(0, true)
+          return
+        }
         requestMonitorRefresh(monitorEventDebounceMs)
       }
     }

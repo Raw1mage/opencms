@@ -808,3 +808,47 @@
   - dirty-session-only recompute,
   - per-session rescan minimum interval,
   - max message scan cap.
+
+## Implementation update (Round 24)
+
+### Goal
+
+- Restore dynamic monitor visibility for real tool call lifecycle while keeping stream-noise suppression.
+
+### Completed
+
+1. Updated `packages/opencode/src/cli/cmd/tui/context/sync.tsx` event filter:
+   - Default-enable tool lifecycle triggers (`message.part.updated/removed` where `part.type === "tool"`).
+   - Keep broad `message.part.*` trigger behind explicit opt-in (`OPENCODE_TUI_MONITOR_MESSAGE_PART_EVENTS=1`).
+   - Added `OPENCODE_TUI_MONITOR_TOOL_EVENTS=0` escape hatch to disable tool lifecycle triggers if needed.
+
+### Validation
+
+- `bun run lint -- packages/opencode/src/cli/cmd/tui/context/sync.tsx`
+- `bun run typecheck`
+
+### Outcome
+
+- Monitor now updates on actual tool call state transitions (pending/running/completed/error) without reintroducing token-stream event storms.
+
+## Implementation update (Round 25)
+
+### Goal
+
+- Prevent missing short-lived [T] tool activity in monitor during fast tool calls (e.g., quick git commands).
+
+### Completed
+
+1. Updated `packages/opencode/src/cli/cmd/tui/context/sync.tsx`:
+   - Tool lifecycle events now trigger immediate forced monitor refresh (`requestMonitorRefresh(0, true)`).
+   - Added handling for `message.part.removed` as tool-relevant fallback trigger (event payload may not always include full part object).
+   - Non-tool monitor events remain debounced to preserve CPU efficiency.
+
+### Validation
+
+- `bun run lint -- packages/opencode/src/cli/cmd/tui/context/sync.tsx`
+- `bun run typecheck`
+
+### Outcome
+
+- Sidebar monitor is less likely to miss very short tool executions while keeping prior CPU optimizations intact.
