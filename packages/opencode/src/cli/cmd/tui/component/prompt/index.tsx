@@ -94,8 +94,10 @@ export function Prompt(props: PromptProps) {
   const { theme, syntax } = useTheme()
   const kv = useKV()
   const [rateLimitKey, setRateLimitKey] = createSignal("")
+  const [autoSwitchAttempts, setAutoSwitchAttempts] = createSignal(0)
   const [quotaRefresh, setQuotaRefresh] = createSignal(0)
   const [footerTick, setFooterTick] = createSignal(0)
+  const MAX_AUTO_SWITCH_ATTEMPTS = 3
   const CODEX_ISSUER = "https://auth.openai.com"
   const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
   const CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
@@ -337,6 +339,7 @@ export function Prompt(props: PromptProps) {
     const s = status()
     if (s.type !== "retry") {
       if (rateLimitKey()) setRateLimitKey("")
+      if (autoSwitchAttempts() > 0) setAutoSwitchAttempts(0)
       return
     }
     if (!isRateLimitMessage(s.message)) return
@@ -345,6 +348,31 @@ export function Prompt(props: PromptProps) {
     if (rateLimitKey() === key) return
 
     setRateLimitKey(key)
+
+    const favorites = local.model.favorite().filter((item) => {
+      const provider = sync.data.provider.find((p) => p.id === item.providerId)
+      return !!provider?.models[item.modelID]
+    })
+
+    if (favorites.length > 1 && autoSwitchAttempts() < MAX_AUTO_SWITCH_ATTEMPTS) {
+      const currentModel = local.model.current()
+      const currentInFavorites = currentModel
+        ? favorites.some((f) => f.providerId === currentModel.providerId && f.modelID === currentModel.modelID)
+        : false
+
+      if (currentInFavorites) {
+        local.model.cycleFavorite(1)
+        setAutoSwitchAttempts((prev) => prev + 1)
+        const nextModel = local.model.current()
+        toast.show({
+          message: `Rate limited. Switched to ${nextModel?.modelID ?? "next model"}`,
+          variant: "info",
+          duration: 3000,
+        })
+        return
+      }
+    }
+
     const savedPrompt = store.prompt.input
     const targetProvider = local.model.current()?.providerId
     dialog.replace(
