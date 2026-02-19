@@ -13,24 +13,34 @@ import { NamedError } from "@opencode-ai/util/error"
 import { CopilotAuthPlugin } from "./copilot"
 import GitlabAuthPlugin from "@gitlab/opencode-gitlab-auth"
 
-import { AntigravityOAuthPlugin, AntigravityLegacyOAuthPlugin } from "./antigravity"
 import { GeminiCLIOAuthPlugin } from "./gemini-cli"
 import { AnthropicAuthPlugin } from "./anthropic"
 
 export namespace Plugin {
   const log = Log.create({ service: "plugin" })
 
-  // Built-in plugins that are directly imported (not installed from npm)
-  // AnthropicAuthPlugin is internal to use correct Claude Code headers for OAuth
-  const INTERNAL_PLUGINS: { name: string; plugin: PluginInstance }[] = [
-    { name: "codex", plugin: CodexAuthPlugin },
-    { name: "copilot", plugin: CopilotAuthPlugin },
-    { name: "gitlab", plugin: GitlabAuthPlugin },
-    { name: "antigravity", plugin: AntigravityOAuthPlugin as PluginInstance },
-    { name: "antigravity-legacy", plugin: AntigravityLegacyOAuthPlugin as PluginInstance },
-    { name: "gemini-cli", plugin: GeminiCLIOAuthPlugin as PluginInstance },
-    { name: "claude-cli", plugin: AnthropicAuthPlugin },
-  ]
+  async function getInternalPlugins(config: { disabled_providers?: string[] }) {
+    const disabled = new Set(config.disabled_providers ?? [])
+    const antigravityEnabled = !disabled.has("antigravity") && !disabled.has("antigravity-legacy")
+
+    // Built-in plugins that are directly imported (not installed from npm)
+    // AnthropicAuthPlugin is internal to use correct Claude Code headers for OAuth
+    const internalPlugins: { name: string; plugin: PluginInstance }[] = [
+      { name: "codex", plugin: CodexAuthPlugin },
+      { name: "copilot", plugin: CopilotAuthPlugin },
+      { name: "gitlab", plugin: GitlabAuthPlugin },
+      { name: "gemini-cli", plugin: GeminiCLIOAuthPlugin as PluginInstance },
+      { name: "claude-cli", plugin: AnthropicAuthPlugin },
+    ]
+    if (antigravityEnabled) {
+      const { AntigravityOAuthPlugin, AntigravityLegacyOAuthPlugin } = await import("./antigravity")
+      internalPlugins.push(
+        { name: "antigravity", plugin: AntigravityOAuthPlugin as PluginInstance },
+        { name: "antigravity-legacy", plugin: AntigravityLegacyOAuthPlugin as PluginInstance },
+      )
+    }
+    return internalPlugins
+  }
 
   // Cached state
   const state = Instance.state(async (): Promise<{ hooks: Hooks[]; input: PluginInput }> => {
@@ -52,7 +62,7 @@ export namespace Plugin {
       $: Bun.$,
     }
 
-    for (const entry of INTERNAL_PLUGINS) {
+    for (const entry of await getInternalPlugins(config)) {
       log.info("loading internal plugin", { name: entry.name })
       const init = await entry.plugin(input)
       ;(init as { __source?: string }).__source = `internal:${entry.name}`

@@ -302,6 +302,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       onMonitorRelevantEvent(event.type, event)
       switch (event.type) {
         case "server.instance.disposed":
+        case "global.disposed":
           bootstrap()
           break
         case "permission.replied": {

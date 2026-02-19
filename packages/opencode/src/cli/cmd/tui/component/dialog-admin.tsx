@@ -11,6 +11,7 @@ import {
 } from "solid-js"
 import { useLocal } from "@tui/context/local"
 import { useSync } from "@tui/context/sync"
+import { useSDK } from "@tui/context/sdk"
 import { map, pipe, entries, filter, sortBy } from "remeda"
 import { DialogSelect, type DialogSelectOption, type DialogSelectRef } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
@@ -65,7 +66,6 @@ type DialogAdminOption = DialogSelectOption<unknown> & {
 
 type ProviderSelectionValue = {
   family: string
-  isUnconfigured?: boolean
 }
 
 type ModelSelectionValue = {
@@ -86,7 +86,6 @@ function asProviderSelectionValue(value: unknown): ProviderSelectionValue | unde
   if (!isObjectRecord(value) || typeof value.family !== "string") return undefined
   return {
     family: value.family,
-    isUnconfigured: value.isUnconfigured === true,
   }
 }
 
@@ -115,8 +114,10 @@ export type DialogAdminProps = {
 
 export function DialogAdmin(props: DialogAdminProps = {}) {
   debugCheckpoint("admin", "DialogAdmin init")
+  const MIN_DIALOG_WIDTH = 88
   const local = useLocal()
   const sync = useSync()
+  const sdk = useSDK()
   const dialog = useDialog()
   const toast = useToast()
   const keybind = useKeybind()
@@ -132,6 +133,72 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   const probeTimeoutMs = 10_000
   const [quotaRefresh, setQuotaRefresh] = createSignal(0)
   const EmptyPluginClient = new Proxy({}, { get: () => () => undefined }) as unknown as PluginClient
+  const configRecord = createMemo(() => (sync.data.config as Record<string, unknown> | undefined) ?? {})
+  const disabledProviders = createMemo(() => {
+    const raw = configRecord().disabled_providers
+    if (!Array.isArray(raw)) return new Set<string>()
+    return new Set(raw.filter((item): item is string => typeof item === "string"))
+  })
+  const [optimisticDisabledProviders, setOptimisticDisabledProviders] = createSignal<Set<string> | undefined>(undefined)
+  const effectiveDisabledProviders = createMemo(() => optimisticDisabledProviders() ?? disabledProviders())
+  const isProviderDisabled = (familyId: string) => effectiveDisabledProviders().has(familyId)
+  const setProviderDisabled = (familyId: string, disabled: boolean) => {
+    const next = new Set(effectiveDisabledProviders())
+    if (disabled) next.add(familyId)
+    else next.delete(familyId)
+    setOptimisticDisabledProviders(next)
+    void (async () => {
+      try {
+      await sdk.client.global.config.update(
+        {
+          config: {
+            disabled_providers: [...next],
+          },
+        },
+        { throwOnError: true },
+      )
+      await sync.bootstrap()
+      } catch (error) {
+        setOptimisticDisabledProviders(undefined)
+        toast.show({
+          message: `Failed to update provider "${familyId}"`,
+          variant: "error",
+          duration: 2000,
+        })
+      }
+    })()
+  }
+  const toggleProviderEnabledVisible = (familyId: string) => {
+    const currentlyDisabled = isProviderDisabled(familyId)
+    if (!currentlyDisabled) {
+      setProviderDisabled(familyId, true)
+      toast.show({
+        message: `Provider "${familyId}" disabled`,
+        variant: "info",
+        duration: 2000,
+      })
+      return
+    }
+    setProviderDisabled(familyId, false)
+    toast.show({
+      message: `Provider "${familyId}" enabled`,
+      variant: "info",
+      duration: 2000,
+    })
+  }
+  const toggleProviderFromOption = (option: DialogSelectOption<unknown> | undefined) => {
+    const adminOption = asDialogAdminOption(option)
+    const providerSelection = asProviderSelectionValue(adminOption.value)
+    if (!providerSelection || adminOption.category !== "Providers") {
+      toast.show({
+        message: "Select a provider first",
+        variant: "warning",
+        duration: 2000,
+      })
+      return
+    }
+    toggleProviderEnabledVisible(providerSelection.family)
+  }
 
   // Navigation State
   // steps: root -> account_select -> model_select
@@ -514,6 +581,16 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   })
 
   const connected = useConnected()
+  createEffect(() => {
+    const optimistic = optimisticDisabledProviders()
+    if (!optimistic) return
+    const persisted = disabledProviders()
+    if (optimistic.size !== persisted.size) return
+    for (const id of optimistic) {
+      if (!persisted.has(id)) return
+    }
+    setOptimisticDisabledProviders(undefined)
+  })
   createEffect(() => {
     const currentStep = step()
     const pid = selectedProviderID()
@@ -1162,6 +1239,13 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   const handleAddProvider = (fam: string) => {
     if (!fam) return
     const normalizedFam = fam
+    if (isProviderDisabled(normalizedFam)) {
+      toast.show({
+        variant: "warning",
+        message: `Provider "${normalizedFam}" is disabled. Press Insert in Show All to enable it.`,
+      })
+      return
+    }
     if (normalizedFam === "google-api") {
       debugCheckpoint("admin", "add provider google", { family: normalizedFam })
       openGoogleAdd()
@@ -1311,6 +1395,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       // Build set of all configured providers (has accounts or sync data)
       const configuredProviders = new Set([...coreFamilies, ...syncFamilies])
       configuredProviders.delete("google")
+      const disabledProviderIds = Array.from(effectiveDisabledProviders())
 
       // Get all models.dev providers that aren't already configured
       const allModelsDevProviders = Object.keys(modelsDevData() ?? {}).filter((id) => {
@@ -1319,21 +1404,15 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         return !configuredProviders.has(id) && (!fam || !configuredProviders.has(fam))
       })
 
-      // Explicitly access hiddenProviders for reactivity tracking
-      const hiddenProvidersList = local.model.hiddenProviders()
-
-      // In Show All mode, include all models.dev providers
-      // In normal mode, only include models.dev providers that were explicitly unhidden
-      // (For unconfigured providers, being in hiddenProviders means "shown")
-      const modelsDevProviders = showHidden()
-        ? allModelsDevProviders
-        : allModelsDevProviders.filter((id) => hiddenProvidersList.includes(id))
-
-      const families = Array.from(new Set([...configuredProviders, ...modelsDevProviders])).sort((a, b) => {
-        if (a === "antigravity") return -1
-        if (b === "antigravity") return 1
-        return a.localeCompare(b)
-      })
+      // Single source of truth for both modes:
+      // - non-ShowAll filters to enabled only
+      // - ShowAll shows full list without filtering
+      const families = Array.from(new Set([...configuredProviders, ...allModelsDevProviders, ...disabledProviderIds]))
+        .sort((a, b) => {
+          if (a === "antigravity") return -1
+          if (b === "antigravity") return 1
+          return a.localeCompare(b)
+        })
 
       for (const fam of families) {
         const providers = groupedProviders().get(fam) || []
@@ -1357,34 +1436,28 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         // - Unconfigured provider = models.dev provider without accounts/sync
         const isConfigured = hasAccounts || hasProviders
         const isModelsDevProvider = !!modelsDevData()?.[fam]
-        const isUnconfigured = isModelsDevProvider && !isConfigured
+        const providerDisabled = isProviderDisabled(fam)
 
-        const isInHiddenList = hiddenProvidersList.includes(fam)
-
-        // For unconfigured providers: default hidden, shown if in hiddenProviders list (inverted)
-        // For configured providers: default shown, hidden if in hiddenProviders list (normal)
-        const effectivelyHidden = isUnconfigured ? !isInHiddenList : isInHiddenList
-
-        // Show All mode: show everything (configured + all models.dev providers)
-        // Normal mode: show configured (non-hidden) + explicitly unhidden unconfigured
-        const shouldShow = showHidden()
-          ? isConfigured || isModelsDevProvider
-          : (isConfigured && !effectivelyHidden) || (isUnconfigured && !effectivelyHidden)
+        // Show All/Filtered share the same family universe.
+        // The only difference is whether disabled providers are filtered out.
+        const shouldShow = showHidden() ? true : !providerDisabled
         if (!shouldShow) continue
 
         const activeCount = familyData?.activeAccount ? 1 : providers.filter((p) => p.active).length
 
+        const enabled = !providerDisabled
+
         list.push({
-          value: { family: fam, isUnconfigured },
-          title: effectivelyHidden ? `${displayName} (hidden)` : displayName,
+          value: { family: fam },
+          title: showHidden() ? `${displayName} · ${enabled ? "enabled" : "disabled"}` : displayName,
           category: "Providers",
           icon: "📂",
           description: accountTotal >= 1 ? `${accountTotal} account${accountTotal === 1 ? "" : "s"}` : undefined,
           gutter:
-            activeCount > 0 ? (
+            providerDisabled ? (
+              <text fg={theme.error}>⊘</text>
+            ) : activeCount > 0 ? (
               <text fg={theme.success}>●</text>
-            ) : effectivelyHidden ? (
-              <text fg={theme.textMuted}>○</text>
             ) : undefined,
           onSelect: () => {
             debugCheckpoint("admin", "select family", { family: fam })
@@ -1895,20 +1968,25 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     return local.model.current()
   })
 
-  onMount(() => dialog.setSize("xlarge"))
+  onMount(() => {
+    dialog.setSize("xlarge")
+    // Keep a stable initial width so the panel doesn't collapse before data arrives.
+    dialog.setWidth(MIN_DIALOG_WIDTH)
+  })
+
   onCleanup(() => dialog.setWidth(undefined))
 
   createEffect(() => {
     const currentPage = page()
     if (currentPage !== "activities") {
-      dialog.setWidth(undefined)
+      dialog.setWidth(MIN_DIALOG_WIDTH)
       return
     }
     const activityItems = activityData().items
     const maxTitle = activityItems.reduce((max, item) => Math.max(max, item.title.length), 0)
     const headerTitle = `Model Activities (${activityData().stats.ready}/${activityData().stats.total})`
     const baseWidth = Math.max(maxTitle, headerTitle.length)
-    const desired = baseWidth + 12
+    const desired = Math.max(baseWidth + 12, MIN_DIALOG_WIDTH)
     dialog.setWidth(desired)
   })
 
@@ -1952,6 +2030,13 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                   debugCheckpoint("admin", "toggle show hidden", { enabled: next, step: step() })
                   setShowHidden(next)
                 },
+              },
+              {
+                keybind: Keybind.parse("space")[0],
+                title: "Enable/Disable",
+                label: "Space",
+                disabled: step() !== "root",
+                onTrigger: toggleProviderFromOption,
               },
             ]
             : []),
@@ -2018,6 +2103,13 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             onTrigger: () => {
               const fam = selectedFamily()
               if (!fam) return
+              if (isProviderDisabled(fam)) {
+                toast.show({
+                  variant: "warning",
+                  message: `Provider "${fam}" is disabled. Press S for Show All, then Space to enable it.`,
+                })
+                return
+              }
               if (fam === "google-api") {
                 debugCheckpoint("admin", "add keybind google", { family: fam })
                 openGoogleAdd()
@@ -2166,30 +2258,13 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             : [
               {
                 keybind: Keybind.parse("delete")[0],
-                title: step() === "model_select" ? "Hide" : step() === "root" ? "Hide" : "(Del)ete",
+                title: step() === "model_select" ? "Hide" : "(Del)ete",
                 label: "",
-                disabled: !connected(),
+                disabled: step() === "root" || (step() === "model_select" ? !connected() : false),
+                hidden: step() === "root",
                 onTrigger: async (option: DialogSelectOption<unknown> | undefined) => {
                   const adminOption = asDialogAdminOption(option)
                   const val = adminOption.value
-
-                  // Hide provider on root step
-                  const providerSelection = asProviderSelectionValue(val)
-                  if (step() === "root" && providerSelection && adminOption.category === "Providers") {
-                    const fam = providerSelection.family
-                    const isUnconfigured = providerSelection.isUnconfigured
-                    // Check if not already hidden
-                    const isInHiddenList = local.model.isProviderHidden(fam)
-                    const effectivelyHidden = isUnconfigured ? !isInHiddenList : isInHiddenList
-                    if (!effectivelyHidden) {
-                      debugCheckpoint("admin", "hide provider", { family: fam, isUnconfigured })
-                      // For unconfigured: toggle removes from list (makes it hidden again)
-                      // For configured: toggle adds to list (makes it hidden)
-                      local.model.toggleHiddenProvider(fam)
-                      toast.show({ message: `Provider "${fam}" hidden`, variant: "info", duration: 2000 })
-                    }
-                    return
-                  }
 
                   if (step() === "account_select" && typeof val === "string" && val !== "__add_account__") {
                     const fam = selectedFamily()
@@ -2237,7 +2312,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                     return
                   }
 
-                  if (step() === "model_select" || step() === "root") {
+                  if (step() === "model_select") {
                     // Only handle model values (objects)
                     const modelVal = asModelSelectionValue(val)
                     if (modelVal) {
@@ -2259,35 +2334,29 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
             keybind: Keybind.parse("insert")[0],
             title: "Unhide",
             label: "Ins",
-            disabled: !showHidden(),
-            onTrigger: (option) => {
+            disabled: step() !== "model_select" || !showHidden(),
+            hidden: step() === "root",
+            onTrigger: async (option) => {
               const adminOption = asDialogAdminOption(option)
               const val = adminOption.value
-
-              // Unhide provider on root step
-              const providerSelection = asProviderSelectionValue(val)
-              if (step() === "root" && providerSelection && adminOption.category === "Providers") {
-                const fam = providerSelection.family
-                const isUnconfigured = providerSelection.isUnconfigured
-                // Check if effectively hidden
-                const isInHiddenList = local.model.isProviderHidden(fam)
-                const effectivelyHidden = isUnconfigured ? !isInHiddenList : isInHiddenList
-                if (effectivelyHidden) {
-                  debugCheckpoint("admin", "unhide provider", { family: fam, isUnconfigured })
-                  // For unconfigured: toggle adds to list (makes it shown)
-                  // For configured: toggle removes from list (makes it shown)
-                  local.model.toggleHiddenProvider(fam)
-                  toast.show({ message: `Provider "${fam}" unhidden`, variant: "info", duration: 2000 })
-                }
-                return
-              }
 
               // Unhide model
               const model = asModelSelectionValue(val)
               if (model) {
                 debugCheckpoint("admin", "unhide model", { provider: model.providerId, model: model.modelID })
                 local.model.toggleHidden(model)
+                toast.show({
+                  message: `Model "${model.modelID}" unhidden`,
+                  variant: "info",
+                  duration: 2000,
+                })
+                return
               }
+              toast.show({
+                message: "Select a provider or model first",
+                variant: "warning",
+                duration: 2000,
+              })
             },
           },
           {

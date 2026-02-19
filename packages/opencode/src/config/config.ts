@@ -160,8 +160,11 @@ export namespace Config {
       log.debug("loaded custom config", { path: Flag.OPENCODE_CONFIG })
     }
 
+    // This build disables project-level config to keep runtime behavior globally deterministic.
+    const projectConfigEnabled = false
+
     // Project config has highest precedence (overrides global and remote)
-    if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
+    if (projectConfigEnabled) {
       for (const file of ["opencode.jsonc", "opencode.json"]) {
         const found = await Filesystem.findUp(file, Instance.directory, Instance.worktree)
         for (const resolved of found.toReversed()) {
@@ -175,7 +178,7 @@ export namespace Config {
     result.plugin = result.plugin || []
 
     // @event_2026-02-07_install: prefer XDG config/data, keep project .opencode
-    const projectOpencodeDirs = !Flag.OPENCODE_DISABLE_PROJECT_CONFIG
+    const projectOpencodeDirs = projectConfigEnabled
       ? await Array.fromAsync(
           Filesystem.up({
             targets: [".opencode"],
@@ -1095,6 +1098,7 @@ export namespace Config {
         })
         .optional(),
       plugin: z.string().array().optional(),
+      antigravity: z.boolean().optional().describe("@deprecated Use disabled_providers to control provider enablement."),
       snapshot: z.boolean().optional(),
       share: z
         .enum(["manual", "auto", "disabled"])
@@ -1572,6 +1576,7 @@ export namespace Config {
 
   export async function updateGlobal(config: Info) {
     const filepath = globalConfigFile()
+    await fs.mkdir(path.dirname(filepath), { recursive: true })
     const before = await Bun.file(filepath)
       .text()
       .catch((err) => {
@@ -1595,19 +1600,27 @@ export namespace Config {
 
     global.reset()
 
-    void Instance.disposeAll()
-      .catch(() => undefined)
-      .finally(() => {
-        GlobalBus.emit("event", {
-          directory: "global",
-          payload: {
-            type: Event.Disposed.type,
-            properties: {},
-          },
-        })
+    try {
+      // Must wait for instance disposal so subsequent config.get/bootstraps don't read stale cached state.
+      await Instance.disposeAll()
+    } catch {
+      // Best-effort disposal; still emit disposed event to trigger downstream refresh.
+    } finally {
+      GlobalBus.emit("event", {
+        directory: "global",
+        payload: {
+          type: Event.Disposed.type,
+          properties: {},
+        },
       })
+    }
 
     return next
+  }
+
+  export async function updateRuntime(config: Info) {
+    // Runtime config is globally unified in this build.
+    return updateGlobal(config)
   }
 
   export async function directories() {

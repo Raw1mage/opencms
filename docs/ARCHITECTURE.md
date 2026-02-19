@@ -210,7 +210,68 @@ Core definitions and types for the plugin architecture.
 
 ---
 
-## Dependency Graph (Simplified)
+### 9. Antigravity Plugin (`packages/opencode/src/plugin/antigravity`)
+
+The Antigravity plugin is a high-performance identity spoofing and reasoning enhancement layer. It transforms standard Google AI API calls into internal Cloud Code Assist requests, enabling advanced features like multi-tier thinking and global account rotation.
+
+#### Directory Structure
+```text
+packages/opencode/src/plugin/antigravity/
+├── index.ts                # Main plugin registration and request orchestration
+├── constants.ts            # API endpoints, tokens, and model instructions
+├── shims.d.ts              # Type shims for external dependencies
+└── plugin/
+    ├── accounts.ts         # Multi-account pool and sticky rotation logic
+    ├── auth.ts             # OAuth credential validation and refresh
+    ├── debug.ts            # Detailed logging for troubleshooting
+    ├── errors.ts           # Custom error types (e.g., RefreshError)
+    ├── fingerprint.ts      # Device identity randomization
+    ├── image-saver.ts      # Logic for handling image generation output
+    ├── logger.ts           # Internal plugin logger
+    ├── project.ts          # Google Cloud project discovery and context
+    ├── quota.ts            # Quota fetching and classification (cockpit integration)
+    ├── quota-group.ts      # Model-to-quota-group mapping
+    ├── request.ts          # API request construction and payload transformation
+    ├── request-helpers.ts  # Utilities for body parsing and thinking blocks
+    ├── server.ts           # Local callback server for OAuth flows
+    ├── storage.ts          # Persistence of account metadata
+    ├── token.ts            # Access token lifecycle management
+    ├── thinking-recovery.ts # Logic for recovering interrupted thinking turns
+    ├── cache/
+    │   ├── index.ts        # Cache system entry point
+    │   └── signature-cache.ts # Disk-persistent thought signature storage
+    ├── stores/
+    │   └── signature-store.ts # In-memory store for active session signatures
+    └── transform/
+        ├── index.ts        # Transformation module index
+        ├── claude.ts       # Claude-specific request/response transforms
+        ├── gemini.ts       # Gemini-specific request/response transforms
+        ├── model-resolver.ts # Tier-aware model mapping and quota routing
+        ├── types.ts        # Shared transformation types
+        └── cross-model-sanitizer.ts # Sanitization for inter-model compatibility
+```
+
+#### A. Core & Registration
+| File Path    | Description                                                                                             | Key Exports               |
+| :----------- | :------------------------------------------------------------------------------------------------------ | :------------------------ |
+| `index.ts`   | **Main Plugin Entry.** Orchestrates OAuth flows, model routing, and the high-level request/retry loop. | `AntigravityOAuthPlugin`  |
+| `constants.ts` | **System Constants.** Defines API endpoints, OAuth credentials, and model-specific system instructions. | `ANTIGRAVITY_ENDPOINT`    |
+
+#### B. Component Architecture (`plugin/`)
+| Folder / File         | Description                                                                                                                               | Key Functions / Classes        |
+| :-------------------- | :---------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------- |
+| `accounts.ts`         | **Account Management.** Implements a sticky-rotation account pool synced with the global `Account` module.                                | `AccountManager`               |
+| `request.ts`          | **Request Orchestration.** High-level builder for transforming payloads, injecting signatures, and handling streaming.                    | `prepareAntigravityRequest`    |
+| `request-helpers.ts`  | **Payload Utilities.** Low-level tools for body parsing, thinking block extraction, and tool-call alignment.                               | `transformAntigravityResponse` |
+| `quota.ts`            | **Quota Integration.** Communicates with the Antigravity "cockpit" to fetch real-time usage and model availability.                      | `checkAccountsQuota`           |
+| `transform/`          | **Model Transforms.** Specialized logic for mapping Claude and Gemini models to their internal API equivalents.                            | `applyClaudeTransforms`        |
+| `cache/`              | **Signature Caching.** Disk-persistent storage for "Thought Signatures", ensuring conversation continuity across turns and restarts.      | `SignatureCache`               |
+| `fingerprint.ts`      | **Anti-Bot Mitigation.** Generates randomized device identities (User-Agents, IDs) to distribute traffic and avoid rate limits.           | `generateFingerprint`          |
+| `thinking-recovery.ts` | **Error Recovery.** Heuristics for detecting and recovering from interrupted reasoning turns or tool-call errors.                         | `needsThinkingRecovery`        |
+
+---
+
+## 10. Dependency Graph (Simplified)
 
 ```mermaid
 graph TD
@@ -297,3 +358,114 @@ The root directory is kept minimal, containing only essential configuration and 
 | `tsconfig.json` | **TypeScript Config.** Global compiler options and path aliases. |
 | `README.md` | **Documentation Entry.** The primary project overview and quickstart guide. |
 | `LICENSE` | **License Information.** MIT License terms for the project. |
+
+---
+
+## 12. Configuration & Provider State Architecture (Normative)
+
+This section defines the authoritative behavior for runtime config and provider visibility in `cms`.
+
+### A. Runtime Config Source of Truth
+
+1. Runtime configuration for provider enable/disable is **global-scope only**.
+2. Project-level `.opencode/opencode.json(c)` is **not part of runtime merge** in this build.
+3. Admin/TUI mutations must write to global config via runtime-safe update flow.
+
+**Primary files**
+- `packages/opencode/src/config/config.ts`
+- `packages/opencode/src/cli/cmd/tui/context/sync.tsx`
+
+### B. Provider State Semantics
+
+1. `disabled` and `hidden` are the same product concept for provider visibility.
+2. Provider visibility is controlled by `config.disabled_providers`.
+3. Disabled providers are excluded from filtered provider list and shown in Show All as disabled.
+
+**Primary files**
+- `packages/opencode/src/cli/cmd/tui/component/dialog-admin.tsx`
+- `packages/opencode/src/provider/provider.ts`
+- `packages/opencode/src/plugin/index.ts`
+
+### C. Admin Providers List Modes
+
+1. **Filtered mode (default)**: show enabled providers only.
+2. **Show All mode**: show full provider family set (enabled + disabled).
+3. Both modes must use the same underlying provider universe; mode difference is filtering only.
+
+### D. Toggle Behavior Contract
+
+1. In provider root list, toggle action must update enable/disable state in both modes.
+2. `Space` and `Delete` in provider root perform the same enable/disable toggle.
+3. Toggle success must update:
+   - persisted config (`disabled_providers`)
+   - in-memory runtime state
+   - rendered list/status in current mode
+
+### E. Event/Refresh Contract
+
+1. After config mutation, instance disposal must complete before subsequent reads bootstrap new state.
+2. TUI sync must refresh on:
+   - `server.instance.disposed`
+   - `global.disposed`
+
+### F. Debugging Checklist (Provider Toggle)
+
+If toast says success but UI does not change, verify in order:
+
+1. `disabled_providers` actually changed in effective runtime config.
+2. TUI sync received disposed event and re-bootstrapped state.
+3. Provider list mode logic is filtering correctly (Show All vs filtered).
+4. Status label and filter both read from the same disabled source.
+
+### G. Antigravity Disable Resource Contract
+
+1. `antigravity` and `antigravity-legacy` are controlled by `disabled_providers`.
+2. When either provider family is disabled, the Antigravity auth plugins must not be initialized.
+3. Internal plugin loading must use conditional dynamic import for Antigravity modules so disabled state avoids plugin module initialization work.
+
+**Primary file**
+- `packages/opencode/src/plugin/index.ts`
+
+---
+
+## 13. Session Change Summary (2026-02-20)
+
+This session finalized the provider visibility/toggle architecture and fixed multiple regressions in `/admin`.
+
+### A. Provider Toggle Behavior
+
+1. Unified semantics:
+   - `disable == hide`
+   - `enable == show`
+2. `Show All` is full list (no visibility filter).
+3. `Filtered` mode only shows enabled providers.
+4. Root-level provider toggle uses `Space` as primary action; root `Delete` path is disabled/hidden.
+
+**Primary file**
+- `packages/opencode/src/cli/cmd/tui/component/dialog-admin.tsx`
+
+### B. UX/State Consistency Fixes
+
+1. Resolved stale/slow visual updates with optimistic provider-state updates.
+2. Toggle success is reflected immediately in UI; persistence and bootstrap run in background.
+3. Removed duplicate footer action label in root provider list.
+4. Fixed `Show All` disappearing item regression after toggle.
+
+### C. Config and Refresh Reliability
+
+1. Runtime provider toggle writes through server global-config API path.
+2. Post-update refresh chain is aligned with sync event handling.
+3. TUI sync listens to both instance and global disposal events for refresh convergence.
+
+**Primary files**
+- `packages/opencode/src/cli/cmd/tui/component/dialog-admin.tsx`
+- `packages/opencode/src/cli/cmd/tui/context/sync.tsx`
+- `packages/opencode/src/config/config.ts`
+
+### D. Guardrail
+
+Any future provider-toggle refactor must preserve:
+
+1. Single source for disabled state (`disabled_providers`).
+2. `Show All`/`Filtered` list parity except filter.
+3. Disabled Antigravity plugin path must not initialize auth plugin hooks.
