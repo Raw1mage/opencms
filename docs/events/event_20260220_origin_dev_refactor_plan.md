@@ -288,6 +288,20 @@ Status: IN_PROGRESS
   - `bun run --cwd packages/sdk/js build` 可完整跑完，`src/v2/gen/*` 已成功重生。
   - `bun run --cwd packages/sdk/js typecheck` ✅
 
+### Round 17 Attachment Ownership Regression (2026-02-21)
+
+- 新增整合回歸測試：
+  - `packages/opencode/test/session/attachment-ownership.test.ts`
+  - 覆蓋三條 ownership 路徑：
+    - `webfetch` tool-result attachments
+    - `batch` tool-result attachments
+    - `subtask(TaskTool)` attachments
+- 驗證重點：
+  - 工具回傳 attachment 即使未帶 `id/messageID/sessionID`，持久化後仍由 session 層補齊所有 ownership 欄位。
+- 驗證：
+  - `bun test packages/opencode/test/session/attachment-ownership.test.ts` ✅
+  - `bun test packages/opencode/test/tool/webfetch.test.ts packages/opencode/test/session/structured-output.test.ts` ✅
+
 ## Actions
 
 | Commit      | Logical Type   | Value Score   | Risk   | Decision   | Notes                                                                                                                                            |
