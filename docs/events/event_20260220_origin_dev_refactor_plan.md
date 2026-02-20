@@ -328,6 +328,18 @@ Status: IN_PROGRESS
   - `bun turbo typecheck --filter opencode` ✅
   - `bun run --cwd packages/sdk/js typecheck` ✅
 
+### Round 17.3 Final Delivery Summary (2026-02-21)
+
+- 本輪整體交付已推送到 `raw1mage/cms`（no PR mode），完成面向：
+  - Structured output runtime path（prompt/retry/async/compaction）
+  - Attachment ownership 邊界回歸覆蓋（webfetch/batch/subtask）
+  - SDK build 生成鏈路解阻與 v2 smoke coverage
+  - SDK model schema 演進相容（string/object model normalize）
+- 分支狀態：
+  - `cms` 已與遠端同步（本地工作樹乾淨）
+- 本階段建議：
+  - 若進入 release，下一步僅需做 changelog/version 對齊與發版驗證。
+
 ## Actions
 
 | Commit      | Logical Type   | Value Score   | Risk   | Decision   | Notes                                                                                                                                            |
