@@ -8,7 +8,7 @@ import path from "path"
 
 import { createClient } from "@hey-api/openapi-ts"
 
-await $`bun dev generate > ${dir}/openapi.json`.cwd(path.resolve(dir, "../../opencode"))
+await $`bun run ./src/openapi/generate.ts ${dir}/openapi.json`.cwd(path.resolve(dir, "../../opencode"))
 
 await createClient({
   input: "./openapi.json",

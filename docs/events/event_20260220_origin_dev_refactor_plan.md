@@ -262,6 +262,32 @@ Status: IN_PROGRESS
 - 效果：
   - 測試語意與現行架構契約一致，避免將「架構既定行為」誤判為 regression。
 
+### Round 16.1 SDK Contract Check (2026-02-21)
+
+- 啟動 P1-1（SDK 一致性檢查）並先做可執行驗證：
+  - 確認 `packages/sdk/js/src/v2/gen` 既有生成檔已包含 structured output 契約：
+    - `types.gen.ts` 含 `OutputFormatJsonSchema`, `StructuredOutputError`, `format?: OutputFormat`
+    - `sdk.gen.ts` 的 `prompt/promptAsync` 皆含 `format?: OutputFormat`
+  - 執行 `bun run --cwd packages/sdk/js typecheck` ✅
+- 生成流程阻塞（待後續處理）：
+  - `bun run --cwd packages/sdk/js build` 在 `bun dev generate` 階段失敗，錯誤：
+    - `SyntaxError: Export named 'jsxDEV' not found in @opentui/solid/jsx-runtime.d.ts`
+  - 判定為目前環境/依賴解析問題（非本次 structured-output 契約變更造成）。
+  - 本輪策略：先保留既有 v2 gen 檔，記錄阻塞點，下一階段再做生成鏈路修復。
+
+### Round 16.2 SDK Generate Unblock (2026-02-21)
+
+- 已解除 SDK build 阻塞，採用「跳過 CLI 主入口」策略：
+  - 新增 `packages/opencode/src/openapi/generate.ts`，直接呼叫 `Server.openapi()` 輸出 OpenAPI JSON。
+  - 調整 `packages/sdk/js/script/build.ts`：
+    - 從 `bun dev generate > openapi.json` 改為
+      `bun run ./src/openapi/generate.ts <openapi-path>`。
+- 並同步降低主 CLI 的非必要載入風險：
+  - `packages/opencode/src/cli/cmd/admin.ts` 改為在 handler 內動態 import `./tui/app`，避免非 admin 指令啟動時提前拉入 TUI runtime。
+- 結果：
+  - `bun run --cwd packages/sdk/js build` 可完整跑完，`src/v2/gen/*` 已成功重生。
+  - `bun run --cwd packages/sdk/js typecheck` ✅
+
 ## Actions
 
 | Commit      | Logical Type   | Value Score   | Risk   | Decision   | Notes                                                                                                                                            |

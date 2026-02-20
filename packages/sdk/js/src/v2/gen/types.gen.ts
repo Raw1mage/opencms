@@ -4,20 +4,6 @@ export type ClientOptions = {
   baseUrl: `${string}://${string}` | (string & {})
 }
 
-export type EventInstallationUpdated = {
-  type: "installation.updated"
-  properties: {
-    version: string
-  }
-}
-
-export type EventInstallationUpdateAvailable = {
-  type: "installation.update-available"
-  properties: {
-    version: string
-  }
-}
-
 export type Project = {
   id: string
   worktree: string
@@ -54,6 +40,20 @@ export type EventServerInstanceDisposed = {
   }
 }
 
+export type EventInstallationUpdated = {
+  type: "installation.updated"
+  properties: {
+    version: string
+  }
+}
+
+export type EventInstallationUpdateAvailable = {
+  type: "installation.update-available"
+  properties: {
+    version: string
+  }
+}
+
 export type EventServerConnected = {
   type: "server.connected"
   properties: {
@@ -83,20 +83,30 @@ export type EventLspUpdated = {
   }
 }
 
-export type EventFileEdited = {
-  type: "file.edited"
-  properties: {
-    file: string
-  }
-}
-
 export type FileDiff = {
   file: string
   before: string
   after: string
   additions: number
   deletions: number
+  status?: "added" | "deleted" | "modified"
 }
+
+export type OutputFormatText = {
+  type: "text"
+}
+
+export type JsonSchema = {
+  [key: string]: unknown
+}
+
+export type OutputFormatJsonSchema = {
+  type: "json_schema"
+  schema: JsonSchema
+  retryCount?: number
+}
+
+export type OutputFormat = OutputFormatText | OutputFormatJsonSchema
 
 export type UserMessage = {
   id: string
@@ -184,20 +194,6 @@ export type ApiError = {
   }
 }
 
-export type OutputFormatText = {
-  type: "text"
-}
-
-export type OutputFormatJsonSchema = {
-  type: "json_schema"
-  schema: {
-    [key: string]: unknown
-  }
-  retryCount?: number
-}
-
-export type OutputFormat = OutputFormatText | OutputFormatJsonSchema
-
 export type AssistantMessage = {
   id: string
   sessionID: string
@@ -219,6 +215,7 @@ export type AssistantMessage = {
   providerId: string
   mode: string
   agent: string
+  variant?: string
   path: {
     cwd: string
     root: string
@@ -279,6 +276,15 @@ export type SubtaskPart = {
   messageID: string
   type: "subtask"
   prompt: string
+  prompt_input?:
+    | string
+    | {
+        type: "analysis" | "implementation" | "review" | "testing" | "documentation"
+        content: string
+        metadata?: {
+          [key: string]: unknown
+        }
+      }
   description: string
   agent: string
   model?: {
@@ -563,6 +569,13 @@ export type EventPermissionReplied = {
   }
 }
 
+export type EventTuiProviderRefresh = {
+  type: "tui.provider.refresh"
+  properties: {
+    [key: string]: unknown
+  }
+}
+
 export type EventTuiPromptAppend = {
   type: "tui.prompt.append"
   properties: {
@@ -614,6 +627,41 @@ export type EventTuiSessionSelect = {
      * Session ID to navigate to
      */
     sessionID: string
+  }
+}
+
+export type EventRatelimitDetected = {
+  type: "ratelimit.detected"
+  properties: {
+    providerId: string
+    accountId: string
+    modelId: string
+    reason: string
+    backoffMs: number
+    source: "error-response" | "rpm-inference" | "rpd-inference" | "cockpit"
+    dailyFailures: number
+    timestamp: number
+  }
+}
+
+export type EventRatelimitCleared = {
+  type: "ratelimit.cleared"
+  properties: {
+    providerId: string
+    accountId: string
+    modelId: string
+    timestamp: number
+  }
+}
+
+export type EventRatelimitAuthFailed = {
+  type: "ratelimit.auth_failed"
+  properties: {
+    providerId: string
+    accountId: string
+    modelId: string
+    message: string
+    timestamp: number
   }
 }
 
@@ -724,6 +772,38 @@ export type EventSessionCompacted = {
   }
 }
 
+export type EventMcpToolsChanged = {
+  type: "mcp.tools.changed"
+  properties: {
+    server: string
+  }
+}
+
+export type EventMcpBrowserOpenFailed = {
+  type: "mcp.browser.open.failed"
+  properties: {
+    mcpName: string
+    url: string
+  }
+}
+
+export type EventCommandExecuted = {
+  type: "command.executed"
+  properties: {
+    name: string
+    sessionID: string
+    arguments: string
+    messageID: string
+  }
+}
+
+export type EventFileEdited = {
+  type: "file.edited"
+  properties: {
+    file: string
+  }
+}
+
 export type EventFileWatcherUpdated = {
   type: "file.watcher.updated"
   properties: {
@@ -756,31 +836,6 @@ export type EventTodoUpdated = {
   properties: {
     sessionID: string
     todos: Array<Todo>
-  }
-}
-
-export type EventMcpToolsChanged = {
-  type: "mcp.tools.changed"
-  properties: {
-    server: string
-  }
-}
-
-export type EventMcpBrowserOpenFailed = {
-  type: "mcp.browser.open.failed"
-  properties: {
-    mcpName: string
-    url: string
-  }
-}
-
-export type EventCommandExecuted = {
-  type: "command.executed"
-  properties: {
-    name: string
-    sessionID: string
-    arguments: string
-    messageID: string
   }
 }
 
@@ -864,6 +919,7 @@ export type EventSessionError = {
       | UnknownError
       | MessageOutputLengthError
       | MessageAbortedError
+      | StructuredOutputError
       | ContextOverflowError
       | ApiError
   }
@@ -931,36 +987,40 @@ export type EventWorktreeFailed = {
 }
 
 export type Event =
-  | EventInstallationUpdated
-  | EventInstallationUpdateAvailable
   | EventProjectUpdated
   | EventServerInstanceDisposed
+  | EventInstallationUpdated
+  | EventInstallationUpdateAvailable
   | EventServerConnected
   | EventGlobalDisposed
   | EventLspClientDiagnostics
   | EventLspUpdated
-  | EventFileEdited
   | EventMessageUpdated
   | EventMessageRemoved
   | EventMessagePartUpdated
   | EventMessagePartRemoved
   | EventPermissionAsked
   | EventPermissionReplied
+  | EventTuiProviderRefresh
   | EventTuiPromptAppend
   | EventTuiCommandExecute
   | EventTuiToastShow
   | EventTuiSessionSelect
+  | EventRatelimitDetected
+  | EventRatelimitCleared
+  | EventRatelimitAuthFailed
   | EventSessionStatus
   | EventSessionIdle
   | EventQuestionAsked
   | EventQuestionReplied
   | EventQuestionRejected
   | EventSessionCompacted
-  | EventFileWatcherUpdated
-  | EventTodoUpdated
   | EventMcpToolsChanged
   | EventMcpBrowserOpenFailed
   | EventCommandExecuted
+  | EventFileEdited
+  | EventFileWatcherUpdated
+  | EventTodoUpdated
   | EventSessionCreated
   | EventSessionUpdated
   | EventSessionDeleted
@@ -1421,7 +1481,7 @@ export type PermissionConfig =
   | PermissionActionConfig
 
 export type AgentConfig = {
-  model?: string
+  model?: Model
   /**
    * Default model variant for this agent (applies only when using the agent's configured model).
    */
@@ -1463,6 +1523,7 @@ export type AgentConfig = {
   permission?: PermissionConfig
   [key: string]:
     | unknown
+    | Model
     | string
     | number
     | {
@@ -1505,11 +1566,13 @@ export type ProviderConfig = {
       cost?: {
         input: number
         output: number
+        reasoning?: number
         cache_read?: number
         cache_write?: number
         context_over_200k?: {
           input: number
           output: number
+          reasoning?: number
           cache_read?: number
           cache_write?: number
         }
@@ -1532,8 +1595,7 @@ export type ProviderConfig = {
         [key: string]: string
       }
       provider?: {
-        npm?: string
-        api?: string
+        npm: string
       }
       /**
        * Variant-specific configuration
@@ -1644,6 +1706,11 @@ export type McpRemoteConfig = {
  */
 export type LayoutConfig = "auto" | "stretch"
 
+/**
+ * Permission mode: 'ask' to prompt for permissions (default), 'auto' to allow all
+ */
+export type PermissionMode = "ask" | "auto"
+
 export type Config = {
   /**
    * JSON schema reference for configuration validation
@@ -1686,7 +1753,7 @@ export type Config = {
       template: string
       description?: string
       agent?: string
-      model?: string
+      model?: Model
       subtask?: boolean
     }
   }
@@ -1698,11 +1765,19 @@ export type Config = {
      * Additional paths to skill folders
      */
     paths?: Array<string>
+    /**
+     * URLs to download skills from
+     */
+    urls?: Array<string>
   }
   watcher?: {
     ignore?: Array<string>
   }
   plugin?: Array<string>
+  /**
+   * @deprecated Use disabled_providers to control provider enablement.
+   */
+  antigravity?: boolean
   snapshot?: boolean
   /**
    * Control sharing behavior:'manual' allows manual sharing via commands, 'auto' enables automatic sharing, 'disabled' disables all sharing
@@ -1724,14 +1799,8 @@ export type Config = {
    * When set, ONLY these providers will be enabled. All other providers will be ignored
    */
   enabled_providers?: Array<string>
-  /**
-   * Model to use in the format of provider/model, eg anthropic/claude-2
-   */
-  model?: string
-  /**
-   * Small model to use for tasks like title generation in the format of provider/model
-   */
-  small_model?: string
+  model?: Model
+  small_model?: Model
   /**
    * Default agent to use when none is specified. Must be a primary agent. Falls back to 'build' if not set or if the specified agent is invalid.
    */
@@ -1815,6 +1884,7 @@ export type Config = {
   instructions?: Array<string>
   layout?: LayoutConfig
   permission?: PermissionConfig
+  permissionMode?: PermissionMode
   tools?: {
     [key: string]: boolean
   }
@@ -1908,6 +1978,10 @@ export type Config = {
      * Timeout in milliseconds for model context protocol (MCP) requests
      */
     mcp_timeout?: number
+    /**
+     * Timeout in milliseconds for subagent task execution. Default is 600000 (10 minutes).
+     */
+    task_timeout?: number
   }
 }
 
@@ -1926,12 +2000,15 @@ export type OAuth = {
   expires: number
   accountId?: string
   email?: string
+  username?: string
+  orgID?: string
   enterpriseUrl?: string
 }
 
 export type ApiAuth = {
   type: "api"
   key: string
+  projectId?: string
 }
 
 export type WellKnownAuth = {
@@ -1987,6 +2064,7 @@ export type Model = {
   cost: {
     input: number
     output: number
+    reasoning?: number
     cache: {
       read: number
       write: number
@@ -1994,6 +2072,7 @@ export type Model = {
     experimentalOver200K?: {
       input: number
       output: number
+      reasoning?: number
       cache: {
         read: number
         write: number
@@ -2068,6 +2147,45 @@ export type WorktreeRemoveInput = {
 
 export type WorktreeResetInput = {
   directory: string
+}
+
+export type ProjectSummary = {
+  id: string
+  name?: string
+  worktree: string
+}
+
+export type GlobalSession = {
+  id: string
+  slug: string
+  projectID: string
+  directory: string
+  parentID?: string
+  summary?: {
+    additions: number
+    deletions: number
+    files: number
+    diffs?: Array<FileDiff>
+  }
+  share?: {
+    url: string
+  }
+  title: string
+  version: string
+  time: {
+    created: number
+    updated: number
+    compacting?: number
+    archived?: number
+  }
+  permission?: PermissionRuleset
+  revert?: {
+    messageID: string
+    partID?: string
+    snapshot?: string
+    diff?: string
+  }
+  project: ProjectSummary | null
 }
 
 export type McpResource = {
@@ -2163,6 +2281,15 @@ export type SubtaskPartInput = {
   id?: string
   type: "subtask"
   prompt: string
+  prompt_input?:
+    | string
+    | {
+        type: "analysis" | "implementation" | "review" | "testing" | "documentation"
+        content: string
+        metadata?: {
+          [key: string]: unknown
+        }
+      }
   description: string
   agent: string
   model?: {
@@ -2943,6 +3070,51 @@ export type WorktreeResetResponses = {
 
 export type WorktreeResetResponse = WorktreeResetResponses[keyof WorktreeResetResponses]
 
+export type ExperimentalSessionListData = {
+  body?: never
+  path?: never
+  query?: {
+    /**
+     * Filter sessions by project directory
+     */
+    directory?: string
+    /**
+     * Only return root sessions (no parentID)
+     */
+    roots?: boolean
+    /**
+     * Filter sessions updated on or after this timestamp (milliseconds since epoch)
+     */
+    start?: number
+    /**
+     * Return sessions updated before this timestamp (milliseconds since epoch)
+     */
+    cursor?: number
+    /**
+     * Filter sessions by title (case-insensitive)
+     */
+    search?: string
+    /**
+     * Maximum number of sessions to return
+     */
+    limit?: number
+    /**
+     * Include archived sessions (default false)
+     */
+    archived?: boolean
+  }
+  url: "/experimental/session"
+}
+
+export type ExperimentalSessionListResponses = {
+  /**
+   * List of sessions
+   */
+  200: Array<GlobalSession>
+}
+
+export type ExperimentalSessionListResponse = ExperimentalSessionListResponses[keyof ExperimentalSessionListResponses]
+
 export type ExperimentalResourceListData = {
   body?: never
   path?: never
@@ -3066,6 +3238,18 @@ export type SessionTopData = {
   path?: never
   query?: {
     directory?: string
+    /**
+     * Restrict monitor snapshot to one session
+     */
+    sessionID?: string
+    /**
+     * Include descendant sessions when sessionID is provided
+     */
+    includeDescendants?: boolean
+    /**
+     * Limit messages scanned per session for monitor snapshot
+     */
+    maxMessages?: number
   }
   url: "/session/top"
 }
@@ -3264,7 +3448,7 @@ export type SessionTodoResponse = SessionTodoResponses[keyof SessionTodoResponse
 export type SessionInitData = {
   body?: {
     modelID: string
-    providerId: string
+    providerID: string
     messageID: string
   }
   path: {
@@ -3538,6 +3722,7 @@ export type SessionPromptData = {
     tools?: {
       [key: string]: boolean
     }
+    format?: OutputFormat
     system?: string
     variant?: string
     parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
@@ -3725,6 +3910,7 @@ export type SessionPromptAsyncData = {
     tools?: {
       [key: string]: boolean
     }
+    format?: OutputFormat
     system?: string
     variant?: string
     parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
@@ -3824,6 +4010,7 @@ export type SessionShellData = {
       providerId: string
       modelID: string
     }
+    variant?: string
     command: string
   }
   path: {
@@ -4146,11 +4333,13 @@ export type ProviderListResponses = {
           cost?: {
             input: number
             output: number
+            reasoning?: number
             cache_read?: number
             cache_write?: number
             context_over_200k?: {
               input: number
               output: number
+              reasoning?: number
               cache_read?: number
               cache_write?: number
             }
@@ -4173,8 +4362,7 @@ export type ProviderListResponses = {
             [key: string]: string
           }
           provider?: {
-            npm?: string
-            api?: string
+            npm: string
           }
           variants?: {
             [key: string]: {
@@ -4716,7 +4904,12 @@ export type TuiShowToastResponses = {
 export type TuiShowToastResponse = TuiShowToastResponses[keyof TuiShowToastResponses]
 
 export type TuiPublishData = {
-  body?: EventTuiPromptAppend | EventTuiCommandExecute | EventTuiToastShow | EventTuiSessionSelect
+  body?:
+    | EventTuiProviderRefresh
+    | EventTuiPromptAppend
+    | EventTuiCommandExecute
+    | EventTuiToastShow
+    | EventTuiSessionSelect
   path?: never
   query?: {
     directory?: string
@@ -4841,6 +5034,10 @@ export type AccountListAllResponses = {
                 name: string
                 apiKey: string
                 addedAt: number
+                projectId?: string
+                metadata?: {
+                  [key: string]: unknown
+                }
               }
             | {
                 type: "subscription"
@@ -4853,6 +5050,9 @@ export type AccountListAllResponses = {
                 managedProjectId?: string
                 accountId?: string
                 addedAt: number
+                metadata?: {
+                  [key: string]: unknown
+                }
                 rateLimitResetTimes?: {
                   [key: string]: number
                 }
@@ -5001,6 +5201,10 @@ export type AccountListAll2Responses = {
                 name: string
                 apiKey: string
                 addedAt: number
+                projectId?: string
+                metadata?: {
+                  [key: string]: unknown
+                }
               }
             | {
                 type: "subscription"
@@ -5013,6 +5217,9 @@ export type AccountListAll2Responses = {
                 managedProjectId?: string
                 accountId?: string
                 addedAt: number
+                metadata?: {
+                  [key: string]: unknown
+                }
                 rateLimitResetTimes?: {
                   [key: string]: number
                 }
@@ -5574,6 +5781,7 @@ export type AppSkillsResponses = {
     name: string
     description: string
     location: string
+    content: string
   }>
 }
 

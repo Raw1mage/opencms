@@ -1,5 +1,4 @@
 import { cmd } from "./cmd"
-import { tui } from "./tui/app"
 import { debugCheckpoint } from "../../util/debug"
 
 export const AdminCommand = cmd({
@@ -15,6 +14,7 @@ export const AdminCommand = cmd({
   },
   async handler(args) {
     debugCheckpoint("admin", "command start", { url: args.url })
+    const { tui } = await import("./tui/app")
     await tui({
       url: args.url,
       args: {
