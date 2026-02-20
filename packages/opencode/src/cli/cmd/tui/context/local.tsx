@@ -252,7 +252,14 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         }
 
         if (sync.data.config.model) {
-          const { providerId, modelID } = Provider.parseModel(sync.data.config.model)
+          const parsed =
+            typeof sync.data.config.model === "string"
+              ? Provider.parseModel(sync.data.config.model)
+              : {
+                  providerId: sync.data.config.model.providerId,
+                  modelID: sync.data.config.model.id,
+                }
+          const { providerId, modelID } = parsed
           if (isModelAvailable({ providerId, modelID })) {
             return {
               providerId,
