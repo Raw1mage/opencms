@@ -217,6 +217,21 @@ Status: IN_PROGRESS
   - `bun turbo typecheck --filter opencode` ✅
   - `bun test packages/opencode/test/tool/webfetch.test.ts packages/opencode/test/session/message-v2.test.ts packages/opencode/test/session/structured-output.test.ts` ✅
 
+### Round 15 Update (2026-02-21)
+
+- 依使用者指示啟動 P0（Structured Outputs 整合覆蓋）並完成測試擴充：
+  - `packages/opencode/test/session/structured-output.test.ts` 新增整合案例：
+    - structured tool-call 路徑（含 `toolChoice: "required"` 驗證）
+    - 純文字回覆未產生 structured output 路徑
+    - retry 後仍可完成 structured output
+    - 非阻塞 async prompt 呼叫路徑
+- 修正一個流程缺口：
+  - `packages/opencode/src/session/prompt.ts`
+  - 當 `format=json_schema` 且 assistant 已完成回覆但未產生 structured output 時，於 loop 提前結束分支補寫 `StructuredOutputError`，避免無錯誤訊號直接退出。
+- 驗證：
+  - `bun test packages/opencode/test/session/structured-output.test.ts` ✅
+  - `bun turbo typecheck --filter opencode` ✅
+
 ## Actions
 
 | Commit      | Logical Type   | Value Score   | Risk   | Decision   | Notes                                                                                                                                            |

@@ -274,11 +274,24 @@ export namespace SessionPrompt {
       }
 
       if (!lastUser) throw new Error("No user message found in stream. This should never happen.")
+      const format = lastUser.format ?? { type: "text" }
       if (
         lastAssistant?.finish &&
         !["tool-calls", "unknown"].includes(lastAssistant.finish) &&
         lastUser.id < lastAssistant.id
       ) {
+        if (
+          format.type === "json_schema" &&
+          lastAssistant.structured === undefined &&
+          !lastAssistant.error &&
+          !["tool-calls", "unknown"].includes(lastAssistant.finish)
+        ) {
+          lastAssistant.error = new MessageV2.StructuredOutputError({
+            message: "Model did not produce structured output",
+            retries: 0,
+          }).toObject()
+          await Session.updateMessage(lastAssistant)
+        }
         log.info("exiting loop", { sessionID })
         break
       }
@@ -305,8 +318,6 @@ export namespace SessionPrompt {
         throw e
       })
       const task = tasks.pop()
-      const format = lastUser.format ?? { type: "text" }
-
       // pending subtask (invocation routed via ToolInvoker)
       if (task?.type === "subtask") {
         const taskTool = await TaskTool.init()
