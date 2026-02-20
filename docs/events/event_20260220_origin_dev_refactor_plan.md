@@ -102,6 +102,20 @@ Status: IN_PROGRESS
   - `bun test packages/opencode/test/tool/grep.test.ts packages/opencode/test/tool/webfetch.test.ts` ⚠️ `grep` 既有測試在當前倉庫內容量下仍觸發 output redirect（1 fail），`webfetch` 新增測試全過。
   - `bun test packages/opencode/test/tool` ⚠️ 存在多個既有/環境性失敗（skill/registry/read/grep），非本輪 B 類新增變更引入。
 
+### Round 9 Update (2026-02-20)
+
+- 依「剩餘重點」建議執行高優先 app/ui 批次盤點（10 項）：
+  - `958320f9c`, `50f208d69`, `0303c29e3`, `7f95cc64c`, `c9719dff7`, `dec304a27`, `dd296f703`, `1c71604e0`, `d30e91738`, `ebb907d64`。
+- 結果：
+  - 9 項已由先前 cms 重構涵蓋（本輪標記 integrated）。
+  - 1 項需補移植：`d30e91738`（inline code URL auto-link + hover 提示），已完成 port。
+- 驗證：
+  - `bun turbo typecheck --filter @opencode-ai/app --filter @opencode-ai/ui` ✅
+  - `bun run --cwd /home/pkcs12/projects/opencode/packages/app test:unit` ✅（227 pass / 5 skip / 0 fail）
+- 文件化：
+  - 已更新 `docs/events/refactor_processed_commits_20260220.md` round9（10 筆：9 integrated + 1 ported）。
+  - 本輪無新增跨模組架構邊界，`ARCHITECTURE.md` 無需更新。
+
 ## Actions
 
 | Commit      | Logical Type   | Value Score   | Risk   | Decision   | Notes                                                                                                                                            |

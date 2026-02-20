@@ -62,3 +62,18 @@
 | `ba54cee55` | ported | - | Ported webfetch binary-image handling: non-SVG image responses now return file attachments (data URL) with MIME metadata; added dedicated tool tests. |
 | `3befd0c6c` | ported | - | Ported MCP tools enumeration to parallel Promise.all listTools calls across connected clients with per-client failure isolation. |
 | `56ad2db02` | ported | - | Ported plugin visibility enhancement by exposing tool args in tool.execute.after hook input via centralized tool invoker flow. |
+
+## 已處理（origin/dev delta 2026-02-20 round9 @ 2026-02-20T15:42:01.208Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `958320f9c` | integrated | - | Global SDK remote HTTP event-stream/auth handling already present in cms (platform fetch for non-loopback http + local auth gating). |
+| `50f208d69` | integrated | - | Slash popover active-state handling already aligned in cms using per-item key + direct classList hover tracking. |
+| `0303c29e3` | integrated | - | Child-store eviction skip-on-mark fix and regression test already present in cms global-sync store manager. |
+| `7f95cc64c` | integrated | - | Prompt input quirks fixes already present (BR/placeholder normalization, multiline history boundary checks, cursor handling, tests). |
+| `c9719dff7` | integrated | - | Notification click navigation helper already extracted and wired in web + desktop entry points with tests. |
+| `dec304a27` | integrated | - | Avatar grapheme-safe fallback rendering for emoji is already present via Intl.Segmenter-first extraction. |
+| `dd296f703` | integrated | - | Global SDK SSE reconnect loop with bounded retry delay is already present in cms. |
+| `1c71604e0` | integrated | - | Terminal resize throttling/scheduling and connection-order improvements already present in cms terminal component. |
+| `d30e91738` | ported | - | Ported inline-code URL auto-linking and hover affordance for cmd/ctrl-click behavior in markdown renderer. |
+| `ebb907d64` | integrated | - | Large diff/file performance path already present (sampled checksum, code/diff virtualization controls, large-diff guard UI, and related styling). |
