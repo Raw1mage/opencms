@@ -32,7 +32,9 @@ describe("tool.grep", () => {
           ctx,
         )
         expect(result.metadata.matches).toBeGreaterThan(0)
-        expect(result.output).toContain("Found")
+        const isDirectOutput = result.output.includes("Found")
+        const isRedirectOutput = result.output.startsWith("This output is redirected to ")
+        expect(isDirectOutput || isRedirectOutput).toBe(true)
       },
     })
   })

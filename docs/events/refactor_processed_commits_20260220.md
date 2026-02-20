@@ -53,3 +53,12 @@
 | `a82ca8600` | integrated | - | UI code component already handles non-string contents defensively by coercing to safe text before render/line counting. |
 | `0771e3a8b` | integrated | - | Plain-text paste undo preservation already present in cms through execCommand insertText fast-path fallback behavior. |
 | `ff0abacf4` | integrated | - | Sidebar project icon unload regression already fixed in cms via lazy tile renderer usage in preview/hover trigger. |
+
+## 已處理（origin/dev delta 2026-02-20 round8 @ 2026-02-20T15:21:06.714Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `624dd94b5` | ported | - | Ported LLM-friendly tool output wording in edit/glob/grep, including clearer no-op/not-found/ambiguous edit guidance and richer truncation hints. |
+| `ba54cee55` | ported | - | Ported webfetch binary-image handling: non-SVG image responses now return file attachments (data URL) with MIME metadata; added dedicated tool tests. |
+| `3befd0c6c` | ported | - | Ported MCP tools enumeration to parallel Promise.all listTools calls across connected clients with per-client failure isolation. |
+| `56ad2db02` | ported | - | Ported plugin visibility enhancement by exposing tool args in tool.execute.after hook input via centralized tool invoker flow. |

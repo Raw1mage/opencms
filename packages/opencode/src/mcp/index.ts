@@ -651,26 +651,29 @@ export namespace MCP {
     const defaultTimeout = cfg.experimental?.mcp_timeout
     const cacheMs = parseToolsCacheMs()
 
-    for (const [clientName, client] of Object.entries(clientsSnapshot)) {
-      // Only include tools from connected MCPs (skip disabled ones)
-      if (s.status[clientName]?.status !== "connected") {
-        continue
-      }
+    const connectedClients = Object.entries(clientsSnapshot).filter(
+      ([clientName]) => s.status[clientName]?.status === "connected",
+    )
 
-      const toolsResult = await client.listTools().catch((e) => {
-        log.error("failed to get tools", { clientName, error: e.message })
-        const failedStatus = {
-          status: "failed" as const,
-          error: e instanceof Error ? e.message : String(e),
-        }
-        s.status[clientName] = failedStatus
-        delete s.clients[clientName]
-        invalidateToolsCache(s.toolsCache)
-        return undefined
-      })
-      if (!toolsResult) {
-        continue
-      }
+    const toolsResults = await Promise.all(
+      connectedClients.map(async ([clientName, client]) => {
+        const toolsResult = await client.listTools().catch((e) => {
+          log.error("failed to get tools", { clientName, error: e.message })
+          const failedStatus = {
+            status: "failed" as const,
+            error: e instanceof Error ? e.message : String(e),
+          }
+          s.status[clientName] = failedStatus
+          delete s.clients[clientName]
+          invalidateToolsCache(s.toolsCache)
+          return undefined
+        })
+        return { clientName, client, toolsResult }
+      }),
+    )
+
+    for (const { clientName, client, toolsResult } of toolsResults) {
+      if (!toolsResult) continue
       const mcpConfig = config[clientName]
       const entry = isMcpConfigured(mcpConfig) ? mcpConfig : undefined
       const timeout = entry?.timeout ?? defaultTimeout

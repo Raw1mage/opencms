@@ -118,6 +118,7 @@ export namespace ToolInvoker {
           tool: toolID,
           sessionID,
           callID,
+          args,
         },
         result,
       )
@@ -208,7 +209,10 @@ export namespace ToolInvoker {
   /**
    * Internal helper for tool invocation with consistent error handling
    */
-  export async function _invokeWithErrorHandling<T>(toolName: string, fn: () => Promise<T>): Promise<InvocationResult<T>> {
+  export async function _invokeWithErrorHandling<T>(
+    toolName: string,
+    fn: () => Promise<T>,
+  ): Promise<InvocationResult<T>> {
     const startTime = Date.now()
 
     try {
