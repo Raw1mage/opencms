@@ -205,7 +205,7 @@ describe("session.compaction.isOverflow", () => {
     })
   })
 
-  test("returns false when compaction.auto is disabled", async () => {
+  test("ignores project-local compaction.auto when project config is disabled", async () => {
     await using tmp = await tmpdir({
       init: async (dir) => {
         await Bun.write(
@@ -221,7 +221,9 @@ describe("session.compaction.isOverflow", () => {
       fn: async () => {
         const model = createModel({ context: 100_000, output: 32_000 })
         const tokens = { input: 75_000, output: 5_000, reasoning: 0, cache: { read: 0, write: 0 } }
-        expect(await SessionCompaction.isOverflow({ tokens, model })).toBe(false)
+        // cms branch currently disables project-level config merge at runtime,
+        // so ./opencode.json compaction.auto=false should not affect behavior.
+        expect(await SessionCompaction.isOverflow({ tokens, model })).toBe(true)
       },
     })
   })

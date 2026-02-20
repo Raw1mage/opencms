@@ -250,6 +250,18 @@ Status: IN_PROGRESS
   - `bun test packages/opencode/test/session/structured-output.test.ts` ✅（8 pass）
   - `bun turbo typecheck --filter opencode` ✅
 
+### Round 16 Test Alignment Update (2026-02-21)
+
+- 依使用者指示先做「修測試」而非調整 runtime：
+  - `packages/opencode/test/session/compaction.test.ts`
+  - 將 `returns false when compaction.auto is disabled` 改為
+    `ignores project-local compaction.auto when project config is disabled`。
+- 原因：
+  - cms runtime 已明確關閉 project-level config merge（`config.ts` 內 `projectConfigEnabled=false`），
+    故測試中寫入專案根 `opencode.json` 的 `compaction.auto=false` 不應影響 `isOverflow()`。
+- 效果：
+  - 測試語意與現行架構契約一致，避免將「架構既定行為」誤判為 regression。
+
 ## Actions
 
 | Commit      | Logical Type   | Value Score   | Risk   | Decision   | Notes                                                                                                                                            |
