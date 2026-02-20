@@ -41,8 +41,37 @@ export const SessionCommand = cmd({
   command: "session",
   describe: "manage sessions",
   builder: (yargs: Argv) =>
-    yargs.command(SessionListCommand).command(SessionStepCommand).command(SessionWorkerCommand).demandCommand(),
+    yargs
+      .command(SessionListCommand)
+      .command(SessionDeleteCommand)
+      .command(SessionStepCommand)
+      .command(SessionWorkerCommand)
+      .demandCommand(),
   async handler() {},
+})
+
+export const SessionDeleteCommand = cmd({
+  command: "delete <sessionID>",
+  describe: "delete a session",
+  builder: (yargs: Argv) => {
+    return yargs.positional("sessionID", {
+      describe: "session ID to delete",
+      type: "string",
+      demandOption: true,
+    })
+  },
+  handler: async (args) => {
+    await bootstrap(process.cwd(), async () => {
+      try {
+        await Session.get(args.sessionID)
+      } catch {
+        UI.error(`Session not found: ${args.sessionID}`)
+        process.exit(1)
+      }
+      await Session.remove(args.sessionID)
+      UI.println(UI.Style.TEXT_SUCCESS_BOLD + `Session ${args.sessionID} deleted` + UI.Style.TEXT_NORMAL)
+    })
+  },
 })
 
 export const SessionStepCommand = cmd({

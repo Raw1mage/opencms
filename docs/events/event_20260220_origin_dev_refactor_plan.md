@@ -151,6 +151,21 @@ Status: IN_PROGRESS
   - 已更新 `docs/events/refactor_processed_commits_20260220.md` round11（2 integrated + 1 skipped + 1 ported）。
   - 本輪無新增架構邊界，`ARCHITECTURE.md` 無需更新。
 
+### Round 12 Update (2026-02-20)
+
+- 依 Round 12 計畫執行兩個 CLI 功能重構點：
+  - `693127d38` run `--dir`
+  - `b0afdf6ea` session delete command
+- 結果：
+  - `693127d38`：完成 port（`run` 支援 `--dir`；本地模式切換 cwd，attach 模式傳遞 remote directory）。
+  - `b0afdf6ea`：完成 port（新增 `session delete <sessionID>`，含存在性檢查與成功訊息）。
+- 驗證：
+  - `bun turbo typecheck --filter opencode` ✅
+  - `bun test packages/opencode/test/session/session.test.ts` ⚠️ 既有 timeout/flaky（session.started event），非本輪 CLI 參數/子命令變更直接回歸。
+- 文件化：
+  - 已更新 `docs/events/refactor_processed_commits_20260220.md` round12（2 ported）。
+  - 本輪無新增跨模組架構邊界，`ARCHITECTURE.md` 無需更新。
+
 ## Actions
 
 | Commit      | Logical Type   | Value Score   | Risk   | Decision   | Notes                                                                                                                                            |

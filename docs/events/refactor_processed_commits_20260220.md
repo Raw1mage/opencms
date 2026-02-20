@@ -94,3 +94,10 @@
 | `98aeb60a7` | integrated | - | @ directory attachment flow already routes through Read tool in current user-message-parts pipeline (post prompt runtime split), including filePath args and synthetic trace text. |
 | `67c985ce8` | skipped | - | Upstream SQLite WAL checkpoint patch is not applicable to current cms file-storage architecture (no src/storage/db.ts runtime path). |
 | `179c40749` | ported | - | Ported websearch description cache-stability tweak from date token to year token to avoid daily cache bust churn. |
+
+## 已處理（origin/dev delta 2026-02-20 round12 @ 2026-02-20T16:07:02.107Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `693127d38` | ported | - | Ported run --dir support: local mode changes cwd before bootstrap, attach mode forwards directory context to remote SDK client. |
+| `b0afdf6ea` | ported | - | Ported session delete subcommand with existence check, safe error message for missing session, and success confirmation output. |
