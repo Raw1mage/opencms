@@ -114,9 +114,12 @@ This package contains the core application logic, including the CLI, the Agent r
 
 | File Path                  | Description                                                        | Key Exports      | Input / Output                      |
 | :------------------------- | :----------------------------------------------------------------- | :--------------- | :---------------------------------- |
-| `src/provider/provider.ts` | **Provider Core.** Initializes providers and manages capabilities. | `Provider`       | **In:** Config<br>**Out:** Registry |
-| `src/provider/models.ts`   | **Model DB.** Manages model definitions from `models.dev`.         | `ModelsDev`      | **In:** N/A<br>**Out:** Model Data  |
-| `src/provider/health.ts`   | **Health Check.** Monitors model availability and latency.         | `ProviderHealth` | **In:** Options<br>**Out:** Report  |
+| `src/provider/provider.ts`                    | **Provider Core.** Initializes providers, wraps SDK fetch, and applies response bridges. | `Provider`            | **In:** Config<br>**Out:** Registry |
+| `src/provider/toolcall-bridge/index.ts`       | **ToolCall Bridge Manager.** Resolves and applies registered tool-call rewrite bridges.   | `ToolCallBridgeManager` | **In:** Context, Raw Payload<br>**Out:** Rewritten Payload |
+| `src/provider/toolcall-bridge/bridges/*`      | **Bridge Rules.** Provider/model-specific matchers and rewrite policies (e.g. GmiCloud).  | Bridge modules        | **In:** Bridge Context<br>**Out:** Match + Rewrite |
+| `src/provider/gmicloud-toolcall-bridge.ts`    | **Compatibility Wrapper.** Preserves legacy exports, delegates to generic bridge modules.  | `rewriteGmiCloudToolCallPayload` | **In:** Raw Payload<br>**Out:** Rewritten Payload |
+| `src/provider/models.ts`                      | **Model DB.** Manages model definitions from `models.dev`.                                 | `ModelsDev`           | **In:** N/A<br>**Out:** Model Data |
+| `src/provider/health.ts`                      | **Health Check.** Monitors model availability and latency.                                 | `ProviderHealth`      | **In:** Options<br>**Out:** Report |
 | `src/plugin/index.ts`      | **Plugin System.** Loads plugins and manages lifecycle hooks.      | `Plugin`         | **In:** Config<br>**Out:** Plugins  |
 | `src/mcp/index.ts`         | **MCP Client.** Manages Model Context Protocol connections.        | `MCP`            | **In:** Config<br>**Out:** Clients  |
 
@@ -469,3 +472,20 @@ Any future provider-toggle refactor must preserve:
 1. Single source for disabled state (`disabled_providers`).
 2. `Show All`/`Filtered` list parity except filter.
 3. Disabled Antigravity plugin path must not initialize auth plugin hooks.
+
+
+### E. Tool Call Bridge Generalization
+
+1. Response rewrite logic for text-protocol tool calls is now routed through a generic Tool Call Bridge manager.
+2. Provider/model-specific matching (for example, GmiCloud DeepSeek) is isolated in bridge rule modules under `src/provider/toolcall-bridge/bridges/`.
+3. Legacy compatibility exports are preserved via `src/provider/gmicloud-toolcall-bridge.ts` to avoid breaking existing call sites and tests.
+4. The generic OpenAI chat rewriter and protocol parser are reusable for future providers that emit textual tool-call markers.
+
+**Primary files**
+- `packages/opencode/src/provider/provider.ts`
+- `packages/opencode/src/provider/toolcall-bridge/index.ts`
+- `packages/opencode/src/provider/toolcall-bridge/bridges/gmicloud-deepseek.ts`
+- `packages/opencode/src/provider/toolcall-bridge/openai-chat-rewriter.ts`
+- `packages/opencode/src/provider/toolcall-bridge/protocol/text-protocol.ts`
+- `packages/opencode/src/provider/gmicloud-toolcall-bridge.ts`
+- `packages/opencode/test/provider/toolcall-bridge/manager.test.ts`

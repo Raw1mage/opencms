@@ -44,7 +44,7 @@ import { createVercel } from "@ai-sdk/vercel"
 import { createGitLab } from "@gitlab/gitlab-ai-provider"
 import type { Auth as SDKAuth } from "@opencode-ai/sdk"
 import { ProviderTransform } from "./transform"
-import { rewriteGmiCloudToolCallPayload } from "./gmicloud-toolcall-bridge"
+import { ToolCallBridgeManager } from "./toolcall-bridge"
 
 export namespace Provider {
   const log = Log.create({ service: "provider" })
@@ -2221,25 +2221,8 @@ export namespace Provider {
         }
         const response = await fetchFn(input, requestInit)
 
-        const providerFamily = Account.parseFamily(wrappedProviderID) || wrappedProviderID
-        const providerIdLower = wrappedProviderID.toLowerCase()
-        const modelIdLower = wrappedModelID.toLowerCase()
-        const isGmiCloudEndpoint = /https?:\/\/api\.gmi-serving\.com\/v1/i.test(inputUrl)
-        const isExplicitGmiCloudAccount = providerIdLower === "gmicloud" || providerIdLower.startsWith("gmicloud-")
-        const isExplicitDeepSeekR1_0528 =
-          modelIdLower === "deepseek-ai/deepseek-r1-0528" || modelIdLower === "deepseek-ai/deepseek-r1"
-        const isGmiCloudDeepSeek =
-          (isExplicitGmiCloudAccount || providerFamily === "gmicloud" || isGmiCloudEndpoint) &&
-          (isExplicitDeepSeekR1_0528 || modelIdLower.includes("deepseek")) &&
-          inputUrl.includes("/chat/completions")
-        if (!isGmiCloudDeepSeek || !response.ok) return response
-        debugCheckpoint("gmicloud-toolcall-bridge", "candidate-response", {
-          providerId: wrappedProviderID,
-          providerFamily,
-          modelID: wrappedModelID,
-          inputUrl,
-          status: response.status,
-        })
+
+        if (!response.ok) return response
 
         const stream = (() => {
           if (!opts?.body || typeof opts.body !== "string") return false
@@ -2250,15 +2233,40 @@ export namespace Provider {
             return false
           }
         })()
+        const providerFamily = Account.parseFamily(wrappedProviderID) || wrappedProviderID
+        const bridge = ToolCallBridgeManager.resolve({
+          providerId: wrappedProviderID,
+          providerFamily,
+          modelId: wrappedModelID,
+          inputUrl,
+          stream,
+        })
+        if (!bridge) return response
+        debugCheckpoint("toolcall-bridge", "candidate-response", {
+          bridgeId: bridge.id,
+          providerId: wrappedProviderID,
+          providerFamily,
+          modelID: wrappedModelID,
+          inputUrl,
+          stream,
+          status: response.status,
+        })
 
         const raw = await response.clone().text().catch(() => "")
         if (!raw) {
           return response
         }
 
-        const rewritten = rewriteGmiCloudToolCallPayload(raw, stream)
-        if (!rewritten || rewritten === raw) {
-          debugCheckpoint("gmicloud-toolcall-bridge", "no-rewrite", {
+        const rewritten = ToolCallBridgeManager.rewrite(raw, {
+          providerId: wrappedProviderID,
+          providerFamily,
+          modelId: wrappedModelID,
+          inputUrl,
+          stream,
+        })
+        if (!rewritten) {
+          debugCheckpoint("toolcall-bridge", "no-rewrite", {
+            bridgeId: bridge.id,
             providerId: wrappedProviderID,
             modelID: wrappedModelID,
             stream,
@@ -2266,23 +2274,23 @@ export namespace Provider {
           })
           return response
         }
-        debugCheckpoint("gmicloud-toolcall-bridge", "rewritten", {
+        debugCheckpoint("toolcall-bridge", "rewritten", {
+          bridgeId: rewritten.bridgeId,
           providerId: wrappedProviderID,
           modelID: wrappedModelID,
           stream,
           rawLength: raw.length,
-          rewrittenLength: rewritten.length,
+          rewrittenLength: rewritten.payload.length,
         })
 
         const headers = new Headers(response.headers)
         headers.delete("content-length")
 
-        return new Response(rewritten, {
+        return new Response(rewritten.payload, {
           status: response.status,
           statusText: response.statusText,
           headers,
         })
-        return fetchFn(input, requestInit)
       }
 
       // Filter out model-level options that shouldn't be passed to SDK constructor
