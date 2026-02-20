@@ -64,6 +64,11 @@ The following refactor-ported changes were integrated into `cms` and are relevan
    - Desktop now avoids spawning a local sidecar when the configured default server is already localhost; remote defaults still permit local sidecar fallback.
    - Architectural effect: desktop runtime now supports a dual-mode bootstrap (existing local server vs sidecar) with explicit `is_sidecar` signaling from Rust to frontend.
 
+6. **Tool/runtime observability and multimodal fetch updates (`packages/opencode/src/session/tool-invoker.ts`, `packages/plugin/src/index.ts`, `packages/opencode/src/tool/webfetch.ts`)**
+   - `tool.execute.after` hook input now includes tool `args`, enabling plugins to correlate tool outcomes with original invocation arguments.
+   - `webfetch` now returns non-SVG image responses as file attachments (data URLs) instead of forcing text decoding.
+   - Architectural effect: plugin hook contract gains argument-level visibility, and tool result pipeline now supports binary-first web artifacts in the same attachment channel as other file parts.
+
 ---
 
 ## Detailed Package Analysis

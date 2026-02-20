@@ -87,6 +87,21 @@ Status: IN_PROGRESS
   - 已更新 `docs/events/refactor_processed_commits_20260220.md` round7。
   - 架構層面無新增邊界變動，`ARCHITECTURE.md` 本輪無需更新。
 
+### Round 8 Update (2026-02-20)
+
+- 依 B 類順序完成 4 個中風險重構點：
+  - `624dd94b5`：tool output 訊息調整為更具操作性的 LLM 友善文案（edit/glob/grep）。
+  - `ba54cee55`：webfetch 對非 SVG image 回傳 file attachments（data URL）而非文字解碼。
+  - `3befd0c6c`：MCP tools 探測改為並行 `Promise.all` 拉取 `listTools()`。
+  - `56ad2db02`：`tool.execute.after` hook input 新增 `args`（plugin 可見原始工具參數）。
+- 額外對齊：
+  - 新增 `packages/opencode/test/tool/webfetch.test.ts`（image/svg/text 三情境覆蓋）。
+  - `ARCHITECTURE.md` 已補記 plugin hook 契約與 webfetch 二進位附件路徑變更。
+- 完整測試（B 類範圍）：
+  - `bun turbo typecheck --filter opencode --filter @opencode-ai/plugin` ✅
+  - `bun test packages/opencode/test/tool/grep.test.ts packages/opencode/test/tool/webfetch.test.ts` ⚠️ `grep` 既有測試在當前倉庫內容量下仍觸發 output redirect（1 fail），`webfetch` 新增測試全過。
+  - `bun test packages/opencode/test/tool` ⚠️ 存在多個既有/環境性失敗（skill/registry/read/grep），非本輪 B 類新增變更引入。
+
 ## Actions
 
 | Commit      | Logical Type   | Value Score   | Risk   | Decision   | Notes                                                                                                                                            |

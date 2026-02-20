@@ -121,6 +121,7 @@ export const GrepTool = Tool.define("grep", {
     matches.sort((a, b) => b.modTime - a.modTime)
 
     const finalMatches = matches // already limited by the loop
+    const totalMatches = matches.length
 
     if (finalMatches.length === 0) {
       return {
@@ -130,7 +131,7 @@ export const GrepTool = Tool.define("grep", {
       }
     }
 
-    const outputLines = [`Found ${finalMatches.length} matches`]
+    const outputLines = [`Found ${totalMatches} matches${truncated ? ` (showing first ${limit})` : ""}`]
 
     let currentFile = ""
     for (const match of finalMatches) {
@@ -146,6 +147,13 @@ export const GrepTool = Tool.define("grep", {
       outputLines.push(`  Line ${match.lineNum}: ${truncatedLineText}`)
     }
 
+    if (truncated) {
+      outputLines.push("")
+      outputLines.push(
+        `(Results truncated: showing ${limit} of ${totalMatches} matches (${totalMatches - limit} hidden). Consider using a more specific path or pattern.)`,
+      )
+    }
+
     if (hasErrors) {
       outputLines.push("")
       outputLines.push("(Some paths were inaccessible and skipped)")
@@ -155,7 +163,7 @@ export const GrepTool = Tool.define("grep", {
 
     // For grep, we want to be very aggressive about saving to file to keep UI clean
     // and context window efficient.
-    const threshold = 1000 // characters
+    const threshold = 2000 // characters
     if (fullOutput.length > threshold) {
       // Use Truncate logic to save file but return a specialized minimalist hint
       const result = await Truncate.output(fullOutput, { maxLines: 0 }, ctx.extra?.agent, ctx.sessionID)
@@ -164,7 +172,7 @@ export const GrepTool = Tool.define("grep", {
       return {
         title: params.pattern,
         metadata: {
-          matches: finalMatches.length,
+          matches: totalMatches,
           truncated: true,
           ...(result.truncated && { outputPath: result.outputPath }),
         },
@@ -175,8 +183,8 @@ export const GrepTool = Tool.define("grep", {
     return {
       title: params.pattern,
       metadata: {
-        matches: finalMatches.length,
-        truncated: false,
+        matches: totalMatches,
+        truncated,
       },
       output: fullOutput,
     }
