@@ -39,6 +39,16 @@ Status: IN_PROGRESS
 - 驗證：
   - `bun turbo typecheck --filter @opencode-ai/ui` ✅
 
+### Round 4 Update (2026-02-20)
+
+- 已移植 `7419ebc87`（experimental 全域 session list）到 cms 現行 storage 架構：
+  - `Session.listGlobal()`：跨專案列舉 session，支援 `directory/roots/start/cursor/search/limit/archived`。
+  - `GET /experimental/session`：回傳 `Session.GlobalInfo[]`，並支援 `x-next-cursor` 分頁。
+  - 補上 server test：`packages/opencode/test/server/global-session-list.test.ts`（跨專案 metadata、archived 過濾、cursor 分頁）。
+- 驗證：
+  - `bun test packages/opencode/test/server/global-session-list.test.ts` ✅
+  - `bun turbo typecheck --filter opencode` ✅
+
 ## Actions
 
 | Commit      | Logical Type   | Value Score   | Risk   | Decision   | Notes                                                                                                                                            |

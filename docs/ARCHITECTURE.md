@@ -56,6 +56,10 @@ The following refactor-ported changes were integrated into `cms` and are relevan
    - Added optional `variant` action input and propagated `VARIANT` through `opencode github run` to `SessionPrompt.prompt()`.
    - Architectural effect: CI-triggered agent runs can now carry provider/model-specific reasoning variants through the same session prompt pipeline as interactive runs.
 
+4. **Experimental cross-project session listing (`packages/opencode/src/session/index.ts`, `packages/opencode/src/server/routes/experimental.ts`)**
+   - Added `Session.listGlobal()` and `GET /experimental/session` to enumerate sessions across all projects with optional filtering and cursor pagination.
+   - Architectural effect: session discovery now has an explicit global-read path (project-agnostic index + project metadata join), separate from project-scoped `/session` APIs.
+
 ---
 
 ## Detailed Package Analysis

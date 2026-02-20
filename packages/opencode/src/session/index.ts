@@ -14,6 +14,7 @@ import { Storage } from "../storage/storage"
 import { Log } from "../util/log"
 import { MessageV2 } from "./message-v2"
 import { Instance } from "../project/instance"
+import { Project } from "../project/project"
 import { SessionPrompt } from "./prompt"
 import { fn } from "@/util/fn"
 import { Command } from "../command"
@@ -93,6 +94,24 @@ export namespace Session {
       ref: "Session",
     })
   export type Info = z.output<typeof Info>
+
+  export const ProjectInfo = z
+    .object({
+      id: z.string(),
+      name: z.string().optional(),
+      worktree: z.string(),
+    })
+    .meta({
+      ref: "ProjectSummary",
+    })
+  export type ProjectInfo = z.output<typeof ProjectInfo>
+
+  export const GlobalInfo = Info.extend({
+    project: ProjectInfo.nullable(),
+  }).meta({
+    ref: "GlobalSession",
+  })
+  export type GlobalInfo = z.output<typeof GlobalInfo>
 
   export const ShareInfo = z
     .object({
@@ -336,6 +355,52 @@ export namespace Session {
     for (const item of await Storage.list(["session", project.id])) {
       const session = await Storage.read<Info>(item).catch(() => undefined)
       if (!session) continue
+      yield session
+    }
+  }
+
+  export async function* listGlobal(input?: {
+    directory?: string
+    roots?: boolean
+    start?: number
+    cursor?: number
+    search?: string
+    limit?: number
+    archived?: boolean
+  }) {
+    const term = input?.search?.toLowerCase()
+    const limit = input?.limit ?? 100
+    const sessions: GlobalInfo[] = []
+
+    const projects = await Project.list().catch(() => [] as Project.Info[])
+    const projectByID = new Map<string, ProjectInfo>()
+    for (const project of projects) {
+      projectByID.set(project.id, {
+        id: project.id,
+        name: project.name ?? undefined,
+        worktree: project.worktree,
+      })
+    }
+
+    for (const item of await Storage.list(["session"])) {
+      const session = await Storage.read<Info>(item).catch(() => undefined)
+      if (!session) continue
+
+      if (input?.directory !== undefined && session.directory !== input.directory) continue
+      if (input?.roots && session.parentID) continue
+      if (input?.start !== undefined && session.time.updated < input.start) continue
+      if (input?.cursor !== undefined && session.time.updated >= input.cursor) continue
+      if (!input?.archived && session.time.archived !== undefined) continue
+      if (term !== undefined && !session.title.toLowerCase().includes(term)) continue
+
+      sessions.push({
+        ...session,
+        project: projectByID.get(session.projectID) ?? null,
+      })
+    }
+
+    sessions.sort((a, b) => b.time.updated - a.time.updated || b.id.localeCompare(a.id))
+    for (const session of sessions.slice(0, limit)) {
       yield session
     }
   }

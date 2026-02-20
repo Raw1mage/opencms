@@ -23,3 +23,9 @@
 | --------------- | ------ | ------------ | ---- |
 | `1de12604c` | ported | - | Preserve path text when workspace directory is root path ('/' or '\\') by guarding relativizeProjectPaths replacement. |
 | `7e1051af0` | ported | - | Turn duration now uses max completed timestamp across assistant messages in the same turn, preventing under-reporting when final text part completes earlier than other assistant parts. |
+
+## 已處理（origin/dev delta 2026-02-20 round4 @ 2026-02-20T14:33:00.751Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `7419ebc87` | ported | - | Ported experimental cross-project session listing using cms file-storage model: added Session.listGlobal(), /experimental/session route with filters/cursor pagination, and global session listing tests. |
