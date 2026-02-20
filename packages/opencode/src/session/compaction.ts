@@ -217,6 +217,7 @@ When constructing the summary, try to stick to this template:
         },
         agent: userMessage.agent,
         model: userMessage.model,
+        format: userMessage.format,
         variant: userMessage.variant,
       })
       await Session.updatePart({
@@ -245,6 +246,7 @@ When constructing the summary, try to stick to this template:
         providerId: z.string(),
         modelID: z.string(),
       }),
+      format: MessageV2.Format.optional(),
       auto: z.boolean(),
     }),
     async (input) => {
@@ -252,6 +254,7 @@ When constructing the summary, try to stick to this template:
         id: Identifier.ascending("message"),
         role: "user",
         model: input.model,
+        format: input.format,
         sessionID: input.sessionID,
         agent: input.agent,
         variant: undefined,

@@ -78,6 +78,11 @@ The following refactor-ported changes were integrated into `cms` and are relevan
    - Message and SDK schemas now include structured-output message metadata (`format`, `structured`, `StructuredOutputError`) and prompt API format wiring.
    - Architectural effect: output representation evolves from text-only completion to dual-mode (text/structured) contracts across runtime + SDK boundaries.
 
+9. **Structured output continuity across compaction (`packages/opencode/src/session/prompt.ts`, `packages/opencode/src/session/compaction.ts`)**
+   - Auto-compaction paths now propagate the originating user `format` into synthetic continuation user messages and compaction-create requests.
+   - When `format=json_schema`, prompt loop now preserves schema-enforcement intent after compaction/re-entry, instead of silently falling back to plain-text-only continuation.
+   - Architectural effect: structured-output contract is now continuous across normal turn, compaction turn, and post-compaction resume boundaries.
+
 ---
 
 ## Detailed Package Analysis

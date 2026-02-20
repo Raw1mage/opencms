@@ -2,6 +2,7 @@ import { afterEach, describe, expect, mock, spyOn, test } from "bun:test"
 import { APICallError } from "ai"
 import { Instance } from "../../src/project/instance"
 import { Session } from "../../src/session"
+import { SessionCompaction } from "../../src/session/compaction"
 import { SessionRetry } from "../../src/session/retry"
 import { SessionPrompt } from "../../src/session/prompt"
 import { prepareUserMessageContext } from "../../src/session/user-message-context"
@@ -329,4 +330,136 @@ describe("session.structured-output", () => {
       },
     })
   }, 10_000)
+
+  test("keeps json_schema flow after auto compaction", async () => {
+    let overflowChecks = 0
+    spyOn(SessionCompaction, "isOverflow").mockImplementation(async () => {
+      overflowChecks++
+      return overflowChecks === 1
+    })
+
+    let normalCalls = 0
+    spyOn(LLM, "stream").mockImplementation(async (input) => {
+      if (input.agent.name === "compaction") {
+        return {
+          fullStream: plainTextStream("compaction summary")(),
+        } as unknown as Awaited<ReturnType<typeof LLM.stream>>
+      }
+
+      normalCalls++
+      if (normalCalls === 1) {
+        return {
+          fullStream: plainTextStream("intermediate response before compaction")(),
+        } as unknown as Awaited<ReturnType<typeof LLM.stream>>
+      }
+
+      return {
+        fullStream: structuredStream({ answer: "after-compact" })(input),
+      } as unknown as Awaited<ReturnType<typeof LLM.stream>>
+    })
+
+    await using tmp = await tmpdir({
+      git: true,
+      config: {
+        agent: {
+          build: {
+            model: "openai/gpt-5.2",
+          },
+        },
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const session = await Session.create({})
+        const msg = await SessionPrompt.prompt({
+          sessionID: session.id,
+          agent: "build",
+          parts: [{ type: "text", text: "answer in schema even after compaction" }],
+          format: {
+            type: "json_schema",
+            retryCount: 1,
+            schema: {
+              type: "object",
+              properties: { answer: { type: "string" } },
+              required: ["answer"],
+            },
+          },
+        })
+
+        if (msg.info.role !== "assistant") throw new Error("expected assistant")
+        expect(msg.info.structured).toEqual({ answer: "after-compact" })
+      },
+    })
+  })
+
+  test("retains previous structured output across follow-up turn", async () => {
+    let call = 0
+    spyOn(LLM, "stream").mockImplementation(async (input) => {
+      call++
+      return {
+        fullStream: structuredStream({ answer: `turn-${call}` })(input),
+      } as unknown as Awaited<ReturnType<typeof LLM.stream>>
+    })
+
+    await using tmp = await tmpdir({
+      git: true,
+      config: {
+        agent: {
+          build: {
+            model: "openai/gpt-5.2",
+          },
+        },
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const session = await Session.create({})
+
+        await SessionPrompt.prompt({
+          sessionID: session.id,
+          agent: "build",
+          parts: [{ type: "text", text: "first response" }],
+          format: {
+            type: "json_schema",
+            retryCount: 1,
+            schema: {
+              type: "object",
+              properties: { answer: { type: "string" } },
+              required: ["answer"],
+            },
+          },
+        })
+
+        await SessionPrompt.prompt({
+          sessionID: session.id,
+          agent: "build",
+          parts: [{ type: "text", text: "second response" }],
+          format: {
+            type: "json_schema",
+            retryCount: 1,
+            schema: {
+              type: "object",
+              properties: { answer: { type: "string" } },
+              required: ["answer"],
+            },
+          },
+        })
+
+        const messages = await Session.messages({ sessionID: session.id })
+        const assistants = messages.filter((m) => m.info.role === "assistant")
+        expect(assistants.length).toBeGreaterThanOrEqual(2)
+        const structuredValues = assistants
+          .map((m) => (m.info.role === "assistant" ? m.info.structured : undefined))
+          .filter((v): v is { answer: string } => typeof v === "object" && v !== null && "answer" in v)
+          .map((v) => v.answer)
+
+        expect(structuredValues).toContain("turn-1")
+        expect(new Set(structuredValues).size).toBeGreaterThanOrEqual(2)
+      },
+    })
+  })
 })

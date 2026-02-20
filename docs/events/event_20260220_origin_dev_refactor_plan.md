@@ -232,6 +232,24 @@ Status: IN_PROGRESS
   - `bun test packages/opencode/test/session/structured-output.test.ts` ✅
   - `bun turbo typecheck --filter opencode` ✅
 
+### Round 15.2 Update (2026-02-21)
+
+- 依使用者指示擴充 P0 第二階段（resume/compaction 交互）：
+  - `packages/opencode/test/session/structured-output.test.ts` 新增案例：
+    - auto-compaction 後仍可維持 `json_schema` structured output 流程
+    - follow-up turn（resume）後，前一回合 `structured` 欄位仍保留
+- 修正 compaction continuation 的 format 傳遞缺口：
+  - `packages/opencode/src/session/compaction.ts`
+    - `SessionCompaction.create()` 新增/保留 `format`
+    - auto continue synthetic user message 繼承 `format`
+  - `packages/opencode/src/session/prompt.ts`
+    - 觸發 `SessionCompaction.create()` 時傳遞 `lastUser.format`
+- 效果：
+  - structured-output 請求在 compaction 迴圈內不再掉回純文字流程。
+- 驗證：
+  - `bun test packages/opencode/test/session/structured-output.test.ts` ✅（8 pass）
+  - `bun turbo typecheck --filter opencode` ✅
+
 ## Actions
 
 | Commit      | Logical Type   | Value Score   | Risk   | Decision   | Notes                                                                                                                                            |
