@@ -120,6 +120,33 @@ export namespace Config {
     }
   }
 
+  function validateMemoryConfig(config: Info) {
+    const memory = getLocalMemoryMcp(config)
+    if (!memory) return
+
+    // Validate that environment variables are properly set
+    if (!memory.environment?.MEMORY_FILE_PATH) {
+      log.warn("Memory MCP is missing MEMORY_FILE_PATH environment variable")
+    }
+
+    // Validate command exists and is executable
+    const [cmd] = memory.command
+    if (!cmd) {
+      log.warn("Memory MCP command is empty")
+      return
+    }
+
+    try {
+      // Check if command is found in PATH
+      const resolved = Bun.which(cmd)
+      if (!resolved) {
+        log.error(`Memory MCP command not found: ${cmd}`)
+      }
+    } catch (error) {
+      log.error(`Error validating Memory MCP command: ${cmd}`, { error })
+    }
+  }
+
   export const state = Instance.state(async () => {
     const auth = await Auth.all()
 
@@ -301,6 +328,9 @@ export namespace Config {
     // - memory / memory-project => repo-scoped memory
     // - memory-global => user global memory
     result = applyLayeredMemoryConfig(result)
+
+    // Validate layered memory configuration
+    validateMemoryConfig(result)
 
     return {
       config: result,
@@ -1098,7 +1128,10 @@ export namespace Config {
         })
         .optional(),
       plugin: z.string().array().optional(),
-      antigravity: z.boolean().optional().describe("@deprecated Use disabled_providers to control provider enablement."),
+      antigravity: z
+        .boolean()
+        .optional()
+        .describe("@deprecated Use disabled_providers to control provider enablement."),
       snapshot: z.boolean().optional(),
       share: z
         .enum(["manual", "auto", "disabled"])

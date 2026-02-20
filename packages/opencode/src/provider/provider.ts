@@ -44,6 +44,7 @@ import { createVercel } from "@ai-sdk/vercel"
 import { createGitLab } from "@gitlab/gitlab-ai-provider"
 import type { Auth as SDKAuth } from "@opencode-ai/sdk"
 import { ProviderTransform } from "./transform"
+import { rewriteGmiCloudToolCallPayload } from "./gmicloud-toolcall-bridge"
 
 export namespace Provider {
   const log = Log.create({ service: "provider" })
@@ -2218,6 +2219,69 @@ export namespace Provider {
           ...opts,
           timeout: false,
         }
+        const response = await fetchFn(input, requestInit)
+
+        const providerFamily = Account.parseFamily(wrappedProviderID) || wrappedProviderID
+        const providerIdLower = wrappedProviderID.toLowerCase()
+        const modelIdLower = wrappedModelID.toLowerCase()
+        const isGmiCloudEndpoint = /https?:\/\/api\.gmi-serving\.com\/v1/i.test(inputUrl)
+        const isExplicitGmiCloudAccount = providerIdLower === "gmicloud" || providerIdLower.startsWith("gmicloud-")
+        const isExplicitDeepSeekR1_0528 =
+          modelIdLower === "deepseek-ai/deepseek-r1-0528" || modelIdLower === "deepseek-ai/deepseek-r1"
+        const isGmiCloudDeepSeek =
+          (isExplicitGmiCloudAccount || providerFamily === "gmicloud" || isGmiCloudEndpoint) &&
+          (isExplicitDeepSeekR1_0528 || modelIdLower.includes("deepseek")) &&
+          inputUrl.includes("/chat/completions")
+        if (!isGmiCloudDeepSeek || !response.ok) return response
+        debugCheckpoint("gmicloud-toolcall-bridge", "candidate-response", {
+          providerId: wrappedProviderID,
+          providerFamily,
+          modelID: wrappedModelID,
+          inputUrl,
+          status: response.status,
+        })
+
+        const stream = (() => {
+          if (!opts?.body || typeof opts.body !== "string") return false
+          try {
+            const parsed = JSON.parse(opts.body)
+            return parsed?.stream === true
+          } catch {
+            return false
+          }
+        })()
+
+        const raw = await response.clone().text().catch(() => "")
+        if (!raw) {
+          return response
+        }
+
+        const rewritten = rewriteGmiCloudToolCallPayload(raw, stream)
+        if (!rewritten || rewritten === raw) {
+          debugCheckpoint("gmicloud-toolcall-bridge", "no-rewrite", {
+            providerId: wrappedProviderID,
+            modelID: wrappedModelID,
+            stream,
+            rawLength: raw.length,
+          })
+          return response
+        }
+        debugCheckpoint("gmicloud-toolcall-bridge", "rewritten", {
+          providerId: wrappedProviderID,
+          modelID: wrappedModelID,
+          stream,
+          rawLength: raw.length,
+          rewrittenLength: rewritten.length,
+        })
+
+        const headers = new Headers(response.headers)
+        headers.delete("content-length")
+
+        return new Response(rewritten, {
+          status: response.status,
+          statusText: response.statusText,
+          headers,
+        })
         return fetchFn(input, requestInit)
       }
 
