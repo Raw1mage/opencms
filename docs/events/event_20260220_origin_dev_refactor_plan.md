@@ -132,6 +132,25 @@ Status: IN_PROGRESS
   - 已更新 `docs/events/refactor_processed_commits_20260220.md` round10（2 integrated + 1 ported）。
   - 本輪無新增架構邊界，`ARCHITECTURE.md` 無需更新。
 
+### Round 11 Update (2026-02-20)
+
+- 依 P2 計畫執行四個重構點：
+  - `29671c139` token substitution in `OPENCODE_CONFIG_CONTENT`
+  - `98aeb60a7` ensure @ directory uses Read tool
+  - `67c985ce8` WAL checkpoint on database open
+  - `179c40749` websearch description cache-bust tweak
+- 結果：
+  - `29671c139`、`98aeb60a7`：cms 已先前涵蓋（標記 integrated）。
+  - `67c985ce8`：當前 cms 為 file-storage 架構，無 `src/storage/db.ts` SQLite runtime 路徑，標記 skipped（不適用）。
+  - `179c40749`：完成 port（websearch 描述由 `{{date}}` 改為 `{{year}}`，避免每日 cache bust）。
+- 驗證：
+  - `bun turbo typecheck --filter opencode` ✅
+  - `bun test packages/opencode/test/config/config.test.ts -t "OPENCODE_CONFIG_CONTENT token substitution"` ✅
+  - `bun test packages/opencode/test/config/config.test.ts` ⚠️ 多項既有失敗（與本輪 websearch 文案改動無直接關聯）。
+- 文件化：
+  - 已更新 `docs/events/refactor_processed_commits_20260220.md` round11（2 integrated + 1 skipped + 1 ported）。
+  - 本輪無新增架構邊界，`ARCHITECTURE.md` 無需更新。
+
 ## Actions
 
 | Commit      | Logical Type   | Value Score   | Risk   | Decision   | Notes                                                                                                                                            |

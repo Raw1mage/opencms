@@ -85,3 +85,12 @@
 | `548608b7a` | integrated | - | Terminal PTY isolation stack already present in cms (buffered terminal writer, convertEol false, socket identity map in PTY core/routes, and isolation regression tests). |
 | `8da5fd0a6` | integrated | - | Worktree delete resilience already present in cms (post-remove stale detection and filesystem cleanup fallback with dedicated regression test). |
 | `d01890388` | ported | - | Ported run-command tool-dispatch hardening: malformed tool props now fall back safely instead of crashing opencode run. |
+
+## 已處理（origin/dev delta 2026-02-20 round11 @ 2026-02-20T15:55:44.869Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `29671c139` | integrated | - | OPENCODE_CONFIG_CONTENT dynamic getter and token-substitution load path already present in cms config/flag stack; targeted substitution test passes. |
+| `98aeb60a7` | integrated | - | @ directory attachment flow already routes through Read tool in current user-message-parts pipeline (post prompt runtime split), including filePath args and synthetic trace text. |
+| `67c985ce8` | skipped | - | Upstream SQLite WAL checkpoint patch is not applicable to current cms file-storage architecture (no src/storage/db.ts runtime path). |
+| `179c40749` | ported | - | Ported websearch description cache-stability tweak from date token to year token to avoid daily cache bust churn. |
