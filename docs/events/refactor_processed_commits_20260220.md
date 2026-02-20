@@ -108,3 +108,9 @@
 | --------------- | ------ | ------------ | ---- |
 | `a580fb47d` | ported | - | Phase-S1 partial port: tool attachment ownership normalization started by removing id/session/message metadata emission from webfetch and avoiding id-decorated attachment re-export in batch output. |
 | `e269788a8` | skipped | - | Deferred by scope for dedicated high-risk phase after attachment ownership normalization completes; requires cross-layer session/llm/sdk contract rollout. |
+
+## 已處理（origin/dev delta 2026-02-20 round14 @ 2026-02-20T16:38:18.792Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `e269788a8` | ported | - | Ported structured-output core contract across message schema, session prompt loop, LLM toolChoice plumbing, and SDK v2 generated types/client format wiring; added unit coverage for format persistence and StructuredOutput tool capture. |

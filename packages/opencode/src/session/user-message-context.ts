@@ -18,6 +18,7 @@ export async function prepareUserMessageContext(input: {
   messageID?: string
   agent?: string
   model?: InputModel
+  format?: MessageV2.OutputFormat
   variant?: string
   noReply?: boolean
   tools?: Record<string, boolean>
@@ -52,6 +53,7 @@ export async function prepareUserMessageContext(input: {
     tools: input.tools,
     agent: agent.name,
     model,
+    format: input.format,
     system: input.system,
     variant,
   }

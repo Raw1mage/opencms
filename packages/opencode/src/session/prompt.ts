@@ -1,4 +1,5 @@
 import z from "zod"
+import { type Tool as AITool, jsonSchema, tool } from "ai"
 import { Identifier } from "../id/id"
 import { MessageV2 } from "./message-v2"
 import { Log } from "../util/log"
@@ -57,6 +58,16 @@ import { buildUserMessageParts } from "./user-message-parts"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
 
+const STRUCTURED_OUTPUT_DESCRIPTION = `Use this tool to return your final response in the requested structured format.
+
+IMPORTANT:
+- You MUST call this tool exactly once at the end of your response
+- The input must be valid JSON matching the required schema
+- Complete all necessary research and tool calls BEFORE calling this tool
+- This tool provides your final answer - no further actions are taken after calling it`
+
+const STRUCTURED_OUTPUT_SYSTEM_PROMPT = `IMPORTANT: The user has requested structured output. You MUST use the StructuredOutput tool to provide your final response. Do NOT respond with plain text - you MUST call the StructuredOutput tool with your answer formatted according to the schema.`
+
 export namespace SessionPrompt {
   const log = Log.create({ service: "session.prompt" })
   export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
@@ -82,6 +93,7 @@ export namespace SessionPrompt {
       .describe(
         "@deprecated tools and permissions have been merged, you can set permissions on the session itself now",
       ),
+    format: MessageV2.Format.optional(),
     system: z.string().optional(),
     variant: z.string().optional(),
     parts: z.array(
@@ -166,6 +178,32 @@ export namespace SessionPrompt {
     return (await resolvePromptPartsInner(template)) as PromptInput["parts"]
   }
 
+  export function createStructuredOutputTool(input: {
+    schema: Record<string, any>
+    onSuccess: (output: unknown) => void
+  }): AITool {
+    const { $schema, ...toolSchema } = input.schema
+    return tool({
+      id: "StructuredOutput" as any,
+      description: STRUCTURED_OUTPUT_DESCRIPTION,
+      inputSchema: jsonSchema(toolSchema as Record<string, unknown>),
+      async execute(args) {
+        input.onSuccess(args)
+        return {
+          output: "Structured output captured successfully.",
+          title: "Structured Output",
+          metadata: { valid: true },
+        }
+      },
+      toModelOutput(result) {
+        return {
+          type: "text",
+          value: result.output,
+        }
+      },
+    })
+  }
+
   function start(sessionID: string) {
     return startRuntime(sessionID)
   }
@@ -184,6 +222,8 @@ export namespace SessionPrompt {
     }
 
     using _ = defer(() => cancel(sessionID))
+
+    let structuredOutput: unknown | undefined
 
     let step = 0
     const session = await Session.get(sessionID)
@@ -264,6 +304,7 @@ export namespace SessionPrompt {
         throw e
       })
       const task = tasks.pop()
+      const format = lastUser.format ?? { type: "text" }
 
       // pending subtask (invocation routed via ToolInvoker)
       if (task?.type === "subtask") {
@@ -525,6 +566,15 @@ export namespace SessionPrompt {
         messages: msgs,
       })
 
+      if (format.type === "json_schema") {
+        tools["StructuredOutput"] = createStructuredOutputTool({
+          schema: format.schema,
+          onSuccess(output) {
+            structuredOutput = output
+          },
+        })
+      }
+
       if (step === 1) {
         SessionSummary.summarize({
           sessionID: sessionID,
@@ -587,6 +637,7 @@ export namespace SessionPrompt {
           // Only include heavy instruction prompts (AGENTS.md) for Main Agents (no parentID).
           // Subagents should rely on the task description and SYSTEM.md.
           ...(session.parentID ? [] : instructionPrompts),
+          ...(format.type === "json_schema" ? [STRUCTURED_OUTPUT_SYSTEM_PROMPT] : []),
         ],
         messages: [
           ...MessageV2.toModelMessages(sessionMessages, activeModel),
@@ -601,7 +652,29 @@ export namespace SessionPrompt {
         ],
         tools,
         model: activeModel,
+        toolChoice: format.type === "json_schema" ? "required" : undefined,
       })
+
+      if (structuredOutput !== undefined) {
+        processor.message.structured = structuredOutput
+        processor.message.finish = processor.message.finish ?? "stop"
+        await Session.updateMessage(processor.message)
+        break
+      }
+
+      if (
+        result === "stop" &&
+        format.type === "json_schema" &&
+        !processor.message.error &&
+        !["tool-calls", "unknown"].includes(processor.message.finish ?? "")
+      ) {
+        processor.message.error = new MessageV2.StructuredOutputError({
+          message: "Model did not produce structured output",
+          retries: 0,
+        }).toObject()
+        await Session.updateMessage(processor.message)
+        break
+      }
       if (result === "stop") break
       if (result === "compact") {
         await SessionCompaction.create({
@@ -631,6 +704,7 @@ export namespace SessionPrompt {
       messageID: input.messageID,
       agent: input.agent,
       model: input.model,
+      format: input.format,
       variant: input.variant,
       noReply: input.noReply,
       tools: input.tools,

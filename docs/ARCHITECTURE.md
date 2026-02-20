@@ -73,6 +73,11 @@ The following refactor-ported changes were integrated into `cms` and are relevan
    - Tool outputs are being normalized so attachments are returned without transport identity fields (`id/sessionID/messageID`), with message-part identity injected centrally in session processing.
    - Architectural effect: attachment identity responsibility shifts from per-tool implementation to session pipeline boundaries, reducing duplicated metadata logic and preventing mixed ownership bugs.
 
+8. **Structured output contract rollout (`packages/opencode/src/session/message-v2.ts`, `packages/opencode/src/session/prompt.ts`, `packages/opencode/src/session/llm.ts`, `packages/sdk/js/src/v2/gen/*`)**
+   - Session prompt now accepts an optional output format (`text` or `json_schema`) and can enforce schema-constrained completion via a dedicated `StructuredOutput` tool path.
+   - Message and SDK schemas now include structured-output message metadata (`format`, `structured`, `StructuredOutputError`) and prompt API format wiring.
+   - Architectural effect: output representation evolves from text-only completion to dual-mode (text/structured) contracts across runtime + SDK boundaries.
+
 ---
 
 ## Detailed Package Analysis

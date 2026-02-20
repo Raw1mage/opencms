@@ -115,6 +115,7 @@ export type UserMessage = {
     providerId: string
     modelID: string
   }
+  format?: OutputFormat
   system?: string
   tools?: {
     [key: string]: boolean
@@ -151,6 +152,14 @@ export type MessageAbortedError = {
   }
 }
 
+export type StructuredOutputError = {
+  name: "StructuredOutputError"
+  data: {
+    message: string
+    retries: number
+  }
+}
+
 export type ContextOverflowError = {
   name: "ContextOverflowError"
   data: {
@@ -175,6 +184,20 @@ export type ApiError = {
   }
 }
 
+export type OutputFormatText = {
+  type: "text"
+}
+
+export type OutputFormatJsonSchema = {
+  type: "json_schema"
+  schema: {
+    [key: string]: unknown
+  }
+  retryCount?: number
+}
+
+export type OutputFormat = OutputFormatText | OutputFormatJsonSchema
+
 export type AssistantMessage = {
   id: string
   sessionID: string
@@ -188,6 +211,7 @@ export type AssistantMessage = {
     | UnknownError
     | MessageOutputLengthError
     | MessageAbortedError
+    | StructuredOutputError
     | ContextOverflowError
     | ApiError
   parentID: string
@@ -211,6 +235,7 @@ export type AssistantMessage = {
       write: number
     }
   }
+  structured?: unknown
   finish?: string
 }
 

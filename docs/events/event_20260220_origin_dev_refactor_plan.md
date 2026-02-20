@@ -190,6 +190,21 @@ Status: IN_PROGRESS
 - 下一步（未實作）：
   - 將 remaining attachment 相關路徑完全收斂到 prompt/processor 單點注入，再進入 structured outputs (`e269788a8`) 主線。
 
+### Round 14 Execution Update (2026-02-20)
+
+- 已執行 structured outputs 主線移植（`e269788a8`）之核心契約層：
+  - `MessageV2`：新增 `format`（user message）、`structured`（assistant message）、`StructuredOutputError`。
+  - `SessionPrompt`：新增 `format` 輸入；`json_schema` 模式下注入 `StructuredOutput` tool + required toolChoice；若模型未產生結構化輸出則回寫 `StructuredOutputError`。
+  - `LLM`：stream input 支援 `toolChoice` 並傳入 provider streamText。
+  - SDK v2 generated types/client：新增 `OutputFormat`、error union 與 `prompt/promptAsync` 的 `format` body 參數。
+  - 新增測試：`packages/opencode/test/session/structured-output.test.ts`（format persistence + StructuredOutput tool capture）。
+- 驗證：
+  - `bun turbo typecheck --filter opencode --filter @opencode-ai/sdk` ✅
+  - `bun test packages/opencode/test/session/message-v2.test.ts` ✅
+  - `bun test packages/opencode/test/session/structured-output.test.ts` ✅
+- 備註：
+  - 尚未補齊 end-to-end integration（含 resume/retry/compaction 交互）覆蓋，保留於後續 round 擴充。
+
 ## Actions
 
 | Commit      | Logical Type   | Value Score   | Risk   | Decision   | Notes                                                                                                                                            |

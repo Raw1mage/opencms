@@ -55,6 +55,7 @@ export namespace LLM {
     messages: ModelMessage[]
     small?: boolean
     tools: Record<string, Tool>
+    toolChoice?: "auto" | "required" | "none"
     retries?: number
   }
 
@@ -411,6 +412,7 @@ export namespace LLM {
       providerOptions: requestProviderOptions,
       activeTools: Object.keys(tools).filter((x) => x !== "invalid"),
       tools,
+      toolChoice: input.toolChoice,
       maxOutputTokens,
       abortSignal: input.abort,
       headers: {
