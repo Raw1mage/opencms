@@ -60,6 +60,14 @@ Status: IN_PROGRESS
   - `bun turbo typecheck --filter @opencode-ai/desktop` ✅
   - `cargo check` ✅（安裝 rust/cargo、GTK/WebKit 依賴並補齊 sidecar 後已通過）
 
+### Round 6 Update (2026-02-20)
+
+- 已移植 `1a329ba47`（tui prompt history/stash 因 structuredClone + store proxy 造成不穩）：
+  - `prompt/history.tsx` 與 `prompt/stash.tsx` 改用 `structuredClone(unwrap(...))`。
+  - 移除 `remeda.clone` 在此處的依賴，避免 Solid store proxy 物件被直接 clone 帶來邊界問題。
+- 驗證：
+  - `bun turbo typecheck --filter opencode` ✅
+
 ## Actions
 
 | Commit      | Logical Type   | Value Score   | Risk   | Decision   | Notes                                                                                                                                            |

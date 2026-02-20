@@ -1,8 +1,7 @@
 import path from "path"
 import { Global } from "@/global"
 import { onMount } from "solid-js"
-import { createStore, produce } from "solid-js/store"
-import { clone } from "remeda"
+import { createStore, produce, unwrap } from "solid-js/store"
 import { createSimpleContext } from "../../context/helper"
 import { appendFile, writeFile } from "fs/promises"
 import type { PromptInfo } from "./history"
@@ -52,7 +51,7 @@ export const { use: usePromptStash, provider: PromptStashProvider } = createSimp
         return store.entries
       },
       push(entry: Omit<StashEntry, "timestamp">) {
-        const stash = clone({ ...entry, timestamp: Date.now() })
+        const stash = structuredClone(unwrap({ ...entry, timestamp: Date.now() }))
         let trimmed = false
         setStore(
           produce((draft) => {

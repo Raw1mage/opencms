@@ -36,3 +36,9 @@
 | --------------- | ------ | ------------ | ---- |
 | `1c2416b6d` | ported | - | Ported desktop connection policy: skip sidecar spawn when configured default server is already localhost, expose username/is_sidecar in ServerReadyData, and align health-check timeout/helper changes. |
 | `92ab4217c` | integrated | - | No action needed: current cms already uses interactive login shell args ('-il') when spawning non-Windows sidecar command. |
+
+## 已處理（origin/dev delta 2026-02-20 round6 @ 2026-02-20T14:55:10.783Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `1a329ba47` | ported | - | Ported TUI prompt history/stash stability fix by cloning de-proxied data via structuredClone(unwrap(...)) to avoid Solid store proxy cloning edge cases. |
