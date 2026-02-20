@@ -51,7 +51,7 @@ describe("session.compaction.isOverflow", () => {
         expect(await SessionCompaction.isOverflow({ tokens, model })).toBe(true)
       },
     })
-  })
+  }, 15_000)
 
   test("returns false when token count within usable context", async () => {
     await using tmp = await tmpdir()

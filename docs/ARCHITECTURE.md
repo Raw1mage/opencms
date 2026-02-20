@@ -83,6 +83,12 @@ The following refactor-ported changes were integrated into `cms` and are relevan
    - When `format=json_schema`, prompt loop now preserves schema-enforcement intent after compaction/re-entry, instead of silently falling back to plain-text-only continuation.
    - Architectural effect: structured-output contract is now continuous across normal turn, compaction turn, and post-compaction resume boundaries.
 
+10. **SDK/OpenAPI generation decoupling + model-shape compatibility (`packages/opencode/src/openapi/generate.ts`, `packages/sdk/js/script/build.ts`, `packages/opencode/src/acp/agent.ts`, `packages/opencode/src/cli/cmd/tui/context/local.tsx`)**
+
+- SDK generation no longer depends on CLI `generate` stdout piping; it now uses a dedicated OpenAPI generator entrypoint that calls `Server.openapi()` directly.
+- Consumers that read config model defaults now normalize both legacy string refs and object-shaped model refs (from newer SDK config schema) into `{ providerId, modelID }` before selection logic.
+- Architectural effect: SDK build pipeline is isolated from CLI/TUI runtime side effects, and model-selection consumers are resilient across schema evolution boundaries.
+
 ---
 
 ## Detailed Package Analysis

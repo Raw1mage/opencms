@@ -302,6 +302,32 @@ Status: IN_PROGRESS
   - `bun test packages/opencode/test/session/attachment-ownership.test.ts` ✅
   - `bun test packages/opencode/test/tool/webfetch.test.ts packages/opencode/test/session/structured-output.test.ts` ✅
 
+### Round 17.1 SDK Structured Output Smoke (2026-02-21)
+
+- 新增 SDK v2 smoke 測試：
+  - `packages/sdk/js/test/structured-output.smoke.test.ts`
+  - 覆蓋：
+    - `client.session.prompt()` 會攜帶 `format=json_schema`
+    - `client.session.promptAsync()` 會攜帶 `format=json_schema`
+- 驗證：
+  - `bun test packages/sdk/js/test/structured-output.smoke.test.ts` ✅
+
+### Round 17.2 Stability + Contract Compatibility (2026-02-21)
+
+- compaction 測試穩定化（不改語意）：
+  - `packages/opencode/test/session/compaction.test.ts`
+  - 將首個慢測試加上 `15_000ms` timeout，避免偶發 5s 預設超時。
+- 修正 SDK 契約變更引發的 consumer type mismatch：
+  - 背景：SDK `Config.model` 型別已偏向 object (`Model`)；舊路徑仍假設 string。
+  - 修正檔案：
+    - `packages/opencode/src/acp/agent.ts`
+    - `packages/opencode/src/cli/cmd/tui/context/local.tsx`
+  - 行為：同時支援 string/object model 來源，統一 normalize 成 `{providerId, modelID}` 後再進入既有流程。
+- 驗證：
+  - `bun test packages/opencode/test/session/compaction.test.ts` ✅
+  - `bun turbo typecheck --filter opencode` ✅
+  - `bun run --cwd packages/sdk/js typecheck` ✅
+
 ## Actions
 
 | Commit      | Logical Type   | Value Score   | Risk   | Decision   | Notes                                                                                                                                            |

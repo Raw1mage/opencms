@@ -1371,7 +1371,13 @@ export namespace ACP {
       .then((resp) => {
         const cfg = resp.data
         if (!cfg || !cfg.model) return undefined
-        const parsed = Provider.parseModel(cfg.model)
+        const parsed =
+          typeof cfg.model === "string"
+            ? Provider.parseModel(cfg.model)
+            : {
+                providerId: cfg.model.providerId,
+                modelID: cfg.model.id,
+              }
         return {
           providerId: parsed.providerId,
           modelID: parsed.modelID,
