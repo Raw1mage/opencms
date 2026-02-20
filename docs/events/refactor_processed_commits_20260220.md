@@ -77,3 +77,11 @@
 | `1c71604e0` | integrated | - | Terminal resize throttling/scheduling and connection-order improvements already present in cms terminal component. |
 | `d30e91738` | ported | - | Ported inline-code URL auto-linking and hover affordance for cmd/ctrl-click behavior in markdown renderer. |
 | `ebb907d64` | integrated | - | Large diff/file performance path already present (sampled checksum, code/diff virtualization controls, large-diff guard UI, and related styling). |
+
+## 已處理（origin/dev delta 2026-02-20 round10 @ 2026-02-20T15:50:44.991Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `548608b7a` | integrated | - | Terminal PTY isolation stack already present in cms (buffered terminal writer, convertEol false, socket identity map in PTY core/routes, and isolation regression tests). |
+| `8da5fd0a6` | integrated | - | Worktree delete resilience already present in cms (post-remove stale detection and filesystem cleanup fallback with dedicated regression test). |
+| `d01890388` | ported | - | Ported run-command tool-dispatch hardening: malformed tool props now fall back safely instead of crashing opencode run. |
