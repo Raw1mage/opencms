@@ -116,6 +116,22 @@ Status: IN_PROGRESS
   - 已更新 `docs/events/refactor_processed_commits_20260220.md` round9（10 筆：9 integrated + 1 ported）。
   - 本輪無新增跨模組架構邊界，`ARCHITECTURE.md` 無需更新。
 
+### Round 10 Update (2026-02-20)
+
+- 依 P1 計畫執行三個中風險重構點：
+  - `548608b7a` terminal pty isolation
+  - `8da5fd0a6` worktree delete
+  - `d01890388` malformed tool input crash
+- 結果：
+  - `548608b7a`、`8da5fd0a6`：cms 已先前涵蓋（本輪標記 integrated）。
+  - `d01890388`：完成 port（`packages/opencode/src/cli/cmd/run.ts` 工具分派加入 try/catch，異常時回退 fallback）。
+- 驗證：
+  - `bun turbo typecheck --filter opencode` ✅
+  - `bun test packages/opencode/test/pty/pty-output-isolation.test.ts packages/opencode/test/project/worktree-remove.test.ts` ✅
+- 文件化：
+  - 已更新 `docs/events/refactor_processed_commits_20260220.md` round10（2 integrated + 1 ported）。
+  - 本輪無新增架構邊界，`ARCHITECTURE.md` 無需更新。
+
 ## Actions
 
 | Commit      | Logical Type   | Value Score   | Risk   | Decision   | Notes                                                                                                                                            |
