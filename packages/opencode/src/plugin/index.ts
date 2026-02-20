@@ -64,7 +64,10 @@ export namespace Plugin {
 
     for (const entry of await getInternalPlugins(config)) {
       log.info("loading internal plugin", { name: entry.name })
-      const init = await entry.plugin(input)
+      const init = await entry.plugin(input).catch((err) => {
+        log.error("failed to load internal plugin", { name: entry.name, error: err })
+      })
+      if (!init) continue
       ;(init as { __source?: string }).__source = `internal:${entry.name}`
       hooks.push(init)
     }
@@ -104,18 +107,29 @@ export namespace Plugin {
         })
         if (!plugin) continue
       }
-      const mod = await import(plugin)
-      // Prevent duplicate initialization when plugins export the same function
-      // as both a named export and default export (e.g., `export const X` and `export default X`).
-      // Object.entries(mod) would return both entries pointing to the same function reference.
-      const seen = new Set<PluginInstance>()
-      for (const [_name, fn] of Object.entries<PluginInstance>(mod)) {
-        if (seen.has(fn)) continue
-        seen.add(fn)
-        const init = await fn(input)
-        ;(init as { __source?: string }).__source = plugin
-        hooks.push(init)
-      }
+      await import(plugin)
+        .then(async (mod) => {
+          // Prevent duplicate initialization when plugins export the same function
+          // as both a named export and default export (e.g., `export const X` and `export default X`).
+          // Object.entries(mod) would return both entries pointing to the same function reference.
+          const seen = new Set<PluginInstance>()
+          for (const [_name, fn] of Object.entries<PluginInstance>(mod)) {
+            if (seen.has(fn)) continue
+            seen.add(fn)
+            const init = await fn(input)
+            ;(init as { __source?: string }).__source = plugin
+            hooks.push(init)
+          }
+        })
+        .catch((err) => {
+          const message = err instanceof Error ? err.message : String(err)
+          log.error("failed to load plugin", { path: plugin, error: message })
+          Bus.publish(Session.Event.Error, {
+            error: new NamedError.Unknown({
+              message: `Failed to load plugin ${plugin}: ${message}`,
+            }).toObject(),
+          })
+        })
     }
 
     return {

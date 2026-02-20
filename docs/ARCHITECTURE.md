@@ -40,6 +40,22 @@ The `cms` branch is the primary product line for this environment, featuring sig
 - **`origin/dev`**: The upstream source. Changes from `origin/dev` are **analyzed and refactored** before being integrated into `cms`. Direct merges are prohibited to preserve the `cms` architecture.
 - **External Plugins**: Located in `/refs`, these are also subject to analysis and refactoring before integration.
 
+### Recent Architectural Notes (2026-02-20)
+
+The following refactor-ported changes were integrated into `cms` and are relevant to runtime behavior boundaries:
+
+1. **Plugin bootstrap fault isolation (`packages/opencode/src/plugin/index.ts`)**
+   - Internal plugin init and dynamic plugin import failures are now isolated and surfaced as session errors instead of crashing plugin bootstrap.
+   - Architectural effect: plugin subsystem failure domain is narrowed from "global startup failure" to "per-plugin degraded mode".
+
+2. **Snapshot staging exclude sync (`packages/opencode/src/snapshot/index.ts`)**
+   - Snapshot `track/patch/diff` now sync source repo `info/exclude` into snapshot gitdir before `git add .`.
+   - Architectural effect: snapshot diff/patch behavior is now aligned with project-local exclude policy, reducing false-positive staged changes.
+
+3. **GitHub Action variant propagation (`github/action.yml`, `packages/opencode/src/cli/cmd/github.ts`)**
+   - Added optional `variant` action input and propagated `VARIANT` through `opencode github run` to `SessionPrompt.prompt()`.
+   - Architectural effect: CI-triggered agent runs can now carry provider/model-specific reasoning variants through the same session prompt pipeline as interactive runs.
+
 ---
 
 ## Detailed Package Analysis
@@ -112,16 +128,16 @@ This package contains the core application logic, including the CLI, the Agent r
 
 #### F. Provider & Plugin (`src/provider`, `src/plugin`)
 
-| File Path                  | Description                                                        | Key Exports      | Input / Output                      |
-| :------------------------- | :----------------------------------------------------------------- | :--------------- | :---------------------------------- |
-| `src/provider/provider.ts`                    | **Provider Core.** Initializes providers, wraps SDK fetch, and applies response bridges. | `Provider`            | **In:** Config<br>**Out:** Registry |
-| `src/provider/toolcall-bridge/index.ts`       | **ToolCall Bridge Manager.** Resolves and applies registered tool-call rewrite bridges.   | `ToolCallBridgeManager` | **In:** Context, Raw Payload<br>**Out:** Rewritten Payload |
-| `src/provider/toolcall-bridge/bridges/*`      | **Bridge Rules.** Provider/model-specific matchers and rewrite policies (e.g. GmiCloud).  | Bridge modules        | **In:** Bridge Context<br>**Out:** Match + Rewrite |
-| `src/provider/gmicloud-toolcall-bridge.ts`    | **Compatibility Wrapper.** Preserves legacy exports, delegates to generic bridge modules.  | `rewriteGmiCloudToolCallPayload` | **In:** Raw Payload<br>**Out:** Rewritten Payload |
-| `src/provider/models.ts`                      | **Model DB.** Manages model definitions from `models.dev`.                                 | `ModelsDev`           | **In:** N/A<br>**Out:** Model Data |
-| `src/provider/health.ts`                      | **Health Check.** Monitors model availability and latency.                                 | `ProviderHealth`      | **In:** Options<br>**Out:** Report |
-| `src/plugin/index.ts`      | **Plugin System.** Loads plugins and manages lifecycle hooks.      | `Plugin`         | **In:** Config<br>**Out:** Plugins  |
-| `src/mcp/index.ts`         | **MCP Client.** Manages Model Context Protocol connections.        | `MCP`            | **In:** Config<br>**Out:** Clients  |
+| File Path                                  | Description                                                                               | Key Exports                      | Input / Output                                             |
+| :----------------------------------------- | :---------------------------------------------------------------------------------------- | :------------------------------- | :--------------------------------------------------------- |
+| `src/provider/provider.ts`                 | **Provider Core.** Initializes providers, wraps SDK fetch, and applies response bridges.  | `Provider`                       | **In:** Config<br>**Out:** Registry                        |
+| `src/provider/toolcall-bridge/index.ts`    | **ToolCall Bridge Manager.** Resolves and applies registered tool-call rewrite bridges.   | `ToolCallBridgeManager`          | **In:** Context, Raw Payload<br>**Out:** Rewritten Payload |
+| `src/provider/toolcall-bridge/bridges/*`   | **Bridge Rules.** Provider/model-specific matchers and rewrite policies (e.g. GmiCloud).  | Bridge modules                   | **In:** Bridge Context<br>**Out:** Match + Rewrite         |
+| `src/provider/gmicloud-toolcall-bridge.ts` | **Compatibility Wrapper.** Preserves legacy exports, delegates to generic bridge modules. | `rewriteGmiCloudToolCallPayload` | **In:** Raw Payload<br>**Out:** Rewritten Payload          |
+| `src/provider/models.ts`                   | **Model DB.** Manages model definitions from `models.dev`.                                | `ModelsDev`                      | **In:** N/A<br>**Out:** Model Data                         |
+| `src/provider/health.ts`                   | **Health Check.** Monitors model availability and latency.                                | `ProviderHealth`                 | **In:** Options<br>**Out:** Report                         |
+| `src/plugin/index.ts`                      | **Plugin System.** Loads plugins and manages lifecycle hooks.                             | `Plugin`                         | **In:** Config<br>**Out:** Plugins                         |
+| `src/mcp/index.ts`                         | **MCP Client.** Manages Model Context Protocol connections.                               | `MCP`                            | **In:** Config<br>**Out:** Clients                         |
 
 #### G. Account & Utilities (`src/account`, `src/project`, `src/util`)
 
@@ -218,6 +234,7 @@ Core definitions and types for the plugin architecture.
 The Antigravity plugin is a high-performance identity spoofing and reasoning enhancement layer. It transforms standard Google AI API calls into internal Cloud Code Assist requests, enabling advanced features like multi-tier thinking and global account rotation.
 
 #### Directory Structure
+
 ```text
 packages/opencode/src/plugin/antigravity/
 ├── index.ts                # Main plugin registration and request orchestration
@@ -255,22 +272,24 @@ packages/opencode/src/plugin/antigravity/
 ```
 
 #### A. Core & Registration
-| File Path    | Description                                                                                             | Key Exports               |
-| :----------- | :------------------------------------------------------------------------------------------------------ | :------------------------ |
-| `index.ts`   | **Main Plugin Entry.** Orchestrates OAuth flows, model routing, and the high-level request/retry loop. | `AntigravityOAuthPlugin`  |
-| `constants.ts` | **System Constants.** Defines API endpoints, OAuth credentials, and model-specific system instructions. | `ANTIGRAVITY_ENDPOINT`    |
+
+| File Path      | Description                                                                                             | Key Exports              |
+| :------------- | :------------------------------------------------------------------------------------------------------ | :----------------------- |
+| `index.ts`     | **Main Plugin Entry.** Orchestrates OAuth flows, model routing, and the high-level request/retry loop.  | `AntigravityOAuthPlugin` |
+| `constants.ts` | **System Constants.** Defines API endpoints, OAuth credentials, and model-specific system instructions. | `ANTIGRAVITY_ENDPOINT`   |
 
 #### B. Component Architecture (`plugin/`)
-| Folder / File         | Description                                                                                                                               | Key Functions / Classes        |
-| :-------------------- | :---------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------- |
-| `accounts.ts`         | **Account Management.** Implements a sticky-rotation account pool synced with the global `Account` module.                                | `AccountManager`               |
-| `request.ts`          | **Request Orchestration.** High-level builder for transforming payloads, injecting signatures, and handling streaming.                    | `prepareAntigravityRequest`    |
-| `request-helpers.ts`  | **Payload Utilities.** Low-level tools for body parsing, thinking block extraction, and tool-call alignment.                               | `transformAntigravityResponse` |
-| `quota.ts`            | **Quota Integration.** Communicates with the Antigravity "cockpit" to fetch real-time usage and model availability.                      | `checkAccountsQuota`           |
-| `transform/`          | **Model Transforms.** Specialized logic for mapping Claude and Gemini models to their internal API equivalents.                            | `applyClaudeTransforms`        |
-| `cache/`              | **Signature Caching.** Disk-persistent storage for "Thought Signatures", ensuring conversation continuity across turns and restarts.      | `SignatureCache`               |
-| `fingerprint.ts`      | **Anti-Bot Mitigation.** Generates randomized device identities (User-Agents, IDs) to distribute traffic and avoid rate limits.           | `generateFingerprint`          |
-| `thinking-recovery.ts` | **Error Recovery.** Heuristics for detecting and recovering from interrupted reasoning turns or tool-call errors.                         | `needsThinkingRecovery`        |
+
+| Folder / File          | Description                                                                                                                          | Key Functions / Classes        |
+| :--------------------- | :----------------------------------------------------------------------------------------------------------------------------------- | :----------------------------- |
+| `accounts.ts`          | **Account Management.** Implements a sticky-rotation account pool synced with the global `Account` module.                           | `AccountManager`               |
+| `request.ts`           | **Request Orchestration.** High-level builder for transforming payloads, injecting signatures, and handling streaming.               | `prepareAntigravityRequest`    |
+| `request-helpers.ts`   | **Payload Utilities.** Low-level tools for body parsing, thinking block extraction, and tool-call alignment.                         | `transformAntigravityResponse` |
+| `quota.ts`             | **Quota Integration.** Communicates with the Antigravity "cockpit" to fetch real-time usage and model availability.                  | `checkAccountsQuota`           |
+| `transform/`           | **Model Transforms.** Specialized logic for mapping Claude and Gemini models to their internal API equivalents.                      | `applyClaudeTransforms`        |
+| `cache/`               | **Signature Caching.** Disk-persistent storage for "Thought Signatures", ensuring conversation continuity across turns and restarts. | `SignatureCache`               |
+| `fingerprint.ts`       | **Anti-Bot Mitigation.** Generates randomized device identities (User-Agents, IDs) to distribute traffic and avoid rate limits.      | `generateFingerprint`          |
+| `thinking-recovery.ts` | **Error Recovery.** Heuristics for detecting and recovering from interrupted reasoning turns or tool-call errors.                    | `needsThinkingRecovery`        |
 
 ---
 
@@ -489,3 +508,4 @@ Any future provider-toggle refactor must preserve:
 - `packages/opencode/src/provider/toolcall-bridge/protocol/text-protocol.ts`
 - `packages/opencode/src/provider/gmicloud-toolcall-bridge.ts`
 - `packages/opencode/test/provider/toolcall-bridge/manager.test.ts`
+```
