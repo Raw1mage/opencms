@@ -436,7 +436,7 @@ export const Terminal = (props: TerminalProps) => {
       socket.binaryType = "arraybuffer"
       ws = socket
       cleanups.push(() => {
-        if (socket.readyState !== WebSocket.CLOSED && socket.readyState !== WebSocket.CLOSING) socket.close()
+        if (socket.readyState !== WebSocket.CLOSED && socket.readyState !== WebSocket.CLOSING) socket.close(1000)
       })
       if (disposed) {
         cleanup()

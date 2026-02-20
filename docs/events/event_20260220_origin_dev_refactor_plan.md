@@ -20,6 +20,17 @@ Status: IN_PROGRESS
 - 暫緩：
   - `7e681b0bc`（prompt large paste）與 `4e9ef3ecc`（terminal issues）涉及 `packages/app` 區塊，需額外做 cms UI/互動相容性驗證後再決策。
 
+### Round 2 Update (2026-02-20)
+
+- 已完成 app 層相容性移植：
+  - `7e681b0bc`：prompt-input 大量貼上卡頓修復（large paste fast-path + fragment 換行上限保護）。
+  - `4e9ef3ecc`：terminal lifecycle 修復（ws 正常關閉碼、僅渲染 active terminal、focus 延後至 next tick）。
+- 保留差異（未直接照抄 upstream）：
+  - `packages/opencode/src/pty/index.ts` 的 token 比對邏輯未移植，因 cms 既有 socket-id subscriber 隔離機制已覆蓋同類問題，避免重疊重構風險。
+- 驗證：
+  - `bun turbo typecheck --filter @opencode-ai/app` ✅
+  - 直接跑 DOM 單測在當前 CLI 環境缺少 `document`（非本次變更回歸）；未阻斷本輪移植。
+
 ## Actions
 
 | Commit      | Logical Type   | Value Score   | Risk   | Decision   | Notes                                                                                                                                            |

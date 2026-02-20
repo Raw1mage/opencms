@@ -712,7 +712,7 @@ export default function Page() {
         if (document.activeElement instanceof HTMLElement) {
           document.activeElement.blur()
         }
-        focusTerminalById(activeId)
+        setTimeout(() => focusTerminalById(activeId), 0)
       },
     ),
   )
