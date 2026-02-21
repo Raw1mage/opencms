@@ -29,6 +29,8 @@ target
 opencode-dev
 logs/
 *.bun-build
+__pycache__/
+*.py[cod]
 
 # config/opencode/ contains both shared config and sensitive credentials
 # Ignore only the auth/account files
