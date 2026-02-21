@@ -10,6 +10,12 @@ This profile is a normalized engineering digest for portable skill execution.
 ## Core concepts
 
 - **Activity**: functional unit (`A0`, `A1`, `A11`...)
+- **Hierarchy convention**:
+  - Root: `A0`
+  - Level-1: `A1..A9`
+  - Children of `A1`: `A11..A19`
+  - Children of `A11`: `A111..A119`
+  - And so on
 - **ICOM arrows**:
   - Input -> left
   - Control -> top
@@ -24,6 +30,7 @@ This profile is a normalized engineering digest for portable skill execution.
 4. Arrow direction and semantic type must be consistent.
 5. Parent-child decomposition keeps intent traceability.
 6. External interfaces must be explicit (`EXTERNAL` endpoints).
+7. Each decomposition level must keep child count under 10 (`<=9`) for readability.
 
 ## Recommended requirements (SHOULD)
 
@@ -38,3 +45,4 @@ This profile is a normalized engineering digest for portable skill execution.
 - Mixing control and input semantics.
 - Decomposition levels without parent traceability.
 - Arrows without labels or unclear intent.
+- A parent activity containing 10+ direct children.

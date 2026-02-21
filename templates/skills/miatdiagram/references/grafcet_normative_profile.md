@@ -12,6 +12,7 @@ This profile is a practical normalization of IEC 60848-style modeling for portab
 - **StepNumber**: unique step ID
 - **StepType**: `initial` | `normal` | `sub_grafcet`
 - **StepAction**: action executed when step active
+- **ModuleRef**: source IDEF0 module ID (`A*`) this step belongs to
 - **LinkOutputNumber**: next step IDs
 - **LinkOutputType**: `track` | `divergence_or` | `divergence_and` | `convergence_and`
 - **Condition**: transition guard condition list
@@ -24,6 +25,7 @@ This profile is a practical normalization of IEC 60848-style modeling for portab
 4. AND/OR divergence semantics are explicit in `LinkOutputType`.
 5. Synchronization logic is explicit when converging parallel branches.
 6. Complex nested control should use `SubGrafcet`.
+7. Every step has `ModuleRef`, and `ModuleRef` must exist in IDEF0 hierarchy.
 
 ## Recommended requirements (SHOULD)
 
@@ -38,3 +40,4 @@ This profile is a practical normalization of IEC 60848-style modeling for portab
 - Using OR where synchronization requires AND.
 - Broken loops with no path back to stable states.
 - Reusing step IDs across nested graphs.
+- Missing `ModuleRef` or mapping to unknown IDEF0 module.
