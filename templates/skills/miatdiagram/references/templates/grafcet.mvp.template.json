@@ -1,0 +1,34 @@
+[
+  {
+    "StepNumber": 0,
+    "StepType": "initial",
+    "StepAction": "Initialize",
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["start"]
+  },
+  {
+    "StepNumber": 1,
+    "StepType": "normal",
+    "StepAction": "Execute MVP Core Flow",
+    "LinkOutputNumber": [2, 3],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["ok", "error"]
+  },
+  {
+    "StepNumber": 2,
+    "StepType": "normal",
+    "StepAction": "Complete",
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["reset"]
+  },
+  {
+    "StepNumber": 3,
+    "StepType": "normal",
+    "StepAction": "Recover",
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["retry"]
+  }
+]

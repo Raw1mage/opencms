@@ -11,9 +11,37 @@ description: 專用於維護與更新 CMS 的 Anthropic Provider，使其與 Cla
 
 ### 1. OAuth 與權限 (Scopes)
 
-官方 CLI (`v2.1.37`) 擴展了 Scope 範圍，這對於通過 Session API 驗證至關重要。
+官方 CLI (`v2.1.37+`) 使用**兩組不同的 Scope**，這是 Token Refresh 成功的關鍵。
 
-- **必要 Scope**: `org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers`
+#### 1.1 Scope 分組 (重要！)
+
+| 用途              | 變數名 | Scope 列表                                                                                  |
+| ----------------- | ------ | ------------------------------------------------------------------------------------------- |
+| **Authorization** | `XAL`  | `org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers` |
+| **Refresh Token** | `Fb$`  | `user:profile user:inference user:sessions:claude_code user:mcp_servers`                    |
+
+**關鍵差異**: Refresh Token 時**不包含** `org:create_api_key`！
+
+#### 1.2 錯誤案例
+
+若在 refresh_token grant 中包含 `org:create_api_key`，會收到 `invalid_scope` 錯誤。
+
+#### 1.3 逆向工程參考
+
+```javascript
+// 官方 CLI 中的定義 (minified)
+Fb$ = ["user:profile", VR, "user:sessions:claude_code", "user:mcp_servers"]  // VR = "user:inference"
+XAL = Array.from(new Set([...WgB, ...Fb$]))  // WgB 包含 org:create_api_key
+
+// Refresh 請求
+{
+  grant_type: "refresh_token",
+  refresh_token: H,
+  client_id: XD().CLIENT_ID,
+  scope: Fb$.join(" ")  // 只用 Fb$，不用 XAL
+}
+```
+
 - **注意**: 缺少 `user:sessions:claude_code` 會導致 Session API 404 或 Message API 400 錯誤。
 
 ### 2. 請求標頭 (Headers) 模擬
@@ -37,11 +65,35 @@ Claude Code 的對話模式（特別是 Tool Use）依賴 Session API。
 
 ### 4. 逆向工程指南
 
-若需更新協議，請參考以下步驟分析 `node_modules/@anthropic-ai/claude-code/cli.js` (需先安裝):
+若需更新協議，可直接分析已安裝的 Claude CLI 二進位檔：
+
+```bash
+# 方法 1: 從二進位提取字串 (推薦)
+which claude  # 通常在 ~/.local/bin/claude
+
+# 搜尋 refresh token 相關邏輯
+node -e "const fs=require('fs'); const c=fs.readFileSync('$(which claude)','utf8'); console.log(c.match(/grant_type.*refresh_token[^}]{0,300}/g))"
+
+# 搜尋 scope 定義
+node -e "const fs=require('fs'); const c=fs.readFileSync('$(which claude)','utf8'); console.log(c.match(/Fb\\\$=\[.*?\]/g))"
+
+# 搜尋 VR 變數 (user:inference)
+node -e "const fs=require('fs'); const c=fs.readFileSync('$(which claude)','utf8'); console.log(c.match(/VR=\"[^\"]+\"/g))"
+```
+
+**關鍵變數名稱** (可能隨版本變動):
+
+- `Fb$`: Refresh Token 用的 scope 陣列
+- `XAL`: Authorization 用的完整 scope 陣列
+- `VR`: 通常是 `"user:inference"`
+- `XD()`: 返回 OAuth 設定物件 (CLIENT_ID, TOKEN_URL 等)
+
+或分析 `node_modules/@anthropic-ai/claude-code/cli.js` (需先安裝):
 
 1. 搜尋 `v1/sessions` 找出 Session Endpoint 與 Body 結構。
 2. 搜尋 `function S0` 找出 Header 構造邏輯。
-3. 搜尋 `pS6` 或 `user:sessions` 找出完整的 Scope 列表。
+3. 搜尋 `Fb$` 或 `user:sessions` 找出 Refresh Token 的 Scope 列表。
+4. 搜尋 `XAL` 找出 Authorization 的完整 Scope 列表。
 
 ## 維護工作流
 

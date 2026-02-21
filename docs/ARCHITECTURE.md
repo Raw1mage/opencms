@@ -542,3 +542,306 @@ Any future provider-toggle refactor must preserve:
 - `packages/opencode/src/provider/gmicloud-toolcall-bridge.ts`
 - `packages/opencode/test/provider/toolcall-bridge/manager.test.ts`
 ```
+
+---
+
+## 14. External Dependency Inventory (2026-02-21)
+
+This section inventories current external dependency surfaces for the `cms` branch and clarifies where dependency resolution happens at runtime vs build time.
+
+### A. Dependency Layers (Where dependencies are actually resolved)
+
+1. **Monorepo build/install layer**
+   - Source: root `package.json` + workspace package manifests.
+   - Manager: Bun workspace (`workspaces`, `catalog`, `overrides`, `patchedDependencies`).
+   - Resolution timing: `bun install` in repo.
+
+2. **Runtime user-space layer (dynamic, outside repo)**
+   - Source: user directories (`~/.config/opencode`, `~/.local/share/opencode`) and optional custom config dir.
+   - Manager: `Config.installDependencies()` in `packages/opencode/src/config/config.ts`.
+   - Resolution timing: during runtime bootstrap (tool/plugin loading flow), not only during repo development.
+
+3. **Template bootstrap layer**
+   - Source: `templates/package.json` and `.opencode/package.json` templates.
+   - Purpose: define default runtime dependencies for initialized user environments.
+
+### B. Monorepo External Dependency Profile (high-level)
+
+1. **AI/provider SDK cluster (core runtime heavy coupling)**
+   - Root depends on many provider adapters under `@ai-sdk/*` (Anthropic/OpenAI/Google/Bedrock/Groq/etc.) and MCP/ACP stacks.
+   - Architectural implication: provider availability and transport compatibility are external-SDK sensitive.
+
+2. **UI/desktop cluster**
+   - `packages/app` depends on Solid ecosystem + rendering/markdown/highlight stack.
+   - `packages/desktop` depends on Tauri plugin suite (`@tauri-apps/*`).
+   - Architectural implication: desktop release stability is tied to Tauri plugin matrix compatibility.
+
+3. **Console/backend cluster**
+   - `packages/console/core` and `packages/console/function` depend on Drizzle/Postgres/Stripe/AWS/OpenAuth stacks.
+   - Architectural implication: cloud/service API version drift can affect serverless and billing/auth flows.
+
+4. **Dependency governance mechanisms already present**
+   - `catalog:` centralizes many versions.
+   - `overrides` pins critical transitive behavior.
+   - `patchedDependencies` currently includes `ghostty-web@0.3.0` patch path.
+
+### C. Runtime Dynamic Dependencies (hidden coupling hotspots)
+
+1. **Auto-install path exists in runtime config pipeline**
+   - `Config.state()` iterates runtime config directories and calls `installDependencies(dir)`.
+   - `installDependencies()` rewrites/ensures `package.json` dependency:
+     - `"@opencode-ai/plugin": targetVersion`
+   - `targetVersion = Installation.isLocal() ? "*" : Installation.VERSION`.
+
+2. **Version-coupling risk**
+   - When `Installation.VERSION` is a custom/non-published build tag (e.g., `0.0.0-cms-*`), runtime install can fail because npm registry has no matching `@opencode-ai/plugin` release.
+   - This is a runtime bootstrap coupling, not a monorepo compile-time failure.
+
+3. **Current runtime manifests (observed)**
+   - `~/.config/opencode/package.json`
+   - `~/.local/share/opencode/package.json`
+   - Both are active dependency manifests used by runtime bootstrap.
+
+### D. Template & User-Space Dependency Surfaces
+
+1. `templates/package.json`
+   - Includes:
+     - `@opencode-ai/plugin`
+     - `opencode-openai-codex-auth-multi`
+2. `.opencode/package.json` (repo template/runtime scaffold)
+   - Includes floating `@opencode-ai/plugin: "*"`.
+
+Architectural implication: user runtime behavior depends not only on repo lockfile, but also on template-emitted manifests and post-install mutation logic.
+
+### E. Coupling Risk Classification (inventory only)
+
+1. **High risk**
+   - Runtime pinning of internal package to non-published version identifiers.
+   - Floating `*` specifiers in runtime manifests.
+
+2. **Medium risk**
+   - Pre-release/timestamped package references (for example OpenAuth prerelease line).
+   - URL-based package source in catalog (e.g. preview channel dependencies).
+
+3. **Operational risk**
+   - Runtime dependency state split across repo + user directories can produce environment-specific failures that are not reproducible from repo lockfile alone.
+
+### F. Current Conclusion
+
+The project has **three dependency planes** (monorepo, template, runtime user-space), and the most failure-prone area is the runtime plane where dependency versions are mutated during bootstrap. This is the primary external-coupling boundary to target in the next decoupling plan.
+
+---
+
+## 15. External Dependency Decoupling Plan (Draft v1)
+
+This plan aims to reduce runtime dependency fragility while preserving compatibility for current users.
+
+### A. Objectives
+
+1. Eliminate runtime breakage caused by non-published internal package version pins.
+2. Reduce hidden dependency drift between repo lockfile and user-space manifests.
+3. Keep bootstrap behavior deterministic and diagnosable.
+
+### B. Scope Boundaries
+
+1. **In scope**
+   - Runtime dependency installation policy in `Config.installDependencies()`.
+   - Template/runtime manifest default version policy.
+   - Health checks and telemetry for dependency resolution outcomes.
+
+2. **Out of scope (for v1)**
+   - Full removal of runtime plugin extensibility.
+   - Re-architecting provider SDK selection model.
+
+### C. Phased Rollout
+
+#### Phase 0 — Safety Guard (Immediate, low risk)
+
+1. Before writing runtime `@opencode-ai/plugin` version:
+   - Validate target version format and publish availability.
+2. If target is non-resolvable:
+   - Fallback to a known-safe version policy (priority: template-pinned version -> latest stable allowed by policy).
+3. Emit structured warning/event with cause and chosen fallback.
+
+**Exit criteria**: no startup hard-fail caused by non-published plugin specifier.
+
+#### Phase 1 — Version Source Decoupling (Short-term)
+
+1. Stop direct coupling `pluginVersion := Installation.VERSION` for non-local channels.
+2. Introduce explicit plugin resolution strategy:
+   - `runtimePluginVersionPolicy` in config (e.g., `pinned`, `range`, `latest-safe`).
+3. Resolve plugin version via policy module, not inline conditional.
+
+**Exit criteria**: custom app version tags (`0.0.0-cms-*`) no longer imply same plugin version tag.
+
+#### Phase 2 — Runtime Manifest Governance (Mid-term)
+
+1. Replace floating `*` in runtime/template manifests with policy-driven ranges.
+2. Add manifest provenance metadata (who/when/why updated dependency pins).
+3. Add `opencode doctor deps` (or equivalent) to display effective dependency state across:
+   - repo
+   - global config dir
+   - global data dir
+
+**Exit criteria**: operators can inspect and reproduce dependency state deterministically.
+
+#### Phase 3 — Optional Bundling / Offline Mode (Long-term)
+
+1. Evaluate bundling core plugin runtime with application release artifact.
+2. Keep external plugin install path only for explicitly opt-in custom plugins.
+3. Add offline bootstrap path that does not require npm resolution for core runtime.
+
+**Exit criteria**: baseline startup no longer depends on network package resolution for core plugin path.
+
+### D. Policy Proposal (Version Resolution)
+
+Resolution order for `@opencode-ai/plugin` during runtime install:
+
+1. Explicit admin-managed override (managed config).
+2. Explicit user config override.
+3. Template baseline pinned version.
+4. Registry-validated stable fallback.
+
+Hard rules:
+
+1. Never write unresolved/non-published exact version to runtime manifest.
+2. Never persist `*` for core runtime dependency in production channels.
+3. Record fallback decision in logs/events for auditability.
+
+### E. Risk & Rollback Strategy
+
+1. **Risk**: stricter policy may block previously tolerated custom pins.
+   - Mitigation: provide explicit escape hatch config with warning banner.
+2. **Risk**: compatibility drift between template version and runtime fallback.
+   - Mitigation: CI check to compare template baseline against allowed policy set.
+3. **Rollback**:
+   - Feature-flag dependency policy module.
+   - Revert to legacy install behavior behind emergency env flag.
+
+### F. Validation Matrix
+
+1. Local channel (`Installation.isLocal() = true`) bootstrap.
+2. CMS custom version channel (`0.0.0-cms-*`) bootstrap.
+3. Managed config override + read-only directory behavior.
+4. No-network / registry timeout scenario.
+5. Existing user manifests with historical invalid pins.
+
+### G. Deliverables for Implementation Sprint
+
+1. `DependencyVersionResolver` module + unit tests.
+2. Runtime install guard in `Config.installDependencies()`.
+3. Template manifest policy update.
+4. Dependency health report command or admin diagnostics panel entry.
+
+---
+
+## 16. Implementation Tickets (Decoupling Plan v1)
+
+This section translates the decoupling draft into executable engineering tickets.
+
+### TKT-001 — Runtime plugin version resolver module
+
+- **Goal**: Isolate plugin version decision logic from inline install flow.
+- **Primary files**:
+  - `packages/opencode/src/config/config.ts`
+  - `packages/opencode/src/installation/index.ts`
+  - `packages/opencode/src/config/` (new resolver module)
+- **Work items**:
+  1. Add `DependencyVersionResolver.resolvePluginVersion(context)`.
+  2. Inputs include channel/version/local flag + optional overrides.
+  3. Output includes `{version, source, fallbackReason?}`.
+- **Acceptance criteria**:
+  1. No direct `Installation.VERSION` assignment to runtime plugin dependency outside resolver.
+  2. Resolver returns deterministic output for same input.
+  3. Unit tests cover local, stable, and cms-custom version channels.
+- **Suggested tests**:
+  - `bun test packages/opencode/test/config/dependency-version-resolver.test.ts`
+
+### TKT-002 — Runtime install guard + fallback behavior
+
+- **Goal**: Prevent unresolved package versions from being persisted to runtime manifests.
+- **Primary files**:
+  - `packages/opencode/src/config/config.ts` (`installDependencies`)
+  - `packages/opencode/src/bun.ts` (if helper needed)
+- **Work items**:
+  1. Validate candidate plugin version before writing `package.json`.
+  2. If invalid/unpublished, fallback according to policy order.
+  3. Emit warning with structured fields (`requested`, `resolved`, `reason`, `source`).
+- **Acceptance criteria**:
+  1. Invalid specifier (e.g., `0.0.0-cms-*`) does not cause hard failure.
+  2. Runtime manifest stores fallback resolvable version.
+  3. Install path remains non-blocking when directory is read-only.
+- **Suggested tests**:
+  - Add/extend config install tests under `packages/opencode/test/config/*`.
+
+### TKT-003 — Runtime/template manifest version policy hardening
+
+- **Goal**: Remove floating core dependency specifier and align template/runtime policy.
+- **Primary files**:
+  - `templates/package.json`
+  - `.opencode/package.json`
+  - `packages/opencode/.opencode/package.json`
+  - docs: `docs/ARCHITECTURE.md` (policy reference)
+- **Work items**:
+  1. Replace `"@opencode-ai/plugin": "*"` with policy-compliant baseline/range.
+  2. Define update rule for template baseline version bump.
+  3. Document compatibility expectations.
+- **Acceptance criteria**:
+  1. Core runtime manifest no longer relies on `*` for plugin dependency in production policy.
+  2. Template and runtime scaffold are policy-consistent.
+  3. CI/policy check fails on forbidden specifier patterns.
+
+### TKT-004 — Dependency diagnostics surface
+
+- **Goal**: Make effective dependency state observable.
+- **Primary files**:
+  - `packages/opencode/src/cli/cmd/` (new or extended command)
+  - `packages/opencode/src/server/routes/` (optional API endpoint)
+  - `packages/opencode/src/config/config.ts` (state provider)
+- **Work items**:
+  1. Add diagnostics output for dependency planes:
+     - repo
+     - global config dir
+     - global data dir
+  2. Include source of truth and last resolution reason.
+  3. Return actionable remediation hints.
+- **Acceptance criteria**:
+  1. Operator can identify mismatch between repo and runtime manifests from one command/view.
+  2. Diagnostics clearly flags invalid/non-published pins.
+  3. Output is stable enough for automation parsing.
+
+### TKT-005 — Regression harness for runtime dependency bootstrap
+
+- **Goal**: Protect against recurrence of startup failures from dependency pins.
+- **Primary files**:
+  - `packages/opencode/test/` (new integration tests)
+  - test fixtures under `packages/opencode/test/fixtures/` (if needed)
+- **Work items**:
+  1. Add fixture cases for:
+     - valid stable pin
+     - invalid custom pin
+     - read-only config directory
+     - network/registry failure simulation
+  2. Verify fallback and warning behavior.
+- **Acceptance criteria**:
+  1. Test suite fails if unresolved pin is persisted.
+  2. Test suite validates fallback version is written.
+  3. No regression on local/dev startup path.
+
+### Execution Order (Recommended)
+
+1. TKT-001
+2. TKT-002
+3. TKT-005
+4. TKT-003
+5. TKT-004
+
+### Ownership & Timeline Template
+
+For each ticket, track:
+
+- **Owner**
+- **PR**
+- **Target date**
+- **Risk level (H/M/L)**
+- **Rollback plan**
