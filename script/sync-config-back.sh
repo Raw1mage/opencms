@@ -6,7 +6,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TEMPLATE_DIR="$PROJECT_ROOT/templates"
 USER_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 
-echo "[Dev Sync Back] Synchronizing User Config -> Project Templates..."
+echo "[Dev Sync Back] Synchronizing runtime -> templates (newer wins)..."
 echo "Source: $USER_CONFIG_DIR"
 echo "Target: $TEMPLATE_DIR"
 
@@ -16,7 +16,7 @@ if ! command -v rsync &> /dev/null; then
     exit 1
 fi
 
-# 1. 反向同步 System Prompt (AGENTS.md)
+# 1. 反向同步 System Prompts / Agent Prompts (newer wins)
 if [ -f "$USER_CONFIG_DIR/AGENTS.md" ]; then
     # -u: update (skip if dest is newer)
     # -t: preserve times
@@ -24,25 +24,20 @@ if [ -f "$USER_CONFIG_DIR/AGENTS.md" ]; then
     echo "  -> Synced: templates/AGENTS.md"
 fi
 
-# 2. 反向同步 Core Skills
-# 只同步核心開發相關的 skill，避免污染 Repo
-CORE_SKILLS=("agent-workflow" "model-selector")
+if [ -d "$USER_CONFIG_DIR/prompts" ]; then
+    mkdir -p "$TEMPLATE_DIR/prompts"
+    rsync -au "$USER_CONFIG_DIR/prompts/" "$TEMPLATE_DIR/prompts/"
+    echo "  -> Synced: templates/prompts/"
+fi
 
-for SKILL in "${CORE_SKILLS[@]}"; do
-    SRC="$USER_CONFIG_DIR/skills/$SKILL"
-    DEST="$TEMPLATE_DIR/skills/$SKILL"
-    
-    if [ -d "$SRC" ]; then
-        mkdir -p "$DEST"
-        # -a: archive
-        # -v: verbose
-        # -u: update only (Latest Wins)
-        # --delete: mirror source (remove extraneous files in dest)
-        rsync -avu --delete "$SRC/" "$DEST/"
-        echo "  -> Synced: templates/skills/$SKILL"
-    else
-        echo "  -> Warning: User skill '$SKILL' not found in config."
-    fi
-done
+# 2. 反向同步 Skills (ALL, newer wins)
+if [ -d "$USER_CONFIG_DIR/skills" ]; then
+    mkdir -p "$TEMPLATE_DIR/skills"
+    # -a: archive
+    # -u: update only (newer wins)
+    # no --delete: keep repo/runtime union; avoid accidental removal
+    rsync -au "$USER_CONFIG_DIR/skills/" "$TEMPLATE_DIR/skills/"
+    echo "  -> Synced: templates/skills/"
+fi
 
 echo "[Dev Sync Back] Complete."

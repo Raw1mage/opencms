@@ -6,10 +6,11 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TEMPLATE_DIR="$PROJECT_ROOT/templates"
 USER_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 
-echo "[Dev Sync] Checking for configuration updates..."
+echo "[Dev Sync] Syncing templates -> runtime (newer wins)..."
 
 # 確保目標目錄存在
 mkdir -p "$USER_CONFIG_DIR/skills"
+mkdir -p "$USER_CONFIG_DIR/prompts"
 
 # Check for rsync
 if ! command -v rsync &> /dev/null; then
@@ -18,33 +19,31 @@ if ! command -v rsync &> /dev/null; then
 fi
 
 # ---------------------------------------------------------
-# 1. System Prompt (AGENTS.md) - Update only if newer
+# 1. System Prompts / Agent Prompts (update only if newer)
 # ---------------------------------------------------------
 if [ -f "$TEMPLATE_DIR/AGENTS.md" ]; then
-    # -u: update only (don't overwrite newer user file)
+    # -u: newer wins (don't overwrite newer runtime file)
     rsync -ut "$TEMPLATE_DIR/AGENTS.md" "$USER_CONFIG_DIR/AGENTS.md"
     echo "  -> Synced: AGENTS.md"
 fi
 
-# ---------------------------------------------------------
-# 2. Core Skills - Update only if newer
-# ---------------------------------------------------------
-# 只同步核心開發相關的 skill，避免覆蓋使用者自定義的其他 skill
-CORE_SKILLS=("agent-workflow" "model-selector")
+if [ -d "$TEMPLATE_DIR/prompts" ]; then
+    mkdir -p "$USER_CONFIG_DIR/prompts"
+    rsync -au "$TEMPLATE_DIR/prompts/" "$USER_CONFIG_DIR/prompts/"
+    echo "  -> Synced: prompts/"
+fi
 
-for SKILL in "${CORE_SKILLS[@]}"; do
-    SRC_DIR="$TEMPLATE_DIR/skills/$SKILL"
-    DEST_DIR="$USER_CONFIG_DIR/skills/$SKILL"
-    
-    if [ -d "$SRC_DIR" ]; then
-        mkdir -p "$DEST_DIR"
-        # -a: archive
-        # -u: update only (Latest Wins)
-        # --delete: mirror (ensure clean state)
-        rsync -au --delete "$SRC_DIR/" "$DEST_DIR/"
-        echo "  -> Synced: Skill '$SKILL'"
-    fi
-done
+# ---------------------------------------------------------
+# 2. Skills (ALL skills, update only if newer)
+# ---------------------------------------------------------
+if [ -d "$TEMPLATE_DIR/skills" ]; then
+    mkdir -p "$USER_CONFIG_DIR/skills"
+    # -a: archive
+    # -u: update only (newer wins)
+    # no --delete: preserve locally-added skills for reverse sync
+    rsync -au "$TEMPLATE_DIR/skills/" "$USER_CONFIG_DIR/skills/"
+    echo "  -> Synced: skills/"
+fi
 
 # ---------------------------------------------------------
 # 3. User Data - Install only if missing (NEVER OVERWRITE)

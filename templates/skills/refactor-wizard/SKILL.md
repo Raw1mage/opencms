@@ -52,15 +52,32 @@ Follow the `agent-workflow` state machine:
 - **Action**: Present the plan file to the user. Ask for explicit approval to proceed.
 - **Constraint**: Do not execute any code changes until approved.
 
-### 4. EXECUTION
+### 4. EXECUTION (STRICT ONE-BY-ONE MODE)
 
-- **Goal**: Apply changes safely.
-- **Action**:
-  - Execute the plan step-by-step.
-  - **Interactive Confirmation Required**: Before handling **each commit**, prompt user with `mcp_question` (or equivalent question tool) to confirm action (`Manual Port` / `Cherry-pick` / `Skip`).
-  - For **High Risk/Critical Paths** (Providers, Admin Panel), perform manual porting. Read the incoming code and adapt it to the `cms` architecture. **Do not blind merge.**
-  - For **Low Risk**, use `git cherry-pick`.
-- **Verification**: Run tests after significant changes.
+**CRITICAL INSTRUCTION**:
+
+- **NEVER DIRECTLY MERGE** without analysis.
+- **MANDATORY LOGIC ANALYSIS**: You must understand _what_ the code does, not just _that_ it changed.
+- **EXPLAIN TO USER**: You must explain the change, impact, and risk to the user in Traditional Chinese.
+- **EVALUATE FEASIBILITY & RISK**: assess if the change fits CMS architecture.
+- **GET USER AUTHORIZATION**: You must get explicit approval for EACH commit or small batch.
+- **REWRITE/REFACTOR APPROACH**: Instead of blind cherry-pick, prefer reading the source diff and _rewriting_ the logic into CMS to ensure architecture integrity.
+
+**Step-by-Step Loop for EACH Commit:**
+
+1.  **Identify**: Pick the next commit from the plan.
+2.  **Analyze**: Read the diff. Understand the logic.
+3.  **Question**: Use `mcp_question` to present:
+    - Commit Subject
+    - Logical Change Analysis
+    - Risk Assessment (CMS Compatibility)
+    - Proposed Action (Port / Integrate / Skip)
+4.  **Wait**: Wait for user selection/instruction.
+5.  **Execute**:
+    - If `Port/Integrate`: Apply changes (prefer `git cherry-pick -n` then inspect, or manual code edit).
+    - If `Skip`: Record in ledger as skipped.
+6.  **Verify**: Run relevant tests.
+7.  **Loop**: Proceed to next commit.
 
 ## Critical Paths & Protected Areas
 
