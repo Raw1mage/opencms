@@ -52,6 +52,7 @@ describe("account cache", () => {
     }
 
     await Bun.write(file, JSON.stringify(two))
+    await Account.refresh()
     const second = await Account.list("antigravity")
     expect(Object.keys(second)).toHaveLength(2)
   })

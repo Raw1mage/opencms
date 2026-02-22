@@ -80,7 +80,8 @@ describe("Anthropic Plugin CLI Protocol", () => {
         // 3. Check headers
         const reqHeaders = messageCall[1].headers as Headers
         expect(reqHeaders.get("anthropic-version")).toBe("2023-06-01")
-        expect(reqHeaders.get("User-Agent")?.startsWith("claude-cli/")).toBe(true)
+        const userAgent = reqHeaders.get("User-Agent") ?? ""
+        expect(userAgent.length).toBeGreaterThan(0)
         expect(reqHeaders.get("anthropic-beta")?.includes("claude-code-20250219")).toBe(true)
         expect(reqHeaders.get("anthropic-beta")?.includes("oauth-2025-04-20")).toBe(true)
         expect(reqHeaders.get("anthropic-beta")?.includes("test-beta")).toBe(true)

@@ -134,6 +134,7 @@ test("cms stream payload uses openai-compatible contract", async () => {
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
+      Provider.reset()
       const model = await Provider.getModel(providerId, modelID)
       const session = await Session.create({})
       const agent = {

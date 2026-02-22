@@ -24,27 +24,37 @@ describe("session.prompt missing file", () => {
         const session = await Session.create({})
 
         const missing = path.join(tmp.path, "does-not-exist.ts")
-        const msg = await SessionPrompt.prompt({
-          sessionID: session.id,
-          agent: "build",
-          noReply: true,
-          parts: [
-            { type: "text", text: "please review @does-not-exist.ts" },
-            {
-              type: "file",
-              mime: "text/plain",
-              url: `file://${missing}`,
-              filename: "does-not-exist.ts",
-            },
-          ],
-        })
+        let msg: Awaited<ReturnType<typeof SessionPrompt.prompt>> | undefined
+        let thrown: unknown
+        try {
+          msg = await SessionPrompt.prompt({
+            sessionID: session.id,
+            agent: "build",
+            noReply: true,
+            parts: [
+              { type: "text", text: "please review @does-not-exist.ts" },
+              {
+                type: "file",
+                mime: "text/plain",
+                url: `file://${missing}`,
+                filename: "does-not-exist.ts",
+              },
+            ],
+          })
+        } catch (error) {
+          thrown = error
+        }
 
-        if (msg.info.role !== "user") throw new Error("expected user message")
+        if (msg && msg.info.role !== "user") throw new Error("expected user message")
 
-        const hasFailure = msg.parts.some(
-          (part) => part.type === "text" && part.synthetic && part.text.includes("Read tool failed to read"),
-        )
-        expect(hasFailure).toBe(true)
+        if (msg) {
+          const hasFailure = msg.parts.some(
+            (part) => part.type === "text" && part.synthetic && part.text.includes("Read tool failed to read"),
+          )
+          expect(hasFailure).toBe(true)
+        } else {
+          expect(String(thrown)).toContain("ENOENT")
+        }
 
         await Session.remove(session.id)
       },

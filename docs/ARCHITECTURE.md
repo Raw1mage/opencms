@@ -886,3 +886,35 @@ This section defines the dependency boundary policy for runtime behavior in `cms
 1. Baseline runtime startup works when npm registry is unavailable (excluding first-time optional extension install).
 2. Core agent/session/tool path does not require live dependency fetch.
 3. Dependency failures in optional extensions are isolated and observable.
+
+---
+
+## 18. Test Governance Rule: Retire Obsolete Tests (Normative)
+
+As `cms` architecture evolves, test maintenance must distinguish between regressions and obsolete contracts.
+
+### A. Core Rule
+
+If a test validates behavior that is intentionally removed by current architecture, that test should be **retired** (delete or move to legacy suite), not force-fixed.
+
+### B. Retirement Decision Criteria
+
+A test is eligible for retirement when all conditions hold:
+
+1. The behavior is explicitly replaced/disabled in current architecture policy (`docs/ARCHITECTURE.md`) or recorded event decisions.
+2. The test asserts legacy contract semantics that no longer represent production responsibilities.
+3. Keeping the test causes persistent false alarms and reduces CI signal quality.
+
+### C. Allowed Actions
+
+1. **Delete** test if capability is permanently removed.
+2. **Move to legacy suite** gated by explicit flag (e.g., compatibility verification only).
+3. **Rewrite** test to validate the new contract if the capability still exists with changed semantics.
+
+### D. PR/Review Requirements
+
+When retiring tests, PR must include:
+
+1. Reason for retirement mapped to architecture/event record.
+2. Replacement coverage (if any) for current behavior.
+3. Confirmation that CI signal quality improves (lower flaky/false-fail surface).

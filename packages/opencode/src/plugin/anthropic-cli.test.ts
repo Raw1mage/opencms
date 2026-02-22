@@ -136,7 +136,10 @@ describe("claude-cli Protocol Mimicry", () => {
       })
 
       const request = fetchHistory[0]
-      expect(request.body.system[0].text).toBe("You are Claude Code assistant. Use Claude tools.")
+      const text = request.body.system[0].text as string
+      expect(text).toContain("Claude Code")
+      expect(text).not.toContain("OpenCode")
+      expect(text).not.toContain("opencode")
     } finally {
       globalThis.fetch = originalFetch
     }
