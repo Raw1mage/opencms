@@ -10,6 +10,15 @@
 2.  **`bun-package-dev`**: 內建開發工具鏈。用於建置二進位檔、Docker 映像與管理 Monorepo。
 3.  **`agent-creator`**: Agent 生產線。包含 LLM Prompt Engineering、System Prompt 優化與 4-Phase SOP。
 4.  **`bun-file-io`**: I/O 標準。確保所有檔案操作優先使用 Bun API (Performance & Native)。
+5.  **`mcp-finder`**: MCP 擴充中樞。負責搜尋、安裝、設定新 MCP server。
+6.  **`skill-finder`**: Skill 擴充中樞。負責搜尋、安裝、設定新技能。
+
+### Enablement Registry（能力總表）
+
+- Runtime 單一真相來源：`packages/opencode/src/session/prompt/enablement.json`
+- Template 對應來源：`templates/prompts/enablement.json`
+- 用途：集中維護 tools / skills / MCP 的能力說明、路由建議、on-demand 啟停策略。
+- 規範：凡透過 `mcp-finder` 或 `skill-finder` 擴充能力後，必須同步更新 `enablement.json`（runtime + template）。
 
 ---
 
@@ -73,6 +82,12 @@
 - [ ] 若調整執行時技能，已確認 `.opencode/skills/**` 與 `templates/skills/**` 無漂移。
 - [ ] 已在 `docs/events/` 記錄：變更目的、範圍、同步面、風險。
 - [ ] 僅將 `~/.config/opencode/*` 視為本機環境，不作為 release 交付來源。
+
+### 驗證基準排除（暫行）
+
+- 在目前專案基線中，`antigravity auth plugin` 相關驗證失敗屬已知噪音，可於日常變更驗證中排除。
+- 具體包含：`packages/opencode/src/plugin/antigravity/plugin/storage.legacy.ts` 導致的 typecheck 問題（`vitest` module / `implicit any`）。
+- 規則：若本次變更未觸及該路徑，可視為 non-blocking；若有修改該路徑，則需恢復完整嚴格驗證。
 
 ---
 

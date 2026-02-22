@@ -103,6 +103,18 @@ The following refactor-ported changes were integrated into `cms` and are relevan
 - Developer tooling/docs were updated to point to the new canonical MCP paths.
 - Architectural effect: clearer separation between operational scripts and MCP runtime services, improving discoverability and future MCP scalability.
 
+13. **Capability Enablement Layer (new fourth layer for prompt/runtime routing)**
+
+- Added a centralized capability registry at `packages/opencode/src/session/prompt/enablement.json` with template mirror `templates/prompts/enablement.json`.
+- Registry now consolidates tool/skill/MCP inventory, routing hints, and on-demand MCP lifecycle policy (enable-on-need / disable-when-idle).
+- `SystemPrompt.seedAll()` now seeds `enablement.json` into runtime prompt config space so session/system prompts can reference a single capability map.
+- `SYSTEM` rules were updated to treat `prompts/enablement.json` as capability discovery source-of-truth and to demote scattered driver tool hints to non-authoritative heuristics.
+- `AGENTS` policy was updated to elevate `mcp-finder` + `skill-finder` as primary expansion skills and require updating `enablement.json` whenever new capabilities are installed.
+- `LLM.stream()` now injects an enablement snapshot block into system context so model turns can see current capability classes and intent matches.
+- `resolve-tools` now applies on-demand MCP policy from registry routing keywords: auto-connect matching MCP servers before tool resolution and auto-disconnect previously auto-enabled servers after idle timeout.
+- Verification baseline policy is now codified via `scripts/typecheck-with-baseline.ts` and root `check` routing (`lint + verify:typecheck`), allowing known non-blocking `antigravity storage.legacy.ts` diagnostics only when the file is untouched.
+- Architectural effect: capability discovery is shifted from fragmented prompt fragments to a unified registry + lifecycle model, improving tool discoverability and reducing manual user reminders.
+
 ---
 
 ## Detailed Package Analysis

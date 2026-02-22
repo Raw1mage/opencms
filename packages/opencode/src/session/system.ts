@@ -18,6 +18,7 @@ import PROMPT_PLAN_REMINDER_ANTHROPIC from "./prompt/plan-reminder-anthropic.txt
 import PROMPT_MAX_STEPS from "./prompt/max-steps.txt"
 import PROMPT_BUILD_SWITCH from "./prompt/build-switch.txt"
 import PROMPT_COPILOT_GPT5 from "./prompt/copilot-gpt-5.txt"
+import PROMPT_ENABLEMENT from "./prompt/enablement.json"
 
 import PROMPT_AGENT_CODING from "../agent/prompt/coding.txt"
 import PROMPT_AGENT_REVIEW from "../agent/prompt/review.txt"
@@ -87,6 +88,8 @@ export namespace SystemPrompt {
       "session/max-steps.txt": PROMPT_MAX_STEPS,
       "session/build-switch.txt": PROMPT_BUILD_SWITCH,
       "session/instructions.txt": PROMPT_CODEX.trim(),
+      "enablement.json":
+        typeof PROMPT_ENABLEMENT === "string" ? PROMPT_ENABLEMENT : JSON.stringify(PROMPT_ENABLEMENT, null, 2),
       // Agent prompts — XDG-managed for user customization
       ...Object.fromEntries(Object.entries(AGENT_PROMPTS).map(([name, content]) => [`agents/${name}.txt`, content])),
     }
@@ -214,6 +217,11 @@ export namespace SystemPrompt {
 - If asked how to approach something, answer first before taking actions.
 
 [TOOL GOVERNANCE]
+Capability routing source of truth:
+- Canonical registry: prompts/enablement.json (seeded from runtime prompt assets).
+- Use it for tool/skill/MCP discovery, on-demand routing, and fallback selection.
+- Driver prompt tool examples are non-authoritative heuristics and may be incomplete.
+
 File Operations (two mutually exclusive chains — never mix):
 - Primary: read(filePath), write(filePath, content), edit(filePath, oldString, newString). Always read before edit/write.
 - Secondary (filesystem_*): Only when primary is insufficient (e.g. multi-edit batches). Never mix filesystem_edit_file with primary read.
@@ -289,12 +297,13 @@ ${isSubagent ? subagentRules : mainAgentRules}
         `  Today's date: ${new Date().toDateString()}`,
         `</env>`,
         `<directories>`,
-        `  ${project.vcs === "git" && false
-          ? await Ripgrep.tree({
-            cwd: Instance.directory,
-            limit: 50,
-          })
-          : ""
+        `  ${
+          project.vcs === "git" && false
+            ? await Ripgrep.tree({
+                cwd: Instance.directory,
+                limit: 50,
+              })
+            : ""
         }`,
         `</directories>`,
       ].join("\n"),

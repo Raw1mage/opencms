@@ -1,0 +1,214 @@
+{
+  "schema_version": "1.0.0",
+  "last_updated": "2026-02-23",
+  "purpose": "Single source of truth for tool/skill/MCP capability discovery and routing.",
+  "usage_contract": {
+    "prompt_injection": "Inject a concise snapshot from this registry into SYSTEM prompt context.",
+    "runtime_policy": "Prefer deterministic routing from this registry over ad-hoc driver prompt heuristics.",
+    "mcp_lifecycle": "Default disabled unless needed; enable on demand and allow idle disable.",
+    "conflict_resolution": "SYSTEM safety rules > this registry > AGENTS tactical hints > driver-specific style guidance."
+  },
+  "tools": {
+    "core": [
+      {
+        "name": "question",
+        "capability": "Collect explicit user decisions and disambiguation inputs"
+      },
+      {
+        "name": "bash",
+        "capability": "Run terminal commands for git/build/test/runtime operations"
+      },
+      {
+        "name": "read",
+        "capability": "Read file contents with offsets and line numbers"
+      },
+      {
+        "name": "glob",
+        "capability": "Fast filename/path pattern search"
+      },
+      {
+        "name": "grep",
+        "capability": "Regex content search across files"
+      },
+      {
+        "name": "task",
+        "capability": "Launch specialized subagents (coding/review/testing/docs/explore/general)"
+      },
+      {
+        "name": "webfetch",
+        "capability": "Fetch URL content in markdown/text/html"
+      },
+      {
+        "name": "todowrite",
+        "capability": "Track multi-step plans and progress"
+      },
+      {
+        "name": "todoread",
+        "capability": "Read active todo list state"
+      },
+      {
+        "name": "skill",
+        "capability": "Load domain-specific operational skills"
+      },
+      {
+        "name": "apply_patch",
+        "capability": "Patch files safely using structured diffs"
+      }
+    ],
+    "system_manager_mcp": [
+      "system-manager_get_system_status",
+      "system-manager_switch_account",
+      "system-manager_switch_model",
+      "system-manager_get_favorites",
+      "system-manager_switch_theme",
+      "system-manager_toggle_mcp",
+      "system-manager_copy_to_clipboard",
+      "system-manager_execute_command",
+      "system-manager_update_models",
+      "system-manager_switch_agent",
+      "system-manager_open_in_editor",
+      "system-manager_manage_session",
+      "system-manager_app_control",
+      "system-manager_set_ui_config",
+      "system-manager_export_transcript"
+    ],
+    "fetch_mcp": ["fetch_get_raw_text", "fetch_get_rendered_html", "fetch_get_markdown", "fetch_get_markdown_summary"],
+    "memory_mcp": [
+      "memory_create_entities",
+      "memory_create_relations",
+      "memory_add_observations",
+      "memory_delete_entities",
+      "memory_delete_observations",
+      "memory_delete_relations",
+      "memory_read_graph",
+      "memory_search_nodes",
+      "memory_open_nodes"
+    ]
+  },
+  "skills": {
+    "bundled_templates": [
+      "agent-workflow",
+      "model-selector",
+      "software-architect",
+      "bun-package-dev",
+      "agent-creator",
+      "bun-file-io",
+      "mcp-finder",
+      "skill-finder",
+      "mcp-builder",
+      "docker-compose",
+      "webapp-testing",
+      "doc-coauthoring",
+      "xlsx",
+      "canvas-design",
+      "algorithmic-art",
+      "frontend-design",
+      "flask-api",
+      "indexeddb-spa",
+      "playwright-python",
+      "docx",
+      "pdf",
+      "pptx",
+      "internal-comms",
+      "theme-factory",
+      "brand-guidelines",
+      "web-artifacts-builder",
+      "skill-creator",
+      "slack-gif-creator",
+      "refactor-wizard",
+      "refactor-anthropic",
+      "refactor-from-src",
+      "graphrag-memory",
+      "code-review",
+      "miatdiagram",
+      "codex-sidebar-focus-rca",
+      "wsl-image-clipboard",
+      "hello_world",
+      "antigravity-browser-fix"
+    ],
+    "selection_rule": "Load skill when intent matches domain; do not reinvent instructions already encoded in skills."
+  },
+  "mcp_servers": {
+    "runtime_observed": [
+      {
+        "name": "filesystem",
+        "enabled": false,
+        "capability": "Scoped local filesystem operations via MCP"
+      },
+      {
+        "name": "fetch",
+        "enabled": true,
+        "capability": "HTTP/web content retrieval and conversion"
+      },
+      {
+        "name": "memory",
+        "enabled": true,
+        "capability": "Knowledge-graph memory persistence and retrieval"
+      },
+      {
+        "name": "sequential-thinking",
+        "enabled": false,
+        "capability": "Structured decomposition for long reasoning tasks"
+      },
+      {
+        "name": "system-manager",
+        "enabled": true,
+        "capability": "OpenCode runtime control, model/account switching, MCP toggling"
+      },
+      {
+        "name": "refacting-merger",
+        "enabled": false,
+        "capability": "Branch/refactor merge orchestration for this repository"
+      }
+    ],
+    "discovery": "Source status from global opencode.json and system-manager_get_system_status before deciding toggles."
+  },
+  "routing": {
+    "intent_to_capability": [
+      {
+        "intent": "git/local repo operations",
+        "keywords": ["git", "commit", "diff", "branch", "rebase", "merge"],
+        "prefer": ["bash", "system-manager_execute_command"],
+        "fallback": ["bash"]
+      },
+      {
+        "intent": "issue/pr/checks metadata",
+        "keywords": ["github", "issue", "pr", "pull request", "review", "checks", "actions"],
+        "prefer": ["github mcp (if installed)", "bash+gh"],
+        "fallback": ["bash+git"]
+      },
+      {
+        "intent": "web docs/api retrieval",
+        "keywords": ["url", "docs", "documentation", "api", "endpoint", "fetch", "http"],
+        "requires_mcp": ["fetch"],
+        "prefer": ["fetch_get_markdown_summary", "fetch_get_markdown", "webfetch"],
+        "fallback": ["webfetch"]
+      },
+      {
+        "intent": "db/schema/query troubleshooting",
+        "keywords": ["database", "postgres", "sql", "schema", "table", "query", "redis"],
+        "requires_mcp": ["database"],
+        "prefer": ["database mcp (if installed)"],
+        "fallback": ["bash client tools"]
+      },
+      {
+        "intent": "docker/container diagnostics",
+        "keywords": ["docker", "compose", "container", "image", "volume", "network", "k8s"],
+        "requires_mcp": ["docker"],
+        "prefer": ["docker mcp (if installed)", "skill:docker-compose"],
+        "fallback": ["bash docker commands"]
+      },
+      {
+        "intent": "complex architecture/design",
+        "keywords": ["architecture", "design", "tradeoff", "scalability", "system design"],
+        "prefer": ["skill:software-architect"],
+        "fallback": ["task:general"]
+      }
+    ],
+    "mcp_policy": {
+      "default_state": "disabled-when-idle",
+      "activation": "enable on first concrete need",
+      "deactivation": "disable when task ends or after idle timeout"
+    }
+  }
+}

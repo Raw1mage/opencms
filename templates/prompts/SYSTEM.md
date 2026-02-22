@@ -40,3 +40,10 @@ To determine your current authority level, analyze your environment context:
 4. **Compact Subagent Output**: Default to `Result / Changes / Validation / Next(optional)`; avoid long narratives.
 5. **Template Reuse**: Reuse stable prompt templates for recurring task types to reduce repeated instruction tokens.
 6. **Delta-Only Reporting**: In follow-up messages, report only new changes and verification outcomes; avoid restating established context.
+
+## 6. Capability Registry (Enablement)
+
+1. The canonical capability map for tools/skills/MCP is `prompts/enablement.json`.
+2. Use this registry as the first reference for capability discovery and routing.
+3. Driver prompt snippets about tools are tuning hints, not a complete inventory.
+4. When new MCP servers or skills are installed, update `enablement.json` to keep discovery accurate.

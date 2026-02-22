@@ -14,8 +14,103 @@ import { MessageV2 } from "./message-v2"
 import { SessionProcessor } from "./processor"
 import { Agent } from "../agent/agent"
 import { Provider } from "../provider/provider"
+import { Config } from "../config/config"
+import ENABLEMENT from "./prompt/enablement.json"
 
 const log = Log.create({ service: "session.resolve-tools" })
+
+const AUTO_MCP_IDLE_MS = 10 * 60_000
+const autoEnabledBySession = new Map<string, Map<string, number>>()
+
+type EnablementRoute = {
+  intent?: string
+  keywords?: string[]
+  requires_mcp?: string[]
+}
+
+function extractLatestUserText(messages: MessageV2.WithParts[]): string {
+  const lastUser = [...messages].reverse().find((m) => m.info.role === "user")
+  if (!lastUser) return ""
+  return lastUser.parts
+    .filter((p): p is MessageV2.TextPart => p.type === "text")
+    .map((p) => p.text)
+    .join("\n")
+    .toLowerCase()
+}
+
+function inferDesiredMcpFromEnablement(text: string): Set<string> {
+  const desired = new Set<string>()
+  const routing = ((ENABLEMENT as any)?.routing?.intent_to_capability ?? []) as EnablementRoute[]
+  for (const route of routing) {
+    const keywords = route.keywords ?? []
+    if (keywords.length === 0) continue
+    if (keywords.some((kw) => text.includes(kw.toLowerCase()))) {
+      for (const mcp of route.requires_mcp ?? []) desired.add(mcp)
+    }
+  }
+  return desired
+}
+
+async function applyOnDemandMcpPolicy(sessionID: string, messages: MessageV2.WithParts[]) {
+  const text = extractLatestUserText(messages)
+  const desired = text ? inferDesiredMcpFromEnablement(text) : new Set<string>()
+
+  const [cfg, status] = await Promise.all([Config.get(), MCP.status()])
+  const mcpConfig = cfg.mcp ?? {}
+
+  for (const name of desired) {
+    if (!(name in mcpConfig)) continue
+    if (status[name]?.status === "connected") {
+      let tracking = autoEnabledBySession.get(sessionID)
+      if (!tracking) {
+        tracking = new Map<string, number>()
+        autoEnabledBySession.set(sessionID, tracking)
+      }
+      tracking.set(name, Date.now())
+      continue
+    }
+
+    try {
+      await MCP.connect(name)
+      let tracking = autoEnabledBySession.get(sessionID)
+      if (!tracking) {
+        tracking = new Map<string, number>()
+        autoEnabledBySession.set(sessionID, tracking)
+      }
+      tracking.set(name, Date.now())
+      log.info("on-demand MCP connected", { sessionID, name })
+    } catch (error) {
+      log.warn("on-demand MCP connect failed", {
+        sessionID,
+        name,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
+  const tracking = autoEnabledBySession.get(sessionID)
+  if (!tracking || tracking.size === 0) return
+  const now = Date.now()
+  for (const [name, lastNeededAt] of tracking.entries()) {
+    if (desired.has(name)) {
+      tracking.set(name, now)
+      continue
+    }
+    if (now - lastNeededAt < AUTO_MCP_IDLE_MS) continue
+    try {
+      await MCP.disconnect(name)
+      tracking.delete(name)
+      log.info("on-demand MCP disconnected after idle", { sessionID, name })
+    } catch (error) {
+      log.warn("on-demand MCP disconnect failed", {
+        sessionID,
+        name,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+  if (tracking.size === 0) autoEnabledBySession.delete(sessionID)
+}
 
 export interface ResolveToolsInput {
   agent: Agent.Info
@@ -30,6 +125,7 @@ export interface ResolveToolsInput {
 export async function resolveTools(input: ResolveToolsInput) {
   using _ = log.time("resolveTools")
   const tools: Record<string, AITool> = {}
+  await applyOnDemandMcpPolicy(input.session.id, input.messages)
   debugCheckpoint("tool.resolve", "start", {
     sessionID: input.session.id,
     agent: input.agent.name,

@@ -33,6 +33,7 @@ import { debugCheckpoint } from "@/util/debug"
 import { RateLimitJudge, isRateLimitError, isAuthError, formatRateLimitReason } from "@/account/rate-limit-judge"
 
 import { RequestMonitor } from "@/account/monitor"
+import ENABLEMENT from "./prompt/enablement.json"
 
 export namespace LLM {
   const log = Log.create({ service: "llm" })
@@ -65,6 +66,47 @@ export namespace LLM {
     const { Session: SessionMod } = await import("@/session")
     const info = await SessionMod.get(sessionID)
     return !!info?.parentID
+  }
+
+  function extractLatestUserText(messages: ModelMessage[]): string {
+    const user = [...messages].reverse().find((m) => m.role === "user")
+    if (!user) return ""
+    const content = user.content
+    if (typeof content === "string") return content.toLowerCase()
+    if (!Array.isArray(content)) return ""
+    return content
+      .map((part: any) => {
+        if (!part || typeof part !== "object") return ""
+        if (typeof part.text === "string") return part.text
+        if (typeof part.input === "string") return part.input
+        return ""
+      })
+      .join("\n")
+      .toLowerCase()
+  }
+
+  function buildEnablementSnapshot(messages: ModelMessage[]): string {
+    const data = ENABLEMENT as any
+    const coreTools = (data?.tools?.core ?? []).map((x: any) => x.name).slice(0, 12)
+    const skills = (data?.skills?.bundled_templates ?? []).slice(0, 20)
+    const mcpServers = (data?.mcp_servers?.runtime_observed ?? []).map(
+      (x: any) => `${x.name}:${x.enabled ? "on" : "off"}`,
+    )
+    const text = extractLatestUserText(messages)
+    const matchedIntents = ((data?.routing?.intent_to_capability ?? []) as any[])
+      .filter((route) => (route?.keywords ?? []).some((kw: string) => text.includes(String(kw).toLowerCase())))
+      .slice(0, 4)
+      .map((route) => route.intent)
+
+    return [
+      "[ENABLEMENT SNAPSHOT]",
+      `- source: prompts/enablement.json`,
+      `- core tools: ${coreTools.join(", ")}`,
+      `- skills available: ${skills.join(", ")}`,
+      `- configured mcp: ${mcpServers.join(", ")}`,
+      `- matched intents: ${matchedIntents.length ? matchedIntents.join("; ") : "none"}`,
+      `- policy: prefer registry-guided tool/skill/mcp routing; use on-demand mcp when needed`,
+    ].join("\n")
   }
 
   export async function stream(input: StreamInput) {
@@ -127,6 +169,9 @@ export namespace LLM {
 
       // 3. Dynamic Session/Task Prompts
       ...input.system,
+
+      // 3.5 Enablement capability snapshot (central capability registry)
+      buildEnablementSnapshot(input.messages),
 
       // 4. Custom prompt from last user message
       ...(input.user.system ? [input.user.system] : []),

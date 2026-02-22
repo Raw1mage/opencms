@@ -11,6 +11,17 @@
     - _目的_：獲取 ANALYSIS -> PLANNING -> EXECUTION 的標準狀態機。
 2.  **載入資源地圖**：`skill(name="model-selector")`
     - _目的_：獲取各模型的能力與成本資訊，用於後續指派 Subagent。
+3.  **載入 MCP 擴充器**：`skill(name="mcp-finder")`
+    - _目的_：讓 Agent 可在能力缺口時向外擴充 MCP。
+4.  **載入 Skill 擴充器**：`skill(name="skill-finder")`
+    - _目的_：讓 Agent 可在能力缺口時向外擴充 Skill。
+
+### Enablement Registry（能力總表）
+
+- Runtime 單一真相來源：`packages/opencode/src/session/prompt/enablement.json`
+- Template 對應來源：`templates/prompts/enablement.json`
+- 用途：集中維護 tools / skills / MCP 的能力說明、路由建議、on-demand 啟停策略。
+- 規範：凡透過 `mcp-finder` 或 `skill-finder` 擴充能力後，必須同步更新 `enablement.json`（runtime + template）。
 
 ## 2. 戰術技能導航 (Tactical Skill Map)
 
@@ -90,6 +101,12 @@
 4. **子代理短回報**：統一 `Result / Changes / Validation / Next(optional)`。
 5. **模板化調度**：重複任務（bugfix/refactor/docs/test）優先使用既有短模板，減少重複指令 token。
 6. **差異導向回覆**：僅回報新變更與驗證結果，不重述已確認背景。
+
+## 8. 驗證基準排除（暫行）
+
+- 在目前專案基線中，`antigravity auth plugin` 相關驗證失敗屬已知噪音，可於日常變更驗證中排除。
+- 具體包含：`packages/opencode/src/plugin/antigravity/plugin/storage.legacy.ts` 導致的 typecheck 問題（`vitest` module / `implicit any`）。
+- 規則：若本次變更未觸及該路徑，可視為 non-blocking；若有修改該路徑，則需恢復完整嚴格驗證。
 
 ```opencode-rotation-priority
 Rotation Priority Preference by (provider, account, model)
