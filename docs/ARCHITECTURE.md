@@ -112,7 +112,9 @@ The following refactor-ported changes were integrated into `cms` and are relevan
 - `AGENTS` policy was updated to elevate `mcp-finder` + `skill-finder` as primary expansion skills and require updating `enablement.json` whenever new capabilities are installed.
 - `LLM.stream()` now injects an enablement snapshot block into system context so model turns can see current capability classes and intent matches.
 - `resolve-tools` now applies on-demand MCP policy from registry routing keywords: auto-connect matching MCP servers before tool resolution and auto-disconnect previously auto-enabled servers after idle timeout.
-- Verification baseline policy is now codified via `scripts/typecheck-with-baseline.ts` and root `check` routing (`lint + verify:typecheck`), allowing known non-blocking `antigravity storage.legacy.ts` diagnostics only when the file is untouched.
+- Verification baseline policy is now codified via:
+  - `scripts/typecheck-with-baseline.ts` + root `check` routing (`lint + verify:typecheck`), which treats `src/plugin/antigravity/**` diagnostics as non-blocking only when the antigravity plugin path is untouched in the current diff.
+  - `scripts/test-with-baseline.ts` + root `test` routing, which excludes antigravity auth plugin test scopes from global regression runs.
 - Architectural effect: capability discovery is shifted from fragmented prompt fragments to a unified registry + lifecycle model, improving tool discoverability and reducing manual user reminders.
 
 ---

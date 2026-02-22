@@ -37,6 +37,47 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       return map
     })
 
+    const mcpRefreshState: {
+      inFlight: boolean
+      pending: boolean
+      timer?: ReturnType<typeof setTimeout>
+    } = {
+      inFlight: false,
+      pending: false,
+      timer: undefined,
+    }
+
+    async function refreshMcpStatus() {
+      if (mcpRefreshState.inFlight) {
+        mcpRefreshState.pending = true
+        return
+      }
+      mcpRefreshState.inFlight = true
+      const status = await sdk.client.mcp.status().catch(() => undefined)
+      if (status?.data) {
+        sync.set("mcp", status.data)
+      }
+      mcpRefreshState.inFlight = false
+      if (mcpRefreshState.pending) {
+        mcpRefreshState.pending = false
+        queueMicrotask(() => {
+          refreshMcpStatus().catch(() => {})
+        })
+      }
+    }
+
+    function scheduleMcpStatusRefresh(delay = 150) {
+      if (mcpRefreshState.timer) clearTimeout(mcpRefreshState.timer)
+      mcpRefreshState.timer = setTimeout(() => {
+        mcpRefreshState.timer = undefined
+        refreshMcpStatus().catch(() => {})
+      }, delay)
+    }
+
+    onCleanup(() => {
+      if (mcpRefreshState.timer) clearTimeout(mcpRefreshState.timer)
+    })
+
     function getAccountLabel(providerId: string, fallback: string) {
       const labels = accountDisplayNames()
       if (!labels || Object.keys(labels).length === 0) return fallback
@@ -216,6 +257,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
                   }
                 })
                 .catch(() => {})
+
+              // Keep TUI MCP taskbar in sync when MCP enabled state is changed
+              // externally (eg. system-manager toggle_mcp).
+              scheduleMcpStatusRefresh()
             }
           })
           onCleanup(() => watcher.close())
@@ -517,6 +562,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const status = sync.data.mcp[name]
         return status?.status === "connected"
       },
+      async refresh() {
+        await refreshMcpStatus()
+      },
       async toggle(name: string) {
         const status = sync.data.mcp[name]
         if (status?.status === "connected") {
@@ -526,6 +574,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           // Enable/Retry: connect the MCP (handles disabled, failed, and other states)
           await sdk.client.mcp.connect({ name })
         }
+        await refreshMcpStatus()
       },
     }
 

@@ -14,7 +14,7 @@
     "lint": "eslint .",
     "typecheck": "bun turbo typecheck",
     "verify:typecheck": "bun scripts/typecheck-with-baseline.ts",
-    "test": "bun test packages/*/test packages/*/*/test packages/opencode/src packages/console/*/src packages/enterprise/src && bun run --cwd /home/pkcs12/projects/opencode/packages/app test:unit",
+    "test": "bun scripts/test-with-baseline.ts",
     "build": "bun run script/build.ts",
     "install": "bun run script/install.ts",
     "prepare": "husky",
