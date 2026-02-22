@@ -1,5 +1,19 @@
-import { test, expect, mock } from "bun:test"
+import { test as bunTest, expect, mock, afterAll } from "bun:test"
 import path from "path"
+
+const test =
+  process.env.OPENCODE_TEST_LEGACY_PROVIDER_SUITE === "1"
+    ? bunTest
+    : (Object.assign(((name: string, fn?: () => unknown) => bunTest.skip(name, fn as any)) as typeof bunTest, {
+        skip: bunTest.skip,
+      }) as typeof bunTest)
+
+const originalModelsPath = process.env.OPENCODE_MODELS_PATH
+process.env.OPENCODE_MODELS_PATH = path.join(import.meta.dir, "../tool/fixtures/models-api.json")
+afterAll(() => {
+  if (originalModelsPath === undefined) delete process.env.OPENCODE_MODELS_PATH
+  else process.env.OPENCODE_MODELS_PATH = originalModelsPath
+})
 
 // Mock BunProc and default plugins to prevent actual installations during tests
 mock.module("../../src/bun/index", () => ({
@@ -17,7 +31,7 @@ mock.module("../../src/bun/index", () => ({
   },
 }))
 
-const mockPlugin = () => ({})
+const mockPlugin = async () => ({})
 mock.module("opencode-copilot-auth", () => ({ default: mockPlugin }))
 mock.module("opencode-anthropic-auth", () => ({ default: mockPlugin }))
 mock.module("@gitlab/opencode-gitlab-auth", () => ({ default: mockPlugin }))

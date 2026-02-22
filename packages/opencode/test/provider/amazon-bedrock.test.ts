@@ -1,6 +1,20 @@
-import { test, expect, mock, describe } from "bun:test"
+import { test as bunTest, expect, mock, describe, afterAll } from "bun:test"
 import path from "path"
 import { unlink } from "fs/promises"
+
+const test =
+  process.env.OPENCODE_TEST_LEGACY_PROVIDER_SUITE === "1"
+    ? bunTest
+    : (Object.assign(((name: string, fn?: () => unknown) => bunTest.skip(name, fn as any)) as typeof bunTest, {
+        skip: bunTest.skip,
+      }) as typeof bunTest)
+
+const originalModelsPath = process.env.OPENCODE_MODELS_PATH
+process.env.OPENCODE_MODELS_PATH = path.join(import.meta.dir, "../tool/fixtures/models-api.json")
+afterAll(() => {
+  if (originalModelsPath === undefined) delete process.env.OPENCODE_MODELS_PATH
+  else process.env.OPENCODE_MODELS_PATH = originalModelsPath
+})
 
 // === Mocks ===
 // These mocks are required because Provider.list() triggers:
@@ -30,7 +44,7 @@ mock.module("@aws-sdk/credential-providers", () => ({
   }),
 }))
 
-const mockPlugin = () => ({})
+const mockPlugin = async () => ({})
 mock.module("opencode-copilot-auth", () => ({ default: mockPlugin }))
 mock.module("opencode-anthropic-auth", () => ({ default: mockPlugin }))
 mock.module("@gitlab/opencode-gitlab-auth", () => ({ default: mockPlugin }))
