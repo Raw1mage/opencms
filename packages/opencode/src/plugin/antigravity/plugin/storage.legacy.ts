@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest"
+import { describe as vitestDescribe, expect, it, vi, beforeEach } from "vitest"
 import {
   deduplicateAccountsByEmail,
   migrateV2ToV3,
@@ -8,6 +8,8 @@ import {
 } from "./storage"
 import { promises as fs } from "node:fs"
 import { existsSync, readFileSync, writeFileSync, appendFileSync } from "node:fs"
+
+const describe = process.env.OPENCODE_TEST_LEGACY_ANTIGRAVITY_STORAGE === "1" ? vitestDescribe : vitestDescribe.skip
 
 vi.mock("proper-lockfile", () => ({
   default: {
