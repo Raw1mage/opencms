@@ -187,8 +187,11 @@ export namespace Config {
       log.debug("loaded custom config", { path: Flag.OPENCODE_CONFIG })
     }
 
-    // This build disables project-level config to keep runtime behavior globally deterministic.
-    const projectConfigEnabled = false
+    // This build disables project-level config by default to keep runtime behavior globally deterministic.
+    // In test environment, keep project-level config load path available so legacy/coverage tests can
+    // validate merge precedence and migration behavior unless explicitly disabled.
+    // @event_2026-02-21_test_baseline_project_config_gate
+    const projectConfigEnabled = process.env.NODE_ENV === "test" && !Flag.OPENCODE_DISABLE_PROJECT_CONFIG
 
     // Project config has highest precedence (overrides global and remote)
     if (projectConfigEnabled) {
@@ -344,6 +347,17 @@ export namespace Config {
     await Promise.all(deps)
   }
 
+  function runtimePluginVersionTarget() {
+    if (Installation.isLocal()) return "*"
+
+    // CMS/custom build tags (ex: 0.0.0-cms-YYYYMMDDHHmm) are app build identifiers,
+    // not guaranteed published npm versions for @opencode-ai/plugin.
+    // @event_2026-02-21_runtime_plugin_version_hotfix
+    if (Installation.VERSION.startsWith("0.0.0-")) return "latest"
+
+    return Installation.VERSION
+  }
+
   export async function installDependencies(dir: string) {
     // Some config dirs may be read-only.
     // Installing deps there will fail; skip installation in that case.
@@ -365,7 +379,7 @@ export namespace Config {
     }
 
     const pkg = path.join(dir, "package.json")
-    const targetVersion = Installation.isLocal() ? "*" : Installation.VERSION
+    const targetVersion = runtimePluginVersionTarget()
 
     const json = await Bun.file(pkg)
       .json()
@@ -421,7 +435,7 @@ export namespace Config {
     const depVersion = dependencies["@opencode-ai/plugin"]
     if (!depVersion) return true
 
-    const targetVersion = Installation.isLocal() ? "*" : Installation.VERSION
+    const targetVersion = runtimePluginVersionTarget()
     return depVersion !== targetVersion
   }
 

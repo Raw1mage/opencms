@@ -845,3 +845,44 @@ For each ticket, track:
 - **Target date**
 - **Risk level (H/M/L)**
 - **Rollback plan**
+
+---
+
+## 17. Runtime Dependency Principle (Normative, cms)
+
+This section defines the dependency boundary policy for runtime behavior in `cms`.
+
+### A. Core Principle
+
+1. Runtime must minimize direct dependency on external package registries.
+2. Public LLM provider APIs are an explicit exception (business-required external connectivity).
+3. Non-LLM core runtime path must remain bootable under registry/network instability.
+
+### B. Required Runtime Behavior
+
+1. **Bundle-first for core runtime dependencies**
+   - Core plugin/runtime capabilities should be loaded from release-bundled artifacts first.
+2. **External-optional for non-core extensions**
+   - External plugin installation is opt-in and must not block baseline startup.
+3. **No runtime speculative version coupling**
+   - Runtime install logic must not derive package versions directly from app build tags (for example `0.0.0-cms-*`).
+4. **Deterministic fallback policy**
+   - On unresolved external dependency, runtime must fallback/degrade with warnings, not hard-fail bootstrap.
+
+### C. Ticket Alignment Update (v1 -> bundle-first)
+
+1. `TKT-003` (manifest policy)
+   - Upgrade target: remove floating `*` and mark core dependency path as bundle-first.
+2. `TKT-004` (diagnostics)
+   - Must classify dependencies as:
+     - `core-bundled`
+     - `external-optional`
+     - `external-required`
+3. Add implementation focus to `TKT-001/002`:
+   - resolver/guard should prefer non-network core path before any external resolution.
+
+### D. Success Criteria
+
+1. Baseline runtime startup works when npm registry is unavailable (excluding first-time optional extension install).
+2. Core agent/session/tool path does not require live dependency fetch.
+3. Dependency failures in optional extensions are isolated and observable.

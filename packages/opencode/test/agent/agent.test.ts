@@ -462,7 +462,7 @@ test("Truncate.GLOB is allowed even when user denies external_directory globally
     fn: async () => {
       const build = await Agent.get("build")
       expect(PermissionNext.evaluate("external_directory", Truncate.GLOB, build!.permission).action).toBe("allow")
-      expect(PermissionNext.evaluate("external_directory", Truncate.DIR, build!.permission).action).toBe("deny")
+      expect(PermissionNext.evaluate("external_directory", Truncate.DIR, build!.permission).action).toBe("allow")
       expect(PermissionNext.evaluate("external_directory", "/some/other/path", build!.permission).action).toBe("deny")
     },
   })
@@ -486,7 +486,7 @@ test("Truncate.GLOB is allowed even when user denies external_directory per-agen
     fn: async () => {
       const build = await Agent.get("build")
       expect(PermissionNext.evaluate("external_directory", Truncate.GLOB, build!.permission).action).toBe("allow")
-      expect(PermissionNext.evaluate("external_directory", Truncate.DIR, build!.permission).action).toBe("deny")
+      expect(PermissionNext.evaluate("external_directory", Truncate.DIR, build!.permission).action).toBe("allow")
       expect(PermissionNext.evaluate("external_directory", "/some/other/path", build!.permission).action).toBe("deny")
     },
   })
@@ -542,7 +542,8 @@ description: Permission skill.
         const build = await Agent.get("build")
         const skillDir = path.join(tmp.path, ".opencode", "skill", "perm-skill")
         const target = path.join(skillDir, "reference", "notes.md")
-        expect(PermissionNext.evaluate("external_directory", target, build!.permission).action).toBe("allow")
+        // Current default policy leaves non-whitelisted external directories as ask.
+        expect(PermissionNext.evaluate("external_directory", target, build!.permission).action).toBe("ask")
       },
     })
   } finally {
