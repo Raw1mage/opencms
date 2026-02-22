@@ -141,6 +141,7 @@ function AssistantMessageItem(props: {
   responsePartId: string | undefined
   hideResponsePart: boolean
   hideReasoning: boolean
+  showReasoningSummaries: boolean
   hidden?: () => readonly { messageID: string; callID: string }[]
   shellToolDefaultOpen?: boolean
   editToolDefaultOpen?: boolean
@@ -161,6 +162,10 @@ function AssistantMessageItem(props: {
     let parts = msgParts()
 
     if (props.hideReasoning) {
+      parts = parts.filter((part) => part?.type !== "reasoning")
+    }
+
+    if (!props.showReasoningSummaries) {
       parts = parts.filter((part) => part?.type !== "reasoning")
     }
 
@@ -188,6 +193,7 @@ function AssistantMessageItem(props: {
       parts={filteredParts()}
       shellToolDefaultOpen={props.shellToolDefaultOpen}
       editToolDefaultOpen={props.editToolDefaultOpen}
+      showReasoningSummaries={props.showReasoningSummaries}
     />
   )
 }
@@ -200,6 +206,7 @@ export function SessionTurn(
     lastUserMessageID?: string
     shellToolDefaultOpen?: boolean
     editToolDefaultOpen?: boolean
+    showReasoningSummaries?: boolean
     stepsExpanded?: boolean
     onStepsExpandedToggle?: () => void
     onUserInteracted?: () => void
@@ -749,6 +756,7 @@ export function SessionTurn(
                               responsePartId={responsePartId()}
                               hideResponsePart={hideResponsePart()}
                               hideReasoning={!working()}
+                              showReasoningSummaries={props.showReasoningSummaries ?? true}
                               hidden={hidden}
                               shellToolDefaultOpen={props.shellToolDefaultOpen}
                               editToolDefaultOpen={props.editToolDefaultOpen}

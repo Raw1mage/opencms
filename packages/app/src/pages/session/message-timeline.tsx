@@ -321,6 +321,7 @@ export function MessageTimeline(props: {
                       lastUserMessageID={props.lastUserMessageID}
                       shellToolDefaultOpen={settings.general.shellToolPartsExpanded()}
                       editToolDefaultOpen={settings.general.editToolPartsExpanded()}
+                      showReasoningSummaries={settings.general.showReasoningSummaries()}
                       stepsExpanded={props.expanded[message.id] ?? false}
                       onStepsExpandedToggle={() => props.onToggleExpanded(message.id)}
                       classes={{

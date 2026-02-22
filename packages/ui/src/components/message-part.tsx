@@ -94,6 +94,7 @@ export interface MessageProps {
   parts: PartType[]
   shellToolDefaultOpen?: boolean
   editToolDefaultOpen?: boolean
+  showReasoningSummaries?: boolean
 }
 
 export interface MessagePartProps {
@@ -290,6 +291,7 @@ export function Message(props: MessageProps) {
             parts={props.parts}
             shellToolDefaultOpen={props.shellToolDefaultOpen}
             editToolDefaultOpen={props.editToolDefaultOpen}
+            showReasoningSummaries={props.showReasoningSummaries}
           />
         )}
       </Match>
@@ -312,12 +314,15 @@ export function AssistantMessageDisplay(props: {
   parts: PartType[]
   shellToolDefaultOpen?: boolean
   editToolDefaultOpen?: boolean
+  showReasoningSummaries?: boolean
 }) {
   const emptyParts: PartType[] = []
   const filteredParts = createMemo(
     () =>
       props.parts.filter((x) => {
-        return x.type !== "tool" || (x as ToolPart).tool !== "todoread"
+        if (x.type === "tool" && (x as ToolPart).tool === "todoread") return false
+        if (x.type === "reasoning" && props.showReasoningSummaries === false) return false
+        return true
       }),
     emptyParts,
     { equals: same },
