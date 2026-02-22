@@ -29,6 +29,22 @@ import { iife } from "@/util/iife"
 export namespace Session {
   const log = Log.create({ service: "session" })
 
+  export const Stats = z.object({
+    requestsTotal: z.number(),
+    totalTokens: z.number(),
+    tokens: z.object({
+      input: z.number(),
+      output: z.number(),
+      reasoning: z.number(),
+      cache: z.object({
+        read: z.number(),
+        write: z.number(),
+      }),
+    }),
+    lastUpdated: z.number(),
+  })
+  export type Stats = z.output<typeof Stats>
+
   const parentTitlePrefix = "New session - "
   const childTitlePrefix = "Child session - "
 
@@ -50,6 +66,113 @@ export namespace Session {
       return `${base} (fork #${num + 1})`
     }
     return `${title} (fork #1)`
+  }
+
+  function emptyStats(now = Date.now()): Stats {
+    return {
+      requestsTotal: 0,
+      totalTokens: 0,
+      tokens: {
+        input: 0,
+        output: 0,
+        reasoning: 0,
+        cache: {
+          read: 0,
+          write: 0,
+        },
+      },
+      lastUpdated: now,
+    }
+  }
+
+  function assistantUsage(msg?: MessageV2.Info) {
+    if (!msg || msg.role !== "assistant") {
+      return {
+        requests: 0,
+        totalTokens: 0,
+        tokens: {
+          input: 0,
+          output: 0,
+          reasoning: 0,
+          cache: { read: 0, write: 0 },
+        },
+      }
+    }
+    const safe = (value: number) => (Number.isFinite(value) ? value : 0)
+    const input = safe(msg.tokens.input)
+    const output = safe(msg.tokens.output)
+    const reasoning = safe(msg.tokens.reasoning)
+    const cacheRead = safe(msg.tokens.cache.read)
+    const cacheWrite = safe(msg.tokens.cache.write)
+    const total = input + output + reasoning + cacheRead + cacheWrite
+    return {
+      requests: total > 0 ? 1 : 0,
+      totalTokens: total,
+      tokens: {
+        input,
+        output,
+        reasoning,
+        cache: {
+          read: cacheRead,
+          write: cacheWrite,
+        },
+      },
+    }
+  }
+
+  function applyMessageUsageDelta(session: Info, prev?: MessageV2.Info, next?: MessageV2.Info) {
+    const before = assistantUsage(prev)
+    const after = assistantUsage(next)
+    const deltaRequests = after.requests - before.requests
+    const deltaTotalTokens = after.totalTokens - before.totalTokens
+    const deltaInput = after.tokens.input - before.tokens.input
+    const deltaOutput = after.tokens.output - before.tokens.output
+    const deltaReasoning = after.tokens.reasoning - before.tokens.reasoning
+    const deltaCacheRead = after.tokens.cache.read - before.tokens.cache.read
+    const deltaCacheWrite = after.tokens.cache.write - before.tokens.cache.write
+
+    if (
+      deltaRequests === 0 &&
+      deltaTotalTokens === 0 &&
+      deltaInput === 0 &&
+      deltaOutput === 0 &&
+      deltaReasoning === 0 &&
+      deltaCacheRead === 0 &&
+      deltaCacheWrite === 0
+    ) {
+      return false
+    }
+
+    const current = session.stats ?? emptyStats()
+    session.stats = {
+      requestsTotal: Math.max(0, current.requestsTotal + deltaRequests),
+      totalTokens: Math.max(0, current.totalTokens + deltaTotalTokens),
+      tokens: {
+        input: Math.max(0, current.tokens.input + deltaInput),
+        output: Math.max(0, current.tokens.output + deltaOutput),
+        reasoning: Math.max(0, current.tokens.reasoning + deltaReasoning),
+        cache: {
+          read: Math.max(0, current.tokens.cache.read + deltaCacheRead),
+          write: Math.max(0, current.tokens.cache.write + deltaCacheWrite),
+        },
+      },
+      lastUpdated: Date.now(),
+    }
+    return true
+  }
+
+  function hasMessageUsageDelta(prev?: MessageV2.Info, next?: MessageV2.Info) {
+    const before = assistantUsage(prev)
+    const after = assistantUsage(next)
+    return (
+      before.requests !== after.requests ||
+      before.totalTokens !== after.totalTokens ||
+      before.tokens.input !== after.tokens.input ||
+      before.tokens.output !== after.tokens.output ||
+      before.tokens.reasoning !== after.tokens.reasoning ||
+      before.tokens.cache.read !== after.tokens.cache.read ||
+      before.tokens.cache.write !== after.tokens.cache.write
+    )
   }
 
   export const Info = z
@@ -89,6 +212,7 @@ export namespace Session {
           diff: z.string().optional(),
         })
         .optional(),
+      stats: Stats.optional(),
     })
     .meta({
       ref: "Session",
@@ -244,6 +368,7 @@ export namespace Session {
         created: Date.now(),
         updated: Date.now(),
       },
+      stats: emptyStats(),
     }
     log.info("created", result)
     await Storage.write(["session", Instance.project.id, result.id], result)
@@ -441,7 +566,17 @@ export namespace Session {
   })
 
   export const updateMessage = fn(MessageV2.Info, async (msg) => {
+    const previous = await Storage.read<MessageV2.Info>(["message", msg.sessionID, msg.id]).catch(() => undefined)
     await Storage.write(["message", msg.sessionID, msg.id], msg)
+    if (hasMessageUsageDelta(previous, msg)) {
+      await update(
+        msg.sessionID,
+        (draft) => {
+          applyMessageUsageDelta(draft, previous, msg)
+        },
+        { touch: false },
+      ).catch(() => {})
+    }
     Bus.publish(MessageV2.Event.Updated, {
       info: msg,
     })
@@ -454,7 +589,19 @@ export namespace Session {
       messageID: Identifier.schema("message"),
     }),
     async (input) => {
+      const previous = await Storage.read<MessageV2.Info>(["message", input.sessionID, input.messageID]).catch(
+        () => undefined,
+      )
       await Storage.remove(["message", input.sessionID, input.messageID])
+      if (hasMessageUsageDelta(previous, undefined)) {
+        await update(
+          input.sessionID,
+          (draft) => {
+            applyMessageUsageDelta(draft, previous, undefined)
+          },
+          { touch: false },
+        ).catch(() => {})
+      }
       Bus.publish(MessageV2.Event.Removed, {
         sessionID: input.sessionID,
         messageID: input.messageID,

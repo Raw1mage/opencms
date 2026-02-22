@@ -879,6 +879,20 @@ export type Session = {
     snapshot?: string
     diff?: string
   }
+  stats?: {
+    requestsTotal: number
+    totalTokens: number
+    tokens: {
+      input: number
+      output: number
+      reasoning: number
+      cache: {
+        read: number
+        write: number
+      }
+    }
+    lastUpdated: number
+  }
 }
 
 export type EventSessionCreated = {
