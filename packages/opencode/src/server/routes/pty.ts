@@ -178,7 +178,7 @@ export const PtyRoutes = lazy(() =>
         return {
           onOpen(_event, ws) {
             const socket = isSocket(ws.raw) ? ws.raw : ws
-            handler = Pty.connect(id, socket, cursor)
+            handler = Pty.connect(id, socket, cursor, ws)
           },
           onMessage(event) {
             handler?.onMessage(String(event.data))
