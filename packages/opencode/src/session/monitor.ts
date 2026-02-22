@@ -247,7 +247,11 @@ export namespace SessionMonitor {
     }
     const model = { value: undefined as { providerId: string; modelID: string } | undefined }
     const agent = { value: undefined as string | undefined }
-    const tool = { name: undefined as string | undefined, status: undefined as string | undefined }
+    const tool = {
+      name: undefined as string | undefined,
+      status: undefined as string | undefined,
+      title: undefined as string | undefined,
+    }
     const latest = { value: undefined as MessageV2.Info | undefined }
 
     const agents = new Map<
@@ -259,7 +263,7 @@ export namespace SessionMonitor {
         model?: { providerId: string; modelID: string }
         latest?: MessageV2.Assistant
         updated: number
-        tool?: { name?: string; status?: string }
+        tool?: { name?: string; status?: string; title?: string }
       }
     >()
     const tools: Info[] = []
@@ -329,11 +333,16 @@ export namespace SessionMonitor {
         if (!tool.name) {
           tool.name = part.tool
           tool.status = part.state.status
+          tool.title = part.state.status === "running" ? part.state.title : undefined
         }
         if (message.info.role === "assistant") {
           const current = agents.get(message.info.agent)
           if (current && !current.tool?.name) {
-            current.tool = { name: part.tool, status: part.state.status }
+            current.tool = {
+              name: part.tool,
+              status: part.state.status,
+              title: part.state.status === "running" ? part.state.title : undefined,
+            }
           }
         }
 
@@ -345,7 +354,9 @@ export namespace SessionMonitor {
           id: `tool:${session.id}:${part.id}`,
           level: "tool",
           sessionID: session.id,
-          title: session.title,
+          // Prefer tool-provided running title so monitor rows can reflect
+          // concrete subtask progress instead of repeating session title.
+          title: part.state.status === "running" && part.state.title ? part.state.title : session.title,
           parentID: session.parentID,
           agent: message.info.role === "assistant" ? message.info.agent : undefined,
           status: toolStatus(part.state),
@@ -374,7 +385,7 @@ export namespace SessionMonitor {
         id: `${level}:${session.id}`,
         level,
         sessionID: session.id,
-        title: session.title,
+        title: tool.title || session.title,
         parentID: session.parentID,
         agent: agent.value,
         status,
@@ -396,7 +407,7 @@ export namespace SessionMonitor {
         id: `${level}:${session.id}:${name}`,
         level,
         sessionID: session.id,
-        title: session.title,
+        title: info.tool?.title || session.title,
         parentID: session.parentID,
         agent: name,
         status,

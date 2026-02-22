@@ -88,6 +88,53 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
     }
   })
 
+  const monitorFallbackStats = createMemo(() => {
+    const persisted = session()?.stats
+    if (persisted) {
+      return {
+        requests: persisted.requestsTotal,
+        totalTokens: persisted.totalTokens,
+        tokens: persisted.tokens,
+        model: undefined as { providerId: string; modelID: string } | undefined,
+      }
+    }
+
+    const stats = {
+      requests: 0,
+      totalTokens: 0,
+      tokens: {
+        input: 0,
+        output: 0,
+        reasoning: 0,
+        cache: { read: 0, write: 0 },
+      },
+      model: undefined as { providerId: string; modelID: string } | undefined,
+    }
+
+    for (const msg of messages()) {
+      if (msg.role !== "assistant") continue
+      const total =
+        msg.tokens.input + msg.tokens.output + msg.tokens.reasoning + msg.tokens.cache.read + msg.tokens.cache.write
+      if (total > 0) {
+        stats.requests += 1
+        if (!stats.model) {
+          stats.model = {
+            providerId: msg.providerId,
+            modelID: msg.modelID,
+          }
+        }
+      }
+      stats.tokens.input += msg.tokens.input
+      stats.tokens.output += msg.tokens.output
+      stats.tokens.reasoning += msg.tokens.reasoning
+      stats.tokens.cache.read += msg.tokens.cache.read
+      stats.tokens.cache.write += msg.tokens.cache.write
+      stats.totalTokens += total
+    }
+
+    return stats
+  })
+
   const directory = useDirectory()
   const kv = useKV()
   const route = useRoute()
@@ -149,6 +196,7 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
     // monitor row so users can still see main session status.
     if (deduped.length === 0 && session()) {
       const status = sync.data.session_status?.[session()!.id] ?? { type: "idle" as const }
+      const fallbackStats = monitorFallbackStats()
       return [
         {
           id: `session:${session()!.id}:fallback`,
@@ -158,15 +206,10 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
           parentID: session()!.parentID,
           agent: undefined,
           status,
-          model: undefined,
-          requests: 0,
-          tokens: {
-            input: 0,
-            output: 0,
-            reasoning: 0,
-            cache: { read: 0, write: 0 },
-          },
-          totalTokens: 0,
+          model: fallbackStats.model,
+          requests: fallbackStats.requests,
+          tokens: fallbackStats.tokens,
+          totalTokens: fallbackStats.totalTokens,
           activeTool: undefined,
           activeToolStatus: undefined,
           updated: session()!.time.updated,
@@ -239,9 +282,12 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                       info.level === "tool"
                         ? modelLabel
                         : `${modelLabel ? `${modelLabel} ` : ""}${info.requests} reqs ${info.totalTokens.toLocaleString()} tok`
-                    const toolLabel = info.activeTool
-                      ? `Tool: ${info.activeTool} (${info.activeToolStatus ?? "pending"})`
-                      : null
+                    const toolStatusRedundant =
+                      (info.activeToolStatus === "running" && (statusType === "working" || statusType === "busy")) ||
+                      (info.activeToolStatus === "pending" && statusType === "pending")
+                    const toolStatusLabel =
+                      info.activeToolStatus && !toolStatusRedundant ? ` ${Locale.titlecase(info.activeToolStatus)}` : ""
+                    const toolLabel = info.activeTool ? `Tool: ${info.activeTool}${toolStatusLabel}` : null
                     return (
                       <box
                         flexDirection="column"
@@ -252,7 +298,6 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                         onMouseDown={() => route.navigate({ type: "session", sessionID: info.sessionID })}
                       >
                         <box flexDirection="row" gap={1} alignItems="center">
-                          <text fg={dotColor}>•</text>
                           <text fg={theme.text} wrapMode="word">
                             <span style={{ fg: theme.textMuted }}>[{levelLabel}]</span> {title}
                             <span style={{ fg: theme.textMuted }}>{agentSuffix}</span>
