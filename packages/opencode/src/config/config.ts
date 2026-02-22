@@ -375,7 +375,7 @@ export namespace Config {
     // Install any additional dependencies defined in the package.json
     // This allows local plugins and custom tools to use external packages
     await BunProc.run(["install"], { cwd: dir }).catch((err) => {
-      log.warn("Dependency installation failed", { dir, err })
+      log.warn("failed to install dependencies", { dir, error: err })
     })
   }
 

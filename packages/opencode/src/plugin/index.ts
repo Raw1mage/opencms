@@ -91,7 +91,8 @@ export namespace Plugin {
         const pkg = lastAtIndex > 0 ? plugin.substring(0, lastAtIndex) : plugin
         const version = lastAtIndex > 0 ? plugin.substring(lastAtIndex + 1) : "latest"
         plugin = await BunProc.install(pkg, version).catch((err) => {
-          const message = err instanceof Error ? err.message : String(err)
+          const cause = err instanceof Error ? err.cause : err
+          const message = cause instanceof Error ? cause.message : String(cause ?? err)
           log.error("failed to install plugin", {
             pkg,
             version,
