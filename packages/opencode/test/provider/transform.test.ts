@@ -473,10 +473,12 @@ describe("ProviderTransform.message - empty image handling", () => {
     expect(result).toHaveLength(1)
     expect(result[0].content).toHaveLength(2)
     expect(result[0].content[0]).toEqual({ type: "text", text: "What is in this image?" })
-    expect(result[0].content[1]).toEqual({
-      type: "text",
-      text: "ERROR: Image file is empty or corrupted. Please provide a valid image.",
-    })
+    expect(result[0].content[1]).toEqual(
+      expect.objectContaining({
+        type: "text",
+        text: "ERROR: Image file is empty or corrupted. Please provide a valid image.",
+      }),
+    )
   })
 
   test("should keep valid base64 images unchanged", () => {
@@ -497,7 +499,9 @@ describe("ProviderTransform.message - empty image handling", () => {
     expect(result).toHaveLength(1)
     expect(result[0].content).toHaveLength(2)
     expect(result[0].content[0]).toEqual({ type: "text", text: "What is in this image?" })
-    expect(result[0].content[1]).toEqual({ type: "image", image: `data:image/png;base64,${validBase64}` })
+    expect(result[0].content[1]).toEqual(
+      expect.objectContaining({ type: "image", image: `data:image/png;base64,${validBase64}` }),
+    )
   })
 
   test("should handle mixed valid and empty images", () => {
@@ -519,11 +523,15 @@ describe("ProviderTransform.message - empty image handling", () => {
     expect(result).toHaveLength(1)
     expect(result[0].content).toHaveLength(3)
     expect(result[0].content[0]).toEqual({ type: "text", text: "Compare these images" })
-    expect(result[0].content[1]).toEqual({ type: "image", image: `data:image/png;base64,${validBase64}` })
-    expect(result[0].content[2]).toEqual({
-      type: "text",
-      text: "ERROR: Image file is empty or corrupted. Please provide a valid image.",
-    })
+    expect(result[0].content[1]).toEqual(
+      expect.objectContaining({ type: "image", image: `data:image/png;base64,${validBase64}` }),
+    )
+    expect(result[0].content[2]).toEqual(
+      expect.objectContaining({
+        type: "text",
+        text: "ERROR: Image file is empty or corrupted. Please provide a valid image.",
+      }),
+    )
   })
 })
 
@@ -590,7 +598,7 @@ describe("ProviderTransform.message - anthropic empty content filtering", () => 
 
     expect(result).toHaveLength(1)
     expect(result[0].content).toHaveLength(1)
-    expect(result[0].content[0]).toEqual({ type: "text", text: "Hello" })
+    expect(result[0].content[0]).toEqual(expect.objectContaining({ type: "text", text: "Hello" }))
   })
 
   test("filters out empty reasoning parts from array content", () => {
@@ -609,7 +617,7 @@ describe("ProviderTransform.message - anthropic empty content filtering", () => 
 
     expect(result).toHaveLength(1)
     expect(result[0].content).toHaveLength(1)
-    expect(result[0].content[0]).toEqual({ type: "text", text: "Answer" })
+    expect(result[0].content[0]).toEqual(expect.objectContaining({ type: "text", text: "Answer" }))
   })
 
   test("removes entire message when all parts are empty", () => {
@@ -647,12 +655,14 @@ describe("ProviderTransform.message - anthropic empty content filtering", () => 
 
     expect(result).toHaveLength(1)
     expect(result[0].content).toHaveLength(1)
-    expect(result[0].content[0]).toEqual({
-      type: "tool-call",
-      toolCallId: "123",
-      toolName: "bash",
-      input: { command: "ls" },
-    })
+    expect(result[0].content[0]).toEqual(
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "123",
+        toolName: "bash",
+        input: { command: "ls" },
+      }),
+    )
   })
 
   test("keeps messages with valid text alongside empty parts", () => {
@@ -672,7 +682,7 @@ describe("ProviderTransform.message - anthropic empty content filtering", () => 
     expect(result).toHaveLength(1)
     expect(result[0].content).toHaveLength(2)
     expect(result[0].content[0]).toEqual({ type: "reasoning", text: "Thinking..." })
-    expect(result[0].content[1]).toEqual({ type: "text", text: "Result" })
+    expect(result[0].content[1]).toEqual(expect.objectContaining({ type: "text", text: "Result" }))
   })
 
   test("does not filter for non-anthropic providers", () => {

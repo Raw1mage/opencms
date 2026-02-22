@@ -4,6 +4,7 @@ import { Session } from "../../src/session"
 import { Log } from "../../src/util/log"
 import { Instance } from "../../src/project/instance"
 import { Server } from "../../src/server/server"
+import { Flag } from "../../src/flag/flag"
 
 const projectRoot = path.join(__dirname, "../..")
 Log.init({ print: false })
@@ -25,6 +26,10 @@ describe("tui.selectSession endpoint", () => {
         })
 
         // #then
+        if (Flag.OPENCODE_SERVER_PASSWORD) {
+          expect(response.status).toBe(401)
+          return
+        }
         expect(response.status).toBe(200)
         const body = await response.json()
         expect(body).toBe(true)
@@ -50,6 +55,10 @@ describe("tui.selectSession endpoint", () => {
         })
 
         // #then
+        if (Flag.OPENCODE_SERVER_PASSWORD) {
+          expect(response.status).toBe(401)
+          return
+        }
         expect(response.status).toBe(404)
       },
     })
@@ -71,6 +80,10 @@ describe("tui.selectSession endpoint", () => {
         })
 
         // #then
+        if (Flag.OPENCODE_SERVER_PASSWORD) {
+          expect(response.status).toBe(401)
+          return
+        }
         expect(response.status).toBe(400)
       },
     })

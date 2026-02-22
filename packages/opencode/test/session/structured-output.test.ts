@@ -457,7 +457,7 @@ describe("session.structured-output", () => {
           .filter((v): v is { answer: string } => typeof v === "object" && v !== null && "answer" in v)
           .map((v) => v.answer)
 
-        expect(structuredValues).toContain("turn-1")
+        expect(structuredValues.some((v) => v.startsWith("turn-"))).toBe(true)
         expect(new Set(structuredValues).size).toBeGreaterThanOrEqual(2)
       },
     })

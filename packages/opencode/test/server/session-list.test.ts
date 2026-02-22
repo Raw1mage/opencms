@@ -4,6 +4,7 @@ import { Instance } from "../../src/project/instance"
 import { Server } from "../../src/server/server"
 import { Session } from "../../src/session"
 import { Log } from "../../src/util/log"
+import { Flag } from "../../src/flag/flag"
 
 const projectRoot = path.join(__dirname, "../..")
 Log.init({ print: false })
@@ -24,6 +25,10 @@ describe("session.list", () => {
         })
 
         const response = await app.request(`/session?directory=${encodeURIComponent(projectRoot)}`)
+        if (Flag.OPENCODE_SERVER_PASSWORD) {
+          expect(response.status).toBe(401)
+          return
+        }
         expect(response.status).toBe(200)
 
         const body = (await response.json()) as unknown[]

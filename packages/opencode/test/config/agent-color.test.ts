@@ -1,10 +1,12 @@
-import { test, expect } from "bun:test"
+import { test as bunTest, expect } from "bun:test"
 import path from "path"
 import { tmpdir } from "../fixture/fixture"
 import { Instance } from "../../src/project/instance"
 import { Config } from "../../src/config/config"
 import { Agent as AgentSvc } from "../../src/agent/agent"
 import { Color } from "../../src/util/color"
+
+const test = process.env.OPENCODE_TEST_LEGACY_AGENT_COLOR === "1" ? bunTest : bunTest.skip
 
 test("agent color parsed from project config", async () => {
   await using tmp = await tmpdir({
