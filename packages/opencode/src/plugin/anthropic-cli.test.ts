@@ -1,18 +1,6 @@
 import { describe, expect, it, mock, beforeEach } from "bun:test"
 import { AnthropicAuthPlugin } from "./anthropic"
 
-// Mock log to avoid noise
-mock.module("../util/log", () => ({
-  Log: {
-    create: () => ({
-      info: () => {},
-      debug: () => {},
-      error: () => {},
-      warn: () => {},
-    }),
-  },
-}))
-
 describe("claude-cli Protocol Mimicry", () => {
   let plugin: any
   const mockInput: any = {
