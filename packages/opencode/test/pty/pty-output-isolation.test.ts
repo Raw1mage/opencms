@@ -4,6 +4,54 @@ import { Pty } from "../../src/pty"
 import { tmpdir } from "../fixture/fixture"
 
 describe("pty", () => {
+  test("does not leak when identity token is only on websocket wrapper", async () => {
+    await using dir = await tmpdir({ git: true })
+
+    await Instance.provide({
+      directory: dir.path,
+      fn: async () => {
+        const a = await Pty.create({ command: "cat", title: "a" })
+        try {
+          const outA: string[] = []
+          const outB: string[] = []
+          const text = (data: string | Uint8Array | ArrayBuffer) => {
+            if (typeof data === "string") return data
+            if (data instanceof ArrayBuffer) return Buffer.from(new Uint8Array(data)).toString("utf8")
+            return Buffer.from(data).toString("utf8")
+          }
+
+          const raw: Parameters<typeof Pty.connect>[1] = {
+            readyState: 1,
+            send: (data) => {
+              outA.push(text(data))
+            },
+            close: () => {
+              // no-op
+            },
+          }
+
+          const wrap = { data: { events: { connection: "a" } } }
+
+          Pty.connect(a.id, raw, undefined, wrap)
+          outA.length = 0
+
+          // Simulate Bun reusing the raw socket object before the next onOpen,
+          // while the connection token only exists on the wrapper socket.
+          raw.send = (data) => {
+            outB.push(text(data))
+          }
+
+          Pty.write(a.id, "AAA\n")
+          await Bun.sleep(100)
+
+          expect(outB.join("")).not.toContain("AAA")
+        } finally {
+          await Pty.remove(a.id)
+        }
+      },
+    })
+  }, 15000)
+
   test("does not leak output when websocket objects are reused", async () => {
     await using dir = await tmpdir({ git: true })
 

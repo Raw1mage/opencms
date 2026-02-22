@@ -19,11 +19,18 @@ export namespace Pty {
 
   type Socket = {
     readyState: number
+    data?: unknown
     send: (data: string | Uint8Array<ArrayBuffer> | ArrayBuffer) => void
     close: (code?: number, reason?: string) => void
   }
 
+  type Subscriber = {
+    id: number
+    token: unknown
+  }
+
   const sockets = new WeakMap<object, number>()
+  const owners = new WeakMap<object, string>()
   let socketCounter = 0
 
   const tagSocket = (ws: Socket) => {
@@ -31,6 +38,45 @@ export namespace Pty {
     const next = (socketCounter = (socketCounter + 1) % Number.MAX_SAFE_INTEGER)
     sockets.set(ws, next)
     return next
+  }
+
+  const token = (ws: unknown) => {
+    if (!ws || typeof ws !== "object") return ws
+    const data = (ws as { data?: unknown }).data
+    if (data === undefined) return
+    if (data === null) return
+    if (typeof data !== "object") return data
+
+    const id = (data as { connId?: unknown }).connId
+    if (typeof id === "number" || typeof id === "string") return id
+
+    const href = (data as { href?: unknown }).href
+    if (typeof href === "string") return href
+
+    const url = (data as { url?: unknown }).url
+    if (typeof url === "string") return url
+    if (url && typeof url === "object") {
+      const urlHref = (url as { href?: unknown }).href
+      if (typeof urlHref === "string") return urlHref
+      return url
+    }
+
+    const events = (data as { events?: unknown }).events
+    if (typeof events === "number" || typeof events === "string") return events
+    if (events && typeof events === "object") {
+      const eventsConnID = (events as { connId?: unknown }).connId
+      if (typeof eventsConnID === "number" || typeof eventsConnID === "string") return eventsConnID
+
+      const eventsConnection = (events as { connection?: unknown }).connection
+      if (typeof eventsConnection === "number" || typeof eventsConnection === "string") return eventsConnection
+
+      const eventsID = (events as { id?: unknown }).id
+      if (typeof eventsID === "number" || typeof eventsID === "string") return eventsID
+
+      return events
+    }
+
+    return data
   }
 
   // WebSocket control frame: 0x00 + UTF-8 JSON (currently { cursor }).
@@ -97,7 +143,7 @@ export namespace Pty {
     buffer: string
     bufferCursor: number
     cursor: number
-    subscribers: Map<Socket, number>
+    subscribers: Map<Socket, Subscriber>
   }
 
   const state = Instance.state(
@@ -185,12 +231,16 @@ export namespace Pty {
     ptyProcess.onData((data) => {
       session.cursor += data.length
 
-      for (const [ws, id] of session.subscribers) {
+      for (const [ws, sub] of session.subscribers) {
         if (ws.readyState !== 1) {
           session.subscribers.delete(ws)
           continue
         }
-        if (typeof ws === "object" && sockets.get(ws) !== id) {
+        if (typeof ws === "object" && sockets.get(ws) !== sub.id) {
+          session.subscribers.delete(ws)
+          continue
+        }
+        if (token(ws) !== sub.token) {
           session.subscribers.delete(ws)
           continue
         }
@@ -276,13 +326,32 @@ export namespace Pty {
     }
   }
 
-  export function connect(id: string, ws: Socket, cursor?: number) {
+  export function connect(id: string, ws: Socket, cursor?: number, identity?: unknown) {
     const session = state().get(id)
     if (!session) {
       ws.close()
       return
     }
     log.info("client connected to session", { id })
+
+    const socketId = tagSocket(ws)
+    if (socketId === undefined) {
+      ws.close()
+      return
+    }
+
+    const previous = owners.get(ws)
+    if (previous && previous !== id) {
+      state().get(previous)?.subscribers.delete(ws)
+    }
+
+    owners.set(ws, id)
+    session.subscribers.set(ws, { id: socketId, token: token(identity ?? ws) })
+
+    const cleanup = () => {
+      session.subscribers.delete(ws)
+      if (owners.get(ws) === id) owners.delete(ws)
+    }
 
     const start = session.bufferCursor
     const end = session.cursor
@@ -304,6 +373,7 @@ export namespace Pty {
           ws.send(data.slice(i, i + BUFFER_CHUNK))
         }
       } catch {
+        cleanup()
         ws.close()
         return
       }
@@ -312,19 +382,18 @@ export namespace Pty {
     try {
       ws.send(meta(end))
     } catch {
+      cleanup()
       ws.close()
       return
     }
 
-    const socketId = tagSocket(ws)
-    if (typeof socketId === "number") session.subscribers.set(ws, socketId)
     return {
       onMessage: (message: string | ArrayBuffer) => {
         session.process.write(String(message))
       },
       onClose: () => {
         log.info("client disconnected from session", { id })
-        session.subscribers.delete(ws)
+        cleanup()
       },
     }
   }
