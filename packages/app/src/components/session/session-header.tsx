@@ -467,7 +467,10 @@ export function SessionHeader() {
                       variant: "ghost",
                       class:
                         "rounded-md h-[24px] px-3 border border-border-base bg-surface-panel shadow-none data-[expanded]:bg-surface-raised-base-active",
-                      classList: { "rounded-r-none": share.shareUrl() !== undefined },
+                      classList: {
+                        "rounded-r-none": share.shareUrl() !== undefined,
+                        "border-r-0": share.shareUrl() !== undefined,
+                      },
                       style: { scale: 1 },
                     }}
                     trigger={language.t("session.share.action.share")}
