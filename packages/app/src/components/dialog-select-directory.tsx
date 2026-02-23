@@ -1,378 +1,277 @@
-import { useDialog } from "@opencode-ai/ui/context/dialog"
-import { Dialog } from "@opencode-ai/ui/dialog"
-import { FileIcon } from "@opencode-ai/ui/file-icon"
-import { List } from "@opencode-ai/ui/list"
-import type { ListRef } from "@opencode-ai/ui/list"
-import { getDirectory, getFilename } from "@opencode-ai/util/path"
-import fuzzysort from "fuzzysort"
-import { createMemo, createResource, createSignal } from "solid-js"
-import { useGlobalSDK } from "@/context/global-sdk"
-import { useGlobalSync } from "@/context/global-sync"
-import { useLanguage } from "@/context/language"
+import { useDialog } from "@opencode-ai/ui/context/dialog";
+import { Dialog } from "@opencode-ai/ui/dialog";
+import { Button } from "@opencode-ai/ui/button";
+import { FileIcon } from "@opencode-ai/ui/file-icon";
+import { TextField } from "@opencode-ai/ui/text-field";
+import { createMemo, createResource, createSignal, For, Show } from "solid-js";
+import { useGlobalSDK } from "@/context/global-sdk";
+import { useGlobalSync } from "@/context/global-sync";
+import { useLanguage } from "@/context/language";
 
 interface DialogSelectDirectoryProps {
-  title?: string
-  multiple?: boolean
-  onSelect: (result: string | string[] | null) => void
-}
-
-type Row = {
-  absolute: string
-  search: string
-  parentEntry?: boolean
-}
-
-function cleanInput(value: string) {
-  const first = (value ?? "").split(/\r?\n/)[0] ?? ""
-  return first.replace(/[\u0000-\u001F\u007F]/g, "").trim()
+	title?: string;
+	multiple?: boolean;
+	onSelect: (result: string | string[] | null) => void;
 }
 
 function normalizePath(input: string) {
-  const v = input.replaceAll("\\", "/")
-  if (v.startsWith("//") && !v.startsWith("///")) return "//" + v.slice(2).replace(/\/+/g, "/")
-  return v.replace(/\/+/g, "/")
-}
-
-function normalizeDriveRoot(input: string) {
-  const v = normalizePath(input)
-  if (/^[A-Za-z]:$/.test(v)) return v + "/"
-  return v
+	const v = input.replaceAll("\\", "/");
+	if (v.startsWith("//") && !v.startsWith("///"))
+		return "//" + v.slice(2).replace(/\/+/g, "/");
+	return v.replace(/\/+/g, "/");
 }
 
 function trimTrailing(input: string) {
-  const v = normalizeDriveRoot(input)
-  if (v === "/") return v
-  if (v === "//") return v
-  if (/^[A-Za-z]:\/$/.test(v)) return v
-  return v.replace(/\/+$/, "")
+	const v = normalizePath(input);
+	if (v === "/") return v;
+	return v.replace(/\/+$/, "") || "/";
 }
 
-function joinPath(base: string | undefined, rel: string) {
-  const b = trimTrailing(base ?? "")
-  const r = trimTrailing(rel).replace(/^\/+/, "")
-  if (!b) return r
-  if (!r) return b
-  if (b.endsWith("/")) return b + r
-  return b + "/" + r
-}
-
-function rootOf(input: string) {
-  const v = normalizeDriveRoot(input)
-  if (v.startsWith("//")) return "//"
-  if (v.startsWith("/")) return "/"
-  if (/^[A-Za-z]:\//.test(v)) return v.slice(0, 3)
-  return ""
+function joinPath(base: string, rel: string) {
+	const b = trimTrailing(base);
+	const r = trimTrailing(rel).replace(/^\/+/, "");
+	if (!r) return b;
+	if (b === "/") return `/${r}`;
+	return `${b}/${r}`;
 }
 
 function parentOf(input: string) {
-  const v = trimTrailing(input)
-  if (v === "/") return v
-  if (v === "//") return v
-  if (/^[A-Za-z]:\/$/.test(v)) return v
-
-  const i = v.lastIndexOf("/")
-  if (i <= 0) return "/"
-  if (i === 2 && /^[A-Za-z]:/.test(v)) return v.slice(0, 3)
-  return v.slice(0, i)
+	const v = trimTrailing(input);
+	if (v === "/") return "/";
+	const i = v.lastIndexOf("/");
+	if (i <= 0) return "/";
+	return v.slice(0, i);
 }
 
-function modeOf(input: string) {
-  const raw = normalizeDriveRoot(input.trim())
-  if (!raw) return "relative" as const
-  if (raw.startsWith("~")) return "tilde" as const
-  if (rootOf(raw)) return "absolute" as const
-  return "relative" as const
-}
-
-function tildeOf(absolute: string, home: string) {
-  const full = trimTrailing(absolute)
-  if (!home) return ""
-
-  const hn = trimTrailing(home)
-  const lc = full.toLowerCase()
-  const hc = hn.toLowerCase()
-  if (lc === hc) return "~"
-  if (lc.startsWith(hc + "/")) return "~" + full.slice(hn.length)
-  return ""
-}
-
-function displayPath(path: string, input: string, home: string) {
-  const full = trimTrailing(path)
-  return full
-}
-
-function toRow(absolute: string, home: string): Row {
-  const full = trimTrailing(absolute)
-  const tilde = tildeOf(full, home)
-  const withSlash = (value: string) => {
-    if (!value) return ""
-    if (value.endsWith("/")) return value
-    return value + "/"
-  }
-
-  const search = Array.from(
-    new Set([full, withSlash(full), tilde, withSlash(tilde), getFilename(full)].filter(Boolean)),
-  ).join("\n")
-  return { absolute: full, search }
-}
-
-function useDirectorySearch(args: {
-  sdk: ReturnType<typeof useGlobalSDK>
-  start: () => string | undefined
-  home: () => string
-}) {
-  const cache = new Map<string, Promise<Array<{ name: string; absolute: string }>>>()
-  let current = 0
-
-  const scoped = (value: string) => {
-    const base = args.start()
-    if (!base) return
-
-    const raw = normalizeDriveRoot(value)
-    if (!raw) return { directory: trimTrailing(base), path: "" }
-
-    const h = args.home()
-    if (raw === "~") return { directory: trimTrailing(h || base), path: "" }
-    if (raw.startsWith("~/")) return { directory: trimTrailing(h || base), path: raw.slice(2) }
-
-    const root = rootOf(raw)
-    if (root) return { directory: trimTrailing(root), path: raw.slice(root.length) }
-    return { directory: trimTrailing(base), path: raw }
-  }
-
-  const dirs = async (dir: string) => {
-    const key = trimTrailing(dir)
-    const existing = cache.get(key)
-    if (existing) return existing
-
-    const request = args.sdk.client.file
-      .list({ directory: key, path: "" })
-      .then((x) => x.data ?? [])
-      .catch(() => [])
-      .then((nodes) =>
-        nodes
-          .filter((n) => n.type === "directory")
-          .map((n) => ({
-            name: n.name,
-            absolute: trimTrailing(normalizeDriveRoot(n.absolute)),
-          })),
-      )
-
-    cache.set(key, request)
-    return request
-  }
-
-  const match = async (dir: string, query: string, limit: number) => {
-    const items = await dirs(dir)
-    if (!query) return items.slice(0, limit).map((x) => x.absolute)
-    return fuzzysort.go(query, items, { key: "name", limit }).map((x) => x.obj.absolute)
-  }
-
-  return async (filter: string) => {
-    const token = ++current
-    const active = () => token === current
-
-    const value = cleanInput(filter)
-    const scopedInput = scoped(value)
-    if (!scopedInput) return [] as string[]
-
-    const raw = normalizeDriveRoot(value)
-    const isPath = raw.startsWith("~") || !!rootOf(raw) || raw.includes("/")
-    const query = normalizeDriveRoot(scopedInput.path)
-
-    const find = () =>
-      args.sdk.client.find
-        .files({ directory: scopedInput.directory, query, type: "directory", limit: 50 })
-        .then((x) => x.data ?? [])
-        .catch(() => [])
-
-    if (!isPath) {
-      const results = await find()
-      if (!active()) return []
-      return results.map((rel) => joinPath(scopedInput.directory, rel)).slice(0, 50)
-    }
-
-    const segments = query.replace(/^\/+/, "").split("/")
-    const head = segments.slice(0, segments.length - 1).filter((x) => x && x !== ".")
-    const tail = segments[segments.length - 1] ?? ""
-
-    const cap = 12
-    const branch = 4
-    let paths = [scopedInput.directory]
-    for (const part of head) {
-      if (!active()) return []
-      if (part === "..") {
-        paths = paths.map(parentOf)
-        continue
-      }
-
-      const next = (await Promise.all(paths.map((p) => match(p, part, branch)))).flat()
-      if (!active()) return []
-      paths = Array.from(new Set(next)).slice(0, cap)
-      if (paths.length === 0) return [] as string[]
-    }
-
-    const out = (await Promise.all(paths.map((p) => match(p, tail, 50)))).flat()
-    if (!active()) return []
-    const deduped = Array.from(new Set(out))
-    const base = raw.startsWith("~") ? trimTrailing(scopedInput.directory) : ""
-    const expand = !raw.endsWith("/")
-    if (!expand || !tail) {
-      const items = base ? Array.from(new Set([base, ...deduped])) : deduped
-      return items.slice(0, 50)
-    }
-
-    const needle = tail.toLowerCase()
-    const exact = deduped.filter((p) => getFilename(p).toLowerCase() === needle)
-    const target = exact[0]
-    if (!target) return deduped.slice(0, 50)
-
-    const children = await match(target, "", 30)
-    if (!active()) return []
-    const items = Array.from(new Set([...deduped, ...children]))
-    return (base ? Array.from(new Set([base, ...items])) : items).slice(0, 50)
-  }
+function toAbsolutePath(raw: string, current: string, home: string) {
+	const value = trimTrailing(raw.trim());
+	if (!value) return current;
+	if (value === "~") return home || current;
+	if (value.startsWith("~/")) return joinPath(home || current, value.slice(2));
+	if (value.startsWith("/")) return value;
+	return joinPath(current, value);
 }
 
 export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
-  const sync = useGlobalSync()
-  const sdk = useGlobalSDK()
-  const dialog = useDialog()
-  const language = useLanguage()
+	const dialog = useDialog();
+	const sdk = useGlobalSDK();
+	const sync = useGlobalSync();
+	const language = useLanguage();
 
-  const [filter, setFilter] = createSignal("")
-  let list: ListRef | undefined
+	const startDirectory = createMemo(() => "/");
+	const home = createMemo(() => trimTrailing(sync.data.path.home || "/"));
 
-  const missingBase = createMemo(() => !(sync.data.path.home || sync.data.path.directory))
-  const [fallbackPath] = createResource(
-    () => (missingBase() ? true : undefined),
-    async () => {
-      return sdk.client.path
-        .get()
-        .then((x) => x.data)
-        .catch(() => undefined)
-    },
-    { initialValue: undefined },
-  )
+	const [currentDir, setCurrentDir] = createSignal(startDirectory());
+	const [pathInput, setPathInput] = createSignal(startDirectory());
+	const [errorText, setErrorText] = createSignal("");
+	const [navigating, setNavigating] = createSignal(false);
+	const [picked, setPicked] = createSignal<string[]>([]);
 
-  const home = createMemo(() => sync.data.path.home || fallbackPath()?.home || "")
-  const start = createMemo(() => {
-    const absoluteBase =
-      sync.data.path.directory || fallbackPath()?.directory || sync.data.path.home || fallbackPath()?.home
-    const root = absoluteBase ? rootOf(absoluteBase) : "/"
-    return root || "/"
-  })
+	const listDirectory = async (absoluteDirectory: string) => {
+		const target = trimTrailing(absoluteDirectory);
+		return sdk.client.file
+			.list({
+				path: target,
+			})
+			.then((x) => x.data ?? []);
+	};
 
-  const directories = useDirectorySearch({
-    sdk,
-    home,
-    start,
-  })
+	const [rows] = createResource(currentDir, async (directory) => {
+		return listDirectory(directory).then((nodes) =>
+			nodes
+				.filter((n) => n.type === "directory")
+				.map((n) => ({ name: n.name, absolute: trimTrailing(n.absolute) }))
+				.sort((a, b) => a.name.localeCompare(b.name)),
+		);
+	});
 
-  const items = async (value: string) => {
-    const results = await directories(value)
-    const rows = results.map((absolute) => toRow(absolute, home()))
+	const upDirectory = createMemo(() => parentOf(currentDir()));
 
-    const raw = normalizeDriveRoot(cleanInput(value))
-    const base = (() => {
-      if (!raw) return trimTrailing(start() ?? "/")
-      if (raw === "~") return trimTrailing(home() || start() || "/")
-      if (raw.startsWith("~/")) return trimTrailing(joinPath(home() || start() || "/", raw.slice(2)))
-      if (rootOf(raw)) return trimTrailing(raw)
-      return trimTrailing(joinPath(start(), raw))
-    })()
+	const navigateTo = async (targetRaw: string) => {
+		setNavigating(true);
+		const target = toAbsolutePath(targetRaw, currentDir(), home());
+		setErrorText("");
+		const ok = await listDirectory(target)
+			.then(() => true)
+			.catch(() => false);
+		if (!ok) {
+			setErrorText(language.t("dialog.directory.empty"));
+			setNavigating(false);
+			return;
+		}
+		setCurrentDir(trimTrailing(target));
+		setPathInput(trimTrailing(target));
+		setNavigating(false);
+	};
 
-    const parent = parentOf(base)
-    if (parent !== base) {
-      rows.unshift({
-        absolute: parent,
-        search: ["..", parent, tildeOf(parent, home())].filter(Boolean).join("\n"),
-        parentEntry: true,
-      })
-    }
+	const resolveTarget = () => toAbsolutePath(pathInput(), currentDir(), home());
 
-    return rows
-  }
+	const browseFromInput = async () => {
+		await navigateTo(pathInput());
+	};
 
-  function resolve(absolute: string) {
-    props.onSelect(props.multiple ? [absolute] : absolute)
-    dialog.close()
-  }
+	const confirmTarget = async () => {
+		if (props.multiple && picked().length) {
+			confirm();
+			return;
+		}
 
-  return (
-    <Dialog title={props.title ?? language.t("command.project.open")}>
-      <List
-        search={{ placeholder: language.t("dialog.directory.search.placeholder"), autofocus: true }}
-        emptyMessage={language.t("dialog.directory.empty")}
-        loadingMessage={language.t("common.loading")}
-        items={items}
-        key={(x) => x.absolute}
-        filterKeys={["search"]}
-        ref={(r) => (list = r)}
-        onFilter={(value) => setFilter(cleanInput(value))}
-        onKeyEvent={(e, item) => {
-          if (e.key !== "Tab") return
-          if (e.shiftKey) return
-          if (!item) return
+		const target = resolveTarget();
+		setErrorText("");
+		const ok = await listDirectory(target)
+			.then(() => true)
+			.catch(() => false);
+		if (!ok) {
+			setErrorText(language.t("dialog.directory.empty"));
+			return;
+		}
 
-          e.preventDefault()
-          e.stopPropagation()
+		if (props.multiple) props.onSelect([target]);
+		else props.onSelect(target);
+		dialog.close();
+	};
 
-          const value = displayPath(item.absolute, filter(), home())
-          list?.setFilter(value.endsWith("/") ? value : value + "/")
-        }}
-        onSelect={(path) => {
-          if (!path) return
-          resolve(path.absolute)
-        }}
-      >
-        {(item) => {
-          if (item.parentEntry) {
-            return (
-              <div class="w-full flex items-center justify-between rounded-md">
-                <div class="flex items-center gap-x-3 grow min-w-0">
-                  <FileIcon node={{ path: item.absolute, type: "directory" }} class="shrink-0 size-4" />
-                  <div class="flex items-center text-14-regular min-w-0">
-                    <span class="text-text-strong whitespace-nowrap">..</span>
-                    <span class="text-text-weak whitespace-nowrap pl-2 truncate">
-                      {displayPath(item.absolute, filter(), home())}
-                    </span>
-                    <span class="text-text-weak whitespace-nowrap">/</span>
-                  </div>
-                </div>
-              </div>
-            )
-          }
-          const path = displayPath(item.absolute, filter(), home())
-          if (path === "~") {
-            return (
-              <div class="w-full flex items-center justify-between rounded-md">
-                <div class="flex items-center gap-x-3 grow min-w-0">
-                  <FileIcon node={{ path: item.absolute, type: "directory" }} class="shrink-0 size-4" />
-                  <div class="flex items-center text-14-regular min-w-0">
-                    <span class="text-text-strong whitespace-nowrap">~</span>
-                    <span class="text-text-weak whitespace-nowrap">/</span>
-                  </div>
-                </div>
-              </div>
-            )
-          }
-          return (
-            <div class="w-full flex items-center justify-between rounded-md">
-              <div class="flex items-center gap-x-3 grow min-w-0">
-                <FileIcon node={{ path: item.absolute, type: "directory" }} class="shrink-0 size-4" />
-                <div class="flex items-center text-14-regular min-w-0">
-                  <span class="text-text-weak whitespace-nowrap overflow-hidden overflow-ellipsis truncate min-w-0">
-                    {getDirectory(path)}
-                  </span>
-                  <span class="text-text-strong whitespace-nowrap">{getFilename(path)}</span>
-                  <span class="text-text-weak whitespace-nowrap">/</span>
-                </div>
-              </div>
-            </div>
-          )
-        }}
-      </List>
-    </Dialog>
-  )
+	const addCurrent = () => {
+		const dir = currentDir();
+		setPicked((prev) => (prev.includes(dir) ? prev : [...prev, dir]));
+	};
+
+	const removePicked = (dir: string) => {
+		setPicked((prev) => prev.filter((x) => x !== dir));
+	};
+
+	const confirm = () => {
+		if (props.multiple) {
+			const selected = picked().length ? picked() : [currentDir()];
+			props.onSelect(selected);
+		} else {
+			props.onSelect(currentDir());
+		}
+		dialog.close();
+	};
+
+	return (
+		<Dialog
+			title={props.title ?? language.t("command.project.open")}
+			class="w-[860px] max-w-[92vw] flex flex-col h-[85vh] max-h-[800px]"
+		>
+			<div class="flex flex-col gap-3 flex-1 overflow-hidden p-4">
+				<div class="flex items-center justify-between gap-4 w-full shrink-0">
+					<div class="text-12-regular text-text-weak shrink-0 truncate flex-1" title={currentDir()}>{currentDir()}</div>
+					<div class="flex-1 min-w-0 max-w-sm">
+						<TextField
+							value={pathInput()}
+							onInput={(e) => setPathInput(e.currentTarget.value)}
+							onKeyDown={(e: KeyboardEvent) => {
+								if (e.key !== "Enter") return;
+								e.preventDefault();
+								void browseFromInput();
+							}}
+							class="w-full"
+							placeholder={language.t("dialog.directory.search.placeholder") || "Enter or paste path..."}
+						/>
+					</div>
+				</div>
+
+				<div class="flex-1 overflow-hidden flex flex-col min-h-0 border border-border-base rounded-md">
+					<Show
+						when={!rows.loading && !navigating()}
+						fallback={
+							<div class="p-4 text-13-regular text-text-weak text-center">
+								{language.t("common.loading")}
+							</div>
+						}
+					>
+						<div class="flex-1 overflow-auto p-1">
+							<div class="flex flex-col gap-1">
+								<button
+									type="button"
+									class="w-full text-left rounded-md px-2 py-1.5 hover:bg-surface-raised-hover flex items-center gap-2 focus:ring-1 focus:ring-border-strong outline-none"
+									onMouseDown={(e) => {
+										e.preventDefault();
+										void navigateTo(upDirectory());
+									}}
+								>
+									<FileIcon
+										node={{ path: upDirectory(), type: "directory" }}
+										class="size-4 shrink-0"
+									/>
+									<span>..</span>
+									<span class="text-text-weak truncate">{upDirectory()}</span>
+								</button>
+								<For each={rows() ?? []}>
+									{(row) => (
+										<button
+											type="button"
+											class="w-full text-left rounded-md px-2 py-1.5 hover:bg-surface-raised-hover flex items-center gap-2 focus:ring-1 focus:ring-border-strong outline-none"
+											onMouseDown={(e) => {
+												e.preventDefault();
+												void navigateTo(row.absolute);
+											}}
+											title={row.absolute}
+										>
+											<FileIcon
+												node={{ path: row.absolute, type: "directory" }}
+												class="size-4 shrink-0"
+											/>
+											<span class="truncate">{row.name}</span>
+										</button>
+									)}
+								</For>
+							</div>
+						</div>
+					</Show>
+				</div>
+
+				<Show when={errorText()}>
+					{(msg) => (
+						<div class="text-12-regular text-icon-danger-base shrink-0">{msg()}</div>
+					)}
+				</Show>
+
+				<Show when={props.multiple}>
+					<div class="flex items-start gap-2 flex-col sm:flex-row shrink-0 bg-surface-base p-2 rounded border border-border-base">
+						<Button
+							type="button"
+							variant="secondary"
+							size="small"
+							onClick={addCurrent}
+							class="shrink-0"
+						>
+							Add current
+						</Button>
+						<div class="flex flex-wrap gap-1 items-center">
+							<For each={picked()}>
+								{(dir) => (
+									<button
+										type="button"
+										class="px-2 py-1 rounded bg-surface-raised-base hover:bg-surface-raised-hover text-12-regular flex items-center gap-1 transition-colors"
+										onClick={() => removePicked(dir)}
+										title={`Remove ${dir}`}
+									>
+										<span class="truncate max-w-[200px]">{dir}</span>
+										<span class="text-text-weak hover:text-text-strong font-bold">×</span>
+									</button>
+								)}
+							</For>
+						</div>
+					</div>
+				</Show>
+
+				<div class="flex items-center justify-between gap-2 shrink-0 pt-2 border-t border-border-base mt-1">
+					<div class="text-12-regular text-text-weak truncate flex-1">
+						{props.multiple ? `${picked().length} selected` : 'Press enter in path field to navigate'}
+					</div>
+					<div class="flex items-center gap-2 shrink-0">
+						<Button type="button" variant="ghost" onClick={() => dialog.close()}>
+							Cancel
+						</Button>
+						<Button type="button" variant="primary" onClick={() => void confirmTarget()}>
+							{language.t("command.project.open")}
+						</Button>
+					</div>
+				</div>
+			</div>
+		</Dialog>
+	);
 }

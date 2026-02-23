@@ -37,7 +37,7 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
     )
 
     const available = createMemo(() =>
-      providers.connected().flatMap((p) =>
+      providers.all().flatMap((p) =>
         Object.values(p.models).map((m) => ({
           ...m,
           provider: p,
@@ -131,6 +131,11 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
       return user?.favorite ?? false
     }
 
+    const isEnabled = (model: ModelKey) => {
+      const user = store.user.find((x) => x.modelID === model.modelID && x.providerID === model.providerID)
+      return user?.visibility === "show"
+    }
+
     const toggleFavorite = (model: ModelKey) => {
       const current = isFavorite(model)
       update(model, { favorite: !current })
@@ -162,6 +167,7 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
       setVisibility,
       isFavorite,
       toggleFavorite,
+      isEnabled,
       recent: {
         list: createMemo(() => store.recent),
         push,

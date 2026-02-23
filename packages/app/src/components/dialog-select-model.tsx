@@ -17,7 +17,7 @@ import { useLocal } from "@/context/local"
 import { useGlobalSync } from "@/context/global-sync"
 import { useSDK } from "@/context/sdk"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
-import { popularProviders, useProviders } from "@/hooks/use-providers"
+import { popularProviders } from "@/hooks/use-providers"
 import { Button } from "@opencode-ai/ui/button"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { Tag } from "@opencode-ai/ui/tag"
@@ -28,15 +28,48 @@ import { DialogSelectProvider } from "./dialog-select-provider"
 import { DialogManageModels } from "./dialog-manage-models"
 import { ModelTooltip } from "./model-tooltip"
 import { useLanguage } from "@/context/language"
-import { useModels, ModelKey } from "@/context/models"
+import { useModels } from "@/context/models"
 import { Icon } from "@opencode-ai/ui/icon"
 import { ProviderIcon } from "@opencode-ai/ui/provider-icon"
+import { Switch } from "@opencode-ai/ui/switch"
 import { TextField } from "@opencode-ai/ui/text-field"
 import { showToast } from "@opencode-ai/ui/toast"
 import type { IconName } from "@opencode-ai/ui/icons/provider"
 
 function cn(...classes: (string | undefined | null | false)[]) {
   return classes.filter(Boolean).join(" ")
+}
+
+const BUILTIN_PROVIDER_FAMILIES = new Set([
+  "opencode",
+  "anthropic",
+  "openai",
+  "github-copilot",
+  "gemini-cli",
+  "google-api",
+  "antigravity",
+  "openrouter",
+  "vercel",
+  "gitlab",
+])
+
+function normalizeProviderFamily(id: string): string | undefined {
+  if (!id) return undefined
+  const raw = id.trim()
+  if (!raw) return undefined
+  const lower = raw.toLowerCase()
+
+  if (lower.includes(":")) return lower.split(":")[0]
+  if (lower === "google") return "google-api"
+  if (lower.startsWith("google-")) return "google-api"
+  if (lower.startsWith("opencode-")) return "opencode"
+  if (lower.includes("@")) {
+    if (lower.endsWith("gmail.com") || lower.endsWith("gmail.com.tw")) return "google-api"
+    return undefined
+  }
+
+  if (BUILTIN_PROVIDER_FAMILIES.has(lower)) return lower
+  return /^[a-z0-9][a-z0-9-]*$/i.test(lower) ? lower : undefined
 }
 
 const isFree = (provider: string, cost: { input: number } | undefined) =>
@@ -235,9 +268,9 @@ const ProviderItem: Component<{
 const ModelItem: Component<{
   item: ReturnType<ReturnType<typeof useModels>["list"]>[number]
   selected: boolean
-  favorite: boolean
+  enabled: boolean
   unavailableReason?: string
-  onToggleFavorite: (e: MouseEvent) => void
+  onToggleEnabled: (e: MouseEvent) => void
 }> = (props) => {
   const language = useLanguage()
 
@@ -254,16 +287,18 @@ const ModelItem: Component<{
         <Show when={props.unavailableReason}>
           <Tag>{language.t("dialog.model.activity.unavailable")}</Tag>
         </Show>
+        <Show when={!props.enabled}>
+          <Tag>{language.t("dialog.model.activity.disabled")}</Tag>
+        </Show>
       </div>
       <IconButton
-        icon={props.favorite ? "star-filled" : "star"}
+        icon="eye"
         variant="ghost"
         class={cn(
-          "size-6 shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity",
-          props.favorite && "opacity-100 text-yellow-400 hover:text-yellow-500",
-          !props.favorite && "text-icon-weak-base hover:text-icon-base",
+          "size-6 shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity hover:text-icon-base",
+          props.enabled ? "text-icon-weak-base" : "text-icon-warning-base opacity-100",
         )}
-        onClick={props.onToggleFavorite}
+        onClick={props.onToggleEnabled}
       />
     </div>
   )
@@ -275,16 +310,15 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   const local = useLocal()
   const globalSync = useGlobalSync()
   const sdk = useSDK()
-  const modelsContext = useModels()
-  const providersContext = useProviders()
 
   const [search, setSearch] = createSignal("")
   const [accountInfo] = createResource(async () => {
     return sdk.client.account.listAll().then((x) => x.data)
   })
 
-  const [selectedProviderId, setSelectedProviderId] = createSignal<string>(props.provider || "favorites")
+  const [selectedProviderId, setSelectedProviderId] = createSignal<string>(props.provider || "")
   const [selectedAccountId, setSelectedAccountId] = createSignal<string>("")
+  const [mode, setMode] = createSignal<"favorites" | "all">("favorites")
 
   const providerStatus = createMemo(() => {
     const map = new Map<string, string>()
@@ -312,7 +346,7 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
     return map
   })
 
-  const familyOf = (providerId: string) => (providerId.includes(":") ? providerId.split(":")[0] : providerId)
+  const familyOf = (providerId: string) => normalizeProviderFamily(providerId) || providerId
 
   const activeAccountForFamily = (family: string) => {
     const families = accountInfo.latest?.families as Record<string, unknown> | undefined
@@ -339,33 +373,83 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
     }
   }
 
+  const modelCountByFamily = createMemo(() => {
+    const out = new Map<string, number>()
+    for (const model of local.model.list()) {
+      const family = familyOf(model.provider.id)
+      out.set(family, (out.get(family) ?? 0) + 1)
+    }
+    return out
+  })
+
+  const enabledModelCountByFamily = createMemo(() => {
+    const out = new Map<string, number>()
+    for (const model of local.model.list()) {
+      const family = familyOf(model.provider.id)
+      const key = { modelID: model.id, providerID: model.provider.id }
+      if (!local.model.enabled(key)) continue
+      out.set(family, (out.get(family) ?? 0) + 1)
+    }
+    return out
+  })
+
   const providers = createMemo(() => {
-    const list = local.model.list()
-    const knownProviders = new Map(
-      providersContext
-        .all()
-        .map((provider) => [provider.id, { id: provider.id, name: provider.name, family: familyOf(provider.id) }]),
-    )
     const out = new Map<string, { id: string; family: string; name: string; models: number }>()
-    for (const m of list) {
-      if (!local.model.visible({ modelID: m.id, providerID: m.provider.id })) continue
-      if (!knownProviders.has(m.provider.id)) continue
-      const item = out.get(m.provider.id)
-      if (item) item.models += 1
-      else {
-        const known = knownProviders.get(m.provider.id)
-        if (!known) continue
-        out.set(m.provider.id, {
-          id: known.id,
-          family: known.family,
-          name: known.name,
-          models: 1,
-        })
+
+    const labelMap: Record<string, string> = {
+      anthropic: "Anthropic",
+      openai: "OpenAI",
+      "google-api": "Google-API",
+      antigravity: "Antigravity",
+      "gemini-cli": "Gemini CLI",
+      gmicloud: "GMICloud",
+      "github-copilot": "GitHub Copilot",
+      gitlab: "GitLab",
+      opencode: "OpenCode",
+      openrouter: "OpenRouter",
+      vercel: "Vercel",
+    }
+
+    const disabledFamilies = new Set(
+      ((globalSync.data.config.disabled_providers ?? []) as string[])
+        .map((id) => normalizeProviderFamily(id))
+        .filter((id): id is string => !!id),
+    )
+
+    const familyUniverse = new Set<string>()
+    for (const provider of globalSync.data.provider.all ?? []) {
+      const normalized = normalizeProviderFamily(provider.id)
+      if (!normalized || normalized === "google") continue
+      familyUniverse.add(normalized)
+    }
+
+    const families = accountInfo.latest?.families as Record<string, { accounts?: Record<string, unknown> }> | undefined
+    if (families) {
+      for (const [family, data] of Object.entries(families)) {
+        const normalized = normalizeProviderFamily(family)
+        if (!normalized) continue
+        const accountCount = data?.accounts ? Object.keys(data.accounts).length : 0
+        if (accountCount <= 0) continue
+        familyUniverse.add(normalized)
       }
     }
+
+    for (const family of familyUniverse) {
+      const totalModels = modelCountByFamily().get(family) ?? 0
+      const enabledModels = enabledModelCountByFamily().get(family) ?? 0
+      if (mode() === "favorites" && enabledModels <= 0) continue
+      if (mode() === "favorites" && disabledFamilies.has(family)) continue
+      out.set(family, {
+        id: family,
+        family,
+        name: labelMap[family] ?? family,
+        models: mode() === "favorites" ? enabledModels : totalModels,
+      })
+    }
+
     return Array.from(out.values()).sort((a, b) => {
-      const aIdx = popularProviders.indexOf(a.id)
-      const bIdx = popularProviders.indexOf(b.id)
+      const aIdx = popularProviders.indexOf(a.family)
+      const bIdx = popularProviders.indexOf(b.family)
       if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx
       if (aIdx !== -1) return -1
       if (bIdx !== -1) return 1
@@ -375,19 +459,16 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
 
   createEffect(() => {
     const selected = selectedProviderId()
-    if (selected === "favorites") return
     if (selected && providers().some((provider) => provider.id === selected)) return
     if (providers().length > 0) {
       setSelectedProviderId(providers()[0].id)
       return
     }
-    setSelectedProviderId("favorites")
+    setSelectedProviderId("")
   })
 
   const accountsForSelectedProvider = createMemo(() => {
     const providerId = selectedProviderId()
-    if (providerId === "favorites")
-      return [] as Array<{ id: string; label: string; active: boolean; unavailable?: string }>
     if (!providerId) return [] as Array<{ id: string; label: string; active: boolean; unavailable?: string }>
     const family = familyOf(providerId)
     const families = accountInfo.latest?.families as Record<string, unknown> | undefined
@@ -439,32 +520,20 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
     if (!providerId) return [] as ReturnType<ReturnType<typeof useModels>["list"]>
     return local.model
       .list()
-      .filter((m) => local.model.visible({ modelID: m.id, providerID: m.provider.id }))
       .filter((m) => {
-        if (providerId === "favorites") {
-          return modelsContext.isFavorite({ modelID: m.id, providerID: m.provider.id })
-        }
-        return m.provider.id === providerId
+        return familyOf(m.provider.id) === providerId
+      })
+      .filter((m) => {
+        const key = { modelID: m.id, providerID: m.provider.id }
+        const enabled = local.model.enabled(key)
+        if (mode() === "favorites") return enabled
+        return true
       })
       .filter((m) => {
         if (!query) return true
         return m.name.toLowerCase().includes(query) || m.id.toLowerCase().includes(query)
       })
   })
-
-  const favoriteModelCount = createMemo(
-    () =>
-      local.model
-        .list()
-        .filter((m) => local.model.visible({ modelID: m.id, providerID: m.provider.id }))
-        .filter((m) => modelsContext.isFavorite({ modelID: m.id, providerID: m.provider.id })).length,
-  )
-
-  const handleToggleFavorite = (e: MouseEvent, model: ModelKey) => {
-    e.stopPropagation()
-    e.preventDefault()
-    modelsContext.toggleFavorite(model)
-  }
 
   return (
     <Dialog
@@ -477,18 +546,11 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
             <div class="px-3 py-2 text-11-medium text-text-weak uppercase tracking-wider">
               {language.t("common.providers")}
             </div>
-            <ProviderItem
-              id="favorites"
-              name={`${language.t("common.favorites")} (${favoriteModelCount()})`}
-              icon="star"
-              selected={selectedProviderId() === "favorites"}
-              onClick={() => setSelectedProviderId("favorites")}
-            />
             <For each={providers()}>
               {(provider) => (
                 <ProviderItem
                   id={provider.id}
-                  name={`${provider.name} (${provider.models})`}
+                  name={provider.models > 0 ? `${provider.name} (${provider.models})` : provider.name}
                   providerIcon={provider.id}
                   selected={selectedProviderId() === provider.id}
                   onClick={() => setSelectedProviderId(provider.id)}
@@ -498,6 +560,17 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
           </div>
 
           <div class="p-2 border-t border-border-base space-y-1">
+            <div class="flex items-center justify-between gap-2 pb-1 px-1">
+              <span class="text-12-medium text-text-weak">{language.t("dialog.model.mode.curated")}</span>
+              <Switch
+                checked={mode() === "all"}
+                onChange={(checked) => setMode(checked ? "all" : "favorites")}
+                hideLabel
+              >
+                {language.t("dialog.model.mode.all")}
+              </Switch>
+              <span class="text-12-medium text-text-weak">{language.t("dialog.model.mode.all")}</span>
+            </div>
             <Button
               variant="ghost"
               class="w-full justify-start text-text-weak hover:text-text-base h-8"
@@ -524,13 +597,7 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
           <div class="p-2 space-y-1 overflow-y-auto flex-1">
             <Show
               when={accountsForSelectedProvider().length > 0}
-              fallback={
-                <div class="px-3 py-2 text-12-regular text-text-weak">
-                  <Show when={selectedProviderId() === "favorites"} fallback={"No account data"}>
-                    Favorites span multiple providers.
-                  </Show>
-                </div>
-              }
+              fallback={<div class="px-3 py-2 text-12-regular text-text-weak">No account data</div>}
             >
               <For each={accountsForSelectedProvider()}>
                 {(row) => (
@@ -582,10 +649,6 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
               current={local.model.current()}
               filterKeys={["provider.name", "name", "id"]}
               sortBy={(a, b) => {
-                const favA = modelsContext.isFavorite({ modelID: a.id, providerID: a.provider.id })
-                const favB = modelsContext.isFavorite({ modelID: b.id, providerID: b.provider.id })
-                if (favA && !favB) return -1
-                if (!favA && favB) return 1
                 return a.name.localeCompare(b.name)
               }}
               itemWrapper={(item, node) => (
@@ -607,8 +670,7 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
               onSelect={(x) => {
                 if (!x) return
                 const providerFamily = familyOf(x.provider.id)
-                const accountId =
-                  selectedProviderId() === "favorites" ? activeAccountForFamily(providerFamily) : selectedAccountId()
+                const accountId = selectedAccountId() || activeAccountForFamily(providerFamily)
                 const unavailable = modelUnavailableReason(x.provider.id, accountId)
                 if (unavailable) {
                   showToast({
@@ -648,9 +710,14 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
                 <ModelItem
                   item={item}
                   selected={false}
-                  favorite={modelsContext.isFavorite({ modelID: item.id, providerID: item.provider.id })}
+                  enabled={local.model.enabled({ modelID: item.id, providerID: item.provider.id })}
                   unavailableReason={modelUnavailableReason(item.provider.id, selectedAccountId())}
-                  onToggleFavorite={(e) => handleToggleFavorite(e, { modelID: item.id, providerID: item.provider.id })}
+                  onToggleEnabled={(e: MouseEvent) => {
+                    e.stopPropagation()
+                    e.preventDefault()
+                    const key = { modelID: item.id, providerID: item.provider.id }
+                    local.model.setVisibility(key, !local.model.enabled(key))
+                  }}
                 />
               )}
             </List>

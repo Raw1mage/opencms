@@ -110,9 +110,13 @@ export const dict = {
   "dialog.model.manage": "Manage models",
   "dialog.model.manage.description": "Customize which models appear in the model selector.",
   "dialog.model.manage.provider.toggle": "Toggle all {{provider}} models",
+  "dialog.model.mode.favorites": "Show favorites",
+  "dialog.model.mode.all": "Show all",
+  "dialog.model.mode.curated": "Curated",
   "dialog.model.activity.unavailable": "Unavailable",
   "dialog.model.activity.providerDisabled": "Provider is disabled",
   "dialog.model.activity.selectBlocked": "Model is currently unavailable",
+  "dialog.model.activity.disabled": "Disabled",
 
   "dialog.model.unpaid.freeModels.title": "Free models provided by OpenCode",
   "dialog.model.unpaid.addMore.title": "Add more models from popular providers",
