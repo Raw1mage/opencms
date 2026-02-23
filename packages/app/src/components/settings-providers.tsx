@@ -44,6 +44,24 @@ export const SettingsProviders: Component = () => {
       .filter((p) => p.id !== "opencode" || Object.values(p.models).find((m) => m.cost?.input))
   })
 
+  const disabledIDs = createMemo(() => new Set(globalSync.data.config.disabled_providers ?? []))
+  const isDisabled = (providerID: string) => disabledIDs().has(providerID)
+
+  const disabledProviders = createMemo(() => {
+    const byID = new Map(providers.all().map((item) => [item.id, item]))
+    return [...disabledIDs()]
+      .map((id) => {
+        const found = byID.get(id)
+        if (found) return found
+        return {
+          id,
+          name: id,
+          models: {},
+        } as ProviderItem
+      })
+      .sort((a, b) => a.name.localeCompare(b.name))
+  })
+
   const popular = createMemo(() => {
     const connectedIDs = new Set(connected().map((p) => p.id))
     const items = providers
@@ -107,6 +125,28 @@ export const SettingsProviders: Component = () => {
       })
   }
 
+  const enableProvider = async (providerID: string, name: string) => {
+    const before = globalSync.data.config.disabled_providers ?? []
+    const next = before.filter((item) => item !== providerID)
+    globalSync.set("config", "disabled_providers", next)
+
+    await globalSync
+      .updateConfig({ disabled_providers: next })
+      .then(() => {
+        showToast({
+          variant: "success",
+          icon: "circle-check",
+          title: language.t("settings.providers.toast.enabled.title", { provider: name }),
+          description: language.t("settings.providers.toast.enabled.description", { provider: name }),
+        })
+      })
+      .catch((err: unknown) => {
+        globalSync.set("config", "disabled_providers", before)
+        const message = err instanceof Error ? err.message : String(err)
+        showToast({ title: language.t("common.requestFailed"), description: message })
+      })
+  }
+
   const disconnect = async (providerID: string, name: string) => {
     if (isConfigCustom(providerID)) {
       await globalSDK.client.auth.remove({ providerId: providerID }).catch(() => undefined)
@@ -157,19 +197,67 @@ export const SettingsProviders: Component = () => {
                       <ProviderIcon id={icon(item.id)} class="size-5 shrink-0 icon-strong-base" />
                       <span class="text-14-medium text-text-strong truncate">{item.name}</span>
                       <Tag>{type(item)}</Tag>
+                      <Show when={isDisabled(item.id)}>
+                        <Tag>{language.t("settings.providers.action.disable")}</Tag>
+                      </Show>
                     </div>
                     <Show
                       when={canDisconnect(item)}
                       fallback={
                         <span class="text-14-regular text-text-base opacity-0 group-hover:opacity-100 transition-opacity duration-200 pr-3 cursor-default">
-                          Connected from your environment variables
+                          {language.t("settings.providers.environmentLocked")}
                         </span>
                       }
                     >
-                      <Button size="large" variant="ghost" onClick={() => void disconnect(item.id, item.name)}>
-                        {language.t("common.disconnect")}
-                      </Button>
+                      <div class="flex items-center gap-2">
+                        <Show
+                          when={!isDisabled(item.id)}
+                          fallback={
+                            <Button
+                              size="large"
+                              variant="secondary"
+                              onClick={() => void enableProvider(item.id, item.name)}
+                            >
+                              {language.t("settings.providers.action.enable")}
+                            </Button>
+                          }
+                        >
+                          <Button size="large" variant="ghost" onClick={() => void disableProvider(item.id, item.name)}>
+                            {language.t("settings.providers.action.disable")}
+                          </Button>
+                        </Show>
+                        <Button size="large" variant="ghost" onClick={() => void disconnect(item.id, item.name)}>
+                          {language.t("common.disconnect")}
+                        </Button>
+                      </div>
                     </Show>
+                  </div>
+                )}
+              </For>
+            </Show>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1" data-component="disabled-providers-section">
+          <h3 class="text-14-medium text-text-strong pb-2">{language.t("settings.providers.section.disabled")}</h3>
+          <div class="bg-surface-raised-base px-4 rounded-lg">
+            <Show
+              when={disabledProviders().length > 0}
+              fallback={
+                <div class="py-4 text-14-regular text-text-weak">{language.t("settings.providers.disabled.empty")}</div>
+              }
+            >
+              <For each={disabledProviders()}>
+                {(item) => (
+                  <div class="flex flex-wrap items-center justify-between gap-4 min-h-16 py-3 border-b border-border-weak-base last:border-none">
+                    <div class="flex items-center gap-3 min-w-0">
+                      <ProviderIcon id={icon(item.id)} class="size-5 shrink-0 icon-strong-base" />
+                      <span class="text-14-medium text-text-strong truncate">{item.name}</span>
+                      <Tag>{language.t("settings.providers.action.disable")}</Tag>
+                    </div>
+                    <Button size="large" variant="secondary" onClick={() => void enableProvider(item.id, item.name)}>
+                      {language.t("settings.providers.action.enable")}
+                    </Button>
                   </div>
                 )}
               </For>
@@ -200,6 +288,9 @@ export const SettingsProviders: Component = () => {
                     variant="secondary"
                     icon="plus-small"
                     onClick={() => {
+                      if (isDisabled(item.id)) {
+                        void enableProvider(item.id, item.name)
+                      }
                       dialog.show(() => <DialogConnectProvider provider={item.id} />)
                     }}
                   >
@@ -216,10 +307,12 @@ export const SettingsProviders: Component = () => {
               <div class="flex flex-col min-w-0">
                 <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <ProviderIcon id={icon("synthetic")} class="size-5 shrink-0 icon-strong-base" />
-                  <span class="text-14-medium text-text-strong">Custom provider</span>
+                  <span class="text-14-medium text-text-strong">{language.t("settings.providers.custom.title")}</span>
                   <Tag>{language.t("settings.providers.tag.custom")}</Tag>
                 </div>
-                <span class="text-12-regular text-text-weak pl-8">Add an OpenAI-compatible provider by base URL.</span>
+                <span class="text-12-regular text-text-weak pl-8">
+                  {language.t("settings.providers.custom.description")}
+                </span>
               </div>
               <Button
                 size="large"

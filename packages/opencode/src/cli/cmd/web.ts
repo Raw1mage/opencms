@@ -3,6 +3,7 @@ import { UI } from "../ui"
 import { cmd } from "./cmd"
 import { withNetworkOptions, resolveNetworkOptions } from "../network"
 import { Flag } from "../../flag/flag"
+import { WebAuthCredentials } from "../../server/web-auth-credentials"
 import open from "open"
 import { networkInterfaces } from "os"
 
@@ -33,8 +34,16 @@ export const WebCommand = cmd({
   builder: (yargs) => withNetworkOptions(yargs),
   describe: "start opencode server and open web interface",
   handler: async (args) => {
-    if (!Flag.OPENCODE_SERVER_PASSWORD) {
-      UI.println(UI.Style.TEXT_WARNING_BOLD + "!  " + "OPENCODE_SERVER_PASSWORD is not set; server is unsecured.")
+    if (!WebAuthCredentials.enabled()) {
+      UI.println(
+        UI.Style.TEXT_WARNING_BOLD +
+          "!  " +
+          "Web auth is not configured; set OPENCODE_SERVER_HTPASSWD or OPENCODE_SERVER_PASSWORD.",
+      )
+    } else if (Flag.OPENCODE_SERVER_PASSWORD) {
+      UI.println(UI.Style.TEXT_INFO_BOLD + "i  " + "Web auth: OPENCODE_SERVER_PASSWORD mode (legacy fallback)")
+    } else if (WebAuthCredentials.filePath()) {
+      UI.println(UI.Style.TEXT_INFO_BOLD + "i  " + `Web auth: credential file mode (${WebAuthCredentials.filePath()})`)
     }
     const opts = await resolveNetworkOptions(args)
     const server = Server.listen(opts)

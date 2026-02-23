@@ -5,7 +5,7 @@
 # Syncs all opencode configuration files from user's home directory to
 # ./config/ for Docker deployment.
 #
-# Usage: ./scripts/sync-config.sh
+# Usage: ./docker/sync-config.sh
 # =============================================================================
 
 set -e

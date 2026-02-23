@@ -24,6 +24,7 @@ set -e
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
 
 # Load .env file if exists
 ENV_FILE="${SCRIPT_DIR}/.env"
@@ -36,6 +37,7 @@ COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.production.yml"
 PROJECT_NAME="opencode"
 CONTAINER_NAME="opencode-web"
 WEB_PORT="${OPENCODE_PORT:-1080}"
+HTPASSWD_PATH="${OPENCODE_SERVER_HTPASSWD:-/opt/opencode/config/opencode/.htpasswd}"
 
 # Colors
 RED='\033[0;31m'
@@ -59,6 +61,18 @@ log_warn() {
 
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_auth_mode() {
+    if [ -f "${HTPASSWD_PATH}" ]; then
+        echo "  Auth: htpasswd file (${HTPASSWD_PATH})"
+        return
+    fi
+    if [ -n "${OPENCODE_SERVER_PASSWORD}" ]; then
+        echo "  Auth: ${OPENCODE_SERVER_USERNAME:-opencode}:**** (env)"
+        return
+    fi
+    log_warn "No auth credential configured. Set OPENCODE_SERVER_HTPASSWD or OPENCODE_SERVER_PASSWORD."
 }
 
 # Check if Docker is running
@@ -113,7 +127,7 @@ init_dirs() {
 do_build_binary() {
     log_info "Building opencode binary..."
 
-    cd "${SCRIPT_DIR}"
+    cd "${PROJECT_ROOT}"
 
     # Check if bun is available
     if ! command -v bun &> /dev/null; then
@@ -130,14 +144,14 @@ do_build_binary() {
     # Build binary
     bun run build --single
 
-    log_success "Binary built: dist/opencode-linux-x64/bin/opencode"
+    log_success "Binary built: ${PROJECT_ROOT}/dist/opencode-linux-x64/bin/opencode"
 }
 
 # Build frontend
 do_build_frontend() {
     log_info "Building frontend..."
 
-    cd "${SCRIPT_DIR}/packages/app"
+    cd "${PROJECT_ROOT}/packages/app"
 
     # Check if bun is available
     if ! command -v bun &> /dev/null; then
@@ -154,7 +168,7 @@ do_build_frontend() {
     # Build frontend
     bun run build
 
-    log_success "Frontend built: dist/"
+    log_success "Frontend built: ${PROJECT_ROOT}/packages/app/dist/"
 }
 
 # Sync accounts.json to host volume (after container dirs are ready)
@@ -206,7 +220,7 @@ do_sync_host_volumes() {
 do_sync_config() {
     log_info "Syncing config files from home directory..."
 
-    cd "${SCRIPT_DIR}"
+    cd "${PROJECT_ROOT}"
 
     if [ -x "${SCRIPT_DIR}/sync-config.sh" ]; then
         "${SCRIPT_DIR}/sync-config.sh"
@@ -222,16 +236,16 @@ do_build() {
     log_info "Building opencode Docker image..."
     check_docker
 
-    cd "${SCRIPT_DIR}"
+    cd "${PROJECT_ROOT}"
 
     # Check if binary exists, build if not
-    if [ ! -f "dist/opencode-linux-x64/bin/opencode" ]; then
+    if [ ! -f "${PROJECT_ROOT}/dist/opencode-linux-x64/bin/opencode" ]; then
         log_warn "Binary not found, building locally first..."
         do_build_binary
     fi
 
     # Check if frontend exists, build if not
-    if [ ! -f "packages/app/dist/index.html" ]; then
+    if [ ! -f "${PROJECT_ROOT}/packages/app/dist/index.html" ]; then
         log_warn "Frontend not found, building locally first..."
         do_build_frontend
     fi
@@ -239,7 +253,7 @@ do_build() {
     # Sync config files before building image
     do_sync_config
 
-    docker build -f Dockerfile.production -t opencode:latest .
+    docker build -f docker/Dockerfile.production -t opencode:latest "${PROJECT_ROOT}"
 
     log_success "Image built successfully"
 }
@@ -250,7 +264,7 @@ do_deploy() {
     echo ""
 
     check_docker
-    cd "${SCRIPT_DIR}"
+    cd "${PROJECT_ROOT}"
 
     # Step 1: Initialize host directories
     log_info "[1/7] Initializing host directories..."
@@ -270,7 +284,7 @@ do_deploy() {
 
     # Step 5: Build Docker image
     log_info "[5/7] Building Docker image..."
-    docker build -f Dockerfile.production -t opencode:latest .
+    docker build -f docker/Dockerfile.production -t opencode:latest "${PROJECT_ROOT}"
     log_success "Image built successfully"
 
     # Step 6: Sync auth files to host volumes
@@ -300,11 +314,7 @@ do_deploy() {
     log_success "=== Deployment Complete ==="
     echo ""
     echo "  URL: http://localhost:${WEB_PORT}"
-    if [ -n "${OPENCODE_SERVER_PASSWORD}" ]; then
-        echo "  Auth: ${OPENCODE_SERVER_USERNAME:-opencode}:****"
-    else
-        log_warn "No password set. Set OPENCODE_SERVER_PASSWORD for security."
-    fi
+    print_auth_mode
     echo ""
     echo "To view logs:   ./docker/webctl.sh logs"
     echo "To check status: ./docker/webctl.sh status"
@@ -350,11 +360,7 @@ do_start() {
     log_success "Opencode web service started"
     echo ""
     echo "  URL: http://localhost:${WEB_PORT}"
-    if [ -n "${OPENCODE_SERVER_PASSWORD}" ]; then
-        echo "  Auth: ${OPENCODE_SERVER_USERNAME:-opencode}:****"
-    else
-        log_warn "No password set. Set OPENCODE_SERVER_PASSWORD for security."
-    fi
+    print_auth_mode
     echo ""
 }
 
@@ -457,8 +463,9 @@ do_help() {
     echo ""
     echo "Environment Variables:"
     echo "  OPENCODE_PORT              Web service port (default: 1080)"
-    echo "  OPENCODE_SERVER_PASSWORD   Web UI password"
-    echo "  OPENCODE_SERVER_USERNAME   Web UI username (default: opencode)"
+    echo "  OPENCODE_SERVER_HTPASSWD   Path to htpasswd-style file (recommended)"
+    echo "  OPENCODE_SERVER_PASSWORD   Web UI password (legacy fallback)"
+    echo "  OPENCODE_SERVER_USERNAME   Web UI username for legacy fallback"
     echo "  OPENCODE_ROOT              Data directory (default: /opt/opencode)"
     echo "  WORKSPACE                  Code workspace directory"
     echo "  PROJECTS_DIR               Projects directory (default: ~/projects)"
@@ -469,7 +476,8 @@ do_help() {
     echo "Examples:"
     echo "  ./docker/webctl.sh start                           # Start on port 1080"
     echo "  OPENCODE_PORT=8080 ./docker/webctl.sh start        # Start on port 8080"
-    echo "  OPENCODE_SERVER_PASSWORD=secret ./docker/webctl.sh deploy  # Deploy with password"
+    echo "  OPENCODE_SERVER_HTPASSWD=/opt/opencode/config/opencode/.htpasswd ./docker/webctl.sh deploy"
+    echo "  OPENCODE_SERVER_PASSWORD=secret ./docker/webctl.sh deploy  # Legacy fallback"
     echo ""
 }
 

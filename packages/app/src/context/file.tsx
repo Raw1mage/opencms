@@ -30,6 +30,7 @@ import {
   type FileViewState,
   type SelectedLineRange,
 } from "./file/types"
+import { formatApiErrorMessage } from "@/utils/api-error"
 
 export type { FileSelection, SelectedLineRange, FileViewState, FileState }
 export { selectionFromLines }
@@ -44,9 +45,12 @@ export {
 }
 
 function errorMessage(error: unknown) {
-  if (error instanceof Error && error.message) return error.message
-  if (typeof error === "string" && error) return error
-  return "Unknown error"
+  return formatApiErrorMessage({
+    error,
+    fallback: "Unknown error",
+    projectBoundaryMessage:
+      "This workspace can only access files inside the active project directory. Switch workspace before opening paths outside this project.",
+  })
 }
 
 export const { use: useFile, provider: FileProvider } = createSimpleContext({

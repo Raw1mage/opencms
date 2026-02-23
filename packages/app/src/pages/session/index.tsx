@@ -77,6 +77,14 @@ export default function Page() {
     return next
   })
 
+  const questionRequest = createMemo(() => {
+    const sessionID = params.id
+    if (!sessionID) return
+    return sync.data.question[sessionID]?.[0]
+  })
+
+  const blocked = createMemo(() => !!request() || !!questionRequest())
+
   const [ui, setUi] = createStore({
     responding: false,
     pendingMessage: undefined as string | undefined,
@@ -1160,14 +1168,14 @@ export default function Page() {
           {/* Prompt input */}
           <SessionPromptDock
             centered={centered()}
-            blocked={false}
+            blocked={blocked()}
             permissionRequest={request}
             promptReady={prompt.ready()}
             handoffPrompt={handoff.prompt}
             t={(k, v) => language.t(k as any, v as any)}
             responding={ui.responding}
             onDecide={decide}
-            questionRequest={() => undefined}
+            questionRequest={questionRequest}
             inputRef={(el: HTMLDivElement) => (inputRef = el)}
             newSessionWorktree={newSessionWorktree()}
             onNewSessionWorktreeReset={() => setStore("newSessionWorktree", "main")}

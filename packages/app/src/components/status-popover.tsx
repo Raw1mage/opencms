@@ -1,4 +1,14 @@
-import { createEffect, createMemo, createSignal, For, onCleanup, Show, type Accessor, type JSXElement } from "solid-js"
+import {
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+  type Accessor,
+  type JSXElement,
+} from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 import { useNavigate } from "@solidjs/router"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
@@ -14,6 +24,7 @@ import { normalizeServerUrl, useServer } from "@/context/server"
 import { usePlatform } from "@/context/platform"
 import { useLanguage } from "@/context/language"
 import { DialogSelectServer } from "./dialog-select-server"
+import { DialogSettings } from "./dialog-settings"
 import { ServerRow } from "@/components/server/server-row"
 import { checkServerHealth, type ServerHealth } from "@/utils/server-health"
 
@@ -181,6 +192,103 @@ export function StatusPopover() {
   const plugins = createMemo(() => sync.data.config.plugin ?? [])
   const pluginCount = createMemo(() => plugins().length)
   const pluginEmpty = createMemo(() => pluginEmptyMessage(language.t("dialog.plugins.empty"), "opencode.json"))
+  const [accountInfo, accountActions] = createResource(async () => {
+    return sdk.client.account.listAll().then((x) => x.data)
+  })
+  const [rotationInfo, rotationActions] = createResource(async () => {
+    return sdk.client.rotation.status().then((x) => x.data)
+  })
+
+  createEffect(() => {
+    let dead = false
+    const id = setInterval(() => {
+      if (dead) return
+      void accountActions.refetch()
+      void rotationActions.refetch()
+    }, pollMs)
+
+    onCleanup(() => {
+      dead = true
+      clearInterval(id)
+    })
+  })
+
+  const accountRows = createMemo(() => {
+    const families = accountInfo.latest?.families
+    if (!families || typeof families !== "object")
+      return [] as Array<{
+        family: string
+        accountId: string
+        name: string
+        type: string
+        active: boolean
+        coolingDownUntil?: number
+        cooldownReason?: string
+      }>
+    const out: Array<{
+      family: string
+      accountId: string
+      name: string
+      type: string
+      active: boolean
+      coolingDownUntil?: number
+      cooldownReason?: string
+    }> = []
+    for (const [family, value] of Object.entries(families as Record<string, unknown>)) {
+      const valueRecord = value as { accounts?: unknown; activeAccount?: unknown }
+      const activeAccount =
+        typeof valueRecord?.activeAccount === "string" ? (valueRecord.activeAccount as string) : undefined
+      const accounts =
+        valueRecord?.accounts && typeof valueRecord.accounts === "object"
+          ? (valueRecord.accounts as Record<string, unknown>)
+          : {}
+      for (const [accountId, accountValue] of Object.entries(accounts)) {
+        const account = accountValue as Record<string, unknown>
+        out.push({
+          family,
+          accountId,
+          name:
+            (typeof account?.name === "string" && account.name) ||
+            (typeof account?.email === "string" && account.email) ||
+            accountId,
+          type: typeof account?.type === "string" ? account.type : "api",
+          active: activeAccount === accountId,
+          coolingDownUntil: typeof account?.coolingDownUntil === "number" ? account.coolingDownUntil : undefined,
+          cooldownReason: typeof account?.cooldownReason === "string" ? account.cooldownReason : undefined,
+        })
+      }
+    }
+    return out.sort((a, b) => {
+      if (a.active && !b.active) return -1
+      if (!a.active && b.active) return 1
+      const fam = a.family.localeCompare(b.family)
+      if (fam !== 0) return fam
+      return a.name.localeCompare(b.name)
+    })
+  })
+
+  const accountCount = createMemo(() => accountRows().length)
+  const rotationRecommended = createMemo(() => {
+    const info = rotationInfo.latest?.recommended
+    if (!info || typeof info !== "object") return [] as Array<{ task: string; value: string }>
+    const entries: Array<{ task: string; value: string }> = []
+    for (const [task, vectorValue] of Object.entries(info as Record<string, unknown>)) {
+      const vector = vectorValue as Record<string, unknown>
+      if (!vector) continue
+      if (
+        typeof vector.providerId !== "string" ||
+        typeof vector.accountId !== "string" ||
+        typeof vector.modelID !== "string"
+      ) {
+        continue
+      }
+      entries.push({
+        task,
+        value: `${vector.providerId}/${vector.accountId}/${vector.modelID}`,
+      })
+    }
+    return entries
+  })
   const overallHealthy = createMemo(() => {
     const serverHealthy = server.healthy() === true
     const anyMcpIssue = mcpNames().some((name) => {
@@ -242,6 +350,10 @@ export function StatusPopover() {
             <Tabs.Trigger value="plugins" data-slot="tab" class="text-12-regular">
               {pluginCount() > 0 ? `${pluginCount()} ` : ""}
               {language.t("status.popover.tab.plugins")}
+            </Tabs.Trigger>
+            <Tabs.Trigger value="accounts" data-slot="tab" class="text-12-regular">
+              {accountCount() > 0 ? `${accountCount()} ` : ""}
+              {language.t("status.popover.tab.accounts")}
             </Tabs.Trigger>
           </Tabs.List>
 
@@ -395,6 +507,93 @@ export function StatusPopover() {
                         <span class="text-14-regular text-text-base truncate">{plugin}</span>
                       </div>
                     )}
+                  </For>
+                </Show>
+              </div>
+            </div>
+          </Tabs.Content>
+
+          <Tabs.Content value="accounts">
+            <div class="flex flex-col px-2 pb-2">
+              <div class="flex flex-col p-3 bg-background-base rounded-sm min-h-14 gap-3">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-12-regular text-text-weak">
+                    {language.t("status.popover.accounts.recommendations")}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    class="h-7 px-2"
+                    onClick={() => {
+                      void accountActions.refetch()
+                      void rotationActions.refetch()
+                    }}
+                  >
+                    {language.t("common.refresh")}
+                  </Button>
+                </div>
+                <Show
+                  when={rotationRecommended().length > 0}
+                  fallback={
+                    <div class="text-12-regular text-text-weak">
+                      {language.t("status.popover.accounts.noRecommendations")}
+                    </div>
+                  }
+                >
+                  <For each={rotationRecommended()}>
+                    {(entry) => (
+                      <div class="flex items-center justify-between gap-3">
+                        <span class="text-12-regular text-text-weak uppercase">{entry.task}</span>
+                        <code class="text-12-regular text-text-base truncate">{entry.value}</code>
+                      </div>
+                    )}
+                  </For>
+                </Show>
+
+                <div class="h-px bg-border-weak-base" />
+
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-12-regular text-text-weak">{language.t("settings.accounts.title")}</span>
+                  <Button
+                    variant="secondary"
+                    class="h-7 px-2"
+                    onClick={() => dialog.show(() => <DialogSettings initialTab="accounts" />)}
+                  >
+                    {language.t("common.manage")}
+                  </Button>
+                </div>
+                <Show
+                  when={accountRows().length > 0}
+                  fallback={<div class="text-12-regular text-text-weak">{language.t("settings.accounts.empty")}</div>}
+                >
+                  <For each={accountRows()}>
+                    {(row) => {
+                      const cooling = () => {
+                        if (!row.coolingDownUntil || row.coolingDownUntil <= Date.now()) return
+                        const minutes = Math.max(1, Math.ceil((row.coolingDownUntil - Date.now()) / 60000))
+                        return row.cooldownReason
+                          ? `${row.cooldownReason} (${minutes}m)`
+                          : language.t("settings.accounts.cooldown", { minutes })
+                      }
+                      return (
+                        <div class="flex flex-col gap-0.5 py-1">
+                          <div class="flex items-center gap-2">
+                            <div
+                              classList={{
+                                "size-1.5 rounded-full shrink-0": true,
+                                "bg-icon-success-base": row.active,
+                                "bg-border-weak-base": !row.active,
+                              }}
+                            />
+                            <span class="text-12-regular text-text-base truncate">{row.family}</span>
+                            <span class="text-11-regular text-text-weak">{row.type}</span>
+                            <span class="text-12-regular text-text-weak truncate">{row.name}</span>
+                          </div>
+                          <Show when={cooling()}>
+                            <span class="pl-3.5 text-11-regular text-icon-warning-base">{cooling()}</span>
+                          </Show>
+                        </div>
+                      )
+                    }}
                   </For>
                 </Show>
               </div>

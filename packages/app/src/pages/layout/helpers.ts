@@ -1,5 +1,6 @@
 import { getFilename } from "@opencode-ai/util/path"
 import { type Session } from "@opencode-ai/sdk/v2/client"
+import { formatApiErrorMessage } from "@/utils/api-error"
 
 export const workspaceKey = (directory: string) => {
   const drive = directory.match(/^([A-Za-z]:)[\\/]+$/)
@@ -54,12 +55,12 @@ export const displayName = (project: { name?: string; worktree: string }) =>
   project.name || getFilename(project.worktree)
 
 export const errorMessage = (err: unknown, fallback: string) => {
-  if (err && typeof err === "object" && "data" in err) {
-    const data = (err as { data?: { message?: string } }).data
-    if (data?.message) return data.message
-  }
-  if (err instanceof Error) return err.message
-  return fallback
+  return formatApiErrorMessage({
+    error: err,
+    fallback,
+    projectBoundaryMessage:
+      "This workspace action is limited to the active project directory. Open the target folder as a workspace first.",
+  })
 }
 
 export const syncWorkspaceOrder = (local: string, dirs: string[], existing?: string[]) => {

@@ -428,10 +428,6 @@ export const Terminal = (props: TerminalProps) => {
       url.searchParams.set("directory", sdk.directory)
       url.searchParams.set("cursor", String(start !== undefined ? start : local.pty.buffer ? -1 : 0))
       url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
-      if (window.__OPENCODE__?.serverPassword) {
-        url.username = "opencode"
-        url.password = window.__OPENCODE__?.serverPassword
-      }
       const socket = new WebSocket(url)
       socket.binaryType = "arraybuffer"
       ws = socket
@@ -454,29 +450,45 @@ export const Terminal = (props: TerminalProps) => {
 
       const decoder = new TextDecoder()
 
-      const handleMessage = (event: MessageEvent) => {
+      const writeIncoming = (chunk: string) => {
+        if (!chunk) return
+        output?.push(chunk)
+        cursor += chunk.length
+      }
+
+      const handleMessage = (event: MessageEvent<string | ArrayBuffer | Blob>) => {
         if (disposed) return
         if (event.data instanceof ArrayBuffer) {
           // WebSocket control frame: 0x00 + UTF-8 JSON (currently { cursor }).
           const bytes = new Uint8Array(event.data)
-          if (bytes[0] !== 0) return
-          const json = decoder.decode(bytes.subarray(1))
-          try {
-            const meta = JSON.parse(json) as { cursor?: unknown }
-            const next = meta?.cursor
-            if (typeof next === "number" && Number.isSafeInteger(next) && next >= 0) {
-              cursor = next
+          if (bytes[0] === 0) {
+            const json = decoder.decode(bytes.subarray(1))
+            try {
+              const meta = JSON.parse(json) as { cursor?: unknown }
+              const next = meta?.cursor
+              if (typeof next === "number" && Number.isSafeInteger(next) && next >= 0) {
+                cursor = next
+              }
+            } catch (err) {
+              debugTerminal("invalid websocket control frame", err)
             }
-          } catch (err) {
-            debugTerminal("invalid websocket control frame", err)
+            return
           }
+
+          // FIX: handle PTY payload frames delivered as binary chunks (@event_20260223_web_architecture_first_plan)
+          writeIncoming(decoder.decode(bytes))
           return
         }
 
-        const data = typeof event.data === "string" ? event.data : ""
-        if (!data) return
-        output?.push(data)
-        cursor += data.length
+        if (event.data instanceof Blob) {
+          void event.data
+            .text()
+            .then((chunk) => writeIncoming(chunk))
+            .catch((err) => debugTerminal("failed to decode terminal blob frame", err))
+          return
+        }
+
+        writeIncoming(typeof event.data === "string" ? event.data : "")
       }
       socket.addEventListener("message", handleMessage)
       cleanups.push(() => socket.removeEventListener("message", handleMessage))

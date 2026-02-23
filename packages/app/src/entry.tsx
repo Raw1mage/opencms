@@ -8,6 +8,7 @@ import { handleNotificationClick } from "@/utils/notification-click"
 import pkg from "../package.json"
 
 const DEFAULT_SERVER_URL_KEY = "opencode.settings.dat:defaultServerUrl"
+const DYNAMIC_IMPORT_RETRY_KEY = "opencode.web.dynamicImportRetry"
 
 const getLocale = () => {
   if (typeof navigator !== "object") return "en" as const
@@ -90,6 +91,39 @@ const restart: Platform["restart"] = async () => {
   window.location.reload()
 }
 
+const installDynamicImportRecovery = () => {
+  const shouldRecover = (reason: unknown) => {
+    const message =
+      typeof reason === "string"
+        ? reason
+        : reason instanceof Error
+          ? reason.message
+          : reason && typeof reason === "object" && "message" in reason
+            ? String((reason as { message?: unknown }).message)
+            : ""
+    return /Failed to fetch dynamically imported module/i.test(message)
+  }
+
+  const recover = () => {
+    const now = Date.now()
+    const last = Number(localStorage.getItem(DYNAMIC_IMPORT_RETRY_KEY) ?? "0")
+    // Prevent infinite hard-reload loop on persistent outage
+    if (Number.isFinite(last) && now - last < 15_000) return
+    localStorage.setItem(DYNAMIC_IMPORT_RETRY_KEY, String(now))
+    window.location.reload()
+  }
+
+  window.addEventListener("vite:preloadError", () => {
+    recover()
+  })
+
+  window.addEventListener("unhandledrejection", (event) => {
+    if (!shouldRecover(event.reason)) return
+    event.preventDefault()
+    recover()
+  })
+}
+
 const root = document.getElementById("root")
 if (!(root instanceof HTMLElement) && import.meta.env.DEV) {
   throw new Error(getRootNotFoundError())
@@ -106,6 +140,8 @@ const platform: Platform = {
   getDefaultServerUrl: readDefaultServerUrl,
   setDefaultServerUrl: writeDefaultServerUrl,
 }
+
+installDynamicImportRecovery()
 
 if (root instanceof HTMLElement) {
   render(
