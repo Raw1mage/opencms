@@ -312,7 +312,7 @@ export namespace File {
   function allowGlobalFilesystemBrowse() {
     const flag = Bun.env.OPENCODE_ALLOW_GLOBAL_FS_BROWSE
     if (flag !== "1" && flag !== "true") return false
-    return Instance.project.id === "global"
+    return true
   }
 
   async function getProjectRootReal(): Promise<string> {
@@ -338,6 +338,7 @@ export namespace File {
   }
 
   function isWithinRoot(candidate: string, root: string): boolean {
+    if (root === path.parse(root).root) return path.isAbsolute(candidate)
     return candidate === root || candidate.startsWith(root + path.sep)
   }
 
@@ -363,17 +364,44 @@ export namespace File {
   async function assertWithinProject(targetPath: string): Promise<string> {
     const root = await getProjectRootReal()
     const resolved = path.resolve(targetPath)
+    const globalBrowse = allowGlobalFilesystemBrowse()
     if (!isWithinRoot(resolved, root)) {
-      throw new Error(`Access denied: path escapes project directory`)
+      log.warn("assertWithinProject denied (resolved outside root)", {
+        targetPath,
+        resolved,
+        root,
+        instanceDirectory: Instance.directory,
+        projectID: Instance.project.id,
+        globalBrowse,
+      })
+      throw new Error(`Access denied: path escapes project directory (resolved=${resolved}, root=${root})`)
     }
     const real = await fs.promises.realpath(targetPath).catch(() => undefined)
     if (real && !isWithinRoot(real, root)) {
-      throw new Error(`Access denied: path escapes project directory`)
+      log.warn("assertWithinProject denied (realpath outside root)", {
+        targetPath,
+        resolved,
+        real,
+        root,
+        instanceDirectory: Instance.directory,
+        projectID: Instance.project.id,
+        globalBrowse,
+      })
+      throw new Error(`Access denied: path escapes project directory (real=${real}, root=${root})`)
     }
     if (!real) {
       const parentReal = await fs.promises.realpath(path.dirname(targetPath)).catch(() => undefined)
       if (parentReal && !isWithinRoot(parentReal, root)) {
-        throw new Error(`Access denied: path escapes project directory`)
+        log.warn("assertWithinProject denied (parent realpath outside root)", {
+          targetPath,
+          resolved,
+          parentReal,
+          root,
+          instanceDirectory: Instance.directory,
+          projectID: Instance.project.id,
+          globalBrowse,
+        })
+        throw new Error(`Access denied: path escapes project directory (parent=${parentReal}, root=${root})`)
       }
     }
     return real ?? resolved
@@ -701,12 +729,13 @@ export namespace File {
       const fullPath = path.join(resolved, entry.name)
       const relativePath = path.relative(Instance.directory, fullPath)
       const type = entry.isDirectory() ? "directory" : "file"
+      const escapedRelative = relativePath === ".." || relativePath.startsWith("../")
       nodes.push({
         name: entry.name,
         path: relativePath,
         absolute: fullPath,
         type,
-        ignored: ignored(type === "directory" ? relativePath + "/" : relativePath),
+        ignored: escapedRelative ? false : ignored(type === "directory" ? relativePath + "/" : relativePath),
       })
     }
     return nodes.sort((a, b) => {

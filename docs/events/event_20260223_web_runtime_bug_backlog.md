@@ -331,3 +331,19 @@ For each web-runtime bug report, capture all of the following:
 - Changed files:
   - `packages/opencode/src/file/index.ts`
   - `scripts/tools/start-opencode-web.sh`
+
+### LOG-FIX-014: secured remote requests still ignored directory override (looked like chroot)
+
+- Symptom:
+  - On remote host (`crm.sob.com.tw`), open-project browser still showed repo-relative folders (`/bin`, `/config`, `/docker`) and could not navigate full system paths.
+
+- Root cause:
+  - Server middleware in `server/app.ts` allowed directory override for non-loopback only when legacy `OPENCODE_SERVER_PASSWORD` existed.
+  - In htpasswd/cookie auth mode, requests were still considered "unsecured" by that check, so directory override was discarded and `process.cwd()` forced.
+
+- Fix:
+  - Treat WebAuth-enabled requests as secured for directory-override policy.
+  - Allow directory override when request is loopback **or** secured by either legacy password mode or WebAuth mode.
+
+- Changed file:
+  - `packages/opencode/src/server/app.ts`

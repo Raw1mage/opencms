@@ -227,15 +227,22 @@ export function createApp(app: Hono): Hono {
       const isLoopbackHost =
         requestHost === "localhost" || requestHost === "127.0.0.1" || requestHost === "::1" || requestHost === "[::1]"
 
+      const requestSecured = Boolean(Flag.OPENCODE_SERVER_PASSWORD) || WebAuth.enabled()
+      const globalBrowseEnabled =
+        Bun.env.OPENCODE_ALLOW_GLOBAL_FS_BROWSE === "1" || Bun.env.OPENCODE_ALLOW_GLOBAL_FS_BROWSE === "true"
+      const allowDirectoryOverride = isLoopbackHost || requestSecured || globalBrowseEnabled
+
       const raw =
-        hasDirectoryOverride && !Flag.OPENCODE_SERVER_PASSWORD && !isLoopbackHost
+        hasDirectoryOverride && !allowDirectoryOverride
           ? process.cwd()
           : (directoryFromQuery ?? directoryFromHeader ?? process.cwd())
 
-      if (hasDirectoryOverride && !Flag.OPENCODE_SERVER_PASSWORD && !isLoopbackHost) {
-        log.warn("Ignoring directory override on unsecured non-loopback request", {
+      if (hasDirectoryOverride && !allowDirectoryOverride) {
+        log.warn("Ignoring directory override on unsecured request", {
           path: c.req.path,
           host: requestHost,
+          secured: requestSecured,
+          globalBrowseEnabled,
         })
       }
       const directory = (() => {

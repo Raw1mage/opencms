@@ -113,9 +113,13 @@ export const dict = {
   "dialog.model.empty": "找不到模型",
   "dialog.model.manage": "管理模型",
   "dialog.model.manage.description": "自訂模型選擇器中顯示的模型。",
+  "dialog.model.mode.favorites": "顯示我的最愛",
+  "dialog.model.mode.all": "顯示全部",
+  "dialog.model.mode.curated": "精選",
   "dialog.model.activity.unavailable": "不可用",
   "dialog.model.activity.providerDisabled": "提供者已停用",
   "dialog.model.activity.selectBlocked": "此模型目前不可用",
+  "dialog.model.activity.disabled": "已停用",
 
   "dialog.model.unpaid.freeModels.title": "OpenCode 提供的免費模型",
   "dialog.model.unpaid.addMore.title": "從熱門提供者新增更多模型",
