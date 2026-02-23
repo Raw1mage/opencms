@@ -39,3 +39,10 @@ __pycache__/
 
 # machine-local state (path usage telemetry)
 /config/state/frecency.jsonl
+
+# runtime/local machine artifacts (cms workflow: template-first commits)
+/config/data/accounts.json
+/config/state/*.json
+/config/state/*.jsonl
+/config/lib/librust_pty.so
+/config/lib/librust_pty_arm64.so
