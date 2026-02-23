@@ -11,11 +11,11 @@
 #   - Environment configuration
 #
 # Usage:
-#   ./scripts/docker-setup.sh           # Interactive setup
-#   ./scripts/docker-setup.sh --all     # Full setup (build + image)
-#   ./scripts/docker-setup.sh --dirs    # Only create directories
-#   ./scripts/docker-setup.sh --build   # Only build binary
-#   ./scripts/docker-setup.sh --image   # Only build Docker image
+#   ./docker/docker-setup.sh           # Interactive setup
+#   ./docker/docker-setup.sh --all     # Full setup (build + image)
+#   ./docker/docker-setup.sh --dirs    # Only create directories
+#   ./docker/docker-setup.sh --build   # Only build binary
+#   ./docker/docker-setup.sh --image   # Only build Docker image
 #
 # Prerequisites:
 #   - bun (for building the binary)
@@ -166,8 +166,8 @@ build_docker_image() {
     # Build Docker image
     # Note: Uses Ubuntu 24.04 (glibc) because the binary is glibc-linked
     # Uses existing ubuntu user (uid 1000) to match host permissions
-    log_info "Running: docker build -f Dockerfile.production -t opencode:latest ."
-    docker build -f Dockerfile.production -t opencode:latest .
+    log_info "Running: docker build -f docker/Dockerfile.production -t opencode:latest ."
+    docker build -f docker/Dockerfile.production -t opencode:latest .
 
     log_ok "Docker image built successfully"
     docker images opencode:latest

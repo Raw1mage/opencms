@@ -16,6 +16,7 @@ import { Worktree as WorktreeState } from "@/utils/worktree"
 import type { FileSelection } from "@/context/file"
 import { setCursorPosition } from "./editor-dom"
 import { buildRequestParts } from "./build-request-parts"
+import { formatApiErrorMessage } from "@/utils/api-error"
 
 type PendingPrompt = {
   abort: AbortController
@@ -64,12 +65,12 @@ export function createPromptSubmit(input: PromptSubmitInput) {
   const params = useParams()
 
   const errorMessage = (err: unknown) => {
-    if (err && typeof err === "object" && "data" in err) {
-      const data = (err as { data?: { message?: string } }).data
-      if (data?.message) return data.message
-    }
-    if (err instanceof Error) return err.message
-    return language.t("common.requestFailed")
+    return formatApiErrorMessage({
+      error: err,
+      fallback: language.t("common.requestFailed"),
+      projectBoundaryMessage:
+        "This operation is restricted to the active workspace directory. Choose or create a workspace that contains your target path.",
+    })
   }
 
   const abort = async () => {

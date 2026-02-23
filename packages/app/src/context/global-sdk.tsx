@@ -4,23 +4,22 @@ import { createGlobalEmitter } from "@solid-primitives/event-bus"
 import { batch, onCleanup } from "solid-js"
 import { usePlatform } from "./platform"
 import { useServer } from "./server"
+import { useWebAuth } from "./web-auth"
 
 export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleContext({
   name: "GlobalSDK",
   init: () => {
     const server = useServer()
     const platform = usePlatform()
+    const webAuth = useWebAuth()
     const abort = new AbortController()
 
-    const password = typeof window === "undefined" ? undefined : window.__OPENCODE__?.serverPassword
-
-    const auth = (() => {
-      if (!password) return
-      if (!server.isLocal()) return
-      return {
-        Authorization: `Basic ${btoa(`opencode:${password}`)}`,
-      }
-    })()
+    const fetchWithAuth = Object.assign(
+      (input: RequestInfo | URL, init?: RequestInit) => webAuth.authorizedFetch(input, init),
+      {
+        preconnect: (globalThis.fetch as unknown as { preconnect?: (...args: unknown[]) => unknown }).preconnect,
+      },
+    ) as typeof fetch
 
     const eventFetch = (() => {
       if (!platform.fetch) return
@@ -36,8 +35,7 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
     const eventSdk = createOpencodeClient({
       baseUrl: server.url,
       signal: abort.signal,
-      fetch: eventFetch,
-      headers: eventFetch ? undefined : auth,
+      fetch: fetchWithAuth,
     })
     const emitter = createGlobalEmitter<{
       [key: string]: Event
@@ -152,10 +150,10 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
 
     const sdk = createOpencodeClient({
       baseUrl: server.url,
-      fetch: platform.fetch,
+      fetch: fetchWithAuth,
       throwOnError: true,
     })
 
-    return { url: server.url, client: sdk, event: emitter }
+    return { url: server.url, client: sdk, event: emitter, fetch: fetchWithAuth }
   },
 })

@@ -27,9 +27,11 @@ import { CommandProvider } from "@/context/command"
 import { LanguageProvider, useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { HighlightsProvider } from "@/context/highlights"
+import { WebAuthProvider } from "@/context/web-auth"
 import Layout from "@/pages/layout"
 import DirectoryLayout from "@/pages/directory-layout"
 import { ErrorPage } from "./pages/error"
+import { AuthGate } from "@/components/auth-gate"
 const Home = lazy(() => import("@/pages/home"))
 const Session = lazy(() => import("@/pages/session"))
 const Loading = () => <div class="size-full" />
@@ -57,7 +59,7 @@ function UiI18nBridge(props: ParentProps) {
 
 declare global {
   interface Window {
-    __OPENCODE__?: { updaterEnabled?: boolean; serverPassword?: string; deepLinks?: string[]; wsl?: boolean }
+    __OPENCODE__?: { updaterEnabled?: boolean; deepLinks?: string[]; wsl?: boolean }
   }
 }
 
@@ -178,21 +180,25 @@ export function AppInterface(props: { defaultUrl?: string; children?: JSX.Elemen
 
   return (
     <ServerProvider defaultUrl={defaultServerUrl} isSidecar={props.isSidecar}>
-      <ServerKey>
-        <GlobalSDKProvider>
-          <GlobalSyncProvider>
-            <Router
-              root={(routerProps) => <RouterRoot appChildren={props.children}>{routerProps.children}</RouterRoot>}
-            >
-              <Route path="/" component={HomeRoute} />
-              <Route path="/:dir" component={DirectoryLayout}>
-                <Route path="/" component={SessionIndexRoute} />
-                <Route path="/session/:id?" component={SessionRoute} />
-              </Route>
-            </Router>
-          </GlobalSyncProvider>
-        </GlobalSDKProvider>
-      </ServerKey>
+      <WebAuthProvider>
+        <AuthGate>
+          <ServerKey>
+            <GlobalSDKProvider>
+              <GlobalSyncProvider>
+                <Router
+                  root={(routerProps) => <RouterRoot appChildren={props.children}>{routerProps.children}</RouterRoot>}
+                >
+                  <Route path="/" component={HomeRoute} />
+                  <Route path="/:dir" component={DirectoryLayout}>
+                    <Route path="/" component={SessionIndexRoute} />
+                    <Route path="/session/:id?" component={SessionRoute} />
+                  </Route>
+                </Router>
+              </GlobalSyncProvider>
+            </GlobalSDKProvider>
+          </ServerKey>
+        </AuthGate>
+      </WebAuthProvider>
     </ServerProvider>
   )
 }

@@ -6,7 +6,6 @@ import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { streamSSE } from "hono/streaming"
 import { proxy } from "hono/proxy"
-import { basicAuth } from "hono/basic-auth"
 import path from "path"
 import z from "zod"
 import { Provider } from "../provider/provider"
@@ -42,6 +41,7 @@ import { AccountRoutes } from "./routes/account"
 import { RotationRoutes } from "./routes/rotation"
 import { Env } from "@/env"
 import { ActivityBeacon } from "@/util/activity-beacon"
+import { WebAuth } from "./web-auth"
 
 // Declare external CORS whitelist (set by server.ts)
 declare global {
@@ -77,6 +77,7 @@ export function createApp(app: Hono): Hono {
     })
     .use(
       cors({
+        credentials: true,
         origin(input) {
           if (!input) return
 
@@ -96,13 +97,39 @@ export function createApp(app: Hono): Hono {
         },
       }),
     )
-    .use((c, next) => {
-      // Skip auth for health check endpoint (Docker/k8s health probes)
-      if (c.req.path === "/global/health") return next()
-      const password = Flag.OPENCODE_SERVER_PASSWORD
-      if (!password) return next()
-      const username = Flag.OPENCODE_SERVER_USERNAME ?? "opencode"
-      return basicAuth({ username, password })(c, next)
+    .use(async (c, next) => {
+      if (!WebAuth.enabled()) return next()
+      if (WebAuth.routePublic(c)) return next()
+
+      if (await WebAuth.verifyBasicAuth(c)) {
+        return next()
+      }
+
+      const session = WebAuth.readSession(c)
+      if (!session) {
+        return c.json(
+          {
+            code: "AUTH_REQUIRED",
+            message: "Authentication required",
+          },
+          401,
+        )
+      }
+
+      if (WebAuth.shouldProtectMutation(c.req.method, c.req.path)) {
+        const csrf = c.req.header("x-opencode-csrf")
+        if (!csrf || csrf !== session.csrf) {
+          return c.json(
+            {
+              code: "CSRF_INVALID",
+              message: "Invalid CSRF token",
+            },
+            403,
+          )
+        }
+      }
+
+      return next()
     })
     .use(async (c, next) => {
       beacon.hit("request")

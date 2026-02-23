@@ -10,6 +10,28 @@ import { cycleModelVariant, getConfiguredAgentVariant, resolveModelVariant } fro
 
 export type ModelKey = { providerID: string; modelID: string }
 
+function parseConfiguredModel(input: unknown): ModelKey | undefined {
+  if (!input) return undefined
+  if (typeof input === "string") {
+    const [providerID, modelID] = input.split("/")
+    if (!providerID || !modelID) return undefined
+    return { providerID, modelID }
+  }
+  if (typeof input !== "object") return undefined
+
+  const record = input as {
+    providerID?: string
+    providerId?: string
+    modelID?: string
+    modelId?: string
+    id?: string
+  }
+  const providerID = record.providerID ?? record.providerId
+  const modelID = record.modelID ?? record.modelId ?? record.id
+  if (!providerID || !modelID) return undefined
+  return { providerID, modelID }
+}
+
 export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
   name: "Local",
   init: () => {
@@ -90,9 +112,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       })
 
       const resolveConfigured = () => {
-        if (!sync.data.config.model) return
-        const [providerID, modelID] = sync.data.config.model.split("/")
-        const key = { providerID, modelID }
+        const key = parseConfiguredModel(sync.data.config.model)
+        if (!key) return
         if (isModelValid(key)) return key
       }
 

@@ -3,14 +3,14 @@
 # =============================================================================
 # Requires pre-built binary and config sync. Build with:
 #   1. bun run build --single
-#   2. ./scripts/sync-config.sh
-#   3. docker build -f Dockerfile.production -t opencode:latest .
+#   2. ./docker/sync-config.sh
+#   3. docker build -f docker/Dockerfile.production -t opencode:latest .
 #
 # Or use the webctl.sh helper:
-#   ./webctl.sh build
+#   ./docker/webctl.sh build
 #
 # Run:
-#   docker-compose -f docker-compose.production.yml up -d
+#   docker compose -f docker/docker-compose.production.yml --profile web up -d
 # =============================================================================
 
 FROM ubuntu:24.04

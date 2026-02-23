@@ -118,7 +118,7 @@ function createWorkspaceTerminalSession(sdk: ReturnType<typeof useSDK>, dir: str
   })
   onCleanup(unsub)
 
-  const meta = { migrated: false }
+  const meta = { migrated: false, hydrated: false }
 
   createEffect(() => {
     if (!ready()) return
@@ -136,6 +136,26 @@ function createWorkspaceTerminalSession(sdk: ReturnType<typeof useSDK>, dir: str
       if (next.every((pty, index) => pty === all[index])) return all
       return next
     })
+  })
+
+  createEffect(() => {
+    if (!ready()) return
+    if (meta.hydrated) return
+    meta.hydrated = true
+
+    const snapshot = [...store.all]
+    if (!snapshot.length) return
+
+    void Promise.all(
+      snapshot.map(async (pty) => {
+        try {
+          await sdk.client.pty.get({ ptyID: pty.id })
+        } catch {
+          // FIX: prune stale persisted PTY ids after server restart (@event_20260223_web_architecture_first_plan)
+          removeExited(pty.id)
+        }
+      }),
+    )
   })
 
   return {

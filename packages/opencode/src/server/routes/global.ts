@@ -10,6 +10,7 @@ import { Log } from "../../util/log"
 import { lazy } from "../../util/lazy"
 import { Config } from "../../config/config"
 import { errors } from "../error"
+import { WebAuth } from "../web-auth"
 
 const log = Log.create({ service: "server" })
 
@@ -36,6 +37,153 @@ export const GlobalRoutes = lazy(() =>
       }),
       async (c) => {
         return c.json({ healthy: true, version: Installation.VERSION })
+      },
+    )
+    .get(
+      "/auth/session",
+      describeRoute({
+        summary: "Get web auth session",
+        description: "Get current web authentication status and CSRF token when authenticated.",
+        operationId: "global.auth.session",
+        responses: {
+          200: {
+            description: "Web auth session status",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.object({
+                    enabled: z.boolean(),
+                    authenticated: z.boolean(),
+                    usernameHint: z.string().optional(),
+                    username: z.string().optional(),
+                    csrfToken: z.string().optional(),
+                    lockout: z
+                      .object({
+                        lockedUntil: z.number(),
+                        retryAfterSeconds: z.number(),
+                      })
+                      .optional(),
+                  }),
+                ),
+              },
+            },
+          },
+        },
+      }),
+      async (c) => {
+        if (!WebAuth.enabled()) {
+          return c.json({ enabled: false, authenticated: true })
+        }
+
+        const session = WebAuth.readSession(c)
+        if (!session) {
+          return c.json({
+            enabled: true,
+            authenticated: false,
+            usernameHint: WebAuth.username(),
+            lockout: WebAuth.lockStatus(c, WebAuth.username()),
+          })
+        }
+
+        return c.json({
+          enabled: true,
+          authenticated: true,
+          username: session.username,
+          csrfToken: session.csrf,
+        })
+      },
+    )
+    .post(
+      "/auth/login",
+      describeRoute({
+        summary: "Login web session",
+        description: "Authenticate with server credentials and issue an HttpOnly session cookie.",
+        operationId: "global.auth.login",
+        responses: {
+          200: {
+            description: "Login success",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.object({
+                    ok: z.literal(true),
+                    username: z.string(),
+                    csrfToken: z.string(),
+                  }),
+                ),
+              },
+            },
+          },
+          ...errors(401, 429),
+        },
+      }),
+      validator(
+        "json",
+        z.object({
+          username: z.string().min(1),
+          password: z.string().min(1),
+        }),
+      ),
+      async (c) => {
+        if (!WebAuth.enabled()) {
+          return c.json({ ok: true, username: "", csrfToken: "" })
+        }
+
+        const body = c.req.valid("json")
+        const lock = WebAuth.lockStatus(c, body.username)
+        if (lock) {
+          c.header("Retry-After", String(lock.retryAfterSeconds))
+          return c.json(
+            {
+              code: "AUTH_LOCKED",
+              message: "Too many failed attempts",
+              ...lock,
+            },
+            429,
+          )
+        }
+
+        if (!(await WebAuth.verifyCredentials(body.username, body.password))) {
+          WebAuth.markFailure(c, body.username)
+          return c.json(
+            {
+              code: "AUTH_INVALID",
+              message: "Invalid username or password",
+            },
+            401,
+          )
+        }
+
+        WebAuth.markSuccess(c, body.username)
+        const issued = WebAuth.issue(body.username)
+        c.header("Set-Cookie", WebAuth.cookieHeader(c, issued.token, 60 * 60 * 8))
+        return c.json({ ok: true, username: issued.payload.username, csrfToken: issued.payload.csrf })
+      },
+    )
+    .post(
+      "/auth/logout",
+      describeRoute({
+        summary: "Logout web session",
+        description: "Invalidate current web auth session cookie.",
+        operationId: "global.auth.logout",
+        responses: {
+          200: {
+            description: "Logout success",
+            content: {
+              "application/json": {
+                schema: resolver(z.object({ ok: z.literal(true) })),
+              },
+            },
+          },
+        },
+      }),
+      async (c) => {
+        if (WebAuth.enabled()) {
+          const session = WebAuth.readSession(c)
+          WebAuth.invalidate(session)
+          c.header("Set-Cookie", WebAuth.clearCookieHeader(c))
+        }
+        return c.json({ ok: true })
       },
     )
     .get(

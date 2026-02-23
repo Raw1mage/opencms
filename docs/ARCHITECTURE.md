@@ -117,6 +117,100 @@ The following refactor-ported changes were integrated into `cms` and are relevan
   - `scripts/test-with-baseline.ts` + root `test` routing, which excludes antigravity auth plugin test scopes from global regression runs.
 - Architectural effect: capability discovery is shifted from fragmented prompt fragments to a unified registry + lifecycle model, improving tool discoverability and reducing manual user reminders.
 
+### Recent Architectural Notes (2026-02-23 Web Alignment Matrix: TUI → Web)
+
+This round completed an incremental Web alignment pass against existing TUI capabilities without a large-scale frontend rewrite.
+
+#### File-to-Function Mapping (Web alignment scope)
+
+| File Path                                                      | Function / Responsibility                                                                                                     | Architectural Impact                                                                                                   |
+| :------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------- |
+| `packages/app/src/pages/session/index.tsx`                     | Reconnected `questionRequest` pipeline and prompt blocking logic (`permission` + `question`).                                 | Restores Web parity for ask/reply control flow with shared session event model.                                        |
+| `packages/app/src/components/settings-accounts.tsx`            | New Accounts settings panel: list families/accounts and set active account.                                                   | Introduces minimum viable Web account-management surface using existing `/account` API contracts.                      |
+| `packages/app/src/components/dialog-settings.tsx`              | Added Accounts tab and `initialTab` deep-link support.                                                                        | Enables cross-surface navigation (e.g., status popover → settings/accounts) with reusable settings container behavior. |
+| `packages/app/src/components/status-popover.tsx`               | Added Accounts tab with rotation recommendations + account summary; manage action opens settings accounts tab.                | Upgrades popover to “admin-lite” status surface while keeping mutating actions in Settings.                            |
+| `packages/app/src/context/local.tsx`                           | Added `parseConfiguredModel()` to normalize legacy string and object-shaped `config.model`.                                   | Hardens model-selection boundary against SDK schema evolution; removes `.split()` type fragility.                      |
+| `packages/app/src/i18n/en.ts`                                  | Added account/status-related i18n keys (`settings.accounts.*`, `status.popover.tab.accounts`, `common.refresh/manage`, etc.). | Establishes localization contract for new Web account/admin-lite UI elements.                                          |
+| `docs/events/event_20260223_web_alignment_matrix_execution.md` | Event ledger of scope, decisions, risks, and validation.                                                                      | Preserves architecture decision traceability for future incremental parity work.                                       |
+
+#### Validation State (for this alignment set)
+
+- `bun x tsc -p /home/pkcs12/projects/opencode/packages/app/tsconfig.json --noEmit` ✅
+- `bun turbo typecheck --filter=@opencode-ai/app` ✅
+
+### Recent Architectural Notes (2026-02-23 Docker Web Service Rebuild)
+
+This round also repaired `/docker` deployment so the Web service can be brought up reliably while preserving the existing production runtime model.
+
+#### File-to-Function Mapping (Docker web service)
+
+| File Path                              | Function / Responsibility                                                                        | Architectural Impact                                                                                                        |
+| :------------------------------------- | :----------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
+| `docker/docker-compose.production.yml` | Defines `opencode` and `opencode-web` services, runtime mounts, and web profile startup command. | Build context now resolves from repo root, removing path breakage when invoked via `/docker` scripts.                       |
+| `docker/Dockerfile.production`         | Production image assembly (binary, frontend assets, synced config/data/state, runtime env).      | Maintains existing `/opt/opencode` runtime contract while clarifying canonical build/run commands.                          |
+| `docker/webctl.sh`                     | One-command operational workflow (`deploy/start/stop/build/logs`) for web profile.               | Corrected repo-root path resolution for build artifacts and Docker build context, making helper script runnable end-to-end. |
+| `docker/docker-setup.sh`               | Bootstrap utility for host directories, binary build, and image build.                           | Build invocation now points to `docker/Dockerfile.production`, aligning setup path with actual repo layout.                 |
+| `docker/sync-config.sh`                | Syncs host XDG config/data/state into repo `config/` for image baking and host volume seeding.   | Preserves existing config migration strategy and avoids drift between host runtime and container runtime.                   |
+
+#### Validation State (Docker rebuild)
+
+- `docker compose -f docker/docker-compose.production.yml --profile web config` ✅
+- `bash -n docker/webctl.sh && bash -n docker/docker-setup.sh && bash -n docker/sync-config.sh` ✅
+
+### Recent Architectural Notes (2026-02-23 Web Auth Refactor)
+
+The web authentication path has been refactored from browser HTTP Basic prompt flow to explicit cookie-session auth with CSRF protection.
+
+#### File-to-Function Mapping (Web auth refactor)
+
+| File Path                                       | Function / Responsibility                                                                                                                    | Architectural Impact                                                                                     |
+| :---------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------- |
+| `packages/opencode/src/server/web-auth.ts`      | Central web auth primitives: signed stateless session cookie, CSRF token, lockout state, route/public-path helpers.                          | Introduces dedicated auth boundary module instead of ad-hoc middleware checks.                           |
+| `packages/opencode/src/server/app.ts`           | Request gate middleware using `WebAuth` (public route allowlist, cookie session verification, CSRF checks for mutations, credentialed CORS). | Replaces transport-level Basic challenge with app-layer session policy and structured 401/403 responses. |
+| `packages/opencode/src/server/routes/global.ts` | Adds web auth lifecycle endpoints (`/global/auth/session`, `/global/auth/login`, `/global/auth/logout`).                                     | Establishes explicit browser auth API contract for login/session probing/logout.                         |
+| `packages/app/src/context/web-auth.tsx`         | Frontend auth state machine and `authorizedFetch` wrapper (credentials include + CSRF header injection).                                     | Moves auth handling into composable client runtime context, reusable across SDK/event calls.             |
+| `packages/app/src/components/auth-gate.tsx`     | Login gate UI for unauthenticated browser sessions.                                                                                          | Removes dependency on browser-native Basic auth popup and enables controlled UX flow.                    |
+| `packages/app/src/context/global-sdk.tsx`       | SDK and SSE client now use auth-aware fetch wrapper instead of Basic header injection.                                                       | Aligns API and event transport with cookie/session auth model.                                           |
+| `packages/app/src/components/terminal.tsx`      | Removes websocket URL embedded basic credentials.                                                                                            | Unifies PTY auth path with session cookie model.                                                         |
+| `packages/app/src/app.tsx`                      | Adds `WebAuthProvider` + `AuthGate` in root composition.                                                                                     | Makes auth gating a first-class app bootstrap stage before router runtime.                               |
+
+### Recent Architectural Notes (2026-02-23 Web Architecture-First Stabilization Plan)
+
+After the auth refactor and initial admin-lite work, Web runtime behavior still diverges from TUI in three critical areas: workspace boundary handling, PTY lifecycle robustness, and `/admin` parity depth. The project now adopts an **architecture-first** stabilization sequence before additional UI feature expansion.
+
+#### Core boundary model (Web)
+
+1. **Auth boundary (`WebAuth`)**
+   - Browser requests use cookie-session + CSRF; CLI/TUI compatibility path keeps Basic auth available.
+   - Decision: keep dual-mode auth contract, but treat Web cookie path as primary for browser surfaces.
+
+2. **Instance boundary (`Instance.directory`)**
+   - File/tool routes enforce project-root confinement (`Access denied: path escapes project directory`).
+   - Decision: keep confinement semantics, but add explicit UX/diagnostic handling for cross-directory expectations instead of implicit failures.
+
+3. **PTY boundary (`/pty` create + connect)**
+   - PTY websocket connect depends on an existing PTY id; stale ids produce `Session not found`.
+   - Decision: enforce explicit create→connect sequencing and add recovery path for stale local PTY state.
+
+4. **Admin parity boundary (TUI `/admin` vs Web)**
+   - Web currently provides account/status admin-lite and settings-based account activation.
+   - TUI `/admin` still owns richer provider/account/model activity, rate-limit/quota visibility, and rotation-aware model/account workflows.
+   - Decision: port by capability slices (read-first, then mutate actions), not by one-shot screen cloning.
+
+#### TUI → Web parity slices (incremental)
+
+| Slice                                  | TUI status | Web status                    | Planned landing                          |
+| :------------------------------------- | :--------- | :---------------------------- | :--------------------------------------- |
+| Account list + set active              | Complete   | Complete (settings + popover) | keep + polish                            |
+| Rotation recommendations               | Complete   | Read-only in popover          | add richer reason/context                |
+| Provider enable/disable + add flow     | Complete   | Partial                       | Web admin section (phase 2)              |
+| Model activity + cooldown/quota matrix | Complete   | Missing                       | Web admin section (phase 3)              |
+| Rate-limit guided recovery UX          | Complete   | Missing                       | model switcher + session hints (phase 3) |
+
+Reference event ledger:
+
+- `docs/events/event_20260223_web_architecture_first_plan.md`
+
 ---
 
 ## Detailed Package Analysis
@@ -946,3 +1040,39 @@ When retiring tests, PR must include:
 1. Reason for retirement mapped to architecture/event record.
 2. Replacement coverage (if any) for current behavior.
 3. Confirmation that CI signal quality improves (lower flaky/false-fail surface).
+
+---
+
+## 18. Web Auth Credential Management Baseline (2026-02-23)
+
+This section defines the credential-management baseline for self-hosted Web deployments.
+
+### A. Security Policy
+
+1. Prefer hashed credential file (`htpasswd`-style `username:hash`) over plaintext env password.
+2. Preserve backward compatibility with legacy `OPENCODE_SERVER_USERNAME/OPENCODE_SERVER_PASSWORD` only as fallback.
+3. Browser auth flow uses session cookie + CSRF protection; no URL-embedded basic credentials.
+
+### B. Runtime credential sources (priority)
+
+1. `OPENCODE_SERVER_HTPASSWD` (or `OPENCODE_SERVER_PASSWORD_FILE`) if file exists.
+2. Fallback: `OPENCODE_SERVER_USERNAME + OPENCODE_SERVER_PASSWORD`.
+
+### C. File-to-function mapping
+
+| File Path                                              | Function / Responsibility                                                                      | Architectural Impact                                                                  |
+| :----------------------------------------------------- | :--------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------ |
+| `packages/opencode/src/server/web-auth-credentials.ts` | Loads/caches htpasswd-style credential file and verifies hash with `Bun.password.verify()`.    | Decouples credential storage from env plaintext and allows hash-based auth lifecycle. |
+| `packages/opencode/src/server/web-auth.ts`             | Web auth policy layer (session cookie signing, CSRF enforcement helpers, lockout integration). | Central auth gate contract consumed by server middleware and auth routes.             |
+| `packages/opencode/src/server/routes/global.ts`        | Auth endpoints for session probe/login/logout; returns `usernameHint` for login UX.            | Provides explicit auth API contract for browser clients.                              |
+| `packages/opencode/src/flag/flag.ts`                   | Defines new auth-file flags (`OPENCODE_SERVER_HTPASSWD`, `OPENCODE_SERVER_PASSWORD_FILE`).     | Standardizes configuration surface for secure credential-file deployments.            |
+| `packages/app/src/context/web-auth.tsx`                | Frontend auth state manager, cookie-based authorized fetch, CSRF header injection.             | Aligns browser transport security with server-side CSRF/session model.                |
+| `packages/app/src/components/auth-gate.tsx`            | Login gate UI using `usernameHint` and explicit sign-in flow.                                  | Replaces browser-native Basic auth popup with controllable app UX.                    |
+| `packages/app/src/components/terminal.tsx`             | Removes websocket URL basic credentials.                                                       | Prevents credential exposure in URL/user-info surface.                                |
+| `docker/docker-compose.production.yml`                 | Exposes `OPENCODE_SERVER_HTPASSWD` default path `/opt/opencode/config/opencode/.htpasswd`.     | Makes secure-by-default self-host setup practical for home installations.             |
+
+### D. Operational baseline for Docker self-host
+
+1. Credential file location: `/opt/opencode/config/opencode/.htpasswd`
+2. File format: one credential per line (`username:<argon2/bcrypt hash>`)
+3. Do not ship default plaintext password values in compose defaults.

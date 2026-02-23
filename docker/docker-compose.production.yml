@@ -4,11 +4,11 @@
 #
 # Prerequisites:
 #   1. Build binary: bun run build --single
-#   2. Sync config:  ./scripts/sync-config.sh
-#   3. Build image:  docker-compose -f docker-compose.production.yml build
+#   2. Sync config:  ./docker/sync-config.sh
+#   3. Build image:  docker compose -f docker/docker-compose.production.yml build
 #
 # Usage:
-#   docker-compose -f docker-compose.production.yml up -d
+#   docker compose -f docker/docker-compose.production.yml --profile web up -d
 #
 # Config files are baked into the image from ./config/:
 #   ./config/
@@ -37,8 +37,8 @@
 services:
   opencode:
     build:
-      context: .
-      dockerfile: Dockerfile.production
+      context: ..
+      dockerfile: docker/Dockerfile.production
     image: opencode:latest
     container_name: opencode
 
@@ -68,6 +68,8 @@ services:
       # Web server settings (if running opencode web)
       - OPENCODE_SERVER_PASSWORD=${OPENCODE_SERVER_PASSWORD:-}
       - OPENCODE_SERVER_USERNAME=${OPENCODE_SERVER_USERNAME:-opencode}
+      - OPENCODE_SERVER_HTPASSWD=${OPENCODE_SERVER_HTPASSWD:-/opt/opencode/config/opencode/.htpasswd}
+      - OPENCODE_SERVER_AUTH_SECRET=${OPENCODE_SERVER_AUTH_SECRET:-}
 
     # Volume mounts - all dynamic files under /opt/opencode
     volumes:
@@ -84,7 +86,7 @@ services:
       # Workspace - mount your code here
       - ${WORKSPACE:-./workspace}:/workspace:rw
       # Projects directory - for processing user projects
-      - ${PROJECTS_DIR:-$HOME/projects}:/projects:rw
+      - ${PROJECTS_DIR:-../projects}:/projects:rw
       # Git config (optional, for commit authorship)
       - ${HOME}/.gitconfig:/opt/opencode/.gitconfig:ro
 
@@ -110,8 +112,8 @@ services:
   # Web UI mode (optional)
   opencode-web:
     build:
-      context: .
-      dockerfile: Dockerfile.production
+      context: ..
+      dockerfile: docker/Dockerfile.production
     image: opencode:latest
     container_name: opencode-web
     hostname: rawbase
@@ -134,8 +136,10 @@ services:
       - XDG_STATE_HOME=/opt/opencode/state
       - HOME=/opt/opencode
       - TZ=${TZ:-UTC}
-      - OPENCODE_SERVER_PASSWORD=${OPENCODE_SERVER_PASSWORD:-changeme}
+      - OPENCODE_SERVER_PASSWORD=${OPENCODE_SERVER_PASSWORD:-}
       - OPENCODE_SERVER_USERNAME=${OPENCODE_SERVER_USERNAME:-opencode}
+      - OPENCODE_SERVER_HTPASSWD=${OPENCODE_SERVER_HTPASSWD:-/opt/opencode/config/opencode/.htpasswd}
+      - OPENCODE_SERVER_AUTH_SECRET=${OPENCODE_SERVER_AUTH_SECRET:-}
 
     volumes:
       - /opt/opencode/config:/opt/opencode/config
@@ -144,7 +148,7 @@ services:
       - /opt/opencode/state:/opt/opencode/state
       - /opt/opencode/logs:/opt/opencode/logs
       - ${WORKSPACE:-./workspace}:/workspace:rw
-      - ${PROJECTS_DIR:-$HOME/projects}:/projects:rw
+      - ${PROJECTS_DIR:-../projects}:/projects:rw
 
     working_dir: /workspace
 
