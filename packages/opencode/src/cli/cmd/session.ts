@@ -9,6 +9,7 @@ import { EOL } from "os"
 import path from "path"
 import { Bus } from "@/bus"
 import { createInterface } from "node:readline"
+import { Project } from "@/project/project"
 
 function pagerCmd(): string[] {
   const lessOptions = ["-R", "-S"]
@@ -297,7 +298,7 @@ export const SessionListCommand = cmd({
   handler: async (args) => {
     await bootstrap(process.cwd(), async () => {
       const sessions = []
-      for await (const session of Session.list()) {
+      for await (const session of Session.listGlobal()) {
         if (!session.parentID) {
           sessions.push(session)
         }
@@ -311,11 +312,16 @@ export const SessionListCommand = cmd({
         return
       }
 
+      const projects = await Project.list().catch(() => [])
+      const projectNameByID = new Map(
+        projects.map((project) => [project.id, project.name?.trim() || project.id] as const),
+      )
+
       let output: string
       if (args.format === "json") {
-        output = formatSessionJSON(limitedSessions)
+        output = formatSessionJSON(limitedSessions, projectNameByID)
       } else {
-        output = formatSessionTable(limitedSessions)
+        output = formatSessionTable(limitedSessions, projectNameByID)
       }
 
       const shouldPaginate = process.stdout.isTTY && !args.maxCount && args.format === "table"
@@ -338,32 +344,38 @@ export const SessionListCommand = cmd({
   },
 })
 
-function formatSessionTable(sessions: Session.Info[]): string {
+function formatSessionTable(sessions: Session.Info[], projectNameByID: Map<string, string>): string {
   const lines: string[] = []
 
   const maxIdWidth = Math.max(20, ...sessions.map((s) => s.id.length))
   const maxTitleWidth = Math.max(25, ...sessions.map((s) => s.title.length))
+  const maxProjectWidth = Math.max(
+    10,
+    ...sessions.map((s) => `[${projectNameByID.get(s.projectID) ?? s.projectID}]`.length),
+  )
 
-  const header = `Session ID${" ".repeat(maxIdWidth - 10)}  Title${" ".repeat(maxTitleWidth - 5)}  Updated`
+  const header = `Session ID${" ".repeat(maxIdWidth - 10)}  Title${" ".repeat(maxTitleWidth - 5)}  Project${" ".repeat(maxProjectWidth - 7)}  Updated`
   lines.push(header)
   lines.push("─".repeat(header.length))
   for (const session of sessions) {
     const truncatedTitle = Locale.truncate(session.title, maxTitleWidth)
+    const project = Locale.truncate(`[${projectNameByID.get(session.projectID) ?? session.projectID}]`, maxProjectWidth)
     const timeStr = Locale.todayTimeOrDateTime(session.time.updated)
-    const line = `${session.id.padEnd(maxIdWidth)}  ${truncatedTitle.padEnd(maxTitleWidth)}  ${timeStr}`
+    const line = `${session.id.padEnd(maxIdWidth)}  ${truncatedTitle.padEnd(maxTitleWidth)}  ${project.padEnd(maxProjectWidth)}  ${timeStr}`
     lines.push(line)
   }
 
   return lines.join(EOL)
 }
 
-function formatSessionJSON(sessions: Session.Info[]): string {
+function formatSessionJSON(sessions: Session.Info[], projectNameByID: Map<string, string>): string {
   const jsonData = sessions.map((session) => ({
     id: session.id,
     title: session.title,
     updated: session.time.updated,
     created: session.time.created,
     projectId: session.projectID,
+    projectName: projectNameByID.get(session.projectID) ?? session.projectID,
     directory: session.directory,
   }))
   return JSON.stringify(jsonData, null, 2)

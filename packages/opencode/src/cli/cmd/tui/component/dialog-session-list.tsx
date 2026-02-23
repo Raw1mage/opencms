@@ -37,6 +37,25 @@ export function DialogSessionList() {
 
   const sessions = createMemo(() => searchResults() ?? sync.data.session)
 
+  const projectName = (session: any) => {
+    const name = session?.project?.name
+    if (typeof name === "string" && name.trim()) return name.trim()
+    return session.projectID
+  }
+
+  const sessionLabel = (
+    session: {
+      title: string
+      projectID: string
+      project?: { name?: string | null } | null
+    },
+    childCount = 0,
+    titlePrefix = "",
+  ) => {
+    const childSuffix = childCount > 0 ? ` [${childCount}]` : ""
+    return `[${projectName(session)}] ${titlePrefix}${session.title}${childSuffix}`
+  }
+
   const options = createMemo(() => {
     const today = new Date().toDateString()
     const allSessions = sessions()
@@ -72,9 +91,9 @@ export function DialogSessionList() {
       const isWorking = status?.type === "busy"
       const children = childrenMap.get(root.id) ?? []
 
-      // Add root session with child count indicator
+      // Add root session with child count indicator and project label
       result.push({
-        title: children.length > 0 ? `${root.title} [${children.length}]` : root.title,
+        title: sessionLabel(root, children.length),
         value: root.id,
         category,
         footer: Locale.time(root.time.updated),
@@ -88,7 +107,7 @@ export function DialogSessionList() {
         ) : undefined,
       })
 
-      // Add children with tree prefix (restored original behavior)
+      // Add children with tree prefix and project labels
       const sortedChildren = children.toSorted((a, b) => a.time.created - b.time.created)
       for (let i = 0; i < sortedChildren.length; i++) {
         const child = sortedChildren[i]
@@ -98,7 +117,7 @@ export function DialogSessionList() {
         const childWorking = childStatus?.type === "busy"
 
         result.push({
-          title: prefix + child.title,
+          title: sessionLabel(child, 0, prefix),
           value: child.id,
           category, // Same category as parent
           footer: Locale.time(child.time.updated),
