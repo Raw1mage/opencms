@@ -326,12 +326,12 @@ export const Terminal = (props: TerminalProps) => {
       const restore = typeof local.pty.buffer === "string" ? local.pty.buffer : ""
       const restoreSize =
         restore &&
-        typeof local.pty.cols === "number" &&
-        Number.isSafeInteger(local.pty.cols) &&
-        local.pty.cols > 0 &&
-        typeof local.pty.rows === "number" &&
-        Number.isSafeInteger(local.pty.rows) &&
-        local.pty.rows > 0
+          typeof local.pty.cols === "number" &&
+          Number.isSafeInteger(local.pty.cols) &&
+          local.pty.cols > 0 &&
+          typeof local.pty.rows === "number" &&
+          Number.isSafeInteger(local.pty.rows) &&
+          local.pty.rows > 0
           ? { cols: local.pty.cols, rows: local.pty.rows }
           : undefined
 
@@ -394,6 +394,7 @@ export const Terminal = (props: TerminalProps) => {
       })
       cleanups.push(() => disposeIfDisposable(onResize))
       const onData = t.onData((data) => {
+        console.warn("[PTY CLIENT] Sending input length:", data.length, "content:", JSON.stringify(data));
         if (ws?.readyState === WebSocket.OPEN) ws.send(data)
       })
       cleanups.push(() => disposeIfDisposable(onData))
@@ -463,7 +464,8 @@ export const Terminal = (props: TerminalProps) => {
 
       const writeIncoming = (chunk: string) => {
         if (!chunk) return
-        output?.push(chunk)
+        console.warn("[PTY CLIENT] Received output length:", chunk.length, "content:", JSON.stringify(chunk));
+        t.write(chunk)
         cursor += chunk.length
       }
 
@@ -499,7 +501,22 @@ export const Terminal = (props: TerminalProps) => {
           return
         }
 
-        writeIncoming(typeof event.data === "string" ? event.data : "")
+        const stringData = typeof event.data === "string" ? event.data : ""
+        if (stringData && stringData.charCodeAt(0) === 0) {
+          const json = stringData.slice(1)
+          try {
+            const meta = JSON.parse(json) as { cursor?: unknown }
+            const next = meta?.cursor
+            if (typeof next === "number" && Number.isSafeInteger(next) && next >= 0) {
+              cursor = next
+            }
+          } catch (err) {
+            debugTerminal("invalid websocket control frame (string)", err)
+          }
+          return
+        }
+
+        writeIncoming(stringData)
       }
       socket.addEventListener("message", handleMessage)
       cleanups.push(() => socket.removeEventListener("message", handleMessage))
