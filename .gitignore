@@ -25,6 +25,9 @@ target
 .scripts
 .direnv/
 
+# Claude Code session data
+.claude/
+
 # Local dev files
 opencode-dev
 logs/

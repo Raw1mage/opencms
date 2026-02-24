@@ -9,6 +9,13 @@ import { lazy } from "@opencode-ai/util/lazy"
 import { Shell } from "@/shell/shell"
 import { Plugin } from "@/plugin"
 import { debugCheckpoint } from "@/util/debug"
+import * as fs from "fs"
+
+const debugLog = (...args: any[]) => {
+  try {
+    fs.appendFileSync("/tmp/pty-debug.log", args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ") + "\n")
+  } catch (e) { }
+}
 
 export namespace Pty {
   const log = Log.create({ service: "pty" })
@@ -26,6 +33,7 @@ export namespace Pty {
 
   type Subscriber = {
     id: number
+    token?: unknown
   }
 
   const sockets = new WeakMap<object, number>()
@@ -39,11 +47,14 @@ export namespace Pty {
     return next
   }
 
-  const token = (ws: unknown) => {
+  const token = (ws: unknown): string | number | undefined | unknown => {
     if (!ws || typeof ws !== "object") return ws
+    const raw = (ws as { raw?: unknown }).raw
     const data = (ws as { data?: unknown }).data
-    if (data === undefined) return
-    if (data === null) return
+    if (data === undefined || data === null) {
+      if (raw) return token(raw)
+      return undefined
+    }
     if (typeof data !== "object") return data
 
     const id = (data as { connId?: unknown }).connId
@@ -85,7 +96,7 @@ export namespace Pty {
     const out = new Uint8Array(bytes.length + 1)
     out[0] = 0
     out.set(bytes, 1)
-    return out
+    return out.buffer
   }
 
   const pty = lazy(async () => {
@@ -228,6 +239,7 @@ export namespace Pty {
     }
     state().set(id, session)
     ptyProcess.onData((data) => {
+      debugLog("[PTY SERVER] Process outputted length:", data.length);
       session.cursor += data.length
 
       for (const [ws, sub] of session.subscribers) {
@@ -236,6 +248,7 @@ export namespace Pty {
           continue
         }
         if (typeof ws === "object" && sockets.get(ws) !== sub.id) {
+          console.log("[PTY SERVER] Deleting subscriber due to socket.id mismatch! current:", sockets.get(ws), "saved:", sub.id);
           session.subscribers.delete(ws)
           continue
         }
@@ -322,6 +335,7 @@ export namespace Pty {
   }
 
   export function connect(id: string, ws: Socket, cursor?: number, identity?: unknown) {
+    debugLog("[PTY SERVER] connect called for id:", id);
     const session = state().get(id)
     if (!session) {
       ws.close()
@@ -341,7 +355,7 @@ export namespace Pty {
     }
 
     owners.set(ws, id)
-    session.subscribers.set(ws, { id: socketId })
+    session.subscribers.set(ws, { id: socketId, token: token(identity ?? ws) })
 
     const cleanup = () => {
       session.subscribers.delete(ws)
@@ -383,8 +397,11 @@ export namespace Pty {
     }
 
     return {
-      onMessage: (message: string | ArrayBuffer) => {
-        session.process.write(String(message))
+      onMessage: async (message: any) => {
+        const payload = message instanceof Blob ? await message.arrayBuffer() : message;
+        const text = typeof payload === "string" ? payload : new TextDecoder().decode(payload);
+        debugLog("[PTY SERVER] Received input from client length:", text.length, "content:", text);
+        session.process.write(text)
       },
       onClose: () => {
         log.info("client disconnected from session", { id })

@@ -181,7 +181,7 @@ export const PtyRoutes = lazy(() =>
             handler = Pty.connect(id, socket, cursor, ws)
           },
           onMessage(event) {
-            handler?.onMessage(String(event.data))
+            handler?.onMessage(event.data)
           },
           onClose() {
             handler?.onClose()
