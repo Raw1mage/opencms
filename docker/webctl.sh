@@ -39,6 +39,10 @@ CONTAINER_NAME="opencode-web"
 WEB_PORT="${OPENCODE_PORT:-1080}"
 HTPASSWD_PATH="${OPENCODE_SERVER_HTPASSWD:-/opt/opencode/config/opencode/.htpasswd}"
 
+# Dev mode configuration
+DEV_PID_FILE="/tmp/opencode-web-dev.pid"
+FRONTEND_DIST="${PROJECT_ROOT}/packages/app/dist"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -73,6 +77,22 @@ print_auth_mode() {
         return
     fi
     log_warn "No auth credential configured. Set OPENCODE_SERVER_HTPASSWD or OPENCODE_SERVER_PASSWORD."
+}
+
+# Find bun binary (may not be in PATH in all environments)
+find_bun() {
+    if command -v bun &>/dev/null; then
+        command -v bun
+        return
+    fi
+    for candidate in "$HOME/.bun/bin/bun" "/usr/local/bin/bun" "/usr/bin/bun"; do
+        if [ -x "$candidate" ]; then
+            echo "$candidate"
+            return
+        fi
+    done
+    log_error "bun not found. Install with: curl -fsSL https://bun.sh/install | bash"
+    exit 1
 }
 
 # Check if Docker is running
@@ -127,22 +147,19 @@ init_dirs() {
 do_build_binary() {
     log_info "Building opencode binary..."
 
-    cd "${PROJECT_ROOT}"
+    local BUN_BIN
+    BUN_BIN="$(find_bun)"
 
-    # Check if bun is available
-    if ! command -v bun &> /dev/null; then
-        log_error "bun is not installed. Please install bun first: curl -fsSL https://bun.sh/install | bash"
-        exit 1
-    fi
+    cd "${PROJECT_ROOT}"
 
     # Install dependencies if needed
     if [ ! -d "node_modules" ]; then
         log_info "Installing dependencies..."
-        bun install
+        "${BUN_BIN}" install
     fi
 
-    # Build binary
-    bun run build --single
+    # Build binary for current platform only
+    "${BUN_BIN}" run build --single
 
     log_success "Binary built: ${PROJECT_ROOT}/dist/opencode-linux-x64/bin/opencode"
 }
@@ -151,22 +168,19 @@ do_build_binary() {
 do_build_frontend() {
     log_info "Building frontend..."
 
-    cd "${PROJECT_ROOT}/packages/app"
+    local BUN_BIN
+    BUN_BIN="$(find_bun)"
 
-    # Check if bun is available
-    if ! command -v bun &> /dev/null; then
-        log_error "bun is not installed. Please install bun first: curl -fsSL https://bun.sh/install | bash"
-        exit 1
-    fi
+    cd "${PROJECT_ROOT}/packages/app"
 
     # Install dependencies if needed
     if [ ! -d "node_modules" ]; then
         log_info "Installing frontend dependencies..."
-        bun install
+        "${BUN_BIN}" install
     fi
 
     # Build frontend
-    bun run build
+    "${BUN_BIN}" run build
 
     log_success "Frontend built: ${PROJECT_ROOT}/packages/app/dist/"
 }
@@ -229,6 +243,142 @@ do_sync_config() {
         log_error "sync-config.sh not found or not executable"
         exit 1
     fi
+}
+
+# =============================================================================
+# Dev mode: run directly from source (no Docker, no binary compilation)
+# Requires: built frontend at packages/app/dist/
+# =============================================================================
+
+do_dev_start() {
+    local BUN_BIN
+    BUN_BIN="$(find_bun)"
+
+    # Check frontend dist exists
+    if [ ! -f "${FRONTEND_DIST}/index.html" ]; then
+        log_error "Frontend dist not found at ${FRONTEND_DIST}"
+        log_info "Run first: ./docker/webctl.sh build-frontend"
+        exit 1
+    fi
+
+    # Stop any existing dev server
+    if [ -f "${DEV_PID_FILE}" ]; then
+        local old_pid
+        old_pid=$(cat "${DEV_PID_FILE}")
+        if kill -0 "${old_pid}" 2>/dev/null; then
+            log_info "Stopping existing dev server (pid ${old_pid})..."
+            kill "${old_pid}"
+            sleep 1
+        fi
+        rm -f "${DEV_PID_FILE}"
+    fi
+
+    # Also free port if occupied by something else
+    local port_pid
+    port_pid=$(ss -tlnp 2>/dev/null | grep -oP "(?<=pid=)[0-9]+(?=.*:${WEB_PORT} )" | head -1)
+    if [ -n "${port_pid}" ]; then
+        log_warn "Port ${WEB_PORT} in use by pid ${port_pid}, stopping..."
+        kill "${port_pid}" 2>/dev/null || true
+        sleep 1
+    fi
+
+    log_info "Starting dev server from source on port ${WEB_PORT}..."
+
+    OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" \
+        "${BUN_BIN}" --conditions=browser \
+        "${PROJECT_ROOT}/packages/opencode/src/index.ts" \
+        web --port "${WEB_PORT}" --hostname 0.0.0.0 &
+
+    local pid=$!
+    echo "${pid}" > "${DEV_PID_FILE}"
+
+    # Wait for health check
+    log_info "Waiting for server to be ready..."
+    local attempt=0
+    local max_attempts=20
+    while [ $attempt -lt $max_attempts ]; do
+        if curl -s "http://localhost:${WEB_PORT}/api/v2/global/health" 2>/dev/null | grep -q '"healthy":true'; then
+            break
+        fi
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+
+    if [ $attempt -eq $max_attempts ]; then
+        log_warn "Server may not be ready yet. Check with: ./docker/webctl.sh dev-status"
+    else
+        log_success "Dev server started (pid ${pid})"
+    fi
+
+    echo ""
+    echo "  URL:      http://localhost:${WEB_PORT}"
+    echo "  PID:      ${pid}"
+    echo "  Source:   ${PROJECT_ROOT}/packages/opencode/src/"
+    echo "  Frontend: ${FRONTEND_DIST}"
+    print_auth_mode
+    echo ""
+    echo "PTY debug log: tail -f /tmp/pty-debug.log"
+    echo "To stop:       ./docker/webctl.sh dev-stop"
+    echo ""
+}
+
+do_dev_stop() {
+    if [ -f "${DEV_PID_FILE}" ]; then
+        local pid
+        pid=$(cat "${DEV_PID_FILE}")
+        if kill -0 "${pid}" 2>/dev/null; then
+            log_info "Stopping dev server (pid ${pid})..."
+            kill "${pid}"
+            sleep 1
+            log_success "Dev server stopped"
+        else
+            log_warn "Dev server PID ${pid} is not running"
+        fi
+        rm -f "${DEV_PID_FILE}"
+    else
+        # Fallback: find by port
+        local port_pid
+        port_pid=$(ss -tlnp 2>/dev/null | grep -oP "(?<=pid=)[0-9]+(?=.*:${WEB_PORT} )" | head -1)
+        if [ -n "${port_pid}" ]; then
+            log_info "Found process on port ${WEB_PORT} (pid ${port_pid}), stopping..."
+            kill "${port_pid}" 2>/dev/null || true
+            log_success "Process stopped"
+        else
+            log_warn "No dev server found (no PID file, no process on port ${WEB_PORT})"
+        fi
+    fi
+}
+
+do_dev_restart() {
+    do_dev_stop
+    sleep 1
+    do_dev_start
+}
+
+do_dev_status() {
+    echo ""
+    echo "=== Dev Server Status ==="
+    echo ""
+    if [ -f "${DEV_PID_FILE}" ]; then
+        local pid
+        pid=$(cat "${DEV_PID_FILE}")
+        if kill -0 "${pid}" 2>/dev/null; then
+            echo -e "  Status:   ${GREEN}running${NC} (pid ${pid})"
+            echo "  URL:      http://localhost:${WEB_PORT}"
+            echo "  Source:   ${PROJECT_ROOT}/packages/opencode/src/"
+            echo "  Frontend: ${FRONTEND_DIST}"
+            local health
+            health=$(curl -s "http://localhost:${WEB_PORT}/api/v2/global/health" 2>/dev/null || echo '(unreachable)')
+            echo "  Health:   ${health}"
+        else
+            echo -e "  Status:   ${RED}stale PID (${pid} not running)${NC}"
+            rm -f "${DEV_PID_FILE}"
+        fi
+    else
+        echo -e "  Status:   ${RED}stopped${NC}"
+        echo "  Run: ./docker/webctl.sh dev"
+    fi
+    echo ""
 }
 
 # Build Docker image
@@ -448,18 +598,26 @@ do_help() {
     echo ""
     echo "Usage: ./docker/webctl.sh <command>"
     echo ""
-    echo "Commands:"
-    echo "  deploy        Full deployment: build binary + frontend + sync + start (recommended)"
-    echo "  start, up     Start the web service"
-    echo "  stop, down    Stop the web service"
-    echo "  restart       Restart the web service"
-    echo "  status        Show service status"
-    echo "  logs          Show and follow logs"
-    echo "  build         Build the Docker image (includes binary + frontend + sync)"
-    echo "  sync          Sync config files from home directory"
-    echo "  sync-host     Sync auth files to host volumes (after dirs exist)"
-    echo "  shell         Open a shell in the container"
-    echo "  help          Show this help message"
+    echo "Dev Mode (run from source, no Docker required):"
+    echo "  dev                Start server from source with local frontend dist"
+    echo "  dev-stop           Stop the dev server"
+    echo "  dev-restart        Restart the dev server"
+    echo "  dev-status         Show dev server status"
+    echo "  build-frontend     Build the frontend (packages/app/dist/)"
+    echo "  build-binary       Build the opencode binary for current platform"
+    echo ""
+    echo "Production Mode (Docker):"
+    echo "  deploy             Full deployment: build all + sync + start (recommended)"
+    echo "  start, up          Start the web service"
+    echo "  stop, down         Stop the web service"
+    echo "  restart            Restart the web service"
+    echo "  status             Show service status"
+    echo "  logs               Show and follow logs"
+    echo "  build              Build the Docker image"
+    echo "  sync               Sync config files from home directory"
+    echo "  sync-host          Sync auth files to host volumes"
+    echo "  shell              Open a shell in the container"
+    echo "  help               Show this help message"
     echo ""
     echo "Environment Variables:"
     echo "  OPENCODE_PORT              Web service port (default: 1080)"
@@ -470,19 +628,41 @@ do_help() {
     echo "  WORKSPACE                  Code workspace directory"
     echo "  PROJECTS_DIR               Projects directory (default: ~/projects)"
     echo ""
-    echo "First-time deployment:"
-    echo "  ./docker/webctl.sh deploy                          # Full deployment (recommended)"
+    echo "Dev mode workflow:"
+    echo "  ./docker/webctl.sh build-frontend   # First time or after frontend changes"
+    echo "  ./docker/webctl.sh dev              # Start from source"
+    echo "  ./docker/webctl.sh dev-restart      # After backend source changes"
     echo ""
-    echo "Examples:"
-    echo "  ./docker/webctl.sh start                           # Start on port 1080"
-    echo "  OPENCODE_PORT=8080 ./docker/webctl.sh start        # Start on port 8080"
-    echo "  OPENCODE_SERVER_HTPASSWD=/opt/opencode/config/opencode/.htpasswd ./docker/webctl.sh deploy"
-    echo "  OPENCODE_SERVER_PASSWORD=secret ./docker/webctl.sh deploy  # Legacy fallback"
+    echo "  PTY debug log: tail -f /tmp/pty-debug.log"
+    echo ""
+    echo "Production deployment:"
+    echo "  ./docker/webctl.sh deploy"
+    echo "  OPENCODE_PORT=8080 ./docker/webctl.sh deploy"
     echo ""
 }
 
 # Main
 case "${1:-}" in
+    # Dev mode (source-based, no Docker)
+    dev|dev-start)
+        do_dev_start
+        ;;
+    dev-stop)
+        do_dev_stop
+        ;;
+    dev-restart)
+        do_dev_restart
+        ;;
+    dev-status)
+        do_dev_status
+        ;;
+    build-frontend)
+        do_build_frontend
+        ;;
+    build-binary)
+        do_build_binary
+        ;;
+    # Production mode (Docker)
     deploy)
         do_deploy
         ;;
