@@ -1,5 +1,3 @@
-import { Provider } from "@/provider/provider"
-
 import { fn } from "@/util/fn"
 import z from "zod"
 import { Session } from "."
@@ -8,16 +6,10 @@ import { MessageV2 } from "./message-v2"
 import { Identifier } from "@/id/id"
 import { Snapshot } from "@/snapshot"
 
-import { Log } from "@/util/log"
 import { Storage } from "@/storage/storage"
 import { Bus } from "@/bus"
 
-import { LLM } from "./llm"
-import { Agent } from "@/agent/agent"
-
 export namespace SessionSummary {
-  const log = Log.create({ service: "session.summary" })
-
   function unquoteGitPath(input: string) {
     if (!input.startsWith('"')) return input
     if (!input.endsWith('"')) return input
@@ -116,57 +108,6 @@ export namespace SessionSummary {
       diffs,
     }
     await Session.updateMessage(userMsg)
-
-    const textPart = msgWithParts.parts.find((p) => p.type === "text" && !p.synthetic) as MessageV2.TextPart
-    if (textPart && !userMsg.summary?.title) {
-      try {
-        const agent = await Agent.get("title")
-        if (!agent) return
-        const titleModel = agent.model
-          ? await Provider.getModel(agent.model.providerId, agent.model.modelID)
-          : ((await Provider.getSmallModel(userMsg.model.providerId)) ??
-            (await Provider.getModel(userMsg.model.providerId, userMsg.model.modelID)))
-        const stream = await LLM.stream({
-          agent,
-          user: userMsg,
-          tools: {},
-          model: titleModel,
-          small: true,
-          messages: [
-            {
-              role: "user" as const,
-              content: `
-                The following is the text to summarize:
-                <text>
-                ${textPart?.text ?? ""}
-                </text>
-              `,
-            },
-          ],
-          abort: new AbortController().signal,
-          sessionID: userMsg.sessionID,
-          system: [],
-          retries: 3,
-        })
-        const result = await stream.text
-        // Record successful completion in global model health registry
-        await LLM.recordSuccess(titleModel.providerId, titleModel.id)
-        log.info("title", { title: result })
-        userMsg.summary.title = result
-      } catch (error) {
-        // FIX: Avoid repeated title-generation retry loops when title model is unavailable
-        // (e.g. billing/auth failures), which can flood logs and freeze TUI responsiveness.
-        // @event_20260210_tui_black_screen_title_retry_loop
-        const fallback = textPart.text.trim().split("\n")[0]?.trim() || "Untitled"
-        userMsg.summary.title = fallback.length > 100 ? fallback.slice(0, 97) + "..." : fallback
-        log.warn("title generation failed; applied fallback", {
-          sessionID: userMsg.sessionID,
-          messageID: userMsg.id,
-          error: error instanceof Error ? error.message : String(error),
-        })
-      }
-      await Session.updateMessage(userMsg)
-    }
   }
 
   export const diff = fn(

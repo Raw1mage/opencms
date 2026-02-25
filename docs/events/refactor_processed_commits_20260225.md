@@ -50,3 +50,11 @@
 | `e6e9c15d34f096a472e24603e05f0f6c1cb3dfb7` | ported | - | codex OAuth model filtering now keeps any model id containing codex in addition to gpt-5.* families, improving compatibility with newly named codex variants |
 | `d1ee4c8dca7ec88a608cc640dd11ecb1b0ceb347` | integrated | - | project test hardening scenarios for git command failures are already present in cms test suite |
 | `ba54cee55e18b47fb70badc84ae2cbac7c83d258` | integrated | - | webfetch already returns image responses as file attachments in current cms implementation |
+
+## 已處理（origin/dev delta 2026-02-25 round8 (rewrite-only) @ 2026-02-25T15:28:48.781Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `45fa5e7199b2306395e1d07b9544f2e7dbd1c9a5` | ported | - | removed per-message title generation LLM call from session summary path to avoid redundant title model invocations and reduce latency/failure surface |
+| `98aeb60a7f0e00e251ff02c360829a3679d65717` | integrated | - | directory @-references already route through Read tool flow in current session user-message parts implementation |
+| `d018903887861c64ec7ee037e60b24a61501c9c6` | integrated | - | run command tool rendering already guards malformed tool payloads and falls back safely |
