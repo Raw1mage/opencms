@@ -386,3 +386,30 @@
 | `892bb75265602cd3dbcbe1cfc634f1d7f4ca7f5e` | skipped | - | release bookkeeping/version rollup commit; no standalone behavior to rewrite-port |
 | `aaee5fb680b5ca20aaae89fe84ac7cf619461343` | skipped | - | release bookkeeping/version rollup commit; no standalone behavior to rewrite-port |
 | `ac018e3a35fe75b57d55ae349a91624609e11448` | skipped | - | release bookkeeping/version rollup commit; no standalone behavior to rewrite-port |
+
+## 已處理（origin/dev delta 2026-02-26 round57 (rewrite-only) @ 2026-02-25T20:06:16.142Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `d86f24b6b3d0e4772a3da07724771e0172e533db` | skipped | - | console zen cost-return feature is outside current cms core runtime parity scope |
+| `d82d22b2d760e85a4e9a84ff7a69e43420553e20` | skipped | - | wip zen commit in console track deferred to dedicated zen sync initiative |
+| `ae811ad8d249c5d37622c26f2078eb0bef40087b` | skipped | - | wip zen commit in console track deferred to dedicated zen sync initiative |
+| `658bf6fa583eb027ff78eb9163b413222e9e6d95` | skipped | - | zen docs content update only; no core runtime behavior delta |
+| `59a323e9a87d315ff5c0e73c4eb5af089aeff87f` | skipped | - | wip zen docs content update only; no core runtime behavior delta |
+
+## 已處理（origin/dev delta 2026-02-26 round58 (rewrite-only) @ 2026-02-25T20:06:21.661Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `5f421883a8aa92338bee1399532f359c5e986f41` | skipped | - | desktop/ui loading screen styling change is out of current core runtime scope |
+| `ecb274273a04920c215625b4bf93845d166411e2` | skipped | - | ui diff virtualization wip is app/ui optimization scope, deferred |
+| `a82ca860089afde16afdcb1cff0592c6ac0f4aa4` | skipped | - | defensive ui code component fix is app/ui layer scope, deferred in current stream |
+
+## 已處理（origin/dev delta 2026-02-26 round59 (rewrite-only) @ 2026-02-25T20:06:34.187Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `81b5a6a08b6b2f591096a0f9a7fed04871002a33` | skipped | - | packages/app workspace reset fix is app client scope outside current core runtime stream |
+| `8f56ed5b850ce4ad71ced4903a36d822cf91553f` | skipped | - | generated app context change without selected runtime behavior objective |
+| `fbabce1125005bc4a658401fbbc1c04e50d2f5bc` | skipped | - | translations-only app/ui i18n update; no core runtime behavior delta |
+| `e3471526f4c71b2c4ee00117e125e179da01e6e2` | skipped | - | brand assets/page update in console app scope; deferred from runtime-focused stream |
