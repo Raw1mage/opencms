@@ -199,3 +199,10 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `f66624fe6eba5aa00662c8d0925c5c6795b2b986` | skipped | - | cleanup-only flag refactor has low user value and intersects cms-diverged env default semantics; avoid behavior drift |
+
+## 已處理（origin/dev delta 2026-02-26 round31 (rewrite-only) @ 2026-02-25T19:07:10.242Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `29671c1397b0ecfb9510186a0aae89696896da2a` | integrated | - | OPENCODE_CONFIG_CONTENT token substitution support is already present in cms config load path with dedicated tests |
+| `1fb6c0b5b356e3816398ba71ac1b01485697bc31` | skipped | - | upstream revert is not adopted; cms intentionally keeps OPENCODE_CONFIG_CONTENT token substitution behavior |
