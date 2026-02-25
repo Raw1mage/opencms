@@ -169,3 +169,9 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `c0814da785d40273f36eda835c4cfd583cf20d75` | ported | - | disabled OpenTUI openConsoleOnError so runtime failures remain in ErrorBoundary-driven in-app UX instead of forcing raw console overlay |
+
+## 已處理（origin/dev delta 2026-02-26 round26 (rewrite-only) @ 2026-02-25T19:02:53.131Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `8da5fd0a66b2b31f4d77eb8c0949c148b9a7d760` | integrated | - | worktree delete defensive flow and regression test are already present in cms (locate/verify stale worktree, non-zero remove tolerance, residual clean+branch delete) |
