@@ -193,6 +193,29 @@ export namespace SessionMonitor {
     return { type: "idle" }
   }
 
+  function resolveToolTitle(part: MessageV2.ToolPart) {
+    if (part.state.status === "running" && part.state.title) {
+      const runningTitle = part.state.title.trim()
+      if (runningTitle) return runningTitle
+    }
+
+    const input = part.state.input
+    if (!input || typeof input !== "object") return undefined
+
+    const description = input["description"]
+    if (typeof description === "string" && description.trim()) {
+      return `# ${description.trim()}`
+    }
+
+    const title = input["title"]
+    if (typeof title === "string" && title.trim()) return `${part.tool}: ${title.trim()}`
+
+    const command = input["command"]
+    if (typeof command === "string" && command.trim()) return `${part.tool}: ${command.trim()}`
+
+    return undefined
+  }
+
   async function ensureBootstrapped() {
     const st = state()
     if (st.bootstrapped) return
@@ -330,10 +353,14 @@ export namespace SessionMonitor {
         const startedAt = part.state.status === "running" ? part.state.time.start : message.info.time.created
         if (!isProcessActive && Date.now() - startedAt > TOOL_ACTIVE_WINDOW_MS) continue
 
+        const partTitle = resolveToolTitle(part)
+
         if (!tool.name) {
           tool.name = part.tool
           tool.status = part.state.status
-          tool.title = part.state.status === "running" ? part.state.title : undefined
+          tool.title = partTitle
+        } else if (!tool.title && partTitle) {
+          tool.title = partTitle
         }
         if (message.info.role === "assistant") {
           const current = agents.get(message.info.agent)
@@ -341,8 +368,10 @@ export namespace SessionMonitor {
             current.tool = {
               name: part.tool,
               status: part.state.status,
-              title: part.state.status === "running" ? part.state.title : undefined,
+              title: partTitle,
             }
+          } else if (current?.tool && !current.tool.title && partTitle) {
+            current.tool.title = partTitle
           }
         }
 
@@ -354,9 +383,9 @@ export namespace SessionMonitor {
           id: `tool:${session.id}:${part.id}`,
           level: "tool",
           sessionID: session.id,
-          // Prefer tool-provided running title so monitor rows can reflect
-          // concrete subtask progress instead of repeating session title.
-          title: part.state.status === "running" && part.state.title ? part.state.title : session.title,
+          // Prefer tool-specific title (running metadata or inferred input description)
+          // so monitor rows reflect concrete activity instead of repeating session title.
+          title: partTitle || part.tool,
           parentID: session.parentID,
           agent: message.info.role === "assistant" ? message.info.agent : undefined,
           status: toolStatus(part.state),
