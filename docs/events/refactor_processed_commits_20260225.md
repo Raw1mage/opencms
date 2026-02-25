@@ -275,3 +275,9 @@
 | `759ec104b6e537235afd3177acd28b6c9694e496` | skipped | -            | gateway variant/providerOptions remapping sequence is high-risk under cms-diverged provider routing                   |
 | `933a491adeeed875d3ba4cbc88ed301a60456734` | skipped | -            | amazon→bedrock slug remapping for gateway variants deferred with the same provider-sequence hardening batch           |
 | `839c5cda12fa978d4c7ba85c7cf51600ec853bc8` | skipped | -            | openrouter anthropic variant + patch lifecycle update deferred to dedicated provider integration and patch validation |
+
+## 已處理（origin/dev delta 2026-02-26 round43 (rewrite-only) @ 2026-02-26T00:00:00.000Z）
+
+| Upstream Commit                            | Status  | Local Commit | Note                                                                                                               |
+| ------------------------------------------ | ------- | ------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `6d95f0d14cbd83fc8b7775f77ba39ab2881008f3` | skipped | -            | large sqlite migration wave is architectural in scope and out-of-bounds for current file/index rewrite-only stream |
