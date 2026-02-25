@@ -108,7 +108,7 @@ export namespace Project {
 
           id = roots[0]
           if (id) {
-            void Bun.file(path.join(dotgit, "opencode"))
+            await Bun.file(path.join(dotgit, "opencode"))
               .write(id)
               .catch(() => undefined)
           }
