@@ -518,3 +518,13 @@
 | `089ab9defabc5887f741d8ae777249689bc0d2bf` | skipped | - | generated provider test artifact only; no selected runtime behavior delta |
 | `306fc77076fa3ac0930efefc842e2f61cd5ddd19` | skipped | - | nix hash bookkeeping only; no runtime behavior delta |
 | `7911cb62abe424337d934c03e48bc431199401e7` | skipped | - | nix hash bookkeeping only; no runtime behavior delta |
+
+## 已處理（origin/dev delta 2026-02-26 round67 (rewrite-only) @ 2026-02-25T20:17:38.321Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `d30e91738570ee9ea06ca6f2d49bdae65b0ff3ec` | skipped | - | ui markdown cmd-click enhancement is app/ui interaction scope outside current cms core runtime stream |
+| `b525c03d205e37ad7527e6bd1749b324395dd6b7` | skipped | - | toast css cleanup is presentation maintenance without runtime core behavior delta |
+| `ebb907d646022d2e7bb8effc164e1f09943d64a9` | skipped | - | desktop/app large diff/file performance optimization is app/ui scope deferred with app parity track |
+| `4f51c0912d76698325862e8fcd7d484b7b9a61fe` | skipped | - | app cleanup maintenance churn without selected core runtime behavior objective |
+| `ae6e85b2a4d9addec1913ac2f770870456aa694a` | skipped | - | local opencode.jsonc comment cleanup is non-runtime housekeeping |
