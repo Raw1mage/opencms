@@ -267,6 +267,9 @@ export function tui(input: {
         useMouse,
         enableMouseMovement,
         exitOnCtrlC: false,
+        // Keep runtime errors in-app (ErrorBoundary) instead of opening the raw console overlay.
+        // @event_20260226_origin_dev_refactor_round25_tui_open_console_error
+        openConsoleOnError: false,
         // FIX: Some terminal emulators/bridges mishandle Kitty keyboard negotiation,
         // causing black-screen/unresponsive startup states.
         // Disable protocol negotiation for broader terminal compatibility.

@@ -163,3 +163,9 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `13cabae29f7ed2bd658037c0c676f7807d63d8b3` | ported | - | snapshot git operations now include win32-safe compatibility flags (longpaths/symlinks/autocrlf) and test cleanup uses retry policy to reduce transient EBUSY failures |
+
+## 已處理（origin/dev delta 2026-02-26 round25 (rewrite-only) @ 2026-02-25T18:44:18.991Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `c0814da785d40273f36eda835c4cfd583cf20d75` | ported | - | disabled OpenTUI openConsoleOnError so runtime failures remain in ErrorBoundary-driven in-app UX instead of forcing raw console overlay |
