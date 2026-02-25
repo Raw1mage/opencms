@@ -157,3 +157,9 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `637059a515a6afd983a8a615f90650d997a821ce` | ported | - | TUI now shows LSP diagnostics for apply_patch edits and reuses a shared diagnostics renderer across write/edit/apply_patch tool views |
+
+## 已處理（origin/dev delta 2026-02-25 round24 (rewrite-only) @ 2026-02-25T18:27:08.160Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `13cabae29f7ed2bd658037c0c676f7807d63d8b3` | ported | - | snapshot git operations now include win32-safe compatibility flags (longpaths/symlinks/autocrlf) and test cleanup uses retry policy to reduce transient EBUSY failures |

@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url)
 const dir = path.join(os.tmpdir(), "opencode-test-data-" + process.pid)
 await fs.mkdir(dir, { recursive: true })
 afterAll(() => {
-  fsSync.rmSync(dir, { recursive: true, force: true })
+  fsSync.rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 500 })
 })
 // Set test home directory to isolate tests from user's actual home directory
 // This prevents tests from picking up real user configs/skills from ~/.claude/skills
