@@ -193,3 +193,9 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `45f0050372a1bc035164a5953b1fdb46df106d4a` | skipped | - | upstream sqlite db command depends on storage/db.ts + Database.Path surface not present in cms file-index storage architecture |
+
+## 已處理（origin/dev delta 2026-02-26 round30 (rewrite-only) @ 2026-02-25T19:06:06.428Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `f66624fe6eba5aa00662c8d0925c5c6795b2b986` | skipped | - | cleanup-only flag refactor has low user value and intersects cms-diverged env default semantics; avoid behavior drift |
