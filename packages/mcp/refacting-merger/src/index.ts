@@ -5,11 +5,16 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod"
 import path from "path"
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises"
+import { spawn } from "node:child_process"
 
 const SERVER_NAME = "refacting-merger"
-const SERVER_VERSION = "0.1.0"
+const SERVER_VERSION = "0.1.1"
 const CHARACTER_LIMIT = 120_000
 const ROOT = process.env["REFACTING_MERGER_ROOT"] || process.cwd()
+const STRICT_REFACTOR_POLICY = {
+  mode: "rewrite-only",
+  forbidden: ["git cherry-pick", "git merge", "direct patch transplant"],
+} as const
 const PROTECTED_PATHS = [
   "packages/opencode/src/provider/",
   "packages/opencode/src/account/",
@@ -51,16 +56,44 @@ function normalizePath(input: string) {
   return path.isAbsolute(input) ? input : path.resolve(ROOT, input)
 }
 
+function containsForbiddenGitAction(text: string) {
+  return /\bgit\s+(cherry-pick|merge)\b/i.test(text)
+}
+
+function assertRewriteOnlyLedgerInput(input: { roundTitle: string; entries: ProcessedEntry[] }) {
+  if (containsForbiddenGitAction(input.roundTitle)) {
+    throw new Error(
+      `rewrite-only policy violation in roundTitle: forbidden action detected (${STRICT_REFACTOR_POLICY.forbidden.join(", ")})`,
+    )
+  }
+  for (const entry of input.entries) {
+    if (containsForbiddenGitAction(entry.note)) {
+      throw new Error(
+        `rewrite-only policy violation in ledger note for ${entry.upstream}: forbidden action detected (${STRICT_REFACTOR_POLICY.forbidden.join(", ")})`,
+      )
+    }
+  }
+}
+
 async function runGit(args: string[], cwd = ROOT) {
-  const proc = Bun.spawn(["git", ...args], {
-    cwd,
-    stdout: "pipe",
-    stderr: "pipe",
+  return await new Promise<{ exitCode: number; stdout: string; stderr: string }>((resolve) => {
+    const proc = spawn("git", args, { cwd, stdio: ["ignore", "pipe", "pipe"] })
+    let stdout = ""
+    let stderr = ""
+    proc.stdout.on("data", (chunk) => {
+      stdout += chunk.toString()
+    })
+    proc.stderr.on("data", (chunk) => {
+      stderr += chunk.toString()
+    })
+    proc.on("close", (code) => {
+      resolve({
+        exitCode: code ?? 1,
+        stdout,
+        stderr,
+      })
+    })
   })
-  const exitCode = await proc.exited
-  const stdout = await new Response(proc.stdout).text()
-  const stderr = await new Response(proc.stderr).text()
-  return { exitCode, stdout, stderr }
 }
 
 async function git(args: string[], cwd = ROOT) {
@@ -197,9 +230,10 @@ function recommendDecision(
   const fixesRegression = /fix|security|crash|regression/.test(lowerSubject)
 
   if (isRevert && !fixesRegression) return "skipped"
-  if (analysis.valueScore.total >= 2) return analysis.risk === "high" ? "ported" : "integrated"
+  if (analysis.valueScore.total >= 2) return "ported"
+  if (fixesRegression && analysis.valueScore.total >= 1) return "ported"
   if (analysis.valueScore.total < 0) return "skipped"
-  return analysis.risk === "high" ? "ported" : "skipped"
+  return "skipped"
 }
 
 async function getChangedFiles(hash: string) {
@@ -295,6 +329,12 @@ function renderPlanMarkdown(input: {
     `- Excluded by processed ledger: ${input.processedCount} commits`,
     `- Commits for this round: ${input.analyses.length} commits`,
     "",
+    "## Policy Guardrails",
+    "",
+    "- Execution mode: rewrite-only refactor-port.",
+    "- Forbidden: `git cherry-pick`, `git merge`, or direct upstream patch transplant.",
+    "- Allowed: analyze behavior intent, then re-implement on cms architecture and validate.",
+    "",
     "## Actions",
     "",
     "| Commit | Logical Type | Value Score | Risk | Decision | Notes |",
@@ -314,7 +354,7 @@ function renderPlanMarkdown(input: {
     "## Execution Queue",
     "",
     "1. [ ] Confirm high-risk items (ported vs skipped).",
-    "2. [ ] Integrate low/medium-risk high-value items.",
+    "2. [ ] Refactor-port selected items by behavior reimplementation (no cherry-pick/merge).",
     "3. [ ] Update ledger with final status mapping.",
     "",
     "## Mapping to Ledger",
@@ -377,7 +417,7 @@ server.registerTool(
   {
     title: "Refacting Merger Daily Delta",
     description:
-      "Analyze target ref vs source ref delta, apply refactor-from-src methodology, and return commit-level logical type/value score/recommended decision. Source and target must be explicitly specified by the user — do NOT assume defaults; ask the user if not provided.",
+      "Analyze target ref vs source ref delta with strict rewrite-only refactor-from-src methodology (explicitly forbids cherry-pick/merge), and return commit-level logical type/value score/recommended decision. Source and target must be explicitly specified by the user — do NOT assume defaults; ask the user if not provided.",
     inputSchema: z
       .object({
         sourceRemote: z.string().describe("Source remote (e.g. origin, upstream). Must be explicitly specified."),
@@ -418,7 +458,7 @@ server.registerTool(
   {
     title: "Refacting Merger Generate Plan",
     description:
-      "Generate a refactor plan markdown skeleton under docs/events with commit table (logical type, value score, risk, decision) for guided merge workflow.",
+      "Generate a refactor plan markdown skeleton under docs/events with commit table (logical type, value score, risk, decision) for strict rewrite-only workflow (no cherry-pick/merge).",
     inputSchema: z
       .object({
         topic: z.string().min(1).describe("Plan topic suffix, e.g. origin_dev_delta_round3"),
@@ -470,7 +510,7 @@ server.registerTool(
   {
     title: "Refacting Merger Update Ledger",
     description:
-      "Append processed commit mapping to refactor processed ledger markdown with status ported/integrated/skipped.",
+      "Append processed commit mapping to refactor processed ledger markdown with status ported/integrated/skipped. integrated means already present in cms behavior, not merge/cherry-pick.",
     inputSchema: z
       .object({
         ledgerPath: z.string().min(1).describe("Ledger markdown path"),
@@ -497,6 +537,7 @@ server.registerTool(
     },
   },
   async ({ ledgerPath, roundTitle, entries }) => {
+    assertRewriteOnlyLedgerInput({ roundTitle, entries })
     const abs = normalizePath(ledgerPath)
     let existing = ""
     try {
@@ -644,9 +685,10 @@ server.registerTool(
       ],
       approval: ["1) Present plan table", "2) Get explicit Go", "3) Keep no code changes before approval"],
       execution: [
-        "1) Integrate low-risk commits first",
-        "2) Manual port protected-path commits",
-        "3) Validate lint + typecheck + focused tests",
+        "1) Re-implement low-risk commit behavior first (rewrite-only)",
+        "2) Manual refactor-port protected-path commits",
+        "3) Explicitly prohibit git cherry-pick / git merge during execution",
+        "4) Validate lint + typecheck + focused tests",
       ],
       ledger: [
         "1) Collect final statuses",
@@ -660,6 +702,7 @@ server.registerTool(
       sourceRef,
       targetRef,
       steps: steps[phase],
+      policy: STRICT_REFACTOR_POLICY,
     }
     return {
       content: [{ type: "text", text: result.steps.join("\n") }],
@@ -669,7 +712,7 @@ server.registerTool(
 )
 
 async function main() {
-  if (Bun.argv.includes("--help")) {
+  if (process.argv.includes("--help")) {
     console.log(`${SERVER_NAME} MCP server`)
     console.log("Usage:")
     console.log(`  bun packages/mcp/refacting-merger/src/index.ts`)
