@@ -21,3 +21,9 @@
 | `e7182637784b7d558657da5b6aede92f0db1c11f` | ported | - | project git id cache write now awaited to avoid race between id generation and cache persistence in project detection |
 | `3af12c53c433d1f49abde0874dc02c2e6c018930` | ported | - | custom tool module loading now imports absolute file paths via file:// URL conversion for runtime compatibility |
 | `088a81c116f3fda865851292c92754385292b92d` | ported | - | auth login reads stdout concurrently with process exit and guards missing stdout to avoid deadlock/failure edge cases |
+
+## 已處理（origin/dev delta 2026-02-25 round4 (rewrite-only) @ 2026-02-25T15:10:54.784Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `da40ab7b3d242208b5c759e55e548c13c658372a` | ported | - | plugin/dependency installs now force bun no-cache in CI to reduce stale cache related install failures in automated environments |

@@ -98,7 +98,7 @@ export namespace BunProc {
       // When using corporate proxy, Bun package installation fails without --no-cache
       // Status: Monitor for fix in future Bun releases
       // Can be removed when: Bun issue #19936 is fixed and released
-      ...(proxied() ? ["--no-cache"] : []),
+      ...(proxied() || process.env.CI ? ["--no-cache"] : []),
       "--cwd",
       Global.Path.cache,
       pkg + "@" + version,
