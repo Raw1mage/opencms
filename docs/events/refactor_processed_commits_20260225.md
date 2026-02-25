@@ -79,3 +79,10 @@
 | --------------- | ------ | ------------ | ---- |
 | `fb79dd7bf857a95a6045209cc1f3f859563a8081` | ported | - | mcp oauth provider now supports invalidateCredentials(all/client/tokens) so oauth provider-directed credential invalidation can clear stale auth state safely |
 | `991496a753545f2705072d4da537c175dca357e6` | integrated | - | ACP windows hang protections are already present across cms via util/git ACP-safe spawn path and snapshot ACP bypass guards |
+
+## 已處理（origin/dev delta 2026-02-25 round12 (rewrite-only) @ 2026-02-25T15:51:16.752Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `1608565c808c9136bdc6930a356649bd9824cc69` | ported | - | added plugin hook tool.definition so plugins can mutate tool description and parameters before they are exposed to the model in tool registry |
+| `56ad2db02055955f926fda0e4a89055b22ead6f9` | integrated | - | tool.execute.after already receives args payload through ToolInvoker in current cms runtime |
