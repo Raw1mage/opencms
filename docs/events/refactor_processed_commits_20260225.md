@@ -86,3 +86,10 @@
 | --------------- | ------ | ------------ | ---- |
 | `1608565c808c9136bdc6930a356649bd9824cc69` | ported | - | added plugin hook tool.definition so plugins can mutate tool description and parameters before they are exposed to the model in tool registry |
 | `56ad2db02055955f926fda0e4a89055b22ead6f9` | integrated | - | tool.execute.after already receives args payload through ToolInvoker in current cms runtime |
+
+## 已處理（origin/dev delta 2026-02-25 round13 (rewrite-only) @ 2026-02-25T15:55:19.479Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `8631d6c01d8c8f5e8c616e09e85e5a27791d1a56` | ported | - | added comprehensive session list filter tests at server route level (directory/roots/search/start/limit) to lock expected behavior and prevent regression |
+| `b020758446254e6c03b0182247b611ce1e5f2c55` | integrated | - | session listing across project directories is already the default behavior in current cms implementation |
