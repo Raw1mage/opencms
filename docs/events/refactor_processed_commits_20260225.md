@@ -295,3 +295,22 @@
 | Upstream Commit                            | Status  | Local Commit | Note                                                                                                       |
 | ------------------------------------------ | ------- | ------------ | ---------------------------------------------------------------------------------------------------------- |
 | `b5c8bd3421e4b89cf9dabc6ccf019a82eefc64a5` | skipped | -            | json-migration path-id regression test depends on migration/test stack not present in current cms topology |
+
+## 已處理（origin/dev delta 2026-02-26 round46 (rewrite-only) @ 2026-02-26T00:00:00.000Z）
+
+| Upstream Commit                            | Status  | Local Commit | Note                                                                                                                 |
+| ------------------------------------------ | ------- | ------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `d475fd6137ad669a8a73027d91b516a57846c379` | skipped | -            | generated-only provider file churn without standalone behavior intent; deferred unless tied to selected feature port |
+
+## 已處理（origin/dev delta 2026-02-26 round47 (rewrite-only) @ 2026-02-26T00:00:00.000Z）
+
+| Upstream Commit                            | Status  | Local Commit | Note                                                                       |
+| ------------------------------------------ | ------- | ------------ | -------------------------------------------------------------------------- |
+| `2db618dea33517a0f36567de28d010ee7770a800` | skipped | -            | bun downgrade conflicts with current cms 1.3.9-aligned toolchain direction |
+
+## 已處理（origin/dev delta 2026-02-26 round48 (rewrite-only) @ 2026-02-26T00:00:00.000Z）
+
+| Upstream Commit                            | Status  | Local Commit | Note                                                                              |
+| ------------------------------------------ | ------- | ------------ | --------------------------------------------------------------------------------- |
+| `76db218674496f9ca9e91b49e5718eabf6df7cc0` | skipped | -            | release bookkeeping/version rollup commit; no standalone behavior to rewrite-port |
+| `847e06f9e1aa1629944df3657e7aed46c3210596` | skipped | -            | nix hash bookkeeping only; no direct runtime behavior delta for cms               |
