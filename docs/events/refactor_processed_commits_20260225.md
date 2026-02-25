@@ -359,3 +359,30 @@
 | `e9b9a62fe4df1fcc92b9d410a1982f26418d87a1` | skipped | - | cleanup-only app churn without core runtime behavior delta |
 | `7ccf223c847564f5f2a032a92493c8c67e6a822d` | skipped | - | cleanup-only app churn without core runtime behavior delta |
 | `70303d0b4272fee94f412c851de133fb3a45464f` | skipped | - | cleanup-only app churn without core runtime behavior delta |
+
+## 已處理（origin/dev delta 2026-02-26 round54 (rewrite-only) @ 2026-02-25T20:04:45.489Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `e2a33f75e1635830b559322b507a7ed4ff114e59` | skipped | - | VOUCHED trust-list maintenance only; no cms runtime behavior delta |
+| `5bdf1c4b96545619e3b062b47912f845de7ca1b8` | skipped | - | VOUCHED trust-list maintenance only; no cms runtime behavior delta |
+| `0eaeb4588e0d44023a2e89c2ed516dbfe68c0e43` | skipped | - | SignPath CI integration files are release/signing pipeline scope outside current runtime refactor |
+| `fa97475ee82eaca292a72baa01d7da0ef1695f1b` | skipped | - | SignPath policy file relocation is CI governance scope, not runtime behavior |
+| `11dd281c92d88726aa4a5da762b8f9300572ccf1` | skipped | - | docs typo fix only; no runtime behavior delta |
+| `20dcff1e2e73c19b3184bbd181b533409c4567e7` | skipped | - | generated docs update only; no runtime behavior delta |
+| `ecab692ca15dceb065463731adfdee45ea91c49a` | skipped | - | docs-only correction for SDK guide format attribute |
+| `789705ea96ae28af7e30801fd6039ce89b6ac48e` | skipped | - | test fixture AGENTS documentation only; no runtime behavior delta |
+
+## 已處理（origin/dev delta 2026-02-26 round55 (rewrite-only) @ 2026-02-25T20:04:52.476Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `c856f875a1f136c058512b6e388a3aa66098286a` | integrated | - | cms already aligned on Bun 1.3.9 toolchain baseline |
+
+## 已處理（origin/dev delta 2026-02-26 round56 (rewrite-only) @ 2026-02-25T20:05:00.856Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `892bb75265602cd3dbcbe1cfc634f1d7f4ca7f5e` | skipped | - | release bookkeeping/version rollup commit; no standalone behavior to rewrite-port |
+| `aaee5fb680b5ca20aaae89fe84ac7cf619461343` | skipped | - | release bookkeeping/version rollup commit; no standalone behavior to rewrite-port |
+| `ac018e3a35fe75b57d55ae349a91624609e11448` | skipped | - | release bookkeeping/version rollup commit; no standalone behavior to rewrite-port |
