@@ -488,3 +488,33 @@
 | `bb30e06855fb979b5fd765796a6b7428b9177b91` | skipped | - | tui tips text fix deferred with tui UX micro-fix batch |
 | `fdad823edc13fbc8fbaf4bf54eae53b1286ee2e9` | skipped | - | db migrate command depends on sqlite migration command surface intentionally deferred in cms stream |
 | `b0afdf6ea4c016c46762b649adc30c0456814a43` | skipped | - | session delete CLI command deferred pending broader session command parity batch |
+
+## 已處理（origin/dev delta 2026-02-26 round65 (rewrite-only) @ 2026-02-25T20:16:42.725Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `b1764b2ffdba86c70c6f2777d1342ad87ac6ec41` | skipped | - | docs zh-cn translation correction only; no runtime behavior delta |
+| `f991a6c0b6bba97be27f3c132c14c5fa78d05536` | skipped | - | generated docs content update only; no runtime behavior delta |
+| `b8848cfae1012556f029b3b7c7317e4a27a30dfe` | skipped | - | docs ko phrasing polish only; no runtime behavior delta |
+| `88e2eb5416043378f96720db83920f28e0250245` | skipped | - | README/docs installation text update only; no runtime behavior delta |
+| `72c09e1dcceee8b38476b3541852436fa045b2be` | skipped | - | docs zh-cn terminology standardization only; no runtime behavior delta |
+| `d9363da9eebc0481e9829f5b96cb07adcb4caaa8` | skipped | - | docs zh-cn zen translation correction only; no runtime behavior delta |
+| `21e07780023dc34b57b1b79cf9715b537971d673` | skipped | - | generated docs content update only; no runtime behavior delta |
+| `3ebf27aab92ac9c25b24f18c7fbd151da0f778ea` | skipped | - | docs ru zen translation correction only; no runtime behavior delta |
+| `9f20e0d14b1d7db2167b2a81523a2521fe1c3b73` | skipped | - | web/app locale cookie redirect behavior is docs/web scope outside current core runtime stream |
+| `37611217282b81458bcd5a74850bd96787721b06` | skipped | - | README translation addition only; no runtime behavior delta |
+
+## 已處理（origin/dev delta 2026-02-26 round66 (rewrite-only) @ 2026-02-25T20:16:53.712Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `bc1fd0633dfd021545cd22041fab995f93ec2413` | integrated | - | cms test script already uses bun test --timeout 30000, matching upstream intent |
+| `ef979ccfa899fe520d1cb15314dfbd487206a507` | skipped | - | dependency bump only (gitlab provider/auth); defer to dedicated dependency update batch |
+| `ef205c366062fbf89ec49c9fc7f2a4b4c5223614` | skipped | - | dependency bump only (google-vertex); defer to dedicated dependency update batch |
+| `575f2cf2a5e2246175a38dbf96bb1fed33186edc` | skipped | - | nixpkgs/toolchain bump bookkeeping; no standalone runtime behavior port |
+| `66780195dc9ea5c79a4015f17771f53c19b37dcb` | skipped | - | generated sdk/openapi artifacts only; no selected runtime behavior delta |
+| `85df1067130ef17e819900e303caec30ab012384` | skipped | - | generated openapi docs artifact only; no selected runtime behavior delta |
+| `afb04ed5d48d40b20a7d7a33af54cc950f974425` | skipped | - | generated snapshots/openapi artifacts only; no selected runtime behavior delta |
+| `089ab9defabc5887f741d8ae777249689bc0d2bf` | skipped | - | generated provider test artifact only; no selected runtime behavior delta |
+| `306fc77076fa3ac0930efefc842e2f61cd5ddd19` | skipped | - | nix hash bookkeeping only; no runtime behavior delta |
+| `7911cb62abe424337d934c03e48bc431199401e7` | skipped | - | nix hash bookkeeping only; no runtime behavior delta |
