@@ -206,3 +206,9 @@
 | --------------- | ------ | ------------ | ---- |
 | `29671c1397b0ecfb9510186a0aae89696896da2a` | integrated | - | OPENCODE_CONFIG_CONTENT token substitution support is already present in cms config load path with dedicated tests |
 | `1fb6c0b5b356e3816398ba71ac1b01485697bc31` | skipped | - | upstream revert is not adopted; cms intentionally keeps OPENCODE_CONFIG_CONTENT token substitution behavior |
+
+## 已處理（origin/dev delta 2026-02-26 round32 (rewrite-only) @ 2026-02-25T19:07:49.562Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `68bb8ce1da922229e6ab4dde4207b431cf9d76a8` | skipped | - | db-table session filtering optimization is not directly portable to cms file/index storage architecture without broader storage migration |
