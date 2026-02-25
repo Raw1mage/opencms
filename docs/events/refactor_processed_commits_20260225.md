@@ -58,3 +58,10 @@
 | `45fa5e7199b2306395e1d07b9544f2e7dbd1c9a5` | ported | - | removed per-message title generation LLM call from session summary path to avoid redundant title model invocations and reduce latency/failure surface |
 | `98aeb60a7f0e00e251ff02c360829a3679d65717` | integrated | - | directory @-references already route through Read tool flow in current session user-message parts implementation |
 | `d018903887861c64ec7ee037e60b24a61501c9c6` | integrated | - | run command tool rendering already guards malformed tool payloads and falls back safely |
+
+## 已處理（origin/dev delta 2026-02-25 round9 (rewrite-only) @ 2026-02-25T15:33:05.224Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `86e545a23ecdb2c1840ab01e82eca292117c6bbc` | ported | - | ACP session creation no longer sets synthetic random title so default title pipeline can generate meaningful titles |
+| `67c985ce82b3a0ef3b22bef435f58884a3aab990` | skipped | - | upstream sqlite WAL checkpoint open-hook targets db module not present in cms storage architecture; defer until sqlite db layer is adopted |
