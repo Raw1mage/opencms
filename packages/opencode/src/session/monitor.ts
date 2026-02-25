@@ -204,7 +204,7 @@ export namespace SessionMonitor {
 
     const description = input["description"]
     if (typeof description === "string" && description.trim()) {
-      return `# ${description.trim()}`
+      return description.trim()
     }
 
     const title = input["title"]
