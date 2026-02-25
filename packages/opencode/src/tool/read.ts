@@ -26,8 +26,12 @@ export const ReadTool = Tool.define("read", {
     }
     const title = path.relative(Instance.worktree, filepath)
 
+    const file = Bun.file(filepath)
+    const stat = await file.stat().catch(() => undefined)
+
     await assertExternalDirectory(ctx, filepath, {
       bypass: Boolean(ctx.extra?.["bypassCwdCheck"]),
+      kind: stat?.isDirectory() ? "directory" : "file",
     })
 
     await ctx.ask({
@@ -37,8 +41,7 @@ export const ReadTool = Tool.define("read", {
       metadata: {},
     })
 
-    const file = Bun.file(filepath)
-    if (!(await file.exists())) {
+    if (!stat) {
       const dir = path.dirname(filepath)
       const base = path.basename(filepath)
       const dirExists = fs.existsSync(dir)
@@ -70,6 +73,44 @@ export const ReadTool = Tool.define("read", {
       }
 
       throw new Error(`File not found: ${filepath}`)
+    }
+
+    if (stat.isDirectory()) {
+      const dirents = await fs.promises.readdir(filepath, { withFileTypes: true })
+      const entries = await Promise.all(
+        dirents.map(async (dirent) => {
+          if (dirent.isDirectory()) return dirent.name + "/"
+          if (dirent.isSymbolicLink()) {
+            const target = await fs.promises.stat(path.join(filepath, dirent.name)).catch(() => undefined)
+            if (target?.isDirectory()) return dirent.name + "/"
+          }
+          return dirent.name
+        }),
+      )
+      entries.sort((a, b) => a.localeCompare(b))
+
+      const limit = params.limit ?? DEFAULT_READ_LIMIT
+      const offset = params.offset || 0
+      const slice = entries.slice(offset, offset + limit)
+      const hasMoreEntries = offset + slice.length < entries.length
+
+      let output = "<directory>\n"
+      output += slice.join("\n")
+      if (hasMoreEntries) {
+        output += `\n\n(Directory has more entries. Use 'offset' parameter to read beyond entry ${offset + slice.length})`
+      } else {
+        output += `\n\n(End of directory - total ${entries.length} entries)`
+      }
+      output += "\n</directory>"
+
+      return {
+        title,
+        output,
+        metadata: {
+          preview: slice.slice(0, 20).join("\n"),
+          truncated: hasMoreEntries,
+        },
+      }
     }
 
     // Exclude SVG (XML-based) and vnd.fastbidsheet (.fbs extension, commonly FlatBuffers schema files)

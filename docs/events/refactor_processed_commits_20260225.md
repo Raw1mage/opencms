@@ -35,3 +35,10 @@
 | `8c7b35ad05c9dca5778501b287c5f17ee59dd0a2` | ported | - | compaction overflow threshold now reserves dynamic output budget in context-only models instead of subtracting reserved twice, aligning trigger behavior across model limit modes |
 | `3befd0c6c57d15369b3177e7d64dd7658ca5ab6a` | integrated | - | mcp tools() already uses parallel listTools Promise.all behavior in current cms implementation |
 | `624dd94b5dd8dca03aa3b246312f8b54fd3331f1` | integrated | - | llm-friendly edit/glob/grep output wording and metadata behaviors are already present in cms tool implementations |
+
+## 已處理（origin/dev delta 2026-02-25 round6 (rewrite-only) @ 2026-02-25T15:20:27.444Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `6b4d617df080cef71cd8f4b041601cf47ce0edf3` | ported | - | read tool now supports directory targets with proper external_directory scope (directory/*) and paged directory listing output while preserving cms file read formatting |
+| `006d673ed2e795ce41f30fc240189a54ff12c231` | skipped | - | 1-indexed offset semantics would break existing API contract and tests in cms; deferred unless explicit migration decision is approved |
