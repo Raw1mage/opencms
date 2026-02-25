@@ -114,3 +114,9 @@
 | --------------- | ------ | ------------ | ---- |
 | `088eac9d4eaba040e7e19084fd82cbb2e32ce6ed` | ported | - | run command now handles malformed task tool payloads defensively and surfaces errored tool calls in output instead of crashing |
 | `d2d7a37bca7febac7df4dd0ecdbc5b1a2d55ef65` | integrated | - | tool attachment ownership already materialized centrally with id/sessionID/messageID via session attachment-ownership helper |
+
+## 已處理（origin/dev delta 2026-02-25 round17 (rewrite-only) @ 2026-02-25T17:13:03.523Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `ee754c46f992dd4024e56e93246421246d16d13f` | ported | - | normalized permission-boundary path matching for cross-platform behavior by converting backslashes to slash form in external_directory globs and wildcard matching with win32 case-insensitive mode |
