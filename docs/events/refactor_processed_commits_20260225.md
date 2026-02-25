@@ -145,3 +145,9 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `2cee947671fa373098db308b173c859cada0b108` | ported | - | ACP live/replay tool updates now share a deduped synthetic pending path so running tools emit exactly one initial tool_call before tool_call_update events |
+
+## 已處理（origin/dev delta 2026-02-25 round22 (rewrite-only) @ 2026-02-25T17:59:59.471Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `79b5ce58e9d3ad940330c2fd82784a4d8b7e004d` | ported | - | added session delete-message API endpoint with busy-session guard and route-level regression coverage to support safe message removal workflows |
