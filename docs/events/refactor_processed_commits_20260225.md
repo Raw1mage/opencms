@@ -528,3 +528,48 @@
 | `ebb907d646022d2e7bb8effc164e1f09943d64a9` | skipped | - | desktop/app large diff/file performance optimization is app/ui scope deferred with app parity track |
 | `4f51c0912d76698325862e8fcd7d484b7b9a61fe` | skipped | - | app cleanup maintenance churn without selected core runtime behavior objective |
 | `ae6e85b2a4d9addec1913ac2f770870456aa694a` | skipped | - | local opencode.jsonc comment cleanup is non-runtime housekeeping |
+
+## 已處理（origin/dev delta 2026-02-26 round68 (rewrite-only) @ 2026-02-25T20:19:07.123Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `9163611989678e7d8b585003655b6c8863e81f97` | skipped | - | publish workflow cache fix is CI pipeline scope without runtime behavior delta |
+| `0e669b6016526d8966aae6ef548140765c93be9d` | skipped | - | setup-bun action runner condition change is CI scope |
+| `422609722803c9babf5c9d28527725f488e5dda4` | skipped | - | publish workflow rust cache fix is CI scope |
+| `ea2d089db0f4cc135234abcf8a231a49d23d53c5` | skipped | - | publish workflow condition fix is CI scope |
+| `ed4e4843c2a65018d6f23f24f86c6a471e391053` | skipped | - | triage workflow/tool updates are repo operations scope, not runtime behavior |
+| `ea96f898c01ae93be010c6904d0d736e31b96b04` | skipped | - | triage remap maintenance is repo operations scope, not runtime behavior |
+| `1109a282e0070a8743243f614240526df38afcdd` | skipped | - | nix-eval workflow addition is CI infrastructure scope |
+| `bca793d0643daccfdb06a8a2318cc78ba598cfe7` | skipped | - | triage agent label policy doc update only; no runtime behavior delta |
+| `a344a766fd9190b994432e3889271e64fae5aa6f` | skipped | - | generated triage doc artifact only; no runtime behavior delta |
+
+## 已處理（origin/dev delta 2026-02-26 round69 (rewrite-only) @ 2026-02-25T20:19:19.403Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `ace63b3ddb99335b9ff71121336f70407c4b3ea5` | skipped | - | zen docs content update only; no core runtime behavior delta |
+| `a93a1b93e119a976935e5ab6f214ef7c33d60d45` | skipped | - | wip zen/catalog infra content track deferred from current runtime-focused stream |
+| `8d0a303af48da5e6c6d5287ef2144bfb49ca13d0` | skipped | - | ko zen docs translation update only; no runtime behavior delta |
+| `4fd3141ab5d43a55566042982fb4459b5716e140` | skipped | - | zh-cn/zh-tw docs translation wave only; no runtime behavior delta |
+| `6e984378d7601f2a74640bb61e27648e2c470758` | skipped | - | ko plugins docs translation correction only; no runtime behavior delta |
+| `4eed55973f002b4fecfcdfe10a01a798e80e83a3` | skipped | - | generated docs artifact only; no runtime behavior delta |
+| `7a66ec6bc9e98c158d56c01ce5f3d23e1f8d512e` | skipped | - | zen docs content update only; no runtime behavior delta |
+| `1e25df21a2db1efb60b51fa4e13ae79b6606d5af` | skipped | - | zen model/catalog content update deferred with zen track |
+
+## 已處理（origin/dev delta 2026-02-26 round70 (rewrite-only) @ 2026-02-25T20:19:31.939Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `a580fb47d207150b0fdfe18297afb71edbdf577c` | skipped | - | attachment-id lifecycle refactor touches session/tool prompt contract and needs dedicated validation |
+| `e35a4131d00729b9ef75ca86b03e70b656f00e2f` | skipped | - | message part ordering change in prompt assembly touches core prompt semantics; defer for focused session tests |
+| `3b9758062126430a5665cae717092ac4cf93ea86` | skipped | - | read tool fs path handling refactor deferred to dedicated tool IO validation batch |
+| `c56f4aa5d85df55f7c447821b07ee4b88d9b1d73` | skipped | - | session index micro-refactor deferred with broader session core cleanup batch |
+| `47435f6e17ad44c62b4f439d2ff490212e1fa9e3` | skipped | - | models.dev fetch behavior change touches provider model-loading strategy; defer for focused provider test suite |
+| `ad92181fa7fad0d81bce055a2a601072af6b38a9` | skipped | - | add Kilo provider is high-risk provider-surface expansion; defer for dedicated provider integration round |
+| `0ca75544abe6f9aee28c9bf5d626055a5a5c862f` | skipped | - | Kilo autoload behavior fix depends on deferred Kilo provider integration |
+| `572a037e5dd805f0b8124a87226969f70742dc08` | skipped | - | generated provider test changes tied to deferred Kilo provider track |
+| `07947bab7d7f164ae5b46038deadda2284e97025` | skipped | - | new session banner UX change in tui route deferred with tui UX refresh batch |
+| `5512231ca8744b222e5ecbd6e2c5140a204245af` | skipped | - | tui scrollbox style change deferred with tui visual polish batch |
+| `ad3c192837cc740e189034d8f6fc9f6b72db9bda` | skipped | - | tui thread/worker exit lifecycle fix deferred for dedicated tui threading verification |
+| `2a2437bf22cb8f5db5ddb46a004be628ea4a6624` | skipped | - | generated auth command artifact only; deferred with cli generation churn |
+| `cb88fe26aa05dfb865c0f7f2589a35197deb6e24` | skipped | - | missing newline cleanup in export cmd is non-functional micro-change deferred |
