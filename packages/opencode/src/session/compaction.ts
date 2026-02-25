@@ -51,7 +51,15 @@ export namespace SessionCompaction {
           SessionPrompt.OUTPUT_TOKEN_MAX,
         ),
       )
-    const usable = input.model.limit.input ? input.model.limit.input - reserved : context - reserved
+    const usable = input.model.limit.input
+      ? input.model.limit.input - reserved
+      : context -
+        ProviderTransform.maxOutputTokens(
+          input.model.providerId,
+          {},
+          input.model.limit.output || 32_000,
+          SessionPrompt.OUTPUT_TOKEN_MAX,
+        )
     return count >= usable
   }
 

@@ -27,3 +27,11 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `da40ab7b3d242208b5c759e55e548c13c658372a` | ported | - | plugin/dependency installs now force bun no-cache in CI to reduce stale cache related install failures in automated environments |
+
+## 已處理（origin/dev delta 2026-02-25 round5 (rewrite-only) @ 2026-02-25T15:14:01.599Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `8c7b35ad05c9dca5778501b287c5f17ee59dd0a2` | ported | - | compaction overflow threshold now reserves dynamic output budget in context-only models instead of subtracting reserved twice, aligning trigger behavior across model limit modes |
+| `3befd0c6c57d15369b3177e7d64dd7658ca5ab6a` | integrated | - | mcp tools() already uses parallel listTools Promise.all behavior in current cms implementation |
+| `624dd94b5dd8dca03aa3b246312f8b54fd3331f1` | integrated | - | llm-friendly edit/glob/grep output wording and metadata behaviors are already present in cms tool implementations |
