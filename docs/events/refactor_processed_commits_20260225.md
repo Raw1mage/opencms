@@ -127,3 +127,9 @@
 | --------------- | ------ | ------------ | ---- |
 | `1af3e9e557a6df4f933a01d0dad2e52e418ebd52` | ported | - | config plugin resolution now falls back to createRequire().resolve when import.meta.resolve fails (notably on win32 with freshly created node_modules paths) |
 | `1a0639e5b89265ac89afd7bcfae835a64744768d` | ported | - | normalized backslash paths in config rel() and file ignore matching to keep cross-platform behavior consistent |
+
+## 已處理（origin/dev delta 2026-02-25 round19 (rewrite-only) @ 2026-02-25T17:23:06.607Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `190d2957eb34246ac942b1e082ea79fd151ea973` | ported | - | file.status now normalizes changed file paths by first resolving to absolute against instance directory, then converting back to stable relative path output |
