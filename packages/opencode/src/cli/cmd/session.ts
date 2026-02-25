@@ -314,7 +314,9 @@ export const SessionListCommand = cmd({
 
       const projects = await Project.list().catch(() => [])
       const projectNameByID = new Map(
-        projects.map((project) => [project.id, project.name?.trim() || project.id] as const),
+        projects
+          .map((project) => [project.id, readableProjectName(project.name, project.worktree)] as const)
+          .filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
       )
 
       let output: string
@@ -346,22 +348,26 @@ export const SessionListCommand = cmd({
 
 function formatSessionTable(sessions: Session.Info[], projectNameByID: Map<string, string>): string {
   const lines: string[] = []
+  const projectLabel = (session: Session.Info) =>
+    projectNameByID.get(session.projectID) ?? readableProjectName(undefined, session.directory) ?? "-"
 
   const maxIdWidth = Math.max(20, ...sessions.map((s) => s.id.length))
   const maxTitleWidth = Math.max(25, ...sessions.map((s) => s.title.length))
-  const maxProjectWidth = Math.max(
-    10,
-    ...sessions.map((s) => `[${projectNameByID.get(s.projectID) ?? s.projectID}]`.length),
-  )
+  const includeProjectColumn = sessions.some((s) => projectLabel(s) !== "-")
+  const maxProjectWidth = Math.max(10, ...sessions.map((s) => `[${projectLabel(s)}]`.length))
 
-  const header = `Session ID${" ".repeat(maxIdWidth - 10)}  Title${" ".repeat(maxTitleWidth - 5)}  Project${" ".repeat(maxProjectWidth - 7)}  Updated`
+  const header = includeProjectColumn
+    ? `Session ID${" ".repeat(maxIdWidth - 10)}  Title${" ".repeat(maxTitleWidth - 5)}  Project${" ".repeat(maxProjectWidth - 7)}  Updated`
+    : `Session ID${" ".repeat(maxIdWidth - 10)}  Title${" ".repeat(maxTitleWidth - 5)}  Updated`
   lines.push(header)
   lines.push("─".repeat(header.length))
   for (const session of sessions) {
     const truncatedTitle = Locale.truncate(session.title, maxTitleWidth)
-    const project = Locale.truncate(`[${projectNameByID.get(session.projectID) ?? session.projectID}]`, maxProjectWidth)
+    const project = Locale.truncate(`[${projectLabel(session)}]`, maxProjectWidth)
     const timeStr = Locale.todayTimeOrDateTime(session.time.updated)
-    const line = `${session.id.padEnd(maxIdWidth)}  ${truncatedTitle.padEnd(maxTitleWidth)}  ${project.padEnd(maxProjectWidth)}  ${timeStr}`
+    const line = includeProjectColumn
+      ? `${session.id.padEnd(maxIdWidth)}  ${truncatedTitle.padEnd(maxTitleWidth)}  ${project.padEnd(maxProjectWidth)}  ${timeStr}`
+      : `${session.id.padEnd(maxIdWidth)}  ${truncatedTitle.padEnd(maxTitleWidth)}  ${timeStr}`
     lines.push(line)
   }
 
@@ -375,8 +381,17 @@ function formatSessionJSON(sessions: Session.Info[], projectNameByID: Map<string
     updated: session.time.updated,
     created: session.time.created,
     projectId: session.projectID,
-    projectName: projectNameByID.get(session.projectID) ?? session.projectID,
+    projectName: projectNameByID.get(session.projectID) ?? readableProjectName(undefined, session.directory) ?? null,
     directory: session.directory,
   }))
   return JSON.stringify(jsonData, null, 2)
+}
+
+function readableProjectName(name?: string | null, directory?: string): string | undefined {
+  const explicit = name?.trim()
+  if (explicit) return explicit
+  if (!directory) return
+  const base = path.basename(path.resolve(directory))
+  if (!base || base === path.sep || base === ".") return
+  return base
 }

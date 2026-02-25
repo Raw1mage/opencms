@@ -182,6 +182,7 @@ export namespace Agent {
             codesearch: "allow",
             read: "allow",
             external_directory: {
+              "*": "ask",
               [Truncate.DIR]: "allow",
               [Truncate.GLOB]: "allow",
             },

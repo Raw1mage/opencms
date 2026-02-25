@@ -11,6 +11,7 @@ import { useSDK } from "../context/sdk"
 import { DialogSessionRename } from "./dialog-session-rename"
 import { useKV } from "../context/kv"
 import { createDebouncedSignal } from "../util/signal"
+import path from "path"
 import "opentui-spinner/solid"
 
 export function DialogSessionList() {
@@ -40,20 +41,28 @@ export function DialogSessionList() {
   const projectName = (session: any) => {
     const name = session?.project?.name
     if (typeof name === "string" && name.trim()) return name.trim()
-    return session.projectID
+    const directory = session?.project?.worktree ?? session?.directory
+    if (typeof directory === "string" && directory) {
+      const base = path.basename(path.resolve(directory))
+      if (base && base !== path.sep && base !== ".") return base
+    }
+    return ""
   }
 
   const sessionLabel = (
     session: {
       title: string
       projectID: string
-      project?: { name?: string | null } | null
+      directory?: string
+      project?: { name?: string | null; worktree?: string | null } | null
     },
     childCount = 0,
     titlePrefix = "",
   ) => {
+    const project = projectName(session)
     const childSuffix = childCount > 0 ? ` [${childCount}]` : ""
-    return `[${projectName(session)}] ${titlePrefix}${session.title}${childSuffix}`
+    const projectPrefix = project ? `[${project}] ` : ""
+    return `${projectPrefix}${titlePrefix}${session.title}${childSuffix}`
   }
 
   const options = createMemo(() => {

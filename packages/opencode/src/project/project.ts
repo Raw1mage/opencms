@@ -16,6 +16,12 @@ import { git } from "../util/git"
 
 export namespace Project {
   const log = Log.create({ service: "project" })
+  const inferNameFromWorktree = (worktree: string) => {
+    const base = path.basename(path.resolve(worktree))
+    if (!base || base === path.sep || base === ".") return undefined
+    return base
+  }
+
   export const Info = z
     .object({
       id: z.string(),
@@ -175,6 +181,7 @@ export namespace Project {
         id,
         worktree,
         vcs: vcs as Info["vcs"],
+        name: id === "global" ? undefined : inferNameFromWorktree(worktree),
         sandboxes: [],
         time: {
           created: Date.now(),
@@ -195,6 +202,7 @@ export namespace Project {
       ...existing,
       worktree,
       vcs: vcs as Info["vcs"],
+      name: existing.name?.trim() || (id === "global" ? undefined : inferNameFromWorktree(worktree)),
       time: {
         ...existing.time,
         updated: Date.now(),
