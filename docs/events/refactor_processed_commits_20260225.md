@@ -230,3 +230,15 @@
 | Upstream Commit                            | Status  | Local Commit | Note                                                                                                                |
 | ------------------------------------------ | ------- | ------------ | ------------------------------------------------------------------------------------------------------------------- |
 | `135f8ffb2a0b6759a5bf8e03b2869d4258d5013b` | skipped | -            | session header visibility toggle is optional UX preference with low value vs current cms TUI layout regression risk |
+
+## 已處理（origin/dev delta 2026-02-26 round36 (rewrite-only) @ 2026-02-26T00:00:00.000Z）
+
+| Upstream Commit                            | Status | Local Commit | Note                                                                                                   |
+| ------------------------------------------ | ------ | ------------ | ------------------------------------------------------------------------------------------------------ |
+| `a115565054c9c905788b1684f9b64f0e6dc2dbb4` | ported | -            | relaxed model.provider schema to allow optional npm/api fields for broader config compatibility in cms |
+
+## 已處理（origin/dev delta 2026-02-26 round37 (rewrite-only) @ 2026-02-26T00:00:00.000Z）
+
+| Upstream Commit                            | Status  | Local Commit | Note                                                                                                                              |
+| ------------------------------------------ | ------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `8f9742d9886b4bfb5ac36a49810b7533985487ad` | skipped | -            | win32 FFI console-mode guard is a large platform-specific lifecycle change; defer to dedicated Windows-hardening validation round |
