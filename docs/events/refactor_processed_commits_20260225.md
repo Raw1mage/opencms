@@ -151,3 +151,9 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `79b5ce58e9d3ad940330c2fd82784a4d8b7e004d` | ported | - | added session delete-message API endpoint with busy-session guard and route-level regression coverage to support safe message removal workflows |
+
+## 已處理（origin/dev delta 2026-02-25 round23 (rewrite-only) @ 2026-02-25T18:06:57.254Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `637059a515a6afd983a8a615f90650d997a821ce` | ported | - | TUI now shows LSP diagnostics for apply_patch edits and reuses a shared diagnostics renderer across write/edit/apply_patch tool views |
