@@ -175,3 +175,15 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `8da5fd0a66b2b31f4d77eb8c0949c148b9a7d760` | integrated | - | worktree delete defensive flow and regression test are already present in cms (locate/verify stale worktree, non-zero remove tolerance, residual clean+branch delete) |
+
+## 已處理（origin/dev delta 2026-02-26 round27 (rewrite-only) @ 2026-02-25T19:04:30.964Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `548608b7ad1252af3181201ef764b16c05d0b786` | integrated | - | PTY isolation fix already present in cms with stronger socket identity guards and existing pty-output-isolation regression coverage |
+
+## 已處理（origin/dev delta 2026-02-26 round28 (rewrite-only) @ 2026-02-25T19:04:47.327Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `93eee0daf40668a487bdbda439147ad13c8d13cc` | integrated | - | Provider.defaultModel already checks recent model.json entries first and falls back only after provider/model validity checks |
