@@ -42,3 +42,11 @@
 | --------------- | ------ | ------------ | ---- |
 | `6b4d617df080cef71cd8f4b041601cf47ce0edf3` | ported | - | read tool now supports directory targets with proper external_directory scope (directory/*) and paged directory listing output while preserving cms file read formatting |
 | `006d673ed2e795ce41f30fc240189a54ff12c231` | skipped | - | 1-indexed offset semantics would break existing API contract and tests in cms; deferred unless explicit migration decision is approved |
+
+## 已處理（origin/dev delta 2026-02-25 round7 (rewrite-only) @ 2026-02-25T15:23:44.621Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `e6e9c15d34f096a472e24603e05f0f6c1cb3dfb7` | ported | - | codex OAuth model filtering now keeps any model id containing codex in addition to gpt-5.* families, improving compatibility with newly named codex variants |
+| `d1ee4c8dca7ec88a608cc640dd11ecb1b0ceb347` | integrated | - | project test hardening scenarios for git command failures are already present in cms test suite |
+| `ba54cee55e18b47fb70badc84ae2cbac7c83d258` | integrated | - | webfetch already returns image responses as file attachments in current cms implementation |
