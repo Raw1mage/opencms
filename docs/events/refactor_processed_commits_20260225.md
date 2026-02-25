@@ -314,3 +314,16 @@
 | ------------------------------------------ | ------- | ------------ | --------------------------------------------------------------------------------- |
 | `76db218674496f9ca9e91b49e5718eabf6df7cc0` | skipped | -            | release bookkeeping/version rollup commit; no standalone behavior to rewrite-port |
 | `847e06f9e1aa1629944df3657e7aed46c3210596` | skipped | -            | nix hash bookkeeping only; no direct runtime behavior delta for cms               |
+
+## 已處理（origin/dev delta 2026-02-26 round49 (rewrite-only) @ 2026-02-26T00:00:00.000Z）
+
+| Upstream Commit                            | Status  | Local Commit | Note                                                                    |
+| ------------------------------------------ | ------- | ------------ | ----------------------------------------------------------------------- |
+| `8eea53a41e92257d1a4ad6653d0d2930465bf34a` | skipped | -            | docs-only localization cleanup; no runtime behavior delta for cms       |
+| `aea68c386a4f64cf718c3eeee9dffec8409ee6b0` | skipped | -            | docs locale translation wave; outside current behavior-focused refactor |
+
+## 已處理（origin/dev delta 2026-02-26 round50 (rewrite-only) @ 2026-02-26T00:00:00.000Z）
+
+| Upstream Commit                            | Status  | Local Commit | Note                                                                              |
+| ------------------------------------------ | ------- | ------------ | --------------------------------------------------------------------------------- |
+| `03de51bd3cf9e05bd92c9f51763b74a3cdfbe61a` | skipped | -            | release version-rollup bookkeeping commit; no standalone behavior to rewrite-port |
