@@ -117,6 +117,12 @@ The following refactor-ported changes were integrated into `cms` and are relevan
   - `scripts/test-with-baseline.ts` + root `test` routing, which excludes antigravity auth plugin test scopes from global regression runs.
 - Architectural effect: capability discovery is shifted from fragmented prompt fragments to a unified registry + lifecycle model, improving tool discoverability and reducing manual user reminders.
 
+14. **ACP tool-call pending dedupe across replay/live streams (`packages/opencode/src/acp/agent.ts`)**
+
+- ACP now emits synthetic pending (`tool_call`) through a shared deduped path for both replayed message history and live `message.part.updated` tool events.
+- Terminal tool states (`completed` / `error`) clear dedupe markers so future calls can start cleanly.
+- Architectural effect: ACP tool-call timeline semantics are now stable (single pending start per callID), reducing duplicate state transitions and downstream UI/event confusion.
+
 ### Recent Architectural Notes (2026-02-23 Web Alignment Matrix: TUI → Web)
 
 This round completed an incremental Web alignment pass against existing TUI capabilities without a large-scale frontend rewrite.

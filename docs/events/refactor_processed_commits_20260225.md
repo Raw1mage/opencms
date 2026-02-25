@@ -139,3 +139,9 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `8ebdbe0ea2bbf4b2ca7499d59ff9549d3e291557` | ported | - | file.read now treats common source/script/config filenames as text and avoids binary-extension short-circuit misclassification for text-like files |
+
+## 已處理（origin/dev delta 2026-02-25 round21 (rewrite-only) @ 2026-02-25T17:44:24.369Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `2cee947671fa373098db308b173c859cada0b108` | ported | - | ACP live/replay tool updates now share a deduped synthetic pending path so running tools emit exactly one initial tool_call before tool_call_update events |

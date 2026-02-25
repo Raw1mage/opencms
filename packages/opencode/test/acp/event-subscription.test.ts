@@ -65,6 +65,7 @@ function createEventStream() {
 function createFakeAgent() {
   const updates = new Map<string, string[]>()
   const chunks = new Map<string, string>()
+  const sessionUpdates: SessionUpdateParams[] = []
   const record = (sessionId: string, type: string) => {
     const list = updates.get(sessionId) ?? []
     list.push(type)
@@ -73,6 +74,7 @@ function createFakeAgent() {
 
   const connection = {
     async sessionUpdate(params: SessionUpdateParams) {
+      sessionUpdates.push(params)
       const update = params.update
       const type = update?.sessionUpdate ?? "unknown"
       record(params.sessionId, type)
@@ -189,7 +191,7 @@ function createFakeAgent() {
     ;(agent as any).eventAbort.abort()
   }
 
-  return { agent, controller, calls, updates, chunks, stop, sdk, connection }
+  return { agent, controller, calls, updates, chunks, sessionUpdates, stop, sdk, connection }
 }
 
 describe("acp.agent event subscription", () => {
@@ -433,4 +435,118 @@ describe("acp.agent event subscription", () => {
       },
     })
   })
+
+  test("does not emit duplicate synthetic pending after replayed running tool", async () => {
+    await using tmp = await tmpdir()
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const { agent, controller, sessionUpdates, stop, sdk } = createFakeAgent()
+        const cwd = "/tmp/opencode-acp-test"
+        const sessionId = await agent.newSession({ cwd, mcpServers: [] } as any).then((x) => x.sessionId)
+        const input = { command: "echo hi", description: "run command" }
+
+        sdk.session.messages = async () => ({
+          data: [
+            {
+              info: {
+                role: "assistant",
+                sessionID: sessionId,
+              },
+              parts: [
+                {
+                  type: "tool",
+                  callID: "call_1",
+                  tool: "bash",
+                  state: {
+                    status: "running",
+                    input,
+                    metadata: { output: "hi\n" },
+                    time: { start: Date.now() },
+                  },
+                },
+              ],
+            },
+          ],
+        })
+
+        await agent.loadSession({ sessionId, cwd, mcpServers: [] } as any)
+        controller.push(
+          toolEvent(sessionId, cwd, {
+            callID: "call_1",
+            tool: "bash",
+            status: "running",
+            input,
+            metadata: { output: "hi\nthere\n" },
+          }),
+        )
+        await new Promise((r) => setTimeout(r, 20))
+
+        const types = sessionUpdates
+          .filter((u) => u.sessionId === sessionId)
+          .map((u) => u.update)
+          .filter((u) => "toolCallId" in u && u.toolCallId === "call_1")
+          .map((u) => u.sessionUpdate)
+          .filter((u) => u === "tool_call" || u === "tool_call_update")
+
+        expect(types).toEqual(["tool_call", "tool_call_update", "tool_call_update"])
+        stop()
+      },
+    })
+  })
 })
+
+function toolEvent(
+  sessionID: string,
+  directory: string,
+  params: {
+    callID: string
+    tool: string
+    status: "pending" | "running" | "completed" | "error"
+    input: Record<string, unknown>
+    metadata?: Record<string, unknown>
+    output?: string
+    error?: string
+  },
+) {
+  const stateByStatus = {
+    pending: { status: "pending", input: params.input, time: { start: Date.now() } },
+    running: {
+      status: "running",
+      input: params.input,
+      metadata: params.metadata ?? {},
+      time: { start: Date.now() },
+    },
+    completed: {
+      status: "completed",
+      input: params.input,
+      output: params.output ?? "",
+      metadata: params.metadata ?? {},
+      title: params.tool,
+      time: { start: Date.now(), end: Date.now() },
+    },
+    error: {
+      status: "error",
+      input: params.input,
+      error: params.error ?? "failed",
+      time: { start: Date.now(), end: Date.now() },
+    },
+  } as const
+
+  return {
+    directory,
+    payload: {
+      type: "message.part.updated",
+      properties: {
+        part: {
+          sessionID,
+          messageID: "msg_1",
+          type: "tool",
+          callID: params.callID,
+          tool: params.tool,
+          state: stateByStatus[params.status],
+        },
+      },
+    },
+  } as any
+}

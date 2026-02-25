@@ -66,6 +66,7 @@ export namespace ACP {
     private eventAbort = new AbortController()
     private eventStarted = false
     private permissionQueues = new Map<string, Promise<void>>()
+    private toolStarts = new Set<string>()
     private permissionOptions: PermissionOption[] = [
       { optionId: "once", kind: "allow_once", name: "Allow once" },
       { optionId: "always", kind: "allow_always", name: "Always allow" },
@@ -226,25 +227,11 @@ export namespace ACP {
           if (part.type === "tool") {
             switch (part.state.status) {
               case "pending":
-                await this.connection
-                  .sessionUpdate({
-                    sessionId,
-                    update: {
-                      sessionUpdate: "tool_call",
-                      toolCallId: part.callID,
-                      title: part.tool,
-                      kind: toToolKind(part.tool),
-                      status: "pending",
-                      locations: [],
-                      rawInput: {},
-                    },
-                  })
-                  .catch((error) => {
-                    log.error("failed to send tool pending to ACP", { error })
-                  })
+                await this.toolStart(sessionId, part)
                 return
 
               case "running":
+                await this.toolStart(sessionId, part)
                 await this.connection
                   .sessionUpdate({
                     sessionId,
@@ -340,6 +327,7 @@ export namespace ACP {
                   .catch((error) => {
                     log.error("failed to send tool completed to ACP", { error })
                   })
+                this.toolStarts.delete(part.callID)
                 return
               }
               case "error":
@@ -370,6 +358,7 @@ export namespace ACP {
                   .catch((error) => {
                     log.error("failed to send tool error to ACP", { error })
                   })
+                this.toolStarts.delete(part.callID)
                 return
             }
           }
@@ -710,24 +699,10 @@ export namespace ACP {
         if (part.type === "tool") {
           switch (part.state.status) {
             case "pending":
-              await this.connection
-                .sessionUpdate({
-                  sessionId,
-                  update: {
-                    sessionUpdate: "tool_call",
-                    toolCallId: part.callID,
-                    title: part.tool,
-                    kind: toToolKind(part.tool),
-                    status: "pending",
-                    locations: [],
-                    rawInput: {},
-                  },
-                })
-                .catch((err) => {
-                  log.error("failed to send tool pending to ACP", { error: err })
-                })
+              await this.toolStart(sessionId, part)
               break
             case "running":
+              await this.toolStart(sessionId, part)
               await this.connection
                 .sessionUpdate({
                   sessionId,
@@ -822,6 +797,7 @@ export namespace ACP {
                 .catch((err) => {
                   log.error("failed to send tool completed to ACP", { error: err })
                 })
+              this.toolStarts.delete(part.callID)
               break
             case "error":
               await this.connection
@@ -851,6 +827,7 @@ export namespace ACP {
                 .catch((err) => {
                   log.error("failed to send tool error to ACP", { error: err })
                 })
+              this.toolStarts.delete(part.callID)
               break
           }
         } else if (part.type === "text") {
@@ -969,6 +946,27 @@ export namespace ACP {
           }
         }
       }
+    }
+
+    private async toolStart(sessionId: string, part: MessageV2.ToolPart) {
+      if (this.toolStarts.has(part.callID)) return
+      this.toolStarts.add(part.callID)
+      await this.connection
+        .sessionUpdate({
+          sessionId,
+          update: {
+            sessionUpdate: "tool_call",
+            toolCallId: part.callID,
+            title: part.tool,
+            kind: toToolKind(part.tool),
+            status: "pending",
+            locations: [],
+            rawInput: {},
+          },
+        })
+        .catch((error) => {
+          log.error("failed to send tool pending to ACP", { error })
+        })
     }
 
     private async loadAvailableModes(directory: string): Promise<ModeOption[]> {
