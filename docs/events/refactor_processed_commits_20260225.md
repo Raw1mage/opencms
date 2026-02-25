@@ -249,3 +249,9 @@
 | ------------------------------------------ | ---------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------- |
 | `e269788a8feb987a579b8700726dd8b02bf2e7f1` | integrated | -            | structured-output json_schema + StructuredOutput tool/error flow already exists across cms session prompt/message pipeline   |
 | `f6e7aefa728585832b6ac737c0fb2bc97461dc16` | skipped    | -            | generated OpenAPI/docs artifact update has no required runtime behavior delta for current cms rewrite-only integration round |
+
+## 已處理（origin/dev delta 2026-02-26 round39 (rewrite-only) @ 2026-02-26T00:00:00.000Z）
+
+| Upstream Commit                            | Status     | Local Commit | Note                                                                                 |
+| ------------------------------------------ | ---------- | ------------ | ------------------------------------------------------------------------------------ |
+| `125727d09c4482f351ee3e0d448db7efc116213d` | integrated | -            | cms already uses @opentui/core and @opentui/solid version 0.1.79 in package manifest |
