@@ -133,3 +133,9 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `190d2957eb34246ac942b1e082ea79fd151ea973` | ported | - | file.status now normalizes changed file paths by first resolving to absolute against instance directory, then converting back to stable relative path output |
+
+## 已處理（origin/dev delta 2026-02-25 round20 (rewrite-only) @ 2026-02-25T17:39:55.674Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `8ebdbe0ea2bbf4b2ca7499d59ff9549d3e291557` | ported | - | file.read now treats common source/script/config filenames as text and avoids binary-extension short-circuit misclassification for text-like files |

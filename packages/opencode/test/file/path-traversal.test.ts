@@ -86,6 +86,42 @@ describe("File.read path traversal protection", () => {
   })
 })
 
+describe("File.read text classification", () => {
+  test("treats script extensions as text", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "script.sh"), "#!/usr/bin/env bash\necho hi")
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const result = await File.read("script.sh")
+        expect(result.type).toBe("text")
+        expect(result.content).toContain("echo hi")
+      },
+    })
+  })
+
+  test("treats Dockerfile as text", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "Dockerfile"), "FROM alpine:3.20")
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const result = await File.read("Dockerfile")
+        expect(result.type).toBe("text")
+        expect(result.content).toBe("FROM alpine:3.20")
+      },
+    })
+  })
+})
+
 describe("File.list path traversal protection", () => {
   test("rejects ../ traversal attempting to list /etc", async () => {
     await using tmp = await tmpdir()
