@@ -626,3 +626,48 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `3dfbb7059345350fdcb3f45fe9a44697c08a040a` | skipped | - | cross app+server SSE reconnect hardening spans volatile surfaces; defer to dedicated reconnect validation round |
+
+## 已處理（origin/dev delta 2026-02-26 round74 (rewrite-only) @ 2026-02-26T02:27:55.123Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `d27dbfe062b18f832acf958357e175ed18ab98d9` | ported | - | session list now uses listGlobal roots+limit path so --max-count is honored for root sessions |
+| `e96f6385c20ddd7d2101f59bdd77a1ac58b1bd52` | ported | - | updated clojure parser wasm source to anomalyco fork to fix syntax highlighting |
+
+## 已處理（origin/dev delta 2026-02-26 round75 (rewrite-only) @ 2026-02-26T02:28:08.685Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `b784c923a8eeab52412eaebb9a44ad05a1411165` | skipped | - | permission/layout visual adjustments are ui/tui polish scope deferred from current core runtime parity stream |
+| `2c17a980ffdc019d46b9e48a22bf719c009075e0` | skipped | - | dock prompt shell extraction is ui refactor scope, deferred |
+| `bd3d1413fdd1ae7708191c25c26bfb2cff347fd7` | skipped | - | warning icon visibility tweak for permission prompt is ui polish scope, deferred |
+| `26f835cdd264b3e70afd6f8e3f4f14c12cd3aec4` | skipped | - | theme/icon color tweak is ui visual scope, deferred |
+| `a69b339bafd3a1b95cdec9a3374e38959db9fe7b` | skipped | - | active icon button color tweak is ui visual scope, deferred |
+| `0bc1dcbe1ba1f03c6c2af990bdbf784ca25a8c11` | skipped | - | icon transparency tweak is ui visual scope, deferred |
+| `ce7484b4f5c3de1b83db4223052bdf9ce4c0cfb9` | skipped | - | share button text styling tweak is app ui polish scope, deferred |
+| `bcca253dec379f5e16890d763a6e8ff5e06b5486` | skipped | - | titlebar hover/active style tweaks are ui polish scope, deferred |
+| `3690cafeb842dd69f2d432e84b5c5d5f50268f77` | skipped | - | button hover/active style tweak is ui visual scope, deferred |
+| `4e959849f6a09b8b8094797d0885c6ae5030e6ee` | skipped | - | filetree tab hover/active style tweak is ui visual scope, deferred |
+| `2f567610600a133a668d2ebd4d7c3fdd9efa098b` | skipped | - | expanded titlebar button color state tweak is ui visual scope, deferred |
+| `fbe9669c5785d51e3e4e5ec17dbb846a742614ca` | skipped | - | file-tree icon group-hover color swap tweak is app/ui visual scope, deferred |
+
+## 已處理（origin/dev delta 2026-02-26 round76 (rewrite-only) @ 2026-02-26T02:28:25.164Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `7ed449974864361bad2c1f1405769fd2c2fcdf42` | skipped | - | generated app e2e artifact only; no selected core runtime behavior port |
+| `6eb043aedb81705aa2fa47629d8c778c16b307f9` | skipped | - | beta PR workflow/automation update is CI operations scope, deferred |
+| `5aeb305344830aec9a3c8f84f595487bfd930417` | skipped | - | desktop WSL feature toggle change is app/desktop product scope, deferred |
+| `6cd3a5902260764899a566b33d7f76123b9c9800` | skipped | - | desktop cleanup refactor is desktop shell maintenance scope, deferred |
+| `3394402aefecbaa7f7f469344811b4089a2ddb01` | skipped | - | ui cleanup churn without selected core runtime objective |
+| `cc86a64bb57bfa4361eafdaa31bdda29cf8b52ee` | skipped | - | mode-toggle icon styling simplification is app ui polish scope, deferred |
+| `c34ad7223afff318cffef97cf84b8ec579ac352d` | skipped | - | message-part cleanup is ui maintenance scope, deferred |
+| `e132dd2c703907dd42b56be98ce72ac1bf0b08d8` | skipped | - | message-part cleanup is ui maintenance scope, deferred |
+| `e4b548fa768a59cea7e5c8279e327d990cd36c27` | skipped | - | SECURITY.md policy text update only; no runtime behavior delta |
+| `bad394cd497da2245956e3e301b12351a379a940` | skipped | - | remove leftover patch file is repo hygiene scope, non-runtime |
+| `00c238777ae11dfd61c6249426cd201fc3612f1b` | skipped | - | app cleanup across session pages is maintenance scope, deferred |
+| `2611c35acc3dc64582e15ad1efca36c60a2883a8` | skipped | - | diff hiding threshold behavior in ui review is app/ui product scope, deferred |
+| `1bb8574179bbf7c49a34ad0e5df522a752af08c2` | skipped | - | server management backend refactor is broad app architecture scope, deferred |
+| `4a5823562ca2f2ee0255aa815228e9973b6efb28` | skipped | - | desktop isLocal behavior fix in app server context deferred with desktop/app parity track |
+| `f8904e3972fba3d9fc3b08fa2531da8fca378dd1` | skipped | - | desktop sidecar project key behavior fix deferred with desktop/app parity track |
+| `fc1addb8f4830e71c268fb0609fa6489cd55e2b2` | skipped | - | CONTRIBUTING.md tweak only; no runtime behavior delta |

@@ -298,17 +298,11 @@ export const SessionListCommand = cmd({
   handler: async (args) => {
     await bootstrap(process.cwd(), async () => {
       const sessions = []
-      for await (const session of Session.listGlobal()) {
-        if (!session.parentID) {
-          sessions.push(session)
-        }
+      for await (const session of Session.listGlobal({ roots: true, limit: args.maxCount })) {
+        sessions.push(session)
       }
 
-      sessions.sort((a, b) => b.time.updated - a.time.updated)
-
-      const limitedSessions = args.maxCount ? sessions.slice(0, args.maxCount) : sessions
-
-      if (limitedSessions.length === 0) {
+      if (sessions.length === 0) {
         return
       }
 
@@ -321,9 +315,9 @@ export const SessionListCommand = cmd({
 
       let output: string
       if (args.format === "json") {
-        output = formatSessionJSON(limitedSessions, projectNameByID)
+        output = formatSessionJSON(sessions, projectNameByID)
       } else {
-        output = formatSessionTable(limitedSessions, projectNameByID)
+        output = formatSessionTable(sessions, projectNameByID)
       }
 
       const shouldPaginate = process.stdout.isTTY && !args.maxCount && args.format === "table"
