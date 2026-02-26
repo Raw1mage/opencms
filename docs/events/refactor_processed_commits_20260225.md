@@ -1046,3 +1046,9 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `fc6e7934bd365ad1665dea68556dbfc80ac3b611` | ported | `f2ddf4701` | Additional partial rewrite-port: Windows app resolver hardening (candidate probing, hidden where, cmd/bat resolution, registry App Paths fallback). |
+
+## 已處理（origin/dev delta 2026-02-27 batch8D windows constants @ 2026-02-26T18:40:37.602Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `fc6e7934bd365ad1665dea68556dbfc80ac3b611` | ported | `5eeec9dde` | Additional partial rewrite-port alignment: replace Win32 creation flag literals with windows-sys constants for hidden where probing and PowerShell launch. |
