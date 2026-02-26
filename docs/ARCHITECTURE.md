@@ -457,16 +457,18 @@ graph TD
     UI --> SDK
     Plugin --> Util
 
+```
+
 ---
 
 ## 9. Documentation & Specifications (`docs/`)
 
 Contains technical specifications, architecture overviews, and historical records.
 
-| Folder / File | Description |
-| :--- | :--- |
-| `docs/specs/` | **Technical Standards.** Active architecture specifications for the `cms` branch, including system prompts, hooks, and UI design patterns. |
-| `docs/events/` | **Chronological Knowledge Base.** Unified event logs, RCA reports, and historical project milestones named `event_log_YYYYMMDD_topic.md`. |
+| Folder / File  | Description                                                                                                                                |
+| :------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/specs/`  | **Technical Standards.** Active architecture specifications for the `cms` branch, including system prompts, hooks, and UI design patterns. |
+| `docs/events/` | **Chronological Knowledge Base.** Unified event logs, RCA reports, and historical project milestones named `event_YYYYMMDD_topic.md`.      |
 
 ---
 
@@ -474,18 +476,18 @@ Contains technical specifications, architecture overviews, and historical record
 
 In addition to the standard `packages/` directory, these top-level folders serve specific purposes:
 
-| Folder | Purpose |
-| :--- | :--- |
-| `scripts/` | **Automation & DevOps.** Scripts for installation (`scripts/install/`), deployment, and daily operations. |
-| `scripts/tools/` | **Legacy Tools.** System-level utilities, Nginx fixes, and port-forwarding scripts. |
-| `scripts/debug/` | **Development Utilities.** Temporary scripts for testing filters, redirection, and model analysis. |
-| `patches/` | **Package Fixes.** Custom patches applied to third-party dependencies via Bun's `patchedDependencies`. |
-| `refs/` | **External References.** Upstream repositories or integration prototypes kept for cross-referencing. |
-| `infra/` | **Infrastructure Definitions.** SST configurations for Cloudflare/AWS resources. |
-| `docker/` | **Docker Deployment.** Dockerfiles, compose files, and control scripts (`webctl.sh`). |
-| `github/` | **GitHub Integration.** Definitions for OpenCode GitHub Action (`action.yml`). |
-| `templates/` | **Scaffolding.** Reusable templates for agents, tools, and project structures. |
-| `recyclebin/` | **Temporary Archive.** Deprecated files pending final deletion. |
+| Folder           | Purpose                                                                                                   |
+| :--------------- | :-------------------------------------------------------------------------------------------------------- |
+| `scripts/`       | **Automation & DevOps.** Scripts for installation (`scripts/install/`), deployment, and daily operations. |
+| `scripts/tools/` | **Legacy Tools.** System-level utilities, Nginx fixes, and port-forwarding scripts.                       |
+| `scripts/debug/` | **Development Utilities.** Temporary scripts for testing filters, redirection, and model analysis.        |
+| `patches/`       | **Package Fixes.** Custom patches applied to third-party dependencies via Bun's `patchedDependencies`.    |
+| `refs/`          | **External References.** Upstream repositories or integration prototypes kept for cross-referencing.      |
+| `infra/`         | **Infrastructure Definitions.** SST configurations for Cloudflare/AWS resources.                          |
+| `docker/`        | **Docker Deployment.** Dockerfiles, compose files, and control scripts (`webctl.sh`).                     |
+| `github/`        | **GitHub Integration.** Definitions for OpenCode GitHub Action (`action.yml`).                            |
+| `templates/`     | **Scaffolding.** Reusable templates for agents, tools, and project structures.                            |
+| `recyclebin/`    | **Temporary Archive.** Deprecated files pending final deletion.                                           |
 
 ---
 
@@ -493,17 +495,17 @@ In addition to the standard `packages/` directory, these top-level folders serve
 
 The root directory is kept minimal, containing only essential configuration and orchestration files.
 
-| File | Description |
-| :--- | :--- |
-| `.env` | **Runtime Secrets.** Local environment variables for API keys and database URLs. |
-| `package.json` | **Monorepo Manifest.** Defines project dependencies, workspace structure, and core scripts. |
-| `bun.lock` | **Lockfile.** Ensures consistent dependency versions across environments. |
-| `turbo.json` | **TurboRepo Config.** Orchestrates build, lint, and test tasks across the monorepo. |
-| `sst.config.ts` | **SST Entry.** Main entry point for serverless infrastructure deployment. |
-| `flake.nix` | **Nix Shell.** Defines a reproducible development environment with all required system tools. |
-| `tsconfig.json` | **TypeScript Config.** Global compiler options and path aliases. |
-| `README.md` | **Documentation Entry.** The primary project overview and quickstart guide. |
-| `LICENSE` | **License Information.** MIT License terms for the project. |
+| File            | Description                                                                                   |
+| :-------------- | :-------------------------------------------------------------------------------------------- |
+| `.env`          | **Runtime Secrets.** Local environment variables for API keys and database URLs.              |
+| `package.json`  | **Monorepo Manifest.** Defines project dependencies, workspace structure, and core scripts.   |
+| `bun.lock`      | **Lockfile.** Ensures consistent dependency versions across environments.                     |
+| `turbo.json`    | **TurboRepo Config.** Orchestrates build, lint, and test tasks across the monorepo.           |
+| `sst.config.ts` | **SST Entry.** Main entry point for serverless infrastructure deployment.                     |
+| `flake.nix`     | **Nix Shell.** Defines a reproducible development environment with all required system tools. |
+| `tsconfig.json` | **TypeScript Config.** Global compiler options and path aliases.                              |
+| `README.md`     | **Documentation Entry.** The primary project overview and quickstart guide.                   |
+| `LICENSE`       | **License Information.** MIT License terms for the project.                                   |
 
 ---
 
@@ -518,6 +520,7 @@ This section defines the authoritative behavior for runtime config and provider 
 3. Admin/TUI mutations must write to global config via runtime-safe update flow.
 
 **Primary files**
+
 - `packages/opencode/src/config/config.ts`
 - `packages/opencode/src/cli/cmd/tui/context/sync.tsx`
 
@@ -528,6 +531,7 @@ This section defines the authoritative behavior for runtime config and provider 
 3. Disabled providers are excluded from filtered provider list and shown in Show All as disabled.
 
 **Primary files**
+
 - `packages/opencode/src/cli/cmd/tui/component/dialog-admin.tsx`
 - `packages/opencode/src/provider/provider.ts`
 - `packages/opencode/src/plugin/index.ts`
@@ -541,7 +545,7 @@ This section defines the authoritative behavior for runtime config and provider 
 ### D. Toggle Behavior Contract
 
 1. In provider root list, toggle action must update enable/disable state in both modes.
-2. `Space` and `Delete` in provider root perform the same enable/disable toggle.
+2. Root-level provider toggle uses `Space` as the canonical action; root `Delete` path is disabled/hidden.
 3. Toggle success must update:
    - persisted config (`disabled_providers`)
    - in-memory runtime state
@@ -570,6 +574,7 @@ If toast says success but UI does not change, verify in order:
 3. Internal plugin loading must use conditional dynamic import for Antigravity modules so disabled state avoids plugin module initialization work.
 
 **Primary file**
+
 - `packages/opencode/src/plugin/index.ts`
 
 ---
@@ -588,6 +593,7 @@ This session finalized the provider visibility/toggle architecture and fixed mul
 4. Root-level provider toggle uses `Space` as primary action; root `Delete` path is disabled/hidden.
 
 **Primary file**
+
 - `packages/opencode/src/cli/cmd/tui/component/dialog-admin.tsx`
 
 ### B. UX/State Consistency Fixes
@@ -604,6 +610,7 @@ This session finalized the provider visibility/toggle architecture and fixed mul
 3. TUI sync listens to both instance and global disposal events for refresh convergence.
 
 **Primary files**
+
 - `packages/opencode/src/cli/cmd/tui/component/dialog-admin.tsx`
 - `packages/opencode/src/cli/cmd/tui/context/sync.tsx`
 - `packages/opencode/src/config/config.ts`
@@ -616,7 +623,6 @@ Any future provider-toggle refactor must preserve:
 2. `Show All`/`Filtered` list parity except filter.
 3. Disabled Antigravity plugin path must not initialize auth plugin hooks.
 
-
 ### E. Tool Call Bridge Generalization
 
 1. Response rewrite logic for text-protocol tool calls is now routed through a generic Tool Call Bridge manager.
@@ -625,6 +631,7 @@ Any future provider-toggle refactor must preserve:
 4. The generic OpenAI chat rewriter and protocol parser are reusable for future providers that emit textual tool-call markers.
 
 **Primary files**
+
 - `packages/opencode/src/provider/provider.ts`
 - `packages/opencode/src/provider/toolcall-bridge/index.ts`
 - `packages/opencode/src/provider/toolcall-bridge/bridges/gmicloud-deepseek.ts`
@@ -632,7 +639,6 @@ Any future provider-toggle refactor must preserve:
 - `packages/opencode/src/provider/toolcall-bridge/protocol/text-protocol.ts`
 - `packages/opencode/src/provider/gmicloud-toolcall-bridge.ts`
 - `packages/opencode/test/provider/toolcall-bridge/manager.test.ts`
-```
 
 ---
 
@@ -1012,7 +1018,7 @@ When retiring tests, PR must include:
 
 ---
 
-## 18. Web Auth Credential Management Baseline (2026-02-23)
+## 19. Web Auth Credential Management Baseline (2026-02-23)
 
 This section defines the credential-management baseline for self-hosted Web deployments.
 
