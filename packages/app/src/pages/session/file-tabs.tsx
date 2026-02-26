@@ -372,6 +372,12 @@ export function FileTabContent(props: {
     cancelAnimationFrame(scrollFrame)
   })
 
+  const cancelCommenting = () => {
+    const p = path()
+    if (p) props.file.setSelectedLines(p, null)
+    setNote("commenting", null)
+  }
+
   const renderCode = (source: string, wrapperClass: string) => (
     <div
       ref={(el) => {
@@ -443,7 +449,7 @@ export function FileTabContent(props: {
               value={note.draft}
               selection={formatCommentLabel(range())}
               onInput={(value) => setNote("draft", value)}
-              onCancel={() => setNote("commenting", null)}
+              onCancel={cancelCommenting}
               onSubmit={(value) => {
                 const p = path()
                 if (!p) return
@@ -462,7 +468,7 @@ export function FileTabContent(props: {
 
                 setTimeout(() => {
                   if (!document.activeElement || !current.contains(document.activeElement)) {
-                    setNote("commenting", null)
+                    cancelCommenting()
                   }
                 }, 0)
               }}
