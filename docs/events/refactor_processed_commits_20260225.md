@@ -1089,3 +1089,11 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `443214871eda069f81cba19b5a3eecfce0fa314e` | ported | `5a577133d` | Rewrite-ported low-risk subset: rootDir dist layout guard + tsbuildinfo ignore; package export path map left as cms-intentional divergence. |
+
+## 已處理（origin/dev delta 2026-02-27 batch10A ci workflows @ 2026-02-26T19:03:58.935Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `24c63914bf9ff46c3869f35e3cef026aa9f33b61` | ported | `c123cff11` | Rewrite-ported compliance/pr-standards automation fixes (label cleanup + feat PR issue-check skip). |
+| `0269f39a178ad02b88196efe131dcba87849ee4d` | ported | `c123cff11` | Rewrite-ported unit workflow matrix expansion to include Windows host. |
+| `ae190038f89c1fd6267c3e847a182343aa31573f` | ported | `c123cff11` | Rewrite-ported setup-bun baseline build download URL resolution for x64 runners. |
