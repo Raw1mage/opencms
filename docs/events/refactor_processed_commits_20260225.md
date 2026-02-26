@@ -1058,3 +1058,9 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `fc6e7934bd365ad1665dea68556dbfc80ac3b611` | ported | `94a89c7e5` | Additional partial rewrite-port: extracted Windows resolver/open helpers into os module without behavior changes. |
+
+## 已處理（origin/dev delta 2026-02-27 batch9A alpha models endpoint @ 2026-02-26T18:47:29.921Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `5190589632c97b570bb6f9035aa5c80c0fe833e7` | ported | `ee0abf4b4` | Rewrite-ported zen models endpoint filter to exclude alpha-* models from list response. |
