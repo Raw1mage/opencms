@@ -1129,3 +1129,9 @@
 | `c79f1a72d8f4b1a270c234f967bd9f2bed72a1f0` | integrated | - | Equivalent platform-binary caching behavior already present in cms root-layout files (bin/opencode + script/postinstall.mjs). |
 | `1ffed2fa6ce16392e4f113108c8c76f5440aecc5` | skipped | - | Intermediate revert in upstream add/revert/re-add chain; superseded by final enabled state. |
 | `1d9f05e4f5cdda1d1aa9675444ee83c57ae9951e` | integrated | - | Final upstream intent (cache .opencode in postinstall and run cached binary first) already implemented in cms with root path adaptations. |
+
+## 已處理（origin/dev delta 2026-02-27 batch10G canary baseline assessment @ 2026-02-26T19:35:27.945Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `cf5cfb48cd756ebd59e6c5005d64c307f76b7424` | skipped | - | Deferred due cms policy divergence: commit enforces Bun canary + cross-compile pre-cache workflow changes; cms currently prioritizes stable pinned toolchain with selective baseline hardening. |
