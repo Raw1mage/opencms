@@ -1070,3 +1070,10 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `f8cfb697bd10a328afab4e6a074148c2e651fcb2` | ported | `5c3e9aeae` | Rewrite-ported production guard restricting alpha-* models to ADMIN_WORKSPACES in zen handler auth path. |
+
+## 已處理（origin/dev delta 2026-02-27 batch9C usage visibility @ 2026-02-26T18:55:03.606Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `284251ad6615dd37d4f2c0c9b14e0a989dbf3f1e` | ported | `8bfaf0441` | Rewrite-ported BYOK usage labeling and no-balance-deduction behavior with enriched usage metadata. |
+| `5596775c35fbf92b7e83729deed4ec8e286ab3ab` | ported | `8bfaf0441` | Rewrite-ported session display in usage table via enrichment.sessionID (no physical schema column introduced in this batch). |
