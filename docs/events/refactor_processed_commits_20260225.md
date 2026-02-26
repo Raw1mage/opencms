@@ -952,3 +952,31 @@
 | `a82ca860089afde16afdcb1cff0592c6ac0f4aa4` | integrated | - | defensive code component behavior already present in current ui code renderer |
 | `ff3b174c423d89b39ee8154863840e48c8aac371` | integrated | - | oauth error message normalization already present in cms connect-provider path |
 | `dec304a2737b7accb3bf8b199fb58e81d65026e9` | integrated | - | emoji avatar handling already integrated in current ui avatar component |
+
+## 已處理（origin/dev delta 2026-02-27 round63 (rewrite-only app-ui+desktop E1/E2/E3A/E3B) @ 2026-02-26T16:57:39.995Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `7e681b0bc02b98e932a51e5469bcaeb6649c5f75` | integrated | - | large-paste prompt lock runtime fix already present in cms; added regression test coverage only |
+| `9c5bbba6eab4466621028e3cf3467119051423fb` | integrated | - | patch tool single-file apply_patch rendering already aligned with edit-style path in cms |
+| `0ce61c817b74e31e08bd140611e2f7ae6ba1684c` | integrated | - | auto-scroll pinned behavior for todos/questions/perms already present in session scroller logic |
+| `46361cf35ce39c5b233fb5a727744255312c85d6` | integrated | - | session-review rerender controls already integrated via existing memoization/diff mapping path |
+| `1de12604cf74aaeacbff54d7feb18c7d41bea2b1` | integrated | - | root workspace slash/path handling already present in message-part path helpers |
+| `7e1051af0784693d7fc37ae31d6f513d47e0d24b` | skipped | - | assistant-meta duration model diverges in cms UI and current turn-level duration display is accepted |
+| `8e96447960637c2371fb94ca7ce7b456048a0de6` | skipped | - | upstream todo-dock target path does not exist in current cms composer layout |
+| `3b5b21a91e2a8f084ee8ed85aca81246880a9384` | ported | `409496e870b0ebc960576c516999b4dbdab59da8` | harden markdown decoration to prevent duplicate wrappers/buttons under morph updates |
+| `8f2d8dd47a45a4b3972ac8badc09cc280f84b838` | ported | `409496e870b0ebc960576c516999b4dbdab59da8` | follow-up duplicate markdown safeguards included in same markdown decoration rewrite |
+| `93615bef28fe0e17f673ba0f90c171309f7d5f91` | integrated | - | plugin dependency install/load failure handling already integrated in cms cli/plugin flow |
+| `ac0b37a7b7a8dfc55a682b94cff0020ad28cca66` | integrated | - | snapshot staging already respects .git/info/exclude through add/syncExclude pipeline |
+| `2410593023d2c61f05123c9b0faf189a28dfbeee` | integrated | - | github action/run variant wiring already present in cms action.yml and github command path |
+| `0042a07052ec0db777b2ea8bff46101466f0a942` | ported | `bc4f9dac226f8a1ba379ea1784a67bfcc100301d` | normalize patch/apply_patch/snapshot/bash path parsing and display for Windows compatibility |
+| `e70d2b27de3aaed5a19b9ca2c6749ed7fce3ef93` | integrated | - | pty wrapper identity token isolation already integrated in cms pty connect route flow |
+| `9f4fc5b72aaa0a4cd44f8ef9c399e801f3015692` | skipped | - | revert of terminal isolation fix intentionally not adopted because integrated behavior is desired |
+| `4e9ef3ecc1506c5087511105ac905564d2b0c73f` | integrated | - | terminal issue fixes mostly integrated; remaining ws.close codepath difference deferred as low-value delta |
+| `68cf011fd3432ffe5f38848c6ec747702077dfbe` | ported | `091388a90da644416bd832db3b48ebf5f965c0a5` | skip stale message.part.delta events when a newer part.updated exists in same flush window |
+| `45191ad144f6546c051fb3a94f9f3cb1e2c00ed3` | ported | `091388a90da644416bd832db3b48ebf5f965c0a5` | fix prev/next message keyboard navigation boundary and hash-scroll sticky inset handling |
+| `aae75b3cfb10cdff965fb434c487980b152efdec` | ported | `091388a90da644416bd832db3b48ebf5f965c0a5` | add mousedown middle-button preventDefault for reliable middle-click tab close in scrollable tabs |
+| `082f0cc12734ccc961797ab9a63dd88a2ce3eed5` | ported | `091388a90da644416bd832db3b48ebf5f965c0a5` | make file path root stripping separator-agnostic and preserve native separators on Windows |
+| `659068942eda0e48f8453d96b03724cfb1f9698d` | ported | `d597d9b1cfc06273a7cfb23d7cc2504c207101d5` | support CRLF frontmatter line splitting and normalize markdown fixture assertion |
+| `392a6d993f5cbb233bc0eeab297919cb21099f2c` | ported | `d597d9b1cfc06273a7cfb23d7cc2504c207101d5` | switch desktop sidecar shell spawn from -il to -l to avoid interactive-shell hang |
+| `bb8a1718a63c2caae9e40c85dd4bdfe34f8012d7` | ported | `d597d9b1cfc06273a7cfb23d7cc2504c207101d5` | restore shell-derived PATH/env for desktop sidecar via shell env probe+merge before spawn |
