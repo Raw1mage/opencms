@@ -9,6 +9,61 @@ interface PR {
   title: string
 }
 
+async function conflicts() {
+  const out = await $`git diff --name-only --diff-filter=U`
+    .nothrow()
+    .then((r) => r.stdout)
+    .catch(() => "")
+  return out
+    .split("\n")
+    .map((x: string) => x.trim())
+    .filter(Boolean)
+}
+
+async function cleanup() {
+  await $`git rebase --abort`.nothrow()
+  await $`git merge --abort`.nothrow()
+  await $`git reset --hard HEAD`.nothrow()
+  await $`git checkout -- .`.nothrow()
+  await $`git clean -fd`.nothrow()
+}
+
+async function run(args: string[]) {
+  const proc = Bun.spawn(args, {
+    stdout: "pipe",
+    stderr: "pipe",
+  })
+  const exitCode = await proc.exited
+  const stdout = await new Response(proc.stdout).text()
+  const stderr = await new Response(proc.stderr).text()
+  return { exitCode, stdout, stderr }
+}
+
+async function fix(pr: PR, files: string[]) {
+  console.log(`  Trying to auto-resolve ${files.length} conflict(s) with opencode...`)
+  const prompt = [
+    `Resolve the current git rebase conflicts while processing PR #${pr.number} into the beta branch.`,
+    `Only touch these files: ${files.join(", ")}.`,
+    "Keep the rebase in progress, do not abort the rebase, and do not create a commit.",
+    "When done, leave the working tree with no unmerged files.",
+  ].join("\n")
+
+  const opencode = await run(["opencode", "run", "-m", "opencode/gpt-5.3-codex", prompt])
+  if (opencode.exitCode !== 0) {
+    console.log(`  opencode failed: ${opencode.stderr || opencode.stdout}`)
+    return false
+  }
+
+  const left = await conflicts()
+  if (left.length > 0) {
+    console.log(`  Conflicts remain: ${left.join(", ")}`)
+    return false
+  }
+
+  console.log("  Conflicts resolved with opencode")
+  return true
+}
+
 async function main() {
   console.log("Fetching open contributor PRs...")
 
@@ -53,11 +108,38 @@ async function main() {
     console.log(`  Attempting to rebase PR #${pr.number}...`)
     const rebase = await $`git rebase beta pr-${pr.number}`.nothrow()
     if (rebase.exitCode !== 0) {
-      console.log(`  Rebase failed for PR #${pr.number} (has conflicts)`)
-      await $`git rebase --abort`.nothrow()
-      await $`git checkout beta`.nothrow()
-      skipped.push({ number: pr.number, reason: "Rebase failed (conflicts)" })
-      continue
+      const files = await conflicts()
+      if (files.length > 0) {
+        console.log(`  Rebase failed for PR #${pr.number} (has conflicts)`)
+        if (!(await fix(pr, files))) {
+          await cleanup()
+          await $`git checkout beta`.nothrow()
+          skipped.push({ number: pr.number, reason: "Rebase failed (conflicts)" })
+          continue
+        }
+
+        let rebaseRecovered = true
+        while (true) {
+          await $`git add -A`.nothrow()
+          const cont = await $`git rebase --continue`.nothrow()
+          if (cont.exitCode === 0) break
+          const remaining = await conflicts()
+          if (remaining.length === 0 || !(await fix(pr, remaining))) {
+            await cleanup()
+            await $`git checkout beta`.nothrow()
+            skipped.push({ number: pr.number, reason: "Rebase continue failed after auto-resolve" })
+            rebaseRecovered = false
+            break
+          }
+        }
+        if (!rebaseRecovered) continue
+      } else {
+        console.log(`  Rebase failed for PR #${pr.number}`)
+        await cleanup()
+        await $`git checkout beta`.nothrow()
+        skipped.push({ number: pr.number, reason: "Rebase failed" })
+        continue
+      }
     }
 
     // Move rebased commits to pr-${pr.number} branch and checkout back to beta
