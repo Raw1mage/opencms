@@ -175,7 +175,7 @@ export namespace ModelScoring {
 
     // Get current model preference if any
     const activeModel = await Provider.defaultModel()
-    const activeFamily = Account.parseFamily(activeModel.providerId)
+    const activeFamily = await Account.resolveFamily(activeModel.providerId)
     const activeAccountId = activeFamily ? ((await Account.getActive(activeFamily)) ?? "public") : "public"
 
     const currentVector: ModelVector = {
@@ -205,7 +205,7 @@ export namespace ModelScoring {
 
     // Fallback to top ranked if rotation3d didn't find a better match
     for (const candidate of ranking) {
-      const family = Account.parseFamily(candidate.providerId)
+      const family = await Account.resolveFamily(candidate.providerId)
       if (!family) continue
       const active = await Account.getActive(family)
       if (active) {

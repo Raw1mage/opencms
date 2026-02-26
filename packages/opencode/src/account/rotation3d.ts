@@ -624,7 +624,7 @@ export async function buildFallbackCandidates(
 
   // 1. Get all accounts in the same family (same provider, different accounts)
   // Always allowed as it's the same model the user is already using
-  const family = Account.parseFamily(current.providerId)
+  const family = await Account.resolveFamily(current.providerId)
   if (family) {
     const accounts = await Account.list(family)
     for (const [accountId, info] of Object.entries(accounts)) {
@@ -672,7 +672,7 @@ export async function buildFallbackCandidates(
         if (hiddenModelKeys.has(`${fav.providerId}/${fav.modelID}`)) continue
         if (fav.providerId === current.providerId && fav.modelID === current.modelID) continue
 
-        const favFamily = Account.parseFamily(fav.providerId)
+        const favFamily = await Account.resolveFamily(fav.providerId)
         if (!favFamily) continue
 
         const accounts = await Account.list(favFamily)
@@ -713,7 +713,7 @@ export async function buildFallbackCandidates(
       if (model.cost.input > 0 || model.cost.output > 0) continue
 
       let accountId = "public"
-      const family = Account.parseFamily("opencode")
+      const family = await Account.resolveFamily("opencode")
       if (family) {
         const active = await Account.getActive(family)
         if (active) accountId = active

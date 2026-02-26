@@ -159,7 +159,7 @@ export namespace SessionProcessor {
             // switch to a fallback model without wasting an API request.
             {
               const { Account } = await import("@/account")
-              const family = Account.parseFamily(streamInput.model.providerId)
+              const family = await Account.resolveFamily(streamInput.model.providerId)
               const accountId = family ? await Account.getActive(family) : undefined
               if (accountId) {
                 const vector = {

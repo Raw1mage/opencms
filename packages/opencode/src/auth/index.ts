@@ -43,31 +43,6 @@ export namespace Auth {
   export type Info = z.infer<typeof Info>
 
   /**
-   * Parse provider family from provider ID
-   * e.g., "openai" → "openai", "openai-work" → "openai", "google-api-work" → "google-api"
-   */
-  function parseFamily(providerId: string): string {
-    const families = [
-      "google-api",
-      "openai",
-      "claude-cli",
-      "github-copilot",
-      "antigravity",
-      "gemini-cli",
-      "gitlab",
-      "opencode",
-    ]
-    for (const family of families) {
-      if (providerId === family || providerId.startsWith(`${family}-`)) {
-        return family
-      }
-    }
-    // Default: use the first segment before hyphen, or the whole ID
-    const match = providerId.match(/^([a-z0-9-]+)(-|$)/)
-    return match ? match[1] : providerId
-  }
-
-  /**
    * Convert Account.Info to Auth.Info
    */
   function accountToAuth(
@@ -130,7 +105,7 @@ export namespace Auth {
     }
 
     // 3. Get active account for this provider family
-    const family = parseFamily(providerId)
+    const family = await Account.resolveFamilyOrSelf(providerId)
     debugCheckpoint("auth", "Parsed family", { providerId, family })
 
     const activeInfo = await Account.getActiveInfo(family)
@@ -197,7 +172,7 @@ export namespace Auth {
    */
   export async function set(providerId: string, info: Info) {
     const { Account } = await import("../account")
-    const family = parseFamily(providerId)
+    const family = await Account.resolveFamilyOrSelf(providerId)
 
     if (info.type === "api") {
       const raw = providerId.startsWith(`${family}-`) ? providerId.slice(family.length + 1) : providerId
@@ -292,7 +267,7 @@ export namespace Auth {
     }
 
     // Otherwise, remove the active account for this provider
-    const provider = parseFamily(providerId)
+    const provider = await Account.resolveFamilyOrSelf(providerId)
     const activeId = await Account.getActive(provider)
     if (activeId) {
       await Account.remove(provider, activeId)
@@ -304,7 +279,7 @@ export namespace Auth {
    */
   export async function listAccounts(providerPrefix: string): Promise<string[]> {
     const { Account } = await import("../account")
-    const family = parseFamily(providerPrefix)
+    const family = await Account.resolveFamilyOrSelf(providerPrefix)
     const accounts = await Account.list(family)
     return Object.keys(accounts).sort()
   }
@@ -314,7 +289,7 @@ export namespace Auth {
    */
   export async function getDefaultAccount(providerPrefix: string): Promise<string | undefined> {
     const { Account } = await import("../account")
-    const family = parseFamily(providerPrefix)
+    const family = await Account.resolveFamilyOrSelf(providerPrefix)
     return Account.getActive(family)
   }
 
@@ -331,7 +306,7 @@ export namespace Auth {
     }
 
     // Otherwise, check if family has any accounts
-    const family = parseFamily(providerId)
+    const family = await Account.resolveFamilyOrSelf(providerId)
     const accounts = await Account.list(family)
     return Object.keys(accounts).length > 0
   }

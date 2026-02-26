@@ -144,7 +144,7 @@ export namespace Account {
             to: filepath,
             size: legacySize,
           })
-          await fs.mkdir(path.dirname(filepath), { recursive: true }).catch(() => { })
+          await fs.mkdir(path.dirname(filepath), { recursive: true }).catch(() => {})
           try {
             await fs.rename(legacyOpencodeFilepath, filepath)
           } catch (error) {
@@ -153,7 +153,7 @@ export namespace Account {
             await fs.copyFile(legacyOpencodeFilepath, filepath)
             await fs.rm(legacyOpencodeFilepath, { force: true })
           }
-          await fs.chmod(filepath, 0o600).catch(() => { })
+          await fs.chmod(filepath, 0o600).catch(() => {})
           exists = true
         }
       }
@@ -164,7 +164,7 @@ export namespace Account {
       const legacyFile = Bun.file(legacyFilepath)
       if (await legacyFile.exists()) {
         log.info("Migrating accounts.json from legacy path", { from: legacyFilepath, to: filepath })
-        await fs.mkdir(path.dirname(filepath), { recursive: true }).catch(() => { })
+        await fs.mkdir(path.dirname(filepath), { recursive: true }).catch(() => {})
         await Bun.write(filepath, await legacyFile.text())
         await fs.chmod(filepath, 0o600)
         exists = true
@@ -206,6 +206,8 @@ export namespace Account {
         await save(storage)
       }
 
+      let shouldSave = false
+
       // Fix: add {provider}-{type}- prefix to account IDs that are missing it.
       // A broken generateId (commit 3bf52500a) produced bare names like "default",
       // "yeatsluo-g-ncu-edu-tw" instead of "gemini-cli-api-default",
@@ -241,6 +243,19 @@ export namespace Account {
         }
       }
       if (fixedIds) {
+        shouldSave = true
+      }
+
+      // Normalize family keys that were created from provider instance IDs
+      // (e.g. "nvidia-work" should resolve back to canonical family "nvidia").
+      // This removes ambiguity between provider/account/model coordinates.
+      const normalized = await normalizeFamilyKeys(storage)
+      if (normalized.changed) {
+        storage = normalized.storage
+        shouldSave = true
+      }
+
+      if (shouldSave) {
         await save(storage)
       }
 
@@ -249,6 +264,155 @@ export namespace Account {
       log.error("Failed to load accounts.json", { error: e })
       return { version: CURRENT_VERSION, families: {} }
     }
+  }
+
+  async function listKnownFamiliesInternal(options?: { includeStorage?: boolean }): Promise<string[]> {
+    const includeStorage = options?.includeStorage ?? true
+    const { ModelsDev } = await import("../provider/models")
+    const fromModels = Object.keys(await ModelsDev.get().catch(() => ({}) as Record<string, unknown>))
+    const fromStorage = includeStorage ? Object.keys((await state()).families) : []
+    return Array.from(new Set([...PROVIDERS, ...fromModels, ...fromStorage]))
+  }
+
+  export async function knownFamilies(options?: { includeStorage?: boolean }): Promise<string[]> {
+    return listKnownFamiliesInternal(options)
+  }
+
+  export function resolveFamilyFromKnown(providerId: string, knownFamilies: readonly string[]): string | undefined {
+    if (!providerId) return undefined
+    const unique = Array.from(new Set(knownFamilies.filter(Boolean)))
+    const set = new Set(unique)
+
+    // 1) Exact family match
+    if (set.has(providerId)) {
+      return providerId
+    }
+
+    // 2) Account ID form: {family}-{api|subscription}-{slug}
+    const accountIdMatch = providerId.match(/^(.+)-(api|subscription)-/)
+    if (accountIdMatch?.[1] && set.has(accountIdMatch[1])) {
+      return accountIdMatch[1]
+    }
+
+    // 3) Provider instance form: {family}-{instanceSlug}
+    const sorted = [...unique].sort((a, b) => b.length - a.length)
+    for (const family of sorted) {
+      if (providerId.startsWith(`${family}-`)) {
+        return family
+      }
+    }
+
+    return undefined
+  }
+
+  export async function resolveFamily(providerId: string): Promise<string | undefined> {
+    const known = await knownFamilies({ includeStorage: true })
+    return resolveFamilyFromKnown(providerId, known)
+  }
+
+  export async function resolveFamilyOrSelf(providerId: string): Promise<string> {
+    return (await resolveFamily(providerId)) ?? providerId
+  }
+
+  function resolveCanonicalFamilyFromKnown(family: string, knownFamilies: readonly string[]): string | undefined {
+    return resolveFamilyFromKnown(family, knownFamilies)
+  }
+
+  function inferFamilyFromAccountIds(
+    accounts: Record<string, Info>,
+    knownFamilies: readonly string[],
+  ): string | undefined {
+    const set = new Set(knownFamilies)
+    const counts = new Map<string, number>()
+
+    for (const accountId of Object.keys(accounts)) {
+      const match = accountId.match(/^(.+)-(api|subscription)-/)
+      const prefix = match?.[1]
+      if (!prefix || !set.has(prefix)) continue
+      counts.set(prefix, (counts.get(prefix) ?? 0) + 1)
+    }
+
+    let winner: string | undefined
+    let score = 0
+    for (const [family, count] of counts) {
+      if (count > score) {
+        winner = family
+        score = count
+      }
+    }
+
+    return winner
+  }
+
+  function mergeFamilyData(target: ProviderData, source: ProviderData): boolean {
+    let changed = false
+
+    for (const [accountId, info] of Object.entries(source.accounts)) {
+      if (!target.accounts[accountId]) {
+        target.accounts[accountId] = info
+        changed = true
+        continue
+      }
+
+      // Collision fallback: retain both entries to avoid silent data loss.
+      let nextId = `${accountId}-migrated`
+      let counter = 2
+      while (target.accounts[nextId]) {
+        nextId = `${accountId}-migrated-${counter}`
+        counter++
+      }
+      target.accounts[nextId] = info
+      changed = true
+    }
+
+    if (source.activeAccount && target.accounts[source.activeAccount] && !target.activeAccount) {
+      target.activeAccount = source.activeAccount
+      changed = true
+    }
+
+    return changed
+  }
+
+  type FamilyNormalizationMove = {
+    from: string
+    to: string
+    accountCount: number
+  }
+
+  async function normalizeFamilyKeys(
+    storage: Storage,
+  ): Promise<{ storage: Storage; changed: boolean; moves: FamilyNormalizationMove[] }> {
+    const knownFamilies = await listKnownFamiliesInternal({ includeStorage: false })
+    let changed = false
+    const moves: FamilyNormalizationMove[] = []
+
+    for (const [family, data] of Object.entries(storage.families)) {
+      const direct = resolveCanonicalFamilyFromKnown(family, knownFamilies)
+      const inferred = inferFamilyFromAccountIds(data.accounts, knownFamilies)
+      const canonical = direct ?? inferred
+
+      if (!canonical || canonical === family) continue
+
+      const target = (storage.families[canonical] ??= { accounts: {} })
+      const merged = mergeFamilyData(target, data)
+      delete storage.families[family]
+
+      if (merged || canonical !== family) {
+        changed = true
+        moves.push({
+          from: family,
+          to: canonical,
+          accountCount: Object.keys(data.accounts).length,
+        })
+        log.info("Normalized provider family key", {
+          from: family,
+          to: canonical,
+          accountCount: Object.keys(data.accounts).length,
+        })
+      }
+    }
+
+    return { storage, changed, moves }
   }
 
   async function save(storage: Storage): Promise<void> {
@@ -265,9 +429,9 @@ export namespace Account {
       await fs.chmod(filepath, 0o600)
 
       // Shadow save to ~/.local/share (just in case)
-      await fs.mkdir(path.dirname(legacyFilepath), { recursive: true }).catch(() => { })
+      await fs.mkdir(path.dirname(legacyFilepath), { recursive: true }).catch(() => {})
       await Bun.write(legacyFilepath, content)
-      await fs.chmod(legacyFilepath, 0o600).catch(() => { })
+      await fs.chmod(legacyFilepath, 0o600).catch(() => {})
 
       _mtime = await getDiskMtime()
       debugCheckpoint("Account.save", "Write successful")
@@ -608,12 +772,6 @@ export namespace Account {
       return accountId
     }
 
-    // For IDs like "github-copilot" (provider name with dash), return as-is
-    // Check if it looks like a provider ID (no -api- or -subscription- suffix)
-    if (!accountId.includes("-api-") && !accountId.includes("-subscription-")) {
-      return accountId
-    }
-
     return undefined
   }
 
@@ -805,8 +963,8 @@ export namespace Account {
               provider,
               "subscription",
               (typeof authInfo.accountId === "string" ? authInfo.accountId : undefined) ||
-              providerId.replace(`${provider}-`, "") ||
-              "default",
+                providerId.replace(`${provider}-`, "") ||
+                "default",
             )
             storage.families[provider].accounts[accountId] = {
               type: "subscription",
@@ -920,12 +1078,42 @@ export namespace Account {
    * Parse provider from legacy provider ID (used in migration)
    */
   function parseProviderFromLegacyId(providerId: string): string | undefined {
-    // Handle suffixed providers like "google-api-work" -> "google-api"
-    const match = providerId.match(/^([a-z]+)(-[a-z0-9-]+)?$/)
-    if (match) {
-      return match[1]
+    if (!providerId) return undefined
+
+    // Prefer canonical known providers using longest-prefix match.
+    const sorted = [...PROVIDERS].sort((a, b) => b.length - a.length)
+    for (const provider of sorted) {
+      if (providerId === provider || providerId.startsWith(`${provider}-`)) {
+        return provider
+      }
     }
+
     return undefined
+  }
+
+  export type NormalizeIdentitiesReport = {
+    changed: boolean
+    moves: Array<{ from: string; to: string; accountCount: number }>
+    familiesBefore: string[]
+    familiesAfter: string[]
+  }
+
+  export async function normalizeIdentities(): Promise<NormalizeIdentitiesReport> {
+    const storage = await state()
+    const familiesBefore = Object.keys(storage.families)
+    const normalized = await normalizeFamilyKeys(storage)
+    if (normalized.changed) {
+      await save(storage)
+      _storage = storage
+      _mtime = await getDiskMtime()
+    }
+
+    return {
+      changed: normalized.changed,
+      moves: normalized.moves,
+      familiesBefore,
+      familiesAfter: Object.keys(storage.families),
+    }
   }
 
   /**

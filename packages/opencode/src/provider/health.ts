@@ -628,7 +628,7 @@ export namespace ProviderHealth {
       for (const [providerId, provider] of Object.entries(providers)) {
         // Filter by provider or family if specified
         if (options.providers) {
-          const family = Account.parseFamily(providerId)
+          const family = await Account.resolveFamily(providerId)
           if (!options.providers.includes(providerId) && (!family || !options.providers.includes(family))) {
             continue
           }

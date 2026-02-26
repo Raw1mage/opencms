@@ -58,11 +58,8 @@ export const ModelSmokeCommand = cmd({
     const filter = new Set(args.provider ?? [])
     const out = args.output ?? "logs/model-smoke-last.json"
 
-    const family = (id: string) => {
-      const parsed = Account.parseFamily(id)
-      if (parsed) return parsed
-      if (id === "opencode" || id.startsWith("opencode-")) return "opencode"
-      return undefined
+    const family = async (id: string) => {
+      return await Account.resolveFamily(id)
     }
 
     const allow = (id: string, fam?: string) => {
@@ -81,7 +78,7 @@ export const ModelSmokeCommand = cmd({
       for (const [providerId, provider] of Object.entries(providers)) {
         if (provider.active === false) continue
         if (provider.cooldownReason?.includes("blocked")) continue
-        const fam = family(providerId)
+        const fam = await family(providerId)
         if (!allow(providerId, fam)) continue
         const hasActive = fam ? active.has(fam) : false
         if (fam && hasActive && providerId === fam) continue

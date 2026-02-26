@@ -217,6 +217,93 @@ Reference event ledger:
 
 - `docs/events/event_20260223_web_architecture_first_plan.md`
 
+### Recent Architectural Notes (2026-02-26 Provider Identity & TUI Admin Runtime Clarification)
+
+This section defines the **cms authoritative provider graph** for TUI `/admin` and backend runtime, and records the family-resolution hardening work that removes ambiguous provider-family inference.
+
+#### A) cms Provider Graph (authoritative coordinates)
+
+The runtime must treat identities as explicit coordinates:
+
+1. **Provider Family** (canonical): e.g. `nvidia`, `openai`, `gemini-cli`
+2. **Account** (family-scoped): active + candidates in `accounts.json`
+3. **Model** (provider-scoped): from models.dev/snapshot + config/plugin/custom loader overlays
+
+No runtime decision should depend on "guessing" family from an arbitrary dashed provider string without canonical family inventory.
+
+#### B) TUI `/admin` provider operation pipeline (cms)
+
+| Stage                           | UI Component / Route                                                          | Runtime Side Effect                                                   |
+| :------------------------------ | :---------------------------------------------------------------------------- | :-------------------------------------------------------------------- |
+| Provider inventory bootstrap    | `tui/context/sync.tsx` (`provider.list`, `provider.auth`, `config.providers`) | Hydrates provider/auth/config state for admin menus                   |
+| Add provider entry              | `dialog-admin.tsx` → `DialogProviderManualAdd`                                | Writes `config.provider[...]`, triggers sync bootstrap                |
+| Add API key (models.dev family) | `DialogApiKeyAdd`                                                             | `Account.add(family, accountId, apiKey)` under canonical family scope |
+| Add Google API account          | `DialogGoogleApiAdd`                                                          | Adds `google-api` account with explicit family key                    |
+| OAuth account connect           | `DialogProvider` → `/provider/:id/oauth/*`                                    | Stores auth via `Auth.set(...)` / account module                      |
+| Active account switch           | `/account/:family/active`                                                     | Rotation and model availability read new active account               |
+
+#### C) Backend provider graph assembly (canonical order)
+
+`provider/provider.ts` state initialization is conceptually:
+
+1. Load models registry (`models.dev` + snapshot) into provider database.
+2. Merge config providers and aliases.
+3. Merge env/auth-derived provider options.
+4. Merge account families (`Account.listAll`) into account-scoped provider entries.
+5. Apply plugin/custom loaders.
+6. Apply model/provider filtering (ignored/deprecated/disabled/rate-limit aware checks).
+
+This order guarantees models are family-owned first, then account- and plugin-specific behavior is overlaid.
+
+#### D) Family resolution hardening (2026-02-26)
+
+To enforce 3D identity boundaries:
+
+- Auth family resolution now uses canonical family inventory
+  (`Account.PROVIDERS` + models.dev providers + existing account families), with deterministic resolution order:
+  - exact family match
+  - account-id pattern (`{family}-{api|subscription}-...`)
+  - longest known family prefix
+- Account load now normalizes legacy/non-canonical family keys (example: `nvidia-work` → `nvidia`) and preserves data during merge.
+- Deprecated fallback behavior that treated arbitrary dashed IDs as valid family IDs was reduced.
+- Canonical resolver API is now the primary runtime path:
+  - `Account.resolveFamily(providerId)`
+  - `Account.resolveFamilyOrSelf(providerId)`
+
+#### D.1) Identity invariants (must hold)
+
+1. **No fuzzy family parsing in runtime decisions**
+   - Model routing, fallback, health checks, and provider route composition must use canonical resolver API.
+2. **Family is canonical, account is scoped**
+   - `provider-family` and `account-id` are distinct coordinates; account suffix strings are never treated as family source-of-truth.
+3. **Storage self-heals legacy family keys**
+   - On account load and explicit migration, non-canonical keys are normalized and merged without silent data loss.
+4. **Operational migration is explicit**
+   - `opencode auth migrate-identities` provides a reportable/manual path to normalize identity drift.
+
+#### E) Provider-logic network map (cms runtime)
+
+```mermaid
+flowchart TD
+  A[TUI /admin] --> B[sync bootstrap\nprovider.list + provider.auth + config.providers]
+  B --> C[Dialog actions\nmanual add / api key / oauth]
+  C --> D[Server routes\n/provider, /account, /auth]
+  D --> E[Auth module]
+  D --> F[Account module\naccounts.json]
+  E --> F
+  F --> G[Provider.initState]
+  G --> H[models.dev + snapshot]
+  G --> I[config/env/auth overlay]
+  G --> J[account overlay]
+  G --> K[plugin/custom loaders]
+  G --> L[filter + finalize provider/model list]
+  L --> M[Rotation3D + Session LLM fallback]
+```
+
+Reference event ledger:
+
+- `docs/events/event_20260226_provider_identity_refactor.md`
+
 ---
 
 ## Detailed Package Analysis

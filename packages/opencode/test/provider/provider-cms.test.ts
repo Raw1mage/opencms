@@ -108,3 +108,49 @@ test("cms provider list models can be resolved via getModel", async () => {
     },
   })
 })
+
+test("cms admin-like nvidia api account shows provider model list", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+        }),
+      )
+    },
+  })
+
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const { Account } = await import("../../src/account")
+
+      const accountId = Account.generateId("nvidia", "api", "work")
+      await Account.add("nvidia", accountId, {
+        type: "api",
+        name: "work",
+        apiKey: "nvidia-test-key",
+        addedAt: Date.now(),
+      })
+      await Account.setActive("nvidia", accountId)
+
+      const providers = await Provider.list()
+      const familyProvider = providers["nvidia"]
+      const accountProvider = providers[accountId]
+
+      expect(familyProvider).toBeDefined()
+      expect(Object.keys(familyProvider.models).length).toBeGreaterThan(0)
+      // Account-specific provider entries are optional; admin model list can resolve by family fallback.
+      if (accountProvider) {
+        expect(Object.keys(accountProvider.models).length).toBeGreaterThan(0)
+      }
+
+      const firstModelID = Object.keys((accountProvider ?? familyProvider).models)[0]
+      expect(firstModelID).toBeDefined()
+      const model = await Provider.getModel(accountProvider ? accountId : "nvidia", firstModelID)
+      expect(model.id).toBe(firstModelID)
+      expect(model.providerId).toBe(accountProvider ? accountId : "nvidia")
+    },
+  })
+})

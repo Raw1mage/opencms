@@ -37,7 +37,7 @@ export function stripImageParts(messages: MessageV2.WithParts[]) {
 
 async function selectImageModel(current: Provider.Model): Promise<Provider.Model | undefined> {
   const { Account } = await import("../account/index")
-  const family = Account.parseFamily(current.providerId)
+  const family = await Account.resolveFamily(current.providerId)
   const accountId = family ? ((await Account.getActive(family)) ?? current.providerId) : current.providerId
 
   const candidates = await buildFallbackCandidates({

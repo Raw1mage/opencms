@@ -207,8 +207,39 @@ export const AuthCommand = cmd({
   command: "auth",
   describe: "manage credentials",
   builder: (yargs) =>
-    yargs.command(AuthLoginCommand).command(AuthLogoutCommand).command(AuthListCommand).demandCommand(),
+    yargs
+      .command(AuthLoginCommand)
+      .command(AuthLogoutCommand)
+      .command(AuthListCommand)
+      .command(AuthMigrateIdentitiesCommand)
+      .demandCommand(),
   async handler() {},
+})
+
+export const AuthMigrateIdentitiesCommand = cmd({
+  command: "migrate-identities",
+  describe: "normalize provider family identities in accounts storage",
+  async handler() {
+    UI.empty()
+    prompts.intro("Normalize account identities")
+
+    const { Account } = await import("../../account")
+    const report = await Account.normalizeIdentities()
+
+    if (!report.changed) {
+      prompts.log.success("No identity changes needed")
+      prompts.outro(`Families: ${report.familiesAfter.join(", ") || "(none)"}`)
+      return
+    }
+
+    for (const move of report.moves) {
+      prompts.log.info(`${move.from} -> ${move.to} (${move.accountCount} account${move.accountCount === 1 ? "" : "s"})`)
+    }
+
+    prompts.outro(
+      `Normalized ${report.moves.length} family key${report.moves.length === 1 ? "" : "s"}. Families now: ${report.familiesAfter.join(", ")}`,
+    )
+  },
 })
 
 export const AuthListCommand = cmd({

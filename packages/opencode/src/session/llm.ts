@@ -558,7 +558,7 @@ export namespace LLM {
     const { Account } = await import("@/account")
 
     // Parse family from provider ID
-    const family = Account.parseFamily(providerId)
+    const family = await Account.resolveFamily(providerId)
     if (!family) return undefined
 
     // Get active account
@@ -617,7 +617,7 @@ export namespace LLM {
   ): Promise<Provider.Model | null> {
     const { Account } = await import("@/account")
 
-    const family = Account.parseFamily(currentModel.providerId)
+    const family = await Account.resolveFamily(currentModel.providerId)
     if (!family) return null
 
     // Get current account
@@ -752,7 +752,7 @@ export namespace LLM {
 
     // If different account in a different provider family, set that account active too
     if (!isSameProvider) {
-      const fallbackFamily = Account.parseFamily(fallback.providerId)
+      const fallbackFamily = await Account.resolveFamily(fallback.providerId)
       if (fallbackFamily) {
         await Account.setActive(fallbackFamily, fallback.accountId)
       }

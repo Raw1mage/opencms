@@ -90,16 +90,16 @@ export namespace Provider {
     family: string
     reasoning?: boolean
   }> = [
-      // Free tier models (most likely available)
-      { id: "claude-haiku-4.5", name: "Claude Haiku 4.5", family: "claude" },
-      { id: "gpt-4o-mini", name: "GPT-4o Mini", family: "openai" },
-      // Pro/Enterprise tier models (may require paid subscription)
-      { id: "claude-sonnet-4", name: "Claude Sonnet 4", family: "claude" },
-      { id: "gpt-4o", name: "GPT-4o", family: "openai" },
-      { id: "o1", name: "OpenAI o1", family: "openai", reasoning: true },
-      { id: "o1-mini", name: "OpenAI o1 Mini", family: "openai", reasoning: true },
-      { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", family: "gemini" },
-    ]
+    // Free tier models (most likely available)
+    { id: "claude-haiku-4.5", name: "Claude Haiku 4.5", family: "claude" },
+    { id: "gpt-4o-mini", name: "GPT-4o Mini", family: "openai" },
+    // Pro/Enterprise tier models (may require paid subscription)
+    { id: "claude-sonnet-4", name: "Claude Sonnet 4", family: "claude" },
+    { id: "gpt-4o", name: "GPT-4o", family: "openai" },
+    { id: "o1", name: "OpenAI o1", family: "openai", reasoning: true },
+    { id: "o1-mini", name: "OpenAI o1 Mini", family: "openai", reasoning: true },
+    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", family: "gemini" },
+  ]
 
   /**
    * Fetch models dynamically from a provider's API.
@@ -884,14 +884,14 @@ export namespace Provider {
         },
         experimentalOver200K: model.cost?.context_over_200k
           ? {
-            cache: {
-              read: model.cost.context_over_200k.cache_read ?? 0,
-              write: model.cost.context_over_200k.cache_write ?? 0,
-            },
-            input: model.cost.context_over_200k.input,
-            output: model.cost.context_over_200k.output,
-            reasoning: model.cost.context_over_200k.reasoning,
-          }
+              cache: {
+                read: model.cost.context_over_200k.cache_read ?? 0,
+                write: model.cost.context_over_200k.cache_write ?? 0,
+              },
+              input: model.cost.context_over_200k.input,
+              output: model.cost.context_over_200k.output,
+              reasoning: model.cost.context_over_200k.reasoning,
+            }
           : undefined,
       },
       limit: {
@@ -1291,22 +1291,22 @@ export namespace Provider {
         reasoning?: boolean
         image?: boolean
       }> = [
-          { id: "claude-opus-4-6-thinking", name: "Claude 4.6 Opus (Thinking)", family: "claude", reasoning: true },
-          { id: "claude-opus-4-6", name: "Claude 4.6 Opus", family: "claude" },
-          { id: "claude-opus-4-5-thinking", name: "Claude 4.5 Opus (Thinking)", family: "claude", reasoning: true },
-          { id: "claude-opus-4-5", name: "Claude 4.5 Opus", family: "claude" },
-          { id: "claude-sonnet-4-5-thinking", name: "Claude 4.5 Sonnet (Thinking)", family: "claude", reasoning: true },
-          { id: "claude-sonnet-4-5", name: "Claude 4.5 Sonnet", family: "claude" },
-          { id: "gemini-3-pro-high", name: "Gemini 3 Pro (High)", family: "gemini-pro", image: false },
-          { id: "gemini-3-pro-low", name: "Gemini 3 Pro (Low)", family: "gemini-pro" },
-          { id: "gemini-3-flash", name: "Gemini 3 Flash (New)", family: "gemini-flash" },
-          { id: "claude-opus-4-1", name: "Claude Opus 4.1", family: "claude" },
-          { id: "claude-opus-4-2", name: "Claude Opus 4.2", family: "claude" },
-          { id: "gpt-oss-120b-medium", name: "GPT-OSS 120B (Medium)", family: "gpt-oss" },
-          { id: "gpt-5.1-codex", name: "GPT-5.1 Codex", family: "openai" },
-          { id: "claude-3-7-sonnet-thinking", name: "Claude 3.7 Sonnet (Thinking)", family: "claude", reasoning: true },
-          { id: "claude-3-7-sonnet", name: "Claude 3.7 Sonnet", family: "claude" },
-        ]
+        { id: "claude-opus-4-6-thinking", name: "Claude 4.6 Opus (Thinking)", family: "claude", reasoning: true },
+        { id: "claude-opus-4-6", name: "Claude 4.6 Opus", family: "claude" },
+        { id: "claude-opus-4-5-thinking", name: "Claude 4.5 Opus (Thinking)", family: "claude", reasoning: true },
+        { id: "claude-opus-4-5", name: "Claude 4.5 Opus", family: "claude" },
+        { id: "claude-sonnet-4-5-thinking", name: "Claude 4.5 Sonnet (Thinking)", family: "claude", reasoning: true },
+        { id: "claude-sonnet-4-5", name: "Claude 4.5 Sonnet", family: "claude" },
+        { id: "gemini-3-pro-high", name: "Gemini 3 Pro (High)", family: "gemini-pro", image: false },
+        { id: "gemini-3-pro-low", name: "Gemini 3 Pro (Low)", family: "gemini-pro" },
+        { id: "gemini-3-flash", name: "Gemini 3 Flash (New)", family: "gemini-flash" },
+        { id: "claude-opus-4-1", name: "Claude Opus 4.1", family: "claude" },
+        { id: "claude-opus-4-2", name: "Claude Opus 4.2", family: "claude" },
+        { id: "gpt-oss-120b-medium", name: "GPT-OSS 120B (Medium)", family: "gpt-oss" },
+        { id: "gpt-5.1-codex", name: "GPT-5.1 Codex", family: "openai" },
+        { id: "claude-3-7-sonnet-thinking", name: "Claude 3.7 Sonnet (Thinking)", family: "claude", reasoning: true },
+        { id: "claude-3-7-sonnet", name: "Claude 3.7 Sonnet", family: "claude" },
+      ]
 
       for (const m of manualModels) {
         database["antigravity"].models[m.id] = {
@@ -1435,27 +1435,26 @@ export namespace Provider {
       }
     }
 
-    // Inherit models for account-suffixed providers
+    // Inherit models for account/provider instances via canonical family resolver.
+    // This replaces legacy regex-based `provider-accountname` guessing.
     for (const [providerId, provider] of Object.entries(database)) {
-      // Match pattern: "provider-accountname"
-      const match = providerId.match(/^([a-z-]+)-[a-z0-9-]+$/)
-      if (match) {
-        const baseProviderID = match[1] // e.g., "google-api" from "google-api-work"
-        const baseProvider = database[baseProviderID]
+      if (Object.keys(provider.models).length > 0) continue
 
-        // If base exists and account provider has no models, inherit everything
-        if (baseProvider && Object.keys(provider.models).length === 0) {
-          log.info("inheriting models", { from: baseProviderID, to: providerId })
-          database[providerId] = {
-            ...provider,
-            name: provider.name || `${baseProvider.name} (${providerId.split("-").pop()})`,
-            models: mapValues(baseProvider.models, (model) => ({
-              ...model,
-              providerId: providerId, // Update to account-specific provider
-            })),
-            env: baseProvider.env,
-          }
-        }
+      const family = await Account.resolveFamily(providerId)
+      if (!family || family === providerId) continue
+
+      const baseProvider = database[family]
+      if (!baseProvider || Object.keys(baseProvider.models).length === 0) continue
+
+      log.info("inheriting models", { from: family, to: providerId })
+      database[providerId] = {
+        ...provider,
+        name: provider.name || `${baseProvider.name} (${providerId.split("-").pop()})`,
+        models: mapValues(baseProvider.models, (model) => ({
+          ...model,
+          providerId,
+        })),
+        env: baseProvider.env,
       }
     }
 
@@ -2221,7 +2220,6 @@ export namespace Provider {
         }
         const response = await fetchFn(input, requestInit)
 
-
         if (!response.ok) return response
 
         const stream = (() => {
@@ -2233,7 +2231,7 @@ export namespace Provider {
             return false
           }
         })()
-        const providerFamily = Account.parseFamily(wrappedProviderID) || wrappedProviderID
+        const providerFamily = await Account.resolveFamilyOrSelf(wrappedProviderID)
         const bridge = ToolCallBridgeManager.resolve({
           providerId: wrappedProviderID,
           providerFamily,
@@ -2252,7 +2250,10 @@ export namespace Provider {
           status: response.status,
         })
 
-        const raw = await response.clone().text().catch(() => "")
+        const raw = await response
+          .clone()
+          .text()
+          .catch(() => "")
         if (!raw) {
           return response
         }
@@ -2423,7 +2424,7 @@ export namespace Provider {
    * Now checks ALL accounts in the family. Returns true if ANY account is usable.
    */
   async function isModelAvailable(pid: string, modelID: string): Promise<boolean> {
-    const family = Account.parseFamily(pid)
+    const family = await Account.resolveFamily(pid)
     if (!family) return true // No family = no account tracking, assume available
 
     // Get all accounts for this family
