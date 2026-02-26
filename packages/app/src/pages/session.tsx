@@ -58,6 +58,7 @@ import { SessionPromptDock } from "@/pages/session/session-prompt-dock"
 import { SessionMobileTabs } from "@/pages/session/session-mobile-tabs"
 import { SessionSidePanel } from "@/pages/session/session-side-panel"
 import { useSessionHashScroll } from "@/pages/session/use-session-hash-scroll"
+import { sessionPermissionRequest, sessionQuestionRequest } from "@/pages/session/session-request-tree"
 
 type HandoffSession = {
   prompt: string
@@ -104,15 +105,11 @@ export default function Page() {
   const permission = usePermission()
 
   const permRequest = createMemo(() => {
-    const sessionID = params.id
-    if (!sessionID) return
-    return sync.data.permission[sessionID]?.[0]
+    return sessionPermissionRequest(sync.data.session, sync.data.permission, params.id)
   })
 
   const questionRequest = createMemo(() => {
-    const sessionID = params.id
-    if (!sessionID) return
-    return sync.data.question[sessionID]?.[0]
+    return sessionQuestionRequest(sync.data.session, sync.data.question, params.id)
   })
 
   const blocked = createMemo(() => !!permRequest() || !!questionRequest())
@@ -886,7 +883,7 @@ export default function Page() {
   )
 
   const mobileChanges = createMemo(() => !isDesktop() && store.mobileTab === "changes")
-  const reviewTab = createMemo(() => isDesktop() && !layout.fileTree.opened())
+  const reviewTab = createMemo(() => isDesktop())
 
   const fileTreeTab = () => layout.fileTree.tab()
   const setFileTreeTab = (value: "changes" | "all") => layout.fileTree.setTab(value)
@@ -1205,32 +1202,11 @@ export default function Page() {
           const active = tabs().active()
           const tab = active === "review" || (!active && hasReview()) ? "changes" : "all"
           layout.fileTree.setTab(tab)
-          return
         }
-
-        if (fileTreeTab() !== "changes") return
-        tabs().setActive("review")
       },
       { defer: true },
     ),
   )
-
-  createEffect(() => {
-    if (!isDesktop()) return
-    if (!layout.fileTree.opened()) return
-    if (fileTreeTab() !== "all") return
-
-    const active = tabs().active()
-    if (active && active !== "review") return
-
-    const first = openedTabs()[0]
-    if (first) {
-      tabs().setActive(first)
-      return
-    }
-
-    if (contextOpen()) tabs().setActive("context")
-  })
 
   createEffect(() => {
     const id = params.id

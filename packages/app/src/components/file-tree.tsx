@@ -3,7 +3,6 @@ import { encodeFilePath } from "@/context/file/path"
 import { Collapsible } from "@opencode-ai/ui/collapsible"
 import { FileIcon } from "@opencode-ai/ui/file-icon"
 import { Icon } from "@opencode-ai/ui/icon"
-import { Tooltip } from "@opencode-ai/ui/tooltip"
 import {
   createEffect,
   createMemo,
@@ -15,7 +14,6 @@ import {
   Switch,
   untrack,
   type ComponentProps,
-  type JSXElement,
   type ParentProps,
 } from "solid-js"
 import { Dynamic } from "solid-js/web"
@@ -192,59 +190,6 @@ const FileTreeNode = (
   )
 }
 
-const FileTreeNodeTooltip = (props: { enabled: boolean; node: FileNode; kind?: Kind; children: JSXElement }) => {
-  if (!props.enabled) return props.children
-
-  const parts = props.node.path.split("/")
-  const leaf = parts[parts.length - 1] ?? props.node.path
-  const head = parts.slice(0, -1).join("/")
-  const prefix = head ? `${head}/` : ""
-  const label =
-    props.kind === "add"
-      ? "Additions"
-      : props.kind === "del"
-        ? "Deletions"
-        : props.kind === "mix"
-          ? "Modifications"
-          : undefined
-
-  return (
-    <Tooltip
-      openDelay={2000}
-      placement="bottom-start"
-      class="w-full"
-      contentStyle={{ "max-width": "480px", width: "fit-content" }}
-      value={
-        <div class="flex items-center min-w-0 whitespace-nowrap text-12-regular">
-          <span
-            class="min-w-0 truncate text-text-invert-base"
-            style={{ direction: "rtl", "unicode-bidi": "plaintext" }}
-          >
-            {prefix}
-          </span>
-          <span class="shrink-0 text-text-invert-strong">{leaf}</span>
-          <Show when={label}>
-            {(text) => (
-              <>
-                <span class="mx-1 font-bold text-text-invert-strong">•</span>
-                <span class="shrink-0 text-text-invert-strong">{text()}</span>
-              </>
-            )}
-          </Show>
-          <Show when={props.node.type === "directory" && props.node.ignored}>
-            <>
-              <span class="mx-1 font-bold text-text-invert-strong">•</span>
-              <span class="shrink-0 text-text-invert-strong">Ignored</span>
-            </>
-          </Show>
-        </div>
-      }
-    >
-      {props.children}
-    </Tooltip>
-  )
-}
-
 export default function FileTree(props: {
   path: string
   class?: string
@@ -255,7 +200,6 @@ export default function FileTree(props: {
   modified?: readonly string[]
   kinds?: ReadonlyMap<string, Kind>
   draggable?: boolean
-  tooltip?: boolean
   onFileClick?: (file: FileNode) => void
 
   _filter?: Filter
@@ -267,7 +211,6 @@ export default function FileTree(props: {
   const file = useFile()
   const level = props.level ?? 0
   const draggable = () => props.draggable ?? true
-  const tooltip = () => props.tooltip ?? true
 
   const key = (p: string) =>
     file
@@ -466,21 +409,19 @@ export default function FileTree(props: {
                   onOpenChange={(open) => (open ? file.tree.expand(node.path) : file.tree.collapse(node.path))}
                 >
                   <Collapsible.Trigger>
-                    <FileTreeNodeTooltip enabled={tooltip()} node={node} kind={kind()}>
-                      <FileTreeNode
-                        node={node}
-                        level={level}
-                        active={props.active}
-                        nodeClass={props.nodeClass}
-                        draggable={draggable()}
-                        kinds={kinds()}
-                        marks={marks()}
-                      >
-                        <div class="size-4 flex items-center justify-center text-icon-weak">
-                          <Icon name={expanded() ? "chevron-down" : "chevron-right"} size="small" />
-                        </div>
-                      </FileTreeNode>
-                    </FileTreeNodeTooltip>
+                    <FileTreeNode
+                      node={node}
+                      level={level}
+                      active={props.active}
+                      nodeClass={props.nodeClass}
+                      draggable={draggable()}
+                      kinds={kinds()}
+                      marks={marks()}
+                    >
+                      <div class="size-4 flex items-center justify-center text-icon-weak">
+                        <Icon name={expanded() ? "chevron-down" : "chevron-right"} size="small" />
+                      </div>
+                    </FileTreeNode>
                   </Collapsible.Trigger>
                   <Collapsible.Content class="relative pt-0.5">
                     <div
@@ -503,7 +444,6 @@ export default function FileTree(props: {
                         kinds={props.kinds}
                         active={props.active}
                         draggable={props.draggable}
-                        tooltip={props.tooltip}
                         onFileClick={props.onFileClick}
                         _filter={filter()}
                         _marks={marks()}
@@ -516,23 +456,21 @@ export default function FileTree(props: {
                 </Collapsible>
               </Match>
               <Match when={node.type === "file"}>
-                <FileTreeNodeTooltip enabled={tooltip()} node={node} kind={kind()}>
-                  <FileTreeNode
-                    node={node}
-                    level={level}
-                    active={props.active}
-                    nodeClass={props.nodeClass}
-                    draggable={draggable()}
-                    kinds={kinds()}
-                    marks={marks()}
-                    as="button"
-                    type="button"
-                    onClick={() => props.onFileClick?.(node)}
-                  >
-                    <div class="w-4 shrink-0" />
-                    <FileIcon node={node} class="text-icon-weak size-4" />
-                  </FileTreeNode>
-                </FileTreeNodeTooltip>
+                <FileTreeNode
+                  node={node}
+                  level={level}
+                  active={props.active}
+                  nodeClass={props.nodeClass}
+                  draggable={draggable()}
+                  kinds={kinds()}
+                  marks={marks()}
+                  as="button"
+                  type="button"
+                  onClick={() => props.onFileClick?.(node)}
+                >
+                  <div class="w-4 shrink-0" />
+                  <FileIcon node={node} class="text-icon-weak size-4" />
+                </FileTreeNode>
               </Match>
             </Switch>
           )
