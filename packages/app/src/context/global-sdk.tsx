@@ -32,10 +32,12 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
       }
     })()
 
+    const streamFetch = eventFetch ?? fetchWithAuth
+
     const eventSdk = createOpencodeClient({
       baseUrl: server.url,
       signal: abort.signal,
-      fetch: fetchWithAuth,
+      fetch: streamFetch,
     })
     const emitter = createGlobalEmitter<{
       [key: string]: Event
