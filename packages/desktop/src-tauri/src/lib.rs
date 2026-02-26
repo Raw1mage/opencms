@@ -24,6 +24,8 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use tauri::{AppHandle, Listener, Manager, RunEvent, State, ipc::Channel};
 #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
 use tauri_plugin_deep_link::DeepLinkExt;
@@ -324,6 +326,38 @@ fn resolve_app_path(app_name: &str) -> Option<String> {
     }
 }
 
+#[tauri::command]
+#[specta::specta]
+fn open_in_powershell(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let path = PathBuf::from(path);
+        let dir = if path.is_dir() {
+            path
+        } else if let Some(parent) = path.parent() {
+            parent.to_path_buf()
+        } else {
+            std::env::current_dir()
+                .map_err(|e| format!("Failed to determine current directory: {e}"))?
+        };
+
+        Command::new("powershell.exe")
+            .creation_flags(0x00000010)
+            .current_dir(dir)
+            .args(["-NoExit"])
+            .spawn()
+            .map_err(|e| format!("Failed to start PowerShell: {e}"))?;
+
+        return Ok(());
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = path;
+        Err("PowerShell is only supported on Windows".to_string())
+    }
+}
+
 #[cfg(target_os = "macos")]
 fn check_macos_app(app_name: &str) -> bool {
     // Check common installation locations
@@ -518,7 +552,8 @@ fn make_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             markdown::parse_markdown_command,
             check_app_exists,
             wsl_path,
-            resolve_app_path
+            resolve_app_path,
+            open_in_powershell
         ])
         .events(tauri_specta::collect_events![
             LoadingWindowComplete,

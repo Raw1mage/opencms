@@ -117,7 +117,6 @@ const createPlatform = (password: Accessor<string | null>): Platform => {
     async openPath(path: string, app?: string) {
       const os = ostype()
       if (os === "windows") {
-        const resolvedApp = (app && (await commands.resolveAppPath(app))) || app
         const resolvedPath = await (async () => {
           if (window.__OPENCODE__?.wsl) {
             const converted = await commands.wslPath(path, "windows").catch(() => null)
@@ -126,6 +125,16 @@ const createPlatform = (password: Accessor<string | null>): Platform => {
 
           return path
         })()
+        const resolvedApp = (app && (await commands.resolveAppPath(app))) || app
+        const isPowershell = (value?: string) => {
+          if (!value) return false
+          const name = value.toLowerCase().replaceAll("/", "\\").split("\\").pop()
+          return name === "powershell" || name === "powershell.exe"
+        }
+        if (isPowershell(resolvedApp)) {
+          await commands.openInPowershell(resolvedPath)
+          return
+        }
         return openerOpenPath(resolvedPath, resolvedApp)
       }
       return openerOpenPath(path, app)
