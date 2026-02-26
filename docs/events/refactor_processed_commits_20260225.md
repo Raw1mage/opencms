@@ -1052,3 +1052,9 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `fc6e7934bd365ad1665dea68556dbfc80ac3b611` | ported | `5eeec9dde` | Additional partial rewrite-port alignment: replace Win32 creation flag literals with windows-sys constants for hidden where probing and PowerShell launch. |
+
+## 已處理（origin/dev delta 2026-02-27 batch8E os extraction @ 2026-02-26T18:45:29.170Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `fc6e7934bd365ad1665dea68556dbfc80ac3b611` | ported | `94a89c7e5` | Additional partial rewrite-port: extracted Windows resolver/open helpers into os module without behavior changes. |
