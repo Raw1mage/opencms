@@ -22,6 +22,7 @@ import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { Popover } from "@opencode-ai/ui/popover"
 import { TextField } from "@opencode-ai/ui/text-field"
 import { Keybind } from "@opencode-ai/ui/keybind"
+import { Spinner } from "@opencode-ai/ui/spinner"
 import { showToast } from "@opencode-ai/ui/toast"
 import { StatusPopover } from "../status-popover"
 
@@ -266,9 +267,13 @@ export function SessionHeader() {
 
   const [prefs, setPrefs] = persisted(Persist.global("open.app"), createStore({ app: "finder" as OpenApp }))
   const [menu, setMenu] = createStore({ open: false })
+  const [openRequest, setOpenRequest] = createStore({
+    app: undefined as OpenApp | undefined,
+  })
 
   const canOpen = createMemo(() => platform.platform === "desktop" && !!platform.openPath && server.isLocal())
   const current = createMemo(() => options().find((o) => o.id === prefs.app) ?? options()[0])
+  const opening = createMemo(() => openRequest.app !== undefined)
 
   createEffect(() => {
     if (platform.platform !== "desktop") return
@@ -279,13 +284,19 @@ export function SessionHeader() {
   })
 
   const openDir = (app: OpenApp) => {
+    if (opening() || !canOpen() || !platform.openPath) return
     const directory = projectDirectory()
     if (!directory) return
-    if (!canOpen()) return
 
     const item = options().find((o) => o.id === app)
     const openWith = item && "openWith" in item ? item.openWith : undefined
-    Promise.resolve(platform.openPath?.(directory, openWith)).catch((err: unknown) => showRequestError(language, err))
+    setOpenRequest("app", app)
+    platform
+      .openPath(directory, openWith)
+      .catch((err: unknown) => showRequestError(language, err))
+      .finally(() => {
+        setOpenRequest("app", undefined)
+      })
   }
 
   const copyPath = () => {
@@ -372,12 +383,21 @@ export function SessionHeader() {
                       <div class="flex h-[24px] box-border items-center rounded-md border border-border-base bg-surface-panel overflow-hidden">
                         <Button
                           variant="ghost"
-                          class="rounded-none h-full py-0 pr-3 pl-2 gap-1.5 border-none shadow-none"
+                          class="rounded-none h-full py-0 pr-3 pl-2 gap-1.5 border-none shadow-none disabled:!cursor-default"
+                          classList={{
+                            "bg-surface-raised-base-active": opening(),
+                          }}
                           onClick={() => openDir(current().id)}
+                          disabled={opening()}
                           aria-label={language.t("session.header.open.ariaLabel", { app: current().label })}
                         >
                           <div class="flex size-5 shrink-0 items-center justify-center">
-                            <AppIcon id={current().icon} class="size-4" />
+                            <Show
+                              when={opening()}
+                              fallback={<AppIcon id={current().icon} class={openIconSize(current().icon)} />}
+                            >
+                              <Spinner class="size-3.5 text-icon-base" />
+                            </Show>
                           </div>
                           <span class="text-12-regular text-text-strong">Open</span>
                         </Button>
@@ -392,7 +412,11 @@ export function SessionHeader() {
                             as={IconButton}
                             icon="chevron-down"
                             variant="ghost"
-                            class="rounded-none h-full w-[24px] p-0 border-none shadow-none data-[expanded]:bg-surface-raised-base-active"
+                            disabled={opening()}
+                            class="rounded-none h-full w-[24px] p-0 border-none shadow-none data-[expanded]:bg-surface-raised-base-active disabled:!cursor-default"
+                            classList={{
+                              "bg-surface-raised-base-active": opening(),
+                            }}
                             aria-label={language.t("session.header.open.menu")}
                           />
                           <DropdownMenu.Portal>
@@ -410,6 +434,7 @@ export function SessionHeader() {
                                     {(o) => (
                                       <DropdownMenu.RadioItem
                                         value={o.id}
+                                        disabled={opening()}
                                         onSelect={() => {
                                           setMenu("open", false)
                                           openDir(o.id)
