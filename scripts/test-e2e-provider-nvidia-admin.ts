@@ -44,32 +44,41 @@ async function main() {
 
       console.log(`✓ models.dev nvidia loaded (${Object.keys(nvidia.models ?? {}).length} models)`)
 
-      const accountId = Account.generateId("nvidia", "api", "e2e")
-      await Account.add("nvidia", accountId, {
-        type: "api",
-        name: "e2e",
-        apiKey: "nvidia-e2e-key",
-        addedAt: Date.now(),
-      })
-      await Account.setActive("nvidia", accountId)
+      const previousActive = await Account.getActive("nvidia")
+      const accountId = Account.generateId("nvidia", "api", `e2e-${Date.now().toString(36)}`)
 
-      console.log(`✓ account added + active (${accountId})`)
+      try {
+        await Account.add("nvidia", accountId, {
+          type: "api",
+          name: "e2e",
+          apiKey: "nvidia-e2e-key",
+          addedAt: Date.now(),
+        })
+        await Account.setActive("nvidia", accountId)
 
-      const providers = await Provider.list()
-      const familyProvider = providers["nvidia"]
-      if (!familyProvider) fail("Provider.list() missing 'nvidia' after account add")
+        console.log(`✓ account added + active (${accountId})`)
 
-      const familyModels = Object.keys(familyProvider.models)
-      if (familyModels.length === 0) fail("nvidia provider has zero models after account add")
+        const providers = await Provider.list()
+        const familyProvider = providers["nvidia"]
+        if (!familyProvider) fail("Provider.list() missing 'nvidia' after account add")
 
-      const selectedModel = familyModels.includes("moonshotai/kimi-k2.5") ? "moonshotai/kimi-k2.5" : familyModels[0]
+        const familyModels = Object.keys(familyProvider.models)
+        if (familyModels.length === 0) fail("nvidia provider has zero models after account add")
 
-      const model = await Provider.getModel("nvidia", selectedModel)
-      if (!model?.id) fail(`Provider.getModel failed for nvidia/${selectedModel}`)
+        const selectedModel = familyModels.includes("moonshotai/kimi-k2.5") ? "moonshotai/kimi-k2.5" : familyModels[0]
 
-      console.log(`✓ model list visible (${familyModels.length})`)
-      console.log(`✓ model resolvable (nvidia/${model.id})`)
-      console.log("✅ PASS")
+        const model = await Provider.getModel("nvidia", selectedModel)
+        if (!model?.id) fail(`Provider.getModel failed for nvidia/${selectedModel}`)
+
+        console.log(`✓ model list visible (${familyModels.length})`)
+        console.log(`✓ model resolvable (nvidia/${model.id})`)
+        console.log("✅ PASS")
+      } finally {
+        await Account.remove("nvidia", accountId).catch(() => {})
+        if (previousActive && previousActive !== accountId) {
+          await Account.setActive("nvidia", previousActive).catch(() => {})
+        }
+      }
     },
   })
 }
