@@ -834,3 +834,91 @@
 | `d32dd4d7fde75faa802dd8a306aae43bcfa1ef61` | skipped | - | CI workflow maintenance scope without selected runtime behavior delta |
 | `ae50f24c0678c58b4e5e796b3ff5b86eeaa3f7fd` | skipped | - | CI policy update scope without selected runtime behavior delta |
 | `b64d0768baac8066b5002c2e31a5afe8687bdf3b` | skipped | - | docs wording update scope, deferred |
+
+## 已處理（origin/dev delta 2026-02-26 round87 (rewrite-only) @ 2026-02-26T02:49:47.008Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `ba53c56a2161a42de468f77a6e5f59a7f0a5fa3b` | skipped | - | ui review diff grouping tweak is visual UX scope, deferred |
+| `9c7629ce61b4525d0a773bf307e805b3a414dd34` | skipped | - | oc-2 theme update is visual theme scope, deferred |
+| `4a8bdc3c7593f0444355edb5193744faaeeb76ed` | skipped | - | edited-files list styling tweak is visual UI scope, deferred |
+| `fd61be40788b53915f2b7f97ccefb0416327c452` | skipped | - | review diff count display tweak is visual UI scope, deferred |
+| `a301051263187275afa25f62bfb4affe35776d4b` | skipped | - | review diff spacing tweak is visual UI scope, deferred |
+| `40f00ccc1c269a31a761617d42f47330eb6ade8d` | skipped | - | chevron icon style tweak is visual UI scope, deferred |
+| `44049540b06d1abcd5d3de17308802e96614cb7f` | skipped | - | open-file tooltip icon tweak is visual UI scope, deferred |
+
+## 已處理（origin/dev delta 2026-02-26 round88 (rewrite-only) @ 2026-02-26T02:49:54.079Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `3d0f24067c14bb8b4815c45ebd22f3f34c87a446` | skipped | - | app prompt dock padding tweak is app UX polish scope, deferred |
+| `5d8664c13eae3328eddf3177028e6d332dbc865c` | skipped | - | session turn padding tweak is app UX polish scope, deferred |
+| `6042785c57d9488568da0cda5267510d969b1316` | skipped | - | edited file path truncate tweak is UI polish scope, deferred |
+| `802ccd37888b355dcd779be48b4994efc92168fa` | skipped | - | collapsible chevron rotation tweak is UI polish scope, deferred |
+| `d620455531443340d2719510d37e80af433cef7e` | skipped | - | app server list dedup tweak is app behavior polish scope, deferred |
+| `3a416f6f33254e541de05cb2d661bdc0d010dd9e` | skipped | - | sdk publish script nested export transform tweak is sdk tooling scope, deferred |
+
+## 已處理（origin/dev delta 2026-02-26 round89 (rewrite-only) @ 2026-02-26T02:50:01.616Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `1893473148e90e98e49759b58bfe88d97ff9f7d3` | skipped | - | OPENCODE_CONFIG_CONTENT substitution alternate take deferred pending dedicated config parity batch |
+| `4b878f6aebb089244d69aa7cb7806e65e61bfbed` | skipped | - | generated config artifact commit only; deferred |
+| `308e5008326df36e23ed97106f1acbfcac247c45` | skipped | - | provider auth package bake-in is high-risk provider packaging change, deferred |
+| `c7b35342ddca083b2a2b9668778b4cccb6b5f602` | skipped | - | nix hash bookkeeping only; no selected runtime behavior delta |
+| `d07f09925fae3dd0eac245b1817ace5eee19f0aa` | integrated | - | terminal isolation/rework behavior already represented in cms PTY handling path |
+| `38f7071da95075bce7029eff52ec7153046dd318` | skipped | - | ui pierre cleanup scope, deferred |
+| `338393c0162452777ce40f4dbc75eefe4667a3e6` | skipped | - | accordion style fixes are app/ui presentation scope, deferred |
+| `0fcba68d4cd07014dda445543f70945379519ba0` | skipped | - | mixed cleanup across app/ui components, deferred |
+
+## 已處理（origin/dev delta 2026-02-26 round90 (rewrite-only) @ 2026-02-26T02:50:09.166Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `08a2d002b8f972c98911fd3b25c847c0da8b1d9b` | skipped | - | zen docs update scope only, deferred |
+| `6b8902e8b91a7561d57f80249feada949c4d0665` | skipped | - | app project-nav session behavior is app-shell scope, deferred |
+| `56dda4c98c209a96967f045988e17486d616269f` | skipped | - | app/ui cleanup scope, deferred |
+| `f2858a42ba17fba1e3376440e8f3aae2aa64ca61` | skipped | - | app e2e/layout cleanup scope, deferred |
+| `50883cc1e995df3f14e31bdc1b5efa0d70b5ac51` | skipped | - | app localhost isLocal tweak in app context scope, deferred |
+| `af72010e9fa78e68be74f6ab6f29f507a44f4f86` | skipped | - | revert of Bun.Glob migration wave tracked as deferred core stabilization scope |
+| `850402f093be5345390a5a07ecfa8939d7275d9a` | skipped | - | nix hash bookkeeping only; no selected runtime behavior delta |
+| `91f8dd5f573ff00ebe14dc3ad701d1e038fca64c` | skipped | - | nix hash bookkeeping only; no selected runtime behavior delta |
+
+## 已處理（origin/dev delta 2026-02-26 round91 (rewrite-only) @ 2026-02-26T02:50:17.017Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `5364ab74a242197e76a4ad3f5b557878eaa63960` | skipped | - | provider transform reasoning support change is provider policy scope, deferred |
+| `7e35d0c61053e43f18da18a0158d7e0d325b5f96` | skipped | - | ai sdk dependency bump wave is high-risk provider/tooling scope, deferred |
+| `cb8b74d3f1d16b50e4d7b641cb2ac205fc275565` | skipped | - | Bun.Glob migration wave is broad/high-risk core refactor, deferred |
+| `8b99648790c6c0137e763c0755111908d585578f` | skipped | - | nix hash bookkeeping only; no selected runtime behavior delta |
+| `00c079868af4068cc43f52f1b6ff11a1a975aad4` | skipped | - | test discovery fixture/server boot update is test harness scope, deferred |
+| `1867f1acaa894244086d994c71b47bff8301f747` | skipped | - | generated fixture docs commit only; deferred |
+| `3d9f6c0fe0c73eacdd50bc0041f53826eaa82e19` | skipped | - | i18n translation update scope, deferred |
+| `7729c6d895a7dff4e39fd28574103f97aabd2c0d` | skipped | - | ui css cleanup scope, deferred |
+
+## 已處理（origin/dev delta 2026-02-26 round92 (rewrite-only) @ 2026-02-26T02:50:26.082Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `40a939f5f0897c9bd22153a0269cfaeb178d84ff` | skipped | - | app/ui cleanup scope, deferred |
+| `f8dad0ae170acb9667d9402c162f7c29980373c1` | skipped | - | app terminal issues fix stays in app-terminal parity track, deferred |
+| `49cc872c4415f081b4208d16fd0d85e425a75eed` | skipped | - | composer/dock refactor wave is app architecture scope, deferred |
+| `1a1437e78b37c37a6f96531366957ea8f0252d11` | skipped | - | github action branch/422 handling follow-up deferred to dedicated github parity batch |
+| `04cf2b82683042482b33f4ca15a24a9024a67a50` | skipped | - | release rollup bookkeeping commit; no standalone behavior to rewrite-port |
+| `dd011e879cbfd59c1abf9dc649b89a23bd6d4665` | skipped | - | app todo abort-clear behavior is app UI flow scope, deferred |
+| `7a42ecdddb4aa9a768c6193988e0935d77119123` | skipped | - | app composer cleanup scope, deferred |
+| `824ab4cecc9defe2cecc8109af291a2fdb1de736` | skipped | - | tui custom tool/mcp response UX change is tui feature scope, deferred |
+
+## 已處理（origin/dev delta 2026-02-26 round93 (rewrite-only) @ 2026-02-26T02:50:34.044Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `193013a44dfd62645ef03475b4f2f3a0380167fd` | skipped | - | adaptive thinking support change is provider policy scope, deferred |
+| `686dd330a09c3b4f774b699cfa294fd7224619b5` | skipped | - | generated provider transform artifact commit only; deferred |
+| `f2090b26c161dab7cfd366a782ce484bee936266` | skipped | - | release rollup bookkeeping commit; no standalone behavior to rewrite-port |
+| `cb5a0de42f6bac3b328fd158692ca15b37c63d84` | skipped | - | llm test assertion maintenance scope only; deferred |
+| `01d518708ac86368463712568e84ef8995d99578` | skipped | - | session loop deep-clone removal is high-risk core runtime refactor, deferred |
+| `8ad60b1ec2002e8d9f841ba256c3eed1953a7ec6` | skipped | - | structuredClone prompt history/stash refactor is high-risk tui internals scope, deferred |
+| `998c8bf3a5ad3e0244034030f9e981dce3f71168` | skipped | - | ui chevron hover tweak is visual scope, deferred |
+| `a3181d5fbd73acb13561665987373a28d3a27b40` | skipped | - | ui chevron nudge tweak is visual scope, deferred |
