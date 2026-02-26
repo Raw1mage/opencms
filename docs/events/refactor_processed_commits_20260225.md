@@ -1064,3 +1064,9 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `5190589632c97b570bb6f9035aa5c80c0fe833e7` | ported | `ee0abf4b4` | Rewrite-ported zen models endpoint filter to exclude alpha-* models from list response. |
+
+## 已處理（origin/dev delta 2026-02-27 batch9B alpha admin guard @ 2026-02-26T18:48:45.479Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `f8cfb697bd10a328afab4e6a074148c2e651fcb2` | ported | `5c3e9aeae` | Rewrite-ported production guard restricting alpha-* models to ADMIN_WORKSPACES in zen handler auth path. |
