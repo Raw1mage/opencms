@@ -108,12 +108,4 @@
 - 具體包含：`packages/opencode/src/plugin/antigravity/plugin/storage.legacy.ts` 導致的 typecheck 問題（`vitest` module / `implicit any`）。
 - 規則：若本次變更未觸及該路徑，可視為 non-blocking；若有修改該路徑，則需恢復完整嚴格驗證。
 
-```opencode-rotation-priority
-Rotation Priority Preference by (provider, account, model)
-1. (gemini-cli, yeatsluo@gmail.com, gemini-3-pro)
-2. (gemini-cli, yeatsluo@gmail.com, gemini-3-flash)
-3. (github-copilot, *, *)
-4. (openai, *, *)
-5. (gemini-cli, *, *)
-6. (gmicloud, *, *)
-```
+
