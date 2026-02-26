@@ -194,7 +194,7 @@ export async function handler(
       const costInfo = calculateCost(modelInfo, usageInfo)
       await trialLimiter?.track(usageInfo)
       await rateLimiter?.track()
-      await trackUsage(billingSource, authInfo, modelInfo, providerInfo, usageInfo, costInfo)
+      await trackUsage(billingSource, authInfo, modelInfo, providerInfo, usageInfo, costInfo, sessionId)
       await reload(billingSource, authInfo, costInfo)
 
       const responseConverter = createResponseConverter(providerInfo.format, opts.format)
@@ -244,7 +244,7 @@ export async function handler(
                   const usageInfo = providerInfo.normalizeUsage(usage)
                   const costInfo = calculateCost(modelInfo, usageInfo)
                   await trialLimiter?.track(usageInfo)
-                  await trackUsage(billingSource, authInfo, modelInfo, providerInfo, usageInfo, costInfo)
+                  await trackUsage(billingSource, authInfo, modelInfo, providerInfo, usageInfo, costInfo, sessionId)
                   await reload(billingSource, authInfo, costInfo)
                   cost = calculateOccuredCost(billingSource, costInfo)
                 }
@@ -696,6 +696,7 @@ export async function handler(
     providerInfo: ProviderInfo,
     usageInfo: UsageInfo,
     costInfo: CostInfo,
+    sessionId: string,
   ) {
     const { inputTokens, outputTokens, reasoningTokens, cacheReadTokens, cacheWrite5mTokens, cacheWrite1hTokens } =
       usageInfo
@@ -739,7 +740,11 @@ export async function handler(
           cacheWrite1hTokens,
           cost,
           keyID: authInfo.apiKeyId,
-          enrichment: billingSource === "subscription" ? { plan: "sub" } : undefined,
+          enrichment: (() => {
+            if (billingSource === "subscription") return { plan: "sub", sessionID: sessionId.substring(0, 30) }
+            if (billingSource === "byok") return { plan: "byok", sessionID: sessionId.substring(0, 30) }
+            return undefined
+          })(),
         }),
         db
           .update(KeyTable)
@@ -787,9 +792,10 @@ export async function handler(
               db
                 .update(BillingTable)
                 .set({
-                  balance: authInfo.isFree
-                    ? sql`${BillingTable.balance} - ${0}`
-                    : sql`${BillingTable.balance} - ${cost}`,
+                  balance:
+                    billingSource === "free" || billingSource === "byok"
+                      ? sql`${BillingTable.balance} - ${0}`
+                      : sql`${BillingTable.balance} - ${cost}`,
                   monthlyUsage: sql`
               CASE
                 WHEN MONTH(${BillingTable.timeMonthlyUsageUpdated}) = MONTH(now()) AND YEAR(${BillingTable.timeMonthlyUsageUpdated}) = YEAR(now()) THEN ${BillingTable.monthlyUsage} + ${cost}
