@@ -309,6 +309,94 @@ function partDefaultOpen(part: PartType, shell = false, edit = false) {
   return toolDefaultOpen(part.tool, shell, edit)
 }
 
+const HIDDEN_TOOLS = new Set(["todowrite", "todoread"])
+
+function list<T>(value: T[] | undefined | null, fallback: T[]) {
+  if (Array.isArray(value)) return value
+  return fallback
+}
+
+function renderable(
+  part: PartType,
+  options?: {
+    hideReasoning?: boolean
+    showReasoningSummaries?: boolean
+    hidden?: readonly { messageID: string; callID: string }[]
+    messageID?: string
+    responsePartId?: string
+    hideResponsePart?: boolean
+  },
+) {
+  if (part.type === "tool") {
+    if (HIDDEN_TOOLS.has(part.tool)) return false
+    if (part.tool === "question") return part.state.status !== "pending" && part.state.status !== "running"
+    if (options?.hidden?.length && options.messageID) {
+      if (options.hidden.some((h) => h.messageID === options.messageID && h.callID === part.callID)) return false
+    }
+    return true
+  }
+
+  if (part.type === "reasoning") {
+    if (options?.hideReasoning) return false
+    if (options?.showReasoningSummaries === false) return false
+    return !!part.text?.trim()
+  }
+
+  if (part.type === "text") {
+    if (options?.hideResponsePart && options.responsePartId && part.id === options.responsePartId) return false
+    return !!part.text?.trim()
+  }
+
+  return !!PART_MAPPING[part.type]
+}
+
+export function AssistantParts(props: {
+  messages: AssistantMessage[]
+  working?: boolean
+  hideReasoning?: boolean
+  showReasoningSummaries?: boolean
+  hidden?: readonly { messageID: string; callID: string }[]
+  responsePartId?: string
+  hideResponsePart?: boolean
+  shellToolDefaultOpen?: boolean
+  editToolDefaultOpen?: boolean
+}) {
+  const data = useData()
+  const emptyParts: PartType[] = []
+
+  const parts = createMemo(
+    () =>
+      props.messages.flatMap((message) =>
+        list(data.store.part?.[message.id], emptyParts)
+          .filter((part) =>
+            renderable(part, {
+              hideReasoning: props.hideReasoning,
+              showReasoningSummaries: props.showReasoningSummaries,
+              hidden: props.hidden,
+              messageID: message.id,
+              responsePartId: props.responsePartId,
+              hideResponsePart: props.hideResponsePart,
+            }),
+          )
+          .map((part) => ({ message, part })),
+      ),
+    [],
+    { equals: same },
+  )
+
+  return (
+    <For each={parts()}>
+      {(entry) => (
+        <Part
+          part={entry.part}
+          message={entry.message}
+          defaultOpen={partDefaultOpen(entry.part, props.shellToolDefaultOpen, props.editToolDefaultOpen)}
+        />
+      )}
+    </For>
+  )
+}
+
 export function AssistantMessageDisplay(props: {
   message: AssistantMessage
   parts: PartType[]
@@ -318,12 +406,7 @@ export function AssistantMessageDisplay(props: {
 }) {
   const emptyParts: PartType[] = []
   const filteredParts = createMemo(
-    () =>
-      props.parts.filter((x) => {
-        if (x.type === "tool" && (x as ToolPart).tool === "todoread") return false
-        if (x.type === "reasoning" && props.showReasoningSummaries === false) return false
-        return true
-      }),
+    () => props.parts.filter((x) => renderable(x, { showReasoningSummaries: props.showReasoningSummaries })),
     emptyParts,
     { equals: same },
   )

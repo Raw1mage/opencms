@@ -13,7 +13,7 @@ import { type UiI18nKey, type UiI18nParams, useI18n } from "../context/i18n"
 
 import { Binary } from "@opencode-ai/util/binary"
 import { createEffect, createMemo, createSignal, For, Match, on, onCleanup, ParentProps, Show, Switch } from "solid-js"
-import { Message, Part } from "./message-part"
+import { AssistantParts, Message, Part } from "./message-part"
 import { Markdown } from "./markdown"
 import { IconButton } from "./icon-button"
 import { Card } from "./card"
@@ -134,68 +134,6 @@ function isAttachment(part: PartType | undefined) {
 function list<T>(value: T[] | undefined | null, fallback: T[]) {
   if (Array.isArray(value)) return value
   return fallback
-}
-
-function AssistantMessageItem(props: {
-  message: AssistantMessage
-  responsePartId: string | undefined
-  hideResponsePart: boolean
-  hideReasoning: boolean
-  showReasoningSummaries: boolean
-  hidden?: () => readonly { messageID: string; callID: string }[]
-  shellToolDefaultOpen?: boolean
-  editToolDefaultOpen?: boolean
-}) {
-  const data = useData()
-  const emptyParts: PartType[] = []
-  const msgParts = createMemo(() => list(data.store.part?.[props.message.id], emptyParts))
-  const lastTextPart = createMemo(() => {
-    const parts = msgParts()
-    for (let i = parts.length - 1; i >= 0; i--) {
-      const part = parts[i]
-      if (part?.type === "text") return part as TextPart
-    }
-    return undefined
-  })
-
-  const filteredParts = createMemo(() => {
-    let parts = msgParts()
-
-    if (props.hideReasoning) {
-      parts = parts.filter((part) => part?.type !== "reasoning")
-    }
-
-    if (!props.showReasoningSummaries) {
-      parts = parts.filter((part) => part?.type !== "reasoning")
-    }
-
-    if (props.hideResponsePart) {
-      const responsePartId = props.responsePartId
-      if (responsePartId && responsePartId === lastTextPart()?.id) {
-        parts = parts.filter((part) => part?.id !== responsePartId)
-      }
-    }
-
-    const hidden = props.hidden?.() ?? []
-    if (hidden.length === 0) return parts
-
-    const id = props.message.id
-    return parts.filter((part) => {
-      if (part?.type !== "tool") return true
-      const tool = part as ToolPart
-      return !hidden.some((h) => h.messageID === id && h.callID === tool.callID)
-    })
-  })
-
-  return (
-    <Message
-      message={props.message}
-      parts={filteredParts()}
-      shellToolDefaultOpen={props.shellToolDefaultOpen}
-      editToolDefaultOpen={props.editToolDefaultOpen}
-      showReasoningSummaries={props.showReasoningSummaries}
-    />
-  )
 }
 
 export function SessionTurn(
@@ -749,20 +687,17 @@ export function SessionTurn(
                     {/* Response */}
                     <Show when={props.stepsExpanded && assistantMessages().length > 0}>
                       <div data-slot="session-turn-collapsible-content-inner" aria-hidden={working()}>
-                        <For each={assistantMessages()}>
-                          {(assistantMessage) => (
-                            <AssistantMessageItem
-                              message={assistantMessage}
-                              responsePartId={responsePartId()}
-                              hideResponsePart={hideResponsePart()}
-                              hideReasoning={!working()}
-                              showReasoningSummaries={props.showReasoningSummaries ?? true}
-                              hidden={hidden}
-                              shellToolDefaultOpen={props.shellToolDefaultOpen}
-                              editToolDefaultOpen={props.editToolDefaultOpen}
-                            />
-                          )}
-                        </For>
+                        <AssistantParts
+                          messages={assistantMessages()}
+                          working={working()}
+                          responsePartId={responsePartId()}
+                          hideResponsePart={hideResponsePart()}
+                          hideReasoning={!working()}
+                          showReasoningSummaries={props.showReasoningSummaries ?? true}
+                          hidden={hidden()}
+                          shellToolDefaultOpen={props.shellToolDefaultOpen}
+                          editToolDefaultOpen={props.editToolDefaultOpen}
+                        />
                         <Show when={error()}>
                           <Card variant="error" class="error-card">
                             {errorText()}
