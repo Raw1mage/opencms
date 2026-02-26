@@ -802,3 +802,35 @@
 | `87c16374aaafc309c237d05244d8cca974e28c34` | skipped | - | terraform-ls installer source change deferred with LSP integration batch |
 | `11a37834c2afd5a1ba88f8417701472234caaa3a` | skipped | - | tui exit callback timing behavior touches high-volatility lifecycle path; deferred |
 | `3c21735b35f779d69a5458b1fa5fada49fb7decb` | skipped | - | Bun.Glob -> npm glob migration is broad core refactor with high regression risk; deferred |
+
+## 已處理（origin/dev delta 2026-02-26 round84 (rewrite-only) @ 2026-02-26T02:48:03.634Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `2589eb207fddda12418eb38af675eea6da4be6e7` | skipped | - | app prompt/input tooltip polish scope, deferred from runtime parity stream |
+| `cfea5c73de94474d7584906caf4b3f55b2903b23` | skipped | - | app prompt cleanup scope, deferred from runtime parity stream |
+| `7fb2081dcecacddf780a91cb5f1e7c6a81574fb5` | skipped | - | app prompt cleanup scope, deferred from runtime parity stream |
+| `c76a81434d2228ac1913cf52caf4d3953ab75fe2` | skipped | - | app command cleanup scope, deferred from runtime parity stream |
+
+## 已處理（origin/dev delta 2026-02-26 round85 (rewrite-only) @ 2026-02-26T02:48:09.926Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `7033b4d0a856982a326d48dd8d86f717e28ed379` | skipped | - | desktop sidecar event/addon cleanup in app-shell lifecycle scope, deferred |
+| `885d71636f99074dcc87ba6527f0c9beaba5f623` | skipped | - | desktop sidecar reconnect flow in app-shell lifecycle scope, deferred |
+| `d2d5f3c04b09228d2d94e00695de8ca3a4d58a16` | skipped | - | desktop sidecar cleanup scope, deferred |
+| `1c2416b6deb1eee856d1fddbf08300cf851a19fc` | skipped | - | desktop sidecar cleanup scope, deferred |
+| `fca0166488a9318540c02c63b59933d976d84ea9` | skipped | - | app-server plugin socket behavior in desktop/app integration scope, deferred |
+| `a04e4e81fbd1ec0e2a7d20ec6f40dd0dfa277b81` | skipped | - | app-server cleanup in desktop/app integration scope, deferred |
+
+## 已處理（origin/dev delta 2026-02-26 round86 (rewrite-only) @ 2026-02-26T02:48:18.136Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `639d1dd8fea6d77c648df4eabf8ea9d6973c27bb` | skipped | - | CI policy update scope without selected runtime behavior delta |
+| `b9096793678c721b7fae5ae31a8e00622edbf780` | skipped | - | docs wording update scope, deferred |
+| `c1620748887c9b963fe665b47519b264fe748044` | skipped | - | CI policy update scope without selected runtime behavior delta |
+| `d86c10816d75837c8f85e7b1ab0de5ff37ecf77b` | skipped | - | docs wording update scope, deferred |
+| `d32dd4d7fde75faa802dd8a306aae43bcfa1ef61` | skipped | - | CI workflow maintenance scope without selected runtime behavior delta |
+| `ae50f24c0678c58b4e5e796b3ff5b86eeaa3f7fd` | skipped | - | CI policy update scope without selected runtime behavior delta |
+| `b64d0768baac8066b5002c2e31a5afe8687bdf3b` | skipped | - | docs wording update scope, deferred |
