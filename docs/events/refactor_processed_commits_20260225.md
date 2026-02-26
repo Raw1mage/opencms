@@ -1153,3 +1153,20 @@
 | `7afa48b4ef2e2039f6f627b7c495f46ce267d267` | integrated | - | Dark-mode reasoning inline code subdued style already exists in packages/ui message-part.css. |
 | `ad5f0816a33d323f2a7e6a6228136fa6a6c4b056` | integrated | - | Turbo typecheck dependency on ^build already configured in cms turbo.json. |
 | `32417774c4baccbcb23820162f0b9c196bbe06de` | integrated | - | IDE test already uses spread clone for process.env in cms baseline. |
+
+## 已處理（origin/dev delta 2026-02-27 batch10J-10K sidebar+policy decisions @ 2026-02-26T19:44:21.815Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `5745ee87ba9847e32c07fd364c52a6fad23bb55e` | ported | `cf540801d` | Rewrite-ported sidebar project tile suppress-hover interaction and selected-click sidebar toggle behavior. |
+| `1eb6caa3c6703ca7269ef141ff559fd5d3167752` | skipped | - | Release version bump commit skipped in cms refactor workflow; versioning is managed by cms release cadence. |
+| `296250f1b7e1ec992a3a33bee999f5e09a1697d0` | skipped | - | Release version bump commit skipped due cms divergent release/version policy. |
+| `29ddd55088af6f31c24f392c9f5dbf472918114f` | skipped | - | Release v1.2.11 bump skipped; not rewrite-ported into cms branch version stream. |
+| `d848c9b6a32f408e8b9bf6448b83af05629454d0` | skipped | - | Release v1.2.13 bump skipped; cms maintains independent release progression. |
+| `de2bc25677b419d2af0da8b6a24a05d3f22b67a8` | skipped | - | Release v1.2.14 bump skipped under cms release policy divergence. |
+| `799b2623cbb1c0f19e045d87c2c8593e83678bc0` | skipped | - | Release v1.2.15 bump skipped under cms release policy divergence. |
+| `7e0e35af3fe468dd931dda955c62e03fd361fd9f` | skipped | - | Agent translator local file update outside cms runtime/template delivery surface; intentionally not ported. |
+| `c45ab712d23eb54eb34b766d1fe4cbe36d17cd24` | skipped | - | Locale glossary choreography for upstream docs-agent flow not adopted in cms project workflow. |
+| `dbf2c4586948c354151c247b1a08e82a804b5d3b` | skipped | - | Docs locale sync workflow/glossary updates skipped due cms docs-agent pipeline divergence. |
+| `b368181ac90b0365af535b3d0bd8284c2032240c` | skipped | - | Glossary path migration skipped; cms keeps existing project-local agent docs layout. |
+| `08f056d412e424eb48842dc99d0955be4e9874ae` | skipped | - | zh-CN docs bulk sync skipped for now; docs localization managed in separate cms documentation cycle. |
