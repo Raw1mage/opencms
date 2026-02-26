@@ -1135,3 +1135,11 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `cf5cfb48cd756ebd59e6c5005d64c307f76b7424` | skipped | - | Deferred due cms policy divergence: commit enforces Bun canary + cross-compile pre-cache workflow changes; cms currently prioritizes stable pinned toolchain with selective baseline hardening. |
+
+## 已處理（origin/dev delta 2026-02-27 batch10H docs fixes @ 2026-02-26T19:39:30.153Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `444178e079fb41ba2149a1cdfdd3040593715d70` | ported | `ddcb07242` | Rewrite-ported share docs schema URL corrections across localized docs pages. |
+| `b16f7b426c5be6feea419dca87aad2032f25462b` | ported | `ddcb07242` | Rewrite-ported TUI docs typo fix: /theme -> /themes command example. |
+| `286992269623bcb410f0de89e128ff14361d5e97` | integrated | - | Equivalent Copilot provider i18n wording already present in cms baseline for targeted locales. |
