@@ -3,7 +3,6 @@
 import os from "os"
 import path from "path"
 import fs from "fs/promises"
-import fsSync from "fs"
 import { createRequire } from "node:module"
 import { afterAll, vi } from "bun:test"
 
@@ -11,8 +10,21 @@ const require = createRequire(import.meta.url)
 
 const dir = path.join(os.tmpdir(), "opencode-test-data-" + process.pid)
 await fs.mkdir(dir, { recursive: true })
-afterAll(() => {
-  fsSync.rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 500 })
+afterAll(async () => {
+  const busy = (error: unknown) =>
+    typeof error === "object" && error !== null && "code" in error && error.code === "EBUSY"
+
+  const rm = async (left: number): Promise<void> => {
+    Bun.gc(true)
+    await Bun.sleep(100)
+    return fs.rm(dir, { recursive: true, force: true }).catch((error) => {
+      if (!busy(error)) throw error
+      if (left <= 1) throw error
+      return rm(left - 1)
+    })
+  }
+
+  await rm(30)
 })
 // Set test home directory to isolate tests from user's actual home directory
 // This prevents tests from picking up real user configs/skills from ~/.claude/skills
