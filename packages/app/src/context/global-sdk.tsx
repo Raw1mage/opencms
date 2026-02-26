@@ -51,8 +51,11 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
     let queue: Queued[] = []
     let buffer: Queued[] = []
     const coalesced = new Map<string, number>()
+    const staleDeltas = new Set<string>()
     let timer: ReturnType<typeof setTimeout> | undefined
     let last = 0
+
+    const deltaKey = (directory: string, messageID: string, partID: string) => `${directory}:${messageID}:${partID}`
 
     const key = (directory: string, payload: Event) => {
       if (payload.type === "session.status") return `session.status:${directory}:${payload.properties.sessionID}`
@@ -70,14 +73,22 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
       if (queue.length === 0) return
 
       const events = queue
+      const skip = staleDeltas.size > 0 ? new Set(staleDeltas) : undefined
       queue = buffer
       buffer = events
       queue.length = 0
       coalesced.clear()
+      staleDeltas.clear()
 
       last = Date.now()
       batch(() => {
         for (const event of events) {
+          const payload = event.payload as { type?: string; properties?: { messageID?: string; partID?: string } }
+          if (skip && payload.type === "message.part.delta") {
+            const props = payload.properties
+            if (!props?.messageID || !props?.partID) continue
+            if (skip.has(deltaKey(event.directory, props.messageID, props.partID))) continue
+          }
           emitter.emit(event.directory, event.payload)
         }
       })
@@ -118,6 +129,10 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
               const i = coalesced.get(k)
               if (i !== undefined) {
                 queue[i] = { directory, payload }
+                if (payload.type === "message.part.updated") {
+                  const part = payload.properties.part
+                  staleDeltas.add(deltaKey(directory, part.messageID, part.id))
+                }
                 continue
               }
               coalesced.set(k, queue.length)

@@ -104,23 +104,24 @@ export function encodeFilePath(filepath: string): string {
 export function createPathHelpers(scope: () => string) {
   const normalize = (input: string) => {
     const root = scope()
-    const prefix = root.endsWith("/") ? root : root + "/"
 
     let path = unquoteGitPath(decodeFilePath(stripQueryAndHash(stripFileProtocol(input))))
 
-    if (path.startsWith(prefix)) {
-      path = path.slice(prefix.length)
-    }
-
-    if (path.startsWith(root)) {
+    const windows = /^[A-Za-z]:/.test(root) || root.startsWith("\\\\")
+    const canonRoot = windows ? root.replace(/\\/g, "/").toLowerCase() : root.replace(/\\/g, "/")
+    const canonPath = windows ? path.replace(/\\/g, "/").toLowerCase() : path.replace(/\\/g, "/")
+    if (
+      canonPath.startsWith(canonRoot) &&
+      (canonRoot.endsWith("/") || canonPath === canonRoot || canonPath[canonRoot.length] === "/")
+    ) {
       path = path.slice(root.length)
     }
 
-    if (path.startsWith("./")) {
+    if (path.startsWith("./") || path.startsWith(".\\")) {
       path = path.slice(2)
     }
 
-    if (path.startsWith("/")) {
+    if (path.startsWith("/") || path.startsWith("\\")) {
       path = path.slice(1)
     }
 

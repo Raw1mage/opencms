@@ -45,7 +45,9 @@ export const scrollToElement = (root: HTMLDivElement | undefined, el: HTMLElemen
   if (!root) return false
   const a = el.getBoundingClientRect()
   const b = root.getBoundingClientRect()
-  const top = a.top - b.top + root.scrollTop
+  const sticky = root.querySelector("[data-session-title]")
+  const inset = sticky instanceof HTMLElement ? sticky.offsetHeight : 0
+  const top = Math.max(0, a.top - b.top + root.scrollTop - inset)
   root.scrollTo({ top, behavior })
   return true
 }
