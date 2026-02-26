@@ -1034,3 +1034,9 @@
 | `6b021658ad514255c7398983b088c1636caaa5e4` | ported | `b79c524c3` | Rewrite-ported PowerShell open path behavior via new tauri command and desktop routing. |
 | `fc6e7934bd365ad1665dea68556dbfc80ac3b611` | skipped | - | Deferred for dedicated batch: large desktop refactor (UI + tauri windows module) with broader regression surface. |
 | `92ab4217c241f1fe75ac3d99bc455d0005383d3b` | skipped | - | Deferred unless sidecar regression requires -i; current cms desktop hardening strategy retained. |
+
+## 已處理（origin/dev delta 2026-02-27 batch8B fc6 ui slice @ 2026-02-26T18:33:08.014Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `fc6e7934bd365ad1665dea68556dbfc80ac3b611` | ported | `3aff3ac30` | Partial rewrite-port: session-header open action loading UX (spinner/disable/in-flight guard). Tauri architecture refactor portion remains deferred. |
