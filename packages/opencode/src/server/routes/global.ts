@@ -99,6 +99,21 @@ export const GlobalRoutes = lazy(() =>
         summary: "Login web session",
         description: "Authenticate with server credentials and issue an HttpOnly session cookie.",
         operationId: "global.auth.login",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["username", "password"],
+                properties: {
+                  username: { type: "string", minLength: 1 },
+                  password: { type: "string", minLength: 1 },
+                },
+              },
+            },
+          },
+        },
         responses: {
           200: {
             description: "Login success",

@@ -569,6 +569,35 @@ export type EventPermissionReplied = {
   }
 }
 
+export type SessionStatus =
+  | {
+      type: "idle"
+    }
+  | {
+      type: "retry"
+      attempt: number
+      message: string
+      next: number
+    }
+  | {
+      type: "busy"
+    }
+
+export type EventSessionStatus = {
+  type: "session.status"
+  properties: {
+    sessionID: string
+    status: SessionStatus
+  }
+}
+
+export type EventSessionIdle = {
+  type: "session.idle"
+  properties: {
+    sessionID: string
+  }
+}
+
 export type EventTuiProviderRefresh = {
   type: "tui.provider.refresh"
   properties: {
@@ -662,35 +691,6 @@ export type EventRatelimitAuthFailed = {
     modelId: string
     message: string
     timestamp: number
-  }
-}
-
-export type SessionStatus =
-  | {
-      type: "idle"
-    }
-  | {
-      type: "retry"
-      attempt: number
-      message: string
-      next: number
-    }
-  | {
-      type: "busy"
-    }
-
-export type EventSessionStatus = {
-  type: "session.status"
-  properties: {
-    sessionID: string
-    status: SessionStatus
-  }
-}
-
-export type EventSessionIdle = {
-  type: "session.idle"
-  properties: {
-    sessionID: string
   }
 }
 
@@ -1015,6 +1015,8 @@ export type Event =
   | EventMessagePartRemoved
   | EventPermissionAsked
   | EventPermissionReplied
+  | EventSessionStatus
+  | EventSessionIdle
   | EventTuiProviderRefresh
   | EventTuiPromptAppend
   | EventTuiCommandExecute
@@ -1023,8 +1025,6 @@ export type Event =
   | EventRatelimitDetected
   | EventRatelimitCleared
   | EventRatelimitAuthFailed
-  | EventSessionStatus
-  | EventSessionIdle
   | EventQuestionAsked
   | EventQuestionReplied
   | EventQuestionRejected
@@ -1609,7 +1609,8 @@ export type ProviderConfig = {
         [key: string]: string
       }
       provider?: {
-        npm: string
+        npm?: string
+        api?: string
       }
       /**
        * Variant-specific configuration
@@ -2199,6 +2200,20 @@ export type GlobalSession = {
     snapshot?: string
     diff?: string
   }
+  stats?: {
+    requestsTotal: number
+    totalTokens: number
+    tokens: {
+      input: number
+      output: number
+      reasoning: number
+      cache: {
+        read: number
+        write: number
+      }
+    }
+    lastUpdated: number
+  }
   project: ProjectSummary | null
 }
 
@@ -2476,6 +2491,73 @@ export type GlobalHealthResponses = {
 }
 
 export type GlobalHealthResponse = GlobalHealthResponses[keyof GlobalHealthResponses]
+
+export type GlobalAuthSessionData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/auth/session"
+}
+
+export type GlobalAuthSessionResponses = {
+  /**
+   * Web auth session status
+   */
+  200: {
+    enabled: boolean
+    authenticated: boolean
+    usernameHint?: string
+    username?: string
+    csrfToken?: string
+    lockout?: {
+      lockedUntil: number
+      retryAfterSeconds: number
+    }
+  }
+}
+
+export type GlobalAuthSessionResponse = GlobalAuthSessionResponses[keyof GlobalAuthSessionResponses]
+
+export type GlobalAuthLoginData = {
+  body: {
+    username: string
+    password: string
+  }
+  path?: never
+  query?: never
+  url: "/global/auth/login"
+}
+
+export type GlobalAuthLoginResponses = {
+  /**
+   * Login success
+   */
+  200: {
+    ok: true
+    username: string
+    csrfToken: string
+  }
+}
+
+export type GlobalAuthLoginResponse = GlobalAuthLoginResponses[keyof GlobalAuthLoginResponses]
+
+export type GlobalAuthLogoutData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/auth/logout"
+}
+
+export type GlobalAuthLogoutResponses = {
+  /**
+   * Logout success
+   */
+  200: {
+    ok: true
+  }
+}
+
+export type GlobalAuthLogoutResponse = GlobalAuthLogoutResponses[keyof GlobalAuthLogoutResponses]
 
 export type GlobalEventData = {
   body?: never
@@ -3778,6 +3860,46 @@ export type SessionPromptResponses = {
 
 export type SessionPromptResponse = SessionPromptResponses[keyof SessionPromptResponses]
 
+export type SessionDeleteMessageData = {
+  body?: never
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+    /**
+     * Message ID
+     */
+    messageID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/message/{messageID}"
+}
+
+export type SessionDeleteMessageErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionDeleteMessageError = SessionDeleteMessageErrors[keyof SessionDeleteMessageErrors]
+
+export type SessionDeleteMessageResponses = {
+  /**
+   * Successfully deleted message
+   */
+  200: boolean
+}
+
+export type SessionDeleteMessageResponse = SessionDeleteMessageResponses[keyof SessionDeleteMessageResponses]
+
 export type SessionMessageData = {
   body?: never
   path: {
@@ -4376,7 +4498,8 @@ export type ProviderListResponses = {
             [key: string]: string
           }
           provider?: {
-            npm: string
+            npm?: string
+            api?: string
           }
           variants?: {
             [key: string]: {

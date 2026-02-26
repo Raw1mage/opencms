@@ -22,7 +22,7 @@ import type {
   AppLogErrors,
   AppLogResponses,
   AppSkillsResponses,
-  Auth as Auth3,
+  Auth as Auth4,
   AuthRemoveErrors,
   AuthRemoveResponses,
   AuthSetErrors,
@@ -50,6 +50,9 @@ import type {
   FindSymbolsResponses,
   FindTextResponses,
   FormatterStatusResponses,
+  GlobalAuthLoginResponses,
+  GlobalAuthLogoutResponses,
+  GlobalAuthSessionResponses,
   GlobalConfigGetResponses,
   GlobalConfigUpdateErrors,
   GlobalConfigUpdateResponses,
@@ -127,6 +130,8 @@ import type {
   SessionCreateErrors,
   SessionCreateResponses,
   SessionDeleteErrors,
+  SessionDeleteMessageErrors,
+  SessionDeleteMessageResponses,
   SessionDeleteResponses,
   SessionDiffResponses,
   SessionForkResponses,
@@ -242,6 +247,67 @@ class HeyApiRegistry<T> {
   }
 }
 
+export class Auth extends HeyApiClient {
+  /**
+   * Get web auth session
+   *
+   * Get current web authentication status and CSRF token when authenticated.
+   */
+  public session<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<GlobalAuthSessionResponses, unknown, ThrowOnError>({
+      url: "/global/auth/session",
+      ...options,
+    })
+  }
+
+  /**
+   * Login web session
+   *
+   * Authenticate with server credentials and issue an HttpOnly session cookie.
+   */
+  public login<ThrowOnError extends boolean = false>(
+    parameters?: {
+      username?: string
+      password?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "username" },
+            { in: "body", key: "password" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<GlobalAuthLoginResponses, unknown, ThrowOnError>({
+      url: "/global/auth/login",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Logout web session
+   *
+   * Invalidate current web auth session cookie.
+   */
+  public logout<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).post<GlobalAuthLogoutResponses, unknown, ThrowOnError>({
+      url: "/global/auth/logout",
+      ...options,
+    })
+  }
+}
+
 export class Config extends HeyApiClient {
   /**
    * Get global configuration
@@ -317,13 +383,18 @@ export class Global extends HeyApiClient {
     })
   }
 
+  private _auth?: Auth
+  get auth(): Auth {
+    return (this._auth ??= new Auth({ client: this.client }))
+  }
+
   private _config?: Config
   get config(): Config {
     return (this._config ??= new Config({ client: this.client }))
   }
 }
 
-export class Auth extends HeyApiClient {
+export class Auth2 extends HeyApiClient {
   /**
    * Remove auth credentials
    *
@@ -351,7 +422,7 @@ export class Auth extends HeyApiClient {
   public set<ThrowOnError extends boolean = false>(
     parameters: {
       providerId: string
-      auth?: Auth3
+      auth?: Auth4
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -1618,6 +1689,42 @@ export class Session2 extends HeyApiClient {
   }
 
   /**
+   * Delete message
+   *
+   * Permanently delete a specific message (and all of its parts) from a session. This does not revert any file changes that may have been made while processing the message.
+   */
+  public deleteMessage<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      messageID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "path", key: "messageID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).delete<
+      SessionDeleteMessageResponses,
+      SessionDeleteMessageErrors,
+      ThrowOnError
+    >({
+      url: "/session/{sessionID}/message/{messageID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
    * Get message
    *
    * Retrieve a specific message from a session by its message ID.
@@ -2272,7 +2379,7 @@ export class Provider extends HeyApiClient {
   }
 }
 
-export class Auth2 extends HeyApiClient {
+export class Auth3 extends HeyApiClient {
   /**
    * Remove MCP OAuth
    *
@@ -2516,9 +2623,9 @@ export class Mcp extends HeyApiClient {
     })
   }
 
-  private _auth?: Auth2
-  get auth(): Auth2 {
-    return (this._auth ??= new Auth2({ client: this.client }))
+  private _auth?: Auth3
+  get auth(): Auth3 {
+    return (this._auth ??= new Auth3({ client: this.client }))
   }
 }
 
@@ -3724,9 +3831,9 @@ export class OpencodeClient extends HeyApiClient {
     return (this._global ??= new Global({ client: this.client }))
   }
 
-  private _auth?: Auth
-  get auth(): Auth {
-    return (this._auth ??= new Auth({ client: this.client }))
+  private _auth?: Auth2
+  get auth(): Auth2 {
+    return (this._auth ??= new Auth2({ client: this.client }))
   }
 
   private _project?: Project
