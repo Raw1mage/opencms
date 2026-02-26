@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { Script } from "@opencode-ai/script"
 import { $ } from "bun"
+import { fileURLToPath } from "url"
 
-const dir = new URL("..", import.meta.url).pathname
+const dir = fileURLToPath(new URL("..", import.meta.url))
 process.chdir(dir)
 
 await $`bun tsc`
@@ -10,7 +11,6 @@ const pkg = await import("../package.json").then((m) => m.default)
 const original = JSON.parse(JSON.stringify(pkg))
 for (const [key, value] of Object.entries(pkg.exports)) {
   const file = value.replace("./src/", "./dist/").replace(".ts", "")
-  // @ts-expect-error Modifying imported JSON for temporary publish config
   pkg.exports[key] = {
     import: file + ".js",
     types: file + ".d.ts",
