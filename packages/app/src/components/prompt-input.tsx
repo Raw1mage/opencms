@@ -282,6 +282,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   }
 
   const isFocused = createFocusSignal(() => editorRef)
+  const escBlur = () => platform.platform === "desktop" && platform.os === "macos"
 
   const closePopover = () => setStore("popover", null)
 
@@ -864,13 +865,38 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         return
       }
     }
-    if (store.mode === "shell") {
-      const { collapsed, cursorPosition, textLength } = getCaretState()
-      if (event.key === "Escape") {
-        setStore("mode", "normal")
+    if (event.key === "Escape") {
+      if (store.popover) {
+        closePopover()
         event.preventDefault()
+        event.stopPropagation()
         return
       }
+
+      if (store.mode === "shell") {
+        setStore("mode", "normal")
+        event.preventDefault()
+        event.stopPropagation()
+        return
+      }
+
+      if (working()) {
+        abort()
+        event.preventDefault()
+        event.stopPropagation()
+        return
+      }
+
+      if (escBlur()) {
+        editorRef.blur()
+        event.preventDefault()
+        event.stopPropagation()
+        return
+      }
+    }
+
+    if (store.mode === "shell") {
+      const { collapsed, cursorPosition, textLength } = getCaretState()
       if (event.key === "Backspace" && collapsed && cursorPosition === 0 && textLength === 0) {
         setStore("mode", "normal")
         event.preventDefault()
@@ -948,13 +974,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     // Note: Shift+Enter is handled earlier, before IME check
     if (event.key === "Enter" && !event.shiftKey) {
       handleSubmit(event)
-    }
-    if (event.key === "Escape") {
-      if (store.popover) {
-        closePopover()
-      } else if (working()) {
-        abort()
-      }
     }
   }
 
