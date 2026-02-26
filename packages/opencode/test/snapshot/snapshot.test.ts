@@ -500,7 +500,7 @@ test("git info exclude keeps global excludes", async () => {
       const global = `${tmp.path}/global.ignore`
       const config = `${tmp.path}/global.gitconfig`
       await Bun.write(global, "global.tmp\n")
-      await Bun.write(config, `[core]\n\texcludesFile = ${global}\n`)
+      await Bun.write(config, `[core]\n\texcludesFile = ${global.split("\\").join("/")}\n`)
 
       const prev = process.env.GIT_CONFIG_GLOBAL
       process.env.GIT_CONFIG_GLOBAL = config
