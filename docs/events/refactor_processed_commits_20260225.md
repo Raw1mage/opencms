@@ -737,3 +737,68 @@
 | `83b7d8e04cd4e4d343f2006278ade0caa82173d2` | skipped | - | gitlab provider dependency bump deferred to dependency maintenance track |
 | `24a98413223c8309194e1578f491d92874c9aa9f` | skipped | - | sst version/tooling update across infra/env files deferred from current runtime parity stream |
 | `b714bb21d232d9c9fbb7fb1915c752d7ff4f150d` | skipped | - | setup-bun cache action switch is CI/tooling scope without selected runtime behavior objective |
+
+## 已處理（origin/dev delta 2026-02-26 round81 (rewrite-only) @ 2026-02-26T02:33:58.889Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `46739ca7cd970cf84f88c3f0cf5ca8b756b64f7d` | skipped | - | app tab-switch flashing fix is app/global-sync layer scope deferred with app parity track |
+| `3f60a6c2a46dab1622ee4f4c99e4dfad876f3a3c` | skipped | - | app cleanup maintenance scope, deferred |
+| `ef14f64f9ee10ee7945a547bde4b13d6dcf2f0bd` | skipped | - | app/global-sync cleanup refactor scope, deferred |
+| `8408e4702e0d0eebd3a459577be3d50082c3f603` | skipped | - | app session commands cleanup scope, deferred |
+| `72c12d59afca7092dc98842b094305d385cf7863` | skipped | - | ui i18n cleanup scope, deferred |
+| `42aa28d512d4ea77bef6159530b8bac9c7c872a0` | skipped | - | app cleanup sweep scope, deferred |
+| `1133d87be043ab999be5002380584b21653e09c4` | skipped | - | app helper/session-side cleanup scope, deferred |
+
+## 已處理（origin/dev delta 2026-02-26 round82 (rewrite-only) @ 2026-02-26T02:34:13.157Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `09286ccae0759880513ca8beba0ef81b0cb0fb09` | skipped | - | oc-2 theme update is ui visual scope, deferred |
+| `06b2304a5f66cc4f72c95900717b674a66b5f308` | skipped | - | review radio-group css tweak is ui visual scope, deferred |
+| `31e964e7cf4f83abec80640bb1f70a950615c595` | skipped | - | oc-2 theme update is ui visual scope, deferred |
+| `bb6d1d502fb9afb034da2c20078e6d4b5f9c6e2f` | skipped | - | review diff hover-radius tweak is ui visual scope, deferred |
+| `47b4de3531ac8f32f90be3f867dba02120d2b83a` | skipped | - | review header spacing tweak is ui visual scope, deferred |
+| `ba919fb619312c4c77865d4506d5a400d2abca26` | skipped | - | review expand/collapse width tweak is ui visual scope, deferred |
+| `50923f06f14b32e30adada30417a931bcb5bb03a` | skipped | - | secondary button pressed-scale tweak is ui visual scope, deferred |
+| `d8a4a125c008ba75e28d9391ec040da6d9da6d65` | skipped | - | oc-2 theme update is ui visual scope, deferred |
+| `7faa8cb1101041b65eab32c92790e5ad033f63d5` | skipped | - | review panel padding tweak is ui visual scope, deferred |
+| `dec7827548acc3fda3cbfcbb19e0bcbda1222e7a` | skipped | - | generated theme artifact only; no selected core runtime behavior delta |
+| `c71f4d4847b1a9689955ee63f9a18fcd577794ee` | skipped | - | oc-2 theme update is ui visual scope, deferred |
+| `ec7c72da3fbc232e4eaceed6a3ccecb255f00756` | skipped | - | reasoning block restyle is ui visual scope, deferred |
+
+## 已處理（origin/dev delta 2026-02-26 round83 (rewrite-only) @ 2026-02-26T02:34:37.470Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `d5971e2da55fe266da577387c79f9967a5b8c5c1` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `898bcdec870c1c9c1ea6f3bea9af5bc8616ac5cd` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `3cde93bf2decbebf9869cfbe9e8f6e960ca9ac86` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `a2469d933e1a72db6b3ccdeb29624b56ad1c3547` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `e37a9081a673045c7be2de803806e968e5db806c` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `a4b36a72adabe37e2799bd0c6c81acfaf2516005` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `d366a1430fddf22499068e60428e4b278a84ee31` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `b75a89776dc5f52b44bc7731a96d7b27b199d215` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `97520c827ec59556eff6cff48b80eb84556eb5ec` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `48dfa45a9ac1ba92d94289da26c23e2dba6c2db7` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `6fb4f2a7a5d768c11fafdeae4aa8b5c7fcb46b44` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `5d12eb952853ea94881e3a06e8213b7e0f20975c` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `359360ad86e34db9074d9ef1281682206615d9cc` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `ae398539c5de6f0dea245807f9a58c8126acc29f` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `5fe237a3fda1b4dcc5e76ed8b36f07d73fad3321` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `57b63ea83d5926ee23f72185c6fb8894654e2981` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `a8347c3762881f03e096e484a72302302f025a65` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `9e6cb8910109cc6b11792e0bfac9268d65122c74` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `819d09e64e1ef7c49f33ee5f668f37f50e6d61fb` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `a624871ccdd9066b5949825176970625748b9c03` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `bd52ce5640f0299f49f2bc2bfadcb95c2acec260` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `270b807cdf004b4ae398414e1475f9dc24e5cb43` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `36bc07a5af1c5a98bf1f9e6c1913ee720286ca6d` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `14c0989411a408c680404b7313382b54dee8ca07` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `3a07dd8d96e3e4cbc6787ae14add19b2d58023be` | skipped | - | filesystem migration wave commit deferred for dedicated stabilization branch |
+| `568eccb4c654e83382253eb0c1478d24585288aa` | skipped | - | upstream revert wave for filesystem migration is deferred with the same branch-level stabilization track |
+| `02a94950638b4403a9ea44aeeb2d3d19212a04ec` | skipped | - | broad remove-Bun.file wave touches many core/runtime/test surfaces; deferred from throughput pass |
+| `38572b81753aa56b7d87a9e46cdb04293bbc6956` | skipped | - | julia LSP support feature deferred to dedicated LSP feature batch |
+| `87c16374aaafc309c237d05244d8cca974e28c34` | skipped | - | terraform-ls installer source change deferred with LSP integration batch |
+| `11a37834c2afd5a1ba88f8417701472234caaa3a` | skipped | - | tui exit callback timing behavior touches high-volatility lifecycle path; deferred |
+| `3c21735b35f779d69a5458b1fa5fada49fb7decb` | skipped | - | Bun.Glob -> npm glob migration is broad core refactor with high regression risk; deferred |
