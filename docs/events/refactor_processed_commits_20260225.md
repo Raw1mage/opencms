@@ -1040,3 +1040,9 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `fc6e7934bd365ad1665dea68556dbfc80ac3b611` | ported | `3aff3ac30` | Partial rewrite-port: session-header open action loading UX (spinner/disable/in-flight guard). Tauri architecture refactor portion remains deferred. |
+
+## 已處理（origin/dev delta 2026-02-27 batch8C fc6 resolver slice @ 2026-02-26T18:38:48.139Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `fc6e7934bd365ad1665dea68556dbfc80ac3b611` | ported | `f2ddf4701` | Additional partial rewrite-port: Windows app resolver hardening (candidate probing, hidden where, cmd/bat resolution, registry App Paths fallback). |
