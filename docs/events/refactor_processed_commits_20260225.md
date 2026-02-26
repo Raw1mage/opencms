@@ -1097,3 +1097,10 @@
 | `24c63914bf9ff46c3869f35e3cef026aa9f33b61` | ported | `c123cff11` | Rewrite-ported compliance/pr-standards automation fixes (label cleanup + feat PR issue-check skip). |
 | `0269f39a178ad02b88196efe131dcba87849ee4d` | ported | `c123cff11` | Rewrite-ported unit workflow matrix expansion to include Windows host. |
 | `ae190038f89c1fd6267c3e847a182343aa31573f` | ported | `c123cff11` | Rewrite-ported setup-bun baseline build download URL resolution for x64 runners. |
+
+## 已處理（origin/dev delta 2026-02-27 batch10B vouched sync @ 2026-02-26T19:20:57.171Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `13616e345930b6c9e7cca898fcb98a8c4ff896b5` | ported | `d2b704859` | Rewrite-ported VOUCHED list update: add denounced entry -agusbasari29 with note. |
+| `eb64ce08b8a862c27b7dab58c3a8d2ea1981655f` | ported | `d2b704859` | Rewrite-ported VOUCHED list update: add vouched contributor edemaine. |
