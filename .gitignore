@@ -29,6 +29,7 @@ target
 opencode-dev
 logs/
 *.bun-build
+tsconfig.tsbuildinfo
 __pycache__/
 *.py[cod]
 
