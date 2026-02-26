@@ -166,6 +166,7 @@ export function MessageTimeline(props: {
         >
           <Show when={props.showHeader}>
             <div
+              data-session-title
               classList={{
                 "sticky top-0 z-30 bg-background-stronger": true,
                 "w-full": true,

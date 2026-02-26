@@ -24,6 +24,14 @@ describe("file path helpers", () => {
     expect(unquoteGitPath('"plain\\nname"')).toBe("plain\nname")
     expect(unquoteGitPath("a/b/c.ts")).toBe("a/b/c.ts")
   })
+
+  test("normalizes Windows absolute paths with mixed separators", () => {
+    const path = createPathHelpers(() => "C:\\repo")
+    expect(path.normalize("C:\\repo\\src\\app.ts")).toBe("src\\app.ts")
+    expect(path.normalize("C:/repo/src/app.ts")).toBe("src/app.ts")
+    expect(path.normalize("file://C:/repo/src/app.ts")).toBe("src/app.ts")
+    expect(path.normalize("c:\\repo\\src\\app.ts")).toBe("src\\app.ts")
+  })
 })
 
 describe("encodeFilePath", () => {
