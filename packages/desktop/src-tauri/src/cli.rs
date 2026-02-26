@@ -8,6 +8,7 @@ use tauri_plugin_store::StoreExt;
 use tauri_specta::Event;
 use tokio::sync::oneshot;
 use tracing::Instrument;
+use std::{collections::HashMap, path::Path, process::Stdio};
 
 use crate::constants::{SETTINGS_STORE, WSL_ENABLED_KEY};
 
@@ -186,6 +187,78 @@ fn shell_escape(input: &str) -> String {
     escaped
 }
 
+fn parse_shell_env(stdout: &[u8]) -> HashMap<String, String> {
+    String::from_utf8_lossy(stdout)
+        .split('\0')
+        .filter_map(|line| {
+            if line.is_empty() {
+                return None;
+            }
+
+            let (key, value) = line.split_once('=')?;
+            if key.is_empty() {
+                return None;
+            }
+
+            Some((key.to_string(), value.to_string()))
+        })
+        .collect()
+}
+
+fn is_nushell(shell: &str) -> bool {
+    let shell_name = Path::new(shell)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(shell)
+        .to_ascii_lowercase();
+    shell_name == "nu" || shell_name == "nu.exe" || shell.to_ascii_lowercase().ends_with("\\nu.exe")
+}
+
+fn load_shell_env(shell: &str) -> Option<HashMap<String, String>> {
+    if is_nushell(shell) {
+        tracing::debug!(shell, "Skipping shell env probe for nushell");
+        return None;
+    }
+
+    let mut cmd = std::process::Command::new(shell);
+    cmd.args(["-il", "-c", "env -0"]);
+    cmd.stdin(Stdio::null());
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::null());
+
+    let output = match cmd.output() {
+        Ok(output) => output,
+        Err(error) => {
+            tracing::debug!(shell, ?error, "Shell env probe failed");
+            return None;
+        }
+    };
+
+    if !output.status.success() {
+        tracing::debug!(shell, "Shell env probe exited with non-zero status");
+        return None;
+    }
+
+    let env = parse_shell_env(&output.stdout);
+    if env.is_empty() {
+        tracing::debug!(shell, "Shell env probe returned empty env");
+        return None;
+    }
+
+    Some(env)
+}
+
+fn merge_shell_env(
+    shell_env: Option<HashMap<String, String>>,
+    envs: Vec<(String, String)>,
+) -> Vec<(String, String)> {
+    let mut merged = shell_env.unwrap_or_default();
+    for (key, value) in envs {
+        merged.insert(key, value);
+    }
+    merged.into_iter().collect()
+}
+
 pub fn spawn_command(
     app: &tauri::AppHandle,
     args: &str,
@@ -268,6 +341,7 @@ pub fn spawn_command(
     } else {
         let sidecar = get_sidecar_path(app);
         let shell = get_user_shell();
+        let envs = merge_shell_env(load_shell_env(&shell), envs);
 
         let cmd = if shell.ends_with("/nu") {
             format!("^\"{}\" {}", sidecar.display(), args)
@@ -275,7 +349,7 @@ pub fn spawn_command(
             format!("\"{}\" {}", sidecar.display(), args)
         };
 
-        let mut cmd = app.shell().command(&shell).args(["-il", "-c", &cmd]);
+        let mut cmd = app.shell().command(&shell).args(["-l", "-c", &cmd]);
 
         for (key, value) in envs {
             cmd = cmd.env(key, value);
