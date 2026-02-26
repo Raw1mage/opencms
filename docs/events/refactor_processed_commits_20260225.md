@@ -922,3 +922,33 @@
 | `8ad60b1ec2002e8d9f841ba256c3eed1953a7ec6` | skipped | - | structuredClone prompt history/stash refactor is high-risk tui internals scope, deferred |
 | `998c8bf3a5ad3e0244034030f9e981dce3f71168` | skipped | - | ui chevron hover tweak is visual scope, deferred |
 | `a3181d5fbd73acb13561665987373a28d3a27b40` | skipped | - | ui chevron nudge tweak is visual scope, deferred |
+
+## 已處理（origin/dev delta 2026-02-27 round62 (rewrite-only app-ui batch A-D1+e345) @ 2026-02-26T16:28:33.256Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `878ddc6a0a9eff4fe990dfc241a8eb1c72f0659d` | ported | `979fb5025d070ac8082b7b60513cdd1b97d533e4` | allow Tab/Shift-Tab keybind path in editable targets to avoid blocking prompt interactions |
+| `3c85cf4fac596928713685068c6c92f356b848f3` | ported | `979fb5025d070ac8082b7b60513cdd1b97d533e4` | tighten prompt history navigation to cursor boundary semantics including in-history mode |
+| `958320f9c1572841c6c4b7aeba4559a79693002d` | ported | `53b9998817cc86d172cc8e2ab49c9bed16cde946` | use platform fetch for remote non-loopback HTTP event stream with authenticated fallback |
+| `460a87f359cef2cdcd4638ba49b1d7d652ddedd5` | ported | `6d75714314c48fc34a49b0f8d55e1058748b10fe` | harden file tree against deep/cyclic traversal via depth+cycle guards and iterative walk |
+| `0186a8506340f6f6715262d4986c45740fb488d5` | ported | `459c58348c9317509d661e4da6fed3a6659eabf6` | keep Escape handling local in prompt input and support macOS desktop blur behavior |
+| `20f43372f6714803246d50c08a60723469418f3a` | ported | `459c58348c9317509d661e4da6fed3a6659eabf6` | terminal writer now flushes with completion callback before persistence on cleanup/disconnect |
+| `3a505b2691f956f4d11e167fe30096e346ad28ae` | ported | `459c58348c9317509d661e4da6fed3a6659eabf6` | virtualizer resolves actual scroll root outside session-review container |
+| `46739ca7cd970cf84f88c3f0cf5ca8b756b64f7d` | ported | `459c58348c9317509d661e4da6fed3a6659eabf6` | avoid unnecessary loading-state reset in global-sync bootstrap to reduce tab-switch flashing |
+| `e345b89ce56cf7fbd0c58c5f882eaf9a8ebc8fb0` | ported | `a41b289a530e6d854fdbabe55c9192574b971bc9` | batch assistant tool-call parts across turn messages with cms-specific filtering rules preserved |
+| `0771e3a8bee1b099468f3c95e19bd78699f62b12` | integrated | - | plain-text paste undo preservation already present in current cms prompt input behavior |
+| `0303c29e3ff4f45aff4176e496ecb3f5fa5b611a` | integrated | - | store creation defensive handling already present in cms app layer |
+| `7f95cc64c57b439f58833d0300a1da93b3b893df` | integrated | - | prompt input quirks fixes are largely already covered in cms implementation |
+| `1c71604e0a2a34786daa99b7002c2f567671051a` | integrated | - | terminal resize stability behavior already integrated in cms terminal component |
+| `d30e91738570ee9ea06ca6f2d49bdae65b0ff3ec` | integrated | - | inline-code cmd-click link behavior already integrated in current ui markdown stack |
+| `81b5a6a08b6b2f591096a0f9a7fed04871002a33` | integrated | - | workspace reset behavior already present in cms state/layout flow |
+| `ed472d8a6789c882dfbba7facfd987fd8dd6fb2c` | integrated | - | session context metrics defensive defaults already present in cms |
+| `ff0abacf4bcc78a1464f54eec2424f234c1723c9` | integrated | - | project icon unloading fix already covered by cms sidebar/project rendering behavior |
+| `50f208d69f9a3b418290f01f96117308842d9e9d` | integrated | - | slash suggestion active-state logic already integrated in cms prompt popover flow |
+| `c9719dff7223aa1fc19540f3cd627c7f40e4bf36` | integrated | - | notification click routing to session is already present in cms desktop/app integration |
+| `dd296f703391aa67ef8cf8340e2712574b380cb1` | integrated | - | event-stream reconnect path already integrated in cms global sdk loop |
+| `ebe5a2b74a564dd92677f2cdaa8d21280aedf7fa` | integrated | - | sdk/sync remount-on-server-url-change behavior already integrated in cms app lifecycle |
+| `81ca2df6ad57085b895caafc386e4ac4ab9098a6` | integrated | - | randomUUID insecure-context guard already present in cms uuid helpers |
+| `a82ca860089afde16afdcb1cff0592c6ac0f4aa4` | integrated | - | defensive code component behavior already present in current ui code renderer |
+| `ff3b174c423d89b39ee8154863840e48c8aac371` | integrated | - | oauth error message normalization already present in cms connect-provider path |
+| `dec304a2737b7accb3bf8b199fb58e81d65026e9` | integrated | - | emoji avatar handling already integrated in current ui avatar component |
