@@ -1083,3 +1083,9 @@
 | Upstream Commit | Status | Local Commit | Note |
 | --------------- | ------ | ------------ | ---- |
 | `1e48d7fe8228d94ded379e36975b2cce12f4a510` | ported | `bc988d3c8` | Rewrite-ported OpenAI request safety_identifier wiring with workspaceID passed through provider modifyBody contract. |
+
+## 已處理（origin/dev delta 2026-02-27 batch9E sdk dist hygiene @ 2026-02-26T18:59:08.217Z）
+
+| Upstream Commit | Status | Local Commit | Note |
+| --------------- | ------ | ------------ | ---- |
+| `443214871eda069f81cba19b5a3eecfce0fa314e` | ported | `5a577133d` | Rewrite-ported low-risk subset: rootDir dist layout guard + tsbuildinfo ignore; package export path map left as cms-intentional divergence. |
