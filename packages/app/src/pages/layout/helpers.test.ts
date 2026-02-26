@@ -1,6 +1,25 @@
 import { describe, expect, test } from "bun:test"
 import { collectOpenProjectDeepLinks, drainPendingDeepLinks, parseDeepLink } from "./deep-links"
-import { displayName, errorMessage, getDraggableId, syncWorkspaceOrder, workspaceKey } from "./helpers"
+import { type Session } from "@opencode-ai/sdk/v2/client"
+import {
+  displayName,
+  errorMessage,
+  getDraggableId,
+  latestRootSession,
+  syncWorkspaceOrder,
+  workspaceKey,
+} from "./helpers"
+
+const session = (input: Partial<Session> & Pick<Session, "id" | "directory">) =>
+  ({
+    title: "",
+    version: "v2",
+    parentID: undefined,
+    messageCount: 0,
+    permissions: { session: {}, share: {} },
+    time: { created: 0, updated: 0, archived: undefined },
+    ...input,
+  }) as Session
 
 describe("layout deep links", () => {
   test("parses open-project deep links", () => {
@@ -73,6 +92,61 @@ describe("layout workspace helpers", () => {
     expect(result).toEqual(["/root", "/c", "/b"])
   })
 
+  test("finds the latest root session across workspaces", () => {
+    const result = latestRootSession(
+      [
+        {
+          path: { directory: "/root" },
+          session: [session({ id: "root", directory: "/root", time: { created: 1, updated: 1, archived: undefined } })],
+        },
+        {
+          path: { directory: "/workspace" },
+          session: [
+            session({
+              id: "workspace",
+              directory: "/workspace",
+              time: { created: 2, updated: 2, archived: undefined },
+            }),
+          ],
+        },
+      ],
+      120_000,
+    )
+
+    expect(result?.id).toBe("workspace")
+  })
+
+  test("ignores archived and child sessions when finding latest root session", () => {
+    const result = latestRootSession(
+      [
+        {
+          path: { directory: "/workspace" },
+          session: [
+            session({
+              id: "archived",
+              directory: "/workspace",
+              time: { created: 10, updated: 10, archived: 10 },
+            }),
+            session({
+              id: "child",
+              directory: "/workspace",
+              parentID: "parent",
+              time: { created: 20, updated: 20, archived: undefined },
+            }),
+            session({
+              id: "root",
+              directory: "/workspace",
+              time: { created: 30, updated: 30, archived: undefined },
+            }),
+          ],
+        },
+      ],
+      120_000,
+    )
+
+    expect(result?.id).toBe("root")
+  })
+
   test("extracts draggable id safely", () => {
     expect(getDraggableId({ draggable: { id: "x" } })).toBe("x")
     expect(getDraggableId({ draggable: { id: 42 } })).toBeUndefined()
@@ -87,6 +161,6 @@ describe("layout workspace helpers", () => {
   test("extracts api error message and fallback", () => {
     expect(errorMessage({ data: { message: "boom" } }, "fallback")).toBe("boom")
     expect(errorMessage(new Error("broken"), "fallback")).toBe("broken")
-    expect(errorMessage("unknown", "fallback")).toBe("fallback")
+    expect(errorMessage("unknown", "fallback")).toBe("unknown")
   })
 })

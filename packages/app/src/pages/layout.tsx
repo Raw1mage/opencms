@@ -62,6 +62,7 @@ import {
   displayName,
   errorMessage,
   getDraggableId,
+  latestRootSession,
   sortedRootSessions,
   syncWorkspaceOrder,
   workspaceKey,
@@ -1093,11 +1094,59 @@ export default function Layout(props: ParentProps) {
     dialog.show(() => <DialogSettings />)
   }
 
-  function navigateToProject(directory: string | undefined) {
+  async function navigateToProject(directory: string | undefined) {
     if (!directory) return
-    server.projects.touch(directory)
-    const lastSession = store.lastSession[directory]
-    navigateWithSidebarReset(`/${base64Encode(directory)}${lastSession ? `/session/${lastSession}` : ""}`)
+    const project = layout.projects
+      .list()
+      .find((item) => item.worktree === directory || item.sandboxes?.includes(directory))
+    const root = project?.worktree ?? directory
+    server.projects.touch(root)
+
+    const dirs = Array.from(new Set([root, ...(store.workspaceOrder[root] ?? []), ...(project?.sandboxes ?? [])]))
+
+    const openSession = async (target: { directory: string; id: string }) => {
+      const resolved = await globalSDK.client.session
+        .get({ sessionID: target.id })
+        .then((x) => x.data)
+        .catch(() => undefined)
+      const next = resolved?.directory ? resolved : target
+      setStore("lastSession", root, next.id)
+      navigateWithSidebarReset(`/${base64Encode(next.directory)}/session/${next.id}`)
+    }
+
+    const remembered = store.lastSession[root]
+    if (remembered) {
+      await openSession({ directory: root, id: remembered })
+      return
+    }
+
+    const latest = latestRootSession(
+      dirs.map((item) => globalSync.child(item, { bootstrap: false })[0]),
+      Date.now(),
+    )
+    if (latest) {
+      await openSession(latest)
+      return
+    }
+
+    const fetched = latestRootSession(
+      await Promise.all(
+        dirs.map(async (item) => ({
+          path: { directory: item },
+          session: await globalSDK.client.session
+            .list({ directory: item })
+            .then((x) => x.data ?? [])
+            .catch(() => []),
+        })),
+      ),
+      Date.now(),
+    )
+    if (fetched) {
+      await openSession(fetched)
+      return
+    }
+
+    navigateWithSidebarReset(`/${base64Encode(root)}/session`)
   }
 
   function navigateToSession(session: Session | undefined) {
