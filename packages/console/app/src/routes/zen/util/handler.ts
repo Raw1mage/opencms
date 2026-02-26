@@ -32,6 +32,7 @@ import { createRateLimiter } from "./rateLimiter"
 import { createDataDumper } from "./dataDumper"
 import { createTrialLimiter } from "./trialLimiter"
 import { createStickyTracker } from "./stickyProviderTracker"
+import { Resource } from "@opencode-ai/console-resource"
 
 type ZenData = Awaited<ReturnType<typeof ZenData.list>>
 type RetryOptions = {
@@ -56,7 +57,7 @@ export async function handler(
 
   const MAX_FAILOVER_RETRIES = 3
   const MAX_429_RETRIES = 3
-  const FREE_WORKSPACES = [
+  const ADMIN_WORKSPACES = [
     "wrk_01K46JDFR0E75SG2Q8K172KF3Y", // frank
     "wrk_01K6W1A3VE0KMNVSCQT43BG2SX", // opencode bench
   ]
@@ -494,6 +495,13 @@ export async function handler(
     )
 
     if (!data) throw new AuthError("Invalid API key.")
+    if (
+      modelInfo.id.startsWith("alpha-") &&
+      Resource.App.stage === "production" &&
+      !ADMIN_WORKSPACES.includes(data.workspaceID)
+    )
+      throw new AuthError(`Model ${modelInfo.id} not supported`)
+
     logger.metric({
       api_key: data.apiKey,
       workspace: data.workspaceID,
@@ -508,7 +516,7 @@ export async function handler(
       user: data.user,
       subscription: data.subscription,
       provider: data.provider,
-      isFree: FREE_WORKSPACES.includes(data.workspaceID),
+      isFree: ADMIN_WORKSPACES.includes(data.workspaceID),
       isDisabled: !!data.timeDisabled,
     }
   }
