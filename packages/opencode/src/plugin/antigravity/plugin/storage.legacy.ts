@@ -1,4 +1,18 @@
-import { describe as vitestDescribe, expect, it, vi, beforeEach } from "vitest"
+const noopDescribe = Object.assign((..._args: unknown[]) => {}, {
+  skip: (..._args: unknown[]) => {},
+})
+const testGlobal = globalThis as {
+  describe?: typeof noopDescribe
+  expect?: any
+  it?: any
+  vi?: any
+  beforeEach?: any
+}
+const vitestDescribe = testGlobal.describe ?? noopDescribe
+const expect = testGlobal.expect
+const it = testGlobal.it
+const vi = testGlobal.vi
+const beforeEach = testGlobal.beforeEach
 import {
   deduplicateAccountsByEmail,
   migrateV2ToV3,
@@ -11,11 +25,13 @@ import { existsSync, readFileSync, writeFileSync, appendFileSync } from "node:fs
 
 const describe = process.env.OPENCODE_TEST_LEGACY_ANTIGRAVITY_STORAGE === "1" ? vitestDescribe : vitestDescribe.skip
 
-vi.mock("proper-lockfile", () => ({
-  default: {
-    lock: vi.fn().mockResolvedValue(vi.fn().mockResolvedValue(undefined)),
-  },
-}))
+if (vi?.mock) {
+  vi.mock("proper-lockfile", () => ({
+    default: {
+      lock: vi.fn().mockResolvedValue(vi.fn().mockResolvedValue(undefined)),
+    },
+  }))
+}
 
 describe("deduplicateAccountsByEmail", () => {
   it("returns empty array for empty input", () => {
@@ -206,26 +222,28 @@ describe("deduplicateAccountsByEmail", () => {
   })
 })
 
-vi.mock("node:fs", async () => {
-  const actual = await vi.importActual<typeof import("node:fs")>("node:fs")
-  return {
-    ...actual,
-    promises: {
-      ...actual.promises,
-      readFile: vi.fn(),
-      writeFile: vi.fn(),
-      mkdir: vi.fn().mockResolvedValue(undefined),
-      access: vi.fn().mockResolvedValue(undefined),
-      unlink: vi.fn(),
-      rename: vi.fn().mockResolvedValue(undefined),
-      appendFile: vi.fn(),
-    },
-    existsSync: vi.fn(),
-    readFileSync: vi.fn(),
-    writeFileSync: vi.fn(),
-    appendFileSync: vi.fn(),
-  }
-})
+if (vi?.mock) {
+  vi.mock("node:fs", async () => {
+    const actual = (await vi.importActual("node:fs")) as typeof import("node:fs")
+    return {
+      ...actual,
+      promises: {
+        ...actual.promises,
+        readFile: vi.fn(),
+        writeFile: vi.fn(),
+        mkdir: vi.fn().mockResolvedValue(undefined),
+        access: vi.fn().mockResolvedValue(undefined),
+        unlink: vi.fn(),
+        rename: vi.fn().mockResolvedValue(undefined),
+        appendFile: vi.fn(),
+      },
+      existsSync: vi.fn(),
+      readFileSync: vi.fn(),
+      writeFileSync: vi.fn(),
+      appendFileSync: vi.fn(),
+    }
+  })
+}
 
 describe("Storage Migration", () => {
   const now = Date.now()
@@ -387,7 +405,7 @@ describe("Storage Migration", () => {
       }
 
       // Mock readFile to return different values based on path
-      vi.mocked(fs.readFile).mockImplementation((path) => {
+      vi.mocked(fs.readFile).mockImplementation((path: string | URL | Buffer<ArrayBufferLike>) => {
         if ((path as string).endsWith(".gitignore")) {
           const error = new Error("ENOENT") as NodeJS.ErrnoException
           error.code = "ENOENT"
@@ -410,7 +428,9 @@ describe("Storage Migration", () => {
 
       expect(fs.writeFile).toHaveBeenCalled()
 
-      const saveCall = vi.mocked(fs.writeFile).mock.calls.find((call) => (call[0] as string).includes(".tmp"))
+      const saveCall = vi
+        .mocked(fs.writeFile)
+        .mock.calls.find((call: unknown[]) => (call[0] as string).includes(".tmp"))
       if (!saveCall) throw new Error("saveAccounts was not called (tmp file not found)")
 
       const savedContent = JSON.parse(saveCall[1] as string)
@@ -421,7 +441,7 @@ describe("Storage Migration", () => {
 
       const gitignoreCall = vi
         .mocked(fs.writeFile)
-        .mock.calls.find((call) => (call[0] as string).includes(".gitignore"))
+        .mock.calls.find((call: unknown[]) => (call[0] as string).includes(".gitignore"))
       expect(gitignoreCall).toBeDefined()
     })
   })
