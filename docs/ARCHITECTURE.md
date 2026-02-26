@@ -40,186 +40,41 @@ The `cms` branch is the primary product line for this environment, featuring sig
 - **`origin/dev`**: The upstream source. Changes from `origin/dev` are **analyzed and refactored** before being integrated into `cms`. Direct merges are prohibited to preserve the `cms` architecture.
 - **External Plugins**: Located in `/refs`, these are also subject to analysis and refactoring before integration.
 
-### Recent Architectural Notes (2026-02-20)
+### Cross-Surface Runtime Architecture (current state)
 
-The following refactor-ported changes were integrated into `cms` and are relevant to runtime behavior boundaries:
-
-1. **Plugin bootstrap fault isolation (`packages/opencode/src/plugin/index.ts`)**
-   - Internal plugin init and dynamic plugin import failures are now isolated and surfaced as session errors instead of crashing plugin bootstrap.
-   - Architectural effect: plugin subsystem failure domain is narrowed from "global startup failure" to "per-plugin degraded mode".
-
-2. **Snapshot staging exclude sync (`packages/opencode/src/snapshot/index.ts`)**
-   - Snapshot `track/patch/diff` now sync source repo `info/exclude` into snapshot gitdir before `git add .`.
-   - Architectural effect: snapshot diff/patch behavior is now aligned with project-local exclude policy, reducing false-positive staged changes.
-
-3. **GitHub Action variant propagation (`github/action.yml`, `packages/opencode/src/cli/cmd/github.ts`)**
-   - Added optional `variant` action input and propagated `VARIANT` through `opencode github run` to `SessionPrompt.prompt()`.
-   - Architectural effect: CI-triggered agent runs can now carry provider/model-specific reasoning variants through the same session prompt pipeline as interactive runs.
-
-4. **Experimental cross-project session listing (`packages/opencode/src/session/index.ts`, `packages/opencode/src/server/routes/experimental.ts`)**
-   - Added `Session.listGlobal()` and `GET /experimental/session` to enumerate sessions across all projects with optional filtering and cursor pagination.
-   - Architectural effect: session discovery now has an explicit global-read path (project-agnostic index + project metadata join), separate from project-scoped `/session` APIs.
-
-5. **Desktop server connection policy refinement (`packages/desktop/src-tauri/src/lib.rs`, `packages/desktop/src-tauri/src/server.rs`, `packages/desktop/src/index.tsx`)**
-   - Desktop now avoids spawning a local sidecar when the configured default server is already localhost; remote defaults still permit local sidecar fallback.
-   - Architectural effect: desktop runtime now supports a dual-mode bootstrap (existing local server vs sidecar) with explicit `is_sidecar` signaling from Rust to frontend.
-
-6. **Tool/runtime observability and multimodal fetch updates (`packages/opencode/src/session/tool-invoker.ts`, `packages/plugin/src/index.ts`, `packages/opencode/src/tool/webfetch.ts`)**
-   - `tool.execute.after` hook input now includes tool `args`, enabling plugins to correlate tool outcomes with original invocation arguments.
-   - `webfetch` now returns non-SVG image responses as file attachments (data URLs) instead of forcing text decoding.
-   - Architectural effect: plugin hook contract gains argument-level visibility, and tool result pipeline now supports binary-first web artifacts in the same attachment channel as other file parts.
-
-7. **Attachment ownership normalization (phase-in) (`packages/opencode/src/tool/webfetch.ts`, `packages/opencode/src/tool/batch.ts`, session prompt/processor pipeline)**
-   - Tool outputs are being normalized so attachments are returned without transport identity fields (`id/sessionID/messageID`), with message-part identity injected centrally in session processing.
-   - Architectural effect: attachment identity responsibility shifts from per-tool implementation to session pipeline boundaries, reducing duplicated metadata logic and preventing mixed ownership bugs.
-
-8. **Structured output contract rollout (`packages/opencode/src/session/message-v2.ts`, `packages/opencode/src/session/prompt.ts`, `packages/opencode/src/session/llm.ts`, `packages/sdk/js/src/v2/gen/*`)**
-   - Session prompt now accepts an optional output format (`text` or `json_schema`) and can enforce schema-constrained completion via a dedicated `StructuredOutput` tool path.
-   - Message and SDK schemas now include structured-output message metadata (`format`, `structured`, `StructuredOutputError`) and prompt API format wiring.
-   - Architectural effect: output representation evolves from text-only completion to dual-mode (text/structured) contracts across runtime + SDK boundaries.
-
-9. **Structured output continuity across compaction (`packages/opencode/src/session/prompt.ts`, `packages/opencode/src/session/compaction.ts`)**
-   - Auto-compaction paths now propagate the originating user `format` into synthetic continuation user messages and compaction-create requests.
-   - When `format=json_schema`, prompt loop now preserves schema-enforcement intent after compaction/re-entry, instead of silently falling back to plain-text-only continuation.
-   - Architectural effect: structured-output contract is now continuous across normal turn, compaction turn, and post-compaction resume boundaries.
-
-10. **SDK/OpenAPI generation decoupling + model-shape compatibility (`packages/opencode/src/openapi/generate.ts`, `packages/sdk/js/script/build.ts`, `packages/opencode/src/acp/agent.ts`, `packages/opencode/src/cli/cmd/tui/context/local.tsx`)**
-
-- SDK generation no longer depends on CLI `generate` stdout piping; it now uses a dedicated OpenAPI generator entrypoint that calls `Server.openapi()` directly.
-- Consumers that read config model defaults now normalize both legacy string refs and object-shaped model refs (from newer SDK config schema) into `{ providerId, modelID }` before selection logic.
-- Architectural effect: SDK build pipeline is isolated from CLI/TUI runtime side effects, and model-selection consumers are resilient across schema evolution boundaries.
-
-11. **MCP surface simplification + dev/binary parity (`packages/opencode/src/config/config.ts`, `packages/opencode/src/cli/cmd/tui/routes/session/sidebar.tsx`, `package.json`)**
-
-- Memory MCP config normalization now keeps a single visible `memory` MCP entry instead of auto-expanding additional `memory-project` / `memory-global` MCP server entries.
-- Sidebar MCP rows now rely on status dot color for common states and hide redundant `Connected` / `Disabled` text labels.
-- `bun run dev` no longer forces `OPENCODE_SKIP_MCP_AUTO=1`, aligning default MCP connect behavior with binary runtime.
-- Architectural effect: lower MCP UI/config surface complexity, reduced status noise, and consistent MCP lifecycle semantics across development and binary execution paths.
-
-12. **MCP implementation layout refactor (`packages/mcp/**`, `scripts/\*.ts`, `templates/skills/refactor-from-src/**`)**
-
-- Project-owned MCP server implementations are now centralized under `packages/mcp/` (e.g. `system-manager`, `refacting-merger`).
-- Legacy script entrypoints are retained as thin compatibility shims in `scripts/` to avoid breaking existing local commands and configs.
-- Developer tooling/docs were updated to point to the new canonical MCP paths.
-- Architectural effect: clearer separation between operational scripts and MCP runtime services, improving discoverability and future MCP scalability.
-
-13. **Capability Enablement Layer (new fourth layer for prompt/runtime routing)**
-
-- Added a centralized capability registry at `packages/opencode/src/session/prompt/enablement.json` with template mirror `templates/prompts/enablement.json`.
-- Registry now consolidates tool/skill/MCP inventory, routing hints, and on-demand MCP lifecycle policy (enable-on-need / disable-when-idle).
-- `SystemPrompt.seedAll()` now seeds `enablement.json` into runtime prompt config space so session/system prompts can reference a single capability map.
-- `SYSTEM` rules were updated to treat `prompts/enablement.json` as capability discovery source-of-truth and to demote scattered driver tool hints to non-authoritative heuristics.
-- `AGENTS` policy was updated to elevate `mcp-finder` + `skill-finder` as primary expansion skills and require updating `enablement.json` whenever new capabilities are installed.
-- `LLM.stream()` now injects an enablement snapshot block into system context so model turns can see current capability classes and intent matches.
-- `resolve-tools` now applies on-demand MCP policy from registry routing keywords: auto-connect matching MCP servers before tool resolution and auto-disconnect previously auto-enabled servers after idle timeout.
-- Verification baseline policy is now codified via:
-  - `scripts/typecheck-with-baseline.ts` + root `check` routing (`lint + verify:typecheck`), which treats `src/plugin/antigravity/**` diagnostics as non-blocking only when the antigravity plugin path is untouched in the current diff.
-  - `scripts/test-with-baseline.ts` + root `test` routing, which excludes antigravity auth plugin test scopes from global regression runs.
-- Architectural effect: capability discovery is shifted from fragmented prompt fragments to a unified registry + lifecycle model, improving tool discoverability and reducing manual user reminders.
-
-14. **ACP tool-call pending dedupe across replay/live streams (`packages/opencode/src/acp/agent.ts`)**
-
-- ACP now emits synthetic pending (`tool_call`) through a shared deduped path for both replayed message history and live `message.part.updated` tool events.
-- Terminal tool states (`completed` / `error`) clear dedupe markers so future calls can start cleanly.
-- Architectural effect: ACP tool-call timeline semantics are now stable (single pending start per callID), reducing duplicate state transitions and downstream UI/event confusion.
-
-### Recent Architectural Notes (2026-02-23 Web Alignment Matrix: TUI → Web)
-
-This round completed an incremental Web alignment pass against existing TUI capabilities without a large-scale frontend rewrite.
-
-#### File-to-Function Mapping (Web alignment scope)
-
-| File Path                                                      | Function / Responsibility                                                                                                     | Architectural Impact                                                                                                   |
-| :------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------- |
-| `packages/app/src/pages/session/index.tsx`                     | Reconnected `questionRequest` pipeline and prompt blocking logic (`permission` + `question`).                                 | Restores Web parity for ask/reply control flow with shared session event model.                                        |
-| `packages/app/src/components/settings-accounts.tsx`            | New Accounts settings panel: list families/accounts and set active account.                                                   | Introduces minimum viable Web account-management surface using existing `/account` API contracts.                      |
-| `packages/app/src/components/dialog-settings.tsx`              | Added Accounts tab and `initialTab` deep-link support.                                                                        | Enables cross-surface navigation (e.g., status popover → settings/accounts) with reusable settings container behavior. |
-| `packages/app/src/components/status-popover.tsx`               | Added Accounts tab with rotation recommendations + account summary; manage action opens settings accounts tab.                | Upgrades popover to “admin-lite” status surface while keeping mutating actions in Settings.                            |
-| `packages/app/src/context/local.tsx`                           | Added `parseConfiguredModel()` to normalize legacy string and object-shaped `config.model`.                                   | Hardens model-selection boundary against SDK schema evolution; removes `.split()` type fragility.                      |
-| `packages/app/src/i18n/en.ts`                                  | Added account/status-related i18n keys (`settings.accounts.*`, `status.popover.tab.accounts`, `common.refresh/manage`, etc.). | Establishes localization contract for new Web account/admin-lite UI elements.                                          |
-| `docs/events/event_20260223_web_alignment_matrix_execution.md` | Event ledger of scope, decisions, risks, and validation.                                                                      | Preserves architecture decision traceability for future incremental parity work.                                       |
-
-#### Validation State (for this alignment set)
-
-- `bun x tsc -p /home/pkcs12/projects/opencode/packages/app/tsconfig.json --noEmit` ✅
-- `bun turbo typecheck --filter=@opencode-ai/app` ✅
-
-### Recent Architectural Notes (2026-02-23 Docker Web Service Rebuild)
-
-This round also repaired `/docker` deployment so the Web service can be brought up reliably while preserving the existing production runtime model.
-
-#### File-to-Function Mapping (Docker web service)
-
-| File Path                              | Function / Responsibility                                                                        | Architectural Impact                                                                                                        |
-| :------------------------------------- | :----------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
-| `docker/docker-compose.production.yml` | Defines `opencode` and `opencode-web` services, runtime mounts, and web profile startup command. | Build context now resolves from repo root, removing path breakage when invoked via `/docker` scripts.                       |
-| `docker/Dockerfile.production`         | Production image assembly (binary, frontend assets, synced config/data/state, runtime env).      | Maintains existing `/opt/opencode` runtime contract while clarifying canonical build/run commands.                          |
-| `docker/webctl.sh`                     | One-command operational workflow (`deploy/start/stop/build/logs`) for web profile.               | Corrected repo-root path resolution for build artifacts and Docker build context, making helper script runnable end-to-end. |
-| `docker/docker-setup.sh`               | Bootstrap utility for host directories, binary build, and image build.                           | Build invocation now points to `docker/Dockerfile.production`, aligning setup path with actual repo layout.                 |
-| `docker/sync-config.sh`                | Syncs host XDG config/data/state into repo `config/` for image baking and host volume seeding.   | Preserves existing config migration strategy and avoids drift between host runtime and container runtime.                   |
-
-#### Validation State (Docker rebuild)
-
-- `docker compose -f docker/docker-compose.production.yml --profile web config` ✅
-- `bash -n docker/webctl.sh && bash -n docker/docker-setup.sh && bash -n docker/sync-config.sh` ✅
-
-### Recent Architectural Notes (2026-02-23 Web Auth Refactor)
-
-The web authentication path has been refactored from browser HTTP Basic prompt flow to explicit cookie-session auth with CSRF protection.
-
-#### File-to-Function Mapping (Web auth refactor)
-
-| File Path                                       | Function / Responsibility                                                                                                                    | Architectural Impact                                                                                     |
-| :---------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------- |
-| `packages/opencode/src/server/web-auth.ts`      | Central web auth primitives: signed stateless session cookie, CSRF token, lockout state, route/public-path helpers.                          | Introduces dedicated auth boundary module instead of ad-hoc middleware checks.                           |
-| `packages/opencode/src/server/app.ts`           | Request gate middleware using `WebAuth` (public route allowlist, cookie session verification, CSRF checks for mutations, credentialed CORS). | Replaces transport-level Basic challenge with app-layer session policy and structured 401/403 responses. |
-| `packages/opencode/src/server/routes/global.ts` | Adds web auth lifecycle endpoints (`/global/auth/session`, `/global/auth/login`, `/global/auth/logout`).                                     | Establishes explicit browser auth API contract for login/session probing/logout.                         |
-| `packages/app/src/context/web-auth.tsx`         | Frontend auth state machine and `authorizedFetch` wrapper (credentials include + CSRF header injection).                                     | Moves auth handling into composable client runtime context, reusable across SDK/event calls.             |
-| `packages/app/src/components/auth-gate.tsx`     | Login gate UI for unauthenticated browser sessions.                                                                                          | Removes dependency on browser-native Basic auth popup and enables controlled UX flow.                    |
-| `packages/app/src/context/global-sdk.tsx`       | SDK and SSE client now use auth-aware fetch wrapper instead of Basic header injection.                                                       | Aligns API and event transport with cookie/session auth model.                                           |
-| `packages/app/src/components/terminal.tsx`      | Removes websocket URL embedded basic credentials.                                                                                            | Unifies PTY auth path with session cookie model.                                                         |
-| `packages/app/src/app.tsx`                      | Adds `WebAuthProvider` + `AuthGate` in root composition.                                                                                     | Makes auth gating a first-class app bootstrap stage before router runtime.                               |
-
-### Recent Architectural Notes (2026-02-23 Web Architecture-First Stabilization Plan)
-
-After the auth refactor and initial admin-lite work, Web runtime behavior still diverges from TUI in three critical areas: workspace boundary handling, PTY lifecycle robustness, and `/admin` parity depth. The project now adopts an **architecture-first** stabilization sequence before additional UI feature expansion.
-
-#### Core boundary model (Web)
+#### Web runtime boundaries
 
 1. **Auth boundary (`WebAuth`)**
-   - Browser requests use cookie-session + CSRF; CLI/TUI compatibility path keeps Basic auth available.
-   - Decision: keep dual-mode auth contract, but treat Web cookie path as primary for browser surfaces.
+   - Browser uses cookie-session + CSRF protection.
+   - CLI/TUI compatibility path can still use Basic auth where required.
 
 2. **Instance boundary (`Instance.directory`)**
-   - File/tool routes enforce project-root confinement (`Access denied: path escapes project directory`).
-   - Decision: keep confinement semantics, but add explicit UX/diagnostic handling for cross-directory expectations instead of implicit failures.
+   - File/tool routes are project-root constrained.
+   - Requests escaping project scope are denied by design.
 
-3. **PTY boundary (`/pty` create + connect)**
-   - PTY websocket connect depends on an existing PTY id; stale ids produce `Session not found`.
-   - Decision: enforce explicit create→connect sequencing and add recovery path for stale local PTY state.
+3. **PTY boundary (`/pty`)**
+   - PTY sessions require explicit create → connect lifecycle.
+   - Stale PTY ids are treated as invalid session state and must be recreated.
 
-4. **Admin parity boundary (TUI `/admin` vs Web)**
-   - Web currently provides account/status admin-lite and settings-based account activation.
-   - TUI `/admin` still owns richer provider/account/model activity, rate-limit/quota visibility, and rotation-aware model/account workflows.
-   - Decision: port by capability slices (read-first, then mutate actions), not by one-shot screen cloning.
+#### TUI/Web admin capability boundary
 
-#### TUI → Web parity slices (incremental)
+- **TUI `/admin`** is the canonical control plane for provider/account/model operations and rotation-aware diagnostics.
+- **Web** currently provides admin-lite capabilities (account visibility/activation and status surfacing) and reuses the same backend account/provider APIs.
 
-| Slice                                  | TUI status | Web status                    | Planned landing                          |
-| :------------------------------------- | :--------- | :---------------------------- | :--------------------------------------- |
-| Account list + set active              | Complete   | Complete (settings + popover) | keep + polish                            |
-| Rotation recommendations               | Complete   | Read-only in popover          | add richer reason/context                |
-| Provider enable/disable + add flow     | Complete   | Partial                       | Web admin section (phase 2)              |
-| Model activity + cooldown/quota matrix | Complete   | Missing                       | Web admin section (phase 3)              |
-| Rate-limit guided recovery UX          | Complete   | Missing                       | model switcher + session hints (phase 3) |
+#### Deployment/runtime consistency
 
-Reference event ledger:
+- Docker web profile (`docker-compose.production.yml` + `Dockerfile.production`) follows the same `/opt/opencode` runtime contract as native environments.
+- MCP runtime services are canonicalized under `packages/mcp/*`; `scripts/*` keeps compatibility shims only.
 
-- `docs/events/event_20260223_web_architecture_first_plan.md`
+#### Capability registry contract
 
-### Recent Architectural Notes (2026-02-26 Provider Identity & TUI Admin Runtime Clarification)
+- Capability discovery source-of-truth is `packages/opencode/src/session/prompt/enablement.json` with template mirror at `templates/prompts/enablement.json`.
+- Prompt/runtime routing should use this registry for tools/skills/MCP inventory and on-demand MCP lifecycle policy.
 
-This section defines the **cms authoritative provider graph** for TUI `/admin` and backend runtime, and records the family-resolution hardening work that removes ambiguous provider-family inference.
+### Provider Identity & TUI Admin Runtime Architecture (cms)
+
+This section defines the **authoritative** provider/account/model architecture for cms TUI `/admin` and backend runtime.
+Historical change logs belong in `docs/events/`; this document keeps the current architecture only.
 
 #### A) cms Provider Graph (authoritative coordinates)
 
@@ -255,7 +110,7 @@ No runtime decision should depend on "guessing" family from an arbitrary dashed 
 
 This order guarantees models are family-owned first, then account- and plugin-specific behavior is overlaid.
 
-#### D) Family resolution hardening (2026-02-26)
+#### D) Family resolution and identity boundaries
 
 To enforce 3D identity boundaries:
 
@@ -281,6 +136,27 @@ To enforce 3D identity boundaries:
 4. **Operational migration is explicit**
    - `opencode auth migrate-identities` provides a reportable/manual path to normalize identity drift.
 
+#### D.2) Refactor coverage and verification gates
+
+This refactor is not limited to `Auth` or `Account`; canonical identity resolution was propagated to all major provider decision paths:
+
+- Session model routing/fallback (`session/llm.ts`, `session/processor.ts`, `session/image-router.ts`)
+- Provider health and availability checks (`provider/health.ts`)
+- Provider API composition (`server/routes/provider.ts`)
+- Rotation and scoring (`account/rotation3d.ts`, `agent/score.ts`)
+- Runtime provider inheritance (`provider/provider.ts`) — legacy regex inheritance removed and replaced with resolver-based inheritance.
+
+To prevent regressions for the original NVIDIA admin issue, the project now includes both test and script-level gates:
+
+- Regression tests:
+  - `packages/opencode/test/auth/family-resolution.test.ts`
+  - `packages/opencode/test/account/family-normalization.test.ts`
+  - `packages/opencode/test/provider/provider-cms.test.ts` (includes admin-like NVIDIA flow)
+- Scripted E2E tester:
+  - `scripts/test-e2e-provider-nvidia-admin.ts`
+  - Verifies: add NVIDIA API account → activate account → provider model list visible → model resolvable
+  - **Non-polluting cleanup guarantee**: tester always removes temporary `e2e-*` account and restores previous active account in `finally`.
+
 #### E) Provider-logic network map (cms runtime)
 
 ```mermaid
@@ -300,7 +176,7 @@ flowchart TD
   L --> M[Rotation3D + Session LLM fallback]
 ```
 
-Reference event ledger:
+Reference decision record:
 
 - `docs/events/event_20260226_provider_identity_refactor.md`
 
