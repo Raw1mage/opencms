@@ -11,7 +11,11 @@ Target: `cms`
 
 1. `packages/opencode/package.json`
    - Updated `scripts.build` from `bun run script/build.ts` to `bun run ../../script/build.ts`.
+2. `packages/app/src/app.tsx`
+   - Extended `Window.__OPENCODE__` type to include `serverPassword?: string` for desktop assignment compatibility.
 
 ## Validation
 
+- `bun run build --help` in `packages/opencode` ✅
+- `bun run typecheck` in `packages/desktop` ✅
 - Pending push retry (pre-push runs `bun turbo typecheck`).
