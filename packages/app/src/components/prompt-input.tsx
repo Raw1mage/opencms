@@ -402,6 +402,8 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   })
 
   const slashCommands = createMemo<SlashCommand[]>(() => {
+    const excludedCustomSlash = new Set(["update_model", "update_models"])
+
     const builtin = command.options
       .filter((opt) => !opt.disabled && !opt.id.startsWith("suggested.") && opt.slash)
       .map((opt) => ({
@@ -413,20 +415,30 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         type: "builtin" as const,
       }))
 
-    const custom: SlashCommand[] = sync.data.command.map((cmd): SlashCommand => {
-      const source: SlashCommand["source"] =
-        cmd.source === "command" || cmd.source === "mcp" || cmd.source === "skill" ? cmd.source : undefined
-      return {
-        id: `custom.${cmd.name}`,
-        trigger: cmd.name,
-        title: cmd.name,
-        description: cmd.description,
-        type: "custom",
-        source,
-      }
-    })
+    const custom: SlashCommand[] = sync.data.command
+      .filter((cmd) => !excludedCustomSlash.has(cmd.name))
+      .map((cmd): SlashCommand => {
+        const source: SlashCommand["source"] =
+          cmd.source === "command" || cmd.source === "mcp" || cmd.source === "skill" ? cmd.source : undefined
+        return {
+          id: `custom.${cmd.name}`,
+          trigger: cmd.name,
+          title: cmd.name,
+          description: cmd.description,
+          type: "custom",
+          source,
+        }
+      })
 
-    return [...custom, ...builtin]
+    const seenTrigger = new Set<string>()
+    const out: SlashCommand[] = []
+    for (const cmd of [...builtin, ...custom]) {
+      if (seenTrigger.has(cmd.trigger)) continue
+      seenTrigger.add(cmd.trigger)
+      out.push(cmd)
+    }
+
+    return out
   })
 
   const handleSlashSelect = (cmd: SlashCommand | undefined) => {

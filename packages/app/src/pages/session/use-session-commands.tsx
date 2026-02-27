@@ -71,6 +71,13 @@ export const useSessionCommands = (input: SessionCommandContext) => {
 
   const sessionCommands = createMemo(() => [
     sessionCommand({
+      id: "session.switch",
+      title: input.language.t("command.file.open"),
+      description: input.language.t("palette.search.placeholder"),
+      slash: "session",
+      onSelect: () => input.dialog.show(() => <DialogSelectFile onOpenFile={input.showAllFiles} />),
+    }),
+    sessionCommand({
       id: "session.new",
       title: input.language.t("command.session.new"),
       keybind: "mod+shift+s",
