@@ -40,6 +40,7 @@ import { PermissionRoutes } from "./routes/permission"
 import { GlobalRoutes } from "./routes/global"
 import { AccountRoutes } from "./routes/account"
 import { RotationRoutes } from "./routes/rotation"
+import { ModelRoutes } from "./routes/model"
 import { Env } from "@/env"
 import { ActivityBeacon } from "@/util/activity-beacon"
 import { WebAuth } from "./web-auth"
@@ -194,9 +195,15 @@ export function createApp(app: Hono): Hono {
           return raw
         }
       })()
-      const exists = await fs.promises.access(decoded).then(() => true).catch(() => false)
+      const exists = await fs.promises
+        .access(decoded)
+        .then(() => true)
+        .catch(() => false)
       if (exists) return decoded
-      log.warn("Directory does not exist, falling back to process.cwd()", { requested: decoded, fallback: process.cwd() })
+      log.warn("Directory does not exist, falling back to process.cwd()", {
+        requested: decoded,
+        fallback: process.cwd(),
+      })
       return process.cwd()
     })()
 
@@ -310,6 +317,7 @@ export function createApp(app: Hono): Hono {
   api.route("/account", AccountRoutes())
   api.route("/accounts", AccountRoutes())
   api.route("/rotation", RotationRoutes())
+  api.route("/model", ModelRoutes())
   api.route("/", FileRoutes())
 
   api.post(
@@ -447,10 +455,7 @@ export function createApp(app: Hono): Hono {
         service: z.string().meta({ description: "Service name for the log entry" }),
         level: z.enum(["debug", "info", "error", "warn"]).meta({ description: "Log level" }),
         message: z.string().meta({ description: "Log message" }),
-        extra: z
-          .record(z.string(), z.any())
-          .optional()
-          .meta({ description: "Additional metadata for the log entry" }),
+        extra: z.record(z.string(), z.any()).optional().meta({ description: "Additional metadata for the log entry" }),
       }),
     ),
     async (c) => {

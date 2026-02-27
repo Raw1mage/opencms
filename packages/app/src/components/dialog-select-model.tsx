@@ -15,6 +15,7 @@ import {
 import { createStore } from "solid-js/store"
 import { useLocal } from "@/context/local"
 import { useGlobalSync } from "@/context/global-sync"
+import { useGlobalSDK } from "@/context/global-sdk"
 import { useSDK } from "@/context/sdk"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { popularProviders } from "@/hooks/use-providers"
@@ -34,47 +35,15 @@ import { ProviderIcon } from "@opencode-ai/ui/provider-icon"
 import { Switch } from "@opencode-ai/ui/switch"
 import { showToast } from "@opencode-ai/ui/toast"
 import { iconNames, type IconName } from "@opencode-ai/ui/icons/provider"
+import {
+  buildAccountRows,
+  buildProviderRows,
+  filterModelsForMode,
+  normalizeProviderFamily,
+} from "./model-selector-state"
 
 function cn(...classes: (string | undefined | null | false)[]) {
   return classes.filter(Boolean).join(" ")
-}
-
-const KNOWN_PROVIDER_FAMILIES = [
-  "opencode",
-  "anthropic",
-  "claude-cli",
-  "openai",
-  "github-copilot",
-  "gemini-cli",
-  "google-api",
-  "antigravity",
-  "gmicloud",
-  "openrouter",
-  "vercel",
-  "gitlab",
-] as const
-
-function normalizeProviderFamily(id: string): string | undefined {
-  if (!id) return undefined
-  const raw = id.trim().toLowerCase()
-  if (!raw) return undefined
-
-  if (raw.includes(":")) return normalizeProviderFamily(raw.split(":")[0]!)
-  if (raw === "google") return "google-api"
-
-  for (const provider of KNOWN_PROVIDER_FAMILIES) {
-    if (raw === provider || raw.startsWith(`${provider}-`)) return provider
-  }
-
-  const apiMatch = raw.match(/^(.+)-api-/)
-  if (apiMatch) return apiMatch[1]
-
-  const subscriptionMatch = raw.match(/^(.+)-subscription-/)
-  if (subscriptionMatch) return subscriptionMatch[1]
-
-  if (!raw.includes("-")) return raw
-  if (!raw.includes("-api-") && !raw.includes("-subscription-")) return raw
-  return undefined
 }
 
 const isFree = (provider: string, cost: { input: number } | undefined) =>
@@ -260,7 +229,9 @@ const ProviderItem: Component<{
       <button
         class={cn(
           "flex items-center gap-2 flex-1 px-3 py-2 text-13-regular rounded-md transition-colors text-left outline-none min-w-0",
-          props.selected ? "bg-surface-raised-pressed text-text-strong" : "text-text-base hover:bg-surface-raised-hover",
+          props.selected
+            ? "bg-surface-raised-pressed text-text-strong"
+            : "text-text-base hover:bg-surface-raised-hover",
         )}
         onClick={props.onClick}
       >
@@ -288,6 +259,7 @@ const ModelItem: Component<{
   item: ReturnType<ReturnType<typeof useModels>["list"]>[number]
   selected: boolean
   enabled: boolean
+  favorite: boolean
   unavailableReason?: string
   onToggleEnabled: (e: MouseEvent) => void
 }> = (props) => {
@@ -297,6 +269,9 @@ const ModelItem: Component<{
     <div class="flex items-center gap-2 w-full group">
       <div class="flex-1 min-w-0 flex items-center gap-2">
         <span class={cn("truncate", props.selected && "text-text-strong")}>{props.item.name}</span>
+        <Show when={props.favorite}>
+          <Tag>★</Tag>
+        </Show>
         <Show when={props.item.provider.id === "opencode" && (!props.item.cost || props.item.cost?.input === 0)}>
           <Tag>{language.t("model.tag.free")}</Tag>
         </Show>
@@ -325,10 +300,17 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   const language = useLanguage()
   const local = useLocal()
   const globalSync = useGlobalSync()
+  const globalSDK = useGlobalSDK()
   const sdk = useSDK()
 
   const [accountInfo] = createResource(async () => {
     return sdk.client.account.listAll().then((x) => x.data)
+  })
+
+  const [modelPreferences] = createResource(async () => {
+    const response = await globalSDK.fetch(`${globalSDK.url}/api/v2/model/preferences`)
+    if (!response.ok) throw new Error(`model preferences fetch failed (${response.status})`)
+    return (await response.json()) as { favorite?: Array<{ providerId: string; modelID: string }> }
   })
 
   const [selectedProviderId, setSelectedProviderId] = createSignal<string>(props.provider || "")
@@ -363,6 +345,29 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
 
   const familyOf = (providerId: string) => normalizeProviderFamily(providerId) || providerId
 
+  const favoriteEntries = createMemo(() => {
+    const remote = modelPreferences.latest?.favorite
+    if (Array.isArray(remote) && remote.length > 0) {
+      return remote.map((item) => ({ providerID: item.providerId, modelID: item.modelID }))
+    }
+    return local.model.favoriteList()
+  })
+
+  const favoriteKeySet = createMemo(() => {
+    const out = new Set<string>()
+    for (const item of favoriteEntries()) {
+      const family = familyOf(item.providerID)
+      out.add(`${item.providerID}:${item.modelID}`)
+      out.add(`${family}:${item.modelID}`)
+    }
+    return out
+  })
+
+  const isFavoritedModel = (providerID: string, modelID: string) => {
+    const family = familyOf(providerID)
+    return favoriteKeySet().has(`${providerID}:${modelID}`) || favoriteKeySet().has(`${family}:${modelID}`)
+  }
+
   const activeAccountForFamily = (family: string) => {
     const families = accountInfo.latest?.families as Record<string, unknown> | undefined
     const familyRow = families?.[family] as { activeAccount?: unknown } | undefined
@@ -389,90 +394,25 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   }
 
   const providers = createMemo(() => {
-    const out = new Map<string, { id: string; family: string; name: string; accounts: number; enabled: boolean }>()
-
-    const labelMap: Record<string, string> = {
-      anthropic: "Anthropic",
-      openai: "OpenAI",
-      "google-api": "Google-API",
-      antigravity: "Antigravity",
-      "gemini-cli": "Gemini CLI",
-      gmicloud: "GMICloud",
-      "github-copilot": "GitHub Copilot",
-      gitlab: "GitLab",
-      opencode: "OpenCode",
-      openrouter: "OpenRouter",
-      vercel: "Vercel",
-    }
-
-    const disabledFamilies = new Set(
-      ((globalSync.data.config.disabled_providers ?? []) as string[])
-        .map((id) => normalizeProviderFamily(id))
-        .filter((id): id is string => !!id),
-    )
-
     const allProviders = globalSync.data.provider.all ?? []
-    const familyUniverse = new Set<string>()
-    for (const provider of allProviders) {
-      const normalized = normalizeProviderFamily(provider.id)
-      if (!normalized) continue
-      familyUniverse.add(normalized)
-    }
-
     const families = accountInfo.latest?.families as Record<string, { accounts?: Record<string, unknown> }> | undefined
-    if (families) {
-      for (const [family, data] of Object.entries(families)) {
-        const normalized = normalizeProviderFamily(family)
-        if (!normalized) continue
-        familyUniverse.add(normalized)
-      }
-    }
-
-    for (const id of globalSync.data.config.disabled_providers ?? []) {
-      const normalized = normalizeProviderFamily(id)
-      if (!normalized) continue
-      familyUniverse.add(normalized)
-    }
-
-    for (const id of popularProviders) {
-      const normalized = normalizeProviderFamily(id)
-      if (!normalized || normalized === "google") continue
-      familyUniverse.add(normalized)
-    }
-
-    for (const family of familyUniverse) {
-      const providerDisabled = disabledFamilies.has(family)
-      if (mode() === "favorites" && providerDisabled) continue
-
-      const famData = families?.[family]
-      const accountsCount = famData?.accounts ? Object.keys(famData.accounts).length : 0
-      const providersInFamily = allProviders.filter((provider) => familyOf(provider.id) === family)
-      const familyProvider = providersInFamily.find((provider) => provider.id === family) ?? providersInFamily[0]
-
-      out.set(family, {
-        id: family,
-        family,
-        name: familyProvider?.name ?? labelMap[family] ?? family,
-        accounts: accountsCount,
-        enabled: !providerDisabled,
-      })
-    }
-
-    return Array.from(out.values()).sort((a, b) => {
-      const aIdx = popularProviders.indexOf(a.family)
-      const bIdx = popularProviders.indexOf(b.family)
-      if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx
-      if (aIdx !== -1) return -1
-      if (bIdx !== -1) return 1
-      return a.name.localeCompare(b.name)
+    return buildProviderRows({
+      providers: allProviders,
+      accountFamilies: families,
+      disabledProviders: (globalSync.data.config.disabled_providers ?? []) as string[],
     })
+  })
+
+  const providersForMode = createMemo(() => {
+    if (mode() === "all") return providers()
+    return providers().filter((provider) => provider.enabled)
   })
 
   createEffect(() => {
     const selected = selectedProviderId()
-    if (selected && providers().some((provider) => provider.id === selected)) return
-    if (providers().length > 0) {
-      setSelectedProviderId(providers()[0].id)
+    if (selected && providersForMode().some((provider) => provider.id === selected)) return
+    if (providersForMode().length > 0) {
+      setSelectedProviderId(providersForMode()[0].id)
       return
     }
     setSelectedProviderId("")
@@ -481,35 +421,13 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   const accountsForSelectedProvider = createMemo(() => {
     const providerId = selectedProviderId()
     if (!providerId) return [] as Array<{ id: string; label: string; active: boolean; unavailable?: string }>
-    const family = familyOf(providerId)
-    const families = accountInfo.latest?.families as Record<string, unknown> | undefined
-    const familyRow = families?.[family] as { activeAccount?: unknown; accounts?: Record<string, unknown> } | undefined
-    const activeAccount = typeof familyRow?.activeAccount === "string" ? familyRow.activeAccount : undefined
-    const accounts = familyRow?.accounts && typeof familyRow.accounts === "object" ? familyRow.accounts : {}
-    const rows = Object.entries(accounts).map(([id, value]) => {
-      const item = value as Record<string, unknown>
-      const name =
-        (typeof item?.name === "string" && item.name) || (typeof item?.email === "string" && item.email) || id
-      const until = typeof item?.coolingDownUntil === "number" ? item.coolingDownUntil : undefined
-      const reason = typeof item?.cooldownReason === "string" ? item.cooldownReason : undefined
-      const unavailable =
-        until && until > Date.now()
-          ? reason ||
-          language.t("settings.models.recommendations.cooldown", {
-            minutes: Math.max(1, Math.ceil((until - Date.now()) / 60000)),
-          })
-          : undefined
-      return {
-        id,
-        label: name,
-        active: activeAccount === id,
-        unavailable,
-      }
-    })
-    return rows.sort((a, b) => {
-      if (a.active && !b.active) return -1
-      if (!a.active && b.active) return 1
-      return a.label.localeCompare(b.label)
+    const families = accountInfo.latest?.families as
+      | Record<string, { accounts?: Record<string, unknown>; activeAccount?: string }>
+      | undefined
+    return buildAccountRows({
+      selectedProviderFamily: providerId,
+      accountFamilies: families,
+      formatCooldown: (minutes) => language.t("settings.models.recommendations.cooldown", { minutes }),
     })
   })
 
@@ -528,17 +446,25 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   const filteredModels = createMemo(() => {
     const providerId = selectedProviderId()
     if (!providerId) return [] as ReturnType<ReturnType<typeof useModels>["list"]>
-    return local.model
-      .list()
-      .filter((m) => {
-        return familyOf(m.provider.id) === providerId
-      })
-      .filter((m) => {
-        const key = { modelID: m.id, providerID: m.provider.id }
-        const enabled = local.model.enabled(key)
-        if (mode() === "favorites") return enabled
-        return true
-      })
+
+    const models = local.model.list()
+    const selectedAccount = selectedAccountId()
+    const activeAccount = activeAccountForFamily(providerId)
+    const candidateProviderIDs = [selectedAccount, activeAccount, providerId].filter((id): id is string => !!id)
+    const resolvedProviderID =
+      candidateProviderIDs.find((id) => models.some((m) => m.provider.id === id)) ??
+      models.find((m) => familyOf(m.provider.id) === providerId)?.provider.id
+
+    const scopedModels = resolvedProviderID
+      ? models.filter((m) => m.provider.id === resolvedProviderID)
+      : models.filter((m) => familyOf(m.provider.id) === providerId)
+
+    return filterModelsForMode({
+      models: scopedModels,
+      providerFamily: providerId,
+      mode: mode(),
+      isVisible: (key) => local.model.visible(key),
+    })
   })
 
   const toggleProviderEnabled = (e: MouseEvent, family: string) => {
@@ -555,16 +481,14 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
     }
     const next = [...current]
     globalSync.set("config", "disabled_providers", next)
-    globalSync
-      .updateConfig({ disabled_providers: next })
-      .catch((err) => {
-        globalSync.set("config", "disabled_providers", before)
-        showToast({
-          variant: "error",
-          title: language.t("common.requestFailed"),
-          description: err instanceof Error ? err.message : String(err),
-        })
+    globalSync.updateConfig({ disabled_providers: next }).catch((err) => {
+      globalSync.set("config", "disabled_providers", before)
+      showToast({
+        variant: "error",
+        title: language.t("common.requestFailed"),
+        description: err instanceof Error ? err.message : String(err),
       })
+    })
   }
 
   return (
@@ -578,7 +502,7 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
             <div class="px-3 py-2 text-11-medium text-text-weak uppercase tracking-wider">
               {language.t("common.providers")}
             </div>
-            <For each={providers()}>
+            <For each={providersForMode()}>
               {(provider) => (
                 <ProviderItem
                   id={provider.id}
@@ -733,13 +657,14 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
                 <ModelItem
                   item={item}
                   selected={false}
-                  enabled={local.model.enabled({ modelID: item.id, providerID: item.provider.id })}
+                  enabled={local.model.visible({ modelID: item.id, providerID: item.provider.id })}
+                  favorite={isFavoritedModel(item.provider.id, item.id)}
                   unavailableReason={modelUnavailableReason(item.provider.id, selectedAccountId())}
                   onToggleEnabled={(e: MouseEvent) => {
                     e.stopPropagation()
                     e.preventDefault()
                     const key = { modelID: item.id, providerID: item.provider.id }
-                    local.model.setVisibility(key, !local.model.enabled(key))
+                    local.model.setVisibility(key, !local.model.visible(key))
                   }}
                 />
               )}
