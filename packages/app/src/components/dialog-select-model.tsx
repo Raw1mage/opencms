@@ -15,7 +15,6 @@ import {
 import { createStore } from "solid-js/store"
 import { useLocal } from "@/context/local"
 import { useGlobalSync } from "@/context/global-sync"
-import { useGlobalSDK } from "@/context/global-sdk"
 import { useSDK } from "@/context/sdk"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { popularProviders } from "@/hooks/use-providers"
@@ -242,11 +241,11 @@ const ProviderItem: Component<{
       </button>
       <Show when={props.onToggleEnabled}>
         <IconButton
-          icon="eye"
+          icon={props.enabled !== false ? "eye" : "circle-ban-sign"}
           variant="ghost"
           class={cn(
-            "size-6 shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity hover:text-icon-base",
-            props.enabled !== false ? "text-icon-weak-base" : "text-icon-warning-base opacity-100",
+            "size-6 shrink-0 opacity-100 transition-opacity hover:text-icon-base",
+            props.enabled !== false ? "text-icon-base" : "text-icon-warning-base",
           )}
           onClick={props.onToggleEnabled}
         />
@@ -259,7 +258,6 @@ const ModelItem: Component<{
   item: ReturnType<ReturnType<typeof useModels>["list"]>[number]
   selected: boolean
   enabled: boolean
-  favorite: boolean
   unavailableReason?: string
   onToggleEnabled: (e: MouseEvent) => void
 }> = (props) => {
@@ -269,9 +267,6 @@ const ModelItem: Component<{
     <div class="flex items-center gap-2 w-full group">
       <div class="flex-1 min-w-0 flex items-center gap-2">
         <span class={cn("truncate", props.selected && "text-text-strong")}>{props.item.name}</span>
-        <Show when={props.favorite}>
-          <Tag>★</Tag>
-        </Show>
         <Show when={props.item.provider.id === "opencode" && (!props.item.cost || props.item.cost?.input === 0)}>
           <Tag>{language.t("model.tag.free")}</Tag>
         </Show>
@@ -283,11 +278,11 @@ const ModelItem: Component<{
         </Show>
       </div>
       <IconButton
-        icon="eye"
+        icon={props.enabled ? "eye" : "circle-ban-sign"}
         variant="ghost"
         class={cn(
-          "size-6 shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity hover:text-icon-base",
-          props.enabled ? "text-icon-weak-base" : "text-icon-warning-base opacity-100",
+          "size-6 shrink-0 opacity-100 transition-opacity hover:text-icon-base",
+          props.enabled ? "text-icon-base" : "text-icon-warning-base",
         )}
         onClick={props.onToggleEnabled}
       />
@@ -300,17 +295,10 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   const language = useLanguage()
   const local = useLocal()
   const globalSync = useGlobalSync()
-  const globalSDK = useGlobalSDK()
   const sdk = useSDK()
 
   const [accountInfo] = createResource(async () => {
     return sdk.client.account.listAll().then((x) => x.data)
-  })
-
-  const [modelPreferences] = createResource(async () => {
-    const response = await globalSDK.fetch(`${globalSDK.url}/api/v2/model/preferences`)
-    if (!response.ok) throw new Error(`model preferences fetch failed (${response.status})`)
-    return (await response.json()) as { favorite?: Array<{ providerId: string; modelID: string }> }
   })
 
   const [selectedProviderId, setSelectedProviderId] = createSignal<string>(props.provider || "")
@@ -344,29 +332,6 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   })
 
   const familyOf = (providerId: string) => normalizeProviderFamily(providerId) || providerId
-
-  const favoriteEntries = createMemo(() => {
-    const remote = modelPreferences.latest?.favorite
-    if (Array.isArray(remote) && remote.length > 0) {
-      return remote.map((item) => ({ providerID: item.providerId, modelID: item.modelID }))
-    }
-    return local.model.favoriteList()
-  })
-
-  const favoriteKeySet = createMemo(() => {
-    const out = new Set<string>()
-    for (const item of favoriteEntries()) {
-      const family = familyOf(item.providerID)
-      out.add(`${item.providerID}:${item.modelID}`)
-      out.add(`${family}:${item.modelID}`)
-    }
-    return out
-  })
-
-  const isFavoritedModel = (providerID: string, modelID: string) => {
-    const family = familyOf(providerID)
-    return favoriteKeySet().has(`${providerID}:${modelID}`) || favoriteKeySet().has(`${family}:${modelID}`)
-  }
 
   const activeAccountForFamily = (family: string) => {
     const families = accountInfo.latest?.families as Record<string, unknown> | undefined
@@ -658,13 +623,16 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
                   item={item}
                   selected={false}
                   enabled={local.model.visible({ modelID: item.id, providerID: item.provider.id })}
-                  favorite={isFavoritedModel(item.provider.id, item.id)}
                   unavailableReason={modelUnavailableReason(item.provider.id, selectedAccountId())}
                   onToggleEnabled={(e: MouseEvent) => {
                     e.stopPropagation()
                     e.preventDefault()
                     const key = { modelID: item.id, providerID: item.provider.id }
-                    local.model.setVisibility(key, !local.model.visible(key))
+                    const nextVisible = !local.model.visible(key)
+                    local.model.setVisibility(key, nextVisible)
+                    if (nextVisible && !local.model.favorite(key)) {
+                      local.model.toggleFavorite(key)
+                    }
                   }}
                 />
               )}
