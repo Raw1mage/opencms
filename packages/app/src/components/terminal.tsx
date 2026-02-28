@@ -154,21 +154,21 @@ const useTerminalUiBindings = (input: {
   input.container.addEventListener("click", input.handleLinkClick, { capture: true })
   input.cleanups.push(() => input.container.removeEventListener("click", input.handleLinkClick, { capture: true }))
 
-  const copySelectedNow = () => {
+  const copySelectedNow = async () => {
     const doc = input.container.ownerDocument
     const selected = pickSelection()
-    if (!selected) return
+    if (!selected) return false
 
     // Prefer native copy command in direct user gesture.
     const ok = doc.execCommand("copy")
-    if (ok) return
-    void copyTextToClipboard(doc, selected)
+    if (ok) return true
+    return copyTextToClipboard(doc, selected)
   }
 
   if (input.autoCopyOnSelect) {
     const handleMouseUp = () => {
       queueMicrotask(() => {
-        copySelectedNow()
+        void copySelectedNow()
       })
     }
     input.container.ownerDocument.addEventListener("mouseup", handleMouseUp, true)
@@ -182,7 +182,11 @@ const useTerminalUiBindings = (input: {
       const selected = pickSelection()
       if (!selected) return
       event.preventDefault()
-      copySelectedNow()
+      void copySelectedNow().finally(() => {
+        const runtime = input.term as unknown as { clearSelection?: () => void }
+        runtime.clearSelection?.()
+        input.container.ownerDocument.getSelection()?.removeAllRanges()
+      })
     }
     input.container.ownerDocument.addEventListener("contextmenu", handleContextMenu, true)
     input.cleanups.push(() => input.container.ownerDocument.removeEventListener("contextmenu", handleContextMenu, true))

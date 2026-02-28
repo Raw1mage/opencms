@@ -68,7 +68,6 @@ export default function TerminalPopoutRoute() {
               <Terminal
                 pty={pty()}
                 class="!px-0 !py-0"
-                autoCopyOnSelect
                 contextMenuCopiesSelection
                 ignoreStoredViewport
                 onCleanup={terminal.update}
