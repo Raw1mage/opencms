@@ -466,7 +466,7 @@ render(() => {
           {(data) => {
             setServerPassword(data.password)
             window.__OPENCODE__ ??= {}
-            window.__OPENCODE__.serverPassword = data.password ?? undefined
+            ;(window.__OPENCODE__ as { serverPassword?: string }).serverPassword = data.password ?? undefined
 
             function Inner() {
               const cmd = useCommand()
