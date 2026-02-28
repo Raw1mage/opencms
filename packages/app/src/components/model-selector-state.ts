@@ -179,7 +179,11 @@ export function buildAccountRows(input: {
     }
   })
 
-  return rows.sort((a, b) => a.label.localeCompare(b.label))
+  return rows.sort((a, b) => {
+    if (a.active && !b.active) return -1
+    if (!a.active && b.active) return 1
+    return a.label.localeCompare(b.label)
+  })
 }
 
 export function filterModelsForMode<T extends { id: string; provider: { id: string } }>(input: {
