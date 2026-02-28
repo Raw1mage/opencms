@@ -12,14 +12,13 @@ mod window_customizer;
 mod windows;
 
 use futures::{
-    FutureExt, TryFutureExt,
+    FutureExt,
     future::{self, Shared},
 };
 #[cfg(windows)]
 use job_object::*;
 use std::{
     env,
-    net::TcpListener,
     path::PathBuf,
     process::Command,
     sync::{Arc, Mutex},
@@ -32,7 +31,7 @@ use tauri_plugin_shell::process::CommandChild;
 use tauri_specta::Event;
 use tokio::{
     sync::{oneshot, watch},
-    time::{sleep, timeout},
+    time::timeout,
 };
 
 use crate::cli::{sqlite_migration::SqliteMigrationProgress, sync_cli};
@@ -41,7 +40,7 @@ use crate::server::get_saved_server_url;
 use crate::windows::{LoadingWindow, MainWindow};
 
 #[derive(Clone, serde::Serialize, specta::Type, Debug)]
-struct ServerReadyData {
+pub(crate) struct ServerReadyData {
     url: String,
     username: Option<String>,
     password: Option<String>,
@@ -260,7 +259,7 @@ fn set_display_backend(_app: AppHandle, _backend: LinuxDisplayBackend) -> Result
 }
 
 #[cfg(target_os = "linux")]
-fn check_linux_app(app_name: &str) -> bool {
+fn check_linux_app(_app_name: &str) -> bool {
     return true;
 }
 
@@ -431,10 +430,6 @@ async fn initialize(app: AppHandle) {
     let server_ready_rx = server_ready_rx.shared();
     app.manage(ServerState::new(None, server_ready_rx.clone()));
 
-    let loading_window_complete = event_once_fut::<LoadingWindowComplete>(&app);
-
-    tracing::info!("Main and loading windows created");
-
     // SQLite migration handling:
     // We only do this if the sqlite db doesn't exist, and we're expecting the sidecar to create it
     // First, we spawn a task that listens for SqliteMigrationProgress events that can
@@ -470,121 +465,100 @@ async fn initialize(app: AppHandle) {
         }))
     });
 
-    let loading_task = tokio::spawn({
-        let app = app.clone();
+    // Setup server connection (may spawn sidecar process)
+    tracing::info!("Setting up server connection");
+    let server_connection = setup_server_connection(app.clone()).await;
+    tracing::info!("Server connection setup");
 
-        async move {
-            tracing::info!("Setting up server connection");
-            let server_connection = setup_server_connection(app.clone()).await;
-            tracing::info!("Server connection setup");
-
-            // we delay spawning this future so that the timeout is created lazily
-            let cli_health_check = match server_connection {
-                ServerConnection::CLI {
-                    child,
-                    health_check,
-                    url,
-                    username,
-                    password,
-                } => {
-                    let app = app.clone();
-                    Some(
-                        async move {
-                            let res = timeout(Duration::from_secs(30), health_check.0).await;
-                            let err = match res {
-                                Ok(Ok(Ok(()))) => None,
-                                Ok(Ok(Err(e))) => Some(e),
-                                Ok(Err(e)) => Some(format!("Health check task failed: {e}")),
-                                Err(_) => Some("Health check timed out".to_string()),
-                            };
-
-                            if let Some(err) = err {
-                                let _ = child.kill();
-
-                                return Err(format!(
-                                    "Failed to spawn OpenCode Server ({err}). Logs:\n{}",
-                                    get_logs()
-                                ));
-                            }
-
-                            tracing::info!("CLI health check OK");
-
-                            #[cfg(windows)]
-                            {
-                                let job_state = app.state::<JobObjectState>();
-                                job_state.assign_pid(child.pid());
-                            }
-
-                            app.state::<ServerState>().set_child(Some(child));
-
-                            Ok(ServerReadyData {
-                                url,
-                                username,
-                                password,
-                                is_sidecar: true,
-                            })
-                        }
-                        .map(move |res| {
-                            let _ = server_ready_tx.send(res);
-                        }),
-                    )
-                }
-                ServerConnection::Existing { url } => {
-                    let _ = server_ready_tx.send(Ok(ServerReadyData {
-                        url: url.to_string(),
-                        username: None,
-                        password: None,
-                        is_sidecar: false,
-                    }));
-                    None
-                }
-            };
-
-            tracing::info!("server connection started");
-
-            if let Some(cli_health_check) = cli_health_check {
-                if let Some(sqlite_done_rx) = sqlite_done {
-                    let _ = sqlite_done_rx.await;
-                }
-                tokio::spawn(cli_health_check);
-            }
-
-            let _ = server_ready_rx.await;
-
-            tracing::info!("Loading task finished");
-        }
-    })
-    .map_err(|_| ())
-    .shared();
-
-    let loading_window = if needs_sqlite_migration
-        && timeout(Duration::from_secs(1), loading_task.clone())
-            .await
-            .is_err()
-    {
-        tracing::debug!("Loading task timed out, showing loading window");
-        let loading_window = LoadingWindow::create(&app).expect("Failed to create loading window");
-        sleep(Duration::from_secs(1)).await;
-        Some(loading_window)
+    // Show loading window during SQLite migration
+    let loading_window = if needs_sqlite_migration {
+        LoadingWindow::create(&app).ok()
     } else {
-        tracing::debug!("Showing main window without loading window");
-        MainWindow::create(&app).expect("Failed to create main window");
-
         None
     };
 
-    let _ = loading_task.await;
-
-    tracing::info!("Loading done, completing initialisation");
-    let _ = init_tx.send(InitStep::Done);
-
-    if loading_window.is_some() {
-        loading_window_complete.await;
-
-        tracing::info!("Loading window completed");
+    // Wait for SQLite migration to complete before proceeding
+    if let Some(sqlite_done) = sqlite_done {
+        let _ = sqlite_done.await;
     }
 
-    MainWindow::create(&app).expect("Failed to create main window");
+    // Resolve server readiness — wait for the sidecar stdout URL or use existing
+    let server_data = match server_connection {
+        ServerConnection::CLI {
+            child,
+            ready_rx,
+            password,
+        } => {
+            match timeout(Duration::from_secs(30), ready_rx).await {
+                Ok(Ok(Ok(url))) => {
+                    tracing::info!(%url, "Sidecar server ready");
+
+                    #[cfg(windows)]
+                    {
+                        let job_state = app.state::<JobObjectState>();
+                        job_state.assign_pid(child.pid());
+                    }
+
+                    app.state::<ServerState>().set_child(Some(child));
+
+                    let data = ServerReadyData {
+                        url,
+                        username: Some("opencode".to_string()),
+                        password: Some(password),
+                        is_sidecar: true,
+                    };
+                    let _ = server_ready_tx.send(Ok(data.clone()));
+                    data
+                }
+                Ok(Ok(Err(e))) => {
+                    let _ = child.kill();
+                    let msg = format!(
+                        "Failed to spawn OpenCode Server ({e}). Logs:\n{}",
+                        get_logs()
+                    );
+                    let _ = server_ready_tx.send(Err(msg.clone()));
+                    tracing::error!("{msg}");
+                    return;
+                }
+                Ok(Err(_)) => {
+                    let _ = child.kill();
+                    let msg = format!(
+                        "Server channel closed unexpectedly. Logs:\n{}",
+                        get_logs()
+                    );
+                    let _ = server_ready_tx.send(Err(msg.clone()));
+                    tracing::error!("{msg}");
+                    return;
+                }
+                Err(_) => {
+                    let _ = child.kill();
+                    let msg = format!(
+                        "Server startup timed out after 30s. Logs:\n{}",
+                        get_logs()
+                    );
+                    let _ = server_ready_tx.send(Err(msg.clone()));
+                    tracing::error!("{msg}");
+                    return;
+                }
+            }
+        }
+        ServerConnection::Existing { url } => {
+            let data = ServerReadyData {
+                url,
+                username: None,
+                password: None,
+                is_sidecar: false,
+            };
+            let _ = server_ready_tx.send(Ok(data.clone()));
+            data
+        }
+    };
+
+    let _ = init_tx.send(InitStep::Done);
+    tracing::info!("Server ready, creating main window");
+
+    // Create main window pointing to the server URL (web frontend)
+    MainWindow::create(&app, &server_data).expect("Failed to create main window");
 
     if let Some(loading_window) = loading_window {
         let _ = loading_window.close();
@@ -614,11 +588,9 @@ enum ServerConnection {
         url: String,
     },
     CLI {
-        url: String,
-        username: Option<String>,
-        password: Option<String>,
         child: CommandChild,
-        health_check: server::HealthCheck,
+        ready_rx: oneshot::Receiver<Result<String, String>>,
+        password: String,
     },
 }
 
@@ -638,43 +610,38 @@ async fn setup_server_connection(app: AppHandle) -> ServerConnection {
         // For remote default server, keep fallback sidecar behavior.
     }
 
-    let local_port = get_sidecar_port();
-    let hostname = "127.0.0.1";
-    let local_url = format!("http://{hostname}:{local_port}");
-
-    tracing::debug!(url = %local_url, "Checking health of local server");
-    if server::check_health(&local_url, None).await {
-        tracing::info!(url = %local_url, "Health check OK, using existing server");
-        return ServerConnection::Existing { url: local_url };
+    // Only check for already-running local server when OPENCODE_PORT is explicitly set
+    let explicit_port = get_explicit_port();
+    if let Some(port) = explicit_port {
+        let local_url = format!("http://127.0.0.1:{port}");
+        tracing::debug!(url = %local_url, "Checking health of local server");
+        if server::check_health(&local_url, None).await {
+            tracing::info!(url = %local_url, "Health check OK, using existing server");
+            return ServerConnection::Existing { url: local_url };
+        }
     }
 
     let password = uuid::Uuid::new_v4().to_string();
+    // Use explicit port if set, otherwise 0 to let Bun auto-assign
+    let port = explicit_port.unwrap_or(0);
+    let hostname = "127.0.0.1";
 
     tracing::info!("Spawning new local server");
-    let (child, health_check) =
-        server::spawn_local_server(app, hostname.to_string(), local_port, password.clone());
+    let (child, ready_rx) = cli::serve(&app, hostname, port, &password);
 
     ServerConnection::CLI {
-        url: local_url,
-        username: Some("opencode".to_string()),
-        password: Some(password),
         child,
-        health_check,
+        ready_rx,
+        password,
     }
 }
 
-fn get_sidecar_port() -> u32 {
+/// Returns the explicit OPENCODE_PORT if set by env var, otherwise None.
+fn get_explicit_port() -> Option<u32> {
     option_env!("OPENCODE_PORT")
         .map(|s| s.to_string())
         .or_else(|| std::env::var("OPENCODE_PORT").ok())
         .and_then(|port_str| port_str.parse().ok())
-        .unwrap_or_else(|| {
-            TcpListener::bind("127.0.0.1:0")
-                .expect("Failed to bind to find free port")
-                .local_addr()
-                .expect("Failed to get local address")
-                .port()
-        }) as u32
 }
 
 fn sqlite_file_exists() -> bool {
@@ -699,18 +666,3 @@ fn opencode_db_path() -> Result<PathBuf, &'static str> {
     Ok(data_home.join("opencode").join("opencode.db"))
 }
 
-// Creates a `once` listener for the specified event and returns a future that resolves
-// when the listener is fired.
-// Since the future creation and awaiting can be done separately, it's possible to create the listener
-// synchronously before doing something, then awaiting afterwards.
-fn event_once_fut<T: tauri_specta::Event + serde::de::DeserializeOwned>(
-    app: &AppHandle,
-) -> impl Future<Output = ()> {
-    let (tx, rx) = oneshot::channel();
-    T::once(app, |_| {
-        let _ = tx.send(());
-    });
-    async {
-        let _ = rx.await;
-    }
-}

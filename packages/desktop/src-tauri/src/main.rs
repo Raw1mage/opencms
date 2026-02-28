@@ -14,12 +14,25 @@ fn configure_display_backend() -> Option<String> {
         }
     };
 
+    // Nuclear options for WebKit on Linux/WSL to ensure anything is rendered at all.
+    set_env_if_absent("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    set_env_if_absent("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+    set_env_if_absent("WEBKIT_FORCE_SANDBOX", "0");
+    set_env_if_absent("LIBGL_ALWAYS_SOFTWARE", "1");
+    set_env_if_absent("WEBKIT_DISABLE_ACCELERATED_2D_CANVAS", "1");
+
     let on_wayland = env::var_os("WAYLAND_DISPLAY").is_some()
         || matches!(
             env::var("XDG_SESSION_TYPE"),
             Ok(v) if v.eq_ignore_ascii_case("wayland")
         );
+
     if !on_wayland {
+        // If not on Wayland, ensure we use X11 backend.
+        if env::var_os("DISPLAY").is_some() {
+            set_env_if_absent("WINIT_UNIX_BACKEND", "x11");
+            set_env_if_absent("GDK_BACKEND", "x11");
+        }
         return None;
     }
 
@@ -40,7 +53,6 @@ fn configure_display_backend() -> Option<String> {
     if env::var_os("DISPLAY").is_some() {
         set_env_if_absent("WINIT_UNIX_BACKEND", "x11");
         set_env_if_absent("GDK_BACKEND", "x11");
-        set_env_if_absent("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         return Some(
             "Wayland session detected; forcing X11 backend to avoid compositor protocol errors. \
                 Set OC_ALLOW_WAYLAND=1 to keep native Wayland."
@@ -48,7 +60,6 @@ fn configure_display_backend() -> Option<String> {
         );
     }
 
-    set_env_if_absent("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     Some(
         "Wayland session detected without X11; leaving Wayland enabled (set WINIT_UNIX_BACKEND/GDK_BACKEND manually if needed)."
             .into(),

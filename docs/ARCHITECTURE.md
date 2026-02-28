@@ -1051,3 +1051,225 @@ This section defines the credential-management baseline for self-hosted Web depl
 1. Credential file location: `/opt/opencode/config/opencode/.htpasswd`
 2. File format: one credential per line (`username:<argon2/bcrypt hash>`)
 3. Do not ship default plaintext password values in compose defaults.
+
+---
+
+## 20. WebApp File Structure & Runtime Flow (cms, consolidated from recent web sessions)
+
+This section consolidates recent web-related event records into one architecture view focused on:
+
+1. where core WebApp logic lives, and
+2. how the runtime data/auth/terminal flows operate end-to-end.
+
+### A. WebApp structure map (high-signal paths)
+
+| Area                | Primary Files                                                                                                                                                                                  | Responsibility                                                                       |
+| :------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------- |
+| Entry / bootstrap   | `packages/app/src/entry.tsx`, `packages/app/src/app.tsx`                                                                                                                                       | App bootstrap, platform/provider tree, dynamic-import recovery guard.                |
+| Auth boundary       | `packages/app/src/context/web-auth.tsx`, `packages/app/src/components/auth-gate.tsx`                                                                                                           | Cookie-session auth state, CSRF-aware fetch, login gate UX.                          |
+| SDK + event stream  | `packages/app/src/context/global-sdk.tsx`, `packages/app/src/context/global-sync.tsx`, `packages/app/src/context/global-sync/bootstrap.ts`                                                     | API client wiring, SSE/global event stream, bootstrap/state hydration.               |
+| Session surface     | `packages/app/src/pages/session.tsx`, `packages/app/src/pages/session/*`                                                                                                                       | Conversation timeline, side panels, request tree, session page orchestration.        |
+| Prompt + slash      | `packages/app/src/components/prompt-input.tsx`, `packages/app/src/pages/session/use-session-commands.tsx`                                                                                      | Prompt submit pipeline, slash command list/merge semantics, session command actions. |
+| Terminal / PTY UI   | `packages/app/src/components/terminal.tsx`, `packages/app/src/context/terminal.tsx`, `packages/app/src/pages/session/terminal-panel.tsx`, `packages/app/src/pages/session/terminal-popout.tsx` | PTY tab state, websocket rendering, popout lifecycle and restore policy.             |
+| Model selector      | `packages/app/src/components/dialog-select-model.tsx`, `packages/app/src/components/model-selector-state.ts`                                                                                   | 3-column provider/account/model selection and deterministic derivation rules.        |
+| Settings admin-lite | `packages/app/src/components/settings-providers.tsx`, `packages/app/src/components/settings-models.tsx`, `packages/app/src/components/settings-accounts.tsx`                                   | Web-side provider/account/model operations and rotation-guided actions.              |
+| Web diagnostics     | `packages/app/src/utils/api-error.ts`                                                                                                                                                          | Boundary-aware error mapping for user-facing recovery guidance.                      |
+
+### B. Runtime flow 1: Auth + API request path
+
+```mermaid
+flowchart LR
+  B[Browser] --> C[AuthGate]
+  C --> W[web-auth context\nauthorizedFetch + CSRF]
+  W --> A[Server WebAuth middleware]
+  A --> R[API routes /api/v2 + /global]
+  R --> G[global-sdk/global-sync stores]
+  G --> UI[Session + Settings UI]
+```
+
+Key contract:
+
+- Browser path is cookie-session + CSRF.
+- TUI/CLI compatibility may still use Basic auth where required.
+- Pre-login event/SDK requests must be gated to avoid expected-but-noisy 401 loops.
+
+### C. Runtime flow 2: Terminal / PTY lifecycle
+
+```mermaid
+flowchart LR
+  UI[Terminal UI] --> P1[POST /pty create]
+  P1 --> P2[WS /pty/:id/connect]
+  P2 --> BUF[Terminal renderer\ncontrol frame vs payload frame]
+  BUF --> STORE[terminal context state]
+  STORE --> UI
+```
+
+Required invariants:
+
+1. PTY uses explicit create -> connect contract; stale IDs are invalid state.
+2. Hydrated persisted PTY IDs must be validated/pruned on startup.
+3. WebSocket handling must separate metadata control frames from renderable payload frames.
+4. Popout/inline transitions use `skipRestore` policy to avoid stale-frame replay artifacts.
+
+### D. Runtime flow 3: Model selector and admin-lite parity path
+
+```mermaid
+flowchart TD
+  S[DialogSelectModel] --> M[model-selector-state.ts]
+  M --> PR[Provider rows]
+  M --> AR[Account rows]
+  M --> MR[Model rows]
+  MR --> ACT[Apply: set active account -> set model]
+  ACT --> SYNC[global dispose/bootstrap refresh]
+```
+
+Behavior boundary (current cms WebApp):
+
+1. Provider/account rows derive from provider universe + account families.
+2. Mode switch (`favorites`/`all`) affects model filtering layer only.
+3. Unavailable/cooldown states are surfaced and selection is blocked with explicit reason.
+4. Web has admin-lite parity slices; TUI `/admin` remains canonical full control plane.
+
+### E. Deployment/runtime contract for WebApp correctness
+
+1. Server should serve local frontend bundle via `OPENCODE_FRONTEND_PATH` for cms-consistent behavior.
+2. If not set, CDN proxy fallback can produce frontend/runtime contract drift (auth and feature mismatch risk).
+3. Operationally, direct web mode is primary for host-workspace parity; Docker remains optional isolation path.
+
+### F. Reference decision records (source sessions)
+
+- `docs/events/event_20260223_web_architecture_first_plan.md`
+- `docs/events/event_20260223_web_runtime_bug_backlog.md`
+- `docs/events/event_20260224_web_auth_401_loop_fix.md`
+- `docs/events/event_20260227_web_model_selector_refactor_arch_sync.md`
+- `docs/events/event_20260227_web_slash_commands_tui_alignment.md`
+- `docs/events/event_20260228_terminal_popout_return_and_selection_fix.md`
+- `docs/events/event_20260301_web_dev_refactor_integration.md`
+
+---
+
+## 21. Desktop Runtime Architecture (refactored, 2026-03-01)
+
+This section documents the desktop application's operating principles after the sidecar-simplification refactor. The desktop is now a **thin Tauri shell** that loads the same web frontend served by `opencode serve`.
+
+### A. Process Architecture (stdout-based sidecar)
+
+```
+Tauri Main Process (Rust, minimal)
+  ├── Platform env setup (display backend, proxy bypass)
+  ├── Spawns child: `opencode serve --hostname 127.0.0.1 [--port N]`
+  │   with env: OPENCODE_SERVER_PASSWORD={random UUID}
+  │             OPENCODE_CLIENT=desktop
+  │             OPENCODE_FRONTEND_PATH={bundled frontend resource}
+  ├── Waits for stdout: "opencode server listening on http://..."
+  │   (no HTTP health polling — parsed directly from stdout line)
+  ├── Opens WebView → parsed server URL (External URL, not bundled HTML)
+  │   with init script injecting auto-login credentials
+  └── On exit: kill child process (RunEvent::Exit handler)
+
+Child Process (Bun / opencode serve)
+  ├── Hono HTTP server on localhost
+  ├── API at /api/v2 and /
+  ├── Frontend served from OPENCODE_FRONTEND_PATH (bundled in Tauri resources)
+  └── SSE event stream at /event
+```
+
+**Port selection**: `OPENCODE_PORT` env → explicit `--port N` → port 0 (OS-assigned, reported via stdout).
+
+**Readiness detection**: `cli.rs` reads the child's stdout line-by-line. When a line starts with `SERVER_READY_PREFIX` (`"opencode server listening on http://"`), the URL is parsed from that line and sent via a oneshot channel. Timeout: 30s → error dialog.
+
+**Auto-login**: `windows.rs` injects `window.__OPENCODE__.autoLoginCredentials = { username, password }` via WebView initialization script. The web frontend's `AuthGate` component picks this up on mount and calls `auth.login()` automatically — no login form shown.
+
+### B. Frontend Architecture (web-unified)
+
+Desktop now loads the **same web frontend** (`packages/app/src/entry.tsx`) served by the opencode server, rather than a separate Tauri-specific entry. The WebView points to the server's HTTP URL (`WebviewUrl::External`).
+
+**What this eliminates** (compared to the pre-refactor architecture):
+- Desktop-specific `index.tsx` with 15+ Platform interface methods
+- Separate Vite build for desktop frontend
+- `bindings.ts` fragility (fewer Tauri commands called from frontend)
+- Tauri plugins for: dialog, store, notification, clipboard, http
+
+**What remains in Rust**:
+- Window creation with server URL + auto-login injection
+- Auto-updater (`tauri-plugin-updater`)
+- Deep linking (`tauri-plugin-deep-link`)
+- Single instance enforcement
+- Window state persistence (`tauri-plugin-window-state`)
+- Linux display backend configuration (`main.rs`)
+- macOS traffic light + overlay title bar styling
+
+### C. Frontend Serving & XDG Deployment
+
+The server's frontend catch-all (`server/app.ts`) resolves the frontend path with this fallback chain:
+
+1. **`OPENCODE_FRONTEND_PATH`** env var (explicit override — desktop sets this to its bundled resource dir)
+2. **`Global.Path.frontend`** (`$XDG_DATA_HOME/opencode/frontend/`) — auto-detected if `index.html` exists (cached once per process)
+3. **CDN proxy** to `https://app.opencode.ai` (internet fallback)
+
+**Desktop (Tauri)**: Bundles `packages/app/dist` as a Tauri resource at `frontend/`, sets `OPENCODE_FRONTEND_PATH` pointing to the resolved resource path at sidecar spawn time.
+
+**Standalone CLI install** (`scripts/install/install`): Downloads `opencode-frontend.tar.gz` from the GitHub release and extracts to `$XDG_DATA_HOME/opencode/frontend/`. This enables `opencode web`/`opencode serve` to work fully offline without Docker.
+
+```
+~/.local/share/opencode/
+├── bin/opencode          ← CLI binary
+├── frontend/             ← pre-built app dist (index.html, assets/, etc.)
+│   ├── index.html
+│   └── assets/
+├── skills/               ← bundled skills
+└── ...
+```
+
+### D. Initialization Flow (post-refactor)
+
+1. **`main.rs`**: Set `NO_PROXY` for loopback; on Linux, configure display backend env vars.
+2. **`lib.rs::run()`**: Register Tauri plugins + commands; spawn async `initialize()` task.
+3. **`initialize()`**: Check for explicit port (`OPENCODE_PORT` or custom server URL) → spawn sidecar via `cli::serve()` → await stdout readiness signal → create `MainWindow` with `ServerReadyData { url, username, password }`.
+4. **`MainWindow::create()`**: Build WebView with `WebviewUrl::External(server_url)`, inject auto-login credentials via initialization script.
+5. **Web frontend `AuthGate`**: On mount, reads `window.__OPENCODE__.autoLoginCredentials`, calls `auth.login()`, renders app.
+
+### E. Cross-Surface Comparison (TUI vs Web vs Desktop)
+
+| Aspect | TUI | Web (`opencode web`) | Desktop (Tauri) |
+|:---|:---|:---|:---|
+| Server hosting | In-process `Server.listen()` in worker | In-process `Server.listen()` | Separate child process (`opencode serve`) |
+| Frontend renderer | Terminal (`@opentui/solid`) | Browser (same-origin) | Tauri WebView (External URL to localhost) |
+| Frontend entry | TUI-specific renderer | `packages/app/src/entry.tsx` | Same as web (served by child process) |
+| Auth model | Env var password → in-process | Cookie-session + CSRF | Auto-login via `window.__OPENCODE__` credentials |
+| Frontend resolution | N/A | `OPENCODE_FRONTEND_PATH` → XDG → CDN | Bundled Tauri resource → `OPENCODE_FRONTEND_PATH` |
+| Process count | 1 (main + worker thread) | 1 | 2 (Tauri host + child) |
+| Readiness detection | In-process (immediate) | In-process (immediate) | stdout line parsing (no HTTP polling) |
+
+### F. Platform-Specific Behavior
+
+**Windows**:
+- WebView2 custom data directory and proxy bypass for loopback (`--proxy-bypass-list=<-loopback>`).
+- Overlay titlebar via `tauri-plugin-decorum`.
+
+**macOS**:
+- Private API enabled for improved scrolling (`macOSPrivateApi: true`).
+- Overlay title bar with hidden title, traffic lights at `(12, 18)`.
+
+**Linux / WSL**:
+- WebKit env vars: `WEBKIT_DISABLE_DMABUF_RENDERER`, `WEBKIT_DISABLE_COMPOSITING_MODE`, `WEBKIT_FORCE_SANDBOX=0`, `LIBGL_ALWAYS_SOFTWARE`, `WEBKIT_DISABLE_ACCELERATED_2D_CANVAS`.
+- Wayland detection with X11 fallback (respects `OC_ALLOW_WAYLAND` and stored preference).
+- GTK gesture zoom handler removal via `PinchZoomDisable` plugin.
+
+### G. Key Files
+
+| Layer | Files |
+|:---|:---|
+| Rust entry | `src-tauri/src/main.rs` (env + display backend), `src-tauri/src/lib.rs` (setup, initialize, commands) |
+| Rust sidecar | `src-tauri/src/cli.rs` (stdout-based spawn + readiness), `src-tauri/src/server.rs` (Tauri commands, URL helpers) |
+| Rust windows | `src-tauri/src/windows.rs` (MainWindow + LoadingWindow + auto-login injection) |
+| Build | `scripts/predev.ts`, `vite.config.ts` |
+| Config | `src-tauri/tauri.conf.json` (resources: `../../app/dist → frontend`) |
+| Server frontend | `packages/opencode/src/server/app.ts` (XDG frontend auto-detection + CDN fallback) |
+| XDG paths | `packages/opencode/src/global/index.ts` (`Global.Path.frontend`) |
+| Install | `scripts/install/install` (downloads frontend tarball alongside binary) |
+| Release | `script/build.ts` (produces `opencode-frontend.tar.gz` artifact) |
+
+### H. Decision Records
+
+- `docs/events/event_20260301_desktop_sidecar_refactor.md`

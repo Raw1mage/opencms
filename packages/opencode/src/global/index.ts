@@ -72,6 +72,7 @@ export namespace Global {
     },
     data: resolvedPaths.data,
     bin: path.join(resolvedPaths.data, "bin"),
+    frontend: path.join(resolvedPaths.data, "frontend"),
     log: path.join(resolvedPaths.data, "log"),
     cache: resolvedPaths.cache,
     config: resolvedPaths.config,

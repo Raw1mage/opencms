@@ -1,6 +1,6 @@
 import { Button } from "@opencode-ai/ui/button"
 import { TextField } from "@opencode-ai/ui/text-field"
-import { Show, createMemo, createSignal, type ParentComponent } from "solid-js"
+import { Show, createMemo, createSignal, onMount, type ParentComponent } from "solid-js"
 import { useServer } from "@/context/server"
 import { useWebAuth } from "@/context/web-auth"
 
@@ -14,6 +14,14 @@ export const AuthGate: ParentComponent = (props) => {
   const canRenderApp = createMemo(() => {
     if (auth.loading()) return false
     return !auth.enabled() || auth.authenticated()
+  })
+
+  // Auto-login support for desktop: Tauri injects credentials via initialization script
+  onMount(() => {
+    const creds = (window as any).__OPENCODE__?.autoLoginCredentials
+    if (!creds) return
+    delete (window as any).__OPENCODE__.autoLoginCredentials
+    auth.login(creds.username, creds.password)
   })
 
 

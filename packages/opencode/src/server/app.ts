@@ -636,10 +636,23 @@ export function createApp(app: Hono): Hono {
   app.route("/api/v2", api)
   app.route("/", api)
 
+  // Resolve XDG frontend path once per process (cached)
+  let xdgFrontendPath: string | undefined
+  let xdgFrontendChecked = false
+  const resolveXdgFrontend = async () => {
+    if (xdgFrontendChecked) return xdgFrontendPath
+    xdgFrontendChecked = true
+    const candidate = Global.Path.frontend
+    if (await Bun.file(path.join(candidate, "index.html")).exists()) {
+      xdgFrontendPath = candidate
+    }
+    return xdgFrontendPath
+  }
+
   // Frontend catch-all
   app.get("/*", async (c, next) => {
-    // Try to serve local frontend if OPENCODE_FRONTEND_PATH is set
-    const frontendPath = Env.get("OPENCODE_FRONTEND_PATH")
+    // Resolve frontend path: explicit env > XDG data dir > CDN proxy
+    const frontendPath = Env.get("OPENCODE_FRONTEND_PATH") ?? (await resolveXdgFrontend())
     if (frontendPath) {
       const resolvedFrontendPath = path.resolve(frontendPath)
       const reqPath = c.req.path === "/" ? "index.html" : c.req.path.replace(/^\/+/, "")

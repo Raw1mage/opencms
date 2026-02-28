@@ -136,6 +136,12 @@ const targets = singleFlag
   : allTargets
 
 await $`rm -rf dist`
+await $`mkdir -p dist`
+
+// Build frontend for release bundling
+console.log("building frontend")
+await $`bun run --cwd packages/app build`
+await $`tar -czf dist/opencode-frontend.tar.gz -C packages/app/dist .`
 
 const binaries: Record<string, string> = {}
 if (!skipInstall) {

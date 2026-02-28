@@ -2,7 +2,7 @@ use futures::{FutureExt, Stream, StreamExt, future};
 use tauri::{AppHandle, Manager, path::BaseDirectory};
 use tauri_plugin_shell::{
     ShellExt,
-    process::{CommandChild, CommandEvent, TerminatedPayload},
+    process::{CommandChild, CommandEvent},
 };
 use tauri_plugin_store::StoreExt;
 use tauri_specta::Event;
@@ -365,20 +365,35 @@ pub fn spawn_command(
     Ok((event_stream, child))
 }
 
+/// The stdout line prefix emitted by `opencode serve` when the server is ready.
+const SERVER_READY_PREFIX: &str = "opencode server listening on ";
+
+/// Spawns the sidecar `opencode serve` process and returns a channel that resolves to
+/// `Ok(url)` when the server prints its ready line, or `Err(reason)` if it terminates first.
 pub fn serve(
     app: &AppHandle,
     hostname: &str,
     port: u32,
     password: &str,
-) -> (CommandChild, oneshot::Receiver<TerminatedPayload>) {
-    let (exit_tx, exit_rx) = oneshot::channel::<TerminatedPayload>();
+) -> (CommandChild, oneshot::Receiver<Result<String, String>>) {
+    let (ready_tx, ready_rx) = oneshot::channel::<Result<String, String>>();
 
     tracing::info!(port, "Spawning sidecar");
 
-    let envs = [
+    let mut envs: Vec<(&str, String)> = vec![
         ("OPENCODE_SERVER_USERNAME", "opencode".to_string()),
         ("OPENCODE_SERVER_PASSWORD", password.to_string()),
     ];
+
+    // Point the server at the bundled frontend so it can serve offline
+    if let Ok(frontend_dir) = app.path().resolve("frontend", BaseDirectory::Resource) {
+        if frontend_dir.exists() {
+            envs.push((
+                "OPENCODE_FRONTEND_PATH",
+                frontend_dir.to_string_lossy().to_string(),
+            ));
+        }
+    }
 
     let (events, child) = spawn_command(
         app,
@@ -387,7 +402,7 @@ pub fn serve(
     )
     .expect("Failed to spawn opencode");
 
-    let mut exit_tx = Some(exit_tx);
+    let mut ready_tx = Some(ready_tx);
     tokio::spawn(
         events
             .for_each(move |event| {
@@ -395,6 +410,15 @@ pub fn serve(
                     CommandEvent::Stdout(line_bytes) => {
                         let line = String::from_utf8_lossy(&line_bytes);
                         tracing::info!("{line}");
+
+                        if ready_tx.is_some() {
+                            if let Some(url) = line.trim().strip_prefix(SERVER_READY_PREFIX) {
+                                if let Some(tx) = ready_tx.take() {
+                                    tracing::info!(url, "Server ready (detected from stdout)");
+                                    let _ = tx.send(Ok(url.trim().to_string()));
+                                }
+                            }
+                        }
                     }
                     CommandEvent::Stderr(line_bytes) => {
                         let line = String::from_utf8_lossy(&line_bytes);
@@ -410,8 +434,11 @@ pub fn serve(
                             "Sidecar terminated"
                         );
 
-                        if let Some(tx) = exit_tx.take() {
-                            let _ = tx.send(payload);
+                        if let Some(tx) = ready_tx.take() {
+                            let _ = tx.send(Err(format!(
+                                "Sidecar terminated before becoming ready (code={:?} signal={:?})",
+                                payload.code, payload.signal
+                            )));
                         }
                     }
                     _ => {}
@@ -422,7 +449,7 @@ pub fn serve(
             .instrument(tracing::info_span!("sidecar")),
     );
 
-    (child, exit_rx)
+    (child, ready_rx)
 }
 
 pub mod sqlite_migration {

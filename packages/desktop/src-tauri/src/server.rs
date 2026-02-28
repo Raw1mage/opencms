@@ -1,10 +1,8 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use tauri::AppHandle;
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogResult};
-use tauri_plugin_shell::process::CommandChild;
 use tauri_plugin_store::StoreExt;
-use tokio::task::JoinHandle;
 
 use crate::{
     cli,
@@ -100,50 +98,6 @@ pub async fn get_saved_server_url(app: &tauri::AppHandle) -> Option<String> {
 
     None
 }
-
-pub fn spawn_local_server(
-    app: AppHandle,
-    hostname: String,
-    port: u32,
-    password: String,
-) -> (CommandChild, HealthCheck) {
-    let (child, exit) = cli::serve(&app, &hostname, port, &password);
-
-    let health_check = HealthCheck(tokio::spawn(async move {
-        let url = format!("http://{hostname}:{port}");
-        let timestamp = Instant::now();
-
-        let ready = async {
-            loop {
-                tokio::time::sleep(Duration::from_millis(100)).await;
-
-                if check_health(&url, Some(&password)).await {
-                    tracing::info!(elapsed = ?timestamp.elapsed(), "Server ready");
-                    return Ok(());
-                }
-            }
-        };
-
-        let terminated = async {
-            match exit.await {
-                Ok(payload) => Err(format!(
-                    "Sidecar terminated before becoming healthy (code={:?} signal={:?})",
-                    payload.code, payload.signal
-                )),
-                Err(_) => Err("Sidecar terminated before becoming healthy".to_string()),
-            }
-        };
-
-        tokio::select! {
-            res = ready => res,
-            res = terminated => res,
-        }
-    }));
-
-    (child, health_check)
-}
-
-pub struct HealthCheck(pub JoinHandle<Result<(), String>>);
 
 pub async fn check_health(url: &str, password: Option<&str>) -> bool {
     let Ok(url) = reqwest::Url::parse(url) else {

@@ -20,7 +20,7 @@ impl Deref for MainWindow {
 impl MainWindow {
     pub const LABEL: &str = "main";
 
-    pub fn create(app: &AppHandle) -> Result<Self, tauri::Error> {
+    pub fn create(app: &AppHandle, server_data: &crate::ServerReadyData) -> Result<Self, tauri::Error> {
         if let Some(window) = app.get_webview_window(Self::LABEL) {
             return Ok(Self(window));
         }
@@ -30,8 +30,30 @@ impl MainWindow {
             .map(|v| v.enabled)
             .unwrap_or(false);
 
+        let mut init_script = format!(
+            r#"
+            window.__OPENCODE__ ??= {{}};
+            window.__OPENCODE__.updaterEnabled = {UPDATER_ENABLED};
+            window.__OPENCODE__.wsl = {wsl_enabled};
+            "#
+        );
+
+        // Inject auto-login credentials for sidecar connections so the web
+        // frontend's AuthGate can authenticate without showing a login form.
+        if let (Some(username), Some(password)) = (&server_data.username, &server_data.password) {
+            let u = username.replace('\\', "\\\\").replace('"', "\\\"");
+            let p = password.replace('\\', "\\\\").replace('"', "\\\"");
+            init_script.push_str(&format!(
+                r#"window.__OPENCODE__.autoLoginCredentials = {{ username: "{u}", password: "{p}" }};"#
+            ));
+        }
+
         let window_builder = base_window_config(
-            WebviewWindowBuilder::new(app, Self::LABEL, WebviewUrl::App("/".into())),
+            WebviewWindowBuilder::new(
+                app,
+                Self::LABEL,
+                WebviewUrl::External(server_data.url.parse().expect("invalid server URL")),
+            ),
             app,
         )
         .title("OpenCode")
@@ -40,13 +62,7 @@ impl MainWindow {
         .zoom_hotkeys_enabled(false)
         .visible(true)
         .maximized(true)
-        .initialization_script(format!(
-            r#"
-            window.__OPENCODE__ ??= {{}};
-            window.__OPENCODE__.updaterEnabled = {UPDATER_ENABLED};
-            window.__OPENCODE__.wsl = {wsl_enabled};
-          "#
-        ));
+        .initialization_script(init_script);
 
         let window = window_builder.build()?;
 

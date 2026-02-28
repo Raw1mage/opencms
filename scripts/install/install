@@ -352,11 +352,39 @@ install_from_binary() {
     chmod 755 "${INSTALL_DIR}/opencode"
 }
 
+download_and_install_frontend() {
+    local frontend_filename="opencode-frontend.tar.gz"
+    local frontend_dir="$XDG_DATA_HOME/opencode/frontend"
+    local frontend_url
+
+    if [ -z "$requested_version" ]; then
+        frontend_url="https://github.com/anomalyco/opencode/releases/latest/download/$frontend_filename"
+    else
+        frontend_url="https://github.com/anomalyco/opencode/releases/download/v${requested_version}/$frontend_filename"
+    fi
+
+    print_message info "${MUTED}Installing frontend assets...${NC}"
+    local tmp_dir="${TMPDIR:-/tmp}/opencode_frontend_$$"
+    mkdir -p "$tmp_dir"
+
+    if curl -sfL -o "$tmp_dir/$frontend_filename" "$frontend_url"; then
+        rm -rf "$frontend_dir"
+        mkdir -p "$frontend_dir"
+        tar -xzf "$tmp_dir/$frontend_filename" -C "$frontend_dir"
+        print_message info "${MUTED}Frontend installed to ${NC}$frontend_dir"
+    else
+        print_message warning "${MUTED}Frontend download skipped (will use CDN fallback)${NC}"
+    fi
+
+    rm -rf "$tmp_dir"
+}
+
 if [ -n "$binary_path" ]; then
     install_from_binary
 else
     check_version
     download_and_install
+    download_and_install_frontend
 fi
 
 
