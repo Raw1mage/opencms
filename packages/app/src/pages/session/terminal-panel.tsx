@@ -68,9 +68,25 @@ export function TerminalPanel(props: {
   createEffect(() => {
     const win = popoutWindow()
     if (!win) return
-    if (win.closed) {
-      setPopoutWindow(undefined)
+
+    const restoreInlineTerminal = () => {
+      setPopoutWindow((current) => (current === win ? undefined : current))
+      window.focus()
+      document.getElementById("terminal-panel")?.scrollIntoView({ block: "end", behavior: "smooth" })
     }
+
+    const onBeforeUnload = () => restoreInlineTerminal()
+    win.addEventListener("beforeunload", onBeforeUnload)
+
+    const timer = window.setInterval(() => {
+      if (!win.closed) return
+      restoreInlineTerminal()
+    }, 400)
+
+    onCleanup(() => {
+      win.removeEventListener("beforeunload", onBeforeUnload)
+      window.clearInterval(timer)
+    })
   })
 
   onCleanup(() => {

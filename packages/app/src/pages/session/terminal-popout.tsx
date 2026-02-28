@@ -70,6 +70,7 @@ export default function TerminalPopoutRoute() {
                 class="!px-0 !py-0"
                 contextMenuCopiesSelection
                 ignoreStoredViewport
+                clearSelectionOnInput
                 onCleanup={terminal.update}
                 onConnectError={() => terminal.clone(pty().id)}
               />

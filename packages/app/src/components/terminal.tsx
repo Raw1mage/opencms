@@ -23,6 +23,7 @@ export interface TerminalProps extends ComponentProps<"div"> {
   autoCopyOnSelect?: boolean
   contextMenuCopiesSelection?: boolean
   ignoreStoredViewport?: boolean
+  clearSelectionOnInput?: boolean
 }
 
 let shared: Promise<{ mod: typeof import("ghostty-web"); ghostty: Ghostty }> | undefined
@@ -104,7 +105,14 @@ const useTerminalUiBindings = (input: {
   handleLinkClick: (event: MouseEvent) => void
   autoCopyOnSelect?: boolean
   contextMenuCopiesSelection?: boolean
+  clearSelectionOnInput?: boolean
 }) => {
+  const clearAllSelection = () => {
+    const runtime = input.term as unknown as { clearSelection?: () => void }
+    runtime.clearSelection?.()
+    input.container.ownerDocument.getSelection()?.removeAllRanges()
+  }
+
   const pickSelection = () => {
     const termSelection = input.term.getSelection()?.trim() ?? ""
     if (termSelection) return termSelection
@@ -130,7 +138,9 @@ const useTerminalUiBindings = (input: {
 
     event.preventDefault()
     event.stopPropagation()
+    clearAllSelection()
     input.term.paste(text)
+    queueMicrotask(() => clearAllSelection())
   }
 
   const handleTextareaFocus = () => {
@@ -183,13 +193,24 @@ const useTerminalUiBindings = (input: {
       if (!selected) return
       event.preventDefault()
       void copySelectedNow().finally(() => {
-        const runtime = input.term as unknown as { clearSelection?: () => void }
-        runtime.clearSelection?.()
-        input.container.ownerDocument.getSelection()?.removeAllRanges()
+        clearAllSelection()
       })
     }
     input.container.ownerDocument.addEventListener("contextmenu", handleContextMenu, true)
     input.cleanups.push(() => input.container.ownerDocument.removeEventListener("contextmenu", handleContextMenu, true))
+  }
+
+  if (input.clearSelectionOnInput) {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as Node | null
+      if (target && !input.container.contains(target)) return
+      if (event.ctrlKey || event.metaKey || event.altKey) return
+      if (event.key.length === 1 || event.key === "Enter" || event.key === "Backspace" || event.key === "Delete") {
+        clearAllSelection()
+      }
+    }
+    input.container.ownerDocument.addEventListener("keydown", handleKeyDown, true)
+    input.cleanups.push(() => input.container.ownerDocument.removeEventListener("keydown", handleKeyDown, true))
   }
 
   input.term.textarea?.addEventListener("focus", handleTextareaFocus)
@@ -256,6 +277,7 @@ export const Terminal = (props: TerminalProps) => {
     "autoCopyOnSelect",
     "contextMenuCopiesSelection",
     "ignoreStoredViewport",
+    "clearSelectionOnInput",
   ])
   let ws: WebSocket | undefined
   let term: Term | undefined
@@ -511,6 +533,7 @@ export const Terminal = (props: TerminalProps) => {
         handleLinkClick,
         autoCopyOnSelect: local.autoCopyOnSelect,
         contextMenuCopiesSelection: local.contextMenuCopiesSelection,
+        clearSelectionOnInput: local.clearSelectionOnInput,
       })
 
       focusTerminal()
