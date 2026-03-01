@@ -54,12 +54,15 @@ WEB_PORT="${OPENCODE_PORT:-1080}"
 FRONTEND_PORT="${OPENCODE_FRONTEND_DEV_PORT:-3000}"
 HTPASSWD_PATH="${OPENCODE_SERVER_HTPASSWD:-${HOME}/.config/opencode/.htpasswd}"
 OPENCODE_PROFILE="${OPENCODE_PROFILE:-default}"
+DISPLAY_URL="${OPENCODE_PUBLIC_URL:-http://localhost:${WEB_PORT}}"
 PROFILE_SAFE="$(printf '%s' "${OPENCODE_PROFILE}" | tr -c 'A-Za-z0-9._-' '_')"
 RUNTIME_TMP_BASE="${XDG_RUNTIME_DIR:-/tmp}"
 PID_FILE="${RUNTIME_TMP_BASE}/opencode-web-${PROFILE_SAFE}.pid"
 BACKEND_PID_FILE="${RUNTIME_TMP_BASE}/opencode-web-backend-${PROFILE_SAFE}.pid"
 FRONTEND_PID_FILE="${RUNTIME_TMP_BASE}/opencode-web-frontend-${PROFILE_SAFE}.pid"
 SERVER_LOG_FILE="${RUNTIME_TMP_BASE}/opencode-web-${PROFILE_SAFE}.log"
+RESTART_LOCK_FILE="${RUNTIME_TMP_BASE}/opencode-web-restart-${PROFILE_SAFE}.lock"
+RESTART_EVENT_LOG="${RUNTIME_TMP_BASE}/opencode-web-restart-${PROFILE_SAFE}.jsonl"
 
 # Colors
 RED='\033[0;31m'
@@ -75,7 +78,7 @@ log_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
 
 is_owner_scoped_command() {
     case "${1:-}" in
-        start|up|stop|down|restart|status|logs|build-frontend|build-binary)
+        start|up|stop|down|restart|_restart-worker|status|logs|build-frontend|build-binary)
             return 0
             ;;
         *)
@@ -166,6 +169,99 @@ print_runtime_context() {
     echo "  XDG_STATE_HOME: ${XDG_STATE_HOME:-${HOME}/.local/state}"
     echo "  XDG_DATA_HOME: ${XDG_DATA_HOME:-${HOME}/.local/share}"
     echo "  PID file: ${PID_FILE}"
+    echo "  Restart lock: ${RESTART_LOCK_FILE}"
+    echo "  Restart log: ${RESTART_EVENT_LOG}"
+}
+
+json_escape() {
+    local s="${1:-}"
+    s=${s//\\/\\\\}
+    s=${s//\"/\\\"}
+    s=${s//$'\n'/\\n}
+    s=${s//$'\r'/}
+    printf '%s' "${s}"
+}
+
+append_restart_event() {
+    local txid="${1:-unknown}"
+    local stage="${2:-unknown}"
+    local result="${3:-unknown}"
+    local detail="${4:-}"
+    local mode="${5:-detached}"
+    local graceful="${6:-0}"
+    local ts
+    ts="$(date -Iseconds)"
+
+    printf '{"ts":"%s","txid":"%s","profile":"%s","mode":"%s","graceful":%s,"stage":"%s","result":"%s","pid":%s,"detail":"%s"}\n' \
+        "$(json_escape "${ts}")" \
+        "$(json_escape "${txid}")" \
+        "$(json_escape "${OPENCODE_PROFILE}")" \
+        "$(json_escape "${mode}")" \
+        "${graceful}" \
+        "$(json_escape "${stage}")" \
+        "$(json_escape "${result}")" \
+        "$$" \
+        "$(json_escape "${detail}")" \
+        >>"${RESTART_EVENT_LOG}"
+}
+
+acquire_restart_lock() {
+    local txid="${1:-unknown}"
+    local mode="${2:-detached}"
+    local graceful="${3:-0}"
+    local payload="$$:${txid}:$(date +%s)"
+
+    if ( set -o noclobber; echo "${payload}" > "${RESTART_LOCK_FILE}" ) 2>/dev/null; then
+        append_restart_event "${txid}" "lock" "acquired" "restart lock acquired" "${mode}" "${graceful}"
+        return 0
+    fi
+
+    local holder="unknown"
+    if [ -f "${RESTART_LOCK_FILE}" ]; then
+        holder="$(tr -d '\n' < "${RESTART_LOCK_FILE}" 2>/dev/null || echo unknown)"
+    fi
+    append_restart_event "${txid}" "lock" "busy" "restart lock held by ${holder}" "${mode}" "${graceful}"
+    log_error "Another restart is already in progress (${holder})."
+    return 1
+}
+
+release_restart_lock() {
+    [ -f "${RESTART_LOCK_FILE}" ] || return 0
+    local holder
+    holder="$(tr -d '\n' < "${RESTART_LOCK_FILE}" 2>/dev/null || true)"
+    case "${holder}" in
+        "$$:"*)
+            rm -f "${RESTART_LOCK_FILE}"
+            ;;
+    esac
+}
+
+health_is_ready() {
+    curl -s "http://localhost:${WEB_PORT}/api/v2/global/health" 2>/dev/null | grep -q '"healthy":true'
+}
+
+wait_for_health() {
+    local max_attempts="${1:-20}"
+    local attempt=0
+    while [ "${attempt}" -lt "${max_attempts}" ]; do
+        if health_is_ready; then
+            return 0
+        fi
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+    return 1
+}
+
+restart_preflight() {
+    if [ ! -f "${FRONTEND_DIST}/index.html" ]; then
+        return 1
+    fi
+    if [ "${IS_SOURCE_REPO}" -eq 1 ]; then
+        find_bun >/dev/null
+        return 0
+    fi
+    [ -n "${OPENCODE_BIN}" ] && [ -x "${OPENCODE_BIN}" ]
 }
 
 # Locate bun — may not be in PATH in all environments
@@ -272,24 +368,16 @@ do_start() {
 
     # Wait for health check
     log_info "Waiting for server to be ready..."
-    local attempt=0
     local max_attempts=20
-    while [ $attempt -lt $max_attempts ]; do
-        if curl -s "http://localhost:${WEB_PORT}/api/v2/global/health" 2>/dev/null | grep -q '"healthy":true'; then
-            break
-        fi
-        sleep 1
-        attempt=$((attempt + 1))
-    done
 
-    if [ $attempt -eq $max_attempts ]; then
+    if ! wait_for_health "${max_attempts}"; then
         log_warn "Server may not be ready yet. Check: ./webctl.sh status"
     else
         log_success "Server started (pid ${pid})"
     fi
 
     echo ""
-    echo "  URL:      http://localhost:${WEB_PORT}"
+    echo "  URL:      ${DISPLAY_URL}"
     echo "  PID:      ${pid}"
     if [ "${IS_SOURCE_REPO:-0}" -eq 1 ]; then
         echo "  Source:   ${PROJECT_ROOT}/packages/opencode/src/"
@@ -367,9 +455,112 @@ do_stop() {
 # restart
 # ---------------------------------------------------------------------------
 do_restart() {
+    shift || true
+    local mode="detached"
+    local graceful=0
+
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --inline)
+                mode="inline"
+                ;;
+            --graceful)
+                graceful=1
+                ;;
+            *)
+                log_warn "Unknown restart option: $1"
+                ;;
+        esac
+        shift
+    done
+
+    local txid
+    txid="$(date +%Y%m%dT%H%M%S)-$$"
+
+    # Default to detached restart so callers running through the current web
+    # session are less likely to be interrupted mid-command when backend stops.
+    if [ "${mode}" = "inline" ]; then
+        if [ "${graceful}" -eq 1 ]; then
+            do_restart_worker --txid "${txid}" --mode "${mode}" --graceful
+        else
+            do_restart_worker --txid "${txid}" --mode "${mode}"
+        fi
+        return
+    fi
+
+    local restart_log_file="${RUNTIME_TMP_BASE}/opencode-web-restart-${PROFILE_SAFE}.log"
+    local worker_pid
+    local -a worker_args
+    worker_args=("_restart-worker" "--txid" "${txid}" "--mode" "${mode}")
+    if [ "${graceful}" -eq 1 ]; then worker_args+=("--graceful"); fi
+
+    append_restart_event "${txid}" "schedule" "started" "restart scheduled in detached worker" "${mode}" "${graceful}"
+    nohup "${PROJECT_ROOT}/webctl.sh" "${worker_args[@]}" >"${restart_log_file}" 2>&1 < /dev/null &
+    worker_pid=$!
+
+    log_info "Restart scheduled in detached worker (pid ${worker_pid})"
+    log_info "Restart TX: ${txid}"
+    log_info "Monitor restart log: ${restart_log_file}"
+    log_info "Monitor restart events: ${RESTART_EVENT_LOG}"
+    log_info "Check result after a few seconds: ./webctl.sh status"
+}
+
+# Internal command used by detached restart worker.
+do_restart_worker() {
+    local txid="unknown"
+    local mode="detached"
+    local graceful=0
+
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --txid)
+                txid="${2:-unknown}"
+                shift
+                ;;
+            --mode)
+                mode="${2:-detached}"
+                shift
+                ;;
+            --graceful)
+                graceful=1
+                ;;
+        esac
+        shift
+    done
+
+    if ! acquire_restart_lock "${txid}" "${mode}" "${graceful}"; then
+        return 1
+    fi
+
+    trap 'release_restart_lock' EXIT
+    append_restart_event "${txid}" "worker" "started" "restart worker started" "${mode}" "${graceful}"
+
+    if [ "${graceful}" -eq 1 ]; then
+        if ! restart_preflight; then
+            append_restart_event "${txid}" "preflight" "failed" "preflight failed; keep existing process" "${mode}" "${graceful}"
+            log_error "Graceful restart preflight failed; existing server left untouched."
+            return 1
+        fi
+        append_restart_event "${txid}" "preflight" "ok" "preflight passed" "${mode}" "${graceful}"
+    fi
+
+    append_restart_event "${txid}" "stop" "started" "stopping current server" "${mode}" "${graceful}"
     do_stop
+    append_restart_event "${txid}" "stop" "ok" "current server stopped" "${mode}" "${graceful}"
     sleep 1
+
+    append_restart_event "${txid}" "start" "started" "starting server" "${mode}" "${graceful}"
     do_start
+
+    if wait_for_health 20; then
+        append_restart_event "${txid}" "health" "ok" "server healthy" "${mode}" "${graceful}"
+        append_restart_event "${txid}" "restart" "ok" "restart complete" "${mode}" "${graceful}"
+        return 0
+    fi
+
+    append_restart_event "${txid}" "health" "failed" "health check failed after restart" "${mode}" "${graceful}"
+    append_restart_event "${txid}" "restart" "failed" "restart ended unhealthy" "${mode}" "${graceful}"
+    return 1
 }
 
 # ---------------------------------------------------------------------------
@@ -387,7 +578,7 @@ do_status() {
         if kill -0 "${pid}" 2>/dev/null; then
             running=1
             echo -e "  Status:   ${GREEN}running${NC} (pid ${pid})"
-            echo "  URL:      http://localhost:${WEB_PORT}"
+            echo "  URL:      ${DISPLAY_URL}"
             if [ "${IS_SOURCE_REPO:-0}" -eq 1 ]; then
                 echo "  Source:   ${PROJECT_ROOT}/packages/opencode/src/"
             else
@@ -502,6 +693,7 @@ do_help() {
     echo ""
     echo "Environment Variables:"
     echo "  OPENCODE_PORT              Port to listen on (default: 1080)"
+    echo "  OPENCODE_PUBLIC_URL        Public URL shown in status/start output"
     echo "  OPENCODE_PROFILE           Runtime profile label (default: default)"
     echo "  OPENCODE_AUTO_SWITCH_OWNER Auto-switch to repo owner (default: 1)"
     echo "  OPENCODE_SERVER_HTPASSWD   Path to htpasswd file (recommended)"
@@ -516,6 +708,8 @@ do_help() {
     echo "  # Start / restart server:"
     echo "  ./webctl.sh start"
     echo "  ./webctl.sh restart"
+    echo "  ./webctl.sh restart --graceful"
+    echo "  ./webctl.sh restart --inline"
     echo ""
     echo "  # Debug PTY:"
     echo "  ./webctl.sh logs"
@@ -530,7 +724,8 @@ ensure_repo_owner_identity "$@"
 case "${1:-}" in
     start|up)       do_start          ;;
     stop|down)      do_stop           ;;
-    restart)        do_restart        ;;
+    restart)        do_restart "$@"   ;;
+    _restart-worker) do_restart_worker "${@:2}" ;;
     status)         do_status         ;;
     logs)           do_logs           ;;
     build-frontend) do_build_frontend ;;
