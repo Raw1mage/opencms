@@ -23,7 +23,24 @@ set -e
 
 # Configuration — script lives at the project root
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_OWNER="$(stat -c '%U' "${PROJECT_ROOT}" 2>/dev/null || true)"
+
+# Determine if running from source or standalone
+if [ -f "${PROJECT_ROOT}/packages/opencode/src/index.ts" ]; then
+    IS_SOURCE_REPO=1
+    FRONTEND_DIST="${PROJECT_ROOT}/packages/app/dist"
+    OPENCODE_BIN=""
+    REPO_OWNER="$(stat -c '%U' "${PROJECT_ROOT}" 2>/dev/null || true)"
+else
+    IS_SOURCE_REPO=0
+    # In standalone, expected to be in ~/.local/share/opencode/bin
+    XDG_DATA_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}"
+    FRONTEND_DIST="${XDG_DATA_HOME}/opencode/frontend"
+    OPENCODE_BIN="${PROJECT_ROOT}/opencode"
+    if [ ! -x "${OPENCODE_BIN}" ]; then
+        OPENCODE_BIN="$(command -v opencode || true)"
+    fi
+    REPO_OWNER="$(id -un)"
+fi
 
 # Load .env file if it exists
 ENV_FILE="${PROJECT_ROOT}/.env"
@@ -43,7 +60,6 @@ PID_FILE="${RUNTIME_TMP_BASE}/opencode-web-${PROFILE_SAFE}.pid"
 BACKEND_PID_FILE="${RUNTIME_TMP_BASE}/opencode-web-backend-${PROFILE_SAFE}.pid"
 FRONTEND_PID_FILE="${RUNTIME_TMP_BASE}/opencode-web-frontend-${PROFILE_SAFE}.pid"
 SERVER_LOG_FILE="${RUNTIME_TMP_BASE}/opencode-web-${PROFILE_SAFE}.log"
-FRONTEND_DIST="${PROJECT_ROOT}/packages/app/dist"
 
 # Colors
 RED='\033[0;31m'
@@ -73,6 +89,10 @@ ensure_repo_owner_identity() {
     shift || true
 
     if ! is_owner_scoped_command "${cmd}"; then
+        return
+    fi
+    
+    if [ "${IS_SOURCE_REPO:-1}" -ne 1 ]; then
         return
     fi
 
@@ -212,24 +232,39 @@ kill_existing() {
 # start
 # ---------------------------------------------------------------------------
 do_start() {
-    local BUN_BIN
-    BUN_BIN="$(find_bun)"
-
     if [ ! -f "${FRONTEND_DIST}/index.html" ]; then
         log_error "Frontend dist not found at ${FRONTEND_DIST}"
-        log_info "Run first: ./webctl.sh build-frontend"
+        if [ "${IS_SOURCE_REPO}" -eq 1 ]; then
+            log_info "Run first: ./webctl.sh build-frontend"
+        else
+            log_info "Frontend should be installed by opencode install script in ${FRONTEND_DIST}"
+        fi
         exit 1
     fi
 
     kill_existing
 
-    log_info "Starting server from source on port ${WEB_PORT}..."
+    if [ "${IS_SOURCE_REPO}" -eq 1 ]; then
+        local BUN_BIN
+        BUN_BIN="$(find_bun)"
+        log_info "Starting server from source on port ${WEB_PORT}..."
 
-    nohup env OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" \
-        "${BUN_BIN}" --conditions=browser \
-        "${PROJECT_ROOT}/packages/opencode/src/index.ts" \
-        web --port "${WEB_PORT}" --hostname 0.0.0.0 \
-        >"${SERVER_LOG_FILE}" 2>&1 < /dev/null &
+        nohup env OPENCODE_ALLOW_GLOBAL_FS_BROWSE="1" OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" \
+            "${BUN_BIN}" --conditions=browser \
+            "${PROJECT_ROOT}/packages/opencode/src/index.ts" \
+            web --port "${WEB_PORT}" --hostname 0.0.0.0 \
+            >"${SERVER_LOG_FILE}" 2>&1 < /dev/null &
+    else
+        if [ -z "${OPENCODE_BIN}" ] || [ ! -x "${OPENCODE_BIN}" ]; then
+            log_error "opencode binary not found. Please install opencode."
+            exit 1
+        fi
+        log_info "Starting standalone server on port ${WEB_PORT}..."
+        nohup env OPENCODE_ALLOW_GLOBAL_FS_BROWSE="1" OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" \
+            "${OPENCODE_BIN}" \
+            web --port "${WEB_PORT}" --hostname 0.0.0.0 \
+            >"${SERVER_LOG_FILE}" 2>&1 < /dev/null &
+    fi
 
     local pid=$!
     echo "${pid}" > "${PID_FILE}"
@@ -256,7 +291,11 @@ do_start() {
     echo ""
     echo "  URL:      http://localhost:${WEB_PORT}"
     echo "  PID:      ${pid}"
-    echo "  Source:   ${PROJECT_ROOT}/packages/opencode/src/"
+    if [ "${IS_SOURCE_REPO:-0}" -eq 1 ]; then
+        echo "  Source:   ${PROJECT_ROOT}/packages/opencode/src/"
+    else
+        echo "  Source:   ${OPENCODE_BIN}"
+    fi
     echo "  Frontend: ${FRONTEND_DIST}"
     echo "  Server log: ${SERVER_LOG_FILE}"
     print_runtime_context
@@ -349,7 +388,11 @@ do_status() {
             running=1
             echo -e "  Status:   ${GREEN}running${NC} (pid ${pid})"
             echo "  URL:      http://localhost:${WEB_PORT}"
-            echo "  Source:   ${PROJECT_ROOT}/packages/opencode/src/"
+            if [ "${IS_SOURCE_REPO:-0}" -eq 1 ]; then
+                echo "  Source:   ${PROJECT_ROOT}/packages/opencode/src/"
+            else
+                echo "  Source:   ${OPENCODE_BIN}"
+            fi
             echo "  Frontend: ${FRONTEND_DIST}"
             echo "  Server log: ${SERVER_LOG_FILE}"
             print_runtime_context
@@ -392,6 +435,10 @@ do_logs() {
 # build-frontend
 # ---------------------------------------------------------------------------
 do_build_frontend() {
+    if [ "${IS_SOURCE_REPO:-0}" -ne 1 ]; then
+        log_error "build-frontend is only available when running from source repo."
+        exit 1
+    fi
     log_info "Building frontend..."
 
     local BUN_BIN
@@ -413,6 +460,10 @@ do_build_frontend() {
 # build-binary  (native standalone binary, for distribution)
 # ---------------------------------------------------------------------------
 do_build_binary() {
+    if [ "${IS_SOURCE_REPO:-0}" -ne 1 ]; then
+        log_error "build-binary is only available when running from source repo."
+        exit 1
+    fi
     log_info "Building opencode binary (current platform)..."
 
     local BUN_BIN

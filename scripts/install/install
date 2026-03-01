@@ -341,8 +341,12 @@ download_and_install() {
         unzip -q "$tmp_dir/$filename" -d "$tmp_dir"
     fi
 
-    mv "$tmp_dir/opencode" "$INSTALL_DIR"
-    chmod 755 "${INSTALL_DIR}/opencode"
+    mv "$tmp_dir/opencode" "$INSTALL_DIR/opencode"
+    chmod 755 "$INSTALL_DIR/opencode"
+    if [ -f "$tmp_dir/webctl.sh" ]; then
+        mv "$tmp_dir/webctl.sh" "$INSTALL_DIR/webctl.sh"
+        chmod 755 "$INSTALL_DIR/webctl.sh"
+    fi
     rm -rf "$tmp_dir"
 }
 
@@ -350,6 +354,12 @@ install_from_binary() {
     print_message info "\n${MUTED}Installing ${NC}opencode ${MUTED}from: ${NC}$binary_path"
     cp "$binary_path" "${INSTALL_DIR}/opencode"
     chmod 755 "${INSTALL_DIR}/opencode"
+    
+    local webctl_src="$(dirname "$binary_path")/webctl.sh"
+    if [ -f "$webctl_src" ]; then
+        cp "$webctl_src" "${INSTALL_DIR}/webctl.sh"
+        chmod 755 "${INSTALL_DIR}/webctl.sh"
+    fi
 }
 
 download_and_install_frontend() {

@@ -41,6 +41,8 @@ function readHtpasswd(path: string) {
   return entries
 }
 
+
+
 function plainEnabled() {
   return !!Flag.OPENCODE_SERVER_PASSWORD
 }
@@ -52,20 +54,70 @@ function fileEnabled() {
 }
 
 function enabled() {
+  if (process.platform === "linux") return true
   return plainEnabled() || fileEnabled()
 }
 
-async function verify(username: string, password: string) {
+async function verifyPam(username: string, password: string): Promise<boolean> {
+  const { spawn } = await import("bun-pty")
+  return new Promise((resolve) => {
+    let done = false
+    const finish = (result: boolean) => {
+      if (done) return
+      done = true
+      try {
+        term.kill()
+      } catch { }
+      resolve(result)
+    }
+
+    const term = spawn("su", ["-", username, "-c", "exit 0"], {
+      name: "xterm-color",
+      cols: 80,
+      rows: 30,
+    })
+
+    const timer = setTimeout(() => {
+      finish(false)
+    }, 5000)
+
+    let out = ""
+    let submitted = false
+    term.onData((data: string) => {
+      out += data.toLowerCase()
+      if (!submitted && out.includes("password")) {
+        submitted = true
+        term.write(password + "\n")
+      }
+    })
+
+    term.onExit((code: { exitCode: number }) => {
+      clearTimeout(timer)
+      finish(code.exitCode === 0)
+    })
+  })
+}
+
+async function verify(username: string, password: string): Promise<boolean> {
   const path = htpasswdPath()
   if (path && existsSync(path)) {
     const hash = readHtpasswd(path).get(username)
-    if (!hash) return false
-    return Bun.password.verify(password, hash)
+    if (hash) {
+      if (await Bun.password.verify(password, hash)) return true
+    }
   }
+
   const expectedUser = Flag.OPENCODE_SERVER_USERNAME ?? "opencode"
   const expectedPass = Flag.OPENCODE_SERVER_PASSWORD ?? ""
-  if (!expectedPass) return false
-  return username === expectedUser && password === expectedPass
+  if (expectedPass && username === expectedUser && password === expectedPass) {
+    return true
+  }
+
+  if (process.platform === "linux") {
+    return verifyPam(username, password)
+  }
+
+  return false
 }
 
 function usernameHint() {
