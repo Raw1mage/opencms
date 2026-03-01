@@ -8,6 +8,10 @@ cd "${ROOT_DIR}"
 WITH_DESKTOP=0
 SKIP_SYSTEM=0
 ASSUME_YES=0
+SYSTEM_INIT=0
+SYSTEM_SERVICE_USER="opencode"
+SYSTEM_SERVICE_NAME="opencode-web"
+SYSTEM_INIT_DONE=0
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -30,6 +34,9 @@ Usage:
 Options:
   --with-desktop   Install extra desktop(Tauri) prerequisites
   --skip-system    Skip OS package installation
+  --system-init    Initialize Linux system user + systemd service
+  --service-user   Service account name for --system-init (default: opencode)
+  --service-name   systemd unit basename for --system-init (default: opencode-web)
   --yes, -y        Non-interactive mode
   --help, -h       Show help
 EOF
@@ -50,6 +57,147 @@ ensure_command() {
   if ! command -v "${cmd}" >/dev/null 2>&1; then
     log_err "Missing command: ${cmd}. ${hint}"
     exit 1
+  fi
+}
+
+run_as_root() {
+  if [[ "${EUID}" -eq 0 ]]; then
+    "$@"
+    return
+  fi
+
+  if command -v sudo >/dev/null 2>&1; then
+    sudo "$@"
+    return
+  fi
+
+  log_err "This operation requires root (or sudo): $*"
+  exit 1
+}
+
+detect_nologin_shell() {
+  if command -v nologin >/dev/null 2>&1; then
+    command -v nologin
+    return
+  fi
+  if [[ -x "/usr/sbin/nologin" ]]; then
+    echo "/usr/sbin/nologin"
+    return
+  fi
+  if [[ -x "/sbin/nologin" ]]; then
+    echo "/sbin/nologin"
+    return
+  fi
+  echo "/bin/false"
+}
+
+system_init() {
+  local os
+  os="$(uname -s)"
+
+  if [[ "${os}" != "Linux" ]]; then
+    log_err "--system-init currently supports Linux only."
+    exit 1
+  fi
+
+  ensure_command systemctl "systemd is required for --system-init."
+
+  local shell_path
+  shell_path="$(detect_nologin_shell)"
+
+  log_info "Initializing system service account: ${SYSTEM_SERVICE_USER}"
+  if run_as_root id -u "${SYSTEM_SERVICE_USER}" >/dev/null 2>&1; then
+    log_ok "Service user already exists: ${SYSTEM_SERVICE_USER}"
+  else
+    run_as_root useradd --system --create-home --home-dir "/home/${SYSTEM_SERVICE_USER}" --shell "${shell_path}" "${SYSTEM_SERVICE_USER}"
+    log_ok "Created service user: ${SYSTEM_SERVICE_USER}"
+  fi
+
+  log_info "Preparing service runtime directories..."
+  run_as_root install -d -m 700 "/home/${SYSTEM_SERVICE_USER}/.config/opencode"
+  run_as_root install -d -m 700 "/home/${SYSTEM_SERVICE_USER}/.local/share/opencode"
+  run_as_root install -d -m 700 "/home/${SYSTEM_SERVICE_USER}/.local/state/opencode"
+  run_as_root install -d -m 700 "/home/${SYSTEM_SERVICE_USER}/.cache/opencode"
+  run_as_root chown -R "${SYSTEM_SERVICE_USER}:${SYSTEM_SERVICE_USER}" "/home/${SYSTEM_SERVICE_USER}/.config" "/home/${SYSTEM_SERVICE_USER}/.local" "/home/${SYSTEM_SERVICE_USER}/.cache"
+
+  local env_dir="/etc/opencode"
+  local env_file="${env_dir}/opencode.env"
+  local tmp_env="/tmp/opencode.env.$$"
+  run_as_root install -d -m 755 "${env_dir}"
+  if run_as_root test -f "${env_file}"; then
+    log_ok "Keeping existing env file: ${env_file}"
+  else
+    cat >"${tmp_env}" <<EOF
+# OpenCode system service environment
+# Optional: absolute path to bun for service user
+# OPENCODE_BUN_BIN=/home/${SYSTEM_SERVICE_USER}/.bun/bin/bun
+
+OPENCODE_PORT=1080
+OPENCODE_HOSTNAME=0.0.0.0
+# OPENCODE_PUBLIC_URL=https://your-domain.example
+EOF
+    run_as_root install -m 644 "${tmp_env}" "${env_file}"
+    rm -f "${tmp_env}"
+    log_ok "Created env file: ${env_file}"
+  fi
+
+  local unit_file="/etc/systemd/system/${SYSTEM_SERVICE_NAME}.service"
+  local tmp_unit="/tmp/${SYSTEM_SERVICE_NAME}.service.$$"
+  cat >"${tmp_unit}" <<EOF
+[Unit]
+Description=OpenCode Web Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=${SYSTEM_SERVICE_USER}
+Group=${SYSTEM_SERVICE_USER}
+WorkingDirectory=${ROOT_DIR}
+Environment=HOME=/home/${SYSTEM_SERVICE_USER}
+Environment=XDG_CONFIG_HOME=/home/${SYSTEM_SERVICE_USER}/.config
+Environment=XDG_DATA_HOME=/home/${SYSTEM_SERVICE_USER}/.local/share
+Environment=XDG_STATE_HOME=/home/${SYSTEM_SERVICE_USER}/.local/state
+Environment=XDG_CACHE_HOME=/home/${SYSTEM_SERVICE_USER}/.cache
+Environment=OPENCODE_WEB_NO_OPEN=1
+Environment=OPENCODE_ALLOW_GLOBAL_FS_BROWSE=1
+Environment=OPENCODE_FRONTEND_PATH=${ROOT_DIR}/packages/app/dist
+EnvironmentFile=-/etc/opencode/opencode.env
+ExecStart=/usr/bin/env bash -lc 'BUN_BIN="\${OPENCODE_BUN_BIN:-}"; if [[ -z "\${BUN_BIN}" ]]; then BUN_BIN="\$(command -v bun || true)"; fi; if [[ -z "\${BUN_BIN}" && -x "\${HOME}/.bun/bin/bun" ]]; then BUN_BIN="\${HOME}/.bun/bin/bun"; fi; if [[ -z "\${BUN_BIN}" ]]; then echo "bun not found; set OPENCODE_BUN_BIN in /etc/opencode/opencode.env"; exit 1; fi; exec "\${BUN_BIN}" --conditions=browser "${ROOT_DIR}/packages/opencode/src/index.ts" web --port "\${OPENCODE_PORT:-1080}" --hostname "\${OPENCODE_HOSTNAME:-0.0.0.0}"'
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/${SYSTEM_SERVICE_USER}
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  run_as_root install -m 644 "${tmp_unit}" "${unit_file}"
+  rm -f "${tmp_unit}"
+  log_ok "Installed systemd unit: ${unit_file}"
+
+  run_as_root systemctl daemon-reload
+  run_as_root systemctl enable "${SYSTEM_SERVICE_NAME}.service"
+  log_ok "Enabled service: ${SYSTEM_SERVICE_NAME}.service"
+
+  SYSTEM_INIT_DONE=1
+}
+
+start_system_service_if_ready() {
+  if [[ "${SYSTEM_INIT_DONE}" -ne 1 ]]; then
+    return
+  fi
+
+  if [[ "${ASSUME_YES}" -eq 1 ]] || confirm "Start ${SYSTEM_SERVICE_NAME}.service now?"; then
+    run_as_root systemctl restart "${SYSTEM_SERVICE_NAME}.service"
+    run_as_root systemctl --no-pager status "${SYSTEM_SERVICE_NAME}.service" || true
+  else
+    log_warn "Service not started yet. Use: sudo systemctl start ${SYSTEM_SERVICE_NAME}.service"
   fi
 }
 
@@ -161,6 +309,23 @@ main() {
     case "$1" in
       --with-desktop) WITH_DESKTOP=1 ;;
       --skip-system) SKIP_SYSTEM=1 ;;
+      --system-init) SYSTEM_INIT=1 ;;
+      --service-user)
+        shift
+        SYSTEM_SERVICE_USER="${1:-}"
+        if [[ -z "${SYSTEM_SERVICE_USER}" ]]; then
+          log_err "--service-user requires a value"
+          exit 1
+        fi
+        ;;
+      --service-name)
+        shift
+        SYSTEM_SERVICE_NAME="${1:-}"
+        if [[ -z "${SYSTEM_SERVICE_NAME}" ]]; then
+          log_err "--service-name requires a value"
+          exit 1
+        fi
+        ;;
       --yes|-y) ASSUME_YES=1 ;;
       --help|-h)
         usage
@@ -187,6 +352,16 @@ main() {
     exit 0
   fi
 
+  if [[ "${SYSTEM_INIT}" -eq 0 ]] && [[ "$(uname -s)" == "Linux" ]] && [[ "${ASSUME_YES}" -eq 0 ]]; then
+    if confirm "Also initialize Linux system service (recommended for PAM multi-user deployments)?"; then
+      SYSTEM_INIT=1
+    fi
+  fi
+
+  if [[ "${SYSTEM_INIT}" -eq 1 ]]; then
+    system_init
+  fi
+
   install_system_packages
   install_bun_if_needed
 
@@ -209,13 +384,19 @@ main() {
     fi
   fi
 
+  start_system_service_if_ready
+
   log_ok "Environment bootstrap complete."
-  cat <<'EOF'
+  cat <<EOF
 
 Next steps:
   1) TUI:     bun run dev
   2) Web:     ./webctl.sh build-frontend && ./webctl.sh start
   3) Desktop: bun run --cwd packages/desktop tauri dev
+
+System service (if enabled):
+  sudo systemctl status ${SYSTEM_SERVICE_NAME}.service
+  sudo systemctl restart ${SYSTEM_SERVICE_NAME}.service
 
 EOF
 }

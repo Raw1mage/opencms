@@ -214,7 +214,7 @@ export default function Page() {
 
   const info = createMemo(() => (params.id ? sync.session.get(params.id) : undefined))
   const diffs = createMemo(() => (params.id ? (sync.data.session_diff[params.id] ?? []) : []))
-  const reviewCount = createMemo(() => Math.max(info()?.summary?.files ?? 0, diffs().length))
+  const reviewCount = createMemo(() => diffs().length)
   const hasReview = createMemo(() => reviewCount() > 0)
   const revertMessageID = createMemo(() => info()?.revert?.messageID)
   const messages = createMemo(() => (params.id ? (sync.data.message[params.id] ?? []) : []))
@@ -815,13 +815,13 @@ export default function Page() {
   createEffect(() => {
     const id = params.id
     if (!id) return
+    const statusType = sync.data.session_status[id]?.type ?? "idle"
 
     const wants = isDesktop() ? layout.fileTree.opened() && fileTreeTab() === "changes" : store.mobileTab === "changes"
     if (!wants) return
-    if (sync.data.session_diff[id] !== undefined) return
     if (sync.status === "loading") return
 
-    void sync.session.diff(id)
+    void sync.session.diff(id, { force: statusType === "idle" })
   })
 
   createEffect(() => {
@@ -1102,7 +1102,7 @@ export default function Page() {
                         const id = params.id
                         if (!id) return
                         setTitleState("saving", true)
-                        await sdk.client.session.update({ sessionID: id, title: titleState.draft }).catch(() => {})
+                        await sdk.client.session.update({ sessionID: id, title: titleState.draft }).catch(() => { })
                         batch(() => {
                           setTitleState("saving", false)
                           setTitleState("editing", false)
@@ -1123,7 +1123,7 @@ export default function Page() {
                         navigate(`/${params.dir}`)
                       }}
                       t={(k, v) => language.t(k as any, v as any)}
-                      setContentRef={() => {}}
+                      setContentRef={() => { }}
                       turnStart={store.turnStart}
                       onRenderEarlier={() => setStore("turnStart", 0)}
                       historyMore={historyMore()}

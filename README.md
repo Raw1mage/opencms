@@ -169,6 +169,12 @@ chmod +x ./install.sh
 
 # 非互動模式
 ./install.sh --yes
+
+# Linux 系統級部署初始化（建立 opencode service user + systemd unit）
+./install.sh --system-init
+
+# 自訂 service user / unit 名稱
+./install.sh --system-init --service-user opencode --service-name opencode-web
 ```
 
 此腳本會：
@@ -177,6 +183,15 @@ chmod +x ./install.sh
 2. 依作業系統嘗試安裝必要系統套件（可跳過）
 3. 執行 `bun install`
 4. 預建 `packages/app` 前端資產（讓 Web 模式可直接啟動）
+
+若啟用 `--system-init`（Linux）：
+
+1. 建立專屬 service account（預設 `opencode`，`nologin`）
+2. 初始化該帳號的 `~/.config` / `~/.local/share` / `~/.local/state` / `~/.cache` runtime 目錄
+3. 產生 `/etc/opencode/opencode.env`（可覆蓋服務執行參數）
+4. 安裝並啟用 `systemd` service（預設 `opencode-web.service`）
+
+> 建議：正式環境使用 `--system-init` 將 web control plane 與個人帳號（如 `pkcs12`）脫鉤。
 
 ---
 

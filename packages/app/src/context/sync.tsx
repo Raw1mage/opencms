@@ -272,16 +272,26 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
 
           return runInflight(inflight, key, () => Promise.all([sessionReq, messagesReq]).then(() => {}))
         },
-        async diff(sessionID: string) {
+        async diff(sessionID: string, options?: { force?: boolean }) {
           const directory = sdk.directory
           const client = sdk.client
           const [store, setStore] = globalSync.child(directory)
-          if (store.session_diff[sessionID] !== undefined) return
+          if (!options?.force && store.session_diff[sessionID] !== undefined) return
 
           const key = keyFor(directory, sessionID)
           return runInflight(inflightDiff, key, () =>
-            retry(() => client.session.diff({ sessionID })).then((diff) => {
-              setStore("session_diff", sessionID, reconcile(diff.data ?? [], { key: "file" }))
+            retry(() => client.file.status()).then((status) => {
+              // Git-only source of truth for review panel.
+              // This keeps web UI strictly aligned with `git status` / working tree state.
+              const next = (status.data ?? []).map((item) => ({
+                file: item.path,
+                before: "",
+                after: "",
+                additions: item.added,
+                deletions: item.removed,
+                status: item.status,
+              }))
+              setStore("session_diff", sessionID, reconcile(next, { key: "file" }))
             }),
           )
         },
