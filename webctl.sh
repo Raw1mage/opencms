@@ -345,7 +345,7 @@ do_start() {
         BUN_BIN="$(find_bun)"
         log_info "Starting server from source on port ${WEB_PORT}..."
 
-        nohup env OPENCODE_ALLOW_GLOBAL_FS_BROWSE="1" OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" \
+        nohup env OPENCODE_ALLOW_GLOBAL_FS_BROWSE="1" OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" OPENCODE_WEB_NO_OPEN="1" \
             "${BUN_BIN}" --conditions=browser \
             "${PROJECT_ROOT}/packages/opencode/src/index.ts" \
             web --port "${WEB_PORT}" --hostname 0.0.0.0 \
@@ -356,7 +356,7 @@ do_start() {
             exit 1
         fi
         log_info "Starting standalone server on port ${WEB_PORT}..."
-        nohup env OPENCODE_ALLOW_GLOBAL_FS_BROWSE="1" OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" \
+        nohup env OPENCODE_ALLOW_GLOBAL_FS_BROWSE="1" OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" OPENCODE_WEB_NO_OPEN="1" \
             "${OPENCODE_BIN}" \
             web --port "${WEB_PORT}" --hostname 0.0.0.0 \
             >"${SERVER_LOG_FILE}" 2>&1 < /dev/null &
@@ -457,7 +457,8 @@ do_stop() {
 do_restart() {
     shift || true
     local mode="detached"
-    local graceful=0
+    local graceful=1
+    local inline_fallback=0
 
     while [ "$#" -gt 0 ]; do
         case "$1" in
@@ -477,6 +478,14 @@ do_restart() {
     local txid
     txid="$(date +%Y%m%dT%H%M%S)-$$"
 
+    if [ "${mode}" = "inline" ] && [ "${OPENCODE_ALLOW_INLINE_RESTART:-0}" != "1" ]; then
+        log_warn "Inline restart is disabled by default; falling back to detached graceful restart."
+        log_warn "Set OPENCODE_ALLOW_INLINE_RESTART=1 only for explicit maintenance windows."
+        mode="detached"
+        graceful=1
+        inline_fallback=1
+    fi
+
     # Default to detached restart so callers running through the current web
     # session are less likely to be interrupted mid-command when backend stops.
     if [ "${mode}" = "inline" ]; then
@@ -494,6 +503,9 @@ do_restart() {
     worker_args=("_restart-worker" "--txid" "${txid}" "--mode" "${mode}")
     if [ "${graceful}" -eq 1 ]; then worker_args+=("--graceful"); fi
 
+    if [ "${inline_fallback}" -eq 1 ]; then
+        append_restart_event "${txid}" "policy" "fallback" "inline blocked; switched to detached graceful" "${mode}" "${graceful}"
+    fi
     append_restart_event "${txid}" "schedule" "started" "restart scheduled in detached worker" "${mode}" "${graceful}"
     nohup "${PROJECT_ROOT}/webctl.sh" "${worker_args[@]}" >"${restart_log_file}" 2>&1 < /dev/null &
     worker_pid=$!
@@ -695,6 +707,7 @@ do_help() {
     echo "  OPENCODE_PORT              Port to listen on (default: 1080)"
     echo "  OPENCODE_PUBLIC_URL        Public URL shown in status/start output"
     echo "  OPENCODE_PROFILE           Runtime profile label (default: default)"
+    echo "  OPENCODE_ALLOW_INLINE_RESTART  Allow risky inline restart (default: 0)"
     echo "  OPENCODE_AUTO_SWITCH_OWNER Auto-switch to repo owner (default: 1)"
     echo "  OPENCODE_SERVER_HTPASSWD   Path to htpasswd file (recommended)"
     echo "  OPENCODE_SERVER_PASSWORD   Password env fallback"
@@ -707,8 +720,8 @@ do_help() {
     echo ""
     echo "  # Start / restart server:"
     echo "  ./webctl.sh start"
-    echo "  ./webctl.sh restart"
-    echo "  ./webctl.sh restart --graceful"
+    echo "  ./webctl.sh restart              # default: detached + graceful"
+    echo "  ./webctl.sh restart --graceful   # explicit (same as default)"
     echo "  ./webctl.sh restart --inline"
     echo ""
     echo "  # Debug PTY:"

@@ -729,7 +729,7 @@ export namespace File {
       const fullPath = path.join(resolved, entry.name)
       const relativePath = path.relative(Instance.directory, fullPath)
       const type = entry.isDirectory() ? "directory" : "file"
-      const escapedRelative = relativePath === ".." || relativePath.startsWith("../")
+      const escapedRelative = relativePath === "" || relativePath === ".." || relativePath.startsWith("../")
       nodes.push({
         name: entry.name,
         path: relativePath,

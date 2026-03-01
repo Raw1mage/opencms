@@ -34,6 +34,7 @@ export const WebCommand = cmd({
   builder: (yargs) => withNetworkOptions(yargs),
   describe: "start opencode server and open web interface",
   handler: async (args) => {
+    const disableBrowserOpen = process.env.OPENCODE_WEB_NO_OPEN === "1" || process.env.OPENCODE_WEB_NO_OPEN === "true"
     if (!WebAuthCredentials.enabled()) {
       UI.println(
         UI.Style.TEXT_WARNING_BOLD +
@@ -76,12 +77,16 @@ export const WebCommand = cmd({
         )
       }
 
-      // Open localhost in browser
-      open(localhostUrl.toString()).catch(() => {})
+      // Optionally open localhost in browser (disabled for managed daemon mode)
+      if (!disableBrowserOpen) {
+        open(localhostUrl.toString()).catch(() => {})
+      }
     } else {
       const displayUrl = server.url.toString()
       UI.println(UI.Style.TEXT_INFO_BOLD + "  Web interface:    ", UI.Style.TEXT_NORMAL, displayUrl)
-      open(displayUrl).catch(() => {})
+      if (!disableBrowserOpen) {
+        open(displayUrl).catch(() => {})
+      }
     }
 
     await new Promise(() => {})

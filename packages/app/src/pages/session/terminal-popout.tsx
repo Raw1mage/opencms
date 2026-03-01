@@ -1,13 +1,15 @@
-import { Show, createEffect, createMemo } from "solid-js"
-import { useSearchParams } from "@solidjs/router"
-import { IconButton } from "@opencode-ai/ui/icon-button"
+import { Show, createEffect, createMemo, createResource } from "solid-js"
+import { useParams, useSearchParams } from "@solidjs/router"
 import { Terminal } from "@/components/terminal"
 import { useLanguage } from "@/context/language"
 import { useTerminal } from "@/context/terminal"
+import { useSDK } from "@/context/sdk"
 
 export default function TerminalPopoutRoute() {
   const language = useLanguage()
   const terminal = useTerminal()
+  const sdk = useSDK()
+  const params = useParams<{ id?: string }>()
   const [searchParams] = useSearchParams<{ pty?: string }>()
 
   const requestedID = createMemo(() => searchParams.pty)
@@ -25,35 +27,33 @@ export default function TerminalPopoutRoute() {
     return terminal.all().find((x) => x.id === id)
   })
 
+  const [session] = createResource(
+    () => params.id,
+    async (id) => {
+      if (!id) return
+      const result = await sdk.client.session
+        .get({ sessionID: id })
+        .then((x) => x.data)
+        .catch(() => undefined)
+      return result
+    },
+  )
+
+  const sessionTitle = createMemo(() => {
+    const title = session.latest?.title?.trim()
+    if (title) return title
+    return language.t("command.session.new")
+  })
+
   createEffect(() => {
     const id = selectedID()
     if (!id) return
     if (terminal.active() !== id) terminal.open(id)
-    document.title = `${language.t("terminal.title")} · ${selectedPTY()?.title ?? id}`
+    document.title = `${sessionTitle()} · ${language.t("terminal.title")}`
   })
 
   return (
     <div class="size-full flex flex-col bg-background-base">
-      <div class="h-10 shrink-0 border-b border-border-weak-base flex items-center justify-between px-2">
-        <div class="text-13-medium text-text-strong truncate">
-          {language.t("terminal.title")}: {selectedPTY()?.title ?? "-"}
-        </div>
-        <div class="flex items-center gap-1">
-          <IconButton
-            icon="plus-small"
-            variant="ghost"
-            onClick={terminal.new}
-            aria-label={language.t("command.terminal.new")}
-          />
-          <IconButton
-            icon="close"
-            variant="ghost"
-            onClick={() => window.close()}
-            aria-label={language.t("common.close")}
-          />
-        </div>
-      </div>
-
       <div class="flex-1 min-h-0 relative">
         <Show
           when={selectedPTY()}

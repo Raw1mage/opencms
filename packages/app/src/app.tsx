@@ -131,6 +131,19 @@ const getStoredDefaultServerUrl = (platform: ReturnType<typeof usePlatform>) => 
   return normalizeServerUrl(result)
 }
 
+const isLocalHost = (host: string) => {
+  const value = host.trim().toLowerCase()
+  return value === "localhost" || value === "127.0.0.1" || value === "::1" || value === "[::1]"
+}
+
+const hostnameOf = (url: string) => {
+  try {
+    return new URL(url).hostname
+  } catch {
+    return ""
+  }
+}
+
 const resolveDefaultServerUrl = (props: {
   defaultUrl?: string
   storedDefaultServerUrl?: string
@@ -141,7 +154,16 @@ const resolveDefaultServerUrl = (props: {
   devPort?: string
 }) => {
   if (props.defaultUrl) return props.defaultUrl
-  if (props.storedDefaultServerUrl) return props.storedDefaultServerUrl
+  if (props.storedDefaultServerUrl) {
+    const currentIsLocal = isLocalHost(props.hostname)
+    const storedHost = hostnameOf(props.storedDefaultServerUrl)
+    const storedIsLocal = storedHost ? isLocalHost(storedHost) : false
+
+    // Web deployment safety: when app is opened from a non-local domain
+    // (e.g. reverse proxy), ignore stale persisted localhost target.
+    if (!props.isDev && !currentIsLocal && storedIsLocal) return props.origin
+    return props.storedDefaultServerUrl
+  }
   if (props.hostname.includes("opencode.ai")) return "http://localhost:4096"
   if (props.isDev) return `http://${props.devHost ?? "localhost"}:${props.devPort ?? "4096"}`
   return props.origin
