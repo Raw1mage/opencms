@@ -519,6 +519,8 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
 
   const familyOf = (providerId: string) => normalizeProviderFamily(providerId) || providerId
 
+  const isAccountLikeProviderId = (id: string) => id.includes("@")
+
   const activeAccountForFamily = (family: string) => {
     const families = accountInfo.latest?.families as Record<string, unknown> | undefined
     const familyRow = families?.[family] as { activeAccount?: unknown } | undefined
@@ -599,16 +601,19 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
     if (!providerId) return [] as ReturnType<ReturnType<typeof useModels>["list"]>
 
     const models = local.model.list()
-    const selectedAccount = selectedAccountId()
-    const activeAccount = activeAccountForFamily(providerId)
-    const candidateProviderIDs = [selectedAccount, activeAccount, providerId].filter((id): id is string => !!id)
-    const resolvedProviderID =
-      candidateProviderIDs.find((id) => models.some((m) => m.provider.id === id)) ??
-      models.find((m) => familyOf(m.provider.id) === providerId)?.provider.id
+    const inFamily = models.filter((m) => familyOf(m.provider.id) === providerId)
+    if (inFamily.length === 0) return []
 
-    const scopedModels = resolvedProviderID
-      ? models.filter((m) => m.provider.id === resolvedProviderID)
-      : models.filter((m) => familyOf(m.provider.id) === providerId)
+    const currentProviderID = local.model.current()?.provider?.id
+    const resolvedProviderID =
+      inFamily.find((m) => m.provider.id === providerId)?.provider.id ??
+      (currentProviderID && inFamily.some((m) => m.provider.id === currentProviderID)
+        ? currentProviderID
+        : undefined) ??
+      inFamily.find((m) => !isAccountLikeProviderId(m.provider.id))?.provider.id ??
+      inFamily[0]?.provider.id
+
+    const scopedModels = resolvedProviderID ? inFamily.filter((m) => m.provider.id === resolvedProviderID) : inFamily
 
     return filterModelsForMode({
       models: scopedModels,
@@ -845,9 +850,16 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
                   return
                 }
                 const family = providerFamily
+                const familyCandidates = local.model
+                  .list()
+                  .filter((m) => m.id === x.id && familyOf(m.provider.id) === providerFamily)
+                const providerIDForSelection =
+                  familyCandidates.find((m) => m.provider.id === providerFamily)?.provider.id ??
+                  familyCandidates.find((m) => !isAccountLikeProviderId(m.provider.id))?.provider.id ??
+                  x.provider.id
                 const setModel = () => {
                   local.model.set(
-                    { modelID: x.id, providerID: x.provider.id },
+                    { modelID: x.id, providerID: providerIDForSelection },
                     {
                       recent: true,
                     },

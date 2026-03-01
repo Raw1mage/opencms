@@ -30,6 +30,7 @@ import { useLayout } from "@/context/layout"
 import { useSDK } from "@/context/sdk"
 import { useGlobalSDK } from "@/context/global-sdk"
 import { useGlobalSync } from "@/context/global-sync"
+import { useProviders } from "@/hooks/use-providers"
 import { useParams } from "@solidjs/router"
 import { useSync } from "@/context/sync"
 import { useComments } from "@/context/comments"
@@ -107,6 +108,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const sdk = useSDK()
   const globalSDK = useGlobalSDK()
   const globalSync = useGlobalSync()
+  const providers = useProviders()
   const sync = useSync()
   const local = useLocal()
   const files = useFile()
@@ -259,6 +261,48 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     if (!providerID) return
     return normalizeProviderFamily(providerID) ?? providerID
   })
+  const effectiveProviderFamily = createMemo(() => {
+    const model = currentModel()
+    if (!model) return undefined
+
+    const normalized = normalizeProviderFamily(model.provider.id)
+    if (normalized && !normalized.includes("@")) return normalized
+
+    const identities = [model.provider.id, model.provider.name]
+      .filter((value): value is string => typeof value === "string" && value.includes("@"))
+      .map((value) => value.toLowerCase())
+
+    if (identities.length === 0) return normalized ?? model.provider.id
+
+    const accountFamilies = globalSync.data.account_families as
+      | Record<string, { accounts?: Record<string, unknown> }>
+      | undefined
+    if (!accountFamilies) return normalized ?? model.provider.id
+
+    const availableFamilies = new Set(
+      providers
+        .all()
+        .filter((provider) => !!provider.models?.[model.id])
+        .map((provider) => normalizeProviderFamily(provider.id) || provider.id),
+    )
+
+    for (const [familyKey, familyRow] of Object.entries(accountFamilies)) {
+      const family = normalizeProviderFamily(familyKey) || familyKey
+      if (availableFamilies.size > 0 && !availableFamilies.has(family)) continue
+      const accounts = familyRow?.accounts && typeof familyRow.accounts === "object" ? familyRow.accounts : {}
+      for (const account of Object.values(accounts)) {
+        const row = account as { name?: unknown; email?: unknown; accountId?: unknown }
+        const values = [row.name, row.email, row.accountId]
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => value.toLowerCase())
+        if (values.some((value) => identities.includes(value))) {
+          return family
+        }
+      }
+    }
+
+    return normalized ?? model.provider.id
+  })
   const activeAccountLabel = createMemo(() => {
     const family = activeFamily()
     if (!family) return "--"
@@ -272,13 +316,26 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const providerLabel = createMemo(() => {
     const model = currentModel()
     if (!model) return "--"
-    return model.provider.name ?? model.provider.id
+    const family = effectiveProviderFamily()
+    if (family === "openai") return "OpenAI"
+    if (family === "claude-cli") return "Claude CLI"
+    if (family === "google-api") return "Google-API"
+    if (family === "gemini-cli") return "Gemini CLI"
+    if (family === "antigravity") return "Antigravity"
+    if (family === "github-copilot") return "GitHub Copilot"
+    if (family === "gmicloud") return "GMICloud"
+    if (family === "openrouter") return "OpenRouter"
+    if (family === "vercel") return "Vercel"
+    if (family === "gitlab") return "GitLab"
+    if (family === "opencode") return "OpenCode"
+    return model.provider.name ?? family ?? model.provider.id
   })
   const [quotaHint] = createResource(
     () => {
       const model = currentModel()
       if (!model) return
-      return `${model.provider.id}:${model.id}`
+      const providerFamily = effectiveProviderFamily() ?? model.provider.id
+      return `${providerFamily}:${model.id}`
     },
     async (value) => {
       const [providerId, ...rest] = value.split(":")
