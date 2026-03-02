@@ -63,7 +63,7 @@
 當任務是「開發 opencode 本身」時，請遵循以下分層與同步原則：
 
 - **Global**: `~/.config/opencode/AGENTS.md`
-- **Project**: `<repo>/.opencode/AGENTS.md`
+- **Project**: `<repo>/AGENTS.md`
 - **Template**: `<repo>/templates/AGENTS.md`（release 後供使用者初始化 global 設定）
 
 ### 維護原則
@@ -71,15 +71,35 @@
 1. **Project AGENTS 由專案維護者規劃**：本檔作為專案內規範主體，重大策略先在此定義。
 2. **Template 與 Runtime 需同步**：凡影響預設行為的流程/規範變更，需同時更新：
    - `templates/**`（發布到使用者端的來源）
-   - `runtime` 對應檔案（例如 `.opencode/skills/**`）
+   - `runtime` 對應檔案（例如 `$XDG_CONFIG_HOME/opencode/skills/**`）
 3. **避免僅改 Global**：`~/.config/opencode/*` 屬本機執行環境，不作為 repo 交付依據。
 4. **變更留痕**：所有重大決策與同步範圍需記錄於 `docs/events/`。
 
+### 跨專案 SOP 基線（Mandatory）
+
+為了讓未來每個開發案都一致遵守流程，以下要求視為「交付前強制門檻」：
+
+1. **任務開工前必有 event 檔**：
+   - 路徑：`docs/events/event_<YYYYMMDD>_<topic>.md`
+   - 至少包含：`需求`、`範圍(IN/OUT)`、`任務清單`。
+
+2. **實作過程必有 debug checkpoints**：
+   - 至少三段：`Baseline`（修改前）、`Execution`（關鍵步驟）、`Validation`（修正後）。
+   - 內容必須可追溯（指令、錯誤摘要、決策依據）。
+
+3. **完成回報必有驗證區塊**：
+   - 明確列出通過/失敗項目，不可只寫「已測試」。
+   - 若有已知噪音，需引用對應規範與豁免理由。
+
+4. **禁止跳步收尾**：
+   - 未更新 `docs/events`（含 debug/驗證）不得宣告完成。
+   - 未同步 `templates/**` 的規範變更不得進入 release。
+
 ### Release 前檢查清單（Prompt / Agent / Skill）
 
-- [ ] 若調整工作流或規範，已同步更新 `templates/**` 與對應 `runtime`（如 `.opencode/skills/**`）。
+- [ ] 若調整工作流或規範，已同步更新 `templates/**` 與對應 `runtime`（如 `$XDG_CONFIG_HOME/opencode/skills/**`）。
 - [ ] 若調整初始化行為，已確認 `templates/AGENTS.md` 與 `templates/prompts/SYSTEM.md` 一致。
-- [ ] 若調整執行時技能，已確認 `.opencode/skills/**` 與 `templates/skills/**` 無漂移。
+- [ ] 若調整執行時技能，已確認 `$XDG_CONFIG_HOME/opencode/skills/**` 與 `templates/skills/**` 無漂移。
 - [ ] 已在 `docs/events/` 記錄：變更目的、範圍、同步面、風險。
 - [ ] 僅將 `~/.config/opencode/*` 視為本機環境，不作為 release 交付來源。
 

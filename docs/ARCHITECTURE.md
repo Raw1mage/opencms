@@ -67,6 +67,33 @@ The `cms` branch is the primary product line for this environment, featuring sig
 - Docker web profile (`docker-compose.production.yml` + `Dockerfile.production`) follows the same `/opt/opencode` runtime contract as native environments.
 - MCP runtime services are canonicalized under `packages/mcp/*`; `scripts/*` keeps compatibility shims only.
 
+#### Web multi-user runtime architecture
+
+1. **Service identity model**
+   - `opencode-web.service` runs as a no-home service identity (`HOME=/nonexistent`).
+   - Service binaries/wrappers are expected under `/usr/local/*`.
+
+2. **Gateway + per-user worker topology**
+   - Gateway process serves web/auth/API entrypoints.
+   - User-scoped runtime operations are executed by `opencode user-worker --stdio` via `run-as-user` wrapper.
+   - Worker process executes under authenticated Linux user context.
+
+3. **Routed API policy**
+   - Worker-routed APIs use strict no-fallback behavior: worker failure returns structured `503`.
+   - This prevents mixed-source reads/writes across service-scope and user-scope runtime paths.
+
+4. **Worker-routed API domains**
+   - Session APIs: core read/write paths (list/get/messages/todo/status/top/diff and primary mutation routes).
+   - Account/Config APIs: read and mutation routes required by web admin/model workflows.
+   - Model Preferences APIs: read/update routed through worker context.
+
+5. **Web realtime behavior**
+   - Web prompt flow uses message snapshot hydration to ensure assistant replies appear without page reload when cross-process event propagation is unavailable.
+
+6. **Runtime ownership target**
+   - Runtime memory/history/config/state are owned by authenticated user home (`~/.config`, `~/.local/share`, `~/.local/state`).
+   - Historical transition details and RCA remain in `docs/events/`.
+
 #### Capability registry contract
 
 - Capability discovery source-of-truth is `packages/opencode/src/session/prompt/enablement.json` with template mirror at `templates/prompts/enablement.json`.
@@ -496,17 +523,17 @@ In addition to the standard `packages/` directory, these top-level folders serve
 
 The root directory is kept minimal, containing only essential configuration and orchestration files.
 
-| File            | Description                                                                                   |
-| :-------------- | :-------------------------------------------------------------------------------------------- |
-| `.env`          | **Runtime Secrets.** Local environment variables for API keys and database URLs.              |
-| `package.json`  | **Monorepo Manifest.** Defines project dependencies, workspace structure, and core scripts.   |
-| `bun.lock`      | **Lockfile.** Ensures consistent dependency versions across environments.                     |
-| `turbo.json`    | **TurboRepo Config.** Orchestrates build, lint, and test tasks across the monorepo.           |
-| `sst.config.ts` | **SST Entry.** Main entry point for serverless infrastructure deployment.                     |
-| `flake.nix`     | **Nix Shell.** Defines a reproducible development environment with all required system tools. |
-| `tsconfig.json` | **TypeScript Config.** Global compiler options and path aliases.                              |
-| `README.md`     | **Documentation Entry.** The primary project overview and quickstart guide.                   |
-| `LICENSE`       | **License Information.** MIT License terms for the project.                                   |
+| File            | Description                                                                                                                                  |
+| :-------------- | :------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.env`          | **Runtime Secrets.** Local environment variables for API keys and database URLs.                                                             |
+| `package.json`  | **Monorepo Manifest.** Defines project dependencies, workspace structure, and core scripts.                                                  |
+| `bun.lock`      | **Lockfile.** Ensures consistent dependency versions across environments.                                                                    |
+| `turbo.json`    | **TurboRepo Config.** Orchestrates build, lint, and test tasks across the monorepo.                                                          |
+| `sst.config.ts` | **SST Entry.** Main entry point for serverless infrastructure deployment.                                                                    |
+| `flake.nix`     | **Nix Shell.** Defines a reproducible development environment with all required system tools.                                                |
+| `tsconfig.json` | **TypeScript Config.** Global compiler options and path aliases.                                                                             |
+| `README.md`     | **Documentation Entry.** The primary project overview and quickstart guide.                                                                  |
+| `LICENSE`       | **License Information.** MIT License terms for the project.                                                                                  |
 | `webctl.sh`     | **Standalone Web Manager.** Script to manage web deployment natively within the user `$HOME`, completely detached from the git repo context. |
 
 ---
@@ -581,9 +608,9 @@ If toast says success but UI does not change, verify in order:
 
 ---
 
-## 13. Session Change Summary (2026-02-20)
+## 13. Provider Toggle and Tool-Call Bridge Architecture
 
-This session finalized the provider visibility/toggle architecture and fixed multiple regressions in `/admin`.
+This section defines the current provider visibility/toggle architecture and tool-call bridge behavior for `/admin` and runtime provider normalization.
 
 ### A. Provider Toggle Behavior
 
@@ -598,7 +625,7 @@ This session finalized the provider visibility/toggle architecture and fixed mul
 
 - `packages/opencode/src/cli/cmd/tui/component/dialog-admin.tsx`
 
-### B. UX/State Consistency Fixes
+### B. UX/State Consistency
 
 1. Resolved stale/slow visual updates with optimistic provider-state updates.
 2. Toggle success is reflected immediately in UI; persistence and bootstrap run in background.
@@ -644,7 +671,7 @@ Any future provider-toggle refactor must preserve:
 
 ---
 
-## 14. External Dependency Inventory (2026-02-21)
+## 14. External Dependency Architecture
 
 This section inventories current external dependency surfaces for the `cms` branch and clarifies where dependency resolution happens at runtime vs build time.
 
@@ -1020,7 +1047,7 @@ When retiring tests, PR must include:
 
 ---
 
-## 19. Web Auth Credential Management Baseline (2026-02-23)
+## 19. Web Auth Credential Management Baseline
 
 This section defines the credential-management baseline for self-hosted Web deployments.
 
@@ -1038,16 +1065,16 @@ This section defines the credential-management baseline for self-hosted Web depl
 
 ### C. File-to-function mapping
 
-| File Path                                              | Function / Responsibility                                                                      | Architectural Impact                                                                  |
-| :----------------------------------------------------- | :--------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------ |
-| `packages/opencode/src/server/web-auth-credentials.ts` | Loads/caches htpasswd-style credential file, verifies hash, and falls back to PAM auth via Linux PTY on `su`. | Decouples credential storage from env plaintext and enables true OS-level web login.                  |
-| `packages/opencode/src/server/web-auth.ts`             | Web auth policy layer (session cookie signing, CSRF enforcement helpers, lockout integration). | Central auth gate contract consumed by server middleware and auth routes.             |
-| `packages/opencode/src/server/routes/global.ts`        | Auth endpoints for session probe/login/logout; returns `usernameHint` for login UX.            | Provides explicit auth API contract for browser clients.                              |
-| `packages/opencode/src/flag/flag.ts`                   | Defines new auth-file flags (`OPENCODE_SERVER_HTPASSWD`, `OPENCODE_SERVER_PASSWORD_FILE`).     | Standardizes configuration surface for secure credential-file deployments.            |
-| `packages/app/src/context/web-auth.tsx`                | Frontend auth state manager, cookie-based authorized fetch, CSRF header injection.             | Aligns browser transport security with server-side CSRF/session model.                |
-| `packages/app/src/components/auth-gate.tsx`            | Login gate UI using `usernameHint` and explicit sign-in flow.                                  | Replaces browser-native Basic auth popup with controllable app UX.                    |
-| `packages/app/src/components/terminal.tsx`             | Removes websocket URL basic credentials.                                                       | Prevents credential exposure in URL/user-info surface.                                |
-| `docker/docker-compose.production.yml`                 | Exposes `OPENCODE_SERVER_HTPASSWD` default path `/opt/opencode/config/opencode/.htpasswd`.     | Makes secure-by-default self-host setup practical for home installations.             |
+| File Path                                              | Function / Responsibility                                                                                     | Architectural Impact                                                                 |
+| :----------------------------------------------------- | :------------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------- |
+| `packages/opencode/src/server/web-auth-credentials.ts` | Loads/caches htpasswd-style credential file, verifies hash, and falls back to PAM auth via Linux PTY on `su`. | Decouples credential storage from env plaintext and enables true OS-level web login. |
+| `packages/opencode/src/server/web-auth.ts`             | Web auth policy layer (session cookie signing, CSRF enforcement helpers, lockout integration).                | Central auth gate contract consumed by server middleware and auth routes.            |
+| `packages/opencode/src/server/routes/global.ts`        | Auth endpoints for session probe/login/logout; returns `usernameHint` for login UX.                           | Provides explicit auth API contract for browser clients.                             |
+| `packages/opencode/src/flag/flag.ts`                   | Defines new auth-file flags (`OPENCODE_SERVER_HTPASSWD`, `OPENCODE_SERVER_PASSWORD_FILE`).                    | Standardizes configuration surface for secure credential-file deployments.           |
+| `packages/app/src/context/web-auth.tsx`                | Frontend auth state manager, cookie-based authorized fetch, CSRF header injection.                            | Aligns browser transport security with server-side CSRF/session model.               |
+| `packages/app/src/components/auth-gate.tsx`            | Login gate UI using `usernameHint` and explicit sign-in flow.                                                 | Replaces browser-native Basic auth popup with controllable app UX.                   |
+| `packages/app/src/components/terminal.tsx`             | Removes websocket URL basic credentials.                                                                      | Prevents credential exposure in URL/user-info surface.                               |
+| `docker/docker-compose.production.yml`                 | Exposes `OPENCODE_SERVER_HTPASSWD` default path `/opt/opencode/config/opencode/.htpasswd`.                    | Makes secure-by-default self-host setup practical for home installations.            |
 
 ### D. Operational baseline for Docker self-host
 
@@ -1057,9 +1084,9 @@ This section defines the credential-management baseline for self-hosted Web depl
 
 ---
 
-## 20. WebApp File Structure & Runtime Flow (cms, consolidated from recent web sessions)
+## 20. WebApp File Structure & Runtime Flow (cms)
 
-This section consolidates recent web-related event records into one architecture view focused on:
+This section provides the current architecture view focused on:
 
 1. where core WebApp logic lives, and
 2. how the runtime data/auth/terminal flows operate end-to-end.
@@ -1139,7 +1166,7 @@ Behavior boundary (current cms WebApp):
 2. If not set, CDN proxy fallback can produce frontend/runtime contract drift (auth and feature mismatch risk).
 3. Operationally, direct web mode is primary for host-workspace parity; Docker remains optional isolation path.
 
-### F. Reference decision records (source sessions)
+### F. Reference decision records
 
 - `docs/events/event_20260223_web_architecture_first_plan.md`
 - `docs/events/event_20260223_web_runtime_bug_backlog.md`
@@ -1151,9 +1178,9 @@ Behavior boundary (current cms WebApp):
 
 ---
 
-## 21. Desktop Runtime Architecture (refactored, 2026-03-01)
+## 21. Desktop Runtime Architecture
 
-This section documents the desktop application's operating principles after the sidecar-simplification refactor. The desktop is now a **thin Tauri shell** that loads the same web frontend served by `opencode serve`.
+This section documents the desktop application's current operating principles. The desktop is a **thin Tauri shell** that loads the same web frontend served by `opencode serve`.
 
 ### A. Process Architecture (stdout-based sidecar)
 
@@ -1188,12 +1215,14 @@ Child Process (Bun / opencode serve)
 Desktop now loads the **same web frontend** (`packages/app/src/entry.tsx`) served by the opencode server, rather than a separate Tauri-specific entry. The WebView points to the server's HTTP URL (`WebviewUrl::External`).
 
 **What this eliminates** (compared to the pre-refactor architecture):
+
 - Desktop-specific `index.tsx` with 15+ Platform interface methods
 - Separate Vite build for desktop frontend
 - `bindings.ts` fragility (fewer Tauri commands called from frontend)
 - Tauri plugins for: dialog, store, notification, clipboard, http
 
 **What remains in Rust**:
+
 - Window creation with server URL + auto-login injection
 - Auto-updater (`tauri-plugin-updater`)
 - Deep linking (`tauri-plugin-deep-link`)
@@ -1234,44 +1263,47 @@ The server's frontend catch-all (`server/app.ts`) resolves the frontend path wit
 
 ### E. Cross-Surface Comparison (TUI vs Web vs Desktop)
 
-| Aspect | TUI | Web (`opencode web`) | Desktop (Tauri) |
-|:---|:---|:---|:---|
-| Server hosting | In-process `Server.listen()` in worker | In-process `Server.listen()` | Separate child process (`opencode serve`) |
-| Frontend renderer | Terminal (`@opentui/solid`) | Browser (same-origin) | Tauri WebView (External URL to localhost) |
-| Frontend entry | TUI-specific renderer | `packages/app/src/entry.tsx` | Same as web (served by child process) |
-| Auth model | Env var password → in-process | Cookie-session + CSRF | Auto-login via `window.__OPENCODE__` credentials |
-| Frontend resolution | N/A | `OPENCODE_FRONTEND_PATH` → XDG → CDN | Bundled Tauri resource → `OPENCODE_FRONTEND_PATH` |
-| Process count | 1 (main + worker thread) | 1 | 2 (Tauri host + child) |
-| Readiness detection | In-process (immediate) | In-process (immediate) | stdout line parsing (no HTTP polling) |
+| Aspect              | TUI                                    | Web (`opencode web`)                 | Desktop (Tauri)                                   |
+| :------------------ | :------------------------------------- | :----------------------------------- | :------------------------------------------------ |
+| Server hosting      | In-process `Server.listen()` in worker | In-process `Server.listen()`         | Separate child process (`opencode serve`)         |
+| Frontend renderer   | Terminal (`@opentui/solid`)            | Browser (same-origin)                | Tauri WebView (External URL to localhost)         |
+| Frontend entry      | TUI-specific renderer                  | `packages/app/src/entry.tsx`         | Same as web (served by child process)             |
+| Auth model          | Env var password → in-process          | Cookie-session + CSRF                | Auto-login via `window.__OPENCODE__` credentials  |
+| Frontend resolution | N/A                                    | `OPENCODE_FRONTEND_PATH` → XDG → CDN | Bundled Tauri resource → `OPENCODE_FRONTEND_PATH` |
+| Process count       | 1 (main + worker thread)               | 1                                    | 2 (Tauri host + child)                            |
+| Readiness detection | In-process (immediate)                 | In-process (immediate)               | stdout line parsing (no HTTP polling)             |
 
 ### F. Platform-Specific Behavior
 
 **Windows**:
+
 - WebView2 custom data directory and proxy bypass for loopback (`--proxy-bypass-list=<-loopback>`).
 - Overlay titlebar via `tauri-plugin-decorum`.
 
 **macOS**:
+
 - Private API enabled for improved scrolling (`macOSPrivateApi: true`).
 - Overlay title bar with hidden title, traffic lights at `(12, 18)`.
 
 **Linux / WSL**:
+
 - WebKit env vars: `WEBKIT_DISABLE_DMABUF_RENDERER`, `WEBKIT_DISABLE_COMPOSITING_MODE`, `WEBKIT_FORCE_SANDBOX=0`, `LIBGL_ALWAYS_SOFTWARE`, `WEBKIT_DISABLE_ACCELERATED_2D_CANVAS`.
 - Wayland detection with X11 fallback (respects `OC_ALLOW_WAYLAND` and stored preference).
 - GTK gesture zoom handler removal via `PinchZoomDisable` plugin.
 
 ### G. Key Files
 
-| Layer | Files |
-|:---|:---|
-| Rust entry | `src-tauri/src/main.rs` (env + display backend), `src-tauri/src/lib.rs` (setup, initialize, commands) |
-| Rust sidecar | `src-tauri/src/cli.rs` (stdout-based spawn + readiness), `src-tauri/src/server.rs` (Tauri commands, URL helpers) |
-| Rust windows | `src-tauri/src/windows.rs` (MainWindow + LoadingWindow + auto-login injection) |
-| Build | `scripts/predev.ts`, `vite.config.ts` |
-| Config | `src-tauri/tauri.conf.json` (resources: `../../app/dist → frontend`) |
-| Server frontend | `packages/opencode/src/server/app.ts` (XDG frontend auto-detection + CDN fallback) |
-| XDG paths | `packages/opencode/src/global/index.ts` (`Global.Path.frontend`) |
-| Install | `scripts/install/install` (downloads frontend tarball alongside binary) |
-| Release | `script/build.ts` (produces `opencode-frontend.tar.gz` artifact) |
+| Layer           | Files                                                                                                            |
+| :-------------- | :--------------------------------------------------------------------------------------------------------------- |
+| Rust entry      | `src-tauri/src/main.rs` (env + display backend), `src-tauri/src/lib.rs` (setup, initialize, commands)            |
+| Rust sidecar    | `src-tauri/src/cli.rs` (stdout-based spawn + readiness), `src-tauri/src/server.rs` (Tauri commands, URL helpers) |
+| Rust windows    | `src-tauri/src/windows.rs` (MainWindow + LoadingWindow + auto-login injection)                                   |
+| Build           | `scripts/predev.ts`, `vite.config.ts`                                                                            |
+| Config          | `src-tauri/tauri.conf.json` (resources: `../../app/dist → frontend`)                                             |
+| Server frontend | `packages/opencode/src/server/app.ts` (XDG frontend auto-detection + CDN fallback)                               |
+| XDG paths       | `packages/opencode/src/global/index.ts` (`Global.Path.frontend`)                                                 |
+| Install         | `scripts/install/install` (downloads frontend tarball alongside binary)                                          |
+| Release         | `script/build.ts` (produces `opencode-frontend.tar.gz` artifact)                                                 |
 
 ### H. Decision Records
 
@@ -1279,31 +1311,32 @@ The server's frontend catch-all (`server/app.ts`) resolves the frontend path wit
 
 ---
 
-## 22. System Identity & PAM Authentication Architecture (2026-03-02)
+## 22. System Identity & PAM Authentication Architecture
 
-This section details the Systemd-based user isolation, PAM authentication logic, and authorization bypasses (TUI) implemented to securely manage user identity impersonation while preserving single-user and local terminal workflows.
+This section details the current Systemd-based user isolation, PAM authentication logic, and authorization bypasses (TUI) used to securely manage user identity impersonation while preserving single-user and local terminal workflows.
 
 ### A. Architectural Goals
 
 1. **Strict User Isolation (Web):** A centralized system daemon (`opencode` service) hosts the web UI but spawns processes (like Bash shells or LLM scripts) under the explicitly authenticated Linux user's identity.
-2. **Native Environment (TUI):** A terminal user launching the TUI must have requests run seamlessly under their *current session identity*, bypassing web auth flows without escalating or switching privileges.
+2. **Native Environment (TUI):** A terminal user launching the TUI must have requests run seamlessly under their _current session identity_, bypassing web auth flows without escalating or switching privileges.
 3. **No Sudo for Opencode Core:** The main server runs as a less-privileged or dedicated `opencode` user and delegates command execution down to the target user via a narrowly-scoped sudoers policy.
 
 ### B. Core Components & Responsibilities
 
-| File / Component | Responsibility | Impact |
-| :--- | :--- | :--- |
-| `packages/opencode/src/system/linux-user-exec.ts` | **Execution Bridge:** Intercepts shell creation and command execution. Decides whether to prefix commands with `sudo -u <target_user>`. | Centralizes the decision point for user impersonation logic. |
-| `packages/opencode/src/runtime/request-user.ts` | **Context Manager:** Holds the `username` associated with the *current asynchronous request/call stack*. | Enables deep functions (like PTY spawners) to know who originated the HTTP request without prop drilling. |
-| `packages/opencode/src/server/web-auth.ts` | **PAM Authenticator:** Validates credentials via Node-PAM. On success, issues a signed session cookie containing the `username`. | The sole gatekeeper for browser-to-server trust. Extracts Linux user info and injects it into the request context. |
-| `packages/opencode/src/server/app.ts` | **Auth Middleware:** Rejects unauthenticated requests. Parses session cookies or bypass tokens and populates `RequestUser`. | Secures all backend routes from unauthorized web access. |
-| `scripts/opencode-run-as-user.sh` | **Sudo Target Script:** A restricted script that executes a payload as the target user while loading their `.bashrc` / `.bash_profile`. | Ensures the shell and agents have the correct environment variables (Node, Git, IDE settings) for that user. |
+| File / Component                                  | Responsibility                                                                                                                          | Impact                                                                                                             |
+| :------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------- |
+| `packages/opencode/src/system/linux-user-exec.ts` | **Execution Bridge:** Intercepts shell creation and command execution. Decides whether to prefix commands with `sudo -u <target_user>`. | Centralizes the decision point for user impersonation logic.                                                       |
+| `packages/opencode/src/runtime/request-user.ts`   | **Context Manager:** Holds the `username` associated with the _current asynchronous request/call stack_.                                | Enables deep functions (like PTY spawners) to know who originated the HTTP request without prop drilling.          |
+| `packages/opencode/src/server/web-auth.ts`        | **PAM Authenticator:** Validates credentials via Node-PAM. On success, issues a signed session cookie containing the `username`.        | The sole gatekeeper for browser-to-server trust. Extracts Linux user info and injects it into the request context. |
+| `packages/opencode/src/server/app.ts`             | **Auth Middleware:** Rejects unauthenticated requests. Parses session cookies or bypass tokens and populates `RequestUser`.             | Secures all backend routes from unauthorized web access.                                                           |
+| `scripts/opencode-run-as-user.sh`                 | **Sudo Target Script:** A restricted script that executes a payload as the target user while loading their `.bashrc` / `.bash_profile`. | Ensures the shell and agents have the correct environment variables (Node, Git, IDE settings) for that user.       |
 
 ### C. The TUI Auth Bypass (`OPENCODE_CLI_TOKEN`)
 
 Because the TUI acts as a client to the local server, pushing it through the web's PAM authentication would require prompt interruptions or manual password entries on an already-authenticated terminal.
 
 To solve this securely:
+
 1. **Dynamic Token Generation (`packages/opencode/src/index.ts`)**: When the CLI starts, it dynamically generates an `OPENCODE_CLI_TOKEN` (random crypto bytes) and sets it in the environment variable.
 2. **Worker Injection (`packages/opencode/src/cli/cmd/tui/thread.ts`)**: The TUI worker process inherits this variable.
 3. **Authorized Fetches (`packages/opencode/src/cli/cmd/tui/worker.ts`)**: The TUI worker attaches `Bearer <OPENCODE_CLI_TOKEN>` to its local server requests instead of standard auth credentials.
@@ -1313,13 +1346,13 @@ To solve this securely:
 
 When `linux-user-exec.ts` (`resolveExecutionUser`) evaluates how to run a command:
 
-| Auth Method | Origin | `RequestUser` Username | Sudo Execution Action | Reason |
-| :--- | :--- | :--- | :--- | :--- |
-| **PAM Session Cookie** | Browser WebApp | `<logged_in_user>` | `sudo -u <user> /usr/local/libexec/opencode-run-as-user ...` | Explicit login requires isolating execution to the selected identity. |
-| **`OPENCODE_CLI_TOKEN`** | Local TUI | `undefined` | Native Execution (No Sudo) | TUI is already running under the active terminal user's system permissions. |
-| **No Auth (Public Route)** | Any | `undefined` | N/A (Denied by Server) | Unauthenticated endpoints cannot trigger execution. |
+| Auth Method                | Origin         | `RequestUser` Username | Sudo Execution Action                                        | Reason                                                                      |
+| :------------------------- | :------------- | :--------------------- | :----------------------------------------------------------- | :-------------------------------------------------------------------------- |
+| **PAM Session Cookie**     | Browser WebApp | `<logged_in_user>`     | `sudo -u <user> /usr/local/libexec/opencode-run-as-user ...` | Explicit login requires isolating execution to the selected identity.       |
+| **`OPENCODE_CLI_TOKEN`**   | Local TUI      | `undefined`            | Native Execution (No Sudo)                                   | TUI is already running under the active terminal user's system permissions. |
+| **No Auth (Public Route)** | Any            | `undefined`            | N/A (Denied by Server)                                       | Unauthenticated endpoints cannot trigger execution.                         |
 
 ### E. Security & Deployment Posture
 
-*   **Sudoers Policy:** For the WebApp impersonation to work, the daemon user (e.g., `opencode`) must be granted passwordless sudo access *only* to the execution bridge script (`/usr/local/libexec/opencode-run-as-user`), not arbitrary commands.
-*   **Token Secrecy:** `OPENCODE_CLI_TOKEN` only lives in volatile memory and the environment variables of child processes spawned by the immediate CLI invocation. It is never written to disk.
+- **Sudoers Policy:** For the WebApp impersonation to work, the daemon user (e.g., `opencode`) must be granted passwordless sudo access _only_ to the execution bridge script (`/usr/local/libexec/opencode-run-as-user`), not arbitrary commands.
+- **Token Secrecy:** `OPENCODE_CLI_TOKEN` only lives in volatile memory and the environment variables of child processes spawned by the immediate CLI invocation. It is never written to disk.

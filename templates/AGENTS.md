@@ -114,4 +114,21 @@
 - 具體包含：`packages/opencode/src/plugin/antigravity/plugin/storage.legacy.ts` 導致的 typecheck 問題（`vitest` module / `implicit any`）。
 - 規則：若本次變更未觸及該路徑，可視為 non-blocking；若有修改該路徑，則需恢復完整嚴格驗證。
 
+## 9. 開發流程硬性框架（跨專案 Mandatory）
 
+為確保每個專案都能一致遵守開發紀律，以下項目為硬性要求：
+
+1. **Event 檔先行**
+   - 任何非瑣碎開發任務，必須先建立/更新：`docs/events/event_<YYYYMMDD>_<topic>.md`。
+   - 至少包含：`需求`、`範圍(IN/OUT)`、`任務清單`。
+
+2. **Debug Checkpoints 三段式**
+   - `Baseline`（修改前）：症狀、重現步驟、影響範圍。
+   - `Execution`（修正中）：關鍵改動、第一個錯誤與處置。
+   - `Validation`（修正後）：驗證指令、通過/失敗、已知噪音豁免。
+
+3. **完成宣告門檻**
+   - 未完成 Event + Checkpoints + Validation 記錄，不得宣告任務完成。
+
+4. **模板同步門檻（對 opencode 本身開發）**
+   - 規範變更需同步 `templates/**` 與對應 runtime 檔案，避免跨專案漂移。

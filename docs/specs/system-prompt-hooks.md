@@ -174,7 +174,7 @@ System prompt 在每次 LLM 呼叫時於 `session/llm.ts:118-170` 組裝。共 7
 載入邏輯（`InstructionPrompt.system()` → `instruction.ts:68-99`）：
 
 1. **全域**：`~/.config/opencode/AGENTS.md`（單一固定路徑，無備援）
-2. **專案**：`<project-root>/.opencode/AGENTS.md`（固定路徑，無 `findUp` 遍歷）
+2. **專案**：`<project-root>/AGENTS.md`（固定路徑，無 `findUp` 遍歷）
 3. **用戶指定**：`opencode.json` → `instructions` 欄位中的絕對路徑或 URL（用戶主動配置）
 
 **已移除**（2026-02-16）：
