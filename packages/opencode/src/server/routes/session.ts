@@ -17,6 +17,8 @@ import { Log } from "../../util/log"
 import { PermissionNext } from "@/permission/next"
 import { errors } from "../error"
 import { lazy } from "../../util/lazy"
+import { RequestUser } from "@/runtime/request-user"
+import { UserWorkerManager } from "../user-worker"
 
 const log = Log.create({ service: "server" })
 
@@ -54,6 +56,20 @@ export const SessionRoutes = lazy(() =>
       ),
       async (c) => {
         const query = c.req.valid("query")
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routingEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.list",
+            payload: {
+              limit: query.limit,
+              scope: query.roots ? "roots" : "all",
+            },
+          })
+          if (response.ok && Array.isArray(response.data)) {
+            return c.json(response.data as Session.Info[])
+          }
+        }
+
         const sessions: Session.Info[] = []
         for await (const session of Session.listGlobal({
           directory: query.directory,

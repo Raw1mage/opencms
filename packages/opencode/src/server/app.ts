@@ -46,6 +46,7 @@ import { ActivityBeacon } from "@/util/activity-beacon"
 import { WebAuth } from "./web-auth"
 import { RequestUser } from "@/runtime/request-user"
 import { LinuxUserExec } from "@/system/linux-user-exec"
+import { UserWorkerManager } from "./user-worker"
 
 // Declare external CORS whitelist (set by server.ts)
 declare global {
@@ -168,6 +169,10 @@ export function createApp(app: Hono): Hono {
   app.use(async (c, next) => {
     if (c.req.path === "/log" || c.req.path.endsWith("/log")) return next()
     const requestUser = RequestUser.username()
+    if (UserWorkerManager.enabled()) {
+      UserWorkerManager.observe(requestUser)
+      UserWorkerManager.prewarm(requestUser)
+    }
     const requestHost = (() => {
       try {
         return new URL(c.req.url).hostname

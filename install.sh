@@ -108,17 +108,16 @@ system_init() {
   log_info "Initializing system service account: ${SYSTEM_SERVICE_USER}"
   if run_as_root id -u "${SYSTEM_SERVICE_USER}" >/dev/null 2>&1; then
     log_ok "Service user already exists: ${SYSTEM_SERVICE_USER}"
+    # Keep service account non-login and home-less (nobody-style)
+    run_as_root usermod --home /nonexistent --shell "${shell_path}" "${SYSTEM_SERVICE_USER}" || true
   else
-    run_as_root useradd --system --create-home --home-dir "/home/${SYSTEM_SERVICE_USER}" --shell "${shell_path}" "${SYSTEM_SERVICE_USER}"
+    run_as_root useradd --system --no-create-home --home-dir /nonexistent --shell "${shell_path}" "${SYSTEM_SERVICE_USER}"
     log_ok "Created service user: ${SYSTEM_SERVICE_USER}"
   fi
 
   log_info "Preparing service runtime directories..."
-  run_as_root install -d -m 700 "/home/${SYSTEM_SERVICE_USER}/.config/opencode"
-  run_as_root install -d -m 700 "/home/${SYSTEM_SERVICE_USER}/.local/share/opencode"
-  run_as_root install -d -m 700 "/home/${SYSTEM_SERVICE_USER}/.local/state/opencode"
-  run_as_root install -d -m 700 "/home/${SYSTEM_SERVICE_USER}/.cache/opencode"
-  run_as_root chown -R "${SYSTEM_SERVICE_USER}:${SYSTEM_SERVICE_USER}" "/home/${SYSTEM_SERVICE_USER}/.config" "/home/${SYSTEM_SERVICE_USER}/.local" "/home/${SYSTEM_SERVICE_USER}/.cache"
+  run_as_root install -d -m 750 "/var/lib/opencode"
+  run_as_root chown -R "${SYSTEM_SERVICE_USER}:${SYSTEM_SERVICE_USER}" "/var/lib/opencode"
 
   local wrapper_src="${ROOT_DIR}/scripts/opencode-run-as-user.sh"
   local wrapper_dst="/usr/local/libexec/opencode-run-as-user"
@@ -145,22 +144,17 @@ EOF
 
   local env_dir="/etc/opencode"
   local env_file="${env_dir}/opencode.env"
+  local env_template="${ROOT_DIR}/templates/system/opencode.env"
   local tmp_env="/tmp/opencode.env.$$"
   run_as_root install -d -m 755 "${env_dir}"
   if run_as_root test -f "${env_file}"; then
     log_ok "Keeping existing env file: ${env_file}"
   else
-    cat >"${tmp_env}" <<EOF
-# OpenCode system service environment
-# Optional: absolute path to bun for service user
-# OPENCODE_BUN_BIN=/home/${SYSTEM_SERVICE_USER}/.bun/bin/bun
-
-OPENCODE_PORT=1080
-OPENCODE_HOSTNAME=0.0.0.0
-OPENCODE_RUN_AS_USER_ENABLED=1
-OPENCODE_RUN_AS_USER_WRAPPER=/usr/local/libexec/opencode-run-as-user
-# OPENCODE_PUBLIC_URL=https://your-domain.example
-EOF
+    if [[ ! -f "${env_template}" ]]; then
+      log_err "Missing env template: ${env_template}"
+      exit 1
+    fi
+    cp "${env_template}" "${tmp_env}"
     run_as_root install -m 644 "${tmp_env}" "${env_file}"
     rm -f "${tmp_env}"
     log_ok "Created env file: ${env_file}"
@@ -179,11 +173,12 @@ Type=simple
 User=${SYSTEM_SERVICE_USER}
 Group=${SYSTEM_SERVICE_USER}
 WorkingDirectory=${ROOT_DIR}
-Environment=HOME=/home/${SYSTEM_SERVICE_USER}
-Environment=XDG_CONFIG_HOME=/home/${SYSTEM_SERVICE_USER}/.config
-Environment=XDG_DATA_HOME=/home/${SYSTEM_SERVICE_USER}/.local/share
-Environment=XDG_STATE_HOME=/home/${SYSTEM_SERVICE_USER}/.local/state
-Environment=XDG_CACHE_HOME=/home/${SYSTEM_SERVICE_USER}/.cache
+Environment=HOME=/nonexistent
+Environment=OPENCODE_DATA_HOME=/var/lib/opencode
+Environment=XDG_CONFIG_HOME=/var/lib/opencode/config
+Environment=XDG_DATA_HOME=/var/lib/opencode/data
+Environment=XDG_STATE_HOME=/var/lib/opencode/state
+Environment=XDG_CACHE_HOME=/var/lib/opencode/cache
 Environment=OPENCODE_WEB_NO_OPEN=1
 Environment=OPENCODE_ALLOW_GLOBAL_FS_BROWSE=1
 Environment=OPENCODE_FRONTEND_PATH=${ROOT_DIR}/packages/app/dist
@@ -191,11 +186,11 @@ EnvironmentFile=-/etc/opencode/opencode.env
 ExecStart=/usr/bin/env bash -lc 'BUN_BIN="\${OPENCODE_BUN_BIN:-}"; if [[ -z "\${BUN_BIN}" ]]; then BUN_BIN="\$(command -v bun || true)"; fi; if [[ -z "\${BUN_BIN}" && -x "\${HOME}/.bun/bin/bun" ]]; then BUN_BIN="\${HOME}/.bun/bin/bun"; fi; if [[ -z "\${BUN_BIN}" ]]; then echo "bun not found; set OPENCODE_BUN_BIN in /etc/opencode/opencode.env"; exit 1; fi; exec "\${BUN_BIN}" --conditions=browser "${ROOT_DIR}/packages/opencode/src/index.ts" web --port "\${OPENCODE_PORT:-1080}" --hostname "\${OPENCODE_HOSTNAME:-0.0.0.0}"'
 Restart=on-failure
 RestartSec=2
-NoNewPrivileges=true
+NoNewPrivileges=false
 PrivateTmp=true
 ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=/home/${SYSTEM_SERVICE_USER}
+ProtectHome=false
+ReadWritePaths=/home /var/lib/opencode
 LimitNOFILE=65535
 
 [Install]
