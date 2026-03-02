@@ -4,7 +4,7 @@ import { Flag } from "@/flag/flag"
 import { WebAuthCredentials } from "./web-auth-credentials"
 
 const SESSION_COOKIE = "opencode_session"
-const SESSION_TTL_MS = 8 * 60 * 60 * 1000
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const LOCK_THRESHOLD = 5
 const LOCK_WINDOW_MS = 5 * 60 * 1000
 
@@ -141,9 +141,8 @@ function isSecureRequest(c: Context) {
 
 function cookieHeader(c: Context, token: string, maxAgeSeconds: number) {
   const secure = isSecureRequest(c)
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}${
-    secure ? "; Secure" : ""
-  }`
+  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}${secure ? "; Secure" : ""
+    }`
 }
 
 function clearCookieHeader(c: Context) {

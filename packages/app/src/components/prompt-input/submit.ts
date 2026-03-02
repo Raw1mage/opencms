@@ -94,7 +94,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       .abort({
         sessionID,
       })
-      .catch(() => {})
+      .catch(() => { })
   }
 
   const restoreCommentItems = (items: CommentItem[]) => {
@@ -181,7 +181,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       if (sessionDirectory !== projectDirectory) {
         client = createOpencodeClient({
           baseUrl: sdk.url,
-          fetch: platform.fetch,
+          fetch: sdk.fetch,
           directory: sessionDirectory,
           throwOnError: true,
         })

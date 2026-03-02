@@ -7,7 +7,7 @@ import { useI18n } from "../context/i18n"
 import { Icon, type IconProps } from "./icon"
 import { IconButton } from "./icon-button"
 
-export interface ToastRegionProps extends ComponentProps<typeof Kobalte.Region> {}
+export interface ToastRegionProps extends ComponentProps<typeof Kobalte.Region> { }
 
 function ToastRegion(props: ToastRegionProps) {
   return (
@@ -117,6 +117,9 @@ export interface ToastOptions {
 
 export function showToast(options: ToastOptions | string) {
   const opts = typeof options === "string" ? { description: options } : options
+  if (opts.description === "__OPENCODE_SILENT_UNAUTHORIZED__" || opts.title === "__OPENCODE_SILENT_UNAUTHORIZED__") {
+    return 0 as any
+  }
   return toaster.show((props) => (
     <Toast
       toastId={props.toastId}

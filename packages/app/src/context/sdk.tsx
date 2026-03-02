@@ -46,6 +46,9 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
       get client() {
         return client()
       },
+      get fetch() {
+        return globalSDK.fetch
+      },
       event: emitter,
       get url() {
         return globalSDK.url

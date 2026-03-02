@@ -75,6 +75,7 @@ export const { use: useWebAuth, provider: WebAuthProvider } = createSimpleContex
       const response = await fetch(next)
       if (response.status === 401 || response.status === 403) {
         void sessionActions.refetch()
+        throw new Error("__OPENCODE_SILENT_UNAUTHORIZED__")
       }
       return response
     }
