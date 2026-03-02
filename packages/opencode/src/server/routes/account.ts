@@ -109,6 +109,13 @@ export const AccountRoutes = lazy(() =>
               })
             }
           }
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to list accounts",
+            },
+            503,
+          )
         }
 
         const families = await Account.listAll()

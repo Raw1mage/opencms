@@ -11,9 +11,122 @@ export namespace UserWorkerRPC {
     z.object({
       method: z.literal("session.list"),
       payload: z.object({
+        directory: z.string().optional(),
+        search: z.string().optional(),
+        start: z.number().optional(),
         limit: z.number().int().positive().max(200).optional(),
         scope: SessionScope.optional(),
       }),
+    }),
+    z.object({
+      method: z.literal("session.status"),
+      payload: z.object({}).optional(),
+    }),
+    z.object({
+      method: z.literal("session.top"),
+      payload: z
+        .object({
+          sessionID: z.string().optional(),
+          includeDescendants: z.boolean().optional(),
+          maxMessages: z.number().optional(),
+        })
+        .optional(),
+    }),
+    z.object({
+      method: z.literal("session.get"),
+      payload: z.object({ sessionID: z.string() }),
+    }),
+    z.object({
+      method: z.literal("session.children"),
+      payload: z.object({ sessionID: z.string() }),
+    }),
+    z.object({
+      method: z.literal("session.todo"),
+      payload: z.object({ sessionID: z.string() }),
+    }),
+    z.object({
+      method: z.literal("session.messages"),
+      payload: z.object({ sessionID: z.string(), limit: z.number().optional() }),
+    }),
+    z.object({
+      method: z.literal("session.message.get"),
+      payload: z.object({ sessionID: z.string(), messageID: z.string() }),
+    }),
+    z.object({
+      method: z.literal("session.diff"),
+      payload: z.object({ sessionID: z.string(), messageID: z.string() }),
+    }),
+    z.object({
+      method: z.literal("session.create"),
+      payload: z.object({ body: z.unknown().optional() }).optional(),
+    }),
+    z.object({
+      method: z.literal("session.delete"),
+      payload: z.object({ sessionID: z.string() }),
+    }),
+    z.object({
+      method: z.literal("session.update"),
+      payload: z.object({ sessionID: z.string(), updates: z.unknown() }),
+    }),
+    z.object({
+      method: z.literal("session.abort"),
+      payload: z.object({ sessionID: z.string() }),
+    }),
+    z.object({
+      method: z.literal("session.prompt_async"),
+      payload: z.object({ sessionID: z.string(), body: z.unknown() }),
+    }),
+    z.object({
+      method: z.literal("session.prompt"),
+      payload: z.object({ sessionID: z.string(), body: z.unknown() }),
+    }),
+    z.object({
+      method: z.literal("session.command"),
+      payload: z.object({ sessionID: z.string(), body: z.unknown() }),
+    }),
+    z.object({
+      method: z.literal("session.shell"),
+      payload: z.object({ sessionID: z.string(), body: z.unknown() }),
+    }),
+    z.object({
+      method: z.literal("session.revert"),
+      payload: z.object({ sessionID: z.string(), body: z.unknown() }),
+    }),
+    z.object({
+      method: z.literal("session.unrevert"),
+      payload: z.object({ sessionID: z.string() }),
+    }),
+    z.object({
+      method: z.literal("session.message.delete"),
+      payload: z.object({ sessionID: z.string(), messageID: z.string() }),
+    }),
+    z.object({
+      method: z.literal("session.part.delete"),
+      payload: z.object({ sessionID: z.string(), messageID: z.string(), partID: z.string() }),
+    }),
+    z.object({
+      method: z.literal("session.part.update"),
+      payload: z.object({ part: z.unknown() }),
+    }),
+    z.object({
+      method: z.literal("session.init"),
+      payload: z.object({ sessionID: z.string(), body: z.unknown() }),
+    }),
+    z.object({
+      method: z.literal("session.fork"),
+      payload: z.object({ sessionID: z.string(), body: z.unknown() }),
+    }),
+    z.object({
+      method: z.literal("session.share"),
+      payload: z.object({ sessionID: z.string() }),
+    }),
+    z.object({
+      method: z.literal("session.unshare"),
+      payload: z.object({ sessionID: z.string() }),
+    }),
+    z.object({
+      method: z.literal("session.summarize"),
+      payload: z.object({ sessionID: z.string(), body: z.unknown() }),
     }),
     z.object({
       method: z.literal("config.get"),
@@ -38,6 +151,14 @@ export namespace UserWorkerRPC {
     z.object({
       method: z.literal("account.antigravityToggle"),
       payload: z.object({ index: z.number(), enabled: z.boolean() }),
+    }),
+    z.object({
+      method: z.literal("model.preferences.get"),
+      payload: z.object({}).optional(),
+    }),
+    z.object({
+      method: z.literal("model.preferences.update"),
+      payload: z.object({ preferences: z.unknown() }),
     }),
   ])
 

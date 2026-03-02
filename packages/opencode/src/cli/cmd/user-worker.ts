@@ -2,10 +2,59 @@ import { cmd } from "./cmd"
 import { bootstrap } from "../bootstrap"
 import { createInterface } from "node:readline"
 import { Session } from "@/session"
+import { SessionStatus } from "@/session/status"
+import { SessionMonitor } from "@/session/monitor"
+import { Todo } from "@/session/todo"
+import { MessageV2 } from "@/session/message-v2"
+import { SessionPrompt } from "@/session/prompt"
+import { SessionRevert } from "@/session/revert"
+import { SessionCompaction } from "@/session/compaction"
+import { SessionSummary } from "@/session/summary"
 import { Config } from "@/config/config"
 import { UserWorkerRPC } from "@/server/user-worker"
 import { Account } from "@/account"
 import { Auth } from "@/auth"
+import { Agent } from "@/agent/agent"
+import { Global } from "@/global"
+import path from "path"
+import z from "zod"
+
+const ModelPreferenceEntry = z.object({
+  providerId: z.string(),
+  modelID: z.string(),
+})
+const ModelPreferences = z.object({
+  favorite: z.array(ModelPreferenceEntry),
+  hidden: z.array(ModelPreferenceEntry),
+  hiddenProviders: z.array(z.string()),
+})
+const MODEL_STATE_FILE = path.join(Global.Path.state, "model.json")
+
+async function readModelState(): Promise<Record<string, unknown>> {
+  const file = Bun.file(MODEL_STATE_FILE)
+  if (!(await file.exists())) return {}
+  try {
+    const parsed = await file.json()
+    if (typeof parsed === "object" && parsed !== null) return parsed as Record<string, unknown>
+    return {}
+  } catch {
+    return {}
+  }
+}
+
+function normalizePreferences(value: Record<string, unknown>) {
+  const parsed = ModelPreferences.safeParse({
+    favorite: value.favorite,
+    hidden: value.hidden,
+    hiddenProviders: value.hiddenProviders,
+  })
+  if (parsed.success) return parsed.data
+  return {
+    favorite: [],
+    hidden: [],
+    hiddenProviders: [],
+  }
+}
 
 const WORKER_PREFIX = "__OPENCODE_USER_WORKER__ "
 
@@ -87,12 +136,244 @@ export const UserWorkerCommand = cmd({
           if (request.method === "session.list") {
             const rows: Session.GlobalInfo[] = []
             for await (const session of Session.listGlobal({
+              directory: request.payload.directory,
+              search: request.payload.search,
+              start: request.payload.start,
               limit: request.payload.limit,
               roots: request.payload.scope === "roots" ? true : undefined,
             })) {
               rows.push(session)
             }
             send({ type: "response", id: packet.id, response: { ok: true, data: rows } })
+            continue
+          }
+
+          if (request.method === "session.status") {
+            send({ type: "response", id: packet.id, response: { ok: true, data: SessionStatus.list() } })
+            continue
+          }
+
+          if (request.method === "session.top") {
+            const result = await SessionMonitor.snapshot({
+              sessionID: request.payload?.sessionID,
+              includeDescendants: request.payload?.includeDescendants,
+              maxMessages: request.payload?.maxMessages,
+            })
+            send({ type: "response", id: packet.id, response: { ok: true, data: result } })
+            continue
+          }
+
+          if (request.method === "session.get") {
+            const data = await Session.get(request.payload.sessionID)
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
+            continue
+          }
+
+          if (request.method === "session.children") {
+            const data = await Session.children(request.payload.sessionID)
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
+            continue
+          }
+
+          if (request.method === "session.todo") {
+            const data = await Todo.get(request.payload.sessionID)
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
+            continue
+          }
+
+          if (request.method === "session.messages") {
+            const data = await Session.messages({
+              sessionID: request.payload.sessionID,
+              limit: request.payload.limit,
+            })
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
+            continue
+          }
+
+          if (request.method === "session.message.get") {
+            const data = await MessageV2.get({
+              sessionID: request.payload.sessionID,
+              messageID: request.payload.messageID,
+            })
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
+            continue
+          }
+
+          if (request.method === "session.diff") {
+            const data = await SessionSummary.diff({
+              sessionID: request.payload.sessionID,
+              messageID: request.payload.messageID,
+            })
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
+            continue
+          }
+
+          if (request.method === "session.create") {
+            const body = (request.payload?.body ?? {}) as Parameters<typeof Session.create>[0]
+            const data = await Session.create(body)
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
+            continue
+          }
+
+          if (request.method === "session.delete") {
+            void Session.remove(request.payload.sessionID)
+            send({ type: "response", id: packet.id, response: { ok: true, data: true } })
+            continue
+          }
+
+          if (request.method === "session.update") {
+            const updates = request.payload.updates as { title?: string; time?: { archived?: number } }
+            const data = await Session.update(
+              request.payload.sessionID,
+              (session) => {
+                if (updates.title !== undefined) session.title = updates.title
+                if (updates.time?.archived !== undefined) session.time.archived = updates.time.archived
+              },
+              { touch: false },
+            )
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
+            continue
+          }
+
+          if (request.method === "session.abort") {
+            SessionPrompt.cancel(request.payload.sessionID)
+            send({ type: "response", id: packet.id, response: { ok: true, data: true } })
+            continue
+          }
+
+          if (request.method === "session.prompt_async") {
+            void SessionPrompt.prompt({
+              ...(request.payload.body as Record<string, unknown>),
+              sessionID: request.payload.sessionID,
+            } as any)
+            send({ type: "response", id: packet.id, response: { ok: true, data: true } })
+            continue
+          }
+
+          if (request.method === "session.prompt") {
+            const data = await SessionPrompt.prompt({
+              ...(request.payload.body as Record<string, unknown>),
+              sessionID: request.payload.sessionID,
+            } as any)
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
+            continue
+          }
+
+          if (request.method === "session.command") {
+            const data = await SessionPrompt.command({
+              ...(request.payload.body as Record<string, unknown>),
+              sessionID: request.payload.sessionID,
+            } as any)
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
+            continue
+          }
+
+          if (request.method === "session.shell") {
+            const data = await SessionPrompt.shell({
+              ...(request.payload.body as Record<string, unknown>),
+              sessionID: request.payload.sessionID,
+            } as any)
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
+            continue
+          }
+
+          if (request.method === "session.revert") {
+            const data = await SessionRevert.revert({
+              ...(request.payload.body as Record<string, unknown>),
+              sessionID: request.payload.sessionID,
+            } as any)
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
+            continue
+          }
+
+          if (request.method === "session.unrevert") {
+            const data = await SessionRevert.unrevert({ sessionID: request.payload.sessionID })
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
+            continue
+          }
+
+          if (request.method === "session.message.delete") {
+            SessionPrompt.assertNotBusy(request.payload.sessionID)
+            await Session.removeMessage({
+              sessionID: request.payload.sessionID,
+              messageID: request.payload.messageID,
+            })
+            send({ type: "response", id: packet.id, response: { ok: true, data: true } })
+            continue
+          }
+
+          if (request.method === "session.part.delete") {
+            await Session.removePart({
+              sessionID: request.payload.sessionID,
+              messageID: request.payload.messageID,
+              partID: request.payload.partID,
+            })
+            send({ type: "response", id: packet.id, response: { ok: true, data: true } })
+            continue
+          }
+
+          if (request.method === "session.part.update") {
+            const data = await Session.updatePart(request.payload.part as MessageV2.Part)
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
+            continue
+          }
+
+          if (request.method === "session.init") {
+            await Session.initialize({
+              ...(request.payload.body as Record<string, unknown>),
+              sessionID: request.payload.sessionID,
+            } as any)
+            send({ type: "response", id: packet.id, response: { ok: true, data: true } })
+            continue
+          }
+
+          if (request.method === "session.fork") {
+            const data = await Session.fork({
+              ...(request.payload.body as Record<string, unknown>),
+              sessionID: request.payload.sessionID,
+            } as any)
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
+            continue
+          }
+
+          if (request.method === "session.share") {
+            await Session.share(request.payload.sessionID)
+            const data = await Session.get(request.payload.sessionID)
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
+            continue
+          }
+
+          if (request.method === "session.unshare") {
+            await Session.unshare(request.payload.sessionID)
+            const data = await Session.get(request.payload.sessionID)
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
+            continue
+          }
+
+          if (request.method === "session.summarize") {
+            const body = request.payload.body as { providerId: string; modelID: string; auto?: boolean }
+            const session = await Session.get(request.payload.sessionID)
+            await SessionRevert.cleanup(session)
+            const msgs = await Session.messages({ sessionID: request.payload.sessionID })
+            let currentAgent = await Agent.defaultAgent()
+            for (let i = msgs.length - 1; i >= 0; i--) {
+              const info = msgs[i].info
+              if (info.role === "user") {
+                currentAgent = info.agent || (await Agent.defaultAgent())
+                break
+              }
+            }
+            await SessionCompaction.create({
+              sessionID: request.payload.sessionID,
+              agent: currentAgent,
+              model: {
+                providerId: body.providerId,
+                modelID: body.modelID,
+              },
+              auto: body.auto ?? false,
+            })
+            await SessionPrompt.loop(request.payload.sessionID)
+            send({ type: "response", id: packet.id, response: { ok: true, data: true } })
             continue
           }
 
@@ -210,6 +491,37 @@ export const UserWorkerCommand = cmd({
               }
             }
             send({ type: "response", id: packet.id, response: { ok: true, data: true } })
+            continue
+          }
+
+          if (request.method === "model.preferences.get") {
+            const state = await readModelState()
+            send({ type: "response", id: packet.id, response: { ok: true, data: normalizePreferences(state) } })
+            continue
+          }
+
+          if (request.method === "model.preferences.update") {
+            const parsed = ModelPreferences.safeParse(request.payload.preferences)
+            if (!parsed.success) {
+              send({
+                type: "response",
+                id: packet.id,
+                response: {
+                  ok: false,
+                  error: { code: "BAD_MODEL_PREFS", message: parsed.error.issues[0]?.message ?? "Invalid preferences" },
+                },
+              })
+              continue
+            }
+            const current = await readModelState()
+            const next = {
+              ...current,
+              favorite: parsed.data.favorite,
+              hidden: parsed.data.hidden,
+              hiddenProviders: parsed.data.hiddenProviders,
+            }
+            await Bun.write(Bun.file(MODEL_STATE_FILE), JSON.stringify(next))
+            send({ type: "response", id: packet.id, response: { ok: true, data: parsed.data } })
             continue
           }
 
