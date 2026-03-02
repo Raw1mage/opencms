@@ -249,6 +249,96 @@ Expanded user-worker routing to selected mutation endpoints so account/config wr
   - On worker failure: return `503` with structured error (`code/message`).
   - No silent fallback to legacy in-process writer for these paths (prevents cross-scope writes to service storage).
 
+## Phase 2-5 implementation (session read-path convergence)
+
+To reduce web/tui session-view divergence, expanded session read APIs routed to user-worker context (flag-gated by existing session route flag):
+
+- Added worker RPC methods:
+  - `session.status`
+  - `session.top`
+  - `session.get`
+  - `session.children`
+  - `session.todo`
+  - `session.messages`
+  - `session.message.get`
+- Enriched `session.list` payload with `directory/search/start` filters to match route behavior.
+
+- Updated gateway route handlers in `server/routes/session.ts` to attempt worker path first for above endpoints and fallback to legacy only when worker path is unavailable.
+
+Expected impact:
+
+- Session list/detail/message/todo reads in web are more likely to align with the authenticated Linux user view (same source as worker context), reducing mismatch vs TUI.
+
+## Phase 2-6 implementation (session mutation cutover in progress)
+
+Started routing core session mutation endpoints to user-worker context (feature flag controlled):
+
+- New flag: `OPENCODE_USER_WORKER_ROUTE_SESSION_MUTATION=1`
+- Worker RPC methods added/handled:
+  - `session.create`
+  - `session.delete`
+  - `session.update`
+  - `session.abort`
+  - `session.prompt_async`
+  - `session.command`
+  - `session.shell`
+  - `session.revert`
+  - `session.unrevert`
+  - `session.message.delete`
+  - `session.part.delete`
+  - `session.part.update`
+
+- Gateway session routes updated accordingly for above paths.
+- In line with no-fallback policy, worker failure on routed mutation paths returns structured `503`.
+
+## Phase 2-7 implementation (session mutation expansion + model prefs)
+
+Expanded mutation routing to additional session operations:
+
+- Added worker RPC + routing for:
+  - `session.prompt` (sync)
+  - `session.init`
+  - `session.fork`
+  - `session.share`
+  - `session.unshare`
+  - `session.summarize`
+
+Model preference convergence:
+
+- Added worker RPC methods:
+  - `model.preferences.get`
+  - `model.preferences.update`
+- Updated `server/routes/model.ts` to route preferences via worker when enabled.
+- New flag:
+  - `OPENCODE_USER_WORKER_ROUTE_MODEL_PREFERENCES=1`
+
+No-fallback policy remains enforced on routed paths (worker failure => structured 503).
+
+## Phase 2-8 implementation (session diff read + worker traceability)
+
+- Added worker-routed `session.diff` read path to keep review/diff panels aligned with user-worker source.
+- Added optional worker call trace logging (for diagnostics):
+  - env flag: `OPENCODE_USER_WORKER_TRACE=1`
+  - emits `user worker call` / `user worker call ok` with method + username + source tag.
+
+Remaining notable non-worker session endpoint:
+
+- `permission.respond` remains gateway-local because it targets in-process permission reply queue semantics.
+
+### Policy update (owner requested: no fallback)
+
+- For worker-routed web APIs, fallback is now disabled when route flags are enabled and `requestUser` is present.
+- Behavior changed from `worker -> legacy fallback` to `worker -> 503 on failure` for routed paths.
+- Applied to:
+  - `GET /config`
+  - `GET /account`
+  - session read routes currently routed via worker (`list/status/top/get/children/todo/messages/message.get`)
+
+Rationale:
+
+- Prevent mixed-source reads that hide architecture bugs and create web/tui divergence.
+- Force hard-fail visibility until worker path is fully reliable.
+
 ## Safety notes
 
 - Do not run gateway as root.

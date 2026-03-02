@@ -41,6 +41,13 @@ export const ConfigRoutes = lazy(() =>
           if (response.ok && response.data) {
             return c.json(response.data as z.infer<typeof Config.Info>)
           }
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to get config",
+            },
+            503,
+          )
         }
         return c.json(await Config.get())
       },

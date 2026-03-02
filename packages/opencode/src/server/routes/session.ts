@@ -61,6 +61,9 @@ export const SessionRoutes = lazy(() =>
           const response = await UserWorkerManager.call(username, {
             method: "session.list",
             payload: {
+              directory: query.directory,
+              search: query.search,
+              start: query.start,
               limit: query.limit,
               scope: query.roots ? "roots" : "all",
             },
@@ -68,6 +71,13 @@ export const SessionRoutes = lazy(() =>
           if (response.ok && Array.isArray(response.data)) {
             return c.json(response.data as Session.Info[])
           }
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to list sessions",
+            },
+            503,
+          )
         }
 
         const sessions: Session.Info[] = []
@@ -102,6 +112,23 @@ export const SessionRoutes = lazy(() =>
         },
       }),
       async (c) => {
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routingEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.status",
+            payload: {},
+          })
+          if (response.ok && response.data && typeof response.data === "object") {
+            return c.json(response.data as Record<string, z.infer<typeof SessionStatus.Info>>)
+          }
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to read session status",
+            },
+            503,
+          )
+        }
         const result = SessionStatus.list()
         return c.json(result)
       },
@@ -140,6 +167,27 @@ export const SessionRoutes = lazy(() =>
       ),
       async (c) => {
         const query = c.req.valid("query")
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routingEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.top",
+            payload: {
+              sessionID: query.sessionID,
+              includeDescendants: query.includeDescendants,
+              maxMessages: query.maxMessages,
+            },
+          })
+          if (response.ok && Array.isArray(response.data)) {
+            return c.json(response.data as z.infer<typeof SessionMonitor.Info>[])
+          }
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to read session top",
+            },
+            503,
+          )
+        }
         const result = await SessionMonitor.snapshot({
           sessionID: query.sessionID,
           includeDescendants: query.includeDescendants,
@@ -175,6 +223,23 @@ export const SessionRoutes = lazy(() =>
       ),
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routingEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.get",
+            payload: { sessionID },
+          })
+          if (response.ok && response.data) {
+            return c.json(response.data as Session.Info)
+          }
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to get session",
+            },
+            503,
+          )
+        }
         log.info("SEARCH", { url: c.req.url })
         const session = await Session.get(sessionID)
         return c.json(session)
@@ -207,6 +272,23 @@ export const SessionRoutes = lazy(() =>
       ),
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routingEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.children",
+            payload: { sessionID },
+          })
+          if (response.ok && Array.isArray(response.data)) {
+            return c.json(response.data as Session.Info[])
+          }
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to get session children",
+            },
+            503,
+          )
+        }
         const session = await Session.children(sessionID)
         return c.json(session)
       },
@@ -237,6 +319,23 @@ export const SessionRoutes = lazy(() =>
       ),
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routingEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.todo",
+            payload: { sessionID },
+          })
+          if (response.ok && Array.isArray(response.data)) {
+            return c.json(response.data as z.infer<typeof Todo.Info>[])
+          }
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to get session todos",
+            },
+            503,
+          )
+        }
         const todos = await Todo.get(sessionID)
         return c.json(todos)
       },
@@ -262,6 +361,23 @@ export const SessionRoutes = lazy(() =>
       validator("json", Session.create.schema.optional()),
       async (c) => {
         const body = c.req.valid("json") ?? {}
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.create",
+            payload: { body },
+          })
+          if (response.ok && response.data) {
+            return c.json(response.data as Session.Info)
+          }
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to create session",
+            },
+            503,
+          )
+        }
         const session = await Session.create(body)
         return c.json(session)
       },
@@ -292,6 +408,21 @@ export const SessionRoutes = lazy(() =>
       ),
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.delete",
+            payload: { sessionID },
+          })
+          if (response.ok) return c.json(true)
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to delete session",
+            },
+            503,
+          )
+        }
         Session.remove(sessionID).catch((err) => {
           log.error("REMOVE_FAILED", { sessionID, error: err })
         })
@@ -337,6 +468,24 @@ export const SessionRoutes = lazy(() =>
         const sessionID = c.req.valid("param").sessionID
         const updates = c.req.valid("json")
 
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.update",
+            payload: { sessionID, updates },
+          })
+          if (response.ok && response.data) {
+            return c.json(response.data as Session.Info)
+          }
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to update session",
+            },
+            503,
+          )
+        }
+
         const updatedSession = await Session.update(
           sessionID,
           (session) => {
@@ -380,6 +529,21 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
         const body = c.req.valid("json")
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.init",
+            payload: { sessionID, body },
+          })
+          if (response.ok) return c.json(true)
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to initialize session",
+            },
+            503,
+          )
+        }
         await Session.initialize({ ...body, sessionID })
         return c.json(true)
       },
@@ -411,6 +575,21 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
         const body = c.req.valid("json")
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.fork",
+            payload: { sessionID, body },
+          })
+          if (response.ok && response.data) return c.json(response.data as Session.Info)
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to fork session",
+            },
+            503,
+          )
+        }
         const result = await Session.fork({ ...body, sessionID })
         return c.json(result)
       },
@@ -440,7 +619,23 @@ export const SessionRoutes = lazy(() =>
         }),
       ),
       async (c) => {
-        SessionPrompt.cancel(c.req.valid("param").sessionID)
+        const sessionID = c.req.valid("param").sessionID
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.abort",
+            payload: { sessionID },
+          })
+          if (response.ok) return c.json(true)
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to abort session",
+            },
+            503,
+          )
+        }
+        SessionPrompt.cancel(sessionID)
         return c.json(true)
       },
     )
@@ -470,6 +665,21 @@ export const SessionRoutes = lazy(() =>
       ),
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.share",
+            payload: { sessionID },
+          })
+          if (response.ok && response.data) return c.json(response.data as Session.Info)
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to share session",
+            },
+            503,
+          )
+        }
         await Session.share(sessionID)
         const session = await Session.get(sessionID)
         return c.json(session)
@@ -507,6 +717,29 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const query = c.req.valid("query")
         const params = c.req.valid("param")
+        if (!query.messageID) {
+          return c.json({ code: "BAD_REQUEST", message: "messageID is required" }, 400)
+        }
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routingEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.diff",
+            payload: {
+              sessionID: params.sessionID,
+              messageID: query.messageID,
+            },
+          })
+          if (response.ok && Array.isArray(response.data)) {
+            return c.json(response.data as Snapshot.FileDiff[])
+          }
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to get session diff",
+            },
+            503,
+          )
+        }
         const result = await SessionSummary.diff({
           sessionID: params.sessionID,
           messageID: query.messageID,
@@ -540,6 +773,21 @@ export const SessionRoutes = lazy(() =>
       ),
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.unshare",
+            payload: { sessionID },
+          })
+          if (response.ok && response.data) return c.json(response.data as Session.Info)
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to unshare session",
+            },
+            503,
+          )
+        }
         await Session.unshare(sessionID)
         const session = await Session.get(sessionID)
         return c.json(session)
@@ -580,6 +828,21 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
         const body = c.req.valid("json")
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.summarize",
+            payload: { sessionID, body },
+          })
+          if (response.ok) return c.json(true)
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to summarize session",
+            },
+            503,
+          )
+        }
         const session = await Session.get(sessionID)
         await SessionRevert.cleanup(session)
         const msgs = await Session.messages({ sessionID })
@@ -636,8 +899,29 @@ export const SessionRoutes = lazy(() =>
       ),
       async (c) => {
         const query = c.req.valid("query")
+        const sessionID = c.req.valid("param").sessionID
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routingEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.messages",
+            payload: {
+              sessionID,
+              limit: query.limit,
+            },
+          })
+          if (response.ok && Array.isArray(response.data)) {
+            return c.json(response.data as MessageV2.WithParts[])
+          }
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to list messages",
+            },
+            503,
+          )
+        }
         const messages = await Session.messages({
-          sessionID: c.req.valid("param").sessionID,
+          sessionID,
           limit: query.limit,
         })
         return c.json(messages)
@@ -675,6 +959,26 @@ export const SessionRoutes = lazy(() =>
       ),
       async (c) => {
         const params = c.req.valid("param")
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routingEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.message.get",
+            payload: {
+              sessionID: params.sessionID,
+              messageID: params.messageID,
+            },
+          })
+          if (response.ok && response.data) {
+            return c.json(response.data as { info: MessageV2.Info; parts: MessageV2.Part[] })
+          }
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to get message",
+            },
+            503,
+          )
+        }
         const message = await MessageV2.get({
           sessionID: params.sessionID,
           messageID: params.messageID,
@@ -710,6 +1014,24 @@ export const SessionRoutes = lazy(() =>
       ),
       async (c) => {
         const params = c.req.valid("param")
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.message.delete",
+            payload: {
+              sessionID: params.sessionID,
+              messageID: params.messageID,
+            },
+          })
+          if (response.ok) return c.json(true)
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to delete message",
+            },
+            503,
+          )
+        }
         SessionPrompt.assertNotBusy(params.sessionID)
         await Session.removeMessage({
           sessionID: params.sessionID,
@@ -745,6 +1067,25 @@ export const SessionRoutes = lazy(() =>
       ),
       async (c) => {
         const params = c.req.valid("param")
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.part.delete",
+            payload: {
+              sessionID: params.sessionID,
+              messageID: params.messageID,
+              partID: params.partID,
+            },
+          })
+          if (response.ok) return c.json(true)
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to delete part",
+            },
+            503,
+          )
+        }
         await Session.removePart({
           sessionID: params.sessionID,
           messageID: params.messageID,
@@ -782,6 +1123,23 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const params = c.req.valid("param")
         const body = c.req.valid("json")
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.part.update",
+            payload: {
+              part: body,
+            },
+          })
+          if (response.ok && response.data) return c.json(response.data as MessageV2.Part)
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to update part",
+            },
+            503,
+          )
+        }
         if (body.id !== params.partID || body.messageID !== params.messageID || body.sessionID !== params.sessionID) {
           throw new Error(
             `Part mismatch: body.id='${body.id}' vs partID='${params.partID}', body.messageID='${body.messageID}' vs messageID='${params.messageID}', body.sessionID='${body.sessionID}' vs sessionID='${params.sessionID}'`,
@@ -822,11 +1180,29 @@ export const SessionRoutes = lazy(() =>
       ),
       validator("json", SessionPrompt.PromptInput.omit({ sessionID: true })),
       async (c) => {
+        const sessionID = c.req.valid("param").sessionID
+        const body = c.req.valid("json")
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.prompt",
+            payload: { sessionID, body },
+          })
+          if (response.ok && response.data) {
+            return c.json(response.data as { info: MessageV2.Assistant; parts: MessageV2.Part[] })
+          }
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to prompt session",
+            },
+            503,
+          )
+        }
+
         c.status(200)
         c.header("Content-Type", "application/json")
         return stream(c, async (stream) => {
-          const sessionID = c.req.valid("param").sessionID
-          const body = c.req.valid("json")
           const msg = await SessionPrompt.prompt({ ...body, sessionID })
           stream.write(JSON.stringify(msg))
         })
@@ -856,9 +1232,26 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         c.status(204)
         c.header("Content-Type", "application/json")
+        const sessionID = c.req.valid("param").sessionID
+        const body = c.req.valid("json")
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.prompt_async",
+            payload: { sessionID, body },
+          })
+          if (response.ok) {
+            return stream(c, async () => {})
+          }
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to run prompt_async",
+            },
+            503,
+          )
+        }
         return stream(c, async () => {
-          const sessionID = c.req.valid("param").sessionID
-          const body = c.req.valid("json")
           SessionPrompt.prompt({ ...body, sessionID })
         })
       },
@@ -896,6 +1289,21 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
         const body = c.req.valid("json")
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.command",
+            payload: { sessionID, body },
+          })
+          if (response.ok && response.data) return c.json(response.data as MessageV2.Assistant)
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to run command",
+            },
+            503,
+          )
+        }
         const msg = await SessionPrompt.command({ ...body, sessionID })
         return c.json(msg)
       },
@@ -928,6 +1336,21 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
         const body = c.req.valid("json")
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.shell",
+            payload: { sessionID, body },
+          })
+          if (response.ok && response.data) return c.json(response.data as MessageV2.Assistant)
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to run shell",
+            },
+            503,
+          )
+        }
         const msg = await SessionPrompt.shell({ ...body, sessionID })
         return c.json(msg)
       },
@@ -960,9 +1383,25 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
         log.info("revert", c.req.valid("json"))
+        const body = c.req.valid("json")
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.revert",
+            payload: { sessionID, body },
+          })
+          if (response.ok && response.data) return c.json(response.data as Session.Info)
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to revert session",
+            },
+            503,
+          )
+        }
         const session = await SessionRevert.revert({
           sessionID,
-          ...c.req.valid("json"),
+          ...body,
         })
         return c.json(session)
       },
@@ -993,6 +1432,21 @@ export const SessionRoutes = lazy(() =>
       ),
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
+        const username = RequestUser.username()
+        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
+          const response = await UserWorkerManager.call(username, {
+            method: "session.unrevert",
+            payload: { sessionID },
+          })
+          if (response.ok && response.data) return c.json(response.data as Session.Info)
+          return c.json(
+            {
+              code: response.error?.code ?? "WORKER_ERROR",
+              message: response.error?.message ?? "User worker failed to unrevert session",
+            },
+            503,
+          )
+        }
         const session = await SessionRevert.unrevert({ sessionID })
         return c.json(session)
       },

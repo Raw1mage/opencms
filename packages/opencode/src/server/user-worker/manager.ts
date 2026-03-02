@@ -33,7 +33,7 @@ type WorkerEntry = WorkerSnapshot & {
 export namespace UserWorkerManager {
   const WORKER_PREFIX = "__OPENCODE_USER_WORKER__ "
   const READY_TIMEOUT_MS = 20_000
-  const CALL_TIMEOUT_MS = 12_000
+  const CALL_TIMEOUT_MS = 180_000
   const PREWARM_COOLDOWN_MS = 30_000
   const log = Log.create({ service: "server.user-worker" })
   const workers = new Map<string, WorkerEntry>()
@@ -44,6 +44,14 @@ export namespace UserWorkerManager {
 
   export function routingEnabled() {
     return process.env.OPENCODE_USER_WORKER_ROUTE_SESSION_LIST === "1"
+  }
+
+  export function routeSessionMutationEnabled() {
+    return process.env.OPENCODE_USER_WORKER_ROUTE_SESSION_MUTATION === "1"
+  }
+
+  export function routeModelPreferencesEnabled() {
+    return process.env.OPENCODE_USER_WORKER_ROUTE_MODEL_PREFERENCES === "1"
   }
 
   export function routeConfigGetEnabled() {
@@ -64,6 +72,10 @@ export namespace UserWorkerManager {
 
   export function prewarmEnabled() {
     return process.env.OPENCODE_USER_WORKER_PREWARM !== "0"
+  }
+
+  export function traceEnabled() {
+    return process.env.OPENCODE_USER_WORKER_TRACE === "1"
   }
 
   function buildWorkerExecutableArgs() {
@@ -249,6 +261,9 @@ export namespace UserWorkerManager {
   }
 
   export async function call(username: string, request: UserWorkerRPC.Request): Promise<UserWorkerRPC.Response> {
+    if (traceEnabled()) {
+      log.info("user worker call", { username, method: request.method, source: "user-worker" })
+    }
     let entry: WorkerEntry
     try {
       entry = await ensureWorker(username)
@@ -307,6 +322,8 @@ export namespace UserWorkerManager {
         code: response.error?.code,
         message: response.error?.message,
       })
+    } else if (traceEnabled()) {
+      log.info("user worker call ok", { username, method: request.method, source: "user-worker" })
     }
 
     return response
