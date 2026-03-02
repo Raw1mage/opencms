@@ -1,4 +1,5 @@
 import { Accessor } from "solid-js"
+import { produce } from "solid-js/store"
 import { useNavigate, useParams } from "@solidjs/router"
 import { createOpencodeClient, type Message } from "@opencode-ai/sdk/v2/client"
 import { showToast } from "@opencode-ai/ui/toast"
@@ -413,6 +414,39 @@ export function createPromptSubmit(input: PromptSubmitInput) {
         parts: requestParts,
         variant,
       })
+
+      // Worker-routed prompt_async currently does not share in-process event bus,
+      // so web may miss realtime message events. Poll message snapshot API and hydrate store directly.
+      for (let i = 0; i < 120; i++) {
+        const snapshot = await client.session
+          .messages({
+            sessionID: session.id,
+            limit: 300,
+          })
+          .then((res) => res.data ?? [])
+          .catch(() => [])
+
+        const [, setStore] = globalSync.child(sessionDirectory)
+        setStore(
+          "message",
+          session.id,
+          snapshot.map((item) => item.info),
+        )
+        setStore(
+          produce((draft) => {
+            for (const item of snapshot) {
+              draft.part[item.info.id] = item.parts
+            }
+          }),
+        )
+
+        const hasAssistantReply = snapshot.some(
+          (item) =>
+            item.info.role === "assistant" && (item.info.time.created ?? 0) >= (optimisticMessage.time.created ?? 0),
+        )
+        if (hasAssistantReply) break
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 1000))
+      }
     }
 
     void send().catch((err) => {
