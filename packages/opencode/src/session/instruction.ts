@@ -8,7 +8,7 @@ import { Flag } from "@/flag/flag"
 // @event_2026-02-16_instruction_simplify:
 // Instruction loading simplified to deterministic 2-source model:
 //   1. Global: ~/.config/opencode/AGENTS.md (single file, no fallback)
-//   2. Project: <project-root>/.opencode/AGENTS.md (fixed path, no findUp)
+//   2. Project: <project-root>/AGENTS.md (fixed path, no findUp)
 //   3. opencode.json `instructions` field (user-explicit only)
 // Removed: CLAUDE.md/CONTEXT.md compat, ~/.claude/ fallback, OPENCODE_CONFIG_DIR
 //          fallback, sub-directory resolve() walk-up auto-injection.
@@ -31,9 +31,9 @@ export namespace InstructionPrompt {
       paths.add(path.resolve(globalFile))
     }
 
-    // 2. Project: fixed path <project-root>/.opencode/AGENTS.md
+    // 2. Project: fixed path <project-root>/AGENTS.md
     if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
-      const projectFile = path.join(Instance.directory, ".opencode", "AGENTS.md")
+      const projectFile = path.join(Instance.directory, "AGENTS.md")
       if (await Bun.file(projectFile).exists()) {
         paths.add(path.resolve(projectFile))
       }

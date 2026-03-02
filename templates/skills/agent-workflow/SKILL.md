@@ -50,6 +50,15 @@ graph TD
 - **Parallel-First**: 互相獨立的工具呼叫（查詢/搜尋/檢查）盡量同回合平行發送，減少 request round。
 - **Search-Then-Read**: 先 `glob/grep` 收斂，再 `read` 精讀，避免大面積讀檔。
 
+### 4. DOCUMENTATION & DEBUG CHECKPOINTS (強制)
+
+- **Event Ledger First**: 非瑣碎任務在實作前，必須先建立/更新 `docs/events/event_<YYYYMMDD>_<topic>.md`。
+- **Debug Checkpoints (至少三段)**:
+  1. `Baseline`：修改前症狀、重現方式、影響範圍。
+  2. `Execution`：關鍵改動、第一個錯誤與修正決策。
+  3. `Validation`：驗證指令、通過/失敗結果、已知噪音豁免。
+- **Completion Gate**: 未補齊 Event + Checkpoints + Validation，不得宣告任務完成。
+
 ---
 
 ## 輸出格式規範 (Standardized Output)
@@ -68,6 +77,8 @@ Validation:
 Next:
   - [可選；僅在需要使用者操作時列出 1-3 點]
 ```
+
+> 補充：若任務涉及除錯或重大重構，`Validation` 後必須附上 event 檔路徑。
 
 ### 2. 程式碼輸出 (Code Delivery)
 
