@@ -242,11 +242,11 @@ export const UserWorkerCommand = cmd({
           }
 
           if (request.method === "session.prompt_async") {
-            void SessionPrompt.prompt({
+            const data = await SessionPrompt.prompt({
               ...(request.payload.body as Record<string, unknown>),
               sessionID: request.payload.sessionID,
             } as any)
-            send({ type: "response", id: packet.id, response: { ok: true, data: true } })
+            send({ type: "response", id: packet.id, response: { ok: true, data } })
             continue
           }
 

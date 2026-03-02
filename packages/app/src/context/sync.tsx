@@ -224,7 +224,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             parts: input.parts,
           })
         },
-        async sync(sessionID: string) {
+        async sync(sessionID: string, options?: { force?: boolean }) {
           const directory = sdk.directory
           const client = sdk.client
           const [store, setStore] = globalSync.child(directory)
@@ -236,7 +236,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
 
           const hasMessages = store.message[sessionID] !== undefined
           const hydrated = meta.limit[key] !== undefined
-          if (hasSession && hasMessages && hydrated) return
+          if (!options?.force && hasSession && hasMessages && hydrated) return
 
           const count = store.message[sessionID]?.length ?? 0
           const limit = hydrated ? (meta.limit[key] ?? messagePageSize) : limitFor(count)
