@@ -79,7 +79,7 @@ export namespace UserWorkerManager {
   }
 
   function buildWorkerExecutableArgs() {
-    const currentExec = process.argv[0]
+    const currentExec = process.execPath
     const indexScript = process.argv[1] || fileURLToPath(new URL("../../index.ts", import.meta.url))
     const isBun = /(^|\/)bun(\.exe)?$/.test(currentExec)
     if (isBun) {

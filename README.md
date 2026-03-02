@@ -198,6 +198,16 @@ chmod +x ./install.sh
 
 > 建議：正式環境使用 `--system-init` 將 web control plane 與個人帳號（如 `pkcs12`）脫鉤。
 
+也可使用統一入口（`webctl.sh`）呼叫安裝流程：
+
+```bash
+# production 預設（會自動帶 --system-init）
+./webctl.sh install --yes
+
+# development 模式（不建立 systemd service）
+./webctl.sh install --dev --yes
+```
+
 ---
 
 ## 9) 啟動與使用
@@ -218,11 +228,17 @@ bun run dev
 建議使用專案內建控制腳本：
 
 ```bash
+# 第一次安裝（production）
+./webctl.sh install --yes
+
 # 第一次或前端有變更後
 ./webctl.sh build-frontend
 
-# 啟動 web service
-./webctl.sh start
+# 開發模式啟動（source）
+./webctl.sh dev-start
+
+# production systemd service
+./webctl.sh web-start
 ```
 
 開啟：`http://localhost:1080`
@@ -234,7 +250,9 @@ bun run dev
 ```bash
 ./webctl.sh status
 ./webctl.sh logs
-./webctl.sh stop
+./webctl.sh dev-stop
+./webctl.sh web-stop
+./webctl.sh web-restart
 ```
 
 重啟建議（自我進化/自我重啟場景）：
@@ -259,7 +277,7 @@ bun run dev
 OPENCODE_PUBLIC_URL=https://your-domain.example
 ```
 
-設定後 `webctl.sh start/status` 會顯示外部網址，而非固定 `localhost`。
+設定後 `webctl.sh dev-start/status` 會顯示外部網址，而非固定 `localhost`。
 
 ### C. Desktop（Tauri）
 

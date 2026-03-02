@@ -523,18 +523,18 @@ In addition to the standard `packages/` directory, these top-level folders serve
 
 The root directory is kept minimal, containing only essential configuration and orchestration files.
 
-| File            | Description                                                                                                                                  |
-| :-------------- | :------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.env`          | **Runtime Secrets.** Local environment variables for API keys and database URLs.                                                             |
-| `package.json`  | **Monorepo Manifest.** Defines project dependencies, workspace structure, and core scripts.                                                  |
-| `bun.lock`      | **Lockfile.** Ensures consistent dependency versions across environments.                                                                    |
-| `turbo.json`    | **TurboRepo Config.** Orchestrates build, lint, and test tasks across the monorepo.                                                          |
-| `sst.config.ts` | **SST Entry.** Main entry point for serverless infrastructure deployment.                                                                    |
-| `flake.nix`     | **Nix Shell.** Defines a reproducible development environment with all required system tools.                                                |
-| `tsconfig.json` | **TypeScript Config.** Global compiler options and path aliases.                                                                             |
-| `README.md`     | **Documentation Entry.** The primary project overview and quickstart guide.                                                                  |
-| `LICENSE`       | **License Information.** MIT License terms for the project.                                                                                  |
-| `webctl.sh`     | **Standalone Web Manager.** Script to manage web deployment natively within the user `$HOME`, completely detached from the git repo context. |
+| File            | Description                                                                                                                                                      |
+| :-------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.env`          | **Runtime Secrets.** Local environment variables for API keys and database URLs.                                                                                 |
+| `package.json`  | **Monorepo Manifest.** Defines project dependencies, workspace structure, and core scripts.                                                                      |
+| `bun.lock`      | **Lockfile.** Ensures consistent dependency versions across environments.                                                                                        |
+| `turbo.json`    | **TurboRepo Config.** Orchestrates build, lint, and test tasks across the monorepo.                                                                              |
+| `sst.config.ts` | **SST Entry.** Main entry point for serverless infrastructure deployment.                                                                                        |
+| `flake.nix`     | **Nix Shell.** Defines a reproducible development environment with all required system tools.                                                                    |
+| `tsconfig.json` | **TypeScript Config.** Global compiler options and path aliases.                                                                                                 |
+| `README.md`     | **Documentation Entry.** The primary project overview and quickstart guide.                                                                                      |
+| `LICENSE`       | **License Information.** MIT License terms for the project.                                                                                                      |
+| `webctl.sh`     | **Web Control Entry Point.** Unified command surface for bootstrap install (`install`), development runtime (`dev-*`), and production systemd control (`web-*`). |
 
 ---
 
