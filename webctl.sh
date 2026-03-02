@@ -1,16 +1,20 @@
 #!/bin/bash
 # =============================================================================
-# Opencode Web Service Control Script
-# Runs the backend directly from source — no Docker required.
+# Opencode Development Controller
+# Runs the backend directly from source for development purposes.
 # =============================================================================
 #
 # Usage:
 #   ./webctl.sh <command>
 #
 # Commands:
-#   start, up         Start the server from source
-#   stop, down        Stop the server
-#   restart           Restart the server
+#   install           Bootstrap install (default prod: includes systemd service)
+#   dev-start, dev-up Start the development server from source
+#   dev-stop, dev-down Stop the development server
+#   restart           Restart the server (dev)
+#   web-start         Start production systemd service
+#   web-stop          Stop production systemd service
+#   web-restart       Restart production systemd service
 #   status            Show server status and health
 #   logs              Follow the PTY debug log (/tmp/pty-debug.log)
 #   build-frontend    Build packages/app/dist/ (run after frontend changes)
@@ -63,6 +67,7 @@ FRONTEND_PID_FILE="${RUNTIME_TMP_BASE}/opencode-web-frontend-${PROFILE_SAFE}.pid
 SERVER_LOG_FILE="${RUNTIME_TMP_BASE}/opencode-web-${PROFILE_SAFE}.log"
 RESTART_LOCK_FILE="${RUNTIME_TMP_BASE}/opencode-web-restart-${PROFILE_SAFE}.lock"
 RESTART_EVENT_LOG="${RUNTIME_TMP_BASE}/opencode-web-restart-${PROFILE_SAFE}.jsonl"
+SYSTEM_SERVICE_NAME="${OPENCODE_SYSTEM_SERVICE_NAME:-opencode-web}"
 
 # Colors
 RED='\033[0;31m'
@@ -78,7 +83,7 @@ log_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
 
 is_owner_scoped_command() {
     case "${1:-}" in
-        start|up|stop|down|restart|_restart-worker|status|logs|build-frontend|build-binary)
+        install|dev-start|dev-up|dev-stop|dev-down|restart|_restart-worker|status|logs|build-frontend|build-binary)
             return 0
             ;;
         *)
@@ -280,6 +285,90 @@ find_bun() {
     exit 1
 }
 
+run_systemctl() {
+    if [ "${EUID}" -eq 0 ]; then
+        systemctl "$@"
+        return
+    fi
+
+    if ! command -v sudo >/dev/null 2>&1; then
+        log_error "sudo not found; cannot control system service ${SYSTEM_SERVICE_NAME}."
+        exit 1
+    fi
+
+    sudo systemctl "$@"
+}
+
+# ---------------------------------------------------------------------------
+# install (delegates to install.sh)
+# ---------------------------------------------------------------------------
+do_install() {
+    if [ "${IS_SOURCE_REPO:-0}" -ne 1 ]; then
+        log_error "install is only available when running from source repo."
+        exit 1
+    fi
+
+    local installer="${PROJECT_ROOT}/install.sh"
+    if [ ! -f "${installer}" ]; then
+        log_error "Installer not found: ${installer}"
+        exit 1
+    fi
+
+    local mode="prod"
+    local -a install_args
+
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --dev)
+                mode="dev"
+                ;;
+            --prod)
+                mode="prod"
+                ;;
+            --with-desktop|--skip-system|--yes|-y)
+                install_args+=("$1")
+                ;;
+            --service-user|--service-name)
+                if [ -z "${2:-}" ]; then
+                    log_error "$1 requires a value"
+                    exit 1
+                fi
+                install_args+=("$1" "$2")
+                shift
+                ;;
+            --help|-h)
+                echo ""
+                echo "Usage: ./webctl.sh install [--prod|--dev] [install.sh options]"
+                echo ""
+                echo "Modes:"
+                echo "  --prod   Production bootstrap (default). Adds --system-init automatically."
+                echo "  --dev    Development bootstrap. Does not add --system-init."
+                echo ""
+                echo "Pass-through options: --with-desktop --skip-system --yes/-y --service-user --service-name"
+                echo "Examples:"
+                echo "  ./webctl.sh install"
+                echo "  ./webctl.sh install --dev --skip-system"
+                echo "  ./webctl.sh install --prod --service-name opencode-web --yes"
+                echo ""
+                return 0
+                ;;
+            *)
+                log_error "Unknown install option: $1"
+                log_info "Try: ./webctl.sh install --help"
+                exit 1
+                ;;
+        esac
+        shift
+    done
+
+    log_info "Running bootstrap installer via ${installer} (mode=${mode})"
+    if [ "${mode}" = "prod" ]; then
+        bash "${installer}" --system-init "${install_args[@]}"
+    else
+        bash "${installer}" "${install_args[@]}"
+    fi
+}
+
 # Kill whatever is currently occupying WEB_PORT (by PID file or port scan)
 kill_existing() {
     if [ -f "${BACKEND_PID_FILE}" ]; then
@@ -325,9 +414,9 @@ kill_existing() {
 }
 
 # ---------------------------------------------------------------------------
-# start
+# dev-start
 # ---------------------------------------------------------------------------
-do_start() {
+do_dev_start() {
     if [ ! -f "${FRONTEND_DIST}/index.html" ]; then
         log_error "Frontend dist not found at ${FRONTEND_DIST}"
         if [ "${IS_SOURCE_REPO}" -eq 1 ]; then
@@ -390,14 +479,14 @@ do_start() {
     print_auth_mode
     echo ""
     echo "PTY debug log: ./webctl.sh logs"
-    echo "To stop:       ./webctl.sh stop"
+    echo "To stop:       ./webctl.sh dev-stop"
     echo ""
 }
 
 # ---------------------------------------------------------------------------
-# stop
+# dev-stop
 # ---------------------------------------------------------------------------
-do_stop() {
+do_dev_stop() {
     local stopped_any=0
 
     if [ -f "${BACKEND_PID_FILE}" ]; then
@@ -449,6 +538,42 @@ do_stop() {
     else
         log_warn "No running server found"
     fi
+}
+
+# ---------------------------------------------------------------------------
+# web-start / web-stop / web-restart (production systemd service)
+# ---------------------------------------------------------------------------
+do_web_start() {
+    if ! command -v systemctl >/dev/null 2>&1; then
+        log_error "systemctl not found on this system."
+        exit 1
+    fi
+
+    log_info "Starting production service: ${SYSTEM_SERVICE_NAME}.service"
+    run_systemctl start "${SYSTEM_SERVICE_NAME}.service"
+    run_systemctl --no-pager status "${SYSTEM_SERVICE_NAME}.service" || true
+}
+
+do_web_stop() {
+    if ! command -v systemctl >/dev/null 2>&1; then
+        log_error "systemctl not found on this system."
+        exit 1
+    fi
+
+    log_info "Stopping production service: ${SYSTEM_SERVICE_NAME}.service"
+    run_systemctl stop "${SYSTEM_SERVICE_NAME}.service"
+    run_systemctl --no-pager status "${SYSTEM_SERVICE_NAME}.service" || true
+}
+
+do_web_restart() {
+    if ! command -v systemctl >/dev/null 2>&1; then
+        log_error "systemctl not found on this system."
+        exit 1
+    fi
+
+    log_info "Restarting production service: ${SYSTEM_SERVICE_NAME}.service"
+    run_systemctl restart "${SYSTEM_SERVICE_NAME}.service"
+    run_systemctl --no-pager status "${SYSTEM_SERVICE_NAME}.service" || true
 }
 
 # ---------------------------------------------------------------------------
@@ -557,12 +682,12 @@ do_restart_worker() {
     fi
 
     append_restart_event "${txid}" "stop" "started" "stopping current server" "${mode}" "${graceful}"
-    do_stop
+    do_dev_stop
     append_restart_event "${txid}" "stop" "ok" "current server stopped" "${mode}" "${graceful}"
     sleep 1
 
     append_restart_event "${txid}" "start" "started" "starting server" "${mode}" "${graceful}"
-    do_start
+    do_dev_start
 
     if wait_for_health 20; then
         append_restart_event "${txid}" "health" "ok" "server healthy" "${mode}" "${graceful}"
@@ -582,13 +707,15 @@ do_status() {
     echo ""
     echo "=== Opencode Web Server Status ==="
     echo ""
+
+    echo "[Development (webctl PID)]"
     local pid
-    local running=0
+    local dev_running=0
 
     if [ -f "${PID_FILE}" ]; then
         pid=$(cat "${PID_FILE}")
         if kill -0 "${pid}" 2>/dev/null; then
-            running=1
+            dev_running=1
             echo -e "  Status:   ${GREEN}running${NC} (pid ${pid})"
             echo "  URL:      ${DISPLAY_URL}"
             if [ "${IS_SOURCE_REPO:-0}" -eq 1 ]; then
@@ -608,10 +735,35 @@ do_status() {
         fi
     fi
 
-    if [ $running -eq 0 ]; then
+    if [ $dev_running -eq 0 ]; then
         echo -e "  Status:   ${RED}stopped${NC}"
-        echo "  Run: ./webctl.sh start"
+        echo "  Run: ./webctl.sh dev-start"
     fi
+
+    echo ""
+    echo "[Production (systemd)]"
+    if command -v systemctl >/dev/null 2>&1; then
+        local prod_status
+        prod_status="$(systemctl is-active "${SYSTEM_SERVICE_NAME}.service" 2>/dev/null || true)"
+        case "${prod_status}" in
+            active)
+                echo -e "  Status:   ${GREEN}running${NC} (${SYSTEM_SERVICE_NAME}.service)"
+                ;;
+            *)
+                echo -e "  Status:   ${RED}${prod_status:-unknown}${NC} (${SYSTEM_SERVICE_NAME}.service)"
+                echo "  Run: ./webctl.sh web-start"
+                ;;
+        esac
+    else
+        echo -e "  Status:   ${YELLOW}systemctl not available${NC}"
+    fi
+
+    echo ""
+    local health
+    health=$(curl -s "http://localhost:${WEB_PORT}/api/v2/global/health" 2>/dev/null || echo "(unreachable)")
+    echo "[HTTP Health]"
+    echo "  URL:      ${DISPLAY_URL}"
+    echo "  Health:   ${health}"
     echo ""
 }
 
@@ -689,14 +841,18 @@ do_build_binary() {
 # ---------------------------------------------------------------------------
 do_help() {
     echo ""
-    echo "Opencode Web Service Control  (source-based, no Docker)"
+    echo "Opencode Development Controller  (source-based, no Docker)"
     echo ""
     echo "Usage: ./webctl.sh <command>"
     echo ""
     echo "Commands:"
-    echo "  start, up         Start the server from source"
-    echo "  stop, down        Stop the server"
-    echo "  restart           Restart the server"
+    echo "  install           Bootstrap install (prod by default)"
+    echo "  dev-start, dev-up Start the development server from source"
+    echo "  dev-stop, dev-down Stop the development server"
+    echo "  restart           Restart the server (dev)"
+    echo "  web-start         Start production systemd service"
+    echo "  web-stop          Stop production systemd service"
+    echo "  web-restart       Restart production systemd service"
     echo "  status            Show server status and health"
     echo "  logs              Follow PTY debug log (/tmp/pty-debug.log)"
     echo "  build-frontend    Build packages/app/dist/ (run after frontend changes)"
@@ -712,20 +868,32 @@ do_help() {
     echo "  OPENCODE_SERVER_HTPASSWD   Path to htpasswd file (recommended)"
     echo "  OPENCODE_SERVER_PASSWORD   Password env fallback"
     echo "  OPENCODE_SERVER_USERNAME   Username for password fallback"
+    echo "  OPENCODE_SYSTEM_SERVICE_NAME systemd service basename (default: opencode-web)"
     echo "  HOME / XDG_*               Set these to isolate runtime state per user/profile"
     echo ""
     echo "Typical workflow:"
+    echo "  # First-time bootstrap (production defaults):"
+    echo "  ./webctl.sh install --yes"
+    echo ""
+    echo "  # Development bootstrap (no systemd service init):"
+    echo "  ./webctl.sh install --dev --yes"
+    echo ""
     echo "  # First time or after frontend source changes:"
     echo "  ./webctl.sh build-frontend"
     echo ""
     echo "  # Start / restart server:"
-    echo "  ./webctl.sh start"
+    echo "  ./webctl.sh dev-start"
     echo "  ./webctl.sh restart              # default: detached + graceful"
     echo "  ./webctl.sh restart --graceful   # explicit (same as default)"
     echo "  ./webctl.sh restart --inline"
     echo ""
     echo "  # Debug PTY:"
     echo "  ./webctl.sh logs"
+    echo ""
+    echo "  # Production service (systemd):"
+    echo "  ./webctl.sh web-start"
+    echo "  ./webctl.sh web-stop"
+    echo "  ./webctl.sh web-restart"
     echo ""
 }
 
@@ -735,8 +903,12 @@ do_help() {
 ensure_repo_owner_identity "$@"
 
 case "${1:-}" in
-    start|up)       do_start          ;;
-    stop|down)      do_stop           ;;
+    install)                do_install "${@:2}" ;;
+    dev-start|dev-up)       do_dev_start      ;;
+    dev-stop|dev-down)      do_dev_stop       ;;
+    web-start)              do_web_start      ;;
+    web-stop)               do_web_stop       ;;
+    web-restart)            do_web_restart    ;;
     restart)        do_restart "$@"   ;;
     _restart-worker) do_restart_worker "${@:2}" ;;
     status)         do_status         ;;

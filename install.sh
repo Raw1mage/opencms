@@ -160,6 +160,9 @@ EOF
     log_ok "Created env file: ${env_file}"
   fi
 
+  log_info "Installing binary to /usr/local/bin/opencode..."
+  run_as_root install -m 755 "${ROOT_DIR}/dist/opencode-linux-x64/bin/opencode" "/usr/local/bin/opencode"
+
   local unit_file="/etc/systemd/system/${SYSTEM_SERVICE_NAME}.service"
   local tmp_unit="/tmp/${SYSTEM_SERVICE_NAME}.service.$$"
   cat >"${tmp_unit}" <<EOF
@@ -182,8 +185,10 @@ Environment=XDG_CACHE_HOME=/var/lib/opencode/cache
 Environment=OPENCODE_WEB_NO_OPEN=1
 Environment=OPENCODE_ALLOW_GLOBAL_FS_BROWSE=1
 Environment=OPENCODE_FRONTEND_PATH=${ROOT_DIR}/packages/app/dist
+Environment=OPENCODE_PORT=1080
+Environment=OPENCODE_HOSTNAME=0.0.0.0
 EnvironmentFile=-/etc/opencode/opencode.env
-ExecStart=/usr/bin/env bash -lc 'BUN_BIN="\${OPENCODE_BUN_BIN:-}"; if [[ -z "\${BUN_BIN}" ]]; then BUN_BIN="\$(command -v bun || true)"; fi; if [[ -z "\${BUN_BIN}" && -x "\${HOME}/.bun/bin/bun" ]]; then BUN_BIN="\${HOME}/.bun/bin/bun"; fi; if [[ -z "\${BUN_BIN}" ]]; then echo "bun not found; set OPENCODE_BUN_BIN in /etc/opencode/opencode.env"; exit 1; fi; exec "\${BUN_BIN}" --conditions=browser "${ROOT_DIR}/packages/opencode/src/index.ts" web --port "\${OPENCODE_PORT:-1080}" --hostname "\${OPENCODE_HOSTNAME:-0.0.0.0}"'
+ExecStart=/usr/local/bin/opencode web --port \$OPENCODE_PORT --hostname \$OPENCODE_HOSTNAME
 Restart=on-failure
 RestartSec=2
 NoNewPrivileges=false
@@ -378,10 +383,6 @@ main() {
     fi
   fi
 
-  if [[ "${SYSTEM_INIT}" -eq 1 ]]; then
-    system_init
-  fi
-
   install_system_packages
   install_bun_if_needed
 
@@ -395,6 +396,13 @@ main() {
 
   log_info "Building web frontend (packages/app)..."
   bun run --cwd packages/app build
+
+  log_info "Building backend binary (dist/opencode-linux-x64/bin/opencode)..."
+  bun run build --single
+
+  if [[ "${SYSTEM_INIT}" -eq 1 ]]; then
+    system_init
+  fi
 
   if [[ "${WITH_DESKTOP}" -eq 1 ]]; then
     if command -v cargo >/dev/null 2>&1; then
@@ -410,11 +418,11 @@ main() {
   cat <<EOF
 
 Next steps:
-  1) TUI:     bun run dev
-  2) Web:     ./webctl.sh build-frontend && ./webctl.sh start
-  3) Desktop: bun run --cwd packages/desktop tauri dev
+  1) TUI (Dev):   bun run dev
+  2) Web (Dev):   ./webctl.sh build-frontend && ./webctl.sh dev-start
+  3) Desktop:     bun run --cwd packages/desktop tauri dev
 
-System service (if enabled):
+System service (Production):
   sudo systemctl status ${SYSTEM_SERVICE_NAME}.service
   sudo systemctl restart ${SYSTEM_SERVICE_NAME}.service
 
