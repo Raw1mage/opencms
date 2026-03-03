@@ -319,7 +319,8 @@ export namespace Auth {
     Record<string, { refreshToken: string; managedProjectId: string; email?: string }>
   > {
     const { Account } = await import("../account")
-    const accounts = await Account.list("google-api")
+    // Strict separation: antigravity compatibility path must never read google-api accounts.
+    const accounts = await Account.list("antigravity")
     const result: Record<string, { refreshToken: string; managedProjectId: string; email?: string }> = {}
 
     for (const [id, info] of Object.entries(accounts)) {

@@ -157,7 +157,7 @@ const PARITY_CHECK: Record<Exclude<Locale, "en">, Record<ParityKey, string>> = {
 void PARITY_CHECK
 
 function detectLocale(): Locale {
-  if (typeof navigator !== "object") return "en"
+  if (typeof navigator !== "object") return "zht"
 
   const languages = navigator.languages?.length ? navigator.languages : [navigator.language]
   for (const language of languages) {
@@ -167,7 +167,8 @@ function detectLocale(): Locale {
     if (match) return match.locale
   }
 
-  return "en"
+  // Product default: Traditional Chinese on first run when no explicit match is found.
+  return "zht"
 }
 
 export const { use: useLanguage, provider: LanguageProvider } = createSimpleContext({

@@ -48,20 +48,10 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
           if (!serverWorktree) return
 
           const currentProjects = server.projects.list()
-          if (!currentProjects || currentProjects.length === 0) {
+          const exists = currentProjects.some((p: { worktree: string }) => p.worktree === serverWorktree)
+          if (!exists && serverWorktree !== "/") {
+            console.info(`[global-sdk] Auto-healing: ensuring server worktree ${serverWorktree} is open.`)
             server.projects.open(serverWorktree)
-            server.projects.touch(serverWorktree)
-            return
-          }
-
-          const stale = currentProjects.filter((p: { worktree: string }) => p.worktree !== serverWorktree)
-          if (stale.length === 0) return
-
-          console.warn(`[global-sdk] Auto-healing ${stale.length} stale project(s). Server worktree: ${serverWorktree}`)
-          server.projects.open(serverWorktree)
-          server.projects.touch(serverWorktree)
-          for (const p of stale) {
-            server.projects.close(p.worktree)
           }
         } catch {
           // Non-critical cleanup — ignore errors
@@ -162,6 +152,8 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
     }
 
     void (async () => {
+      let backoff = RECONNECT_DELAY_MS
+
       while (!abort.signal.aborted) {
         if (!shouldConnectEventStream()) {
           streamErrorLogged = false
@@ -184,6 +176,7 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
           })
           let yielded = Date.now()
           for await (const event of events.stream) {
+            backoff = RECONNECT_DELAY_MS
             streamErrorLogged = false
             const directory = normalizeDirectoryKey(event.directory ?? "global")
             const payload = event.payload
@@ -223,7 +216,8 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
         }
 
         if (abort.signal.aborted) return
-        await wait(RECONNECT_DELAY_MS)
+        await wait(backoff)
+        backoff = Math.min(backoff * 2, 10000)
       }
     })().finally(flush)
 

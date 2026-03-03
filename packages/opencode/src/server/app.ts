@@ -642,10 +642,9 @@ export function createApp(app: Hono): Hono {
           beacon.hit("event.publish")
           await stream.writeSSE({
             data: JSON.stringify(event),
+          }).catch(() => {
+            // Write failed, stream probably aborted
           })
-          if (event.type === Bus.InstanceDisposed.type) {
-            stream.close()
-          }
         })
 
         // Send heartbeat every 30s to prevent WKWebView timeout (60s default)
@@ -656,18 +655,21 @@ export function createApp(app: Hono): Hono {
               type: "server.heartbeat",
               properties: {},
             }),
+          }).catch(() => {
+            // Write failed
           })
         }, 30000)
 
-        await new Promise<void>((resolve) => {
-          stream.onAbort(() => {
-            clearInterval(heartbeat)
-            unsub()
-            resolve()
-            beacon.hit("event.disconnected")
-            log.info("event disconnected")
+        try {
+          await new Promise<void>((resolve) => {
+            stream.onAbort(resolve)
           })
-        })
+        } finally {
+          clearInterval(heartbeat)
+          unsub()
+          beacon.hit("event.disconnected")
+          log.info("event disconnected")
+        }
       })
     },
   )

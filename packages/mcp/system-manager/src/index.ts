@@ -1,7 +1,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
-import { promises as fs } from "fs"
+import { promises as fs, existsSync } from "fs"
 import { exec } from "child_process"
 import { promisify } from "util"
 import os from "os"
@@ -15,8 +15,7 @@ const HOME = process.env.HOME ?? os.homedir()
 const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME ?? path.join(HOME, ".config")
 const XDG_STATE_HOME = process.env.XDG_STATE_HOME ?? path.join(HOME, ".local", "state")
 const XDG_DATA_HOME = process.env.XDG_DATA_HOME ?? path.join(HOME, ".local", "share")
-const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT = path.resolve(SCRIPT_DIR, "../../../..")
+const OPENCODE_DATA_HOME = process.env.OPENCODE_DATA_HOME ?? path.join(XDG_DATA_HOME, "opencode")
 
 const ACCOUNTS_PATH = path.join(XDG_CONFIG_HOME, "opencode", "accounts.json")
 const ANTIGRAVITY_ACCOUNTS_PATH = path.join(XDG_CONFIG_HOME, "opencode", "antigravity-accounts.json")
@@ -25,7 +24,7 @@ const MODEL_STATE_PATH = path.join(XDG_STATE_HOME, "opencode", "model.json")
 const KV_PATH = path.join(XDG_STATE_HOME, "opencode", "kv.json")
 const ROTATION_STATE_PATH = path.join(XDG_STATE_HOME, "opencode", "rotation-state.json")
 const USAGE_STATS_PATH = path.join(XDG_CONFIG_HOME, "opencode", "usage-stats.json")
-const STORAGE_BASE = path.join(XDG_DATA_HOME, "opencode", "storage")
+const STORAGE_BASE = path.join(OPENCODE_DATA_HOME, "storage")
 const CODEX_ISSUER = "https://auth.openai.com"
 const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 const CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
@@ -53,7 +52,16 @@ function getQuotaDayStart(): number {
   return todayReset.getTime()
 }
 
-const THEME_DIR = path.join(REPO_ROOT, "packages", "opencode", "src", "cli", "cmd", "tui", "context", "theme")
+const IS_PRODUCTION = !existsSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..", "bin", "opencode.ts"))
+
+const THEME_DIR = (() => {
+  const xdgTheme = path.join(XDG_CONFIG_HOME, "opencode", "theme")
+  // For dev mode, if repo root can be found, use it as fallback
+  const scriptDir = path.dirname(fileURLToPath(import.meta.url))
+  const repoRoot = path.resolve(scriptDir, "../../../..")
+  const repoTheme = path.join(repoRoot, "packages", "opencode", "src", "cli", "cmd", "tui", "context", "theme")
+  return existsSync(xdgTheme) ? xdgTheme : repoTheme
+})()
 const DEFAULT_THEMES = [
   "aura",
   "ayu",
@@ -347,25 +355,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (await pathExists(ROTATION_STATE_PATH)) {
           rotationState = JSON.parse(await fs.readFile(ROTATION_STATE_PATH, "utf-8"))
         }
-      } catch (e) {}
+      } catch (e) { }
 
       let usageStats: any = {}
       try {
         if (await pathExists(USAGE_STATS_PATH)) {
           usageStats = JSON.parse(await fs.readFile(USAGE_STATS_PATH, "utf-8"))
         }
-      } catch (e) {}
+      } catch (e) { }
 
       let antigravityDetailed: any = null
       try {
         antigravityDetailed = JSON.parse(await fs.readFile(ANTIGRAVITY_ACCOUNTS_PATH, "utf-8"))
-      } catch (e) {}
+      } catch (e) { }
 
       let currentModel = null
       try {
         const modelState = JSON.parse(await fs.readFile(MODEL_STATE_PATH, "utf-8"))
         currentModel = modelState.recent?.[0]
-      } catch (e) {}
+      } catch (e) { }
 
       const families = await Promise.all(
         Object.entries(accounts.families).map(async ([fname, data]: [string, any]) => {
@@ -463,7 +471,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         const raw = await fs.readFile(MODEL_STATE_PATH, "utf-8")
         data = JSON.parse(raw)
-      } catch (e) {}
+      } catch (e) { }
 
       // Update recent: Move to front or add if new
       const index = data.recent.findIndex((m: any) => m.providerId === providerId && m.modelID === modelID)
@@ -518,7 +526,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (name === "execute_command") {
       const { name: cmdName } = args as { name: string }
-      const cmdPath = path.join(REPO_ROOT, ".opencode", "command", `${cmdName}.md`)
+      const xdgCmdPath = path.join(XDG_CONFIG_HOME, "opencode", "command", `${cmdName}.md`)
+      const scriptDir = path.dirname(fileURLToPath(import.meta.url))
+      const repoRoot = path.resolve(scriptDir, "../../../..")
+      const repoCmdPath = path.join(repoRoot, ".opencode", "command", `${cmdName}.md`)
+
+      const cmdPath = await pathExists(xdgCmdPath) ? xdgCmdPath : repoCmdPath
       try {
         const content = await fs.readFile(cmdPath, "utf-8")
         return { content: [{ type: "text", text: content }] }
@@ -528,7 +541,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     if (name === "update_models") {
-      await execAsync(`bun run ${JSON.stringify(path.join(REPO_ROOT, "bin", "opencode.ts"))} models --refresh`)
+      const scriptDir = path.dirname(fileURLToPath(import.meta.url))
+      const repoRoot = path.resolve(scriptDir, "../../../..")
+      const opencodeBin = !IS_PRODUCTION
+        ? path.join(repoRoot, "bin", "opencode.ts")
+        : "opencode" // Use system command in production
+
+      if (!IS_PRODUCTION) {
+        await execAsync(`bun run ${JSON.stringify(opencodeBin)} models --refresh`)
+      } else {
+        await execAsync(`${opencodeBin} models --refresh`)
+      }
       return { content: [{ type: "text", text: "Models list refreshed" }] }
     }
 
@@ -552,7 +575,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       let kv: any = {}
       try {
         kv = JSON.parse(await fs.readFile(KV_PATH, "utf-8"))
-      } catch (e) {}
+      } catch (e) { }
 
       let finalValue: any = value
       if (value === "true") finalValue = true
@@ -575,7 +598,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         let kv: any = {}
         try {
           kv = JSON.parse(await fs.readFile(KV_PATH, "utf-8"))
-        } catch (e) {}
+        } catch (e) { }
         kv.ui_trigger = "session.list"
         await fs.writeFile(KV_PATH, JSON.stringify(kv, null, 2))
         return { content: [{ type: "text", text: "Opening session list UI..." }] }
@@ -585,7 +608,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         let kv: any = {}
         try {
           kv = JSON.parse(await fs.readFile(KV_PATH, "utf-8"))
-        } catch (e) {}
+        } catch (e) { }
         kv.ui_trigger = "session.new"
         await fs.writeFile(KV_PATH, JSON.stringify(kv, null, 2))
         return { content: [{ type: "text", text: "Creating new session..." }] }
@@ -622,7 +645,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 .filter((p: any) => p.type === "text")
                 .map((p: any) => p.text)
                 .join("\n")
-            } catch (e) {}
+            } catch (e) { }
             break
           }
         }
@@ -680,7 +703,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         const sourceValidation = await validateForkSource(STORAGE_BASE, sessionID)
         if (sourceValidation.fatal.length > 0) {
-          await fs.rm(newDir, { recursive: true, force: true }).catch(() => {})
+          await fs.rm(newDir, { recursive: true, force: true }).catch(() => { })
           throw new Error(sourceValidation.fatal.join("; "))
         }
 
@@ -688,7 +711,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         await fs.writeFile(path.join(newDir, "info.json"), JSON.stringify(session, null, 2))
         const sessionIndexDir = path.join(STORAGE_BASE, "index", "session")
-        await fs.mkdir(sessionIndexDir, { recursive: true }).catch(() => {})
+        await fs.mkdir(sessionIndexDir, { recursive: true }).catch(() => { })
         await fs.writeFile(
           path.join(sessionIndexDir, `${newID}.json`),
           JSON.stringify({ projectID: session.projectID, parentID: session.parentID }, null, 2),
@@ -696,20 +719,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (hasSourceMessages) {
           await fs.cp(sourceMessagesDir, targetMessagesDir, { recursive: true })
         } else {
-          await fs.mkdir(path.join(STORAGE_BASE, "message"), { recursive: true }).catch(() => {})
+          await fs.mkdir(path.join(STORAGE_BASE, "message"), { recursive: true }).catch(() => { })
           await fs.cp(legacyMessagesDir, path.join(STORAGE_BASE, "message", newID), { recursive: true })
         }
 
         const forkValidation = await validateForkResult(STORAGE_BASE, newID)
         if (forkValidation.fatal.length > 0) {
-          await fs.rm(newDir, { recursive: true, force: true }).catch(() => {})
+          await fs.rm(newDir, { recursive: true, force: true }).catch(() => { })
           throw new Error(`Forked session validation failed: ${forkValidation.fatal.join("; ")}`)
         }
 
         let kv: any = {}
         try {
           kv = JSON.parse(await fs.readFile(KV_PATH, "utf-8"))
-        } catch (e) {}
+        } catch (e) { }
         kv.ui_trigger = "session.list.refresh"
         await fs.writeFile(KV_PATH, JSON.stringify(kv, null, 2))
 
@@ -726,7 +749,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       let kv: any = {}
       try {
         kv = JSON.parse(await fs.readFile(KV_PATH, "utf-8"))
-      } catch (e) {}
+      } catch (e) { }
 
       switch (operation) {
         case "exit":
@@ -772,7 +795,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 .sort()
                 .map(async (pfile: string) => JSON.parse(await fs.readFile(`${partDir}/${pfile}`, "utf-8"))),
             )
-          } catch (e) {}
+          } catch (e) { }
           return { ...msg, parts }
         }),
       )

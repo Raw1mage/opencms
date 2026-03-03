@@ -329,77 +329,136 @@ export async function getCockpitBackoffMs(
   return { backoffMs: fallbackMs, fromCockpit: false }
 }
 
+const antigravityQuotaCache = new Map<string, { result: AccountQuotaResult; timestamp: number }>()
+const refreshingAntigravity = new Set<string>()
+const inflightAntigravity = new Map<string, Promise<AccountQuotaResult>>()
+const ANTIGRAVITY_CACHE_TTL_MS = 60_000 // 1 minute
+
 export async function checkAccountsQuota(
   accounts: AccountMetadataV3[],
   client: PluginClient,
   providerId = ANTIGRAVITY_PROVIDER_ID,
 ): Promise<AccountQuotaResult[]> {
-  const results: AccountQuotaResult[] = []
+  const now = Date.now()
+  const finalResults: AccountQuotaResult[] = new Array(accounts.length)
 
-  for (const [index, account] of accounts.entries()) {
-    const disabled = account.enabled === false
+  for (let i = 0; i < accounts.length; i++) {
+    const account = accounts[i]
+    const cacheKey = account.email || `index-${i}`
+    const cached = antigravityQuotaCache.get(cacheKey)
+    const isStale = !cached || now - cached.timestamp >= ANTIGRAVITY_CACHE_TTL_MS
 
-    let auth = buildAuthFromAccount(account)
+    if (cached) {
+      finalResults[i] = cached.result
+    }
 
-    try {
-      if (accessTokenExpired(auth)) {
-        const refreshed = await refreshAccessToken(auth, client, providerId)
-        if (!refreshed) {
-          throw new Error("Token refresh failed")
-        }
-        auth = refreshed
-      }
+    if (!isStale) continue
 
-      const projectContext = await ensureProjectContext(auth)
-      auth = projectContext.auth
-      const updatedAccount = applyAccountUpdates(account, auth)
+    if (!cached) {
+      const result = await startQuotaRefresh(cacheKey, account, i, client, providerId)
+      finalResults[i] = result
+      continue
+    }
 
-      let quotaResult: QuotaSummary
-      try {
-        const response = await fetchAvailableModels(auth.access ?? "", projectContext.effectiveProjectId)
-
-        // Debug: Log raw model data from cockpit
-        const modelKeys = response.models ? Object.keys(response.models) : []
-        const claudeModels = modelKeys.filter((k) => k.toLowerCase().includes("claude"))
-        debugCheckpoint("quota", "checkAccountsQuota:raw_models", {
-          email: account.email,
-          totalModels: modelKeys.length,
-          claudeModels,
-          sampleModels: modelKeys.slice(0, 10),
-          claudeQuotaInfo: claudeModels.map((k) => ({
-            model: k,
-            remainingFraction: response.models?.[k]?.quotaInfo?.remainingFraction,
-            resetTime: response.models?.[k]?.quotaInfo?.resetTime,
-          })),
-        })
-
-        quotaResult = aggregateQuota(response.models)
-      } catch (error) {
-        quotaResult = {
-          groups: {},
-          modelCount: 0,
-          error: error instanceof Error ? error.message : String(error),
-        }
-      }
-
-      results.push({
-        index,
-        email: account.email,
-        status: "ok",
-        disabled,
-        quota: quotaResult,
-        updatedAccount,
-      })
-    } catch (error) {
-      results.push({
-        index,
-        email: account.email,
-        status: "error",
-        disabled,
-        error: error instanceof Error ? error.message : String(error),
-      })
+    // SWR: stale cache returns immediately while refresh runs in background
+    if (!refreshingAntigravity.has(cacheKey)) {
+      void startQuotaRefresh(cacheKey, account, i, client, providerId)
     }
   }
 
-  return results
+  return finalResults
+}
+
+function startQuotaRefresh(
+  cacheKey: string,
+  account: AccountMetadataV3,
+  index: number,
+  client: PluginClient,
+  providerId: string,
+): Promise<AccountQuotaResult> {
+  const existing = inflightAntigravity.get(cacheKey)
+  if (existing) return existing
+
+  refreshingAntigravity.add(cacheKey)
+  const promise = refreshSingleAccountQuota(account, index, client, providerId)
+    .then((result) => {
+      antigravityQuotaCache.set(cacheKey, { result, timestamp: Date.now() })
+      return result
+    })
+    .finally(() => {
+      refreshingAntigravity.delete(cacheKey)
+      inflightAntigravity.delete(cacheKey)
+    })
+
+  inflightAntigravity.set(cacheKey, promise)
+  return promise
+}
+
+async function refreshSingleAccountQuota(
+  account: AccountMetadataV3,
+  index: number,
+  client: PluginClient,
+  providerId: string,
+): Promise<AccountQuotaResult> {
+  const disabled = account.enabled === false
+  let auth = buildAuthFromAccount(account)
+
+  try {
+    if (accessTokenExpired(auth)) {
+      const refreshed = await refreshAccessToken(auth, client, providerId)
+      if (!refreshed) {
+        throw new Error("Token refresh failed")
+      }
+      auth = refreshed
+    }
+
+    const projectContext = await ensureProjectContext(auth)
+    auth = projectContext.auth
+    const updatedAccount = applyAccountUpdates(account, auth)
+
+    let quotaResult: QuotaSummary
+    try {
+      const response = await fetchAvailableModels(auth.access ?? "", projectContext.effectiveProjectId)
+
+      // Debug: Log raw model data from cockpit
+      const modelKeys = response.models ? Object.keys(response.models) : []
+      const claudeModels = modelKeys.filter((k) => k.toLowerCase().includes("claude"))
+      debugCheckpoint("quota", "refreshSingleAccountQuota:raw_models", {
+        email: account.email,
+        totalModels: modelKeys.length,
+        claudeModels,
+        sampleModels: modelKeys.slice(0, 10),
+        claudeQuotaInfo: claudeModels.map((k) => ({
+          model: k,
+          remainingFraction: response.models?.[k]?.quotaInfo?.remainingFraction,
+          resetTime: response.models?.[k]?.quotaInfo?.resetTime,
+        })),
+      })
+
+      quotaResult = aggregateQuota(response.models)
+    } catch (error) {
+      quotaResult = {
+        groups: {},
+        modelCount: 0,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
+
+    return {
+      index,
+      email: account.email,
+      status: "ok" as const,
+      disabled,
+      quota: quotaResult,
+      updatedAccount,
+    }
+  } catch (error) {
+    return {
+      index,
+      email: account.email,
+      status: "error" as const,
+      disabled,
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
 }

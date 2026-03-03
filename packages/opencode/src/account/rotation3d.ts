@@ -476,55 +476,63 @@ export async function buildFallbackCandidates(
   // Map: coreAccountId -> { group -> QuotaGroupSummary }
   let antigravityQuotas: Record<string, Partial<Record<QuotaGroup, QuotaGroupSummary>>> = {}
   try {
-    const storage = await loadAccounts()
-    if (storage && storage.accounts.length > 0) {
-      debugCheckpoint("rotation3d", "antigravity_quota:start", { accountCount: storage.accounts.length })
-      const noopClient = {
-        auth: {
-          set: async () => true,
-        },
-      } as unknown as PluginClient
-      const results = await checkAccountsQuota(storage.accounts, noopClient)
+    const antigravityAccounts = await Account.list("antigravity").catch(() => ({}))
+    const hasAntigravityAccounts = Object.keys(antigravityAccounts).length > 0
+    if (hasAntigravityAccounts) {
+      const storage = await loadAccounts()
+      if (!storage || storage.accounts.length === 0) {
+        debugCheckpoint("rotation3d", "antigravity_quota:skip", { reason: "empty_plugin_storage" })
+      } else {
+        debugCheckpoint("rotation3d", "antigravity_quota:start", { accountCount: storage.accounts.length })
+        const noopClient = {
+          auth: {
+            set: async () => true,
+          },
+        } as unknown as PluginClient
+        const results = await checkAccountsQuota(storage.accounts, noopClient)
 
-      // Build coreAccountId mapping (same logic as admin panel)
-      const coreByToken = new Map<string, string>()
-      const coreByEmail = new Map<string, string>()
-      const coreAll = await Account.listAll().catch(() => ({}))
-      for (const [family, data] of Object.entries(coreAll)) {
-        if (family !== "antigravity") continue
-        for (const [coreId, info] of Object.entries(data.accounts || {})) {
-          if (info.type === "subscription") {
-            if (info.refreshToken) coreByToken.set(info.refreshToken, coreId)
-            if (info.email) coreByEmail.set(info.email, coreId)
+        // Build coreAccountId mapping (same logic as admin panel)
+        const coreByToken = new Map<string, string>()
+        const coreByEmail = new Map<string, string>()
+        const coreAll = await Account.listAll().catch(() => ({}))
+        for (const [family, data] of Object.entries(coreAll)) {
+          if (family !== "antigravity") continue
+          for (const [coreId, info] of Object.entries(data.accounts || {})) {
+            if (info.type === "subscription") {
+              if (info.refreshToken) coreByToken.set(info.refreshToken, coreId)
+              if (info.email) coreByEmail.set(info.email, coreId)
+            }
           }
         }
-      }
 
-      for (const res of results) {
-        const account = storage.accounts[res.index]
-        if (!account) continue
-        const token = account.refreshToken
-        const email = account.email
-        const coreId = (token && coreByToken.get(token)) ?? (email && coreByEmail.get(email))
-        if (!coreId) continue
-        antigravityQuotas[coreId] = res.quota?.groups ?? {}
+        for (const res of results) {
+          const account = storage.accounts[res.index]
+          if (!account) continue
+          const token = account.refreshToken
+          const email = account.email
+          const coreId = (token && coreByToken.get(token)) ?? (email && coreByEmail.get(email))
+          if (!coreId) continue
+          antigravityQuotas[coreId] = res.quota?.groups ?? {}
 
-        // Log detailed quota info for each account
-        debugCheckpoint("rotation3d", "antigravity_quota:account", {
-          coreId,
-          email: account.email,
-          groups: res.quota?.groups,
-          claudeRemaining: res.quota?.groups?.claude?.remainingFraction,
-          claudeResetTime: res.quota?.groups?.claude?.resetTime,
-          geminiProRemaining: res.quota?.groups?.["gemini-pro"]?.remainingFraction,
-          geminiFlashRemaining: res.quota?.groups?.["gemini-flash"]?.remainingFraction,
+          // Log detailed quota info for each account
+          debugCheckpoint("rotation3d", "antigravity_quota:account", {
+            coreId,
+            email: account.email,
+            groups: res.quota?.groups,
+            claudeRemaining: res.quota?.groups?.claude?.remainingFraction,
+            claudeResetTime: res.quota?.groups?.claude?.resetTime,
+            geminiProRemaining: res.quota?.groups?.["gemini-pro"]?.remainingFraction,
+            geminiFlashRemaining: res.quota?.groups?.["gemini-flash"]?.remainingFraction,
+          })
+        }
+
+        debugCheckpoint("rotation3d", "antigravity_quota:done", {
+          quotaCount: Object.keys(antigravityQuotas).length,
+          accountIds: Object.keys(antigravityQuotas),
         })
       }
-
-      debugCheckpoint("rotation3d", "antigravity_quota:done", {
-        quotaCount: Object.keys(antigravityQuotas).length,
-        accountIds: Object.keys(antigravityQuotas),
-      })
+    } else {
+      debugCheckpoint("rotation3d", "antigravity_quota:skip", { reason: "no_core_antigravity_accounts" })
     }
   } catch (e) {
     log.warn("Failed to get antigravity quotas for fallback", { error: e })

@@ -98,7 +98,7 @@ export const AccountRoutes = lazy(() =>
         if (username && UserWorkerManager.routeAccountListEnabled()) {
           const response = await UserWorkerManager.call(username, {
             method: "account.list",
-            payload: { includeAntigravity: true },
+            payload: {},
           })
           if (response.ok && response.data && typeof response.data === "object") {
             const parsed = response.data as { families?: unknown; antigravity?: unknown }
@@ -120,18 +120,21 @@ export const AccountRoutes = lazy(() =>
 
         const families = await Account.listAll()
 
-        // Fetch rich Antigravity status if plugin is available
+        // Fetch rich Antigravity status only when antigravity accounts actually exist.
         let antigravityStatus = undefined
         try {
-          const { AccountManager } = await import("../../plugin/antigravity/plugin/accounts")
-          const { Auth } = await import("../../auth")
-          const auth = await Auth.get("antigravity")
-          if (auth && auth.type === "oauth") {
-            const manager = await AccountManager.loadFromDisk(auth)
-            antigravityStatus = {
-              accounts: manager.getAccountsSnapshot(),
-              activeIndex: manager.getActiveIndex(),
-              activeIndexByFamily: manager.getActiveIndexByFamily(),
+          const antigravityAccounts = families.antigravity?.accounts ?? {}
+          if (Object.keys(antigravityAccounts).length > 0) {
+            const { AccountManager } = await import("../../plugin/antigravity/plugin/accounts")
+            const { Auth } = await import("../../auth")
+            const auth = await Auth.get("antigravity")
+            if (auth && auth.type === "oauth") {
+              const manager = await AccountManager.loadFromDisk(auth)
+              antigravityStatus = {
+                accounts: manager.getAccountsSnapshot(),
+                activeIndex: manager.getActiveIndex(),
+                activeIndexByFamily: manager.getActiveIndexByFamily(),
+              }
             }
           }
         } catch (e) {

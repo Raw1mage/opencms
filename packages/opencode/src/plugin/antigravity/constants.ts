@@ -162,7 +162,7 @@ export type HeaderStyle = "antigravity" | "gemini-cli"
 /**
  * Provider identifier shared between the plugin loader and credential store.
  */
-export const ANTIGRAVITY_PROVIDER_ID = "google-api"
+export const ANTIGRAVITY_PROVIDER_ID = "antigravity"
 
 // ============================================================================
 // TOOL HALLUCINATION PREVENTION (Ported from LLM-API-Key-Proxy)
