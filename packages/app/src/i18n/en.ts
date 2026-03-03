@@ -535,8 +535,6 @@ export const dict = {
   "status.popover.tab.lsp": "LSP",
   "status.popover.tab.plugins": "Plugins",
   "status.popover.tab.accounts": "Accounts",
-  "status.popover.accounts.recommendations": "Rotation recommendations",
-  "status.popover.accounts.noRecommendations": "No recommendation data.",
   "status.popover.action.manageServers": "Manage servers",
 
   "session.share.popover.title": "Publish on web",

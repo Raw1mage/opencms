@@ -813,8 +813,6 @@ export const dict = {
   "workspace.reset.note": "這將把工作區重設為與預設分支一致。",
 
   "status.popover.tab.accounts": "帳號",
-  "status.popover.accounts.recommendations": "輪替建議",
-  "status.popover.accounts.noRecommendations": "目前沒有建議資料。",
 
   "common.refresh": "重新整理",
   "common.manage": "管理",

@@ -69,11 +69,12 @@ The `cms` branch is the primary product line for this environment, featuring sig
 1. **Auth boundary (`WebAuth`)**
    - Browser uses cookie-session + CSRF protection.
    - CLI/TUI compatibility path can still use Basic auth where required.
+   - CLI bearer-token requests are identity-bound: `Authorization: Bearer <OPENCODE_CLI_TOKEN>` must include `x-opencode-user`.
 
 2. **Instance boundary (`Instance.directory`)**
-   - File/tool routes are project-root constrained by default.
-   - Setting `OPENCODE_ALLOW_GLOBAL_FS_BROWSE=true` bypasses this, allowing full `~` and root `/` filesystem access from the web interface to open external workspaces.
-   - Requests escaping project scope are denied by design unless the global FS flag is set.
+   - Request directory is canonically resolved server-side and echoed via `X-Opencode-Resolved-Directory`.
+   - Relative directory overrides are resolved from authenticated user home; absolute paths are preserved (then validated for existence).
+   - Directory override from request is only accepted on loopback, authenticated web mode, or explicit global browse enablement.
 
 3. **PTY boundary (`/pty`)**
    - PTY sessions require explicit create → connect lifecycle.
@@ -95,26 +96,33 @@ The `cms` branch is the primary product line for this environment, featuring sig
    - `opencode-web.service` runs as a no-home service identity (`HOME=/nonexistent`).
    - Service binaries/wrappers are expected under `/usr/local/*`.
 
-2. **Gateway + per-user worker topology**
+2. **Gateway + per-user daemon topology**
    - Gateway process serves web/auth/API entrypoints.
-   - User-scoped runtime operations are executed by `opencode user-worker --stdio` via `run-as-user` wrapper.
-   - Worker process executes under authenticated Linux user context.
+   - User-scoped runtime operations are routed to per-user daemon instances (`opencode-user-daemon@.service`) under authenticated Linux user context.
 
 3. **Routed API policy**
-   - Worker-routed APIs use strict no-fallback behavior: worker failure returns structured `503`.
+   - Per-user-daemon routed APIs use strict no-fallback behavior: daemon path failure returns structured `503`.
    - This prevents mixed-source reads/writes across service-scope and user-scope runtime paths.
 
-4. **Worker-routed API domains**
-   - Session APIs: core read/write paths (list/get/messages/todo/status/top/diff and primary mutation routes).
-   - Account/Config APIs: read and mutation routes required by web admin/model workflows.
-   - Model Preferences APIs: read/update routed through worker context.
+4. **Daemon-routed API domains**
+   - Config APIs: read/update.
+   - Account APIs: list + mutation routes.
+   - Session APIs: list/read/status/top + mutation routes.
+   - Model preference APIs: read/update.
 
 5. **Web realtime behavior**
-   - Web prompt flow uses message snapshot hydration to ensure assistant replies appear without page reload when cross-process event propagation is unavailable.
+   - Primary path: SSE global events (`/global/event`) drive incremental UI updates.
+   - Reliability fallback: while `session.status !== idle`, web periodically forces message snapshot hydration (`session.sync(..., { force: true })`) so assistant replies remain visible without page refresh if SSE propagation is delayed/dropped.
 
 6. **Runtime ownership target**
    - Runtime memory/history/config/state are owned by authenticated user home (`~/.config`, `~/.local/share`, `~/.local/state`).
    - Historical transition details and RCA remain in `docs/events/`.
+
+7. **Review data-path observability contract (web)**
+   - `GET /file/status` returns lightweight diagnostics headers:
+     - `X-Opencode-Review-Directory`
+     - `X-Opencode-Review-Count`
+   - Deep diagnostics route `GET /experimental/review-checkpoint` is available only when `OPENCODE_DEBUG_REVIEW_CHECKPOINT=1`.
 
 #### Capability registry contract
 
@@ -281,11 +289,12 @@ This package contains the core application logic, including the CLI, the Agent r
 | :------------------------------ | :---------------------------------------------------------------- | :----------------- | :-------------------------------------------- |
 | `src/server/server.ts`          | **Server Entry.** Configures Hono app and HTTP listener.          | `Server`, `listen` | **In:** Config<br>**Out:** Running Server     |
 | `src/server/routes/session.ts`  | **Session Routes.** API for chat session management.              | `SessionRoutes`    | **In:** HTTP Req<br>**Out:** JSON/Stream      |
-| `src/server/routes/file.ts`     | **File Routes.** API for file reading, searching, and git status. | `FileRoutes`       | **In:** Path/Pattern<br>**Out:** Content/List |
+| `src/server/routes/file.ts`     | **File Routes.** API for file reading, searching, and git status; emits review diagnostic headers for web observability. | `FileRoutes`       | **In:** Path/Pattern<br>**Out:** Content/List |
 | `src/server/routes/project.ts`  | **Project Routes.** API for project metadata.                     | `ProjectRoutes`    | **In:** ID<br>**Out:** Project Info           |
 | `src/server/routes/provider.ts` | **Provider Routes.** API for models and auth flows.               | `ProviderRoutes`   | **In:** ID<br>**Out:** Models/Auth            |
 | `src/server/routes/global.ts`   | **Global Routes.** System health and SSE stream.                  | `GlobalRoutes`     | **In:** N/A<br>**Out:** Health/Events         |
 | `src/server/routes/account.ts`  | **Account Routes.** API for multi-account management.             | `AccountRoutes`    | **In:** ID<br>**Out:** Status                 |
+| `src/server/routes/experimental.ts` | **Experimental/Diagnostics Routes.** Includes per-user daemon snapshots and debug-gated review data-path checkpoint endpoint. | `ExperimentalRoutes` | **In:** HTTP Req<br>**Out:** JSON diagnostics |
 
 #### E. Tools (`src/tool`)
 
@@ -347,10 +356,12 @@ The main frontend application built with **SolidJS**. It handles the user interf
 | :------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------- | :--------------------------------------------------------------------- |
 | `entry.tsx`                                       | **Entry Point**. Bootstraps the application, detects the platform (Web/Desktop), and initializes the root `PlatformProvider`.                                                                 | `(Execution Only)`                  | **In**: DOM Element<br>**Out**: Rendered App                           |
 | `app.tsx`                                         | **App Root**. Sets up global shell providers (theme/i18n/dialog/router) and route boundaries; markdown/diff/code providers are session-scoped lazy modules.                                   | `AppInterface`, `AppBaseProviders`  | **In**: Server URL (optional)<br>**Out**: Routing Context              |
-| `pages/session.tsx`                               | **Session View**. The core chat/coding interface. Manages the message timeline, terminal, file reviews, and drag-and-drop layouts.                                                            | `Page` (Default Export)             | **In**: URL Params (ID)<br>**Out**: Chat Interface                     |
+| `pages/session.tsx`                               | **Session View**. The core chat/coding interface. Manages message timeline, terminal, drag/drop layout, and review panel modes (`cumulative changes` vs `latest changes` diff scopes).         | `Page` (Default Export)             | **In**: URL Params (ID)<br>**Out**: Chat Interface                     |
+| `components/prompt-input.tsx`                     | **Prompt Runtime Guardrails.** Owns submit path + realtime watchdogs (session-status reconcile and forced message snapshot hydration during active runs).                                         | `PromptInput`                       | **In**: Prompt state + SDK sync<br>**Out**: Robust realtime UX         |
 | `pages/session/session-rich-content-provider.tsx` | **Session Rich Content Boundary**. Route-scoped lazy provider bundle for markdown rendering, diff view, and code view components.                                                             | `SessionRichContentProvider`        | **In**: Session route children<br>**Out**: Markdown/Diff/Code contexts |
 | `context/server.tsx`                              | **Server Connection**. Manages the connection URL to the backend, health checks, and the list of available projects.                                                                          | `useServer`, `ServerProvider`       | **In**: Default URL<br>**Out**: Connection Status                      |
 | `context/global-sdk.tsx`                          | **SDK & Events**. Initializes the OpenCode SDK client and establishes the global Server-Sent Events (SSE) stream.                                                                             | `useGlobalSDK`, `GlobalSDKProvider` | **In**: Auth Token<br>**Out**: SDK Client, Event Emitter               |
+| `context/sync.tsx`                                | **Session Sync Data Path.** Hydrates review state from git-backed `/file/status` and per-file read patches to produce renderable before/after diffs.                                         | `useSync`, `SyncProvider`           | **In**: Session ID + SDK events<br>**Out**: Reactive session stores    |
 | `vite.config.ts`                                  | **Frontend Chunk Policy**. Defines manual chunk strategy for heavy dependencies (`ghostty-web`, markdown/katex, solid/core utils) plus i18n chunk isolation and warning threshold governance. | `manualChunks`                      | **In**: module id graph<br>**Out**: deterministic chunk layout         |
 
 ### 4. Console Backend (`packages/console/core`)
@@ -560,7 +571,7 @@ The root directory is kept minimal, containing only essential configuration and 
 | `tsconfig.json` | **TypeScript Config.** Global compiler options and path aliases.                                                                                                 |
 | `README.md`     | **Documentation Entry.** The primary project overview and quickstart guide.                                                                                      |
 | `LICENSE`       | **License Information.** MIT License terms for the project.                                                                                                      |
-| `webctl.sh`     | **Web Control Entry Point.** Unified command surface for bootstrap install (`install`), development runtime (`dev-*`), and production systemd control (`web-*`). |
+| `webctl.sh`     | **Web Control Entry Point.** Unified command surface for bootstrap install (`install`), development runtime (`dev-*` / `dev-refresh`), and production systemd control (`web-*` / `web-refresh`), with non-interactive sudo preflight for privileged commands. |
 
 ---
 

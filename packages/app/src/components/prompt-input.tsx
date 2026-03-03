@@ -235,6 +235,8 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         const result = await sdk.client.session.status()
         if (disposed) return
         const next = result.data?.[sessionID] ?? { type: "idle" }
+        const current = sync.data.session_status[sessionID]
+        if (current && JSON.stringify(current) === JSON.stringify(next)) return
         sync.set("session_status", sessionID, next)
       } catch {
         // best-effort watchdog; ignore polling failures

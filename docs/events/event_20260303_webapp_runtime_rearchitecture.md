@@ -542,3 +542,239 @@ Status: In Progress
 - ✅ `bun run typecheck`（workdir: `packages/app`）
 - ✅ `bunx tsc -p packages/opencode/tsconfig.json --noEmit`
 - ✅ `./webctl.sh web-refresh`，`./webctl.sh status`：`version=0.0.0-cms-202603031604`
+
+### Debug Checkpoints（七次：Web 對話非即時刷新）
+
+#### Baseline
+
+- 使用者回報：在 webapp 送出 prompt 後，AI 回覆不會即時出現在對話中，需手動 refresh 才看到最新內容。
+- 觀察：此症狀符合跨進程事件流（SSE）偶發漏送時，UI 僅靠事件驅動而沒有持續快照補水。
+
+#### Execution
+
+- 在 `packages/app/src/components/prompt-input.tsx` 新增「工作中 message 快照 watchdog」：
+  - 條件：`session.status !== idle`（working）期間啟用。
+  - 行為：每 1.5 秒強制呼叫 `sync.session.read(sessionID, 300, { force: true })`。
+  - 目的：即使 SSE 延遲/漏送，也能以快照路徑持續補水，讓 assistant 回覆在不 refresh 頁面的情況下出現。
+
+#### Validation
+
+- ✅ `bun eslint packages/app/src/components/prompt-input.tsx`
+- ✅ `bun run typecheck`（workdir: `packages/app`）
+- ⚠️ `./webctl.sh web-refresh` 在當前執行環境被 `sudo no new privileges` 阻擋，需於可 sudo 的主機會話執行部署。
+
+### Ops policy fix（sudo / no_new_privileges）
+
+- 使用者要求：禁止透過 root-hop（`sudo -u root ... sudo -u <owner> ...`）進行自動切換。
+- 調整：
+  - `webctl.sh` 的 `ensure_repo_owner_identity()` 僅保留「直接切換到 repo owner」策略。
+  - 移除 root-hop fallback，錯誤訊息改為明確提示需要 direct sudo rights。
+- 補強：
+  - `install.sh` 在 sudo 受限（如 `no_new_privileges`）時提供明確提示，避免誤導為密碼或帳號問題。
+
+### Ops preflight（webctl 非互動 sudo 檢查）
+
+- 目的：在進入 `install/web-*` 流程前，提早明確失敗，避免執行到中途才被 `sudo no_new_privileges` 中斷。
+- 變更：
+  - `webctl.sh`
+    - 新增 `requires_privileged_command()`
+    - 新增 `ensure_non_interactive_sudo()`
+    - 於 main 入口先執行 preflight（`ensure_repo_owner_identity` 後）
+    - `install --help` 例外放行（不需提權即可看說明）
+- 驗證：
+  - ✅ `bash -n webctl.sh`
+  - ✅ `./webctl.sh help`
+
+### Ops optimization（web-refresh 壓力降載）
+
+- 使用者回饋：`webctl.sh web-refresh` 每次都跑完整 install/system package 流程，壓力太大。
+- 調整：
+  - `webctl.sh`
+    - `web-refresh` 預設改為 fast mode：`do_install --yes --skip-system`（跳過系統套件安裝步驟）。
+    - 新增 `OPENCODE_WEB_REFRESH_FULL_BOOTSTRAP=1` 可切回完整 bootstrap。
+  - `install.sh`
+    - 新增 Linux 依賴檢測（git/curl/unzip/xz/jq/pkg-config/cc/openssl）
+    - 若已滿足，直接略過 package manager 安裝。
+- 驗證：
+  - ✅ `bash -n webctl.sh`
+  - ✅ `bash -n install.sh`
+  - ✅ `./webctl.sh help` 已顯示 `OPENCODE_WEB_REFRESH_FULL_BOOTSTRAP`
+
+### Debug Checkpoints（八次：prompt 執行中 UI 不刷新）
+
+#### Baseline
+
+- 使用者實測回報：送出 prompt 後 backend 有工作，但前端看不到 assistant 內容增量；需手動 refresh 才看到完整回覆。
+
+#### Execution
+
+- `packages/app/src/context/sync.tsx`
+  - 修正 `session.sync(..., { force: true })` 行為：force 時必定重抓 messages（不再被 `hasMessages && hydrated` 短路）。
+- `packages/app/src/components/prompt-input.tsx`
+  - working 期間增加 message snapshot watchdog（每 1.5s 強制 `session.sync(..., { force: true })`）。
+- `packages/app/src/components/prompt-input/submit.ts`
+  - prompt 送出時先設定 `session_status=busy`（確保 watchdog 啟動，不依賴 SSE `session.status` 及時送達）。
+  - 將 snapshot hydration 輪詢改為與 `promptAsync` 並行執行，而非等待 `promptAsync` 返回後才補水。
+  - 完成後回寫 `session_status=idle`。
+
+#### Validation
+
+- ✅ `bun eslint packages/app/src/components/prompt-input/submit.ts packages/app/src/components/prompt-input.tsx packages/app/src/context/sync.tsx`
+- ✅ `bun run typecheck`（workdir: `packages/app`）
+- ⚠️ `./webctl.sh web-refresh` 於目前受限 shell 被 preflight 阻擋（non-interactive sudo unavailable）；需在主機正常 shell 執行部署。
+
+### Debug Checkpoints（九次：事件優先、靜默才補輪詢）
+
+- 使用者質疑是否「只能靠輪詢才會更新畫面」。
+- 調整策略：
+  - `packages/app/src/components/prompt-input.tsx`
+    - 新增 `lastRealtimeAt`，由 SSE 事件（`session.status`、`message.part.updated`）更新。
+    - message watchdog 改為「事件優先」：僅在 stream 靜默超過 2.5 秒時才觸發強制 `session.sync(..., { force: true })`。
+  - 目的：平時維持事件驅動，僅在疑似漏事件時啟用補水。
+- 驗證：
+  - ✅ `bun eslint packages/app/src/components/prompt-input.tsx`
+  - ✅ `bun run typecheck`（workdir: `packages/app`）
+
+### Debug Checkpoints（十次：assistant 回覆判斷不應依賴時間戳）
+
+- 症狀：使用者仍回報 UI 停在 user 輸入處，refresh 才看到 AI 回覆。
+- 根因補充：submit 輪詢中的 `hasAssistantReply` 先前以 `assistant.created >= optimisticMessage.created` 判斷，會受 client/server 時鐘差影響，導致已存在 assistant 仍被判定為 false。
+- 修正：
+  - `packages/app/src/components/prompt-input/submit.ts`
+    - `hasAssistantReply` 改為僅判斷 snapshot 是否含 assistant message（不比較 timestamp）。
+    - 在 `await promptRun` 後新增一次「最終一致性 hydrate」：強制抓 `session.messages` 並回寫 message/part store，避免 SSE 時序與時間戳差造成終態漏顯示。
+- 驗證：
+  - ✅ `bun eslint packages/app/src/components/prompt-input/submit.ts`
+  - ✅ `bun run typecheck`（workdir: `packages/app`）
+
+### Debug Checkpoints（十一次：第二句觸發第一句回覆顯示）
+
+- 使用者新線索：輸入第二句時，第一句的 AI 回覆才出現，表示非「必須 refresh」，而是「顯示時機延遲」。
+- 根因：submit 輪詢停止條件仍可能被「舊 assistant 訊息」污染；`promptDone && hasAssistantReply` 在歷史中已有 assistant 時無法正確辨識「本輪新回覆」，導致首輪完成後未即時停在新狀態。
+- 修正：
+  - `packages/app/src/components/prompt-input/submit.ts`
+    - 送出前建立 `knownAssistantIDs`（以當前 store 內既有 assistant 訊息為基線）。
+    - 輪詢與最終一致性 hydrate 都改為判斷「是否出現不在基線中的新 assistant message id」。
+    - 最終一致性 hydrate 改為短暫重試（最多 8 次、每次 500ms）處理寫入延遲。
+- 驗證：
+  - ✅ `bun eslint packages/app/src/components/prompt-input/submit.ts`
+  - ✅ `bun run typecheck`（workdir: `packages/app`）
+
+### Debug Checkpoints（十二次：回覆期間捲動位置飄到中段）
+
+- 使用者回報：即時回覆可見，但串流過程中時間軸會跳到中上段，未持續跟隨最新內容。
+- 調整：
+  - `packages/app/src/pages/session.tsx`
+  - `packages/app/src/pages/session/index.tsx`
+    - `createAutoScroll` 的 `working` 改為 `status().type !== "idle"`（不再常駐 active）。
+    - 新增 running-turn 鎖底機制：status 非 idle 時每 200ms 強制 `forceScrollToBottom()`，維持「追蹤最底部最新內容」。
+    - 同步更新 scroll state，避免 UI 誤判底部狀態。
+- 驗證：
+  - ✅ `bun eslint packages/app/src/pages/session.tsx packages/app/src/pages/session/index.tsx`
+  - ✅ `bun run typecheck`（workdir: `packages/app`）
+
+### Debug Checkpoints（十三次：思考鏈/Tool call 首次不即時）
+
+- 使用者回報：正式文字可即時，但思考鏈（tool steps）常要 refresh 才出現；一旦出現後可持續更新。
+- 根因假設與修正：
+  - 主 session 輪詢補水只抓 `session.id` 的 messages/parts；若中間步驟由 task 子 session 產生，前端缺少該子 session 的快照補水，會出現「主回答即時、步驟延遲」現象。
+  - `packages/app/src/components/prompt-input/submit.ts`
+    - 新增 `extractTaskSessionIDs()`：從 tool part `state.metadata.sessionId` 蒐集子 session。
+    - 新增 `hydrateTaskSnapshots()`：對每個 task session 拉 `session.messages` 並回寫 globalSync store。
+    - 主輪詢與最終一致性 hydrate 都同步補水 task sessions。
+- 驗證：
+  - ✅ `bun eslint packages/app/src/components/prompt-input/submit.ts`
+  - ✅ `bun run typecheck`（workdir: `packages/app`）
+
+### Debug Checkpoints（十四次：回滾強制貼底）
+
+- 使用者確認需求：對話頁不得強制貼底，需保留上捲閱讀歷史能力。
+- 處置：
+  - 回滾 `session.tsx` / `session/index.tsx` 中「每 200ms forceScrollToBottom」鎖底機制。
+  - 保留原有 auto-scroll（使用者未上捲時跟隨；上捲後可停留）。
+- 驗證：
+  - ✅ `bun eslint src/pages/session.tsx src/pages/session/index.tsx`（workdir: `packages/app`）
+  - ✅ `bun run typecheck`（workdir: `packages/app`）
+
+### Debug Checkpoints（十五次：關閉 daemon session mutation 做 A/B）
+
+- 目的：驗證「web prompt 不即時」是否由 per-user daemon mutation 路徑導致事件鏈斷裂。
+- 執行：
+  - `/etc/opencode/opencode.env`
+    - `OPENCODE_PER_USER_DAEMON_ROUTE_SESSION_MUTATION=0`
+  - `./webctl.sh web-restart`
+  - `./webctl.sh status`
+- 結果：
+  - systemd service 正常重啟（`opencode-web.service` running）
+  - Health: `{"healthy":true,"version":"0.0.0-cms-202603031721"}`
+- 待驗證（使用者實測）：
+  - web prompt 的 chain-of-thought / tool steps 是否恢復首輪即時顯示
+  - 對話區是否仍有中段隨機閃爍/跳捲現象
+
+### Debug Checkpoints（十六次：web 狀態卡在 working）
+
+- 使用者回報：TUI 已 idle 等待輸入，但 web 仍顯示 working 未停止。
+- 判斷：這更指向 session.status 路由鏈路不同步。
+- 執行 A/B：
+  - `/etc/opencode/opencode.env`
+    - `OPENCODE_PER_USER_DAEMON_ROUTE_SESSION_STATUS=0`
+    - （前一步已為 `OPENCODE_PER_USER_DAEMON_ROUTE_SESSION_MUTATION=0`）
+  - `./webctl.sh web-restart`
+  - `./webctl.sh status`
+- 結果：
+  - service running
+  - health version: `0.0.0-cms-202603031721`
+- 待使用者實測：
+  - web 是否能在 TUI idle 後同步回到 idle（停止顯示工作中）
+
+### Debug Checkpoints（十七次：關閉所有 session daemon 路由做純基線）
+
+- 目的：排除 per-user daemon 對 session 事件鏈的干擾，驗證 web realtime 是否恢復到 origin/dev 行為。
+- `/etc/opencode/opencode.env` 調整：
+  - `OPENCODE_PER_USER_DAEMON_ROUTE_SESSION_LIST=0`
+  - `OPENCODE_PER_USER_DAEMON_ROUTE_SESSION_STATUS=0`
+  - `OPENCODE_PER_USER_DAEMON_ROUTE_SESSION_READ=0`
+  - `OPENCODE_PER_USER_DAEMON_ROUTE_SESSION_TOP=0`
+  - `OPENCODE_PER_USER_DAEMON_ROUTE_SESSION_MUTATION=0`
+- 執行：
+  - `./webctl.sh restart`（dev mode）
+  - `./webctl.sh status`（health `version=local`）
+- 待驗證（使用者實測）：
+  - web 發話是否恢復完整即時（含 chain/tool）
+  - web working 狀態是否能在實際 idle 時結束
+  - 亂跳捲動/閃爍是否消失
+
+### Debug Checkpoints（十八次：閃爍跳轉收斂，開頁預設觸底）
+
+- 使用者回報：
+  - 不再回捲到中上段，但仍在原地/底部間高頻跳動（疑似 scroll 競態）。
+  - refresh 進頁後停在頂部，期望自動觸底。
+- 分析：
+  - `use-session-hash-scroll.ts` 在 messages 更新期間會反覆套用 hash 導向邏輯，與 auto-follow 同時作用，造成拉扯。
+  - 初次載入仍可能套用 hash/舊定位而非明確觸底。
+- 修正（不再新增輪詢補丁）：
+  - `packages/app/src/pages/session/use-session-hash-scroll.ts`
+    - session 初次 ready 時：
+      - 強制 `forceScrollToBottom()`
+      - 清除 hash（`clearMessageHash()`）
+      - 重置 active message 為最新
+    - 後續消息變化時，僅處理 `pendingMessage` 導向；不再把 URL hash 當作每次更新的持續導向來源。
+    - `hashchange` 仍保留，僅在使用者主動 hash 變動時套用。
+- 驗證：
+  - ✅ `bun eslint src/pages/session/use-session-hash-scroll.ts`（workdir: `packages/app`）
+  - ✅ `bun run typecheck`（workdir: `packages/app`）
+
+### Debug Checkpoints（十九次：降低週期閃爍 + 分段視覺一致化）
+
+- 使用者回饋：
+  - tool/thinking 顯示期間仍有週期性閃爍（約 2~3 秒節奏）。
+  - 報告分段在 web 版缺少明確分隔線，空白過大。
+- 修正：
+  - `packages/app/src/components/prompt-input.tsx`
+    - session status watchdog 每 3 秒拉取後，先比較目前狀態與新狀態；相同則不寫回 store，避免無效重渲染造成週期閃爍。
+  - `packages/ui/src/components/markdown.css`
+    - `hr` 從「隱形大空白」改為可見分隔線，並縮小上下間距（`margin: 1rem 0`）。
+    - 讓 web 呈現更接近 TUI 報告分段感。
+- 驗證：
+  - ✅ `bun eslint src/components/prompt-input.tsx`（workdir: `packages/app`）
+  - ✅ `bun run typecheck`（workdir: `packages/app`）

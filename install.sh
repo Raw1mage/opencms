@@ -67,8 +67,14 @@ run_as_root() {
   fi
 
   if command -v sudo >/dev/null 2>&1; then
-    sudo "$@"
-    return
+    if sudo "$@"; then
+      return
+    fi
+
+    log_err "sudo failed while running: $*"
+    log_warn "If you are in a restricted shell (e.g. no_new_privileges), rerun with --skip-system"
+    log_warn "or execute install/deploy from a host shell that allows privilege escalation."
+    exit 1
   fi
 
   log_err "This operation requires root (or sudo): $*"
@@ -295,6 +301,18 @@ install_system_packages() {
   local os
   os="$(uname -s)"
 
+  linux_deps_ready() {
+    command -v git >/dev/null 2>&1 || return 1
+    command -v curl >/dev/null 2>&1 || return 1
+    command -v unzip >/dev/null 2>&1 || return 1
+    command -v xz >/dev/null 2>&1 || return 1
+    command -v jq >/dev/null 2>&1 || return 1
+    command -v pkg-config >/dev/null 2>&1 || return 1
+    command -v cc >/dev/null 2>&1 || return 1
+    pkg-config --exists openssl >/dev/null 2>&1 || [[ -f "/usr/include/openssl/ssl.h" ]] || return 1
+    return 0
+  }
+
   if [[ "${os}" == "Darwin" ]]; then
     if ! command -v brew >/dev/null 2>&1; then
       log_warn "Homebrew not found. Install from https://brew.sh if you want auto package setup on macOS."
@@ -317,9 +335,20 @@ install_system_packages() {
     return
   fi
 
+  if linux_deps_ready; then
+    log_ok "Required Linux dependencies already present; skipping system package installation."
+    return
+  fi
+
   if ! command -v sudo >/dev/null 2>&1; then
     log_warn "sudo not found; skipping system package installation."
     log_warn "Re-run with --skip-system after manually installing required dependencies."
+    return
+  fi
+
+  if ! sudo -n true >/dev/null 2>&1; then
+    log_warn "sudo non-interactive escalation unavailable; skipping system package installation."
+    log_warn "This is expected in restricted environments (e.g. no_new_privileges)."
     return
   fi
 

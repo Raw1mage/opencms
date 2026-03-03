@@ -142,18 +142,61 @@ ensure_repo_owner_identity() {
     if [ -n "${XDG_DATA_HOME:-}" ]; then passthrough_env+=("XDG_DATA_HOME=${XDG_DATA_HOME}"); fi
     if [ -n "${XDG_RUNTIME_DIR:-}" ]; then passthrough_env+=("XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}"); fi
 
-    # Prefer non-interactive direct switch; fall back to root-hop when
-    # policy grants NOPASSWD to root but not directly to target user.
+    # Prefer non-interactive direct switch only.
+    # Do NOT hop through root; keep caller identity model explicit.
     if sudo -n -u "${REPO_OWNER}" -H true >/dev/null 2>&1; then
         exec sudo -n -u "${REPO_OWNER}" -H env "${passthrough_env[@]}" "${PROJECT_ROOT}/webctl.sh" "${cmd}" "$@"
     fi
 
-    if sudo -n -u root true >/dev/null 2>&1; then
-        exec sudo -n -u root env "${passthrough_env[@]}" sudo -n -u "${REPO_OWNER}" -H "${PROJECT_ROOT}/webctl.sh" "${cmd}" "$@"
+    log_error "Auto-switch requires direct sudo rights to ${REPO_OWNER}."
+    log_error "Current sudo policy/shell restrictions do not allow non-interactive switch in this shell."
+    exit 1
+}
+
+requires_privileged_command() {
+    case "${1:-}" in
+        install|web-start|web-stop|web-restart|web-refresh)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+ensure_non_interactive_sudo() {
+    local cmd="${1:-}"
+    shift || true
+
+    if [ "${cmd}" = "install" ]; then
+        case "${1:-}" in
+            --help|-h)
+                return
+                ;;
+        esac
     fi
 
-    log_error "Auto-switch requires sudo rights to ${REPO_OWNER} (directly or via root NOPASSWD)."
-    log_error "Current sudo policy does not allow non-interactive switch in this shell."
+    if ! requires_privileged_command "${cmd}"; then
+        return
+    fi
+
+    if [ "${EUID}" -eq 0 ]; then
+        return
+    fi
+
+    if ! command -v sudo >/dev/null 2>&1; then
+        log_error "Command '${cmd}' requires sudo, but sudo is not available."
+        exit 1
+    fi
+
+    if sudo -n true >/dev/null 2>&1; then
+        return
+    fi
+
+    log_error "Command '${cmd}' requires non-interactive sudo, but current shell cannot escalate privileges."
+    log_error "Likely cause: restricted environment (e.g. no_new_privileges) or missing NOPASSWD policy in this context."
+    log_info "Run this command from your normal host shell (not restricted sandbox), then retry:"
+    log_info "  ./webctl.sh ${cmd}"
     exit 1
 }
 
@@ -724,7 +767,13 @@ do_web_refresh() {
     fi
 
     log_info "Refreshing production webapp (rebuild/deploy + restart)..."
-    do_install --yes
+    if [ "${OPENCODE_WEB_REFRESH_FULL_BOOTSTRAP:-0}" = "1" ]; then
+        log_info "Full bootstrap mode enabled (includes system package step)."
+        do_install --yes
+    else
+        log_info "Fast refresh mode: skipping system package step (set OPENCODE_WEB_REFRESH_FULL_BOOTSTRAP=1 to force full bootstrap)."
+        do_install --yes --skip-system
+    fi
     do_web_restart
 }
 
@@ -899,6 +948,7 @@ do_help() {
     echo "  OPENCODE_SERVER_PASSWORD   Password env fallback"
     echo "  OPENCODE_SERVER_USERNAME   Username for password fallback"
     echo "  OPENCODE_SYSTEM_SERVICE_NAME systemd service basename (default: opencode-web)"
+    echo "  OPENCODE_WEB_REFRESH_FULL_BOOTSTRAP 1=web-refresh runs full install incl. system packages"
     echo "  HOME / XDG_*               Set these to isolate runtime state per user/profile"
     echo ""
     echo "Typical workflow:"
@@ -933,6 +983,7 @@ do_help() {
 # Main
 # ---------------------------------------------------------------------------
 ensure_repo_owner_identity "$@"
+ensure_non_interactive_sudo "$@"
 
 case "${1:-}" in
     install)                do_install "${@:2}" ;;

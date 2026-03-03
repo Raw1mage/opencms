@@ -1,4 +1,4 @@
-import { createEffect, createMemo, on, onCleanup } from "solid-js"
+import { createEffect, createMemo, createSignal, on, onCleanup } from "solid-js"
 import { UserMessage } from "@opencode-ai/sdk/v2"
 
 export const anchor = (id: string) => `message-${id}`
@@ -81,6 +81,7 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
   const visibleUserMessages = createMemo(() => input.visibleUserMessages())
   const messageById = createMemo(() => new Map(visibleUserMessages().map((m) => [m.id, m])))
   const messageIndex = createMemo(() => new Map(visibleUserMessages().map((m, i) => [m.id, i])))
+  const [initialAppliedForSession, setInitialAppliedForSession] = createSignal(false)
 
   const clearMessageHash = () => {
     if (!window.location.hash) return
@@ -185,6 +186,7 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
 
   createEffect(
     on(input.sessionKey, (key) => {
+      setInitialAppliedForSession(false)
       if (!input.sessionID()) return
       const messageID = input.consumePendingMessage(key)
       if (!messageID) return
@@ -194,6 +196,18 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
 
   createEffect(() => {
     if (!input.sessionID() || !input.messagesReady()) return
+    if (!initialAppliedForSession()) {
+      setInitialAppliedForSession(true)
+      requestAnimationFrame(() => {
+        input.setActiveMessage(undefined)
+        input.autoScroll.forceScrollToBottom()
+        const el = input.scroller()
+        if (el) input.scheduleScrollState(el)
+        clearMessageHash()
+      })
+      return
+    }
+
     requestAnimationFrame(() => applyHash("auto"))
   })
 
@@ -203,7 +217,8 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
     visibleUserMessages()
     input.turnStart()
 
-    const targetId = input.pendingMessage() ?? messageIdFromHash(window.location.hash)
+    const pending = input.pendingMessage()
+    const targetId = pending
     if (!targetId) return
     if (input.currentMessageId() === targetId) return
 
@@ -217,7 +232,9 @@ export const useSessionHashScroll = (rawInput: NewInput | LegacyInput) => {
 
   createEffect(() => {
     if (!input.sessionID() || !input.messagesReady()) return
-    const handler = () => requestAnimationFrame(() => applyHash("auto"))
+    const handler = () => {
+      requestAnimationFrame(() => applyHash("auto"))
+    }
     window.addEventListener("hashchange", handler)
     onCleanup(() => window.removeEventListener("hashchange", handler))
   })

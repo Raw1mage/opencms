@@ -107,11 +107,13 @@
     font-style: normal;
   }
 
-  /* Horizontal Rule - Invisible spacing only */
+  /* Horizontal Rule - visible section divider (aligned with TUI style) */
   hr {
-    border: none;
+    border: 0;
+    border-top: 1px solid var(--border-weaker-base);
     height: 0;
-    margin: 2.5rem 0;
+    margin: 1rem 0;
+    opacity: 0.85;
   }
 
   .shiki {

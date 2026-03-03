@@ -23,7 +23,6 @@ import { useSDK } from "@/context/sdk"
 import { normalizeServerUrl, useServer } from "@/context/server"
 import { usePlatform } from "@/context/platform"
 import { useLanguage } from "@/context/language"
-import { useLocal } from "@/context/local"
 import { DialogSelectServer } from "./dialog-select-server"
 import { DialogSettings } from "./dialog-settings"
 import { ServerRow } from "@/components/server/server-row"
@@ -167,7 +166,6 @@ const useMcpToggle = (input: {
 export function StatusPopover() {
   const sync = useSync()
   const sdk = useSDK()
-  const local = useLocal()
   const server = useServer()
   const platform = usePlatform()
   const dialog = useDialog()
@@ -197,16 +195,12 @@ export function StatusPopover() {
   const [accountInfo, accountActions] = createResource(async () => {
     return sdk.client.account.listAll().then((x) => x.data)
   })
-  const [rotationInfo, rotationActions] = createResource(async () => {
-    return sdk.client.rotation.status().then((x) => x.data)
-  })
 
   createEffect(() => {
     let dead = false
     const id = setInterval(() => {
       if (dead) return
       void accountActions.refetch()
-      void rotationActions.refetch()
     }, pollMs)
 
     onCleanup(() => {
@@ -270,81 +264,6 @@ export function StatusPopover() {
   })
 
   const accountCount = createMemo(() => accountRows().length)
-  const rotationRecommended = createMemo(() => {
-    const info = rotationInfo.latest?.recommended
-    if (!info || typeof info !== "object") return [] as Array<{ task: string; value: string }>
-    const entries: Array<{ task: string; value: string }> = []
-    for (const [task, vectorValue] of Object.entries(info as Record<string, unknown>)) {
-      const vector = vectorValue as Record<string, unknown>
-      if (!vector) continue
-      if (
-        typeof vector.providerId !== "string" ||
-        typeof vector.accountId !== "string" ||
-        typeof vector.modelID !== "string"
-      ) {
-        continue
-      }
-      entries.push({
-        task,
-        value: `${vector.providerId}/${vector.accountId}/${vector.modelID}`,
-      })
-    }
-    return entries
-  })
-
-  const accountCooldownMap = createMemo(() => {
-    const out = new Map<string, { coolingDownUntil?: number; cooldownReason?: string }>()
-    const families = accountInfo.latest?.families
-    if (!families || typeof families !== "object") return out
-    for (const [family, familyValue] of Object.entries(families as Record<string, unknown>)) {
-      const row = familyValue as { accounts?: Record<string, unknown> }
-      const accountMap = row?.accounts && typeof row.accounts === "object" ? row.accounts : {}
-      for (const [accountId, value] of Object.entries(accountMap)) {
-        const item = value as Record<string, unknown>
-        out.set(`${family}/${accountId}`, {
-          coolingDownUntil: typeof item?.coolingDownUntil === "number" ? item.coolingDownUntil : undefined,
-          cooldownReason: typeof item?.cooldownReason === "string" ? item.cooldownReason : undefined,
-        })
-      }
-    }
-    return out
-  })
-
-  const recommendationCooldown = (providerId: string, accountId: string) => {
-    const info = accountCooldownMap().get(`${providerId}/${accountId}`)
-    if (!info?.coolingDownUntil || info.coolingDownUntil <= Date.now()) return
-    const minutes = Math.max(1, Math.ceil((info.coolingDownUntil - Date.now()) / 60000))
-    return info.cooldownReason
-      ? `${info.cooldownReason} (${minutes}m)`
-      : language.t("settings.models.recommendations.cooldown", { minutes })
-  }
-
-  const applyRecommendation = async (entry: { task: string; value: string }) => {
-    const [providerId, accountId, modelID] = entry.value.split("/")
-    if (!providerId || !accountId || !modelID) return
-    try {
-      await sdk.client.account.setActive({ family: providerId, accountId })
-      local.model.set({ providerID: providerId, modelID }, { recent: true })
-      await sdk.client.global.dispose().catch(() => undefined)
-      await accountActions.refetch()
-      await rotationActions.refetch()
-      showToast({
-        variant: "success",
-        icon: "circle-check",
-        title: language.t("settings.models.recommendations.toast.applied.title"),
-        description: language.t("settings.models.recommendations.toast.applied.description", {
-          task: entry.task,
-          value: entry.value,
-        }),
-      })
-    } catch (err) {
-      showToast({
-        variant: "error",
-        title: language.t("settings.models.recommendations.toast.failed.title"),
-        description: err instanceof Error ? err.message : String(err),
-      })
-    }
-  }
   const overallHealthy = createMemo(() => {
     const serverHealthy = server.healthy() === true
     const anyMcpIssue = mcpNames().some((name) => {
@@ -573,66 +492,19 @@ export function StatusPopover() {
             <div class="flex flex-col px-2 pb-2">
               <div class="flex flex-col p-3 bg-background-base rounded-sm min-h-14 gap-3">
                 <div class="flex items-center justify-between gap-2">
-                  <span class="text-12-regular text-text-weak">
-                    {language.t("status.popover.accounts.recommendations")}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    class="h-7 px-2"
-                    onClick={() => {
-                      void accountActions.refetch()
-                      void rotationActions.refetch()
-                    }}
-                  >
-                    {language.t("common.refresh")}
-                  </Button>
-                </div>
-                <Show
-                  when={rotationRecommended().length > 0}
-                  fallback={
-                    <div class="text-12-regular text-text-weak">
-                      {language.t("status.popover.accounts.noRecommendations")}
-                    </div>
-                  }
-                >
-                  <For each={rotationRecommended()}>
-                    {(entry) => (
-                      <div class="flex items-center justify-between gap-2">
-                        <div class="min-w-0 flex-1 flex flex-col gap-0.5">
-                          <span class="text-12-regular text-text-weak uppercase">{entry.task}</span>
-                          <code class="text-12-regular text-text-base truncate">{entry.value}</code>
-                          <Show
-                            when={recommendationCooldown(...(entry.value.split("/").slice(0, 2) as [string, string]))}
-                          >
-                            {(cooling) => <span class="text-11-regular text-icon-warning-base">{cooling()}</span>}
-                          </Show>
-                        </div>
-                        <Button
-                          variant="secondary"
-                          class="h-7 px-2"
-                          disabled={
-                            !!recommendationCooldown(...(entry.value.split("/").slice(0, 2) as [string, string]))
-                          }
-                          onClick={() => void applyRecommendation(entry)}
-                        >
-                          {language.t("settings.models.recommendations.apply")}
-                        </Button>
-                      </div>
-                    )}
-                  </For>
-                </Show>
-
-                <div class="h-px bg-border-weak-base" />
-
-                <div class="flex items-center justify-between gap-2">
                   <span class="text-12-regular text-text-weak">{language.t("settings.accounts.title")}</span>
-                  <Button
-                    variant="secondary"
-                    class="h-7 px-2"
-                    onClick={() => dialog.show(() => <DialogSettings initialTab="accounts" />)}
-                  >
-                    {language.t("common.manage")}
-                  </Button>
+                  <div class="flex items-center gap-2">
+                    <Button variant="ghost" class="h-7 px-2" onClick={() => void accountActions.refetch()}>
+                      {language.t("common.refresh")}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      class="h-7 px-2"
+                      onClick={() => dialog.show(() => <DialogSettings initialTab="accounts" />)}
+                    >
+                      {language.t("common.manage")}
+                    </Button>
+                  </div>
                 </div>
                 <Show
                   when={accountRows().length > 0}
