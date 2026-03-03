@@ -41,8 +41,6 @@ function readHtpasswd(path: string) {
   return entries
 }
 
-
-
 function plainEnabled() {
   return !!Flag.OPENCODE_SERVER_PASSWORD
 }
@@ -54,6 +52,9 @@ function fileEnabled() {
 }
 
 function enabled() {
+  // Internal per-user daemon is bound to loopback and fronted by gateway.
+  // Skip web-auth challenge in this mode to allow gateway-to-daemon RPC.
+  if (process.env.OPENCODE_USER_DAEMON_MODE === "1") return false
   if (process.platform === "linux") return true
   return plainEnabled() || fileEnabled()
 }
@@ -67,7 +68,7 @@ async function verifyPam(username: string, password: string): Promise<boolean> {
       done = true
       try {
         term.kill()
-      } catch { }
+      } catch {}
       resolve(result)
     }
 

@@ -5,7 +5,7 @@ import path from "path"
 import { lazy } from "../../util/lazy"
 import { Global } from "../../global"
 import { RequestUser } from "@/runtime/request-user"
-import { UserWorkerManager } from "../user-worker"
+import { UserDaemonManager } from "../user-daemon"
 
 const ModelPreferenceEntry = z.object({
   providerId: z.string(),
@@ -69,18 +69,15 @@ export const ModelRoutes = lazy(() =>
       }),
       async (c) => {
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeModelPreferencesEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "model.preferences.get",
-            payload: {},
-          })
+        if (username && UserDaemonManager.routeModelPreferencesEnabled()) {
+          const response = await UserDaemonManager.callModelPreferencesGet<ModelPreferences>(username)
           if (response.ok && response.data && typeof response.data === "object") {
-            return c.json(response.data as ModelPreferences)
+            return c.json(response.data)
           }
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to get model preferences",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon model.preferences.get payload is not an object" : response.error.message,
             },
             503,
           )
@@ -110,18 +107,17 @@ export const ModelRoutes = lazy(() =>
       async (c) => {
         const payload = c.req.valid("json")
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeModelPreferencesEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "model.preferences.update",
-            payload: { preferences: payload },
-          })
+        if (username && UserDaemonManager.routeModelPreferencesEnabled()) {
+          const response = await UserDaemonManager.callModelPreferencesUpdate<ModelPreferences>(username, payload)
           if (response.ok && response.data && typeof response.data === "object") {
-            return c.json(response.data as ModelPreferences)
+            return c.json(response.data)
           }
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to update model preferences",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok
+                ? "daemon model.preferences.update payload is not an object"
+                : response.error.message,
             },
             503,
           )

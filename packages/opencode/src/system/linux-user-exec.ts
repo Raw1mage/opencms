@@ -58,6 +58,26 @@ export namespace LinuxUserExec {
     }
   }
 
+  export function resolveLinuxUserUID(username: string | undefined) {
+    const safe = sanitizeUsername(username)
+    if (!safe) return
+    if (process.platform !== "linux") return
+    try {
+      const passwd = fs.readFileSync("/etc/passwd", "utf8")
+      for (const line of passwd.split(/\r?\n/)) {
+        if (!line || line.startsWith("#")) continue
+        const parts = line.split(":")
+        if (parts.length < 7) continue
+        if (parts[0] !== safe) continue
+        const uid = Number(parts[2])
+        if (!Number.isFinite(uid) || uid < 0) return
+        return uid
+      }
+    } catch {
+      return
+    }
+  }
+
   function sanitizeEnv(env: Record<string, string | undefined>) {
     const out: Array<[string, string]> = []
     for (const [key, value] of Object.entries(env)) {

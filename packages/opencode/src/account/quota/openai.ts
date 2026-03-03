@@ -203,6 +203,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 // ============================================================================
 
 const refreshingOpenAI = new Set<string>()
+const refreshingPromises = new Map<string, Promise<void>>()
 
 /**
  * Get quota information for all OpenAI subscription accounts.
@@ -239,9 +240,11 @@ export async function getOpenAIQuotas(): Promise<Record<string, OpenAIQuota | nu
           })
           .finally(() => {
             refreshingOpenAI.delete(id)
+            refreshingPromises.delete(id)
           })
 
         refreshingOpenAI.add(id)
+        refreshingPromises.set(id, refreshPromise)
         void refreshPromise
       }
     }
@@ -251,6 +254,38 @@ export async function getOpenAIQuotas(): Promise<Record<string, OpenAIQuota | nu
     log.error("Failed to get OpenAI quotas", { error: String(error) })
     return {}
   }
+}
+
+export async function getOpenAIQuota(
+  accountId: string,
+  options?: {
+    waitFresh?: boolean
+  },
+): Promise<OpenAIQuota | null | undefined> {
+  const quotas = await getOpenAIQuotas()
+  const current = quotas[accountId]
+  if (current !== null || !options?.waitFresh) return current
+
+  const accounts = await Account.list("openai")
+  const info = accounts[accountId]
+  if (!info || info.type !== "subscription") return null
+
+  const inflight = refreshingPromises.get(accountId)
+  if (inflight) {
+    await inflight.catch(() => {})
+  } else {
+    const promise = refreshOpenAIAccountQuota(accountId, info)
+      .catch(() => {})
+      .finally(() => {
+        refreshingOpenAI.delete(accountId)
+        refreshingPromises.delete(accountId)
+      })
+    refreshingOpenAI.add(accountId)
+    refreshingPromises.set(accountId, promise)
+    await promise
+  }
+
+  return quotaCache.get(accountId)?.quota ?? null
 }
 
 async function refreshOpenAIAccountQuota(id: string, info: Account.Info): Promise<void> {

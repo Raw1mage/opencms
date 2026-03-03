@@ -46,7 +46,7 @@ import { ActivityBeacon } from "@/util/activity-beacon"
 import { WebAuth } from "./web-auth"
 import { RequestUser } from "@/runtime/request-user"
 import { LinuxUserExec } from "@/system/linux-user-exec"
-import { UserWorkerManager } from "./user-worker"
+import { UserDaemonManager } from "./user-daemon"
 
 // Declare external CORS whitelist (set by server.ts)
 declare global {
@@ -61,6 +61,8 @@ const beacon = ActivityBeacon.scope("server.app")
  * This is extracted from server.ts to fix TypeScript type inference issues with lazy().
  */
 export function createApp(app: Hono): Hono {
+  UserDaemonManager.logRuntimeModeOnce()
+
   app.onError((err, c) => {
     log.error("failed", {
       error: err,
@@ -109,7 +111,18 @@ export function createApp(app: Hono): Hono {
     const cliToken = process.env.OPENCODE_CLI_TOKEN
     const authHeader = c.req.header("authorization")
     if (cliToken && authHeader === `Bearer ${cliToken}`) {
-      return proceed()
+      const tokenUserHeader = c.req.header("x-opencode-user")
+      const tokenUser = LinuxUserExec.sanitizeUsername(tokenUserHeader)
+      if (!tokenUser) {
+        return c.json(
+          {
+            code: "CLI_USER_REQUIRED",
+            message: "CLI token requests must include x-opencode-user",
+          },
+          401,
+        )
+      }
+      return proceed(tokenUser)
     }
 
     if (!WebAuth.enabled()) return proceed()
@@ -169,10 +182,7 @@ export function createApp(app: Hono): Hono {
   app.use(async (c, next) => {
     if (c.req.path === "/log" || c.req.path.endsWith("/log")) return next()
     const requestUser = RequestUser.username()
-    if (UserWorkerManager.enabled()) {
-      UserWorkerManager.observe(requestUser)
-      UserWorkerManager.prewarm(requestUser)
-    }
+    UserDaemonManager.observe(requestUser)
     const requestHost = (() => {
       try {
         return new URL(c.req.url).hostname
@@ -640,24 +650,28 @@ export function createApp(app: Hono): Hono {
         })
         const unsub = Bus.subscribeAll(async (event) => {
           beacon.hit("event.publish")
-          await stream.writeSSE({
-            data: JSON.stringify(event),
-          }).catch(() => {
-            // Write failed, stream probably aborted
-          })
+          await stream
+            .writeSSE({
+              data: JSON.stringify(event),
+            })
+            .catch(() => {
+              // Write failed, stream probably aborted
+            })
         })
 
         // Send heartbeat every 30s to prevent WKWebView timeout (60s default)
         const heartbeat = setInterval(() => {
           beacon.hit("event.heartbeat")
-          stream.writeSSE({
-            data: JSON.stringify({
-              type: "server.heartbeat",
-              properties: {},
-            }),
-          }).catch(() => {
-            // Write failed
-          })
+          stream
+            .writeSSE({
+              data: JSON.stringify({
+                type: "server.heartbeat",
+                properties: {},
+              }),
+            })
+            .catch(() => {
+              // Write failed
+            })
         }, 30000)
 
         try {

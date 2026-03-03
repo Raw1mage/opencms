@@ -18,7 +18,7 @@ import { PermissionNext } from "@/permission/next"
 import { errors } from "../error"
 import { lazy } from "../../util/lazy"
 import { RequestUser } from "@/runtime/request-user"
-import { UserWorkerManager } from "../user-worker"
+import { UserDaemonManager } from "../user-daemon"
 
 const log = Log.create({ service: "server" })
 
@@ -57,29 +57,19 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const query = c.req.valid("query")
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routingEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.list",
-            payload: {
-              directory: query.directory,
-              search: query.search,
-              start: query.start,
-              limit: query.limit,
-              scope: query.roots ? "roots" : "all",
-            },
-          })
+        if (username && UserDaemonManager.routeSessionListEnabled()) {
+          const response = await UserDaemonManager.callSessionList<Session.Info[]>(username, query)
           if (response.ok && Array.isArray(response.data)) {
-            return c.json(response.data as Session.Info[])
+            return c.json(response.data)
           }
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to list sessions",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.list payload is not an array" : response.error.message,
             },
             503,
           )
         }
-
         const sessions: Session.Info[] = []
         for await (const session of Session.listGlobal({
           directory: query.directory,
@@ -113,18 +103,16 @@ export const SessionRoutes = lazy(() =>
       }),
       async (c) => {
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routingEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.status",
-            payload: {},
-          })
+        if (username && UserDaemonManager.routeSessionStatusEnabled()) {
+          const response =
+            await UserDaemonManager.callSessionStatus<Record<string, z.infer<typeof SessionStatus.Info>>>(username)
           if (response.ok && response.data && typeof response.data === "object") {
-            return c.json(response.data as Record<string, z.infer<typeof SessionStatus.Info>>)
+            return c.json(response.data)
           }
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to read session status",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.status payload is not an object" : response.error.message,
             },
             503,
           )
@@ -168,22 +156,19 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const query = c.req.valid("query")
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routingEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.top",
-            payload: {
-              sessionID: query.sessionID,
-              includeDescendants: query.includeDescendants,
-              maxMessages: query.maxMessages,
-            },
+        if (username && UserDaemonManager.routeSessionTopEnabled()) {
+          const response = await UserDaemonManager.callSessionTop<z.infer<typeof SessionMonitor.Info>[]>(username, {
+            sessionID: query.sessionID,
+            includeDescendants: query.includeDescendants,
+            maxMessages: query.maxMessages,
           })
           if (response.ok && Array.isArray(response.data)) {
-            return c.json(response.data as z.infer<typeof SessionMonitor.Info>[])
+            return c.json(response.data)
           }
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to read session top",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.top payload is not an array" : response.error.message,
             },
             503,
           )
@@ -224,18 +209,13 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routingEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.get",
-            payload: { sessionID },
-          })
-          if (response.ok && response.data) {
-            return c.json(response.data as Session.Info)
-          }
+        if (username && UserDaemonManager.routeSessionReadEnabled()) {
+          const response = await UserDaemonManager.callSessionGet<Session.Info>(username, sessionID)
+          if (response.ok && response.data) return c.json(response.data)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to get session",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.get payload is empty" : response.error.message,
             },
             503,
           )
@@ -273,18 +253,13 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routingEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.children",
-            payload: { sessionID },
-          })
-          if (response.ok && Array.isArray(response.data)) {
-            return c.json(response.data as Session.Info[])
-          }
+        if (username && UserDaemonManager.routeSessionReadEnabled()) {
+          const response = await UserDaemonManager.callSessionChildren<Session.Info[]>(username, sessionID)
+          if (response.ok && Array.isArray(response.data)) return c.json(response.data)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to get session children",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.children payload is not an array" : response.error.message,
             },
             503,
           )
@@ -320,18 +295,13 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routingEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.todo",
-            payload: { sessionID },
-          })
-          if (response.ok && Array.isArray(response.data)) {
-            return c.json(response.data as z.infer<typeof Todo.Info>[])
-          }
+        if (username && UserDaemonManager.routeSessionReadEnabled()) {
+          const response = await UserDaemonManager.callSessionTodo<z.infer<typeof Todo.Info>[]>(username, sessionID)
+          if (response.ok && Array.isArray(response.data)) return c.json(response.data)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to get session todos",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.todo payload is not an array" : response.error.message,
             },
             503,
           )
@@ -362,18 +332,13 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const body = c.req.valid("json") ?? {}
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.create",
-            payload: { body },
-          })
-          if (response.ok && response.data) {
-            return c.json(response.data as Session.Info)
-          }
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionCreate<Session.Info>(username, body)
+          if (response.ok && response.data) return c.json(response.data)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to create session",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.create payload is empty" : response.error.message,
             },
             503,
           )
@@ -409,16 +374,13 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.delete",
-            payload: { sessionID },
-          })
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionDelete<boolean>(username, sessionID)
           if (response.ok) return c.json(true)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to delete session",
+              code: response.error.code,
+              message: response.error.message,
             },
             503,
           )
@@ -469,23 +431,17 @@ export const SessionRoutes = lazy(() =>
         const updates = c.req.valid("json")
 
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.update",
-            payload: { sessionID, updates },
-          })
-          if (response.ok && response.data) {
-            return c.json(response.data as Session.Info)
-          }
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionUpdate<Session.Info>(username, sessionID, updates)
+          if (response.ok && response.data) return c.json(response.data)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to update session",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.update payload is empty" : response.error.message,
             },
             503,
           )
         }
-
         const updatedSession = await Session.update(
           sessionID,
           (session) => {
@@ -530,16 +486,13 @@ export const SessionRoutes = lazy(() =>
         const sessionID = c.req.valid("param").sessionID
         const body = c.req.valid("json")
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.init",
-            payload: { sessionID, body },
-          })
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionInit<boolean>(username, sessionID, body)
           if (response.ok) return c.json(true)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to initialize session",
+              code: response.error.code,
+              message: response.error.message,
             },
             503,
           )
@@ -576,16 +529,13 @@ export const SessionRoutes = lazy(() =>
         const sessionID = c.req.valid("param").sessionID
         const body = c.req.valid("json")
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.fork",
-            payload: { sessionID, body },
-          })
-          if (response.ok && response.data) return c.json(response.data as Session.Info)
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionFork<Session.Info>(username, sessionID, body)
+          if (response.ok && response.data) return c.json(response.data)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to fork session",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.fork payload is empty" : response.error.message,
             },
             503,
           )
@@ -621,16 +571,13 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.abort",
-            payload: { sessionID },
-          })
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionAbort<boolean>(username, sessionID)
           if (response.ok) return c.json(true)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to abort session",
+              code: response.error.code,
+              message: response.error.message,
             },
             503,
           )
@@ -666,16 +613,13 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.share",
-            payload: { sessionID },
-          })
-          if (response.ok && response.data) return c.json(response.data as Session.Info)
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionShare<Session.Info>(username, sessionID)
+          if (response.ok && response.data) return c.json(response.data)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to share session",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.share payload is empty" : response.error.message,
             },
             503,
           )
@@ -721,21 +665,17 @@ export const SessionRoutes = lazy(() =>
           return c.json({ code: "BAD_REQUEST", message: "messageID is required" }, 400)
         }
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routingEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.diff",
-            payload: {
-              sessionID: params.sessionID,
-              messageID: query.messageID,
-            },
-          })
-          if (response.ok && Array.isArray(response.data)) {
-            return c.json(response.data as Snapshot.FileDiff[])
-          }
+        if (username && UserDaemonManager.routeSessionReadEnabled()) {
+          const response = await UserDaemonManager.callSessionDiff<Snapshot.FileDiff[]>(
+            username,
+            params.sessionID,
+            query.messageID,
+          )
+          if (response.ok && Array.isArray(response.data)) return c.json(response.data)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to get session diff",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.diff payload is not an array" : response.error.message,
             },
             503,
           )
@@ -774,16 +714,13 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.unshare",
-            payload: { sessionID },
-          })
-          if (response.ok && response.data) return c.json(response.data as Session.Info)
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionUnshare<Session.Info>(username, sessionID)
+          if (response.ok && response.data) return c.json(response.data)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to unshare session",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.unshare payload is empty" : response.error.message,
             },
             503,
           )
@@ -829,16 +766,13 @@ export const SessionRoutes = lazy(() =>
         const sessionID = c.req.valid("param").sessionID
         const body = c.req.valid("json")
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.summarize",
-            payload: { sessionID, body },
-          })
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionSummarize<boolean>(username, sessionID, body)
           if (response.ok) return c.json(true)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to summarize session",
+              code: response.error.code,
+              message: response.error.message,
             },
             503,
           )
@@ -901,21 +835,17 @@ export const SessionRoutes = lazy(() =>
         const query = c.req.valid("query")
         const sessionID = c.req.valid("param").sessionID
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routingEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.messages",
-            payload: {
-              sessionID,
-              limit: query.limit,
-            },
-          })
-          if (response.ok && Array.isArray(response.data)) {
-            return c.json(response.data as MessageV2.WithParts[])
-          }
+        if (username && UserDaemonManager.routeSessionReadEnabled()) {
+          const response = await UserDaemonManager.callSessionMessages<MessageV2.WithParts[]>(
+            username,
+            sessionID,
+            query.limit,
+          )
+          if (response.ok && Array.isArray(response.data)) return c.json(response.data)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to list messages",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.messages payload is not an array" : response.error.message,
             },
             503,
           )
@@ -960,21 +890,16 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const params = c.req.valid("param")
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routingEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.message.get",
-            payload: {
-              sessionID: params.sessionID,
-              messageID: params.messageID,
-            },
-          })
-          if (response.ok && response.data) {
-            return c.json(response.data as { info: MessageV2.Info; parts: MessageV2.Part[] })
-          }
+        if (username && UserDaemonManager.routeSessionReadEnabled()) {
+          const response = await UserDaemonManager.callSessionMessageGet<{
+            info: MessageV2.Info
+            parts: MessageV2.Part[]
+          }>(username, params.sessionID, params.messageID)
+          if (response.ok && response.data) return c.json(response.data)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to get message",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.message.get payload is empty" : response.error.message,
             },
             503,
           )
@@ -1015,19 +940,17 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const params = c.req.valid("param")
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.message.delete",
-            payload: {
-              sessionID: params.sessionID,
-              messageID: params.messageID,
-            },
-          })
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionMessageDelete<boolean>(
+            username,
+            params.sessionID,
+            params.messageID,
+          )
           if (response.ok) return c.json(true)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to delete message",
+              code: response.error.code,
+              message: response.error.message,
             },
             503,
           )
@@ -1068,20 +991,18 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const params = c.req.valid("param")
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.part.delete",
-            payload: {
-              sessionID: params.sessionID,
-              messageID: params.messageID,
-              partID: params.partID,
-            },
-          })
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionPartDelete<boolean>(
+            username,
+            params.sessionID,
+            params.messageID,
+            params.partID,
+          )
           if (response.ok) return c.json(true)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to delete part",
+              code: response.error.code,
+              message: response.error.message,
             },
             503,
           )
@@ -1124,18 +1045,24 @@ export const SessionRoutes = lazy(() =>
         const params = c.req.valid("param")
         const body = c.req.valid("json")
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.part.update",
-            payload: {
-              part: body,
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionPartUpdate<MessageV2.Part>(
+            username,
+            params.sessionID,
+            params.messageID,
+            params.partID,
+            {
+              ...body,
+              id: params.partID,
+              messageID: params.messageID,
+              sessionID: params.sessionID,
             },
-          })
-          if (response.ok && response.data) return c.json(response.data as MessageV2.Part)
+          )
+          if (response.ok && response.data) return c.json(response.data)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to update part",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.part.update payload is empty" : response.error.message,
             },
             503,
           )
@@ -1183,23 +1110,20 @@ export const SessionRoutes = lazy(() =>
         const sessionID = c.req.valid("param").sessionID
         const body = c.req.valid("json")
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.prompt",
-            payload: { sessionID, body },
-          })
-          if (response.ok && response.data) {
-            return c.json(response.data as { info: MessageV2.Assistant; parts: MessageV2.Part[] })
-          }
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionPrompt<{
+            info: MessageV2.Assistant
+            parts: MessageV2.Part[]
+          }>(username, sessionID, body)
+          if (response.ok && response.data) return c.json(response.data)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to prompt session",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.prompt payload is empty" : response.error.message,
             },
             503,
           )
         }
-
         c.status(200)
         c.header("Content-Type", "application/json")
         return stream(c, async (stream) => {
@@ -1235,18 +1159,13 @@ export const SessionRoutes = lazy(() =>
         const sessionID = c.req.valid("param").sessionID
         const body = c.req.valid("json")
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.prompt_async",
-            payload: { sessionID, body },
-          })
-          if (response.ok) {
-            return stream(c, async () => {})
-          }
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionPromptAsync<boolean>(username, sessionID, body)
+          if (response.ok) return stream(c, async () => {})
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to run prompt_async",
+              code: response.error.code,
+              message: response.error.message,
             },
             503,
           )
@@ -1290,16 +1209,13 @@ export const SessionRoutes = lazy(() =>
         const sessionID = c.req.valid("param").sessionID
         const body = c.req.valid("json")
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.command",
-            payload: { sessionID, body },
-          })
-          if (response.ok && response.data) return c.json(response.data as MessageV2.Assistant)
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionCommand<MessageV2.Assistant>(username, sessionID, body)
+          if (response.ok && response.data) return c.json(response.data)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to run command",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.command payload is empty" : response.error.message,
             },
             503,
           )
@@ -1337,16 +1253,13 @@ export const SessionRoutes = lazy(() =>
         const sessionID = c.req.valid("param").sessionID
         const body = c.req.valid("json")
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.shell",
-            payload: { sessionID, body },
-          })
-          if (response.ok && response.data) return c.json(response.data as MessageV2.Assistant)
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionShell<MessageV2.Assistant>(username, sessionID, body)
+          if (response.ok && response.data) return c.json(response.data)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to run shell",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.shell payload is empty" : response.error.message,
             },
             503,
           )
@@ -1385,16 +1298,13 @@ export const SessionRoutes = lazy(() =>
         log.info("revert", c.req.valid("json"))
         const body = c.req.valid("json")
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.revert",
-            payload: { sessionID, body },
-          })
-          if (response.ok && response.data) return c.json(response.data as Session.Info)
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionRevert<Session.Info>(username, sessionID, body)
+          if (response.ok && response.data) return c.json(response.data)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to revert session",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.revert payload is empty" : response.error.message,
             },
             503,
           )
@@ -1433,16 +1343,13 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeSessionMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "session.unrevert",
-            payload: { sessionID },
-          })
-          if (response.ok && response.data) return c.json(response.data as Session.Info)
+        if (username && UserDaemonManager.routeSessionMutationEnabled()) {
+          const response = await UserDaemonManager.callSessionUnrevert<Session.Info>(username, sessionID)
+          if (response.ok && response.data) return c.json(response.data)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to unrevert session",
+              code: response.ok ? "DAEMON_INVALID_PAYLOAD" : response.error.code,
+              message: response.ok ? "daemon session.unrevert payload is empty" : response.error.message,
             },
             503,
           )

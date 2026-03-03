@@ -8,7 +8,7 @@ import { errors } from "../error"
 import { Log } from "../../util/log"
 import { lazy } from "../../util/lazy"
 import { RequestUser } from "@/runtime/request-user"
-import { UserWorkerManager } from "../user-worker"
+import { UserDaemonManager } from "../user-daemon"
 
 const log = Log.create({ service: "server" })
 
@@ -33,18 +33,20 @@ export const ConfigRoutes = lazy(() =>
       }),
       async (c) => {
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeConfigGetEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "config.get",
-            payload: {},
-          })
-          if (response.ok && response.data) {
-            return c.json(response.data as z.infer<typeof Config.Info>)
+        if (username && UserDaemonManager.routeConfigEnabled()) {
+          const response = await UserDaemonManager.callConfigGet<z.infer<typeof Config.Info>>(username)
+          if (response.ok) {
+            return c.json(response.data)
           }
+          log.warn("per-user daemon config.get failed", {
+            username,
+            code: response.error.code,
+            message: response.error.message,
+          })
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to get config",
+              code: response.error.code,
+              message: response.error.message,
             },
             503,
           )
@@ -74,18 +76,20 @@ export const ConfigRoutes = lazy(() =>
       async (c) => {
         const config = c.req.valid("json")
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeConfigUpdateEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "config.update",
-            payload: { config },
-          })
+        if (username && UserDaemonManager.routeConfigEnabled()) {
+          const response = await UserDaemonManager.callConfigUpdate<z.infer<typeof Config.Info>>(username, config)
           if (response.ok) {
             return c.json(config)
           }
+          log.warn("per-user daemon config.update failed", {
+            username,
+            code: response.error.code,
+            message: response.error.message,
+          })
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to update config",
+              code: response.error.code,
+              message: response.error.message,
             },
             503,
           )

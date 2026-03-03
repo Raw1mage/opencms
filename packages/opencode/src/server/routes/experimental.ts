@@ -10,6 +10,7 @@ import { Session } from "../../session"
 import { zodToJsonSchema } from "zod-to-json-schema"
 import { errors } from "../error"
 import { lazy } from "../../util/lazy"
+import { UserDaemonManager } from "../user-daemon"
 
 function isZodSchemaLike(value: unknown): value is z.ZodType {
   return !!value && typeof value === "object" && "_def" in value
@@ -17,6 +18,42 @@ function isZodSchemaLike(value: unknown): value is z.ZodType {
 
 export const ExperimentalRoutes = lazy(() =>
   new Hono()
+    .get(
+      "/user-daemon",
+      describeRoute({
+        summary: "Get per-user daemon snapshots",
+        description: "Return observed per-user daemon socket state for diagnostics.",
+        operationId: "experimental.userDaemon.list",
+        responses: {
+          200: {
+            description: "Per-user daemon snapshots",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.array(
+                    z.object({
+                      username: z.string(),
+                      uid: z.number(),
+                      port: z.number(),
+                      socketPath: z.string(),
+                      status: z.enum(["planned", "starting", "ready", "missing"]),
+                      firstSeenAt: z.number(),
+                      lastSeenAt: z.number(),
+                      lastStartAttemptAt: z.number().optional(),
+                      startAttempts: z.number(),
+                      lastStartError: z.string().optional(),
+                    }),
+                  ),
+                ),
+              },
+            },
+          },
+        },
+      }),
+      async (c) => {
+        return c.json(UserDaemonManager.list())
+      },
+    )
     .get(
       "/tool/ids",
       describeRoute({

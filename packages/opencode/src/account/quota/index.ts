@@ -20,6 +20,7 @@
 export {
   // Main API
   getOpenAIQuotas,
+  getOpenAIQuota,
   // Codex helpers (used by dialog-admin.tsx)
   refreshCodexAccessToken,
   extractAccountIdFromTokens,

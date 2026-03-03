@@ -58,6 +58,8 @@ const startEventStream = (directory: string) => {
     const request = new Request(input, init)
     const auth = getAuthorizationHeader()
     if (auth) request.headers.set("Authorization", auth)
+    const requestUser = getRequestUsername()
+    if (requestUser) request.headers.set("x-opencode-user", requestUser)
     return Server.App().fetch(request)
   }) as typeof globalThis.fetch
 
@@ -68,39 +70,39 @@ const startEventStream = (directory: string) => {
     signal,
   })
 
-    ; (async () => {
-      while (!signal.aborted) {
-        beacon.hit("event_stream.subscribe_attempt")
-        const events = await Promise.resolve(
-          sdk.event.subscribe(
-            {},
-            {
-              signal,
-            },
-          ),
-        ).catch(() => undefined)
+  ;(async () => {
+    while (!signal.aborted) {
+      beacon.hit("event_stream.subscribe_attempt")
+      const events = await Promise.resolve(
+        sdk.event.subscribe(
+          {},
+          {
+            signal,
+          },
+        ),
+      ).catch(() => undefined)
 
-        if (!events) {
-          beacon.hit("event_stream.subscribe_empty")
-          await Bun.sleep(250)
-          continue
-        }
-
-        for await (const event of events.stream) {
-          beacon.hit("event_stream.event")
-          Rpc.emit("event", event as Event)
-        }
-
-        if (!signal.aborted) {
-          await Bun.sleep(250)
-        }
+      if (!events) {
+        beacon.hit("event_stream.subscribe_empty")
+        await Bun.sleep(250)
+        continue
       }
-    })().catch((error) => {
-      beacon.hit("event_stream.error")
-      Log.Default.error("event stream error", {
-        error: error instanceof Error ? error.message : error,
-      })
+
+      for await (const event of events.stream) {
+        beacon.hit("event_stream.event")
+        Rpc.emit("event", event as Event)
+      }
+
+      if (!signal.aborted) {
+        await Bun.sleep(250)
+      }
+    }
+  })().catch((error) => {
+    beacon.hit("event_stream.error")
+    Log.Default.error("event stream error", {
+      error: error instanceof Error ? error.message : error,
     })
+  })
 }
 
 startEventStream(process.cwd())
@@ -112,6 +114,10 @@ export const rpc = {
     const auth = getAuthorizationHeader()
     if (auth && !headers["authorization"] && !headers["Authorization"]) {
       headers["Authorization"] = auth
+    }
+    const requestUser = getRequestUsername()
+    if (requestUser && !headers["x-opencode-user"] && !headers["X-Opencode-User"]) {
+      headers["x-opencode-user"] = requestUser
     }
     const request = new Request(input.url, {
       method: input.method,
@@ -138,7 +144,7 @@ export const rpc = {
       directory: input.directory,
       init: InstanceBootstrap,
       fn: async () => {
-        await upgrade().catch(() => { })
+        await upgrade().catch(() => {})
       },
     })
   },
@@ -171,4 +177,8 @@ function getAuthorizationHeader(): string | undefined {
   if (!password) return undefined
   const username = Flag.OPENCODE_SERVER_USERNAME ?? "opencode"
   return `Basic ${btoa(`${username}:${password}`)}`
+}
+
+function getRequestUsername(): string | undefined {
+  return process.env.OPENCODE_EFFECTIVE_USER || process.env.USER || process.env.LOGNAME
 }

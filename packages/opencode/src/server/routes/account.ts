@@ -6,9 +6,9 @@ import { lazy } from "../../util/lazy"
 import { errors } from "../error"
 import { Config } from "../../config/config"
 import { Plugin } from "../../plugin"
-import { getOpenAIQuotas } from "../../account/quota"
+import { getOpenAIQuota } from "../../account/quota"
 import { RequestUser } from "@/runtime/request-user"
-import { UserWorkerManager } from "../user-worker"
+import { UserDaemonManager } from "../user-daemon"
 
 export const AccountRoutes = lazy(() =>
   new Hono()
@@ -51,8 +51,7 @@ export const AccountRoutes = lazy(() =>
         }
 
         if (family === "openai") {
-          const quotas = await getOpenAIQuotas()
-          const quota = quotas[accountId]
+          const quota = await getOpenAIQuota(accountId, { waitFresh: true })
           const fiveHour = quota ? (quota.hasHourlyWindow ? `${quota.hourlyRemaining}%` : "--") : "--"
           const week = quota ? `${quota.weeklyRemaining}%` : "--"
           return c.json({
@@ -95,12 +94,21 @@ export const AccountRoutes = lazy(() =>
       }),
       async (c) => {
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeAccountListEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "account.list",
-            payload: {},
-          })
-          if (response.ok && response.data && typeof response.data === "object") {
+        if (username && UserDaemonManager.routeAccountListEnabled()) {
+          const response = await UserDaemonManager.callAccountList<{
+            families?: unknown
+            antigravity?: unknown
+          }>(username)
+          if (!response.ok) {
+            return c.json(
+              {
+                code: response.error.code,
+                message: response.error.message,
+              },
+              503,
+            )
+          }
+          if (response.data && typeof response.data === "object") {
             const parsed = response.data as { families?: unknown; antigravity?: unknown }
             if (parsed.families && typeof parsed.families === "object") {
               return c.json({
@@ -108,16 +116,22 @@ export const AccountRoutes = lazy(() =>
                 antigravity: parsed.antigravity,
               })
             }
+            return c.json(
+              {
+                code: "DAEMON_INVALID_PAYLOAD",
+                message: "daemon account.list payload missing families",
+              },
+              503,
+            )
           }
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to list accounts",
+              code: "DAEMON_INVALID_PAYLOAD",
+              message: "daemon account.list payload is not an object",
             },
             503,
           )
         }
-
         const families = await Account.listAll()
 
         // Fetch rich Antigravity status only when antigravity accounts actually exist.
@@ -172,21 +186,17 @@ export const AccountRoutes = lazy(() =>
         const { accountId } = c.req.valid("json")
 
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeAccountMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "account.setActive",
-            payload: { family, accountId },
-          })
+        if (username && UserDaemonManager.routeAccountMutationEnabled()) {
+          const response = await UserDaemonManager.callAccountSetActive<boolean>(username, family, accountId)
           if (response.ok) return c.json(true)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to set active account",
+              code: response.error.code,
+              message: response.error.message,
             },
             503,
           )
         }
-
         if (family === "antigravity") {
           const { AccountManager } = await import("../../plugin/antigravity/plugin/accounts")
           const { clearAccountCache } = await import("../../plugin/antigravity/plugin/storage")
@@ -222,21 +232,17 @@ export const AccountRoutes = lazy(() =>
         const { index, enabled } = c.req.valid("json")
 
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeAccountMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "account.antigravityToggle",
-            payload: { index, enabled },
-          })
+        if (username && UserDaemonManager.routeAccountMutationEnabled()) {
+          const response = await UserDaemonManager.callAccountAntigravityToggle<boolean>(username, index, enabled)
           if (response.ok) return c.json(true)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to toggle antigravity account",
+              code: response.error.code,
+              message: response.error.message,
             },
             503,
           )
         }
-
         const { AccountManager } = await import("../../plugin/antigravity/plugin/accounts")
         const { Auth } = await import("../../auth")
         const auth = await Auth.get("antigravity")
@@ -298,21 +304,17 @@ export const AccountRoutes = lazy(() =>
         const { family, accountId } = c.req.valid("param")
 
         const username = RequestUser.username()
-        if (username && UserWorkerManager.routeAccountMutationEnabled()) {
-          const response = await UserWorkerManager.call(username, {
-            method: "account.remove",
-            payload: { family, accountId },
-          })
+        if (username && UserDaemonManager.routeAccountMutationEnabled()) {
+          const response = await UserDaemonManager.callAccountRemove<boolean>(username, family, accountId)
           if (response.ok) return c.json(true)
           return c.json(
             {
-              code: response.error?.code ?? "WORKER_ERROR",
-              message: response.error?.message ?? "User worker failed to remove account",
+              code: response.error.code,
+              message: response.error.message,
             },
             503,
           )
         }
-
         if (family === "antigravity") {
           const { AccountManager } = await import("../../plugin/antigravity/plugin/accounts")
           const { clearAccountCache } = await import("../../plugin/antigravity/plugin/storage")
