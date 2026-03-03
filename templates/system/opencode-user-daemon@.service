@@ -1,0 +1,22 @@
+[Unit]
+Description=OpenCode Per-User Daemon (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%i
+Group=%i
+EnvironmentFile=-/etc/opencode/opencode.env
+ExecStart=/usr/local/libexec/opencode-user-daemon-launch %i
+Restart=on-failure
+RestartSec=1
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=false
+ReadWritePaths=/home /tmp
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

@@ -121,6 +121,8 @@ system_init() {
 
   local wrapper_src="${ROOT_DIR}/scripts/opencode-run-as-user.sh"
   local wrapper_dst="/usr/local/libexec/opencode-run-as-user"
+  local daemon_launcher_src="${ROOT_DIR}/templates/system/opencode-user-daemon-launch.sh"
+  local daemon_launcher_dst="/usr/local/libexec/opencode-user-daemon-launch"
   if [[ -f "${wrapper_src}" ]]; then
     run_as_root install -d -m 755 "/usr/local/libexec"
     run_as_root install -m 755 "${wrapper_src}" "${wrapper_dst}"
@@ -129,11 +131,21 @@ system_init() {
     log_warn "Wrapper source not found: ${wrapper_src}"
   fi
 
+  if [[ -f "${daemon_launcher_src}" ]]; then
+    run_as_root install -d -m 755 "/usr/local/libexec"
+    run_as_root install -m 755 "${daemon_launcher_src}" "${daemon_launcher_dst}"
+    log_ok "Installed per-user daemon launcher: ${daemon_launcher_dst}"
+  else
+    log_warn "Daemon launcher source not found: ${daemon_launcher_src}"
+  fi
+
   local sudoers_file="/etc/sudoers.d/opencode-run-as-user"
   local tmp_sudoers="/tmp/opencode-run-as-user.sudoers.$$"
   cat >"${tmp_sudoers}" <<EOF
 Defaults:${SYSTEM_SERVICE_USER} !requiretty
 ${SYSTEM_SERVICE_USER} ALL=(root) NOPASSWD: /usr/local/libexec/opencode-run-as-user
+${SYSTEM_SERVICE_USER} ALL=(root) NOPASSWD: /usr/bin/systemctl start opencode-user-daemon@*.service
+${SYSTEM_SERVICE_USER} ALL=(root) NOPASSWD: /bin/systemctl start opencode-user-daemon@*.service
 EOF
   run_as_root install -m 440 "${tmp_sudoers}" "${sudoers_file}"
   rm -f "${tmp_sudoers}"
@@ -182,6 +194,8 @@ EOF
 
   local unit_file="/etc/systemd/system/${SYSTEM_SERVICE_NAME}.service"
   local tmp_unit="/tmp/${SYSTEM_SERVICE_NAME}.service.$$"
+  local daemon_template_src="${ROOT_DIR}/templates/system/opencode-user-daemon@.service"
+  local daemon_template_dst="/etc/systemd/system/opencode-user-daemon@.service"
   cat >"${tmp_unit}" <<EOF
 [Unit]
 Description=OpenCode Web Service
@@ -222,6 +236,13 @@ EOF
   run_as_root install -m 644 "${tmp_unit}" "${unit_file}"
   rm -f "${tmp_unit}"
   log_ok "Installed systemd unit: ${unit_file}"
+
+  if [[ -f "${daemon_template_src}" ]]; then
+    run_as_root install -m 644 "${daemon_template_src}" "${daemon_template_dst}"
+    log_ok "Installed per-user daemon unit template: ${daemon_template_dst}"
+  else
+    log_warn "Per-user daemon unit template not found: ${daemon_template_src}"
+  fi
 
   run_as_root systemctl daemon-reload
   run_as_root systemctl enable "${SYSTEM_SERVICE_NAME}.service"
