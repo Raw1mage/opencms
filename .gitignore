@@ -50,3 +50,6 @@ __pycache__/
 /config/state/*.jsonl
 /config/lib/librust_pty.so
 /config/lib/librust_pty_arm64.so
+
+# local build output logs
+/build.log
