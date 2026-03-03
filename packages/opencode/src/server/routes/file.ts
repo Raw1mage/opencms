@@ -6,6 +6,10 @@ import { Ripgrep } from "../../file/ripgrep"
 import { LSP } from "../../lsp"
 import { Instance } from "../../project/instance"
 import { lazy } from "../../util/lazy"
+import { Log } from "@/util/log"
+import { RequestUser } from "@/runtime/request-user"
+
+const log = Log.create({ service: "server.routes.file" })
 
 export const FileRoutes = lazy(() =>
   new Hono()
@@ -191,6 +195,15 @@ export const FileRoutes = lazy(() =>
       }),
       async (c) => {
         const content = await File.status()
+        c.header("X-Opencode-Review-Directory", Instance.directory)
+        c.header("X-Opencode-Review-Count", String(content.length))
+        if (process.env.OPENCODE_DEBUG_REVIEW_CHECKPOINT === "1") {
+          log.info("checkpoint:file.status.route", {
+            requestUser: RequestUser.username() ?? null,
+            directory: Instance.directory,
+            statusCount: content.length,
+          })
+        }
         return c.json(content)
       },
     ),

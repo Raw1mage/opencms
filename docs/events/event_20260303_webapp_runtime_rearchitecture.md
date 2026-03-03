@@ -49,6 +49,7 @@ Status: In Progress
 - [x] Phase 7b（退場清理）：移除 `session` routes 中全部 user-worker 分支。
 - [x] Phase 8（退場清理）：移除 server runtime 對 `UserWorkerManager` 的依賴並刪除 manager 實作檔。
 - [x] Phase 9（退場清理）：移除 user-worker CLI command 與 RPC schema 檔案。
+- [x] Phase 10（Web UX 去重）：移除右側 File Tree 內與 Review 重複的「changes/all」分頁，只保留單一「All files」檢視。
 
 ## 架構決策（草案）
 
@@ -324,3 +325,220 @@ Status: In Progress
   - 正常路徑：`GET /experimental/user-daemon`, `GET /config`, `GET /account` -> `200`
   - strict-down：暫時 mask per-user daemon 後，`GET /config` 與 `GET /account` -> `503`
 - 結論：在已移除 user-worker runtime/CLI artifact 後，per-user daemon strict 模式仍正常運作。
+
+### UX Copy Alignment (Web ↔ TUI)
+
+- 使用者回報：Web「審查 / 變更」文案容易被理解為「本次工作階段歷史變更」，與 TUI 的 working-tree 語義不一致。
+- 調整：
+  - `packages/ui/src/i18n/en.ts`: `ui.sessionReview.title` -> `Working tree changes`
+  - `packages/ui/src/i18n/zht.ts`: `ui.sessionReview.title` -> `工作樹變更`
+  - `packages/app/src/i18n/en.ts`: `session.review.empty/noChanges` 改為 `working tree` 語義
+  - `packages/app/src/i18n/zht.ts`: `session.review.empty/noChanges` 改為 `目前工作樹沒有未提交變更 / 沒有工作樹變更`
+- 目標：讓 Web 和 TUI 都明確表示「當下 git working tree 狀態」，避免誤判為 session 歷史變更。
+
+### UX Simplification (Review vs File Tree dedup)
+
+- 使用者確認「Review」與 File Tree 的「changes」清單語義重疊，造成重複資訊與操作負擔。
+- 調整：
+  - `packages/app/src/pages/session/session-side-panel.tsx`
+    - 移除 File Tree 內 `changes/all` tabs。
+    - 保留單一 `All files` 標頭 + `FileTree`，並持續顯示 modified/kind 標記。
+  - `packages/app/src/pages/session.tsx`
+    - 移除與 File Tree tab 狀態耦合的舊邏輯（`fileTreeTab`/`setFileTreeTabValue`/review diff focus coupling）。
+    - 更新 `SessionSidePanel` 傳參以符合新介面。
+  - `packages/app/src/pages/session/index.tsx`
+    - 同步移除已刪除的 `SessionSidePanel` 舊 props 傳遞。
+- 驗證：
+  - ✅ `bun run typecheck`（workdir: `packages/app`）
+  - ✅ `bun eslint packages/app/src/pages/session.tsx packages/app/src/pages/session/index.tsx packages/app/src/pages/session/session-side-panel.tsx`
+
+### Runtime Deploy + webctl 流程簡化（2026-03-03 晚間）
+
+- 使用者回報「新 UI 未生效」，原因為 source 變更尚未重新部署到 systemd 生產服務。
+- 執行部署時遇到權限阻塞：
+  - `dist/opencode-frontend.tar.gz` 與 `packages/app/dist/*` 存在 root 擁有檔，導致 build unlink/rm `EACCES/Permission denied`。
+  - 處置：`sudo chown -R $(id -un):$(id -gn) dist packages/app/dist` 後重跑安裝。
+- 重新部署結果：
+  - `./webctl.sh install --yes` 成功（含 frontend build + binary build + systemd reload/restart）。
+  - `./webctl.sh status` 顯示健康且版本更新為 `0.0.0-cms-202603031454`。
+- 同步簡化 `webctl.sh` 操作流程：
+  - 新增 `dev-refresh`：`build-frontend + restart`（開發流程一鍵化）。
+  - 新增 `web-refresh`：source repo 下執行 `install --yes` + `web-restart`（生產重編重啟一鍵化）。
+  - 已更新 `help` 與 command routing。
+  - 驗證：`bash -n webctl.sh`、`./webctl.sh help`。
+
+### Language Default Correction（Traditional Chinese first）
+
+- 使用者回報 webapp 初始語言仍常落到簡體中文。
+- 根因：`detectLocale()` 對 `zh-*` 的 matcher 過於寬鬆，僅 `zh-Hant` 會被判定為 `zht`，`zh-TW/zh-HK/zh-MO` 會被一般 `zh` 規則攔截。
+- 修正：`packages/app/src/context/language.tsx`
+  - `zht` matcher 擴充為 `zh` + (`hant` | `tw` | `hk` | `mo`)。
+  - 仍保留無匹配時 fallback 為 `zht` 的產品預設。
+- 驗證：
+  - ✅ `bun eslint packages/app/src/context/language.tsx`
+  - ✅ `bun run typecheck`（workdir: `packages/app`）
+  - ✅ `./webctl.sh web-refresh` 後 `./webctl.sh status`：`version=0.0.0-cms-202603031500`
+
+### Review 視窗命名與 Git diff 顯示修復
+
+- 使用者需求：
+  - 將「上一輪變更」更名為「當下變動」。
+  - 將「工作樹變更」更名為「Git變動」。
+  - 修復目前 Git diff 無法顯示（列表有檔案但內容空白）。
+- 命名調整：
+  - `packages/ui/src/i18n/zht.ts`
+    - `ui.sessionReview.title`：`Git變動`
+    - `ui.sessionReview.title.lastTurn`：`當下變動`
+  - `packages/ui/src/i18n/zh.ts`
+    - `ui.sessionReview.title`：`Git变动`
+    - `ui.sessionReview.title.lastTurn`：`当下变动`
+  - `packages/app/src/i18n/zht.ts` / `packages/app/src/i18n/zh.ts`
+    - `session.review.empty/noChanges` 文案同步改為 Git 語義。
+- Bug root cause：
+  - `sync.session.diff()` 只使用 `client.file.status()`，但把 `before/after` 固定塞空字串，導致 `SessionReview` diff renderer 沒有內容可畫。
+- 修復：
+  - `packages/app/src/context/sync.tsx`
+    - 保留 `file.status()` 做變更檔案來源。
+    - 逐檔呼叫 `client.file.read({ path })`，並由 `patch.hunks` 還原 `before/after` 內容（新增 `gitContentsFromPatch`）。
+    - 新增檔 fallback：若為 added 且 patch 不可用，使用 `content` 作為 `after`。
+  - `packages/opencode/src/file/index.ts`
+    - 修正 deleted file 情境：檔案不存在時，若 git 可取 `HEAD:<file>`，回傳 `patch/diff`（old -> empty）讓前端可渲染刪除 diff。
+- 驗證：
+  - ✅ `bun eslint packages/app/src/context/sync.tsx packages/app/src/i18n/zht.ts packages/app/src/i18n/zh.ts packages/ui/src/i18n/zht.ts packages/ui/src/i18n/zh.ts packages/opencode/src/file/index.ts`
+  - ✅ `bun run typecheck`（workdir: `packages/app`）
+  - ✅ `bunx tsc -p packages/opencode/tsconfig.json --noEmit`
+  - ✅ `./webctl.sh web-refresh`，`./webctl.sh status`：`version=0.0.0-cms-202603031510`
+
+### Data Path RCA（二次修復：空白 Git 變動面板）
+
+- 使用者回報：即使有編輯，`Git變動` 面板仍常停留在「目前 Git 沒有未提交變更」。
+- 重新追查 data path：
+  1. `pages/session.tsx`（目前主路徑）只在 `session_diff` 未存在時呼叫一次 `sync.session.diff(id)`。
+  2. 若首次載入時為空陣列，後續本地檔案變更不會觸發 force refresh（快取黏住）。
+  3. `pages/session/index.tsx` 已有 `statusType===idle` 時 `force` 刷新，但 `session.tsx` 缺失該邏輯，造成雙實作行為漂移。
+- 修正：
+  - `packages/app/src/pages/session.tsx`
+    - 將 diff 觸發改為：`sync.session.diff(id, { force: statusType === "idle" })`
+    - 移除 `session_diff 已存在就 return` 的一次性 gate。
+    - 對齊 `session/index.tsx` 的刷新語義，避免 stale empty cache。
+- 驗證：
+  - ✅ `bun eslint packages/app/src/pages/session.tsx`
+  - ✅ `bun run typecheck`（workdir: `packages/app`）
+  - ✅ `./webctl.sh web-refresh`，`./webctl.sh status`：`version=0.0.0-cms-202603031522`
+
+### Data Path RCA（三次修復：Git safe.directory 導致 status 假空）
+
+- 症狀：使用者提供同一路徑 `/home/pkcs12/projects/opencode`，Web 端 `Git變動` 仍為空。
+- 重新定位後判定：
+  - Web 服務以 system user 執行，git 命令在「非 repo owner」情境可能被 `safe.directory` 限制。
+  - `File.status()` / `File.read()` 內 git 調用採 `.nothrow().text()`，失敗時輸出空字串，前端會被誤導成「無變更」。
+- 修正：`packages/opencode/src/file/index.ts`
+  - 所有 review 路徑用到的 git 命令補上 `-c safe.directory=*`：
+    - `diff --numstat HEAD`
+    - `ls-files --others --exclude-standard`
+    - `diff --name-only --diff-filter=D HEAD`
+    - `diff <file>` / `diff --staged <file>`
+    - `show HEAD:<file>`（含 deleted-file fallback）
+- 驗證：
+  - ✅ `bun eslint packages/opencode/src/file/index.ts`
+  - ✅ `bunx tsc -p packages/opencode/tsconfig.json --noEmit`
+  - ✅ `./webctl.sh web-refresh`，`./webctl.sh status`：`version=0.0.0-cms-202603031527`
+
+### Data Path RCA（四次修復：directory scope fallback 誤導）
+
+- 使用者仍回報 `Git變動` 長期空白；重新比對 middleware data path 後，發現核心風險在 `server/app.ts`：
+  - 有 auth user + home 時，directory 會被 user-home scope 邏輯重寫。
+  - 當登入帳號與專案擁有者不同（常見於 service account / 預設帳號），請求路徑可能被靜默改寫到另一個 home，導致 File.status() 永遠空。
+- 重寫 directory 解析策略（最小必要重寫）：
+  - 相對路徑仍以 user home 為基準解析。
+  - 絕對路徑不再因「超出 user home」被強制回退。
+  - 仍保留不存在路徑 fallback 與 `X-Opencode-Resolved-Directory` header。
+- 變更檔案：
+  - `packages/opencode/src/server/app.ts`
+- 驗證：
+  - ✅ `bun eslint packages/opencode/src/server/app.ts`
+  - ✅ `bunx tsc -p packages/opencode/tsconfig.json --noEmit`
+
+### Debug Checkpoints（五次：建立可觀測診斷面）
+
+#### Baseline
+
+- 使用者於同一路徑 `/home/pkcs12/projects/opencode` 持續回報 `Git變動` 空白。
+- 既有修補（cache force/safe.directory/directory scope）仍無法從 UI 端閉環驗證。
+- 缺口：缺少「請求當下」的可觀測資料（request user / resolved directory / git exit code / stderr）。
+
+#### Execution
+
+- 新增 server-side 診斷 checkpoint（無侵入主流程）：
+  - `packages/opencode/src/server/routes/experimental.ts`
+    - 新增 `GET /experimental/review-checkpoint`
+    - 回傳：
+      - `requestUser`
+      - `directory`, `worktree`, `project(vcs/id/name)`
+      - `File.status()` 結果數量與 sample
+      - git checkpoint（`diff --numstat` / `status --porcelain`）exit code + stderr/sample
+- 強化 `File.status()` 內部可觀測性：
+  - `packages/opencode/src/file/index.ts`
+    - 改用 `util/git` 收集每段 git 指令 `exitCode/stderr`。
+    - 支援 `OPENCODE_DEBUG_REVIEW_CHECKPOINT=1` 時寫入 checkpoint log（`checkpoint:file.status`）。
+
+#### Validation
+
+- ✅ `bun eslint packages/opencode/src/file/index.ts packages/opencode/src/server/routes/experimental.ts`
+- ✅ `bunx tsc -p packages/opencode/tsconfig.json --noEmit`
+- ✅ `./webctl.sh web-refresh`，`./webctl.sh status`：`version=0.0.0-cms-202603031550`
+
+### Debug Checkpoints（六次：線上請求可觀測化）
+
+#### Baseline
+
+- 即使 backend locally 可得 status，仍無法從使用者 UI 證明「前端請求當下」看到的是同一路徑與同一份狀態。
+
+#### Execution
+
+- `packages/opencode/src/server/routes/file.ts`
+  - `/file/status` 回應新增 headers：
+    - `X-Opencode-Review-Directory`
+    - `X-Opencode-Review-Count`
+  - 可直接在 Browser Network 觀測「此請求實際解析的目錄與狀態筆數」。
+- `packages/opencode/src/server/routes/experimental.ts`
+  - 保留 `GET /experimental/review-checkpoint` 供深度診斷（requestUser/directory/project/git exit）。
+
+#### Validation
+
+- ✅ `bun eslint packages/opencode/src/server/routes/file.ts packages/opencode/src/file/index.ts packages/opencode/src/server/routes/experimental.ts`
+- ✅ `bunx tsc -p packages/opencode/tsconfig.json --noEmit`
+- ✅ `./webctl.sh web-refresh`，`./webctl.sh status`：`version=0.0.0-cms-202603031553`
+- ✅ `curl /api/v2/file/status?directory=/home/pkcs12/projects/opencode` 可見 headers：
+  - `X-Opencode-Resolved-Directory: /home/pkcs12/projects/opencode`
+  - `X-Opencode-Review-Directory: /home/pkcs12/projects/opencode`
+  - `X-Opencode-Review-Count: 17`
+
+### UX 文案改名 + Debug 面收斂
+
+#### Baseline
+
+- 使用者要求文案更名：
+  - `Git變動` → `累積異動`
+  - `當下變動` → `最新異動`
+  - `審查`（tab 標題）→ `異動清單`
+- 同時要求依建議收斂 debug 面：保留輕量 checkpoint，重型 diagnostics 改為 debug-only。
+
+#### Execution
+
+- 文案調整：
+  - `packages/ui/src/i18n/zht.ts`
+  - `packages/ui/src/i18n/zh.ts`
+  - `packages/app/src/i18n/zht.ts`
+  - `packages/app/src/i18n/zh.ts`
+- Debug 面收斂：
+  - `packages/opencode/src/server/routes/experimental.ts`
+    - `GET /experimental/review-checkpoint` 新增 gate：`OPENCODE_DEBUG_REVIEW_CHECKPOINT=1` 才開放，否則回 `404 CHECKPOINT_DISABLED`。
+  - `packages/opencode/src/server/routes/file.ts` 的 `X-Opencode-Review-*` headers 保留（輕量可觀測）。
+
+#### Validation
+
+- ✅ `bun eslint packages/ui/src/i18n/zht.ts packages/ui/src/i18n/zh.ts packages/app/src/i18n/zht.ts packages/app/src/i18n/zh.ts packages/opencode/src/server/routes/experimental.ts`
+- ✅ `bun run typecheck`（workdir: `packages/app`）
+- ✅ `bunx tsc -p packages/opencode/tsconfig.json --noEmit`
+- ✅ `./webctl.sh web-refresh`，`./webctl.sh status`：`version=0.0.0-cms-202603031604`

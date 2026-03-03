@@ -1,4 +1,4 @@
-import { For, Match, Show, Switch, createMemo, onCleanup, type JSX, type ValidComponent } from "solid-js"
+import { For, Show, createMemo, onCleanup, type JSX, type ValidComponent } from "solid-js"
 import { Tabs } from "@opencode-ai/ui/tabs"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
@@ -64,13 +64,8 @@ export function SessionSidePanel(props: {
   onDragStart: (event: unknown) => void
   onDragEnd: () => void
   onDragOver: (event: DragEvent) => void
-  fileTreeTab: () => "changes" | "all"
-  setFileTreeTabValue: (value: string) => void
-  diffsReady: boolean
   diffFiles: string[]
   kinds: Map<string, "add" | "del" | "mix">
-  activeDiff?: string
-  focusReviewDiff: (path: string) => void
 }) {
   const openedTabs = createMemo(() => props.openedTabs())
 
@@ -241,62 +236,17 @@ export function SessionSidePanel(props: {
               class="h-full flex flex-col overflow-hidden group/filetree"
               classList={{ "border-l border-border-weak-base": props.reviewOpen }}
             >
-              <Tabs
-                variant="pill"
-                value={props.fileTreeTab()}
-                onChange={props.setFileTreeTabValue}
-                class="h-full"
-                data-scope="filetree"
-              >
-                <Tabs.List>
-                  <Tabs.Trigger value="changes" class="flex-1" classes={{ button: "w-full" }}>
-                    {props.reviewCount}{" "}
-                    {props.language.t(
-                      props.reviewCount === 1 ? "session.review.change.one" : "session.review.change.other",
-                    )}
-                  </Tabs.Trigger>
-                  <Tabs.Trigger value="all" class="flex-1" classes={{ button: "w-full" }}>
-                    {props.language.t("session.files.all")}
-                  </Tabs.Trigger>
-                </Tabs.List>
-                <Tabs.Content value="changes" class="bg-background-base px-3 py-0">
-                  <Switch>
-                    <Match when={props.hasReview}>
-                      <Show
-                        when={props.diffsReady}
-                        fallback={
-                          <div class="px-2 py-2 text-12-regular text-text-weak">
-                            {props.language.t("common.loading")}
-                            {props.language.t("common.loading.ellipsis")}
-                          </div>
-                        }
-                      >
-                        <FileTree
-                          path=""
-                          allowed={props.diffFiles}
-                          kinds={props.kinds}
-                          draggable={false}
-                          active={props.activeDiff}
-                          onFileClick={(node) => props.focusReviewDiff(node.path)}
-                        />
-                      </Show>
-                    </Match>
-                    <Match when={true}>
-                      <div class="mt-8 text-center text-12-regular text-text-weak">
-                        {props.language.t("session.review.noChanges")}
-                      </div>
-                    </Match>
-                  </Switch>
-                </Tabs.Content>
-                <Tabs.Content value="all" class="bg-background-base px-3 py-0">
-                  <FileTree
-                    path=""
-                    modified={props.diffFiles}
-                    kinds={props.kinds}
-                    onFileClick={(node) => props.openTab(props.file.tab(node.path))}
-                  />
-                </Tabs.Content>
-              </Tabs>
+              <div class="h-10 px-3 flex items-center text-12-medium text-text-weak border-b border-border-weak-base">
+                {props.language.t("session.files.all")}
+              </div>
+              <div class="bg-background-base px-3 py-0 h-full overflow-auto">
+                <FileTree
+                  path=""
+                  modified={props.diffFiles}
+                  kinds={props.kinds}
+                  onFileClick={(node) => props.openTab(props.file.tab(node.path))}
+                />
+              </div>
             </div>
             <ResizeHandle
               direction="horizontal"

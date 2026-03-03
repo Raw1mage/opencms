@@ -1102,7 +1102,7 @@ export default function Page() {
                         const id = params.id
                         if (!id) return
                         setTitleState("saving", true)
-                        await sdk.client.session.update({ sessionID: id, title: titleState.draft }).catch(() => { })
+                        await sdk.client.session.update({ sessionID: id, title: titleState.draft }).catch(() => {})
                         batch(() => {
                           setTitleState("saving", false)
                           setTitleState("editing", false)
@@ -1123,7 +1123,7 @@ export default function Page() {
                         navigate(`/${params.dir}`)
                       }}
                       t={(k, v) => language.t(k as any, v as any)}
-                      setContentRef={() => { }}
+                      setContentRef={() => {}}
                       turnStart={store.turnStart}
                       onRenderEarlier={() => setStore("turnStart", 0)}
                       historyMore={historyMore()}
@@ -1228,13 +1228,8 @@ export default function Page() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}
-          fileTreeTab={fileTreeTab}
-          setFileTreeTabValue={setFileTreeTabValue}
-          diffsReady={diffsReady()}
           diffFiles={diffFiles()}
           kinds={kinds()}
-          activeDiff={activeDiff()}
-          focusReviewDiff={focusReviewDiff}
         />
       </div>
 

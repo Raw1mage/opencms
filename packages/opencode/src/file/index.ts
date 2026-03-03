@@ -12,6 +12,7 @@ import { Instance } from "../project/instance"
 import { Ripgrep } from "./ripgrep"
 import fuzzysort from "fuzzysort"
 import { Global } from "../global"
+import { git } from "../util/git"
 
 export namespace File {
   const log = Log.create({ service: "file" })
@@ -554,15 +555,22 @@ export namespace File {
     state()
   }
 
+  async function outputText(input: Buffer | ReadableStream<Uint8Array>) {
+    if (Buffer.isBuffer(input)) return input.toString()
+    return await Bun.readableStreamToText(input)
+  }
+
   export async function status() {
     const project = Instance.project
     if (project.vcs !== "git") return []
 
-    const diffOutput = await $`git -c core.quotepath=false diff --numstat HEAD`
-      .cwd(Instance.directory)
-      .quiet()
-      .nothrow()
-      .text()
+    const diffResult = await git(
+      ["-c", "safe.directory=*", "-c", "core.quotepath=false", "diff", "--numstat", "HEAD"],
+      {
+        cwd: Instance.directory,
+      },
+    )
+    const diffOutput = await diffResult.text()
 
     const changedFiles: Info[] = []
 
@@ -579,11 +587,11 @@ export namespace File {
       }
     }
 
-    const untrackedOutput = await $`git -c core.quotepath=false ls-files --others --exclude-standard`
-      .cwd(Instance.directory)
-      .quiet()
-      .nothrow()
-      .text()
+    const untrackedResult = await git(
+      ["-c", "safe.directory=*", "-c", "core.quotepath=false", "ls-files", "--others", "--exclude-standard"],
+      { cwd: Instance.directory },
+    )
+    const untrackedOutput = await untrackedResult.text()
 
     if (untrackedOutput.trim()) {
       const untrackedFiles = untrackedOutput.trim().split("\n")
@@ -604,11 +612,11 @@ export namespace File {
     }
 
     // Get deleted files
-    const deletedOutput = await $`git -c core.quotepath=false diff --name-only --diff-filter=D HEAD`
-      .cwd(Instance.directory)
-      .quiet()
-      .nothrow()
-      .text()
+    const deletedResult = await git(
+      ["-c", "safe.directory=*", "-c", "core.quotepath=false", "diff", "--name-only", "--diff-filter=D", "HEAD"],
+      { cwd: Instance.directory },
+    )
+    const deletedOutput = await deletedResult.text()
 
     if (deletedOutput.trim()) {
       const deletedFiles = deletedOutput.trim().split("\n")
@@ -622,13 +630,35 @@ export namespace File {
       }
     }
 
-    return changedFiles.map((x) => {
+    const normalized = changedFiles.map((x) => {
       const full = path.isAbsolute(x.path) ? x.path : path.join(Instance.directory, x.path)
       return {
         ...x,
         path: path.relative(Instance.directory, full),
       }
     })
+
+    if (process.env.OPENCODE_DEBUG_REVIEW_CHECKPOINT === "1") {
+      const [diffErr, untrackedErr, deletedErr] = await Promise.all([
+        outputText(diffResult.stderr),
+        outputText(untrackedResult.stderr),
+        outputText(deletedResult.stderr),
+      ])
+
+      log.info("checkpoint:file.status", {
+        directory: Instance.directory,
+        vcs: project.vcs,
+        diffExit: diffResult.exitCode,
+        untrackedExit: untrackedResult.exitCode,
+        deletedExit: deletedResult.exitCode,
+        diffErr: diffErr.trim().slice(0, 300),
+        untrackedErr: untrackedErr.trim().slice(0, 300),
+        deletedErr: deletedErr.trim().slice(0, 300),
+        statusCount: normalized.length,
+      })
+    }
+
+    return normalized
   }
 
   export async function read(file: string): Promise<Content> {
@@ -658,6 +688,21 @@ export namespace File {
     const bunFile = Bun.file(full)
 
     if (!(await bunFile.exists())) {
+      if (project.vcs === "git") {
+        const original = await $`git -c safe.directory=* show HEAD:${file}`
+          .cwd(Instance.directory)
+          .quiet()
+          .nothrow()
+          .text()
+        if (original.trim()) {
+          const patch = structuredPatch(file, file, original, "", "old", "new", {
+            context: Infinity,
+            ignoreWhitespace: true,
+          })
+          const diff = formatPatch(patch)
+          return { type: "text", content: "", patch, diff }
+        }
+      }
       return { type: "text", content: "" }
     }
 
@@ -680,10 +725,15 @@ export namespace File {
       .then((x) => x.trim())
 
     if (project.vcs === "git") {
-      let diff = await $`git diff ${file}`.cwd(Instance.directory).quiet().nothrow().text()
-      if (!diff.trim()) diff = await $`git diff --staged ${file}`.cwd(Instance.directory).quiet().nothrow().text()
+      let diff = await $`git -c safe.directory=* diff ${file}`.cwd(Instance.directory).quiet().nothrow().text()
+      if (!diff.trim())
+        diff = await $`git -c safe.directory=* diff --staged ${file}`.cwd(Instance.directory).quiet().nothrow().text()
       if (diff.trim()) {
-        const original = await $`git show HEAD:${file}`.cwd(Instance.directory).quiet().nothrow().text()
+        const original = await $`git -c safe.directory=* show HEAD:${file}`
+          .cwd(Instance.directory)
+          .quiet()
+          .nothrow()
+          .text()
         const patch = structuredPatch(file, file, original, content, "old", "new", {
           context: Infinity,
           ignoreWhitespace: true,

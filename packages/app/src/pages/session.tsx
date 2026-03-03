@@ -22,7 +22,7 @@ import type { DragEvent } from "@thisbeyond/solid-dnd"
 import { useSync } from "@/context/sync"
 import { useTerminal, type LocalPTY } from "@/context/terminal"
 import { useLayout } from "@/context/layout"
-import { checksum, base64Encode } from "@opencode-ai/util/encode"
+import { base64Encode } from "@opencode-ai/util/encode"
 import { findLast } from "@opencode-ai/util/array"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { DialogSelectFile } from "@/components/dialog-select-file"
@@ -863,28 +863,8 @@ export default function Page() {
   const mobileChanges = createMemo(() => !isDesktop() && store.mobileTab === "changes")
   const reviewTab = createMemo(() => isDesktop())
 
-  const fileTreeTab = () => layout.fileTree.tab()
-  const setFileTreeTab = (value: "changes" | "all") => layout.fileTree.setTab(value)
-
-  const [tree, setTree] = createStore({
-    reviewScroll: undefined as HTMLDivElement | undefined,
-    pendingDiff: undefined as string | undefined,
-    activeDiff: undefined as string | undefined,
-  })
-
-  createEffect(
-    on(
-      sessionKey,
-      () => {
-        setTree({ reviewScroll: undefined, pendingDiff: undefined, activeDiff: undefined })
-      },
-      { defer: true },
-    ),
-  )
-
   const showAllFiles = () => {
-    if (fileTreeTab() !== "changes") return
-    setFileTreeTab("all")
+    // No-op: desktop file tree now always shows all files.
   }
 
   const focusInput = () => inputRef?.focus()
@@ -965,8 +945,6 @@ export default function Page() {
           view={view}
           diffStyle={input.diffStyle}
           onDiffStyleChange={input.onDiffStyleChange}
-          onScrollRef={(el) => setTree("reviewScroll", el)}
-          focusedFile={tree.activeDiff}
           onLineComment={(comment) => addCommentToContext({ ...comment, origin: "review" })}
           comments={comments.all()}
           focusedComment={comments.focus()}
@@ -986,8 +964,6 @@ export default function Page() {
             view={view}
             diffStyle={input.diffStyle}
             onDiffStyleChange={input.onDiffStyleChange}
-            onScrollRef={(el) => setTree("reviewScroll", el)}
-            focusedFile={tree.activeDiff}
             onLineComment={(comment) => addCommentToContext({ ...comment, origin: "review" })}
             comments={comments.all()}
             focusedComment={comments.focus()}
@@ -1014,8 +990,6 @@ export default function Page() {
           view={view}
           diffStyle={input.diffStyle}
           onDiffStyleChange={input.onDiffStyleChange}
-          onScrollRef={(el) => setTree("reviewScroll", el)}
-          focusedFile={tree.activeDiff}
           onLineComment={(comment) => addCommentToContext({ ...comment, origin: "review" })}
           comments={comments.all()}
           focusedComment={comments.focus()}
@@ -1039,106 +1013,6 @@ export default function Page() {
       </div>
     </div>
   )
-
-  createEffect(
-    on(
-      () => tabs().active(),
-      (active) => {
-        if (!active) return
-        if (fileTreeTab() !== "changes") return
-        if (!file.pathFromTab(active)) return
-        showAllFiles()
-      },
-      { defer: true },
-    ),
-  )
-
-  const setFileTreeTabValue = (value: string) => {
-    if (value !== "changes" && value !== "all") return
-    setFileTreeTab(value)
-  }
-
-  const reviewDiffId = (path: string) => {
-    const sum = checksum(path)
-    if (!sum) return
-    return `session-review-diff-${sum}`
-  }
-
-  const reviewDiffTop = (path: string) => {
-    const root = tree.reviewScroll
-    if (!root) return
-
-    const id = reviewDiffId(path)
-    if (!id) return
-
-    const el = document.getElementById(id)
-    if (!(el instanceof HTMLElement)) return
-    if (!root.contains(el)) return
-
-    const a = el.getBoundingClientRect()
-    const b = root.getBoundingClientRect()
-    return a.top - b.top + root.scrollTop
-  }
-
-  const scrollToReviewDiff = (path: string) => {
-    const root = tree.reviewScroll
-    if (!root) return false
-
-    const top = reviewDiffTop(path)
-    if (top === undefined) return false
-
-    view().setScroll("review", { x: root.scrollLeft, y: top })
-    root.scrollTo({ top, behavior: "auto" })
-    return true
-  }
-
-  const focusReviewDiff = (path: string) => {
-    openReviewPanel()
-    const current = view().review.open() ?? []
-    if (!current.includes(path)) view().review.setOpen([...current, path])
-    setTree({ activeDiff: path, pendingDiff: path })
-  }
-
-  createEffect(() => {
-    const pending = tree.pendingDiff
-    if (!pending) return
-    if (!tree.reviewScroll) return
-    if (!diffsReady()) return
-
-    const attempt = (count: number) => {
-      if (tree.pendingDiff !== pending) return
-      if (count > 60) {
-        setTree("pendingDiff", undefined)
-        return
-      }
-
-      const root = tree.reviewScroll
-      if (!root) {
-        requestAnimationFrame(() => attempt(count + 1))
-        return
-      }
-
-      if (!scrollToReviewDiff(pending)) {
-        requestAnimationFrame(() => attempt(count + 1))
-        return
-      }
-
-      const top = reviewDiffTop(pending)
-      if (top === undefined) {
-        requestAnimationFrame(() => attempt(count + 1))
-        return
-      }
-
-      if (Math.abs(root.scrollTop - top) <= 1) {
-        setTree("pendingDiff", undefined)
-        return
-      }
-
-      requestAnimationFrame(() => attempt(count + 1))
-    }
-
-    requestAnimationFrame(() => attempt(0))
-  })
 
   const activeTab = createMemo(() => {
     const active = tabs().active()
@@ -1169,35 +1043,19 @@ export default function Page() {
     tabs().setActive(next)
   })
 
-  createEffect(
-    on(
-      () => layout.fileTree.opened(),
-      (opened, prev) => {
-        if (prev === undefined) return
-        if (!isDesktop()) return
-
-        if (opened) {
-          const active = tabs().active()
-          const tab = active === "review" || (!active && hasReview()) ? "changes" : "all"
-          layout.fileTree.setTab(tab)
-        }
-      },
-      { defer: true },
-    ),
-  )
-
   createEffect(() => {
     const id = params.id
     if (!id) return
+
+    const statusType = sync.data.session_status[id]?.type ?? "idle"
 
     const wants = isDesktop()
       ? desktopFileTreeOpen() || (desktopReviewOpen() && activeTab() === "review")
       : store.mobileTab === "changes"
     if (!wants) return
-    if (sync.data.session_diff[id] !== undefined) return
     if (sync.status === "loading") return
 
-    void sync.session.diff(id)
+    void sync.session.diff(id, { force: statusType === "idle" })
   })
 
   let treeDir: string | undefined
@@ -1207,7 +1065,6 @@ export default function Page() {
     if (!layout.fileTree.opened()) return
     if (sync.status === "loading") return
 
-    fileTreeTab()
     const refresh = treeDir !== dir
     treeDir = dir
     void (refresh ? file.tree.refresh("") : file.tree.list(""))
@@ -1702,13 +1559,8 @@ export default function Page() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}
-          fileTreeTab={fileTreeTab}
-          setFileTreeTabValue={setFileTreeTabValue}
-          diffsReady={diffsReady()}
           diffFiles={diffFiles()}
           kinds={kinds()}
-          activeDiff={tree.activeDiff}
-          focusReviewDiff={focusReviewDiff}
         />
       </div>
 
