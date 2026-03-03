@@ -499,9 +499,9 @@ export const dict = {
   "session.review.change.one": "Change",
   "session.review.change.other": "Changes",
   "session.review.loadingChanges": "Loading changes...",
-  "session.review.empty": "No changes in this session yet",
+  "session.review.empty": "No uncommitted working tree changes",
   "session.review.noVcs": "No version control detected for this project",
-  "session.review.noChanges": "No changes",
+  "session.review.noChanges": "No working tree changes",
 
   "session.files.selectToOpen": "Select a file to open",
   "session.files.all": "All files",

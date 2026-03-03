@@ -231,17 +231,12 @@ export function createApp(app: Hono): Hono {
         if (!requestUser || !userHome || isInternalWorkerHost) return decoded
 
         const resolvedHome = path.resolve(userHome)
+        // Rewrite-only: keep relative paths user-home based for convenience,
+        // but do not silently reject absolute paths outside user home.
+        // This avoids false-empty Git review panels when auth user differs
+        // from project owner (e.g. service account login inspecting /home/*).
         const resolvedRequested = path.isAbsolute(decoded) ? path.resolve(decoded) : path.resolve(resolvedHome, decoded)
-        const insideHome = resolvedRequested === resolvedHome || resolvedRequested.startsWith(resolvedHome + path.sep)
-        if (insideHome) return resolvedRequested
-
-        log.warn("Directory outside authenticated user home was rejected", {
-          requestUser,
-          requested: decoded,
-          resolvedRequested,
-          userHome: resolvedHome,
-        })
-        return resolvedHome
+        return resolvedRequested
       })()
 
       const exists = await fs.promises

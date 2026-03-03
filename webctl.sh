@@ -12,9 +12,11 @@
 #   dev-start, dev-up Start the development server from source
 #   dev-stop, dev-down Stop the development server
 #   restart           Restart the server (dev)
+#   dev-refresh       Build frontend + restart dev server
 #   web-start         Start production systemd service
 #   web-stop          Stop production systemd service
 #   web-restart       Restart production systemd service
+#   web-refresh       Rebuild/deploy and restart production service
 #   status            Show server status and health
 #   logs              Follow the PTY debug log (/tmp/pty-debug.log)
 #   build-frontend    Build packages/app/dist/ (run after frontend changes)
@@ -83,7 +85,7 @@ log_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
 
 is_owner_scoped_command() {
     case "${1:-}" in
-        install|dev-start|dev-up|dev-stop|dev-down|restart|_restart-worker|status|logs|build-frontend|build-binary)
+        install|dev-start|dev-up|dev-stop|dev-down|restart|dev-refresh|web-refresh|_restart-worker|status|logs|build-frontend|build-binary)
             return 0
             ;;
         *)
@@ -701,6 +703,32 @@ do_restart_worker() {
 }
 
 # ---------------------------------------------------------------------------
+# refresh helpers
+# ---------------------------------------------------------------------------
+do_dev_refresh() {
+    if [ "${IS_SOURCE_REPO:-0}" -ne 1 ]; then
+        log_error "dev-refresh is only available when running from source repo."
+        exit 1
+    fi
+
+    log_info "Refreshing dev webapp (build frontend + restart)..."
+    do_build_frontend
+    do_restart restart --graceful
+}
+
+do_web_refresh() {
+    if [ "${IS_SOURCE_REPO:-0}" -ne 1 ]; then
+        log_info "Standalone mode: running web-restart only."
+        do_web_restart
+        return
+    fi
+
+    log_info "Refreshing production webapp (rebuild/deploy + restart)..."
+    do_install --yes
+    do_web_restart
+}
+
+# ---------------------------------------------------------------------------
 # status
 # ---------------------------------------------------------------------------
 do_status() {
@@ -850,9 +878,11 @@ do_help() {
     echo "  dev-start, dev-up Start the development server from source"
     echo "  dev-stop, dev-down Stop the development server"
     echo "  restart           Restart the server (dev)"
+    echo "  dev-refresh       Build frontend + restart dev server"
     echo "  web-start         Start production systemd service"
     echo "  web-stop          Stop production systemd service"
     echo "  web-restart       Restart production systemd service"
+    echo "  web-refresh       Rebuild/deploy + restart production service"
     echo "  status            Show server status and health"
     echo "  logs              Follow PTY debug log (/tmp/pty-debug.log)"
     echo "  build-frontend    Build packages/app/dist/ (run after frontend changes)"
@@ -886,6 +916,7 @@ do_help() {
     echo "  ./webctl.sh restart              # default: detached + graceful"
     echo "  ./webctl.sh restart --graceful   # explicit (same as default)"
     echo "  ./webctl.sh restart --inline"
+    echo "  ./webctl.sh dev-refresh"
     echo ""
     echo "  # Debug PTY:"
     echo "  ./webctl.sh logs"
@@ -894,6 +925,7 @@ do_help() {
     echo "  ./webctl.sh web-start"
     echo "  ./webctl.sh web-stop"
     echo "  ./webctl.sh web-restart"
+    echo "  ./webctl.sh web-refresh"
     echo ""
 }
 
@@ -906,9 +938,11 @@ case "${1:-}" in
     install)                do_install "${@:2}" ;;
     dev-start|dev-up)       do_dev_start      ;;
     dev-stop|dev-down)      do_dev_stop       ;;
+    dev-refresh)            do_dev_refresh    ;;
     web-start)              do_web_start      ;;
     web-stop)               do_web_stop       ;;
     web-restart)            do_web_restart    ;;
+    web-refresh)            do_web_refresh    ;;
     restart)        do_restart "$@"   ;;
     _restart-worker) do_restart_worker "${@:2}" ;;
     status)         do_status         ;;

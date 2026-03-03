@@ -11,6 +11,9 @@ import { zodToJsonSchema } from "zod-to-json-schema"
 import { errors } from "../error"
 import { lazy } from "../../util/lazy"
 import { UserDaemonManager } from "../user-daemon"
+import { File } from "../../file"
+import { RequestUser } from "@/runtime/request-user"
+import { git } from "@/util/git"
 
 function isZodSchemaLike(value: unknown): value is z.ZodType {
   return !!value && typeof value === "object" && "_def" in value
@@ -18,6 +21,80 @@ function isZodSchemaLike(value: unknown): value is z.ZodType {
 
 export const ExperimentalRoutes = lazy(() =>
   new Hono()
+    .get(
+      "/review-checkpoint",
+      describeRoute({
+        summary: "Review data-path checkpoint",
+        description: "Return resolved directory/user/git status diagnostics for review panel debugging.",
+        operationId: "experimental.review.checkpoint",
+        responses: {
+          200: {
+            description: "Review checkpoint",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.object({
+                    requestUser: z.string().nullable(),
+                    directory: z.string(),
+                    worktree: z.string(),
+                    project: z.object({
+                      id: z.string(),
+                      vcs: z.string().optional(),
+                      name: z.string().optional(),
+                    }),
+                    statusCount: z.number(),
+                    statusSample: z.array(File.Info).max(20),
+                    git: z.object({
+                      diffNumstatExit: z.number(),
+                      diffNumstatErr: z.string(),
+                      porcelainExit: z.number(),
+                      porcelainErr: z.string(),
+                      porcelainSample: z.string(),
+                    }),
+                  }),
+                ),
+              },
+            },
+          },
+        },
+      }),
+      async (c) => {
+        if (process.env.OPENCODE_DEBUG_REVIEW_CHECKPOINT !== "1") {
+          return c.json({ code: "CHECKPOINT_DISABLED", message: "review checkpoint disabled" }, 404)
+        }
+
+        const status = await File.status()
+        const diffNumstat = await git(["-c", "safe.directory=*", "diff", "--numstat", "HEAD"], {
+          cwd: Instance.directory,
+        })
+        const porcelain = await git(["-c", "safe.directory=*", "status", "--porcelain"], {
+          cwd: Instance.directory,
+        })
+
+        const text = async (input: Buffer | ReadableStream<Uint8Array>) =>
+          Buffer.isBuffer(input) ? input.toString() : Bun.readableStreamToText(input)
+
+        return c.json({
+          requestUser: RequestUser.username() ?? null,
+          directory: Instance.directory,
+          worktree: Instance.worktree,
+          project: {
+            id: Instance.project.id,
+            vcs: Instance.project.vcs,
+            name: Instance.project.name,
+          },
+          statusCount: status.length,
+          statusSample: status.slice(0, 20),
+          git: {
+            diffNumstatExit: diffNumstat.exitCode,
+            diffNumstatErr: (await text(diffNumstat.stderr)).trim().slice(0, 500),
+            porcelainExit: porcelain.exitCode,
+            porcelainErr: (await text(porcelain.stderr)).trim().slice(0, 500),
+            porcelainSample: (await text(porcelain.stdout)).trim().slice(0, 1000),
+          },
+        })
+      },
+    )
     .get(
       "/user-daemon",
       describeRoute({

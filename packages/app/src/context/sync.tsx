@@ -25,6 +25,44 @@ const keyFor = (directory: string, id: string) => `${directory}\n${id}`
 
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 
+const isRecord = (input: unknown): input is Record<string, unknown> => typeof input === "object" && input !== null
+
+const gitContentsFromPatch = (patch: unknown): { before: string; after: string } => {
+  if (!isRecord(patch) || !Array.isArray(patch.hunks)) return { before: "", after: "" }
+
+  const before: string[] = []
+  const after: string[] = []
+
+  for (const hunk of patch.hunks) {
+    if (!isRecord(hunk) || !Array.isArray(hunk.lines)) continue
+    for (const line of hunk.lines) {
+      if (typeof line !== "string" || line.length === 0) continue
+      if (line.startsWith("\\")) continue
+
+      const marker = line[0]
+      const content = line.slice(1)
+
+      if (marker === " ") {
+        before.push(content)
+        after.push(content)
+        continue
+      }
+      if (marker === "-") {
+        before.push(content)
+        continue
+      }
+      if (marker === "+") {
+        after.push(content)
+      }
+    }
+  }
+
+  return {
+    before: before.join("\n"),
+    after: after.join("\n"),
+  }
+}
+
 type OptimisticStore = {
   message: Record<string, Message[] | undefined>
   part: Record<string, Part[] | undefined>
@@ -280,17 +318,36 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
 
           const key = keyFor(directory, sessionID)
           return runInflight(inflightDiff, key, () =>
-            retry(() => client.file.status()).then((status) => {
+            retry(() => client.file.status()).then(async (status) => {
               // Git-only source of truth for review panel.
-              // This keeps web UI strictly aligned with `git status` / working tree state.
-              const next = (status.data ?? []).map((item) => ({
-                file: item.path,
-                before: "",
-                after: "",
-                additions: item.added,
-                deletions: item.removed,
-                status: item.status,
-              }))
+              // We still hydrate before/after via file.read so UI can render actual diffs.
+              const next = await Promise.all(
+                (status.data ?? []).map(async (item) => {
+                  const detail = await client.file
+                    .read({ path: item.path })
+                    .then((res) => res.data)
+                    .catch(() => undefined)
+
+                  const fromPatch = gitContentsFromPatch(isRecord(detail) ? detail.patch : undefined)
+                  const current = isRecord(detail) && typeof detail.content === "string" ? detail.content : ""
+
+                  const before = fromPatch.before
+                  const after = fromPatch.after || (item.status === "added" ? current : "")
+
+                  const additions = typeof item.added === "number" ? item.added : 0
+                  const deletions = typeof item.removed === "number" ? item.removed : 0
+
+                  return {
+                    file: item.path,
+                    before,
+                    after,
+                    additions,
+                    deletions,
+                    status: item.status,
+                  }
+                }),
+              )
+
               setStore("session_diff", sessionID, reconcile(next, { key: "file" }))
             }),
           )
