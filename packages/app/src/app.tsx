@@ -3,12 +3,7 @@ import { ErrorBoundary, Show, Suspense, lazy, type JSX, type ParentProps } from 
 import { Router, Route, Navigate } from "@solidjs/router"
 import { MetaProvider } from "@solidjs/meta"
 import { Font } from "@opencode-ai/ui/font"
-import { MarkedProvider } from "@opencode-ai/ui/context/marked"
-import { DiffComponentProvider } from "@opencode-ai/ui/context/diff"
-import { CodeComponentProvider } from "@opencode-ai/ui/context/code"
 import { I18nProvider } from "@opencode-ai/ui/context"
-import { Diff } from "@opencode-ai/ui/diff"
-import { Code } from "@opencode-ai/ui/code"
 import { ThemeProvider } from "@opencode-ai/ui/theme"
 import { GlobalSyncProvider } from "@/context/global-sync"
 import { PermissionProvider } from "@/context/permission"
@@ -35,6 +30,7 @@ import { AuthGate } from "@/components/auth-gate"
 const Home = lazy(() => import("@/pages/home"))
 const Session = lazy(() => import("@/pages/session"))
 const TerminalPopout = lazy(() => import("@/pages/session/terminal-popout"))
+const SessionRichContentProvider = lazy(() => import("@/pages/session/session-rich-content-provider"))
 const Loading = () => <div class="size-full" />
 
 const HomeRoute = () => (
@@ -46,7 +42,9 @@ const HomeRoute = () => (
 const SessionRoute = () => (
   <SessionProviders>
     <Suspense fallback={<Loading />}>
-      <Session />
+      <SessionRichContentProvider>
+        <Session />
+      </SessionRichContentProvider>
     </Suspense>
   </SessionProviders>
 )
@@ -54,7 +52,9 @@ const SessionRoute = () => (
 const TerminalPopoutRoute = () => (
   <SessionProviders>
     <Suspense fallback={<Loading />}>
-      <TerminalPopout />
+      <SessionRichContentProvider>
+        <TerminalPopout />
+      </SessionRichContentProvider>
     </Suspense>
   </SessionProviders>
 )
@@ -75,11 +75,6 @@ declare global {
       serverPassword?: string
     }
   }
-}
-
-function MarkedProviderWithNativeParser(props: ParentProps) {
-  const platform = usePlatform()
-  return <MarkedProvider nativeParser={platform.parseMarkdown}>{props.children}</MarkedProvider>
 }
 
 function AppShellProviders(props: ParentProps) {
@@ -177,13 +172,7 @@ export function AppBaseProviders(props: ParentProps) {
         <LanguageProvider>
           <UiI18nBridge>
             <ErrorBoundary fallback={(error) => <ErrorPage error={error} />}>
-              <DialogProvider>
-                <MarkedProviderWithNativeParser>
-                  <DiffComponentProvider component={Diff}>
-                    <CodeComponentProvider component={Code}>{props.children}</CodeComponentProvider>
-                  </DiffComponentProvider>
-                </MarkedProviderWithNativeParser>
-              </DialogProvider>
+              <DialogProvider>{props.children}</DialogProvider>
             </ErrorBoundary>
           </UiI18nBridge>
         </LanguageProvider>
