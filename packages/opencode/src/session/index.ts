@@ -507,21 +507,28 @@ export namespace Session {
       })
     }
 
-    for (const item of await Storage.list(["session"])) {
-      const session = await Storage.read<Info>(item).catch(() => undefined)
-      if (!session) continue
+    const items = await Storage.list(["session"])
+    const sessionContents = await Promise.all(
+      items.map(async (item) => {
+        const session = await Storage.read<Info>(item).catch(() => undefined)
+        if (!session) return null
 
-      if (input?.directory !== undefined && session.directory !== input.directory) continue
-      if (input?.roots && session.parentID) continue
-      if (input?.start !== undefined && session.time.updated < input.start) continue
-      if (input?.cursor !== undefined && session.time.updated >= input.cursor) continue
-      if (!input?.archived && session.time.archived !== undefined) continue
-      if (term !== undefined && !session.title.toLowerCase().includes(term)) continue
+        if (input?.directory !== undefined && session.directory !== input.directory) return null
+        if (input?.roots && session.parentID) return null
+        if (input?.start !== undefined && session.time.updated < input.start) return null
+        if (input?.cursor !== undefined && session.time.updated >= input.cursor) return null
+        if (!input?.archived && session.time.archived !== undefined) return null
+        if (term !== undefined && !session.title.toLowerCase().includes(term)) return null
 
-      sessions.push({
-        ...session,
-        project: projectByID.get(session.projectID) ?? null,
-      })
+        return {
+          ...session,
+          project: projectByID.get(session.projectID) ?? null,
+        }
+      }),
+    )
+
+    for (const s of sessionContents) {
+      if (s) sessions.push(s)
     }
 
     sessions.sort((a, b) => b.time.updated - a.time.updated || b.id.localeCompare(a.id))
@@ -532,14 +539,15 @@ export namespace Session {
 
   export const children = fn(Identifier.schema("session"), async (parentID) => {
     const project = Instance.project
-    const result = [] as Session.Info[]
-    for (const item of await Storage.list(["session", project.id])) {
-      const session = await Storage.read<Info>(item).catch(() => undefined)
-      if (!session) continue
-      if (session.parentID !== parentID) continue
-      result.push(session)
-    }
-    return result
+    const items = await Storage.list(["session", project.id])
+    const sessions = await Promise.all(
+      items.map(async (item) => {
+        const session = await Storage.read<Info>(item).catch(() => undefined)
+        if (session?.parentID === parentID) return session
+        return null
+      }),
+    )
+    return sessions.filter((s): s is Info => !!s)
   })
 
   export const remove = fn(Identifier.schema("session"), async (sessionID) => {
@@ -549,7 +557,7 @@ export namespace Session {
       for (const child of await children(sessionID)) {
         await remove(child.id)
       }
-      await unshare(sessionID).catch(() => {})
+      await unshare(sessionID).catch(() => { })
       for (const msg of await Storage.list(["message", sessionID])) {
         for (const part of await Storage.list(["part", msg.at(-1)!])) {
           await Storage.remove(part)
@@ -575,7 +583,7 @@ export namespace Session {
           applyMessageUsageDelta(draft, previous, msg)
         },
         { touch: false },
-      ).catch(() => {})
+      ).catch(() => { })
     }
     Bus.publish(MessageV2.Event.Updated, {
       info: msg,
@@ -600,7 +608,7 @@ export namespace Session {
             applyMessageUsageDelta(draft, previous, undefined)
           },
           { touch: false },
-        ).catch(() => {})
+        ).catch(() => { })
       }
       Bus.publish(MessageV2.Event.Removed, {
         sessionID: input.sessionID,

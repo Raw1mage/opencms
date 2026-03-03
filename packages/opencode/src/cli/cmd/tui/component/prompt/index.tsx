@@ -59,6 +59,7 @@ import {
   CODEX_USAGE_URL,
 } from "@/account/quota"
 import { createTimerCoordinator } from "../../util/timer-coordinator"
+import { buildVariantOptions, getEffectiveVariantValue, shouldShowVariantControl } from "../../util/model-variant"
 
 export type PromptProps = {
   sessionID?: string
@@ -1025,52 +1026,32 @@ export function Prompt(props: PromptProps) {
     return Account.parseFamily(providerId) ?? providerId
   })
 
-  const formatVariantLabel = (value: string, family?: string) => {
-    const normalized = value.toLowerCase()
-    if (family === "openai" && (normalized === "xhigh" || normalized === "extra")) return "Extra"
-    return value
-      .replaceAll("_", " ")
-      .replaceAll("-", " ")
-      .split(" ")
-      .filter(Boolean)
-      .map((token) => token[0]?.toUpperCase() + token.slice(1))
-      .join(" ")
-  }
-
   const visibleVariants = createMemo(() => {
-    const family = variantFamily()
-    let values = local.model.variant.list()
-    if (family === "openai") {
-      const preferred = ["low", "medium", "high", "xhigh", "extra"]
-      const set = new Set(values)
-      const narrowed = preferred.filter((value) => set.has(value))
-      if (narrowed.length > 0) values = narrowed
-      values = values.filter((value) => value !== "none" && value !== "minimal")
-    }
-    const used = new Set<string>()
-    const result: Array<{ value: string; title: string; description: string }> = []
-    for (const value of values) {
-      const title = formatVariantLabel(value, family)
-      if (used.has(title)) continue
-      used.add(title)
-      result.push({ value, title, description: `Raw: ${value}` })
-    }
-    return result
+    return buildVariantOptions(local.model.variant.list(), variantFamily())
   })
 
   const showVariant = createMemo(() => {
-    const variants = visibleVariants()
-    if (variants.length === 0) return false
-    const current = local.model.variant.current()
-    return !!current
+    return shouldShowVariantControl({
+      family: variantFamily(),
+      current: local.model.variant.current(),
+      options: visibleVariants(),
+    })
+  })
+
+  const effectiveVariantValue = createMemo(() => {
+    return getEffectiveVariantValue({
+      family: variantFamily(),
+      current: local.model.variant.current(),
+      options: visibleVariants(),
+    })
   })
 
   const variantLabel = createMemo(() => {
-    const value = local.model.variant.current()
+    const value = effectiveVariantValue()
     if (!value) return ""
     const exact = visibleVariants().find((item) => item.value === value)
     if (exact) return exact.title
-    return formatVariantLabel(value, variantFamily())
+    return value
   })
 
   const openVariantPicker = () => {
@@ -1089,6 +1070,12 @@ export function Prompt(props: PromptProps) {
         }}
       />
     ))
+  }
+
+  const handleVariantClick = () => {
+    const variants = visibleVariants()
+    if (variants.length === 0) return
+    openVariantPicker()
   }
 
   const spinnerDef = createMemo(() => {
@@ -1407,7 +1394,7 @@ export function Prompt(props: PromptProps) {
                   </text>
                   <Show when={showVariant()}>
                     <text fg={theme.textMuted}>·</text>
-                    <box onMouseUp={openVariantPicker}>
+                    <box onMouseUp={handleVariantClick}>
                       <text>
                         <span style={{ fg: theme.warning, bold: true }}>{variantLabel()}</span>
                       </text>

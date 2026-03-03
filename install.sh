@@ -163,6 +163,23 @@ EOF
   log_info "Installing binary to /usr/local/bin/opencode..."
   run_as_root install -m 755 "${ROOT_DIR}/dist/opencode-linux-x64/bin/opencode" "/usr/local/bin/opencode"
 
+  log_info "Installing internal MCP servers to /usr/local/lib/opencode/mcp..."
+  run_as_root install -d -m 755 "/usr/local/lib/opencode/mcp"
+  if [[ -d "${ROOT_DIR}/dist/opencode-linux-x64/mcp" ]]; then
+    for f in "${ROOT_DIR}/dist/opencode-linux-x64/mcp/"*; do
+      if [[ -f "$f" ]]; then
+        run_as_root install -m 755 "$f" "/usr/local/lib/opencode/mcp/$(basename "$f")"
+      fi
+    done
+  fi
+
+  log_info "Installing web frontend to /usr/local/share/opencode/frontend..."
+  run_as_root install -d -m 755 "/usr/local/share/opencode/frontend"
+  if [[ -d "${ROOT_DIR}/packages/app/dist" ]]; then
+    run_as_root cp -r "${ROOT_DIR}/packages/app/dist/"* "/usr/local/share/opencode/frontend/"
+    run_as_root chown -R "${SYSTEM_SERVICE_USER}:${SYSTEM_SERVICE_USER}" "/usr/local/share/opencode/frontend"
+  fi
+
   local unit_file="/etc/systemd/system/${SYSTEM_SERVICE_NAME}.service"
   local tmp_unit="/tmp/${SYSTEM_SERVICE_NAME}.service.$$"
   cat >"${tmp_unit}" <<EOF
@@ -175,7 +192,7 @@ Wants=network-online.target
 Type=simple
 User=${SYSTEM_SERVICE_USER}
 Group=${SYSTEM_SERVICE_USER}
-WorkingDirectory=${ROOT_DIR}
+WorkingDirectory=/var/lib/opencode
 Environment=HOME=/nonexistent
 Environment=OPENCODE_DATA_HOME=/var/lib/opencode
 Environment=XDG_CONFIG_HOME=/var/lib/opencode/config
@@ -184,7 +201,7 @@ Environment=XDG_STATE_HOME=/var/lib/opencode/state
 Environment=XDG_CACHE_HOME=/var/lib/opencode/cache
 Environment=OPENCODE_WEB_NO_OPEN=1
 Environment=OPENCODE_ALLOW_GLOBAL_FS_BROWSE=1
-Environment=OPENCODE_FRONTEND_PATH=${ROOT_DIR}/packages/app/dist
+Environment=OPENCODE_FRONTEND_PATH=/usr/local/share/opencode/frontend
 Environment=OPENCODE_PORT=1080
 Environment=OPENCODE_HOSTNAME=0.0.0.0
 EnvironmentFile=-/etc/opencode/opencode.env
@@ -394,11 +411,9 @@ main() {
   log_info "Installing JS dependencies (bun install)..."
   bun install
 
-  log_info "Building web frontend (packages/app)..."
-  bun run --cwd packages/app build
-
   log_info "Building backend binary (dist/opencode-linux-x64/bin/opencode)..."
-  bun run build --single
+  # skip-install to prevent recursive loops as bun install already triggered build.ts
+  bun run build --single --skip-install
 
   if [[ "${SYSTEM_INIT}" -eq 1 ]]; then
     system_init

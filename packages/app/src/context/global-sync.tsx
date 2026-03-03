@@ -60,8 +60,10 @@ export function errorMessage(error: unknown) {
   if (error instanceof Error && error.message) return error.message
   if (typeof error === "string" && error) return error
   if (typeof error === "object" && error !== null) {
-    if ("message" in error && typeof (error as any).message === "string" && (error as any).message) return (error as any).message
-    if ("error" in error && typeof (error as any).error === "string" && (error as any).error) return (error as any).error
+    if ("message" in error && typeof (error as any).message === "string" && (error as any).message)
+      return (error as any).message
+    if ("error" in error && typeof (error as any).error === "string" && (error as any).error)
+      return (error as any).error
     try {
       return JSON.stringify(error)
     } catch {
@@ -75,7 +77,7 @@ function setDevStats(value: {
   evictions: number
   loadSessionsFullFetchFallback: number
 }) {
-  ; (globalThis as { __OPENCODE_GLOBAL_SYNC_STATS?: typeof value }).__OPENCODE_GLOBAL_SYNC_STATS = value
+  ;(globalThis as { __OPENCODE_GLOBAL_SYNC_STATS?: typeof value }).__OPENCODE_GLOBAL_SYNC_STATS = value
 }
 
 function createGlobalSync() {
@@ -167,9 +169,7 @@ function createGlobalSync() {
           // Replace the stale project in the global store using the resolved path
           setGlobalStore("project", (prev: Project[]) =>
             prev.map((p) =>
-              p.worktree === directory || p.id === directory
-                ? { ...p, worktree: resolved, id: resolved }
-                : p,
+              p.worktree === directory || p.id === directory ? { ...p, worktree: resolved, id: resolved } : p,
             ),
           )
           // Re-key the sdk cache under the resolved directory
@@ -308,6 +308,18 @@ function createGlobalSync() {
     const directory = normalizeDirectoryKey(e.name)
     const event = e.details
 
+    if (event?.type === "tui.toast.show") {
+      const { message, variant, title, duration } = (event.properties || {}) as any
+      if (!message) return
+      showToast({
+        title,
+        description: message,
+        variant,
+        duration,
+      })
+      return
+    }
+
     if (directory === "global") {
       applyGlobalEvent({
         event,
@@ -366,7 +378,6 @@ function createGlobalSync() {
       connectErrorDescription: language.t("error.globalSync.connectFailed", { url: globalSDK.url }),
       requestFailedTitle: language.t("common.requestFailed"),
       setGlobalStore,
-      getGlobalProjects: () => globalStore.project,
     })
   }
 

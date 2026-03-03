@@ -202,9 +202,14 @@ const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 // Main API
 // ============================================================================
 
+const refreshingOpenAI = new Set<string>()
+
 /**
  * Get quota information for all OpenAI subscription accounts.
  * Handles token refreshing and caching.
+ *
+ * Uses Stale-While-Revalidate: Returns cached data immediately (even if expired)
+ * and triggers background refresh if needed.
  */
 export async function getOpenAIQuotas(): Promise<Record<string, OpenAIQuota | null>> {
   try {
@@ -212,75 +217,95 @@ export async function getOpenAIQuotas(): Promise<Record<string, OpenAIQuota | nu
     const results: Record<string, OpenAIQuota | null> = {}
     const now = Date.now()
 
-    for (const [id, info] of Object.entries(accounts)) {
+    const entries = Object.entries(accounts)
+
+    for (const [id, info] of entries) {
       if (info.type !== "subscription") continue
 
-      // Check cache first
       const cached = quotaCache.get(id)
-      if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+      const isStale = !cached || now - cached.timestamp >= CACHE_TTL_MS
+
+      if (cached) {
         results[id] = cached.quota
-        continue
-      }
-
-      let access = info.accessToken
-      let expires = info.expiresAt
-      let refresh = info.refreshToken
-      let accountId = info.accountId
-
-      // Refresh token if needed
-      if (!access || !expires || expires < now) {
-        try {
-          const tokens = await refreshCodexAccessToken(refresh)
-          access = tokens.access_token
-          refresh = tokens.refresh_token ?? refresh
-          expires = now + (tokens.expires_in ?? 3600) * 1000
-          accountId = accountId ?? extractAccountIdFromTokens(tokens)
-
-          // Update account in storage
-          await Account.update("openai", id, {
-            refreshToken: refresh,
-            accessToken: access,
-            expiresAt: expires,
-            accountId,
-          })
-        } catch (e) {
-          log.warn("Token refresh failed for OpenAI account", { id, error: String(e) })
-          quotaCache.set(id, { quota: null, timestamp: now })
-          results[id] = null
-          continue
-        }
-      }
-
-      // Fetch usage
-      try {
-        const headers = new Headers({ Authorization: `Bearer ${access}`, Accept: "application/json" })
-        if (accountId) headers.set("ChatGPT-Account-Id", accountId)
-
-        const response = await fetch(CODEX_USAGE_URL, { headers })
-        if (!response.ok) {
-          log.warn("Failed to fetch OpenAI usage", { id, status: response.status })
-          quotaCache.set(id, { quota: null, timestamp: now })
-          results[id] = null
-          continue
-        }
-
-        const usage = parseCodexUsage(await response.json())
-        const normalized = computeCodexRemaining(usage)
-        const hourlyRemaining = normalized.hourlyRemaining ?? 100
-        const weeklyRemaining = normalized.weeklyRemaining ?? normalized.hourlyRemaining ?? 100
-
-        const quota = { hourlyRemaining, weeklyRemaining, hasHourlyWindow: normalized.hasHourlyWindow }
-        quotaCache.set(id, { quota, timestamp: now })
-        results[id] = quota
-      } catch (e) {
-        log.warn("Error fetching OpenAI usage", { id, error: String(e) })
-        quotaCache.set(id, { quota: null, timestamp: now })
+      } else {
+        // Keep stable shape for first read before background refresh completes.
         results[id] = null
       }
+
+      if (isStale && !refreshingOpenAI.has(id)) {
+        const refreshPromise = refreshOpenAIAccountQuota(id, info)
+          .catch(() => {
+            // refreshOpenAIAccountQuota already writes cache and logs
+          })
+          .finally(() => {
+            refreshingOpenAI.delete(id)
+          })
+
+        refreshingOpenAI.add(id)
+        void refreshPromise
+      }
     }
+
     return results
   } catch (error) {
     log.error("Failed to get OpenAI quotas", { error: String(error) })
     return {}
+  }
+}
+
+async function refreshOpenAIAccountQuota(id: string, info: Account.Info): Promise<void> {
+  if (info.type !== "subscription") return
+  const now = Date.now()
+
+  let access = info.accessToken
+  let expires = info.expiresAt
+  let refresh = info.refreshToken
+  let accountId = info.accountId
+
+  // Refresh token if needed
+  if (!access || !expires || expires < now) {
+    try {
+      const tokens = await refreshCodexAccessToken(refresh)
+      access = tokens.access_token
+      refresh = tokens.refresh_token ?? refresh
+      expires = now + (tokens.expires_in ?? 3600) * 1000
+      accountId = accountId ?? extractAccountIdFromTokens(tokens)
+
+      // Update account in storage
+      await Account.update("openai", id, {
+        refreshToken: refresh,
+        accessToken: access,
+        expiresAt: expires,
+        accountId,
+      })
+    } catch (e) {
+      log.warn("Token refresh failed for OpenAI account", { id, error: String(e) })
+      quotaCache.set(id, { quota: null, timestamp: now })
+      return
+    }
+  }
+
+  // Fetch usage
+  try {
+    const headers = new Headers({ Authorization: `Bearer ${access}`, Accept: "application/json" })
+    if (accountId) headers.set("ChatGPT-Account-Id", accountId)
+
+    const response = await fetch(CODEX_USAGE_URL, { headers, signal: AbortSignal.timeout(10000) })
+    if (!response.ok) {
+      log.warn("Failed to fetch OpenAI usage", { id, status: response.status })
+      quotaCache.set(id, { quota: null, timestamp: now })
+      return
+    }
+
+    const usage = parseCodexUsage(await response.json())
+    const normalized = computeCodexRemaining(usage)
+    const hourlyRemaining = normalized.hourlyRemaining ?? 100
+    const weeklyRemaining = normalized.weeklyRemaining ?? normalized.hourlyRemaining ?? 100
+
+    const quota = { hourlyRemaining, weeklyRemaining, hasHourlyWindow: normalized.hasHourlyWindow }
+    quotaCache.set(id, { quota, timestamp: now })
+  } catch (e) {
+    log.warn("Error fetching OpenAI usage", { id, error: String(e) })
+    quotaCache.set(id, { quota: null, timestamp: now })
   }
 }

@@ -196,6 +196,32 @@ for (const item of targets) {
     },
   })
 
+  // Build internal MCP servers
+  const mcpPackages = ["system-manager", "refacting-merger", "gcp-grounding"]
+  for (const mcpPkg of mcpPackages) {
+    const mcpSrc = `./packages/mcp/${mcpPkg}/src/index.ts`
+    if (!fs.existsSync(mcpSrc)) continue
+
+    console.log(`building MCP: ${mcpPkg} for ${name}`)
+    await $`mkdir -p dist/${name}/mcp`
+    await Bun.build({
+      tsconfig: "./tsconfig.json",
+      compile: {
+        autoloadBunfig: false,
+        autoloadDotenv: false,
+        autoloadTsconfig: true,
+        autoloadPackageJson: true,
+        target: name.replace(pkg.name, "bun") as any,
+        outfile: `dist/${name}/mcp/${mcpPkg}`,
+        execArgv: [`--user-agent=opencode-mcp-${mcpPkg}/${Script.version}`, "--use-system-ca", "--"],
+      },
+      entrypoints: [mcpSrc],
+      define: {
+        OPENCODE_VERSION: `'${Script.version}'`,
+      },
+    })
+  }
+
   await $`rm -rf ./dist/${name}/bin/tui`
   await Bun.file(`dist/${name}/package.json`).write(
     JSON.stringify(

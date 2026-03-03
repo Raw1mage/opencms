@@ -76,6 +76,37 @@ export namespace Config {
     return memory
   }
 
+  function normalizeMcpCommands(config: Info): Info {
+    if (!config.mcp) return config
+    const mcp = { ...config.mcp }
+    const mcpBinDir = "/usr/local/lib/opencode/mcp"
+    const internalMcps = ["system-manager", "refacting-merger", "gcp-grounding"]
+
+    for (const [name, entry] of Object.entries(mcp)) {
+      if (!internalMcps.includes(name)) continue
+      if (!entry || typeof entry !== "object") continue
+      if (!("type" in entry) || entry.type !== "local") continue
+      if (!("command" in entry) || !Array.isArray(entry.command)) continue
+
+      const systemBin = path.join(mcpBinDir, name)
+      // If we are in a production/system install and the binary exists, use it.
+      // But only if current command looks like a repo path (facilitating migration)
+      // or if it's already pointing to a binary but we want to ensure it's the right one.
+      const currentCmdStr = entry.command.join(" ")
+      const isRepoPath = currentCmdStr.includes("packages/mcp/")
+
+      if (isRepoPath && existsSync(systemBin)) {
+        mcp[name] = {
+          ...entry,
+          command: [systemBin],
+        }
+        log.debug(`resolved mcp ${name} to system binary`, { path: systemBin })
+      }
+    }
+
+    return { ...config, mcp }
+  }
+
   function normalizeMemoryConfig(config: Info): Info {
     const memory = getLocalMemoryMcp(config)
     if (!memory) return config
@@ -307,6 +338,9 @@ export namespace Config {
 
     // @event_2026-02-23_single_memory_mcp: keep one memory MCP surface
     result = normalizeMemoryConfig(result)
+
+    // @event_2026-03-03_system_mcp_binary: prioritize system binaries over repo paths
+    result = normalizeMcpCommands(result)
 
     // Validate layered memory configuration
     validateMemoryConfig(result)

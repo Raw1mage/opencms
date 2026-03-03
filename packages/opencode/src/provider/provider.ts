@@ -1686,7 +1686,8 @@ export namespace Provider {
       if (database[accountID]) continue
       if (disabled.has(accountID)) continue
 
-      const baseProvider = database["antigravity"] ?? database["google-api"]
+      // Strict separation: do not fall back antigravity compatibility to google-api provider.
+      const baseProvider = database["antigravity"]
       if (!baseProvider) continue
 
       database[accountID] = {
@@ -1807,7 +1808,7 @@ export namespace Provider {
       }
 
       // Special handling for legacy antigravity accounts (Parallelized)
-      if (family === "antigravity" || family === "google-api") {
+      if (family === "antigravity") {
         const legacyLoaderPromises = Object.keys(antigravityAccounts).map(async (accountID) => {
           if (providers[accountID] && plugin.auth?.loader) {
             debugCheckpoint("provider", "legacy antigravity loader start", { accountID })
