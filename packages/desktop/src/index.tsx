@@ -29,9 +29,15 @@ import { UPDATER_ENABLED } from "./updater"
 import { initI18n, t } from "./i18n"
 import pkg from "../package.json"
 import "./styles.css"
-import { commands, type InitStep, type ServerReadyData } from "./bindings"
+import { commands, type InitStep } from "./bindings"
 import { Channel } from "@tauri-apps/api/core"
 import { createMenu } from "./menu"
+
+type ServerReadyData = {
+  url: string
+  password: string | null
+  is_sidecar?: boolean
+}
 
 const root = document.getElementById("root")
 if (import.meta.env.DEV && !(root instanceof HTMLElement)) {
@@ -67,15 +73,15 @@ const createPlatform = (password: Accessor<string | null>): Platform => {
 
   const wslHome = async () => {
     if (os !== "windows" || !window.__OPENCODE__?.wsl) return undefined
-    return commands.wslPath("~", "windows").catch(() => undefined)
+    return (commands as any).wslPath("~", "windows").catch(() => undefined)
   }
 
   const handleWslPicker = async <T extends string | string[]>(result: T | null): Promise<T | null> => {
     if (!result || !window.__OPENCODE__?.wsl) return result
     if (Array.isArray(result)) {
-      return Promise.all(result.map((path) => commands.wslPath(path, "linux").catch(() => path))) as any
+      return Promise.all(result.map((path) => (commands as any).wslPath(path, "linux").catch(() => path))) as any
     }
-    return commands.wslPath(result, "linux").catch(() => result) as any
+    return (commands as any).wslPath(result, "linux").catch(() => result) as any
   }
 
   return {
@@ -119,7 +125,7 @@ const createPlatform = (password: Accessor<string | null>): Platform => {
       if (os === "windows") {
         const resolvedPath = await (async () => {
           if (window.__OPENCODE__?.wsl) {
-            const converted = await commands.wslPath(path, "windows").catch(() => null)
+            const converted = await (commands as any).wslPath(path, "windows").catch(() => null)
             if (converted) return converted
           }
 
@@ -392,12 +398,12 @@ const createPlatform = (password: Accessor<string | null>): Platform => {
     },
 
     getDisplayBackend: async () => {
-      const result = await commands.getDisplayBackend().catch(() => null)
+      const result = await (commands as any).getDisplayBackend().catch(() => null)
       return result
     },
 
     setDisplayBackend: async (backend) => {
-      await commands.setDisplayBackend(backend)
+      await (commands as any).setDisplayBackend(backend)
     },
 
     parseMarkdown: (markdown: string) => commands.parseMarkdownCommand(markdown),
@@ -490,7 +496,9 @@ render(() => {
 
 // Gate component that waits for the server to be ready
 function ServerGate(props: { children: (data: ServerReadyData) => JSX.Element }) {
-  const [serverData] = createResource(() => commands.awaitInitialization(new Channel<InitStep>() as any))
+  const [serverData] = createResource(async () => {
+    return (await (commands as any).awaitInitialization(new Channel<InitStep>() as any)) as ServerReadyData
+  })
   if (serverData.state === "errored") throw serverData.error
 
   return (

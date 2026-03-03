@@ -49,7 +49,7 @@ render(() => {
   createEffect(() => {
     if (phase() !== "done") return
 
-    const timer = setTimeout(() => events.loadingWindowComplete.emit(null), 1000)
+    const timer = setTimeout(() => events.loadingWindowComplete.emit({ phase: "done" }), 1000)
     onCleanup(() => clearTimeout(timer))
   })
 
