@@ -151,57 +151,54 @@ bun test
 
 ## 8) 一鍵初始化（install.sh）
 
-提供給新進使用者的快速初始化腳本：
+`install.sh` 是**環境初始化腳本**，建議第一次進 repo 先跑它。
 
 ```bash
 chmod +x ./install.sh
 ./install.sh
 ```
 
-常用參數：
+### 常用參數
 
 ```bash
-# 連 desktop 開發依賴也一起準備
+# 連 desktop 開發依賴一起準備
 ./install.sh --with-desktop
 
-# 跳過系統套件安裝（只做 Bun + bun install）
+# 跳過系統套件安裝（只做 Bun + bun install + build）
 ./install.sh --skip-system
 
 # 非互動模式
 ./install.sh --yes
 
-# Linux 系統級部署初始化（建立 opencode service user + systemd unit）
+# Linux 系統級部署初始化（建立 service user + systemd unit）
 ./install.sh --system-init
 
 # 自訂 service user / unit 名稱
 ./install.sh --system-init --service-user opencode --service-name opencode-web
 ```
 
-此腳本會：
+### install.sh 會做什麼
 
 1. 檢查並安裝 Bun（若未安裝）
 2. 依作業系統嘗試安裝必要系統套件（可跳過）
 3. 執行 `bun install`
-4. 預建 `packages/app` 前端資產（讓 Web 模式可直接啟動）
+4. 建置必要產物（讓 TUI/Web/Desktop 流程可接續）
 
-若啟用 `--system-init`（Linux）：
+若啟用 `--system-init`（Linux）會額外做：
 
 1. 建立專屬 service account（預設 `opencode`，`nologin`）
-2. 初始化該帳號的 `~/.config` / `~/.local/share` / `~/.local/state` / `~/.cache` runtime 目錄
-3. 產生 `/etc/opencode/opencode.env`（可覆蓋服務執行參數）
-4. 安裝 root bridge wrapper：`/usr/local/libexec/opencode-run-as-user`
-5. 安裝最小 sudoers 白名單：`/etc/sudoers.d/opencode-run-as-user`
-6. 安裝並啟用 `systemd` service（預設 `opencode-web.service`）
+2. 準備 system runtime 目錄
+3. 產生 `/etc/opencode/opencode.cfg`（web runtime 單一設定來源）
+4. 安裝 `/usr/local/libexec/opencode-run-as-user`
+5. 安裝 `/etc/sudoers.d/opencode-run-as-user`
+6. 安裝並啟用 `opencode-web.service`
 
-上述 bridge 讓 web service（`opencode`）可受控地切換到已登入 Linux user 身份執行 shell/pty，
-確保多使用者環境下以各自權限工作（預設 home 與 XDG runtime 會相對應到該 user）。
+> 建議：正式環境使用 `--system-init`，將 web control plane 與個人帳號（如 `pkcs12`）脫鉤。
 
-> 建議：正式環境使用 `--system-init` 將 web control plane 與個人帳號（如 `pkcs12`）脫鉤。
-
-也可使用統一入口（`webctl.sh`）呼叫安裝流程：
+也可以透過 `webctl.sh` 走安裝流程：
 
 ```bash
-# production 預設（會自動帶 --system-init）
+# production 預設（自動帶 --system-init）
 ./webctl.sh install --yes
 
 # development 模式（不建立 systemd service）
@@ -210,7 +207,31 @@ chmod +x ./install.sh
 
 ---
 
-## 9) 啟動與使用
+## 9) 使用方式總覽（TUI / Web App / Desktop）
+
+角色分工請先記住：
+
+- `install.sh`：初始化環境
+- `webctl.sh`：Web 啟停/重啟/狀態管理（唯一控制入口）
+- `bun run dev`：TUI 互動
+
+### 9.0 推薦快速流程（開發）
+
+```bash
+# 1) 初始化
+./webctl.sh install --dev --yes
+
+# 2) 前端建置（首次或前端改動後）
+./webctl.sh build-frontend
+
+# 3) 啟動 Web
+./webctl.sh dev-start
+
+# 4) 需要 TUI 時
+bun run dev
+```
+
+> Web Runtime 單一啟動入口：請使用 `./webctl.sh dev-start` / `./webctl.sh dev-refresh`。
 
 ### A. TUI（主要控制介面）
 
@@ -218,14 +239,14 @@ chmod +x ./install.sh
 bun run dev
 ```
 
-啟動後可直接在互動終端操作，常見流程：
+常見流程：
 
-- 使用 `/admin` 進入 provider / account / model 管理
+- 使用 `/admin` 進入 provider / account / model 管理（cms 的 canonical control plane）
 - 在主輸入列與 agent 互動
 
 ### B. Web App（瀏覽器介面）
 
-建議使用專案內建控制腳本：
+Web 的啟動/停止/重啟/檢查，一律透過 `webctl.sh`：
 
 ```bash
 # 第一次安裝（production）
@@ -241,9 +262,7 @@ bun run dev
 ./webctl.sh web-start
 ```
 
-開啟：`http://localhost:1080`
-
-> `webctl.sh` 啟動的 managed web server 預設不會自動開新瀏覽器分頁（避免重啟時被帶去 localhost）。
+開啟：`http://localhost:1080`（或 `/etc/opencode/opencode.cfg` 設定的 host/port）
 
 常用管理指令：
 
@@ -253,9 +272,11 @@ bun run dev
 ./webctl.sh dev-stop
 ./webctl.sh web-stop
 ./webctl.sh web-restart
+./webctl.sh dev-refresh
+./webctl.sh web-refresh
 ```
 
-重啟建議（自我進化/自我重啟場景）：
+重啟建議：
 
 ```bash
 # 預設：safe restart（detached + graceful，推薦）
@@ -264,10 +285,8 @@ bun run dev
 # 明確指定 graceful（與預設相同）
 ./webctl.sh restart --graceful
 
-# 舊行為：inline 直接 stop -> start（不建議在 web 內殼執行）
-# 預設會被安全策略降級為 detached+graceful；如需強制開啟：
-# OPENCODE_ALLOW_INLINE_RESTART=1 ./webctl.sh restart --inline
-./webctl.sh restart --inline
+# 如需 inline（高風險）
+OPENCODE_ALLOW_INLINE_RESTART=1 ./webctl.sh restart --inline
 ```
 
 外部網址顯示可設定：
@@ -277,12 +296,17 @@ bun run dev
 OPENCODE_PUBLIC_URL=https://your-domain.example
 ```
 
-設定後 `webctl.sh dev-start/status` 會顯示外部網址，而非固定 `localhost`。
-
 ### C. Desktop（Tauri）
 
+先準備 desktop 依賴（首次）：
+
 ```bash
-# 啟動 desktop 開發模式（會開啟原生視窗）
+./install.sh --with-desktop --yes
+```
+
+啟動 desktop 開發模式（原生視窗）：
+
+```bash
 bun run --cwd packages/desktop tauri dev
 ```
 
@@ -297,3 +321,12 @@ bun run --cwd packages/desktop dev
 ```bash
 bun run --cwd packages/desktop tauri build
 ```
+
+---
+
+## 10) 操作建議（避免踩坑）
+
+1. 先 `install.sh`，再做各模式啟動。
+2. Web 模式不要手動拼 `opencode web` 命令，改用 `webctl.sh`。
+3. 前端改動後，先 `./webctl.sh build-frontend` 再 `dev-start` / `dev-refresh`。
+4. 要做系統服務部署時，優先 `./webctl.sh install --yes`（production 預設）。
