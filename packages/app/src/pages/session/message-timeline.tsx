@@ -49,6 +49,7 @@ export function MessageTimeline(props: {
   setScrollRef: (el: HTMLDivElement | undefined) => void
   onScheduleScrollState: (el: HTMLDivElement) => void
   onAutoScrollHandleScroll: () => void
+  onAutoScrollUserIntent: () => void
   onMarkScrollGesture: (target?: EventTarget | null) => void
   hasScrollGesture: () => boolean
   isDesktop: boolean
@@ -125,6 +126,7 @@ export function MessageTimeline(props: {
               rootHeight: root.clientHeight,
             })
             if (!delta) return
+            if (delta < 0) props.onAutoScrollUserIntent()
             markBoundaryGesture({ root, target: e.target, delta, onMarkScrollGesture: props.onMarkScrollGesture })
           }}
           onTouchStart={(e) => {
@@ -138,6 +140,7 @@ export function MessageTimeline(props: {
 
             const delta = prev - next
             if (!delta) return
+            if (delta < 0) props.onAutoScrollUserIntent()
 
             const root = e.currentTarget
             markBoundaryGesture({ root, target: e.target, delta, onMarkScrollGesture: props.onMarkScrollGesture })
@@ -155,8 +158,7 @@ export function MessageTimeline(props: {
           onScroll={(e) => {
             props.onScheduleScrollState(e.currentTarget)
             const hasGesture = props.hasScrollGesture()
-            const shouldTrackAutoScroll = hasGesture || !props.scroll.bottom
-            if (shouldTrackAutoScroll) props.onAutoScrollHandleScroll()
+            if (hasGesture) props.onAutoScrollHandleScroll()
             if (!hasGesture) return
             props.onMarkScrollGesture(e.currentTarget)
             if (props.isDesktop) props.onScrollSpyScroll()

@@ -1078,7 +1078,8 @@ export default function Page() {
                           bottom: el.scrollHeight - el.scrollTop - el.clientHeight < 10,
                         })
                       }}
-                      onAutoScrollHandleScroll={() => autoScroll.pause()}
+                      onAutoScrollHandleScroll={autoScroll.handleScroll}
+                      onAutoScrollUserIntent={() => autoScroll.pause()}
                       onMarkScrollGesture={markScrollGestureHandler}
                       hasScrollGesture={hasScrollGesture}
                       isDesktop={isDesktop()}

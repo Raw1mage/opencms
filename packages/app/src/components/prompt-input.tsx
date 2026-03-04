@@ -1112,6 +1112,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     if (event.key === "Enter" && event.shiftKey) {
       addPart({ type: "text", content: "\n", start: 0, end: 0 })
       event.preventDefault()
+      event.stopPropagation()
       return
     }
 
@@ -1175,7 +1176,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     }
 
     // Note: Shift+Enter is handled earlier, before IME check
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (event.key === "Enter" && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
       handleSubmit(event)
     }
   }
@@ -1403,35 +1404,14 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 </Tooltip>
               </Show>
             </div>
-            <Tooltip
-              placement="top"
-              inactive={!prompt.dirty() && !working()}
-              value={
-                <Switch>
-                  <Match when={working()}>
-                    <div class="flex items-center gap-2">
-                      <span>{language.t("prompt.action.stop")}</span>
-                      <span class="text-icon-base text-12-medium text-[10px]!">{language.t("common.key.esc")}</span>
-                    </div>
-                  </Match>
-                  <Match when={true}>
-                    <div class="flex items-center gap-2">
-                      <span>{language.t("prompt.action.send")}</span>
-                      <Icon name="enter" size="small" class="text-icon-base" />
-                    </div>
-                  </Match>
-                </Switch>
-              }
-            >
-              <IconButton
-                type="submit"
-                disabled={!prompt.dirty() && !working() && commentCount() === 0}
-                icon={working() ? "stop" : "arrow-up"}
-                variant="primary"
-                class="h-6 w-4.5"
-                aria-label={working() ? language.t("prompt.action.stop") : language.t("prompt.action.send")}
-              />
-            </Tooltip>
+            <IconButton
+              type="submit"
+              disabled={!prompt.dirty() && !working() && commentCount() === 0}
+              icon={working() ? "stop" : "arrow-up"}
+              variant="primary"
+              class="h-6 w-4.5"
+              aria-label={working() ? language.t("prompt.action.stop") : language.t("prompt.action.send")}
+            />
           </div>
         </div>
       </form>

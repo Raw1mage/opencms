@@ -228,6 +228,15 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       prompt.reset()
       input.setMode("normal")
       input.setPopover(null)
+
+      // Mobile UX: collapse soft keyboard right after successful submit.
+      if (
+        platform.platform === "web" &&
+        typeof window !== "undefined" &&
+        window.matchMedia("(max-width: 767px)").matches
+      ) {
+        input.editor()?.blur()
+      }
     }
 
     const restoreInput = () => {

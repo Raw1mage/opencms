@@ -4,14 +4,15 @@ import {
   ComponentProps,
   createEffect,
   createMemo,
-  createResource,
   createSignal,
+  createResource,
   For,
   JSX,
   onCleanup,
   Show,
   ValidComponent,
 } from "solid-js"
+import { createMediaQuery } from "@solid-primitives/media"
 import { createStore } from "solid-js/store"
 import { useLocal } from "@/context/local"
 import { useGlobalSync } from "@/context/global-sync"
@@ -312,9 +313,17 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   const [selectedAccountId, setSelectedAccountId] = createSignal<string>("")
   const [switchingAccountId, setSwitchingAccountId] = createSignal<string>("")
   const [mode, setMode] = createSignal<"favorites" | "all">("favorites")
+  const [mobileSection, setMobileSection] = createSignal<"provider" | "account" | "model">("provider")
+  const isMobileViewport = createMediaQuery("(max-width: 767px)")
   const [dialogOffset, setDialogOffset] = createSignal({ x: 0, y: 0 })
   const initialDialogSize = () => {
     if (typeof window === "undefined") return { width: 980, height: 760 }
+    if (window.innerWidth < 768) {
+      return {
+        width: Math.max(320, window.innerWidth - 16),
+        height: Math.max(420, window.innerHeight - 16),
+      }
+    }
     return {
       width: Math.min(window.innerWidth - 16, Math.max(900, Math.floor(window.innerWidth * 0.78))),
       height: Math.min(window.innerHeight - 16, Math.max(620, Math.floor(window.innerHeight * 0.78))),
@@ -334,6 +343,15 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   }
 
   const clampDialogState = (nextSize = dialogSize(), nextOffset = dialogOffset()) => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      return {
+        size: {
+          width: Math.max(320, Math.min(window.innerWidth - 16, nextSize.width)),
+          height: Math.max(420, Math.min(window.innerHeight - 16, nextSize.height)),
+        },
+        offset: { x: 0, y: 0 },
+      }
+    }
     // Keep a minimum size, but avoid strict viewport max-clamping.
     // Hard max + offset clamping caused reverse-motion feeling while resizing.
     const width = Math.max(560, nextSize.width)
@@ -387,6 +405,14 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   const applyDialogFrame = () => {
     const container = resolveDialogContainer()
     if (!container) return
+
+    if (isMobileViewport()) {
+      container.style.width = ""
+      container.style.height = ""
+      container.style.transform = ""
+      return
+    }
+
     const state = clampDialogState()
     if (
       state.size.width !== dialogSize().width ||
@@ -425,6 +451,7 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   })
 
   const startDrag = (event: MouseEvent) => {
+    if (isMobileViewport()) return
     const target = event.target as HTMLElement | null
     if (!target) return
     if (target.closest("button, [role='switch'], [data-no-drag], input, textarea, a")) return
@@ -451,6 +478,7 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   }
 
   const startResize = (event: MouseEvent) => {
+    if (isMobileViewport()) return
     event.preventDefault()
     event.stopPropagation()
     const start = { x: event.clientX, y: event.clientY }
@@ -485,7 +513,7 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   createEffect(() => {
     const header = document.querySelector(".model-manager-dialog [data-slot='dialog-header']") as HTMLElement | null
     if (!header) return
-    header.style.cursor = "move"
+    header.style.cursor = isMobileViewport() ? "default" : "move"
     const onMouseDown = (event: globalThis.MouseEvent) => startDrag(event as unknown as MouseEvent)
     header.addEventListener("mousedown", onMouseDown)
     onCleanup(() => header.removeEventListener("mousedown", onMouseDown))
@@ -683,7 +711,7 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   return (
     <Dialog
       title={language.t("dialog.model.select.title")}
-      class="model-manager-dialog relative w-full h-full min-w-[560px] min-h-[320px] flex flex-col p-0 overflow-hidden [&_[data-slot=dialog-header]]:px-3 [&_[data-slot=dialog-header]]:py-2 [&_[data-slot=dialog-title]]:text-14-medium"
+      class="model-manager-dialog relative w-full h-full min-w-0 md:min-w-[560px] min-h-[320px] flex flex-col p-0 overflow-hidden [&_[data-slot=dialog-header]]:px-3 [&_[data-slot=dialog-header]]:py-2 [&_[data-slot=dialog-title]]:text-14-medium"
     >
       <div
         class="px-3 py-2 border-b border-border-base bg-surface-base flex items-center justify-between gap-2 cursor-move select-none"
@@ -747,8 +775,49 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
         </div>
       </div>
 
-      <div class="grid grid-cols-3 flex-1 min-h-0 h-full overflow-hidden">
-        <div class="border-r border-border-base flex flex-col bg-surface-base min-w-0 min-h-0">
+      <div class="md:hidden px-3 py-2 border-b border-border-base bg-surface-base">
+        <div class="grid grid-cols-3 gap-1 rounded-lg bg-surface-raised p-1">
+          <button
+            type="button"
+            class={cn(
+              "h-8 rounded-md text-12-medium transition-colors",
+              mobileSection() === "provider" ? "bg-surface-raised-pressed text-text-strong" : "text-text-weak",
+            )}
+            onClick={() => setMobileSection("provider")}
+          >
+            {language.t("common.providers")}
+          </button>
+          <button
+            type="button"
+            class={cn(
+              "h-8 rounded-md text-12-medium transition-colors",
+              mobileSection() === "account" ? "bg-surface-raised-pressed text-text-strong" : "text-text-weak",
+            )}
+            onClick={() => setMobileSection("account")}
+          >
+            {language.t("settings.accounts.title")}
+          </button>
+          <button
+            type="button"
+            class={cn(
+              "h-8 rounded-md text-12-medium transition-colors",
+              mobileSection() === "model" ? "bg-surface-raised-pressed text-text-strong" : "text-text-weak",
+            )}
+            onClick={() => setMobileSection("model")}
+          >
+            {language.t("dialog.model.select.title")}
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 flex-1 min-h-0 h-full overflow-hidden">
+        <div
+          class={cn(
+            "border-r border-border-base flex-col bg-surface-base min-w-0 min-h-0",
+            mobileSection() === "provider" ? "flex" : "hidden",
+            "md:flex",
+          )}
+        >
           <div class="model-manager-column-scroll p-2 space-y-1 overflow-y-auto flex-1 min-h-0">
             <div class="px-3 py-2 text-11-medium text-text-weak uppercase tracking-wider">
               {language.t("common.providers")}
@@ -769,10 +838,19 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
           </div>
         </div>
 
-        <div class="border-r border-border-base flex flex-col bg-surface-base min-w-0 min-h-0">
+        <div
+          class={cn(
+            "border-r border-border-base flex-col bg-surface-base min-w-0 min-h-0",
+            mobileSection() === "account" ? "flex" : "hidden",
+            "md:flex",
+          )}
+        >
           <div class="px-3 py-2 text-11-medium text-text-weak uppercase tracking-wider border-b border-border-base">
             {language.t("settings.accounts.title")}
           </div>
+          <Show when={selectedProviderId()}>
+            {(provider) => <div class="px-3 py-1 text-11-regular text-text-weak">{provider()}</div>}
+          </Show>
           <div class="model-manager-column-scroll p-2 space-y-1 overflow-y-auto flex-1 min-h-0">
             <Show
               when={accountsForSelectedProvider().length > 0}
@@ -809,7 +887,18 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
           </div>
         </div>
 
-        <div class="flex flex-col min-w-0 min-h-0 bg-surface-raised-base">
+        <div
+          class={cn(
+            "flex-col min-w-0 min-h-0 bg-surface-raised-base",
+            mobileSection() === "model" ? "flex" : "hidden",
+            "md:flex",
+          )}
+        >
+          <div class="px-3 py-2 text-11-regular text-text-weak border-b border-border-base md:hidden">
+            <span>{selectedProviderId() || "--"}</span>
+            <span class="px-1">/</span>
+            <span>{selectedAccountId() || "--"}</span>
+          </div>
           <div class="flex-1 overflow-hidden relative">
             <List
               class="h-full [&_[data-slot=list-scroll]]:h-full [&_[data-slot=list-scroll]]:p-2"
@@ -905,15 +994,17 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
           </div>
         </div>
       </div>
-      <button
-        type="button"
-        aria-label="Resize model manager dialog"
-        data-no-drag
-        class="model-manager-resize-handle"
-        onMouseDown={startResize}
-      >
-        <span class="model-manager-resize-corner" />
-      </button>
+      <Show when={!isMobileViewport()}>
+        <button
+          type="button"
+          aria-label="Resize model manager dialog"
+          data-no-drag
+          class="model-manager-resize-handle"
+          onMouseDown={startResize}
+        >
+          <span class="model-manager-resize-corner" />
+        </button>
+      </Show>
     </Dialog>
   )
 }
