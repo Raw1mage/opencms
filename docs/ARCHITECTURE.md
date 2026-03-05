@@ -1090,28 +1090,30 @@ This section defines the credential-management baseline for self-hosted Web depl
 
 ### A. Security Policy
 
-1. Prefer hashed credential file (`htpasswd`-style `username:hash`) over plaintext env password.
-2. Preserve backward compatibility with legacy `OPENCODE_SERVER_USERNAME/OPENCODE_SERVER_PASSWORD` only as fallback.
-3. Browser auth flow uses session cookie + CSRF protection; no URL-embedded basic credentials.
+1. Runtime credential strategy is selected by `OPENCODE_AUTH_MODE` (`pam`/`htpasswd`/`legacy`/`auto`).
+2. Current cms baseline is **PAM-first** (`OPENCODE_AUTH_MODE=pam`) for Linux self-host deployments.
+3. Keep htpasswd and legacy env-password as explicit compatibility modes, not implicit defaults.
+4. Browser auth flow uses session cookie + CSRF protection; no URL-embedded basic credentials.
 
-### B. Runtime credential sources (priority)
+### B. Runtime credential behavior by mode
 
-1. `OPENCODE_SERVER_HTPASSWD` (or `OPENCODE_SERVER_PASSWORD_FILE`) if file exists.
-2. Fallback: `OPENCODE_SERVER_USERNAME + OPENCODE_SERVER_PASSWORD`.
-3. Fallback (Linux only): Native PAM authentication mapped to the OS user, executed via a hidden interactive `su` PTY layer (`bun-pty`).
+1. `pam`: Linux PAM only (`su` PTY via `bun-pty`); no htpasswd or legacy env password check.
+2. `htpasswd`: file-based hash verification only (`OPENCODE_SERVER_HTPASSWD` or `OPENCODE_SERVER_PASSWORD_FILE`).
+3. `legacy`: `OPENCODE_SERVER_USERNAME + OPENCODE_SERVER_PASSWORD` only.
+4. `auto` (compatibility): htpasswd → legacy env password → PAM (Linux only).
 
 ### C. File-to-function mapping
 
-| File Path                                              | Function / Responsibility                                                                                     | Architectural Impact                                                                 |
-| :----------------------------------------------------- | :------------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------- |
-| `packages/opencode/src/server/web-auth-credentials.ts` | Loads/caches htpasswd-style credential file, verifies hash, and falls back to PAM auth via Linux PTY on `su`. | Decouples credential storage from env plaintext and enables true OS-level web login. |
-| `packages/opencode/src/server/web-auth.ts`             | Web auth policy layer (session cookie signing, CSRF enforcement helpers, lockout integration).                | Central auth gate contract consumed by server middleware and auth routes.            |
-| `packages/opencode/src/server/routes/global.ts`        | Auth endpoints for session probe/login/logout; returns `usernameHint` for login UX.                           | Provides explicit auth API contract for browser clients.                             |
-| `packages/opencode/src/flag/flag.ts`                   | Defines new auth-file flags (`OPENCODE_SERVER_HTPASSWD`, `OPENCODE_SERVER_PASSWORD_FILE`).                    | Standardizes configuration surface for secure credential-file deployments.           |
-| `packages/app/src/context/web-auth.tsx`                | Frontend auth state manager, cookie-based authorized fetch, CSRF header injection.                            | Aligns browser transport security with server-side CSRF/session model.               |
-| `packages/app/src/components/auth-gate.tsx`            | Login gate UI using `usernameHint` and explicit sign-in flow.                                                 | Replaces browser-native Basic auth popup with controllable app UX.                   |
-| `packages/app/src/components/terminal.tsx`             | Removes websocket URL basic credentials.                                                                      | Prevents credential exposure in URL/user-info surface.                               |
-| `docker/docker-compose.production.yml`                 | Exposes `OPENCODE_SERVER_HTPASSWD` default path `/opt/opencode/config/opencode/.htpasswd`.                    | Makes secure-by-default self-host setup practical for home installations.            |
+| File Path                                              | Function / Responsibility                                                                                                     | Architectural Impact                                                                      |
+| :----------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------- |
+| `packages/opencode/src/server/web-auth-credentials.ts` | Resolves `OPENCODE_AUTH_MODE`, verifies credentials by mode (pam/htpasswd/legacy/auto), and runs Linux PAM auth via PTY `su`. | Enables deterministic PAM-only deployments while preserving explicit compatibility modes. |
+| `packages/opencode/src/server/web-auth.ts`             | Web auth policy layer (session cookie signing, CSRF enforcement helpers, lockout integration).                                | Central auth gate contract consumed by server middleware and auth routes.                 |
+| `packages/opencode/src/server/routes/global.ts`        | Auth endpoints for session probe/login/logout; returns `usernameHint` for login UX.                                           | Provides explicit auth API contract for browser clients.                                  |
+| `packages/opencode/src/flag/flag.ts`                   | Defines auth flags (`OPENCODE_AUTH_MODE`, `OPENCODE_SERVER_HTPASSWD`, `OPENCODE_SERVER_PASSWORD_FILE`).                       | Standardizes mode-based auth routing across runtime and startup scripts.                  |
+| `packages/app/src/context/web-auth.tsx`                | Frontend auth state manager, cookie-based authorized fetch, CSRF header injection.                                            | Aligns browser transport security with server-side CSRF/session model.                    |
+| `packages/app/src/components/auth-gate.tsx`            | Login gate UI using `usernameHint` and explicit sign-in flow.                                                                 | Replaces browser-native Basic auth popup with controllable app UX.                        |
+| `packages/app/src/components/terminal.tsx`             | Removes websocket URL basic credentials.                                                                                      | Prevents credential exposure in URL/user-info surface.                                    |
+| `docker/docker-compose.production.yml`                 | Exposes `OPENCODE_SERVER_HTPASSWD` default path `/opt/opencode/config/opencode/.htpasswd`.                                    | Makes secure-by-default self-host setup practical for home installations.                 |
 
 ### D. Operational baseline for Docker self-host
 

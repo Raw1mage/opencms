@@ -61,7 +61,8 @@ OPENCODE_CFG="${OPENCODE_SERVER_CFG:-/etc/opencode/opencode.cfg}"
 WEB_PORT="${OPENCODE_PORT:-1080}"
 WEB_HOSTNAME="${OPENCODE_HOSTNAME:-0.0.0.0}"
 FRONTEND_PORT="${OPENCODE_FRONTEND_DEV_PORT:-3000}"
-HTPASSWD_PATH="${OPENCODE_SERVER_HTPASSWD:-${HOME}/.config/opencode/.htpasswd}"
+AUTH_MODE="${OPENCODE_AUTH_MODE:-pam}"
+HTPASSWD_PATH="${OPENCODE_SERVER_HTPASSWD:-}"
 OPENCODE_PROFILE="${OPENCODE_PROFILE:-default}"
 DISPLAY_URL="${OPENCODE_PUBLIC_URL:-http://localhost:${WEB_PORT}}"
 FRONTEND_DIST="${FRONTEND_DIST}"
@@ -90,7 +91,8 @@ load_server_cfg() {
     WEB_PORT="${OPENCODE_PORT:-1080}"
     WEB_HOSTNAME="${OPENCODE_HOSTNAME:-0.0.0.0}"
     FRONTEND_PORT="${OPENCODE_FRONTEND_DEV_PORT:-3000}"
-    HTPASSWD_PATH="${OPENCODE_SERVER_HTPASSWD:-${HOME}/.config/opencode/.htpasswd}"
+    AUTH_MODE="${OPENCODE_AUTH_MODE:-pam}"
+    HTPASSWD_PATH="${OPENCODE_SERVER_HTPASSWD:-}"
     DISPLAY_URL="${OPENCODE_PUBLIC_URL:-http://localhost:${WEB_PORT}}"
 
     if [ -z "${OPENCODE_FRONTEND_PATH:-}" ]; then
@@ -230,13 +232,38 @@ ensure_non_interactive_sudo() {
 }
 
 print_auth_mode() {
-    if [ -f "${HTPASSWD_PATH}" ]; then
-        echo "  Auth: htpasswd (${HTPASSWD_PATH})"
-    elif [ -n "${OPENCODE_SERVER_PASSWORD}" ]; then
-        echo "  Auth: ${OPENCODE_SERVER_USERNAME:-opencode}:**** (env)"
-    else
-        log_warn "No auth configured. Set OPENCODE_SERVER_HTPASSWD or OPENCODE_SERVER_PASSWORD."
-    fi
+    local mode="${AUTH_MODE:-pam}"
+    case "${mode}" in
+        pam)
+            echo "  Auth: PAM (${USER})"
+            ;;
+        htpasswd)
+            if [ -n "${HTPASSWD_PATH}" ] && [ -f "${HTPASSWD_PATH}" ]; then
+                echo "  Auth: htpasswd (${HTPASSWD_PATH})"
+            else
+                log_warn "Auth mode=htpasswd but OPENCODE_SERVER_HTPASSWD is missing or file not found."
+            fi
+            ;;
+        legacy)
+            if [ -n "${OPENCODE_SERVER_PASSWORD}" ]; then
+                echo "  Auth: ${OPENCODE_SERVER_USERNAME:-opencode}:**** (env legacy)"
+            else
+                log_warn "Auth mode=legacy but OPENCODE_SERVER_PASSWORD is not set."
+            fi
+            ;;
+        auto)
+            if [ -n "${HTPASSWD_PATH}" ] && [ -f "${HTPASSWD_PATH}" ]; then
+                echo "  Auth: auto -> htpasswd (${HTPASSWD_PATH})"
+            elif [ -n "${OPENCODE_SERVER_PASSWORD}" ]; then
+                echo "  Auth: auto -> ${OPENCODE_SERVER_USERNAME:-opencode}:**** (env legacy)"
+            else
+                echo "  Auth: auto -> PAM (${USER})"
+            fi
+            ;;
+        *)
+            log_warn "Unknown OPENCODE_AUTH_MODE='${mode}'. Expected: pam|htpasswd|legacy|auto"
+            ;;
+    esac
 }
 
 print_runtime_context() {
@@ -510,7 +537,7 @@ do_dev_start() {
         BUN_BIN="$(find_bun)"
         log_info "Starting server from source on port ${WEB_PORT}..."
 
-        nohup env OPENCODE_LAUNCH_MODE="webctl" OPENCODE_ALLOW_GLOBAL_FS_BROWSE="${OPENCODE_ALLOW_GLOBAL_FS_BROWSE:-1}" OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" OPENCODE_WEB_NO_OPEN="${OPENCODE_WEB_NO_OPEN:-1}" OPENCODE_SERVER_HTPASSWD="${HTPASSWD_PATH}" OPENCODE_SERVER_USERNAME="${OPENCODE_SERVER_USERNAME:-opencode}" \
+        nohup env OPENCODE_LAUNCH_MODE="webctl" OPENCODE_ALLOW_GLOBAL_FS_BROWSE="${OPENCODE_ALLOW_GLOBAL_FS_BROWSE:-1}" OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" OPENCODE_WEB_NO_OPEN="${OPENCODE_WEB_NO_OPEN:-1}" OPENCODE_AUTH_MODE="${AUTH_MODE}" \
             "${BUN_BIN}" --conditions=browser \
             "${PROJECT_ROOT}/packages/opencode/src/index.ts" \
             web --port "${WEB_PORT}" --hostname "${WEB_HOSTNAME}" \
@@ -521,7 +548,7 @@ do_dev_start() {
             exit 1
         fi
         log_info "Starting standalone server on port ${WEB_PORT}..."
-        nohup env OPENCODE_LAUNCH_MODE="webctl" OPENCODE_ALLOW_GLOBAL_FS_BROWSE="${OPENCODE_ALLOW_GLOBAL_FS_BROWSE:-1}" OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" OPENCODE_WEB_NO_OPEN="${OPENCODE_WEB_NO_OPEN:-1}" OPENCODE_SERVER_HTPASSWD="${HTPASSWD_PATH}" OPENCODE_SERVER_USERNAME="${OPENCODE_SERVER_USERNAME:-opencode}" \
+        nohup env OPENCODE_LAUNCH_MODE="webctl" OPENCODE_ALLOW_GLOBAL_FS_BROWSE="${OPENCODE_ALLOW_GLOBAL_FS_BROWSE:-1}" OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" OPENCODE_WEB_NO_OPEN="${OPENCODE_WEB_NO_OPEN:-1}" OPENCODE_AUTH_MODE="${AUTH_MODE}" \
             "${OPENCODE_BIN}" \
             web --port "${WEB_PORT}" --hostname "${WEB_HOSTNAME}" \
             >"${SERVER_LOG_FILE}" 2>&1 < /dev/null &
@@ -978,11 +1005,12 @@ do_help() {
     echo "  OPENCODE_PORT              Port to listen on (default: 1080)"
     echo "  OPENCODE_PUBLIC_URL        Public URL shown in status/start output"
     echo "  OPENCODE_PROFILE           Runtime profile label (default: default)"
+    echo "  OPENCODE_AUTH_MODE         Auth mode: pam|htpasswd|legacy|auto (default: pam)"
     echo "  OPENCODE_ALLOW_INLINE_RESTART  Allow risky inline restart (default: 0)"
     echo "  OPENCODE_AUTO_SWITCH_OWNER Auto-switch to repo owner (default: 1)"
-    echo "  OPENCODE_SERVER_HTPASSWD   Path to htpasswd file (recommended)"
-    echo "  OPENCODE_SERVER_PASSWORD   Password env fallback"
-    echo "  OPENCODE_SERVER_USERNAME   Username for password fallback"
+    echo "  OPENCODE_SERVER_HTPASSWD   Path to htpasswd file (required when mode=htpasswd)"
+    echo "  OPENCODE_SERVER_PASSWORD   Password env (legacy mode only)"
+    echo "  OPENCODE_SERVER_USERNAME   Username for legacy mode"
     echo "  OPENCODE_SYSTEM_SERVICE_NAME systemd service basename (default: opencode-web)"
     echo "  OPENCODE_WEB_REFRESH_FULL_BOOTSTRAP 1=web-refresh runs full install incl. system packages"
     echo "  HOME / XDG_*               Set these to isolate runtime state per user/profile"

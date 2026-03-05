@@ -15,7 +15,8 @@ fi
 
 unset OPENCODE_SERVER_USERNAME
 unset OPENCODE_SERVER_PASSWORD
-export OPENCODE_SERVER_HTPASSWD="${OPENCODE_SERVER_HTPASSWD:-$HOME/.config/opencode/.htpasswd}"
+unset OPENCODE_SERVER_HTPASSWD
+export OPENCODE_AUTH_MODE="${OPENCODE_AUTH_MODE:-pam}"
 export OPENCODE_ALLOW_GLOBAL_FS_BROWSE="${OPENCODE_ALLOW_GLOBAL_FS_BROWSE:-1}"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,7 +28,7 @@ export OPENCODE_FRONTEND_PATH="${OPENCODE_FRONTEND_PATH:-$PROJECT_ROOT/packages/
 
 echo "Starting OpenCode Web Server..."
 echo "URL: http://0.0.0.0:1080"
-echo "Auth mode: htpasswd"
+echo "Auth mode: $OPENCODE_AUTH_MODE"
 echo "Frontend: $OPENCODE_FRONTEND_PATH"
 echo "Global FS browse: $OPENCODE_ALLOW_GLOBAL_FS_BROWSE"
 echo ""
