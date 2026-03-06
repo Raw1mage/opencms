@@ -27,6 +27,9 @@ export const dict = {
 
   "ui.sessionTurn.retry.retrying": "再試行中",
   "ui.sessionTurn.retry.inSeconds": "{{seconds}}秒後",
+  "ui.sessionTurn.retry.attempt": "{{attempt}}回目",
+  "ui.sessionTurn.retry.attemptLine": "{{line}} - {{attempt}}回目",
+  "ui.sessionTurn.retry.geminiHot": "gemini が混雑しています",
 
   "ui.sessionTurn.status.delegating": "作業を委任中",
   "ui.sessionTurn.status.planning": "次のステップを計画中",
@@ -106,4 +109,6 @@ export const dict = {
   "ui.question.review.notAnswered": "(未回答)",
   "ui.question.multiHint": "(該当するものをすべて選択)",
   "ui.question.custom.placeholder": "回答を入力...",
+  "ui.tool.websearch": "Web検索",
+  "ui.tool.codesearch": "コード検索",
 }

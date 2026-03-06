@@ -32,6 +32,9 @@ export const dict = {
 
   "ui.sessionTurn.retry.retrying": "重试中",
   "ui.sessionTurn.retry.inSeconds": "{{seconds}} 秒后",
+  "ui.sessionTurn.retry.attempt": "第 {{attempt}} 次",
+  "ui.sessionTurn.retry.attemptLine": "{{line}} - 第 {{attempt}} 次",
+  "ui.sessionTurn.retry.geminiHot": "gemini 当前过载",
 
   "ui.sessionTurn.status.delegating": "正在委派工作",
   "ui.sessionTurn.status.planning": "正在规划下一步",
@@ -111,4 +114,6 @@ export const dict = {
   "ui.question.review.notAnswered": "(未回答)",
   "ui.question.multiHint": "(可多选)",
   "ui.question.custom.placeholder": "输入你的答案...",
+  "ui.tool.websearch": "网络搜索",
+  "ui.tool.codesearch": "代码搜索",
 } satisfies Partial<Record<Keys, string>>

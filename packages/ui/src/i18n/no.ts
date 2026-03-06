@@ -31,6 +31,9 @@ export const dict: Record<Keys, string> = {
 
   "ui.sessionTurn.retry.retrying": "Prøver igjen",
   "ui.sessionTurn.retry.inSeconds": "om {{seconds}}s",
+  "ui.sessionTurn.retry.attempt": "forsøk #{{attempt}}",
+  "ui.sessionTurn.retry.attemptLine": "{{line}} - forsøk #{{attempt}}",
+  "ui.sessionTurn.retry.geminiHot": "gemini er veldig overbelastet nå",
 
   "ui.sessionTurn.status.delegating": "Delegerer arbeid",
   "ui.sessionTurn.status.planning": "Planlegger neste trinn",
@@ -110,4 +113,6 @@ export const dict: Record<Keys, string> = {
   "ui.question.review.notAnswered": "(ikke besvart)",
   "ui.question.multiHint": "(velg alle som gjelder)",
   "ui.question.custom.placeholder": "Skriv svaret ditt...",
+  "ui.tool.websearch": "Nettsøk",
+  "ui.tool.codesearch": "Kodesøk",
 }

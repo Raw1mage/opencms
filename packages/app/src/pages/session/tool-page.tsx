@@ -114,6 +114,7 @@ export default function SessionToolPageRoute() {
   const closeFileViewer = () => {
     navigate(`${backPath()}/tool/files`)
   }
+  const fileListDirectory = createMemo(() => info()?.directory ?? sdk.directory ?? sync.data.path.directory)
 
   return (
     <div class="size-full flex flex-col bg-background-base">
@@ -124,8 +125,13 @@ export default function SessionToolPageRoute() {
           <Show
             when={selectedFile()}
             fallback={
-              <div class="px-3 py-2 h-full overflow-auto" ref={fileTreeScrollEl}>
-                <FileTree path="" modified={[]} kinds={new Map()} onFileClick={(node) => openFileViewer(node.path)} />
+              <div class="h-full flex flex-col min-h-0">
+                <div class="shrink-0 px-3 py-2 border-b border-border-weak-base">
+                  <div class="text-11-regular text-text-weak truncate">{fileListDirectory()}</div>
+                </div>
+                <div class="px-3 py-2 h-full overflow-auto" ref={fileTreeScrollEl}>
+                  <FileTree path="" modified={[]} kinds={new Map()} onFileClick={(node) => openFileViewer(node.path)} />
+                </div>
               </div>
             }
           >

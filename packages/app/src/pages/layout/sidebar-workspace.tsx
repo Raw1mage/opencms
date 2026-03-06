@@ -240,6 +240,7 @@ const WorkspaceSessionList = (props: {
   slug: Accessor<string>
   mobile?: boolean
   ctx: WorkspaceSidebarContext
+  projectLabel?: Accessor<string>
   showNew: Accessor<boolean>
   loading: Accessor<boolean>
   sessions: Accessor<Session[]>
@@ -273,7 +274,8 @@ const WorkspaceSessionList = (props: {
         .map((id) => byID.get(id))
         .filter((session): session is Session => !!session)
         .sort((a, b) => (a.time.created ?? 0) - (b.time.created ?? 0))
-      const rootLabel = `${root.title}${children.length > 0 ? ` [${children.length}]` : ""}`
+      const projectPrefix = props.projectLabel?.() ? `[${props.projectLabel!()}] ` : ""
+      const rootLabel = `${projectPrefix}${root.title}${children.length > 0 ? ` [${children.length}]` : ""}`
       const rows: { session: Session; label: string; child: boolean }[] = [
         { session: root, label: rootLabel, child: false },
       ]
@@ -309,7 +311,7 @@ const WorkspaceSessionList = (props: {
       <For each={sessionGroups()}>
         {(group) => (
           <div class="flex flex-col gap-0.5">
-            <div class="px-2 pt-1.5 pb-0.5 text-12-medium tracking-wide text-text-weak">{group.label}</div>
+            <div class="px-2 pt-2 pb-1 text-12-medium tracking-wide text-text-weak uppercase">{group.label}</div>
             <For each={group.rows}>
               {(row) => (
                 <SessionItem
@@ -501,6 +503,10 @@ export const SortableWorkspace = (props: {
             slug={slug}
             mobile={props.mobile}
             ctx={props.ctx}
+            projectLabel={() =>
+              props.ctx.workspaceName(props.directory, props.project.id, workspaceStore.vcs?.branch) ??
+              getFilename(props.directory)
+            }
             showNew={showNew}
             loading={loading}
             sessions={sessions}
@@ -544,43 +550,20 @@ export const LocalWorkspace = (props: {
       ref={(el) => props.ctx.setScrollContainerRef(el, props.mobile)}
       class="size-full flex flex-col py-2 overflow-y-auto no-scrollbar [overflow-anchor:none]"
     >
-      <nav class="flex flex-col gap-1 px-2">
-        <Show when={loading()}>
-          <SessionSkeleton />
-        </Show>
-        <For each={sessions()}>
-          {(session) => (
-            <SessionItem
-              session={session}
-              slug={slug()}
-              mobile={props.mobile}
-              children={children()}
-              sidebarExpanded={props.ctx.sidebarExpanded}
-              sidebarHovering={props.ctx.sidebarHovering}
-              nav={props.ctx.nav}
-              hoverSession={props.ctx.hoverSession}
-              setHoverSession={props.ctx.setHoverSession}
-              clearHoverProjectSoon={props.ctx.clearHoverProjectSoon}
-              prefetchSession={props.ctx.prefetchSession}
-            />
-          )}
-        </For>
-        <Show when={hasMore()}>
-          <div class="relative w-full py-1">
-            <Button
-              variant="ghost"
-              class="flex w-full text-left justify-start text-14-regular text-text-weak pl-9 pr-10"
-              size="large"
-              onClick={(e: MouseEvent) => {
-                loadMore()
-                ;(e.currentTarget as HTMLButtonElement).blur()
-              }}
-            >
-              {language.t("common.loadMore")}
-            </Button>
-          </div>
-        </Show>
-      </nav>
+      <WorkspaceSessionList
+        slug={slug}
+        mobile={props.mobile}
+        ctx={props.ctx}
+        projectLabel={() => props.project.name || getFilename(props.project.worktree)}
+        showNew={() => false}
+        loading={loading}
+        sessions={sessions}
+        allSessions={() => workspace().store.session}
+        children={children}
+        hasMore={hasMore}
+        loadMore={loadMore}
+        language={language}
+      />
     </div>
   )
 }

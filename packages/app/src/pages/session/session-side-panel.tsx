@@ -87,6 +87,10 @@ export function SessionSidePanel(props: {
     if (sideMode() === "status") return props.language.t("status.popover.trigger")
     return props.language.t("session.tools.files")
   })
+  const panelSubtitle = createMemo(() => {
+    if (sideMode() !== "files") return undefined
+    return props.vm.info()?.directory ?? sdk.directory ?? sync.data.path.directory
+  })
 
   const todos = createMemo(() => {
     const sessionID = activeSessionID()
@@ -165,8 +169,15 @@ export function SessionSidePanel(props: {
         class="h-full flex flex-col overflow-hidden group/filetree"
         classList={{ "border-l border-border-weak-base": props.reviewOpen }}
       >
-        <div class="h-10 px-3 flex items-center justify-between text-12-medium text-text-weak border-b border-border-weak-base">
-          <span>{panelTitle()}</span>
+        <div class="min-h-10 px-3 py-2 flex items-center justify-between gap-3 text-12-medium text-text-weak border-b border-border-weak-base">
+          <div class="min-w-0 flex flex-col">
+            <Show when={sideMode() === "status"}>
+              <span>{panelTitle()}</span>
+            </Show>
+            <Show when={panelSubtitle() ?? (sideMode() === "status" ? undefined : sdk.directory)}>
+              {(subtitle) => <span class="text-11-regular text-text-weak truncate">{subtitle()}</span>}
+            </Show>
+          </div>
         </div>
 
         <Show when={sideMode() === "files"}>

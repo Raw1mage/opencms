@@ -28,6 +28,9 @@ export const dict = {
 
   "ui.sessionTurn.retry.retrying": "กำลังลองใหม่",
   "ui.sessionTurn.retry.inSeconds": "ใน {{seconds}}วิ",
+  "ui.sessionTurn.retry.attempt": "ครั้งที่ {{attempt}}",
+  "ui.sessionTurn.retry.attemptLine": "{{line}} - ครั้งที่ {{attempt}}",
+  "ui.sessionTurn.retry.geminiHot": "gemini กำลังใช้งานหนาแน่นมาก",
 
   "ui.sessionTurn.status.delegating": "มอบหมายงาน",
   "ui.sessionTurn.status.planning": "วางแผนขั้นตอนถัดไป",
@@ -107,4 +110,6 @@ export const dict = {
   "ui.question.review.notAnswered": "(ไม่ได้ตอบ)",
   "ui.question.multiHint": "(เลือกทั้งหมดที่ใช้)",
   "ui.question.custom.placeholder": "พิมพ์คำตอบของคุณ...",
+  "ui.tool.websearch": "ค้นหาเว็บ",
+  "ui.tool.codesearch": "ค้นหาโค้ด",
 }

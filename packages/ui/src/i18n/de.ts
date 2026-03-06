@@ -31,6 +31,9 @@ export const dict = {
 
   "ui.sessionTurn.retry.retrying": "erneuter Versuch",
   "ui.sessionTurn.retry.inSeconds": "in {{seconds}}s",
+  "ui.sessionTurn.retry.attempt": "Versuch #{{attempt}}",
+  "ui.sessionTurn.retry.attemptLine": "{{line}} - Versuch #{{attempt}}",
+  "ui.sessionTurn.retry.geminiHot": "gemini ist gerade sehr überlastet",
 
   "ui.sessionTurn.status.delegating": "Arbeit delegieren",
   "ui.sessionTurn.status.planning": "Nächste Schritte planen",
@@ -110,4 +113,6 @@ export const dict = {
   "ui.question.review.notAnswered": "(nicht beantwortet)",
   "ui.question.multiHint": "(alle zutreffenden auswählen)",
   "ui.question.custom.placeholder": "Geben Sie Ihre Antwort ein...",
+  "ui.tool.websearch": "Websuche",
+  "ui.tool.codesearch": "Codesuche",
 } satisfies Partial<Record<Keys, string>>

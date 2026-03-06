@@ -58,7 +58,7 @@ export const dict = {
   "session.tools.monitor": "工作監控",
   "session.tools.todo": "待辦列表",
   "session.tools.terminal": "終端機",
-  "command.review.toggle": "切換審查",
+  "command.review.toggle": "異動檢視",
   "command.terminal.new": "新增終端機",
   "command.terminal.new.description": "建立新的終端機標籤頁",
   "command.steps.toggle": "切換步驟",

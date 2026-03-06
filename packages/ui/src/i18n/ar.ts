@@ -28,6 +28,9 @@ export const dict = {
 
   "ui.sessionTurn.retry.retrying": "إعادة المحاولة",
   "ui.sessionTurn.retry.inSeconds": "خلال {{seconds}} ثواني",
+  "ui.sessionTurn.retry.attempt": "المحاولة رقم {{attempt}}",
+  "ui.sessionTurn.retry.attemptLine": "{{line}} - المحاولة رقم {{attempt}}",
+  "ui.sessionTurn.retry.geminiHot": "gemini مزدحم حاليا",
 
   "ui.sessionTurn.status.delegating": "تفويض العمل",
   "ui.sessionTurn.status.planning": "تخطيط الخطوات التالية",
@@ -107,4 +110,6 @@ export const dict = {
   "ui.question.review.notAnswered": "(لم يتم الرد)",
   "ui.question.multiHint": "(حدد كل ما ينطبق)",
   "ui.question.custom.placeholder": "اكتب إجابتك...",
+  "ui.tool.websearch": "بحث الويب",
+  "ui.tool.codesearch": "بحث الكود",
 }

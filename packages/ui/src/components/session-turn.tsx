@@ -19,6 +19,7 @@ import { IconButton } from "./icon-button"
 import { Card } from "./card"
 import { Button } from "./button"
 import { Spinner } from "./spinner"
+import { SessionRetry } from "./session-retry"
 import { Tooltip } from "./tooltip"
 import { createStore } from "solid-js/store"
 import { DateTime, DurationUnit, Interval } from "luxon"
@@ -684,6 +685,7 @@ export function SessionTurn(
                         </div>
                       </Show>
                     </div>
+                    <SessionRetry status={status()} show={isLastUserMessage()} />
                     {/* Response */}
                     <Show when={props.stepsExpanded && assistantMessages().length > 0}>
                       <div data-slot="session-turn-collapsible-content-inner" aria-hidden={working()}>

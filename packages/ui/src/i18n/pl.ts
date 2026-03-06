@@ -27,6 +27,9 @@ export const dict = {
 
   "ui.sessionTurn.retry.retrying": "ponawianie",
   "ui.sessionTurn.retry.inSeconds": "za {{seconds}}s",
+  "ui.sessionTurn.retry.attempt": "próba #{{attempt}}",
+  "ui.sessionTurn.retry.attemptLine": "{{line}} - próba #{{attempt}}",
+  "ui.sessionTurn.retry.geminiHot": "gemini jest teraz mocno przeciążony",
 
   "ui.sessionTurn.status.delegating": "Delegowanie pracy",
   "ui.sessionTurn.status.planning": "Planowanie kolejnych kroków",
@@ -106,4 +109,6 @@ export const dict = {
   "ui.question.review.notAnswered": "(bez odpowiedzi)",
   "ui.question.multiHint": "(zaznacz wszystkie pasujące)",
   "ui.question.custom.placeholder": "Wpisz swoją odpowiedź...",
+  "ui.tool.websearch": "Wyszukiwanie w sieci",
+  "ui.tool.codesearch": "Wyszukiwanie kodu",
 }

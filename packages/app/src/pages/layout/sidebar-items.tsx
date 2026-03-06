@@ -4,6 +4,7 @@ import { useGlobalSDK } from "@/context/global-sdk"
 import { useLanguage } from "@/context/language"
 import { useLayout, type LocalProject, getAvatarColors } from "@/context/layout"
 import { useNotification } from "@/context/notification"
+import { usePermission } from "@/context/permission"
 import { base64Encode } from "@opencode-ai/util/encode"
 import { Avatar } from "@opencode-ai/ui/avatar"
 import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
@@ -16,19 +17,30 @@ import { showToast } from "@opencode-ai/ui/toast"
 import { Binary } from "@opencode-ai/util/binary"
 import { getFilename } from "@opencode-ai/util/path"
 import { type Message, type Session, type TextPart, type UserMessage } from "@opencode-ai/sdk/v2/client"
-import { For, Match, Show, Switch, createMemo, onCleanup, type Accessor, type JSX } from "solid-js"
+import { For, Match, Show, Switch, createMemo, createSignal, onCleanup, type Accessor, type JSX } from "solid-js"
 import { produce } from "solid-js/store"
 import { agentColor } from "@/utils/agent"
+import { hasProjectPermissions } from "./helpers"
+import { sessionPermissionRequest } from "../session/session-request-tree"
 
 const OPENCODE_PROJECT_ID = "4b0ea68d7af9a6031a7ffda7ad66e0cb83315750"
 
 export const ProjectIcon = (props: { project: LocalProject; class?: string; notify?: boolean }): JSX.Element => {
+  const globalSync = useGlobalSync()
   const notification = useNotification()
+  const permission = usePermission()
   const dirs = createMemo(() => [props.project.worktree, ...(props.project.sandboxes ?? [])])
   const unseenCount = createMemo(() =>
     dirs().reduce((total, directory) => total + notification.project.unseenCount(directory), 0),
   )
   const hasError = createMemo(() => dirs().some((directory) => notification.project.unseenHasError(directory)))
+  const hasPermissions = createMemo(() =>
+    dirs().some((directory) => {
+      const [store] = globalSync.child(directory, { bootstrap: false })
+      return hasProjectPermissions(store.permission, (item) => !permission.autoResponds(item, directory))
+    }),
+  )
+  const notify = createMemo(() => props.notify && (hasPermissions() || unseenCount() > 0))
   const name = createMemo(() => props.project.name || getFilename(props.project.worktree))
   return (
     <div class={`relative size-8 shrink-0 rounded ${props.class ?? ""}`}>
@@ -40,15 +52,16 @@ export const ProjectIcon = (props: { project: LocalProject; class?: string; noti
           }
           {...getAvatarColors(props.project.icon?.color)}
           class="size-full rounded"
-          classList={{ "badge-mask": unseenCount() > 0 && props.notify }}
+          classList={{ "badge-mask": notify() }}
         />
       </div>
-      <Show when={unseenCount() > 0 && props.notify}>
+      <Show when={notify()}>
         <div
           classList={{
             "absolute top-px right-px size-1.5 rounded-full z-10": true,
-            "bg-icon-critical-base": hasError(),
-            "bg-text-interactive-base": !hasError(),
+            "bg-surface-warning-strong": hasPermissions(),
+            "bg-icon-critical-base": !hasPermissions() && hasError(),
+            "bg-text-interactive-base": !hasPermissions() && !hasError(),
           }}
         />
       </Show>
@@ -95,59 +108,87 @@ const SessionRow = (props: {
   timeLabel: Accessor<string>
   showActions: Accessor<boolean>
   actionMenu?: JSX.Element
+  isActive: Accessor<boolean>
+  onActiveSelect?: () => void
+  ignoreClick?: () => boolean
 }): JSX.Element => (
-  <A
-    href={`/${props.slug}/session/${props.session.id}`}
-    class={`flex items-center justify-between gap-2 min-w-0 text-left w-full focus:outline-none ${props.dense ? "py-0.5" : "py-1"}`}
-    onPointerEnter={props.scheduleHoverPrefetch}
-    onPointerLeave={props.cancelHoverPrefetch}
-    onMouseEnter={props.scheduleHoverPrefetch}
-    onMouseLeave={props.cancelHoverPrefetch}
-    onFocus={() => props.prefetchSession(props.session, "high")}
-    onClick={() => {
-      props.setHoverSession(undefined)
-      if (props.sidebarOpened()) return
-      props.clearHoverProjectSoon()
-    }}
-  >
-    <div class="flex items-center gap-1 w-full">
-      <div class="shrink-0 size-6 flex items-center justify-center text-text-weak">
-        <Show when={props.showActions()} fallback={<span class="text-12-regular">-</span>}>
-          {props.actionMenu}
-        </Show>
-      </div>
-      <div
-        class="shrink-0 size-4 flex items-center justify-center"
-        style={{ color: props.tint() ?? "var(--icon-interactive-base)" }}
-      >
-        <Switch fallback={<div class="size-1.5 rounded-full bg-transparent" />}>
-          <Match when={props.isWorking()}>
-            <Spinner class="size-[15px]" />
-          </Match>
-          <Match when={props.hasPermissions()}>
-            <div class="size-1.5 rounded-full bg-surface-warning-strong" />
-          </Match>
-          <Match when={props.hasError()}>
-            <div class="size-1.5 rounded-full bg-text-diff-delete-base" />
-          </Match>
-          <Match when={props.unseenCount() > 0}>
-            <div class="size-1.5 rounded-full bg-text-interactive-base" />
-          </Match>
-        </Switch>
-      </div>
-      <span
-        class="text-13-regular text-text-strong grow min-w-0 overflow-hidden text-ellipsis truncate"
-        classList={{
-          "font-mono text-12-regular": props.child(),
-        }}
-      >
-        {props.label()}
-      </span>
-      <span class="shrink-0 w-14 text-right text-11-regular text-text-weak tabular-nums pr-0.5">
-        {props.timeLabel()}
-      </span>
+  <div class={`flex items-center min-w-0 w-full ${props.dense ? "gap-1" : "gap-2"}`}>
+    <div
+      data-session-action
+      class={`shrink-0 flex items-center justify-center text-text-weak ${props.dense ? "w-6" : "size-6"}`}
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <Show when={props.showActions()} fallback={<span class="text-12-regular">-</span>}>
+        {props.actionMenu}
+      </Show>
     </div>
-  </A>
+    <A
+      href={`/${props.slug}/session/${props.session.id}`}
+      class={`flex items-center justify-between min-w-0 text-left w-full focus:outline-none ${props.dense ? "py-0.5 gap-1" : "py-1 gap-2"}`}
+      onPointerEnter={props.scheduleHoverPrefetch}
+      onPointerLeave={props.cancelHoverPrefetch}
+      onMouseEnter={props.scheduleHoverPrefetch}
+      onMouseLeave={props.cancelHoverPrefetch}
+      onFocus={() => props.prefetchSession(props.session, "high")}
+      onClick={(event) => {
+        if (props.ignoreClick?.()) {
+          event.preventDefault()
+          event.stopPropagation()
+          return
+        }
+        if (props.isActive() && props.onActiveSelect) {
+          event.preventDefault()
+          props.onActiveSelect()
+          return
+        }
+        props.setHoverSession(undefined)
+        if (props.sidebarOpened()) return
+        props.clearHoverProjectSoon()
+      }}
+    >
+      <div class={`flex items-center w-full ${props.dense ? "gap-1" : "gap-1.5"}`}>
+        <div
+          class={`shrink-0 flex items-center justify-center ${props.dense ? "w-2.5" : "size-4"}`}
+          style={{ color: props.tint() ?? "var(--icon-interactive-base)" }}
+        >
+          <Switch fallback={<div class="size-1.5 rounded-full bg-transparent" />}>
+            <Match when={props.isWorking()}>
+              <Spinner class="size-[15px]" />
+            </Match>
+            <Match when={props.hasPermissions()}>
+              <div class="size-1.5 rounded-full bg-surface-warning-strong" />
+            </Match>
+            <Match when={props.hasError()}>
+              <div class="size-1.5 rounded-full bg-text-diff-delete-base" />
+            </Match>
+            <Match when={props.unseenCount() > 0}>
+              <div class="size-1.5 rounded-full bg-text-interactive-base" />
+            </Match>
+          </Switch>
+        </div>
+        <span
+          class="text-13-regular grow min-w-0 overflow-hidden text-ellipsis truncate"
+          classList={{
+            "font-mono text-12-regular": props.child(),
+            "text-text-interactive-base": props.isActive(),
+            "text-text-strong": !props.isActive(),
+          }}
+        >
+          {props.label()}
+        </span>
+        <span
+          class="shrink-0 min-w-[4.5rem] whitespace-nowrap text-right text-11-regular tabular-nums pr-0.5"
+          classList={{
+            "text-text-interactive-base": props.isActive(),
+            "text-text-weak": !props.isActive(),
+          }}
+        >
+          {props.timeLabel()}
+        </span>
+      </div>
+    </A>
+  </div>
 )
 
 const SessionHoverPreview = (props: {
@@ -202,19 +243,15 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
   const globalSDK = useGlobalSDK()
   const language = useLanguage()
   const notification = useNotification()
+  const permission = usePermission()
   const globalSync = useGlobalSync()
   const unseenCount = createMemo(() => notification.session.unseenCount(props.session.id))
   const hasError = createMemo(() => notification.session.unseenHasError(props.session.id))
   const [sessionStore, setSessionStore] = globalSync.child(props.session.directory)
   const hasPermissions = createMemo(() => {
-    const permissions = sessionStore.permission?.[props.session.id] ?? []
-    if (permissions.length > 0) return true
-
-    for (const id of props.children.get(props.session.id) ?? []) {
-      const childPermissions = sessionStore.permission?.[id] ?? []
-      if (childPermissions.length > 0) return true
-    }
-    return false
+    return !!sessionPermissionRequest(sessionStore.session, sessionStore.permission, props.session.id, (item) => {
+      return !permission.autoResponds(item, props.session.directory)
+    })
   })
   const isWorking = createMemo(() => {
     if (hasPermissions()) return false
@@ -244,7 +281,7 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
   const hoverReady = createMemo(() => sessionStore.message[props.session.id] !== undefined)
   const hoverAllowed = createMemo(() => !props.mobile && props.sidebarExpanded())
   const hoverEnabled = createMemo(() => (props.popover ?? true) && hoverAllowed())
-  const showActions = createMemo(() => !props.dense && props.popover !== false)
+  const showActions = createMemo(() => props.popover !== false)
   const isActive = createMemo(() => props.session.id === params.id)
   const isChild = createMemo(() => !!props.child)
   const rowLabel = createMemo(() => props.labelOverride ?? props.session.title)
@@ -257,6 +294,12 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
   )
 
   const hoverPrefetch = { current: undefined as ReturnType<typeof setTimeout> | undefined }
+  const recentAction = { until: 0 }
+  const [menuOpen, setMenuOpen] = createSignal(false)
+  const markRecentAction = () => {
+    recentAction.until = Date.now() + 900
+  }
+  const shouldIgnoreActiveClose = () => menuOpen() || Date.now() < recentAction.until
   const cancelHoverPrefetch = () => {
     if (hoverPrefetch.current === undefined) return
     clearTimeout(hoverPrefetch.current)
@@ -298,17 +341,45 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
       cancelHoverPrefetch={cancelHoverPrefetch}
       timeLabel={timeLabel}
       showActions={showActions}
+      isActive={isActive}
+      ignoreClick={shouldIgnoreActiveClose}
+      onActiveSelect={() => {
+        if (shouldIgnoreActiveClose()) return
+        if (props.mobile) {
+          layout.mobileSidebar.hide()
+          return
+        }
+        layout.sidebar.close()
+      }}
       actionMenu={
-        <DropdownMenu placement="bottom-start">
+        <DropdownMenu
+          placement="bottom-start"
+          onOpenChange={(open) => {
+            setMenuOpen(open)
+            markRecentAction()
+          }}
+        >
           <DropdownMenu.Trigger
-            class="size-5 rounded-sm text-12-regular text-text-weak hover:bg-surface-raised-base-hover data-[expanded]:bg-surface-base-active"
+            data-session-action
+            class="flex items-center justify-center size-6 rounded-md text-icon-base bg-surface-raised-base hover:bg-surface-raised-base-hover data-[expanded]:bg-surface-base-active border border-border-weak-base shadow-xs"
             aria-label={language.t("common.moreOptions")}
+            onTouchStart={(event: TouchEvent) => {
+              markRecentAction()
+              event.preventDefault()
+              event.stopPropagation()
+            }}
+            onPointerDown={(event: PointerEvent) => {
+              markRecentAction()
+              event.preventDefault()
+              event.stopPropagation()
+            }}
             onClick={(event: MouseEvent) => {
+              markRecentAction()
               event.preventDefault()
               event.stopPropagation()
             }}
           >
-            -
+            <Icon name="dot-grid" size="small" />
           </DropdownMenu.Trigger>
           <DropdownMenu.Content>
             <DropdownMenu.Item
@@ -389,8 +460,16 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
   return (
     <div
       data-session-id={props.session.id}
-      class="group/session relative w-full rounded-md cursor-default transition-colors pl-2 pr-3
-             hover:bg-surface-raised-base-hover [&:has(:focus-visible)]:bg-surface-raised-base-hover has-[[data-expanded]]:bg-surface-raised-base-hover has-[.active]:bg-surface-base-active"
+      class="group/session relative w-full rounded-md cursor-default transition-colors pl-2 pr-2
+             border border-transparent hover:bg-surface-raised-base-hover [&:has(:focus-visible)]:bg-surface-raised-base-hover has-[[data-expanded]]:bg-surface-raised-base-hover"
+      style={
+        isActive()
+          ? {
+              "background-color": "var(--surface-base-interactive-active)",
+              "border-color": "var(--border-weak-base)",
+            }
+          : undefined
+      }
     >
       <Show
         when={hoverEnabled()}

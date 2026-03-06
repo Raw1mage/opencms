@@ -149,17 +149,22 @@ function createThrottledValue(getValue: () => string) {
   return value
 }
 
-function relativizeProjectPaths(text: string, directory?: string) {
-  if (!text) return ""
-  if (!directory) return text
-  if (directory === "/") return text
-  if (directory === "\\") return text
-  return text.split(directory).join("")
+function relativizeProjectPath(path: string, directory?: string) {
+  if (!path) return ""
+  if (!directory) return path
+  if (directory === "/") return path
+  if (directory === "\\") return path
+  if (path === directory) return ""
+
+  const separator = directory.includes("\\") ? "\\" : "/"
+  const prefix = directory.endsWith(separator) ? directory : directory + separator
+  if (!path.startsWith(prefix)) return path
+  return path.slice(directory.length)
 }
 
 function getDirectory(path: string | undefined) {
   const data = useData()
-  return relativizeProjectPaths(_getDirectory(path), data.directory)
+  return relativizeProjectPath(_getDirectory(path), data.directory)
 }
 
 export function getSessionToolParts(store: ReturnType<typeof useData>["store"], sessionId: string): ToolPart[] {
@@ -219,6 +224,18 @@ export function getToolInfo(tool: string, input: any = {}): ToolInfo {
         title: i18n.t("ui.tool.webfetch"),
         subtitle: input.url,
       }
+    case "websearch":
+      return {
+        icon: "window-cursor",
+        title: i18n.t("ui.tool.websearch"),
+        subtitle: input.query,
+      }
+    case "codesearch":
+      return {
+        icon: "code",
+        title: i18n.t("ui.tool.codesearch"),
+        subtitle: input.query,
+      }
     case "task":
       return {
         icon: "task",
@@ -266,6 +283,11 @@ export function getToolInfo(tool: string, input: any = {}): ToolInfo {
         icon: "bubble-5",
         title: i18n.t("ui.tool.questions"),
       }
+    case "skill":
+      return {
+        icon: "brain",
+        title: input.name || "skill",
+      }
     default:
       return {
         icon: "mcp",
@@ -276,6 +298,18 @@ export function getToolInfo(tool: string, input: any = {}): ToolInfo {
 
 export function registerPartComponent(type: string, component: PartComponent) {
   PART_MAPPING[type] = component
+}
+
+function urls(text: string | undefined) {
+  if (!text) return []
+  const seen = new Set<string>()
+  return [...text.matchAll(/https?:\/\/[^\s<>"'`)\]]+/g)]
+    .map((item) => item[0].replace(/[),.;:!?]+$/g, ""))
+    .filter((item) => {
+      if (seen.has(item)) return false
+      seen.add(item)
+      return true
+    })
 }
 
 export function Message(props: MessageProps) {
@@ -792,7 +826,7 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
   const data = useData()
   const i18n = useI18n()
   const part = props.part as TextPart
-  const displayText = () => relativizeProjectPaths((part.text ?? "").trim(), data.directory)
+  const displayText = () => (part.text ?? "").trim()
   const throttledText = createThrottledValue(displayText)
   const [copied, setCopied] = createSignal(false)
 
@@ -875,7 +909,7 @@ ToolRegistry.register({
             <div data-component="tool-loaded-file">
               <Icon name="enter" size="small" />
               <span>
-                {i18n.t("ui.tool.loaded")} {relativizeProjectPaths(filepath, data.directory)}
+                {i18n.t("ui.tool.loaded")} {relativizeProjectPath(filepath, data.directory)}
               </span>
             </div>
           )}
@@ -1211,7 +1245,7 @@ ToolRegistry.register({
           subtitle: props.input.description,
         }}
       >
-        <div data-component="tool-output" data-scrollable>
+        <div data-component="tool-output" data-bash-output="true" data-scrollable>
           <Markdown
             text={`\`\`\`command\n$ ${props.input.command ?? props.metadata.command ?? ""}${props.output || props.metadata.output ? "\n\n" + stripAnsi(props.output || props.metadata.output) : ""}\n\`\`\``}
           />
@@ -1541,6 +1575,103 @@ ToolRegistry.register({
             </For>
           </div>
         </Show>
+      </BasicTool>
+    )
+  },
+})
+
+ToolRegistry.register({
+  name: "skill",
+  render(props) {
+    const title = createMemo(() => props.input.name || "skill")
+
+    const trigger = () => (
+      <div data-slot="basic-tool-tool-info-structured">
+        <div data-slot="basic-tool-tool-info-main">
+          <span data-slot="basic-tool-tool-title" class="capitalize agent-title">
+            {title()}
+          </span>
+        </div>
+      </div>
+    )
+
+    return <BasicTool icon="brain" trigger={trigger()} hideDetails />
+  },
+})
+
+function ExaOutput(props: { output?: string }) {
+  const links = createMemo(() => urls(props.output))
+
+  return (
+    <Show when={links().length > 0}>
+      <div data-component="exa-tool-output">
+        <div data-slot="exa-tool-links">
+          <For each={links()}>
+            {(url) => (
+              <a
+                data-slot="exa-tool-link"
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {url}
+              </a>
+            )}
+          </For>
+        </div>
+      </div>
+    </Show>
+  )
+}
+
+ToolRegistry.register({
+  name: "websearch",
+  render(props) {
+    const i18n = useI18n()
+    const query = createMemo(() => {
+      const value = props.input.query
+      if (typeof value !== "string") return ""
+      return value
+    })
+
+    return (
+      <BasicTool
+        {...props}
+        icon="window-cursor"
+        trigger={{
+          title: i18n.t("ui.tool.websearch"),
+          subtitle: query(),
+          subtitleClass: "exa-tool-query",
+        }}
+      >
+        <ExaOutput output={props.output} />
+      </BasicTool>
+    )
+  },
+})
+
+ToolRegistry.register({
+  name: "codesearch",
+  render(props) {
+    const i18n = useI18n()
+    const query = createMemo(() => {
+      const value = props.input.query
+      if (typeof value !== "string") return ""
+      return value
+    })
+
+    return (
+      <BasicTool
+        {...props}
+        icon="code"
+        trigger={{
+          title: i18n.t("ui.tool.codesearch"),
+          subtitle: query(),
+          subtitleClass: "exa-tool-query",
+        }}
+      >
+        <ExaOutput output={props.output} />
       </BasicTool>
     )
   },

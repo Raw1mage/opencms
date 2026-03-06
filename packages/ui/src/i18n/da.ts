@@ -27,6 +27,9 @@ export const dict = {
 
   "ui.sessionTurn.retry.retrying": "prøver igen",
   "ui.sessionTurn.retry.inSeconds": "om {{seconds}}s",
+  "ui.sessionTurn.retry.attempt": "forsøg #{{attempt}}",
+  "ui.sessionTurn.retry.attemptLine": "{{line}} - forsøg #{{attempt}}",
+  "ui.sessionTurn.retry.geminiHot": "gemini er meget overbelastet lige nu",
 
   "ui.sessionTurn.status.delegating": "Delegerer arbejde",
   "ui.sessionTurn.status.planning": "Planlægger næste trin",
@@ -106,4 +109,6 @@ export const dict = {
   "ui.question.review.notAnswered": "(ikke besvaret)",
   "ui.question.multiHint": "(vælg alle der gælder)",
   "ui.question.custom.placeholder": "Skriv dit svar...",
+  "ui.tool.websearch": "Websøgning",
+  "ui.tool.codesearch": "Kodesøgning",
 }

@@ -32,6 +32,9 @@ export const dict = {
 
   "ui.sessionTurn.retry.retrying": "ponovni pokušaj",
   "ui.sessionTurn.retry.inSeconds": "za {{seconds}}s",
+  "ui.sessionTurn.retry.attempt": "pokušaj #{{attempt}}",
+  "ui.sessionTurn.retry.attemptLine": "{{line}} - pokušaj #{{attempt}}",
+  "ui.sessionTurn.retry.geminiHot": "gemini je trenutno preopterećen",
 
   "ui.sessionTurn.status.delegating": "Delegiranje posla",
   "ui.sessionTurn.status.planning": "Planiranje sljedećih koraka",
@@ -111,4 +114,6 @@ export const dict = {
   "ui.question.review.notAnswered": "(nije odgovoreno)",
   "ui.question.multiHint": "(odaberi sve što važi)",
   "ui.question.custom.placeholder": "Unesi svoj odgovor...",
+  "ui.tool.websearch": "Pretraga weba",
+  "ui.tool.codesearch": "Pretraga koda",
 } satisfies Partial<Record<Keys, string>>

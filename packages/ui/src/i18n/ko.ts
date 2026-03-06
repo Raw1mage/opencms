@@ -28,6 +28,9 @@ export const dict = {
 
   "ui.sessionTurn.retry.retrying": "재시도 중",
   "ui.sessionTurn.retry.inSeconds": "{{seconds}}초 후",
+  "ui.sessionTurn.retry.attempt": "{{attempt}}번째",
+  "ui.sessionTurn.retry.attemptLine": "{{line}} - {{attempt}}번째",
+  "ui.sessionTurn.retry.geminiHot": "gemini가 현재 과부하 상태입니다",
 
   "ui.sessionTurn.status.delegating": "작업 위임 중",
   "ui.sessionTurn.status.planning": "다음 단계 계획 중",
@@ -107,4 +110,6 @@ export const dict = {
   "ui.question.review.notAnswered": "(답변되지 않음)",
   "ui.question.multiHint": "(해당하는 항목 모두 선택)",
   "ui.question.custom.placeholder": "답변 입력...",
+  "ui.tool.websearch": "웹 검색",
+  "ui.tool.codesearch": "코드 검색",
 }

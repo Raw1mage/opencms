@@ -26,6 +26,11 @@ export function ResizeHandle(props: ResizeHandleProps) {
   ])
 
   const handleMouseDown = (e: MouseEvent) => {
+    if (e.detail === 2) {
+      e.preventDefault()
+      local.onCollapse?.()
+      return
+    }
     e.preventDefault()
     const edge = local.edge ?? (local.direction === "vertical" ? "start" : "end")
     const start = local.direction === "horizontal" ? e.clientX : e.clientY

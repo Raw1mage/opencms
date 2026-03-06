@@ -220,6 +220,67 @@ Status: In Progress
 - 本輪只記錄，不實作
 - 後續另開 event，將 TUI sidebar 對齊同一套 4 主功能資訊架構
 
+## Session Browser Redesign Addendum (TUI-aligned)
+
+### 背景補充
+
+- 使用者明確指出：先前曾要求 webapp 復現 TUI 的 session list 呈現方式，但目前只做到 sidebar list 的局部微調，尚未達成 TUI 的整體閱讀節奏。
+- 問題核心不只在 row 樣式，而在於 **容器型態**：
+  - webapp 目前是 left sidebar + drawer
+  - TUI 更像獨立的 session browser / selector surface
+
+### TUI 參考基準
+
+- 真實參考實作：`packages/opencode/src/cli/cmd/tui/component/dialog-session-list.tsx`
+- 目前觀察到的核心特徵：
+  - 以日期 category 分組（Today / 具體日期）
+  - title 單行、time 單行，右側 footer 對齊
+  - root row 帶 project label，例如 `[opencode] ...`
+  - child row 僅保留極簡 tree prefix（`├─` / `└─`）
+  - 幾乎沒有 card chrome，整體更像 terminal browser 而非卡片清單
+
+### 新的容器策略
+
+#### Web PC
+
+- 保留 sidebar / panel 架構，不強制改成 modal 浮窗。
+- 但 session list panel 的寬度、內距、header、分組與 row 密度要改成更接近 TUI session browser 的感受。
+- 目標：**browser in panel**，不是一般的 app sidebar list。
+
+#### Web Mobile
+
+- mobile 仍可延用 sidebar drawer 型式，不強制改成獨立 full-page route/surface。
+- 重點改為：在 drawer 內把 session list 做得更像 session browser，而不是傳統 app sidebar list。
+- 若需要更多寬度，可優先調整 drawer 寬度與內部排版，不必先推翻 drawer 互動模型。
+
+### 實作方向
+
+#### Phase A — Shared TUI-style Session Browser Body
+
+- 抽出共用的 session browser list body，負責：
+  - date grouping
+  - single-line title/time layout
+  - minimal child indentation
+  - active row treatment
+  - selected-row repeat-tap behavior
+
+#### Phase B — PC Container Reshape
+
+- 重新調整 session list panel 寬度與容器節奏，使其更像 TUI browser。
+- 弱化 card/drawer 感，強化 grouped list browser 感。
+
+#### Phase C — Mobile Drawer-style Session Browser
+
+- mobile session browser 維持 sidebar drawer 型式。
+- 調整 mobile sidebar shell 內部配置，讓 session browser 在 drawer 中仍保有足夠寬度與更清楚的 project/session hierarchy。
+
+### 本輪執行目標
+
+- 先做第一版 web port：
+  - 共用 TUI-style session browser body
+  - PC panel 寬度與 row 排版初步對齊
+  - mobile shell 先收斂成更 session-browser 化的 drawer 內容
+
 ## 風險與注意事項
 
 - 目前 `layout.fileTree` 同時承擔 files/todo/monitor，若直接硬塞 `status/accounts`，需小心避免把 state 命名與責任搞亂。
@@ -300,6 +361,45 @@ Status: In Progress
     - 點檔案後不再返回主 session，而是在同一路徑下切入 viewer 子狀態
     - viewer 關閉後回到原 file tree，並恢復先前 scrollTop，保持瀏覽連貫性
     - 目前僅支援文字內容；二進位檔顯示既有 `session.files.binaryContent` 提示
+- session list follow-up polish：
+  - `packages/app/src/pages/layout/sidebar-items.tsx`
+    - 工作階段時間欄改為 `whitespace-nowrap` 單行顯示，避免上午/下午與時分拆成兩行
+    - dense row 的前綴縮窄，減少 `-` 之後的冗餘空白
+    - mobile 目前選中的工作階段改用更直接的顯性標記（active background + border + interactive text），避免依賴某些 mobile browser 對狀態選擇器/弱對比 token 的不穩定呈現
+    - mobile 再點一次目前已選中的工作階段時，直接關閉 `mobileSidebar`，回到工作階段主畫面開始操作
+    - 將原本不顯著的 `-` 字元改為明顯的 action button（dot-grid icon button）
+    - action button 以 `pointerdown/click stopPropagation + preventDefault` 隔離事件，避免誤觸發 active session 的 repeat-click close 行為
+    - mobile dense row action menu 恢復，讓既有 rename/delete 回到可用狀態，並保留未來擴充 export/share actions 的 menu 結構空間
+    - action button 與 active highlight 規則同步套用到 desktop session list，不再只限 mobile
+    - active highlight 由「弱背景 + 降階文字色」改為「interactive text + interactive weak surface」，讓 PC/mobile 的目前工作階段都更清楚
+    - 根因補充：先前 active text 是把 `text-text-interactive-base` 疊加在既有 `text-text-strong / text-text-weak` 上，可能被 utility 順序覆蓋，造成 highlight 幾乎不可見；現改為 active/inactive 互斥 class
+    - 根因補充：session action button 若位於 row link 互動區附近，即使 stopPropagation 仍可能在 touch 流程觸發 row close；現額外以 `data-session-action` + row-level target guard 阻擋 repeat-click close
+    - active session click-close 規則擴大為 desktop + mobile 共用：點擊 active session row 主體（不含 function button）即收合 session list
+    - 為避免 function button 第二次點擊仍誤觸 close，新增 `recentAction` guard，短時間內忽略 active row close
+    - 進一步將 `recentAction` guard 前移到 row link 最上層，直接攔截 mobile 上 function button 觸發的 ghost click/navigation/close
+  - `packages/app/src/pages/layout.tsx`
+    - desktop resize handle 提高 z-index，並補上 `onDblClick => layout.sidebar.close()`，恢復 double-click close 行為
+    - desktop session list 恢復為 overlay drawer：左側只保留 64px rail，session browser panel 以 `absolute left-16` 疊加在主工作區之上，不再作為實體 column 擠壓 session 視窗
+    - desktop resize handle 改掛在 overlay panel 上，保留拖曳寬度與 double-click close
+    - desktop overlay drawer 的 resize max 放寬為 `window.innerWidth - 96` 級別，不再被先前 30% 視窗寬度上限過度壓制
+    - 進一步移除 desktop hover drawer 依賴：desktop overlay panel 僅在 `layout.sidebar.opened()` 時顯示，不再因 mouse leave / hover project 切換而躲藏
+    - `SidebarPanel` 自身的 420px 寬度上限已移除，避免 overlay drawer state 與實際可見寬度不同步，造成「拖曳像隔一層」的手感
+  - `packages/app/src/pages/layout/sidebar-project.tsx`
+    - desktop project tile 點擊未選中專案時，先穩定指定 `openProject` 並打開 opened drawer；不再把 session list 顯示與 route navigate 時序綁死
+  - `packages/ui/src/components/resize-handle.tsx`
+    - 直接以 `mousedown.detail === 2` 處理 double-click collapse，避免僅依賴外部 `dblclick` 事件在某些情況下不觸發
+  - `packages/app/src/pages/layout/sidebar-workspace.tsx`
+    - local workspace 也改用 grouped session list renderer，讓跨日時可顯示日期 separator
+- TUI-style session browser container follow-up：
+  - `packages/app/src/pages/layout/sidebar-shell.tsx`
+    - mobile session browser 維持 drawer 型式，但不再沿用「左 project rail + 右 panel」的擁擠比例
+    - 改為 drawer 內的上方 project strip + 下方完整 session browser panel，保留 mobile sidebar 開關便利性
+    - `新增專案 / 設定 / 說明 / 登出` 工具改併入 mobile project strip 末端，避免佔用左側固定欄寬
+  - `packages/app/src/pages/layout.tsx`
+    - 依使用者最新決策，mobile 仍保留 drawer 互動模型，但打開時寬度可直接佔滿螢幕（`100vw`）
+    - 因已採滿版 drawer，移除 mobile overlay resize handle，避免保留多餘的寬度調整心智模型
+    - desktop session list sidebar 仍維持原本可自訂寬度模型；只有 mobile drawer 使用滿版寬度
+    - desktop/mobile shell 判斷不再使用 `xl` breakpoint；改為 runtime media query：僅當視窗寬度 `< 450px` 且為 touch/coarse pointer 瀏覽器時，才進入 mobile drawer mode
 
 ### Validation
 
@@ -313,5 +413,20 @@ Status: In Progress
 - mobile banner icon refactor 後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
 - 修正實際 session route (`pages/session.tsx`) 後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
 - mobile file viewer prototype 後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
+- session list UX follow-up 後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
+- TUI-style session browser container follow-up 後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
+- 依使用者將 mobile 方向收斂回 drawer-style 後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
+- 依使用者確認 mobile drawer 可滿版後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
+- 修正 mobile active session highlight / repeat-tap close 行為後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
+- 修正 mobile active highlight 顯示可靠性並恢復 mobile `-` action menu 後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
+- 修正 desktop/mobile shell 誤判（避免窄 desktop 視窗被切進 mobile mode）後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
+- 將 session action menu trigger 改為顯著按鈕並隔離 repeat-click close 事件後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
+- 將 session action button / active highlight 規則同步到 desktop session list 後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
+- 修正 active highlight CSS 根因、session action target guard，並恢復 desktop resize handle double-click close 後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
+- 恢復 desktop overlay drawer（不再擠壓 main session 視窗），並將 resize / double-click close 掛回 overlay panel 後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
+- 放寬 desktop overlay drawer resize 上限、將 active click-close 套用到 desktop/mobile、並以底層 `mousedown.detail===2` 補強 double-click close 後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
+- 移除 desktop hover drawer、讓 desktop project click 穩定進入 opened overlay drawer，並把 mobile function-button ghost click guard 前移到 row link 後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
+- 清理 desktop drawer 舊寬度公式（移除 `SidebarPanel` 420px cap 與 overlay/in-flow 寬度錯位）、修正 desktop project icon 開啟鏈，並完成 mobile menu/backdrop close 隔離後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
+- 將 desktop drawer resize 的可見邊界、實際寬度與 handle 命中區重新對齊後再次 `bun run typecheck` 通過（`Tasks: 16 successful, 16 total`）
 - Architecture Sync: Verified (No doc changes)
-  - 依據：本輪實際改動集中在 web session header / right-panel 的前端 IA、帳號 sidebar data source 簡化、button 行為保護與 settings-models 舊 UI 清理；`docs/ARCHITECTURE.md` 目前只描述 web/admin-lite、session/terminal/runtime 流向與主要模組責任，未細化到 header 導航與 desktop sidebar IA，故暫無文件內容需同步改寫。
+  - 依據：本輪最終收斂集中於 `packages/app` 的 web session drawer 互動層（desktop overlay drawer、mobile full-width drawer、session row action/active 行為與 resize hit area），未變更 `docs/ARCHITECTURE.md` 已描述的 runtime 邊界、API 責任、provider/account/session 核心拓樸，因此維持 No doc changes。

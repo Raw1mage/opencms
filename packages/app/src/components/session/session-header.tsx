@@ -18,6 +18,7 @@ import { IconButton } from "@opencode-ai/ui/icon-button"
 import { Button } from "@opencode-ai/ui/button"
 import { AppIcon } from "@opencode-ai/ui/app-icon"
 import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
+import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { Keybind } from "@opencode-ai/ui/keybind"
 import { Spinner } from "@opencode-ai/ui/spinner"
@@ -226,22 +227,6 @@ export function SessionHeader() {
       })
   }
 
-  const copyPath = () => {
-    const directory = projectDirectory()
-    if (!directory) return
-    navigator.clipboard
-      .writeText(directory)
-      .then(() => {
-        showToast({
-          variant: "success",
-          icon: "circle-check",
-          title: language.t("session.share.copy.copied"),
-          description: directory,
-        })
-      })
-      .catch((err: unknown) => showRequestError(language, err))
-  }
-
   const openTerminalPage = () => {
     const active = terminal.active() ?? terminal.all()[0]?.id
     const next = new URL(`${sessionBasePath()}/terminal-popout`, window.location.origin)
@@ -367,119 +352,86 @@ export function SessionHeader() {
         {(mount) => (
           <Portal mount={mount()}>
             <div class="flex items-center gap-3">
-              <Show when={projectDirectory()}>
+              <Show when={projectDirectory() && canOpen()}>
                 <div class="hidden xl:flex items-center">
-                  <Show
-                    when={canOpen()}
-                    fallback={
-                      <div class="flex h-[24px] box-border items-center rounded-md border border-border-base bg-surface-panel overflow-hidden">
-                        <Button
+                  <div class="flex items-center">
+                    <div class="flex h-[24px] box-border items-center rounded-md border border-border-base bg-surface-panel overflow-hidden">
+                      <Button
+                        variant="ghost"
+                        class="rounded-none h-full py-0 pr-3 pl-2 gap-1.5 border-none shadow-none disabled:!cursor-default"
+                        classList={{
+                          "bg-surface-raised-base-active": opening(),
+                        }}
+                        onClick={() => openDir(current().id)}
+                        disabled={opening()}
+                        aria-label={language.t("session.header.open.ariaLabel", { app: current().label })}
+                      >
+                        <div class="flex size-5 shrink-0 items-center justify-center">
+                          <Show
+                            when={opening()}
+                            fallback={<AppIcon id={current().icon} class={openIconSize(current().icon)} />}
+                          >
+                            <Spinner class="size-3.5 text-icon-base" />
+                          </Show>
+                        </div>
+                        <span class="text-12-regular text-text-strong">Open</span>
+                      </Button>
+                      <div class="self-stretch w-px bg-border-base/70" />
+                      <DropdownMenu
+                        gutter={6}
+                        placement="bottom-end"
+                        open={menu.open}
+                        onOpenChange={(open) => setMenu("open", open)}
+                      >
+                        <DropdownMenu.Trigger
+                          as={IconButton}
+                          icon="chevron-down"
                           variant="ghost"
-                          class="rounded-none h-full py-0 pr-3 pl-2 gap-2 border-none shadow-none"
-                          onClick={copyPath}
-                          aria-label={language.t("session.header.open.copyPath")}
-                        >
-                          <Icon name="copy" size="small" class="text-icon-base" />
-                          <span class="text-12-regular text-text-strong">
-                            {language.t("session.header.open.copyPath")}
-                          </span>
-                        </Button>
-                      </div>
-                    }
-                  >
-                    <div class="flex items-center">
-                      <div class="flex h-[24px] box-border items-center rounded-md border border-border-base bg-surface-panel overflow-hidden">
-                        <Button
-                          variant="ghost"
-                          class="rounded-none h-full py-0 pr-3 pl-2 gap-1.5 border-none shadow-none disabled:!cursor-default"
+                          disabled={opening()}
+                          class="rounded-none h-full w-[24px] p-0 border-none shadow-none data-[expanded]:bg-surface-raised-base-active disabled:!cursor-default"
                           classList={{
                             "bg-surface-raised-base-active": opening(),
                           }}
-                          onClick={() => openDir(current().id)}
-                          disabled={opening()}
-                          aria-label={language.t("session.header.open.ariaLabel", { app: current().label })}
-                        >
-                          <div class="flex size-5 shrink-0 items-center justify-center">
-                            <Show
-                              when={opening()}
-                              fallback={<AppIcon id={current().icon} class={openIconSize(current().icon)} />}
-                            >
-                              <Spinner class="size-3.5 text-icon-base" />
-                            </Show>
-                          </div>
-                          <span class="text-12-regular text-text-strong">Open</span>
-                        </Button>
-                        <div class="self-stretch w-px bg-border-base/70" />
-                        <DropdownMenu
-                          gutter={6}
-                          placement="bottom-end"
-                          open={menu.open}
-                          onOpenChange={(open) => setMenu("open", open)}
-                        >
-                          <DropdownMenu.Trigger
-                            as={IconButton}
-                            icon="chevron-down"
-                            variant="ghost"
-                            disabled={opening()}
-                            class="rounded-none h-full w-[24px] p-0 border-none shadow-none data-[expanded]:bg-surface-raised-base-active disabled:!cursor-default"
-                            classList={{
-                              "bg-surface-raised-base-active": opening(),
-                            }}
-                            aria-label={language.t("session.header.open.menu")}
-                          />
-                          <DropdownMenu.Portal>
-                            <DropdownMenu.Content>
-                              <DropdownMenu.Group>
-                                <DropdownMenu.GroupLabel>{language.t("session.header.openIn")}</DropdownMenu.GroupLabel>
-                                <DropdownMenu.RadioGroup
-                                  value={prefs.app}
-                                  onChange={(value) => {
-                                    if (!OPEN_APPS.includes(value as OpenApp)) return
-                                    setPrefs("app", value as OpenApp)
-                                  }}
-                                >
-                                  <For each={options()}>
-                                    {(o) => (
-                                      <DropdownMenu.RadioItem
-                                        value={o.id}
-                                        disabled={opening()}
-                                        onSelect={() => {
-                                          setMenu("open", false)
-                                          openDir(o.id)
-                                        }}
-                                      >
-                                        <div class="flex size-5 shrink-0 items-center justify-center">
-                                          <AppIcon id={o.icon} class={openIconSize(o.icon)} />
-                                        </div>
-                                        <DropdownMenu.ItemLabel>{o.label}</DropdownMenu.ItemLabel>
-                                        <DropdownMenu.ItemIndicator>
-                                          <Icon name="check-small" size="small" class="text-icon-weak" />
-                                        </DropdownMenu.ItemIndicator>
-                                      </DropdownMenu.RadioItem>
-                                    )}
-                                  </For>
-                                </DropdownMenu.RadioGroup>
-                              </DropdownMenu.Group>
-                              <DropdownMenu.Separator />
-                              <DropdownMenu.Item
-                                onSelect={() => {
-                                  setMenu("open", false)
-                                  copyPath()
+                          aria-label={language.t("session.header.open.menu")}
+                        />
+                        <DropdownMenu.Portal>
+                          <DropdownMenu.Content>
+                            <DropdownMenu.Group>
+                              <DropdownMenu.GroupLabel>{language.t("session.header.openIn")}</DropdownMenu.GroupLabel>
+                              <DropdownMenu.RadioGroup
+                                value={prefs.app}
+                                onChange={(value) => {
+                                  if (!OPEN_APPS.includes(value as OpenApp)) return
+                                  setPrefs("app", value as OpenApp)
                                 }}
                               >
-                                <div class="flex size-5 shrink-0 items-center justify-center">
-                                  <Icon name="copy" size="small" class="text-icon-weak" />
-                                </div>
-                                <DropdownMenu.ItemLabel>
-                                  {language.t("session.header.open.copyPath")}
-                                </DropdownMenu.ItemLabel>
-                              </DropdownMenu.Item>
-                            </DropdownMenu.Content>
-                          </DropdownMenu.Portal>
-                        </DropdownMenu>
-                      </div>
+                                <For each={options()}>
+                                  {(o) => (
+                                    <DropdownMenu.RadioItem
+                                      value={o.id}
+                                      disabled={opening()}
+                                      onSelect={() => {
+                                        setMenu("open", false)
+                                        openDir(o.id)
+                                      }}
+                                    >
+                                      <div class="flex size-5 shrink-0 items-center justify-center">
+                                        <AppIcon id={o.icon} class={openIconSize(o.icon)} />
+                                      </div>
+                                      <DropdownMenu.ItemLabel>{o.label}</DropdownMenu.ItemLabel>
+                                      <DropdownMenu.ItemIndicator>
+                                        <Icon name="check-small" size="small" class="text-icon-weak" />
+                                      </DropdownMenu.ItemIndicator>
+                                    </DropdownMenu.RadioItem>
+                                  )}
+                                </For>
+                              </DropdownMenu.RadioGroup>
+                            </DropdownMenu.Group>
+                          </DropdownMenu.Content>
+                        </DropdownMenu.Portal>
+                      </DropdownMenu>
                     </div>
-                  </Show>
+                  </div>
                 </div>
               </Show>
               <Show
@@ -549,14 +501,15 @@ export function SessionHeader() {
                       keybind={command.keybind("review.toggle")}
                     >
                       <Button
+                        type="button"
                         variant="ghost"
-                        class="group/review-toggle size-6 p-0"
+                        class={`${desktopNavButtonClass(view().reviewPanel.opened())} group/review-toggle`}
                         onClick={() => view().reviewPanel.toggle()}
                         aria-label={language.t("command.review.toggle")}
                         aria-expanded={view().reviewPanel.opened()}
                         aria-controls="review-panel"
                       >
-                        <div class="relative flex items-center justify-center size-4 [&>*]:absolute [&>*]:inset-0">
+                        <div class="relative flex items-center justify-center size-4 shrink-0 [&>*]:absolute [&>*]:inset-0">
                           <Icon
                             size="small"
                             name={view().reviewPanel.opened() ? "layout-right-full" : "layout-right"}
@@ -576,20 +529,21 @@ export function SessionHeader() {
                       </Button>
                     </TooltipKeybind>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    class={desktopNavButtonClass(desktopActiveTool() === "status")}
-                    onClick={() => toggleDesktopPanel("status")}
-                    aria-label={language.t("status.popover.trigger")}
-                  >
-                    <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.5">
-                      <path d="M3 8h2.5M6.5 8h2M10.5 8H13" stroke-linecap="round" />
-                      <circle cx="8" cy="8" r="5.25" />
-                      <path d="M8 5.25v5.5" stroke-linecap="round" />
-                    </svg>
-                    <span class="text-12-regular">{language.t("status.popover.trigger")}</span>
-                  </Button>
+                  <Tooltip value={language.t("status.popover.trigger")}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      class={desktopNavButtonClass(desktopActiveTool() === "status")}
+                      onClick={() => toggleDesktopPanel("status")}
+                      aria-label={language.t("status.popover.trigger")}
+                    >
+                      <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M3 8h2.5M6.5 8h2M10.5 8H13" stroke-linecap="round" />
+                        <circle cx="8" cy="8" r="5.25" />
+                        <path d="M8 5.25v5.5" stroke-linecap="round" />
+                      </svg>
+                    </Button>
+                  </Tooltip>
                   <TooltipKeybind
                     title={language.t("command.fileTree.toggle")}
                     keybind={command.keybind("fileTree.toggle")}
@@ -605,23 +559,23 @@ export function SessionHeader() {
                         <path d="M2.75 4.25h4l1 1.5h5.5v6a1 1 0 0 1-1 1h-8.5a1 1 0 0 1-1-1z" stroke-linejoin="round" />
                         <path d="M2.75 4.25v-1a1 1 0 0 1 1-1h2.3c.3 0 .58.14.77.38l.93 1.12" stroke-linecap="round" />
                       </svg>
-                      <span class="text-12-regular">{language.t("session.tools.files")}</span>
                     </Button>
                   </TooltipKeybind>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    class={desktopNavButtonClass(desktopActiveTool() === "terminal")}
-                    onClick={toggleDesktopTerminal}
-                    aria-label={language.t("session.tools.terminal")}
-                  >
-                    <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.5">
-                      <path d="M3.25 4.5 6.5 7.75 3.25 11" stroke-linecap="round" stroke-linejoin="round" />
-                      <path d="M8 11h4.75" stroke-linecap="round" />
-                      <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="2" />
-                    </svg>
-                    <span class="text-12-regular">{language.t("session.tools.terminal")}</span>
-                  </Button>
+                  <Tooltip value={language.t("session.tools.terminal")}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      class={desktopNavButtonClass(desktopActiveTool() === "terminal")}
+                      onClick={toggleDesktopTerminal}
+                      aria-label={language.t("session.tools.terminal")}
+                    >
+                      <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M3.25 4.5 6.5 7.75 3.25 11" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M8 11h4.75" stroke-linecap="round" />
+                        <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="2" />
+                      </svg>
+                    </Button>
+                  </Tooltip>
                 </div>
               </Show>
             </div>

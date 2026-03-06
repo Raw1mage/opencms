@@ -48,7 +48,6 @@ import { markScrollGesture, isScrollGestureActive } from "./message-gesture"
 import { useSessionHashScroll, anchor, scrollToElement } from "./use-session-hash-scroll"
 import { useSessionBackfill } from "./use-session-backfill"
 import { useSessionHandoff } from "./use-session-handoff"
-import { SessionMobileTabs } from "./session-mobile-tabs"
 import { SessionSidePanel } from "./session-side-panel"
 
 export default function Page() {
@@ -159,7 +158,11 @@ export default function Page() {
   }
 
   const isDesktop = createMediaQuery("(min-width: 768px)")
-  const centered = createMemo(() => isDesktop() && !layout.fileTree.opened())
+  const largeScreen = createMediaQuery("(min-width: 1024px)")
+  const fileTreeMode = () => layout.fileTree.mode()
+  const centered = createMemo(
+    () => isDesktop() && (!layout.fileTree.opened() || (fileTreeMode() === "files" && fileTreeTab() === "all")),
+  )
 
   function normalizeTab(tab: string) {
     if (!tab.startsWith("file://")) return tab
@@ -295,7 +298,6 @@ export default function Page() {
     expanded: {} as Record<string, boolean>,
     messageId: undefined as string | undefined,
     turnStart: 0,
-    mobileTab: "session" as "session" | "changes",
     newSessionWorktree: "main",
     promptHeight: 0,
   })
@@ -612,7 +614,7 @@ export default function Page() {
       .filter((tab) => tab !== "context"),
   )
 
-  const mobileChanges = createMemo(() => !isDesktop() && store.mobileTab === "changes")
+  const mobileChanges = createMemo(() => !isDesktop() && view().reviewPanel.opened())
 
   const fileTreeTab = () => layout.fileTree.tab()
   const setFileTreeTab = (value: "changes" | "all") => layout.fileTree.setTab(value)
@@ -631,6 +633,11 @@ export default function Page() {
   const setActiveDiff = (value: string | undefined) => setTree("activeDiff", value)
 
   const showAllFiles = () => {
+    if (fileTreeMode() !== "files") {
+      layout.fileTree.show("files")
+      setFileTreeTab("all")
+      return
+    }
     if (fileTreeTab() !== "changes") return
     setFileTreeTab("all")
   }
@@ -841,7 +848,7 @@ export default function Page() {
     const id = params.id
     if (!id) return
 
-    const wants = isDesktop() ? layout.fileTree.opened() && fileTreeTab() === "changes" : store.mobileTab === "changes"
+    const wants = isDesktop() ? layout.fileTree.opened() && fileTreeTab() === "changes" : view().reviewPanel.opened()
     if (!wants) return
     if (sync.status === "loading") return
 
@@ -1000,21 +1007,12 @@ export default function Page() {
     <div class="relative bg-background-base size-full overflow-hidden flex flex-col">
       <SessionHeader />
       <div class="flex-1 min-h-0 flex flex-col md:flex-row">
-        <SessionMobileTabs
-          open={!!params.id}
-          mobileTab={store.mobileTab}
-          hasReview={hasReview()}
-          reviewCount={reviewCount()}
-          t={(k, v) => language.t(k as any, v)}
-          onSession={() => setStore("mobileTab", "session")}
-          onChanges={() => setStore("mobileTab", "changes")}
-        />
-
         {/* Session panel */}
         <div
           classList={{
             "@container relative shrink-0 flex flex-col min-h-0 h-full bg-background-stronger": true,
-            "flex-1 pt-6 md:pt-3": true,
+            "flex-1 md:pt-3": true,
+            "pt-6": !mobileChanges(),
             "md:flex-none": layout.fileTree.opened(),
           }}
           style={{
@@ -1056,7 +1054,7 @@ export default function Page() {
                                   file.load(path)
                                 }}
                                 classes={{
-                                  root: "pb-[calc(var(--prompt-height,8rem)+32px)]",
+                                  root: "gap-0 pb-[calc(var(--prompt-height,8rem)+32px)]",
                                   header: "px-4",
                                   container: "px-4",
                                 }}
@@ -1218,7 +1216,7 @@ export default function Page() {
         </div>
 
         <SessionSidePanel
-          open={!isDesktop() || layout.fileTree.opened()}
+          open={largeScreen() && layout.fileTree.opened()}
           reviewOpen={hasReview()}
           language={language}
           layout={layout}
@@ -1261,7 +1259,7 @@ export default function Page() {
       </div>
 
       <TerminalPanel
-        open={view().terminal.opened()}
+        open={largeScreen() && view().terminal.opened()}
         height={layout.terminal.height()}
         resize={layout.terminal.resize}
         close={view().terminal.close}

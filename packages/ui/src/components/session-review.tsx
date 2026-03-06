@@ -218,8 +218,11 @@ export const SessionReview = (props: SessionReviewProps) => {
   const [opened, setOpened] = createSignal<SessionReviewFocus | null>(null)
 
   const open = () => normalizeOpen(props.open ?? store.open)
+  const files = createMemo(() => props.diffs.map((d) => d.file))
+  const diffs = createMemo(() => new Map(props.diffs.map((d) => [d.file, d] as const)))
   const diffStyle = () => props.diffStyle ?? (props.split ? "split" : "unified")
-  const hasDiffs = () => props.diffs.length > 0
+  const hasDiffs = () => files().length > 0
+  const showHeader = createMemo(() => !!props.title || !!props.actions || (hasDiffs() && !!props.onDiffStyleChange))
 
   const handleChange = (next: unknown) => {
     const currentOpen = open()
@@ -317,28 +320,32 @@ export const SessionReview = (props: SessionReviewProps) => {
         [props.class ?? ""]: !!props.class,
       }}
     >
-      <div
-        data-slot="session-review-header"
-        classList={{
-          [props.classes?.header ?? ""]: !!props.classes?.header,
-        }}
-      >
-        <Show when={props.title}>{(title) => <div data-slot="session-review-title">{title()}</div>}</Show>
-        <div data-slot="session-review-actions">
-          <Show when={hasDiffs() && props.onDiffStyleChange}>
-            <RadioGroup
-              options={["unified", "split"] as const}
-              current={diffStyle()}
-              value={(style) => style}
-              label={(style) =>
-                i18n.t(style === "unified" ? "ui.sessionReview.diffStyle.unified" : "ui.sessionReview.diffStyle.split")
-              }
-              onSelect={(style) => style && props.onDiffStyleChange?.(style)}
-            />
-          </Show>
-          {props.actions}
+      <Show when={showHeader()}>
+        <div
+          data-slot="session-review-header"
+          classList={{
+            [props.classes?.header ?? ""]: !!props.classes?.header,
+          }}
+        >
+          <Show when={props.title}>{(title) => <div data-slot="session-review-title">{title()}</div>}</Show>
+          <div data-slot="session-review-actions">
+            <Show when={hasDiffs() && props.onDiffStyleChange}>
+              <RadioGroup
+                options={["unified", "split"] as const}
+                current={diffStyle()}
+                value={(style) => style}
+                label={(style) =>
+                  i18n.t(
+                    style === "unified" ? "ui.sessionReview.diffStyle.unified" : "ui.sessionReview.diffStyle.split",
+                  )
+                }
+                onSelect={(style) => style && props.onDiffStyleChange?.(style)}
+              />
+            </Show>
+            {props.actions}
+          </div>
         </div>
-      </div>
+      </Show>
       <div
         data-slot="session-review-container"
         classList={{
@@ -347,23 +354,25 @@ export const SessionReview = (props: SessionReviewProps) => {
       >
         <Show when={hasDiffs()} fallback={props.empty}>
           <div data-slot="session-review-accordion">
-            <For each={props.diffs}>
-              {(diff) => {
+            <For each={files()}>
+              {(file) => {
                 let wrapper: HTMLDivElement | undefined
+                const diff = createMemo(() => diffs().get(file))
+                const item = () => diff()!
 
-                const expanded = createMemo(() => open().includes(diff.file))
+                const expanded = createMemo(() => open().includes(file))
                 const [force, setForce] = createSignal(false)
 
-                const comments = createMemo(() => (props.comments ?? []).filter((c) => c.file === diff.file))
+                const comments = createMemo(() => (props.comments ?? []).filter((c) => c.file === file))
                 const commentedLines = createMemo(() => comments().map((c) => c.selection))
 
-                const beforeText = () => (typeof diff.before === "string" ? diff.before : "")
-                const afterText = () => (typeof diff.after === "string" ? diff.after : "")
+                const beforeText = () => (typeof item().before === "string" ? item().before : "")
+                const afterText = () => (typeof item().after === "string" ? item().after : "")
 
                 const tooLarge = createMemo(() => {
                   if (!expanded()) return false
                   if (force()) return false
-                  if (isImageFile(diff.file)) return false
+                  if (isImageFile(file)) return false
 
                   const before = beforeText()
                   const after = afterText()
@@ -374,32 +383,32 @@ export const SessionReview = (props: SessionReviewProps) => {
                 })
 
                 const isAdded = () =>
-                  diff.status === "added" ||
-                  (diff.status === undefined && beforeText().length === 0 && afterText().length > 0)
+                  item().status === "added" ||
+                  (item().status === undefined && beforeText().length === 0 && afterText().length > 0)
                 const isDeleted = () =>
-                  diff.status === "deleted" ||
-                  (diff.status === undefined && afterText().length === 0 && beforeText().length > 0)
-                const isImage = () => isImageFile(diff.file)
-                const isAudio = () => isAudioFile(diff.file)
+                  item().status === "deleted" ||
+                  (item().status === undefined && afterText().length === 0 && beforeText().length > 0)
+                const isImage = () => isImageFile(file)
+                const isAudio = () => isAudioFile(file)
 
-                const diffImageSrc = dataUrlFromValue(diff.after) ?? dataUrlFromValue(diff.before)
-                const [imageSrc, setImageSrc] = createSignal<string | undefined>(diffImageSrc)
+                const diffImageSrc = createMemo(() => dataUrlFromValue(item().after) ?? dataUrlFromValue(item().before))
+                const [imageSrc, setImageSrc] = createSignal<string | undefined>(diffImageSrc())
                 const [imageStatus, setImageStatus] = createSignal<"idle" | "loading" | "error">("idle")
 
-                const diffAudioSrc = dataUrlFromValue(diff.after) ?? dataUrlFromValue(diff.before)
-                const [audioSrc, setAudioSrc] = createSignal<string | undefined>(diffAudioSrc)
+                const diffAudioSrc = createMemo(() => dataUrlFromValue(item().after) ?? dataUrlFromValue(item().before))
+                const [audioSrc, setAudioSrc] = createSignal<string | undefined>(diffAudioSrc())
                 const [audioStatus, setAudioStatus] = createSignal<"idle" | "loading" | "error">("idle")
                 const [audioMime, setAudioMime] = createSignal<string | undefined>(undefined)
 
                 const selectedLines = createMemo(() => {
                   const current = selection()
-                  if (!current || current.file !== diff.file) return null
+                  if (!current || current.file !== file) return null
                   return current.range
                 })
 
                 const draftRange = createMemo(() => {
                   const current = commenting()
-                  if (!current || current.file !== diff.file) return null
+                  if (!current || current.file !== file) return null
                   return current.range
                 })
 
@@ -463,7 +472,7 @@ export const SessionReview = (props: SessionReviewProps) => {
                 })
 
                 createEffect(() => {
-                  if (!open().includes(diff.file)) return
+                  if (!open().includes(file)) return
                   if (!isImage()) return
                   if (imageSrc()) return
                   if (imageStatus() !== "idle") return
@@ -473,7 +482,7 @@ export const SessionReview = (props: SessionReviewProps) => {
                   if (!reader) return
 
                   setImageStatus("loading")
-                  reader(diff.file)
+                  reader(file)
                     .then((result) => {
                       const src = dataUrl(result)
                       if (!src) {
@@ -489,7 +498,7 @@ export const SessionReview = (props: SessionReviewProps) => {
                 })
 
                 createEffect(() => {
-                  if (!open().includes(diff.file)) return
+                  if (!open().includes(file)) return
                   if (!isAudio()) return
                   if (audioSrc()) return
                   if (audioStatus() !== "idle") return
@@ -498,7 +507,7 @@ export const SessionReview = (props: SessionReviewProps) => {
                   if (!reader) return
 
                   setAudioStatus("loading")
-                  reader(diff.file)
+                  reader(file)
                     .then((result) => {
                       const src = dataUrl(result)
                       if (!src) {
@@ -522,7 +531,7 @@ export const SessionReview = (props: SessionReviewProps) => {
                     return
                   }
 
-                  setSelection({ file: diff.file, range })
+                  setSelection({ file, range })
                 }
 
                 const handleLineSelectionEnd = (range: SelectedLineRange | null) => {
@@ -533,8 +542,8 @@ export const SessionReview = (props: SessionReviewProps) => {
                     return
                   }
 
-                  setSelection({ file: diff.file, range })
-                  setCommenting({ file: diff.file, range })
+                  setSelection({ file, range })
+                  setCommenting({ file, range })
                 }
 
                 const openComment = (comment: SessionReviewComment) => {
@@ -550,11 +559,11 @@ export const SessionReview = (props: SessionReviewProps) => {
 
                 return (
                   <div
-                    id={diffId(diff.file)}
-                    data-file={diff.file}
+                    id={diffId(file)}
+                    data-file={file}
                     data-slot="session-review-accordion-item"
                     data-expanded={expanded() ? "" : undefined}
-                    data-selected={props.focusedFile === diff.file ? "" : undefined}
+                    data-selected={props.focusedFile === file ? "" : undefined}
                   >
                     <div data-slot="session-review-item-header">
                       <button
@@ -562,32 +571,29 @@ export const SessionReview = (props: SessionReviewProps) => {
                         data-slot="session-review-trigger-button"
                         onClick={() => {
                           const current = open()
-                          if (current[0] === diff.file) {
+                          if (current[0] === file) {
                             handleChange([])
                             return
                           }
-                          handleChange([diff.file])
+                          handleChange([file])
                         }}
                       >
                         <div data-slot="session-review-trigger-content">
                           <div data-slot="session-review-file-info">
-                            <Show
-                              when={props.onViewFile}
-                              fallback={<FileIcon node={{ path: diff.file, type: "file" }} />}
-                            >
+                            <Show when={props.onViewFile} fallback={<FileIcon node={{ path: file, type: "file" }} />}>
                               <button
                                 type="button"
                                 data-slot="session-review-file-icon-button"
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  props.onViewFile?.(diff.file)
+                                  props.onViewFile?.(file)
                                 }}
                               >
-                                <FileIcon node={{ path: diff.file, type: "file" }} />
+                                <FileIcon node={{ path: file, type: "file" }} />
                               </button>
                             </Show>
-                            <div data-slot="session-review-file-name-container" title={diff.file}>
-                              <span data-slot="session-review-filepath">{`\u202A${diff.file}\u202C`}</span>
+                            <div data-slot="session-review-file-name-container" title={file}>
+                              <span data-slot="session-review-filepath">{`\u202A${file}\u202C`}</span>
                             </div>
                           </div>
                           <div data-slot="session-review-trigger-actions">
@@ -608,7 +614,7 @@ export const SessionReview = (props: SessionReviewProps) => {
                                 </span>
                               </Match>
                               <Match when={true}>
-                                <DiffChanges changes={diff} />
+                                <DiffChanges changes={item()} />
                               </Match>
                             </Switch>
                             <Icon name="chevron-grabber-vertical" size="small" />
@@ -622,14 +628,14 @@ export const SessionReview = (props: SessionReviewProps) => {
                           data-slot="session-review-diff-wrapper"
                           ref={(el) => {
                             wrapper = el
-                            anchors.set(diff.file, el)
+                            anchors.set(file, el)
                             scheduleAnchors()
                           }}
                         >
                           <Switch>
                             <Match when={isImage() && imageSrc()}>
                               <div data-slot="session-review-image-container">
-                                <img data-slot="session-review-image" src={imageSrc()} alt={diff.file} />
+                                <img data-slot="session-review-image" src={imageSrc()} alt={file} />
                               </div>
                             </Match>
                             <Match when={isImage() && isDeleted()}>
@@ -681,12 +687,12 @@ export const SessionReview = (props: SessionReviewProps) => {
                                     selectedLines={selectedLines()}
                                     commentedLines={commentedLines()}
                                     before={{
-                                      name: diff.file!,
-                                      contents: typeof diff.before === "string" ? diff.before : "",
+                                      name: file,
+                                      contents: typeof item().before === "string" ? item().before : "",
                                     }}
                                     after={{
-                                      name: diff.file!,
-                                      contents: typeof diff.after === "string" ? diff.after : "",
+                                      name: file,
+                                      contents: typeof item().after === "string" ? item().after : "",
                                     }}
                                   />
                                 )}
@@ -726,10 +732,10 @@ export const SessionReview = (props: SessionReviewProps) => {
                                   onCancel={() => setCommenting(null)}
                                   onSubmit={(comment) => {
                                     props.onLineComment?.({
-                                      file: diff.file,
+                                      file,
                                       selection: range(),
                                       comment,
-                                      preview: selectionPreview(diff, range()),
+                                      preview: selectionPreview(item(), range()),
                                     })
                                     setCommenting(null)
                                   }}

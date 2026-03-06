@@ -130,6 +130,7 @@ export default function Layout(props: ParentProps) {
     busyWorkspaces: {} as Record<string, boolean>,
     hoverSession: undefined as string | undefined,
     hoverProject: undefined as string | undefined,
+    openProject: undefined as string | undefined,
     scrollSessionKey: undefined as string | undefined,
     nav: undefined as HTMLElement | undefined,
   })
@@ -180,14 +181,7 @@ export default function Layout(props: ParentProps) {
 
   const sidebarHovering = createMemo(() => !layout.sidebar.opened() && state.hoverProject !== undefined)
   const sidebarExpanded = createMemo(() => layout.sidebar.opened() || sidebarHovering())
-  const canResizeOverlayDrawer = createMemo(
-    () => typeof window !== "undefined" && window.matchMedia("(hover: hover) and (pointer: fine)").matches,
-  )
-  const overlayDrawerWidth = createMemo(() => {
-    if (typeof window === "undefined") return Math.max(layout.sidebar.width(), 244)
-    const max = Math.max(280, Math.min(560, window.innerWidth - 56))
-    return Math.max(244, Math.min(layout.sidebar.width(), max))
-  })
+  const [mobileDrawerMode, setMobileDrawerMode] = createSignal(false)
   const clearHoverProjectSoon = () => queueMicrotask(() => setState("hoverProject", undefined))
   const setHoverSession = (id: string | undefined) => setState("hoverSession", id)
 
@@ -204,8 +198,26 @@ export default function Layout(props: ParentProps) {
   })
 
   createEffect(() => {
+    if (!layout.sidebar.opened()) {
+      setState("openProject", undefined)
+      return
+    }
+    const project = currentProject()
+    if (project?.worktree) setState("openProject", project.worktree)
+  })
+
+  createEffect(() => {
     if (state.hoverProject !== undefined) return
     aim.reset()
+  })
+
+  onMount(() => {
+    if (typeof window === "undefined") return
+    const media = window.matchMedia("(max-width: 449px) and ((hover: none) or (pointer: coarse))")
+    const updateMobileDrawerMode = () => setMobileDrawerMode(media.matches)
+    updateMobileDrawerMode()
+    media.addEventListener("change", updateMobileDrawerMode)
+    onCleanup(() => media.removeEventListener("change", updateMobileDrawerMode))
   })
 
   const autoselecting = createMemo(() => {
@@ -1603,6 +1615,12 @@ export default function Layout(props: ParentProps) {
     if (hovered) return hovered
     return currentProject()
   })
+  const desktopOverlayProject = createMemo(() => {
+    if (!layout.sidebar.opened()) return
+    const worktree = state.openProject ?? currentProject()?.worktree
+    if (!worktree) return currentProject()
+    return layout.projects.list().find((project) => project.worktree === worktree) ?? currentProject()
+  })
 
   function handleWorkspaceDragStart(event: unknown) {
     const id = getDraggableId(event)
@@ -1713,7 +1731,10 @@ export default function Layout(props: ParentProps) {
     onProjectMouseLeave: (worktree) => aim.leave(worktree),
     onProjectFocus: (worktree) => aim.activate(worktree),
     navigateToProject,
-    openSidebar: () => layout.sidebar.open(),
+    openSidebar: (directory?: string) => {
+      if (directory) setState("openProject", directory)
+      layout.sidebar.open()
+    },
     closeProject,
     showEditProjectDialog,
     toggleProjectWorkspaces,
@@ -1751,16 +1772,18 @@ export default function Layout(props: ParentProps) {
     return (
       <div
         classList={{
-          "flex flex-col min-h-0 bg-background-stronger border border-b-0 border-border-weak-base rounded-tl-sm": true,
+          "flex flex-col min-h-0 bg-background-stronger border border-b-0 border-border-weak-base": true,
           "flex-1 min-w-0": panelProps.mobile,
         }}
-        style={{ width: panelProps.mobile ? undefined : `${Math.max(layout.sidebar.width() - 64, 0)}px` }}
+        style={{
+          width: panelProps.mobile ? undefined : "100%",
+        }}
       >
         <Show when={panelProps.project} keyed>
           {(p) => (
             <>
-              <div class="shrink-0 px-2 py-1">
-                <div class="group/project flex items-start justify-between gap-2 p-2 pr-1">
+              <div class="shrink-0 px-2 py-1 border-b border-border-weak-base">
+                <div class="group/project flex items-start justify-between gap-2 px-2 py-2 pr-1">
                   <div class="flex flex-col min-w-0">
                     <InlineEditor
                       id={`project:${projectId()}`}
@@ -1781,7 +1804,7 @@ export default function Layout(props: ParentProps) {
                         transform: "translate3d(52px, 0, 0)",
                       }}
                     >
-                      <span class="text-12-regular text-text-base truncate select-text">
+                      <span class="text-12-regular text-text-weak truncate select-text">
                         {p.worktree.replace(homedir(), "~")}
                       </span>
                     </Tooltip>
@@ -1836,7 +1859,7 @@ export default function Layout(props: ParentProps) {
                   when={workspacesEnabled()}
                   fallback={
                     <>
-                      <div class="shrink-0 py-4 px-3">
+                      <div class="shrink-0 py-3 px-3 border-b border-border-weak-base">
                         <Button
                           size="large"
                           icon="plus-small"
@@ -1858,7 +1881,7 @@ export default function Layout(props: ParentProps) {
                   }
                 >
                   <>
-                    <div class="shrink-0 py-4 px-3">
+                    <div class="shrink-0 py-3 px-3 border-b border-border-weak-base">
                       <Button size="large" icon="plus-small" class="w-full" onClick={() => createWorkspace(p)}>
                         {language.t("workspace.new")}
                       </Button>
@@ -1937,86 +1960,94 @@ export default function Layout(props: ParentProps) {
   return (
     <div class="relative bg-background-base flex-1 min-h-0 flex flex-col select-none [&_input]:select-text [&_textarea]:select-text [&_[contenteditable]]:select-text">
       <Titlebar />
-      <div class="flex-1 min-h-0 flex">
-        <nav
-          aria-label={language.t("sidebar.nav.projectsAndSessions")}
-          data-component="sidebar-nav-desktop"
-          classList={{
-            "hidden xl:block": true,
-            "relative shrink-0": true,
-          }}
-          style={{ width: layout.sidebar.opened() ? `${Math.max(layout.sidebar.width(), 244)}px` : "64px" }}
-          ref={(el) => {
-            setState("nav", el)
-          }}
-          onMouseEnter={() => {
-            if (navLeave.current === undefined) return
-            clearTimeout(navLeave.current)
-            navLeave.current = undefined
-          }}
-          onMouseLeave={() => {
-            aim.reset()
-            if (!sidebarHovering()) return
+      <div class="flex-1 min-h-0 flex relative">
+        <Show when={!mobileDrawerMode()}>
+          <>
+            <nav
+              aria-label={language.t("sidebar.nav.projectsAndSessions")}
+              data-component="sidebar-nav-desktop"
+              class="relative shrink-0"
+              style={{ width: "64px" }}
+              ref={(el) => {
+                setState("nav", el)
+              }}
+              onMouseEnter={() => {
+                if (navLeave.current === undefined) return
+                clearTimeout(navLeave.current)
+                navLeave.current = undefined
+              }}
+              onMouseLeave={() => {
+                aim.reset()
+                if (!sidebarHovering()) return
 
-            if (navLeave.current !== undefined) clearTimeout(navLeave.current)
-            navLeave.current = window.setTimeout(() => {
-              navLeave.current = undefined
-              setState("hoverProject", undefined)
-              setState("hoverSession", undefined)
-            }, 300)
-          }}
-        >
-          <div class="@container w-full h-full contain-strict">
-            <SidebarContent
-              opened={() => layout.sidebar.opened()}
-              aimMove={aim.move}
-              projects={() => layout.projects.list()}
-              renderProject={(project) => (
-                <SortableProject ctx={projectSidebarCtx} project={project} sortNow={sortNow} />
-              )}
-              handleDragStart={handleDragStart}
-              handleDragEnd={handleDragEnd}
-              handleDragOver={handleDragOver}
-              openProjectLabel={language.t("command.project.open")}
-              openProjectKeybind={() => command.keybind("project.open")}
-              onOpenProject={chooseProject}
-              renderProjectOverlay={() => (
-                <ProjectDragOverlay projects={() => layout.projects.list()} activeProject={() => store.activeProject} />
-              )}
-              settingsLabel={() => language.t("sidebar.settings")}
-              settingsKeybind={() => command.keybind("settings.open")}
-              onOpenSettings={openSettings}
-              logoutLabel={() => "Logout"}
-              onLogout={logout}
-              helpLabel={() => language.t("sidebar.help")}
-              onOpenHelp={() => platform.openLink("https://opencode.ai/desktop-feedback")}
-              renderPanel={() => (
-                <Show when={currentProject()} keyed>
-                  {(project) => <SidebarPanel project={project} />}
-                </Show>
-              )}
-            />
-          </div>
-          <Show when={!layout.sidebar.opened() ? hoverProjectData()?.worktree : undefined} keyed>
-            {(worktree) => (
-              <div class="absolute inset-y-0 left-16 z-50 flex" onMouseEnter={aim.reset}>
-                <SidebarPanel project={hoverProjectData()} />
+                if (navLeave.current !== undefined) clearTimeout(navLeave.current)
+                navLeave.current = window.setTimeout(() => {
+                  navLeave.current = undefined
+                  setState("hoverProject", undefined)
+                  setState("hoverSession", undefined)
+                }, 300)
+              }}
+            >
+              <div class="@container w-full h-full contain-strict">
+                <SidebarContent
+                  opened={() => false}
+                  aimMove={aim.move}
+                  projects={() => layout.projects.list()}
+                  renderProject={(project) => (
+                    <SortableProject ctx={projectSidebarCtx} project={project} sortNow={sortNow} />
+                  )}
+                  handleDragStart={handleDragStart}
+                  handleDragEnd={handleDragEnd}
+                  handleDragOver={handleDragOver}
+                  openProjectLabel={language.t("command.project.open")}
+                  openProjectKeybind={() => command.keybind("project.open")}
+                  onOpenProject={chooseProject}
+                  renderProjectOverlay={() => (
+                    <ProjectDragOverlay
+                      projects={() => layout.projects.list()}
+                      activeProject={() => store.activeProject}
+                    />
+                  )}
+                  settingsLabel={() => language.t("sidebar.settings")}
+                  settingsKeybind={() => command.keybind("settings.open")}
+                  onOpenSettings={openSettings}
+                  logoutLabel={() => "Logout"}
+                  onLogout={logout}
+                  helpLabel={() => language.t("sidebar.help")}
+                  onOpenHelp={() => platform.openLink("https://opencode.ai/desktop-feedback")}
+                  renderPanel={() => (
+                    <Show when={currentProject()} keyed>
+                      {(project) => <SidebarPanel project={project} />}
+                    </Show>
+                  )}
+                />
               </div>
-            )}
-          </Show>
-          <Show when={layout.sidebar.opened()}>
-            <ResizeHandle
-              direction="horizontal"
-              size={layout.sidebar.width()}
-              min={244}
-              max={typeof window === "undefined" ? 1000 : window.innerWidth * 0.3 + 64}
-              collapseThreshold={244}
-              onResize={layout.sidebar.resize}
-              onCollapse={layout.sidebar.close}
-            />
-          </Show>
-        </nav>
-        <div class="xl:hidden">
+            </nav>
+            <Show when={layout.sidebar.opened() && desktopOverlayProject()} keyed>
+              {(project) => (
+                <>
+                  <div class="absolute inset-y-0 left-16 right-0 z-40" onClick={() => layout.sidebar.close()} />
+                  <div class="absolute inset-y-0 left-16 z-50 flex" style={{ width: `${layout.sidebar.width()}px` }}>
+                    <SidebarPanel project={project} />
+                    <ResizeHandle
+                      class="z-30"
+                      direction="horizontal"
+                      style={{ right: "0", width: "12px", transform: "none" }}
+                      size={layout.sidebar.width()}
+                      min={244}
+                      max={typeof window === "undefined" ? 1000 : Math.max(560, window.innerWidth - 24)}
+                      collapseThreshold={244}
+                      onResize={layout.sidebar.resize}
+                      onCollapse={layout.sidebar.close}
+                      onDblClick={() => layout.sidebar.close()}
+                    />
+                  </div>
+                </>
+              )}
+            </Show>
+          </>
+        </Show>
+        <Show when={mobileDrawerMode()}>
           <div
             classList={{
               "fixed inset-x-0 top-10 bottom-0 z-40 transition-opacity duration-200": true,
@@ -2024,6 +2055,7 @@ export default function Layout(props: ParentProps) {
               "opacity-0 pointer-events-none": !layout.mobileSidebar.opened(),
             }}
             onClick={(e) => {
+              if (document.querySelector('[data-component="dropdown-menu-content"]')) return
               if (e.target === e.currentTarget) layout.mobileSidebar.hide()
             }}
           />
@@ -2035,7 +2067,7 @@ export default function Layout(props: ParentProps) {
               "translate-x-0": layout.mobileSidebar.opened(),
               "-translate-x-full": !layout.mobileSidebar.opened(),
             }}
-            style={{ width: `${overlayDrawerWidth()}px` }}
+            style={{ width: "100vw" }}
             onClick={(e) => e.stopPropagation()}
           >
             <SidebarContent
@@ -2064,17 +2096,8 @@ export default function Layout(props: ParentProps) {
               onOpenHelp={() => platform.openLink("https://opencode.ai/desktop-feedback")}
               renderPanel={() => <SidebarPanel project={currentProject()} mobile />}
             />
-            <Show when={layout.mobileSidebar.opened() && canResizeOverlayDrawer()}>
-              <ResizeHandle
-                direction="horizontal"
-                size={overlayDrawerWidth()}
-                min={244}
-                max={typeof window === "undefined" ? 560 : Math.max(280, Math.min(560, window.innerWidth - 56))}
-                onResize={layout.sidebar.resize}
-              />
-            </Show>
           </nav>
-        </div>
+        </Show>
 
         <main
           classList={{
