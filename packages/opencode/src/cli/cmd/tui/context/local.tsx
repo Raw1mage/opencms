@@ -93,7 +93,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
     function formatModelAnnouncement(model: { providerId: string; modelID: string }) {
       const providerInfo = sync.data.provider.find((x) => x.id === model.providerId)
-      const providerLabel = providerInfo?.name ?? model.providerId
+      const familyId = Account.parseProvider(model.providerId) ?? model.providerId
+      const familyProviderInfo = sync.data.provider.find((x) => x.id === familyId)
+      const providerLabel = familyProviderInfo?.name ?? providerInfo?.name ?? familyId
       const modelLabel = providerInfo?.models[model.modelID]?.name ?? model.modelID
       const accountLabel = getAccountLabel(model.providerId, "default account")
       return `《${providerLabel}, ${accountLabel}, ${modelLabel}》`
@@ -370,9 +372,11 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             }
           }
           const provider = sync.data.provider.find((x) => x.id === value.providerId)
+          const familyId = Account.parseProvider(value.providerId) ?? value.providerId
+          const familyProvider = sync.data.provider.find((x) => x.id === familyId)
           const info = provider?.models[value.modelID]
           return {
-            provider: provider?.name ?? value.providerId,
+            provider: familyProvider?.name ?? provider?.name ?? familyId,
             model: info?.name ?? value.modelID,
             reasoning: info?.capabilities?.reasoning ?? false,
           }
