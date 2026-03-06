@@ -54,7 +54,6 @@ import { terminalTabLabel } from "@/pages/session/terminal-label"
 import { MessageTimeline } from "@/pages/session/message-timeline"
 import { useSessionCommands } from "@/pages/session/use-session-commands"
 import { SessionPromptDock } from "@/pages/session/session-prompt-dock"
-import { SessionMobileTabs } from "@/pages/session/session-mobile-tabs"
 import { SessionSidePanel } from "@/pages/session/session-side-panel"
 import { useSessionHashScroll } from "@/pages/session/use-session-hash-scroll"
 import { sessionPermissionRequest, sessionQuestionRequest } from "@/pages/session/session-request-tree"
@@ -525,7 +524,6 @@ export default function Page() {
     expanded: {} as Record<string, boolean>,
     messageId: undefined as string | undefined,
     turnStart: 0,
-    mobileTab: "session" as "session" | "changes",
     newSessionWorktree: "main",
     promptHeight: 0,
   })
@@ -872,7 +870,7 @@ export default function Page() {
       .filter((tab) => tab !== "context" && tab !== "review"),
   )
 
-  const mobileChanges = createMemo(() => !isDesktop() && store.mobileTab === "changes")
+  const mobileChanges = createMemo(() => !isDesktop() && view().reviewPanel.opened())
   const reviewTab = createMemo(() => isDesktop())
 
   const showAllFiles = () => {
@@ -914,6 +912,7 @@ export default function Page() {
     showAllFiles,
     tabForPath: file.tab,
     openTab: tabs().open,
+    setActive: tabs().setActive,
     loadFile: file.load,
   })
 
@@ -1017,7 +1016,7 @@ export default function Page() {
 
     const wants = isDesktop()
       ? desktopFileTreeOpen() || (desktopReviewOpen() && activeTab() === "review")
-      : store.mobileTab === "changes"
+      : view().reviewPanel.opened()
     if (!wants) return
     if (sync.status === "loading") return
 
@@ -1338,16 +1337,6 @@ export default function Page() {
           "flex-row": isDesktop(),
         }}
       >
-        <SessionMobileTabs
-          open={!isDesktop() && !!params.id}
-          mobileTab={store.mobileTab}
-          hasReview={hasReview()}
-          reviewCount={reviewCount()}
-          onSession={() => setStore("mobileTab", "session")}
-          onChanges={() => setStore("mobileTab", "changes")}
-          t={language.t as (key: string, vars?: Record<string, string | number | boolean>) => string}
-        />
-
         {/* Session panel */}
         <div
           classList={{

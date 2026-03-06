@@ -65,6 +65,12 @@ export const dict = {
 
   "command.fileTree.toggle": "切换文件树",
 
+  "session.tools.launcher": "打开工具",
+  "session.tools.files": "文件清单",
+  "session.tools.monitor": "工作监控",
+  "session.tools.todo": "待办列表",
+  "session.tools.terminal": "终端机",
+
   "command.review.toggle": "切换审查",
 
   "command.terminal.new": "新建终端",

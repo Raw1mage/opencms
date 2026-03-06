@@ -1,13 +1,14 @@
 import { createEffect, createMemo, For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Portal } from "solid-js/web"
-import { useParams } from "@solidjs/router"
+import { createMediaQuery } from "@solid-primitives/media"
+import { useLocation, useNavigate, useParams } from "@solidjs/router"
 import { useLayout } from "@/context/layout"
 import { useCommand } from "@/context/command"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { useServer } from "@/context/server"
-import { useSync } from "@/context/sync"
+import { useTerminal } from "@/context/terminal"
 import { getFilename } from "@opencode-ai/util/path"
 import { decode64 } from "@/utils/base64"
 import { Persist, persisted } from "@/utils/persist"
@@ -17,11 +18,10 @@ import { IconButton } from "@opencode-ai/ui/icon-button"
 import { Button } from "@opencode-ai/ui/button"
 import { AppIcon } from "@opencode-ai/ui/app-icon"
 import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
-import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
+import { TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { Keybind } from "@opencode-ai/ui/keybind"
 import { Spinner } from "@opencode-ai/ui/spinner"
 import { showToast } from "@opencode-ai/ui/toast"
-import { StatusPopover } from "../status-popover"
 
 const OPEN_APPS = [
   "vscode",
@@ -98,11 +98,14 @@ const showRequestError = (language: ReturnType<typeof useLanguage>, err: unknown
 export function SessionHeader() {
   const layout = useLayout()
   const params = useParams()
+  const location = useLocation()
+  const navigate = useNavigate()
   const command = useCommand()
   const server = useServer()
-  const sync = useSync()
   const platform = usePlatform()
   const language = useLanguage()
+  const terminal = useTerminal()
+  const largeScreen = createMediaQuery("(min-width: 1024px)")
 
   const projectDirectory = createMemo(() => decode64(params.dir) ?? "")
   const project = createMemo(() => {
@@ -120,6 +123,23 @@ export function SessionHeader() {
   const sessionKey = createMemo(() => `${params.dir}${params.id ? "/" + params.id : ""}`)
   const view = createMemo(() => layout.view(sessionKey))
   const os = createMemo(() => detectOS(platform))
+  const sessionBasePath = createMemo(() =>
+    params.id ? `/${params.dir}/session/${params.id}` : `/${params.dir}/session`,
+  )
+  const subpage = createMemo<"files" | "status" | "terminal" | undefined>(() => {
+    const path = location.pathname
+    const tool = path.match(/\/tool\/([^/]+)$/)?.[1]
+    if (tool === "files") return "files"
+    if (tool === "status" || tool === "todo" || tool === "monitor") return "status"
+    if (path.endsWith("/terminal-popout")) return "terminal"
+    return undefined
+  })
+  const subpageTitle = createMemo(() => {
+    if (subpage() === "files") return language.t("session.tools.files")
+    if (subpage() === "status") return language.t("status.popover.trigger")
+    if (subpage() === "terminal") return language.t("session.tools.terminal")
+    return undefined
+  })
 
   const [exists, setExists] = createStore<Partial<Record<OpenApp, boolean>>>({ finder: true })
 
@@ -222,6 +242,79 @@ export function SessionHeader() {
       .catch((err: unknown) => showRequestError(language, err))
   }
 
+  const openTerminalPage = () => {
+    const active = terminal.active() ?? terminal.all()[0]?.id
+    const next = new URL(`${sessionBasePath()}/terminal-popout`, window.location.origin)
+    if (active) next.searchParams.set("pty", active)
+    navigate(`${next.pathname}${next.search}`)
+  }
+
+  const openToolPage = (tool: "files" | "status") => {
+    navigate(`${sessionBasePath()}/tool/${tool}`)
+  }
+
+  const toggleDesktopPanel = (mode: "files" | "status") => {
+    if (layout.fileTree.opened() && layout.fileTree.mode() === mode) {
+      layout.fileTree.close()
+      return
+    }
+    layout.fileTree.show(mode)
+  }
+
+  const toggleDesktopTerminal = () => {
+    if (view().terminal.opened()) {
+      view().terminal.close()
+      return
+    }
+    view().terminal.open()
+  }
+
+  const toggleMobileReview = () => {
+    if (subpage()) {
+      view().reviewPanel.open()
+      navigate(sessionBasePath())
+      return
+    }
+    view().reviewPanel.toggle()
+  }
+
+  const toggleMobileTool = (tool: "files" | "status" | "terminal") => {
+    if (subpage() === tool) {
+      navigate(sessionBasePath())
+      return
+    }
+    view().reviewPanel.close()
+    if (tool === "terminal") {
+      openTerminalPage()
+      return
+    }
+    openToolPage(tool)
+  }
+
+  const desktopActiveTool = createMemo<"status" | "files" | "terminal" | undefined>(() => {
+    if (view().terminal.opened()) return "terminal"
+    if (!layout.fileTree.opened()) return undefined
+    return layout.fileTree.mode()
+  })
+
+  const mobileActiveTool = createMemo<"changes" | "files" | "status" | "terminal" | undefined>(() => {
+    if (subpage()) return subpage()
+    if (view().reviewPanel.opened()) return "changes"
+    return undefined
+  })
+  const desktopNavButtonClass = (active: boolean) =>
+    `h-[24px] rounded-md border px-2.5 gap-1.5 shadow-none ${
+      active
+        ? "border-border-base bg-surface-raised-base-active text-text-base"
+        : "border-border-base bg-surface-panel text-text-strong hover:bg-surface-raised-base-hover"
+    }`
+  const mobileNavButtonClass = (active: boolean) =>
+    `size-6 p-0 rounded-md border shadow-none ${
+      active
+        ? "border-border-base bg-surface-raised-base-active text-text-base"
+        : "border-border-base bg-surface-panel text-text-strong hover:bg-surface-raised-base-hover"
+    }`
+
   const leftMount = createMemo(
     () => document.getElementById("opencode-titlebar-left") ?? document.getElementById("opencode-titlebar-center"),
   )
@@ -232,25 +325,41 @@ export function SessionHeader() {
       <Show when={leftMount()}>
         {(mount) => (
           <Portal mount={mount()}>
-            <button
-              type="button"
-              class="hidden md:flex w-[320px] max-w-full min-w-0 h-[24px] px-2 pl-1.5 items-center gap-2 justify-between rounded-md border border-border-base bg-surface-panel transition-colors cursor-default hover:bg-surface-raised-base-hover focus-visible:bg-surface-raised-base-hover active:bg-surface-raised-base-active"
-              onClick={() => command.trigger("file.open")}
-              aria-label={language.t("session.header.searchFiles")}
-            >
-              <div class="flex min-w-0 flex-1 items-center gap-2 overflow-visible">
-                <Icon name="magnifying-glass" size="normal" class="icon-base shrink-0" />
-                <span class="flex-1 min-w-0 text-14-regular text-text-weak truncate h-4.5 flex items-center">
-                  {language.t("session.header.search.placeholder", { project: name() })}
-                </span>
-              </div>
+            <Show
+              when={subpageTitle()}
+              fallback={
+                <button
+                  type="button"
+                  class="hidden md:flex w-[320px] max-w-full min-w-0 h-[24px] px-2 pl-1.5 items-center gap-2 justify-between rounded-md border border-border-base bg-surface-panel transition-colors cursor-default hover:bg-surface-raised-base-hover focus-visible:bg-surface-raised-base-hover active:bg-surface-raised-base-active"
+                  onClick={() => command.trigger("file.open")}
+                  aria-label={language.t("session.header.searchFiles")}
+                >
+                  <div class="flex min-w-0 flex-1 items-center gap-2 overflow-visible">
+                    <Icon name="magnifying-glass" size="normal" class="icon-base shrink-0" />
+                    <span class="flex-1 min-w-0 text-14-regular text-text-weak truncate h-4.5 flex items-center">
+                      {language.t("session.header.search.placeholder", { project: name() })}
+                    </span>
+                  </div>
 
-              <Show when={hotkey()}>
-                {(keybind) => (
-                  <Keybind class="shrink-0 !border-0 !bg-transparent !shadow-none px-0">{keybind()}</Keybind>
-                )}
-              </Show>
-            </button>
+                  <Show when={hotkey()}>
+                    {(keybind) => (
+                      <Keybind class="shrink-0 !border-0 !bg-transparent !shadow-none px-0">{keybind()}</Keybind>
+                    )}
+                  </Show>
+                </button>
+              }
+            >
+              {(title) => (
+                <button
+                  type="button"
+                  class="flex max-w-full min-w-0 h-[24px] px-2 items-center text-14-medium text-text-weak truncate"
+                  onClick={() => navigate(sessionBasePath())}
+                  aria-label={language.t("common.close")}
+                >
+                  {title()}
+                </button>
+              )}
+            </Show>
           </Portal>
         )}
       </Show>
@@ -258,7 +367,6 @@ export function SessionHeader() {
         {(mount) => (
           <Portal mount={mount()}>
             <div class="flex items-center gap-3">
-              <StatusPopover />
               <Show when={projectDirectory()}>
                 <div class="hidden xl:flex items-center">
                   <Show
@@ -374,95 +482,148 @@ export function SessionHeader() {
                   </Show>
                 </div>
               </Show>
-              <div class="flex items-center gap-3 ml-2 shrink-0">
-                <TooltipKeybind
-                  title={language.t("command.terminal.toggle")}
-                  keybind={command.keybind("terminal.toggle")}
-                >
+              <Show
+                when={largeScreen()}
+                fallback={
+                  <div class="flex items-center gap-3 ml-2 shrink-0">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      class={mobileNavButtonClass(mobileActiveTool() === "changes")}
+                      onClick={toggleMobileReview}
+                      aria-label={language.t("command.review.toggle")}
+                    >
+                      <div class="relative flex items-center justify-center size-4 [&>*]:absolute [&>*]:inset-0">
+                        <Icon
+                          size="small"
+                          name={mobileActiveTool() === "changes" ? "layout-right-full" : "layout-right"}
+                          class="group-hover/review-toggle:hidden"
+                        />
+                      </div>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      class={mobileNavButtonClass(mobileActiveTool() === "status")}
+                      onClick={() => toggleMobileTool("status")}
+                      aria-label={language.t("status.popover.trigger")}
+                    >
+                      <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M3 8h2.5M6.5 8h2M10.5 8H13" stroke-linecap="round" />
+                        <circle cx="8" cy="8" r="5.25" />
+                        <path d="M8 5.25v5.5" stroke-linecap="round" />
+                      </svg>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      class={mobileNavButtonClass(mobileActiveTool() === "files")}
+                      onClick={() => toggleMobileTool("files")}
+                      aria-label={language.t("session.tools.files")}
+                    >
+                      <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M2.75 4.25h4l1 1.5h5.5v6a1 1 0 0 1-1 1h-8.5a1 1 0 0 1-1-1z" stroke-linejoin="round" />
+                        <path d="M2.75 4.25v-1a1 1 0 0 1 1-1h2.3c.3 0 .58.14.77.38l.93 1.12" stroke-linecap="round" />
+                      </svg>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      class={mobileNavButtonClass(mobileActiveTool() === "terminal")}
+                      onClick={() => toggleMobileTool("terminal")}
+                      aria-label={language.t("session.tools.terminal")}
+                    >
+                      <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M3.25 4.5 6.5 7.75 3.25 11" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M8 11h4.75" stroke-linecap="round" />
+                        <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="2" />
+                      </svg>
+                    </Button>
+                  </div>
+                }
+              >
+                <div class="flex items-center gap-3 ml-2 shrink-0">
+                  <div class="hidden lg:block shrink-0">
+                    <TooltipKeybind
+                      title={language.t("command.review.toggle")}
+                      keybind={command.keybind("review.toggle")}
+                    >
+                      <Button
+                        variant="ghost"
+                        class="group/review-toggle size-6 p-0"
+                        onClick={() => view().reviewPanel.toggle()}
+                        aria-label={language.t("command.review.toggle")}
+                        aria-expanded={view().reviewPanel.opened()}
+                        aria-controls="review-panel"
+                      >
+                        <div class="relative flex items-center justify-center size-4 [&>*]:absolute [&>*]:inset-0">
+                          <Icon
+                            size="small"
+                            name={view().reviewPanel.opened() ? "layout-right-full" : "layout-right"}
+                            class="group-hover/review-toggle:hidden"
+                          />
+                          <Icon
+                            size="small"
+                            name="layout-right-partial"
+                            class="hidden group-hover/review-toggle:inline-block"
+                          />
+                          <Icon
+                            size="small"
+                            name={view().reviewPanel.opened() ? "layout-right" : "layout-right-full"}
+                            class="hidden group-active/review-toggle:inline-block"
+                          />
+                        </div>
+                      </Button>
+                    </TooltipKeybind>
+                  </div>
                   <Button
+                    type="button"
                     variant="ghost"
-                    class="group/terminal-toggle size-6 p-0"
-                    onClick={() => view().terminal.toggle()}
-                    aria-label={language.t("command.terminal.toggle")}
-                    aria-expanded={view().terminal.opened()}
-                    aria-controls="terminal-panel"
+                    class={desktopNavButtonClass(desktopActiveTool() === "status")}
+                    onClick={() => toggleDesktopPanel("status")}
+                    aria-label={language.t("status.popover.trigger")}
                   >
-                    <div class="relative flex items-center justify-center size-4 [&>*]:absolute [&>*]:inset-0">
-                      <Icon
-                        size="small"
-                        name={view().terminal.opened() ? "layout-bottom-full" : "layout-bottom"}
-                        class="group-hover/terminal-toggle:hidden"
-                      />
-                      <Icon
-                        size="small"
-                        name="layout-bottom-partial"
-                        class="hidden group-hover/terminal-toggle:inline-block"
-                      />
-                      <Icon
-                        size="small"
-                        name={view().terminal.opened() ? "layout-bottom" : "layout-bottom-full"}
-                        class="hidden group-active/terminal-toggle:inline-block"
-                      />
-                    </div>
+                    <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M3 8h2.5M6.5 8h2M10.5 8H13" stroke-linecap="round" />
+                      <circle cx="8" cy="8" r="5.25" />
+                      <path d="M8 5.25v5.5" stroke-linecap="round" />
+                    </svg>
+                    <span class="text-12-regular">{language.t("status.popover.trigger")}</span>
                   </Button>
-                </TooltipKeybind>
-              </div>
-              <div class="hidden lg:block shrink-0">
-                <TooltipKeybind title={language.t("command.review.toggle")} keybind={command.keybind("review.toggle")}>
+                  <TooltipKeybind
+                    title={language.t("command.fileTree.toggle")}
+                    keybind={command.keybind("fileTree.toggle")}
+                  >
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      class={desktopNavButtonClass(desktopActiveTool() === "files")}
+                      onClick={() => toggleDesktopPanel("files")}
+                      aria-label={language.t("session.tools.files")}
+                    >
+                      <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M2.75 4.25h4l1 1.5h5.5v6a1 1 0 0 1-1 1h-8.5a1 1 0 0 1-1-1z" stroke-linejoin="round" />
+                        <path d="M2.75 4.25v-1a1 1 0 0 1 1-1h2.3c.3 0 .58.14.77.38l.93 1.12" stroke-linecap="round" />
+                      </svg>
+                      <span class="text-12-regular">{language.t("session.tools.files")}</span>
+                    </Button>
+                  </TooltipKeybind>
                   <Button
+                    type="button"
                     variant="ghost"
-                    class="group/review-toggle size-6 p-0"
-                    onClick={() => view().reviewPanel.toggle()}
-                    aria-label={language.t("command.review.toggle")}
-                    aria-expanded={view().reviewPanel.opened()}
-                    aria-controls="review-panel"
+                    class={desktopNavButtonClass(desktopActiveTool() === "terminal")}
+                    onClick={toggleDesktopTerminal}
+                    aria-label={language.t("session.tools.terminal")}
                   >
-                    <div class="relative flex items-center justify-center size-4 [&>*]:absolute [&>*]:inset-0">
-                      <Icon
-                        size="small"
-                        name={view().reviewPanel.opened() ? "layout-right-full" : "layout-right"}
-                        class="group-hover/review-toggle:hidden"
-                      />
-                      <Icon
-                        size="small"
-                        name="layout-right-partial"
-                        class="hidden group-hover/review-toggle:inline-block"
-                      />
-                      <Icon
-                        size="small"
-                        name={view().reviewPanel.opened() ? "layout-right" : "layout-right-full"}
-                        class="hidden group-active/review-toggle:inline-block"
-                      />
-                    </div>
+                    <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M3.25 4.5 6.5 7.75 3.25 11" stroke-linecap="round" stroke-linejoin="round" />
+                      <path d="M8 11h4.75" stroke-linecap="round" />
+                      <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="2" />
+                    </svg>
+                    <span class="text-12-regular">{language.t("session.tools.terminal")}</span>
                   </Button>
-                </TooltipKeybind>
-              </div>
-              <div class="hidden lg:block shrink-0">
-                <TooltipKeybind
-                  title={language.t("command.fileTree.toggle")}
-                  keybind={command.keybind("fileTree.toggle")}
-                >
-                  <Button
-                    variant="ghost"
-                    class="group/file-tree-toggle size-6 p-0"
-                    onClick={() => layout.fileTree.toggle()}
-                    aria-label={language.t("command.fileTree.toggle")}
-                    aria-expanded={layout.fileTree.opened()}
-                    aria-controls="file-tree-panel"
-                  >
-                    <div class="relative flex items-center justify-center size-4">
-                      <Icon
-                        size="small"
-                        name="bullet-list"
-                        classList={{
-                          "text-icon-strong": layout.fileTree.opened(),
-                          "text-icon-weak": !layout.fileTree.opened(),
-                        }}
-                      />
-                    </div>
-                  </Button>
-                </TooltipKeybind>
-              </div>
+                </div>
+              </Show>
             </div>
           </Portal>
         )}

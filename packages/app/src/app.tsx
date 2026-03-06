@@ -30,6 +30,7 @@ import { AuthGate } from "@/components/auth-gate"
 const Home = lazy(() => import("@/pages/home"))
 const Session = lazy(() => import("@/pages/session"))
 const TerminalPopout = lazy(() => import("@/pages/session/terminal-popout"))
+const SessionToolPage = lazy(() => import("@/pages/session/tool-page"))
 const SessionRichContentProvider = lazy(() => import("@/pages/session/session-rich-content-provider"))
 const Loading = () => <div class="size-full" />
 
@@ -54,6 +55,16 @@ const TerminalPopoutRoute = () => (
     <Suspense fallback={<Loading />}>
       <SessionRichContentProvider>
         <TerminalPopout />
+      </SessionRichContentProvider>
+    </Suspense>
+  </SessionProviders>
+)
+
+const SessionToolRoute = () => (
+  <SessionProviders>
+    <Suspense fallback={<Loading />}>
+      <SessionRichContentProvider>
+        <SessionToolPage />
       </SessionRichContentProvider>
     </Suspense>
   </SessionProviders>
@@ -217,6 +228,7 @@ export function AppInterface(props: { defaultUrl?: string; children?: JSX.Elemen
                   <Route path="/:dir" component={DirectoryLayout}>
                     <Route path="/" component={SessionIndexRoute} />
                     <Route path="/session/:id?" component={SessionRoute} />
+                    <Route path="/session/:id?/tool/:tool" component={SessionToolRoute} />
                     <Route path="/session/:id?/terminal-popout" component={TerminalPopoutRoute} />
                   </Route>
                 </Router>

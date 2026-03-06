@@ -1,5 +1,6 @@
 import { Show, createEffect, createMemo, createResource } from "solid-js"
 import { useParams, useSearchParams } from "@solidjs/router"
+import { SessionHeader } from "@/components/session"
 import { Terminal } from "@/components/terminal"
 import { useLanguage } from "@/context/language"
 import { useTerminal } from "@/context/terminal"
@@ -9,7 +10,7 @@ export default function TerminalPopoutRoute() {
   const language = useLanguage()
   const terminal = useTerminal()
   const sdk = useSDK()
-  const params = useParams<{ id?: string }>()
+  const params = useParams<{ dir?: string; id?: string }>()
   const [searchParams] = useSearchParams<{ pty?: string }>()
 
   const requestedID = createMemo(() => searchParams.pty)
@@ -46,6 +47,12 @@ export default function TerminalPopoutRoute() {
   })
 
   createEffect(() => {
+    if (!terminal.ready()) return
+    if (terminal.all().length > 0) return
+    terminal.new()
+  })
+
+  createEffect(() => {
     const id = selectedID()
     if (!id) return
     if (terminal.active() !== id) terminal.open(id)
@@ -54,6 +61,7 @@ export default function TerminalPopoutRoute() {
 
   return (
     <div class="size-full flex flex-col bg-background-base">
+      <SessionHeader />
       <div class="flex-1 min-h-0 relative">
         <Show
           when={selectedPTY()}

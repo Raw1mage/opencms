@@ -1,7 +1,8 @@
-import { For, Show, createMemo, onCleanup, type JSX, type ValidComponent } from "solid-js"
+import { For, Show, createEffect, createMemo, onCleanup, type JSX, type ValidComponent } from "solid-js"
+import { createStore } from "solid-js/store"
 import { Tabs } from "@opencode-ai/ui/tabs"
 import { IconButton } from "@opencode-ai/ui/icon-button"
-import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
+import { TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { ResizeHandle } from "@opencode-ai/ui/resize-handle"
 import { Mark } from "@opencode-ai/ui/logo"
 import FileTree from "@/components/file-tree"
@@ -20,8 +21,18 @@ import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useFile, type SelectedLineRange } from "@/context/file"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
+import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
-import type { Message, UserMessage } from "@opencode-ai/sdk/v2/client"
+import type { Message, SessionMonitorInfo, Todo, UserMessage } from "@opencode-ai/sdk/v2/client"
+import { buildMonitorEntries, MONITOR_LEVEL_LABELS, MONITOR_STATUS_LABELS } from "./monitor-helper"
+import { SessionStatusSections } from "./session-status-sections"
+
+const TODO_ORDER: Record<string, number> = {
+  in_progress: 0,
+  pending: 1,
+  completed: 2,
+  cancelled: 3,
+}
 
 type SessionSidePanelViewModel = {
   messages: () => Message[]
@@ -67,7 +78,220 @@ export function SessionSidePanel(props: {
   diffFiles: string[]
   kinds: Map<string, "add" | "del" | "mix">
 }) {
+  const sync = useSync()
+  const sdk = useSDK()
   const openedTabs = createMemo(() => props.openedTabs())
+  const sideMode = createMemo(() => props.layout.fileTree.mode())
+  const activeSessionID = createMemo(() => props.vm.info()?.id)
+  const panelTitle = createMemo(() => {
+    if (sideMode() === "status") return props.language.t("status.popover.trigger")
+    return props.language.t("session.tools.files")
+  })
+
+  const todos = createMemo(() => {
+    const sessionID = activeSessionID()
+    if (!sessionID) return undefined
+    const list = sync.data.todo[sessionID]
+    if (!list) return undefined
+    return [...list].sort((a, b) => (TODO_ORDER[a.status] ?? 99) - (TODO_ORDER[b.status] ?? 99))
+  })
+
+  createEffect(() => {
+    if (sideMode() !== "status") return
+    const sessionID = activeSessionID()
+    if (!sessionID) return
+    if (sync.data.todo[sessionID] !== undefined) return
+    void sync.session.todo(sessionID)
+  })
+
+  const [monitor, setMonitor] = createStore({
+    items: [] as SessionMonitorInfo[],
+    loading: false,
+    error: undefined as string | undefined,
+  })
+
+  createEffect(() => {
+    if (sideMode() !== "status") return
+    const sessionID = activeSessionID()
+    if (!sessionID) {
+      setMonitor({ items: [], loading: false, error: undefined })
+      return
+    }
+
+    let cancelled = false
+    const load = async () => {
+      setMonitor("loading", true)
+      try {
+        const result = await sdk.client.session.top({ sessionID, includeDescendants: true, maxMessages: 400 })
+        if (cancelled) return
+        setMonitor({ items: result.data ?? [], loading: false, error: undefined })
+      } catch (error) {
+        if (cancelled) return
+        setMonitor({
+          items: [],
+          loading: false,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+
+    void load()
+    const timer = setInterval(() => {
+      void load()
+    }, 2000)
+
+    onCleanup(() => {
+      cancelled = true
+      clearInterval(timer)
+    })
+  })
+
+  const monitorEntries = createMemo(() =>
+    buildMonitorEntries({
+      raw: monitor.items,
+      session: props.vm.info(),
+      messages: props.vm.messages(),
+      status: activeSessionID() ? sync.data.session_status[activeSessionID()!] : undefined,
+    }),
+  )
+
+  const secondaryPanel = () => (
+    <div
+      id="session-side-panel-secondary"
+      class="relative shrink-0 h-full"
+      style={{ width: `${props.layout.fileTree.width()}px` }}
+    >
+      <div
+        class="h-full flex flex-col overflow-hidden group/filetree"
+        classList={{ "border-l border-border-weak-base": props.reviewOpen }}
+      >
+        <div class="h-10 px-3 flex items-center justify-between text-12-medium text-text-weak border-b border-border-weak-base">
+          <span>{panelTitle()}</span>
+        </div>
+
+        <Show when={sideMode() === "files"}>
+          <div class="bg-background-base px-3 py-0 h-full overflow-auto">
+            <FileTree
+              path=""
+              modified={props.diffFiles}
+              kinds={props.kinds}
+              onFileClick={(node) => props.openTab(props.file.tab(node.path))}
+            />
+          </div>
+        </Show>
+
+        <Show when={sideMode() === "status"}>
+          <SessionStatusSections
+            todoSection={
+              <section class="flex flex-col gap-2 rounded-md border border-border-weak-base bg-surface-panel px-3 py-3">
+                <div class="text-12-medium text-text-weak uppercase tracking-wide">
+                  {props.language.t("session.tools.todo")}
+                </div>
+                <Show
+                  when={activeSessionID()}
+                  fallback={<div class="text-12-regular text-text-weak">No active session.</div>}
+                >
+                  <Show
+                    when={todos() !== undefined}
+                    fallback={<div class="text-12-regular text-text-weak">Loading to-dos…</div>}
+                  >
+                    <Show
+                      when={(todos()?.length ?? 0) > 0}
+                      fallback={<div class="text-12-regular text-text-weak">No to-dos yet.</div>}
+                    >
+                      <For each={todos() as Todo[]}>
+                        {(todo) => (
+                          <div class="flex items-start gap-2 rounded-md border border-border-weak-base bg-background-base px-3 py-2">
+                            <div
+                              class="mt-1 size-2 rounded-full shrink-0"
+                              classList={{
+                                "bg-text-warning": todo.status === "in_progress",
+                                "bg-text-interactive-base": todo.status === "pending",
+                                "bg-text-success": todo.status === "completed",
+                                "bg-text-weak": todo.status === "cancelled",
+                              }}
+                            />
+                            <div class="min-w-0 flex-1">
+                              <div class="text-12-medium text-text-strong break-words">{todo.content}</div>
+                              <div class="text-11-regular text-text-weak uppercase mt-1">
+                                {todo.status.replaceAll("_", " ")}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </For>
+                    </Show>
+                  </Show>
+                </Show>
+              </section>
+            }
+            monitorSection={
+              <section class="flex flex-col gap-2 rounded-md border border-border-weak-base bg-surface-panel px-3 py-3">
+                <div class="text-12-medium text-text-weak uppercase tracking-wide">
+                  {props.language.t("session.tools.monitor")}
+                </div>
+                <Show
+                  when={activeSessionID()}
+                  fallback={<div class="text-12-regular text-text-weak">No active session.</div>}
+                >
+                  <Show
+                    when={!monitor.loading}
+                    fallback={<div class="text-12-regular text-text-weak">Loading monitor…</div>}
+                  >
+                    <Show
+                      when={!monitor.error}
+                      fallback={<div class="text-12-regular text-text-danger">{monitor.error}</div>}
+                    >
+                      <Show
+                        when={monitorEntries().length > 0}
+                        fallback={<div class="text-12-regular text-text-weak">No active tasks.</div>}
+                      >
+                        <For each={monitorEntries()}>
+                          {(item) => (
+                            <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
+                              <div class="flex items-center gap-2 min-w-0">
+                                <span class="text-11-medium text-text-weak shrink-0">
+                                  [{MONITOR_LEVEL_LABELS[item.level] ?? item.level}]
+                                </span>
+                                <span class="text-12-medium text-text-strong truncate">
+                                  {item.title || "Untitled session"}
+                                </span>
+                              </div>
+                              <div class="text-11-regular text-text-weak break-words">
+                                {MONITOR_STATUS_LABELS[item.status.type] ?? item.status.type}
+                                {item.model ? ` · ${item.model.providerId}/${item.model.modelID}` : ""}
+                                {` · ${item.requests} reqs · ${item.totalTokens.toLocaleString()} tok`}
+                              </div>
+                              <Show when={item.activeTool}>
+                                <div class="text-11-regular text-text-weak break-words">
+                                  Tool: {item.activeTool}
+                                  <Show when={item.activeToolStatus}> · {item.activeToolStatus}</Show>
+                                </div>
+                              </Show>
+                            </div>
+                          )}
+                        </For>
+                      </Show>
+                    </Show>
+                  </Show>
+                </Show>
+              </section>
+            }
+          />
+        </Show>
+      </div>
+      <ResizeHandle
+        direction="horizontal"
+        edge="start"
+        size={props.layout.fileTree.width()}
+        min={200}
+        max={480}
+        collapseThreshold={160}
+        onResize={props.layout.fileTree.resize}
+        onCollapse={props.layout.fileTree.close}
+      />
+    </div>
+  )
 
   return (
     <Show when={props.open}>
@@ -115,7 +339,12 @@ export function SessionSidePanel(props: {
                       <Tabs.Trigger
                         value="context"
                         closeButton={
-                          <Tooltip value={props.language.t("common.closeTab")} placement="bottom">
+                          <TooltipKeybind
+                            title={props.language.t("common.closeTab")}
+                            keybind={props.command.keybind("tab.close")}
+                            placement="bottom"
+                            gutter={10}
+                          >
                             <IconButton
                               icon="close-small"
                               variant="ghost"
@@ -123,7 +352,7 @@ export function SessionSidePanel(props: {
                               onClick={() => props.tabs().close("context")}
                               aria-label={props.language.t("common.closeTab")}
                             />
-                          </Tooltip>
+                          </TooltipKeybind>
                         }
                         hideCloseButton
                         onMiddleClick={() => props.tabs().close("context")}
@@ -149,6 +378,7 @@ export function SessionSidePanel(props: {
                           icon="plus-small"
                           variant="ghost"
                           iconSize="large"
+                          class="!rounded-md"
                           onClick={() =>
                             props.dialog.show(() => <DialogSelectFile mode="files" onOpenFile={props.showAllFiles} />)
                           }
@@ -215,8 +445,10 @@ export function SessionSidePanel(props: {
                   {(tab) => {
                     const path = createMemo(() => props.file.pathFromTab(tab()))
                     return (
-                      <div class="relative px-6 h-12 flex items-center bg-background-stronger border-x border-border-weak-base border-b border-b-transparent">
-                        <Show when={path()}>{(p) => <FileVisual active path={p()} />}</Show>
+                      <div data-component="tabs-drag-preview">
+                        <Show when={path()} keyed>
+                          {(p) => <FileVisual active path={p} />}
+                        </Show>
                       </div>
                     )
                   }}
@@ -226,40 +458,7 @@ export function SessionSidePanel(props: {
           </div>
         </Show>
 
-        <Show when={props.layout.fileTree.opened()}>
-          <div
-            id="file-tree-panel"
-            class="relative shrink-0 h-full"
-            style={{ width: `${props.layout.fileTree.width()}px` }}
-          >
-            <div
-              class="h-full flex flex-col overflow-hidden group/filetree"
-              classList={{ "border-l border-border-weak-base": props.reviewOpen }}
-            >
-              <div class="h-10 px-3 flex items-center text-12-medium text-text-weak border-b border-border-weak-base">
-                {props.language.t("session.files.all")}
-              </div>
-              <div class="bg-background-base px-3 py-0 h-full overflow-auto">
-                <FileTree
-                  path=""
-                  modified={props.diffFiles}
-                  kinds={props.kinds}
-                  onFileClick={(node) => props.openTab(props.file.tab(node.path))}
-                />
-              </div>
-            </div>
-            <ResizeHandle
-              direction="horizontal"
-              edge="start"
-              size={props.layout.fileTree.width()}
-              min={200}
-              max={480}
-              collapseThreshold={160}
-              onResize={props.layout.fileTree.resize}
-              onCollapse={props.layout.fileTree.close}
-            />
-          </div>
-        </Show>
+        <Show when={props.layout.fileTree.opened()}>{secondaryPanel()}</Show>
       </aside>
     </Show>
   )

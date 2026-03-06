@@ -22,7 +22,7 @@ import { ResizeHandle } from "@opencode-ai/ui/resize-handle"
 import { Button } from "@opencode-ai/ui/button"
 import { Icon } from "@opencode-ai/ui/icon"
 import { IconButton } from "@opencode-ai/ui/icon-button"
-import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
+import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
 import { Dialog } from "@opencode-ai/ui/dialog"
 import { getFilename } from "@opencode-ai/util/path"
@@ -80,18 +80,6 @@ import { ProjectDragOverlay, SortableProject, type ProjectSidebarContext } from 
 import { SidebarContent } from "./layout/sidebar-shell"
 
 export default function Layout(props: ParentProps) {
-  if (typeof window !== "undefined") {
-    const path = window.location.pathname
-    if (/\/session(?:\/[^/]+)?\/terminal-popout$/.test(path)) {
-      return (
-        <div class="size-full overflow-hidden bg-background-base">
-          {props.children}
-          <Toast.Region />
-        </div>
-      )
-    }
-  }
-
   const [store, setStore, , ready] = persisted(
     Persist.global("layout.page", ["layout.page.v1"]),
     createStore({
@@ -1185,11 +1173,28 @@ export default function Layout(props: ParentProps) {
   }
 
   function closeProject(directory: string) {
-    const index = layout.projects.list().findIndex((x) => x.worktree === directory)
-    const next = layout.projects.list()[index + 1]
+    const list = layout.projects.list()
+    const index = list.findIndex((x) => x.worktree === directory)
+    const active = currentProject()?.worktree === directory
+    if (index === -1) return
+    const next = list[index + 1]
+
+    if (!active) {
+      layout.projects.close(directory)
+      return
+    }
+
+    if (!next) {
+      layout.projects.close(directory)
+      navigate("/")
+      return
+    }
+
+    navigateWithSidebarReset(`/${base64Encode(next.worktree)}/session`)
     layout.projects.close(directory)
-    if (next) navigateToProject(next.worktree)
-    else navigate("/")
+    queueMicrotask(() => {
+      void navigateToProject(next.worktree)
+    })
   }
 
   function toggleProjectWorkspaces(project: LocalProject) {
@@ -1751,7 +1756,7 @@ export default function Layout(props: ParentProps) {
         }}
         style={{ width: panelProps.mobile ? undefined : `${Math.max(layout.sidebar.width() - 64, 0)}px` }}
       >
-        <Show when={panelProps.project}>
+        <Show when={panelProps.project} keyed>
           {(p) => (
             <>
               <div class="shrink-0 px-2 py-1">
@@ -1760,7 +1765,7 @@ export default function Layout(props: ParentProps) {
                     <InlineEditor
                       id={`project:${projectId()}`}
                       value={projectName}
-                      onSave={(next) => renameProject(p(), next)}
+                      onSave={(next) => renameProject(p, next)}
                       class="text-16-medium text-text-strong truncate"
                       displayClass="text-16-medium text-text-strong truncate"
                       stopPropagation
@@ -1769,7 +1774,7 @@ export default function Layout(props: ParentProps) {
                     <Tooltip
                       placement="bottom"
                       gutter={2}
-                      value={p().worktree}
+                      value={p.worktree}
                       class="shrink-0"
                       contentStyle={{
                         "max-width": "640px",
@@ -1777,7 +1782,7 @@ export default function Layout(props: ParentProps) {
                       }}
                     >
                       <span class="text-12-regular text-text-base truncate select-text">
-                        {p().worktree.replace(homedir(), "~")}
+                        {p.worktree.replace(homedir(), "~")}
                       </span>
                     </Tooltip>
                   </div>
@@ -1788,7 +1793,7 @@ export default function Layout(props: ParentProps) {
                       icon="dot-grid"
                       variant="ghost"
                       data-action="project-menu"
-                      data-project={base64Encode(p().worktree)}
+                      data-project={base64Encode(p.worktree)}
                       class="shrink-0 size-6 rounded-md data-[expanded]:bg-surface-base-active"
                       classList={{
                         "opacity-0 group-hover/project:opacity-100 data-[expanded]:opacity-100": !panelProps.mobile,
@@ -1797,17 +1802,17 @@ export default function Layout(props: ParentProps) {
                     />
                     <DropdownMenu.Portal mount={!panelProps.mobile ? state.nav : undefined}>
                       <DropdownMenu.Content class="mt-1">
-                        <DropdownMenu.Item onSelect={() => showEditProjectDialog(p())}>
+                        <DropdownMenu.Item onSelect={() => showEditProjectDialog(p)}>
                           <DropdownMenu.ItemLabel>{language.t("common.edit")}</DropdownMenu.ItemLabel>
                         </DropdownMenu.Item>
                         <DropdownMenu.Item
                           data-action="project-workspaces-toggle"
-                          data-project={base64Encode(p().worktree)}
-                          disabled={p().vcs !== "git" && !layout.sidebar.workspaces(p().worktree)()}
-                          onSelect={() => toggleProjectWorkspaces(p())}
+                          data-project={base64Encode(p.worktree)}
+                          disabled={p.vcs !== "git" && !layout.sidebar.workspaces(p.worktree)()}
+                          onSelect={() => toggleProjectWorkspaces(p)}
                         >
                           <DropdownMenu.ItemLabel>
-                            {layout.sidebar.workspaces(p().worktree)()
+                            {layout.sidebar.workspaces(p.worktree)()
                               ? language.t("sidebar.workspaces.disable")
                               : language.t("sidebar.workspaces.enable")}
                           </DropdownMenu.ItemLabel>
@@ -1815,8 +1820,8 @@ export default function Layout(props: ParentProps) {
                         <DropdownMenu.Separator />
                         <DropdownMenu.Item
                           data-action="project-close-menu"
-                          data-project={base64Encode(p().worktree)}
-                          onSelect={() => closeProject(p().worktree)}
+                          data-project={base64Encode(p.worktree)}
+                          onSelect={() => closeProject(p.worktree)}
                         >
                           <DropdownMenu.ItemLabel>{language.t("common.close")}</DropdownMenu.ItemLabel>
                         </DropdownMenu.Item>
@@ -1832,25 +1837,19 @@ export default function Layout(props: ParentProps) {
                   fallback={
                     <>
                       <div class="shrink-0 py-4 px-3">
-                        <TooltipKeybind
-                          title={language.t("command.session.new")}
-                          keybind={command.keybind("session.new")}
-                          placement="top"
+                        <Button
+                          size="large"
+                          icon="plus-small"
+                          class="w-full"
+                          onClick={() => navigateWithSidebarReset(`/${base64Encode(p.worktree)}/session`)}
                         >
-                          <Button
-                            size="large"
-                            icon="plus-small"
-                            class="w-full"
-                            onClick={() => navigateWithSidebarReset(`/${base64Encode(p().worktree)}/session`)}
-                          >
-                            {language.t("command.session.new")}
-                          </Button>
-                        </TooltipKeybind>
+                          {language.t("command.session.new")}
+                        </Button>
                       </div>
                       <div class="flex-1 min-h-0">
                         <LocalWorkspace
                           ctx={workspaceSidebarCtx}
-                          project={p()}
+                          project={p}
                           sortNow={sortNow}
                           mobile={panelProps.mobile}
                         />
@@ -1860,15 +1859,9 @@ export default function Layout(props: ParentProps) {
                 >
                   <>
                     <div class="shrink-0 py-4 px-3">
-                      <TooltipKeybind
-                        title={language.t("workspace.new")}
-                        keybind={command.keybind("workspace.new")}
-                        placement="top"
-                      >
-                        <Button size="large" icon="plus-small" class="w-full" onClick={() => createWorkspace(p())}>
-                          {language.t("workspace.new")}
-                        </Button>
-                      </TooltipKeybind>
+                      <Button size="large" icon="plus-small" class="w-full" onClick={() => createWorkspace(p)}>
+                        {language.t("workspace.new")}
+                      </Button>
                     </div>
                     <div class="relative flex-1 min-h-0">
                       <DragDropProvider
@@ -1891,7 +1884,7 @@ export default function Layout(props: ParentProps) {
                                 <SortableWorkspace
                                   ctx={workspaceSidebarCtx}
                                   directory={directory}
-                                  project={p()}
+                                  project={p}
                                   sortNow={sortNow}
                                   mobile={panelProps.mobile}
                                 />
@@ -1997,7 +1990,11 @@ export default function Layout(props: ParentProps) {
               onLogout={logout}
               helpLabel={() => language.t("sidebar.help")}
               onOpenHelp={() => platform.openLink("https://opencode.ai/desktop-feedback")}
-              renderPanel={() => <SidebarPanel project={currentProject()} />}
+              renderPanel={() => (
+                <Show when={currentProject()} keyed>
+                  {(project) => <SidebarPanel project={project} />}
+                </Show>
+              )}
             />
           </div>
           <Show when={!layout.sidebar.opened() ? hoverProjectData()?.worktree : undefined} keyed>

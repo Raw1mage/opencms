@@ -167,8 +167,8 @@ const FileTreeNode = (
       <span
         classList={{
           "flex-1 min-w-0 text-12-medium whitespace-nowrap truncate": true,
-          "text-text-weaker": local.node.ignored,
-          "text-text-weak": !local.node.ignored && !active(),
+          "text-text-weak": local.node.ignored,
+          "text-text-base": !local.node.ignored && !active(),
         }}
         style={active() ? color() : undefined}
       >
@@ -418,7 +418,7 @@ export default function FileTree(props: {
                       kinds={kinds()}
                       marks={marks()}
                     >
-                      <div class="size-4 flex items-center justify-center text-icon-weak">
+                      <div class="size-4 flex items-center justify-center text-icon-base">
                         <Icon name={expanded() ? "chevron-down" : "chevron-right"} size="small" />
                       </div>
                     </FileTreeNode>
@@ -434,7 +434,7 @@ export default function FileTree(props: {
                     />
                     <Show
                       when={level < MAX_DEPTH && !chain.includes(key(node.path))}
-                      fallback={<div class="px-2 py-1 text-12-regular text-text-weak">...</div>}
+                      fallback={<div class="px-2 py-1 text-12-regular text-text-base">...</div>}
                     >
                       <FileTree
                         path={node.path}
@@ -469,7 +469,7 @@ export default function FileTree(props: {
                   onClick={() => props.onFileClick?.(node)}
                 >
                   <div class="w-4 shrink-0" />
-                  <FileIcon node={node} class="text-icon-weak size-4" />
+                  <FileIcon node={node} class="text-icon-base size-4" />
                 </FileTreeNode>
               </Match>
             </Switch>

@@ -3,16 +3,12 @@ import { ProviderIcon } from "@opencode-ai/ui/provider-icon"
 import { Switch } from "@opencode-ai/ui/switch"
 import { Icon } from "@opencode-ai/ui/icon"
 import { IconButton } from "@opencode-ai/ui/icon-button"
-import { Button } from "@opencode-ai/ui/button"
 import { TextField } from "@opencode-ai/ui/text-field"
-import { showToast } from "@opencode-ai/ui/toast"
 import type { IconName } from "@opencode-ai/ui/icons/provider"
-import { createMemo, createResource, type Component, For, Show } from "solid-js"
+import { type Component, For, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { useModels } from "@/context/models"
 import { popularProviders } from "@/hooks/use-providers"
-import { useGlobalSDK } from "@/context/global-sdk"
-import { useLocal } from "@/context/local"
 
 type ModelItem = ReturnType<ReturnType<typeof useModels>["list"]>[number]
 
@@ -38,111 +34,6 @@ const ListEmptyState: Component<{ message: string; filter: string }> = (props) =
 export const SettingsModels: Component = () => {
   const language = useLanguage()
   const models = useModels()
-  const globalSDK = useGlobalSDK()
-  const local = useLocal()
-
-  const [accounts] = createResource(async () => {
-    return globalSDK.client.account.listAll().then((x) => x.data)
-  })
-
-  const [rotation, rotationActions] = createResource(async () => {
-    return globalSDK.client.rotation.status().then((x) => x.data)
-  })
-
-  const recommendations = createMemo(() => {
-    const info = rotation.latest?.recommended
-    if (!info || typeof info !== "object") {
-      return [] as Array<{
-        task: string
-        providerId: string
-        accountId: string
-        modelID: string
-        value: string
-      }>
-    }
-    const entries: Array<{
-      task: string
-      providerId: string
-      accountId: string
-      modelID: string
-      value: string
-    }> = []
-    for (const [task, vectorValue] of Object.entries(info as Record<string, unknown>)) {
-      const vector = vectorValue as Record<string, unknown>
-      if (!vector) continue
-      if (
-        typeof vector.providerId !== "string" ||
-        typeof vector.accountId !== "string" ||
-        typeof vector.modelID !== "string"
-      ) {
-        continue
-      }
-      entries.push({
-        task,
-        providerId: vector.providerId,
-        accountId: vector.accountId,
-        modelID: vector.modelID,
-        value: `${vector.providerId}/${vector.accountId}/${vector.modelID}`,
-      })
-    }
-    return entries
-  })
-
-  const cooldownMap = createMemo(() => {
-    const out = new Map<string, { coolingDownUntil?: number; cooldownReason?: string }>()
-    const families = accounts.latest?.families
-    if (!families || typeof families !== "object") return out
-    for (const [family, familyValue] of Object.entries(families as Record<string, unknown>)) {
-      const row = familyValue as { accounts?: Record<string, unknown> }
-      const accountMap = row?.accounts && typeof row.accounts === "object" ? row.accounts : {}
-      for (const [accountId, value] of Object.entries(accountMap)) {
-        const item = value as Record<string, unknown>
-        out.set(`${family}/${accountId}`, {
-          coolingDownUntil: typeof item?.coolingDownUntil === "number" ? item.coolingDownUntil : undefined,
-          cooldownReason: typeof item?.cooldownReason === "string" ? item.cooldownReason : undefined,
-        })
-      }
-    }
-    return out
-  })
-
-  const cooldownText = (providerId: string, accountId: string) => {
-    const info = cooldownMap().get(`${providerId}/${accountId}`)
-    if (!info?.coolingDownUntil || info.coolingDownUntil <= Date.now()) return
-    const minutes = Math.max(1, Math.ceil((info.coolingDownUntil - Date.now()) / 60000))
-    return info.cooldownReason
-      ? `${info.cooldownReason} (${minutes}m)`
-      : language.t("settings.models.recommendations.cooldown", { minutes })
-  }
-
-  const applyRecommendation = async (entry: {
-    providerId: string
-    accountId: string
-    modelID: string
-    task: string
-  }) => {
-    try {
-      await globalSDK.client.account.setActive({ family: entry.providerId, accountId: entry.accountId })
-      local.model.set({ providerID: entry.providerId, modelID: entry.modelID }, { recent: true })
-      await globalSDK.client.global.dispose().catch(() => undefined)
-      await rotationActions.refetch()
-      showToast({
-        variant: "success",
-        icon: "circle-check",
-        title: language.t("settings.models.recommendations.toast.applied.title"),
-        description: language.t("settings.models.recommendations.toast.applied.description", {
-          task: entry.task,
-          value: `${entry.providerId}/${entry.accountId}/${entry.modelID}`,
-        }),
-      })
-    } catch (err) {
-      showToast({
-        variant: "error",
-        title: language.t("settings.models.recommendations.toast.failed.title"),
-        description: err instanceof Error ? err.message : String(err),
-      })
-    }
-  }
 
   const list = useFilteredList<ModelItem>({
     items: (_filter) => models.list(),
@@ -175,52 +66,6 @@ export const SettingsModels: Component = () => {
       </div>
 
       <div class="flex flex-col gap-8 max-w-[720px]">
-        <div class="flex flex-col gap-2">
-          <div class="flex items-center justify-between gap-2">
-            <h3 class="text-14-medium text-text-strong">{language.t("settings.models.recommendations.title")}</h3>
-            <Button
-              size="small"
-              variant="secondary"
-              onClick={() => rotationActions.refetch()}
-              disabled={rotation.loading}
-            >
-              {language.t("common.refresh")}
-            </Button>
-          </div>
-          <div class="bg-surface-raised-base px-4 rounded-lg">
-            <Show
-              when={recommendations().length > 0}
-              fallback={
-                <div class="py-4 text-14-regular text-text-weak">
-                  {language.t("settings.models.recommendations.empty")}
-                </div>
-              }
-            >
-              <For each={recommendations()}>
-                {(entry) => (
-                  <div class="flex flex-wrap items-center justify-between gap-2 py-3 border-b border-border-weak-base last:border-none">
-                    <div class="min-w-0 flex flex-col gap-0.5">
-                      <span class="text-12-regular text-text-weak uppercase">{entry.task}</span>
-                      <code class="text-12-regular text-text-base truncate">{entry.value}</code>
-                      <Show when={cooldownText(entry.providerId, entry.accountId)}>
-                        {(text) => <span class="text-11-regular text-icon-warning-base">{text()}</span>}
-                      </Show>
-                    </div>
-                    <Button
-                      size="small"
-                      variant="secondary"
-                      disabled={!!cooldownText(entry.providerId, entry.accountId)}
-                      onClick={() => void applyRecommendation(entry)}
-                    >
-                      {language.t("settings.models.recommendations.apply")}
-                    </Button>
-                  </div>
-                )}
-              </For>
-            </Show>
-          </div>
-        </div>
-
         <Show
           when={!list.grouped.loading}
           fallback={

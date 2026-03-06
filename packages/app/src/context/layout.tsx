@@ -125,7 +125,13 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
       const fileTree = value.fileTree
       const migratedFileTree = (() => {
         if (!isRecord(fileTree)) return fileTree
-        if (fileTree.tab === "changes" || fileTree.tab === "all") return fileTree
+        const mode =
+          fileTree.mode === "files" || fileTree.mode === "status"
+            ? fileTree.mode
+            : fileTree.mode === "monitor" || fileTree.mode === "todo" || fileTree.mode === "accounts"
+              ? "status"
+              : "files"
+        if (fileTree.tab === "changes" || fileTree.tab === "all") return { ...fileTree, mode }
 
         const width = typeof fileTree.width === "number" ? fileTree.width : DEFAULT_PANEL_WIDTH
         return {
@@ -133,6 +139,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
           opened: true,
           width: width === 260 ? DEFAULT_PANEL_WIDTH : width,
           tab: "changes",
+          mode,
         }
       })()
 
@@ -156,7 +163,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
       }
     }
 
-    const target = Persist.global("layout", ["layout.v6"])
+    const target = Persist.global("layout", ["layout.v8"])
     const [store, setStore, _, ready] = persisted(
       { ...target, migrate },
       createStore({
@@ -178,6 +185,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
           opened: true,
           width: DEFAULT_PANEL_WIDTH,
           tab: "changes" as "changes" | "all",
+          mode: "files" as "files" | "status",
         },
         session: {
           width: DEFAULT_SESSION_WIDTH,
@@ -562,37 +570,57 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         opened: createMemo(() => store.fileTree?.opened ?? true),
         width: createMemo(() => store.fileTree?.width ?? DEFAULT_PANEL_WIDTH),
         tab: createMemo(() => store.fileTree?.tab ?? "changes"),
+        mode: createMemo(() => store.fileTree?.mode ?? "files"),
         setTab(tab: "changes" | "all") {
           if (!store.fileTree) {
-            setStore("fileTree", { opened: true, width: DEFAULT_PANEL_WIDTH, tab })
+            setStore("fileTree", { opened: true, width: DEFAULT_PANEL_WIDTH, tab, mode: "files" })
             return
           }
+          setStore("fileTree", "opened", true)
+          setStore("fileTree", "mode", "files")
           setStore("fileTree", "tab", tab)
+        },
+        show(mode: "files" | "status") {
+          if (!store.fileTree) {
+            setStore("fileTree", { opened: true, width: DEFAULT_PANEL_WIDTH, tab: "changes", mode })
+            return
+          }
+          setStore("fileTree", "opened", true)
+          setStore("fileTree", "mode", mode)
         },
         open() {
           if (!store.fileTree) {
-            setStore("fileTree", { opened: true, width: DEFAULT_PANEL_WIDTH, tab: "changes" })
+            setStore("fileTree", { opened: true, width: DEFAULT_PANEL_WIDTH, tab: "changes", mode: "files" })
             return
           }
           setStore("fileTree", "opened", true)
         },
         close() {
           if (!store.fileTree) {
-            setStore("fileTree", { opened: false, width: DEFAULT_PANEL_WIDTH, tab: "changes" })
+            setStore("fileTree", { opened: false, width: DEFAULT_PANEL_WIDTH, tab: "changes", mode: "files" })
             return
           }
           setStore("fileTree", "opened", false)
         },
         toggle() {
           if (!store.fileTree) {
-            setStore("fileTree", { opened: true, width: DEFAULT_PANEL_WIDTH, tab: "changes" })
+            setStore("fileTree", { opened: true, width: DEFAULT_PANEL_WIDTH, tab: "changes", mode: "files" })
             return
           }
-          setStore("fileTree", "opened", (x) => !x)
+          if (!store.fileTree.opened) {
+            setStore("fileTree", "opened", true)
+            setStore("fileTree", "mode", "files")
+            return
+          }
+          if ((store.fileTree.mode ?? "files") !== "files") {
+            setStore("fileTree", "mode", "files")
+            return
+          }
+          setStore("fileTree", "opened", false)
         },
         resize(width: number) {
           if (!store.fileTree) {
-            setStore("fileTree", { opened: true, width, tab: "changes" })
+            setStore("fileTree", { opened: true, width, tab: "changes", mode: "files" })
             return
           }
           setStore("fileTree", "width", width)
