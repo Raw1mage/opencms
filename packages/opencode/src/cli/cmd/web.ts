@@ -6,6 +6,25 @@ import { WebAuthCredentials } from "../../server/web-auth-credentials"
 import open from "open"
 import { networkInterfaces } from "os"
 
+async function waitForShutdownSignal() {
+  let keepAlive: ReturnType<typeof setInterval> | undefined
+  try {
+    keepAlive = setInterval(() => {}, 1 << 30)
+    await new Promise<void>((resolve) => {
+      const cleanup = () => {
+        process.off("SIGINT", onSignal)
+        process.off("SIGTERM", onSignal)
+        resolve()
+      }
+      const onSignal = () => cleanup()
+      process.on("SIGINT", onSignal)
+      process.on("SIGTERM", onSignal)
+    })
+  } finally {
+    if (keepAlive) clearInterval(keepAlive)
+  }
+}
+
 function getNetworkIPs() {
   const nets = networkInterfaces()
   const results: string[] = []
@@ -103,7 +122,7 @@ export const WebCommand = cmd({
       }
     }
 
-    await new Promise(() => {})
-    await server.stop()
+    await waitForShutdownSignal()
+    await server.stop(true)
   },
 })

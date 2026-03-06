@@ -1,6 +1,7 @@
 import path from "path"
 import fs from "fs/promises"
 import { homedir } from "os"
+import { OPENAI_FALLBACK_MODELS } from "../../../provider/model-curation"
 
 // Default models seed matching verified user list
 const DEFAULTS: Record<string, string[]> = {
@@ -14,7 +15,7 @@ const DEFAULTS: Record<string, string[]> = {
     "gemini-3-pro-low",
   ],
   "gemini-cli": ["gemini-2.0-flash", "gemini-2.0-flash-lite-preview-02-05", "gemini-2.0-pro-exp-02-05"],
-  openai: ["gpt-5.1-codex", "gpt-5.1-codex-max", "gpt-5.1-codex-mini", "gpt-5.2", "gpt-5.2-codex"],
+  openai: OPENAI_FALLBACK_MODELS,
 }
 
 export class ModelRegistry {

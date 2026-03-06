@@ -7,6 +7,7 @@ import { Log } from "../util/log"
 import { BunProc } from "../bun"
 import { Plugin } from "../plugin"
 import { ModelsDev } from "./models"
+import { applyProviderModelCorrections } from "./model-curation"
 import { NamedError } from "@opencode-ai/util/error"
 import { Auth } from "../auth"
 import { Account } from "../account"
@@ -1961,6 +1962,7 @@ export namespace Provider {
       }
 
       const configProvider = config.provider?.[providerId]
+      provider.models = applyProviderModelCorrections(providerId, provider.models)
 
       for (const [modelID, model] of Object.entries(provider.models)) {
         try {

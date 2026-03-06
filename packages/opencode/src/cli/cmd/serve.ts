@@ -3,6 +3,25 @@ import { cmd } from "./cmd"
 import { withNetworkOptions, resolveNetworkOptions } from "../network"
 import { WebAuthCredentials } from "../../server/web-auth-credentials"
 
+async function waitForShutdownSignal() {
+  let keepAlive: ReturnType<typeof setInterval> | undefined
+  try {
+    keepAlive = setInterval(() => {}, 1 << 30)
+    await new Promise<void>((resolve) => {
+      const cleanup = () => {
+        process.off("SIGINT", onSignal)
+        process.off("SIGTERM", onSignal)
+        resolve()
+      }
+      const onSignal = () => cleanup()
+      process.on("SIGINT", onSignal)
+      process.on("SIGTERM", onSignal)
+    })
+  } finally {
+    if (keepAlive) clearInterval(keepAlive)
+  }
+}
+
 export const ServeCommand = cmd({
   command: "serve",
   builder: (yargs) => withNetworkOptions(yargs),
@@ -25,7 +44,7 @@ export const ServeCommand = cmd({
     const opts = await resolveNetworkOptions(args)
     const server = Server.listen(opts)
     console.log(`opencode server listening on http://${server.hostname}:${server.port}`)
-    await new Promise(() => {})
-    await server.stop()
+    await waitForShutdownSignal()
+    await server.stop(true)
   },
 })

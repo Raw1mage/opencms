@@ -8,6 +8,7 @@ import { EOL } from "os"
 import { Account } from "../../account"
 import { modelRegistry } from "../../plugin/antigravity/plugin/model-registry"
 import { AccountManager, type ManagedAccount } from "../../plugin/antigravity/plugin/accounts" // Import explicitly
+import { OPENAI_FALLBACK_MODELS } from "../../provider/model-curation"
 
 // Define specific models for Antigravity as fallback
 const ANTIGRAVITY_MODELS = [
@@ -30,7 +31,7 @@ const GEMINI_CLI_MODELS = [
 ]
 
 // Define specific models for OpenAI as fallback
-const OPENAI_MODELS = ["gpt-5.1-codex", "gpt-5.1-codex-max", "gpt-5.1-codex-mini", "gpt-5.2", "gpt-5.2-codex"]
+const OPENAI_MODELS = OPENAI_FALLBACK_MODELS
 
 // Internal ID to Display Name
 const DISPLAY_ALIASES: Record<string, string> = {}

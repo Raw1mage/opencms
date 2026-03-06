@@ -116,6 +116,8 @@ export const dict = {
   "dialog.model.activity.providerDisabled": "Provider is disabled",
   "dialog.model.activity.selectBlocked": "Model is currently unavailable",
   "dialog.model.activity.disabled": "Disabled",
+  "dialog.model.toast.updated.title": "Model updated",
+  "dialog.model.toast.updated.description": "{{provider}} → {{model}}",
 
   "dialog.model.unpaid.freeModels.title": "Free models provided by OpenCode",
   "dialog.model.unpaid.addMore.title": "Add more models from popular providers",

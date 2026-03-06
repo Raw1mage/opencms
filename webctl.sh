@@ -536,22 +536,33 @@ do_dev_start() {
         local BUN_BIN
         BUN_BIN="$(find_bun)"
         log_info "Starting server from source on port ${WEB_PORT}..."
-
-        nohup env OPENCODE_LAUNCH_MODE="webctl" OPENCODE_ALLOW_GLOBAL_FS_BROWSE="${OPENCODE_ALLOW_GLOBAL_FS_BROWSE:-1}" OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" OPENCODE_WEB_NO_OPEN="${OPENCODE_WEB_NO_OPEN:-1}" OPENCODE_AUTH_MODE="${AUTH_MODE}" \
-            "${BUN_BIN}" --conditions=browser \
-            "${PROJECT_ROOT}/packages/opencode/src/index.ts" \
-            web --port "${WEB_PORT}" --hostname "${WEB_HOSTNAME}" \
-            >"${SERVER_LOG_FILE}" 2>&1 < /dev/null &
+        if command -v script >/dev/null 2>&1; then
+            nohup script -qefc \
+                "env OPENCODE_LAUNCH_MODE=\"webctl\" OPENCODE_ALLOW_GLOBAL_FS_BROWSE=\"${OPENCODE_ALLOW_GLOBAL_FS_BROWSE:-1}\" OPENCODE_FRONTEND_PATH=\"${FRONTEND_DIST}\" OPENCODE_WEB_NO_OPEN=\"${OPENCODE_WEB_NO_OPEN:-1}\" OPENCODE_AUTH_MODE=\"${AUTH_MODE}\" \"${BUN_BIN}\" --conditions=browser \"${PROJECT_ROOT}/packages/opencode/src/index.ts\" web --port \"${WEB_PORT}\" --hostname \"${WEB_HOSTNAME}\"" \
+                /dev/null >"${SERVER_LOG_FILE}" 2>&1 < /dev/null &
+        else
+            nohup env OPENCODE_LAUNCH_MODE="webctl" OPENCODE_ALLOW_GLOBAL_FS_BROWSE="${OPENCODE_ALLOW_GLOBAL_FS_BROWSE:-1}" OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" OPENCODE_WEB_NO_OPEN="${OPENCODE_WEB_NO_OPEN:-1}" OPENCODE_AUTH_MODE="${AUTH_MODE}" \
+                "${BUN_BIN}" --conditions=browser \
+                "${PROJECT_ROOT}/packages/opencode/src/index.ts" \
+                web --port "${WEB_PORT}" --hostname "${WEB_HOSTNAME}" \
+                >"${SERVER_LOG_FILE}" 2>&1 < /dev/null &
+        fi
     else
         if [ -z "${OPENCODE_BIN}" ] || [ ! -x "${OPENCODE_BIN}" ]; then
             log_error "opencode binary not found. Please install opencode."
             exit 1
         fi
         log_info "Starting standalone server on port ${WEB_PORT}..."
-        nohup env OPENCODE_LAUNCH_MODE="webctl" OPENCODE_ALLOW_GLOBAL_FS_BROWSE="${OPENCODE_ALLOW_GLOBAL_FS_BROWSE:-1}" OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" OPENCODE_WEB_NO_OPEN="${OPENCODE_WEB_NO_OPEN:-1}" OPENCODE_AUTH_MODE="${AUTH_MODE}" \
-            "${OPENCODE_BIN}" \
-            web --port "${WEB_PORT}" --hostname "${WEB_HOSTNAME}" \
-            >"${SERVER_LOG_FILE}" 2>&1 < /dev/null &
+        if command -v script >/dev/null 2>&1; then
+            nohup script -qefc \
+                "env OPENCODE_LAUNCH_MODE=\"webctl\" OPENCODE_ALLOW_GLOBAL_FS_BROWSE=\"${OPENCODE_ALLOW_GLOBAL_FS_BROWSE:-1}\" OPENCODE_FRONTEND_PATH=\"${FRONTEND_DIST}\" OPENCODE_WEB_NO_OPEN=\"${OPENCODE_WEB_NO_OPEN:-1}\" OPENCODE_AUTH_MODE=\"${AUTH_MODE}\" \"${OPENCODE_BIN}\" web --port \"${WEB_PORT}\" --hostname \"${WEB_HOSTNAME}\"" \
+                /dev/null >"${SERVER_LOG_FILE}" 2>&1 < /dev/null &
+        else
+            nohup env OPENCODE_LAUNCH_MODE="webctl" OPENCODE_ALLOW_GLOBAL_FS_BROWSE="${OPENCODE_ALLOW_GLOBAL_FS_BROWSE:-1}" OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" OPENCODE_WEB_NO_OPEN="${OPENCODE_WEB_NO_OPEN:-1}" OPENCODE_AUTH_MODE="${AUTH_MODE}" \
+                "${OPENCODE_BIN}" \
+                web --port "${WEB_PORT}" --hostname "${WEB_HOSTNAME}" \
+                >"${SERVER_LOG_FILE}" 2>&1 < /dev/null &
+        fi
     fi
 
     local pid=$!
@@ -565,6 +576,13 @@ do_dev_start() {
     if ! wait_for_health "${max_attempts}"; then
         log_warn "Server may not be ready yet. Check: ./webctl.sh status"
     else
+        local backend_port_pid
+        backend_port_pid=$(ss -tlnp 2>/dev/null | grep ":${WEB_PORT} " | grep -oP '(?<=pid=)[0-9]+' | head -1)
+        if [ -n "${backend_port_pid}" ]; then
+            pid="${backend_port_pid}"
+            echo "${pid}" > "${PID_FILE}"
+            echo "${pid}" > "${BACKEND_PID_FILE}"
+        fi
         log_success "Server started (pid ${pid})"
     fi
 

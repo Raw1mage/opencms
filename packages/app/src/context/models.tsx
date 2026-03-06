@@ -1,7 +1,6 @@
 import { createEffect, createMemo, createSignal } from "solid-js"
 import { createStore } from "solid-js/store"
-import { DateTime } from "luxon"
-import { filter, firstBy, flat, groupBy, mapValues, pipe, uniqueBy, values } from "remeda"
+import { uniqueBy } from "remeda"
 import { createSimpleContext } from "@opencode-ai/ui/context"
 import { useProviders } from "@/hooks/use-providers"
 import { Persist, persisted } from "@/utils/persist"
@@ -10,7 +9,7 @@ import { useGlobalSDK } from "./global-sdk"
 export type ModelKey = { providerID: string; modelID: string }
 
 type Visibility = "show" | "hide"
-type User = ModelKey & { visibility: Visibility; favorite?: boolean }
+type User = ModelKey & { visibility?: Visibility; favorite?: boolean }
 type Store = {
   user: User[]
   recent: ModelKey[]
@@ -96,53 +95,6 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
       ),
     )
 
-    const release = createMemo(
-      () =>
-        new Map(
-          available().map((model) => {
-            const parsed = DateTime.fromISO(model.release_date)
-            return [modelKey({ providerID: model.provider.id, modelID: model.id }), parsed] as const
-          }),
-        ),
-    )
-
-    const latest = createMemo(() =>
-      pipe(
-        available(),
-        filter(
-          (x) =>
-            Math.abs(
-              (release().get(modelKey({ providerID: x.provider.id, modelID: x.id })) ?? DateTime.invalid("invalid"))
-                .diffNow()
-                .as("months"),
-            ) < 6,
-        ),
-        groupBy((x) => x.provider.id),
-        mapValues((models) =>
-          pipe(
-            models,
-            groupBy((x) => x.family),
-            values(),
-            (groups) =>
-              groups.flatMap((g) => {
-                const first = firstBy(g, [(x) => x.release_date, "desc"])
-                return first ? [{ modelID: first.id, providerID: first.provider.id }] : []
-              }),
-          ),
-        ),
-        values(),
-        flat(),
-      ),
-    )
-
-    const latestSet = createMemo(() => new Set(latest().map((x) => modelKey(x))))
-
-    const visibility = createMemo(() => {
-      const map = new Map<string, Visibility>()
-      for (const item of store.user) map.set(`${item.providerID}:${item.modelID}`, item.visibility)
-      return map
-    })
-
     const list = createMemo(() =>
       available().map((m) => ({
         ...m,
@@ -161,25 +113,22 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
         setStore("user", index, partial)
         return
       }
-      setStore("user", store.user.length, { ...normalized, visibility: "show", ...partial })
+      setStore("user", store.user.length, {
+        ...normalized,
+        ...partial,
+      })
     }
 
     const visible = (model: ModelKey) => {
       const key = modelKey(model)
-      const state = visibility().get(key)
-      if (state === "hide") return false
-      if (state === "show") return true
-      if (latestSet().has(key)) return true
-      const date = release().get(key)
-      if (!date?.isValid) return true
-      return false
+      const user = store.user.find((x) => modelKey(x) === key)
+      return user?.favorite ?? false
     }
 
     const setVisibility = (model: ModelKey, state: boolean) => {
       if (state) {
-        update(model, { visibility: "show" })
+        update(model, { visibility: "show", favorite: true })
       } else {
-        // Canonical tri-state rule: hide => unfavorite
         update(model, { visibility: "hide", favorite: false })
       }
       scheduleRemoteSave()
@@ -202,14 +151,7 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
     }
 
     const toggleFavorite = (model: ModelKey) => {
-      const current = isFavorite(model)
-      if (current) {
-        update(model, { favorite: false })
-      } else {
-        // Canonical tri-state rule: favorite => show
-        update(model, { favorite: true, visibility: "show" })
-      }
-      scheduleRemoteSave()
+      setVisibility(model, !isFavorite(model))
     }
 
     const readRemotePreferences = async () => {
@@ -239,20 +181,7 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
       const hiddenSet = new Set(
         prefs.hidden.map((item) => `${normalizeProviderFamily(item.providerId)}:${item.modelID}`),
       )
-      const keepShown = store.user.filter((item) => item.visibility === "show")
       const merged = new Map<string, User>()
-
-      for (const item of keepShown) {
-        const normalizedProvider = normalizeProviderFamily(item.providerID)
-        const key = `${normalizedProvider}:${item.modelID}`
-        if (hiddenSet.has(key)) continue
-        merged.set(key, {
-          providerID: normalizedProvider,
-          modelID: item.modelID,
-          visibility: "show",
-          favorite: favoriteSet.has(key),
-        })
-      }
 
       for (const key of hiddenSet) {
         const [providerID, modelID] = key.split(":")
@@ -266,7 +195,6 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
       }
 
       for (const key of favoriteSet) {
-        if (merged.has(key)) continue
         const [providerID, modelID] = key.split(":")
         if (!providerID || !modelID) continue
         merged.set(key, {
@@ -328,6 +256,29 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
           if (remoteSync.retryTimer) clearTimeout(remoteSync.retryTimer)
           remoteSync.retryTimer = setTimeout(() => setRemoteRetryTick((x) => x + 1), 1000)
         })
+    })
+
+    createEffect(() => {
+      if (!ready()) return
+      const normalized = store.user.map((item) => {
+        if (item.favorite === true) {
+          if (item.visibility === "show") return item
+          return { ...item, visibility: "show" as const }
+        }
+        if (item.visibility === "hide" && item.favorite === false) return item
+        if (item.visibility === "show") {
+          return { ...item, favorite: true }
+        }
+        if (item.visibility === "hide") {
+          return { ...item, favorite: false }
+        }
+        return item
+      })
+      const changed = normalized.some((item, index) => {
+        const current = store.user[index]
+        return current?.favorite !== item.favorite || current?.visibility !== item.visibility
+      })
+      if (changed) setStore("user", normalized)
     })
 
     const push = (model: ModelKey) => {

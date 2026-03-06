@@ -5,6 +5,7 @@ import z from "zod"
 import { Installation } from "../installation"
 import { Flag } from "../flag/flag"
 import { lazy } from "@/util/lazy"
+import { OPENAI_RAW_MODEL_ADDITIONS, applyProviderModelCorrectionsWithAdditions } from "./model-curation"
 
 // Try to import bundled snapshot (generated at build time)
 // Falls back to undefined in dev mode when snapshot doesn't exist
@@ -118,9 +119,19 @@ export namespace ModelsDev {
     return normalized
   }
 
+  function applyProviderCurations(data: Record<string, Provider>): Record<string, Provider> {
+    const curated = structuredClone(data)
+    for (const [providerId, provider] of Object.entries(curated)) {
+      const additions =
+        providerId === "openai" ? (OPENAI_RAW_MODEL_ADDITIONS as typeof provider.models) : undefined
+      provider.models = applyProviderModelCorrectionsWithAdditions(providerId, provider.models, additions)
+    }
+    return curated
+  }
+
   export async function get() {
     const result = await Data()
-    const data = result as Record<string, Provider>
+    const data = applyProviderCurations(result as Record<string, Provider>)
 
     if (!data["gmicloud"]) {
       data["gmicloud"] = {
@@ -180,7 +191,8 @@ export namespace ModelsDev {
       })
     })
     if (result && result.ok) {
-      await Bun.write(file, await result.text())
+      const next = applyProviderCurations(JSON.parse(await result.text()) as Record<string, Provider>)
+      await Bun.write(file, JSON.stringify(next))
       ModelsDev.Data.reset()
     }
   }

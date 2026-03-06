@@ -160,11 +160,12 @@ No runtime decision should depend on "guessing" family from an arbitrary dashed 
 `provider/provider.ts` state initialization is conceptually:
 
 1. Load models registry (`models.dev` + snapshot) into provider database.
-2. Merge config providers and aliases.
-3. Merge env/auth-derived provider options.
-4. Merge account families (`Account.listAll`) into account-scoped provider entries.
-5. Apply plugin/custom loaders.
-6. Apply model/provider filtering (ignored/deprecated/disabled/rate-limit aware checks).
+2. Apply provider-specific manual correction layer to raw model feeds (remove known-bad upstream entries, add curated missing entries).
+3. Merge config providers and aliases.
+4. Merge env/auth-derived provider options.
+5. Merge account families (`Account.listAll`) into account-scoped provider entries.
+6. Apply plugin/custom loaders.
+7. Apply model/provider filtering (ignored/deprecated/disabled/rate-limit aware checks).
 
 This order guarantees models are family-owned first, then account- and plugin-specific behavior is overlaid.
 

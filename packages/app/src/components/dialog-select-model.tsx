@@ -309,7 +309,7 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
     return sdk.client.account.listAll().then((x) => x.data)
   })
 
-  const [selectedProviderId, setSelectedProviderId] = createSignal<string>(props.provider || "")
+  const [selectedProviderId, setSelectedProviderId] = createSignal<string>("")
   const [selectedAccountId, setSelectedAccountId] = createSignal<string>("")
   const [switchingAccountId, setSwitchingAccountId] = createSignal<string>("")
   const [mode, setMode] = createSignal<"favorites" | "all">("favorites")
@@ -549,6 +549,9 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
 
   const isAccountLikeProviderId = (id: string) => id.includes("@")
 
+  const currentModel = createMemo(() => local.model.current())
+  const preferredProviderId = createMemo(() => props.provider || familyOf(currentModel()?.provider.id ?? ""))
+
   const activeAccountForFamily = (family: string) => {
     const families = accountInfo.latest?.families as Record<string, unknown> | undefined
     const familyRow = families?.[family] as { activeAccount?: unknown } | undefined
@@ -592,6 +595,11 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   createEffect(() => {
     const selected = selectedProviderId()
     if (selected && providersForMode().some((provider) => provider.id === selected)) return
+    const preferred = preferredProviderId()
+    if (preferred && providersForMode().some((provider) => provider.id === preferred)) {
+      setSelectedProviderId(preferred)
+      return
+    }
     if (providersForMode().length > 0) {
       setSelectedProviderId(providersForMode()[0].id)
       return
@@ -651,6 +659,12 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
     })
   })
 
+  const currentFilteredModel = createMemo(() => {
+    const current = currentModel()
+    if (!current) return undefined
+    return filteredModels().find((item) => item.provider.id === current.provider.id && item.id === current.id)
+  })
+
   const toggleProviderEnabled = (e: MouseEvent, family: string) => {
     e.stopPropagation()
     e.preventDefault()
@@ -675,7 +689,7 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
     })
   }
 
-  const switchActiveAccount = (row: { id: string; unavailable?: string }) => {
+  const switchActiveAccount = (row: { id: string; label: string; unavailable?: string }) => {
     const providerId = selectedProviderId()
     if (!providerId) return
     const family = familyOf(providerId)
@@ -696,7 +710,17 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
 
     sdk.client.account
       .setActive({ family, accountId: row.id })
-      .then(() => refetchAccountInfo())
+      .then(() => {
+        void refetchAccountInfo()
+        showToast({
+          variant: "success",
+          title: language.t("settings.accounts.toast.updated.title"),
+          description: language.t("settings.accounts.toast.updated.description", {
+            family,
+            account: row.label,
+          }),
+        })
+      })
       .catch((err) => {
         setSelectedAccountId(previous)
         showToast({
@@ -904,7 +928,7 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
               class="h-full [&_[data-slot=list-scroll]]:h-full [&_[data-slot=list-scroll]]:p-2"
               items={filteredModels()}
               key={(x) => `${x.provider.id}:${x.id}`}
-              current={local.model.current()}
+              current={currentFilteredModel()}
               filterKeys={["provider.name", "name", "id"]}
               sortBy={(a, b) => {
                 return a.name.localeCompare(b.name)
@@ -946,22 +970,32 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
                   familyCandidates.find((m) => m.provider.id === providerFamily)?.provider.id ??
                   familyCandidates.find((m) => !isAccountLikeProviderId(m.provider.id))?.provider.id ??
                   x.provider.id
-                const setModel = () => {
+                const applyModelSelection = () => {
                   local.model.set(
                     { modelID: x.id, providerID: providerIDForSelection },
                     {
                       recent: true,
                     },
                   )
-                  dialog.close()
+                  showToast({
+                    variant: "success",
+                    title: language.t("dialog.model.toast.updated.title"),
+                    description: language.t("dialog.model.toast.updated.description", {
+                      provider: providerFamily,
+                      model: x.name,
+                    }),
+                  })
                 }
                 if (!accountId) {
-                  setModel()
+                  applyModelSelection()
                   return
                 }
                 sdk.client.account
                   .setActive({ family, accountId })
-                  .then(setModel)
+                  .then(() => {
+                    void refetchAccountInfo()
+                    applyModelSelection()
+                  })
                   .catch((err) => {
                     showToast({
                       variant: "error",
@@ -984,9 +1018,6 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
                     const key = { modelID: item.id, providerID: item.provider.id }
                     const nextVisible = !local.model.visible(key)
                     local.model.setVisibility(key, nextVisible)
-                    if (nextVisible && !local.model.favorite(key)) {
-                      local.model.toggleFavorite(key)
-                    }
                   }}
                 />
               )}
