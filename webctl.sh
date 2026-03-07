@@ -11,7 +11,8 @@
 #   install           Bootstrap install (default prod: includes systemd service)
 #   dev-start, dev-up Start the development server from source
 #   dev-stop, dev-down Stop the development server
-#   restart           Restart the server (dev)
+#   stop              Stop active dev / production server(s)
+#   restart           Restart active dev / production server(s)
 #   dev-refresh       Build frontend + restart dev server
 #   web-start         Start production systemd service
 #   web-stop          Stop production systemd service
@@ -116,7 +117,7 @@ log_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
 
 is_owner_scoped_command() {
     case "${1:-}" in
-        install|dev-start|dev-up|dev-stop|dev-down|restart|dev-refresh|web-refresh|_restart-worker|status|logs|build-frontend|build-binary)
+        install|dev-start|dev-up|dev-stop|dev-down|stop|restart|dev-refresh|web-refresh|_restart-worker|status|logs|build-frontend|build-binary)
             return 0
             ;;
         *)
@@ -400,6 +401,30 @@ run_systemctl() {
     sudo systemctl "$@"
 }
 
+dev_pid_is_running() {
+    local pid=""
+
+    if [ -f "${BACKEND_PID_FILE}" ]; then
+        pid="$(cat "${BACKEND_PID_FILE}" 2>/dev/null || true)"
+    elif [ -f "${PID_FILE}" ]; then
+        pid="$(cat "${PID_FILE}" 2>/dev/null || true)"
+    fi
+
+    if [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null; then
+        return 0
+    fi
+
+    return 1
+}
+
+system_service_is_active() {
+    if ! command -v systemctl >/dev/null 2>&1; then
+        return 1
+    fi
+
+    [ "$(systemctl is-active "${SYSTEM_SERVICE_NAME}.service" 2>/dev/null || true)" = "active" ]
+}
+
 # ---------------------------------------------------------------------------
 # install (delegates to install.sh)
 # ---------------------------------------------------------------------------
@@ -600,7 +625,7 @@ do_dev_start() {
     print_auth_mode
     echo ""
     echo "PTY debug log: ./webctl.sh logs"
-    echo "To stop:       ./webctl.sh dev-stop"
+    echo "To stop:       ./webctl.sh stop"
     echo ""
 }
 
@@ -624,6 +649,8 @@ do_dev_stop() {
         fi
         rm -f "${BACKEND_PID_FILE}"
     fi
+
+    rm -f "${PID_FILE}"
 
     if [ -f "${FRONTEND_PID_FILE}" ]; then
         local frontend_pid
@@ -700,10 +727,40 @@ do_web_restart() {
 }
 
 # ---------------------------------------------------------------------------
-# restart
+# stop / restart
 # ---------------------------------------------------------------------------
-do_restart() {
-    shift || true
+do_stop() {
+    load_server_cfg
+
+    local dev_running=0
+    local prod_running=0
+    local handled=0
+
+    if dev_pid_is_running; then
+        dev_running=1
+    fi
+
+    if system_service_is_active; then
+        prod_running=1
+    fi
+
+    if [ "${dev_running}" -eq 1 ]; then
+        do_dev_stop
+        handled=1
+    fi
+
+    if [ "${prod_running}" -eq 1 ]; then
+        ensure_non_interactive_sudo web-stop
+        do_web_stop
+        handled=1
+    fi
+
+    if [ "${handled}" -eq 0 ]; then
+        log_warn "No active dev or production server found"
+    fi
+}
+
+do_dev_restart() {
     local mode="detached"
     local graceful=1
     local inline_fallback=0
@@ -763,6 +820,48 @@ do_restart() {
     log_info "Monitor restart log: ${restart_log_file}"
     log_info "Monitor restart events: ${RESTART_EVENT_LOG}"
     log_info "Check result after a few seconds: ./webctl.sh status"
+}
+
+do_restart() {
+    load_server_cfg
+
+    local dev_running=0
+    local prod_running=0
+
+    if dev_pid_is_running; then
+        dev_running=1
+    fi
+
+    if system_service_is_active; then
+        prod_running=1
+    fi
+
+    if [ "${dev_running}" -eq 1 ] && [ "${prod_running}" -eq 0 ]; then
+        do_dev_restart "$@"
+        return
+    fi
+
+    if [ "${prod_running}" -eq 1 ] && [ "${dev_running}" -eq 0 ]; then
+        if [ "$#" -gt 0 ]; then
+            log_warn "Dev restart options are ignored for production service restart"
+        fi
+        ensure_non_interactive_sudo web-restart
+        do_web_restart
+        return
+    fi
+
+    if [ "${dev_running}" -eq 1 ] && [ "${prod_running}" -eq 1 ]; then
+        if [ "$#" -gt 0 ]; then
+            log_warn "Restart options apply to dev restart only; production service restart uses systemctl semantics"
+        fi
+        ensure_non_interactive_sudo web-restart
+        do_web_restart
+        do_dev_restart "$@"
+        return
+    fi
+
+    log_warn "No active server detected; defaulting to development restart"
+    do_dev_restart "$@"
 }
 
 # Internal command used by detached restart worker.
@@ -834,7 +933,7 @@ do_dev_refresh() {
 
     log_info "Refreshing dev webapp (build frontend + restart)..."
     do_build_frontend
-    do_restart restart --graceful
+    do_restart --graceful
 }
 
 do_web_refresh() {
@@ -870,8 +969,8 @@ do_status() {
     local dev_running=0
 
     if [ -f "${PID_FILE}" ]; then
-        pid=$(cat "${PID_FILE}")
-        if kill -0 "${pid}" 2>/dev/null; then
+        pid=$(cat "${PID_FILE}" 2>/dev/null || true)
+        if [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null; then
             dev_running=1
             echo -e "  Status:   ${GREEN}running${NC} (pid ${pid})"
             echo "  URL:      ${DISPLAY_URL}"
@@ -887,7 +986,7 @@ do_status() {
             health=$(curl -s "http://localhost:${WEB_PORT}/api/v2/global/health" 2>/dev/null || echo "(unreachable)")
             echo "  Health:   ${health}"
         else
-            echo -e "  Status:   ${RED}stale PID (${pid} not running)${NC}"
+            echo -e "  Status:   ${RED}stale PID (${pid:-missing} not running)${NC}"
             rm -f "${PID_FILE}" "${BACKEND_PID_FILE}"
         fi
     fi
@@ -1006,7 +1105,8 @@ do_help() {
     echo "  install           Bootstrap install (prod by default)"
     echo "  dev-start, dev-up Start the development server from source"
     echo "  dev-stop, dev-down Stop the development server"
-    echo "  restart           Restart the server (dev)"
+    echo "  stop              Stop active dev / production server(s)"
+    echo "  restart           Restart active dev / production server(s)"
     echo "  dev-refresh       Build frontend + restart dev server"
     echo "  web-start         Start production systemd service"
     echo "  web-stop          Stop production systemd service"
@@ -1045,7 +1145,8 @@ do_help() {
     echo ""
     echo "  # Start / restart server:"
     echo "  ./webctl.sh dev-start"
-    echo "  ./webctl.sh restart              # default: detached + graceful"
+    echo "  ./webctl.sh stop"
+    echo "  ./webctl.sh restart              # active mode(s); dev defaults to detached + graceful"
     echo "  ./webctl.sh restart --graceful   # explicit (same as default)"
     echo "  ./webctl.sh restart --inline"
     echo "  ./webctl.sh dev-refresh"
@@ -1071,12 +1172,13 @@ case "${1:-}" in
     install)                do_install "${@:2}" ;;
     dev-start|dev-up)       do_dev_start      ;;
     dev-stop|dev-down)      do_dev_stop       ;;
+    stop)                   do_stop           ;;
     dev-refresh)            do_dev_refresh    ;;
     web-start)              do_web_start      ;;
     web-stop)               do_web_stop       ;;
     web-restart)            do_web_restart    ;;
     web-refresh)            do_web_refresh    ;;
-    restart)        do_restart "$@"   ;;
+    restart)        do_restart "${@:2}"   ;;
     _restart-worker) do_restart_worker "${@:2}" ;;
     status)         do_status         ;;
     logs)           do_logs           ;;

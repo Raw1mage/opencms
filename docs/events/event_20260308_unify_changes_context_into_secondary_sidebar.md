@@ -70,6 +70,10 @@ OUT:
     - `session-side-panel.tsx`：component render 時的 `toolOpen/sideMode/width`
   - 根因確認：實際路由仍走 `packages/app/src/pages/session.tsx`，而非先前多次修改的 `packages/app/src/pages/session/index.tsx`；前者仍以舊版 `SessionSidePanel` props (`open/reviewOpen/contextOpen`) 呼叫新元件，導致 `toolOpen/fileOpen` 為 `undefined`。
   - 已將 `packages/app/src/pages/session.tsx` 同步到新 pane API，並將 page shell 寬度責任改為僅由 file pane 影響；tool sidebar 改為獨立顯示條件。
+  - file view tab 列新增：
+    - 滑鼠滾輪可水平捲動 tab strip
+    - 點選/切換 active file tab 時自動 scroll into view
+  - file content 容器調整為保留可拖曳 scrollbar，方便長程式碼以滑鼠操作水平/垂直捲軸。
 
 ### Validation
 

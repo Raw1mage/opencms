@@ -38,6 +38,8 @@ export const ProviderRoutes = lazy(() =>
       }),
       async (c) => {
         log.info("GET /provider")
+        c.header("Cache-Control", "no-store, no-transform")
+        c.header("Pragma", "no-cache")
         const config = await Config.get()
         const allProviders = await ModelsDev.get()
         const filteredProviders = allProviders

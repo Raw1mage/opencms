@@ -123,6 +123,22 @@ const unsafeCSS = `
   }
   [data-code] {
     overflow-x: auto !important;
+    overflow-y: auto !important;
+    scrollbar-width: auto;
+    scrollbar-gutter: stable both-edges;
+  }
+  [data-code]::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+  [data-code]::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  [data-code]::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.04);
   }
 }`
 

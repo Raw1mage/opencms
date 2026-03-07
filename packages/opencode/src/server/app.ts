@@ -55,6 +55,13 @@ declare global {
 const log = Log.create({ service: "server" })
 const beacon = ActivityBeacon.scope("server.app")
 
+function applyProxyFriendlySSEHeaders(c: { header: (name: string, value: string) => void }) {
+  c.header("Cache-Control", "no-cache, no-store, must-revalidate, no-transform")
+  c.header("Pragma", "no-cache")
+  c.header("X-Accel-Buffering", "no")
+  c.header("Connection", "keep-alive")
+}
+
 /**
  * Initialize and configure the Hono application with all middleware and routes.
  * This is extracted from server.ts to fix TypeScript type inference issues with lazy().
@@ -635,8 +642,9 @@ export function createApp(app: Hono): Hono {
     async (c) => {
       beacon.hit("event.connected")
       log.info("event connected")
+      applyProxyFriendlySSEHeaders(c)
       return streamSSE(c, async (stream) => {
-        stream.writeSSE({
+        await stream.writeSSE({
           data: JSON.stringify({
             type: "server.connected",
             properties: {},

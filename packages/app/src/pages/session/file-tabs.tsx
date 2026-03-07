@@ -384,7 +384,7 @@ export function FileTabContent(props: {
         wrap = el
         scheduleComments()
       }}
-      class={`relative overflow-hidden ${wrapperClass}`}
+      class={`relative min-h-max ${wrapperClass}`}
     >
       <Dynamic
         component={props.codeComponent}
@@ -482,49 +482,51 @@ export function FileTabContent(props: {
   return (
     <Tabs.Content
       value={props.tab}
-      class="mt-3 relative"
+      class="file-tab-content-scroll mt-3 relative flex-1 min-h-0 overflow-y-scroll overflow-x-auto"
       ref={(el: HTMLDivElement) => {
         scroll = el
         restoreScroll()
       }}
       onScroll={handleScroll}
     >
-      <Switch>
-        <Match when={state()?.loaded && isImage()}>
-          <div class="px-6 py-4 pb-40">
-            <img
-              src={imageDataUrl()}
-              alt={path()}
-              class="max-w-full"
-              onLoad={() => requestAnimationFrame(restoreScroll)}
-            />
-          </div>
-        </Match>
-        <Match when={state()?.loaded && isSvg()}>
-          <div class="flex flex-col gap-4 px-6 py-4">
-            {renderCode(svgContent() ?? "", "")}
-            <Show when={svgPreviewUrl()}>
-              <div class="flex justify-center pb-40">
-                <img src={svgPreviewUrl()} alt={path()} class="max-w-full max-h-96" />
-              </div>
-            </Show>
-          </div>
-        </Match>
-        <Match when={state()?.loaded && isBinary()}>
-          <div class="h-full px-6 pb-42 flex flex-col items-center justify-center text-center gap-6">
-            <Mark class="w-14 opacity-10" />
-            <div class="flex flex-col gap-2 max-w-md">
-              <div class="text-14-semibold text-text-strong truncate">{path()?.split("/").pop()}</div>
-              <div class="text-14-regular text-text-weak">{props.language.t("session.files.binaryContent")}</div>
+      <div class="min-h-max">
+        <Switch>
+          <Match when={state()?.loaded && isImage()}>
+            <div class="px-6 py-4 pb-40">
+              <img
+                src={imageDataUrl()}
+                alt={path()}
+                class="max-w-full"
+                onLoad={() => requestAnimationFrame(restoreScroll)}
+              />
             </div>
-          </div>
-        </Match>
-        <Match when={state()?.loaded}>{renderCode(contents(), "pb-40")}</Match>
-        <Match when={state()?.loading}>
-          <div class="px-6 py-4 text-text-weak">{props.language.t("common.loading")}...</div>
-        </Match>
-        <Match when={state()?.error}>{(err) => <div class="px-6 py-4 text-text-weak">{err()}</div>}</Match>
-      </Switch>
+          </Match>
+          <Match when={state()?.loaded && isSvg()}>
+            <div class="flex flex-col gap-4 px-6 py-4">
+              {renderCode(svgContent() ?? "", "")}
+              <Show when={svgPreviewUrl()}>
+                <div class="flex justify-center pb-40">
+                  <img src={svgPreviewUrl()} alt={path()} class="max-w-full max-h-96" />
+                </div>
+              </Show>
+            </div>
+          </Match>
+          <Match when={state()?.loaded && isBinary()}>
+            <div class="h-full px-6 pb-42 flex flex-col items-center justify-center text-center gap-6">
+              <Mark class="w-14 opacity-10" />
+              <div class="flex flex-col gap-2 max-w-md">
+                <div class="text-14-semibold text-text-strong truncate">{path()?.split("/").pop()}</div>
+                <div class="text-14-regular text-text-weak">{props.language.t("session.files.binaryContent")}</div>
+              </div>
+            </div>
+          </Match>
+          <Match when={state()?.loaded}>{renderCode(contents(), "pb-40")}</Match>
+          <Match when={state()?.loading}>
+            <div class="px-6 py-4 text-text-weak">{props.language.t("common.loading")}...</div>
+          </Match>
+          <Match when={state()?.error}>{(err) => <div class="px-6 py-4 text-text-weak">{err()}</div>}</Match>
+        </Switch>
+      </div>
     </Tabs.Content>
   )
 }

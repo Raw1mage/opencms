@@ -1,4 +1,4 @@
-import { type ValidComponent, createEffect, createMemo, For, Show } from "solid-js"
+import { type ValidComponent, createEffect, createMemo, For, onCleanup, Show } from "solid-js"
 import { Tabs } from "@opencode-ai/ui/tabs"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { TooltipKeybind } from "@opencode-ai/ui/tooltip"
@@ -32,6 +32,8 @@ import { SessionStatusSections } from "./session-status-sections"
 import { StatusTodoList } from "./status-todo-list"
 import { useStatusMonitor } from "./use-status-monitor"
 import { useStatusTodoSync } from "./use-status-todo-sync"
+import { createFileTabListSync, scrollTabIntoView } from "./file-tab-scroll"
+import "./file-pane-scroll.css"
 
 type SessionSidePanelViewModel = {
   messages: () => Message[]
@@ -138,45 +140,64 @@ export function SessionSidePanel(props: {
             >
               <DragDropSensors />
               <ConstrainDragYAxis />
-              <Tabs value={props.activeTab()} onChange={props.openTab}>
-                <div class="sticky top-0 shrink-0 flex">
-                  <Tabs.List>
-                    <SortableProvider ids={props.openedTabs()}>
-                      <For each={props.openedTabs()}>
-                        {(tab) => <SortableTab tab={tab} onTabClose={props.tabs().close} />}
-                      </For>
-                    </SortableProvider>
-                    <StickyAddButton>
-                      <div class="flex items-center gap-1">
-                        <TooltipKeybind
-                          title={props.language.t("command.file.open")}
-                          keybind={props.command.keybind("file.open")}
-                          class="flex items-center"
-                        >
-                          <IconButton
-                            icon="plus-small"
-                            variant="ghost"
-                            iconSize="large"
-                            class="!rounded-md"
-                            onClick={() =>
-                              props.dialog.show(() => <DialogSelectFile mode="files" onOpenFile={props.showAllFiles} />)
-                            }
-                            aria-label={props.language.t("command.file.open")}
-                          />
-                        </TooltipKeybind>
+              <Tabs value={props.activeTab()} onChange={props.openTab} class="flex h-full min-h-0 flex-col">
+                <div class="sticky top-0 shrink-0 flex min-w-0">
+                  <div
+                    class="file-tab-strip-scroll min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
+                    ref={(el: HTMLDivElement) => {
+                      const stop = createFileTabListSync({
+                        el,
+                        contextOpen: () => false,
+                      })
+
+                      createEffect(() => {
+                        const active = props.activeFileTab()
+                        requestAnimationFrame(() => {
+                          scrollTabIntoView({ el, activeTab: active })
+                        })
+                      })
+
+                      onCleanup(stop)
+                    }}
+                  >
+                    <Tabs.List class="min-w-max">
+                      <SortableProvider ids={props.openedTabs()}>
+                        <For each={props.openedTabs()}>
+                          {(tab) => <SortableTab tab={tab} onTabClose={props.tabs().close} />}
+                        </For>
+                      </SortableProvider>
+                    </Tabs.List>
+                  </div>
+                  <StickyAddButton>
+                    <div class="flex items-center gap-1 shrink-0">
+                      <TooltipKeybind
+                        title={props.language.t("command.file.open")}
+                        keybind={props.command.keybind("file.open")}
+                        class="flex items-center"
+                      >
                         <IconButton
-                          icon="close-small"
+                          icon="plus-small"
                           variant="ghost"
-                          class="h-6 w-6"
-                          onClick={closeFilePane}
-                          aria-label={props.language.t("common.close")}
+                          iconSize="large"
+                          class="!rounded-md"
+                          onClick={() =>
+                            props.dialog.show(() => <DialogSelectFile mode="files" onOpenFile={props.showAllFiles} />)
+                          }
+                          aria-label={props.language.t("command.file.open")}
                         />
-                      </div>
-                    </StickyAddButton>
-                  </Tabs.List>
+                      </TooltipKeybind>
+                      <IconButton
+                        icon="close-small"
+                        variant="ghost"
+                        class="h-6 w-6"
+                        onClick={closeFilePane}
+                        aria-label={props.language.t("common.close")}
+                      />
+                    </div>
+                  </StickyAddButton>
                 </div>
 
-                <Tabs.Content value="empty" class="flex flex-col h-full overflow-hidden contain-strict">
+                <Tabs.Content value="empty" class="flex-1 min-h-0 overflow-auto contain-strict">
                   <Show when={props.activeTab() === "empty"}>
                     <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
                       <div class="h-full px-6 pb-42 flex flex-col items-center justify-center text-center gap-6">

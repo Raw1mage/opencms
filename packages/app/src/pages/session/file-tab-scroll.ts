@@ -65,3 +65,23 @@ export const createFileTabListSync = (input: { el: HTMLDivElement; contextOpen: 
     if (frame !== undefined) cancelAnimationFrame(frame)
   }
 }
+
+export const scrollTabIntoView = (input: { el: HTMLDivElement; activeTab: string | undefined }) => {
+  if (!input.activeTab) return
+  const trigger = input.el.querySelector<HTMLElement>(`[data-key="${CSS.escape(input.activeTab)}"]`)
+  if (!trigger) return
+
+  const containerLeft = input.el.scrollLeft
+  const containerRight = containerLeft + input.el.clientWidth
+  const tabLeft = trigger.offsetLeft
+  const tabRight = tabLeft + trigger.offsetWidth
+
+  if (tabLeft < containerLeft) {
+    input.el.scrollTo({ left: tabLeft, behavior: "smooth" })
+    return
+  }
+
+  if (tabRight > containerRight) {
+    input.el.scrollTo({ left: tabRight - input.el.clientWidth, behavior: "smooth" })
+  }
+}
