@@ -122,5 +122,9 @@ Status: In Progress
 - Deferred for now:
   - `feat(app): show which messages are queued (#15587)`：cms 當前 `session-turn`/`message` 結構與 upstream 不完全同構，需另做結構對齊後再移植。
   - `fix(app): show proper usage limit errors (#15496)` 僅先移植 UI card / locale 子集；若後續試用發現 retry 流程仍有誤，再補 deeper status/render 對齊。
+  - `fix(app): provider settings consistency (#4c185c70f)`：deferred。upstream 依賴 `opencode-go` provider note / icon / settings copy 管線；cms 目前缺完整對應 i18n + provider-icon 資產，且涉及 admin/control-plane 產品決策，不做半套移植。
+  - provider connect payload rename（`providerId` → `providerID`）：deferred by contract。cms 當前 SDK/client 型別仍以 `providerId` 為準，直接改 payload 會破壞型別與 API 合約，需待 SDK surface 先一致化。
+  - session/router hash cleanup：deferred as medium-low risk follow-up。cms 目前已在 `use-session-hash-scroll.ts` 內具備等價 helper（`messageIdFromHash`），但若要再進一步抽離到 router/useLocation 方案，會落入較大的 session split/refactor wave，非尾差等級 patch。
+  - model-management UI wave（`dialog-manage-models.tsx` / `settings-models.tsx`）: current cms already reflects the upstream eye-toggle/header styling direction. Remaining diff is mostly historical churn/import-level residue or part of older UX cleanup, no additional behavior-port required in this pass.
 - Architecture Sync: Verified (No doc changes)
   - 依據：本輪新增的是 app 端 permission auto-accept 狀態管理與 pre-session UX，未改動 runtime 架構邊界、provider/account/session contracts。

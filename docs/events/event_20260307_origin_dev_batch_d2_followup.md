@@ -1,7 +1,7 @@
 # Event: origin/dev Batch D2 follow-up
 
 Date: 2026-03-07
-Status: In Progress
+Status: Done
 
 ## 需求
 
@@ -35,6 +35,8 @@ Status: In Progress
 - [x] 重新盤點 D1 後剩餘 low-risk 候選
 - [x] 確認 `2ba1ecabc` 等候選是否已在 cms 落地
 - [x] 移植 loading session 初始捲動到底部的等價修正
+- [x] 補齊 terminal / comment / title inline editor 的 IME guard 尾差
+- [x] 記錄 remaining tail 的 port/skip/defer 決策
 - [x] 執行 typecheck 驗證
 - [x] 更新 Validation 與 Architecture Sync 記錄
 
@@ -71,6 +73,11 @@ Status: In Progress
 - 補上 terminal tab rename 的 IME guard：
   - `/packages/app/src/components/session/session-sortable-terminal-tab.tsx` 的 rename input `keydown` 同樣加入 `e.isComposing || e.keyCode === 229` 早退。
   - 避免終端機標籤重新命名時，輸入法組字按 Enter 直接觸發儲存。
+- 本輪尾聲重新盤點剩餘 app/ui tails 後，決策如下：
+  - `provider settings consistency`：defer（cms 缺完整 `opencode-go` 文案/資產與 control-plane 對齊，不做半套 patch）
+  - provider connect payload rename：defer by contract（cms SDK 仍要求 `providerId`）
+  - session/router hash cleanup：defer（已具等價 helper，但進一步抽離會進入較大的 session refactor wave）
+  - model-management dialogs：視為 effectively ported / no additional runtime behavior patch needed in this pass
 
 ### Validation
 
@@ -79,6 +86,7 @@ Status: In Progress
   - `packages/app/src/pages/session/message-timeline.tsx`
   - `packages/app/src/pages/session/terminal-panel.tsx`
   - `packages/app/src/pages/session/index.tsx`
+  - `packages/app/src/components/session/session-sortable-terminal-tab.tsx`
   - `packages/ui/src/components/line-comment.tsx`
   - `docs/events/event_20260307_origin_dev_batch_d2_followup.md`
 - Architecture Sync: Verified (No doc changes)
