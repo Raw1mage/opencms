@@ -878,7 +878,7 @@ export default function Page() {
   })
 
   const autoScroll = createAutoScroll({
-    working: () => true,
+    working: () => isDesktop(),
     overflowAnchor: "dynamic",
   })
 
