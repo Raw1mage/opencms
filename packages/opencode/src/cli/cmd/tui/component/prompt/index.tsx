@@ -363,6 +363,16 @@ export function Prompt(props: PromptProps) {
     if (!messages) return undefined
     return messages.findLast((m) => m.role === "assistant")
   })
+  const footerElapsed = createMemo(() => {
+    footerTick()
+    const msg = lastAssistantMessage()
+    if (!msg) return undefined
+    const start = msg.time?.created
+    if (!start) return undefined
+    const end = msg.time?.completed ?? (status().type !== "idle" ? Date.now() : undefined)
+    if (!end || end <= start) return undefined
+    return Locale.duration(end - start)
+  })
 
   const [store, setStore] = createStore<{
     prompt: PromptInfo
@@ -1488,9 +1498,12 @@ export function Prompt(props: PromptProps) {
             <box gap={2} flexDirection="row">
               <Switch>
                 <Match when={store.mode === "normal"}>
-                  <text fg={theme.text}>
-                    {keybind.print("command_list")} <span style={{ fg: theme.textMuted }}>commands</span>
-                  </text>
+                  <box gap={1} flexDirection="row">
+                    <text fg={theme.text}>
+                      {keybind.print("command_list")} <span style={{ fg: theme.textMuted }}>commands</span>
+                    </text>
+                    <Show when={footerElapsed()}>{(elapsed) => <text fg={theme.textMuted}>· {elapsed()}</text>}</Show>
+                  </box>
                 </Match>
                 <Match when={store.mode === "shell"}>
                   <text fg={theme.text}>
