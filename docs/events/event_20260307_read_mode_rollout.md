@@ -48,6 +48,7 @@ Status: Done
 - Added repo-delivered runtime/template skill files for `read-mode`.
 - Updated project/template AGENTS guidance so the orchestrator proactively enters `read-mode` for long explanatory answers, but explicitly excludes tool/build/test/git/runtime result reporting.
 - Updated runtime/template enablement registries so `read-mode` becomes discoverable as a first-class skill and routing hint for long-form explanatory response pacing.
+- Refined `read-mode` behavior from "long explanatory answers" to "any human-reading explanatory output", with a default pause cadence of roughly every 20 lines and a minimal `question` prompt of `是 / 否 / custom feedback`.
 
 ### Validation
 
