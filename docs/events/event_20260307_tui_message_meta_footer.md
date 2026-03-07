@@ -7,6 +7,8 @@ Status: In Progress
 
 - 移除 TUI 對話框頂部 assistant meta 中冗餘的 `Build · modelID` 顯示
 - 將 elapsed time 從對話框上方移到 prompt/footer 提示列，與 command hint 同行顯示
+- 移除 prompt 輸入框上方殘留的 `□ Build` 列
+- 壓縮 prompt hint 與底部 footer 之間的垂直空白
 - 保持 TUI-first 驗證，不擴大到 web UI
 
 ## 範圍
@@ -41,9 +43,12 @@ Status: In Progress
 
 - Removed redundant assistant header metadata (`modelID` + elapsed) from the session message block, keeping only the mode label and interruption marker.
 - Added footer-level elapsed rendering in the prompt hint row, next to the existing command hint, derived from the latest assistant message timing and refreshed via the existing footer tick cadence.
+- Removed the extra prompt metadata strip that rendered `□ Build` / `□ Shell` above the input box.
+- Removed the decorative one-line spacer between the prompt hint row and the global footer so the bottom area uses terminal space more tightly.
 
 ### Validation
 
 - `bun run typecheck` passed in `/home/pkcs12/projects/opencode` (`Tasks: 16 successful, 16 total`).
 - Architecture Sync: Verified (No doc changes)
   - 依據：本輪僅調整 TUI message meta 與 prompt/footer 呈現位置，不改動 runtime architecture 邊界。
+- Follow-up validation after removing the extra `□ Build` strip and spacer line also passed via `bun run typecheck` (`Tasks: 16 successful, 16 total`).
