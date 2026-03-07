@@ -1,5 +1,5 @@
 ---
-name: hello_world
+name: hello-world
 description: A simple example skill to demonstrate skill creation.
 ---
 

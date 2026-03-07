@@ -1,3 +1,8 @@
+---
+name: graphrag-memory
+description: Improve /memory-based knowledge graph and GraphRAG quality for lower token usage, higher retrieval precision, and better grounded answers. Use when tasks mention memory, knowledge graphs, GraphRAG, entity-relation extraction, multi-hop retrieval, or response grounding.
+---
+
 # Skill: graphrag-memory
 
 ## Overview

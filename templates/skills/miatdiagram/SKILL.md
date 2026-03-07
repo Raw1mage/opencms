@@ -1,3 +1,8 @@
+---
+name: miatdiagram
+description: Convert plain-language requirements into drawmiat-ready JSON for IDEF0 and GRAFCET with traceable module hierarchy and compatibility-first field naming. Use when users ask for requirement decomposition, process diagrams, state-machine diagrams, or MVP-first module planning.
+---
+
 # Skill: miatdiagram
 
 中文常稱：**miat方法論 / 方法論**；口語：**miat skill**。

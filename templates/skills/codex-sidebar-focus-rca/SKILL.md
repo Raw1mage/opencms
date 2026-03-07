@@ -1,4 +1,4 @@
-﻿---
+---
 name: codex-sidebar-focus-rca
 description: VS Code Codex 側欄聚焦錯誤（command 'workbench.view.extension.codexViewContainer' not found）的根因與修復流程。當啟動 Codex 擴充發生該錯誤、需要快速定位與容錯修補時使用。
 ---
