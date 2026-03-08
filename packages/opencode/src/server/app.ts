@@ -22,6 +22,7 @@ import { Flag } from "../flag/flag"
 import { Command } from "../command"
 import { Global } from "../global"
 import { ProjectRoutes } from "./routes/project"
+import { WorkspaceRoutes } from "./routes/workspace"
 import { SessionRoutes } from "./routes/session"
 import { PtyRoutes } from "./routes/pty"
 import { McpRoutes } from "./routes/mcp"
@@ -356,6 +357,7 @@ export function createApp(app: Hono): Hono {
 
   api.use(validator("query", z.object({ directory: z.string().optional() })))
   api.route("/project", ProjectRoutes())
+  api.route("/workspace", WorkspaceRoutes())
   api.route("/pty", PtyRoutes())
   api.route("/config", ConfigRoutes())
   api.route("/experimental", ExperimentalRoutes())

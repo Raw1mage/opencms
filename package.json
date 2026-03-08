@@ -6,10 +6,10 @@
   "type": "module",
   "packageManager": "bun@1.3.9",
   "scripts": {
-    "dev": "bun run sync:back && bash script/dev-sync-config.sh && bun --conditions=browser ./packages/opencode/src/index.ts",
-    "dev:debug": "OPENCODE_DEBUG_LOG=1 bun run sync:back && bash script/dev-sync-config.sh && OPENCODE_DEBUG_LOG=1 bun --conditions=browser ./packages/opencode/src/index.ts",
-    "dev:full": "bun run sync:back && bash script/dev-sync-config.sh && bun --conditions=browser ./packages/opencode/src/index.ts",
-    "dev:perfprobe": "bun run sync:back && bash script/dev-sync-config.sh && OPENCODE_TUI_PERF_PROBE=1 OPENCODE_TUI_DISABLE_FOOTER_META=1 OPENCODE_TUI_DISABLE_MONITOR_POLL=1 bun --conditions=browser ./packages/opencode/src/index.ts",
+    "dev": "bun run sync:back && bash script/dev-sync-config.sh && bun run script/runtime-init-check.ts && bun --conditions=browser ./packages/opencode/src/index.ts",
+    "dev:debug": "OPENCODE_DEBUG_LOG=1 bun run sync:back && bash script/dev-sync-config.sh && bun run script/runtime-init-check.ts && OPENCODE_DEBUG_LOG=1 bun --conditions=browser ./packages/opencode/src/index.ts",
+    "dev:full": "bun run sync:back && bash script/dev-sync-config.sh && bun run script/runtime-init-check.ts && bun --conditions=browser ./packages/opencode/src/index.ts",
+    "dev:perfprobe": "bun run sync:back && bash script/dev-sync-config.sh && bun run script/runtime-init-check.ts && OPENCODE_TUI_PERF_PROBE=1 OPENCODE_TUI_DISABLE_FOOTER_META=1 OPENCODE_TUI_DISABLE_MONITOR_POLL=1 bun --conditions=browser ./packages/opencode/src/index.ts",
     "check": "bun run lint && bun run verify:typecheck",
     "lint": "eslint .",
     "typecheck": "bun turbo typecheck",
@@ -21,7 +21,7 @@
     "models:update-snapshot": "bun run script/update-models-snapshot.ts",
     "models:update-snapshot:help": "bun run script/update-models-snapshot.ts --help",
     "install": "bun run script/install.ts",
-    "prepare": "husky",
+    "prepare": "husky && if [ -f .husky/pre-push ]; then chmod +x .husky/pre-push; fi && if [ -d .husky/_ ]; then chmod +x .husky/_/* 2>/dev/null || true; fi",
     "mcp:refacting-merger": "bun packages/mcp/refacting-merger/src/index.ts",
     "sync:back": "bash script/sync-config-back.sh"
   },

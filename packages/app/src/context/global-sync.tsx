@@ -363,6 +363,8 @@ function createGlobalSync() {
       await bootstrapDirectory({
         directory,
         sdk,
+        fetch: globalSDK.fetch,
+        baseUrl: globalSDK.url,
         store: child[0],
         setStore: child[1],
         vcsCache: cache,

@@ -90,6 +90,16 @@ export function applyDirectoryEvent(input: {
       input.push(input.directory)
       return
     }
+    case "workspace.created":
+    case "workspace.updated":
+    case "workspace.lifecycle.changed":
+    case "workspace.attachment.added":
+    case "workspace.attachment.removed": {
+      const props = event.properties as { workspace?: State["workspace"] }
+      if (!props.workspace) break
+      input.setStore("workspace", reconcile(props.workspace))
+      break
+    }
     case "session.created": {
       const info = (event.properties as { info: Session }).info
       const result = Binary.search(input.store.session, info.id, (s) => s.id)

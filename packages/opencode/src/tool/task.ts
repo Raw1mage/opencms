@@ -20,6 +20,7 @@ import { SessionStatus } from "@/session/status"
 import { Question } from "@/question"
 import { Todo } from "@/session/todo"
 import { ActivityBeacon } from "@/util/activity-beacon"
+import { BusEvent } from "@/bus/bus-event"
 
 // NOTE: @event_task_tool_complex_input
 // Updated schema to support both simple string and complex structured input.
@@ -99,6 +100,36 @@ const BRIDGE_PREFIX = "__OPENCODE_BRIDGE_EVENT__ "
 const WORKER_PREFIX = "__OPENCODE_WORKER__ "
 const WORKER_READY_TIMEOUT_MS = 15_000
 const beacon = ActivityBeacon.scope("tool.task")
+
+export const TaskWorkerEvent = {
+  Assigned: BusEvent.define(
+    "task.worker.assigned",
+    z.object({
+      workerID: z.string(),
+      sessionID: Identifier.schema("session"),
+    }),
+  ),
+  Done: BusEvent.define(
+    "task.worker.done",
+    z.object({
+      workerID: z.string(),
+      sessionID: Identifier.schema("session"),
+    }),
+  ),
+  Failed: BusEvent.define(
+    "task.worker.failed",
+    z.object({
+      workerID: z.string(),
+      sessionID: Identifier.schema("session"),
+    }),
+  ),
+  Removed: BusEvent.define(
+    "task.worker.removed",
+    z.object({
+      workerID: z.string(),
+    }),
+  ),
+}
 
 async function publishBridgedEvent(event: { type: string; properties: any }) {
   beacon.hit("bridge.publish")
@@ -204,6 +235,7 @@ function removeWorker(id: string) {
   const index = workers.findIndex((w) => w.id === id)
   if (index >= 0) workers.splice(index, 1)
   beacon.setGauge("worker.total", workers.length)
+  void Bus.publish(TaskWorkerEvent.Removed, { workerID: id })
 }
 
 function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
@@ -312,7 +344,7 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
           worker.current = undefined
           worker.busy = false
           if (!req) continue
-          if (msg.ok)
+          if (msg.ok) {
             req.resolve({
               workerID: worker.id,
               requestID: req.id,
@@ -324,7 +356,17 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
               eventCount: req.eventCount,
               doneAt: Date.now(),
             })
-          else req.reject(new Error(msg.error || "worker run failed"))
+            void Bus.publish(TaskWorkerEvent.Done, {
+              workerID: worker.id,
+              sessionID: req.sessionID,
+            })
+          } else {
+            void Bus.publish(TaskWorkerEvent.Failed, {
+              workerID: worker.id,
+              sessionID: req.sessionID,
+            })
+            req.reject(new Error(msg.error || "worker run failed"))
+          }
           void ensureStandbyWorker(config)
         }
 
@@ -334,6 +376,10 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
           worker.current = undefined
           worker.busy = false
           if (!req) continue
+          void Bus.publish(TaskWorkerEvent.Failed, {
+            workerID: worker.id,
+            sessionID: req.sessionID,
+          })
           req.reject(new Error("worker run canceled"))
           void ensureStandbyWorker(config)
           continue
@@ -345,6 +391,10 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
             const req = worker.current
             worker.current = undefined
             worker.busy = false
+            void Bus.publish(TaskWorkerEvent.Failed, {
+              workerID: worker.id,
+              sessionID: req.sessionID,
+            })
             req.reject(new Error(msg.error || "worker error"))
             void ensureStandbyWorker(config)
           }
@@ -478,6 +528,10 @@ async function dispatchToWorker(input: {
       )
     }
     input.onPhase?.("worker_dispatched", { workerID: worker.id, requestID })
+    await Bus.publish(TaskWorkerEvent.Assigned, {
+      workerID: worker.id,
+      sessionID: input.sessionID,
+    })
 
     const result = await done
     beacon.hit("worker.result")

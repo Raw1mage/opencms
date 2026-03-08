@@ -5,6 +5,7 @@ import { useTheme } from "@tui/context/theme"
 import { uniqueBy } from "remeda"
 import path from "path"
 import { watch } from "fs"
+import { mkdir } from "fs/promises"
 import { Global } from "@/global"
 import { iife } from "@/util/iife"
 import { createSimpleContext } from "./helper"
@@ -200,9 +201,26 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         variant: {},
       })
 
-      const file = Bun.file(path.join(Global.Path.state, "model.json"))
+      const modelPath = path.join(Global.Path.state, "model.json")
+      const file = Bun.file(modelPath)
       const state = {
         pending: false,
+      }
+
+      async function ensureModelStateFile() {
+        await mkdir(Global.Path.state, { recursive: true })
+        if (!(await file.exists())) {
+          await Bun.write(
+            file,
+            JSON.stringify({
+              recent: [],
+              favorite: [],
+              hidden: [],
+              hiddenProviders: [],
+              variant: {},
+            }),
+          )
+        }
       }
 
       function save() {
@@ -223,26 +241,33 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         )
       }
 
-      // Watch for external changes to model.json
-      const watcher = watch(path.join(Global.Path.state, "model.json"), (event) => {
-        if (event === "change") {
-          file
-            .json()
-            .then((x) => {
-              batch(() => {
-                if (Array.isArray(x.recent)) setModelStore("recent", x.recent)
-                if (Array.isArray(x.favorite)) setModelStore("favorite", x.favorite)
-                if (Array.isArray(x.hidden)) setModelStore("hidden", x.hidden)
-                if (Array.isArray(x.hiddenProviders)) setModelStore("hiddenProviders", x.hiddenProviders)
-                if (typeof x.variant === "object" && x.variant !== null) setModelStore("variant", x.variant)
-              })
+      let watcher: ReturnType<typeof watch> | undefined
+
+      ensureModelStateFile()
+        .catch(() => undefined)
+        .finally(() => {
+          try {
+            watcher = watch(modelPath, (event) => {
+              if (event === "change") {
+                file
+                  .json()
+                  .then((x) => {
+                    batch(() => {
+                      if (Array.isArray(x.recent)) setModelStore("recent", x.recent)
+                      if (Array.isArray(x.favorite)) setModelStore("favorite", x.favorite)
+                      if (Array.isArray(x.hidden)) setModelStore("hidden", x.hidden)
+                      if (Array.isArray(x.hiddenProviders)) setModelStore("hiddenProviders", x.hiddenProviders)
+                      if (typeof x.variant === "object" && x.variant !== null) setModelStore("variant", x.variant)
+                    })
+                  })
+                  .catch(() => {})
+              }
             })
-            .catch(() => {})
-        }
-      })
+          } catch {}
+        })
 
       onCleanup(() => {
-        watcher.close()
+        watcher?.close()
       })
 
       // Watch for external changes to opencode.json for default_agent updates
@@ -271,20 +296,24 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
       // Auto-cleanup removed: allow favorites/recent even if model ID is not in provider.models
 
-      file
-        .json()
-        .then((x) => {
-          if (Array.isArray(x.recent)) setModelStore("recent", x.recent)
-          if (Array.isArray(x.favorite)) setModelStore("favorite", x.favorite)
-          if (Array.isArray(x.hidden)) setModelStore("hidden", x.hidden)
-          if (Array.isArray(x.hiddenProviders)) setModelStore("hiddenProviders", x.hiddenProviders)
-          if (typeof x.variant === "object" && x.variant !== null) setModelStore("variant", x.variant)
-        })
-        .catch(() => {})
-        .finally(() => {
-          setModelStore("ready", true)
-          if (state.pending) save()
-        })
+      ensureModelStateFile()
+        .catch(() => undefined)
+        .finally(() =>
+          file
+            .json()
+            .then((x) => {
+              if (Array.isArray(x.recent)) setModelStore("recent", x.recent)
+              if (Array.isArray(x.favorite)) setModelStore("favorite", x.favorite)
+              if (Array.isArray(x.hidden)) setModelStore("hidden", x.hidden)
+              if (Array.isArray(x.hiddenProviders)) setModelStore("hiddenProviders", x.hiddenProviders)
+              if (typeof x.variant === "object" && x.variant !== null) setModelStore("variant", x.variant)
+            })
+            .catch(() => {})
+            .finally(() => {
+              setModelStore("ready", true)
+              if (state.pending) save()
+            }),
+        )
 
       const args = useArgs()
       const fallbackModel = createMemo(() => {

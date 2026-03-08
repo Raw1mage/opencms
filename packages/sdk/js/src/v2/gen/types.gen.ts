@@ -839,6 +839,37 @@ export type EventTodoUpdated = {
   }
 }
 
+export type EventTaskWorkerAssigned = {
+  type: "task.worker.assigned"
+  properties: {
+    workerID: string
+    sessionID: string
+  }
+}
+
+export type EventTaskWorkerDone = {
+  type: "task.worker.done"
+  properties: {
+    workerID: string
+    sessionID: string
+  }
+}
+
+export type EventTaskWorkerFailed = {
+  type: "task.worker.failed"
+  properties: {
+    workerID: string
+    sessionID: string
+  }
+}
+
+export type EventTaskWorkerRemoved = {
+  type: "task.worker.removed"
+  properties: {
+    workerID: string
+  }
+}
+
 export type PermissionAction = "allow" | "deny" | "ask"
 
 export type PermissionRule = {
@@ -946,6 +977,205 @@ export type EventVcsBranchUpdated = {
   }
 }
 
+export type EventWorkspaceCreated = {
+  type: "workspace.created"
+  properties: {
+    workspace: {
+      directory: string
+      projectId: string
+      kind: "root" | "sandbox" | "derived"
+      workspaceId: string
+      origin: "local" | "generated" | "imported"
+      lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+      displayName?: string
+      branch?: string
+      attachments: {
+        sessionIds: Array<string>
+        activeSessionId?: string
+        ptyIds: Array<string>
+        previewIds: Array<string>
+        workerIds: Array<string>
+        draftKeys: Array<string>
+        fileTabKeys: Array<string>
+        commentKeys: Array<string>
+      }
+    }
+  }
+}
+
+export type EventWorkspaceUpdated = {
+  type: "workspace.updated"
+  properties: {
+    workspace: {
+      directory: string
+      projectId: string
+      kind: "root" | "sandbox" | "derived"
+      workspaceId: string
+      origin: "local" | "generated" | "imported"
+      lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+      displayName?: string
+      branch?: string
+      attachments: {
+        sessionIds: Array<string>
+        activeSessionId?: string
+        ptyIds: Array<string>
+        previewIds: Array<string>
+        workerIds: Array<string>
+        draftKeys: Array<string>
+        fileTabKeys: Array<string>
+        commentKeys: Array<string>
+      }
+    }
+    previous?: {
+      directory: string
+      projectId: string
+      kind: "root" | "sandbox" | "derived"
+      workspaceId: string
+      origin: "local" | "generated" | "imported"
+      lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+      displayName?: string
+      branch?: string
+      attachments: {
+        sessionIds: Array<string>
+        activeSessionId?: string
+        ptyIds: Array<string>
+        previewIds: Array<string>
+        workerIds: Array<string>
+        draftKeys: Array<string>
+        fileTabKeys: Array<string>
+        commentKeys: Array<string>
+      }
+    }
+  }
+}
+
+export type EventWorkspaceLifecycleChanged = {
+  type: "workspace.lifecycle.changed"
+  properties: {
+    workspace: {
+      directory: string
+      projectId: string
+      kind: "root" | "sandbox" | "derived"
+      workspaceId: string
+      origin: "local" | "generated" | "imported"
+      lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+      displayName?: string
+      branch?: string
+      attachments: {
+        sessionIds: Array<string>
+        activeSessionId?: string
+        ptyIds: Array<string>
+        previewIds: Array<string>
+        workerIds: Array<string>
+        draftKeys: Array<string>
+        fileTabKeys: Array<string>
+        commentKeys: Array<string>
+      }
+    }
+    previous: {
+      directory: string
+      projectId: string
+      kind: "root" | "sandbox" | "derived"
+      workspaceId: string
+      origin: "local" | "generated" | "imported"
+      lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+      displayName?: string
+      branch?: string
+      attachments: {
+        sessionIds: Array<string>
+        activeSessionId?: string
+        ptyIds: Array<string>
+        previewIds: Array<string>
+        workerIds: Array<string>
+        draftKeys: Array<string>
+        fileTabKeys: Array<string>
+        commentKeys: Array<string>
+      }
+    }
+    previousState: "active" | "archived" | "resetting" | "deleting" | "failed"
+    nextState: "active" | "archived" | "resetting" | "deleting" | "failed"
+  }
+}
+
+export type EventWorkspaceAttachmentAdded = {
+  type: "workspace.attachment.added"
+  properties: {
+    workspace: {
+      directory: string
+      projectId: string
+      kind: "root" | "sandbox" | "derived"
+      workspaceId: string
+      origin: "local" | "generated" | "imported"
+      lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+      displayName?: string
+      branch?: string
+      attachments: {
+        sessionIds: Array<string>
+        activeSessionId?: string
+        ptyIds: Array<string>
+        previewIds: Array<string>
+        workerIds: Array<string>
+        draftKeys: Array<string>
+        fileTabKeys: Array<string>
+        commentKeys: Array<string>
+      }
+    }
+    attachment: {
+      type: "session" | "pty" | "preview" | "worker" | "draft" | "file_tab" | "comment"
+      ownership: "workspace" | "session" | "session_with_workspace_default"
+      key: string
+      active?: boolean
+    }
+  }
+}
+
+export type EventWorkspaceAttachmentRemoved = {
+  type: "workspace.attachment.removed"
+  properties: {
+    workspace: {
+      directory: string
+      projectId: string
+      kind: "root" | "sandbox" | "derived"
+      workspaceId: string
+      origin: "local" | "generated" | "imported"
+      lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+      displayName?: string
+      branch?: string
+      attachments: {
+        sessionIds: Array<string>
+        activeSessionId?: string
+        ptyIds: Array<string>
+        previewIds: Array<string>
+        workerIds: Array<string>
+        draftKeys: Array<string>
+        fileTabKeys: Array<string>
+        commentKeys: Array<string>
+      }
+    }
+    attachment: {
+      type: "session" | "pty" | "preview" | "worker" | "draft" | "file_tab" | "comment"
+      ownership: "workspace" | "session" | "session_with_workspace_default"
+      key: string
+      active?: boolean
+    }
+  }
+}
+
+export type EventWorktreeReady = {
+  type: "worktree.ready"
+  properties: {
+    name: string
+    branch: string
+  }
+}
+
+export type EventWorktreeFailed = {
+  type: "worktree.failed"
+  properties: {
+    message: string
+  }
+}
+
 export type Pty = {
   id: string
   title: string
@@ -985,21 +1215,6 @@ export type EventPtyDeleted = {
   }
 }
 
-export type EventWorktreeReady = {
-  type: "worktree.ready"
-  properties: {
-    name: string
-    branch: string
-  }
-}
-
-export type EventWorktreeFailed = {
-  type: "worktree.failed"
-  properties: {
-    message: string
-  }
-}
-
 export type Event =
   | EventProjectUpdated
   | EventServerInstanceDisposed
@@ -1035,18 +1250,27 @@ export type Event =
   | EventFileEdited
   | EventFileWatcherUpdated
   | EventTodoUpdated
+  | EventTaskWorkerAssigned
+  | EventTaskWorkerDone
+  | EventTaskWorkerFailed
+  | EventTaskWorkerRemoved
   | EventSessionCreated
   | EventSessionUpdated
   | EventSessionDeleted
   | EventSessionDiff
   | EventSessionError
   | EventVcsBranchUpdated
+  | EventWorkspaceCreated
+  | EventWorkspaceUpdated
+  | EventWorkspaceLifecycleChanged
+  | EventWorkspaceAttachmentAdded
+  | EventWorkspaceAttachmentRemoved
+  | EventWorktreeReady
+  | EventWorktreeFailed
   | EventPtyCreated
   | EventPtyUpdated
   | EventPtyExited
   | EventPtyDeleted
-  | EventWorktreeReady
-  | EventWorktreeFailed
 
 export type GlobalEvent = {
   directory: string
@@ -2765,6 +2989,506 @@ export type ProjectUpdateResponses = {
 }
 
 export type ProjectUpdateResponse = ProjectUpdateResponses[keyof ProjectUpdateResponses]
+
+export type WorkspaceListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/workspace"
+}
+
+export type WorkspaceListResponses = {
+  /**
+   * List of workspaces
+   */
+  200: Array<{
+    directory: string
+    projectId: string
+    kind: "root" | "sandbox" | "derived"
+    workspaceId: string
+    origin: "local" | "generated" | "imported"
+    lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+    displayName?: string
+    branch?: string
+    attachments: {
+      sessionIds: Array<string>
+      activeSessionId?: string
+      ptyIds: Array<string>
+      previewIds: Array<string>
+      workerIds: Array<string>
+      draftKeys: Array<string>
+      fileTabKeys: Array<string>
+      commentKeys: Array<string>
+    }
+  }>
+}
+
+export type WorkspaceListResponse = WorkspaceListResponses[keyof WorkspaceListResponses]
+
+export type WorkspaceCurrentData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/workspace/current"
+}
+
+export type WorkspaceCurrentResponses = {
+  /**
+   * Current workspace
+   */
+  200: {
+    directory: string
+    projectId: string
+    kind: "root" | "sandbox" | "derived"
+    workspaceId: string
+    origin: "local" | "generated" | "imported"
+    lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+    displayName?: string
+    branch?: string
+    attachments: {
+      sessionIds: Array<string>
+      activeSessionId?: string
+      ptyIds: Array<string>
+      previewIds: Array<string>
+      workerIds: Array<string>
+      draftKeys: Array<string>
+      fileTabKeys: Array<string>
+      commentKeys: Array<string>
+    }
+  }
+}
+
+export type WorkspaceCurrentResponse = WorkspaceCurrentResponses[keyof WorkspaceCurrentResponses]
+
+export type WorkspaceStatusData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/workspace/status"
+}
+
+export type WorkspaceStatusResponses = {
+  /**
+   * Workspace status summary
+   */
+  200: {
+    projectId: string
+    total: number
+    kinds: {
+      root: number
+      sandbox: number
+      derived: number
+    }
+    attachments: {
+      sessions: number
+      ptys: number
+      previews: number
+      workers: number
+    }
+  }
+}
+
+export type WorkspaceStatusResponse = WorkspaceStatusResponses[keyof WorkspaceStatusResponses]
+
+export type WorkspaceGetData = {
+  body?: never
+  path: {
+    workspaceID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/workspace/{workspaceID}"
+}
+
+export type WorkspaceGetErrors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkspaceGetError = WorkspaceGetErrors[keyof WorkspaceGetErrors]
+
+export type WorkspaceGetResponses = {
+  /**
+   * Workspace info
+   */
+  200: {
+    directory: string
+    projectId: string
+    kind: "root" | "sandbox" | "derived"
+    workspaceId: string
+    origin: "local" | "generated" | "imported"
+    lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+    displayName?: string
+    branch?: string
+    attachments: {
+      sessionIds: Array<string>
+      activeSessionId?: string
+      ptyIds: Array<string>
+      previewIds: Array<string>
+      workerIds: Array<string>
+      draftKeys: Array<string>
+      fileTabKeys: Array<string>
+      commentKeys: Array<string>
+    }
+  }
+}
+
+export type WorkspaceGetResponse = WorkspaceGetResponses[keyof WorkspaceGetResponses]
+
+export type WorkspaceResetRunData = {
+  body?: never
+  path: {
+    workspaceID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/workspace/{workspaceID}/reset-run"
+}
+
+export type WorkspaceResetRunErrors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkspaceResetRunError = WorkspaceResetRunErrors[keyof WorkspaceResetRunErrors]
+
+export type WorkspaceResetRunResponses = {
+  /**
+   * Workspace reset operation result
+   */
+  200: {
+    workspace: {
+      directory: string
+      projectId: string
+      kind: "root" | "sandbox" | "derived"
+      workspaceId: string
+      origin: "local" | "generated" | "imported"
+      lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+      displayName?: string
+      branch?: string
+      attachments: {
+        sessionIds: Array<string>
+        activeSessionId?: string
+        ptyIds: Array<string>
+        previewIds: Array<string>
+        workerIds: Array<string>
+        draftKeys: Array<string>
+        fileTabKeys: Array<string>
+        commentKeys: Array<string>
+      }
+    }
+    archivedSessionIDs: Array<string>
+    archivedSessionCount: number
+  }
+}
+
+export type WorkspaceResetRunResponse = WorkspaceResetRunResponses[keyof WorkspaceResetRunResponses]
+
+export type WorkspaceDeleteRunData = {
+  body?: never
+  path: {
+    workspaceID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/workspace/{workspaceID}/delete-run"
+}
+
+export type WorkspaceDeleteRunErrors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkspaceDeleteRunError = WorkspaceDeleteRunErrors[keyof WorkspaceDeleteRunErrors]
+
+export type WorkspaceDeleteRunResponses = {
+  /**
+   * Workspace delete operation result
+   */
+  200: {
+    workspace: {
+      directory: string
+      projectId: string
+      kind: "root" | "sandbox" | "derived"
+      workspaceId: string
+      origin: "local" | "generated" | "imported"
+      lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+      displayName?: string
+      branch?: string
+      attachments: {
+        sessionIds: Array<string>
+        activeSessionId?: string
+        ptyIds: Array<string>
+        previewIds: Array<string>
+        workerIds: Array<string>
+        draftKeys: Array<string>
+        fileTabKeys: Array<string>
+        commentKeys: Array<string>
+      }
+    }
+    archivedSessionIDs: Array<string>
+    archivedSessionCount: number
+    removedDirectory: string
+    removedFromProjectId: string
+  }
+}
+
+export type WorkspaceDeleteRunResponse = WorkspaceDeleteRunResponses[keyof WorkspaceDeleteRunResponses]
+
+export type WorkspaceResetData = {
+  body?: never
+  path: {
+    workspaceID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/workspace/{workspaceID}/reset"
+}
+
+export type WorkspaceResetErrors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkspaceResetError = WorkspaceResetErrors[keyof WorkspaceResetErrors]
+
+export type WorkspaceResetResponses = {
+  /**
+   * Workspace updated
+   */
+  200: {
+    directory: string
+    projectId: string
+    kind: "root" | "sandbox" | "derived"
+    workspaceId: string
+    origin: "local" | "generated" | "imported"
+    lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+    displayName?: string
+    branch?: string
+    attachments: {
+      sessionIds: Array<string>
+      activeSessionId?: string
+      ptyIds: Array<string>
+      previewIds: Array<string>
+      workerIds: Array<string>
+      draftKeys: Array<string>
+      fileTabKeys: Array<string>
+      commentKeys: Array<string>
+    }
+  }
+}
+
+export type WorkspaceResetResponse = WorkspaceResetResponses[keyof WorkspaceResetResponses]
+
+export type WorkspaceDeleteData = {
+  body?: never
+  path: {
+    workspaceID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/workspace/{workspaceID}/delete"
+}
+
+export type WorkspaceDeleteErrors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkspaceDeleteError = WorkspaceDeleteErrors[keyof WorkspaceDeleteErrors]
+
+export type WorkspaceDeleteResponses = {
+  /**
+   * Workspace updated
+   */
+  200: {
+    directory: string
+    projectId: string
+    kind: "root" | "sandbox" | "derived"
+    workspaceId: string
+    origin: "local" | "generated" | "imported"
+    lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+    displayName?: string
+    branch?: string
+    attachments: {
+      sessionIds: Array<string>
+      activeSessionId?: string
+      ptyIds: Array<string>
+      previewIds: Array<string>
+      workerIds: Array<string>
+      draftKeys: Array<string>
+      fileTabKeys: Array<string>
+      commentKeys: Array<string>
+    }
+  }
+}
+
+export type WorkspaceDeleteResponse = WorkspaceDeleteResponses[keyof WorkspaceDeleteResponses]
+
+export type WorkspaceArchiveData = {
+  body?: never
+  path: {
+    workspaceID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/workspace/{workspaceID}/archive"
+}
+
+export type WorkspaceArchiveErrors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkspaceArchiveError = WorkspaceArchiveErrors[keyof WorkspaceArchiveErrors]
+
+export type WorkspaceArchiveResponses = {
+  /**
+   * Workspace updated
+   */
+  200: {
+    directory: string
+    projectId: string
+    kind: "root" | "sandbox" | "derived"
+    workspaceId: string
+    origin: "local" | "generated" | "imported"
+    lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+    displayName?: string
+    branch?: string
+    attachments: {
+      sessionIds: Array<string>
+      activeSessionId?: string
+      ptyIds: Array<string>
+      previewIds: Array<string>
+      workerIds: Array<string>
+      draftKeys: Array<string>
+      fileTabKeys: Array<string>
+      commentKeys: Array<string>
+    }
+  }
+}
+
+export type WorkspaceArchiveResponse = WorkspaceArchiveResponses[keyof WorkspaceArchiveResponses]
+
+export type WorkspaceActiveData = {
+  body?: never
+  path: {
+    workspaceID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/workspace/{workspaceID}/active"
+}
+
+export type WorkspaceActiveErrors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkspaceActiveError = WorkspaceActiveErrors[keyof WorkspaceActiveErrors]
+
+export type WorkspaceActiveResponses = {
+  /**
+   * Workspace updated
+   */
+  200: {
+    directory: string
+    projectId: string
+    kind: "root" | "sandbox" | "derived"
+    workspaceId: string
+    origin: "local" | "generated" | "imported"
+    lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+    displayName?: string
+    branch?: string
+    attachments: {
+      sessionIds: Array<string>
+      activeSessionId?: string
+      ptyIds: Array<string>
+      previewIds: Array<string>
+      workerIds: Array<string>
+      draftKeys: Array<string>
+      fileTabKeys: Array<string>
+      commentKeys: Array<string>
+    }
+  }
+}
+
+export type WorkspaceActiveResponse = WorkspaceActiveResponses[keyof WorkspaceActiveResponses]
+
+export type WorkspaceFailedData = {
+  body?: never
+  path: {
+    workspaceID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/workspace/{workspaceID}/failed"
+}
+
+export type WorkspaceFailedErrors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkspaceFailedError = WorkspaceFailedErrors[keyof WorkspaceFailedErrors]
+
+export type WorkspaceFailedResponses = {
+  /**
+   * Workspace updated
+   */
+  200: {
+    directory: string
+    projectId: string
+    kind: "root" | "sandbox" | "derived"
+    workspaceId: string
+    origin: "local" | "generated" | "imported"
+    lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+    displayName?: string
+    branch?: string
+    attachments: {
+      sessionIds: Array<string>
+      activeSessionId?: string
+      ptyIds: Array<string>
+      previewIds: Array<string>
+      workerIds: Array<string>
+      draftKeys: Array<string>
+      fileTabKeys: Array<string>
+      commentKeys: Array<string>
+    }
+  }
+}
+
+export type WorkspaceFailedResponse = WorkspaceFailedResponses[keyof WorkspaceFailedResponses]
 
 export type PtyListData = {
   body?: never
@@ -6489,6 +7213,506 @@ export type ProjectUpdate2Responses = {
 }
 
 export type ProjectUpdate2Response = ProjectUpdate2Responses[keyof ProjectUpdate2Responses]
+
+export type WorkspaceList2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/workspace"
+}
+
+export type WorkspaceList2Responses = {
+  /**
+   * List of workspaces
+   */
+  200: Array<{
+    directory: string
+    projectId: string
+    kind: "root" | "sandbox" | "derived"
+    workspaceId: string
+    origin: "local" | "generated" | "imported"
+    lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+    displayName?: string
+    branch?: string
+    attachments: {
+      sessionIds: Array<string>
+      activeSessionId?: string
+      ptyIds: Array<string>
+      previewIds: Array<string>
+      workerIds: Array<string>
+      draftKeys: Array<string>
+      fileTabKeys: Array<string>
+      commentKeys: Array<string>
+    }
+  }>
+}
+
+export type WorkspaceList2Response = WorkspaceList2Responses[keyof WorkspaceList2Responses]
+
+export type WorkspaceCurrent2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/workspace/current"
+}
+
+export type WorkspaceCurrent2Responses = {
+  /**
+   * Current workspace
+   */
+  200: {
+    directory: string
+    projectId: string
+    kind: "root" | "sandbox" | "derived"
+    workspaceId: string
+    origin: "local" | "generated" | "imported"
+    lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+    displayName?: string
+    branch?: string
+    attachments: {
+      sessionIds: Array<string>
+      activeSessionId?: string
+      ptyIds: Array<string>
+      previewIds: Array<string>
+      workerIds: Array<string>
+      draftKeys: Array<string>
+      fileTabKeys: Array<string>
+      commentKeys: Array<string>
+    }
+  }
+}
+
+export type WorkspaceCurrent2Response = WorkspaceCurrent2Responses[keyof WorkspaceCurrent2Responses]
+
+export type WorkspaceStatus2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/workspace/status"
+}
+
+export type WorkspaceStatus2Responses = {
+  /**
+   * Workspace status summary
+   */
+  200: {
+    projectId: string
+    total: number
+    kinds: {
+      root: number
+      sandbox: number
+      derived: number
+    }
+    attachments: {
+      sessions: number
+      ptys: number
+      previews: number
+      workers: number
+    }
+  }
+}
+
+export type WorkspaceStatus2Response = WorkspaceStatus2Responses[keyof WorkspaceStatus2Responses]
+
+export type WorkspaceGet2Data = {
+  body?: never
+  path: {
+    workspaceID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/workspace/{workspaceID}"
+}
+
+export type WorkspaceGet2Errors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkspaceGet2Error = WorkspaceGet2Errors[keyof WorkspaceGet2Errors]
+
+export type WorkspaceGet2Responses = {
+  /**
+   * Workspace info
+   */
+  200: {
+    directory: string
+    projectId: string
+    kind: "root" | "sandbox" | "derived"
+    workspaceId: string
+    origin: "local" | "generated" | "imported"
+    lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+    displayName?: string
+    branch?: string
+    attachments: {
+      sessionIds: Array<string>
+      activeSessionId?: string
+      ptyIds: Array<string>
+      previewIds: Array<string>
+      workerIds: Array<string>
+      draftKeys: Array<string>
+      fileTabKeys: Array<string>
+      commentKeys: Array<string>
+    }
+  }
+}
+
+export type WorkspaceGet2Response = WorkspaceGet2Responses[keyof WorkspaceGet2Responses]
+
+export type WorkspaceResetRun2Data = {
+  body?: never
+  path: {
+    workspaceID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/workspace/{workspaceID}/reset-run"
+}
+
+export type WorkspaceResetRun2Errors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkspaceResetRun2Error = WorkspaceResetRun2Errors[keyof WorkspaceResetRun2Errors]
+
+export type WorkspaceResetRun2Responses = {
+  /**
+   * Workspace reset operation result
+   */
+  200: {
+    workspace: {
+      directory: string
+      projectId: string
+      kind: "root" | "sandbox" | "derived"
+      workspaceId: string
+      origin: "local" | "generated" | "imported"
+      lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+      displayName?: string
+      branch?: string
+      attachments: {
+        sessionIds: Array<string>
+        activeSessionId?: string
+        ptyIds: Array<string>
+        previewIds: Array<string>
+        workerIds: Array<string>
+        draftKeys: Array<string>
+        fileTabKeys: Array<string>
+        commentKeys: Array<string>
+      }
+    }
+    archivedSessionIDs: Array<string>
+    archivedSessionCount: number
+  }
+}
+
+export type WorkspaceResetRun2Response = WorkspaceResetRun2Responses[keyof WorkspaceResetRun2Responses]
+
+export type WorkspaceDeleteRun2Data = {
+  body?: never
+  path: {
+    workspaceID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/workspace/{workspaceID}/delete-run"
+}
+
+export type WorkspaceDeleteRun2Errors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkspaceDeleteRun2Error = WorkspaceDeleteRun2Errors[keyof WorkspaceDeleteRun2Errors]
+
+export type WorkspaceDeleteRun2Responses = {
+  /**
+   * Workspace delete operation result
+   */
+  200: {
+    workspace: {
+      directory: string
+      projectId: string
+      kind: "root" | "sandbox" | "derived"
+      workspaceId: string
+      origin: "local" | "generated" | "imported"
+      lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+      displayName?: string
+      branch?: string
+      attachments: {
+        sessionIds: Array<string>
+        activeSessionId?: string
+        ptyIds: Array<string>
+        previewIds: Array<string>
+        workerIds: Array<string>
+        draftKeys: Array<string>
+        fileTabKeys: Array<string>
+        commentKeys: Array<string>
+      }
+    }
+    archivedSessionIDs: Array<string>
+    archivedSessionCount: number
+    removedDirectory: string
+    removedFromProjectId: string
+  }
+}
+
+export type WorkspaceDeleteRun2Response = WorkspaceDeleteRun2Responses[keyof WorkspaceDeleteRun2Responses]
+
+export type WorkspaceReset2Data = {
+  body?: never
+  path: {
+    workspaceID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/workspace/{workspaceID}/reset"
+}
+
+export type WorkspaceReset2Errors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkspaceReset2Error = WorkspaceReset2Errors[keyof WorkspaceReset2Errors]
+
+export type WorkspaceReset2Responses = {
+  /**
+   * Workspace updated
+   */
+  200: {
+    directory: string
+    projectId: string
+    kind: "root" | "sandbox" | "derived"
+    workspaceId: string
+    origin: "local" | "generated" | "imported"
+    lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+    displayName?: string
+    branch?: string
+    attachments: {
+      sessionIds: Array<string>
+      activeSessionId?: string
+      ptyIds: Array<string>
+      previewIds: Array<string>
+      workerIds: Array<string>
+      draftKeys: Array<string>
+      fileTabKeys: Array<string>
+      commentKeys: Array<string>
+    }
+  }
+}
+
+export type WorkspaceReset2Response = WorkspaceReset2Responses[keyof WorkspaceReset2Responses]
+
+export type WorkspaceDelete2Data = {
+  body?: never
+  path: {
+    workspaceID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/workspace/{workspaceID}/delete"
+}
+
+export type WorkspaceDelete2Errors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkspaceDelete2Error = WorkspaceDelete2Errors[keyof WorkspaceDelete2Errors]
+
+export type WorkspaceDelete2Responses = {
+  /**
+   * Workspace updated
+   */
+  200: {
+    directory: string
+    projectId: string
+    kind: "root" | "sandbox" | "derived"
+    workspaceId: string
+    origin: "local" | "generated" | "imported"
+    lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+    displayName?: string
+    branch?: string
+    attachments: {
+      sessionIds: Array<string>
+      activeSessionId?: string
+      ptyIds: Array<string>
+      previewIds: Array<string>
+      workerIds: Array<string>
+      draftKeys: Array<string>
+      fileTabKeys: Array<string>
+      commentKeys: Array<string>
+    }
+  }
+}
+
+export type WorkspaceDelete2Response = WorkspaceDelete2Responses[keyof WorkspaceDelete2Responses]
+
+export type WorkspaceArchive2Data = {
+  body?: never
+  path: {
+    workspaceID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/workspace/{workspaceID}/archive"
+}
+
+export type WorkspaceArchive2Errors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkspaceArchive2Error = WorkspaceArchive2Errors[keyof WorkspaceArchive2Errors]
+
+export type WorkspaceArchive2Responses = {
+  /**
+   * Workspace updated
+   */
+  200: {
+    directory: string
+    projectId: string
+    kind: "root" | "sandbox" | "derived"
+    workspaceId: string
+    origin: "local" | "generated" | "imported"
+    lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+    displayName?: string
+    branch?: string
+    attachments: {
+      sessionIds: Array<string>
+      activeSessionId?: string
+      ptyIds: Array<string>
+      previewIds: Array<string>
+      workerIds: Array<string>
+      draftKeys: Array<string>
+      fileTabKeys: Array<string>
+      commentKeys: Array<string>
+    }
+  }
+}
+
+export type WorkspaceArchive2Response = WorkspaceArchive2Responses[keyof WorkspaceArchive2Responses]
+
+export type WorkspaceActive2Data = {
+  body?: never
+  path: {
+    workspaceID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/workspace/{workspaceID}/active"
+}
+
+export type WorkspaceActive2Errors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkspaceActive2Error = WorkspaceActive2Errors[keyof WorkspaceActive2Errors]
+
+export type WorkspaceActive2Responses = {
+  /**
+   * Workspace updated
+   */
+  200: {
+    directory: string
+    projectId: string
+    kind: "root" | "sandbox" | "derived"
+    workspaceId: string
+    origin: "local" | "generated" | "imported"
+    lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+    displayName?: string
+    branch?: string
+    attachments: {
+      sessionIds: Array<string>
+      activeSessionId?: string
+      ptyIds: Array<string>
+      previewIds: Array<string>
+      workerIds: Array<string>
+      draftKeys: Array<string>
+      fileTabKeys: Array<string>
+      commentKeys: Array<string>
+    }
+  }
+}
+
+export type WorkspaceActive2Response = WorkspaceActive2Responses[keyof WorkspaceActive2Responses]
+
+export type WorkspaceFailed2Data = {
+  body?: never
+  path: {
+    workspaceID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/workspace/{workspaceID}/failed"
+}
+
+export type WorkspaceFailed2Errors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type WorkspaceFailed2Error = WorkspaceFailed2Errors[keyof WorkspaceFailed2Errors]
+
+export type WorkspaceFailed2Responses = {
+  /**
+   * Workspace updated
+   */
+  200: {
+    directory: string
+    projectId: string
+    kind: "root" | "sandbox" | "derived"
+    workspaceId: string
+    origin: "local" | "generated" | "imported"
+    lifecycleState: "active" | "archived" | "resetting" | "deleting" | "failed"
+    displayName?: string
+    branch?: string
+    attachments: {
+      sessionIds: Array<string>
+      activeSessionId?: string
+      ptyIds: Array<string>
+      previewIds: Array<string>
+      workerIds: Array<string>
+      draftKeys: Array<string>
+      fileTabKeys: Array<string>
+      commentKeys: Array<string>
+    }
+  }
+}
+
+export type WorkspaceFailed2Response = WorkspaceFailed2Responses[keyof WorkspaceFailed2Responses]
 
 export type PtyList2Data = {
   body?: never

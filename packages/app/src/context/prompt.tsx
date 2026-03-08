@@ -3,6 +3,8 @@ import { createSimpleContext } from "@opencode-ai/ui/context"
 import { batch, createMemo, createRoot, onCleanup, createEffect } from "solid-js"
 import { useParams } from "@solidjs/router"
 import type { FileSelection } from "@/context/file"
+import { useGlobalSync } from "./global-sync"
+import { normalizeWorkspaceDirectory } from "./global-sync/workspace-adapter"
 import { Persist, persisted } from "@/utils/persist"
 import { checksum } from "@opencode-ai/util/encode"
 
@@ -145,6 +147,15 @@ function createPromptActions(
 const WORKSPACE_KEY = "__workspace__"
 const MAX_PROMPT_SESSIONS = 20
 
+export function getPromptWorkspaceDirectory(dir: string, workspaceDirectory?: string) {
+  return normalizeWorkspaceDirectory(workspaceDirectory ?? dir)
+}
+
+export function getPromptSessionScopeDirectory(dir: string, id: string | undefined, workspaceDirectory?: string) {
+  if (id) return normalizeWorkspaceDirectory(dir)
+  return getPromptWorkspaceDirectory(dir, workspaceDirectory)
+}
+
 type PromptSession = ReturnType<typeof createPromptSession>
 
 type PromptCacheEntry = {
@@ -229,6 +240,7 @@ export const { use: usePrompt, provider: PromptProvider } = createSimpleContext(
   gate: false,
   init: () => {
     const params = useParams()
+    const globalSync = useGlobalSync()
     const cache = new Map<string, PromptCacheEntry>()
 
     const disposeAll = () => {
@@ -251,7 +263,9 @@ export const { use: usePrompt, provider: PromptProvider } = createSimpleContext(
     }
 
     const load = (dir: string, id: string | undefined) => {
-      const key = `${dir}:${id ?? WORKSPACE_KEY}`
+      const [store] = globalSync.child(dir, { bootstrap: false })
+      const scopeDir = getPromptSessionScopeDirectory(dir, id, store.workspace?.directory)
+      const key = `${scopeDir}:${id ?? WORKSPACE_KEY}`
       const existing = cache.get(key)
       if (existing) {
         cache.delete(key)
@@ -260,7 +274,7 @@ export const { use: usePrompt, provider: PromptProvider } = createSimpleContext(
       }
 
       const entry = createRoot((dispose) => ({
-        value: createPromptSession(dir, id),
+        value: createPromptSession(scopeDir, id),
         dispose,
       }))
 

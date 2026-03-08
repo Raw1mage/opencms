@@ -379,6 +379,44 @@ import type {
   TuiSubmitPromptResponses,
   VcsGet2Responses,
   VcsGetResponses,
+  WorkspaceActive2Errors,
+  WorkspaceActive2Responses,
+  WorkspaceActiveErrors,
+  WorkspaceActiveResponses,
+  WorkspaceArchive2Errors,
+  WorkspaceArchive2Responses,
+  WorkspaceArchiveErrors,
+  WorkspaceArchiveResponses,
+  WorkspaceCurrent2Responses,
+  WorkspaceCurrentResponses,
+  WorkspaceDelete2Errors,
+  WorkspaceDelete2Responses,
+  WorkspaceDeleteErrors,
+  WorkspaceDeleteResponses,
+  WorkspaceDeleteRun2Errors,
+  WorkspaceDeleteRun2Responses,
+  WorkspaceDeleteRunErrors,
+  WorkspaceDeleteRunResponses,
+  WorkspaceFailed2Errors,
+  WorkspaceFailed2Responses,
+  WorkspaceFailedErrors,
+  WorkspaceFailedResponses,
+  WorkspaceGet2Errors,
+  WorkspaceGet2Responses,
+  WorkspaceGetErrors,
+  WorkspaceGetResponses,
+  WorkspaceList2Responses,
+  WorkspaceListResponses,
+  WorkspaceReset2Errors,
+  WorkspaceReset2Responses,
+  WorkspaceResetErrors,
+  WorkspaceResetResponses,
+  WorkspaceResetRun2Errors,
+  WorkspaceResetRun2Responses,
+  WorkspaceResetRunErrors,
+  WorkspaceResetRunResponses,
+  WorkspaceStatus2Responses,
+  WorkspaceStatusResponses,
   WorktreeCreate2Errors,
   WorktreeCreate2Responses,
   WorktreeCreateErrors,
@@ -1007,6 +1045,604 @@ export class Project extends HeyApiClient {
         ...options?.headers,
         ...params.headers,
       },
+    })
+  }
+}
+
+export class Workspace extends HeyApiClient {
+  /**
+   * List project workspaces
+   *
+   * Resolve and return known workspaces for the current project, including root and sandboxes.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<WorkspaceListResponses, unknown, ThrowOnError>({
+      url: "/api/v2/workspace",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get current workspace
+   *
+   * Resolve the workspace corresponding to the current instance directory.
+   */
+  public current<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<WorkspaceCurrentResponses, unknown, ThrowOnError>({
+      url: "/api/v2/workspace/current",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get workspace project status
+   *
+   * Return a lightweight workspace summary for the current project including counts and attachment totals.
+   */
+  public status<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<WorkspaceStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v2/workspace/status",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get workspace by id
+   *
+   * Return a previously resolved workspace from the registry by workspace id.
+   */
+  public get<ThrowOnError extends boolean = false>(
+    parameters: {
+      workspaceID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "workspaceID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<WorkspaceGetResponses, WorkspaceGetErrors, ThrowOnError>({
+      url: "/api/v2/workspace/{workspaceID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Run workspace reset operation
+   *
+   * Archive active sessions, dispose runtime instance state, reset the sandbox worktree, and return the updated workspace aggregate.
+   */
+  public resetRun<ThrowOnError extends boolean = false>(
+    parameters: {
+      workspaceID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "workspaceID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkspaceResetRunResponses, WorkspaceResetRunErrors, ThrowOnError>({
+      url: "/api/v2/workspace/{workspaceID}/reset-run",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Run workspace delete operation
+   *
+   * Archive active sessions, dispose runtime instance state, remove the sandbox worktree, remove project sandbox metadata, and return the archived workspace aggregate.
+   */
+  public deleteRun<ThrowOnError extends boolean = false>(
+    parameters: {
+      workspaceID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "workspaceID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkspaceDeleteRunResponses, WorkspaceDeleteRunErrors, ThrowOnError>({
+      url: "/api/v2/workspace/{workspaceID}/delete-run",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Mark workspace resetting
+   *
+   * Transition a workspace into resetting lifecycle state.
+   */
+  public reset<ThrowOnError extends boolean = false>(
+    parameters: {
+      workspaceID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "workspaceID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkspaceResetResponses, WorkspaceResetErrors, ThrowOnError>({
+      url: "/api/v2/workspace/{workspaceID}/reset",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Mark workspace deleting
+   *
+   * Transition a workspace into deleting lifecycle state.
+   */
+  public delete<ThrowOnError extends boolean = false>(
+    parameters: {
+      workspaceID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "workspaceID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkspaceDeleteResponses, WorkspaceDeleteErrors, ThrowOnError>({
+      url: "/api/v2/workspace/{workspaceID}/delete",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Mark workspace archived
+   *
+   * Transition a workspace into archived lifecycle state.
+   */
+  public archive<ThrowOnError extends boolean = false>(
+    parameters: {
+      workspaceID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "workspaceID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkspaceArchiveResponses, WorkspaceArchiveErrors, ThrowOnError>({
+      url: "/api/v2/workspace/{workspaceID}/archive",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Mark workspace active
+   *
+   * Transition a workspace into active lifecycle state.
+   */
+  public active<ThrowOnError extends boolean = false>(
+    parameters: {
+      workspaceID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "workspaceID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkspaceActiveResponses, WorkspaceActiveErrors, ThrowOnError>({
+      url: "/api/v2/workspace/{workspaceID}/active",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Mark workspace failed
+   *
+   * Transition a workspace into failed lifecycle state.
+   */
+  public failed<ThrowOnError extends boolean = false>(
+    parameters: {
+      workspaceID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "workspaceID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkspaceFailedResponses, WorkspaceFailedErrors, ThrowOnError>({
+      url: "/api/v2/workspace/{workspaceID}/failed",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * List project workspaces
+   *
+   * Resolve and return known workspaces for the current project, including root and sandboxes.
+   */
+  public list2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<WorkspaceList2Responses, unknown, ThrowOnError>({
+      url: "/workspace",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get current workspace
+   *
+   * Resolve the workspace corresponding to the current instance directory.
+   */
+  public current2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<WorkspaceCurrent2Responses, unknown, ThrowOnError>({
+      url: "/workspace/current",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get workspace project status
+   *
+   * Return a lightweight workspace summary for the current project including counts and attachment totals.
+   */
+  public status2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<WorkspaceStatus2Responses, unknown, ThrowOnError>({
+      url: "/workspace/status",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get workspace by id
+   *
+   * Return a previously resolved workspace from the registry by workspace id.
+   */
+  public get2<ThrowOnError extends boolean = false>(
+    parameters: {
+      workspaceID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "workspaceID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<WorkspaceGet2Responses, WorkspaceGet2Errors, ThrowOnError>({
+      url: "/workspace/{workspaceID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Run workspace reset operation
+   *
+   * Archive active sessions, dispose runtime instance state, reset the sandbox worktree, and return the updated workspace aggregate.
+   */
+  public resetRun2<ThrowOnError extends boolean = false>(
+    parameters: {
+      workspaceID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "workspaceID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkspaceResetRun2Responses, WorkspaceResetRun2Errors, ThrowOnError>({
+      url: "/workspace/{workspaceID}/reset-run",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Run workspace delete operation
+   *
+   * Archive active sessions, dispose runtime instance state, remove the sandbox worktree, remove project sandbox metadata, and return the archived workspace aggregate.
+   */
+  public deleteRun2<ThrowOnError extends boolean = false>(
+    parameters: {
+      workspaceID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "workspaceID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkspaceDeleteRun2Responses, WorkspaceDeleteRun2Errors, ThrowOnError>(
+      {
+        url: "/workspace/{workspaceID}/delete-run",
+        ...options,
+        ...params,
+      },
+    )
+  }
+
+  /**
+   * Mark workspace resetting
+   *
+   * Transition a workspace into resetting lifecycle state.
+   */
+  public reset2<ThrowOnError extends boolean = false>(
+    parameters: {
+      workspaceID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "workspaceID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkspaceReset2Responses, WorkspaceReset2Errors, ThrowOnError>({
+      url: "/workspace/{workspaceID}/reset",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Mark workspace deleting
+   *
+   * Transition a workspace into deleting lifecycle state.
+   */
+  public delete2<ThrowOnError extends boolean = false>(
+    parameters: {
+      workspaceID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "workspaceID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkspaceDelete2Responses, WorkspaceDelete2Errors, ThrowOnError>({
+      url: "/workspace/{workspaceID}/delete",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Mark workspace archived
+   *
+   * Transition a workspace into archived lifecycle state.
+   */
+  public archive2<ThrowOnError extends boolean = false>(
+    parameters: {
+      workspaceID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "workspaceID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkspaceArchive2Responses, WorkspaceArchive2Errors, ThrowOnError>({
+      url: "/workspace/{workspaceID}/archive",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Mark workspace active
+   *
+   * Transition a workspace into active lifecycle state.
+   */
+  public active2<ThrowOnError extends boolean = false>(
+    parameters: {
+      workspaceID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "workspaceID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkspaceActive2Responses, WorkspaceActive2Errors, ThrowOnError>({
+      url: "/workspace/{workspaceID}/active",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Mark workspace failed
+   *
+   * Transition a workspace into failed lifecycle state.
+   */
+  public failed2<ThrowOnError extends boolean = false>(
+    parameters: {
+      workspaceID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "workspaceID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<WorkspaceFailed2Responses, WorkspaceFailed2Errors, ThrowOnError>({
+      url: "/workspace/{workspaceID}/failed",
+      ...options,
+      ...params,
     })
   }
 }
@@ -7888,6 +8524,11 @@ export class OpencodeClient extends HeyApiClient {
   private _project?: Project
   get project(): Project {
     return (this._project ??= new Project({ client: this.client }))
+  }
+
+  private _workspace?: Workspace
+  get workspace(): Workspace {
+    return (this._workspace ??= new Workspace({ client: this.client }))
   }
 
   private _pty?: Pty

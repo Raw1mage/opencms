@@ -57,6 +57,30 @@ const questionRequest = (id: string, sessionID: string, title = id) =>
     ],
   }) as QuestionRequest
 
+const workspace = (input: {
+  id?: string
+  directory?: string
+  lifecycleState?: NonNullable<State["workspace"]>["lifecycleState"]
+}) =>
+  ({
+    workspaceId: input.id ?? "workspace:1",
+    projectId: "project-1",
+    directory: input.directory ?? "/tmp",
+    kind: "root",
+    origin: "local",
+    lifecycleState: input.lifecycleState ?? "active",
+    attachments: {
+      sessionIds: [],
+      activeSessionId: undefined,
+      ptyIds: [],
+      previewIds: [],
+      workerIds: [],
+      draftKeys: [],
+      fileTabKeys: [],
+      commentKeys: [],
+    },
+  }) as NonNullable<State["workspace"]>
+
 const baseState = (input: Partial<State> = {}) =>
   ({
     status: "complete",
@@ -68,6 +92,7 @@ const baseState = (input: Partial<State> = {}) =>
     provider: {} as State["provider"],
     config: {} as State["config"],
     path: { directory: "/tmp" } as State["path"],
+    workspace: undefined,
     session: [],
     sessionTotal: 0,
     session_status: {},
@@ -498,5 +523,29 @@ describe("applyDirectoryEvent", () => {
 
     expect(pushes).toEqual(["/tmp"])
     expect(lspLoads).toBe(1)
+  })
+
+  test("updates workspace aggregate from live workspace events", () => {
+    const [store, setStore] = createStore(
+      baseState({
+        workspace: workspace({ lifecycleState: "active" }),
+      }),
+    )
+
+    applyDirectoryEvent({
+      event: {
+        type: "workspace.updated",
+        properties: {
+          workspace: workspace({ lifecycleState: "resetting" }),
+        },
+      },
+      store,
+      setStore,
+      push() {},
+      directory: "/tmp",
+      loadLsp() {},
+    })
+
+    expect(store.workspace?.lifecycleState).toBe("resetting")
   })
 })

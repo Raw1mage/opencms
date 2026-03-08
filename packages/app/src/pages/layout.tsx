@@ -149,7 +149,13 @@ export default function Layout(props: ParentProps) {
       }),
     )
   }
-  const isBusy = (directory: string) => !!state.busyWorkspaces[workspaceKey(directory)]
+  const isBusy = (directory: string) => {
+    const [child] = globalSync.child(directory, { bootstrap: false })
+    const lifecycleState = child.workspace?.lifecycleState
+    return (
+      lifecycleState === "resetting" || lifecycleState === "deleting" || !!state.busyWorkspaces[workspaceKey(directory)]
+    )
+  }
   const navLeave = { current: undefined as number | undefined }
   const [sortNow, setSortNow] = createSignal(Date.now())
   let sortNowInterval: ReturnType<typeof setInterval> | undefined
@@ -1261,16 +1267,27 @@ export default function Layout(props: ParentProps) {
     if (directory === root) return
 
     setBusy(directory, true)
+    const [child] = globalSync.child(directory, { bootstrap: false })
+    const workspaceID = child.workspace?.workspaceId
+    if (!workspaceID) {
+      setBusy(directory, false)
+      return
+    }
 
-    const result = await globalSDK.client.worktree
-      .remove({ directory: root, worktreeRemoveInput: { directory } })
-      .then((x) => x.data)
+    const result = await globalSDK
+      .fetch(`${globalSDK.url}/api/v2/workspace/${workspaceID}/delete-run`, {
+        method: "POST",
+      })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(await response.text())
+        return response.json()
+      })
       .catch((err) => {
         showToast({
           title: language.t("workspace.delete.failed.title"),
           description: errorMessage(err, language.t("common.requestFailed")),
         })
-        return false
+        return undefined
       })
 
     setBusy(directory, false)
@@ -1306,27 +1323,31 @@ export default function Layout(props: ParentProps) {
     })
     const dismiss = () => toaster.dismiss(progress)
 
-    const sessions: Session[] = await globalSDK.client.session
-      .list({ directory })
-      .then((x) => x.data ?? [])
-      .catch(() => [])
+    const [child] = globalSync.child(directory, { bootstrap: false })
 
-    clearWorkspaceTerminals(
-      directory,
-      sessions.map((s) => s.id),
-      platform,
-    )
-    await globalSDK.client.instance.dispose({ directory }).catch(() => undefined)
+    clearWorkspaceTerminals(directory, child.workspace?.attachments.sessionIds, platform)
 
-    const result = await globalSDK.client.worktree
-      .reset({ directory: root, worktreeResetInput: { directory } })
-      .then((x) => x.data)
+    const workspaceID = child.workspace?.workspaceId
+    if (!workspaceID) {
+      setBusy(directory, false)
+      dismiss()
+      return
+    }
+
+    const result = await globalSDK
+      .fetch(`${globalSDK.url}/api/v2/workspace/${workspaceID}/reset-run`, {
+        method: "POST",
+      })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(await response.text())
+        return response.json()
+      })
       .catch((err) => {
         showToast({
           title: language.t("workspace.reset.failed.title"),
           description: errorMessage(err, language.t("common.requestFailed")),
         })
-        return false
+        return undefined
       })
 
     if (!result) {
@@ -1334,21 +1355,6 @@ export default function Layout(props: ParentProps) {
       dismiss()
       return
     }
-
-    const archivedAt = Date.now()
-    await Promise.all(
-      sessions
-        .filter((session) => session.time.archived === undefined)
-        .map((session) =>
-          globalSDK.client.session
-            .update({
-              sessionID: session.id,
-              directory: session.directory,
-              time: { archived: archivedAt },
-            })
-            .catch(() => undefined),
-        ),
-    )
 
     setBusy(directory, false)
     dismiss()

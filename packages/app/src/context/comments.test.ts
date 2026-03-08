@@ -3,6 +3,8 @@ import { createRoot } from "solid-js"
 import type { LineComment } from "./comments"
 
 let createCommentSessionForTest: typeof import("./comments").createCommentSessionForTest
+let getCommentsWorkspaceDirectory: (dir: string, workspaceDirectory?: string) => string
+let getCommentsSessionScopeDirectory: (dir: string, id: string | undefined, workspaceDirectory?: string) => string
 
 beforeAll(async () => {
   mock.module("@solidjs/router", () => ({
@@ -15,8 +17,15 @@ beforeAll(async () => {
       provider: () => undefined,
     }),
   }))
+  mock.module("./global-sync", () => ({
+    useGlobalSync: () => ({
+      child: () => [{ workspace: undefined }, () => undefined],
+    }),
+  }))
   const mod = await import("./comments")
   createCommentSessionForTest = mod.createCommentSessionForTest
+  getCommentsWorkspaceDirectory = mod.getCommentsWorkspaceDirectory
+  getCommentsSessionScopeDirectory = mod.getCommentsSessionScopeDirectory
 })
 
 function line(file: string, id: string, time: number): LineComment {
@@ -28,6 +37,20 @@ function line(file: string, id: string, time: number): LineComment {
     selection: { start: 1, end: 1 },
   }
 }
+
+describe("comments workspace directory helpers", () => {
+  test("prefers explicit workspace directory for workspace fallback scope", () => {
+    expect(getCommentsWorkspaceDirectory("/repo/sandbox-a", "/repo")).toBe("/repo")
+  })
+
+  test("keeps session scope on original directory when session id exists", () => {
+    expect(getCommentsSessionScopeDirectory("/repo/sandbox-a", "session-1", "/repo")).toBe("/repo/sandbox-a")
+  })
+
+  test("uses workspace directory when there is no session id", () => {
+    expect(getCommentsSessionScopeDirectory("/repo/sandbox-a", undefined, "/repo")).toBe("/repo")
+  })
+})
 
 describe("comments session indexing", () => {
   test("keeps file list behavior and aggregate chronological order", () => {

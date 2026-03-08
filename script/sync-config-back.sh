@@ -5,6 +5,20 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TEMPLATE_DIR="$PROJECT_ROOT/templates"
 USER_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+USER_HOME="${HOME}"
+
+is_safe_runtime_dir() {
+    local candidate="$1"
+    if [ ! -e "$candidate" ]; then
+        return 0
+    fi
+    local resolved
+    resolved="$(readlink -f "$candidate")"
+    case "$resolved" in
+        "$USER_HOME"/*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
 
 echo "[Dev Sync Back] Synchronizing runtime -> templates (newer wins)..."
 echo "Source: $USER_CONFIG_DIR"
@@ -20,24 +34,25 @@ fi
 if [ -f "$USER_CONFIG_DIR/AGENTS.md" ]; then
     # -u: update (skip if dest is newer)
     # -t: preserve times
-    rsync -ut "$USER_CONFIG_DIR/AGENTS.md" "$TEMPLATE_DIR/AGENTS.md"
+    rsync -ru --no-perms --no-owner --no-group "$USER_CONFIG_DIR/AGENTS.md" "$TEMPLATE_DIR/AGENTS.md"
     echo "  -> Synced: templates/AGENTS.md"
 fi
 
 if [ -d "$USER_CONFIG_DIR/prompts" ]; then
     mkdir -p "$TEMPLATE_DIR/prompts"
-    rsync -au "$USER_CONFIG_DIR/prompts/" "$TEMPLATE_DIR/prompts/"
+    rsync -ru --no-perms --no-owner --no-group "$USER_CONFIG_DIR/prompts/" "$TEMPLATE_DIR/prompts/"
     echo "  -> Synced: templates/prompts/"
 fi
 
 # 2. 反向同步 Skills (ALL, newer wins)
 if [ -d "$USER_CONFIG_DIR/skills" ]; then
-    mkdir -p "$TEMPLATE_DIR/skills"
-    # -a: archive
-    # -u: update only (newer wins)
-    # no --delete: keep repo/runtime union; avoid accidental removal
-    rsync -au "$USER_CONFIG_DIR/skills/" "$TEMPLATE_DIR/skills/"
-    echo "  -> Synced: templates/skills/"
+    if is_safe_runtime_dir "$USER_CONFIG_DIR/skills"; then
+        mkdir -p "$TEMPLATE_DIR/skills"
+        rsync -ru --no-perms --no-owner --no-group "$USER_CONFIG_DIR/skills/" "$TEMPLATE_DIR/skills/"
+        echo "  -> Synced: templates/skills/"
+    else
+        echo "  -> Skipped: templates/skills/ (runtime skills path resolves outside $USER_HOME)"
+    fi
 fi
 
 echo "[Dev Sync Back] Complete."

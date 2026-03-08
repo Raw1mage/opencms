@@ -5,6 +5,20 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TEMPLATE_DIR="$PROJECT_ROOT/templates"
 USER_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+USER_HOME="${HOME}"
+
+is_safe_runtime_dir() {
+    local candidate="$1"
+    if [ ! -e "$candidate" ]; then
+        return 0
+    fi
+    local resolved
+    resolved="$(readlink -f "$candidate")"
+    case "$resolved" in
+        "$USER_HOME"/*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
 
 echo "[Dev Sync] Syncing templates -> runtime (newer wins)..."
 
@@ -23,13 +37,13 @@ fi
 # ---------------------------------------------------------
 if [ -f "$TEMPLATE_DIR/AGENTS.md" ]; then
     # -u: newer wins (don't overwrite newer runtime file)
-    rsync -ut "$TEMPLATE_DIR/AGENTS.md" "$USER_CONFIG_DIR/AGENTS.md"
+    rsync -ru --no-perms --no-owner --no-group "$TEMPLATE_DIR/AGENTS.md" "$USER_CONFIG_DIR/AGENTS.md"
     echo "  -> Synced: AGENTS.md"
 fi
 
 if [ -d "$TEMPLATE_DIR/prompts" ]; then
     mkdir -p "$USER_CONFIG_DIR/prompts"
-    rsync -au "$TEMPLATE_DIR/prompts/" "$USER_CONFIG_DIR/prompts/"
+    rsync -ru --no-perms --no-owner --no-group "$TEMPLATE_DIR/prompts/" "$USER_CONFIG_DIR/prompts/"
     echo "  -> Synced: prompts/"
 fi
 
@@ -37,12 +51,14 @@ fi
 # 2. Skills (ALL skills, update only if newer)
 # ---------------------------------------------------------
 if [ -d "$TEMPLATE_DIR/skills" ]; then
-    mkdir -p "$USER_CONFIG_DIR/skills"
-    # -a: archive
-    # -u: update only (newer wins)
-    # no --delete: preserve locally-added skills for reverse sync
-    rsync -au "$TEMPLATE_DIR/skills/" "$USER_CONFIG_DIR/skills/"
-    echo "  -> Synced: skills/"
+    mkdir -p "$USER_CONFIG_DIR"
+    if is_safe_runtime_dir "$USER_CONFIG_DIR/skills"; then
+        mkdir -p "$USER_CONFIG_DIR/skills"
+        rsync -ru --no-perms --no-owner --no-group "$TEMPLATE_DIR/skills/" "$USER_CONFIG_DIR/skills/"
+        echo "  -> Synced: skills/"
+    else
+        echo "  -> Skipped: skills/ (runtime skills path resolves outside $USER_HOME)"
+    fi
 fi
 
 # ---------------------------------------------------------
@@ -53,7 +69,7 @@ USER_FILES=("accounts.json" "opencode.json")
 for FILE in "${USER_FILES[@]}"; do
     if [ -f "$TEMPLATE_DIR/$FILE" ]; then
         # --ignore-existing: do not overwrite existing files
-        rsync -a --ignore-existing "$TEMPLATE_DIR/$FILE" "$USER_CONFIG_DIR/$FILE"
+        rsync -r --ignore-existing --no-perms --no-owner --no-group "$TEMPLATE_DIR/$FILE" "$USER_CONFIG_DIR/$FILE"
         echo "  -> Checked: $FILE"
     fi
 done

@@ -14,6 +14,7 @@ import { debugCheckpoint, debugSpan } from "@/util/debug"
 import { ShareNext } from "@/share/share-next"
 import { Snapshot } from "../snapshot"
 import { Truncate } from "../tool/truncation"
+import { WorkspaceService } from "./workspace"
 
 export async function InstanceBootstrap() {
   debugCheckpoint("bootstrap", "start", { directory: Instance.directory })
@@ -39,6 +40,9 @@ export async function InstanceBootstrap() {
   await debugSpan("bootstrap", "FileWatcher.init", {}, () => FileWatcher.init())
   await debugSpan("bootstrap", "File.init", {}, () => File.init())
   await debugSpan("bootstrap", "Vcs.init", {}, () => Vcs.init())
+  await debugSpan("bootstrap", "WorkspaceService.initEventSubscriptions", {}, () =>
+    Promise.resolve(WorkspaceService.initEventSubscriptions()),
+  )
   await debugSpan("bootstrap", "Snapshot.init", {}, () => Snapshot.init())
   await debugSpan("bootstrap", "Truncate.init", {}, () => Truncate.init())
 

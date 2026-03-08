@@ -19,6 +19,11 @@
       "target": "state"
     },
     {
+      "path": "model.json",
+      "description": "TUI 本地模型近期/收藏/隱藏/variant 狀態",
+      "target": "state"
+    },
+    {
       "path": "AGENTS.md",
       "description": "自訂 agent 指令 + 約定",
       "target": "config"

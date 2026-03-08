@@ -2,6 +2,8 @@ import { batch, createMemo, createRoot, onCleanup } from "solid-js"
 import { createStore, reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import { createSimpleContext } from "@opencode-ai/ui/context"
 import { useParams } from "@solidjs/router"
+import { useGlobalSync } from "./global-sync"
+import { normalizeWorkspaceDirectory } from "./global-sync/workspace-adapter"
 import { Persist, persisted } from "@/utils/persist"
 import { createScopedCache } from "@/utils/scoped-cache"
 import { uuid } from "@/utils/uuid"
@@ -19,6 +21,15 @@ type CommentFocus = { file: string; id: string }
 
 const WORKSPACE_KEY = "__workspace__"
 const MAX_COMMENT_SESSIONS = 20
+
+export function getCommentsWorkspaceDirectory(dir: string, workspaceDirectory?: string) {
+  return normalizeWorkspaceDirectory(workspaceDirectory ?? dir)
+}
+
+export function getCommentsSessionScopeDirectory(dir: string, id: string | undefined, workspaceDirectory?: string) {
+  if (id) return normalizeWorkspaceDirectory(dir)
+  return getCommentsWorkspaceDirectory(dir, workspaceDirectory)
+}
 
 function sessionKey(dir: string, id: string | undefined) {
   return `${dir}\n${id ?? WORKSPACE_KEY}`
@@ -147,6 +158,7 @@ export const { use: useComments, provider: CommentsProvider } = createSimpleCont
   gate: false,
   init: () => {
     const params = useParams()
+    const globalSync = useGlobalSync()
     const cache = createScopedCache(
       (key) => {
         const decoded = decodeSessionKey(key)
@@ -164,7 +176,9 @@ export const { use: useComments, provider: CommentsProvider } = createSimpleCont
     onCleanup(() => cache.clear())
 
     const load = (dir: string, id: string | undefined) => {
-      const key = sessionKey(dir, id)
+      const [store] = globalSync.child(dir, { bootstrap: false })
+      const scopeDir = getCommentsSessionScopeDirectory(dir, id, store.workspace?.directory)
+      const key = sessionKey(scopeDir, id)
       return cache.get(key).value
     }
 

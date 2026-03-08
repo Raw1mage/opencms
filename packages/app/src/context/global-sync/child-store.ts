@@ -2,6 +2,7 @@ import { createRoot, createEffect, getOwner, onCleanup, runWithOwner, type Acces
 import { createStore, type SetStoreFunction, type Store } from "solid-js/store"
 import { Persist, persisted } from "@/utils/persist"
 import type { VcsInfo } from "@opencode-ai/sdk/v2/client"
+import { createWorkspaceId, deriveWorkspaceKind, normalizeWorkspaceDirectory } from "./workspace-adapter"
 import {
   DIR_IDLE_TTL_MS,
   MAX_DIR_STORES,
@@ -14,6 +15,35 @@ import {
   type VcsCache,
 } from "./types"
 import { canDisposeDirectory, pickDirectoriesToEvict } from "./eviction"
+
+function resolveWorkspaceState(input: { directory: string; projectId?: string; worktree?: string }) {
+  if (!input.projectId) return undefined
+  const directory = normalizeWorkspaceDirectory(input.directory)
+  const kind = deriveWorkspaceKind({ directory, worktree: input.worktree })
+  const origin: "generated" | "local" = kind === "derived" ? "generated" : "local"
+  return {
+    workspaceId: createWorkspaceId({
+      directory,
+      projectId: input.projectId,
+      kind,
+    }),
+    projectId: input.projectId,
+    directory,
+    kind,
+    origin,
+    lifecycleState: "active" as const,
+    attachments: {
+      sessionIds: [],
+      activeSessionId: undefined,
+      ptyIds: [],
+      previewIds: [],
+      workerIds: [],
+      draftKeys: [],
+      fileTabKeys: [],
+      commentKeys: [],
+    },
+  }
+}
 
 export function createChildStoreManager(input: {
   owner: Owner
@@ -126,40 +156,42 @@ export function createChildStoreManager(input: {
 
   function ensureChild(directory: string) {
     if (!directory) console.error("No directory provided")
-    if (!children[directory]) {
+    const normalizedDirectory = normalizeWorkspaceDirectory(directory)
+    if (!children[normalizedDirectory]) {
       const vcs = runWithOwner(input.owner, () =>
         persisted(
-          Persist.workspace(directory, "vcs", ["vcs.v1"]),
+          Persist.workspace(normalizedDirectory, "vcs", ["vcs.v1"]),
           createStore({ value: undefined as VcsInfo | undefined }),
         ),
       )
       if (!vcs) throw new Error("Failed to create persisted cache")
       const vcsStore = vcs[0]
       const vcsReady = vcs[3]
-      vcsCache.set(directory, { store: vcsStore, setStore: vcs[1], ready: vcsReady })
+      vcsCache.set(normalizedDirectory, { store: vcsStore, setStore: vcs[1], ready: vcsReady })
 
       const meta = runWithOwner(input.owner, () =>
         persisted(
-          Persist.workspace(directory, "project", ["project.v1"]),
+          Persist.workspace(normalizedDirectory, "project", ["project.v1"]),
           createStore({ value: undefined as ProjectMeta | undefined }),
         ),
       )
       if (!meta) throw new Error("Failed to create persisted project metadata")
-      metaCache.set(directory, { store: meta[0], setStore: meta[1], ready: meta[3] })
+      metaCache.set(normalizedDirectory, { store: meta[0], setStore: meta[1], ready: meta[3] })
 
       const icon = runWithOwner(input.owner, () =>
         persisted(
-          Persist.workspace(directory, "icon", ["icon.v1"]),
+          Persist.workspace(normalizedDirectory, "icon", ["icon.v1"]),
           createStore({ value: undefined as string | undefined }),
         ),
       )
       if (!icon) throw new Error("Failed to create persisted project icon")
-      iconCache.set(directory, { store: icon[0], setStore: icon[1], ready: icon[3] })
+      iconCache.set(normalizedDirectory, { store: icon[0], setStore: icon[1], ready: icon[3] })
 
       const init = () =>
         createRoot((dispose) => {
           const child = createStore<State>({
             project: "",
+            workspace: undefined,
             projectMeta: meta[0].value,
             icon: icon[0].value,
             provider: { all: [], connected: [], default: {} },
@@ -182,14 +214,24 @@ export function createChildStoreManager(input: {
             message: {},
             part: {},
           })
-          children[directory] = child
-          disposers.set(directory, dispose)
+          children[normalizedDirectory] = child
+          disposers.set(normalizedDirectory, dispose)
 
           createEffect(() => {
             if (!vcsReady()) return
             const cached = vcsStore.value
             if (!cached?.branch) return
             child[1]("vcs", (value) => value ?? cached)
+          })
+          createEffect(() => {
+            child[1](
+              "workspace",
+              resolveWorkspaceState({
+                directory: normalizedDirectory,
+                projectId: child[0].project,
+                worktree: child[0].path.worktree,
+              }),
+            )
           })
           createEffect(() => {
             child[1]("projectMeta", meta[0].value)
@@ -202,8 +244,8 @@ export function createChildStoreManager(input: {
       runWithOwner(input.owner, init)
       input.markStats(Object.keys(children).length)
     }
-    mark(directory)
-    const childStore = children[directory]
+    mark(normalizedDirectory)
+    const childStore = children[normalizedDirectory]
     if (!childStore) throw new Error("Failed to create store")
     return childStore
   }

@@ -2,11 +2,21 @@ import { createEffect, createRoot } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { Persist, persisted } from "@/utils/persist"
 import { createScopedCache } from "@/utils/scoped-cache"
+import { normalizeWorkspaceDirectory } from "../global-sync/workspace-adapter"
 import type { FileViewState, SelectedLineRange } from "./types"
 
 const WORKSPACE_KEY = "__workspace__"
 const MAX_FILE_VIEW_SESSIONS = 20
 const MAX_VIEW_FILES = 500
+
+export function getFileViewWorkspaceDirectory(dir: string, workspaceDirectory?: string) {
+  return normalizeWorkspaceDirectory(workspaceDirectory ?? dir)
+}
+
+export function getFileViewSessionScopeDirectory(dir: string, id: string | undefined, workspaceDirectory?: string) {
+  if (id) return normalizeWorkspaceDirectory(dir)
+  return getFileViewWorkspaceDirectory(dir, workspaceDirectory)
+}
 
 function normalizeSelectedLines(range: SelectedLineRange): SelectedLineRange {
   if (range.start <= range.end) return range
@@ -137,8 +147,9 @@ export function createFileViewCache() {
   )
 
   return {
-    load: (dir: string, id: string | undefined) => {
-      const key = `${dir}\n${id ?? WORKSPACE_KEY}`
+    load: (dir: string, id: string | undefined, workspaceDirectory?: string) => {
+      const scopeDir = getFileViewSessionScopeDirectory(dir, id, workspaceDirectory)
+      const key = `${scopeDir}\n${id ?? WORKSPACE_KEY}`
       return cache.get(key).value
     },
     clear: () => cache.clear(),
