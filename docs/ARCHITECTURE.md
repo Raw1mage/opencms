@@ -165,10 +165,12 @@ This subsection documents how prompt footer usage/account metadata stays fresh w
    - Entry point: `packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx`
    - TUI computes footer metadata from current provider/model/account state and provider-specific quota hints.
    - OpenAI quota is loaded through a Solid `createResource(quotaRefresh, ...)` path (`codexQuota`).
-   - Refresh is triggered by two low-cost signals:
-     - **turn completion signal**: when `lastCompletedAssistant` changes, TUI increments `quotaRefresh`
-     - **low-frequency timer**: footer tick refresh (default 15s via `OPENCODE_TUI_FOOTER_REFRESH_MS`)
-   - Result: footer usage looks near-realtime after real assistant work, but avoids aggressive background polling.
+   - Refresh policy is event-driven, not interval-driven:
+     - **provider relevance gate**: quota path is only armed when current effective provider family is `openai`
+     - **initial on-demand hydrate**: entering an OpenAI-backed footer can trigger one refresh if the last refresh is older than 60 seconds
+     - **turn completion signal**: when `lastCompletedAssistant` changes, TUI refreshes quota only if the previous refresh is older than 60 seconds
+   - The low-frequency footer timer (default 15s via `OPENCODE_TUI_FOOTER_REFRESH_MS`) is retained for lightweight elapsed/account display updates only; it does **not** poll OpenAI quota in the background.
+   - Result: footer usage stays fresh during real OpenAI usage while avoiding idle quota polling.
 
 2. **Web prompt footer orchestration**
    - Entry point: `packages/app/src/components/prompt-input.tsx`

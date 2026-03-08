@@ -71,6 +71,7 @@ export type PromptRef = {
 }
 
 const PLACEHOLDERS = ["Fix a TODO in the codebase", "What is the tech stack of this project?", "Fix broken tests"]
+const OPENAI_QUOTA_REFRESH_MIN_MS = 60_000
 
 export function Prompt(props: PromptProps) {
   let input: TextareaRenderable
@@ -113,6 +114,7 @@ export function Prompt(props: PromptProps) {
   const kv = useKV()
   const [rateLimitKey, setRateLimitKey] = createSignal("")
   const [quotaRefresh, setQuotaRefresh] = createSignal(0)
+  const [lastQuotaRefreshAt, setLastQuotaRefreshAt] = createSignal(0)
   const [lastQuotaRefreshMarker, setLastQuotaRefreshMarker] = createSignal<string>("")
   const [footerTick, setFooterTick] = createSignal(0)
   const timers = createTimerCoordinator("prompt")
@@ -131,6 +133,27 @@ export function Prompt(props: PromptProps) {
     return messages.findLast((m) => m.role === "assistant" && m.time?.completed)
   })
 
+  const currentQuotaFamily = createMemo(() => {
+    if (disableFooterMeta) return undefined
+    const providerId = local.model.current()?.providerId
+    if (!providerId) return undefined
+    return Account.parseFamily(providerId) ?? providerId
+  })
+
+  const requestOpenAIQuotaRefresh = (options?: { force?: boolean }) => {
+    if (disableFooterMeta) return
+    if (currentQuotaFamily() !== "openai") return
+    const now = Date.now()
+    if (!options?.force && now - lastQuotaRefreshAt() < OPENAI_QUOTA_REFRESH_MIN_MS) return
+    setLastQuotaRefreshAt(now)
+    setQuotaRefresh((v) => v + 1)
+  }
+
+  createEffect(() => {
+    if (currentQuotaFamily() !== "openai") return
+    requestOpenAIQuotaRefresh()
+  })
+
   createEffect(() => {
     const last = lastCompletedAssistant()
     const completed =
@@ -139,7 +162,7 @@ export function Prompt(props: PromptProps) {
     const marker = `${last.id}:${completed}`
     if (marker === lastQuotaRefreshMarker()) return
     setLastQuotaRefreshMarker(marker)
-    setQuotaRefresh((v) => v + 1)
+    requestOpenAIQuotaRefresh()
   })
 
   const footerRefreshMs = (() => {
