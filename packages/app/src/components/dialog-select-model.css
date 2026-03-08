@@ -55,3 +55,32 @@
   border-right: 2px solid var(--icon-weak-base);
   border-bottom: 2px solid var(--icon-weak-base);
 }
+
+.model-manager-dialog .model-manager-column-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  margin-left: -5px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: col-resize;
+  z-index: 4;
+}
+
+.model-manager-dialog .model-manager-column-divider::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--border-base);
+  transition: background 120ms ease;
+}
+
+.model-manager-dialog .model-manager-column-divider:hover::before {
+  background: var(--border-strong-base);
+}

@@ -11,6 +11,7 @@ Status: In Progress
 - 不影響非 OpenAI provider 的既有帳號顯示。
 - 後續擴充：讓 web prompt footer 也走共享 quota formatter，並把 Gemini / Google-API 的 request-counter 顯示規則一起抽成共用層。
 - account 欄位的視覺呈現需再優化為近似雙欄對齊：左側帳號、右側 usage，無額外格線。
+- model selector 三欄分隔線需支援拖曳調整欄寬，並將結果保存在 local 端；需設定安全上下限與 reset 能力。
 
 ## 2. 範圍
 
@@ -82,6 +83,8 @@ Status: In Progress
   - web 層：`packages/app/src/utils/quota-hint-cache.ts`，統一 prompt footer / model selector 的前端 60 秒 hint cache 與 stale-on-demand refresh。
 - TUI layout refinement：`dialog-admin.tsx` 的 Model Activities 列表改為 capped column widths（provider/model/account）+ 固定雙空格分隔，避免長模型名把中間欄位撐出大面積空白。
 - 更正需求解讀：使用者要收的是整個 admin panel 浮窗的右緣外圍 padding / 寬度，而非 Activities rows 的 account 欄本身。已回退 account 欄 `21 -> 24`，改為透過 dialog width 收斂（`MIN_DIALOG_WIDTH 88 -> 85`，activities dynamic width buffer `+12 -> +9`）來縮窄右邊外圍留白。
+- 新增 model selector 欄寬調整：web 三欄 grid 改為可拖曳 divider，provider/account 欄以 ratio 存進既有 `MODEL_MANAGER_LAYOUT_STORAGE_KEY`；desktop 模式下會對 provider/account/model 三欄套用最小寬度 clamp，並支援雙擊 divider reset 預設比例。
+- 三欄標題格式再統一：provider/account/model 三欄都改成採用第一欄樣式的簡潔標題列（無額外分隔線、副標題只保留 mobile breadcrumb），避免三欄 header 規則各自為政。
 
 ### Validation
 

@@ -51,6 +51,10 @@ const isFree = (provider: string, cost: { input: number } | undefined) =>
   provider === "opencode" && (!cost || cost.input === 0)
 
 const MODEL_MANAGER_LAYOUT_STORAGE_KEY = "opencode.web.modelManager.layout.v1"
+const MODEL_MANAGER_PROVIDER_MIN_PX = 160
+const MODEL_MANAGER_ACCOUNT_MIN_PX = 200
+const MODEL_MANAGER_MODEL_MIN_PX = 160
+const MODEL_MANAGER_DEFAULT_COLUMN_LAYOUT = { providerRatio: 0.31, accountRatio: 0.35 }
 const ModelList: Component<{
   provider?: string
   class?: string
@@ -330,7 +334,9 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
     }
   }
   const [dialogSize, setDialogSize] = createSignal(initialDialogSize())
+  const [columnLayout, setColumnLayout] = createSignal(MODEL_MANAGER_DEFAULT_COLUMN_LAYOUT)
   let dialogContainerEl: HTMLElement | undefined
+  let columnsEl: HTMLDivElement | undefined
 
   const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
@@ -371,6 +377,8 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
         height?: number
         x?: number
         y?: number
+        providerRatio?: number
+        accountRatio?: number
       }
       const nextSize = {
         width: typeof parsed.width === "number" ? parsed.width : dialogSize().width,
@@ -383,6 +391,9 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
       const clamped = clampDialogState(nextSize, nextOffset)
       setDialogSize(clamped.size)
       setDialogOffset(clamped.offset)
+      if (typeof parsed.providerRatio === "number" && typeof parsed.accountRatio === "number") {
+        setColumnLayout({ providerRatio: parsed.providerRatio, accountRatio: parsed.accountRatio })
+      }
     } catch {
       // ignore malformed persisted layout
     }
@@ -395,7 +406,14 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
       const offset = dialogOffset()
       window.localStorage.setItem(
         MODEL_MANAGER_LAYOUT_STORAGE_KEY,
-        JSON.stringify({ width: size.width, height: size.height, x: offset.x, y: offset.y }),
+        JSON.stringify({
+          width: size.width,
+          height: size.height,
+          x: offset.x,
+          y: offset.y,
+          providerRatio: columnLayout().providerRatio,
+          accountRatio: columnLayout().accountRatio,
+        }),
       )
     } catch {
       // ignore storage quota/security errors
@@ -428,6 +446,44 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
     container.style.transform = `translate(${state.offset.x}px, ${state.offset.y}px)`
   }
 
+  const getDesktopColumnsWidth = () => {
+    if (columnsEl) return columnsEl.getBoundingClientRect().width
+    return dialogSize().width
+  }
+
+  const clampColumnLayout = (layout = columnLayout(), totalWidth = getDesktopColumnsWidth()) => {
+    if (isMobileViewport()) return MODEL_MANAGER_DEFAULT_COLUMN_LAYOUT
+    const total = Math.max(1, Math.floor(totalWidth))
+    const providerMax = Math.max(
+      MODEL_MANAGER_PROVIDER_MIN_PX,
+      total - MODEL_MANAGER_ACCOUNT_MIN_PX - MODEL_MANAGER_MODEL_MIN_PX,
+    )
+    const providerPx = clamp(Math.round(layout.providerRatio * total), MODEL_MANAGER_PROVIDER_MIN_PX, providerMax)
+    const accountMax = Math.max(MODEL_MANAGER_ACCOUNT_MIN_PX, total - providerPx - MODEL_MANAGER_MODEL_MIN_PX)
+    const accountPx = clamp(Math.round(layout.accountRatio * total), MODEL_MANAGER_ACCOUNT_MIN_PX, accountMax)
+    return {
+      providerRatio: providerPx / total,
+      accountRatio: accountPx / total,
+    }
+  }
+
+  const columnTemplate = createMemo(() => {
+    if (isMobileViewport()) return undefined
+    const total = getDesktopColumnsWidth()
+    const layout = clampColumnLayout(columnLayout(), total)
+    const providerPx = Math.round(layout.providerRatio * total)
+    const accountPx = Math.round(layout.accountRatio * total)
+    return `${providerPx}px ${accountPx}px minmax(${MODEL_MANAGER_MODEL_MIN_PX}px, 1fr)`
+  })
+
+  const dividerOffsets = createMemo(() => {
+    const total = getDesktopColumnsWidth()
+    const layout = clampColumnLayout(columnLayout(), total)
+    const left = Math.round(layout.providerRatio * total)
+    const middle = left + Math.round(layout.accountRatio * total)
+    return { left, middle }
+  })
+
   createEffect(() => {
     applyDialogFrame()
   })
@@ -439,7 +495,13 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   createEffect(() => {
     dialogSize()
     dialogOffset()
+    columnLayout()
     saveDialogLayout()
+  })
+
+  createEffect(() => {
+    if (isMobileViewport()) return
+    setColumnLayout((current) => clampColumnLayout(current))
   })
 
   createEffect(() => {
@@ -499,6 +561,50 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
       const clamped = clampDialogState(nextSize, nextOffset)
       setDialogSize(clamped.size)
       setDialogOffset(clamped.offset)
+    }
+
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove)
+      window.removeEventListener("mouseup", onUp)
+    }
+
+    window.addEventListener("mousemove", onMove)
+    window.addEventListener("mouseup", onUp)
+  }
+
+  const startColumnResize = (divider: "left" | "right", event: MouseEvent) => {
+    if (isMobileViewport()) return
+    event.preventDefault()
+    event.stopPropagation()
+    const startX = event.clientX
+    const startLayout = clampColumnLayout(columnLayout())
+    const total = getDesktopColumnsWidth()
+    const startProviderPx = startLayout.providerRatio * total
+    const startAccountPx = startLayout.accountRatio * total
+
+    const onMove = (moveEvent: MouseEvent) => {
+      const dx = moveEvent.clientX - startX
+      if (divider === "left") {
+        const providerPx = clamp(
+          Math.round(startProviderPx + dx),
+          MODEL_MANAGER_PROVIDER_MIN_PX,
+          total - MODEL_MANAGER_ACCOUNT_MIN_PX - MODEL_MANAGER_MODEL_MIN_PX,
+        )
+        const accountPx = clamp(
+          Math.round(startAccountPx - (providerPx - startProviderPx)),
+          MODEL_MANAGER_ACCOUNT_MIN_PX,
+          total - providerPx - MODEL_MANAGER_MODEL_MIN_PX,
+        )
+        setColumnLayout({ providerRatio: providerPx / total, accountRatio: accountPx / total })
+        return
+      }
+
+      const accountPx = clamp(
+        Math.round(startAccountPx + dx),
+        MODEL_MANAGER_ACCOUNT_MIN_PX,
+        total - Math.round(startProviderPx) - MODEL_MANAGER_MODEL_MIN_PX,
+      )
+      setColumnLayout({ providerRatio: startProviderPx / total, accountRatio: accountPx / total })
     }
 
     const onUp = () => {
@@ -898,7 +1004,11 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 flex-1 min-h-0 h-full overflow-hidden">
+      <div
+        ref={columnsEl}
+        class="relative grid grid-cols-1 md:grid-cols-3 flex-1 min-h-0 h-full overflow-hidden"
+        style={columnTemplate() ? { "grid-template-columns": columnTemplate() } : undefined}
+      >
         <div
           class={cn(
             "border-r border-border-base flex-col bg-surface-base min-w-0 min-h-0",
@@ -906,10 +1016,10 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
             "md:flex",
           )}
         >
+          <div class="px-3 py-2 text-11-medium text-text-weak uppercase tracking-wider">
+            {language.t("common.providers")}
+          </div>
           <div class="model-manager-column-scroll p-2 space-y-1 overflow-y-auto flex-1 min-h-0">
-            <div class="px-3 py-2 text-11-medium text-text-weak uppercase tracking-wider">
-              {language.t("common.providers")}
-            </div>
             <For each={providersForMode()}>
               {(provider) => (
                 <ProviderItem
@@ -933,12 +1043,9 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
             "md:flex",
           )}
         >
-          <div class="px-3 py-2 text-11-medium text-text-weak uppercase tracking-wider border-b border-border-base">
+          <div class="px-3 py-2 text-11-medium text-text-weak uppercase tracking-wider">
             {language.t("settings.accounts.title")}
           </div>
-          <Show when={selectedProviderId()}>
-            {(provider) => <div class="px-3 py-1 text-11-regular text-text-weak">{provider()}</div>}
-          </Show>
           <div class="model-manager-column-scroll p-2 space-y-1 overflow-y-auto flex-1 min-h-0">
             <Show
               when={accountsForSelectedProvider().length > 0}
@@ -993,7 +1100,10 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
             "md:flex",
           )}
         >
-          <div class="px-3 py-2 text-11-regular text-text-weak border-b border-border-base md:hidden">
+          <div class="px-3 py-2 text-11-medium text-text-weak uppercase tracking-wider">
+            {language.t("dialog.model.select.title")}
+          </div>
+          <div class="px-3 pb-1 text-11-regular text-text-weak md:hidden">
             <span>{selectedProviderId() || "--"}</span>
             <span class="px-1">/</span>
             <span>{selectedAccountId() || "--"}</span>
@@ -1099,6 +1209,25 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
             </List>
           </div>
         </div>
+
+        <Show when={!isMobileViewport()}>
+          <button
+            type="button"
+            class="model-manager-column-divider hidden md:block"
+            style={{ left: `${dividerOffsets().left}px` }}
+            onDblClick={() => setColumnLayout(MODEL_MANAGER_DEFAULT_COLUMN_LAYOUT)}
+            onMouseDown={(event) => startColumnResize("left", event)}
+            aria-label="Resize provider and account columns"
+          />
+          <button
+            type="button"
+            class="model-manager-column-divider hidden md:block"
+            style={{ left: `${dividerOffsets().middle}px` }}
+            onDblClick={() => setColumnLayout(MODEL_MANAGER_DEFAULT_COLUMN_LAYOUT)}
+            onMouseDown={(event) => startColumnResize("right", event)}
+            aria-label="Resize account and model columns"
+          />
+        </Show>
       </div>
       <Show when={!isMobileViewport()}>
         <button
