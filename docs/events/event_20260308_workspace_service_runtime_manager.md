@@ -49,6 +49,10 @@ Status: Done
   - `attachSession(...)` / `detachSession(...)`
   - `attachPty(...)` / `detachPty(...)`
   - `initEventSubscriptions()`
+- 第三步開始建立 API boundary：
+  - runtime 新增 `WorkspaceService.listProjectWorkspaces(...)`
+  - runtime 新增 `WorkspaceService.getProjectStatus(...)`
+  - server 新增 `/workspace` / `/workspace/current` / `/workspace/status` / `/workspace/:workspaceID`
 - 預設 service 內部持有 in-memory registry，並透過 `resolveWorkspaceWithRegistry()` 對外提供 normalized lookup + auto-upsert。
 - 補上 `resolveWorkspaceViaService()`，讓後續 consumer 可先依賴 service seam，而不是直接碰 resolver/registry。
 - `InstanceBootstrap()` 已開始初始化 workspace service event subscriptions，讓 session/pty 事件能把 attachment ownership 寫回 workspace registry。
@@ -58,6 +62,8 @@ Status: Done
   - helper 可使用注入的 service
   - session attachment registration 正常
   - pty attachment registration 正常
+  - project workspace listing 正常
+  - project workspace status summary 正常
 
 ### Validation
 
@@ -65,3 +71,4 @@ Status: Done
 - `bun run --cwd packages/opencode typecheck` ✅
 - Architecture Sync: Updated
   - 已同步 architecture file map，補入 `src/project/workspace/service.ts` 作為 runtime façade，並註記其開始承接 session/pty attachment registration。
+  - 已同步 server route map，補入 `src/server/routes/workspace.ts` 作為第一版 workspace API boundary。

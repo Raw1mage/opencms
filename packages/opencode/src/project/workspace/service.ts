@@ -1,7 +1,9 @@
 import { Bus } from "@/bus"
 import { Pty } from "@/pty"
 import { Session } from "@/session"
+import type { Project } from "../project"
 import { summarizeWorkspaceAttachments, type WorkspaceAttachmentDescriptor } from "./attachments"
+import { buildRootWorkspace, buildSandboxWorkspace } from "./resolver"
 import type { WorkspaceAggregate } from "./types"
 import { createInMemoryWorkspaceRegistry, type WorkspaceRegistry } from "./registry"
 import { normalizeWorkspaceDirectory } from "./identity"
@@ -14,6 +16,13 @@ export interface WorkspaceService {
   getByDirectory(directory: string): Promise<WorkspaceAggregate | undefined>
   getById(workspaceId: string): Promise<WorkspaceAggregate | undefined>
   listByProject(projectId: string): Promise<WorkspaceAggregate[]>
+  listProjectWorkspaces(project: Pick<Project.Info, "id" | "worktree" | "sandboxes">): Promise<WorkspaceAggregate[]>
+  getProjectStatus(project: Pick<Project.Info, "id" | "worktree" | "sandboxes">): Promise<{
+    projectId: string
+    total: number
+    kinds: { root: number; sandbox: number; derived: number }
+    attachments: { sessions: number; ptys: number; previews: number; workers: number }
+  }>
   attachSession(info: Pick<Session.Info, "id" | "directory"> & { active?: boolean }): Promise<WorkspaceAggregate>
   detachSession(input: { sessionID: string; directory: string }): Promise<WorkspaceAggregate>
   attachPty(info: Pick<Pty.Info, "id" | "cwd">): Promise<WorkspaceAggregate>
@@ -96,6 +105,49 @@ export function createWorkspaceService(
     },
     listByProject(projectId) {
       return registry.listByProject(projectId)
+    },
+    async listProjectWorkspaces(project) {
+      const rootDirectory = normalizeWorkspaceDirectory(project.worktree)
+      const rootExisting = await registry.getByDirectory(rootDirectory)
+      if (!rootExisting || rootExisting.projectId !== project.id || rootExisting.kind !== "root") {
+        await registry.upsert(
+          buildRootWorkspace({
+            projectId: project.id,
+            directory: rootDirectory,
+          }),
+        )
+      }
+
+      for (const directory of project.sandboxes ?? []) {
+        const normalized = normalizeWorkspaceDirectory(directory)
+        const existing = await registry.getByDirectory(normalized)
+        if (existing && existing.projectId === project.id && existing.kind === "sandbox") continue
+        await registry.upsert(
+          buildSandboxWorkspace({
+            projectId: project.id,
+            directory: normalized,
+          }),
+        )
+      }
+      return registry.listByProject(project.id)
+    },
+    async getProjectStatus(project) {
+      const workspaces = await this.listProjectWorkspaces(project)
+      return {
+        projectId: project.id,
+        total: workspaces.length,
+        kinds: {
+          root: workspaces.filter((item) => item.kind === "root").length,
+          sandbox: workspaces.filter((item) => item.kind === "sandbox").length,
+          derived: workspaces.filter((item) => item.kind === "derived").length,
+        },
+        attachments: {
+          sessions: workspaces.reduce((sum, item) => sum + item.attachments.sessionIds.length, 0),
+          ptys: workspaces.reduce((sum, item) => sum + item.attachments.ptyIds.length, 0),
+          previews: workspaces.reduce((sum, item) => sum + item.attachments.previewIds.length, 0),
+          workers: workspaces.reduce((sum, item) => sum + item.attachments.workerIds.length, 0),
+        },
+      }
     },
     attachSession(info) {
       return updateAttachments(info.directory, (descriptors) => {

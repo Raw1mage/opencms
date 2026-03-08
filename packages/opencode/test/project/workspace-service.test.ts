@@ -72,4 +72,41 @@ describe("project.workspace.service", () => {
     const detached = await service.getByDirectory(tmp.path)
     expect(detached?.attachments.ptyIds).toEqual([])
   })
+
+  test("listProjectWorkspaces resolves root and sandbox entries for project shape", async () => {
+    await using tmp = await tmpdir({ git: true })
+    const sandboxDirectory = `${tmp.path}/sandbox-a`
+    const service = createWorkspaceService(createInMemoryWorkspaceRegistry())
+
+    const workspaces = await service.listProjectWorkspaces({
+      id: "project-1",
+      worktree: tmp.path,
+      sandboxes: [sandboxDirectory],
+    })
+
+    expect(workspaces.map((item) => item.directory)).toEqual([normalizeWorkspaceDirectory(tmp.path), sandboxDirectory])
+    expect(workspaces.map((item) => item.kind)).toEqual(["root", "sandbox"])
+  })
+
+  test("getProjectStatus summarizes workspace and attachment counts", async () => {
+    await using tmp = await tmpdir({ git: true })
+    const service = createWorkspaceService(createInMemoryWorkspaceRegistry())
+    const resolved = await service.resolve({ directory: tmp.path })
+
+    await service.attachSession({ id: "session-1", directory: tmp.path, active: true })
+    await service.attachPty({ id: "pty-1", cwd: tmp.path })
+
+    const status = await service.getProjectStatus({
+      id: resolved.projectId,
+      worktree: tmp.path,
+      sandboxes: [],
+    })
+
+    expect(status).toEqual({
+      projectId: resolved.projectId,
+      total: 1,
+      kinds: { root: 1, sandbox: 0, derived: 0 },
+      attachments: { sessions: 1, ptys: 1, previews: 0, workers: 0 },
+    })
+  })
 })
