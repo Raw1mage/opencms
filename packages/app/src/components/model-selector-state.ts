@@ -59,6 +59,11 @@ export type AccountRow = {
   unavailable?: string
 }
 
+export type AccountFamilyRecord = {
+  activeAccount?: string
+  accounts?: Record<string, Record<string, unknown>>
+}
+
 export function normalizeProviderFamily(id: string): string | undefined {
   if (!id) return undefined
   const raw = id.trim().toLowerCase()
@@ -199,4 +204,102 @@ export function filterModelsForMode<T extends { id: string; provider: { id: stri
       if (input.mode === "all") return true
       return input.isVisible({ modelID: model.id, providerID: model.provider.id })
     })
+}
+
+export function familyOf(providerId: string) {
+  return normalizeProviderFamily(providerId) || providerId
+}
+
+export function isAccountLikeProviderId(id: string) {
+  return id.includes("@")
+}
+
+export function getActiveAccountForFamily(
+  families: Record<string, { activeAccount?: unknown }> | undefined,
+  family: string,
+) {
+  const familyRow = families?.[family]
+  return typeof familyRow?.activeAccount === "string" ? familyRow.activeAccount : undefined
+}
+
+export function getModelUnavailableReason(input: {
+  providerId: string
+  accountId?: string
+  providerStatus: Map<string, string>
+  accountFamilies?: Record<string, { accounts?: Record<string, unknown> }>
+  formatCooldown: (minutes: number) => string
+  now?: number
+}) {
+  const direct = input.providerStatus.get(input.providerId)
+  if (direct) return direct
+
+  const family = familyOf(input.providerId)
+  const familyStatus = input.providerStatus.get(family)
+  if (familyStatus) return familyStatus
+  if (!input.accountId) return
+
+  const now = input.now ?? Date.now()
+  const familyRow = input.accountFamilies?.[family]
+  const account = familyRow?.accounts?.[input.accountId] as Record<string, unknown> | undefined
+  const until = typeof account?.coolingDownUntil === "number" ? account.coolingDownUntil : undefined
+  if (!until || until <= now) return
+  const reason = typeof account?.cooldownReason === "string" ? account.cooldownReason : undefined
+  return reason || input.formatCooldown(Math.max(1, Math.ceil((until - now) / 60000)))
+}
+
+export function pickSelectedProvider(input: {
+  selectedProviderId: string
+  preferredProviderId?: string
+  providers: Array<{ id: string }>
+}) {
+  if (input.selectedProviderId && input.providers.some((provider) => provider.id === input.selectedProviderId)) {
+    return input.selectedProviderId
+  }
+  if (input.preferredProviderId && input.providers.some((provider) => provider.id === input.preferredProviderId)) {
+    return input.preferredProviderId
+  }
+  return input.providers[0]?.id ?? ""
+}
+
+export function pickSelectedAccount(input: {
+  selectedAccountId: string
+  accounts: Array<{ id: string; active: boolean }>
+}) {
+  if (input.accounts.length === 0) return ""
+  if (input.selectedAccountId && input.accounts.some((row) => row.id === input.selectedAccountId)) {
+    return input.selectedAccountId
+  }
+  return input.accounts.find((row) => row.active)?.id ?? input.accounts[0]?.id ?? ""
+}
+
+export function getFilteredModelsForSelection<T extends { id: string; provider: { id: string } }>(input: {
+  models: T[]
+  selectedProviderFamily: string
+  currentProviderID?: string
+  mode: "favorites" | "all"
+  isVisible: (key: { modelID: string; providerID: string }) => boolean
+}) {
+  if (!input.selectedProviderFamily) return [] as T[]
+
+  const inFamily = input.models.filter((model) => familyOf(model.provider.id) === input.selectedProviderFamily)
+  if (inFamily.length === 0) return [] as T[]
+
+  const resolvedProviderID =
+    inFamily.find((model) => model.provider.id === input.selectedProviderFamily)?.provider.id ??
+    (input.currentProviderID && inFamily.some((model) => model.provider.id === input.currentProviderID)
+      ? input.currentProviderID
+      : undefined) ??
+    inFamily.find((model) => !isAccountLikeProviderId(model.provider.id))?.provider.id ??
+    inFamily[0]?.provider.id
+
+  const scopedModels = resolvedProviderID
+    ? inFamily.filter((model) => model.provider.id === resolvedProviderID)
+    : inFamily
+
+  return filterModelsForMode({
+    models: scopedModels,
+    providerFamily: input.selectedProviderFamily,
+    mode: input.mode,
+    isVisible: input.isVisible,
+  })
 }

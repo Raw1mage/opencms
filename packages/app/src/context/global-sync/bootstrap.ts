@@ -28,6 +28,72 @@ type GlobalStore = {
   reload: undefined | "pending" | "complete"
 }
 
+export type GlobalRefreshSlice = "config" | "project" | "provider" | "provider_auth" | "account_families"
+
+function globalRefreshTasks(input: {
+  globalSDK: ReturnType<typeof createOpencodeClient>
+  setGlobalStore: SetStoreFunction<GlobalStore>
+}) {
+  return {
+    config: () =>
+      retry(() =>
+        input.globalSDK.global.config.get().then((x) => {
+          input.setGlobalStore("config", x.data!)
+        }),
+      ),
+    project: () =>
+      retry(() =>
+        input.globalSDK.project.list().then((x) => {
+          const projects = (x.data ?? [])
+            .filter((p) => !!p?.id)
+            .filter((p) => !!p.worktree && !p.worktree.includes("opencode-test"))
+            .slice()
+            .sort((a, b) => cmp(a.id, b.id))
+          input.setGlobalStore("project", projects)
+        }),
+      ),
+    provider: () =>
+      retry(() =>
+        input.globalSDK.provider.list().then((x) => {
+          input.setGlobalStore("provider", normalizeProviderList(x.data!))
+        }),
+      ),
+    provider_auth: () =>
+      retry(() =>
+        input.globalSDK.provider.auth().then((x) => {
+          input.setGlobalStore("provider_auth", x.data ?? {})
+        }),
+      ),
+    account_families: () =>
+      retry(() =>
+        input.globalSDK.account.listAll().then((x) => {
+          input.setGlobalStore("account_families", x.data?.families ?? {})
+        }),
+      ),
+  } satisfies Record<GlobalRefreshSlice, () => Promise<void>>
+}
+
+export async function refreshGlobalSlices(input: {
+  globalSDK: ReturnType<typeof createOpencodeClient>
+  requestFailedTitle: string
+  setGlobalStore: SetStoreFunction<GlobalStore>
+  slices: GlobalRefreshSlice[]
+}) {
+  const tasks = globalRefreshTasks(input)
+  const selected = [...new Set(input.slices)]
+  const results = await Promise.allSettled(selected.map((slice) => tasks[slice]()))
+  const errors = results.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => r.reason)
+  if (errors.length) {
+    const message = formatServerError(errors[0])
+    const more = errors.length > 1 ? ` (+${errors.length - 1} more)` : ""
+    showToast({
+      variant: "error",
+      title: input.requestFailedTitle,
+      description: message + more,
+    })
+  }
+}
+
 export async function bootstrapGlobal(input: {
   globalSDK: ReturnType<typeof createOpencodeClient>
   connectErrorTitle: string
@@ -48,38 +114,7 @@ export async function bootstrapGlobal(input: {
     })
     .catch(() => undefined)
 
-  const tasks = [
-    retry(() =>
-      input.globalSDK.global.config.get().then((x) => {
-        input.setGlobalStore("config", x.data!)
-      }),
-    ),
-    retry(() =>
-      input.globalSDK.project.list().then((x) => {
-        const projects = (x.data ?? [])
-          .filter((p) => !!p?.id)
-          .filter((p) => !!p.worktree && !p.worktree.includes("opencode-test"))
-          .slice()
-          .sort((a, b) => cmp(a.id, b.id))
-        input.setGlobalStore("project", projects)
-      }),
-    ),
-    retry(() =>
-      input.globalSDK.provider.list().then((x) => {
-        input.setGlobalStore("provider", normalizeProviderList(x.data!))
-      }),
-    ),
-    retry(() =>
-      input.globalSDK.provider.auth().then((x) => {
-        input.setGlobalStore("provider_auth", x.data ?? {})
-      }),
-    ),
-    retry(() =>
-      input.globalSDK.account.listAll().then((x) => {
-        input.setGlobalStore("account_families", x.data?.families ?? {})
-      }),
-    ),
-  ]
+  const tasks = Object.values(globalRefreshTasks(input)).map((task) => task())
 
   const [health, results] = await Promise.all([
     Promise.all([healthPromise, pathPromise]).then(([h]) => h),

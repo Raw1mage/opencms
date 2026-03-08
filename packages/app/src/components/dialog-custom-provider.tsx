@@ -219,7 +219,7 @@ export function DialogCustomProvider(props: Props) {
     const output = validateCustomProvider({
       form,
       t: language.t,
-      disabledProviders: globalSync.data.config.disabled_providers ?? [],
+      disabledProviders: globalSync.configActions.disabledProviders(),
       existingProviderIDs: new Set(globalSync.data.provider.all.map((p) => p.id)),
     })
     setErrors(output.errors)
@@ -235,7 +235,7 @@ export function DialogCustomProvider(props: Props) {
 
     setForm("saving", true)
 
-    const disabledProviders = globalSync.data.config.disabled_providers ?? []
+    const disabledProviders = globalSync.configActions.disabledProviders()
     const nextDisabled = disabledProviders.filter((id) => id !== result.providerID)
 
     const auth = result.key

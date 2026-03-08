@@ -54,8 +54,8 @@ export const SettingsProviders: Component = () => {
     return Object.keys(family.accounts).length
   }
 
-  const disabledIDs = createMemo(() => new Set(globalSync.data.config.disabled_providers ?? []))
-  const isDisabled = (providerID: string) => disabledIDs().has(providerID)
+  const disabledIDs = createMemo(() => new Set(globalSync.configActions.disabledProviders()))
+  const isDisabled = (providerID: string) => globalSync.configActions.isProviderDisabled(providerID)
 
   const disabledProviders = createMemo(() => {
     const byID = new Map(providers.all().map((item) => [item.id, item]))
@@ -114,12 +114,8 @@ export const SettingsProviders: Component = () => {
   }
 
   const disableProvider = async (providerID: string, name: string) => {
-    const before = globalSync.data.config.disabled_providers ?? []
-    const next = before.includes(providerID) ? before : [...before, providerID]
-    globalSync.set("config", "disabled_providers", next)
-
-    await globalSync
-      .updateConfig({ disabled_providers: next })
+    await globalSync.configActions
+      .setProviderDisabled(providerID, true)
       .then(() => {
         showToast({
           variant: "success",
@@ -129,19 +125,14 @@ export const SettingsProviders: Component = () => {
         })
       })
       .catch((err: unknown) => {
-        globalSync.set("config", "disabled_providers", before)
         const message = err instanceof Error ? err.message : String(err)
         showToast({ title: language.t("common.requestFailed"), description: message })
       })
   }
 
   const enableProvider = async (providerID: string, name: string) => {
-    const before = globalSync.data.config.disabled_providers ?? []
-    const next = before.filter((item) => item !== providerID)
-    globalSync.set("config", "disabled_providers", next)
-
-    await globalSync
-      .updateConfig({ disabled_providers: next })
+    await globalSync.configActions
+      .setProviderDisabled(providerID, false)
       .then(() => {
         showToast({
           variant: "success",
@@ -151,7 +142,6 @@ export const SettingsProviders: Component = () => {
         })
       })
       .catch((err: unknown) => {
-        globalSync.set("config", "disabled_providers", before)
         const message = err instanceof Error ? err.message : String(err)
         showToast({ title: language.t("common.requestFailed"), description: message })
       })

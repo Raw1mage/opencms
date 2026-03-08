@@ -40,7 +40,14 @@ import {
   buildAccountRows,
   buildProviderRows,
   filterModelsForMode,
+  getActiveAccountForFamily,
+  getFilteredModelsForSelection,
+  getModelUnavailableReason,
+  familyOf,
+  isAccountLikeProviderId,
   normalizeProviderFamily,
+  pickSelectedAccount,
+  pickSelectedProvider,
 } from "./model-selector-state"
 import { loadQuotaHint, peekQuotaHint } from "@/utils/quota-hint-cache"
 import "./dialog-select-model.css"
@@ -986,9 +993,11 @@ export const DialogSelectModel: Component<{
     onCleanup(() => header.removeEventListener("mousedown", onMouseDown))
   })
 
+  const effectiveDisabledProviders = createMemo(() => globalSync.configActions.disabledProviders())
+
   const providerStatus = createMemo(() => {
     const map = new Map<string, string>()
-    const disabled = new Set<string>((globalSync.data.config.disabled_providers ?? []) as string[])
+    const disabled = new Set<string>(effectiveDisabledProviders())
     for (const id of disabled) map.set(id, language.t("dialog.model.activity.providerDisabled"))
 
     const families = accountInfo.latest?.families
@@ -1012,37 +1021,8 @@ export const DialogSelectModel: Component<{
     return map
   })
 
-  const familyOf = (providerId: string) => normalizeProviderFamily(providerId) || providerId
-
-  const isAccountLikeProviderId = (id: string) => id.includes("@")
-
   const currentModel = createMemo(() => local.model.current())
   const preferredProviderId = createMemo(() => props.provider || familyOf(currentModel()?.provider.id ?? ""))
-
-  const activeAccountForFamily = (family: string) => {
-    const families = accountInfo.latest?.families as Record<string, unknown> | undefined
-    const familyRow = families?.[family] as { activeAccount?: unknown } | undefined
-    return typeof familyRow?.activeAccount === "string" ? familyRow.activeAccount : undefined
-  }
-
-  const modelUnavailableReason = (providerId: string, accountId?: string) => {
-    const direct = providerStatus().get(providerId)
-    if (direct) return direct
-    const family = familyOf(providerId)
-    const familyStatus = providerStatus().get(family)
-    if (familyStatus) return familyStatus
-
-    if (!accountId) return
-    const families = accountInfo.latest?.families as Record<string, unknown> | undefined
-    const familyRow = families?.[family] as { accounts?: Record<string, unknown> } | undefined
-    const account = familyRow?.accounts?.[accountId] as Record<string, unknown> | undefined
-    const until = typeof account?.coolingDownUntil === "number" ? account.coolingDownUntil : undefined
-    if (until && until > Date.now()) {
-      const reason = typeof account?.cooldownReason === "string" ? account.cooldownReason : undefined
-      const minutes = Math.max(1, Math.ceil((until - Date.now()) / 60000))
-      return reason || language.t("settings.models.recommendations.cooldown", { minutes })
-    }
-  }
 
   const providers = createMemo(() => {
     const allProviders = globalSync.data.provider.all ?? []
@@ -1050,7 +1030,7 @@ export const DialogSelectModel: Component<{
     return buildProviderRows({
       providers: allProviders,
       accountFamilies: families,
-      disabledProviders: (globalSync.data.config.disabled_providers ?? []) as string[],
+      disabledProviders: effectiveDisabledProviders(),
     })
   })
 
@@ -1060,18 +1040,13 @@ export const DialogSelectModel: Component<{
   })
 
   createEffect(() => {
-    const selected = selectedProviderId()
-    if (selected && providersForMode().some((provider) => provider.id === selected)) return
-    const preferred = preferredProviderId()
-    if (preferred && providersForMode().some((provider) => provider.id === preferred)) {
-      setSelectedProviderId(preferred)
-      return
-    }
-    if (providersForMode().length > 0) {
-      setSelectedProviderId(providersForMode()[0].id)
-      return
-    }
-    setSelectedProviderId("")
+    setSelectedProviderId(
+      pickSelectedProvider({
+        selectedProviderId: selectedProviderId(),
+        preferredProviderId: preferredProviderId(),
+        providers: providersForMode(),
+      }),
+    )
   })
 
   createEffect(() => {
@@ -1084,6 +1059,17 @@ export const DialogSelectModel: Component<{
         | Record<string, { activeAccount?: string; accounts?: Record<string, Record<string, unknown>> }>
         | undefined) ?? {},
   )
+
+  const activeAccountForFamily = (family: string) => getActiveAccountForFamily(accountFamilies(), family)
+
+  const modelUnavailableReason = (providerId: string, accountId?: string) =>
+    getModelUnavailableReason({
+      providerId,
+      accountId,
+      providerStatus: providerStatus(),
+      accountFamilies: accountFamilies(),
+      formatCooldown: (minutes) => language.t("settings.models.recommendations.cooldown", { minutes }),
+    })
 
   const accountRecordsForSelectedProvider = createMemo(() => {
     const family = selectedProviderId()
@@ -1177,15 +1163,12 @@ export const DialogSelectModel: Component<{
   }
 
   createEffect(() => {
-    const rows = accountsForSelectedProvider()
-    if (!rows.length) {
-      setSelectedAccountId("")
-      return
-    }
-    const current = selectedAccountId()
-    if (current && rows.some((row) => row.id === current)) return
-    const active = rows.find((row) => row.active)
-    setSelectedAccountId(active?.id ?? rows[0].id)
+    setSelectedAccountId(
+      pickSelectedAccount({
+        selectedAccountId: selectedAccountId(),
+        accounts: accountsForSelectedProvider(),
+      }),
+    )
   })
 
   const refreshAccountState = async () => {
@@ -1231,27 +1214,10 @@ export const DialogSelectModel: Component<{
   }
 
   const filteredModels = createMemo(() => {
-    const providerId = selectedProviderId()
-    if (!providerId) return [] as ReturnType<ReturnType<typeof useModels>["list"]>
-
-    const models = local.model.list()
-    const inFamily = models.filter((m) => familyOf(m.provider.id) === providerId)
-    if (inFamily.length === 0) return []
-
-    const currentProviderID = local.model.current()?.provider?.id
-    const resolvedProviderID =
-      inFamily.find((m) => m.provider.id === providerId)?.provider.id ??
-      (currentProviderID && inFamily.some((m) => m.provider.id === currentProviderID)
-        ? currentProviderID
-        : undefined) ??
-      inFamily.find((m) => !isAccountLikeProviderId(m.provider.id))?.provider.id ??
-      inFamily[0]?.provider.id
-
-    const scopedModels = resolvedProviderID ? inFamily.filter((m) => m.provider.id === resolvedProviderID) : inFamily
-
-    return filterModelsForMode({
-      models: scopedModels,
-      providerFamily: providerId,
+    return getFilteredModelsForSelection({
+      models: local.model.list(),
+      selectedProviderFamily: selectedProviderId(),
+      currentProviderID: local.model.current()?.provider?.id,
       mode: mode(),
       isVisible: (key) => local.model.visible(key),
     })
@@ -1266,8 +1232,7 @@ export const DialogSelectModel: Component<{
   const toggleProviderEnabled = (e: MouseEvent, family: string) => {
     e.stopPropagation()
     e.preventDefault()
-    const before = (globalSync.data.config.disabled_providers ?? []) as string[]
-    const current = new Set(before)
+    const current = new Set(effectiveDisabledProviders())
     const normalized = normalizeProviderFamily(family)
     if (!normalized) return
     if (current.has(normalized)) {
@@ -1278,19 +1243,14 @@ export const DialogSelectModel: Component<{
     const next = [...current]
     preserveScrollPosition(
       () => providerScrollEl,
-      () => {
-        globalSync.set("config", "disabled_providers", next)
-        return sdk.client.global.config
-          .update({ config: { disabled_providers: next } }, { throwOnError: true })
-          .catch((err) => {
-            globalSync.set("config", "disabled_providers", before)
-            showToast({
-              variant: "error",
-              title: language.t("common.requestFailed"),
-              description: err instanceof Error ? err.message : String(err),
-            })
+      () =>
+        globalSync.configActions.setDisabledProviders(next).catch((err) => {
+          showToast({
+            variant: "error",
+            title: language.t("common.requestFailed"),
+            description: err instanceof Error ? err.message : String(err),
           })
-      },
+        }),
     )
   }
 

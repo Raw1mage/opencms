@@ -18,8 +18,10 @@ export function applyGlobalEvent(input: {
   project: Project[]
   setGlobalProject: (next: Project[] | ((draft: Project[]) => void)) => void
   refresh: () => void
+  onDisposed?: () => boolean
 }) {
   if (input.event.type === "global.disposed") {
+    if (input.onDisposed?.()) return
     input.refresh()
     return
   }

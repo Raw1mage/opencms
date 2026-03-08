@@ -116,6 +116,26 @@ describe("applyGlobalEvent", () => {
 
     expect(refreshCount).toBe(1)
   })
+
+  test("lets custom disposed handler consume global.disposed", () => {
+    let refreshCount = 0
+    let consumed = 0
+    applyGlobalEvent({
+      event: { type: "global.disposed" },
+      project: [],
+      refresh: () => {
+        refreshCount += 1
+      },
+      onDisposed: () => {
+        consumed += 1
+        return true
+      },
+      setGlobalProject() {},
+    })
+
+    expect(consumed).toBe(1)
+    expect(refreshCount).toBe(0)
+  })
 })
 
 describe("applyDirectoryEvent", () => {

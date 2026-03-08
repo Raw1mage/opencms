@@ -31,7 +31,12 @@ import { createChildStoreManager } from "./global-sync/child-store"
 import { trimSessions } from "./global-sync/session-trim"
 import { estimateRootSessionTotal, loadRootSessionsWithFallback } from "./global-sync/session-load"
 import { applyDirectoryEvent, applyGlobalEvent } from "./global-sync/event-reducer"
-import { bootstrapDirectory, bootstrapGlobal } from "./global-sync/bootstrap"
+import {
+  bootstrapDirectory,
+  bootstrapGlobal,
+  refreshGlobalSlices,
+  type GlobalRefreshSlice,
+} from "./global-sync/bootstrap"
 import { sanitizeProject } from "./global-sync/utils"
 import type { ProjectMeta } from "./global-sync/types"
 import { SESSION_RECENT_LIMIT } from "./global-sync/types"
@@ -54,6 +59,49 @@ function normalizeDirectoryKey(value: string) {
   const normalized = value.replaceAll("\\", "/")
   if (normalized === "/") return normalized
   return normalized.replace(/\/+$/, "")
+}
+
+function normalizeStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return [...new Set(value.filter((item): item is string => typeof item === "string"))]
+}
+
+function sameStringSet(a: readonly string[], b: readonly string[]) {
+  if (a.length !== b.length) return false
+  const right = new Set(b)
+  return a.every((item) => right.has(item))
+}
+
+type GlobalRefreshScope = Partial<Record<GlobalRefreshSlice, true>>
+
+function scopeSlices(scope: GlobalRefreshScope): GlobalRefreshSlice[] {
+  return (Object.keys(scope) as GlobalRefreshSlice[]).filter((key) => scope[key])
+}
+
+function inferConfigRefreshScope(config: Config): GlobalRefreshScope | "full" {
+  const keys = Object.keys(config) as Array<keyof Config>
+  if (keys.length === 0) return { config: true }
+
+  const scope: GlobalRefreshScope = {}
+  for (const key of keys) {
+    if (key === "disabled_providers") {
+      scope.config = true
+      scope.provider = true
+      continue
+    }
+    if (key === "permission") {
+      scope.config = true
+      continue
+    }
+    if (key === "provider") {
+      scope.config = true
+      scope.provider = true
+      scope.provider_auth = true
+      continue
+    }
+    return "full"
+  }
+  return scope
 }
 
 export function errorMessage(error: unknown) {
@@ -112,6 +160,10 @@ function createGlobalSync() {
     config: {},
     reload: undefined,
   })
+  const [configOverlay, setConfigOverlay] = createStore<{ disabled_providers?: string[] }>({})
+  let disabledProvidersMutationVersion = 0
+  let pendingGlobalDisposedScope: GlobalRefreshScope | undefined
+  let pendingGlobalDisposedUntil = 0
 
   const updateStats = (activeDirectoryStores: number) => {
     if (!import.meta.env.DEV) return
@@ -215,6 +267,28 @@ function createGlobalSync() {
     setGlobalStore("reload", undefined)
     queue.refresh()
   })
+
+  const configuredDisabledProviders = () => normalizeStringList(globalStore.config.disabled_providers)
+  const effectiveDisabledProviders = () => configOverlay.disabled_providers ?? configuredDisabledProviders()
+
+  createEffect(() => {
+    const optimistic = configOverlay.disabled_providers
+    if (!optimistic) return
+    if (!sameStringSet(optimistic, configuredDisabledProviders())) return
+    setConfigOverlay("disabled_providers", undefined)
+  })
+
+  const beginDisabledProvidersMutation = (next: string[]) => {
+    const version = ++disabledProvidersMutationVersion
+    const previous = configOverlay.disabled_providers
+    setConfigOverlay("disabled_providers", normalizeStringList(next))
+    return { version, previous }
+  }
+
+  const rollbackDisabledProvidersMutation = (state: { version: number; previous?: string[] }) => {
+    if (state.version !== disabledProvidersMutationVersion) return
+    setConfigOverlay("disabled_providers", state.previous)
+  }
 
   async function loadSessions(directory: string) {
     const pending = sessionLoads.get(directory)
@@ -325,6 +399,7 @@ function createGlobalSync() {
         event,
         project: globalStore.project,
         refresh: queue.refresh,
+        onDisposed: handlePendingGlobalDisposed,
         setGlobalProject(next) {
           if (typeof next === "function") {
             setGlobalStore("project", produce(next))
@@ -379,6 +454,31 @@ function createGlobalSync() {
       requestFailedTitle: language.t("common.requestFailed"),
       setGlobalStore,
     })
+  }
+
+  const refreshGlobal = async (scope: GlobalRefreshScope) => {
+    const slices = scopeSlices(scope)
+    if (slices.length === 0) return
+    await refreshGlobalSlices({
+      globalSDK: globalSDK.client,
+      requestFailedTitle: language.t("common.requestFailed"),
+      setGlobalStore,
+      slices,
+    })
+  }
+
+  const handlePendingGlobalDisposed = () => {
+    const scope = pendingGlobalDisposedScope
+    if (!scope) return false
+    if (Date.now() > pendingGlobalDisposedUntil) {
+      pendingGlobalDisposedScope = undefined
+      pendingGlobalDisposedUntil = 0
+      return false
+    }
+    pendingGlobalDisposedScope = undefined
+    pendingGlobalDisposedUntil = 0
+    void refreshGlobal(scope)
+    return true
   }
 
   let hiddenAt = 0
@@ -443,17 +543,59 @@ function createGlobalSync() {
   }
 
   const updateConfig = async (config: Config) => {
+    const overlayState = Array.isArray(config.disabled_providers)
+      ? beginDisabledProvidersMutation(config.disabled_providers)
+      : undefined
+    const scope = inferConfigRefreshScope(config)
     setGlobalStore("reload", "pending")
+    if (scope !== "full") {
+      pendingGlobalDisposedScope = scope
+      pendingGlobalDisposedUntil = Date.now() + 5000
+    }
     return globalSDK.client.global.config
       .update({ config })
-      .then(bootstrap)
+      .then(() => (scope === "full" ? bootstrap() : refreshGlobal(scope)))
       .then(() => {
         setGlobalStore("reload", "complete")
       })
       .catch((error) => {
+        if (scope !== "full") {
+          pendingGlobalDisposedScope = undefined
+          pendingGlobalDisposedUntil = 0
+        }
+        if (overlayState) rollbackDisabledProvidersMutation(overlayState)
         setGlobalStore("reload", undefined)
         throw error
       })
+  }
+
+  const setDisabledProviders = async (next: string[]) => {
+    const overlayState = beginDisabledProvidersMutation(next)
+    try {
+      pendingGlobalDisposedScope = { config: true, provider: true }
+      pendingGlobalDisposedUntil = Date.now() + 5000
+      await globalSDK.client.global.config.update(
+        {
+          config: {
+            disabled_providers: normalizeStringList(next),
+          },
+        },
+        { throwOnError: true },
+      )
+      await refreshGlobal({ config: true, provider: true })
+    } catch (error) {
+      pendingGlobalDisposedScope = undefined
+      pendingGlobalDisposedUntil = 0
+      rollbackDisabledProvidersMutation(overlayState)
+      throw error
+    }
+  }
+
+  const setProviderDisabled = async (providerID: string, disabled: boolean) => {
+    const current = new Set(effectiveDisabledProviders())
+    if (disabled) current.add(providerID)
+    else current.delete(providerID)
+    await setDisabledProviders([...current])
   }
 
   return {
@@ -468,6 +610,14 @@ function createGlobalSync() {
     child: children.child,
     bootstrap,
     updateConfig,
+    configActions: {
+      disabledProviders: effectiveDisabledProviders,
+      isProviderDisabled(providerID: string) {
+        return effectiveDisabledProviders().includes(providerID)
+      },
+      setDisabledProviders,
+      setProviderDisabled,
+    },
     project: projectApi,
   }
 }

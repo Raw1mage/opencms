@@ -64,6 +64,71 @@ function normalizeModel(model: ModelKey): ModelKey {
   }
 }
 
+function normalizeUsers(input: User[]) {
+  return input.map((item) => {
+    if (item.favorite === true) {
+      if (item.visibility === "show") return item
+      return { ...item, visibility: "show" as const }
+    }
+    if (item.visibility === "hide" && item.favorite === false) return item
+    if (item.visibility === "show") {
+      return { ...item, favorite: true }
+    }
+    if (item.visibility === "hide") {
+      return { ...item, favorite: false }
+    }
+    return item
+  })
+}
+
+function sameUsers(a: User[], b: User[]) {
+  if (a.length !== b.length) return false
+  return a.every((item, index) => {
+    const other = b[index]
+    return (
+      item?.providerID === other?.providerID &&
+      item?.modelID === other?.modelID &&
+      item?.favorite === other?.favorite &&
+      item?.visibility === other?.visibility
+    )
+  })
+}
+
+function buildUsersFromRemote(prefs: {
+  favorite: Array<{ providerId: string; modelID: string }>
+  hidden: Array<{ providerId: string; modelID: string }>
+}) {
+  const favoriteSet = new Set(
+    prefs.favorite.map((item) => `${normalizeProviderFamily(item.providerId)}:${item.modelID}`),
+  )
+  const hiddenSet = new Set(prefs.hidden.map((item) => `${normalizeProviderFamily(item.providerId)}:${item.modelID}`))
+  const merged = new Map<string, User>()
+
+  for (const key of hiddenSet) {
+    const [providerID, modelID] = key.split(":")
+    if (!providerID || !modelID) continue
+    merged.set(key, {
+      providerID,
+      modelID,
+      visibility: "hide",
+      favorite: false,
+    })
+  }
+
+  for (const key of favoriteSet) {
+    const [providerID, modelID] = key.split(":")
+    if (!providerID || !modelID) continue
+    merged.set(key, {
+      providerID,
+      modelID,
+      visibility: "show",
+      favorite: true,
+    })
+  }
+
+  return normalizeUsers(Array.from(merged.values()))
+}
+
 export const { use: useModels, provider: ModelsProvider } = createSimpleContext({
   name: "Models",
   init: () => {
@@ -84,6 +149,9 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
       timer: undefined as ReturnType<typeof setTimeout> | undefined,
       retryTimer: undefined as ReturnType<typeof setTimeout> | undefined,
       hiddenProviders: [] as string[],
+      mutationVersion: 0,
+      readVersion: 0,
+      writeVersion: 0,
     }
     const [remoteRetryTick, setRemoteRetryTick] = createSignal(0)
 
@@ -106,17 +174,34 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
 
     const find = (key: ModelKey) => list().find((m) => m.id === key.modelID && m.provider.id === key.providerID)
 
+    const replaceUsers = (next: User[]) => {
+      const normalized = normalizeUsers(next)
+      if (sameUsers(store.user, normalized)) return
+      setStore("user", normalized)
+    }
+
+    const mutateUsers = (updater: (current: User[]) => User[]) => {
+      remoteSync.mutationVersion += 1
+      replaceUsers(updater(store.user))
+    }
+
     const update = (model: ModelKey, partial: Partial<Omit<User, "providerID" | "modelID">>) => {
-      const normalized = normalizeModel(model)
-      const key = modelKey(normalized)
-      const index = store.user.findIndex((x) => modelKey(x) === key)
-      if (index >= 0) {
-        setStore("user", index, partial)
-        return
-      }
-      setStore("user", store.user.length, {
-        ...normalized,
-        ...partial,
+      mutateUsers((current) => {
+        const normalized = normalizeModel(model)
+        const key = modelKey(normalized)
+        const index = current.findIndex((x) => modelKey(x) === key)
+        if (index >= 0) {
+          const next = current.slice()
+          next[index] = { ...next[index], ...partial }
+          return next
+        }
+        return [
+          ...current,
+          {
+            ...normalized,
+            ...partial,
+          },
+        ]
       })
     }
 
@@ -170,50 +255,25 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
       }
     }
 
-    const applyRemotePreferences = (prefs: {
-      favorite: Array<{ providerId: string; modelID: string }>
-      hidden: Array<{ providerId: string; modelID: string }>
-      hiddenProviders: string[]
-    }) => {
+    const applyRemotePreferences = (
+      prefs: {
+        favorite: Array<{ providerId: string; modelID: string }>
+        hidden: Array<{ providerId: string; modelID: string }>
+        hiddenProviders: string[]
+      },
+      readVersion: number,
+    ) => {
       remoteSync.hiddenProviders = prefs.hiddenProviders
-      const favoriteSet = new Set(
-        prefs.favorite.map((item) => `${normalizeProviderFamily(item.providerId)}:${item.modelID}`),
-      )
-      const hiddenSet = new Set(
-        prefs.hidden.map((item) => `${normalizeProviderFamily(item.providerId)}:${item.modelID}`),
-      )
-      const merged = new Map<string, User>()
-
-      for (const key of hiddenSet) {
-        const [providerID, modelID] = key.split(":")
-        if (!providerID || !modelID) continue
-        merged.set(key, {
-          providerID,
-          modelID,
-          visibility: "hide",
-          favorite: false,
-        })
-      }
-
-      for (const key of favoriteSet) {
-        const [providerID, modelID] = key.split(":")
-        if (!providerID || !modelID) continue
-        merged.set(key, {
-          providerID,
-          modelID,
-          visibility: "show",
-          favorite: true,
-        })
-      }
-
-      setStore("user", Array.from(merged.values()))
+      if (readVersion !== remoteSync.readVersion) return
+      if (remoteSync.mutationVersion > readVersion) return
+      replaceUsers(buildUsersFromRemote(prefs))
     }
 
-    const writeRemotePreferences = async () => {
+    const writeRemotePreferences = async (writeVersion: number, snapshot: User[], hiddenProviders: string[]) => {
       const favorite = new Map<string, { providerId: string; modelID: string }>()
       const hidden = new Map<string, { providerId: string; modelID: string }>()
 
-      for (const item of store.user) {
+      for (const item of snapshot) {
         const providerId = normalizeProviderFamily(item.providerID)
         const key = `${providerId}:${item.modelID}`
         if (item.favorite) favorite.set(key, { providerId, modelID: item.modelID })
@@ -228,17 +288,21 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
         body: JSON.stringify({
           favorite: Array.from(favorite.values()),
           hidden: Array.from(hidden.values()),
-          hiddenProviders: remoteSync.hiddenProviders,
+          hiddenProviders,
         }),
       })
+      if (writeVersion !== remoteSync.writeVersion) return
     }
 
     const scheduleRemoteSave = () => {
       if (!remoteSync.loaded) return
       if (remoteSync.timer) clearTimeout(remoteSync.timer)
+      const writeVersion = ++remoteSync.writeVersion
+      const snapshot = store.user.map((item) => ({ ...item }))
+      const hiddenProviders = [...remoteSync.hiddenProviders]
       remoteSync.timer = setTimeout(() => {
         remoteSync.timer = undefined
-        void writeRemotePreferences().catch(() => undefined)
+        void writeRemotePreferences(writeVersion, snapshot, hiddenProviders).catch(() => undefined)
       }, 150)
     }
 
@@ -248,38 +312,17 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
       if (remoteSync.loaded) return
       const url = globalSDK.url
       if (!url) return
+      const readVersion = remoteSync.mutationVersion
+      remoteSync.readVersion = readVersion
       void readRemotePreferences()
         .then((prefs) => {
-          applyRemotePreferences(prefs)
+          applyRemotePreferences(prefs, readVersion)
           remoteSync.loaded = true
         })
         .catch(() => {
           if (remoteSync.retryTimer) clearTimeout(remoteSync.retryTimer)
           remoteSync.retryTimer = setTimeout(() => setRemoteRetryTick((x) => x + 1), 1000)
         })
-    })
-
-    createEffect(() => {
-      if (!ready()) return
-      const normalized = store.user.map((item) => {
-        if (item.favorite === true) {
-          if (item.visibility === "show") return item
-          return { ...item, visibility: "show" as const }
-        }
-        if (item.visibility === "hide" && item.favorite === false) return item
-        if (item.visibility === "show") {
-          return { ...item, favorite: true }
-        }
-        if (item.visibility === "hide") {
-          return { ...item, favorite: false }
-        }
-        return item
-      })
-      const changed = normalized.some((item, index) => {
-        const current = store.user[index]
-        return current?.favorite !== item.favorite || current?.visibility !== item.visibility
-      })
-      if (changed) setStore("user", normalized)
     })
 
     const push = (model: ModelKey) => {

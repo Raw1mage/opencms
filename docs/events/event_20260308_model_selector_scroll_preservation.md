@@ -41,13 +41,19 @@ Status: Done
 - provider list 修正：
   - 將 provider column scroll container 綁定 ref。
   - provider enable/disable 改為在該 scroll container 上保留位置。
-  - 不再走 `globalSync.updateConfig()` 的 bootstrap/reload 路徑；改成 optimistic local store + `sdk.client.global.config.update(..., { throwOnError: true })`，避免不必要的全域 refresh 打掉列表 viewport。
+  - 不再走 `globalSync.updateConfig()` 的 bootstrap/reload 路徑；改成直接呼叫 `sdk.client.global.config.update(..., { throwOnError: true })`，避免不必要的全域 refresh 打掉列表 viewport。
 - model list 修正：
   - 將 model panel 綁定 ref，toggle model visibility 時直接鎖住內部 `[data-slot="list-scroll"]` 的 scroll position。
   - 保留既有 `local.model.setVisibility(...)` 邏輯，只補 scroll ownership 保護，不改 model preference semantics。
 - RCA 結論（本輪修正依據）：
   - provider list 的 scroll reset 主因是 toggle 使用了會觸發 global bootstrap 的 config 更新流程，導致列表區塊被重算/重繪。
   - model list 雖未走同樣的 global refresh，但 toggle 時仍缺少 scroll preservation，導致列表在局部重繪後失去原 viewport。
+- Follow-up RCA（使用者回報 delay / revert）：
+  - provider toggle 原本雖已避開顯式 `globalSync.updateConfig()`，但 optimistic 狀態仍過早回退到 `globalSync.data.config.disabled_providers`。
+  - 當 server 端 `global.config.update` 觸發 `global.disposed` 後，前端 global refresh 若先讀到舊 config，provider icon 會短暫回亮；若後續沒有新的同步覆蓋，就會看起來像動作被還原。
+- Follow-up fix：
+  - 新增 dialog-local `optimisticDisabledProviders`，provider rows 與 unavailable 狀態一律先讀取 effective disabled set，而不是直接讀 `globalSync.data.config.disabled_providers`。
+  - 只有當實際 global config 已與 optimistic disabled set 對齊時，才清掉 optimistic state；因此中途即使發生 stale refresh，也不會把 enable/disable 視覺狀態抖掉。
 
 ### Validation
 
@@ -55,5 +61,8 @@ Status: Done
 - `bunx eslint /home/pkcs12/projects/opencode/packages/app/src/components/dialog-select-model.tsx` ✅
 - `./webctl.sh dev-refresh` ✅
 - `./webctl.sh status` ✅（development web runtime healthy）
+- Follow-up stability validation after delayed-toggle fix:
+  - `bunx tsc --noEmit -p /home/pkcs12/projects/opencode/packages/app/tsconfig.json` ✅
+  - `bunx eslint /home/pkcs12/projects/opencode/packages/app/src/components/dialog-select-model.tsx` ✅
 - Architecture Sync: Verified (No doc changes)
   - 依據：本輪僅調整 web model selector 的前端互動與 scroll ownership，未更動 runtime boundary、API contract、provider/account architecture。
