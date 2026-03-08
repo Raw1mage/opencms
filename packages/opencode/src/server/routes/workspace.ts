@@ -2,7 +2,7 @@ import { Hono } from "hono"
 import { describeRoute, resolver, validator } from "hono-openapi"
 import z from "zod"
 import { Instance } from "../../project/instance"
-import { WorkspaceService } from "../../project/workspace"
+import { WorkspaceOperation, WorkspaceResetOperationResultSchema, WorkspaceService } from "../../project/workspace"
 import { WorkspaceAggregateSchema } from "../../project/workspace/types"
 import { Storage } from "../../storage/storage"
 import { lazy } from "../../util/lazy"
@@ -116,6 +116,28 @@ export const WorkspaceRoutes = lazy(() =>
         if (!workspace) throw new Storage.NotFoundError({ message: "Workspace not found" })
         return c.json(workspace)
       },
+    )
+    .post(
+      "/:workspaceID/reset-run",
+      describeRoute({
+        summary: "Run workspace reset operation",
+        description:
+          "Archive active sessions, dispose runtime instance state, reset the sandbox worktree, and return the updated workspace aggregate.",
+        operationId: "workspace.resetRun",
+        responses: {
+          200: {
+            description: "Workspace reset operation result",
+            content: {
+              "application/json": {
+                schema: resolver(WorkspaceResetOperationResultSchema),
+              },
+            },
+          },
+          ...errors(404),
+        },
+      }),
+      validator("param", z.object({ workspaceID: z.string() })),
+      async (c) => c.json(await WorkspaceOperation.reset({ workspaceID: c.req.valid("param").workspaceID })),
     )
     .post(
       "/:workspaceID/reset",

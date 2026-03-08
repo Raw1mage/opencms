@@ -1323,7 +1323,6 @@ export default function Layout(props: ParentProps) {
   const resetWorkspace = async (root: string, directory: string) => {
     if (directory === root) return
     setBusy(directory, true)
-    await transitionWorkspaceLifecycle({ directory, action: "reset" }).catch(() => undefined)
 
     const progress = showToast({
       persistent: true,
@@ -1332,28 +1331,31 @@ export default function Layout(props: ParentProps) {
     })
     const dismiss = () => toaster.dismiss(progress)
 
-    const sessions: Session[] = await globalSDK.client.session
-      .list({ directory })
-      .then((x) => x.data ?? [])
-      .catch(() => [])
+    const [child] = globalSync.child(directory, { bootstrap: false })
 
-    clearWorkspaceTerminals(
-      directory,
-      sessions.map((s) => s.id),
-      platform,
-    )
-    await globalSDK.client.instance.dispose({ directory }).catch(() => undefined)
+    clearWorkspaceTerminals(directory, child.workspace?.attachments.sessionIds, platform)
 
-    const result = await globalSDK.client.worktree
-      .reset({ directory: root, worktreeResetInput: { directory } })
-      .then((x) => x.data)
+    const workspaceID = child.workspace?.workspaceId
+    if (!workspaceID) {
+      setBusy(directory, false)
+      dismiss()
+      return
+    }
+
+    const result = await globalSDK
+      .fetch(`${globalSDK.url}/api/v2/workspace/${workspaceID}/reset-run`, {
+        method: "POST",
+      })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(await response.text())
+        return response.json()
+      })
       .catch((err) => {
         showToast({
           title: language.t("workspace.reset.failed.title"),
           description: errorMessage(err, language.t("common.requestFailed")),
         })
-        void transitionWorkspaceLifecycle({ directory, action: "failed" }).catch(() => undefined)
-        return false
+        return undefined
       })
 
     if (!result) {
@@ -1362,25 +1364,8 @@ export default function Layout(props: ParentProps) {
       return
     }
 
-    const archivedAt = Date.now()
-    await Promise.all(
-      sessions
-        .filter((session) => session.time.archived === undefined)
-        .map((session) =>
-          globalSDK.client.session
-            .update({
-              sessionID: session.id,
-              directory: session.directory,
-              time: { archived: archivedAt },
-            })
-            .catch(() => undefined),
-        ),
-    )
-
     setBusy(directory, false)
     dismiss()
-
-    await transitionWorkspaceLifecycle({ directory, action: "active" }).catch(() => undefined)
 
     showToast({
       title: language.t("workspace.reset.success.title"),
