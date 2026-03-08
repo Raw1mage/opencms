@@ -677,7 +677,6 @@ mtymek/opencode-obsidian
 NeuralNomadsAI/CodeNomad
 nick-vi/opencode-type-inject
 NickvanDyke/opencode.nvim
-NoeFabris/opencode-antigravity-auth
 nordtheme/nord
 numman-ali/opencode-openai-codex-auth
 olimorris/codecompanion.nvim
@@ -685,7 +684,6 @@ panta82/opencode-notificator
 rebelot/kanagawa.nvim
 remorses/kimaki
 sainnhe/everforest
-shekohex/opencode-google-antigravity-auth
 shekohex/opencode-pty.git
 spoons-and-mirrors/subtask2
 sudo-tee/opencode.nvim

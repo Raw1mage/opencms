@@ -1153,10 +1153,6 @@ export namespace Config {
         })
         .optional(),
       plugin: z.string().array().optional(),
-      antigravity: z
-        .boolean()
-        .optional()
-        .describe("@deprecated Use disabled_providers to control provider enablement."),
       snapshot: z.boolean().optional(),
       share: z
         .enum(["manual", "auto", "disabled"])

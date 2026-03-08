@@ -17,7 +17,7 @@
 │   ├── commands/              # 自訂命令
 │   ├── skills/                # Skills
 │   ├── bin/                   # 自訂腳本
-│   └── antigravity-accounts.json
+│   └── accounts.json
 ├── data/                      # XDG_DATA_HOME/opencode
 │   ├── accounts.json          # 認證憑證 (多帳號)
 │   ├── mcp-auth.json          # MCP OAuth tokens

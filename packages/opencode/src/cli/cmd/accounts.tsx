@@ -36,16 +36,7 @@ export const AccountsCommand = cmd({
 
       const refreshData = async () => {
         const families = await Account.listAll()
-        const order = [
-          "opencode",
-          "anthropic",
-          "openai",
-          "antigravity",
-          "gemini-cli",
-          "google API-KEY",
-          "copilot",
-          "others",
-        ]
+        const order = ["opencode", "anthropic", "openai", "gemini-cli", "google API-KEY", "copilot", "others"]
         const sortedFamilies = Object.keys(families).sort((a, b) => {
           const idxA = order.indexOf(a)
           const idxB = order.indexOf(b)

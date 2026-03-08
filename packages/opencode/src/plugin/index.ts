@@ -19,10 +19,7 @@ import { AnthropicAuthPlugin } from "./anthropic"
 export namespace Plugin {
   const log = Log.create({ service: "plugin" })
 
-  async function getInternalPlugins(config: { disabled_providers?: string[] }) {
-    const disabled = new Set(config.disabled_providers ?? [])
-    const antigravityEnabled = !disabled.has("antigravity") && !disabled.has("antigravity-legacy")
-
+  async function getInternalPlugins(_config: { disabled_providers?: string[] }) {
     // Built-in plugins that are directly imported (not installed from npm)
     // AnthropicAuthPlugin is internal to use correct Claude Code headers for OAuth
     const internalPlugins: { name: string; plugin: PluginInstance }[] = [
@@ -32,13 +29,6 @@ export namespace Plugin {
       { name: "gemini-cli", plugin: GeminiCLIOAuthPlugin as PluginInstance },
       { name: "claude-cli", plugin: AnthropicAuthPlugin },
     ]
-    if (antigravityEnabled) {
-      const { AntigravityOAuthPlugin, AntigravityLegacyOAuthPlugin } = await import("./antigravity")
-      internalPlugins.push(
-        { name: "antigravity", plugin: AntigravityOAuthPlugin as PluginInstance },
-        { name: "antigravity-legacy", plugin: AntigravityLegacyOAuthPlugin as PluginInstance },
-      )
-    }
     return internalPlugins
   }
 

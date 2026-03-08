@@ -23,8 +23,12 @@ import { RequestMonitor } from "@/account/monitor"
 import { iife } from "@/util/iife"
 import { Account } from "@/account"
 import { Keybind } from "@/util/keybind"
-import { AccountManager } from "../../../../plugin/antigravity/plugin/accounts"
 import { ModelsDev } from "@/provider/models"
+import {
+  buildCanonicalProviderFamilyRows,
+  resolveCanonicalRuntimeProvider,
+  resolveCanonicalRuntimeProviderId,
+} from "@/provider/canonical-family-source"
 import { DialogConfirm } from "@tui/ui/dialog-confirm"
 import { DialogPrompt } from "@tui/ui/dialog-prompt"
 import { DialogProvider as DialogProviderList } from "./dialog-provider"
@@ -46,10 +50,6 @@ import { getModelRPDLimit } from "@/account/limits"
 import { Provider } from "@/provider/provider"
 import { probeModelAvailability } from "../util/model-probe"
 import { Auth } from "@/auth"
-import { checkAccountsQuota, type QuotaGroup, type QuotaGroupSummary } from "@/plugin/antigravity/plugin/quota"
-import { loadAccounts, saveAccounts, type AccountMetadataV3 } from "@/plugin/antigravity/plugin/storage"
-import { resolveAntigravityQuotaGroup } from "@/plugin/antigravity/plugin/quota-group"
-import type { PluginClient } from "@/plugin/antigravity/plugin/types"
 import { formatOpenAIQuotaDisplay, formatRequestMonitorQuotaDisplay, getQuotaHintsForAccounts } from "@/account/quota"
 
 type DialogAdminOption = DialogSelectOption<unknown> & {
@@ -126,7 +126,6 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   const probePrompt = "say hi"
   const probeTimeoutMs = 10_000
   const [quotaRefresh, setQuotaRefresh] = createSignal(0)
-  const EmptyPluginClient = new Proxy({}, { get: () => () => undefined }) as unknown as PluginClient
   const configRecord = createMemo(() => (sync.data.config as Record<string, unknown> | undefined) ?? {})
   const disabledProviders = createMemo(() => {
     const raw = configRecord().disabled_providers
@@ -202,8 +201,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   const [page, setPage] = createSignal<Page>("activities")
   const [selectedFamily, setSelectedFamily] = createSignal<string | null>(null)
 
-  // This tracks the "provider ID" that models.ts/sync system naturally understands
-  // For Antigravity, it's the generic "antigravity". For others, it might be specific IDs.
+  // This tracks the provider ID that models.ts/sync system naturally understands.
   const [selectedProviderID, setSelectedProviderID] = createSignal<string | null>(null)
   const [lockBack, setLockBack] = createSignal(false)
   const [prevStep, setPrevStep] = createSignal(step())
@@ -378,18 +376,9 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     setTimeout(() => setLockBack(false), 200)
   }
 
-  // Load Antigravity Manager for accurate account listing
-  // To trigger UI updates when we change active account (since sync might lag)
   const [refreshSignal, setRefreshSignal] = createSignal(0)
   const forceRefresh = () => setRefreshSignal((s) => s + 1)
 
-  const [agManager] = createResource(refreshSignal, async () => {
-    try {
-      return await AccountManager.loadFromDisk()
-    } catch (e) {
-      return null
-    }
-  })
   const [coreAll] = createResource(refreshSignal, async () => {
     try {
       // Refresh from disk to get latest account data
@@ -399,33 +388,6 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       return {}
     }
   })
-  const refreshAntigravity = async () => {
-    try {
-      const mod = await import("../../../../plugin/antigravity")
-      if (mod.refreshGlobalAccountManager) {
-        await mod.refreshGlobalAccountManager()
-      }
-    } catch {
-      // Refresh optional
-    }
-  }
-  const [coreAg] = createResource(refreshSignal, async () => {
-    try {
-      // Refresh from disk to get latest account data
-      await Account.refresh()
-      return await Account.list("antigravity")
-    } catch (e) {
-      return {}
-    }
-  })
-  const [coreActive] = createResource(refreshSignal, async () => {
-    try {
-      return await Account.getActive("antigravity")
-    } catch (e) {
-      return undefined
-    }
-  })
-
   // Load all providers from models.dev for Show All mode
   const [modelsDevData] = createResource(async () => {
     try {
@@ -467,49 +429,6 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       return await Account.listAll()
     } catch (e) {
       return {}
-    }
-  })
-  const [quotaGroups] = createResource(quotaRefresh, async () => {
-    try {
-      const storage = await loadAccounts()
-      if (!storage || storage.accounts.length === 0) return null
-      const results = await checkAccountsQuota(storage.accounts, EmptyPluginClient)
-
-      let shouldSave = false
-      for (const res of results) {
-        if (res.updatedAccount) {
-          storage.accounts[res.index] = res.updatedAccount
-          shouldSave = true
-        }
-      }
-      if (shouldSave) {
-        await saveAccounts(storage)
-      }
-
-      const coreAccounts = await Account.list("antigravity").catch(() => ({}))
-      const coreByToken = new Map<string, string>()
-      const coreByEmail = new Map<string, string>()
-      for (const [id, info] of Object.entries(coreAccounts)) {
-        if (info.type !== "subscription") continue
-        if (info.refreshToken) coreByToken.set(info.refreshToken, id)
-        if (info.email) coreByEmail.set(info.email, id)
-      }
-
-      const groupsByAccount: Record<string, Partial<Record<QuotaGroup, QuotaGroupSummary>>> = {}
-      for (const res of results) {
-        const account = storage.accounts[res.index]
-        if (!account) continue
-        const token = account.refreshToken
-        const email = account.email
-        const coreId = (token && coreByToken.get(token)) ?? (email && coreByEmail.get(email))
-        if (!coreId) continue
-        groupsByAccount[coreId] = res.quota?.groups ?? {}
-      }
-
-      return groupsByAccount
-    } catch (error) {
-      debugCheckpoint("admin.quota", "fetch error", { error: String(error) })
-      return null
     }
   })
   const [codexQuota] = createResource(quotaRefresh, async () => {
@@ -604,51 +523,6 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   // clampPercentage, CodexTokenResponse, parseCodexJwtClaims, extractAccountIdFromClaims,
   // extractAccountIdFromTokens, refreshCodexAccessToken now imported from @/account/quota
 
-  function resolveQuotaGroup(modelID: string, displayName?: string): QuotaGroup | null {
-    return resolveAntigravityQuotaGroup(modelID, displayName)
-  }
-
-  function getQuotaPercent(
-    accountId: string | undefined,
-    providerId: string,
-    modelID: string,
-    displayName?: string,
-  ): number | undefined {
-    if (family(providerId) !== "antigravity") return undefined
-    if (!accountId) return undefined
-    const groups = quotaGroups()?.[accountId]
-    if (!groups) return undefined
-    const group = resolveQuotaGroup(modelID, displayName)
-    if (!group) return undefined
-    const remaining = groups[group]?.remainingFraction
-    if (typeof remaining !== "number") return undefined
-    return Math.round(remaining * 100)
-  }
-
-  // Get wait time from quota resetTime for antigravity models
-  function getQuotaWaitMs(
-    accountId: string | undefined,
-    providerId: string,
-    modelID: string,
-    displayName?: string,
-  ): number | undefined {
-    if (family(providerId) !== "antigravity") return undefined
-    if (!accountId) return undefined
-    const groups = quotaGroups()?.[accountId]
-    if (!groups) return undefined
-    const group = resolveQuotaGroup(modelID, displayName)
-    if (!group) return undefined
-    const groupData = groups[group]
-    if (!groupData) return undefined
-    // Only show wait time if quota is exhausted (remainingFraction === 0)
-    if (typeof groupData.remainingFraction !== "number" || groupData.remainingFraction > 0) return undefined
-    if (!groupData.resetTime) return undefined
-    const resetMs = Date.parse(groupData.resetTime)
-    if (!Number.isFinite(resetMs)) return undefined
-    const waitMs = resetMs - Date.now()
-    return waitMs > 0 ? waitMs : undefined
-  }
-
   /**
    * Format the Status column for a model row.
    *
@@ -695,14 +569,6 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       return "0%"
     }
 
-    // Antigravity cockpit-based cooldown (quota exhausted with real resetTime)
-    if (providerFamily === "antigravity") {
-      const quotaWaitMs = getQuotaWaitMs(accountId, providerId, modelID, displayName)
-      if (quotaWaitMs && quotaWaitMs > 0) {
-        return `⏳ ${formatWait(quotaWaitMs)}`
-      }
-    }
-
     // ──────────────────────────────────────────────────────────
     // Priority 2: Usage info (provider-specific)
     // ──────────────────────────────────────────────────────────
@@ -711,13 +577,6 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     if (providerFamily === "openai" || providerId === "openai") {
       const quotaMap = codexQuota()
       return quotaMap?.[accountId] ?? formatOpenAIQuotaDisplay(undefined, "admin")
-    }
-
-    // Antigravity: cockpit quota group remaining fraction
-    if (providerFamily === "antigravity") {
-      const percent = getQuotaPercent(accountId, providerId, modelID, displayName)
-      if (typeof percent === "number") return `${percent}%`
-      return "--"
     }
 
     // Gemini: RPD remaining from local RequestMonitor
@@ -870,6 +729,31 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       groups.get(fam)!.push(p)
     }
     return groups
+  })
+
+  const canonicalFamilies = createMemo(() =>
+    buildCanonicalProviderFamilyRows({
+      accountFamilies: coreAll() ?? {},
+      connectedProviderIds: sync.data.provider.map((provider) => provider.id),
+      modelsDevProviderIds: Object.keys(modelsDevData() ?? {}),
+      disabledProviderIds: Array.from(effectiveDisabledProviders()),
+      excludedFamilies: ["google"],
+    }),
+  )
+
+  const syncProvidersForFamily = (familyId: string) =>
+    sync.data.provider.filter((provider) => family(provider.id) === familyId)
+
+  const selectedRuntimeProvider = createMemo(() => {
+    const currentProviderId = selectedProviderID()
+    const familyId = selectedFamily() ?? (currentProviderId ? family(currentProviderId) : undefined)
+    if (!familyId) return undefined
+    const familyData = coreAll()?.[familyId]
+    return resolveCanonicalRuntimeProvider({
+      family: familyId,
+      activeAccountId: familyData?.activeAccount,
+      providers: syncProvidersForFamily(familyId),
+    })
   })
 
   const activityData = createMemo(() => {
@@ -1337,38 +1221,9 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         },
       })
 
-      // 1. Families - WYSIWYG: No hidden whitelists
-      // Configured = has accounts in storage OR has providers from sync
-      const coreFamilies = Object.keys(coreAll() ?? {})
-      const syncFamilies = [...groupedProviders().keys()]
-
-      // Build set of all configured providers (has accounts or sync data)
-      const configuredProviders = new Set([...coreFamilies, ...syncFamilies])
-      configuredProviders.delete("google")
-      const disabledProviderIds = Array.from(effectiveDisabledProviders())
-
-      // Get all models.dev providers that aren't already configured
-      const allModelsDevProviders = Object.keys(modelsDevData() ?? {}).filter((id) => {
-        const fam = Account.parseFamily(id)
-        // Only include if not already in configured providers
-        return !configuredProviders.has(id) && (!fam || !configuredProviders.has(fam))
-      })
-
-      // Single source of truth for both modes:
-      // - non-ShowAll filters to enabled only
-      // - ShowAll shows full list without filtering
-      const families = Array.from(
-        new Set([...configuredProviders, ...allModelsDevProviders, ...disabledProviderIds]),
-      ).sort((a, b) => {
-        if (a === "antigravity") return -1
-        if (b === "antigravity") return 1
-        return a.localeCompare(b)
-      })
-
-      for (const fam of families) {
+      for (const familyRow of canonicalFamilies()) {
+        const fam = familyRow.family
         const providers = groupedProviders().get(fam) || []
-
-        const displayName = fam
         const familyData = coreAll()?.[fam]
         const allIds = familyData ? Object.keys(familyData.accounts || {}) : []
         // Show all accounts that have real data — don't hide "generic" IDs
@@ -1378,29 +1233,21 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
           if (!familyData?.accounts[id]) return false
           return true
         })
-        const accountTotal = familyData ? filteredIds.length : providers.length
-        const hasAccounts = filteredIds.length > 0
-        const hasProviders = providers.some((p) => Object.keys(p.models).length > 0 || p.active)
-
-        // WYSIWYG Logic:
-        // - Configured provider = has accounts OR has sync data
-        // - Unconfigured provider = models.dev provider without accounts/sync
-        const isConfigured = hasAccounts || hasProviders
-        const isModelsDevProvider = !!modelsDevData()?.[fam]
-        const providerDisabled = isProviderDisabled(fam)
+        const accountTotal = familyData ? filteredIds.length : familyRow.accountCount
+        const providerDisabled = !familyRow.enabled
 
         // Show All/Filtered share the same family universe.
         // The only difference is whether disabled providers are filtered out.
         const shouldShow = showHidden() ? true : !providerDisabled
         if (!shouldShow) continue
 
-        const activeCount = familyData?.activeAccount ? 1 : providers.filter((p) => p.active).length
+        const activeCount = familyRow.activeCount || providers.filter((p) => p.active).length
 
-        const enabled = !providerDisabled
+        const enabled = familyRow.enabled
 
         list.push({
           value: { family: fam },
-          title: showHidden() ? `${displayName} · ${enabled ? "enabled" : "disabled"}` : displayName,
+          title: showHidden() ? `${familyRow.label} · ${enabled ? "enabled" : "disabled"}` : familyRow.label,
           category: "Providers",
           icon: "📂",
           description: accountTotal >= 1 ? `${accountTotal} account${accountTotal === 1 ? "" : "s"}` : undefined,
@@ -1426,110 +1273,27 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       const fam = selectedFamily()
       if (!fam) return []
 
-      if (agManager.loading) {
-        return [
-          {
-            title: "Loading accounts...",
-            value: "__loading__",
-            disabled: true,
-            category: "Status",
-            icon: "⏳",
-          },
-        ]
-      }
-
-      // Combine sources for robustness
-      const manager = agManager()
-      const agAccounts = manager?.getAccountsSnapshot() || []
-      const syncProviders = groupedProviders().get(fam) || []
-
       const accountMap = new Map<string, any>()
-
-      // Level 2 strategy:
-      // - Use core accounts for most providers.
-      // - Use agManager for antigravity.
-
-      if (fam !== "antigravity") {
-        const familyData = coreAll()?.[fam]
-        const accountsWithFamily: Array<{ id: string; info: Account.Info; coreFamily: string }> = []
-        if (familyData?.accounts) {
-          for (const [id, info] of Object.entries(familyData.accounts)) {
-            accountsWithFamily.push({ id, info, coreFamily: fam })
-          }
-        }
-
-        const activeId = familyData?.activeAccount
-
-        for (const { id, info, coreFamily } of accountsWithFamily) {
-          const displayName = Account.getDisplayName(id, info, fam) || info?.name || id
-          accountMap.set(id, {
-            id: id,
-            coreId: id,
-            coreFamily: coreFamily,
-            name: displayName,
-            active: activeId === id,
-            email: info.type === "subscription" ? info.email : undefined,
-          })
+      const familyData = coreAll()?.[fam]
+      const accountsWithFamily: Array<{ id: string; info: Account.Info; coreFamily: string }> = []
+      if (familyData?.accounts) {
+        for (const [id, info] of Object.entries(familyData.accounts)) {
+          accountsWithFamily.push({ id, info, coreFamily: fam })
         }
       }
 
-      if (fam === "antigravity") {
-        const core = coreAg() || {}
-        const coreByToken = new Map<string, string>()
-        const coreByEmail = new Map<string, string>()
+      const activeId = familyData?.activeAccount
 
-        for (const entry of Object.entries(core)) {
-          const id = entry[0]
-          const info = entry[1]
-          if (info?.type !== "subscription") continue
-          if (info.refreshToken) coreByToken.set(info.refreshToken, id)
-          if (info.email) coreByEmail.set(info.email, id)
-        }
-
-        // Only fallback to syncProviders if they have real account data (email or refreshToken)
-        // This prevents showing phantom "antigravity" entries when no accounts exist
-        if (!manager || agAccounts.length === 0) {
-          for (const p of syncProviders) {
-            // Skip generic provider entries that don't represent real accounts
-            const providerMeta = p as unknown as { email?: string; refreshToken?: string }
-            if (!providerMeta.email && !providerMeta.refreshToken && p.id === "antigravity") {
-              continue
-            }
-            accountMap.set(p.id, {
-              id: p.id,
-              coreId: p.id,
-              name: owner(p) || p.name || p.id,
-              active: p.active,
-              email: p.email,
-            })
-          }
-        }
-
-        const activeId = coreActive()
-        for (const acc of agAccounts) {
-          const id = `antigravity-subscription-${acc.index + 1}`
-
-          const token = acc.parts?.refreshToken
-          const byToken = token ? coreByToken.get(token) : undefined
-          const byEmail = acc.email ? coreByEmail.get(acc.email) : undefined
-          const mapped = byToken || byEmail
-          const coreId = mapped || id
-
-          const syncMatch = syncProviders.find((p) => p.id === id)
-          const name =
-            acc.email ||
-            (syncMatch ? owner(syncMatch) || syncMatch.name : null) ||
-            (acc.parts.projectId ? `Project: ${acc.parts.projectId}` : `Account ${acc.index + 1}`)
-
-          const isActive = activeId ? activeId === coreId : manager?.getActiveIndex() === acc.index
-          accountMap.set(id, {
-            id: id,
-            coreId: coreId,
-            name: name,
-            active: isActive,
-            email: acc.email,
-          })
-        }
+      for (const { id, info, coreFamily } of accountsWithFamily) {
+        const displayName = Account.getDisplayName(id, info, fam) || info?.name || id
+        accountMap.set(id, {
+          id,
+          coreId: id,
+          coreFamily,
+          name: displayName,
+          active: activeId === id,
+          email: info.type === "subscription" ? info.email : undefined,
+        })
       }
 
       const accountList = Array.from(accountMap.values())
@@ -1555,12 +1319,6 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                 coreFamily: p.coreFamily,
               })
               await handleSetActive(p.coreFamily || fam, p.coreId || p.id, p.id)
-              await refreshAntigravity()
-              // Don't override selectedProviderID here — handleSetActive already sets the correct value:
-              // - antigravity → "antigravity" (generic)
-              // - anthropic → "anthropic" (generic)
-              // - github-copilot → family (generic)
-              // - others (google-api, etc.) → accountId (account-specific, for correct API key)
               setStepLogged("model_select", "select account")
             },
           }
@@ -1590,21 +1348,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       const pid = selectedProviderID()
       if (!pid) return []
 
-      const resolved = iife(() => {
-        const direct = sync.data.provider.find((x) => x.id === pid)
-        if (direct) return { id: pid, provider: direct }
-
-        const fam = selectedFamily() || family(pid)
-        if (!fam) return undefined
-
-        const byFamily = sync.data.provider.find((x) => x.id === fam)
-        if (byFamily) return { id: fam, provider: byFamily }
-
-        const byPrefix = sync.data.provider.find((x) => x.id.startsWith(`${fam}-`))
-        if (byPrefix) return { id: byPrefix.id, provider: byPrefix }
-
-        return undefined
-      })
+      const resolved = selectedRuntimeProvider()
       if (!resolved) return []
       const p = resolved.provider
       const providerId = resolved.id
@@ -1621,10 +1365,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         return !local.model.hidden().some((h) => h.providerId === baseProviderID && h.modelID === mid)
       }
 
-      const quotaAccountId = iife(() => {
-        if (family(providerId) !== "antigravity") return pid
-        return coreActive() || pid
-      })
+      const quotaAccountId = pid
 
       const baseEntries = pipe(
         p.models,
@@ -1754,63 +1495,22 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     debugCheckpoint("admin", "set active start", { family: fam, accountId, displayId })
     // 1. Set Active in Backend
     return debugSpan("admin", "set active", { family: fam, accountId, displayId }, async () => {
-      if (fam === "antigravity") {
-        try {
-          // Update Core - this is the single source of truth
-          await Account.setActive(fam, accountId)
-          await Account.refresh()
-
-          // Reload AccountManager from Account module to sync in-memory state
-          const manager = agManager()
-          if (manager) {
-            await manager.reloadFromAccountModule()
-          }
-        } catch (e) {
-          debugCheckpoint("admin", "set active error", {
-            family: fam,
-            error: String(e instanceof Error ? e.stack || e.message : e),
-          })
-          console.error(e)
-        }
-        // Use generic ID for model lookup
-        setSelectedProviderID("antigravity")
-      } else if (fam === "anthropic") {
-        try {
-          await Account.setActive(fam, accountId)
-          await Account.refresh()
-        } catch (e) {
-          debugCheckpoint("admin", "set active error", {
-            family: fam,
-            error: String(e instanceof Error ? e.stack || e.message : e),
-          })
-        }
-        // FORCE generic ID for Anthropic model lookup
-        setSelectedProviderID("anthropic")
-      } else if (fam === "github-copilot" || fam === "github-copilot-enterprise") {
-        try {
-          await Account.setActive(fam, accountId)
-          await Account.refresh()
-        } catch (e) {
-          debugCheckpoint("admin", "set active error", {
-            family: fam,
-            error: String(e instanceof Error ? e.stack || e.message : e),
-          })
-        }
-        // FORCE generic ID for GitHub Copilot model lookup
-        setSelectedProviderID(fam)
-      } else {
-        try {
-          // Set active account for any provider with multi-account
-          await Account.setActive(fam, accountId)
-          await Account.refresh()
-        } catch (e) {
-          debugCheckpoint("admin", "set active error", {
-            family: fam,
-            error: String(e instanceof Error ? e.stack || e.message : e),
-          })
-        }
-        setSelectedProviderID(accountId)
+      try {
+        // Set active account for any provider with multi-account
+        await Account.setActive(fam, accountId)
+        await Account.refresh()
+      } catch (e) {
+        debugCheckpoint("admin", "set active error", {
+          family: fam,
+          error: String(e instanceof Error ? e.stack || e.message : e),
+        })
       }
+      const nextProviderId = resolveCanonicalRuntimeProviderId({
+        family: fam,
+        activeAccountId: accountId,
+        availableProviderIds: syncProvidersForFamily(fam).map((provider) => provider.id),
+      })
+      setSelectedProviderID(nextProviderId ?? accountId)
       forceRefresh() // Trigger UI redraw to show updated green dot
       debugCheckpoint("admin", "set active end", { family: fam, accountId, displayId })
     })
@@ -1830,14 +1530,11 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       if (step() === "account_select")
         return `Manage Accounts (${label(selectedFamily() || "", selectedFamily() || "")})`
       if (step() === "model_select") {
-        const pid = selectedProviderID()
-        if (pid) {
-          const p = sync.data.provider.find((x) => x.id === pid)
-          if (p) {
-            const who = owner(p)
-            if (who) return `Select Model - ${who}${showAllIndicator}`
-            return `Select Model - ${p.name}${showAllIndicator}`
-          }
+        const resolved = selectedRuntimeProvider()
+        if (resolved) {
+          const who = owner(resolved.provider)
+          if (who) return `Select Model - ${who}${showAllIndicator}`
+          return `Select Model - ${resolved.provider.name}${showAllIndicator}`
         }
         return `Select Model${showAllIndicator}`
       }
@@ -2241,17 +1938,8 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                             await Account.remove(lookupFamily, coreId)
                             await Account.refresh()
 
-                            // Reload AccountManager to sync in-memory state
-                            if (lookupFamily === "antigravity") {
-                              const manager = agManager()
-                              if (manager) {
-                                await manager.reloadFromAccountModule()
-                              }
-                            }
-
                             debugCheckpoint("admin", "delete account success", { family: lookupFamily, id: coreId })
                             toast.show({ message: "Account deleted successfully", variant: "success" })
-                            await refreshAntigravity()
                             setSelectedFamily(fam)
                             forceRefresh()
                             lockBackOnce()

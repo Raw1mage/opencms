@@ -76,8 +76,7 @@ export const AccountRoutes = lazy(() =>
       "/",
       describeRoute({
         summary: "List all accounts",
-        description:
-          "Get a list of all configured accounts grouped by provider family, with detailed status for Antigravity pool.",
+        description: "Get a list of all configured accounts grouped by provider family.",
         operationId: "account.listAll",
         responses: {
           200: {
@@ -87,7 +86,6 @@ export const AccountRoutes = lazy(() =>
                 schema: resolver(
                   z.object({
                     families: z.record(z.string(), Account.FamilyData),
-                    antigravity: z.any().optional(),
                   }),
                 ),
               },
@@ -100,7 +98,6 @@ export const AccountRoutes = lazy(() =>
         if (username && UserDaemonManager.routeAccountListEnabled()) {
           const response = await UserDaemonManager.callAccountList<{
             families?: unknown
-            antigravity?: unknown
           }>(username)
           if (!response.ok) {
             return c.json(
@@ -112,11 +109,10 @@ export const AccountRoutes = lazy(() =>
             )
           }
           if (response.data && typeof response.data === "object") {
-            const parsed = response.data as { families?: unknown; antigravity?: unknown }
+            const parsed = response.data as { families?: unknown }
             if (parsed.families && typeof parsed.families === "object") {
               return c.json({
                 families: parsed.families,
-                antigravity: parsed.antigravity,
               })
             }
             return c.json(
@@ -137,30 +133,8 @@ export const AccountRoutes = lazy(() =>
         }
         const families = await Account.listAll()
 
-        // Fetch rich Antigravity status only when antigravity accounts actually exist.
-        let antigravityStatus = undefined
-        try {
-          const antigravityAccounts = families.antigravity?.accounts ?? {}
-          if (Object.keys(antigravityAccounts).length > 0) {
-            const { AccountManager } = await import("../../plugin/antigravity/plugin/accounts")
-            const { Auth } = await import("../../auth")
-            const auth = await Auth.get("antigravity")
-            if (auth && auth.type === "oauth") {
-              const manager = await AccountManager.loadFromDisk(auth)
-              antigravityStatus = {
-                accounts: manager.getAccountsSnapshot(),
-                activeIndex: manager.getActiveIndex(),
-                activeIndexByFamily: manager.getActiveIndexByFamily(),
-              }
-            }
-          }
-        } catch (e) {
-          // Plugin might not be loaded
-        }
-
         return c.json({
           families,
-          antigravity: antigravityStatus,
         })
       },
     )
@@ -200,65 +174,7 @@ export const AccountRoutes = lazy(() =>
             503,
           )
         }
-        if (family === "antigravity") {
-          const { AccountManager } = await import("../../plugin/antigravity/plugin/accounts")
-          const { clearAccountCache } = await import("../../plugin/antigravity/plugin/storage")
-          const { Auth } = await import("../../auth")
-          const auth = await Auth.get("antigravity")
-          if (auth && auth.type === "oauth") {
-            const manager = await AccountManager.loadFromDisk(auth)
-            const index = parseInt(accountId, 10)
-            if (!isNaN(index)) {
-              manager.setActiveIndex(index)
-              await manager.saveToDisk()
-              clearAccountCache()
-            }
-          }
-        } else {
-          await Account.setActive(family, accountId)
-        }
-        return c.json(true)
-      },
-    )
-    .post(
-      "/antigravity/toggle",
-      describeRoute({
-        summary: "Toggle Antigravity account",
-        description: "Enable or disable a specific account in the Antigravity pool.",
-        operationId: "account.antigravityToggle",
-        responses: {
-          200: { description: "Success" },
-        },
-      }),
-      validator("json", z.object({ index: z.number(), enabled: z.boolean() })),
-      async (c) => {
-        const { index, enabled } = c.req.valid("json")
-
-        const username = RequestUser.username()
-        if (username && UserDaemonManager.routeAccountMutationEnabled()) {
-          const response = await UserDaemonManager.callAccountAntigravityToggle<boolean>(username, index, enabled)
-          if (response.ok) return c.json(true)
-          return c.json(
-            {
-              code: response.error.code,
-              message: response.error.message,
-            },
-            503,
-          )
-        }
-        const { AccountManager } = await import("../../plugin/antigravity/plugin/accounts")
-        const { Auth } = await import("../../auth")
-        const auth = await Auth.get("antigravity")
-        if (auth && auth.type === "oauth") {
-          const manager = await AccountManager.loadFromDisk(auth)
-          const { clearAccountCache } = await import("../../plugin/antigravity/plugin/storage")
-          const account = manager.getAccount(index)
-          if (account) {
-            account.enabled = enabled
-            await manager.saveToDisk()
-            clearAccountCache()
-          }
-        }
+        await Account.setActive(family, accountId)
         return c.json(true)
       },
     )
@@ -318,23 +234,76 @@ export const AccountRoutes = lazy(() =>
             503,
           )
         }
-        if (family === "antigravity") {
-          const { AccountManager } = await import("../../plugin/antigravity/plugin/accounts")
-          const { clearAccountCache } = await import("../../plugin/antigravity/plugin/storage")
-          const { Auth } = await import("../../auth")
-          const auth = await Auth.get("antigravity")
-          if (auth && auth.type === "oauth") {
-            const manager = await AccountManager.loadFromDisk(auth)
-            const index = parseInt(accountId, 10)
-            if (!isNaN(index)) {
-              manager.removeAccountByIndex(index)
-              await manager.saveToDisk()
-              clearAccountCache()
-            }
-          }
-        } else {
-          await Account.remove(family, accountId)
+        await Account.remove(family, accountId)
+        return c.json(true)
+      },
+    )
+    .patch(
+      "/:family/:accountId",
+      describeRoute({
+        summary: "Update account metadata",
+        description: "Update editable account metadata such as display name.",
+        operationId: "account.update",
+        responses: {
+          200: {
+            description: "Account updated successfully",
+            content: {
+              "application/json": {
+                schema: resolver(z.boolean()),
+              },
+            },
+          },
+          ...errors(400, 404),
+        },
+      }),
+      validator("param", z.object({ family: z.string(), accountId: z.string() })),
+      validator(
+        "json",
+        z.object({
+          name: z.string().min(1),
+        }),
+      ),
+      async (c) => {
+        const { family, accountId } = c.req.valid("param")
+        const { name } = c.req.valid("json")
+        const trimmedName = name.trim()
+        if (!trimmedName) {
+          return c.json(
+            {
+              code: "ACCOUNT_NAME_REQUIRED",
+              message: "account name is required",
+            },
+            400,
+          )
         }
+
+        const username = RequestUser.username()
+        if (username && UserDaemonManager.routeAccountMutationEnabled()) {
+          const response = await UserDaemonManager.callAccountUpdate<boolean>(username, family, accountId, {
+            name: trimmedName,
+          })
+          if (response.ok) return c.json(true)
+          return c.json(
+            {
+              code: response.error.code,
+              message: response.error.message,
+            },
+            503,
+          )
+        }
+
+        const account = await Account.get(family, accountId)
+        if (!account) {
+          return c.json(
+            {
+              code: "ACCOUNT_NOT_FOUND",
+              message: `Account not found: ${family}/${accountId}`,
+            },
+            404,
+          )
+        }
+
+        await Account.update(family, accountId, { ...account, name: trimmedName })
         return c.json(true)
       },
     ),

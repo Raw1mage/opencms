@@ -1,19 +1,9 @@
 import path from "path"
 import fs from "fs/promises"
 import { homedir } from "os"
-import { OPENAI_FALLBACK_MODELS } from "../../../provider/model-curation"
+import { OPENAI_FALLBACK_MODELS } from "./model-curation"
 
-// Default models seed matching verified user list
 const DEFAULTS: Record<string, string[]> = {
-  antigravity: [
-    "claude-opus-4-5-thinking",
-    "claude-sonnet-4-5",
-    "claude-sonnet-4-5-thinking",
-    "gpt-oss-120b-medium",
-    "gemini-3-flash",
-    "gemini-3-pro-high",
-    "gemini-3-pro-low",
-  ],
   "gemini-cli": ["gemini-2.0-flash", "gemini-2.0-flash-lite-preview-02-05", "gemini-2.0-pro-exp-02-05"],
   openai: OPENAI_FALLBACK_MODELS,
 }
@@ -37,7 +27,7 @@ export class ModelRegistry {
         }
       }
     } catch {
-      // Ignore error if file doesn't exist
+      // Ignore missing registry file
     }
   }
 

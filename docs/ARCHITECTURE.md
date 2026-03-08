@@ -52,10 +52,10 @@ The `cms` branch is the primary product line for this environment, featuring sig
 1.  **Global Multi-Account Management**: A unified system for managing multiple provider accounts.
 2.  **Rotation3D System**: A dynamic model switching and load balancing system (`rotation3d`), enabling high availability and rate limit management.
 3.  **Admin Panel (`/admin`)**: A centralized "Three-in-One" management interface for system administration.
-4.  **Provider Granularity**: The monolithic `google` provider has been split into three distinct providers to maximize resource utilization:
-    - `antigravity`: Specialized for high-reasoning tasks.
+4.  **Provider Granularity**: The legacy monolithic `google` provider is canonically split into runtime families that maximize resource utilization:
     - `gemini-cli`: Optimized for batch processing and large context.
     - `google-api`: For lightweight, high-speed requests.
+    - legacy aliases are not valid canonical runtime families.
 
 ### Upstream Integration
 
@@ -83,7 +83,7 @@ The `cms` branch is the primary product line for this environment, featuring sig
 #### TUI/Web admin capability boundary
 
 - **TUI `/admin`** is the canonical control plane for provider/account/model operations and rotation-aware diagnostics.
-- **Web** currently provides admin-lite capabilities (account visibility/activation and status surfacing) and reuses the same backend account/provider APIs.
+- **Web** provides an admin-lite model manager that reuses the same backend account/provider APIs, including provider visibility toggles plus account add/view/rename/delete/set-active flows inside `packages/app/src/components/dialog-select-model.tsx`.
 
 #### Deployment/runtime consistency
 
@@ -221,6 +221,11 @@ To enforce 3D identity boundaries:
 - Canonical resolver API is now the primary runtime path:
   - `Account.resolveFamily(providerId)`
   - `Account.resolveFamilyOrSelf(providerId)`
+- Family-level UI inventory is now separated from runtime account-scoped providers:
+  - canonical UI family source: `packages/opencode/src/provider/canonical-family-source.ts`
+  - current first consumer: TUI `/admin` root/provider list in `packages/opencode/src/cli/cmd/tui/component/dialog-admin.tsx`
+  - rule: UI provider lists consume canonical families only; account-scoped provider IDs remain internal runtime coordinates for account/model execution paths.
+  - backend `/provider` route (`packages/opencode/src/server/routes/provider.ts`) now emits family-level provider rows from the same canonical source so web consumers can converge on the same provider family inventory.
 
 #### D.1) Identity invariants (must hold)
 
@@ -482,71 +487,7 @@ Core definitions and types for the plugin architecture.
 
 ---
 
-### 9. Antigravity Plugin (`packages/opencode/src/plugin/antigravity`)
-
-The Antigravity plugin is a high-performance identity spoofing and reasoning enhancement layer. It transforms standard Google AI API calls into internal Cloud Code Assist requests, enabling advanced features like multi-tier thinking and global account rotation.
-
-#### Directory Structure
-
-```text
-packages/opencode/src/plugin/antigravity/
-├── index.ts                # Main plugin registration and request orchestration
-├── constants.ts            # API endpoints, tokens, and model instructions
-├── shims.d.ts              # Type shims for external dependencies
-└── plugin/
-    ├── accounts.ts         # Multi-account pool and sticky rotation logic
-    ├── auth.ts             # OAuth credential validation and refresh
-    ├── debug.ts            # Detailed logging for troubleshooting
-    ├── errors.ts           # Custom error types (e.g., RefreshError)
-    ├── fingerprint.ts      # Device identity randomization
-    ├── image-saver.ts      # Logic for handling image generation output
-    ├── logger.ts           # Internal plugin logger
-    ├── project.ts          # Google Cloud project discovery and context
-    ├── quota.ts            # Quota fetching and classification (cockpit integration)
-    ├── quota-group.ts      # Model-to-quota-group mapping
-    ├── request.ts          # API request construction and payload transformation
-    ├── request-helpers.ts  # Utilities for body parsing and thinking blocks
-    ├── server.ts           # Local callback server for OAuth flows
-    ├── storage.ts          # Persistence of account metadata
-    ├── token.ts            # Access token lifecycle management
-    ├── thinking-recovery.ts # Logic for recovering interrupted thinking turns
-    ├── cache/
-    │   ├── index.ts        # Cache system entry point
-    │   └── signature-cache.ts # Disk-persistent thought signature storage
-    ├── stores/
-    │   └── signature-store.ts # In-memory store for active session signatures
-    └── transform/
-        ├── index.ts        # Transformation module index
-        ├── claude.ts       # Claude-specific request/response transforms
-        ├── gemini.ts       # Gemini-specific request/response transforms
-        ├── model-resolver.ts # Tier-aware model mapping and quota routing
-        ├── types.ts        # Shared transformation types
-        └── cross-model-sanitizer.ts # Sanitization for inter-model compatibility
-```
-
-#### A. Core & Registration
-
-| File Path      | Description                                                                                             | Key Exports              |
-| :------------- | :------------------------------------------------------------------------------------------------------ | :----------------------- |
-| `index.ts`     | **Main Plugin Entry.** Orchestrates OAuth flows, model routing, and the high-level request/retry loop.  | `AntigravityOAuthPlugin` |
-| `constants.ts` | **System Constants.** Defines API endpoints, OAuth credentials, and model-specific system instructions. | `ANTIGRAVITY_ENDPOINT`   |
-
-#### B. Component Architecture (`plugin/`)
-
-| Folder / File          | Description                                                                                                                          | Key Functions / Classes        |
-| :--------------------- | :----------------------------------------------------------------------------------------------------------------------------------- | :----------------------------- |
-| `accounts.ts`          | **Account Management.** Implements a sticky-rotation account pool synced with the global `Account` module.                           | `AccountManager`               |
-| `request.ts`           | **Request Orchestration.** High-level builder for transforming payloads, injecting signatures, and handling streaming.               | `prepareAntigravityRequest`    |
-| `request-helpers.ts`   | **Payload Utilities.** Low-level tools for body parsing, thinking block extraction, and tool-call alignment.                         | `transformAntigravityResponse` |
-| `quota.ts`             | **Quota Integration.** Communicates with the Antigravity "cockpit" to fetch real-time usage and model availability.                  | `checkAccountsQuota`           |
-| `transform/`           | **Model Transforms.** Specialized logic for mapping Claude and Gemini models to their internal API equivalents.                      | `applyClaudeTransforms`        |
-| `cache/`               | **Signature Caching.** Disk-persistent storage for "Thought Signatures", ensuring conversation continuity across turns and restarts. | `SignatureCache`               |
-| `fingerprint.ts`       | **Anti-Bot Mitigation.** Generates randomized device identities (User-Agents, IDs) to distribute traffic and avoid rate limits.      | `generateFingerprint`          |
-| `thinking-recovery.ts` | **Error Recovery.** Heuristics for detecting and recovering from interrupted reasoning turns or tool-call errors.                    | `needsThinkingRecovery`        |
-
----
-
-## 10. Dependency Graph (Simplified)
+## 9. Dependency Graph (Simplified)
 
 ```mermaid
 graph TD
@@ -590,7 +531,7 @@ graph TD
 
 ---
 
-## 9. Documentation & Specifications (`docs/`)
+## 10. Documentation & Specifications (`docs/`)
 
 Contains technical specifications, architecture overviews, and historical records.
 
@@ -696,18 +637,6 @@ If toast says success but UI does not change, verify in order:
 2. TUI sync received disposed event and re-bootstrapped state.
 3. Provider list mode logic is filtering correctly (Show All vs filtered).
 4. Status label and filter both read from the same disabled source.
-
-### G. Antigravity Disable Resource Contract
-
-1. `antigravity` and `antigravity-legacy` are controlled by `disabled_providers`.
-2. When either provider family is disabled, the Antigravity auth plugins must not be initialized.
-3. Internal plugin loading must use conditional dynamic import for Antigravity modules so disabled state avoids plugin module initialization work.
-
-**Primary file**
-
-- `packages/opencode/src/plugin/index.ts`
-
----
 
 ## 13. Provider Toggle and Tool-Call Bridge Architecture
 

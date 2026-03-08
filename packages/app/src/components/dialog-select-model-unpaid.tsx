@@ -100,7 +100,7 @@ export const DialogSelectModelUnpaid: Component = () => {
                     <Show when={i.id === "opencode"}>
                       <Tag>{language.t("dialog.provider.tag.recommended")}</Tag>
                     </Show>
-                    <Show when={i.id === "anthropic"}>
+                    <Show when={i.id === "claude-cli"}>
                       <div class="text-14-regular text-text-weak">{language.t("dialog.provider.anthropic.note")}</div>
                     </Show>
                   </div>

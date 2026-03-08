@@ -138,7 +138,6 @@ function formatAuthType(authType: string): string {
     case "api":
       return "API Key"
     case "oauth":
-    case "antigravity":
       return "Subscription"
     case "wellknown":
       return "Well-Known"

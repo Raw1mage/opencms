@@ -110,10 +110,6 @@
 
 ## 8. 驗證基準排除（暫行）
 
-- 在目前專案基線中，`antigravity auth plugin` 相關驗證失敗屬已知噪音，可於日常變更驗證中排除。
-- 具體包含：`packages/opencode/src/plugin/antigravity/plugin/storage.legacy.ts` 導致的 typecheck 問題（`vitest` module / `implicit any`）。
-- 規則：若本次變更未觸及該路徑，可視為 non-blocking；若有修改該路徑，則需恢復完整嚴格驗證。
-
 ## 9. 開發流程硬性框架（跨專案 Mandatory）
 
 為確保每個專案都能一致遵守開發紀律，以下項目為硬性要求：

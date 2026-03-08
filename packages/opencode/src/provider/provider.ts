@@ -58,24 +58,6 @@ export namespace Provider {
     "google/embedding-001",
   ])
 
-  const ANTIGRAVITY_WHITELIST = new Set([
-    "gemini-3-pro-high",
-    "gemini-3-pro-low",
-    "gemini-3-pro",
-    "gemini-3-flash",
-    "claude-3-7-sonnet",
-    "claude-3-7-sonnet-thinking",
-    "claude-sonnet-4-5",
-    "claude-sonnet-4-5-thinking",
-    "claude-opus-4-5",
-    "claude-opus-4-5-thinking",
-    "claude-opus-4-6",
-    "claude-opus-4-6-thinking",
-    "claude-opus-4-1",
-    "claude-opus-4-2",
-    "gpt-oss-120b-medium",
-    "gpt-5.1-codex",
-  ])
   const IGNORED_DYNAMIC = new Set<string>()
 
   /**
@@ -1144,20 +1126,9 @@ export namespace Provider {
     inheritFrom("github-copilot-enterprise", "github-copilot", { name: "GitHub Copilot Enterprise" })
 
     // ============================================================
-    // SELF-BUILT PROVIDERS: antigravity and gemini-cli
-    // These providers are completely self-built and do NOT inherit
-    // from models.dev or google-api. All structure must be defined here.
+    // SELF-BUILT PROVIDERS: gemini-cli and claude-cli
+    // These providers are self-built and do NOT inherit from models.dev.
     // ============================================================
-
-    // Initialize Antigravity as a clean self-built provider
-    database["antigravity"] = {
-      id: "antigravity",
-      name: "Antigravity",
-      source: "custom",
-      env: [],
-      options: {},
-      models: {},
-    }
 
     // Initialize Gemini CLI as a clean self-built provider (do NOT inherit from google-api)
     database["gemini-cli"] = {
@@ -1254,88 +1225,6 @@ export namespace Provider {
       }
     }
 
-    // Populate Antigravity with extra models
-    if (database["antigravity"]) {
-      // Populate Antigravity with only specific models
-      const extraModels = [
-        "claude-sonnet-4-5",
-        "claude-opus-4-5",
-        "claude-opus-4-6",
-        "claude-sonnet-4-5-thinking",
-        "claude-opus-4-5-thinking",
-        "claude-opus-4-6-thinking",
-        "claude-opus-4-1",
-        "claude-opus-4-2",
-      ]
-
-      const findModelInDev = (id: string) => {
-        for (const p of Object.values(modelsDev)) {
-          if (p.models[id]) return { provider: p, model: p.models[id] }
-        }
-        return undefined
-      }
-
-      for (const id of extraModels) {
-        const found = findModelInDev(id)
-        if (found) {
-          const model = fromModelsDevModel(found.provider, found.model)
-          model.providerId = "antigravity"
-          model.api = { ...model.api, npm: "@ai-sdk/google", url: "https://generativelanguage.googleapis.com" }
-          database["antigravity"].models[id] = model
-        }
-      }
-
-      const manualModels: Array<{
-        id: string
-        name: string
-        family: string
-        reasoning?: boolean
-        image?: boolean
-      }> = [
-        { id: "claude-opus-4-6-thinking", name: "Claude 4.6 Opus (Thinking)", family: "claude", reasoning: true },
-        { id: "claude-opus-4-6", name: "Claude 4.6 Opus", family: "claude" },
-        { id: "claude-opus-4-5-thinking", name: "Claude 4.5 Opus (Thinking)", family: "claude", reasoning: true },
-        { id: "claude-opus-4-5", name: "Claude 4.5 Opus", family: "claude" },
-        { id: "claude-sonnet-4-5-thinking", name: "Claude 4.5 Sonnet (Thinking)", family: "claude", reasoning: true },
-        { id: "claude-sonnet-4-5", name: "Claude 4.5 Sonnet", family: "claude" },
-        { id: "gemini-3-pro-high", name: "Gemini 3 Pro (High)", family: "gemini-pro", image: false },
-        { id: "gemini-3-pro-low", name: "Gemini 3 Pro (Low)", family: "gemini-pro" },
-        { id: "gemini-3-flash", name: "Gemini 3 Flash (New)", family: "gemini-flash" },
-        { id: "claude-opus-4-1", name: "Claude Opus 4.1", family: "claude" },
-        { id: "claude-opus-4-2", name: "Claude Opus 4.2", family: "claude" },
-        { id: "gpt-oss-120b-medium", name: "GPT-OSS 120B (Medium)", family: "gpt-oss" },
-        { id: "gpt-5.1-codex", name: "GPT-5.1 Codex", family: "openai" },
-        { id: "claude-3-7-sonnet-thinking", name: "Claude 3.7 Sonnet (Thinking)", family: "claude", reasoning: true },
-        { id: "claude-3-7-sonnet", name: "Claude 3.7 Sonnet", family: "claude" },
-      ]
-
-      for (const m of manualModels) {
-        database["antigravity"].models[m.id] = {
-          id: m.id,
-          name: m.name,
-          providerId: "antigravity",
-          family: m.family,
-          api: { id: m.id, url: "https://generativelanguage.googleapis.com", npm: "@ai-sdk/google" },
-          status: "active",
-          capabilities: {
-            temperature: true,
-            reasoning: m.reasoning || false,
-            attachment: true,
-            toolcall: true,
-            input: { text: true, image: m.image ?? true, audio: false, video: false, pdf: false },
-            output: { text: true, audio: false, image: false, video: false, pdf: false },
-            interleaved: false,
-          },
-          cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
-          limit: { context: 200000, output: 8192 },
-          options: {},
-          variants: {},
-          headers: {},
-          release_date: "2025-01-01",
-        }
-      }
-    }
-
     // Initialize GMI Cloud
     // @event_2026-02-06:gmicloud_provider
     database["gmicloud"] = {
@@ -1377,20 +1266,6 @@ export namespace Provider {
     // NOTE: Do NOT call mergeProvider("gmicloud") here.
     // gmicloud requires an API key; the custom loader at line ~1906 will merge it
     // only when autoload=true (i.e., GMI_API_KEY is set or auth is stored).
-
-    // Ensure Antigravity provider is always available if populated (even if no account active)
-    // This prevents fallback to Codex when account sync is flaky or during transitions
-    if (database["antigravity"]) {
-      log.info("Antigravity database entry", {
-        modelCount: Object.keys(database["antigravity"].models).length,
-        models: Object.keys(database["antigravity"].models),
-      })
-      mergeProvider("antigravity", { source: "custom" })
-      log.info("Antigravity after merge", {
-        inProviders: !!providers["antigravity"],
-        modelCount: providers["antigravity"] ? Object.keys(providers["antigravity"].models).length : 0,
-      })
-    }
 
     // Ensure Gemini CLI provider is always available if populated
     // @event_2026-02-17: ensure gemini-cli inherits from google-api if missing from database
@@ -1496,35 +1371,10 @@ export namespace Provider {
         if (disabled.has(accountId)) continue
         if (!isProviderAllowed(accountId)) continue
 
-        // For Antigravity, only register the ACTIVE account and map it to the generic 'antigravity' ID
-        // This ensures /models shows a single 'Antigravity' entry that respects /accounts selection
         let effectiveId = accountId
-        if (family === "antigravity") {
-          if (accountId !== familyData.activeAccount) {
-            continue
-          }
-          effectiveId = "antigravity"
-        } else if (
-          family === "antigravity" &&
-          accountId.startsWith("antigravity-subscription-") &&
-          accountInfo.type === "subscription" &&
-          accountInfo.email
-        ) {
-          // Fallback logic for safety (though the above if block covers it)
-          const username = accountInfo.email.split("@")[0]
-          effectiveId = `antigravity-${username}`
-        }
 
         // Determined display name
         let displayName = Account.getDisplayName(accountId, accountInfo, family)
-        if (
-          family === "antigravity" &&
-          effectiveId === "antigravity" &&
-          accountInfo.type === "subscription" &&
-          accountInfo.email
-        ) {
-          displayName = `Antigravity (${accountInfo.email})`
-        }
 
         // Add to database with models inherited from base provider
         const options: Record<string, any> = {}
@@ -1615,25 +1465,7 @@ export namespace Provider {
 
         const blocked = undefined
 
-        // Whitelist of truly supported Antigravity models
-        const ANTIGRAVITY_WHITELIST = new Set([
-          "gemini-3-pro-high",
-          "gemini-3-pro-low",
-          "gemini-3-pro",
-          "gemini-3-flash",
-          "claude-3-7-sonnet",
-          "claude-3-7-sonnet-thinking",
-          "claude-sonnet-4-5",
-          "claude-sonnet-4-5-thinking",
-          "claude-opus-4-5",
-          "claude-opus-4-5-thinking",
-          "claude-opus-4-1",
-          "claude-opus-4-2",
-          "gpt-oss-120b-medium",
-          "gpt-5.1-codex",
-        ])
-
-        // Whitelist of supported Google API models (to prevent invalid IDs like gemini-3-flash leaking from antigravity)
+        // Whitelist of supported Google API models
         // @event_20260215_google_api_model_cleanup
         const GOOGLE_API_WHITELIST = new Set([
           "gemini-3-pro-preview",
@@ -1659,7 +1491,7 @@ export namespace Provider {
           email: accountInfo.type === "subscription" ? accountInfo.email : undefined,
           coolingDownUntil: accountInfo.type === "subscription" ? accountInfo.coolingDownUntil : undefined,
           cooldownReason: blocked ?? (accountInfo.type === "subscription" ? accountInfo.cooldownReason : undefined),
-          env: family === "antigravity" ? ["ANTIGRAVITY_Enabled"] : [],
+          env: [],
           options,
           models: pickBy(
             mapValues(baseProvider.models, (model) => ({
@@ -1667,7 +1499,6 @@ export namespace Provider {
               providerId: effectiveId,
             })),
             (model, id) => {
-              if (family === "antigravity") return ANTIGRAVITY_WHITELIST.has(id)
               if (family === "google-api") return GOOGLE_API_WHITELIST.has(id) || id.startsWith("gemini-")
               return !isModelIgnored(effectiveId, id)
             },
@@ -1678,41 +1509,6 @@ export namespace Provider {
           source: "custom",
         })
       }
-    }
-
-    // Legacy: Load antigravity accounts for backward compatibility with plugins
-    const antigravityAccounts = await Auth.listAntigravityAccounts()
-    for (const [accountID, accountInfo] of Object.entries(antigravityAccounts)) {
-      // Skip if already loaded from Account module
-      if (database[accountID]) continue
-      if (disabled.has(accountID)) continue
-
-      // Strict separation: do not fall back antigravity compatibility to google-api provider.
-      const baseProvider = database["antigravity"]
-      if (!baseProvider) continue
-
-      database[accountID] = {
-        id: accountID,
-        source: "custom",
-        name: accountInfo.email
-          ? `Antigravity (${accountInfo.email})`
-          : accountID === "antigravity" || accountID.includes("antigravity")
-            ? "Antigravity"
-            : `Antigravity (${accountID})`,
-        env: [],
-        options: {},
-        models: pickBy(
-          mapValues(baseProvider.models, (model) => ({
-            ...model,
-            providerId: accountID,
-          })),
-          (model, id) =>
-            (!accountID.includes("antigravity") || ANTIGRAVITY_WHITELIST.has(id)) && !isModelIgnored(accountID, id),
-        ),
-      }
-      mergeProvider(accountID, {
-        source: "custom",
-      })
     }
 
     for (const plugin of await Plugin.list()) {
@@ -1808,21 +1604,6 @@ export namespace Provider {
         }
       }
 
-      // Special handling for legacy antigravity accounts (Parallelized)
-      if (family === "antigravity") {
-        const legacyLoaderPromises = Object.keys(antigravityAccounts).map(async (accountID) => {
-          if (providers[accountID] && plugin.auth?.loader) {
-            debugCheckpoint("provider", "legacy antigravity loader start", { accountID })
-            const accountOptions = await plugin.auth.loader(() => loadAuth(accountID), providers[accountID])
-            debugCheckpoint("provider", "legacy antigravity loader end", { accountID, hasResult: !!accountOptions })
-            if (accountOptions) {
-              providers[accountID].options = mergeDeep(providers[accountID].options, accountOptions) as Info["options"]
-            }
-          }
-        })
-        await Promise.all(legacyLoaderPromises)
-      }
-
       // Special handling for github-copilot-enterprise (legacy)
       if (family === "github-copilot") {
         const enterpriseProviderID = "github-copilot-enterprise"
@@ -1893,15 +1674,6 @@ export namespace Provider {
 
       for (const [accountId, accountInfo] of Object.entries(fData.accounts)) {
         let effectiveId = accountId
-        if (
-          family === "antigravity" &&
-          accountId.startsWith("antigravity-subscription-") &&
-          accountInfo.type === "subscription" &&
-          accountInfo.email
-        ) {
-          const username = accountInfo.email.split("@")[0]
-          effectiveId = `antigravity-${username}`
-        }
 
         if (providers[effectiveId]) {
           // Merge options, prioritizing account-specific options (from plugin loaders)
@@ -2109,7 +1881,6 @@ export namespace Provider {
           options["fetch"] ||
           model.providerId.includes("subscription") ||
           model.providerId.includes("managed") ||
-          model.providerId.includes("antigravity") ||
           model.providerId.includes("gemini-cli")
         ) {
           // If we have a custom fetch (plugin) OR it's a known managed account type,

@@ -20,25 +20,26 @@ const RECENT_LIMIT = 5
 
 const KNOWN_PROVIDER_FAMILIES = [
   "opencode",
-  "anthropic",
   "claude-cli",
   "openai",
   "github-copilot",
   "gemini-cli",
   "google-api",
-  "antigravity",
   "gmicloud",
   "openrouter",
   "vercel",
   "gitlab",
 ] as const
 
+const EXCLUDED_PROVIDER_FAMILIES = new Set(["google"])
+
 function normalizeProviderFamily(id: unknown): string {
   if (typeof id !== "string") return ""
   const raw = id.trim().toLowerCase()
   if (!raw) return ""
   if (raw.includes(":")) return normalizeProviderFamily(raw.split(":")[0]!)
-  if (raw === "google") return "google-api"
+  if (raw === "anthropic") return "claude-cli"
+  if (EXCLUDED_PROVIDER_FAMILIES.has(raw)) return ""
 
   for (const provider of KNOWN_PROVIDER_FAMILIES) {
     if (raw === provider || raw.startsWith(`${provider}-`)) return provider
@@ -48,7 +49,7 @@ function normalizeProviderFamily(id: unknown): string {
   if (apiMatch) return apiMatch[1]!
   const subscriptionMatch = raw.match(/^(.+)-subscription-/)
   if (subscriptionMatch) return subscriptionMatch[1]!
-  return raw
+  return EXCLUDED_PROVIDER_FAMILIES.has(raw) ? "" : raw
 }
 
 function modelKey(model: ModelKey) {

@@ -17,10 +17,9 @@ import { useLanguage } from "@/context/language"
 import { useGlobalSDK } from "@/context/global-sdk"
 import { useGlobalSync } from "@/context/global-sync"
 import { usePlatform } from "@/context/platform"
-import { DialogSelectModel } from "./dialog-select-model"
 import { DialogSelectProvider } from "./dialog-select-provider"
 
-export function DialogConnectProvider(props: { provider: string }) {
+export function DialogConnectProvider(props: { provider: string; onBack?: () => void }) {
   const dialog = useDialog()
   const globalSync = useGlobalSync()
   const globalSDK = useGlobalSDK()
@@ -191,6 +190,10 @@ export function DialogConnectProvider(props: { provider: string }) {
   }
 
   function goBack() {
+    if (props.onBack) {
+      props.onBack()
+      return
+    }
     if (methods().length === 1) {
       dialog.show(() => <DialogSelectProvider />)
       return
@@ -450,7 +453,7 @@ export function DialogConnectProvider(props: { provider: string }) {
           <ProviderIcon id={props.provider as IconName} class="size-5 shrink-0 icon-strong-base" />
           <div class="text-16-medium text-text-strong">
             <Switch>
-              <Match when={props.provider === "anthropic" && method()?.label?.toLowerCase().includes("max")}>
+              <Match when={props.provider === "claude-cli" && method()?.label?.toLowerCase().includes("max")}>
                 {language.t("provider.connect.title.anthropicProMax")}
               </Match>
               <Match when={true}>{language.t("provider.connect.title", { provider: provider().name })}</Match>

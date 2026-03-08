@@ -8,6 +8,11 @@ import { ProviderAuth } from "../../provider/auth"
 import { mapValues } from "remeda"
 import { errors } from "../error"
 import { Account } from "../../account"
+import {
+  buildCanonicalProviderFamilyRows,
+  normalizeCanonicalProviderFamily,
+  resolveCanonicalRuntimeProvider,
+} from "../../provider/canonical-family-source"
 import { lazy } from "../../util/lazy"
 import { Log } from "../../util/log"
 const log = Log.create({ service: "provider.routes" })
@@ -42,61 +47,73 @@ export const ProviderRoutes = lazy(() =>
         c.header("Pragma", "no-cache")
         const config = await Config.get()
         const allProviders = await ModelsDev.get()
-        const filteredProviders = allProviders
         log.info("ModelsDev.get done")
 
         // Wait for discovery to be sure we have the latest account-specific models
         const connected = await Provider.list()
         log.info("Provider.list done")
 
-        const providers: Record<string, Provider.Info> = {}
-
         // Get all families with accounts to determine multi-account status dynamically
         const familiesWithAccounts = await Account.listAll()
 
-        // Merge ModelsDev providers
-        for (const [id, devProvider] of Object.entries(filteredProviders)) {
-          const family = await Account.resolveFamilyOrSelf(id)
-          // A provider has multi-account if it has accounts in storage (not a whitelist)
-          const hasAccountsConfigured = !!(
-            familiesWithAccounts[family]?.accounts && Object.keys(familiesWithAccounts[family].accounts).length > 0
+        const disabledProviderIds = Array.isArray(config.disabled_providers)
+          ? config.disabled_providers.filter((item): item is string => typeof item === "string")
+          : []
+        const canonicalFamilies = buildCanonicalProviderFamilyRows({
+          accountFamilies: familiesWithAccounts,
+          connectedProviderIds: Object.keys(connected),
+          modelsDevProviderIds: Object.keys(allProviders),
+          disabledProviderIds,
+          excludedFamilies: ["google"],
+        })
+
+        const providers: Record<string, Provider.Info> = {}
+
+        for (const row of canonicalFamilies) {
+          const family = row.family
+          const familyData = familiesWithAccounts[family]
+          const activeAccountId = familyData?.activeAccount
+          const connectedProviders = Object.values(connected).filter(
+            (provider) => normalizeCanonicalProviderFamily(provider.id) === family,
           )
-
-          if (hasAccountsConfigured) {
-            // For multi-account families, we should only show models if they are either:
-            // 1. In the 'connected' list (meaning they were discovered specifically for the active account)
-            // 2. Public models (cost.input === 0)
-
-            const connectedProvider = connected[id]
-            if (connectedProvider) {
-              providers[id] = connectedProvider
-              continue
+          const resolvedConnected = resolveCanonicalRuntimeProvider({
+            family,
+            activeAccountId,
+            providers: connectedProviders,
+          })
+          if (resolvedConnected) {
+            providers[family] = {
+              ...resolvedConnected.provider,
+              id: family,
+              name: Account.getProviderLabel(family),
             }
+            continue
+          }
 
-            // If not connected, we show the ModelsDev version but filter for public models only
-            const info = Provider.fromModelsDevProvider(devProvider)
+          const devEntry = Object.entries(allProviders).find(
+            ([id]) => normalizeCanonicalProviderFamily(id) === family,
+          )?.[1]
+          if (!devEntry) continue
+
+          const info = Provider.fromModelsDevProvider({
+            ...devEntry,
+            id: family,
+            name: Account.getProviderLabel(family),
+          })
+
+          const hasAccountsConfigured = !!(familyData?.accounts && Object.keys(familyData.accounts).length > 0)
+          if (hasAccountsConfigured) {
             const publicModels: Record<string, Provider.Model> = {}
-            for (const [mId, mInfo] of Object.entries(info.models)) {
-              if (mInfo.cost.input === 0) {
-                publicModels[mId] = mInfo
+            for (const [modelId, modelInfo] of Object.entries(info.models)) {
+              if (modelInfo.cost.input === 0) {
+                publicModels[modelId] = modelInfo
               }
             }
-
-            if (Object.keys(publicModels).length > 0) {
-              info.models = publicModels
-              providers[id] = info
-            }
-          } else {
-            // For other providers, show as is or if they are in connected
-            providers[id] = connected[id] || Provider.fromModelsDevProvider(devProvider)
+            if (Object.keys(publicModels).length === 0) continue
+            info.models = publicModels
           }
-        }
 
-        // Add any connected providers that were not in filteredProviders
-        for (const [id, info] of Object.entries(connected)) {
-          if (!providers[id]) {
-            providers[id] = info
-          }
+          providers[family] = info
         }
 
         return c.json({

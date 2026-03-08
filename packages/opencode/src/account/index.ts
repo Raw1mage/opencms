@@ -22,7 +22,6 @@ export namespace Account {
     "google-api",
     "openai",
     "claude-cli",
-    "antigravity",
     "gemini-cli",
     "gitlab",
     "github-copilot",
@@ -845,7 +844,6 @@ export namespace Account {
       "google-api": "google-api",
       openai: "openai",
       "claude-cli": "claude-cli",
-      antigravity: "antigravity",
       "gemini-cli": "gemini-cli",
       opencode: "opencode",
       gitlab: "gitlab",
@@ -858,25 +856,15 @@ export namespace Account {
     log.info("Migrating accounts.json to v2...")
     if (storage.families.google && storage.families.google.accounts) {
       const googleAccounts = storage.families.google.accounts
-      const antigravityAccounts: Record<string, any> = {}
       const geminiCliAccounts: Record<string, any> = {}
       const remainingGoogleAccounts: Record<string, any> = {}
 
       for (const [id, account] of Object.entries(googleAccounts as Record<string, any>)) {
         let moved = false
-        // Clue for antigravity: fingerprint userAgent or rate limits
-        const isAntigravity =
-          account.fingerprint?.userAgent?.includes("antigravity") ||
-          Object.keys(account.rateLimitResetTimes || {}).some((k) => k.startsWith("gemini-antigravity"))
-
         // Clue for gemini-cli: rate limits or specific fields
         const isGeminiCli = Object.keys(account.rateLimitResetTimes || {}).some((k) => k.startsWith("gemini-cli"))
 
-        if (isAntigravity) {
-          const newId = id.replace(/^google-/, "antigravity-")
-          antigravityAccounts[newId] = { ...account }
-          moved = true
-        } else if (isGeminiCli) {
+        if (isGeminiCli) {
           const newId = id.replace(/^google-/, "gemini-cli-")
           geminiCliAccounts[newId] = { ...account }
           moved = true
@@ -885,12 +873,6 @@ export namespace Account {
         }
       }
 
-      if (Object.keys(antigravityAccounts).length > 0) {
-        storage.families.antigravity = {
-          accounts: antigravityAccounts,
-          activeAccount: Object.keys(antigravityAccounts)[0],
-        }
-      }
       if (Object.keys(geminiCliAccounts).length > 0) {
         storage.families["gemini-cli"] = {
           accounts: geminiCliAccounts,
@@ -919,7 +901,7 @@ export namespace Account {
     // 1. Migrate from auth.json
     // - API keys: migrate all
     // - OAuth: only migrate for providers that DON'T have separate multi-account files
-    //   - Google OAuth: skip (comes from antigravity-accounts.json)
+    //   - Google OAuth: skip (handled via provider-specific migration paths)
     //   - OpenAI OAuth: skip (comes from openai-codex-accounts.json)
     //   - claude-cli OAuth: migrate (no separate multi-account file)
     const authPath = path.join(Global.Path.data, "auth.json")
@@ -953,7 +935,7 @@ export namespace Account {
             // Only migrate OAuth for providers without separate multi-account files
             // Google and OpenAI have their own account files
             if (provider === "google" || provider === "google-api" || provider === "openai") {
-              continue // Skip - will be migrated from antigravity/codex account files
+              continue // Skip - will be migrated from codex account files or dedicated flows
             }
 
             if (!storage.families[provider]) {
@@ -987,49 +969,7 @@ export namespace Account {
       }
     }
 
-    // 2. Migrate from antigravity-accounts.json
-    const xdgConfig = process.env.XDG_CONFIG_HOME || path.join(Global.Path.home, ".config")
-    const antigravityPath = path.join(xdgConfig, "opencode", "antigravity-accounts.json")
-    const antigravityFile = Bun.file(antigravityPath)
-    if (await antigravityFile.exists()) {
-      try {
-        const data = await antigravityFile.json()
-        if (data.accounts && Array.isArray(data.accounts)) {
-          if (!storage.families["antigravity"]) {
-            storage.families["antigravity"] = { accounts: {} }
-          }
-
-          for (let i = 0; i < data.accounts.length; i++) {
-            const account = data.accounts[i]
-            const accountId = `antigravity-subscription-${i + 1}`
-            storage.families["antigravity"].accounts[accountId] = {
-              type: "subscription",
-              name: account.email || `Account ${i + 1}`,
-              email: account.email,
-              refreshToken: account.refreshToken,
-              projectId: account.projectId,
-              managedProjectId: account.managedProjectId,
-              addedAt: account.addedAt || Date.now(),
-              rateLimitResetTimes: account.rateLimitResetTimes,
-              coolingDownUntil: account.coolingDownUntil,
-              cooldownReason: account.cooldownReason,
-              fingerprint: account.fingerprint,
-            }
-
-            // Set active based on activeIndex
-            if (data.activeIndex === i && !storage.families["antigravity"].activeAccount) {
-              storage.families["antigravity"].activeAccount = accountId
-            }
-          }
-          hasMigrated = true
-          log.info("Migrated antigravity accounts", { count: data.accounts.length })
-        }
-      } catch (e) {
-        log.warn("Failed to migrate antigravity-accounts.json", { error: e })
-      }
-    }
-
-    // 3. Migrate from openai-codex-accounts.json (if exists)
+    // 2. Migrate from openai-codex-accounts.json (if exists)
     // @event_2026-02-07_install: align legacy codex storage to XDG config
     const codexPath = path.join(Global.Path.config, "openai-codex-accounts.json")
     const codexFile = Bun.file(codexPath)
@@ -1214,7 +1154,7 @@ export namespace Account {
    * Get the next available account for a provider using rotation.
    * Takes into account health scores and rate limits.
    *
-   * @param provider Provider ID (e.g., "openai", "anthropic", "antigravity")
+   * @param provider Provider ID (e.g., "openai", "anthropic", "gemini-cli")
    * @param model Optional model ID for model-specific rate limits
    * @returns Account ID and info, or undefined if none available
    */

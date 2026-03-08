@@ -11,12 +11,12 @@ This skill transforms the agent into an interactive wizard to manage the complex
 
 It guides you through analyzing divergence, planning the merge strategy for each commit, and safely executing changes while preserving critical `cms` features:
 
-1.  **3-way Google Provider Split** (`google-api`, `gemini-cli`, `antigravity`).
+1.  **Canonical Google Provider Split** (`google-api`, `gemini-cli`).
 2.  **Multi-account Support**.
 3.  **Rotation3D**.
 4.  **Admin Panel & TUI** (`src/cli/cmd/admin.ts`, `src/cli/cmd/tui/`).
 
-**Key Principle**: The `antigravity` and `gemini-cli` plugins are strictly for **OAuth Client Simulation**. Internal account switching or rate limiting features within the plugins should be discarded in favor of CMS's global `Account` and `Rotation3D` modules.
+**Key Principle**: The `gemini-cli` plugin is strictly for **OAuth Client Simulation**. Internal account switching or rate limiting features within plugins should be discarded in favor of CMS's global `Account` and `Rotation3D` modules.
 
 **Language Requirement**: All interactions with the user must be in **Traditional Chinese (繁體中文)**.
 
@@ -83,12 +83,12 @@ Follow the `agent-workflow` state machine:
 
 Modifications to these areas require **manual porting** and **high scrutiny**:
 
-- `src/provider/` (The 3-way split logic)
+- `src/provider/` (The canonical Google provider split logic)
 - `src/account/` (Multi-account logic)
 - `src/session/llm.ts` (Rotation3D)
 - `src/cli/cmd/admin.ts` (Admin Panel entry point)
 - `src/cli/cmd/tui/` (Text User Interface components)
-- `src/plugin/antigravity/` & `src/plugin/gemini-cli/` (Internal Account Managers should NOT override global Accounts)
+- `src/plugin/gemini-cli/` (Internal plugin helpers should NOT override global Accounts)
 
 ## Tools & References
 

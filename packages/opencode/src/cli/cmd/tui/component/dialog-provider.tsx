@@ -19,7 +19,7 @@ import open from "open"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
   opencode: 0,
-  anthropic: 1,
+  "claude-cli": 1,
   "github-copilot": 2,
   openai: 3,
   "google-api": 4,
@@ -96,7 +96,7 @@ export function createDialogProviderOptions() {
           value: provider.id,
           description: {
             opencode: "(Recommended)",
-            anthropic: "(Claude Max or API key)",
+            "claude-cli": "(Claude Max or API key)",
             openai: "(ChatGPT Plus/Pro or API key)",
           }[provider.id],
           category: provider.id in PROVIDER_PRIORITY ? "Popular" : "Other",

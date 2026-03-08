@@ -1789,10 +1789,6 @@ export type Config = {
     ignore?: Array<string>
   }
   plugin?: Array<string>
-  /**
-   * @deprecated Use disabled_providers to control provider enablement.
-   */
-  antigravity?: boolean
   snapshot?: boolean
   /**
    * Control sharing behavior:'manual' allows manual sharing via commands, 'auto' enables automatic sharing, 'disabled' disables all sharing
@@ -5202,7 +5198,6 @@ export type AccountListAllResponses = {
         }
       }
     }
-    antigravity?: unknown
   }
 }
 
@@ -5242,25 +5237,6 @@ export type AccountSetActiveResponses = {
 }
 
 export type AccountSetActiveResponse = AccountSetActiveResponses[keyof AccountSetActiveResponses]
-
-export type AccountAntigravityToggleData = {
-  body?: {
-    index: number
-    enabled: boolean
-  }
-  path?: never
-  query?: {
-    directory?: string
-  }
-  url: "/account/antigravity/toggle"
-}
-
-export type AccountAntigravityToggleResponses = {
-  /**
-   * Success
-   */
-  200: unknown
-}
 
 export type AccountLoginData = {
   body?: never
@@ -5369,7 +5345,6 @@ export type AccountListAll2Responses = {
         }
       }
     }
-    antigravity?: unknown
   }
 }
 
@@ -5409,25 +5384,6 @@ export type AccountSetActive2Responses = {
 }
 
 export type AccountSetActive2Response = AccountSetActive2Responses[keyof AccountSetActive2Responses]
-
-export type AccountAntigravityToggle2Data = {
-  body?: {
-    index: number
-    enabled: boolean
-  }
-  path?: never
-  query?: {
-    directory?: string
-  }
-  url: "/accounts/antigravity/toggle"
-}
-
-export type AccountAntigravityToggle2Responses = {
-  /**
-   * Success
-   */
-  200: unknown
-}
 
 export type AccountLogin2Data = {
   body?: never

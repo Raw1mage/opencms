@@ -1,12 +1,15 @@
 import { describe, expect, test } from "bun:test"
-import { extractGmiCloudTextProtocolToolCalls, rewriteGmiCloudToolCallPayload } from "../../src/provider/gmicloud-toolcall-bridge"
+import {
+  extractGmiCloudTextProtocolToolCalls,
+  rewriteGmiCloudToolCallPayload,
+} from "../../src/provider/gmicloud-toolcall-bridge"
 
 describe("extractGmiCloudTextProtocolToolCalls", () => {
   test("extracts deepseek text-protocol tool call and normalizes arguments", () => {
     const input = [
       "I will inspect files now.",
       "<|tool_calls_begin|><|tool_call_begin|>function<|tool_sep|>glob",
-      "{pattern: packages/opencode/src/plugin/antigravity/**/*.ts}",
+      "{pattern: packages/opencode/src/plugin/gemini-cli/**/*.ts}",
       "<|tool_call_end|><|tool_calls_end|>",
     ].join("\n")
 
@@ -15,7 +18,9 @@ describe("extractGmiCloudTextProtocolToolCalls", () => {
     expect(result?.cleanedText).toBe("I will inspect files now.")
     expect(result?.toolCalls.length).toBe(1)
     expect(result?.toolCalls[0].name).toBe("glob")
-    expect(result?.toolCalls[0].input).toBe(JSON.stringify({ pattern: "packages/opencode/src/plugin/antigravity/**/*.ts" }))
+    expect(result?.toolCalls[0].input).toBe(
+      JSON.stringify({ pattern: "packages/opencode/src/plugin/gemini-cli/**/*.ts" }),
+    )
   })
 
   test("extracts multiple tool calls and cleans wrapper markers", () => {
@@ -68,16 +73,14 @@ describe("extractGmiCloudTextProtocolToolCalls", () => {
     expect(result).toBeDefined()
     expect(result?.toolCalls.length).toBe(1)
     expect(result?.toolCalls[0].name).toBe("read")
-    expect(result?.toolCalls[0].input).toBe(
-      JSON.stringify({ filePath: "/workspace/opencode/docs/ARCHITECTURE.md" }),
-    )
+    expect(result?.toolCalls[0].input).toBe(JSON.stringify({ filePath: "/workspace/opencode/docs/ARCHITECTURE.md" }))
   })
 
   test("parses fullwidth-bar and ▁ marker variants from copied deepseek output", () => {
     const input = [
-      "Let me proceed with the code review by examining the changes in the Antigravity plugin:",
+      "Let me proceed with the code review by examining the changes in the Gemini CLI plugin:",
       "<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>function<｜tool▁sep｜>read",
-      "{filePath: /workspace/opencode/packages/opencode/src/plugin/antigravity/index.ts}",
+      "{filePath: /workspace/opencode/packages/opencode/src/plugin/gemini-cli/index.ts}",
       "```<｜tool▁call▁end｜><｜tool▁calls▁end｜>",
     ].join("\n")
 
@@ -86,7 +89,7 @@ describe("extractGmiCloudTextProtocolToolCalls", () => {
     expect(result?.toolCalls.length).toBe(1)
     expect(result?.toolCalls[0].name).toBe("read")
     expect(result?.toolCalls[0].input).toBe(
-      JSON.stringify({ filePath: "/workspace/opencode/packages/opencode/src/plugin/antigravity/index.ts" }),
+      JSON.stringify({ filePath: "/workspace/opencode/packages/opencode/src/plugin/gemini-cli/index.ts" }),
     )
   })
 

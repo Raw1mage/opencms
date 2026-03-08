@@ -2,24 +2,12 @@ import type { Argv } from "yargs"
 import { Instance } from "../../project/instance"
 import { Provider } from "../../provider/provider"
 import { ModelsDev } from "../../provider/models"
+import { modelRegistry } from "../../provider/model-registry"
 import { cmd } from "./cmd"
 import { UI } from "../ui"
 import { EOL } from "os"
 import { Account } from "../../account"
-import { modelRegistry } from "../../plugin/antigravity/plugin/model-registry"
-import { AccountManager, type ManagedAccount } from "../../plugin/antigravity/plugin/accounts" // Import explicitly
 import { OPENAI_FALLBACK_MODELS } from "../../provider/model-curation"
-
-// Define specific models for Antigravity as fallback
-const ANTIGRAVITY_MODELS = [
-  "claude-opus-4-5-thinking",
-  "claude-sonnet-4-5",
-  "claude-sonnet-4-5-thinking",
-  "gpt-oss-120b-medium",
-  "gemini-3-flash",
-  "gemini-3-pro-high",
-  "gemini-3-pro-low",
-]
 
 // Define specific models for Gemini CLI as fallback
 const GEMINI_CLI_MODELS = [
@@ -65,7 +53,6 @@ export const ModelsCommand = cmd({
         type: "boolean",
       })
       .example("opencode models", "Show status dashboard")
-      .example("opencode models antigravity", "Show status only for Antigravity")
       .example("opencode models add google-api gemini-1.5-pro", "Add model using simplified alias")
   },
   handler: async (args) => {
@@ -186,10 +173,6 @@ export const ModelsCommand = cmd({
         const providers = await Provider.list()
         const now = Date.now()
 
-        // Initialize Antigravity Account Manager explicitly to ensure data availability
-        const agManager = await AccountManager.loadFromDisk()
-        const agSnapshot = agManager.getAccountsSnapshot()
-
         // Helper for time formatting
         const getWaitTime = (ts: number | undefined) => {
           if (!ts || ts <= now) return null
@@ -199,39 +182,8 @@ export const ModelsCommand = cmd({
           return `${waitSec}s`
         }
 
-        const getAntigravityStatus = (acc: any, model: string) => {
-          if (!acc || !acc.rateLimitResetTimes) return "✅ Ready"
-
-          // Determine key to check
-          let wait = null
-
-          // Check specific model key first (if any)
-          if (acc.rateLimitResetTimes[model]) {
-            wait = getWaitTime(acc.rateLimitResetTimes[model])
-          }
-
-          // Fallback to family keys
-          if (!wait) {
-            if (model.includes("claude")) {
-              wait = getWaitTime(acc.rateLimitResetTimes["claude"])
-            } else if (model.includes("gemini")) {
-              wait = getWaitTime(acc.rateLimitResetTimes["gemini-antigravity"])
-            }
-          }
-
-          // Check global cooldown
-          if (!wait && acc.coolingDownUntil && acc.coolingDownUntil > now) {
-            wait = getWaitTime(acc.coolingDownUntil)
-          }
-
-          if (wait) {
-            return `⏳ Limit (${wait})`
-          }
-          return "✅ Ready"
-        }
-
         // Order providers
-        const order = ["antigravity", "gemini-cli", "claude-cli", "openai", "opencode", "google-api"]
+        const order = ["gemini-cli", "claude-cli", "openai", "opencode", "google-api"]
         const sortedFamilies = Object.keys(families).sort((a, b) => {
           // Map a to sort key if needed, mostly 'google-api' is in sort list
           const idxA = order.indexOf(a)
@@ -261,31 +213,8 @@ export const ModelsCommand = cmd({
             const isActive = familyData.activeAccount === id
             const activeMark = isActive ? UI.Style.TEXT_SUCCESS + "●" + UI.Style.TEXT_NORMAL : "○"
 
-            // 1. Find matched account FIRST to get metadata
-            let matchedAcc: ManagedAccount | undefined = undefined
-            let displayNameOverride: string | null = null
-
-            if (familyName === "antigravity" && agSnapshot.length > 0) {
-              // ID format: antigravity-subscription-{N} where N is 1-based index
-              // Snapshot index is 0-based
-              const match = id.match(/antigravity-subscription-(\d+)/)
-              if (match) {
-                const index = parseInt(match[1]) - 1
-                matchedAcc = agSnapshot.find((a) => a.index === index)
-              } else {
-                // Fallback: try direct index match if ID happens to be just number
-                matchedAcc = agSnapshot.find((a) => String(a.index) === id)
-              }
-
-              if (matchedAcc && matchedAcc.email) {
-                displayNameOverride = matchedAcc.email
-              }
-            } else if (agSnapshot.length > 0 && "email" in info && typeof info.email === "string") {
-              matchedAcc = agSnapshot.find((a) => a.email === info.email)
-            }
-
             // 2. Determine Display Name
-            let displayName = displayNameOverride || Account.getDisplayName(id, info, familyName)
+            const displayName = Account.getDisplayName(id, info, familyName)
 
             console.log(`  ${activeMark} 👤 ${displayName}`)
 
@@ -299,9 +228,7 @@ export const ModelsCommand = cmd({
               modelsToShow = [...customList]
             } else {
               // Fallback if not in registry
-              if (familyName === "antigravity") {
-                modelsToShow = ANTIGRAVITY_MODELS
-              } else if (familyName === "gemini-cli") {
+              if (familyName === "gemini-cli") {
                 modelsToShow = GEMINI_CLI_MODELS
               } else if (familyName === "openai") {
                 modelsToShow = OPENAI_MODELS
@@ -321,19 +248,16 @@ export const ModelsCommand = cmd({
             for (const model of modelsToShow) {
               let status = "✅ Ready"
 
-              if (matchedAcc) {
-                if (familyName === "antigravity") {
-                  status = getAntigravityStatus(matchedAcc, model)
-                } else if (familyName === "gemini-cli") {
-                  let wait = null
-                  if (matchedAcc.rateLimitResetTimes) {
-                    wait = getWaitTime(matchedAcc.rateLimitResetTimes["gemini-cli"])
-                  }
-                  if (!wait && matchedAcc.coolingDownUntil && matchedAcc.coolingDownUntil > now) {
-                    wait = getWaitTime(matchedAcc.coolingDownUntil)
-                  }
-                  if (wait) status = `⏳ Limit (${wait})`
+              if (familyName === "gemini-cli") {
+                const accountInfo = info as any
+                let wait = null
+                if (accountInfo.rateLimitResetTimes) {
+                  wait = getWaitTime(accountInfo.rateLimitResetTimes["gemini-cli"])
                 }
+                if (!wait && accountInfo.coolingDownUntil && accountInfo.coolingDownUntil > now) {
+                  wait = getWaitTime(accountInfo.coolingDownUntil)
+                }
+                if (wait) status = `⏳ Limit (${wait})`
               }
 
               console.log(`      • ${model.padEnd(30)} : ${status}`)

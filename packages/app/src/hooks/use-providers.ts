@@ -5,7 +5,7 @@ import { createMemo } from "solid-js"
 
 export const popularProviders = [
   "opencode",
-  "anthropic",
+  "claude-cli",
   "github-copilot",
   "openai",
   "gemini-cli",

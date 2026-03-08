@@ -46,10 +46,6 @@ import { useToast } from "../../ui/toast"
 import { useKV } from "../../context/kv"
 import { useTextareaKeybindings } from "../textarea-keybindings"
 import { Account } from "@/account"
-import { checkAccountsQuota, type QuotaGroup } from "@/plugin/antigravity/plugin/quota"
-import { loadAccounts, saveAccounts } from "@/plugin/antigravity/plugin/storage"
-import { resolveAntigravityQuotaGroup } from "@/plugin/antigravity/plugin/quota-group"
-import type { PluginClient } from "@/plugin/antigravity/plugin/types"
 import { formatOpenAIQuotaDisplay, getOpenAIQuotaForDisplay } from "@/account/quota"
 import { createTimerCoordinator } from "../../util/timer-coordinator"
 import { buildVariantOptions, getEffectiveVariantValue, shouldShowVariantControl } from "../../util/model-variant"
@@ -198,41 +194,6 @@ export function Prompt(props: PromptProps) {
       }
     },
   )
-
-  function resolveQuotaGroup(modelID: string): QuotaGroup | null {
-    return resolveAntigravityQuotaGroup(modelID)
-  }
-
-  const [quotaGroups] = createResource(quotaRefresh, async () => {
-    if (disableFooterMeta) return null
-    try {
-      const storage = await loadAccounts()
-      if (!storage || storage.accounts.length === 0) return null
-      const noopClient = {
-        auth: {
-          set: async () => true,
-        },
-      } as unknown as PluginClient
-      const results = await checkAccountsQuota(storage.accounts, noopClient)
-
-      let shouldSave = false
-      for (const res of results) {
-        if (res.updatedAccount) {
-          storage.accounts[res.index] = res.updatedAccount
-          shouldSave = true
-        }
-      }
-      if (shouldSave) {
-        await saveAccounts(storage)
-      }
-
-      const activeIndex = Math.max(0, Math.min(storage.activeIndex ?? 0, results.length - 1))
-      const active = results.find((res) => res.index === activeIndex)
-      return active?.quota?.groups ?? null
-    } catch {
-      return null
-    }
-  })
 
   const [codexQuota] = createResource(quotaRefresh, async () => {
     if (disableFooterMeta) return null
@@ -1081,16 +1042,6 @@ export function Prompt(props: PromptProps) {
       if (isRateLimited()) return "(5hrs:0% | week:0%)"
       const quota = codexQuota()
       return formatOpenAIQuotaDisplay(quota, "footer")
-    }
-    if (current.providerId === "antigravity" || Account.parseFamily(current.providerId) === "antigravity") {
-      if (isRateLimited()) return "0%"
-      const groups = quotaGroups()
-      if (!groups) return undefined
-      const group = resolveQuotaGroup(current.modelID)
-      if (!group) return undefined
-      const remaining = groups[group]?.remainingFraction
-      if (typeof remaining !== "number") return undefined
-      return `${Math.round(remaining * 100)}%`
     }
     return undefined
   })

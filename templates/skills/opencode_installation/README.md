@@ -5,9 +5,10 @@
 ## 1. 前置需求 (Prerequisites)
 
 請確保您的新機器已安裝以下軟體：
-*   **WSL2** (推薦使用 Ubuntu 22.04 或更高版本)
-*   **Node.js 20+** (強烈建議使用 `nvm` 安裝：`nvm install 20`)
-*   **Git**
+
+- **WSL2** (推薦使用 Ubuntu 22.04 或更高版本)
+- **Node.js 20+** (強烈建議使用 `nvm` 安裝：`nvm install 20`)
+- **Git**
 
 ## 2. 快速安裝 (Quick Install)
 
@@ -39,29 +40,18 @@ cd ~/.config/opencode
 npm init -y
 ```
 
-### 步驟 3.3: 安裝認證插件 (Plugin)
+### 步驟 3.3: 建立設定檔 (`opencode.json`)
 
-我們需要安裝 `opencode-antigravity-auth` 來處理 Pro 訂閱 (針對 `antigravity-*` 模型)。
-
-```bash
-cd ~/.config/opencode
-npm install opencode-antigravity-auth@latest
-```
-
-### 步驟 3.4: 建立設定檔 (`opencode.json`)
-
-建立 `~/.config/opencode/opencode.json`，並寫入以下內容。這份設定檔是「雙路認證」的核心：
+建立 `~/.config/opencode/opencode.json`，並寫入以下內容。這份設定檔以 canonical Google providers 為核心：
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-antigravity-auth@latest"],
   "provider": {
     "google": {
       "models": {
         "gemini-2.5-flash": { "name": "Gemini 2.5 Flash (Free Tier)" },
-        "gemini-2.5-pro": { "name": "Gemini 2.5 Pro (Free Tier)" },
-        "antigravity-gemini-3-pro": { "name": "Gemini 3 Pro (Managed)" }
+        "gemini-2.5-pro": { "name": "Gemini 2.5 Pro (Free Tier)" }
       }
     }
   }
@@ -70,21 +60,17 @@ npm install opencode-antigravity-auth@latest
 
 ### 步驟 3.5: 設定認證 (Authentication)
 
-本環境採用雙軌並行策略：
+本環境使用 API Key 路徑：
 
 **路徑 A: 免費額度 (Free Tier - API Key)**
+
 1. 前往 [Google AI Studio](https://aistudio.google.com/) 獲取您的 API Key (以 `AIza` 開頭)。
 2. 將其加入環境變數：
    ```bash
    echo 'export GOOGLE_API_KEY=AIzaSyCy...' >> ~/.bashrc
    source ~/.bashrc
    ```
-   *用途：當您呼叫 `gemini-2.5-flash` 等標準模型時，會走這條路徑，使用您的個人免費額度。*
-
-**路徑 B: 專業託管 (Pro Tier - Antigravity)**
-1. 插件會自動處理這部分。
-2. 當您第一次呼叫 `antigravity-*` 開頭的模型時，系統會跳出瀏覽器登入提示，請完成 OAuth 授權。
-   *用途：當您呼叫 `antigravity-gemini-3-pro` 處理複雜任務時，會走這條路徑。*
+   _用途：當您呼叫 `gemini-2.5-flash` 等標準模型時，會走這條路徑，使用您的個人免費額度。_
 
 ## 4. Skills 設定
 
@@ -105,6 +91,7 @@ opencode-check-health
 ```
 
 或直接測試免費通道：
+
 ```bash
 opencode run -m google/gemini-2.5-flash "你好，請自我介紹"
 ```

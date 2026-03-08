@@ -39,9 +39,9 @@ export namespace ProviderHealth {
    * Account authentication status
    */
   export type AccountStatus = {
-    accountID: string // e.g. "google-api", "google-api-work", "antigravity"
+    accountID: string // e.g. "google-api", "google-api-work", "gemini-cli"
     providerFamily: string // e.g. "google-api", "openai", "anthropic"
-    authType: "oauth" | "api" | "wellknown" | "antigravity" | "none"
+    authType: "oauth" | "api" | "wellknown" | "none"
     authenticated: boolean
     accountEmail?: string
     accountName?: string
@@ -550,22 +550,13 @@ export namespace ProviderHealth {
 
     for (const [family, familyData] of Object.entries(unifiedAccounts)) {
       const hasSpecificAccounts = Object.keys(familyData.accounts).some(
-        (id) =>
-          id.includes("-subscription-") ||
-          id.includes("@") ||
-          (id !== family && id !== "antigravity" && id !== "gemini-cli"),
+        (id) => id.includes("-subscription-") || id.includes("@") || (id !== family && id !== "gemini-cli"),
       )
 
       for (const [accountId, accountInfo] of Object.entries(familyData.accounts)) {
         // Filter out legacy "phantom" accounts if specific accounts exist for this family
         // These are often artifacts of migration or old provider IDs
-        if (
-          hasSpecificAccounts &&
-          (accountId === family ||
-            accountId === "antigravity" ||
-            accountId === "gemini-cli" ||
-            accountId === "google-api")
-        ) {
+        if (hasSpecificAccounts && (accountId === family || accountId === "gemini-cli" || accountId === "google-api")) {
           // If we have at least one better identifier, skip the generic ones
           continue
         }

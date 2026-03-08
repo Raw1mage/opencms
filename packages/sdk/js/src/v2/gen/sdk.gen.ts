@@ -3,8 +3,6 @@
 import { client } from "./client.gen.js"
 import { buildClientParams, type Client, type Options as Options2, type TDataShape } from "./client/index.js"
 import type {
-  AccountAntigravityToggle2Responses,
-  AccountAntigravityToggleResponses,
   AccountListAll2Responses,
   AccountListAllResponses,
   AccountLogin2Responses,
@@ -3050,43 +3048,6 @@ export class Account extends HeyApiClient {
   }
 
   /**
-   * Toggle Antigravity account
-   *
-   * Enable or disable a specific account in the Antigravity pool.
-   */
-  public antigravityToggle<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      index?: number
-      enabled?: boolean
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "body", key: "index" },
-            { in: "body", key: "enabled" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<AccountAntigravityToggleResponses, unknown, ThrowOnError>({
-      url: "/account/antigravity/toggle",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-
-  /**
    * Trigger login
    *
    * Get the login URL for a provider family.
@@ -3194,43 +3155,6 @@ export class Account extends HeyApiClient {
     )
     return (options?.client ?? this.client).post<AccountSetActive2Responses, AccountSetActive2Errors, ThrowOnError>({
       url: "/accounts/{family}/active",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-
-  /**
-   * Toggle Antigravity account
-   *
-   * Enable or disable a specific account in the Antigravity pool.
-   */
-  public antigravityToggle2<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      index?: number
-      enabled?: boolean
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "body", key: "index" },
-            { in: "body", key: "enabled" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<AccountAntigravityToggle2Responses, unknown, ThrowOnError>({
-      url: "/accounts/antigravity/toggle",
       ...options,
       ...params,
       headers: {

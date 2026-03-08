@@ -1,23 +1,22 @@
 const KNOWN_PROVIDER_FAMILIES = [
   "opencode",
-  "anthropic",
   "claude-cli",
   "openai",
   "github-copilot",
   "gemini-cli",
   "google-api",
-  "antigravity",
   "gmicloud",
   "openrouter",
   "vercel",
   "gitlab",
 ] as const
 
+const EXCLUDED_PROVIDER_FAMILIES = new Set(["google"])
+
 const PROVIDER_LABEL_MAP: Record<string, string> = {
-  anthropic: "Anthropic",
+  "claude-cli": "Claude CLI",
   openai: "OpenAI",
   "google-api": "Google-API",
-  antigravity: "Antigravity",
   "gemini-cli": "Gemini CLI",
   gmicloud: "GMICloud",
   "github-copilot": "GitHub Copilot",
@@ -29,7 +28,7 @@ const PROVIDER_LABEL_MAP: Record<string, string> = {
 
 const DEFAULT_POPULAR_PROVIDER_ORDER = [
   "opencode",
-  "anthropic",
+  "claude-cli",
   "github-copilot",
   "openai",
   "gemini-cli",
@@ -66,7 +65,8 @@ export function normalizeProviderFamily(id: string): string | undefined {
   if (!raw) return undefined
 
   if (raw.includes(":")) return normalizeProviderFamily(raw.split(":")[0]!)
-  if (raw === "google") return "google-api"
+  if (raw === "anthropic") return "claude-cli"
+  if (EXCLUDED_PROVIDER_FAMILIES.has(raw)) return undefined
 
   for (const provider of KNOWN_PROVIDER_FAMILIES) {
     if (raw === provider || raw.startsWith(`${provider}-`)) return provider
@@ -78,8 +78,9 @@ export function normalizeProviderFamily(id: string): string | undefined {
   const subscriptionMatch = raw.match(/^(.+)-subscription-/)
   if (subscriptionMatch) return subscriptionMatch[1]
 
-  if (!raw.includes("-")) return raw
-  if (!raw.includes("-api-") && !raw.includes("-subscription-")) return raw
+  if (!raw.includes("-")) return EXCLUDED_PROVIDER_FAMILIES.has(raw) ? undefined : raw
+  if (!raw.includes("-api-") && !raw.includes("-subscription-"))
+    return EXCLUDED_PROVIDER_FAMILIES.has(raw) ? undefined : raw
   return undefined
 }
 
@@ -115,7 +116,7 @@ export function buildProviderRows(input: {
 
   for (const id of popularProviderOrder) {
     const normalized = normalizeProviderFamily(id)
-    if (!normalized || normalized === "google") continue
+    if (!normalized) continue
     familyUniverse.add(normalized)
   }
 
@@ -179,7 +180,11 @@ export function buildAccountRows(input: {
     }
   })
 
-  return rows.sort((a, b) => a.label.localeCompare(b.label))
+  return rows.sort((a, b) => {
+    if (a.active && !b.active) return -1
+    if (!a.active && b.active) return 1
+    return a.label.localeCompare(b.label)
+  })
 }
 
 export function filterModelsForMode<T extends { id: string; provider: { id: string } }>(input: {

@@ -24,7 +24,7 @@ import { normalizeServerUrl, useServer } from "@/context/server"
 import { usePlatform } from "@/context/platform"
 import { useLanguage } from "@/context/language"
 import { DialogSelectServer } from "./dialog-select-server"
-import { DialogSettings } from "./dialog-settings"
+import { DialogSelectModel } from "./dialog-select-model"
 import { ServerRow } from "@/components/server/server-row"
 import { checkServerHealth, type ServerHealth } from "@/utils/server-health"
 
@@ -500,7 +500,7 @@ export function StatusPopover() {
                     <Button
                       variant="secondary"
                       class="h-7 px-2"
-                      onClick={() => dialog.show(() => <DialogSettings initialTab="accounts" />)}
+                      onClick={() => dialog.show(() => <DialogSelectModel />)}
                     >
                       {language.t("common.manage")}
                     </Button>

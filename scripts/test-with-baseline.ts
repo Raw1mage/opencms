@@ -16,10 +16,7 @@ const TEST_GLOBS = [
   "packages/enterprise/src/**/*.spec.{ts,tsx,js,jsx}",
 ] as const
 
-const ANTIGRAVITY_SKIP_PREFIXES = [
-  "packages/opencode/src/plugin/antigravity/",
-  "packages/opencode/test/plugin/antigravity/",
-] as const
+const ANTIGRAVITY_SKIP_PREFIXES = [] as const
 
 function isSkippedPath(filePath: string) {
   return ANTIGRAVITY_SKIP_PREFIXES.some((prefix) => filePath.includes(prefix))
@@ -49,9 +46,9 @@ function run(command: string[], cwd?: string) {
 const tests = await collectTests()
 
 if (tests.length === 0) {
-  console.warn("[verify] no test files discovered after antigravity baseline filtering.")
+  console.warn("[verify] no test files discovered.")
 } else {
-  console.log(`[verify] running ${tests.length} tests (antigravity auth plugin tests excluded).`)
+  console.log(`[verify] running ${tests.length} tests.`)
   const result = run(["bun", "test", "--timeout", TEST_TIMEOUT_MS, ...tests], ROOT)
   if (result.exitCode !== 0) process.exit(result.exitCode)
 }

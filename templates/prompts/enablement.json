@@ -123,8 +123,7 @@
       "miatdiagram",
       "codex-sidebar-focus-rca",
       "wsl-image-clipboard",
-      "hello_world",
-      "antigravity-browser-fix"
+      "hello_world"
     ],
     "selection_rule": "Load skill when intent matches domain; do not reinvent instructions already encoded in skills."
   },

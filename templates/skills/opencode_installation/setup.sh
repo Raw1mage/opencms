@@ -30,27 +30,22 @@ if [ ! -f "package.json" ]; then
     npm init -y > /dev/null
 fi
 
-echo "Installing Antigravity Auth Plugin..."
-npm install opencode-antigravity-auth@latest --silent
-
 # 3. Create opencode.json
 echo -e "\n${GREEN}[3/5] Configuring opencode.json...${NC}"
 cat > "$CONFIG_DIR/opencode.json" <<EOF
 {
   "\$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-antigravity-auth@latest"],
   "provider": {
     "google": {
       "models": {
         "gemini-2.5-flash": { "name": "Gemini 2.5 Flash (Free Tier)" },
-        "gemini-2.5-pro": { "name": "Gemini 2.5 Pro (Free Tier)" },
-        "antigravity-gemini-3-pro": { "name": "Gemini 3 Pro (Managed)" }
+        "gemini-2.5-pro": { "name": "Gemini 2.5 Pro (Free Tier)" }
       }
     }
   }
 }
 EOF
-echo "Created opencode.json with Dual-Path configuration."
+echo "Created opencode.json with canonical Google provider configuration."
 
 # 4. Setup API Key
 echo -e "\n${GREEN}[4/5] Setting up Google API Key (Free Tier)...${NC}"

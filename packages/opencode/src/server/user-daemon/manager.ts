@@ -448,7 +448,7 @@ export namespace UserDaemonManager {
     })
   }
 
-  export async function callAccountAntigravityToggle<T>(username: string, index: number, enabledFlag: boolean) {
+  export async function callAccountUpdate<T>(username: string, family: string, accountId: string, updates: unknown) {
     observe(username)
     const safe = LinuxUserExec.sanitizeUsername(username)
     if (!safe) {
@@ -472,9 +472,9 @@ export namespace UserDaemonManager {
     }
     return callJSON<T>({
       entry,
-      method: "POST",
-      path: "/account/antigravity/toggle",
-      body: { index, enabled: enabledFlag },
+      method: "PATCH",
+      path: `/account/${encodeURIComponent(family)}/${encodeURIComponent(accountId)}`,
+      body: updates,
     })
   }
 

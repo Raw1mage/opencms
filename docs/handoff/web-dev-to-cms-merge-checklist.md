@@ -46,7 +46,7 @@ OPENCODE_PROFILE=betaman-web \
 - [ ] `./webctl.sh build-frontend`
 - [ ] `./webctl.sh restart && ./webctl.sh status`
 
-> Note: known antigravity plugin baseline issue can be treated as non-blocking only if untouched by this round.
+> Note: historical baseline exception has been removed; use normal blocking validation rules.
 
 ## 4) Git Hygiene (before PR)
 

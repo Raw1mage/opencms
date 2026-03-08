@@ -31,8 +31,7 @@
 - **全域多帳號管理系統** - 支援多個 provider 帳號的統一管理
 - **rotation3d 多模型輪替系統** - 動態模型切換與負載平衡
 - **Admin Panel (`/admin`)** - 三合一管理界面
-- **Provider 細分化** - 將原本的 `google` provider 拆分為獨立的三個 providers：
-  - `antigravity`
+- **Provider 細分化** - 將原本的 `google` provider 拆分為獨立的 canonical providers：
   - `gemini-cli`
   - `google-api`
 
@@ -118,10 +117,6 @@
 - [ ] 僅將 `~/.config/opencode/*` 視為本機環境，不作為 release 交付來源。
 
 ### 驗證基準排除（暫行）
-
-- 在目前專案基線中，`antigravity auth plugin` 相關驗證失敗屬已知噪音，可於日常變更驗證中排除。
-- 具體包含：`packages/opencode/src/plugin/antigravity/plugin/storage.legacy.ts` 導致的 typecheck 問題（`vitest` module / `implicit any`）。
-- 規則：若本次變更未觸及該路徑，可視為 non-blocking；若有修改該路徑，則需恢復完整嚴格驗證。
 
 ---
 

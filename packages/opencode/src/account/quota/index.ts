@@ -9,8 +9,7 @@
  * - openai.ts  — Codex/OpenAI quota (token refresh, usage fetch, helpers)
  *
  * Future additions:
- * - antigravity.ts — Antigravity cockpit quota (Phase 5)
- * - gemini.ts      — Gemini RPD/RPM tracking (when split from monitor.ts)
+ * - gemini.ts — Gemini RPD/RPM tracking (when split from monitor.ts)
  */
 
 // ============================================================================

@@ -30,7 +30,7 @@ const WellKnownAuthCommandSchema = z.object({
 async function handlePluginAuth(plugin: { auth: PluginAuth }, provider: string): Promise<boolean> {
   let index = 0
   if (plugin.auth.methods.length > 1) {
-    if (provider === "antigravity" || provider === "gemini-cli") {
+    if (provider === "gemini-cli") {
       index = 0
     } else {
       const method = await prompts.select({
@@ -365,10 +365,7 @@ export const AuthLoginCommand = cmd({
 
         const providers = await ModelsDev.get().then((x) => {
           const enabled = config.enabled_providers ? new Set(config.enabled_providers) : undefined
-          if (enabled && enabled.has("google-api")) {
-            enabled.add("antigravity")
-            enabled.add("gemini-cli")
-          }
+          if (enabled && enabled.has("google-api")) enabled.add("gemini-cli")
 
           const filtered: Record<string, (typeof x)[string]> = {}
           for (const [key, value] of Object.entries(x)) {
@@ -377,14 +374,6 @@ export const AuthLoginCommand = cmd({
             }
           }
 
-          // Force-include antigravity and gemini-cli if allowed
-          if (
-            !disabled.has("antigravity") &&
-            (enabled ? enabled.has("antigravity") : true) &&
-            !filtered["antigravity"]
-          ) {
-            filtered["antigravity"] = { id: "antigravity", name: "Antigravity", env: [], models: {} }
-          }
           if (!disabled.has("gemini-cli") && (enabled ? enabled.has("gemini-cli") : true) && !filtered["gemini-cli"]) {
             filtered["gemini-cli"] = { id: "gemini-cli", name: "Gemini CLI", env: ["GEMINI_API_KEY"], models: {} }
           }
@@ -397,11 +386,10 @@ export const AuthLoginCommand = cmd({
           anthropic: 1,
           "github-copilot": 2,
           openai: 3,
-          antigravity: 4,
-          "gemini-cli": 5,
-          "google-api": 6,
-          openrouter: 7,
-          vercel: 8,
+          "gemini-cli": 4,
+          "google-api": 5,
+          openrouter: 6,
+          vercel: 7,
         }
         const pluginProviders = resolvePluginProviders({
           hooks: await Plugin.list(),
@@ -428,7 +416,6 @@ export const AuthLoginCommand = cmd({
                   opencode: "recommended",
                   anthropic: "Claude Max or API key",
                   openai: "ChatGPT Plus/Pro or API key",
-                  antigravity: "Google Subscription (vibe/internal)",
                   "gemini-cli": "Google Subscription (CLI)",
                   "google-api": "API Key only",
                 }[x.id],
@@ -453,7 +440,7 @@ export const AuthLoginCommand = cmd({
         if (plugin && plugin.auth) {
           // Offer choice between plugin auth and direct API key
           authMethod = "plugin"
-          if (provider !== "antigravity" && provider !== "gemini-cli") {
+          if (provider !== "gemini-cli") {
             const result = await prompts.select({
               message: "Authentication method",
               options: [

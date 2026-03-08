@@ -13,9 +13,8 @@ echo ""
 # Configuration: Models to test for each provider type
 # We use the EXACT IDs from 'opencode models'
 TEST_CASES=(
-    "antigravity/claude-sonnet-4-5|Antigravity Claude (Google Proxy)"
-    "antigravity/claude-sonnet-4-5-thinking|Antigravity Claude (Thinking)"
-    "antigravity/gemini-3-flash|Antigravity Gemini (Flash)"
+    "gemini-cli/gemini-3-pro-preview|Gemini CLI Pro Preview"
+    "gemini-cli/gemini-3-flash-preview|Gemini CLI Flash Preview"
 )
 
 # 1. List accounts to see what we have

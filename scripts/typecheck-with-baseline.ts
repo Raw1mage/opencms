@@ -1,10 +1,6 @@
 #!/usr/bin/env bun
 
-const IGNORED_PATH_PREFIXES = [
-  "packages/opencode/src/plugin/antigravity/",
-  "src/plugin/antigravity/",
-  "/src/plugin/antigravity/",
-] as const
+const IGNORED_PATH_PREFIXES = [] as const
 
 function run(command: string[], cwd?: string) {
   return Bun.spawnSync(command, {
@@ -24,11 +20,7 @@ function isIgnoredDiagnostic(line: string) {
 }
 
 function isIgnoredPathsTouched() {
-  const pluginPath = "packages/opencode/src/plugin/antigravity"
-  const unstaged = run(["git", "diff", "--name-only", "--", pluginPath])
-  const staged = run(["git", "diff", "--cached", "--name-only", "--", pluginPath])
-  const changed = `${new TextDecoder().decode(unstaged.stdout)}${new TextDecoder().decode(staged.stdout)}`.trim()
-  return changed.length > 0
+  return false
 }
 
 const decoder = new TextDecoder()
@@ -58,10 +50,4 @@ if (!onlyIgnored) {
   process.exit(result.exitCode)
 }
 
-if (isIgnoredPathsTouched()) {
-  console.error("\n[verify] baseline ignore disabled: antigravity plugin paths were modified in this change.")
-  process.exit(result.exitCode)
-}
-
-console.warn("\n[verify] non-blocking baseline errors ignored for antigravity auth plugin (unchanged in this diff).")
 process.exit(0)

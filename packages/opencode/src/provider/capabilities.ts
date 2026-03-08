@@ -5,7 +5,6 @@
  * replacing scattered hardcoded checks like:
  *   - isCodex = provider.id.includes("openai") && auth?.type === "oauth"
  *   - isAnthropicOAuth = provider.id.includes("anthropic") && auth?.type === "oauth"
- *   - isAntigravity = provider.id.includes("antigravity")
  *   - isGeminiCli = provider.id.includes("gemini-cli")
  */
 
@@ -62,7 +61,7 @@ export interface ProviderCapabilities {
   /**
    * Provider family for grouping (useful for fallback logic).
    */
-  family: "openai" | "anthropic" | "google-api" | "antigravity" | "gemini-cli" | "other"
+  family: "openai" | "anthropic" | "google-api" | "gemini-cli" | "other"
 }
 
 /**
@@ -87,19 +86,6 @@ const DEFAULT_CAPABILITIES: ProviderCapabilities = {
  */
 export function getCapabilities(provider: Provider.Info, auth?: Auth.Info): ProviderCapabilities {
   const id = provider.id.toLowerCase()
-
-  // Antigravity: Google AI via Antigravity OAuth
-  if (id.includes("antigravity")) {
-    return {
-      useInstructionsOption: false,
-      systemMessageRole: "user",
-      skipDefaultSystemPrompt: false,
-      skipMaxOutputTokens: false,
-      requiresDummyToolForHistory: false,
-      authType: "subscription",
-      family: "antigravity",
-    }
-  }
 
   // Gemini CLI: Google AI via Gemini CLI OAuth
   if (id.includes("gemini-cli")) {

@@ -8,7 +8,7 @@
  * 4. Broadcasts Bus events so Rotation and Admin Panel react in real time
  *
  * Provider-specific detection strategies:
- * - cockpit  (antigravity, openai)  → Query cockpit API for real quota reset time
+ * - cockpit  (openai) → Query live quota API for quota-window based backoff
  * - counter  (gemini-cli, google-api) → Use RequestMonitor RPM/RPD to infer limit type
  * - passive  (all others)           → Rely on error response only
  *
@@ -115,12 +115,12 @@ export type BackoffStrategy = "cockpit" | "counter" | "passive"
 
 /**
  * Determine the backoff detection strategy for a provider.
- * - cockpit: Antigravity/OpenAI — query cockpit API for real quota reset time
+ * - cockpit: OpenAI — query live quota API for quota-window based backoff
  * - counter: gemini-cli/google-api — use RequestMonitor RPM/RPD counts
  * - passive: everyone else — rely on error response only
  */
 export function getBackoffStrategy(providerId: string): BackoffStrategy {
-  if (providerId === "antigravity" || providerId === "openai") return "cockpit"
+  if (providerId === "openai") return "cockpit"
   if (providerId === "gemini-cli" || providerId === "google-api") return "counter"
   return "passive"
 }
@@ -489,20 +489,20 @@ export namespace RateLimitJudge {
 }
 
 // ============================================================================
-// Internal: Cockpit strategy (antigravity/openai)
+// Internal: OpenAI live quota strategy
 // ============================================================================
 
 /**
- * Query cockpit API for real quota reset time.
+ * Query live OpenAI quota state and convert it to a conservative backoff window.
  *
  * This consolidates the cockpit query logic that was previously duplicated
  * 3 times in llm.ts (onError, handleRateLimitFallback×2).
  *
  * The function:
  * 1. Loads account info
- * 2. Refreshes OAuth token if needed
- * 3. Calls getCockpitBackoffMs with the access token and project ID
- * 4. Returns the cockpit-sourced backoff or the fallback value
+ * 2. Reads fresh OpenAI quota state when possible
+ * 3. Converts exhausted hourly/weekly windows into a conservative cooldown
+ * 4. Returns the quota-sourced backoff or the fallback value
  */
 async function fetchCockpitBackoff(
   providerId: string,
@@ -511,65 +511,39 @@ async function fetchCockpitBackoff(
   fallbackBackoffMs: number,
 ): Promise<{ backoffMs: number; fromCockpit: boolean }> {
   try {
-    const { Account } = await import("./index")
-    const { getCockpitBackoffMs } = await import("../plugin/antigravity/plugin/quota")
-    const { refreshAccessToken } = await import("../plugin/antigravity/plugin/token")
-    const { formatRefreshParts } = await import("../plugin/antigravity/plugin/auth")
-
-    const info = await Account.get(providerId, accountId)
-    if (!info || info.type !== "subscription") {
+    if (providerId !== "openai") {
       return { backoffMs: fallbackBackoffMs, fromCockpit: false }
     }
 
-    // Build auth details from account info
-    type OAuthAuthDetails = {
-      type: "oauth"
-      refresh: string
-      access?: string
-      expires?: number
-    }
-
-    let auth: OAuthAuthDetails = {
-      type: "oauth",
-      refresh: formatRefreshParts({
-        refreshToken: info.refreshToken,
-        projectId: info.projectId,
-        managedProjectId: info.managedProjectId,
-      }),
-      access: info.accessToken,
-      expires: info.expiresAt,
-    }
-
-    // Refresh token if expired or about to expire
-    if (!auth.access || !auth.expires || Date.now() >= auth.expires - 300_000) {
-      const noopClient = { auth: { set: async () => true } } as any
-      const refreshed = await refreshAccessToken(auth, noopClient, providerId)
-      if (refreshed) {
-        auth = refreshed
-      } else {
-        return { backoffMs: fallbackBackoffMs, fromCockpit: false }
-      }
-    }
-
-    const projectId = info.projectId || info.managedProjectId
-    if (!projectId || !auth.access) {
+    const { getOpenAIQuota } = await import("./quota/openai")
+    const quota = await getOpenAIQuota(accountId, { waitFresh: true })
+    if (!quota) {
       return { backoffMs: fallbackBackoffMs, fromCockpit: false }
     }
 
-    const result = await getCockpitBackoffMs(auth.access, projectId, modelId, fallbackBackoffMs)
+    let backoffMs = fallbackBackoffMs
+    let fromCockpit = false
 
-    if (result.fromCockpit) {
-      log.info("Got backoff from cockpit", {
+    if (quota.weeklyRemaining <= 0) {
+      backoffMs = Math.max(backoffMs, 7 * 24 * 60 * 60 * 1000)
+      fromCockpit = true
+    } else if (quota.hasHourlyWindow !== false && quota.hourlyRemaining <= 0) {
+      backoffMs = Math.max(backoffMs, 5 * 60 * 60 * 1000)
+      fromCockpit = true
+    }
+
+    if (fromCockpit) {
+      log.info("Got backoff from OpenAI quota", {
         providerId,
         accountId,
         modelId,
-        backoffMs: result.backoffMs,
+        backoffMs,
       })
     }
 
-    return result
+    return { backoffMs, fromCockpit }
   } catch (e) {
-    log.warn("Failed to fetch cockpit backoff", {
+    log.warn("Failed to fetch OpenAI quota backoff", {
       providerId,
       accountId,
       modelId,

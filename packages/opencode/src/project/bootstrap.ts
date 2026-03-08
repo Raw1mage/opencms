@@ -22,10 +22,13 @@ export async function InstanceBootstrap() {
   const { Account } = await import("../account")
   await debugSpan("bootstrap", "Account.forceFullMigration", {}, () => Account.forceFullMigration())
 
-  // Clean up duplicate accounts (e.g., same token stored with different IDs)
-  await debugSpan("bootstrap", "Account.deduplicateByToken", { provider: "antigravity" }, () =>
-    Account.deduplicateByToken("antigravity"),
-  )
+  // Clean up duplicate subscription accounts (e.g., same token stored with different IDs)
+  const families = await Account.listAll()
+  for (const family of Object.keys(families)) {
+    await debugSpan("bootstrap", "Account.deduplicateByToken", { provider: family }, () =>
+      Account.deduplicateByToken(family),
+    )
+  }
 
   Log.Default.info("bootstrapping", { directory: Instance.directory })
   await debugSpan("bootstrap", "Plugin.init", {}, () => Plugin.init())

@@ -42,7 +42,6 @@ test("cms provider baseline exposes core families", async () => {
       const providers = await Provider.list()
       const keys = Object.keys(providers)
 
-      expect(keys).toContain("antigravity")
       expect(keys).toContain("gemini-cli")
       expect(keys).toContain("github-copilot")
       expect(keys).toContain("openai")

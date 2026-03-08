@@ -50,10 +50,9 @@ export function DialogModel(props: { providerId?: string }) {
     const fam = family(id)
     if (!fam) return name
     const map: Record<string, string> = {
-      anthropic: "Anthropic",
+      "claude-cli": "Claude CLI",
       openai: "OpenAI",
       "google-api": "Google-API",
-      antigravity: "Antigravity",
       "gemini-cli": "Gemini CLI",
       gitlab: "GitLab",
       opencode: "OpenCode",
@@ -201,11 +200,7 @@ export function DialogModel(props: { providerId?: string }) {
 
     const families = [...providerGroups.entries()]
       .filter(([_, members]) => members.some((p) => Object.keys(p.models).length > 0))
-      .sort(([a], [b]) => {
-        if (a === "antigravity") return -1
-        if (b === "antigravity") return 1
-        return providerLabel(a, a).localeCompare(providerLabel(b, b))
-      })
+      .sort(([a], [b]) => providerLabel(a, a).localeCompare(providerLabel(b, b)))
 
     for (const [fam, members] of families) {
       if (!showHiddenProviders() && hiddenProviders.has(fam)) continue

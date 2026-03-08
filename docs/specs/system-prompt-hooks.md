@@ -282,50 +282,44 @@ if (modelId.includes("gemini") && system[0]) {
 
 Plugin 在 `plugin/index.ts:25-35` 以 `INTERNAL_PLUGINS` 陣列註冊：
 
-| #   | 變數名稱                       | 註冊名稱             | 檔案                           |
-| --- | ------------------------------ | -------------------- | ------------------------------ |
-| 1   | `CodexAuthPlugin`              | `codex`              | `plugin/codex.ts`              |
-| 2   | `CopilotAuthPlugin`            | `copilot`            | `plugin/copilot.ts`            |
-| 3   | `GitlabAuthPlugin`             | `gitlab`             | `@gitlab/opencode-gitlab-auth` |
-| 4   | `AntigravityOAuthPlugin`       | `antigravity`        | `plugin/antigravity/index.ts`  |
-| 5   | `AntigravityLegacyOAuthPlugin` | `antigravity-legacy` | `plugin/antigravity/index.ts`  |
-| 6   | `GeminiCLIOAuthPlugin`         | `gemini-cli`         | `plugin/gemini-cli/plugin.ts`  |
-| 7   | `AnthropicAuthPlugin`          | `anthropic`          | `plugin/anthropic.ts`          |
+| #   | 變數名稱               | 註冊名稱     | 檔案                           |
+| --- | ---------------------- | ------------ | ------------------------------ |
+| 1   | `CodexAuthPlugin`      | `codex`      | `plugin/codex.ts`              |
+| 2   | `CopilotAuthPlugin`    | `copilot`    | `plugin/copilot.ts`            |
+| 3   | `GitlabAuthPlugin`     | `gitlab`     | `@gitlab/opencode-gitlab-auth` |
+| 4   | `GeminiCLIOAuthPlugin` | `gemini-cli` | `plugin/gemini-cli/plugin.ts`  |
+| 5   | `AnthropicAuthPlugin`  | `anthropic`  | `plugin/anthropic.ts`          |
 
 ### 活躍 Hooks 清單
 
-| #   | Plugin                       | Hook                  | 檔案:行號                                  | 功能描述                                                                                                                                               | 觸發頻率              | Token 影響                             | 條件                         |
-| --- | ---------------------------- | --------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------- | -------------------------------------- | ---------------------------- |
-| 1   | CodexAuthPlugin              | `auth`                | `plugin/codex.ts:352-630`                  | OpenAI OAuth/API 認證，Codex token 刷新，重寫請求至 Codex endpoint，加 `mcp_` 前綴到工具名稱，過濾模型，成本歸零                                       | 每次 LLM 呼叫 (fetch) | ~10 tokens (instructions field)        | 僅 OAuth + openai provider   |
-| 2   | CodexAuthPlugin              | `chat.headers`        | `plugin/codex.ts:631-636`                  | 加 `originator`, `User-Agent`, `session_id` headers                                                                                                    | 每次 LLM 呼叫         | 0 (僅 HTTP header)                     | 僅 `openai` provider         |
-| 3   | CopilotAuthPlugin            | `auth`                | `plugin/copilot.ts:23-344`                 | GitHub Copilot device-code OAuth，設定 Copilot 專用 headers，呼叫 `/user` API 取得 username，成本歸零                                                  | 每次 LLM 呼叫 (fetch) | 0                                      | 僅 OAuth                     |
-| 4   | CopilotAuthPlugin            | `chat.headers`        | `plugin/copilot.ts:345-363`                | 加 `anthropic-beta` header (Claude via Copilot)，`x-initiator: agent` (subagent)                                                                       | 每次 LLM 呼叫         | 0 (僅 HTTP header)                     | 僅 `github-copilot` provider |
-| 5   | GitlabAuthPlugin             | `auth`                | `@gitlab/.../dist/index.js:209-467`        | GitLab OAuth/PAT 認證，token 刷新 (帶 mutex)                                                                                                           | 認證檢查時            | 0                                      | 僅有 auth data 時            |
-| 6   | AntigravityOAuthPlugin       | `auth`                | `plugin/antigravity/index.ts:1489-3149`    | 多帳號 OAuth pool，token 刷新，rate-limit backoff，帳號輪替，endpoint fallback，RPM 節流，thinking warmup，空回應重試                                  | 每次 LLM 呼叫 (fetch) | 0 (body 轉換但不加 prompt)             | 僅 OAuth                     |
-| 7   | AntigravityOAuthPlugin       | `event`               | `plugin/antigravity/index.ts:909-978,1482` | 追蹤 child/root session (toast scoping)，`session.error` 自動復原 (tool_result_missing, thinking corruption)                                           | 每個 Bus 事件         | 5-20 tokens (僅復原時注入 resume_text) | 僅可復原的 session.error     |
-| 8   | AntigravityOAuthPlugin       | `tool`                | `plugin/antigravity/index.ts:1486-1488`    | 註冊 `google_search` 工具，透過 Gemini API 搜尋                                                                                                        | LLM 呼叫工具時        | 500-5000 tokens (搜尋結果)             | 僅 LLM 主動呼叫時            |
-| 9   | AntigravityLegacyOAuthPlugin | `auth`/`event`/`tool` | 同 #6-8                                    | 與 AntigravityOAuthPlugin 相同，但註冊為 `"antigravity"` provider ID（向下相容）                                                                       | 同上                  | 同上                                   | 同上                         |
-| 10  | GeminiCLIOAuthPlugin         | `auth`                | `plugin/gemini-cli/plugin.ts:28-159`       | Gemini CLI 認證，**封鎖 OAuth 帳號**僅允許 API key，重寫 API URL/headers，成本歸零                                                                     | 每次 LLM 呼叫 (fetch) | 0                                      | 僅 API key auth              |
-| 11  | AnthropicAuthPlugin          | `auth`                | `plugin/anthropic.ts:104-563`              | Claude CLI 訂閱 OAuth，token 刷新 (帶 mutex)，**注入 Claude Code 身份字串到 system prompt**，加 `mcp_` 前綴到所有工具名稱，加 `?beta=true` 到 endpoint | 每次 LLM 呼叫 (fetch) | **~15 tokens** (身份前綴)              | 僅 OAuth/subscription auth   |
+| #   | Plugin               | Hook           | 檔案:行號                            | 功能描述                                                                                                                                               | 觸發頻率              | Token 影響                      | 條件                         |
+| --- | -------------------- | -------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------- | ------------------------------- | ---------------------------- |
+| 1   | CodexAuthPlugin      | `auth`         | `plugin/codex.ts:352-630`            | OpenAI OAuth/API 認證，Codex token 刷新，重寫請求至 Codex endpoint，加 `mcp_` 前綴到工具名稱，過濾模型，成本歸零                                       | 每次 LLM 呼叫 (fetch) | ~10 tokens (instructions field) | 僅 OAuth + openai provider   |
+| 2   | CodexAuthPlugin      | `chat.headers` | `plugin/codex.ts:631-636`            | 加 `originator`, `User-Agent`, `session_id` headers                                                                                                    | 每次 LLM 呼叫         | 0 (僅 HTTP header)              | 僅 `openai` provider         |
+| 3   | CopilotAuthPlugin    | `auth`         | `plugin/copilot.ts:23-344`           | GitHub Copilot device-code OAuth，設定 Copilot 專用 headers，呼叫 `/user` API 取得 username，成本歸零                                                  | 每次 LLM 呼叫 (fetch) | 0                               | 僅 OAuth                     |
+| 4   | CopilotAuthPlugin    | `chat.headers` | `plugin/copilot.ts:345-363`          | 加 `anthropic-beta` header (Claude via Copilot)，`x-initiator: agent` (subagent)                                                                       | 每次 LLM 呼叫         | 0 (僅 HTTP header)              | 僅 `github-copilot` provider |
+| 5   | GitlabAuthPlugin     | `auth`         | `@gitlab/.../dist/index.js:209-467`  | GitLab OAuth/PAT 認證，token 刷新 (帶 mutex)                                                                                                           | 認證檢查時            | 0                               | 僅有 auth data 時            |
+| 6   | GeminiCLIOAuthPlugin | `auth`         | `plugin/gemini-cli/plugin.ts:28-159` | Gemini CLI 認證，**封鎖 OAuth 帳號**僅允許 API key，重寫 API URL/headers，成本歸零                                                                     | 每次 LLM 呼叫 (fetch) | 0                               | 僅 API key auth              |
+| 7   | AnthropicAuthPlugin  | `auth`         | `plugin/anthropic.ts:104-563`        | Claude CLI 訂閱 OAuth，token 刷新 (帶 mutex)，**注入 Claude Code 身份字串到 system prompt**，加 `mcp_` 前綴到所有工具名稱，加 `?beta=true` 到 endpoint | 每次 LLM 呼叫 (fetch) | **~15 tokens** (身份前綴)       | 僅 OAuth/subscription auth   |
 
 ### 未使用的 Hooks
 
 以下 hooks 定義於框架（`packages/plugin/src/index.ts:162-241`）但目前沒有任何 plugin 註冊：
 
-| Hook 名稱                              | 介面定義行號 | 說明                                                     |
-| -------------------------------------- | ------------ | -------------------------------------------------------- |
-| `config`                               | `:164`       | 設定檔修改                                               |
-| `chat.message`                         | `:172-181`   | 使用者訊息接收                                           |
-| `chat.params`                          | `:185-188`   | LLM 參數修改（有觸發點但無註冊）                         |
-| `permission.ask`                       | `:193`       | 權限檢查攔截                                             |
-| `command.execute.before`               | `:194-197`   | 命令執行前                                               |
-| `tool.execute.before`                  | `:198-201`   | 工具執行前                                               |
-| `tool.execute.after`                   | `:202-209`   | 工具執行後                                               |
-| `experimental.chat.messages.transform` | `:210-218`   | 歷史訊息轉換                                             |
-| `experimental.chat.system.transform`   | `:219-224`   | System prompt 轉換（觸發點存在，antigravity 實作已移除） |
-| `experimental.session.compacting`      | `:232-235`   | Session 壓縮自訂                                         |
-| `experimental.text.complete`           | `:236-239`   | 文本完成後處理                                           |
-| `shell.env`                            | `:240`       | Shell 環境變數注入                                       |
+| Hook 名稱                              | 介面定義行號 | 說明                                                                        |
+| -------------------------------------- | ------------ | --------------------------------------------------------------------------- |
+| `config`                               | `:164`       | 設定檔修改                                                                  |
+| `chat.message`                         | `:172-181`   | 使用者訊息接收                                                              |
+| `chat.params`                          | `:185-188`   | LLM 參數修改（有觸發點但無註冊）                                            |
+| `permission.ask`                       | `:193`       | 權限檢查攔截                                                                |
+| `command.execute.before`               | `:194-197`   | 命令執行前                                                                  |
+| `tool.execute.before`                  | `:198-201`   | 工具執行前                                                                  |
+| `tool.execute.after`                   | `:202-209`   | 工具執行後                                                                  |
+| `experimental.chat.messages.transform` | `:210-218`   | 歷史訊息轉換                                                                |
+| `experimental.chat.system.transform`   | `:219-224`   | System prompt 轉換（僅保留框架層觸發點；舊版 provider-specific 實作已移除） |
+| `experimental.session.compacting`      | `:232-235`   | Session 壓縮自訂                                                            |
+| `experimental.text.complete`           | `:236-239`   | 文本完成後處理                                                              |
+| `shell.env`                            | `:240`       | Shell 環境變數注入                                                          |
 
 ### 重點觀察
 
@@ -625,14 +619,13 @@ ls ~/.config/opencode/prompts/agents/
 
 ### Plugin 檔案
 
-| 檔案                           | Plugin                     | 主要 Hook               |
-| ------------------------------ | -------------------------- | ----------------------- |
-| `plugin/codex.ts`              | CodexAuthPlugin            | `auth`, `chat.headers`  |
-| `plugin/copilot.ts`            | CopilotAuthPlugin          | `auth`, `chat.headers`  |
-| `plugin/anthropic.ts`          | AnthropicAuthPlugin        | `auth`                  |
-| `plugin/antigravity/index.ts`  | Antigravity (OAuth+Legacy) | `auth`, `event`, `tool` |
-| `plugin/gemini-cli/plugin.ts`  | GeminiCLIOAuthPlugin       | `auth`                  |
-| `@gitlab/opencode-gitlab-auth` | GitlabAuthPlugin           | `auth`                  |
+| 檔案                           | Plugin               | 主要 Hook              |
+| ------------------------------ | -------------------- | ---------------------- |
+| `plugin/codex.ts`              | CodexAuthPlugin      | `auth`, `chat.headers` |
+| `plugin/copilot.ts`            | CopilotAuthPlugin    | `auth`, `chat.headers` |
+| `plugin/anthropic.ts`          | AnthropicAuthPlugin  | `auth`                 |
+| `plugin/gemini-cli/plugin.ts`  | GeminiCLIOAuthPlugin | `auth`                 |
+| `@gitlab/opencode-gitlab-auth` | GitlabAuthPlugin     | `auth`                 |
 
 ### 框架介面
 

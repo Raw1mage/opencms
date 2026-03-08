@@ -349,7 +349,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     if (family === "claude-cli") return "Claude CLI"
     if (family === "google-api") return "Google-API"
     if (family === "gemini-cli") return "Gemini CLI"
-    if (family === "antigravity") return "Antigravity"
     if (family === "github-copilot") return "GitHub Copilot"
     if (family === "gmicloud") return "GMICloud"
     if (family === "openrouter") return "OpenRouter"

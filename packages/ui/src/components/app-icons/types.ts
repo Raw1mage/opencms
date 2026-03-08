@@ -11,7 +11,6 @@ export const iconNames = [
   "ghostty",
   "xcode",
   "android-studio",
-  "antigravity",
   "textmate",
   "powershell",
   "sublime-text",

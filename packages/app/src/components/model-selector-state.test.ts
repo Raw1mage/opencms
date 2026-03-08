@@ -9,13 +9,13 @@ describe("model selector state", () => {
         { id: "google-api", name: "Google API" },
       ],
       accountFamilies: {
-        antigravity: { accounts: { a1: {} } },
+        "claude-cli": { accounts: { a1: {} } },
       },
       disabledProviders: ["google-api"],
     })
 
     expect(rows.some((row) => row.family === "openai")).toBe(true)
-    expect(rows.some((row) => row.family === "antigravity")).toBe(true)
+    expect(rows.some((row) => row.family === "claude-cli")).toBe(true)
     expect(rows.find((row) => row.family === "google-api")?.enabled).toBe(false)
   })
 

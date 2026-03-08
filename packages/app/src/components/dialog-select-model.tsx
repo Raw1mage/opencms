@@ -25,7 +25,9 @@ import { Tag } from "@opencode-ai/ui/tag"
 import { Dialog } from "@opencode-ai/ui/dialog"
 import { List } from "@opencode-ai/ui/list"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
+import { TextField } from "@opencode-ai/ui/text-field"
 import { DialogSelectProvider } from "./dialog-select-provider"
+import { DialogConnectProvider } from "./dialog-connect-provider"
 import { DialogManageModels } from "./dialog-manage-models"
 import { ModelTooltip } from "./model-tooltip"
 import { useLanguage } from "@/context/language"
@@ -55,6 +57,326 @@ const MODEL_MANAGER_PROVIDER_MIN_PX = 160
 const MODEL_MANAGER_ACCOUNT_MIN_PX = 200
 const MODEL_MANAGER_MODEL_MIN_PX = 160
 const MODEL_MANAGER_DEFAULT_COLUMN_LAYOUT = { providerRatio: 0.31, accountRatio: 0.35 }
+
+type AccountRecord = {
+  id: string
+  family: string
+  name: string
+  type: "api" | "subscription" | "oauth"
+  active: boolean
+  email?: string
+  projectId?: string
+  coolingDownUntil?: number
+  cooldownReason?: string
+  metadata?: Record<string, unknown>
+}
+
+function preserveScrollPosition(getElement: () => HTMLElement | undefined, action: () => void | Promise<unknown>) {
+  const previous = getElement()
+  const top = previous?.scrollTop ?? 0
+  const left = previous?.scrollLeft ?? 0
+
+  const restore = () => {
+    const current = getElement()
+    if (!current) return
+    current.scrollTop = top
+    current.scrollLeft = left
+  }
+
+  queueMicrotask(restore)
+  requestAnimationFrame(() => {
+    restore()
+    requestAnimationFrame(restore)
+  })
+
+  const result = action()
+  Promise.resolve(result).finally(() => {
+    queueMicrotask(restore)
+    requestAnimationFrame(() => {
+      restore()
+      requestAnimationFrame(restore)
+    })
+  })
+}
+
+function normalizeAccountRecord(
+  family: string,
+  accountId: string,
+  raw: Record<string, unknown> | undefined,
+  activeAccount?: string,
+): AccountRecord {
+  const typeValue = typeof raw?.type === "string" ? raw.type : "api"
+  const type: AccountRecord["type"] =
+    typeValue === "subscription" || typeValue === "oauth" || typeValue === "api" ? typeValue : "api"
+  return {
+    id: accountId,
+    family,
+    name: typeof raw?.name === "string" && raw.name.trim() ? raw.name : accountId,
+    type,
+    active: activeAccount === accountId,
+    email: typeof raw?.email === "string" ? raw.email : undefined,
+    projectId: typeof raw?.projectId === "string" ? raw.projectId : undefined,
+    coolingDownUntil: typeof raw?.coolingDownUntil === "number" ? raw.coolingDownUntil : undefined,
+    cooldownReason: typeof raw?.cooldownReason === "string" ? raw.cooldownReason : undefined,
+    metadata: raw?.metadata && typeof raw.metadata === "object" ? (raw.metadata as Record<string, unknown>) : undefined,
+  }
+}
+
+function accountTypeLabel(type: AccountRecord["type"]) {
+  if (type === "subscription") return "Subscription"
+  if (type === "oauth") return "OAuth"
+  return "API"
+}
+
+function responseErrorMessage(payload: unknown): string | undefined {
+  if (payload && typeof payload === "object") {
+    if ("data" in payload) {
+      const nested = responseErrorMessage((payload as { data?: unknown }).data)
+      if (nested) return nested
+    }
+    if ("error" in payload) {
+      const nested = responseErrorMessage((payload as { error?: unknown }).error)
+      if (nested) return nested
+    }
+    if ("message" in payload) {
+      const message = (payload as { message?: unknown }).message
+      if (typeof message === "string" && message.trim()) return message
+    }
+  }
+  if (payload instanceof Error && payload.message) return payload.message
+  if (typeof payload === "string" && payload.trim()) return payload
+  return undefined
+}
+
+async function readResponseMessage(response: Response): Promise<string> {
+  try {
+    const payload = (await response.json()) as unknown
+    return responseErrorMessage(payload) ?? response.statusText
+  } catch {
+    return response.statusText || `Request failed (${response.status})`
+  }
+}
+
+const AccountActionButton: Component<{
+  label: string
+  icon: "eye" | "edit" | "trash"
+  onClick: (event: MouseEvent) => void
+  tone?: "danger"
+}> = (props) => {
+  return (
+    <Tooltip placement="top" value={props.label}>
+      <IconButton
+        icon={props.icon}
+        variant="ghost"
+        class={cn(
+          "size-6 shrink-0",
+          props.tone === "danger" &&
+            "[&_[data-slot=icon-svg]]:text-icon-danger-base hover:[&_[data-slot=icon-svg]]:text-icon-danger-base",
+        )}
+        aria-label={props.label}
+        onClick={props.onClick}
+      />
+    </Tooltip>
+  )
+}
+
+const AccountViewDialog: Component<{ account: AccountRecord }> = (props) => {
+  const dialog = useDialog()
+  const cooldown = createMemo(() => {
+    if (!props.account.coolingDownUntil || props.account.coolingDownUntil <= Date.now()) return undefined
+    const minutes = Math.max(1, Math.ceil((props.account.coolingDownUntil - Date.now()) / 60000))
+    return props.account.cooldownReason ? `${props.account.cooldownReason} (${minutes}m)` : `Cooling down (${minutes}m)`
+  })
+
+  const details = createMemo(() =>
+    [
+      ["Family", props.account.family],
+      ["Account ID", props.account.id],
+      ["Name", props.account.name],
+      ["Type", accountTypeLabel(props.account.type)],
+      ["Email", props.account.email],
+      ["Project", props.account.projectId],
+      ["Status", props.account.active ? "Active" : "Inactive"],
+      ["Cooldown", cooldown()],
+    ].filter((entry): entry is [string, string] => Boolean(entry[1])),
+  )
+
+  return (
+    <Dialog title="Account details">
+      <div class="flex flex-col gap-4 px-2.5 pb-3">
+        <div class="rounded-lg border border-border-base bg-surface-base p-4">
+          <div class="space-y-3">
+            <For each={details()}>
+              {([label, value]) => (
+                <div class="grid grid-cols-[96px_minmax(0,1fr)] gap-3 text-13-regular">
+                  <div class="text-text-weak">{label}</div>
+                  <div class="min-w-0 break-words text-text-strong">{value}</div>
+                </div>
+              )}
+            </For>
+          </div>
+          <Show when={props.account.metadata && Object.keys(props.account.metadata).length > 0}>
+            <div class="mt-4 border-t border-border-base pt-4">
+              <div class="mb-2 text-12-medium uppercase tracking-wide text-text-weak">Metadata</div>
+              <pre class="max-h-56 overflow-auto rounded-md bg-surface-raised p-3 text-11-regular text-text-base">
+                {JSON.stringify(props.account.metadata, null, 2)}
+              </pre>
+            </div>
+          </Show>
+        </div>
+        <div class="flex justify-end">
+          <Button size="small" variant="secondary" onClick={() => dialog.close()}>
+            Close
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
+const AccountRenameDialog: Component<{ account: AccountRecord; onSaved: () => Promise<void> | void }> = (props) => {
+  const dialog = useDialog()
+  const sdk = useSDK()
+  const [name, setName] = createSignal(props.account.name)
+  const [saving, setSaving] = createSignal(false)
+  const [error, setError] = createSignal<string>()
+
+  const save = async () => {
+    const nextName = name().trim()
+    if (!nextName) {
+      setError("Name is required")
+      return
+    }
+    if (nextName === props.account.name) {
+      dialog.close()
+      return
+    }
+
+    setSaving(true)
+    setError(undefined)
+    try {
+      const response = await sdk.fetch(
+        `${sdk.url}/api/v2/account/${encodeURIComponent(props.account.family)}/${encodeURIComponent(props.account.id)}`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ name: nextName }),
+        },
+      )
+      if (!response.ok) {
+        throw new Error(await readResponseMessage(response))
+      }
+      await props.onSaved()
+      showToast({
+        variant: "success",
+        title: "Account name updated",
+        description: `${props.account.family} → ${nextName}`,
+      })
+      dialog.close()
+    } catch (err) {
+      setError(responseErrorMessage(err) ?? "Failed to update account name")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog title="Edit account name">
+      <div class="flex flex-col gap-4 px-2.5 pb-3">
+        <div class="text-14-regular text-text-base">
+          Update the display name for <span class="font-medium text-text-strong">{props.account.family}</span> /{" "}
+          {props.account.id}.
+        </div>
+        <TextField
+          autofocus
+          label="Account name"
+          value={name()}
+          onChange={setName}
+          validationState={error() ? "invalid" : undefined}
+          error={error()}
+          onKeyDown={(event: KeyboardEvent) => {
+            if (event.key === "Enter") {
+              event.preventDefault()
+              void save()
+            }
+          }}
+        />
+        <div class="flex justify-end gap-2">
+          <Button size="small" variant="secondary" onClick={() => dialog.close()} disabled={saving()}>
+            Cancel
+          </Button>
+          <Button size="small" variant="primary" onClick={() => void save()} loading={saving()}>
+            Save
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
+const AccountDeleteDialog: Component<{ account: AccountRecord; onDeleted: () => Promise<void> | void }> = (props) => {
+  const dialog = useDialog()
+  const sdk = useSDK()
+  const [deleting, setDeleting] = createSignal(false)
+  const [error, setError] = createSignal<string>()
+
+  const remove = async () => {
+    setDeleting(true)
+    setError(undefined)
+    try {
+      const response = await sdk.fetch(
+        `${sdk.url}/api/v2/account/${encodeURIComponent(props.account.family)}/${encodeURIComponent(props.account.id)}`,
+        {
+          method: "DELETE",
+        },
+      )
+      if (!response.ok) {
+        throw new Error(await readResponseMessage(response))
+      }
+      await props.onDeleted()
+      showToast({
+        variant: "success",
+        title: "Account deleted",
+        description: `${props.account.family} → ${props.account.name}`,
+      })
+      dialog.close()
+    } catch (err) {
+      setError(responseErrorMessage(err) ?? "Failed to delete account")
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <Dialog title="Delete account">
+      <div class="flex flex-col gap-4 px-2.5 pb-3">
+        <div class="rounded-lg border border-border-base bg-surface-base p-4 text-14-regular text-text-base">
+          <div>Are you sure you want to delete this account?</div>
+          <div class="mt-2 font-medium text-text-strong">
+            {props.account.family} / {props.account.name}
+          </div>
+          <div class="mt-1 text-12-regular text-text-weak">Account ID: {props.account.id}</div>
+        </div>
+        <Show when={error()}>{(message) => <div class="text-12-regular text-icon-danger-base">{message()}</div>}</Show>
+        <div class="flex justify-end gap-2">
+          <Button size="small" variant="secondary" onClick={() => dialog.close()} disabled={deleting()}>
+            Cancel
+          </Button>
+          <Button
+            size="small"
+            variant="secondary"
+            class="text-icon-danger-base hover:text-icon-danger-base"
+            onClick={() => void remove()}
+            loading={deleting()}
+          >
+            Delete
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
 const ModelList: Component<{
   provider?: string
   class?: string
@@ -302,7 +624,14 @@ const ModelItem: Component<{
   )
 }
 
-export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
+export const DialogSelectModel: Component<{
+  provider?: string
+  initialProviderId?: string
+  initialAccountId?: string
+  initialMode?: "favorites" | "all"
+  initialMobileSection?: "provider" | "account" | "model"
+  initialAccountManagementMode?: boolean
+}> = (props) => {
   const dialog = useDialog()
   const language = useLanguage()
   const local = useLocal()
@@ -313,11 +642,14 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
     return sdk.client.account.listAll().then((x) => x.data)
   })
 
-  const [selectedProviderId, setSelectedProviderId] = createSignal<string>("")
-  const [selectedAccountId, setSelectedAccountId] = createSignal<string>("")
+  const [selectedProviderId, setSelectedProviderId] = createSignal<string>(props.initialProviderId ?? "")
+  const [selectedAccountId, setSelectedAccountId] = createSignal<string>(props.initialAccountId ?? "")
   const [switchingAccountId, setSwitchingAccountId] = createSignal<string>("")
-  const [mode, setMode] = createSignal<"favorites" | "all">("favorites")
-  const [mobileSection, setMobileSection] = createSignal<"provider" | "account" | "model">("provider")
+  const [mode, setMode] = createSignal<"favorites" | "all">(props.initialMode ?? "favorites")
+  const [mobileSection, setMobileSection] = createSignal<"provider" | "account" | "model">(
+    props.initialMobileSection ?? "provider",
+  )
+  const [accountManagementMode, setAccountManagementMode] = createSignal(props.initialAccountManagementMode ?? false)
   const isMobileViewport = createMediaQuery("(max-width: 767px)")
   const [dialogOffset, setDialogOffset] = createSignal({ x: 0, y: 0 })
   const initialDialogSize = () => {
@@ -335,8 +667,12 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   }
   const [dialogSize, setDialogSize] = createSignal(initialDialogSize())
   const [columnLayout, setColumnLayout] = createSignal(MODEL_MANAGER_DEFAULT_COLUMN_LAYOUT)
+  const [layoutHydrated, setLayoutHydrated] = createSignal(false)
+  const [columnsWidth, setColumnsWidth] = createSignal(0)
   let dialogContainerEl: HTMLElement | undefined
   let columnsEl: HTMLDivElement | undefined
+  let providerScrollEl: HTMLDivElement | undefined
+  let modelPanelEl: HTMLDivElement | undefined
 
   const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
@@ -447,6 +783,8 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   }
 
   const getDesktopColumnsWidth = () => {
+    const measuredWidth = columnsWidth()
+    if (measuredWidth > 0) return measuredWidth
     if (columnsEl) return columnsEl.getBoundingClientRect().width
     return dialogSize().width
   }
@@ -489,7 +827,9 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
   })
 
   createEffect(() => {
+    if (layoutHydrated()) return
     loadDialogLayout()
+    setLayoutHydrated(true)
   })
 
   createEffect(() => {
@@ -501,7 +841,28 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
 
   createEffect(() => {
     if (isMobileViewport()) return
-    setColumnLayout((current) => clampColumnLayout(current))
+    const total = getDesktopColumnsWidth()
+    if (!total) return
+    setColumnLayout((current) => clampColumnLayout(current, total))
+  })
+
+  createEffect(() => {
+    const element = columnsEl
+    if (!element) return
+
+    const updateWidth = () => {
+      setColumnsWidth(element.getBoundingClientRect().width)
+    }
+
+    updateWidth()
+    if (typeof ResizeObserver === "undefined") return
+
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? element.getBoundingClientRect().width
+      setColumnsWidth(width)
+    })
+    observer.observe(element)
+    onCleanup(() => observer.disconnect())
   })
 
   createEffect(() => {
@@ -713,6 +1074,31 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
     setSelectedProviderId("")
   })
 
+  createEffect(() => {
+    if (!selectedProviderId()) setAccountManagementMode(false)
+  })
+
+  const accountFamilies = createMemo(
+    () =>
+      (accountInfo.latest?.families as
+        | Record<string, { activeAccount?: string; accounts?: Record<string, Record<string, unknown>> }>
+        | undefined) ?? {},
+  )
+
+  const accountRecordsForSelectedProvider = createMemo(() => {
+    const family = selectedProviderId()
+    const familyRow = accountFamilies()[family]
+    if (!familyRow?.accounts) return [] as AccountRecord[]
+
+    return Object.entries(familyRow.accounts)
+      .map(([accountId, raw]) => normalizeAccountRecord(family, accountId, raw, familyRow.activeAccount))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  })
+
+  const accountRecordById = createMemo(
+    () => new Map(accountRecordsForSelectedProvider().map((item) => [item.id, item])),
+  )
+
   const accountsForSelectedProvider = createMemo(() => {
     const providerId = selectedProviderId()
     if (!providerId) return [] as Array<{ id: string; label: string; active: boolean; unavailable?: string }>
@@ -802,6 +1188,48 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
     setSelectedAccountId(active?.id ?? rows[0].id)
   })
 
+  const refreshAccountState = async () => {
+    await sdk.client.global.dispose().catch(() => undefined)
+    await refetchAccountInfo()
+  }
+
+  const reopenModelSelector = () => {
+    dialog.show(() => (
+      <DialogSelectModel
+        provider={props.provider}
+        initialProviderId={selectedProviderId()}
+        initialAccountId={selectedAccountId()}
+        initialMode={mode()}
+        initialMobileSection={mobileSection()}
+        initialAccountManagementMode={accountManagementMode()}
+      />
+    ))
+  }
+
+  const openViewAccount = (accountId: string) => {
+    const account = accountRecordById().get(accountId)
+    if (!account) return
+    dialog.show(() => <AccountViewDialog account={account} />, reopenModelSelector)
+  }
+
+  const openRenameAccount = (accountId: string) => {
+    const account = accountRecordById().get(accountId)
+    if (!account) return
+    dialog.show(() => <AccountRenameDialog account={account} onSaved={refreshAccountState} />, reopenModelSelector)
+  }
+
+  const openDeleteAccount = (accountId: string) => {
+    const account = accountRecordById().get(accountId)
+    if (!account) return
+    dialog.show(() => <AccountDeleteDialog account={account} onDeleted={refreshAccountState} />, reopenModelSelector)
+  }
+
+  const openAddAccount = () => {
+    const family = selectedProviderId()
+    if (!family) return
+    dialog.show(() => <DialogConnectProvider provider={family} onBack={reopenModelSelector} />, reopenModelSelector)
+  }
+
   const filteredModels = createMemo(() => {
     const providerId = selectedProviderId()
     if (!providerId) return [] as ReturnType<ReturnType<typeof useModels>["list"]>
@@ -848,15 +1276,22 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
       current.add(normalized)
     }
     const next = [...current]
-    globalSync.set("config", "disabled_providers", next)
-    globalSync.updateConfig({ disabled_providers: next }).catch((err) => {
-      globalSync.set("config", "disabled_providers", before)
-      showToast({
-        variant: "error",
-        title: language.t("common.requestFailed"),
-        description: err instanceof Error ? err.message : String(err),
-      })
-    })
+    preserveScrollPosition(
+      () => providerScrollEl,
+      () => {
+        globalSync.set("config", "disabled_providers", next)
+        return sdk.client.global.config
+          .update({ config: { disabled_providers: next } }, { throwOnError: true })
+          .catch((err) => {
+            globalSync.set("config", "disabled_providers", before)
+            showToast({
+              variant: "error",
+              title: language.t("common.requestFailed"),
+              description: err instanceof Error ? err.message : String(err),
+            })
+          })
+      },
+    )
   }
 
   const switchActiveAccount = (row: { id: string; label: string; unavailable?: string }) => {
@@ -881,7 +1316,7 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
     sdk.client.account
       .setActive({ family, accountId: row.id })
       .then(() => {
-        void refetchAccountInfo()
+        void refreshAccountState()
         showToast({
           variant: "success",
           title: language.t("settings.accounts.toast.updated.title"),
@@ -1019,7 +1454,7 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
           <div class="px-3 py-2 text-11-medium text-text-weak uppercase tracking-wider">
             {language.t("common.providers")}
           </div>
-          <div class="model-manager-column-scroll p-2 space-y-1 overflow-y-auto flex-1 min-h-0">
+          <div ref={providerScrollEl} class="model-manager-column-scroll p-2 space-y-1 overflow-y-auto flex-1 min-h-0">
             <For each={providersForMode()}>
               {(provider) => (
                 <ProviderItem
@@ -1043,8 +1478,30 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
             "md:flex",
           )}
         >
-          <div class="px-3 py-2 text-11-medium text-text-weak uppercase tracking-wider">
-            {language.t("settings.accounts.title")}
+          <div class="px-3 py-2 flex items-center justify-between gap-2">
+            <div class="text-11-medium text-text-weak uppercase tracking-wider">
+              {language.t("settings.accounts.title")}
+            </div>
+            <div class="flex items-center gap-1">
+              <Button
+                size="small"
+                variant="ghost"
+                class="h-6 rounded-full px-2 text-11-medium border border-border-base"
+                disabled={!selectedProviderId()}
+                onClick={openAddAccount}
+              >
+                Add
+              </Button>
+              <Button
+                size="small"
+                variant="ghost"
+                class="h-6 rounded-full px-2 text-11-medium border border-border-base"
+                disabled={!selectedProviderId()}
+                onClick={() => setAccountManagementMode((current) => !current)}
+              >
+                {accountManagementMode() ? "Done" : "Manage"}
+              </Button>
+            </div>
           </div>
           <div class="model-manager-column-scroll p-2 space-y-1 overflow-y-auto flex-1 min-h-0">
             <Show
@@ -1064,14 +1521,14 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
                     onClick={() => switchActiveAccount(row)}
                   >
                     <div class="flex items-center gap-2 min-w-0">
-                      <div class="flex items-center gap-3 min-w-0 flex-1">
+                      <div class="flex items-center gap-2 min-w-0 flex-1">
                         <span class="truncate min-w-0 flex-1">{row.label}</span>
                         <span class="w-4 shrink-0 flex items-center justify-center">
                           <Show when={row.active}>
                             <Icon name="check-small" class="text-icon-success-base shrink-0" />
                           </Show>
                         </span>
-                        <Show when={accountRowDisplay(row).quota}>
+                        <Show when={!accountManagementMode() && accountRowDisplay(row).quota}>
                           {(quota) => (
                             <span class="shrink-0 w-[124px] text-right text-11-regular text-text-weak tabular-nums whitespace-nowrap">
                               {quota()}
@@ -1079,6 +1536,38 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
                           )}
                         </Show>
                       </div>
+                      <Show when={accountManagementMode()}>
+                        <div class="flex items-center gap-1 shrink-0">
+                          <AccountActionButton
+                            label="View"
+                            icon="eye"
+                            onClick={(event) => {
+                              event.preventDefault()
+                              event.stopPropagation()
+                              openViewAccount(row.id)
+                            }}
+                          />
+                          <AccountActionButton
+                            label="Edit"
+                            icon="edit"
+                            onClick={(event) => {
+                              event.preventDefault()
+                              event.stopPropagation()
+                              openRenameAccount(row.id)
+                            }}
+                          />
+                          <AccountActionButton
+                            label="Delete"
+                            icon="trash"
+                            tone="danger"
+                            onClick={(event) => {
+                              event.preventDefault()
+                              event.stopPropagation()
+                              openDeleteAccount(row.id)
+                            }}
+                          />
+                        </div>
+                      </Show>
                       <Show when={row.unavailable}>
                         <Tag>{language.t("dialog.model.activity.unavailable")}</Tag>
                       </Show>
@@ -1108,7 +1597,7 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
             <span class="px-1">/</span>
             <span>{selectedAccountId() || "--"}</span>
           </div>
-          <div class="flex-1 overflow-hidden relative">
+          <div ref={modelPanelEl} class="flex-1 overflow-hidden relative">
             <List
               class="h-full [&_[data-slot=list-scroll]]:h-full [&_[data-slot=list-scroll]]:p-2"
               items={filteredModels()}
@@ -1202,7 +1691,10 @@ export const DialogSelectModel: Component<{ provider?: string }> = (props) => {
                     e.preventDefault()
                     const key = { modelID: item.id, providerID: item.provider.id }
                     const nextVisible = !local.model.visible(key)
-                    local.model.setVisibility(key, nextVisible)
+                    preserveScrollPosition(
+                      () => modelPanelEl?.querySelector('[data-slot="list-scroll"]') as HTMLElement | undefined,
+                      () => local.model.setVisibility(key, nextVisible),
+                    )
                   }}
                 />
               )}

@@ -91,20 +91,7 @@ export namespace Auth {
       return accountToAuth(exactMatch.info)
     }
 
-    // 2. Try simplified ID match for Antigravity (e.g. antigravity-ivon0829 -> antigravity-subscription-ivon0829-gmail-com)
-    if (providerId.startsWith("antigravity-") && !providerId.includes("subscription")) {
-      const antigravityAccounts = await Account.list("antigravity")
-      for (const [id, info] of Object.entries(antigravityAccounts)) {
-        if (info.type === "subscription" && info.email) {
-          const username = info.email.split("@")[0]
-          if (`antigravity-${username}` === providerId) {
-            return accountToAuth(info)
-          }
-        }
-      }
-    }
-
-    // 3. Get active account for this provider family
+    // 2. Get active account for this provider family
     const family = await Account.resolveFamilyOrSelf(providerId)
     debugCheckpoint("auth", "Parsed family", { providerId, family })
 
@@ -205,7 +192,7 @@ export namespace Auth {
       // Check for existing account with same base token to avoid duplicates
       const parts = parseRefreshParts(info.refresh)
       const baseToken = parts.refreshToken || parseBaseToken(info.refresh)
-      const hasProjectParts = family === "antigravity" || family === "gemini-cli"
+      const hasProjectParts = family === "gemini-cli"
       const projectId = hasProjectParts ? parts.projectId : undefined
       const managedProjectId = hasProjectParts ? parts.managedProjectId : undefined
       const existingAccounts = await Account.list(family)
@@ -309,36 +296,5 @@ export namespace Auth {
     const family = await Account.resolveFamilyOrSelf(providerId)
     const accounts = await Account.list(family)
     return Object.keys(accounts).length > 0
-  }
-
-  /**
-   * @deprecated Use Account.list("google-api") instead
-   * Kept for backward compatibility with plugins
-   */
-  export async function listAntigravityAccounts(): Promise<
-    Record<string, { refreshToken: string; managedProjectId: string; email?: string }>
-  > {
-    const { Account } = await import("../account")
-    // Strict separation: antigravity compatibility path must never read google-api accounts.
-    const accounts = await Account.list("antigravity")
-    const result: Record<string, { refreshToken: string; managedProjectId: string; email?: string }> = {}
-
-    for (const [id, info] of Object.entries(accounts)) {
-      if (info.type === "subscription") {
-        let oldId = id.replace("google-subscription-", "antigravity-")
-        // Simplify: antigravity-ivon0829-gmail-com -> antigravity-ivon0829
-        if (info.email) {
-          const username = info.email.split("@")[0]
-          oldId = `antigravity-${username}`
-        }
-        result[oldId] = {
-          refreshToken: info.refreshToken,
-          managedProjectId: info.managedProjectId || info.projectId || "",
-          email: info.email,
-        }
-      }
-    }
-
-    return result
   }
 }

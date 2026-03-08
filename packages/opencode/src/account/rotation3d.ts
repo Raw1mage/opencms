@@ -17,10 +17,6 @@
 import { Log } from "../util/log"
 import { getRateLimitTracker, getHealthTracker } from "./rotation"
 import { debugCheckpoint } from "../util/debug"
-import { checkAccountsQuota, type QuotaGroup, type QuotaGroupSummary } from "../plugin/antigravity/plugin/quota"
-import { loadAccounts } from "../plugin/antigravity/plugin/storage"
-import { resolveAntigravityQuotaGroup } from "../plugin/antigravity/plugin/quota-group"
-import type { PluginClient } from "../plugin/antigravity/plugin/types"
 import {
   loadInstructionBlock,
   loadInstructionJSON,
@@ -472,73 +468,6 @@ export async function buildFallbackCandidates(
     log.warn("Failed to get OpenAI quotas for fallback", { error: e })
   }
 
-  // Load antigravity quotas from cockpit (reusing admin panel logic)
-  // Map: coreAccountId -> { group -> QuotaGroupSummary }
-  let antigravityQuotas: Record<string, Partial<Record<QuotaGroup, QuotaGroupSummary>>> = {}
-  try {
-    const antigravityAccounts = await Account.list("antigravity").catch(() => ({}))
-    const hasAntigravityAccounts = Object.keys(antigravityAccounts).length > 0
-    if (hasAntigravityAccounts) {
-      const storage = await loadAccounts()
-      if (!storage || storage.accounts.length === 0) {
-        debugCheckpoint("rotation3d", "antigravity_quota:skip", { reason: "empty_plugin_storage" })
-      } else {
-        debugCheckpoint("rotation3d", "antigravity_quota:start", { accountCount: storage.accounts.length })
-        const noopClient = {
-          auth: {
-            set: async () => true,
-          },
-        } as unknown as PluginClient
-        const results = await checkAccountsQuota(storage.accounts, noopClient)
-
-        // Build coreAccountId mapping (same logic as admin panel)
-        const coreByToken = new Map<string, string>()
-        const coreByEmail = new Map<string, string>()
-        const coreAll = await Account.listAll().catch(() => ({}))
-        for (const [family, data] of Object.entries(coreAll)) {
-          if (family !== "antigravity") continue
-          for (const [coreId, info] of Object.entries(data.accounts || {})) {
-            if (info.type === "subscription") {
-              if (info.refreshToken) coreByToken.set(info.refreshToken, coreId)
-              if (info.email) coreByEmail.set(info.email, coreId)
-            }
-          }
-        }
-
-        for (const res of results) {
-          const account = storage.accounts[res.index]
-          if (!account) continue
-          const token = account.refreshToken
-          const email = account.email
-          const coreId = (token && coreByToken.get(token)) ?? (email && coreByEmail.get(email))
-          if (!coreId) continue
-          antigravityQuotas[coreId] = res.quota?.groups ?? {}
-
-          // Log detailed quota info for each account
-          debugCheckpoint("rotation3d", "antigravity_quota:account", {
-            coreId,
-            email: account.email,
-            groups: res.quota?.groups,
-            claudeRemaining: res.quota?.groups?.claude?.remainingFraction,
-            claudeResetTime: res.quota?.groups?.claude?.resetTime,
-            geminiProRemaining: res.quota?.groups?.["gemini-pro"]?.remainingFraction,
-            geminiFlashRemaining: res.quota?.groups?.["gemini-flash"]?.remainingFraction,
-          })
-        }
-
-        debugCheckpoint("rotation3d", "antigravity_quota:done", {
-          quotaCount: Object.keys(antigravityQuotas).length,
-          accountIds: Object.keys(antigravityQuotas),
-        })
-      }
-    } else {
-      debugCheckpoint("rotation3d", "antigravity_quota:skip", { reason: "no_core_antigravity_accounts" })
-    }
-  } catch (e) {
-    log.warn("Failed to get antigravity quotas for fallback", { error: e })
-    debugCheckpoint("rotation3d", "antigravity_quota:error", { error: String(e) })
-  }
-
   // Load favorites/hidden sets for filtering
   let allowedModels = new Set<string>()
   let hiddenModels = new Set<string>()
@@ -561,17 +490,11 @@ export async function buildFallbackCandidates(
   const isHidden = (vector: ModelVector) =>
     hiddenProviders.has(vector.providerId) || hiddenModels.has(`${vector.providerId}/${vector.modelID}`)
 
-  // Helper to determine quota group for antigravity models
-  const resolveQuotaGroup = (modelId: string): QuotaGroup | null => {
-    return resolveAntigravityQuotaGroup(modelId)
-  }
-
   // Helper to enrich candidate with capabilities
   const enrich = (vector: ModelVector, reason: FallbackCandidate["reason"]): FallbackCandidate => {
     const model = providers[vector.providerId]?.models?.[vector.modelID]
 
     let isQuotaLimited = false
-    let quotaWaitTimeMs: number | undefined
 
     if (vector.providerId === "openai") {
       const quota = openaiQuotas[vector.accountId]
@@ -580,50 +503,16 @@ export async function buildFallbackCandidates(
           isQuotaLimited = true
         }
       }
-    } else if (vector.providerId === "antigravity") {
-      // Check antigravity quota from cockpit
-      const groups = antigravityQuotas[vector.accountId]
-      if (groups) {
-        const group = resolveQuotaGroup(vector.modelID)
-        if (group) {
-          const groupData = groups[group]
-          if (groupData) {
-            const remaining = groupData.remainingFraction
-            const resetTime = groupData.resetTime
-            const resetMs = resetTime ? Date.parse(resetTime) : null
-            const now = Date.now()
-
-            // Quota is limited if:
-            // 1. remainingFraction <= 0, OR
-            // 2. remainingFraction is missing AND resetTime exists in the future.
-            //
-            // IMPORTANT:
-            // cockpit can return both remainingFraction>0 and a future resetTime.
-            // In that case the model is still available and MUST NOT be treated
-            // as exhausted.
-            if (
-              (typeof remaining === "number" && remaining <= 0) ||
-              (remaining === undefined && resetMs !== null && Number.isFinite(resetMs) && resetMs > now)
-            ) {
-              isQuotaLimited = true
-              if (resetMs !== null && Number.isFinite(resetMs)) {
-                quotaWaitTimeMs = Math.max(0, resetMs - now)
-              }
-            }
-          }
-        }
-      }
     }
 
     const baseWaitTime = rateLimitTracker.getWaitTime(vector.accountId, vector.providerId, vector.modelID)
-    const effectiveWaitTime = quotaWaitTimeMs !== undefined ? Math.max(baseWaitTime, quotaWaitTimeMs) : baseWaitTime
 
     return {
       ...vector,
       healthScore: healthTracker.getScore(vector.accountId, vector.providerId),
       isRateLimited:
         rateLimitTracker.isRateLimited(vector.accountId, vector.providerId, vector.modelID) || isQuotaLimited,
-      waitTimeMs: effectiveWaitTime,
+      waitTimeMs: baseWaitTime,
       priority: 0,
       reason,
       capabilities: extractCapabilities(model),

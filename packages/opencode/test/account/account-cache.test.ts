@@ -9,10 +9,10 @@ describe("account cache", () => {
     const one = {
       version: 2,
       families: {
-        antigravity: {
-          activeAccount: "antigravity-subscription-a",
+        openai: {
+          activeAccount: "openai-subscription-a",
           accounts: {
-            "antigravity-subscription-a": {
+            "openai-subscription-a": {
               type: "subscription",
               name: "a",
               refreshToken: "rt-a",
@@ -24,23 +24,23 @@ describe("account cache", () => {
     }
 
     await Bun.write(file, JSON.stringify(one))
-    const first = await Account.list("antigravity")
+    const first = await Account.list("openai")
     expect(Object.keys(first)).toHaveLength(1)
 
     await Bun.sleep(5)
     const two = {
       version: 2,
       families: {
-        antigravity: {
-          activeAccount: "antigravity-subscription-a",
+        openai: {
+          activeAccount: "openai-subscription-a",
           accounts: {
-            "antigravity-subscription-a": {
+            "openai-subscription-a": {
               type: "subscription",
               name: "a",
               refreshToken: "rt-a",
               addedAt: Date.now(),
             },
-            "antigravity-subscription-b": {
+            "openai-subscription-b": {
               type: "subscription",
               name: "b",
               refreshToken: "rt-b",
@@ -53,7 +53,7 @@ describe("account cache", () => {
 
     await Bun.write(file, JSON.stringify(two))
     await Account.refresh()
-    const second = await Account.list("antigravity")
+    const second = await Account.list("openai")
     expect(Object.keys(second)).toHaveLength(2)
   })
 })

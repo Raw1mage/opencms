@@ -181,8 +181,6 @@ export namespace ToolRegistry {
     })
 
     const score = (item: Tool.Info) => {
-      if (item.id === "google_search" && item.source?.includes("refs/opencode-antigravity-auth")) return 5
-      if (item.id === "google_search" && item.source?.includes("antigravity")) return 4
       if (item.source?.startsWith("internal:")) return 3
       if (item.source?.startsWith("file:")) return 1
       return 2
