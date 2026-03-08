@@ -60,8 +60,8 @@ Status: Done
 - 第一版 registry 採 in-memory implementation，刻意不先碰 DB/schema。
 - 已開始第一個 consumer adapter path：
   - `packages/app/src/context/global-sync/child-store.ts` 現在會根據 `project + path.worktree + directory` 派生 `store.workspace`
-  - app 端新增 `workspace-adapter.ts`，先用純 helper 形式承接 global-sync 的 workspace identity 推導
-  - 因 `packages/app` 不能直接 import sibling package source（`rootDir` 邊界），本輪先不直接共享 runtime resolver，改採 app-side adapter；待後續再抽成真正 shared contract
+  - 先前 app 端新增 `workspace-adapter.ts` 承接 identity 推導，後續已再收斂到 `@opencode-ai/util/workspace`
+  - 現在 app/runtime 共享同一組 workspace identity helpers，避免雙邊維護 normalize/kind/id 規則
 - 已開始第二個 consumer path：
   - `packages/app/src/context/terminal.tsx` 現在會優先使用 `globalSync.child(directory).workspace.directory`
   - terminal persistence/cache key 不再只依賴 route `params.dir`，而是明確對齊 child-store 派生出的 workspace directory
@@ -102,6 +102,7 @@ Status: Done
 - `bun run --cwd packages/opencode typecheck` ✅
 - `bun test --preload ./happydom.ts ./src/context/file/view-cache.test.ts ./src/context/comments.test.ts ./src/context/prompt.test.ts ./src/context/terminal.test.ts ./src/context/global-sync/child-store.test.ts ./src/context/global-sync/workspace-adapter.test.ts` (in `packages/app`) ✅
 - `bun run typecheck` (in `packages/app`) ✅
+- `packages/util/src/workspace.ts` 已成為 app/runtime 共用 identity helper SSOT ✅
 - `.husky/_/*` executable bits restored via `chmod +x` ✅
 - `package.json` `prepare` 已補上 husky shim executable-bit 自動修復 ✅
 - Architecture Sync: Updated
