@@ -4,6 +4,13 @@ import { Session } from "@/session"
 import type { Project } from "../project"
 import { summarizeWorkspaceAttachments, type WorkspaceAttachmentDescriptor } from "./attachments"
 import { buildRootWorkspace, buildSandboxWorkspace } from "./resolver"
+import {
+  markWorkspaceActive,
+  markWorkspaceArchived,
+  markWorkspaceDeleting,
+  markWorkspaceFailed,
+  markWorkspaceResetting,
+} from "./lifecycle"
 import type { WorkspaceAggregate } from "./types"
 import { createInMemoryWorkspaceRegistry, type WorkspaceRegistry } from "./registry"
 import { normalizeWorkspaceDirectory } from "./identity"
@@ -23,6 +30,11 @@ export interface WorkspaceService {
     kinds: { root: number; sandbox: number; derived: number }
     attachments: { sessions: number; ptys: number; previews: number; workers: number }
   }>
+  markResetting(input: { workspaceID: string }): Promise<WorkspaceAggregate>
+  markDeleting(input: { workspaceID: string }): Promise<WorkspaceAggregate>
+  markArchived(input: { workspaceID: string }): Promise<WorkspaceAggregate>
+  markActive(input: { workspaceID: string }): Promise<WorkspaceAggregate>
+  markFailed(input: { workspaceID: string }): Promise<WorkspaceAggregate>
   attachSession(info: Pick<Session.Info, "id" | "directory"> & { active?: boolean }): Promise<WorkspaceAggregate>
   detachSession(input: { sessionID: string; directory: string }): Promise<WorkspaceAggregate>
   attachPty(info: Pick<Pty.Info, "id" | "cwd">): Promise<WorkspaceAggregate>
@@ -84,6 +96,12 @@ export function createWorkspaceService(
       ...workspace,
       attachments: summarizeWorkspaceAttachments(updater(descriptors)),
     })
+  }
+
+  async function updateLifecycle(workspaceID: string, updater: (workspace: WorkspaceAggregate) => WorkspaceAggregate) {
+    const workspace = await registry.getById(workspaceID)
+    if (!workspace) throw new Error(`Workspace not found: ${workspaceID}`)
+    return registry.upsert(updater(workspace))
   }
 
   return {
@@ -148,6 +166,21 @@ export function createWorkspaceService(
           workers: workspaces.reduce((sum, item) => sum + item.attachments.workerIds.length, 0),
         },
       }
+    },
+    markResetting(input) {
+      return updateLifecycle(input.workspaceID, markWorkspaceResetting)
+    },
+    markDeleting(input) {
+      return updateLifecycle(input.workspaceID, markWorkspaceDeleting)
+    },
+    markArchived(input) {
+      return updateLifecycle(input.workspaceID, markWorkspaceArchived)
+    },
+    markActive(input) {
+      return updateLifecycle(input.workspaceID, markWorkspaceActive)
+    },
+    markFailed(input) {
+      return updateLifecycle(input.workspaceID, markWorkspaceFailed)
     },
     attachSession(info) {
       return updateAttachments(info.directory, (descriptors) => {

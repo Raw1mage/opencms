@@ -109,4 +109,20 @@ describe("project.workspace.service", () => {
       attachments: { sessions: 1, ptys: 1, previews: 0, workers: 0 },
     })
   })
+
+  test("lifecycle methods update workspace state through service", async () => {
+    const service = createWorkspaceService(createInMemoryWorkspaceRegistry())
+    const workspace = await service.register(
+      buildDerivedWorkspace({
+        projectId: "project-1",
+        directory: "/tmp/workspace-lifecycle",
+      }),
+    )
+
+    expect((await service.markResetting({ workspaceID: workspace.workspaceId })).lifecycleState).toBe("resetting")
+    expect((await service.markDeleting({ workspaceID: workspace.workspaceId })).lifecycleState).toBe("deleting")
+    expect((await service.markArchived({ workspaceID: workspace.workspaceId })).lifecycleState).toBe("archived")
+    expect((await service.markActive({ workspaceID: workspace.workspaceId })).lifecycleState).toBe("active")
+    expect((await service.markFailed({ workspaceID: workspace.workspaceId })).lifecycleState).toBe("failed")
+  })
 })

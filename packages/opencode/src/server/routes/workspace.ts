@@ -1,5 +1,5 @@
 import { Hono } from "hono"
-import { describeRoute, resolver } from "hono-openapi"
+import { describeRoute, resolver, validator } from "hono-openapi"
 import z from "zod"
 import { Instance } from "../../project/instance"
 import { WorkspaceService } from "../../project/workspace"
@@ -116,5 +116,110 @@ export const WorkspaceRoutes = lazy(() =>
         if (!workspace) throw new Storage.NotFoundError({ message: "Workspace not found" })
         return c.json(workspace)
       },
+    )
+    .post(
+      "/:workspaceID/reset",
+      describeRoute({
+        summary: "Mark workspace resetting",
+        description: "Transition a workspace into resetting lifecycle state.",
+        operationId: "workspace.reset",
+        responses: {
+          200: {
+            description: "Workspace updated",
+            content: {
+              "application/json": {
+                schema: resolver(WorkspaceAggregateSchema),
+              },
+            },
+          },
+          ...errors(404),
+        },
+      }),
+      validator("param", z.object({ workspaceID: z.string() })),
+      async (c) => c.json(await WorkspaceService.markResetting({ workspaceID: c.req.valid("param").workspaceID })),
+    )
+    .post(
+      "/:workspaceID/delete",
+      describeRoute({
+        summary: "Mark workspace deleting",
+        description: "Transition a workspace into deleting lifecycle state.",
+        operationId: "workspace.delete",
+        responses: {
+          200: {
+            description: "Workspace updated",
+            content: {
+              "application/json": {
+                schema: resolver(WorkspaceAggregateSchema),
+              },
+            },
+          },
+          ...errors(404),
+        },
+      }),
+      validator("param", z.object({ workspaceID: z.string() })),
+      async (c) => c.json(await WorkspaceService.markDeleting({ workspaceID: c.req.valid("param").workspaceID })),
+    )
+    .post(
+      "/:workspaceID/archive",
+      describeRoute({
+        summary: "Mark workspace archived",
+        description: "Transition a workspace into archived lifecycle state.",
+        operationId: "workspace.archive",
+        responses: {
+          200: {
+            description: "Workspace updated",
+            content: {
+              "application/json": {
+                schema: resolver(WorkspaceAggregateSchema),
+              },
+            },
+          },
+          ...errors(404),
+        },
+      }),
+      validator("param", z.object({ workspaceID: z.string() })),
+      async (c) => c.json(await WorkspaceService.markArchived({ workspaceID: c.req.valid("param").workspaceID })),
+    )
+    .post(
+      "/:workspaceID/active",
+      describeRoute({
+        summary: "Mark workspace active",
+        description: "Transition a workspace into active lifecycle state.",
+        operationId: "workspace.active",
+        responses: {
+          200: {
+            description: "Workspace updated",
+            content: {
+              "application/json": {
+                schema: resolver(WorkspaceAggregateSchema),
+              },
+            },
+          },
+          ...errors(404),
+        },
+      }),
+      validator("param", z.object({ workspaceID: z.string() })),
+      async (c) => c.json(await WorkspaceService.markActive({ workspaceID: c.req.valid("param").workspaceID })),
+    )
+    .post(
+      "/:workspaceID/failed",
+      describeRoute({
+        summary: "Mark workspace failed",
+        description: "Transition a workspace into failed lifecycle state.",
+        operationId: "workspace.failed",
+        responses: {
+          200: {
+            description: "Workspace updated",
+            content: {
+              "application/json": {
+                schema: resolver(WorkspaceAggregateSchema),
+              },
+            },
+          },
+          ...errors(404),
+        },
+      }),
+      validator("param", z.object({ workspaceID: z.string() })),
+      async (c) => c.json(await WorkspaceService.markFailed({ workspaceID: c.req.valid("param").workspaceID })),
     ),
 )
