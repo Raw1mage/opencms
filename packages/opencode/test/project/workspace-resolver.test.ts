@@ -4,9 +4,11 @@ import path from "node:path"
 import { tmpdir } from "../fixture/fixture"
 import { Project } from "../../src/project/project"
 import {
+  createInMemoryWorkspaceRegistry,
   createWorkspaceId,
   normalizeWorkspaceDirectory,
   resolveWorkspaceFromProject,
+  resolveWorkspaceWithRegistry,
 } from "../../src/project/workspace"
 
 describe("project.workspace.resolver", () => {
@@ -43,5 +45,24 @@ describe("project.workspace.resolver", () => {
     } finally {
       await $`git worktree remove ${worktreePath}`.cwd(tmp.path).quiet()
     }
+  })
+
+  test("resolveWorkspaceWithRegistry caches normalized workspace lookups", async () => {
+    await using tmp = await tmpdir({ git: true })
+    const registry = createInMemoryWorkspaceRegistry()
+
+    const first = await resolveWorkspaceWithRegistry({
+      directory: `${tmp.path}///`,
+      registry,
+    })
+    const second = await resolveWorkspaceWithRegistry({
+      directory: tmp.path,
+      registry,
+    })
+
+    expect(second.workspaceId).toBe(first.workspaceId)
+    expect(second.directory).toBe(normalizeWorkspaceDirectory(tmp.path))
+    expect(await registry.getByDirectory(tmp.path)).toEqual(second)
+    expect((await registry.listByProject(first.projectId)).map((item) => item.workspaceId)).toEqual([first.workspaceId])
   })
 })

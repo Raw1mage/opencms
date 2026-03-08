@@ -97,3 +97,14 @@ export async function resolveWorkspace(input: ResolveWorkspaceInput): Promise<Wo
   const { project } = await Project.fromDirectory(directory)
   return resolveWorkspaceFromProject({ project, directory })
 }
+
+export async function resolveWorkspaceWithRegistry(input: {
+  directory: string
+  registry: import("./registry").WorkspaceRegistry
+}): Promise<WorkspaceAggregate> {
+  const directory = normalizeWorkspaceDirectory(input.directory)
+  const existing = await input.registry.getByDirectory(directory)
+  if (existing) return existing
+  const resolved = await resolveWorkspace({ directory })
+  return input.registry.upsert(resolved)
+}
