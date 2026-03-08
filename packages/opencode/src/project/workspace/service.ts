@@ -1,6 +1,7 @@
 import { Bus } from "@/bus"
 import { Pty } from "@/pty"
 import { Session } from "@/session"
+import { TaskWorkerEvent } from "@/tool/task"
 import type { Project } from "../project"
 import { summarizeWorkspaceAttachments, type WorkspaceAttachmentDescriptor } from "./attachments"
 import { buildRootWorkspace, buildSandboxWorkspace } from "./resolver"
@@ -39,6 +40,8 @@ export interface WorkspaceService {
   detachSession(input: { sessionID: string; directory: string }): Promise<WorkspaceAggregate>
   attachPty(info: Pick<Pty.Info, "id" | "cwd">): Promise<WorkspaceAggregate>
   detachPty(input: { ptyID: string; directory?: string }): Promise<WorkspaceAggregate | undefined>
+  attachWorker(input: { workerID: string; sessionID: string }): Promise<WorkspaceAggregate>
+  detachWorker(input: { workerID: string; directory?: string }): Promise<WorkspaceAggregate | undefined>
   initEventSubscriptions(): void
 }
 
@@ -46,6 +49,7 @@ export function createWorkspaceService(
   registry: WorkspaceRegistry = createInMemoryWorkspaceRegistry(),
 ): WorkspaceService {
   const ptyDirectoryById = new Map<string, string>()
+  const workerDirectoryById = new Map<string, string>()
   let subscriptionsInitialized = false
 
   async function updateAttachments(
@@ -224,6 +228,27 @@ export function createWorkspaceService(
         descriptors.filter((item) => !(item.type === "pty" && item.key === input.ptyID)),
       )
     },
+    async attachWorker(input) {
+      const session = await Session.get(input.sessionID)
+      workerDirectoryById.set(input.workerID, normalizeWorkspaceDirectory(session.directory))
+      return updateAttachments(session.directory, (descriptors) => {
+        const next = descriptors.filter((item) => !(item.type === "worker" && item.key === input.workerID))
+        next.push({
+          type: "worker",
+          ownership: "workspace",
+          key: input.workerID,
+        })
+        return next
+      })
+    },
+    async detachWorker(input) {
+      const directory = input.directory ?? workerDirectoryById.get(input.workerID)
+      if (!directory) return undefined
+      workerDirectoryById.delete(input.workerID)
+      return updateAttachments(directory, (descriptors) =>
+        descriptors.filter((item) => !(item.type === "worker" && item.key === input.workerID)),
+      )
+    },
     initEventSubscriptions() {
       if (subscriptionsInitialized) return
       subscriptionsInitialized = true
@@ -241,6 +266,18 @@ export function createWorkspaceService(
       })
       Bus.subscribe(Pty.Event.Exited, (evt) => {
         void this.detachPty({ ptyID: evt.properties.id })
+      })
+      Bus.subscribe(TaskWorkerEvent.Assigned, (evt) => {
+        void this.attachWorker({ workerID: evt.properties.workerID, sessionID: evt.properties.sessionID })
+      })
+      Bus.subscribe(TaskWorkerEvent.Done, (evt) => {
+        void this.detachWorker({ workerID: evt.properties.workerID })
+      })
+      Bus.subscribe(TaskWorkerEvent.Failed, (evt) => {
+        void this.detachWorker({ workerID: evt.properties.workerID })
+      })
+      Bus.subscribe(TaskWorkerEvent.Removed, (evt) => {
+        void this.detachWorker({ workerID: evt.properties.workerID })
       })
     },
   }

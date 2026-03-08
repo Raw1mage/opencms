@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { tmpdir } from "../fixture/fixture"
+import { Instance } from "../../src/project/instance"
+import { Session } from "../../src/session"
 import {
   createWorkspaceService,
   buildDerivedWorkspace,
@@ -124,5 +126,26 @@ describe("project.workspace.service", () => {
     expect((await service.markArchived({ workspaceID: workspace.workspaceId })).lifecycleState).toBe("archived")
     expect((await service.markActive({ workspaceID: workspace.workspaceId })).lifecycleState).toBe("active")
     expect((await service.markFailed({ workspaceID: workspace.workspaceId })).lifecycleState).toBe("failed")
+  })
+
+  test("attachWorker and detachWorker update workspace attachments using session directory", async () => {
+    await using tmp = await tmpdir({ git: true })
+    const service = createWorkspaceService(createInMemoryWorkspaceRegistry())
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const session = await Session.create({})
+        await service.attachWorker({ workerID: "worker-1", sessionID: session.id })
+        const attached = await service.getByDirectory(tmp.path)
+        expect(attached?.attachments.workerIds).toEqual(["worker-1"])
+
+        await service.detachWorker({ workerID: "worker-1" })
+        const detached = await service.getByDirectory(tmp.path)
+        expect(detached?.attachments.workerIds).toEqual([])
+
+        await Session.remove(session.id)
+      },
+    })
   })
 })
