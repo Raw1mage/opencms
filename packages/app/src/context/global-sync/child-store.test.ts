@@ -1,18 +1,21 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect, mock, test } from "bun:test"
 import { createRoot, getOwner } from "solid-js"
 import { createStore } from "solid-js/store"
 import type { State } from "./types"
 import { createChildStoreManager } from "./child-store"
 
+mock.module("@/utils/persist", () => ({
+  Persist: {
+    workspace: (directory: string, key: string) => ({ key: `${directory}:${key}` }),
+  },
+  persisted: (_target: unknown, store: ReturnType<typeof createStore>) => [...store, () => {}, () => true] as const,
+}))
+
 const child = () => createStore({} as State)
+const owner = createRoot(() => getOwner())
 
 describe("createChildStoreManager", () => {
   test("does not evict the active directory during mark", () => {
-    const owner = createRoot((dispose) => {
-      const current = getOwner()
-      dispose()
-      return current
-    })
     if (!owner) throw new Error("owner required")
 
     const manager = createChildStoreManager({

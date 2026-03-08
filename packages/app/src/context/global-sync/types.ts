@@ -36,6 +36,13 @@ export type State = {
   agent: Agent[]
   command: Command[]
   project: string
+  workspace:
+    | {
+        workspaceId: string
+        directory: string
+        kind: "root" | "sandbox" | "derived"
+      }
+    | undefined
   projectMeta: ProjectMeta | undefined
   icon: string | undefined
   provider: ProviderListResponse

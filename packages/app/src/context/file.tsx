@@ -6,6 +6,7 @@ import { useParams } from "@solidjs/router"
 import { getFilename } from "@opencode-ai/util/path"
 import { useSDK } from "./sdk"
 import { useSync } from "./sync"
+import { useGlobalSync } from "./global-sync"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { createPathHelpers } from "./file/path"
@@ -59,6 +60,7 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
   init: () => {
     const sdk = useSDK()
     useSync()
+    const globalSync = useGlobalSync()
     const params = useParams()
     const language = useLanguage()
     const layout = useLayout()
@@ -112,7 +114,11 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
     })
 
     const viewCache = createFileViewCache()
-    const view = createMemo(() => viewCache.load(scope(), params.id))
+    const view = createMemo(() => {
+      const directory = scope()
+      const [childStore] = globalSync.child(directory, { bootstrap: false })
+      return viewCache.load(directory, params.id, childStore.workspace?.directory)
+    })
 
     const ensure = (file: string) => {
       if (!file) return

@@ -3,8 +3,10 @@ import { createSimpleContext } from "@opencode-ai/ui/context"
 import { batch, createEffect, createMemo, createRoot, onCleanup } from "solid-js"
 import { useParams } from "@solidjs/router"
 import { useSDK } from "./sdk"
+import { useGlobalSync } from "./global-sync"
 import type { Platform } from "./platform"
 import { Persist, persisted, removePersisted } from "@/utils/persist"
+import { normalizeWorkspaceDirectory } from "./global-sync/workspace-adapter"
 
 export type LocalPTY = {
   id: string
@@ -20,8 +22,13 @@ export type LocalPTY = {
 const WORKSPACE_KEY = "__workspace__"
 const MAX_TERMINAL_SESSIONS = 20
 
+export function getWorkspaceTerminalDirectory(dir: string, workspaceDirectory?: string) {
+  return normalizeWorkspaceDirectory(workspaceDirectory ?? dir)
+}
+
 export function getWorkspaceTerminalCacheKey(dir: string) {
-  return `${dir}:${WORKSPACE_KEY}`
+  const workspaceDir = getWorkspaceTerminalDirectory(dir)
+  return `${workspaceDir}:${WORKSPACE_KEY}`
 }
 
 export function getLegacyTerminalStorageKeys(dir: string, legacySessionID?: string) {
@@ -39,17 +46,18 @@ type TerminalCacheEntry = {
 const caches = new Set<Map<string, TerminalCacheEntry>>()
 
 export function clearWorkspaceTerminals(dir: string, sessionIDs?: string[], platform?: Platform) {
-  const key = getWorkspaceTerminalCacheKey(dir)
+  const workspaceDir = getWorkspaceTerminalDirectory(dir)
+  const key = getWorkspaceTerminalCacheKey(workspaceDir)
   for (const cache of caches) {
     const entry = cache.get(key)
     entry?.value.clear()
   }
 
-  removePersisted(Persist.workspace(dir, "terminal"), platform)
+  removePersisted(Persist.workspace(workspaceDir, "terminal"), platform)
 
-  const legacy = new Set(getLegacyTerminalStorageKeys(dir))
+  const legacy = new Set(getLegacyTerminalStorageKeys(workspaceDir))
   for (const id of sessionIDs ?? []) {
-    for (const key of getLegacyTerminalStorageKeys(dir, id)) {
+    for (const key of getLegacyTerminalStorageKeys(workspaceDir, id)) {
       legacy.add(key)
     }
   }
@@ -59,7 +67,8 @@ export function clearWorkspaceTerminals(dir: string, sessionIDs?: string[], plat
 }
 
 function createWorkspaceTerminalSession(sdk: ReturnType<typeof useSDK>, dir: string, legacySessionID?: string) {
-  const legacy = getLegacyTerminalStorageKeys(dir, legacySessionID)
+  const workspaceDir = getWorkspaceTerminalDirectory(dir)
+  const legacy = getLegacyTerminalStorageKeys(workspaceDir, legacySessionID)
 
   const numberFromTitle = (title: string) => {
     const match = title.match(/^Terminal (\d+)$/)
@@ -70,7 +79,7 @@ function createWorkspaceTerminalSession(sdk: ReturnType<typeof useSDK>, dir: str
   }
 
   const [store, setStore, _, ready] = persisted(
-    Persist.workspace(dir, "terminal", legacy),
+    Persist.workspace(workspaceDir, "terminal", legacy),
     createStore<{
       active?: string
       all: LocalPTY[]
@@ -295,6 +304,7 @@ export const { use: useTerminal, provider: TerminalProvider } = createSimpleCont
   gate: false,
   init: () => {
     const sdk = useSDK()
+    const globalSync = useGlobalSync()
     const params = useParams()
     const cache = new Map<string, TerminalCacheEntry>()
 
@@ -322,7 +332,8 @@ export const { use: useTerminal, provider: TerminalProvider } = createSimpleCont
 
     const loadWorkspace = (dir: string, legacySessionID?: string) => {
       // Terminals are workspace-scoped so tabs persist while switching sessions in the same directory.
-      const key = getWorkspaceTerminalCacheKey(dir)
+      const workspaceDir = getWorkspaceTerminalDirectory(dir)
+      const key = getWorkspaceTerminalCacheKey(workspaceDir)
       const existing = cache.get(key)
       if (existing) {
         cache.delete(key)
@@ -331,7 +342,7 @@ export const { use: useTerminal, provider: TerminalProvider } = createSimpleCont
       }
 
       const entry = createRoot((dispose) => ({
-        value: createWorkspaceTerminalSession(sdk, dir, legacySessionID),
+        value: createWorkspaceTerminalSession(sdk, workspaceDir, legacySessionID),
         dispose,
       }))
 
@@ -340,7 +351,13 @@ export const { use: useTerminal, provider: TerminalProvider } = createSimpleCont
       return entry.value
     }
 
-    const workspace = createMemo(() => loadWorkspace(params.dir!, params.id))
+    const workspaceDirectory = createMemo(() => {
+      const directory = params.dir!
+      const [store] = globalSync.child(directory, { bootstrap: false })
+      return getWorkspaceTerminalDirectory(directory, store.workspace?.directory)
+    })
+
+    const workspace = createMemo(() => loadWorkspace(workspaceDirectory(), params.id))
 
     return {
       ready: () => workspace().ready(),

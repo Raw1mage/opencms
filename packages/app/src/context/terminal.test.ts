@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, mock, test } from "bun:test"
 
 let getWorkspaceTerminalCacheKey: (dir: string) => string
+let getWorkspaceTerminalDirectory: (dir: string, workspaceDirectory?: string) => string
 let getLegacyTerminalStorageKeys: (dir: string, legacySessionID?: string) => string[]
 
 beforeAll(async () => {
@@ -16,7 +17,18 @@ beforeAll(async () => {
   }))
   const mod = await import("./terminal")
   getWorkspaceTerminalCacheKey = mod.getWorkspaceTerminalCacheKey
+  getWorkspaceTerminalDirectory = mod.getWorkspaceTerminalDirectory
   getLegacyTerminalStorageKeys = mod.getLegacyTerminalStorageKeys
+})
+
+describe("getWorkspaceTerminalDirectory", () => {
+  test("prefers explicit workspace directory", () => {
+    expect(getWorkspaceTerminalDirectory("/repo/sandbox-a", "/repo")).toBe("/repo")
+  })
+
+  test("normalizes fallback directory", () => {
+    expect(getWorkspaceTerminalDirectory("/repo///")).toBe("/repo")
+  })
 })
 
 describe("getWorkspaceTerminalCacheKey", () => {
