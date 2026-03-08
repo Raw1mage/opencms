@@ -12,15 +12,21 @@ export type TriggerTitle = {
   action?: JSX.Element
 }
 
+export type TriggerRenderer = (state: { open: boolean }) => JSX.Element
+
 const isTriggerTitle = (val: any): val is TriggerTitle => {
   return (
     typeof val === "object" && val !== null && "title" in val && (typeof Node === "undefined" || !(val instanceof Node))
   )
 }
 
+const isTriggerRenderer = (val: any): val is TriggerRenderer => {
+  return typeof val === "function"
+}
+
 export interface BasicToolProps {
   icon: IconProps["name"]
-  trigger: TriggerTitle | JSX.Element
+  trigger: TriggerTitle | TriggerRenderer | JSX.Element
   children?: JSX.Element
   hideDetails?: boolean
   defaultOpen?: boolean
@@ -96,6 +102,9 @@ export function BasicTool(props: BasicToolProps) {
                       <Show when={trigger().action}>{trigger().action}</Show>
                     </div>
                   )}
+                </Match>
+                <Match when={isTriggerRenderer(props.trigger) && props.trigger}>
+                  {(trigger) => (trigger() as TriggerRenderer)({ open: open() })}
                 </Match>
                 <Match when={true}>{props.trigger as JSX.Element}</Match>
               </Switch>

@@ -13,6 +13,10 @@
     align-items: center;
     align-self: stretch;
     gap: 20px;
+
+    &:has(.grep-card-shell) {
+      align-items: flex-start;
+    }
   }
 
   [data-slot="icon-svg"] {
@@ -30,6 +34,14 @@
     align-items: center;
     gap: 8px;
     justify-content: space-between;
+
+    &:has(.wrap-layout) {
+      align-items: flex-start;
+    }
+
+    &:has(.grep-card-shell) {
+      align-items: flex-start;
+    }
   }
 
   [data-slot="basic-tool-tool-info-main"] {
@@ -38,6 +50,78 @@
     gap: 8px;
     min-width: 0;
     overflow: hidden;
+
+    &:has(.wrap-layout) {
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    &.stack-layout {
+      align-items: flex-start;
+      flex-direction: column;
+      overflow: visible;
+      width: 100%;
+      gap: 2px;
+    }
+  }
+
+  [data-slot="basic-tool-tool-detail-row"] {
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  [data-slot="grep-tool-trigger-header"] {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  [data-slot="grep-tool-trigger-preview"] {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: visible;
+    white-space: normal;
+  }
+
+  [data-slot="grep-tool-trigger-row"] {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    align-items: flex-start;
+    gap: 8px;
+    white-space: normal;
+  }
+
+  [data-slot="grep-tool-trigger-label"] {
+    flex: 0 0 auto;
+    color: var(--text-strong);
+    font-family: var(--font-family-sans);
+    font-size: var(--font-size-small);
+    font-style: normal;
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-large);
+    letter-spacing: var(--letter-spacing-normal);
+  }
+
+  [data-slot="grep-tool-trigger-value"] {
+    min-width: 0;
+    color: var(--text-weak);
+    font-family: var(--font-family-sans);
+    font-size: var(--font-size-small);
+    font-style: normal;
+    font-weight: var(--font-weight-regular);
+    line-height: var(--line-height-large);
+    letter-spacing: var(--letter-spacing-normal);
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   [data-slot="basic-tool-tool-title"] {
@@ -97,5 +181,18 @@
     line-height: var(--line-height-large);
     letter-spacing: var(--letter-spacing-normal);
     color: var(--text-weak);
+
+    &.wrap-friendly {
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+  }
+
+  [data-slot="basic-tool-tool-subtitle"] {
+    &.wrap-friendly {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
   }
 }
