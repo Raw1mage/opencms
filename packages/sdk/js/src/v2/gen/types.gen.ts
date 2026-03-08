@@ -2128,6 +2128,15 @@ export type Provider = {
   }
 }
 
+export type File = {
+  path: string
+  added: number
+  removed: number
+  status: "added" | "deleted" | "modified"
+  before?: string
+  after?: string
+}
+
 export type ToolIds = Array<string>
 
 export type ToolListItem = {
@@ -2403,13 +2412,6 @@ export type FileContent = {
   mimeType?: string
 }
 
-export type File = {
-  path: string
-  added: number
-  removed: number
-  status: "added" | "deleted" | "modified"
-}
-
 export type Path = {
   home: string
   state: string
@@ -2473,7 +2475,7 @@ export type GlobalHealthData = {
   body?: never
   path?: never
   query?: never
-  url: "/global/health"
+  url: "/api/v2/global/health"
 }
 
 export type GlobalHealthResponses = {
@@ -2492,7 +2494,7 @@ export type GlobalAuthSessionData = {
   body?: never
   path?: never
   query?: never
-  url: "/global/auth/session"
+  url: "/api/v2/global/auth/session"
 }
 
 export type GlobalAuthSessionResponses = {
@@ -2521,7 +2523,7 @@ export type GlobalAuthLoginData = {
   }
   path?: never
   query?: never
-  url: "/global/auth/login"
+  url: "/api/v2/global/auth/login"
 }
 
 export type GlobalAuthLoginResponses = {
@@ -2541,7 +2543,7 @@ export type GlobalAuthLogoutData = {
   body?: never
   path?: never
   query?: never
-  url: "/global/auth/logout"
+  url: "/api/v2/global/auth/logout"
 }
 
 export type GlobalAuthLogoutResponses = {
@@ -2559,7 +2561,7 @@ export type GlobalEventData = {
   body?: never
   path?: never
   query?: never
-  url: "/global/event"
+  url: "/api/v2/global/event"
 }
 
 export type GlobalEventResponses = {
@@ -2575,7 +2577,7 @@ export type GlobalConfigGetData = {
   body?: never
   path?: never
   query?: never
-  url: "/global/config"
+  url: "/api/v2/global/config"
 }
 
 export type GlobalConfigGetResponses = {
@@ -2591,7 +2593,7 @@ export type GlobalConfigUpdateData = {
   body?: Config
   path?: never
   query?: never
-  url: "/global/config"
+  url: "/api/v2/global/config"
 }
 
 export type GlobalConfigUpdateErrors = {
@@ -2616,7 +2618,7 @@ export type GlobalDisposeData = {
   body?: never
   path?: never
   query?: never
-  url: "/global/dispose"
+  url: "/api/v2/global/dispose"
 }
 
 export type GlobalDisposeResponses = {
@@ -2634,7 +2636,7 @@ export type AuthRemoveData = {
     providerId: string
   }
   query?: never
-  url: "/auth/{providerId}"
+  url: "/api/v2/auth/{providerId}"
 }
 
 export type AuthRemoveErrors = {
@@ -2661,7 +2663,7 @@ export type AuthSetData = {
     providerId: string
   }
   query?: never
-  url: "/auth/{providerId}"
+  url: "/api/v2/auth/{providerId}"
 }
 
 export type AuthSetErrors = {
@@ -2688,7 +2690,7 @@ export type ProjectListData = {
   query?: {
     directory?: string
   }
-  url: "/project"
+  url: "/api/v2/project"
 }
 
 export type ProjectListResponses = {
@@ -2706,7 +2708,7 @@ export type ProjectCurrentData = {
   query?: {
     directory?: string
   }
-  url: "/project/current"
+  url: "/api/v2/project/current"
 }
 
 export type ProjectCurrentResponses = {
@@ -2739,7 +2741,7 @@ export type ProjectUpdateData = {
   query?: {
     directory?: string
   }
-  url: "/project/{projectID}"
+  url: "/api/v2/project/{projectID}"
 }
 
 export type ProjectUpdateErrors = {
@@ -2770,7 +2772,7 @@ export type PtyListData = {
   query?: {
     directory?: string
   }
-  url: "/pty"
+  url: "/api/v2/pty"
 }
 
 export type PtyListResponses = {
@@ -2796,7 +2798,7 @@ export type PtyCreateData = {
   query?: {
     directory?: string
   }
-  url: "/pty"
+  url: "/api/v2/pty"
 }
 
 export type PtyCreateErrors = {
@@ -2825,7 +2827,7 @@ export type PtyRemoveData = {
   query?: {
     directory?: string
   }
-  url: "/pty/{ptyID}"
+  url: "/api/v2/pty/{ptyID}"
 }
 
 export type PtyRemoveErrors = {
@@ -2854,7 +2856,7 @@ export type PtyGetData = {
   query?: {
     directory?: string
   }
-  url: "/pty/{ptyID}"
+  url: "/api/v2/pty/{ptyID}"
 }
 
 export type PtyGetErrors = {
@@ -2889,7 +2891,7 @@ export type PtyUpdateData = {
   query?: {
     directory?: string
   }
-  url: "/pty/{ptyID}"
+  url: "/api/v2/pty/{ptyID}"
 }
 
 export type PtyUpdateErrors = {
@@ -2918,7 +2920,7 @@ export type PtyConnectData = {
   query?: {
     directory?: string
   }
-  url: "/pty/{ptyID}/connect"
+  url: "/api/v2/pty/{ptyID}/connect"
 }
 
 export type PtyConnectErrors = {
@@ -2945,7 +2947,7 @@ export type ConfigGetData = {
   query?: {
     directory?: string
   }
-  url: "/config"
+  url: "/api/v2/config"
 }
 
 export type ConfigGetResponses = {
@@ -2963,7 +2965,7 @@ export type ConfigUpdateData = {
   query?: {
     directory?: string
   }
-  url: "/config"
+  url: "/api/v2/config"
 }
 
 export type ConfigUpdateErrors = {
@@ -2990,7 +2992,7 @@ export type ConfigProvidersData = {
   query?: {
     directory?: string
   }
-  url: "/config/providers"
+  url: "/api/v2/config/providers"
 }
 
 export type ConfigProvidersResponses = {
@@ -3007,13 +3009,80 @@ export type ConfigProvidersResponses = {
 
 export type ConfigProvidersResponse = ConfigProvidersResponses[keyof ConfigProvidersResponses]
 
+export type ExperimentalReviewCheckpointData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/experimental/review-checkpoint"
+}
+
+export type ExperimentalReviewCheckpointResponses = {
+  /**
+   * Review checkpoint
+   */
+  200: {
+    requestUser: string | null
+    directory: string
+    worktree: string
+    project: {
+      id: string
+      vcs?: string
+      name?: string
+    }
+    statusCount: number
+    statusSample: Array<File>
+    git: {
+      diffNumstatExit: number
+      diffNumstatErr: string
+      porcelainExit: number
+      porcelainErr: string
+      porcelainSample: string
+    }
+  }
+}
+
+export type ExperimentalReviewCheckpointResponse =
+  ExperimentalReviewCheckpointResponses[keyof ExperimentalReviewCheckpointResponses]
+
+export type ExperimentalUserDaemonListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/experimental/user-daemon"
+}
+
+export type ExperimentalUserDaemonListResponses = {
+  /**
+   * Per-user daemon snapshots
+   */
+  200: Array<{
+    username: string
+    uid: number
+    port: number
+    socketPath: string
+    status: "planned" | "starting" | "ready" | "missing"
+    firstSeenAt: number
+    lastSeenAt: number
+    lastStartAttemptAt?: number
+    startAttempts: number
+    lastStartError?: string
+  }>
+}
+
+export type ExperimentalUserDaemonListResponse =
+  ExperimentalUserDaemonListResponses[keyof ExperimentalUserDaemonListResponses]
+
 export type ToolIdsData = {
   body?: never
   path?: never
   query?: {
     directory?: string
   }
-  url: "/experimental/tool/ids"
+  url: "/api/v2/experimental/tool/ids"
 }
 
 export type ToolIdsErrors = {
@@ -3042,7 +3111,7 @@ export type ToolListData = {
     provider: string
     model: string
   }
-  url: "/experimental/tool"
+  url: "/api/v2/experimental/tool"
 }
 
 export type ToolListErrors = {
@@ -3069,7 +3138,7 @@ export type WorktreeRemoveData = {
   query?: {
     directory?: string
   }
-  url: "/experimental/worktree"
+  url: "/api/v2/experimental/worktree"
 }
 
 export type WorktreeRemoveErrors = {
@@ -3096,7 +3165,7 @@ export type WorktreeListData = {
   query?: {
     directory?: string
   }
-  url: "/experimental/worktree"
+  url: "/api/v2/experimental/worktree"
 }
 
 export type WorktreeListResponses = {
@@ -3114,7 +3183,7 @@ export type WorktreeCreateData = {
   query?: {
     directory?: string
   }
-  url: "/experimental/worktree"
+  url: "/api/v2/experimental/worktree"
 }
 
 export type WorktreeCreateErrors = {
@@ -3141,7 +3210,7 @@ export type WorktreeResetData = {
   query?: {
     directory?: string
   }
-  url: "/experimental/worktree/reset"
+  url: "/api/v2/experimental/worktree/reset"
 }
 
 export type WorktreeResetErrors = {
@@ -3195,7 +3264,7 @@ export type ExperimentalSessionListData = {
      */
     archived?: boolean
   }
-  url: "/experimental/session"
+  url: "/api/v2/experimental/session"
 }
 
 export type ExperimentalSessionListResponses = {
@@ -3213,7 +3282,7 @@ export type ExperimentalResourceListData = {
   query?: {
     directory?: string
   }
-  url: "/experimental/resource"
+  url: "/api/v2/experimental/resource"
 }
 
 export type ExperimentalResourceListResponses = {
@@ -3253,7 +3322,7 @@ export type SessionListData = {
      */
     limit?: number
   }
-  url: "/session"
+  url: "/api/v2/session"
 }
 
 export type SessionListResponses = {
@@ -3275,7 +3344,7 @@ export type SessionCreateData = {
   query?: {
     directory?: string
   }
-  url: "/session"
+  url: "/api/v2/session"
 }
 
 export type SessionCreateErrors = {
@@ -3302,7 +3371,7 @@ export type SessionStatusData = {
   query?: {
     directory?: string
   }
-  url: "/session/status"
+  url: "/api/v2/session/status"
 }
 
 export type SessionStatusErrors = {
@@ -3343,7 +3412,7 @@ export type SessionTopData = {
      */
     maxMessages?: number
   }
-  url: "/session/top"
+  url: "/api/v2/session/top"
 }
 
 export type SessionTopErrors = {
@@ -3372,7 +3441,7 @@ export type SessionDeleteData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}"
+  url: "/api/v2/session/{sessionID}"
 }
 
 export type SessionDeleteErrors = {
@@ -3405,7 +3474,7 @@ export type SessionGetData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}"
+  url: "/api/v2/session/{sessionID}"
 }
 
 export type SessionGetErrors = {
@@ -3443,7 +3512,7 @@ export type SessionUpdateData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}"
+  url: "/api/v2/session/{sessionID}"
 }
 
 export type SessionUpdateErrors = {
@@ -3476,7 +3545,7 @@ export type SessionChildrenData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/children"
+  url: "/api/v2/session/{sessionID}/children"
 }
 
 export type SessionChildrenErrors = {
@@ -3512,7 +3581,7 @@ export type SessionTodoData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/todo"
+  url: "/api/v2/session/{sessionID}/todo"
 }
 
 export type SessionTodoErrors = {
@@ -3552,7 +3621,7 @@ export type SessionInitData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/init"
+  url: "/api/v2/session/{sessionID}/init"
 }
 
 export type SessionInitErrors = {
@@ -3587,7 +3656,7 @@ export type SessionForkData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/fork"
+  url: "/api/v2/session/{sessionID}/fork"
 }
 
 export type SessionForkResponses = {
@@ -3607,7 +3676,7 @@ export type SessionAbortData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/abort"
+  url: "/api/v2/session/{sessionID}/abort"
 }
 
 export type SessionAbortErrors = {
@@ -3640,7 +3709,7 @@ export type SessionUnshareData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/share"
+  url: "/api/v2/session/{sessionID}/share"
 }
 
 export type SessionUnshareErrors = {
@@ -3673,7 +3742,7 @@ export type SessionShareData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/share"
+  url: "/api/v2/session/{sessionID}/share"
 }
 
 export type SessionShareErrors = {
@@ -3707,7 +3776,7 @@ export type SessionDiffData = {
     directory?: string
     messageID?: string
   }
-  url: "/session/{sessionID}/diff"
+  url: "/api/v2/session/{sessionID}/diff"
 }
 
 export type SessionDiffResponses = {
@@ -3734,7 +3803,7 @@ export type SessionSummarizeData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/summarize"
+  url: "/api/v2/session/{sessionID}/summarize"
 }
 
 export type SessionSummarizeErrors = {
@@ -3771,7 +3840,7 @@ export type SessionMessagesData = {
     directory?: string
     limit?: number
   }
-  url: "/session/{sessionID}/message"
+  url: "/api/v2/session/{sessionID}/message"
 }
 
 export type SessionMessagesErrors = {
@@ -3828,7 +3897,7 @@ export type SessionPromptData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/message"
+  url: "/api/v2/session/{sessionID}/message"
 }
 
 export type SessionPromptErrors = {
@@ -3871,7 +3940,7 @@ export type SessionDeleteMessageData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/message/{messageID}"
+  url: "/api/v2/session/{sessionID}/message/{messageID}"
 }
 
 export type SessionDeleteMessageErrors = {
@@ -3911,7 +3980,7 @@ export type SessionMessageData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/message/{messageID}"
+  url: "/api/v2/session/{sessionID}/message/{messageID}"
 }
 
 export type SessionMessageErrors = {
@@ -3958,7 +4027,7 @@ export type PartDeleteData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/message/{messageID}/part/{partID}"
+  url: "/api/v2/session/{sessionID}/message/{messageID}/part/{partID}"
 }
 
 export type PartDeleteErrors = {
@@ -4002,7 +4071,7 @@ export type PartUpdateData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/message/{messageID}/part/{partID}"
+  url: "/api/v2/session/{sessionID}/message/{messageID}/part/{partID}"
 }
 
 export type PartUpdateErrors = {
@@ -4056,7 +4125,7 @@ export type SessionPromptAsyncData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/prompt_async"
+  url: "/api/v2/session/{sessionID}/prompt_async"
 }
 
 export type SessionPromptAsyncErrors = {
@@ -4107,7 +4176,7 @@ export type SessionCommandData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/command"
+  url: "/api/v2/session/{sessionID}/command"
 }
 
 export type SessionCommandErrors = {
@@ -4154,7 +4223,7 @@ export type SessionShellData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/shell"
+  url: "/api/v2/session/{sessionID}/shell"
 }
 
 export type SessionShellErrors = {
@@ -4190,7 +4259,7 @@ export type SessionRevertData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/revert"
+  url: "/api/v2/session/{sessionID}/revert"
 }
 
 export type SessionRevertErrors = {
@@ -4223,7 +4292,7 @@ export type SessionUnrevertData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/unrevert"
+  url: "/api/v2/session/{sessionID}/unrevert"
 }
 
 export type SessionUnrevertErrors = {
@@ -4259,7 +4328,7 @@ export type PermissionRespondData = {
   query?: {
     directory?: string
   }
-  url: "/session/{sessionID}/permissions/{permissionID}"
+  url: "/api/v2/session/{sessionID}/permissions/{permissionID}"
 }
 
 export type PermissionRespondErrors = {
@@ -4295,7 +4364,7 @@ export type PermissionReplyData = {
   query?: {
     directory?: string
   }
-  url: "/permission/{requestID}/reply"
+  url: "/api/v2/permission/{requestID}/reply"
 }
 
 export type PermissionReplyErrors = {
@@ -4326,7 +4395,7 @@ export type PermissionListData = {
   query?: {
     directory?: string
   }
-  url: "/permission"
+  url: "/api/v2/permission"
 }
 
 export type PermissionListResponses = {
@@ -4344,7 +4413,7 @@ export type QuestionListData = {
   query?: {
     directory?: string
   }
-  url: "/question"
+  url: "/api/v2/question"
 }
 
 export type QuestionListResponses = {
@@ -4369,7 +4438,7 @@ export type QuestionReplyData = {
   query?: {
     directory?: string
   }
-  url: "/question/{requestID}/reply"
+  url: "/api/v2/question/{requestID}/reply"
 }
 
 export type QuestionReplyErrors = {
@@ -4402,7 +4471,7 @@ export type QuestionRejectData = {
   query?: {
     directory?: string
   }
-  url: "/question/{requestID}/reject"
+  url: "/api/v2/question/{requestID}/reject"
 }
 
 export type QuestionRejectErrors = {
@@ -4433,7 +4502,7 @@ export type ProviderListData = {
   query?: {
     directory?: string
   }
-  url: "/provider"
+  url: "/api/v2/provider"
 }
 
 export type ProviderListResponses = {
@@ -4520,7 +4589,7 @@ export type ProviderAuthData = {
   query?: {
     directory?: string
   }
-  url: "/provider/auth"
+  url: "/api/v2/provider/auth"
 }
 
 export type ProviderAuthResponses = {
@@ -4550,7 +4619,7 @@ export type ProviderOauthAuthorizeData = {
   query?: {
     directory?: string
   }
-  url: "/provider/{providerId}/oauth/authorize"
+  url: "/api/v2/provider/{providerId}/oauth/authorize"
 }
 
 export type ProviderOauthAuthorizeErrors = {
@@ -4591,7 +4660,7 @@ export type ProviderOauthCallbackData = {
   query?: {
     directory?: string
   }
-  url: "/provider/{providerId}/oauth/callback"
+  url: "/api/v2/provider/{providerId}/oauth/callback"
 }
 
 export type ProviderOauthCallbackErrors = {
@@ -4618,7 +4687,7 @@ export type McpStatusData = {
   query?: {
     directory?: string
   }
-  url: "/mcp"
+  url: "/api/v2/mcp"
 }
 
 export type McpStatusResponses = {
@@ -4641,7 +4710,7 @@ export type McpAddData = {
   query?: {
     directory?: string
   }
-  url: "/mcp"
+  url: "/api/v2/mcp"
 }
 
 export type McpAddErrors = {
@@ -4672,7 +4741,7 @@ export type McpAuthRemoveData = {
   query?: {
     directory?: string
   }
-  url: "/mcp/{name}/auth"
+  url: "/api/v2/mcp/{name}/auth"
 }
 
 export type McpAuthRemoveErrors = {
@@ -4703,7 +4772,7 @@ export type McpAuthStartData = {
   query?: {
     directory?: string
   }
-  url: "/mcp/{name}/auth"
+  url: "/api/v2/mcp/{name}/auth"
 }
 
 export type McpAuthStartErrors = {
@@ -4746,7 +4815,7 @@ export type McpAuthCallbackData = {
   query?: {
     directory?: string
   }
-  url: "/mcp/{name}/auth/callback"
+  url: "/api/v2/mcp/{name}/auth/callback"
 }
 
 export type McpAuthCallbackErrors = {
@@ -4779,7 +4848,7 @@ export type McpAuthAuthenticateData = {
   query?: {
     directory?: string
   }
-  url: "/mcp/{name}/auth/authenticate"
+  url: "/api/v2/mcp/{name}/auth/authenticate"
 }
 
 export type McpAuthAuthenticateErrors = {
@@ -4812,7 +4881,7 @@ export type McpConnectData = {
   query?: {
     directory?: string
   }
-  url: "/mcp/{name}/connect"
+  url: "/api/v2/mcp/{name}/connect"
 }
 
 export type McpConnectResponses = {
@@ -4832,7 +4901,7 @@ export type McpDisconnectData = {
   query?: {
     directory?: string
   }
-  url: "/mcp/{name}/disconnect"
+  url: "/api/v2/mcp/{name}/disconnect"
 }
 
 export type McpDisconnectResponses = {
@@ -4852,7 +4921,7 @@ export type TuiAppendPromptData = {
   query?: {
     directory?: string
   }
-  url: "/tui/append-prompt"
+  url: "/api/v2/tui/append-prompt"
 }
 
 export type TuiAppendPromptErrors = {
@@ -4879,7 +4948,7 @@ export type TuiOpenHelpData = {
   query?: {
     directory?: string
   }
-  url: "/tui/open-help"
+  url: "/api/v2/tui/open-help"
 }
 
 export type TuiOpenHelpResponses = {
@@ -4897,7 +4966,7 @@ export type TuiOpenSessionsData = {
   query?: {
     directory?: string
   }
-  url: "/tui/open-sessions"
+  url: "/api/v2/tui/open-sessions"
 }
 
 export type TuiOpenSessionsResponses = {
@@ -4915,7 +4984,7 @@ export type TuiOpenThemesData = {
   query?: {
     directory?: string
   }
-  url: "/tui/open-themes"
+  url: "/api/v2/tui/open-themes"
 }
 
 export type TuiOpenThemesResponses = {
@@ -4933,7 +5002,7 @@ export type TuiOpenModelsData = {
   query?: {
     directory?: string
   }
-  url: "/tui/open-models"
+  url: "/api/v2/tui/open-models"
 }
 
 export type TuiOpenModelsResponses = {
@@ -4951,7 +5020,7 @@ export type TuiSubmitPromptData = {
   query?: {
     directory?: string
   }
-  url: "/tui/submit-prompt"
+  url: "/api/v2/tui/submit-prompt"
 }
 
 export type TuiSubmitPromptResponses = {
@@ -4969,7 +5038,7 @@ export type TuiClearPromptData = {
   query?: {
     directory?: string
   }
-  url: "/tui/clear-prompt"
+  url: "/api/v2/tui/clear-prompt"
 }
 
 export type TuiClearPromptResponses = {
@@ -4989,7 +5058,7 @@ export type TuiExecuteCommandData = {
   query?: {
     directory?: string
   }
-  url: "/tui/execute-command"
+  url: "/api/v2/tui/execute-command"
 }
 
 export type TuiExecuteCommandErrors = {
@@ -5024,7 +5093,7 @@ export type TuiShowToastData = {
   query?: {
     directory?: string
   }
-  url: "/tui/show-toast"
+  url: "/api/v2/tui/show-toast"
 }
 
 export type TuiShowToastResponses = {
@@ -5047,7 +5116,7 @@ export type TuiPublishData = {
   query?: {
     directory?: string
   }
-  url: "/tui/publish"
+  url: "/api/v2/tui/publish"
 }
 
 export type TuiPublishErrors = {
@@ -5079,7 +5148,7 @@ export type TuiSelectSessionData = {
   query?: {
     directory?: string
   }
-  url: "/tui/select-session"
+  url: "/api/v2/tui/select-session"
 }
 
 export type TuiSelectSessionErrors = {
@@ -5110,7 +5179,7 @@ export type TuiControlNextData = {
   query?: {
     directory?: string
   }
-  url: "/tui/control/next"
+  url: "/api/v2/tui/control/next"
 }
 
 export type TuiControlNextResponses = {
@@ -5131,7 +5200,7 @@ export type TuiControlResponseData = {
   query?: {
     directory?: string
   }
-  url: "/tui/control/response"
+  url: "/api/v2/tui/control/response"
 }
 
 export type TuiControlResponseResponses = {
@@ -5143,13 +5212,40 @@ export type TuiControlResponseResponses = {
 
 export type TuiControlResponseResponse = TuiControlResponseResponses[keyof TuiControlResponseResponses]
 
+export type AccountQuotaHintData = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    providerId: string
+    modelID?: string
+    accountId?: string
+    format?: "footer" | "admin"
+  }
+  url: "/api/v2/account/quota"
+}
+
+export type AccountQuotaHintResponses = {
+  /**
+   * Quota hint
+   */
+  200: {
+    providerId: string
+    family: string
+    accountId?: string
+    hint?: string
+  }
+}
+
+export type AccountQuotaHintResponse = AccountQuotaHintResponses[keyof AccountQuotaHintResponses]
+
 export type AccountListAllData = {
   body?: never
   path?: never
   query?: {
     directory?: string
   }
-  url: "/account"
+  url: "/api/v2/account"
 }
 
 export type AccountListAllResponses = {
@@ -5213,7 +5309,7 @@ export type AccountSetActiveData = {
   query?: {
     directory?: string
   }
-  url: "/account/{family}/active"
+  url: "/api/v2/account/{family}/active"
 }
 
 export type AccountSetActiveErrors = {
@@ -5246,7 +5342,7 @@ export type AccountLoginData = {
   query?: {
     directory?: string
   }
-  url: "/account/auth/{family}/login"
+  url: "/api/v2/account/auth/{family}/login"
 }
 
 export type AccountLoginResponses = {
@@ -5265,7 +5361,7 @@ export type AccountRemoveData = {
   query?: {
     directory?: string
   }
-  url: "/account/{family}/{accountId}"
+  url: "/api/v2/account/{family}/{accountId}"
 }
 
 export type AccountRemoveErrors = {
@@ -5290,13 +5386,76 @@ export type AccountRemoveResponses = {
 
 export type AccountRemoveResponse = AccountRemoveResponses[keyof AccountRemoveResponses]
 
+export type AccountUpdateData = {
+  body?: {
+    name: string
+  }
+  path: {
+    family: string
+    accountId: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/account/{family}/{accountId}"
+}
+
+export type AccountUpdateErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type AccountUpdateError = AccountUpdateErrors[keyof AccountUpdateErrors]
+
+export type AccountUpdateResponses = {
+  /**
+   * Account updated successfully
+   */
+  200: boolean
+}
+
+export type AccountUpdateResponse = AccountUpdateResponses[keyof AccountUpdateResponses]
+
+export type AccountQuotaHint2Data = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    providerId: string
+    modelID?: string
+    accountId?: string
+    format?: "footer" | "admin"
+  }
+  url: "/api/v2/accounts/quota"
+}
+
+export type AccountQuotaHint2Responses = {
+  /**
+   * Quota hint
+   */
+  200: {
+    providerId: string
+    family: string
+    accountId?: string
+    hint?: string
+  }
+}
+
+export type AccountQuotaHint2Response = AccountQuotaHint2Responses[keyof AccountQuotaHint2Responses]
+
 export type AccountListAll2Data = {
   body?: never
   path?: never
   query?: {
     directory?: string
   }
-  url: "/accounts"
+  url: "/api/v2/accounts"
 }
 
 export type AccountListAll2Responses = {
@@ -5360,7 +5519,7 @@ export type AccountSetActive2Data = {
   query?: {
     directory?: string
   }
-  url: "/accounts/{family}/active"
+  url: "/api/v2/accounts/{family}/active"
 }
 
 export type AccountSetActive2Errors = {
@@ -5393,7 +5552,7 @@ export type AccountLogin2Data = {
   query?: {
     directory?: string
   }
-  url: "/accounts/auth/{family}/login"
+  url: "/api/v2/accounts/auth/{family}/login"
 }
 
 export type AccountLogin2Responses = {
@@ -5412,7 +5571,7 @@ export type AccountRemove2Data = {
   query?: {
     directory?: string
   }
-  url: "/accounts/{family}/{accountId}"
+  url: "/api/v2/accounts/{family}/{accountId}"
 }
 
 export type AccountRemove2Errors = {
@@ -5437,13 +5596,49 @@ export type AccountRemove2Responses = {
 
 export type AccountRemove2Response = AccountRemove2Responses[keyof AccountRemove2Responses]
 
+export type AccountUpdate2Data = {
+  body?: {
+    name: string
+  }
+  path: {
+    family: string
+    accountId: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/accounts/{family}/{accountId}"
+}
+
+export type AccountUpdate2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type AccountUpdate2Error = AccountUpdate2Errors[keyof AccountUpdate2Errors]
+
+export type AccountUpdate2Responses = {
+  /**
+   * Account updated successfully
+   */
+  200: boolean
+}
+
+export type AccountUpdate2Response = AccountUpdate2Responses[keyof AccountUpdate2Responses]
+
 export type RotationStatusData = {
   body?: never
   path?: never
   query?: {
     directory?: string
   }
-  url: "/rotation/status"
+  url: "/api/v2/rotation/status"
 }
 
 export type RotationStatusResponses = {
@@ -5506,7 +5701,7 @@ export type RotationRecommendData = {
   query?: {
     directory?: string
   }
-  url: "/rotation/recommend"
+  url: "/api/v2/rotation/recommend"
 }
 
 export type RotationRecommendErrors = {
@@ -5560,7 +5755,7 @@ export type RotationFallbackData = {
   query?: {
     directory?: string
   }
-  url: "/rotation/fallback"
+  url: "/api/v2/rotation/fallback"
 }
 
 export type RotationFallbackErrors = {
@@ -5589,6 +5784,72 @@ export type RotationFallbackResponses = {
 
 export type RotationFallbackResponse = RotationFallbackResponses[keyof RotationFallbackResponses]
 
+export type ModelPreferencesGetData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/model/preferences"
+}
+
+export type ModelPreferencesGetResponses = {
+  /**
+   * Model preferences
+   */
+  200: {
+    favorite: Array<{
+      providerId: string
+      modelID: string
+    }>
+    hidden: Array<{
+      providerId: string
+      modelID: string
+    }>
+    hiddenProviders: Array<string>
+  }
+}
+
+export type ModelPreferencesGetResponse = ModelPreferencesGetResponses[keyof ModelPreferencesGetResponses]
+
+export type ModelPreferencesUpdateData = {
+  body?: {
+    favorite: Array<{
+      providerId: string
+      modelID: string
+    }>
+    hidden: Array<{
+      providerId: string
+      modelID: string
+    }>
+    hiddenProviders: Array<string>
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/model/preferences"
+}
+
+export type ModelPreferencesUpdateResponses = {
+  /**
+   * Updated model preferences
+   */
+  200: {
+    favorite: Array<{
+      providerId: string
+      modelID: string
+    }>
+    hidden: Array<{
+      providerId: string
+      modelID: string
+    }>
+    hiddenProviders: Array<string>
+  }
+}
+
+export type ModelPreferencesUpdateResponse = ModelPreferencesUpdateResponses[keyof ModelPreferencesUpdateResponses]
+
 export type FindTextData = {
   body?: never
   path?: never
@@ -5596,7 +5857,7 @@ export type FindTextData = {
     directory?: string
     pattern: string
   }
-  url: "/find"
+  url: "/api/v2/find"
 }
 
 export type FindTextResponses = {
@@ -5634,7 +5895,7 @@ export type FindFilesData = {
     type?: "file" | "directory"
     limit?: number
   }
-  url: "/find/file"
+  url: "/api/v2/find/file"
 }
 
 export type FindFilesResponses = {
@@ -5653,7 +5914,7 @@ export type FindSymbolsData = {
     directory?: string
     query: string
   }
-  url: "/find/symbol"
+  url: "/api/v2/find/symbol"
 }
 
 export type FindSymbolsResponses = {
@@ -5672,7 +5933,7 @@ export type FileListData = {
     directory?: string
     path: string
   }
-  url: "/file"
+  url: "/api/v2/file"
 }
 
 export type FileListResponses = {
@@ -5691,7 +5952,7 @@ export type FileReadData = {
     directory?: string
     path: string
   }
-  url: "/file/content"
+  url: "/api/v2/file/content"
 }
 
 export type FileReadResponses = {
@@ -5709,7 +5970,7 @@ export type FileStatusData = {
   query?: {
     directory?: string
   }
-  url: "/file/status"
+  url: "/api/v2/file/status"
 }
 
 export type FileStatusResponses = {
@@ -5727,7 +5988,7 @@ export type InstanceDisposeData = {
   query?: {
     directory?: string
   }
-  url: "/instance/dispose"
+  url: "/api/v2/instance/dispose"
 }
 
 export type InstanceDisposeResponses = {
@@ -5745,7 +6006,7 @@ export type PathGetData = {
   query?: {
     directory?: string
   }
-  url: "/path"
+  url: "/api/v2/path"
 }
 
 export type PathGetResponses = {
@@ -5763,7 +6024,7 @@ export type VcsGetData = {
   query?: {
     directory?: string
   }
-  url: "/vcs"
+  url: "/api/v2/vcs"
 }
 
 export type VcsGetResponses = {
@@ -5781,7 +6042,7 @@ export type CommandListData = {
   query?: {
     directory?: string
   }
-  url: "/command"
+  url: "/api/v2/command"
 }
 
 export type CommandListResponses = {
@@ -5818,7 +6079,7 @@ export type AppLogData = {
   query?: {
     directory?: string
   }
-  url: "/log"
+  url: "/api/v2/log"
 }
 
 export type AppLogErrors = {
@@ -5845,7 +6106,7 @@ export type AppAgentsData = {
   query?: {
     directory?: string
   }
-  url: "/agent"
+  url: "/api/v2/agent"
 }
 
 export type AppAgentsResponses = {
@@ -5863,7 +6124,7 @@ export type AppSkillsData = {
   query?: {
     directory?: string
   }
-  url: "/skill"
+  url: "/api/v2/skill"
 }
 
 export type AppSkillsResponses = {
@@ -5886,7 +6147,7 @@ export type LspStatusData = {
   query?: {
     directory?: string
   }
-  url: "/lsp"
+  url: "/api/v2/lsp"
 }
 
 export type LspStatusResponses = {
@@ -5904,7 +6165,7 @@ export type FormatterStatusData = {
   query?: {
     directory?: string
   }
-  url: "/formatter"
+  url: "/api/v2/formatter"
 }
 
 export type FormatterStatusResponses = {
@@ -5922,7 +6183,7 @@ export type EventSubscribeData = {
   query?: {
     directory?: string
   }
-  url: "/event"
+  url: "/api/v2/event"
 }
 
 export type EventSubscribeResponses = {
@@ -5933,3 +6194,3728 @@ export type EventSubscribeResponses = {
 }
 
 export type EventSubscribeResponse = EventSubscribeResponses[keyof EventSubscribeResponses]
+
+export type GlobalHealth2Data = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/health"
+}
+
+export type GlobalHealth2Responses = {
+  /**
+   * Health information
+   */
+  200: {
+    healthy: true
+    version: string
+  }
+}
+
+export type GlobalHealth2Response = GlobalHealth2Responses[keyof GlobalHealth2Responses]
+
+export type GlobalAuthSession2Data = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/auth/session"
+}
+
+export type GlobalAuthSession2Responses = {
+  /**
+   * Web auth session status
+   */
+  200: {
+    enabled: boolean
+    authenticated: boolean
+    usernameHint?: string
+    username?: string
+    csrfToken?: string
+    lockout?: {
+      lockedUntil: number
+      retryAfterSeconds: number
+    }
+  }
+}
+
+export type GlobalAuthSession2Response = GlobalAuthSession2Responses[keyof GlobalAuthSession2Responses]
+
+export type GlobalAuthLogin2Data = {
+  body: {
+    username: string
+    password: string
+  }
+  path?: never
+  query?: never
+  url: "/global/auth/login"
+}
+
+export type GlobalAuthLogin2Responses = {
+  /**
+   * Login success
+   */
+  200: {
+    ok: true
+    username: string
+    csrfToken: string
+  }
+}
+
+export type GlobalAuthLogin2Response = GlobalAuthLogin2Responses[keyof GlobalAuthLogin2Responses]
+
+export type GlobalAuthLogout2Data = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/auth/logout"
+}
+
+export type GlobalAuthLogout2Responses = {
+  /**
+   * Logout success
+   */
+  200: {
+    ok: true
+  }
+}
+
+export type GlobalAuthLogout2Response = GlobalAuthLogout2Responses[keyof GlobalAuthLogout2Responses]
+
+export type GlobalEvent2Data = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/event"
+}
+
+export type GlobalEvent2Responses = {
+  /**
+   * Event stream
+   */
+  200: GlobalEvent
+}
+
+export type GlobalEvent2Response = GlobalEvent2Responses[keyof GlobalEvent2Responses]
+
+export type GlobalConfigGet2Data = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/config"
+}
+
+export type GlobalConfigGet2Responses = {
+  /**
+   * Get global config info
+   */
+  200: Config
+}
+
+export type GlobalConfigGet2Response = GlobalConfigGet2Responses[keyof GlobalConfigGet2Responses]
+
+export type GlobalConfigUpdate2Data = {
+  body?: Config
+  path?: never
+  query?: never
+  url: "/global/config"
+}
+
+export type GlobalConfigUpdate2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type GlobalConfigUpdate2Error = GlobalConfigUpdate2Errors[keyof GlobalConfigUpdate2Errors]
+
+export type GlobalConfigUpdate2Responses = {
+  /**
+   * Successfully updated global config
+   */
+  200: Config
+}
+
+export type GlobalConfigUpdate2Response = GlobalConfigUpdate2Responses[keyof GlobalConfigUpdate2Responses]
+
+export type GlobalDispose2Data = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/dispose"
+}
+
+export type GlobalDispose2Responses = {
+  /**
+   * Global disposed
+   */
+  200: boolean
+}
+
+export type GlobalDispose2Response = GlobalDispose2Responses[keyof GlobalDispose2Responses]
+
+export type AuthRemove2Data = {
+  body?: never
+  path: {
+    providerId: string
+  }
+  query?: never
+  url: "/auth/{providerId}"
+}
+
+export type AuthRemove2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type AuthRemove2Error = AuthRemove2Errors[keyof AuthRemove2Errors]
+
+export type AuthRemove2Responses = {
+  /**
+   * Successfully removed authentication credentials
+   */
+  200: boolean
+}
+
+export type AuthRemove2Response = AuthRemove2Responses[keyof AuthRemove2Responses]
+
+export type AuthSet2Data = {
+  body?: Auth
+  path: {
+    providerId: string
+  }
+  query?: never
+  url: "/auth/{providerId}"
+}
+
+export type AuthSet2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type AuthSet2Error = AuthSet2Errors[keyof AuthSet2Errors]
+
+export type AuthSet2Responses = {
+  /**
+   * Successfully set authentication credentials
+   */
+  200: boolean
+}
+
+export type AuthSet2Response = AuthSet2Responses[keyof AuthSet2Responses]
+
+export type ProjectList2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/project"
+}
+
+export type ProjectList2Responses = {
+  /**
+   * List of projects
+   */
+  200: Array<Project>
+}
+
+export type ProjectList2Response = ProjectList2Responses[keyof ProjectList2Responses]
+
+export type ProjectCurrent2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/project/current"
+}
+
+export type ProjectCurrent2Responses = {
+  /**
+   * Current project information
+   */
+  200: Project
+}
+
+export type ProjectCurrent2Response = ProjectCurrent2Responses[keyof ProjectCurrent2Responses]
+
+export type ProjectUpdate2Data = {
+  body?: {
+    name?: string
+    icon?: {
+      url?: string
+      override?: string
+      color?: string
+    }
+    commands?: {
+      /**
+       * Startup script to run when creating a new workspace (worktree)
+       */
+      start?: string
+    }
+  }
+  path: {
+    projectID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/project/{projectID}"
+}
+
+export type ProjectUpdate2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type ProjectUpdate2Error = ProjectUpdate2Errors[keyof ProjectUpdate2Errors]
+
+export type ProjectUpdate2Responses = {
+  /**
+   * Updated project information
+   */
+  200: Project
+}
+
+export type ProjectUpdate2Response = ProjectUpdate2Responses[keyof ProjectUpdate2Responses]
+
+export type PtyList2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/pty"
+}
+
+export type PtyList2Responses = {
+  /**
+   * List of sessions
+   */
+  200: Array<Pty>
+}
+
+export type PtyList2Response = PtyList2Responses[keyof PtyList2Responses]
+
+export type PtyCreate2Data = {
+  body?: {
+    command?: string
+    args?: Array<string>
+    cwd?: string
+    title?: string
+    env?: {
+      [key: string]: string
+    }
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/pty"
+}
+
+export type PtyCreate2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type PtyCreate2Error = PtyCreate2Errors[keyof PtyCreate2Errors]
+
+export type PtyCreate2Responses = {
+  /**
+   * Created session
+   */
+  200: Pty
+}
+
+export type PtyCreate2Response = PtyCreate2Responses[keyof PtyCreate2Responses]
+
+export type PtyRemove2Data = {
+  body?: never
+  path: {
+    ptyID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/pty/{ptyID}"
+}
+
+export type PtyRemove2Errors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type PtyRemove2Error = PtyRemove2Errors[keyof PtyRemove2Errors]
+
+export type PtyRemove2Responses = {
+  /**
+   * Session removed
+   */
+  200: boolean
+}
+
+export type PtyRemove2Response = PtyRemove2Responses[keyof PtyRemove2Responses]
+
+export type PtyGet2Data = {
+  body?: never
+  path: {
+    ptyID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/pty/{ptyID}"
+}
+
+export type PtyGet2Errors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type PtyGet2Error = PtyGet2Errors[keyof PtyGet2Errors]
+
+export type PtyGet2Responses = {
+  /**
+   * Session info
+   */
+  200: Pty
+}
+
+export type PtyGet2Response = PtyGet2Responses[keyof PtyGet2Responses]
+
+export type PtyUpdate2Data = {
+  body?: {
+    title?: string
+    size?: {
+      rows: number
+      cols: number
+    }
+  }
+  path: {
+    ptyID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/pty/{ptyID}"
+}
+
+export type PtyUpdate2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type PtyUpdate2Error = PtyUpdate2Errors[keyof PtyUpdate2Errors]
+
+export type PtyUpdate2Responses = {
+  /**
+   * Updated session
+   */
+  200: Pty
+}
+
+export type PtyUpdate2Response = PtyUpdate2Responses[keyof PtyUpdate2Responses]
+
+export type PtyConnect2Data = {
+  body?: never
+  path: {
+    ptyID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/pty/{ptyID}/connect"
+}
+
+export type PtyConnect2Errors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type PtyConnect2Error = PtyConnect2Errors[keyof PtyConnect2Errors]
+
+export type PtyConnect2Responses = {
+  /**
+   * Connected session
+   */
+  200: boolean
+}
+
+export type PtyConnect2Response = PtyConnect2Responses[keyof PtyConnect2Responses]
+
+export type ConfigGet2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/config"
+}
+
+export type ConfigGet2Responses = {
+  /**
+   * Get config info
+   */
+  200: Config
+}
+
+export type ConfigGet2Response = ConfigGet2Responses[keyof ConfigGet2Responses]
+
+export type ConfigUpdate2Data = {
+  body?: Config
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/config"
+}
+
+export type ConfigUpdate2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ConfigUpdate2Error = ConfigUpdate2Errors[keyof ConfigUpdate2Errors]
+
+export type ConfigUpdate2Responses = {
+  /**
+   * Successfully updated config
+   */
+  200: Config
+}
+
+export type ConfigUpdate2Response = ConfigUpdate2Responses[keyof ConfigUpdate2Responses]
+
+export type ConfigProviders2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/config/providers"
+}
+
+export type ConfigProviders2Responses = {
+  /**
+   * List of providers
+   */
+  200: {
+    providers: Array<Provider>
+    default: {
+      [key: string]: string
+    }
+  }
+}
+
+export type ConfigProviders2Response = ConfigProviders2Responses[keyof ConfigProviders2Responses]
+
+export type ExperimentalReviewCheckpoint2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/experimental/review-checkpoint"
+}
+
+export type ExperimentalReviewCheckpoint2Responses = {
+  /**
+   * Review checkpoint
+   */
+  200: {
+    requestUser: string | null
+    directory: string
+    worktree: string
+    project: {
+      id: string
+      vcs?: string
+      name?: string
+    }
+    statusCount: number
+    statusSample: Array<File>
+    git: {
+      diffNumstatExit: number
+      diffNumstatErr: string
+      porcelainExit: number
+      porcelainErr: string
+      porcelainSample: string
+    }
+  }
+}
+
+export type ExperimentalReviewCheckpoint2Response =
+  ExperimentalReviewCheckpoint2Responses[keyof ExperimentalReviewCheckpoint2Responses]
+
+export type ExperimentalUserDaemonList2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/experimental/user-daemon"
+}
+
+export type ExperimentalUserDaemonList2Responses = {
+  /**
+   * Per-user daemon snapshots
+   */
+  200: Array<{
+    username: string
+    uid: number
+    port: number
+    socketPath: string
+    status: "planned" | "starting" | "ready" | "missing"
+    firstSeenAt: number
+    lastSeenAt: number
+    lastStartAttemptAt?: number
+    startAttempts: number
+    lastStartError?: string
+  }>
+}
+
+export type ExperimentalUserDaemonList2Response =
+  ExperimentalUserDaemonList2Responses[keyof ExperimentalUserDaemonList2Responses]
+
+export type ToolIds2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/experimental/tool/ids"
+}
+
+export type ToolIds2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ToolIds2Error = ToolIds2Errors[keyof ToolIds2Errors]
+
+export type ToolIds2Responses = {
+  /**
+   * Tool IDs
+   */
+  200: ToolIds
+}
+
+export type ToolIds2Response = ToolIds2Responses[keyof ToolIds2Responses]
+
+export type ToolList2Data = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    provider: string
+    model: string
+  }
+  url: "/experimental/tool"
+}
+
+export type ToolList2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ToolList2Error = ToolList2Errors[keyof ToolList2Errors]
+
+export type ToolList2Responses = {
+  /**
+   * Tools
+   */
+  200: ToolList
+}
+
+export type ToolList2Response = ToolList2Responses[keyof ToolList2Responses]
+
+export type WorktreeRemove2Data = {
+  body?: WorktreeRemoveInput
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/experimental/worktree"
+}
+
+export type WorktreeRemove2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type WorktreeRemove2Error = WorktreeRemove2Errors[keyof WorktreeRemove2Errors]
+
+export type WorktreeRemove2Responses = {
+  /**
+   * Worktree removed
+   */
+  200: boolean
+}
+
+export type WorktreeRemove2Response = WorktreeRemove2Responses[keyof WorktreeRemove2Responses]
+
+export type WorktreeList2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/experimental/worktree"
+}
+
+export type WorktreeList2Responses = {
+  /**
+   * List of worktree directories
+   */
+  200: Array<string>
+}
+
+export type WorktreeList2Response = WorktreeList2Responses[keyof WorktreeList2Responses]
+
+export type WorktreeCreate2Data = {
+  body?: WorktreeCreateInput
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/experimental/worktree"
+}
+
+export type WorktreeCreate2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type WorktreeCreate2Error = WorktreeCreate2Errors[keyof WorktreeCreate2Errors]
+
+export type WorktreeCreate2Responses = {
+  /**
+   * Worktree created
+   */
+  200: Worktree
+}
+
+export type WorktreeCreate2Response = WorktreeCreate2Responses[keyof WorktreeCreate2Responses]
+
+export type WorktreeReset2Data = {
+  body?: WorktreeResetInput
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/experimental/worktree/reset"
+}
+
+export type WorktreeReset2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type WorktreeReset2Error = WorktreeReset2Errors[keyof WorktreeReset2Errors]
+
+export type WorktreeReset2Responses = {
+  /**
+   * Worktree reset
+   */
+  200: boolean
+}
+
+export type WorktreeReset2Response = WorktreeReset2Responses[keyof WorktreeReset2Responses]
+
+export type ExperimentalSessionList2Data = {
+  body?: never
+  path?: never
+  query?: {
+    /**
+     * Filter sessions by project directory
+     */
+    directory?: string
+    /**
+     * Only return root sessions (no parentID)
+     */
+    roots?: boolean
+    /**
+     * Filter sessions updated on or after this timestamp (milliseconds since epoch)
+     */
+    start?: number
+    /**
+     * Return sessions updated before this timestamp (milliseconds since epoch)
+     */
+    cursor?: number
+    /**
+     * Filter sessions by title (case-insensitive)
+     */
+    search?: string
+    /**
+     * Maximum number of sessions to return
+     */
+    limit?: number
+    /**
+     * Include archived sessions (default false)
+     */
+    archived?: boolean
+  }
+  url: "/experimental/session"
+}
+
+export type ExperimentalSessionList2Responses = {
+  /**
+   * List of sessions
+   */
+  200: Array<GlobalSession>
+}
+
+export type ExperimentalSessionList2Response =
+  ExperimentalSessionList2Responses[keyof ExperimentalSessionList2Responses]
+
+export type ExperimentalResourceList2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/experimental/resource"
+}
+
+export type ExperimentalResourceList2Responses = {
+  /**
+   * MCP resources
+   */
+  200: {
+    [key: string]: McpResource
+  }
+}
+
+export type ExperimentalResourceList2Response =
+  ExperimentalResourceList2Responses[keyof ExperimentalResourceList2Responses]
+
+export type SessionList2Data = {
+  body?: never
+  path?: never
+  query?: {
+    /**
+     * Filter sessions by project directory
+     */
+    directory?: string
+    /**
+     * Only return root sessions (no parentID)
+     */
+    roots?: boolean
+    /**
+     * Filter sessions updated on or after this timestamp (milliseconds since epoch)
+     */
+    start?: number
+    /**
+     * Filter sessions by title (case-insensitive)
+     */
+    search?: string
+    /**
+     * Maximum number of sessions to return
+     */
+    limit?: number
+  }
+  url: "/session"
+}
+
+export type SessionList2Responses = {
+  /**
+   * List of sessions
+   */
+  200: Array<Session>
+}
+
+export type SessionList2Response = SessionList2Responses[keyof SessionList2Responses]
+
+export type SessionCreate2Data = {
+  body?: {
+    parentID?: string
+    title?: string
+    permission?: PermissionRuleset
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/session"
+}
+
+export type SessionCreate2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type SessionCreate2Error = SessionCreate2Errors[keyof SessionCreate2Errors]
+
+export type SessionCreate2Responses = {
+  /**
+   * Successfully created session
+   */
+  200: Session
+}
+
+export type SessionCreate2Response = SessionCreate2Responses[keyof SessionCreate2Responses]
+
+export type SessionStatus2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/session/status"
+}
+
+export type SessionStatus2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type SessionStatus2Error = SessionStatus2Errors[keyof SessionStatus2Errors]
+
+export type SessionStatus2Responses = {
+  /**
+   * Get session status
+   */
+  200: {
+    [key: string]: SessionStatus
+  }
+}
+
+export type SessionStatus2Response = SessionStatus2Responses[keyof SessionStatus2Responses]
+
+export type SessionTop2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    /**
+     * Restrict monitor snapshot to one session
+     */
+    sessionID?: string
+    /**
+     * Include descendant sessions when sessionID is provided
+     */
+    includeDescendants?: boolean
+    /**
+     * Limit messages scanned per session for monitor snapshot
+     */
+    maxMessages?: number
+  }
+  url: "/session/top"
+}
+
+export type SessionTop2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type SessionTop2Error = SessionTop2Errors[keyof SessionTop2Errors]
+
+export type SessionTop2Responses = {
+  /**
+   * Session monitor snapshot
+   */
+  200: Array<SessionMonitorInfo>
+}
+
+export type SessionTop2Response = SessionTop2Responses[keyof SessionTop2Responses]
+
+export type SessionDelete2Data = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}"
+}
+
+export type SessionDelete2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionDelete2Error = SessionDelete2Errors[keyof SessionDelete2Errors]
+
+export type SessionDelete2Responses = {
+  /**
+   * Successfully deleted session
+   */
+  200: boolean
+}
+
+export type SessionDelete2Response = SessionDelete2Responses[keyof SessionDelete2Responses]
+
+export type SessionGet2Data = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}"
+}
+
+export type SessionGet2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionGet2Error = SessionGet2Errors[keyof SessionGet2Errors]
+
+export type SessionGet2Responses = {
+  /**
+   * Get session
+   */
+  200: Session
+}
+
+export type SessionGet2Response = SessionGet2Responses[keyof SessionGet2Responses]
+
+export type SessionUpdate2Data = {
+  body?: {
+    title?: string
+    time?: {
+      archived?: number
+    }
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}"
+}
+
+export type SessionUpdate2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionUpdate2Error = SessionUpdate2Errors[keyof SessionUpdate2Errors]
+
+export type SessionUpdate2Responses = {
+  /**
+   * Successfully updated session
+   */
+  200: Session
+}
+
+export type SessionUpdate2Response = SessionUpdate2Responses[keyof SessionUpdate2Responses]
+
+export type SessionChildren2Data = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/children"
+}
+
+export type SessionChildren2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionChildren2Error = SessionChildren2Errors[keyof SessionChildren2Errors]
+
+export type SessionChildren2Responses = {
+  /**
+   * List of children
+   */
+  200: Array<Session>
+}
+
+export type SessionChildren2Response = SessionChildren2Responses[keyof SessionChildren2Responses]
+
+export type SessionTodo2Data = {
+  body?: never
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/todo"
+}
+
+export type SessionTodo2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionTodo2Error = SessionTodo2Errors[keyof SessionTodo2Errors]
+
+export type SessionTodo2Responses = {
+  /**
+   * Todo list
+   */
+  200: Array<Todo>
+}
+
+export type SessionTodo2Response = SessionTodo2Responses[keyof SessionTodo2Responses]
+
+export type SessionInit2Data = {
+  body?: {
+    modelID: string
+    providerID: string
+    messageID: string
+  }
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/init"
+}
+
+export type SessionInit2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionInit2Error = SessionInit2Errors[keyof SessionInit2Errors]
+
+export type SessionInit2Responses = {
+  /**
+   * 200
+   */
+  200: boolean
+}
+
+export type SessionInit2Response = SessionInit2Responses[keyof SessionInit2Responses]
+
+export type SessionFork2Data = {
+  body?: {
+    messageID?: string
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/fork"
+}
+
+export type SessionFork2Responses = {
+  /**
+   * 200
+   */
+  200: Session
+}
+
+export type SessionFork2Response = SessionFork2Responses[keyof SessionFork2Responses]
+
+export type SessionAbort2Data = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/abort"
+}
+
+export type SessionAbort2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionAbort2Error = SessionAbort2Errors[keyof SessionAbort2Errors]
+
+export type SessionAbort2Responses = {
+  /**
+   * Aborted session
+   */
+  200: boolean
+}
+
+export type SessionAbort2Response = SessionAbort2Responses[keyof SessionAbort2Responses]
+
+export type SessionUnshare2Data = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/share"
+}
+
+export type SessionUnshare2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionUnshare2Error = SessionUnshare2Errors[keyof SessionUnshare2Errors]
+
+export type SessionUnshare2Responses = {
+  /**
+   * Successfully unshared session
+   */
+  200: Session
+}
+
+export type SessionUnshare2Response = SessionUnshare2Responses[keyof SessionUnshare2Responses]
+
+export type SessionShare2Data = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/share"
+}
+
+export type SessionShare2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionShare2Error = SessionShare2Errors[keyof SessionShare2Errors]
+
+export type SessionShare2Responses = {
+  /**
+   * Successfully shared session
+   */
+  200: Session
+}
+
+export type SessionShare2Response = SessionShare2Responses[keyof SessionShare2Responses]
+
+export type SessionDiff2Data = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    messageID?: string
+  }
+  url: "/session/{sessionID}/diff"
+}
+
+export type SessionDiff2Responses = {
+  /**
+   * Successfully retrieved diff
+   */
+  200: Array<FileDiff>
+}
+
+export type SessionDiff2Response = SessionDiff2Responses[keyof SessionDiff2Responses]
+
+export type SessionSummarize2Data = {
+  body?: {
+    providerId: string
+    modelID: string
+    auto?: boolean
+  }
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/summarize"
+}
+
+export type SessionSummarize2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionSummarize2Error = SessionSummarize2Errors[keyof SessionSummarize2Errors]
+
+export type SessionSummarize2Responses = {
+  /**
+   * Summarized session
+   */
+  200: boolean
+}
+
+export type SessionSummarize2Response = SessionSummarize2Responses[keyof SessionSummarize2Responses]
+
+export type SessionMessages2Data = {
+  body?: never
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    limit?: number
+  }
+  url: "/session/{sessionID}/message"
+}
+
+export type SessionMessages2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionMessages2Error = SessionMessages2Errors[keyof SessionMessages2Errors]
+
+export type SessionMessages2Responses = {
+  /**
+   * List of messages
+   */
+  200: Array<{
+    info: Message
+    parts: Array<Part>
+  }>
+}
+
+export type SessionMessages2Response = SessionMessages2Responses[keyof SessionMessages2Responses]
+
+export type SessionPrompt2Data = {
+  body?: {
+    messageID?: string
+    model?: {
+      providerId: string
+      modelID: string
+    }
+    agent?: string
+    noReply?: boolean
+    /**
+     * @deprecated tools and permissions have been merged, you can set permissions on the session itself now
+     */
+    tools?: {
+      [key: string]: boolean
+    }
+    format?: OutputFormat
+    system?: string
+    variant?: string
+    parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
+  }
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/message"
+}
+
+export type SessionPrompt2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionPrompt2Error = SessionPrompt2Errors[keyof SessionPrompt2Errors]
+
+export type SessionPrompt2Responses = {
+  /**
+   * Created message
+   */
+  200: {
+    info: AssistantMessage
+    parts: Array<Part>
+  }
+}
+
+export type SessionPrompt2Response = SessionPrompt2Responses[keyof SessionPrompt2Responses]
+
+export type SessionDeleteMessage2Data = {
+  body?: never
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+    /**
+     * Message ID
+     */
+    messageID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/message/{messageID}"
+}
+
+export type SessionDeleteMessage2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionDeleteMessage2Error = SessionDeleteMessage2Errors[keyof SessionDeleteMessage2Errors]
+
+export type SessionDeleteMessage2Responses = {
+  /**
+   * Successfully deleted message
+   */
+  200: boolean
+}
+
+export type SessionDeleteMessage2Response = SessionDeleteMessage2Responses[keyof SessionDeleteMessage2Responses]
+
+export type SessionMessage2Data = {
+  body?: never
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+    /**
+     * Message ID
+     */
+    messageID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/message/{messageID}"
+}
+
+export type SessionMessage2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionMessage2Error = SessionMessage2Errors[keyof SessionMessage2Errors]
+
+export type SessionMessage2Responses = {
+  /**
+   * Message
+   */
+  200: {
+    info: Message
+    parts: Array<Part>
+  }
+}
+
+export type SessionMessage2Response = SessionMessage2Responses[keyof SessionMessage2Responses]
+
+export type PartDelete2Data = {
+  body?: never
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+    /**
+     * Message ID
+     */
+    messageID: string
+    /**
+     * Part ID
+     */
+    partID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/message/{messageID}/part/{partID}"
+}
+
+export type PartDelete2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type PartDelete2Error = PartDelete2Errors[keyof PartDelete2Errors]
+
+export type PartDelete2Responses = {
+  /**
+   * Successfully deleted part
+   */
+  200: boolean
+}
+
+export type PartDelete2Response = PartDelete2Responses[keyof PartDelete2Responses]
+
+export type PartUpdate2Data = {
+  body?: Part
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+    /**
+     * Message ID
+     */
+    messageID: string
+    /**
+     * Part ID
+     */
+    partID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/message/{messageID}/part/{partID}"
+}
+
+export type PartUpdate2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type PartUpdate2Error = PartUpdate2Errors[keyof PartUpdate2Errors]
+
+export type PartUpdate2Responses = {
+  /**
+   * Successfully updated part
+   */
+  200: Part
+}
+
+export type PartUpdate2Response = PartUpdate2Responses[keyof PartUpdate2Responses]
+
+export type SessionPromptAsync2Data = {
+  body?: {
+    messageID?: string
+    model?: {
+      providerId: string
+      modelID: string
+    }
+    agent?: string
+    noReply?: boolean
+    /**
+     * @deprecated tools and permissions have been merged, you can set permissions on the session itself now
+     */
+    tools?: {
+      [key: string]: boolean
+    }
+    format?: OutputFormat
+    system?: string
+    variant?: string
+    parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
+  }
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/prompt_async"
+}
+
+export type SessionPromptAsync2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionPromptAsync2Error = SessionPromptAsync2Errors[keyof SessionPromptAsync2Errors]
+
+export type SessionPromptAsync2Responses = {
+  /**
+   * Prompt accepted
+   */
+  204: void
+}
+
+export type SessionPromptAsync2Response = SessionPromptAsync2Responses[keyof SessionPromptAsync2Responses]
+
+export type SessionCommand2Data = {
+  body?: {
+    messageID?: string
+    agent?: string
+    model?: string
+    arguments: string
+    command: string
+    variant?: string
+    parts?: Array<{
+      id?: string
+      type: "file"
+      mime: string
+      filename?: string
+      url: string
+      source?: FilePartSource
+    }>
+  }
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/command"
+}
+
+export type SessionCommand2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionCommand2Error = SessionCommand2Errors[keyof SessionCommand2Errors]
+
+export type SessionCommand2Responses = {
+  /**
+   * Created message
+   */
+  200: {
+    info: AssistantMessage
+    parts: Array<Part>
+  }
+}
+
+export type SessionCommand2Response = SessionCommand2Responses[keyof SessionCommand2Responses]
+
+export type SessionShell2Data = {
+  body?: {
+    agent: string
+    model?: {
+      providerId: string
+      modelID: string
+    }
+    variant?: string
+    command: string
+  }
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/shell"
+}
+
+export type SessionShell2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionShell2Error = SessionShell2Errors[keyof SessionShell2Errors]
+
+export type SessionShell2Responses = {
+  /**
+   * Created message
+   */
+  200: AssistantMessage
+}
+
+export type SessionShell2Response = SessionShell2Responses[keyof SessionShell2Responses]
+
+export type SessionRevert2Data = {
+  body?: {
+    messageID: string
+    partID?: string
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/revert"
+}
+
+export type SessionRevert2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionRevert2Error = SessionRevert2Errors[keyof SessionRevert2Errors]
+
+export type SessionRevert2Responses = {
+  /**
+   * Updated session
+   */
+  200: Session
+}
+
+export type SessionRevert2Response = SessionRevert2Responses[keyof SessionRevert2Responses]
+
+export type SessionUnrevert2Data = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/unrevert"
+}
+
+export type SessionUnrevert2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionUnrevert2Error = SessionUnrevert2Errors[keyof SessionUnrevert2Errors]
+
+export type SessionUnrevert2Responses = {
+  /**
+   * Updated session
+   */
+  200: Session
+}
+
+export type SessionUnrevert2Response = SessionUnrevert2Responses[keyof SessionUnrevert2Responses]
+
+export type PermissionRespond2Data = {
+  body?: {
+    response: "once" | "always" | "reject"
+  }
+  path: {
+    sessionID: string
+    permissionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/permissions/{permissionID}"
+}
+
+export type PermissionRespond2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type PermissionRespond2Error = PermissionRespond2Errors[keyof PermissionRespond2Errors]
+
+export type PermissionRespond2Responses = {
+  /**
+   * Permission processed successfully
+   */
+  200: boolean
+}
+
+export type PermissionRespond2Response = PermissionRespond2Responses[keyof PermissionRespond2Responses]
+
+export type PermissionReply2Data = {
+  body?: {
+    reply: "once" | "always" | "reject"
+    message?: string
+  }
+  path: {
+    requestID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/permission/{requestID}/reply"
+}
+
+export type PermissionReply2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type PermissionReply2Error = PermissionReply2Errors[keyof PermissionReply2Errors]
+
+export type PermissionReply2Responses = {
+  /**
+   * Permission processed successfully
+   */
+  200: boolean
+}
+
+export type PermissionReply2Response = PermissionReply2Responses[keyof PermissionReply2Responses]
+
+export type PermissionList2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/permission"
+}
+
+export type PermissionList2Responses = {
+  /**
+   * List of pending permissions
+   */
+  200: Array<PermissionRequest>
+}
+
+export type PermissionList2Response = PermissionList2Responses[keyof PermissionList2Responses]
+
+export type QuestionList2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/question"
+}
+
+export type QuestionList2Responses = {
+  /**
+   * List of pending questions
+   */
+  200: Array<QuestionRequest>
+}
+
+export type QuestionList2Response = QuestionList2Responses[keyof QuestionList2Responses]
+
+export type QuestionReply2Data = {
+  body?: {
+    /**
+     * User answers in order of questions (each answer is an array of selected labels)
+     */
+    answers: Array<QuestionAnswer>
+  }
+  path: {
+    requestID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/question/{requestID}/reply"
+}
+
+export type QuestionReply2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type QuestionReply2Error = QuestionReply2Errors[keyof QuestionReply2Errors]
+
+export type QuestionReply2Responses = {
+  /**
+   * Question answered successfully
+   */
+  200: boolean
+}
+
+export type QuestionReply2Response = QuestionReply2Responses[keyof QuestionReply2Responses]
+
+export type QuestionReject2Data = {
+  body?: never
+  path: {
+    requestID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/question/{requestID}/reject"
+}
+
+export type QuestionReject2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type QuestionReject2Error = QuestionReject2Errors[keyof QuestionReject2Errors]
+
+export type QuestionReject2Responses = {
+  /**
+   * Question rejected successfully
+   */
+  200: boolean
+}
+
+export type QuestionReject2Response = QuestionReject2Responses[keyof QuestionReject2Responses]
+
+export type ProviderList2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/provider"
+}
+
+export type ProviderList2Responses = {
+  /**
+   * List of providers
+   */
+  200: {
+    all: Array<{
+      api?: string
+      name: string
+      env: Array<string>
+      id: string
+      npm?: string
+      models: {
+        [key: string]: {
+          id: string
+          name: string
+          family?: string
+          release_date: string
+          attachment: boolean
+          reasoning: boolean
+          temperature: boolean
+          tool_call: boolean
+          interleaved?:
+            | true
+            | {
+                field: "reasoning_content" | "reasoning_details"
+              }
+          cost?: {
+            input: number
+            output: number
+            reasoning?: number
+            cache_read?: number
+            cache_write?: number
+            context_over_200k?: {
+              input: number
+              output: number
+              reasoning?: number
+              cache_read?: number
+              cache_write?: number
+            }
+          }
+          limit: {
+            context: number
+            input?: number
+            output: number
+          }
+          modalities?: {
+            input: Array<"text" | "audio" | "image" | "video" | "pdf">
+            output: Array<"text" | "audio" | "image" | "video" | "pdf">
+          }
+          experimental?: boolean
+          status?: "alpha" | "beta" | "deprecated"
+          options: {
+            [key: string]: unknown
+          }
+          headers?: {
+            [key: string]: string
+          }
+          provider?: {
+            npm?: string
+            api?: string
+          }
+          variants?: {
+            [key: string]: {
+              [key: string]: unknown
+            }
+          }
+        }
+      }
+    }>
+    default: {
+      [key: string]: string
+    }
+    connected: Array<string>
+  }
+}
+
+export type ProviderList2Response = ProviderList2Responses[keyof ProviderList2Responses]
+
+export type ProviderAuth2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/provider/auth"
+}
+
+export type ProviderAuth2Responses = {
+  /**
+   * Provider auth methods
+   */
+  200: {
+    [key: string]: Array<ProviderAuthMethod>
+  }
+}
+
+export type ProviderAuth2Response = ProviderAuth2Responses[keyof ProviderAuth2Responses]
+
+export type ProviderOauthAuthorize2Data = {
+  body?: {
+    /**
+     * Auth method index
+     */
+    method: number
+  }
+  path: {
+    /**
+     * Provider ID
+     */
+    providerId: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/provider/{providerId}/oauth/authorize"
+}
+
+export type ProviderOauthAuthorize2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ProviderOauthAuthorize2Error = ProviderOauthAuthorize2Errors[keyof ProviderOauthAuthorize2Errors]
+
+export type ProviderOauthAuthorize2Responses = {
+  /**
+   * Authorization URL and method
+   */
+  200: ProviderAuthAuthorization
+}
+
+export type ProviderOauthAuthorize2Response = ProviderOauthAuthorize2Responses[keyof ProviderOauthAuthorize2Responses]
+
+export type ProviderOauthCallback2Data = {
+  body?: {
+    /**
+     * Auth method index
+     */
+    method: number
+    /**
+     * OAuth authorization code
+     */
+    code?: string
+  }
+  path: {
+    /**
+     * Provider ID
+     */
+    providerId: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/provider/{providerId}/oauth/callback"
+}
+
+export type ProviderOauthCallback2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ProviderOauthCallback2Error = ProviderOauthCallback2Errors[keyof ProviderOauthCallback2Errors]
+
+export type ProviderOauthCallback2Responses = {
+  /**
+   * OAuth callback processed successfully
+   */
+  200: boolean
+}
+
+export type ProviderOauthCallback2Response = ProviderOauthCallback2Responses[keyof ProviderOauthCallback2Responses]
+
+export type McpStatus2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/mcp"
+}
+
+export type McpStatus2Responses = {
+  /**
+   * MCP server status
+   */
+  200: {
+    [key: string]: McpStatus
+  }
+}
+
+export type McpStatus2Response = McpStatus2Responses[keyof McpStatus2Responses]
+
+export type McpAdd2Data = {
+  body?: {
+    name: string
+    config: McpLocalConfig | McpRemoteConfig
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/mcp"
+}
+
+export type McpAdd2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type McpAdd2Error = McpAdd2Errors[keyof McpAdd2Errors]
+
+export type McpAdd2Responses = {
+  /**
+   * MCP server added successfully
+   */
+  200: {
+    [key: string]: McpStatus
+  }
+}
+
+export type McpAdd2Response = McpAdd2Responses[keyof McpAdd2Responses]
+
+export type McpAuthRemove2Data = {
+  body?: never
+  path: {
+    name: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/mcp/{name}/auth"
+}
+
+export type McpAuthRemove2Errors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type McpAuthRemove2Error = McpAuthRemove2Errors[keyof McpAuthRemove2Errors]
+
+export type McpAuthRemove2Responses = {
+  /**
+   * OAuth credentials removed
+   */
+  200: {
+    success: true
+  }
+}
+
+export type McpAuthRemove2Response = McpAuthRemove2Responses[keyof McpAuthRemove2Responses]
+
+export type McpAuthStart2Data = {
+  body?: never
+  path: {
+    name: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/mcp/{name}/auth"
+}
+
+export type McpAuthStart2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type McpAuthStart2Error = McpAuthStart2Errors[keyof McpAuthStart2Errors]
+
+export type McpAuthStart2Responses = {
+  /**
+   * OAuth flow started
+   */
+  200: {
+    /**
+     * URL to open in browser for authorization
+     */
+    authorizationUrl: string
+  }
+}
+
+export type McpAuthStart2Response = McpAuthStart2Responses[keyof McpAuthStart2Responses]
+
+export type McpAuthCallback2Data = {
+  body?: {
+    /**
+     * Authorization code from OAuth callback
+     */
+    code: string
+  }
+  path: {
+    name: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/mcp/{name}/auth/callback"
+}
+
+export type McpAuthCallback2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type McpAuthCallback2Error = McpAuthCallback2Errors[keyof McpAuthCallback2Errors]
+
+export type McpAuthCallback2Responses = {
+  /**
+   * OAuth authentication completed
+   */
+  200: McpStatus
+}
+
+export type McpAuthCallback2Response = McpAuthCallback2Responses[keyof McpAuthCallback2Responses]
+
+export type McpAuthAuthenticate2Data = {
+  body?: never
+  path: {
+    name: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/mcp/{name}/auth/authenticate"
+}
+
+export type McpAuthAuthenticate2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type McpAuthAuthenticate2Error = McpAuthAuthenticate2Errors[keyof McpAuthAuthenticate2Errors]
+
+export type McpAuthAuthenticate2Responses = {
+  /**
+   * OAuth authentication completed
+   */
+  200: McpStatus
+}
+
+export type McpAuthAuthenticate2Response = McpAuthAuthenticate2Responses[keyof McpAuthAuthenticate2Responses]
+
+export type McpConnect2Data = {
+  body?: never
+  path: {
+    name: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/mcp/{name}/connect"
+}
+
+export type McpConnect2Responses = {
+  /**
+   * MCP server connected successfully
+   */
+  200: boolean
+}
+
+export type McpConnect2Response = McpConnect2Responses[keyof McpConnect2Responses]
+
+export type McpDisconnect2Data = {
+  body?: never
+  path: {
+    name: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/mcp/{name}/disconnect"
+}
+
+export type McpDisconnect2Responses = {
+  /**
+   * MCP server disconnected successfully
+   */
+  200: boolean
+}
+
+export type McpDisconnect2Response = McpDisconnect2Responses[keyof McpDisconnect2Responses]
+
+export type TuiAppendPrompt2Data = {
+  body?: {
+    text: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/tui/append-prompt"
+}
+
+export type TuiAppendPrompt2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type TuiAppendPrompt2Error = TuiAppendPrompt2Errors[keyof TuiAppendPrompt2Errors]
+
+export type TuiAppendPrompt2Responses = {
+  /**
+   * Prompt processed successfully
+   */
+  200: boolean
+}
+
+export type TuiAppendPrompt2Response = TuiAppendPrompt2Responses[keyof TuiAppendPrompt2Responses]
+
+export type TuiOpenHelp2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/tui/open-help"
+}
+
+export type TuiOpenHelp2Responses = {
+  /**
+   * Help dialog opened successfully
+   */
+  200: boolean
+}
+
+export type TuiOpenHelp2Response = TuiOpenHelp2Responses[keyof TuiOpenHelp2Responses]
+
+export type TuiOpenSessions2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/tui/open-sessions"
+}
+
+export type TuiOpenSessions2Responses = {
+  /**
+   * Session dialog opened successfully
+   */
+  200: boolean
+}
+
+export type TuiOpenSessions2Response = TuiOpenSessions2Responses[keyof TuiOpenSessions2Responses]
+
+export type TuiOpenThemes2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/tui/open-themes"
+}
+
+export type TuiOpenThemes2Responses = {
+  /**
+   * Theme dialog opened successfully
+   */
+  200: boolean
+}
+
+export type TuiOpenThemes2Response = TuiOpenThemes2Responses[keyof TuiOpenThemes2Responses]
+
+export type TuiOpenModels2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/tui/open-models"
+}
+
+export type TuiOpenModels2Responses = {
+  /**
+   * Model dialog opened successfully
+   */
+  200: boolean
+}
+
+export type TuiOpenModels2Response = TuiOpenModels2Responses[keyof TuiOpenModels2Responses]
+
+export type TuiSubmitPrompt2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/tui/submit-prompt"
+}
+
+export type TuiSubmitPrompt2Responses = {
+  /**
+   * Prompt submitted successfully
+   */
+  200: boolean
+}
+
+export type TuiSubmitPrompt2Response = TuiSubmitPrompt2Responses[keyof TuiSubmitPrompt2Responses]
+
+export type TuiClearPrompt2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/tui/clear-prompt"
+}
+
+export type TuiClearPrompt2Responses = {
+  /**
+   * Prompt cleared successfully
+   */
+  200: boolean
+}
+
+export type TuiClearPrompt2Response = TuiClearPrompt2Responses[keyof TuiClearPrompt2Responses]
+
+export type TuiExecuteCommand2Data = {
+  body?: {
+    command: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/tui/execute-command"
+}
+
+export type TuiExecuteCommand2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type TuiExecuteCommand2Error = TuiExecuteCommand2Errors[keyof TuiExecuteCommand2Errors]
+
+export type TuiExecuteCommand2Responses = {
+  /**
+   * Command executed successfully
+   */
+  200: boolean
+}
+
+export type TuiExecuteCommand2Response = TuiExecuteCommand2Responses[keyof TuiExecuteCommand2Responses]
+
+export type TuiShowToast2Data = {
+  body?: {
+    title?: string
+    message: string
+    variant: "info" | "success" | "warning" | "error"
+    /**
+     * Duration in milliseconds
+     */
+    duration?: number
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/tui/show-toast"
+}
+
+export type TuiShowToast2Responses = {
+  /**
+   * Toast notification shown successfully
+   */
+  200: boolean
+}
+
+export type TuiShowToast2Response = TuiShowToast2Responses[keyof TuiShowToast2Responses]
+
+export type TuiPublish2Data = {
+  body?:
+    | EventTuiProviderRefresh
+    | EventTuiPromptAppend
+    | EventTuiCommandExecute
+    | EventTuiToastShow
+    | EventTuiSessionSelect
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/tui/publish"
+}
+
+export type TuiPublish2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type TuiPublish2Error = TuiPublish2Errors[keyof TuiPublish2Errors]
+
+export type TuiPublish2Responses = {
+  /**
+   * Event published successfully
+   */
+  200: boolean
+}
+
+export type TuiPublish2Response = TuiPublish2Responses[keyof TuiPublish2Responses]
+
+export type TuiSelectSession2Data = {
+  body?: {
+    /**
+     * Session ID to navigate to
+     */
+    sessionID: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/tui/select-session"
+}
+
+export type TuiSelectSession2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type TuiSelectSession2Error = TuiSelectSession2Errors[keyof TuiSelectSession2Errors]
+
+export type TuiSelectSession2Responses = {
+  /**
+   * Session selected successfully
+   */
+  200: boolean
+}
+
+export type TuiSelectSession2Response = TuiSelectSession2Responses[keyof TuiSelectSession2Responses]
+
+export type TuiControlNext2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/tui/control/next"
+}
+
+export type TuiControlNext2Responses = {
+  /**
+   * Next TUI request
+   */
+  200: {
+    path: string
+    body: unknown
+  }
+}
+
+export type TuiControlNext2Response = TuiControlNext2Responses[keyof TuiControlNext2Responses]
+
+export type TuiControlResponse2Data = {
+  body?: unknown
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/tui/control/response"
+}
+
+export type TuiControlResponse2Responses = {
+  /**
+   * Response submitted successfully
+   */
+  200: boolean
+}
+
+export type TuiControlResponse2Response = TuiControlResponse2Responses[keyof TuiControlResponse2Responses]
+
+export type AccountQuotaHint3Data = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    providerId: string
+    modelID?: string
+    accountId?: string
+    format?: "footer" | "admin"
+  }
+  url: "/account/quota"
+}
+
+export type AccountQuotaHint3Responses = {
+  /**
+   * Quota hint
+   */
+  200: {
+    providerId: string
+    family: string
+    accountId?: string
+    hint?: string
+  }
+}
+
+export type AccountQuotaHint3Response = AccountQuotaHint3Responses[keyof AccountQuotaHint3Responses]
+
+export type AccountListAll3Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/account"
+}
+
+export type AccountListAll3Responses = {
+  /**
+   * List of accounts by family
+   */
+  200: {
+    families: {
+      [key: string]: {
+        activeAccount?: string
+        accounts: {
+          [key: string]:
+            | {
+                type: "api"
+                name: string
+                apiKey: string
+                addedAt: number
+                projectId?: string
+                metadata?: {
+                  [key: string]: unknown
+                }
+              }
+            | {
+                type: "subscription"
+                name: string
+                email?: string
+                refreshToken: string
+                accessToken?: string
+                expiresAt?: number
+                projectId?: string
+                managedProjectId?: string
+                accountId?: string
+                addedAt: number
+                metadata?: {
+                  [key: string]: unknown
+                }
+                rateLimitResetTimes?: {
+                  [key: string]: number
+                }
+                coolingDownUntil?: number
+                cooldownReason?: string
+                fingerprint?: {
+                  [key: string]: unknown
+                }
+              }
+        }
+      }
+    }
+  }
+}
+
+export type AccountListAll3Response = AccountListAll3Responses[keyof AccountListAll3Responses]
+
+export type AccountSetActive3Data = {
+  body?: {
+    accountId: string
+  }
+  path: {
+    family: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/account/{family}/active"
+}
+
+export type AccountSetActive3Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type AccountSetActive3Error = AccountSetActive3Errors[keyof AccountSetActive3Errors]
+
+export type AccountSetActive3Responses = {
+  /**
+   * Active account set successfully
+   */
+  200: boolean
+}
+
+export type AccountSetActive3Response = AccountSetActive3Responses[keyof AccountSetActive3Responses]
+
+export type AccountLogin3Data = {
+  body?: never
+  path: {
+    family: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/account/auth/{family}/login"
+}
+
+export type AccountLogin3Responses = {
+  /**
+   * Login URL info
+   */
+  200: unknown
+}
+
+export type AccountRemove3Data = {
+  body?: never
+  path: {
+    family: string
+    accountId: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/account/{family}/{accountId}"
+}
+
+export type AccountRemove3Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type AccountRemove3Error = AccountRemove3Errors[keyof AccountRemove3Errors]
+
+export type AccountRemove3Responses = {
+  /**
+   * Account removed successfully
+   */
+  200: boolean
+}
+
+export type AccountRemove3Response = AccountRemove3Responses[keyof AccountRemove3Responses]
+
+export type AccountUpdate3Data = {
+  body?: {
+    name: string
+  }
+  path: {
+    family: string
+    accountId: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/account/{family}/{accountId}"
+}
+
+export type AccountUpdate3Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type AccountUpdate3Error = AccountUpdate3Errors[keyof AccountUpdate3Errors]
+
+export type AccountUpdate3Responses = {
+  /**
+   * Account updated successfully
+   */
+  200: boolean
+}
+
+export type AccountUpdate3Response = AccountUpdate3Responses[keyof AccountUpdate3Responses]
+
+export type AccountQuotaHint4Data = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    providerId: string
+    modelID?: string
+    accountId?: string
+    format?: "footer" | "admin"
+  }
+  url: "/accounts/quota"
+}
+
+export type AccountQuotaHint4Responses = {
+  /**
+   * Quota hint
+   */
+  200: {
+    providerId: string
+    family: string
+    accountId?: string
+    hint?: string
+  }
+}
+
+export type AccountQuotaHint4Response = AccountQuotaHint4Responses[keyof AccountQuotaHint4Responses]
+
+export type AccountListAll4Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/accounts"
+}
+
+export type AccountListAll4Responses = {
+  /**
+   * List of accounts by family
+   */
+  200: {
+    families: {
+      [key: string]: {
+        activeAccount?: string
+        accounts: {
+          [key: string]:
+            | {
+                type: "api"
+                name: string
+                apiKey: string
+                addedAt: number
+                projectId?: string
+                metadata?: {
+                  [key: string]: unknown
+                }
+              }
+            | {
+                type: "subscription"
+                name: string
+                email?: string
+                refreshToken: string
+                accessToken?: string
+                expiresAt?: number
+                projectId?: string
+                managedProjectId?: string
+                accountId?: string
+                addedAt: number
+                metadata?: {
+                  [key: string]: unknown
+                }
+                rateLimitResetTimes?: {
+                  [key: string]: number
+                }
+                coolingDownUntil?: number
+                cooldownReason?: string
+                fingerprint?: {
+                  [key: string]: unknown
+                }
+              }
+        }
+      }
+    }
+  }
+}
+
+export type AccountListAll4Response = AccountListAll4Responses[keyof AccountListAll4Responses]
+
+export type AccountSetActive4Data = {
+  body?: {
+    accountId: string
+  }
+  path: {
+    family: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/accounts/{family}/active"
+}
+
+export type AccountSetActive4Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type AccountSetActive4Error = AccountSetActive4Errors[keyof AccountSetActive4Errors]
+
+export type AccountSetActive4Responses = {
+  /**
+   * Active account set successfully
+   */
+  200: boolean
+}
+
+export type AccountSetActive4Response = AccountSetActive4Responses[keyof AccountSetActive4Responses]
+
+export type AccountLogin4Data = {
+  body?: never
+  path: {
+    family: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/accounts/auth/{family}/login"
+}
+
+export type AccountLogin4Responses = {
+  /**
+   * Login URL info
+   */
+  200: unknown
+}
+
+export type AccountRemove4Data = {
+  body?: never
+  path: {
+    family: string
+    accountId: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/accounts/{family}/{accountId}"
+}
+
+export type AccountRemove4Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type AccountRemove4Error = AccountRemove4Errors[keyof AccountRemove4Errors]
+
+export type AccountRemove4Responses = {
+  /**
+   * Account removed successfully
+   */
+  200: boolean
+}
+
+export type AccountRemove4Response = AccountRemove4Responses[keyof AccountRemove4Responses]
+
+export type AccountUpdate4Data = {
+  body?: {
+    name: string
+  }
+  path: {
+    family: string
+    accountId: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/accounts/{family}/{accountId}"
+}
+
+export type AccountUpdate4Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type AccountUpdate4Error = AccountUpdate4Errors[keyof AccountUpdate4Errors]
+
+export type AccountUpdate4Responses = {
+  /**
+   * Account updated successfully
+   */
+  200: boolean
+}
+
+export type AccountUpdate4Response = AccountUpdate4Responses[keyof AccountUpdate4Responses]
+
+export type RotationStatus2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/rotation/status"
+}
+
+export type RotationStatus2Responses = {
+  /**
+   * Rotation status
+   */
+  200: {
+    accounts: Array<{
+      id: string
+      provider: string
+      family: string
+      type: "subscription" | "api" | "oauth"
+      healthScore: number
+      isRateLimited: boolean
+      rateLimitResetAt?: number
+      consecutiveFailures: number
+      lastSuccess?: number
+    }>
+    modelHealth: {
+      [key: string]: {
+        healthScore: number
+        isAvailable: boolean
+        lastRateLimit?: number
+      }
+    }
+    recommended: {
+      dialog?: {
+        providerId: string
+        accountId: string
+        modelID: string
+      }
+      task?: {
+        providerId: string
+        accountId: string
+        modelID: string
+      }
+      background?: {
+        providerId: string
+        accountId: string
+        modelID: string
+      }
+    }
+    timestamp: number
+  }
+}
+
+export type RotationStatus2Response = RotationStatus2Responses[keyof RotationStatus2Responses]
+
+export type RotationRecommend2Data = {
+  body?: {
+    taskType?: "dialog" | "task" | "background" | "coding" | "review"
+    preferSubscription?: boolean
+    currentVector?: {
+      providerId: string
+      accountId: string
+      modelID: string
+    }
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/rotation/recommend"
+}
+
+export type RotationRecommend2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type RotationRecommend2Error = RotationRecommend2Errors[keyof RotationRecommend2Errors]
+
+export type RotationRecommend2Responses = {
+  /**
+   * Recommended model vector
+   */
+  200: {
+    vector?: {
+      providerId: string
+      accountId: string
+      modelID: string
+    }
+    candidates: Array<{
+      vector: {
+        providerId: string
+        accountId: string
+        modelID: string
+      }
+      score: number
+      reason: string
+    }>
+    fallbackChain: Array<{
+      providerId: string
+      accountId: string
+      modelID: string
+    }>
+  }
+}
+
+export type RotationRecommend2Response = RotationRecommend2Responses[keyof RotationRecommend2Responses]
+
+export type RotationFallback2Data = {
+  body?: {
+    current: {
+      providerId: string
+      accountId: string
+      modelID: string
+    }
+    strategy?: "account-first" | "model-first" | "provider-first" | "any-available"
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/rotation/fallback"
+}
+
+export type RotationFallback2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type RotationFallback2Error = RotationFallback2Errors[keyof RotationFallback2Errors]
+
+export type RotationFallback2Responses = {
+  /**
+   * Fallback recommendation
+   */
+  200: {
+    fallback?: {
+      providerId: string
+      accountId: string
+      modelID: string
+    }
+    reason: string
+    waitTimeMs?: number
+  }
+}
+
+export type RotationFallback2Response = RotationFallback2Responses[keyof RotationFallback2Responses]
+
+export type ModelPreferencesGet2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/model/preferences"
+}
+
+export type ModelPreferencesGet2Responses = {
+  /**
+   * Model preferences
+   */
+  200: {
+    favorite: Array<{
+      providerId: string
+      modelID: string
+    }>
+    hidden: Array<{
+      providerId: string
+      modelID: string
+    }>
+    hiddenProviders: Array<string>
+  }
+}
+
+export type ModelPreferencesGet2Response = ModelPreferencesGet2Responses[keyof ModelPreferencesGet2Responses]
+
+export type ModelPreferencesUpdate2Data = {
+  body?: {
+    favorite: Array<{
+      providerId: string
+      modelID: string
+    }>
+    hidden: Array<{
+      providerId: string
+      modelID: string
+    }>
+    hiddenProviders: Array<string>
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/model/preferences"
+}
+
+export type ModelPreferencesUpdate2Responses = {
+  /**
+   * Updated model preferences
+   */
+  200: {
+    favorite: Array<{
+      providerId: string
+      modelID: string
+    }>
+    hidden: Array<{
+      providerId: string
+      modelID: string
+    }>
+    hiddenProviders: Array<string>
+  }
+}
+
+export type ModelPreferencesUpdate2Response = ModelPreferencesUpdate2Responses[keyof ModelPreferencesUpdate2Responses]
+
+export type FindText2Data = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    pattern: string
+  }
+  url: "/find"
+}
+
+export type FindText2Responses = {
+  /**
+   * Matches
+   */
+  200: Array<{
+    path: {
+      text: string
+    }
+    lines: {
+      text: string
+    }
+    line_number: number
+    absolute_offset: number
+    submatches: Array<{
+      match: {
+        text: string
+      }
+      start: number
+      end: number
+    }>
+  }>
+}
+
+export type FindText2Response = FindText2Responses[keyof FindText2Responses]
+
+export type FindFiles2Data = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    query: string
+    dirs?: "true" | "false"
+    type?: "file" | "directory"
+    limit?: number
+  }
+  url: "/find/file"
+}
+
+export type FindFiles2Responses = {
+  /**
+   * File paths
+   */
+  200: Array<string>
+}
+
+export type FindFiles2Response = FindFiles2Responses[keyof FindFiles2Responses]
+
+export type FindSymbols2Data = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    query: string
+  }
+  url: "/find/symbol"
+}
+
+export type FindSymbols2Responses = {
+  /**
+   * Symbols
+   */
+  200: Array<Symbol>
+}
+
+export type FindSymbols2Response = FindSymbols2Responses[keyof FindSymbols2Responses]
+
+export type FileList2Data = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    path: string
+  }
+  url: "/file"
+}
+
+export type FileList2Responses = {
+  /**
+   * Files and directories
+   */
+  200: Array<FileNode>
+}
+
+export type FileList2Response = FileList2Responses[keyof FileList2Responses]
+
+export type FileRead2Data = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    path: string
+  }
+  url: "/file/content"
+}
+
+export type FileRead2Responses = {
+  /**
+   * File content
+   */
+  200: FileContent
+}
+
+export type FileRead2Response = FileRead2Responses[keyof FileRead2Responses]
+
+export type FileStatus2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/file/status"
+}
+
+export type FileStatus2Responses = {
+  /**
+   * File status
+   */
+  200: Array<File>
+}
+
+export type FileStatus2Response = FileStatus2Responses[keyof FileStatus2Responses]
+
+export type InstanceDispose2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/instance/dispose"
+}
+
+export type InstanceDispose2Responses = {
+  /**
+   * Instance disposed
+   */
+  200: boolean
+}
+
+export type InstanceDispose2Response = InstanceDispose2Responses[keyof InstanceDispose2Responses]
+
+export type PathGet2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/path"
+}
+
+export type PathGet2Responses = {
+  /**
+   * Path
+   */
+  200: Path
+}
+
+export type PathGet2Response = PathGet2Responses[keyof PathGet2Responses]
+
+export type VcsGet2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/vcs"
+}
+
+export type VcsGet2Responses = {
+  /**
+   * VCS info
+   */
+  200: VcsInfo
+}
+
+export type VcsGet2Response = VcsGet2Responses[keyof VcsGet2Responses]
+
+export type CommandList2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/command"
+}
+
+export type CommandList2Responses = {
+  /**
+   * List of commands
+   */
+  200: Array<Command>
+}
+
+export type CommandList2Response = CommandList2Responses[keyof CommandList2Responses]
+
+export type AppLog2Data = {
+  body?: {
+    /**
+     * Service name for the log entry
+     */
+    service: string
+    /**
+     * Log level
+     */
+    level: "debug" | "info" | "error" | "warn"
+    /**
+     * Log message
+     */
+    message: string
+    /**
+     * Additional metadata for the log entry
+     */
+    extra?: {
+      [key: string]: unknown
+    }
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/log"
+}
+
+export type AppLog2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type AppLog2Error = AppLog2Errors[keyof AppLog2Errors]
+
+export type AppLog2Responses = {
+  /**
+   * Log entry written successfully
+   */
+  200: boolean
+}
+
+export type AppLog2Response = AppLog2Responses[keyof AppLog2Responses]
+
+export type AppAgents2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/agent"
+}
+
+export type AppAgents2Responses = {
+  /**
+   * List of agents
+   */
+  200: Array<Agent>
+}
+
+export type AppAgents2Response = AppAgents2Responses[keyof AppAgents2Responses]
+
+export type AppSkills2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/skill"
+}
+
+export type AppSkills2Responses = {
+  /**
+   * List of skills
+   */
+  200: Array<{
+    name: string
+    description: string
+    location: string
+    content: string
+  }>
+}
+
+export type AppSkills2Response = AppSkills2Responses[keyof AppSkills2Responses]
+
+export type LspStatus2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/lsp"
+}
+
+export type LspStatus2Responses = {
+  /**
+   * LSP server status
+   */
+  200: Array<LspStatus>
+}
+
+export type LspStatus2Response = LspStatus2Responses[keyof LspStatus2Responses]
+
+export type FormatterStatus2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/formatter"
+}
+
+export type FormatterStatus2Responses = {
+  /**
+   * Formatter status
+   */
+  200: Array<FormatterStatus>
+}
+
+export type FormatterStatus2Response = FormatterStatus2Responses[keyof FormatterStatus2Responses]
+
+export type EventSubscribe2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/event"
+}
+
+export type EventSubscribe2Responses = {
+  /**
+   * Event stream
+   */
+  200: Event
+}
+
+export type EventSubscribe2Response = EventSubscribe2Responses[keyof EventSubscribe2Responses]
