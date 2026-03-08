@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { buildAccountRows, buildProviderRows, filterModelsForMode } from "./model-selector-state"
+import { buildAccountRows, buildProviderRows, filterModelsForMode, pickSelectedAccount } from "./model-selector-state"
 
 describe("model selector state", () => {
   test("provider rows are built from provider universe and account families", () => {
@@ -73,6 +73,43 @@ describe("model selector state", () => {
     expect(after.map((row) => row.id)).toEqual(["acct1", "acct2"])
     expect(before.find((row) => row.id === "acct1")?.active).toBe(true)
     expect(after.find((row) => row.id === "acct2")?.active).toBe(true)
+  })
+
+  test("pickSelectedAccount preserves current selection across active-account changes", () => {
+    const before = [
+      { id: "acct1", active: true },
+      { id: "acct2", active: false },
+    ]
+    const after = [
+      { id: "acct1", active: false },
+      { id: "acct2", active: true },
+    ]
+
+    expect(
+      pickSelectedAccount({
+        selectedAccountId: "acct1",
+        accounts: before,
+      }),
+    ).toBe("acct1")
+
+    expect(
+      pickSelectedAccount({
+        selectedAccountId: "acct1",
+        accounts: after,
+      }),
+    ).toBe("acct1")
+  })
+
+  test("pickSelectedAccount falls back to active account when selection disappears", () => {
+    expect(
+      pickSelectedAccount({
+        selectedAccountId: "acct-missing",
+        accounts: [
+          { id: "acct1", active: false },
+          { id: "acct2", active: true },
+        ],
+      }),
+    ).toBe("acct2")
   })
 
   test("favorites mode only keeps visible models in selected provider family", () => {
