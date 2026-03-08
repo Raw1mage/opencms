@@ -572,6 +572,18 @@ export default function Layout(props: ParentProps) {
   const workspaceLabel = (directory: string, branch?: string, projectId?: string) =>
     workspaceName(directory, projectId, branch) ?? branch ?? getFilename(directory)
 
+  async function transitionWorkspaceLifecycle(input: {
+    directory: string
+    action: "reset" | "delete" | "archive" | "active" | "failed"
+  }) {
+    const [store] = globalSync.child(input.directory, { bootstrap: false })
+    const workspaceID = store.workspace?.workspaceId
+    if (!workspaceID) return
+    await globalSDK.fetch(`${globalSDK.url}/api/v2/workspace/${workspaceID}/${input.action}`, {
+      method: "POST",
+    })
+  }
+
   const workspaceSetting = createMemo(() => {
     const project = currentProject()
     if (!project) return false
@@ -1261,6 +1273,7 @@ export default function Layout(props: ParentProps) {
     if (directory === root) return
 
     setBusy(directory, true)
+    await transitionWorkspaceLifecycle({ directory, action: "delete" }).catch(() => undefined)
 
     const result = await globalSDK.client.worktree
       .remove({ directory: root, worktreeRemoveInput: { directory } })
@@ -1270,12 +1283,15 @@ export default function Layout(props: ParentProps) {
           title: language.t("workspace.delete.failed.title"),
           description: errorMessage(err, language.t("common.requestFailed")),
         })
+        void transitionWorkspaceLifecycle({ directory, action: "failed" }).catch(() => undefined)
         return false
       })
 
     setBusy(directory, false)
 
     if (!result) return
+
+    await transitionWorkspaceLifecycle({ directory, action: "archive" }).catch(() => undefined)
 
     globalSync.set(
       "project",
@@ -1298,6 +1314,7 @@ export default function Layout(props: ParentProps) {
   const resetWorkspace = async (root: string, directory: string) => {
     if (directory === root) return
     setBusy(directory, true)
+    await transitionWorkspaceLifecycle({ directory, action: "reset" }).catch(() => undefined)
 
     const progress = showToast({
       persistent: true,
@@ -1326,6 +1343,7 @@ export default function Layout(props: ParentProps) {
           title: language.t("workspace.reset.failed.title"),
           description: errorMessage(err, language.t("common.requestFailed")),
         })
+        void transitionWorkspaceLifecycle({ directory, action: "failed" }).catch(() => undefined)
         return false
       })
 
@@ -1352,6 +1370,8 @@ export default function Layout(props: ParentProps) {
 
     setBusy(directory, false)
     dismiss()
+
+    await transitionWorkspaceLifecycle({ directory, action: "active" }).catch(() => undefined)
 
     showToast({
       title: language.t("workspace.reset.success.title"),

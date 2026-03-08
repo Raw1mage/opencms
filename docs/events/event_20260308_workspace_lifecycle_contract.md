@@ -58,11 +58,19 @@ Status: Done
   - `POST /workspace/:workspaceID/archive`
   - `POST /workspace/:workspaceID/active`
   - `POST /workspace/:workspaceID/failed`
-- 本輪刻意只建立 server-side contract，不直接搬遷 app `layout.tsx` 的完整 reset/delete 編排。
+- `packages/app/src/pages/layout.tsx` 現在已開始對接 lifecycle contract：
+  - reset 前標記 `reset`
+  - delete 前標記 `delete`
+  - reset/delete 失敗時標記 `failed`
+  - reset 成功後標記 `active`
+  - delete 成功後標記 `archive`
+- 本輪仍未完整搬遷 app reset/delete 的全部業務邏輯，只是讓既有 UX 開始對接 runtime lifecycle state transition。
 
 ### Validation
 
 - `bun test packages/opencode/test/project/workspace-resolver.test.ts packages/opencode/test/project/workspace-attachments.test.ts packages/opencode/test/project/workspace-service.test.ts packages/opencode/test/project/workspace-lifecycle.test.ts` ✅
 - `bun run --cwd packages/opencode typecheck` ✅
+- `bun run typecheck` (in `packages/app`) ✅
 - Architecture Sync: Updated
   - 已同步 architecture file map，註記 workspace kernel 現在包含 lifecycle contract，workspace route 也包含 lifecycle transition endpoints。
+  - 已同步 app `pages/layout.tsx`，註記 reset/delete UX 開始對接 runtime lifecycle contract。
