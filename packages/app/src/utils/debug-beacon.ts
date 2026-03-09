@@ -1,5 +1,6 @@
 import type { useSDK } from "@/context/sdk"
 
+const SESSION_RELOAD_DEBUG_ENABLED = false
 const RECENT_TTL_MS = 2_000
 const recent = new Map<string, number>()
 
@@ -25,6 +26,8 @@ function shouldSend(key: string) {
 
 export function sendSessionReloadDebugBeacon(input: BeaconInput) {
   if (typeof window === "undefined") return
+  // Debug beacon kept for future RCA; disabled during normal operation.
+  if (!SESSION_RELOAD_DEBUG_ENABLED) return
   const body = {
     source: "app.session-reload",
     event: input.event,

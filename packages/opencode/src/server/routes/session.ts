@@ -23,6 +23,13 @@ import { UserDaemonManager } from "../user-daemon"
 import { debugCheckpoint } from "@/util/debug"
 
 const log = Log.create({ service: "server" })
+const SESSION_ROUTE_DEBUG_ENABLED = false
+
+function sessionRouteDebug(event: string, data: Record<string, unknown>) {
+  // Kept for future RCA; disabled during normal operation.
+  if (!SESSION_ROUTE_DEBUG_ENABLED) return
+  debugCheckpoint("session.route", event, data)
+}
 
 export const SessionRoutes = lazy(() =>
   new Hono()
@@ -106,12 +113,12 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const username = RequestUser.username()
         log.debug("session.status request", { username: username ?? "local" })
-        debugCheckpoint("session.route", "session.status request", { username: username ?? "local" })
+        sessionRouteDebug("session.status request", { username: username ?? "local" })
         if (username && UserDaemonManager.routeSessionStatusEnabled()) {
           const response =
             await UserDaemonManager.callSessionStatus<Record<string, z.infer<typeof SessionStatus.Info>>>(username)
           if (response.ok && response.data && typeof response.data === "object") {
-            debugCheckpoint("session.route", "session.status response", {
+            sessionRouteDebug("session.status response", {
               username,
               count: Object.keys(response.data).length,
               active: Object.entries(response.data)
@@ -136,7 +143,7 @@ export const SessionRoutes = lazy(() =>
           )
         }
         const result = SessionStatus.list()
-        debugCheckpoint("session.route", "session.status response", {
+        sessionRouteDebug("session.status response", {
           username: "local",
           count: Object.keys(result).length,
           active: Object.entries(result)
@@ -242,7 +249,7 @@ export const SessionRoutes = lazy(() =>
         const sessionID = c.req.valid("param").sessionID
         const username = RequestUser.username()
         log.debug("session.get request", { sessionID, username: username ?? "local" })
-        debugCheckpoint("session.route", "session.get request", {
+        sessionRouteDebug("session.get request", {
           sessionID,
           username: username ?? "local",
         })
@@ -259,7 +266,7 @@ export const SessionRoutes = lazy(() =>
         }
         log.info("SEARCH", { url: c.req.url })
         const session = await Session.get(sessionID)
-        debugCheckpoint("session.route", "session.get response", {
+        sessionRouteDebug("session.get response", {
           sessionID,
           found: !!session,
           directory: session?.directory,
@@ -906,7 +913,7 @@ export const SessionRoutes = lazy(() =>
           limit: query.limit,
           username: username ?? "local",
         })
-        debugCheckpoint("session.route", "session.messages request", {
+        sessionRouteDebug("session.messages request", {
           sessionID,
           limit: query.limit,
           username: username ?? "local",
@@ -930,7 +937,7 @@ export const SessionRoutes = lazy(() =>
           sessionID,
           limit: query.limit,
         })
-        debugCheckpoint("session.route", "session.messages response", {
+        sessionRouteDebug("session.messages response", {
           sessionID,
           count: messages.length,
           limit: query.limit,

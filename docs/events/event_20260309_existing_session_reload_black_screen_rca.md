@@ -185,3 +185,4 @@ Status: Done
   - 移除該 hydrate effect 的 `{ defer: true }`
   - 保留既有 `initialHydratedSessionID` guard，避免重複 force sync
   - 讓 existing-session direct reload 在 mount 當下就能觸發一次 `sync.session.sync(...)`
+- 收尾階段已將本輪新增的 debug-log instrumentation 先行停用（保留程式碼、以 flag/no-op 方式 mark out），避免日常操作持續寫入 debug.log；未來若需再次做 RCA，可直接重新開啟。

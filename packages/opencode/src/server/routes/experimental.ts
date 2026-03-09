@@ -16,6 +16,14 @@ import { RequestUser } from "@/runtime/request-user"
 import { git } from "@/util/git"
 import { debugCheckpoint } from "@/util/debug"
 
+const EXPERIMENTAL_DEBUG_BEACON_ENABLED = false
+
+function experimentalDebugBeacon(event: string, data: Record<string, unknown>) {
+  // Kept for future RCA; disabled during normal operation.
+  if (!EXPERIMENTAL_DEBUG_BEACON_ENABLED) return
+  debugCheckpoint("web.debug", event, data)
+}
+
 function isZodSchemaLike(value: unknown): value is z.ZodType {
   return !!value && typeof value === "object" && "_def" in value
 }
@@ -52,7 +60,7 @@ export const ExperimentalRoutes = lazy(() =>
       ),
       async (c) => {
         const body = c.req.valid("json")
-        debugCheckpoint("web.debug", body.event, {
+        experimentalDebugBeacon(body.event, {
           source: body.source ?? "web",
           requestUser: RequestUser.username() ?? "local",
           resolvedDirectory: Instance.directory,
