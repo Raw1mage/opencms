@@ -35,6 +35,7 @@ import { resolveImageRequest, stripImageParts } from "./image-router"
 import { TaskTool } from "@/tool/task"
 import { ToolInvoker } from "./tool-invoker"
 import { PermissionNext } from "@/permission/next"
+import { Question } from "@/question"
 import { SessionStatus } from "./status"
 import {
   assertNotBusy as assertNotBusyRuntime,
@@ -67,6 +68,7 @@ import {
   shouldInterruptAutonomousRun,
 } from "./workflow-runner"
 import {
+  annotateSmartRunnerAskUserAdoption,
   annotateSmartRunnerReplanAdoption,
   annotateSmartRunnerTraceAssist,
   annotateSmartRunnerTraceSuggestion,
@@ -267,6 +269,28 @@ export namespace SessionPrompt {
       lastUserSynthetic,
       hasPendingContinuation: !!pending,
     })
+  }
+
+  function buildSmartRunnerQuestion(input: {
+    suggestion: NonNullable<Awaited<ReturnType<typeof annotateSmartRunnerTraceSuggestion>>["suggestion"]>
+  }): Question.Info | undefined {
+    const proposed =
+      input.suggestion.askUserAdoption?.proposedQuestion ??
+      input.suggestion.askUserHandoff?.question ??
+      input.suggestion.draftQuestion
+    const question = proposed?.trim()
+    if (!question) return undefined
+    return {
+      question,
+      header: "Decision needed",
+      options: [],
+      custom: true,
+    }
+  }
+
+  function formatSmartRunnerQuestionAnswers(input: { question: Question.Info; answers: Question.Answer[] }) {
+    const answer = input.answers[0]?.length ? input.answers[0].join(", ") : "Unanswered"
+    return `User answered Smart Runner question \"${input.question.question}\" with: ${answer}. Continue with this answer in mind.`
   }
 
   async function runLoop(sessionID: string, options?: { replaceRuntime?: boolean }) {
@@ -764,6 +788,81 @@ export namespace SessionPrompt {
             messages: msgs,
           })
           const suggestedTrace = annotateSmartRunnerTraceSuggestion({ trace })
+          let traceForAssist = suggestedTrace
+          const currentPendingQuestions = (await Question.list()).filter((item) => item.sessionID === sessionID).length
+          const askUserQuestion = suggestedTrace.suggestion ? buildSmartRunnerQuestion({ suggestion: suggestedTrace.suggestion }) : undefined
+          const askUserPolicy = suggestedTrace.suggestion?.askUserAdoption?.policy
+          const askUserReason = !suggestedTrace.suggestion?.askUserAdoption
+            ? undefined
+            : !askUserQuestion
+              ? ("missing_question" as const)
+              : askUserPolicy?.adoptionMode !== "user_confirm_required"
+                ? ("policy_not_user_confirm_required" as const)
+                : askUserPolicy?.requiresUserConfirm !== true
+                  ? ("user_confirm_missing" as const)
+                  : askUserPolicy?.requiresHostReview === false
+                    ? ("host_review_missing" as const)
+                    : currentPendingQuestions > 0
+                      ? ("question_already_pending" as const)
+                      : ("adopted" as const)
+
+          if (suggestedTrace.suggestion?.kind === "ask_user" && askUserReason) {
+            traceForAssist = annotateSmartRunnerAskUserAdoption({
+              trace: suggestedTrace,
+              adopted: askUserReason === "adopted",
+              reason: askUserReason,
+            })
+            if (askUserReason === "adopted" && askUserQuestion) {
+              await persistSmartRunnerGovernorTrace({
+                sessionID,
+                trace: traceForAssist,
+              })
+              try {
+                const answers = await Question.ask({
+                  sessionID,
+                  questions: [askUserQuestion],
+                })
+                const userMsg: MessageV2.User = {
+                  id: Identifier.ascending("message"),
+                  sessionID,
+                  role: "user",
+                  time: { created: Date.now() },
+                  agent: lastUser.agent,
+                  model: lastUser.model,
+                  variant: lastUser.variant,
+                  format: lastUser.format,
+                }
+                await Session.updateMessage(userMsg)
+                await Session.updatePart({
+                  id: Identifier.ascending("part"),
+                  messageID: userMsg.id,
+                  sessionID,
+                  type: "text",
+                  text: formatSmartRunnerQuestionAnswers({ question: askUserQuestion, answers }),
+                  synthetic: true,
+                } satisfies MessageV2.TextPart)
+                continue
+              } catch (error) {
+                const rejectedTrace = annotateSmartRunnerAskUserAdoption({
+                  trace: traceForAssist,
+                  adopted: true,
+                  reason: error instanceof Question.RejectedError ? "question_rejected" : "adopted",
+                })
+                await persistSmartRunnerGovernorTrace({
+                  sessionID,
+                  trace: rejectedTrace,
+                })
+                await Session.setWorkflowState({
+                  sessionID,
+                  state: "waiting_user",
+                  stopReason: "product_decision_needed",
+                  lastRunAt: Date.now(),
+                })
+                break
+              }
+            }
+          }
+
           const adoptedReplan = Todo.applyHostAdoptedReplan(todos, suggestedTrace.suggestion?.replanAdoption)
           const adoptedDecision = adoptedReplan.adopted
             ? await (async () => {
@@ -778,11 +877,11 @@ export namespace SessionPrompt {
           const assist = applySmartRunnerBoundedAssist({
             enabled: smartRunnerGovernor.assist,
             decision: adoptedDecision,
-            trace: suggestedTrace,
+            trace: traceForAssist,
           })
           const tracedAssist = annotateSmartRunnerTraceAssist({
             trace: annotateSmartRunnerReplanAdoption({
-              trace: suggestedTrace,
+              trace: traceForAssist,
               adopted: adoptedReplan.adopted,
               reason: adoptedReplan.reason,
             }),

@@ -189,6 +189,8 @@ type WorkflowLikeSession = {
               requiresUserConfirm?: boolean
               requiresHostReview?: boolean
             }
+            hostAdopted?: boolean
+            hostAdoptionReason?: string
           }
           replanRequest?: {
             targetTodoID?: string
@@ -209,6 +211,8 @@ type WorkflowLikeSession = {
               requiresUserConfirm?: boolean
               requiresHostReview?: boolean
             }
+            hostAdopted?: boolean
+            hostAdoptionReason?: string
           }
         }
         decision?: {
@@ -562,6 +566,11 @@ export const getSessionStatusSummary = (input: {
           `Ask-user policy: ${supervisor.lastGovernorTrace.suggestion.askUserAdoption.policy.adoptionMode}${supervisor.lastGovernorTrace.suggestion.askUserAdoption.policy.trustLevel ? ` (${supervisor.lastGovernorTrace.suggestion.askUserAdoption.policy.trustLevel})` : ""}`,
         )
       }
+      if (supervisor.lastGovernorTrace.suggestion.askUserAdoption.hostAdoptionReason) {
+        debugLines.push(
+          `Ask-user adoption: ${supervisor.lastGovernorTrace.suggestion.askUserAdoption.hostAdoptionReason.replaceAll("_", " ")}`,
+        )
+      }
     }
     if (
       supervisor.lastGovernorTrace.suggestion.kind === "replan" &&
@@ -608,7 +617,9 @@ export const getSessionStatusSummary = (input: {
       : undefined,
     draftQuestion: trace.suggestion?.draftQuestion,
     askUserHandoff: trace.suggestion?.askUserHandoff?.blockingDecision,
-    askUserAdoption: trace.suggestion?.askUserAdoption?.proposalID,
+    askUserAdoption: trace.suggestion?.askUserAdoption?.proposalID
+      ? `${trace.suggestion.askUserAdoption.proposalID}${trace.suggestion.askUserAdoption.hostAdopted ? " · adopted" : ""}`
+      : undefined,
     replanRequest: trace.suggestion?.replanRequest?.proposedNextStep,
     replanAdoption: trace.suggestion?.replanAdoption?.proposalID
       ? `${trace.suggestion.replanAdoption.proposalID}${trace.suggestion.replanAdoption.hostAdopted ? " · adopted" : ""}`
@@ -618,11 +629,15 @@ export const getSessionStatusSummary = (input: {
       : trace.suggestion?.replanAdoption?.policy?.adoptionMode
         ? `${trace.suggestion.replanAdoption.policy.adoptionMode}${trace.suggestion.replanAdoption.policy.trustLevel ? ` · ${trace.suggestion.replanAdoption.policy.trustLevel}` : ""}`
         : undefined,
-    adoptionOutcome: trace.suggestion?.replanAdoption?.hostAdoptionReason
-      ? trace.suggestion.replanAdoption.hostAdoptionReason === "adopted"
+    adoptionOutcome: trace.suggestion?.askUserAdoption?.hostAdoptionReason
+      ? trace.suggestion.askUserAdoption.hostAdoptionReason === "adopted"
         ? "adopted"
-        : `not adopted · ${trace.suggestion.replanAdoption.hostAdoptionReason.replaceAll("_", " ")}`
-      : undefined,
+        : `not adopted · ${trace.suggestion.askUserAdoption.hostAdoptionReason.replaceAll("_", " ")}`
+      : trace.suggestion?.replanAdoption?.hostAdoptionReason
+        ? trace.suggestion.replanAdoption.hostAdoptionReason === "adopted"
+          ? "adopted"
+          : `not adopted · ${trace.suggestion.replanAdoption.hostAdoptionReason.replaceAll("_", " ")}`
+        : undefined,
     error: trace.error,
   }))
   const smartRunnerSummary = buildSmartRunnerSummary(supervisor?.governorTraceHistory ?? [])

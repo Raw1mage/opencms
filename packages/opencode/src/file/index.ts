@@ -562,12 +562,21 @@ export namespace File {
     return await Bun.readableStreamToText(input)
   }
 
-  export async function status() {
+  export async function status(input?: { paths?: string[] }) {
     const project = Instance.project
     if (project.vcs !== "git") return []
 
+    const requestedPaths = [
+      ...new Set(
+        (input?.paths ?? []).map((item) =>
+          path.relative(Instance.directory, path.join(Instance.directory, item)).replaceAll("\\", "/"),
+        ),
+      ),
+    ].filter(Boolean)
+    const withPathspec = (args: string[]) => (requestedPaths.length > 0 ? [...args, "--", ...requestedPaths] : args)
+
     const diffResult = await git(
-      ["-c", "safe.directory=*", "-c", "core.quotepath=false", "diff", "--numstat", "HEAD"],
+      withPathspec(["-c", "safe.directory=*", "-c", "core.quotepath=false", "diff", "--numstat", "HEAD"]),
       {
         cwd: Instance.directory,
       },
@@ -590,7 +599,15 @@ export namespace File {
     }
 
     const untrackedResult = await git(
-      ["-c", "safe.directory=*", "-c", "core.quotepath=false", "ls-files", "--others", "--exclude-standard"],
+      withPathspec([
+        "-c",
+        "safe.directory=*",
+        "-c",
+        "core.quotepath=false",
+        "ls-files",
+        "--others",
+        "--exclude-standard",
+      ]),
       { cwd: Instance.directory },
     )
     const untrackedOutput = await untrackedResult.text()
@@ -615,7 +632,16 @@ export namespace File {
 
     // Get deleted files
     const deletedResult = await git(
-      ["-c", "safe.directory=*", "-c", "core.quotepath=false", "diff", "--name-only", "--diff-filter=D", "HEAD"],
+      withPathspec([
+        "-c",
+        "safe.directory=*",
+        "-c",
+        "core.quotepath=false",
+        "diff",
+        "--name-only",
+        "--diff-filter=D",
+        "HEAD",
+      ]),
       { cwd: Instance.directory },
     )
     const deletedOutput = await deletedResult.text()

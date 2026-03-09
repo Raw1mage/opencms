@@ -762,3 +762,66 @@ Validation（adoption observability）:
 - 結果：session trace / debug / history 現在不只會顯示 `hostAdopted`，也會顯示 `hostAdoptionReason`，例如 `adopted`、`active_todo_in_progress`、`approval_gate`。因此 host policy 行為對人類可解釋，但 Smart Runner 仍沒有直接 mutation 權限。
 - Architecture Sync: Updated
   - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 `hostAdoptionReason` observability contract
+
+### Current Slice (deterministic host adoption for ask-user)
+
+需求：既然 `ask_user` proposal 已具備 `user_confirm_required` policy，下一步要讓 deterministic host 能在受控條件下真正採納 proposal，將它轉成實際 question flow，而不是永遠停留在 advisory trace。
+
+範圍：
+
+- IN
+  - 為 `askUserAdoption` 增加 deterministic host adoption path
+  - 僅允許 `user_confirm_required` 且仍需 host review 的 proposal 被採納
+  - 將 adoption 結果與 rejection outcome 回寫到 trace / session status history
+- OUT
+  - 不讓 Smart Runner 直接建立問題或繞過 host review
+  - 不繞過既有 workflow stop / approval gates
+  - 不處理 `helpers.test.ts` 既存 DOM-less 測試基礎設施問題
+
+任務清單：
+
+- [x] 在 prompt loop 中接上 ask-user host adoption path，採用 `Question.ask(...)` 實際提出問題
+- [x] 在回答後以 synthetic user turn 將答案送回主 loop 並繼續
+- [x] 在拒答/dismiss 時將 workflow 切到 `waiting_user` / `product_decision_needed`
+- [x] 在 trace / session status 顯示 ask-user proposal 是否被採納與原因
+- [x] 補齊 ask-user adoption observability tests / helper coverage
+
+Validation（deterministic host adoption for ask-user）:
+
+- `bun x eslint /home/pkcs12/projects/opencode/packages/opencode/src/session/prompt.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/session-side-panel.tsx` ✅
+- `bun test /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts`
+  - Smart Runner ask-user adoption / observability assertions 通過
+  - `helpers.test.ts` 仍有既存 DOM-less 失敗（`document is not defined`），集中在 `focusTerminalById`，與本輪 ask-user adoption 修改無關
+- 結果：`askUserAdoption.policy.adoptionMode = user_confirm_required` 的 proposal 現在可在 deterministic host 審核下被採納；runtime 會用 `Question.ask(...)` 發出真實問題、在回答後以 synthetic user message 恢復主 loop，並在拒答時停在 `waiting_user` / `product_decision_needed`。Smart Runner 仍只提供 proposal，本身沒有直接 question-flow authority。
+- Architecture Sync: Updated
+  - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 deterministic host adoption for ask-user contract
+
+### Current Slice (session-scoped Changes contract fix)
+
+需求：sidebar / session `Changes` 必須盤點 current session 的 uncommitted files，而不是從 whole-workspace dirty files 起算後再把結果誤用成 session count。
+
+範圍：
+
+- IN
+  - 將 session-owned dirty diff 的語義明確收斂為：先算 session-owned candidate files，再只查這批檔案的 uncommitted 狀態
+  - 保留 `session.diff(messageID)` 的 message-level review semantics
+  - 保留 `file.status` 作為 workspace-wide primitive
+- OUT
+  - 不改 message summary diff schema
+  - 不改 plain workspace diagnostics / raw git status API 的用途
+
+任務清單：
+
+- [x] 釐清 `Changes` 顯示路徑與 `session.diff` / `file.status` 邊界
+- [x] 修正 session-owned dirty diff 的來源，避免先掃 whole workspace 再拿來當 session count base
+- [x] 補 session-owned candidate files 與 scoped file status tests
+
+Validation（session-scoped Changes contract fix）:
+
+- `bun x eslint /home/pkcs12/projects/opencode/packages/opencode/src/file/index.ts /home/pkcs12/projects/opencode/packages/opencode/src/project/workspace/owned-diff.ts /home/pkcs12/projects/opencode/packages/opencode/src/project/workspace/owned-diff.test.ts` ✅
+- `bun test /home/pkcs12/projects/opencode/packages/opencode/src/project/workspace/owned-diff.test.ts` ✅
+  - 驗證 `collectOwnedSessionCandidateFiles(...)` 只保留同時存在於 tool-touch 與 latest summary diff 的 session-owned files
+  - 驗證 `File.status({ paths })` 只回傳指定 candidate files 的 uncommitted 狀態，不再把同 repo 其他 dirty files 混入 session count base
+- 結果：`session.diff` 現在改成先從 session-owned candidate files 出發，再對這些檔案查 git dirty state；因此 sidebar / session `Changes` 的 count contract 重新對齊為 current session uncommitted files。
+- Architecture Sync: Updated
+  - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 canonical per-session `Changes` source 的兩階段 contract

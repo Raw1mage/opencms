@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test"
 import { Session } from "."
 import {
+  annotateSmartRunnerAskUserAdoption,
   annotateSmartRunnerReplanAdoption,
   annotateSmartRunnerTraceSuggestion,
   annotateSmartRunnerTraceAssist,
@@ -351,6 +352,72 @@ describe("Smart Runner Governor", () => {
 
     expect(trace.suggestion?.replanAdoption?.hostAdopted).toBe(false)
     expect(trace.suggestion?.replanAdoption?.hostAdoptionReason).toBe("dependencies_not_ready")
+  })
+
+  it("marks when an ask-user proposal was host-adopted", () => {
+    const trace = annotateSmartRunnerAskUserAdoption({
+      adopted: true,
+      reason: "adopted",
+      trace: annotateSmartRunnerTraceSuggestion({
+        trace: {
+          source: "smart_runner_governor",
+          dryRun: true,
+          status: "advisory",
+          createdAt: 1,
+          deterministicReason: "todo_pending",
+          decision: {
+            situation: "waiting_for_human",
+            assessment: "Needs clarification",
+            decision: "ask_user",
+            reason: "The next step depends on a product choice the current context does not resolve",
+            nextAction: {
+              kind: "request_user_input",
+              todoID: "t3",
+              skillHints: [],
+              narration: "Suggesting a user clarification before continuing.",
+            },
+            needsUserInput: true,
+            confidence: "high",
+          },
+        },
+      }),
+    })
+
+    expect(trace.suggestion?.askUserAdoption?.hostAdopted).toBe(true)
+    expect(trace.suggestion?.askUserAdoption?.hostAdoptionReason).toBe("adopted")
+  })
+
+  it("records non-adopted ask-user reasons for host observability", () => {
+    const trace = annotateSmartRunnerAskUserAdoption({
+      adopted: false,
+      reason: "question_already_pending",
+      trace: annotateSmartRunnerTraceSuggestion({
+        trace: {
+          source: "smart_runner_governor",
+          dryRun: true,
+          status: "advisory",
+          createdAt: 1,
+          deterministicReason: "todo_pending",
+          decision: {
+            situation: "waiting_for_human",
+            assessment: "Needs clarification",
+            decision: "ask_user",
+            reason: "The next step depends on a product choice the current context does not resolve",
+            nextAction: {
+              kind: "request_user_input",
+              todoID: "t3",
+              skillHints: [],
+              narration: "Suggesting a user clarification before continuing.",
+            },
+            needsUserInput: true,
+            confidence: "high",
+          },
+        },
+      }),
+    })
+
+    expect(trace.suggestion?.askUserAdoption?.hostAdopted).toBe(false)
+    expect(trace.suggestion?.askUserAdoption?.hostAdoptionReason).toBe("question_already_pending")
   })
 
   it("annotates ask-user suggestions without changing control flow", () => {

@@ -3,19 +3,26 @@ import { Instance } from "@/project/instance"
 import { Session } from "@/session"
 import { MessageV2 } from "@/session/message-v2"
 import { Snapshot } from "@/snapshot"
+import path from "path"
 import { WorkspaceService } from "./service"
 
 const normalizePath = (input: string) => input.replaceAll("\\", "/").replace(/\/+$/, "")
 const normalizeBody = (input: string) => input.replaceAll("\r\n", "\n")
 
-function collectExplicitTouchedFiles(messages: MessageV2.WithParts[]) {
+const normalizeSessionPath = (directory: string, input: string) => {
+  const normalized = normalizePath(input)
+  if (path.isAbsolute(normalized)) return normalizePath(path.relative(directory, normalized))
+  return normalized.replace(/^\.\//, "")
+}
+
+function collectExplicitTouchedFiles(messages: MessageV2.WithParts[], directory: string) {
   const explicitTouched = new Set<string>()
 
   const parseApplyPatchFiles = (patchText: string) => {
     const matches = patchText.matchAll(/^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm)
     for (const match of matches) {
       const file = match[1]?.trim()
-      if (file) explicitTouched.add(normalizePath(file))
+      if (file) explicitTouched.add(normalizeSessionPath(directory, file))
     }
   }
 
@@ -27,7 +34,7 @@ function collectExplicitTouchedFiles(messages: MessageV2.WithParts[]) {
       const input = part.state.input as Record<string, unknown>
       if (part.tool === "edit" || part.tool === "write") {
         const filePath = typeof input.filePath === "string" ? input.filePath : undefined
-        if (filePath) explicitTouched.add(normalizePath(filePath))
+        if (filePath) explicitTouched.add(normalizeSessionPath(directory, filePath))
       }
       if (part.tool === "apply_patch") {
         const patchText = typeof input.patchText === "string" ? input.patchText : undefined
@@ -35,13 +42,13 @@ function collectExplicitTouchedFiles(messages: MessageV2.WithParts[]) {
       }
       if (part.tool === "filesystem_write_file" || part.tool === "filesystem_edit_file") {
         const filePath = typeof input.path === "string" ? input.path : undefined
-        if (filePath) explicitTouched.add(normalizePath(filePath))
+        if (filePath) explicitTouched.add(normalizeSessionPath(directory, filePath))
       }
       if (part.tool === "filesystem_move_file") {
         const source = typeof input.source === "string" ? input.source : undefined
         const destination = typeof input.destination === "string" ? input.destination : undefined
-        if (source) explicitTouched.add(normalizePath(source))
-        if (destination) explicitTouched.add(normalizePath(destination))
+        if (source) explicitTouched.add(normalizeSessionPath(directory, source))
+        if (destination) explicitTouched.add(normalizeSessionPath(directory, destination))
       }
     }
   }
@@ -65,8 +72,15 @@ function latestSummaryDiffByFile(messages: MessageV2.WithParts[]) {
   return latestByFile
 }
 
+export function collectOwnedSessionCandidateFiles(messages: MessageV2.WithParts[], directory: string) {
+  const explicitTouched = collectExplicitTouchedFiles(messages, directory)
+  const latestByFile = latestSummaryDiffByFile(messages)
+  if (explicitTouched.size === 0 || latestByFile.size === 0) return []
+  return [...explicitTouched].filter((file) => latestByFile.has(file)).sort((a, b) => a.localeCompare(b))
+}
+
 export function computeOwnedSessionDirtyDiff(currentDiffs: Snapshot.FileDiff[], messages: MessageV2.WithParts[]) {
-  const explicitTouched = collectExplicitTouchedFiles(messages)
+  const explicitTouched = collectExplicitTouchedFiles(messages, Instance.directory)
   const latestByFile = latestSummaryDiffByFile(messages)
   if (explicitTouched.size === 0 || latestByFile.size === 0) return []
 
@@ -101,10 +115,14 @@ export async function getSessionOwnedDirtyDiff(input: { sessionID: string }) {
   if (workspace.attachments.sessionIds.length > 0 && !workspace.attachments.sessionIds.includes(input.sessionID))
     return []
 
-  const [messages, currentDiffs] = await Promise.all([
-    Session.messages({ sessionID: input.sessionID }),
-    Instance.provide({ directory: session.directory, fn: () => File.status() }),
-  ])
+  const messages = await Session.messages({ sessionID: input.sessionID })
+  const candidates = collectOwnedSessionCandidateFiles(messages, session.directory)
+  if (candidates.length === 0) return []
+
+  const currentDiffs = await Instance.provide({
+    directory: session.directory,
+    fn: () => File.status({ paths: candidates }),
+  })
 
   return computeOwnedSessionDirtyDiff(
     currentDiffs.map((diff) => ({

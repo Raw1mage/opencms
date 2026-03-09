@@ -98,17 +98,12 @@ const SmartRunnerTraceSchema = z.object({
           hostAdoptionReason: z
             .enum([
               "adopted",
-              "missing_target",
-              "unsupported_action",
-              "policy_not_host_adoptable",
-              "user_confirm_required",
+              "missing_question",
+              "policy_not_user_confirm_required",
+              "user_confirm_missing",
               "host_review_missing",
-              "active_todo_in_progress",
-              "target_not_pending",
-              "dependencies_not_ready",
-              "approval_gate",
-              "waiting_gate",
-              "unsupported_todo_kind",
+              "question_already_pending",
+              "question_rejected",
             ])
             .optional(),
         })
@@ -419,6 +414,35 @@ export function annotateSmartRunnerTraceSuggestion(input: { trace: SmartRunnerTr
       askUserAdoption,
       replanRequest,
       replanAdoption,
+    },
+  })
+}
+
+export function annotateSmartRunnerAskUserAdoption(input: {
+  trace: SmartRunnerTrace
+  adopted: boolean
+  reason?:
+    | "adopted"
+    | "missing_question"
+    | "policy_not_user_confirm_required"
+    | "user_confirm_missing"
+    | "host_review_missing"
+    | "question_already_pending"
+    | "question_rejected"
+}) {
+  if (input.trace.status !== "advisory" || input.trace.suggestion?.kind !== "ask_user" || !input.trace.suggestion.askUserAdoption) {
+    return input.trace
+  }
+
+  return SmartRunnerTraceSchema.parse({
+    ...input.trace,
+    suggestion: {
+      ...input.trace.suggestion,
+      askUserAdoption: {
+        ...input.trace.suggestion.askUserAdoption,
+        hostAdopted: input.adopted,
+        hostAdoptionReason: input.reason,
+      },
     },
   })
 }

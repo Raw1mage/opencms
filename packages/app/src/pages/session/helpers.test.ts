@@ -192,6 +192,8 @@ describe("getSessionStatusSummary", () => {
                     rationale: "The next step depends on a product choice the current context does not resolve",
                     adoptionNote:
                       "Host may adopt this proposal into a real user question if the current loop should pause for clarification.",
+                    hostAdopted: false,
+                    hostAdoptionReason: "question_already_pending",
                     policy: {
                       trustLevel: "medium",
                       adoptionMode: "user_confirm_required",
@@ -387,6 +389,8 @@ describe("getSessionStatusSummary", () => {
                   rationale: "The next step depends on a product choice the current context does not resolve",
                   adoptionNote:
                     "Host may adopt this proposal into a real user question if the current loop should pause for clarification.",
+                  hostAdopted: false,
+                  hostAdoptionReason: "question_already_pending",
                   policy: {
                     trustLevel: "medium",
                     adoptionMode: "user_confirm_required",
@@ -469,6 +473,8 @@ describe("getSessionStatusSummary", () => {
                     rationale: "The next step depends on a product choice the current context does not resolve",
                     adoptionNote:
                       "Host may adopt this proposal into a real user question if the current loop should pause for clarification.",
+                    hostAdopted: false,
+                    hostAdoptionReason: "question_already_pending",
                     policy: {
                       trustLevel: "medium",
                       adoptionMode: "user_confirm_required",
@@ -550,6 +556,7 @@ describe("getSessionStatusSummary", () => {
       "Ask-user handoff: Need a decision before continuing todo t3.",
       "Ask-user proposal: ask-user:t3",
       "Ask-user policy: user_confirm_required (medium)",
+      "Ask-user adoption: question already pending",
       expect.stringMatching(/^Governor at: \d{2}:\d{2}:\d{2}$/),
     ])
     expect(summary.smartRunnerHistory).toEqual([
@@ -569,6 +576,7 @@ describe("getSessionStatusSummary", () => {
         replanRequest: undefined,
         replanAdoption: undefined,
         policy: "user_confirm_required · medium",
+        adoptionOutcome: "not adopted · question already pending",
         error: undefined,
       },
       {

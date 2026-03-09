@@ -130,7 +130,10 @@ The `cms` branch is the primary product line for this environment, featuring sig
 - For `ask_user` suggestions, Smart Runner may now also attach a bounded draft question string so humans can inspect the proposed wording before any actual question flow is triggered.
 - For `ask_user` suggestions, Smart Runner may also attach a bounded handoff structure (`question / whyNow / blockingDecision / impactIfUnanswered`) so the human/session host can see exactly what decision is being escalated and why.
 - For `ask_user` suggestions, Smart Runner may also attach a bounded adoption proposal (`proposalID / proposedQuestion / targetTodoID / rationale / adoptionNote`) so the host/runtime can later choose to adopt the proposal into a real question flow without granting Smart Runner direct authority.
-- For `ask_user` suggestions, those adoption proposals now also carry bounded policy metadata (`trustLevel / adoptionMode / requiresUserConfirm / requiresHostReview`). The current policy is `user_confirm_required` at `medium` trust with required host review, and it remains advisory-only.
+- For `ask_user` suggestions, those adoption proposals now also carry bounded policy metadata (`trustLevel / adoptionMode / requiresUserConfirm / requiresHostReview`). The current policy is `user_confirm_required` at `medium` trust with required host review.
+- A deterministic host-adoption path is now also unlocked for that `ask_user` policy: when the proposal includes a usable question draft, host review is still required, and the session does not already have a pending question, runtime may adopt the proposal by calling `Question.ask(...)`. The Smart Runner proposal itself still does not question the user directly.
+- When that host-adopted question is answered, runtime resumes the loop by persisting a synthetic user turn that summarizes the answer and continues under the normal prompt loop. When the question is rejected/dismissed, runtime records the rejection outcome back onto the trace and moves workflow state to `waiting_user` with stop reason `product_decision_needed`.
+- Ask-user adoption results are persisted back onto the trace as `hostAdopted=true|false` plus `hostAdoptionReason` (for example `adopted`, `missing_question`, `question_already_pending`, `question_rejected`) so session-side inspection/history can distinguish adopted, ineligible, and rejected host outcomes.
 - Session-side inspection now also derives a Smart Runner summary layer from recent trace history: applied/noop counts, assist-mode counts, suggestion counts, and a short recent-decision trend strip for faster human evaluation.
 - When Smart Runner actually rewrites autonomous loop text (synthetic continue instructions or narration overrides), runtime now prefixes that inserted text with `[AI]` so it is visually distinguishable from ordinary assistant output.
 - Model preference APIs: read/update.
@@ -1367,7 +1370,7 @@ Current review/diff ownership now follows a split contract: runtime owns both ra
 
 3. **Canonical per-session UI `Changes` source is current-dirty session attribution**
    - current API surface: `session.diff` without `messageID`
-   - semantics: current git dirty files intersected with runtime session ownership/attribution rules
+   - semantics: first derive session-owned candidate files from assistant write/apply-patch targets intersected with latest user-turn summary diffs, then query current git dirty state only for that candidate file set
    - TUI / webapp session `Changes` / `檔案異動` / dirty count surfaces should consume this source so each session only counts files it currently owns and that remain uncommitted
 
 4. **Raw workspace git truth remains separate**
