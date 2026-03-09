@@ -437,3 +437,32 @@ Validation（replan suggestion）:
   - `helpers.test.ts` 仍有既存 DOM-less 失敗（`document is not defined`），與本輪 replan suggestion 修改無關
 - `bun x eslint /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/prompt.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/session-side-panel.tsx` ✅
 - 結果：Smart Runner 現在可在 trace / history 中明確標示 `replan` suggestion 與原因，但 deterministic runner 與 todo graph 仍完全不變。
+
+### Current Slice (ask-user suggestion)
+
+需求：延續 `replan suggestion` 的做法，讓 Smart Runner 也能把「現在應該問人」明確顯示在 trace / UI 中，但仍不 takeover 問答控制流。
+
+範圍：
+
+- IN
+  - 將 Smart Runner 的 `ask_user` decision 顯示為明確 suggestion
+  - 在 session status / history 顯示建議提問的理由與 action
+  - 保持 deterministic runner、question flow 與 todo graph 不變
+- OUT
+  - 不自動發問
+  - 不中止目前控制流
+  - 不接管 stop / pause / approval
+
+任務清單：
+
+- [x] 在 Smart Runner trace 中標示 ask-user suggestion metadata
+- [x] 在 session status / history 中顯示 ask-user suggestion 與原因
+- [x] 驗證 ask-user suggestion 只增加可觀測性，不改變控制流
+
+Validation（ask-user suggestion）:
+
+- `bun test /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/workflow-runner.test.ts`
+  - Smart Runner / workflow assertions 通過
+  - `helpers.test.ts` 仍有既存 DOM-less 失敗（`document is not defined`），與本輪 ask-user suggestion 修改無關
+- `bun x eslint /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts` ✅
+- 結果：Smart Runner 現在可在 trace / history 中明確標示 `ask_user` suggestion 與原因，但 deterministic runner、question flow 與 todo graph 仍完全不變。

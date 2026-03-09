@@ -388,12 +388,14 @@ export const getSessionStatusSummary = (input: {
       `Smart Runner assist: ${supervisor.lastGovernorTrace.assist.applied ? "applied" : "noop"}${supervisor.lastGovernorTrace.assist.mode ? ` (${supervisor.lastGovernorTrace.assist.mode})` : ""}`,
     )
   }
-  if (supervisor?.lastGovernorTrace?.suggestion?.kind === "replan") {
+  if (supervisor?.lastGovernorTrace?.suggestion?.kind) {
     debugLines.push(
-      `Smart Runner suggestion: replan${supervisor.lastGovernorTrace.suggestion.suggestedAction ? ` (${supervisor.lastGovernorTrace.suggestion.suggestedAction})` : ""}`,
+      `Smart Runner suggestion: ${supervisor.lastGovernorTrace.suggestion.kind}${supervisor.lastGovernorTrace.suggestion.suggestedAction ? ` (${supervisor.lastGovernorTrace.suggestion.suggestedAction})` : ""}`,
     )
     if (supervisor.lastGovernorTrace.suggestion.reason) {
-      debugLines.push(`Replan why: ${supervisor.lastGovernorTrace.suggestion.reason.slice(0, 120)}`)
+      debugLines.push(
+        `${supervisor.lastGovernorTrace.suggestion.kind === "ask_user" ? "Ask-user why" : "Replan why"}: ${supervisor.lastGovernorTrace.suggestion.reason.slice(0, 120)}`,
+      )
     }
   }
   if (supervisor?.lastGovernorTraceAt)
@@ -409,10 +411,9 @@ export const getSessionStatusSummary = (input: {
     assist: trace.assist?.enabled
       ? `${trace.assist.applied ? "applied" : "noop"}${trace.assist.mode ? ` · ${trace.assist.mode}` : ""}`
       : undefined,
-    suggestion:
-      trace.suggestion?.kind === "replan"
-        ? `replan${trace.suggestion.suggestedAction ? ` · ${trace.suggestion.suggestedAction}` : ""}${trace.suggestion.reason ? ` · ${trace.suggestion.reason}` : ""}`
-        : undefined,
+    suggestion: trace.suggestion?.kind
+      ? `${trace.suggestion.kind}${trace.suggestion.suggestedAction ? ` · ${trace.suggestion.suggestedAction}` : ""}${trace.suggestion.reason ? ` · ${trace.suggestion.reason}` : ""}`
+      : undefined,
     error: trace.error,
   }))
 

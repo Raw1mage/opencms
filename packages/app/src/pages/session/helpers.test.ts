@@ -173,10 +173,10 @@ describe("getSessionStatusSummary", () => {
                 assessment: "Needs preflight",
                 assist: { enabled: true, applied: true, mode: "debug_preflight_first" },
                 suggestion: {
-                  kind: "replan",
-                  reason: "The current todo ordering no longer matches the latest task state",
-                  suggestedTodoID: "t2",
-                  suggestedAction: "replan_todos",
+                  kind: "ask_user",
+                  reason: "The next step depends on a product choice the current context does not resolve",
+                  suggestedTodoID: "t3",
+                  suggestedAction: "request_user_input",
                 },
                 decision: {
                   decision: "debug_preflight_first",
@@ -210,10 +210,10 @@ describe("getSessionStatusSummary", () => {
                   assessment: "Needs preflight",
                   assist: { enabled: true, applied: true, mode: "debug_preflight_first" },
                   suggestion: {
-                    kind: "replan",
-                    reason: "The current todo ordering no longer matches the latest task state",
-                    suggestedTodoID: "t2",
-                    suggestedAction: "replan_todos",
+                    kind: "ask_user",
+                    reason: "The next step depends on a product choice the current context does not resolve",
+                    suggestedTodoID: "t3",
+                    suggestedAction: "request_user_input",
                   },
                   decision: {
                     decision: "debug_preflight_first",
@@ -307,10 +307,10 @@ describe("getSessionStatusSummary", () => {
               assessment: "Needs preflight",
               assist: { enabled: true, applied: true, mode: "debug_preflight_first" },
               suggestion: {
-                kind: "replan",
-                reason: "The current todo ordering no longer matches the latest task state",
-                suggestedTodoID: "t2",
-                suggestedAction: "replan_todos",
+                kind: "ask_user",
+                reason: "The next step depends on a product choice the current context does not resolve",
+                suggestedTodoID: "t3",
+                suggestedAction: "request_user_input",
               },
               decision: {
                 decision: "debug_preflight_first",
@@ -344,10 +344,10 @@ describe("getSessionStatusSummary", () => {
                 assessment: "Needs preflight",
                 assist: { enabled: true, applied: true, mode: "debug_preflight_first" },
                 suggestion: {
-                  kind: "replan",
-                  reason: "The current todo ordering no longer matches the latest task state",
-                  suggestedTodoID: "t2",
-                  suggestedAction: "replan_todos",
+                  kind: "ask_user",
+                  reason: "The next step depends on a product choice the current context does not resolve",
+                  suggestedTodoID: "t3",
+                  suggestedAction: "request_user_input",
                 },
                 decision: {
                   decision: "debug_preflight_first",
@@ -416,8 +416,8 @@ describe("getSessionStatusSummary", () => {
       "Governor decision: debug_preflight_first (high)",
       "Governor next: request_debug_preflight",
       "Smart Runner assist: applied (debug_preflight_first)",
-      "Smart Runner suggestion: replan (replan_todos)",
-      "Replan why: The current todo ordering no longer matches the latest task state",
+      "Smart Runner suggestion: ask_user (request_user_input)",
+      "Ask-user why: The next step depends on a product choice the current context does not resolve",
       expect.stringMatching(/^Governor at: \d{2}:\d{2}:\d{2}$/),
     ])
     expect(summary.smartRunnerHistory).toEqual([
@@ -429,7 +429,8 @@ describe("getSessionStatusSummary", () => {
         next: "request_debug_preflight",
         assessment: "Needs preflight",
         assist: "applied · debug_preflight_first",
-        suggestion: "replan · replan_todos · The current todo ordering no longer matches the latest task state",
+        suggestion:
+          "ask_user · request_user_input · The next step depends on a product choice the current context does not resolve",
         error: undefined,
       },
       {

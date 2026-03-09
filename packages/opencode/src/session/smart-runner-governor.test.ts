@@ -264,6 +264,39 @@ describe("Smart Runner Governor", () => {
     })
   })
 
+  it("annotates ask-user suggestions without changing control flow", () => {
+    const trace = annotateSmartRunnerTraceSuggestion({
+      trace: {
+        source: "smart_runner_governor",
+        dryRun: true,
+        status: "advisory",
+        createdAt: 1,
+        deterministicReason: "todo_pending",
+        decision: {
+          situation: "waiting_for_human",
+          assessment: "Needs clarification",
+          decision: "ask_user",
+          reason: "The next step depends on a product choice the current context does not resolve",
+          nextAction: {
+            kind: "request_user_input",
+            todoID: "t3",
+            skillHints: [],
+            narration: "Suggesting a user clarification before continuing.",
+          },
+          needsUserInput: true,
+          confidence: "high",
+        },
+      },
+    })
+
+    expect(trace.suggestion).toEqual({
+      kind: "ask_user",
+      reason: "The next step depends on a product choice the current context does not resolve",
+      suggestedTodoID: "t3",
+      suggestedAction: "request_user_input",
+    })
+  })
+
   it("turns docs sync assist into an explicit preflight continuation", () => {
     const assist = applySmartRunnerBoundedAssist({
       enabled: true,
