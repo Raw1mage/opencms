@@ -86,12 +86,20 @@ const SmartRunnerTraceSchema = z.object({
 
 export type SmartRunnerTrace = z.infer<typeof SmartRunnerTraceSchema>
 const SMART_RUNNER_TRACE_HISTORY_LIMIT = 5
+const SMART_RUNNER_LABEL = "[AI]"
 
 export type SmartRunnerBoundedAssistResult = {
   decision: DeterministicContinueDecision
   narration?: string
   applied: boolean
   mode?: string
+}
+
+export function prefixSmartRunnerText(text: string) {
+  const trimmed = text.trim()
+  if (!trimmed) return SMART_RUNNER_LABEL
+  if (trimmed.startsWith(SMART_RUNNER_LABEL)) return text
+  return `${SMART_RUNNER_LABEL} ${text}`
 }
 
 function buildDocsSyncAssistText(input: { todo: Todo.Info }) {

@@ -73,6 +73,7 @@ import {
   evaluateSmartRunnerGovernorDryRun,
   getSmartRunnerConfig,
   persistSmartRunnerGovernorTrace,
+  prefixSmartRunnerText,
 } from "./smart-runner-governor"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -775,8 +776,14 @@ export namespace SessionPrompt {
             sessionID,
             trace: tracedAssist,
           })
-          continueDecision = assist.decision
-          narrationOverride = assist.narration
+          continueDecision = assist.applied
+            ? {
+                ...assist.decision,
+                text: prefixSmartRunnerText(assist.decision.text),
+              }
+            : assist.decision
+          narrationOverride =
+            assist.applied && assist.narration ? prefixSmartRunnerText(assist.narration) : assist.narration
         }
         const narration = continueDecision
           ? describeAutonomousNextAction({

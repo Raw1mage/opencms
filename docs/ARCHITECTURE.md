@@ -126,6 +126,7 @@ The `cms` branch is the primary product line for this environment, featuring sig
 - For `replan` suggestions, Smart Runner may now also attach a bounded replan request structure (`targetTodoID / requestedAction / proposedNextStep / note`) so humans can inspect the proposed reshaping without letting runtime mutate todos.
 - For `ask_user` suggestions, Smart Runner may now also attach a bounded draft question string so humans can inspect the proposed wording before any actual question flow is triggered.
 - Session-side inspection now also derives a Smart Runner summary layer from recent trace history: applied/noop counts, assist-mode counts, suggestion counts, and a short recent-decision trend strip for faster human evaluation.
+- When Smart Runner actually rewrites autonomous loop text (synthetic continue instructions or narration overrides), runtime now prefixes that inserted text with `[AI]` so it is visually distinguishable from ordinary assistant output.
 - Model preference APIs: read/update.
 
 5. **Web realtime behavior**

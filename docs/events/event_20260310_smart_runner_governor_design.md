@@ -554,3 +554,29 @@ Validation（bounded replan request）:
   - `helpers.test.ts` 仍有既存 DOM-less 失敗（`document is not defined`），與本輪 replan request 修改無關
 - `bun x eslint /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/session-side-panel.tsx` ✅
 - 結果：Smart Runner 現在能在 `replan` suggestion 上附帶 bounded replan request，供人檢視與採納，但 deterministic runner 與 todo graph 仍完全不變。
+
+### Current Slice (AI prefix for Smart Runner loop text)
+
+需求：為了讓 Smart Runner 在 autonomous loop 中插入的內容更容易辨識，本輪要在其主動發話的文字前加上固定前綴，例如 `[AI]`。
+
+範圍：
+
+- IN
+  - 為 Smart Runner 改寫後的 synthetic continue text 加上 `[AI]` 前綴
+  - 為 Smart Runner 覆寫的 narration 加上 `[AI]` 前綴
+  - 保持非 Smart Runner assistant 輸出不變
+- OUT
+  - 不改變一般 assistant 回覆
+  - 不改變 runtime 控制流
+  - 不改變 trace decision schema
+
+任務清單：
+
+- [x] 在 Smart Runner loop-authored text 路徑加上 `[AI]` 前綴
+- [x] 驗證只有 Smart Runner 插入文字被標記
+
+Validation（AI prefix for Smart Runner loop text）:
+
+- `bun test /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/workflow-runner.test.ts` ✅
+- `bun x eslint /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/prompt.ts` ✅
+- 結果：只有 Smart Runner 實際改寫的 autonomous loop 文字（continue text / narration override）會加上 `[AI]` 標籤；一般 assistant 輸出與非 Smart Runner 路徑保持不變。

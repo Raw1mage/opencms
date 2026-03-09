@@ -5,6 +5,7 @@ import {
   annotateSmartRunnerTraceAssist,
   applySmartRunnerBoundedAssist,
   buildSmartRunnerGovernorContext,
+  prefixSmartRunnerText,
   shouldRunSmartRunnerGovernorDryRun,
 } from "./smart-runner-governor"
 
@@ -339,5 +340,10 @@ describe("Smart Runner Governor", () => {
     expect(assist.mode).toBe("docs_sync_first")
     expect(assist.decision.text).toContain("Smart Runner preflight: docs sync before execution.")
     expect(assist.decision.text).toContain("implement the next slice")
+  })
+
+  it("prefixes Smart Runner loop-authored text with [AI]", () => {
+    expect(prefixSmartRunnerText("continue the step")).toBe("[AI] continue the step")
+    expect(prefixSmartRunnerText("[AI] already labeled")).toBe("[AI] already labeled")
   })
 })
