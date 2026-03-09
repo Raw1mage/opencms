@@ -46,6 +46,7 @@ import {
   getSessionArbitrationChips,
   getSessionWorkflowChips,
   getSessionScopedDirtyDiffs,
+  getStrictSessionScopedDirtyDiffs,
   getTabReorderIndex,
 } from "@/pages/session/helpers"
 import { useSessionResumeSync } from "@/pages/session/use-session-resume-sync"
@@ -545,6 +546,11 @@ export default function Page() {
     return getSessionScopedDirtyDiffs(sync.data.session_diff[key] ?? [], visibleUserMessages())
   })
   const reviewCount = createMemo(() => reviewDiffs().length)
+  const reviewBubbleCount = createMemo(() => {
+    const key = reviewDiffKey()
+    if (!key) return 0
+    return getStrictSessionScopedDirtyDiffs(sync.data.session_diff[key] ?? [], visibleUserMessages()).length
+  })
   const hasReview = createMemo(() => reviewCount() > 0)
 
   const renderedUserMessages = createMemo(
@@ -1390,7 +1396,7 @@ export default function Page() {
                     showHeader={!!(info()?.title || info()?.parentID)}
                     centered={centered()}
                     title={info()?.title}
-                    dirtyCount={reviewCount()}
+                    dirtyCount={reviewBubbleCount()}
                     parentID={info()?.parentID}
                     workflowChips={workflowChips()}
                     arbitrationChips={arbitrationChips()}

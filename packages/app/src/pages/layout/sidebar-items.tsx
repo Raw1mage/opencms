@@ -6,7 +6,7 @@ import { useLayout, type LocalProject, getAvatarColors } from "@/context/layout"
 import { useNotification } from "@/context/notification"
 import { usePermission } from "@/context/permission"
 import { DirtyCountBubble } from "@/components/dirty-count-bubble"
-import { getSessionScopedDirtyDiffs } from "@/pages/session/helpers"
+import { getStrictSessionScopedDirtyDiffs } from "@/pages/session/helpers"
 import { base64Encode } from "@opencode-ai/util/encode"
 import { Avatar } from "@opencode-ai/ui/avatar"
 import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
@@ -313,7 +313,7 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
   const dirtyCount = createMemo(() => {
     const currentDiffs = sessionStore.session_diff[props.session.id]
     if (!currentDiffs) return 0
-    return getSessionScopedDirtyDiffs(currentDiffs, hoverMessages() ?? []).length
+    return getStrictSessionScopedDirtyDiffs(currentDiffs, hoverMessages() ?? []).length
   })
   const hoverReady = createMemo(() => sessionStore.message[props.session.id] !== undefined)
   const hoverAllowed = createMemo(() => !props.mobile && props.sidebarExpanded())

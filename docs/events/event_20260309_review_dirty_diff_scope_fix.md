@@ -61,22 +61,25 @@ Status: Completed
 - 第二階段再加上 session-scope 過濾：
   - 在 `packages/app/src/pages/session/helpers.ts` 新增 `getSessionScopedDirtyDiffs(...)`。
   - 邏輯為：以「目前 git dirty 清單」為基底，交集過濾目前 session 的 user message `summary.diffs` 曾觸及的檔案。
-  - 若 session 尚無可用的 summary diff 歷史，則保守 fallback 成顯示全部 current dirty，避免空白誤判。
+  - 若 session 尚無可用的 summary diff 歷史，review 面板仍可保守 fallback 成顯示全部 current dirty，避免空白誤判。
 - 這樣可讓檔案異動視窗同時滿足：
   - 不再顯示歷史累積 diff。
   - 仍對得到真實 current dirty。
   - 不同 session 可聚焦自己曾動到且目前仍 dirty 的檔案子集。
 - 依使用者後續需求，在 `packages/app/src/pages/session/message-timeline.tsx` 的對話標題右側新增 dirty indicator bubble：
-  - 使用當前 `reviewCount()` 作為數量來源。
+  - 初版曾用 touched-file 交集 / fallback-none 計數，但仍可能把同檔名、後續被其他 session 改寫過的 dirty 內容誤算進來。
+  - 現在改為使用 strict content-match 計數：以每個檔案在本 session `summary.diffs` 中的「最新 after/status」去比對目前 dirty diff。
+  - 因此 bubble 只會計入目前 session 最新變更內容仍然存在的 dirty 檔案，不會把其他 session 後續改寫過的異動算進來。
   - 僅在 count > 0 時顯示。
   - 讓使用者不用展開檔案異動畫面，也能快速知道這個 session 目前有多少相關 dirty files。
   - 進一步同步互動態：title bubble 也會在 hover / focus-within 時提高對比，和 sidebar row bubble 視覺一致。
 - 最後將 title / sidebar 兩處重複的 bubble 樣式抽成共用元件 `packages/app/src/components/dirty-count-bubble.tsx`，統一 active / hover / focus / 圓角策略，避免之後再出現視覺漂移。
 - 再依後續需求，在 `packages/app/src/pages/layout/sidebar-items.tsx` 的 session list row 上新增 dirty count bubble：
   - bubble 顯示在 session 標題與時間之間。
-  - 數量來源優先使用 `sessionStore.session_diff[sessionID]` + `getSessionScopedDirtyDiffs(...)` 的 session-scope current-dirty 計算。
+  - 數量來源改為 `getStrictSessionScopedDirtyDiffs(...)`：用本 session 每個檔案最新 `after/status` 與目前 dirty diff 做精確比對。
   - 若該 session 已預取 message 但尚未有 dirty cache，row 會背景呼叫該 directory 的 `file.status()`，並把結果寫入 `session_diff[sessionID]`，讓 bubble 可在 list 中補齊顯示。
   - 這讓 session list 不只是靜態歷史摘要，而能逐步反映目前 repo dirty 與 session scope 的交集。
+  - 同時避免把其他 session 後續覆寫過的 dirty 檔案誤算進本 session bubble。
   - 針對 active row，bubble 也同步做反白處理，避免選取態下視覺層級不一致。
   - 針對 hover / focus-within 狀態，也同步提高 bubble 對比，讓互動回饋一致。
 - 再依最新需求，在 `packages/app/src/pages/layout/sidebar-workspace.tsx` 移除 webapp session list 的 `[repo]` 前綴，保留純 session title（以及 child count），因為目前 sidebar 階層已足夠表達所屬 repo / workspace。
@@ -86,6 +89,6 @@ Status: Completed
 - 驗證指令：
   - `bun test --preload ./happydom.ts ./src/pages/session/helpers.test.ts`
   - `bun turbo typecheck --filter @opencode-ai/app`
-- 結果：passed（包含 dirty bubble 共用元件抽取後再次驗證通過）
+- 結果：passed（包含 bubble strict content-match 修正後再次驗證通過）
 - Architecture Sync: Verified (No doc changes)
   - 依據：本輪只修正 session page 取用 review diff 的資料來源，未改動架構邊界、API contract 或模組責任。
