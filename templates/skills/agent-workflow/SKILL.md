@@ -1,145 +1,425 @@
 ---
 name: agent-workflow
-description: 定義 Agent 的標準作業程序(SOP)。整合 Token-Efficient Development Guide，強調最小充分回覆 (MSR)、阻塞式提問與結構化輸出。
+description: 定義 Agent 的標準作業程序(SOP)，並補齊本系統 autonomous agent 所需的 plan-building、todo metadata、continuation、interrupt-safe replanning、narration 與 completion gate。當需要在對話中協助使用者建立計畫、再讓 Agent 依計畫持續推進時使用。
 ---
 
-# Agent 工作流程標準規範 (Token-Efficient Edition)
+# Agent Workflow (Autonomous-Ready Edition)
 
-本規範強制執行「更少 Token、更快收斂」的開發模式。
+本技能不是只有通用 SOP；它同時定義本系統 autonomous agent 可以安全持續運作的最小契約。
 
-## 核心原則 (Core Principles)
+## 0. 核心原則
 
-1.  **最小充分回覆 (MSR)**: 只回覆結論、變更與下一步。禁止長篇教學或冗詞。
-2.  **先做後解釋**: 能給 Code/Patch 就不要純文字解釋。
-3.  **單一事實來源 (SSOT)**: 依據 `README`, `package.json`, `CI config` 為準。不要憑空猜測框架版本。
+1. **Autonomy 依賴計畫，不依賴靈感。**
+2. **計畫不必完美，但必須可執行。** 至少要有目標、todo、依賴、stop gates。
+3. **todo 是 runtime contract，不只是筆記。**
+4. **一律對話中可觀測。** 重要進展、阻塞、replan 必須可被使用者理解。
+5. **可持續執行 ≠ 可靜默亂跑。** 遇到 approval / decision / blocker 必須停。
+6. **Debug 必須 system-first。** 複雜 bug 一律先看系統邊界、資料流與觀測訊號，不得只憑局部症狀下判斷。
 
-## 核心狀態機 (Core State Machine)
+---
+
+## 1. Autonomous 必要條件（缺一不可）
+
+在進入可續跑狀態前，必須先具備：
+
+1. **明確目標**
+   - 使用者要什麼
+   - 完成的判準是什麼
+
+2. **可執行 todo 集**
+   - 至少 2 個以上步驟
+   - 每步可被執行、驗證、完成或阻塞
+
+3. **結構化 planner metadata**
+   - `action.kind`
+   - `risk`
+   - `needsApproval`
+   - `canDelegate`
+   - `waitingOn`
+   - `dependsOn`
+
+4. **停止條件（stop gates）**
+   - approval needed
+   - product decision needed
+   - blocked / external wait
+   - max continuous rounds
+
+5. **狀態一致性**
+   - 同一時間最多一個 todo 為 `in_progress`
+   - 其餘為 `pending` / `completed` / `cancelled`
+
+若以上不成立，先補 plan，不要假裝 autonomous 已可安全開始。
+
+---
+
+## 2. 核心狀態機
 
 ```mermaid
 graph TD
-    Start[收到任務] --> Analysis[ANALYSIS: 靜態分析與假設]
-    Analysis --> Planning[PLANNING: 批次規劃]
-    Planning --> Waiting[WAITING_APPROVAL: 僅阻塞時等待]
-    Waiting -->|Approve/Assumption| Execution[EXECUTION: 批次執行]
-    Execution -->|Rate Limit| Backoff[BACKOFF: 退避]
-    Backoff --> Execution
-    Execution -->|Success| Finish[結束]
+    Start[收到需求] --> Analysis[ANALYSIS]
+    Analysis --> PlanBuild[PLAN_BUILD]
+    PlanBuild --> Approval{需要授權?}
+    Approval -->|Yes| Waiting[WAITING_APPROVAL]
+    Approval -->|No| Execution[EXECUTION]
+    Waiting -->|User approves / decides| Execution
+    Execution --> Narrate[NARRATE_PROGRESS]
+    Narrate --> Continue{還有可執行 todo?}
+    Continue -->|Yes| Execution
+    Continue -->|No| Finish[COMPLETE]
+    Execution -->|Blocked / Decision / Approval| Waiting
+    Execution -->|User interrupts| Replan[REPLAN]
+    Replan --> Execution
 ```
-
-### 1. ANALYSIS (靜態分析與假設)
-
-- **目標**: 建立執行所需的最小資訊集。
-- **SSOT 檢查**: 優先讀取 `package.json`, `go.mod`, `README.md` 確認技術堆疊。
-- **阻塞式提問 (Blocking Questions Only)**:
-  - **只有**在「不問就會做錯」時才停下來問（如：API Schema 不明、破壞性操作）。
-  - **非阻塞問題**: 建立合理假設 (Assumption)，標記為 `TODO` 或在 Commit Message 註記，然後繼續。
-  - **提問限制**: 最多 2 個問題，且必須是「二分決策 (A/B)」或「選項題」。
-
-### 2. PLANNING (批次規劃)
-
-- **Task Batching**: 將相關修改合併為單一 Request。
-- **Assumption Protocol**:
-  - 若資訊不足，先給出「最佳假設下的可行方案」。
-  - 例：「假設使用 JWT Auth (依據 package.json)，將實作 Bearer Token 驗證。」
-- **Template-First**: 對 recurring tasks（bugfix/refactor/docs/test）優先使用短模板，避免每輪重覆長指令。
-
-### 3. EXECUTION (批次執行)
-
-- **Context Handover**: 僅提供必要的程式碼片段 (Snippet)，嚴禁倒整個檔案。
-- **Output Format**: 強制 Subagent 使用標準回報格式 (見下文)。
-- **Parallel-First**: 互相獨立的工具呼叫（查詢/搜尋/檢查）盡量同回合平行發送，減少 request round。
-- **Search-Then-Read**: 先 `glob/grep` 收斂，再 `read` 精讀，避免大面積讀檔。
-
-### 4. DOCUMENTATION & DEBUG CHECKPOINTS (強制)
-
-- **Event Ledger First**: 非瑣碎任務在實作前，必須先建立/更新 `docs/events/event_<YYYYMMDD>_<topic>.md`。
-- **Debug Checkpoints (至少三段)**:
-  1. `Baseline`：修改前症狀、重現方式、影響範圍。
-  2. `Execution`：關鍵改動、第一個錯誤與修正決策。
-  3. `Validation`：驗證指令、通過/失敗結果、已知噪音豁免。
-- **Completion Gate**: 未補齊 Event + Checkpoints + Validation，不得宣告任務完成。
 
 ---
 
-## 輸出格式規範 (Standardized Output)
+## 3. Phase A — ANALYSIS（釐清需求）
 
-Orchestrator 與 Subagent **必須**遵守以下輸出結構，以減少 Token 消耗：
+目標：建立最小但足夠的執行前提。
 
-### 1. 一般任務回報 (Result / Changes / Validation / Next)
+### 必做
+
+1. 釐清：
+   - 目標
+   - 範圍 IN/OUT
+   - 完成判準
+   - 是否允許直接執行
+
+2. 找出阻塞型未知數：
+   - 若不問就會做錯，立即問
+   - 若可先假設不致危險，記錄假設後繼續
+
+3. 搜集 SSOT：
+   - 先 search，再 read
+   - 不得憑空猜 API、型別、路徑
+4. 若任務含 debug / unexpected behavior：
+   - 先拆系統層次、模組邊界、資料/控制流
+   - 先規劃 instrumentation，再規劃 fix
+
+### 提問規則
+
+- 只問 **阻塞性問題**。
+- 優先選項題 / A-B 題。
+- 若可先用合理假設推進，先推進並標記假設。
+
+---
+
+## 4. Phase B — PLAN_BUILD（把對話變成可續跑計畫）
+
+目標：把需求轉成 runtime 可執行 todo。
+
+### 計畫品質標準
+
+計畫至少要包含：
+
+1. **Goal**：一句話描述要完成什麼
+2. **Scope**：IN / OUT
+3. **Tasks**：原子步驟
+4. **Dependencies**：哪些步驟要先做
+5. **Validation**：每段怎麼驗證
+6. **Stop gates**：哪裡需要 approval / decision
+
+### `todowrite` 強制規範
+
+每個非瑣碎計畫都應寫成結構化 todo：
+
+```json
+{
+  "content": "Implement X",
+  "status": "pending",
+  "priority": "high",
+  "id": "t1",
+  "action": {
+    "kind": "implement",
+    "risk": "medium",
+    "needsApproval": false,
+    "canDelegate": true,
+    "waitingOn": "subagent",
+    "dependsOn": ["t0"]
+  }
+}
+```
+
+### `action.kind` 使用準則
+
+- `implement`: 直接實作
+- `delegate`: 明確交給 subagent
+- `wait`: 等待 subagent / external
+- `approval`: 需要使用者批准
+- `decision`: 需要產品/方向決策
+- `push`: push / deploy / release
+- `destructive`: delete / reset / drop
+- `architecture_change`: breaking schema / architecture refactor
+
+### `dependsOn` 使用準則
+
+- 有前置依賴就一定要寫
+- 沒依賴才省略
+- 後續高風險步驟若依賴尚未完成，不應提早攔住整體 autonomous loop
+
+### 何時可進入 autonomous execution
+
+只有在以下條件成立時才可「一口氣往下跑」：
+
+- 目標已清楚
+- todo 已結構化
+- 至少有下一個 dependency-ready 步驟
+- 已知 stop gates 已標註
+- 沒有未回答的阻塞性問題
+
+若不成立，先完成計畫，不要急著執行。
+
+---
+
+## 5. Phase C — EXECUTION（依 todo 驅動，不靠即興）
+
+### 執行規則
+
+1. 一次只推進一個 `in_progress` todo
+2. 完成後立刻：
+   - 標記 `completed`
+   - dependency-ready 的下一步可轉 `in_progress`
+3. 遇到 subagent：
+   - 父任務保留可追蹤 todo
+   - `waitingOn=subagent`
+4. 遇到 approval / decision：
+   - 不得硬做
+   - 停下來請求使用者
+5. 每輪改動後都要驗證
+
+### Documentation Agent（Mandatory for Non-trivial System Knowledge）
+
+把文件視為 autonomous agent 的持久化系統模型，而不是收尾附屬品。
+
+當任務涉及以下任一項時，Main Agent 應主動委派 `documentation` 類型的 subagent，並搭配 `doc-coauthoring`：
+
+- 新增或變更模組邊界
+- 新增或變更資料流 / sync flow
+- 新增或變更狀態機 / lifecycle
+- 新增或變更 debug checkpoints / observability 路徑
+- 大型 refactor / architecture-sensitive change
+- 複雜 bug 的根因已確認，值得沉澱為長期知識
+
+### 核心文件責任分工（Hard-coded Repo Contract）
+
+1. **`docs/ARCHITECTURE.md`**
+   - 全 repo 長期文件 / 單一真相來源
+   - 用於保存：
+     - system overview
+     - module boundaries
+     - runtime flows
+     - state machines / lifecycles
+     - data flow / sync paths
+     - external contracts
+     - core directory tree
+     - debug / observability map
+
+2. **`docs/events/event_<YYYYMMDD>_<topic>.md`**
+   - 任務級事件與決策紀錄
+   - 用於保存：
+     - 需求 / 範圍
+     - 任務清單
+     - 對話重點摘要
+     - debug checkpoints
+     - 關鍵決策
+     - 驗證結果
+     - architecture sync 結論
+
+### Debug / Development 文件使用順序
+
+複雜開發或 debug 任務，不要直接從原始碼開始猜。優先順序應為：
+
+1. 讀 `docs/ARCHITECTURE.md` 的相關章節
+2. 讀相關 `docs/events/` 歷史事件
+3. 再 search/read 原始碼
+4. 再建立當前 issue 的 instrumentation plan
+
+### Documentation Agent 交付要求
+
+文件 agent 的輸出應該幫主流程節省 token，而不是製造新雜訊：
+
+- 只更新與本次任務相關的章節
+- 優先產出框架圖式資訊，而不是冗長流水帳
+- 目標是讓下一個 debug / dev session 能先讀文件再下判斷
+
+### 統一 Debug Contract（Syslog-style）
+
+所有開發 / debug 任務若涉及 bug、異常行為、reload blank、state mismatch、跨層資料錯誤，都必須遵守以下標準化 checkpoint：
+
+1. **Baseline**
+   - 症狀
+   - 重現步驟
+   - 影響範圍
+   - 初始假設
+   - 已知相關模組 / 邊界
+
+2. **Instrumentation Plan**
+   - 要在哪些 component boundary 埋 checkpoint
+   - 每個 checkpoint 觀察哪些輸入 / 輸出 / 狀態 / env / correlation id
+   - 使用哪些工具（log / trace / browser / test / script）
+   - 預期要排除或確認哪個假設
+
+3. **Execution**
+   - 實際埋了哪些 checkpoints
+   - 第一次收集到什麼證據
+   - 哪個假設被排除 / 強化
+
+4. **Root Cause**
+   - 真正根因
+   - causal chain（哪一層 → 哪一層 → 最終症狀）
+   - 為何不是其他假設
+
+5. **Validation**
+   - 驗證指令
+   - 通過 / 失敗
+   - regression 風險
+   - 是否移除或保留 debug instrumentation
+
+### Component-boundary 埋點規則
+
+若問題跨多層（例如 page → router → session sync → server → persistence），必須至少在每一層邊界觀察：
+
+- 進入資料
+- 輸出資料
+- 狀態轉移
+- config / env / permission 傳遞
+- 錯誤 / fallback / retry 訊號
+
+禁止只在最終報錯點附近盲改。
+
+### Subagent 指派契約
+
+Task prompt 至少包含：
+
+1. Objective
+2. Constraints
+3. Absolute paths
+4. Minimal snippets / line ranges
+5. Validation command
+6. 回報格式：`Result / Changes / Validation / Next(optional)`
+
+---
+
+## 6. Phase D — NARRATION（對話內可觀測）
+
+autonomous agent 必須持續說明自己在做什麼。
+
+### 必須可見的 narration 類型
+
+1. **Kickoff**
+   - 現在開始哪個步驟
+
+2. **Subagent milestone**
+   - 已委派什麼
+   - 完成了什麼
+   - 哪裡卡住
+
+3. **Pause / Block**
+   - 為什麼停
+   - 需要誰提供什麼
+
+4. **Complete**
+   - 哪個計畫段落完成
+
+5. **Replanning**
+   - 因新使用者訊息中斷
+   - 正在以新資訊重排
+
+禁止 silent long-running autonomy。
+
+---
+
+## 7. Phase E — INTERRUPT-SAFE REPLANNING
+
+當使用者插話、補充新想法、改方向時：
+
+1. **承認中斷發生**
+   - 說明舊 autonomous run 已被中斷
+
+2. **重評估既有 todo**
+   - 哪些保留
+   - 哪些取消
+   - 哪些延後
+   - 哪些新增
+
+3. **重新排序**
+   - 更新 `dependsOn`
+   - 保持只有一個 `in_progress`
+
+4. **重新宣告下一步**
+   - 讓使用者知道現在將如何續跑
+
+### Replan 原則
+
+- 不要把舊計畫整份丟掉，除非已完全失效
+- 優先保留仍然有效的已完成工作
+- 若方向改變導致舊 todo 失效，明確標記 `cancelled`
+
+---
+
+## 8. WAITING_APPROVAL / STOP CONTRACT
+
+遇到以下情況必停：
+
+1. `needsApproval=true`
+2. `action.kind in {push, destructive, architecture_change}` 且策略要求批准
+3. `waitingOn=approval`
+4. `waitingOn=decision`
+5. 真正 blocker（權限、外部依賴、不可恢復錯誤）
+
+### 暫停時回報格式
 
 ```text
-Result: [一句話總結完成了什麼]
-Changes:
-  - [修改檔案 A]: [關鍵變更]
-  - [修改檔案 B]: [關鍵變更]
-Validation:
-  - [passed/failed]: [關鍵驗證或第一個錯誤重點]
-Next:
-  - [可選；僅在需要使用者操作時列出 1-3 點]
+Paused: <原因>
+Need:
+  - <使用者批准 / 決策 / 外部資訊>
+Next after reply:
+  - <恢復後的第一步>
 ```
-
-> 補充：若任務涉及除錯或重大重構，`Validation` 後必須附上 event 檔路徑。
-
-### 2. 程式碼輸出 (Code Delivery)
-
-- **優先順序**: **Diff/Patch** > 單檔完整內容 > 片段。
-- **禁止**: 貼上一大段未修改的程式碼。
-- **指令**: 只提供「可複製貼上」且必要的指令 (最多 5 行)。
-
-### 3. 測試與錯誤回報
-
-- **格式**: `passed/failed`、失敗的測試名稱、**第一個** Stack Trace 重點。
-- **禁止**: 貼上整份 Log。請使用 `grep` 或摘要。
-
-### 4. 差異導向回報 (Delta-Only)
-
-- 僅回報本輪「新增變更」與「最新驗證結果」。
-- 不重述前輪已確認資訊，除非使用者要求完整 recap。
 
 ---
 
-## 協作與脈絡管理 (Context & Orchestration)
+## 9. 文件 / Event / Completion Gate
 
-### Orchestrator 指派任務模版
+### Event Ledger First
 
-當呼叫 Subagent 時，Prompt 必須包含明確的省 Token 指令，並**強制注入安全協議**：
+非瑣碎任務一律先建/更新：
 
-```javascript
-Task({
-  subagent_type: "coding",
-  description: "[Batch] 實作登入功能",
-  prompt: `
-    # 安全協議 (Mandatory Protocol)
-    - 編輯前必須使用 default_api:read 讀取檔案。
-    - 禁止盲目編輯 (Check timestamp)。
+- `docs/events/event_<YYYYMMDD>_<topic>.md`
 
-    # 目標
-    實作 JWT 登入 API。
+至少包含：
 
-    # 脈絡 (Pruned)
-    - Schema: /src/schema/auth.zod.ts (L10-L40)
-    - Utils: /src/utils/jwt.ts (Signature Only)
+- 需求
+- 範圍（IN/OUT）
+- 任務清單
+- 對話重點摘要
+- Debug Checkpoints
+  - Baseline
+  - Instrumentation Plan
+  - Execution
+  - Root Cause
+  - Validation
 
-    # 假設 (Assumptions)
-    - 假設 Token 時效為 1h (若錯誤請標註 TODO)。
-    - 假設使用現有的 Redis Client。
+### Completion Gate
 
-    # 輸出規範 (Strict)
-    - 嚴禁廢話。
-    - 使用 "Result / Changes / Next" 格式。
-    - 程式碼優先提供 Diff 或 Patch。
-  `,
-})
-```
+未完成以下項目，不得宣告完成：
 
-### Rate Limit 處理
+1. 相關 todo 已收斂
+2. 驗證已執行
+3. event 已更新
+4. `docs/ARCHITECTURE.md` 已同步或註記 `Verified (No doc changes)`
+5. 若任務涉及框架知識變動，已完成 documentation agent 同步或明確記錄不需要同步的理由
 
-1.  **429/Overload**: 立即暫停，標記該 Provider 冷卻。
-2.  **Context Overflow**: 執行 **Log Compression**。
-    - 回覆用戶：「Log 過長，我只需要：1. Error Summary, 2. First Stack Trace, 3. Config Snippet。」
+---
 
-## 安全與品質底線
+## 10. 操作準則摘要
 
-1.  **不做「假設式正確」**: 不確定 API 是否存在時，先 `grep` 確認，不要幻覺。
-2.  **隱私**: 不輸出 Secrets (.env)，排查時要求「遮罩後」的片段。
-3.  **一致性**: 遵循專案既有的 Lint/Format 規則，不另起爐灶。
+- Search first, then read
+- Read before write
+- Absolute paths only
+- One `in_progress` todo at a time
+- Use structured todo metadata, not vague bullet lists
+- Narrate meaningful progress in the conversation
+- Stop for approval / decision / blocker
+- Replan explicitly when the user interrupts
+- Finish only after validation + event + architecture sync

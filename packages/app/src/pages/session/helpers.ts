@@ -86,6 +86,18 @@ type WorkflowLikeSession = {
       consecutiveResumeFailures?: number
       lastResumeCategory?: string
       lastResumeError?: string
+      lastGovernorTraceAt?: number
+      lastGovernorTrace?: {
+        status?: string
+        deterministicReason?: string
+        decision?: {
+          decision?: string
+          confidence?: string
+          nextAction?: {
+            kind?: string
+          }
+        }
+      }
     }
   }
 }
@@ -311,6 +323,18 @@ export const getSessionStatusSummary = (input: {
     debugLines.push(`Resume failures: ${supervisor?.consecutiveResumeFailures}`)
   if (supervisor?.lastResumeCategory) debugLines.push(`Last category: ${supervisor.lastResumeCategory}`)
   if (supervisor?.lastResumeError) debugLines.push(`Last error: ${supervisor.lastResumeError.slice(0, 120)}`)
+  if (supervisor?.lastGovernorTrace?.status) debugLines.push(`Governor: ${supervisor.lastGovernorTrace.status}`)
+  if (supervisor?.lastGovernorTrace?.decision?.decision) {
+    const confidence = supervisor.lastGovernorTrace.decision.confidence
+    debugLines.push(
+      `Governor decision: ${supervisor.lastGovernorTrace.decision.decision}${confidence ? ` (${confidence})` : ""}`,
+    )
+  }
+  if (supervisor?.lastGovernorTrace?.decision?.nextAction?.kind) {
+    debugLines.push(`Governor next: ${supervisor.lastGovernorTrace.decision.nextAction.kind}`)
+  }
+  if (supervisor?.lastGovernorTraceAt)
+    debugLines.push(`Governor at: ${formatDebugTime(supervisor.lastGovernorTraceAt)}`)
 
   const latestTaskResult = summarizeTaskResult({ messages: input.messages, partsByMessage: input.partsByMessage })
   const latestNarration = summarizeNarration({ messages: input.messages, partsByMessage: input.partsByMessage })

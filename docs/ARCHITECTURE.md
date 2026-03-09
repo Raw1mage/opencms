@@ -112,12 +112,16 @@ The `cms` branch is the primary product line for this environment, featuring sig
    - Config APIs: read/update.
    - Account APIs: list + mutation routes.
    - Session APIs: list/read/status/top + mutation routes.
-   - Session records now also carry persisted workflow metadata (`workflow.autonomous`, `workflow.state`, stop reason, timestamps) as the foundation for autonomous-session continuation.
-   - In-process continuation is now wired inside the prompt loop: after an assistant round completes, the runtime can synthesize the next user step from outstanding todos when autonomous mode is enabled and no blocker/approval stop condition is active.
-   - Autonomous turns now also emit short transcript-visible progress narration messages (`continue` / `pause` / `complete`) so the shared session surface can explain what the runtime is doing without requiring the user to inspect only sidebar state.
-   - Incoming real user prompts may now safely preempt a busy autonomous synthetic run. Runtime cleanup is keyed by per-run identity so an old aborted loop cannot accidentally clear the replacement loop.
-   - A durable continuation queue foundation now exists under session storage, and the server runtime now starts an in-process autonomous supervisor that scans pending continuation records and re-enters session loops for idle autonomous sessions.
-   - Model preference APIs: read/update.
+
+- Session records now also carry persisted workflow metadata (`workflow.autonomous`, `workflow.state`, stop reason, timestamps) as the foundation for autonomous-session continuation.
+- In-process continuation is now wired inside the prompt loop: after an assistant round completes, the runtime can synthesize the next user step from outstanding todos when autonomous mode is enabled and no blocker/approval stop condition is active.
+- Autonomous turns now also emit short transcript-visible progress narration messages (`continue` / `pause` / `complete`) so the shared session surface can explain what the runtime is doing without requiring the user to inspect only sidebar state.
+- Incoming real user prompts may now safely preempt a busy autonomous synthetic run. Runtime cleanup is keyed by per-run identity so an old aborted loop cannot accidentally clear the replacement loop.
+- A durable continuation queue foundation now exists under session storage, and the server runtime now starts an in-process autonomous supervisor that scans pending continuation records and re-enters session loops for idle autonomous sessions.
+- Experimental Smart Runner support now has two guarded stages:
+  - `OPENCODE_EXPERIMENTAL_SMART_RUNNER_GOVERNOR=1`: after the deterministic runner chooses a low-risk continue path, the prompt loop may invoke `packages/opencode/src/session/smart-runner-governor.ts` with a compact context pack and persist the advisory result under `workflow.supervisor.lastGovernorTrace*`.
+  - `OPENCODE_EXPERIMENTAL_SMART_RUNNER_GOVERNOR_ASSIST=1`: the same governor trace may adjust only low-risk continuation wording (`continue_current`, `start_next_todo`, `docs_sync_first`, `debug_preflight_first`) while deterministic guardrails remain the sole authority for stop gates, approval gates, completion, and pause states.
+- Model preference APIs: read/update.
 
 5. **Web realtime behavior**
    - Primary path: SSE global events (`/global/event`) drive incremental UI updates.
@@ -1500,6 +1504,10 @@ Direct manual `opencode web` launch is guarded by launch-mode checks to prevent 
 ├── skills/               ← bundled skills
 └── ...
 ```
+
+Bundled skills are part of the runtime contract, not only documentation. In particular, `skills/agent-workflow/SKILL.md` now carries the autonomous-planning contract for conversation-to-plan conversion, structured todo metadata, stop gates, narration, interrupt-safe replanning, the standardized system-level debug contract, and the requirement to treat framework documentation as a persistent system model. `code-thinker` shares that same debug contract for high-risk code/debug tasks, while `doc-coauthoring` is also used as a documentation-agent workflow for keeping framework docs synchronized during development/debug work. Therefore any changes to those skills must be synchronized with their counterparts under `templates/skills/**`.
+
+`docs/ARCHITECTURE.md` is the hard-coded long-lived framework document for this repo. It should capture module boundaries, runtime/data flows, state machines, core directory trees, and debug/observability maps. `docs/events/event_<date>_<topic>.md` is the task-local ledger for requirements, conversation highlights, checkpoints, decisions, validation, and architecture-sync results. Complex development/debug sessions should prefer these docs first, then source exploration.
 
 ### D. Initialization Flow (post-refactor)
 

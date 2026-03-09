@@ -193,6 +193,8 @@ export namespace Session {
     consecutiveResumeFailures: z.number().optional(),
     lastResumeCategory: z.string().optional(),
     lastResumeError: z.string().optional(),
+    lastGovernorTraceAt: z.number().optional(),
+    lastGovernorTrace: z.record(z.string(), z.any()).optional(),
   })
   export type WorkflowSupervisor = z.output<typeof WorkflowSupervisor>
 

@@ -10,6 +10,7 @@ import { Agent } from "../agent/agent"
 import { Provider } from "../provider/provider"
 import { SessionCompaction } from "./compaction"
 import { Instance } from "../project/instance"
+import { Todo } from "./todo"
 import { Bus } from "../bus"
 import { SystemPrompt } from "./system"
 import { InstructionPrompt } from "./instruction"
@@ -65,6 +66,11 @@ import {
   getPendingContinuation,
   shouldInterruptAutonomousRun,
 } from "./workflow-runner"
+import {
+  applySmartRunnerBoundedAssist,
+  evaluateSmartRunnerGovernorDryRun,
+  persistSmartRunnerGovernorTrace,
+} from "./smart-runner-governor"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
 
@@ -738,24 +744,48 @@ export namespace SessionPrompt {
           sessionID,
           roundCount: autonomousRounds,
         })
-        const narration = describeAutonomousNextAction(
-          decision.continue
-            ? {
-                type: "continue",
-                reason: decision.reason,
-                text: decision.text,
-                todo: decision.todo,
-              }
-            : { type: "stop", reason: decision.reason },
-        )
+        let continueDecision = decision.continue ? decision : undefined
+        let narrationOverride: string | undefined
         if (decision.continue) {
+          const trace = await evaluateSmartRunnerGovernorDryRun({
+            sessionID,
+            model: activeModel,
+            todos: await Todo.get(sessionID),
+            roundCount: autonomousRounds,
+            deterministicDecision: decision,
+            messages: msgs,
+          })
+          await persistSmartRunnerGovernorTrace({
+            sessionID,
+            trace,
+          })
+          const assist = applySmartRunnerBoundedAssist({
+            enabled: Flag.OPENCODE_EXPERIMENTAL_SMART_RUNNER_GOVERNOR_ASSIST,
+            decision,
+            trace,
+          })
+          continueDecision = assist.decision
+          narrationOverride = assist.narration
+        }
+        const narration = continueDecision
+          ? describeAutonomousNextAction({
+              type: "continue",
+              reason: continueDecision.reason,
+              text: continueDecision.text,
+              todo: continueDecision.todo,
+            })
+          : describeAutonomousNextAction({
+              type: "stop",
+              reason: decision.reason as Exclude<typeof decision.reason, "todo_pending" | "todo_in_progress">,
+            })
+        if (continueDecision) {
           await emitAutonomousNarration({
             sessionID,
             parentID: lastUser.id,
             agent: lastUser.agent,
             variant: lastUser.variant,
             model: lastUser.model,
-            text: narration.text,
+            text: narrationOverride ?? narration.text,
             kind: narration.kind,
           })
           autonomousRounds++
@@ -763,7 +793,7 @@ export namespace SessionPrompt {
             sessionID,
             user: lastUser,
             roundCount: autonomousRounds,
-            text: decision.text,
+            text: continueDecision.text,
           })
           continue
         }

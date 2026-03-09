@@ -16,6 +16,38 @@
 4.  **載入 Skill 擴充器**：`skill(name="skill-finder")`
     - _目的_：讓 Agent 可在能力缺口時向外擴充 Skill。
 
+### 開發任務預設工作流（Mandatory Trigger）
+
+- 只要使用者提出**非瑣碎開發需求**（例如 implement / build / fix / refactor / debug / write tests / continue plan / make it autonomous），Main Agent **必須**以 `skill(name="agent-workflow")` 作為預設 workflow。
+- `agent-workflow` 在此不只是通用 SOP，而是 autonomous-ready contract。進入 EXECUTION 前，必須先建立最小可執行計畫骨架：
+  - `goal`
+  - structured todos（優先使用 `todowrite` + `action` metadata）
+  - `dependsOn`
+  - approval / decision / blocker gates
+  - validation plan
+- 若上述骨架尚未成立，**不得**宣稱可安全 autonomous 持續執行；必須先補 plan，再進入 execution。
+- 若任務變更模組邊界、資料流、狀態機、debug checkpoints 或沉澱了重要 root cause，Main Agent **必須**委派 documentation agent（搭配 `doc-coauthoring`）同步框架文件。
+- 其他技能（如 `code-thinker`, `software-architect`, `webapp-testing`, `doc-coauthoring`）屬於加值裝備；`agent-workflow` 是所有非瑣碎開發任務的底盤。
+
+### 核心文件責任分工（Hard-coded）
+
+- `docs/ARCHITECTURE.md`
+  - 記錄全 repo 長期框架知識：模組邊界、資料流、狀態機、runtime flows、核心目錄樹、debug/observability map。
+- `docs/events/event_<YYYYMMDD>_<topic>.md`
+  - 記錄每次任務的需求、範圍、對話重點摘要、debug checkpoints、決策、驗證與 architecture sync。
+- 所有複雜 debug / 開發任務，應優先先讀 `docs/ARCHITECTURE.md` 與相關 `docs/events/`，再進入原始碼偵查。
+
+### 全域 Debug / Syslog 契約（Mandatory）
+
+- 往後所有開發 / debug 工作一律採 **system-first、boundary-first、evidence-first** 思維。
+- 遇到複雜 bug（例如 reload blank、state mismatch、跨層 sync、race、multi-component failure）時，不得只憑局部 symptom 判斷；必須先拆：
+  - 系統層次
+  - component boundaries
+  - 資料 / 狀態 / config 傳遞路徑
+- 所有 debug 任務都必須遵守 `agent-workflow` 與 `code-thinker` 共用的 syslog-style debug contract。
+- 具體 checkpoint schema、instrumentation plan 與 component-boundary 規則，以對應 skill 為單一真實來源。
+- 沒有 checkpoint evidence，不得宣稱已找到 root cause。
+
 ### Enablement Registry（能力總表）
 
 - Runtime 單一真相來源：`packages/opencode/src/session/prompt/enablement.json`
@@ -118,10 +150,9 @@
    - 任何非瑣碎開發任務，必須先建立/更新：`docs/events/event_<YYYYMMDD>_<topic>.md`。
    - 至少包含：`需求`、`範圍(IN/OUT)`、`任務清單`。
 
-2. **Debug Checkpoints 三段式**
-   - `Baseline`（修改前）：症狀、重現步驟、影響範圍。
-   - `Execution`（修正中）：關鍵改動、第一個錯誤與處置。
-   - `Validation`（修正後）：驗證指令、通過/失敗、已知噪音豁免。
+2. **實作過程必有標準化 debug checkpoints**
+   - 一律遵守 `agent-workflow` / `code-thinker` 共享的 checkpoint schema。
+   - 內容必須可追溯（指令、證據、checkpoint 訊號、決策依據）。
 
 3. **完成宣告門檻**
    - 未完成 Event + Checkpoints + Validation 記錄，不得宣告任務完成。
@@ -135,7 +166,14 @@
    - 即使判定無內容變更，也必須在對應 event 的 Validation 區塊註記 `Architecture Sync: Verified (No doc changes)` 與比對依據。
    - 未完成 Architecture 同步檢查與紀錄，不得宣告完成。
 
-6. **Web Runtime 單一啟動入口（Fail-Fast）**
+6. **Documentation Agent 同步門檻**
+   - 凡任務影響模組邊界、資料流、狀態機、觀測點或關鍵 root cause 沉澱，必須同步委派 documentation agent 更新長期文件。
+
+7. **文件優先於重建心智模型**
+   - 複雜 debug / 開發任務應優先讀取相關框架文件，而不是每次從原始碼重新建模整個系統。
+   - 若框架文件不足，應在本次任務中補齊，而不是接受知識缺口常態化。
+
+8. **Web Runtime 單一啟動入口（Fail-Fast）**
    - 本 repo 的 web runtime **只允許**透過 `./webctl.sh dev-start`（或 `dev-refresh`）啟動。
    - 禁止直接使用 `bun ... opencode ... web` / `opencode web` 手動啟動，避免載入錯誤前端 bundle 或錯誤 env。
    - 所有 server runtime 參數（含 `OPENCODE_FRONTEND_PATH`）必須集中定義於 `/etc/opencode/opencode.cfg`，作為單一事實來源。

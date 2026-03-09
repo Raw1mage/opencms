@@ -166,6 +166,16 @@ describe("getSessionStatusSummary", () => {
               consecutiveResumeFailures: 2,
               lastResumeCategory: "provider_rate_limit",
               lastResumeError: "rate limited",
+              lastGovernorTraceAt: 65_000,
+              lastGovernorTrace: {
+                status: "advisory",
+                deterministicReason: "todo_in_progress",
+                decision: {
+                  decision: "debug_preflight_first",
+                  confidence: "high",
+                  nextAction: { kind: "request_debug_preflight" },
+                },
+              },
             },
           },
         },
@@ -244,6 +254,16 @@ describe("getSessionStatusSummary", () => {
             consecutiveResumeFailures: 2,
             lastResumeCategory: "provider_rate_limit",
             lastResumeError: "rate limited",
+            lastGovernorTraceAt: 65_000,
+            lastGovernorTrace: {
+              status: "advisory",
+              deterministicReason: "todo_in_progress",
+              decision: {
+                decision: "debug_preflight_first",
+                confidence: "high",
+                nextAction: { kind: "request_debug_preflight" },
+              },
+            },
           },
         },
       },
@@ -300,6 +320,10 @@ describe("getSessionStatusSummary", () => {
       "Resume failures: 2",
       "Last category: provider_rate_limit",
       "Last error: rate limited",
+      "Governor: advisory",
+      "Governor decision: debug_preflight_first (high)",
+      "Governor next: request_debug_preflight",
+      expect.stringMatching(/^Governor at: \d{2}:\d{2}:\d{2}$/),
     ])
   })
 
