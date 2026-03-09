@@ -6,6 +6,8 @@ import { Storage } from "@/storage/storage"
 import z from "zod"
 import { SessionStatus } from "./status"
 import { Lock } from "@/util/lock"
+import { Agent } from "@/agent/agent"
+import { orchestrateModelSelection, shouldAutoSwitchMainModel } from "./model-orchestration"
 
 export const AUTONOMOUS_CONTINUE_TEXT =
   "Continue with the next planned step. Only stop and ask the user if you hit a real blocker or need a product decision."
@@ -165,26 +167,55 @@ export async function enqueueAutonomousContinue(input: {
   roundCount?: number
 }) {
   const now = Date.now()
-  const message = await Session.updateMessage({
-    id: Identifier.ascending("message"),
-    role: "user",
-    sessionID: input.sessionID,
-    time: { created: now },
-    agent: input.user.agent,
-    model: input.user.model,
-    format: input.user.format,
-    variant: input.user.variant,
-  })
-  await Session.updatePart({
+  const text = input.text ?? AUTONOMOUS_CONTINUE_TEXT
+  const session = await Session.get(input.sessionID)
+  const messageID = Identifier.ascending("message")
+  const textPart: MessageV2.TextPart = {
     id: Identifier.ascending("part"),
-    messageID: message.id,
+    messageID,
     sessionID: input.sessionID,
     type: "text",
-    text: input.text ?? AUTONOMOUS_CONTINUE_TEXT,
+    text,
     synthetic: true,
     time: {
       start: now,
       end: now,
+    },
+  }
+  const arbitration = shouldAutoSwitchMainModel({
+    session,
+    lastUserParts: [textPart],
+  })
+    ? await orchestrateModelSelection({
+        agentName: input.user.agent,
+        agentModel: (await Agent.get(input.user.agent))?.model,
+        fallbackModel: input.user.model,
+      })
+    : {
+        model: input.user.model,
+        trace: {
+          agentName: input.user.agent,
+          domain: "manual",
+          selected: { ...input.user.model, source: "session_previous" },
+          candidates: [{ ...input.user.model, source: "session_previous", operational: true }],
+        },
+      }
+  const nextModel = arbitration.model
+  const message = await Session.updateMessage({
+    id: messageID,
+    role: "user",
+    sessionID: input.sessionID,
+    time: { created: now },
+    agent: input.user.agent,
+    model: nextModel,
+    format: input.user.format,
+    variant: input.user.variant,
+  })
+  await Session.updatePart({
+    ...textPart,
+    messageID: message.id,
+    metadata: {
+      modelArbitration: arbitration.trace,
     },
   })
   await enqueuePendingContinuation({
@@ -193,7 +224,7 @@ export async function enqueueAutonomousContinue(input: {
     createdAt: now,
     roundCount: input.roundCount ?? 0,
     reason: "todo_pending",
-    text: input.text ?? AUTONOMOUS_CONTINUE_TEXT,
+    text,
   })
   return message
 }

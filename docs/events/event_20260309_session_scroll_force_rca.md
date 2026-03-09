@@ -68,6 +68,21 @@ Status: Completed
     - `use-session-hash-scroll.ts`：無 hash fallback、hash miss fallback、session 初次 ready
     - `session.tsx`：prompt dock resize stick 情境
   - 等於把「強制貼底權限」收斂到真正的使用者明確操作，而不是一般 lifecycle / layout 事件。
+- 使用者後續觀察補充：真正更明顯的錨點似乎是帶有 spinner 的「思考中」那一列。
+- 追查 `packages/ui/src/components/session-turn.tsx` 後確認：
+  - 「思考中」文字不是一般內文，而是放在 `data-slot="session-turn-sticky"` 的 sticky trigger 區塊內。
+  - 此區塊在 working 狀態時會持續更新 `store.status`（例如 thinking / gathering thoughts / running commands），並同步顯示 spinner。
+  - `session-turn-sticky` 本身使用 `position: sticky; top: var(--session-title-height, 0px); z-index: 20;`，是整個 turn 的黏性頭部。
+  - 元件還會透過 `ResizeObserver` 持續量測 sticky 區高度，並寫回 `--session-turn-sticky-height` CSS variable，進一步影響 turn 佈局。
+- 因此，這行「思考中」確實不是單純文字，而是**具 sticky 定位 + 動態高度量測 + 狀態持續更新**的 header。它非常可能成為瀏覽器與自家 scroll logic 共同選中的 anchor 熱點。
+- 目前最可疑的下一層 root cause：
+  - reasoning/text streaming 不只在更新內容，還會改變這個 sticky trigger 的 status 文案與高度量測；
+  - 當 sticky header 反覆重算時，session viewport 比一般內文更容易被拉回該 turn 附近。
+- 後續優先修正方向應先鎖定這個 sticky thinking row，而不是 shell output：
+  1. 優先嘗試對 `session-turn-sticky` / `session-turn-response-trigger` 強制 `overflow-anchor: none`
+  2. 評估在 working 狀態下凍結 sticky 高度，避免 status 文案更新時連帶改寫 `--session-turn-sticky-height`
+  3. 若仍有跳動，再考慮把 thinking status 從 sticky header 拆成非 sticky 顯示
+- 本輪先做第一層止血：對 `session-turn-sticky` 與 `session-turn-response-trigger` 加上 `overflow-anchor: none`，優先嘗試切斷瀏覽器把這條「思考中」sticky row 當成 viewport anchor 的機會。
 
 ### Validation
 

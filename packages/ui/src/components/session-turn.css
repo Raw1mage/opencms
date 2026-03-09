@@ -57,6 +57,7 @@
     position: sticky;
     top: var(--session-title-height, 0px);
     z-index: 20;
+    overflow-anchor: none;
     background-color: var(--background-stronger);
     margin-left: -9px;
     padding-left: 9px;
@@ -86,6 +87,10 @@
       background: linear-gradient(to bottom, var(--background-stronger), transparent);
       pointer-events: none;
     }
+  }
+
+  [data-slot="session-turn-response-trigger"] {
+    overflow-anchor: none;
   }
 
   [data-slot="session-turn-message-header"] {

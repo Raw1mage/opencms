@@ -9,6 +9,7 @@ import { SessionTurn } from "@opencode-ai/ui/session-turn"
 import type { UserMessage } from "@opencode-ai/sdk/v2"
 import { shouldMarkBoundaryGesture, normalizeWheelDelta } from "@/pages/session/message-gesture"
 import { useSettings } from "@/context/settings"
+import type { SessionWorkflowChip } from "@/pages/session/helpers"
 
 const boundaryTarget = (root: HTMLElement, target: EventTarget | null) => {
   const current = target instanceof Element ? target : undefined
@@ -58,7 +59,10 @@ export function MessageTimeline(props: {
   showHeader: boolean
   centered: boolean
   title?: string
+  dirtyCount?: number
   parentID?: string
+  workflowChips?: SessionWorkflowChip[]
+  arbitrationChips?: SessionWorkflowChip[]
   openTitleEditor: () => void
   closeTitleEditor: () => void
   saveTitleEditor: () => void | Promise<void>
@@ -193,12 +197,19 @@ export function MessageTimeline(props: {
                       <Show
                         when={props.titleState.editing}
                         fallback={
-                          <h1
-                            class="text-16-medium text-text-strong truncate min-w-0"
-                            onDblClick={props.openTitleEditor}
-                          >
-                            {props.title}
-                          </h1>
+                          <div class="flex min-w-0 items-center gap-2">
+                            <h1
+                              class="text-16-medium text-text-strong truncate min-w-0"
+                              onDblClick={props.openTitleEditor}
+                            >
+                              {props.title}
+                            </h1>
+                            <Show when={(props.dirtyCount ?? 0) > 0}>
+                              <span class="shrink-0 inline-flex min-w-5 h-5 px-1.5 items-center justify-center rounded-md bg-[#ffffff] text-[#000000] text-11-medium tabular-nums border border-[#ffffff] shadow-sm">
+                                {props.dirtyCount}
+                              </span>
+                            </Show>
+                          </div>
                         }
                       >
                         <InlineInput

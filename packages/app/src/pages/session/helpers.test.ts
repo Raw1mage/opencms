@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test"
-import { combineCommandSections, createOpenReviewFile, focusTerminalById, getTabReorderIndex } from "./helpers"
+import {
+  combineCommandSections,
+  createOpenReviewFile,
+  focusTerminalById,
+  getSessionArbitrationChips,
+  getSessionWorkflowChips,
+  getSessionScopedDirtyDiffs,
+  getTabReorderIndex,
+} from "./helpers"
 
 describe("createOpenReviewFile", () => {
   test("opens and loads selected review file", () => {
@@ -70,5 +78,97 @@ describe("getTabReorderIndex", () => {
 
   test("returns undefined for unknown droppable id", () => {
     expect(getTabReorderIndex(["a", "b", "c"], "a", "missing")).toBeUndefined()
+  })
+})
+
+describe("getSessionScopedDirtyDiffs", () => {
+  test("returns all dirty diffs when session has no summarized file history", () => {
+    const diffs = [{ file: "a.ts" }, { file: "b.ts" }]
+
+    expect(getSessionScopedDirtyDiffs(diffs, [{}, {}])).toEqual(diffs)
+  })
+
+  test("keeps only dirty diffs that belong to the current session history", () => {
+    const diffs = [{ file: "a.ts" }, { file: "b.ts" }, { file: "c.ts" }]
+    const messages = [{ summary: { diffs: [{ file: "b.ts" }, { file: "c.ts" }] } }]
+
+    expect(getSessionScopedDirtyDiffs(diffs, messages)).toEqual([{ file: "b.ts" }, { file: "c.ts" }])
+  })
+
+  test("normalizes slash variants before matching files", () => {
+    const diffs = [{ file: "src/foo.ts" }, { file: "src/bar.ts" }]
+    const messages = [{ summary: { diffs: [{ file: "src\\foo.ts/" }] } }]
+
+    expect(getSessionScopedDirtyDiffs(diffs, messages)).toEqual([{ file: "src/foo.ts" }])
+  })
+})
+
+describe("getSessionWorkflowChips", () => {
+  test("returns empty when workflow metadata is absent", () => {
+    expect(getSessionWorkflowChips(undefined)).toEqual([])
+  })
+
+  test("summarizes autonomous workflow and stop reason for session header visibility", () => {
+    expect(
+      getSessionWorkflowChips({
+        workflow: {
+          autonomous: { enabled: true },
+          state: "waiting_user",
+          stopReason: "max_continuous_rounds",
+        },
+      }),
+    ).toEqual([
+      { label: "Auto", tone: "info" },
+      { label: "Model auto", tone: "info" },
+      { label: "Waiting", tone: "neutral" },
+      { label: "Max continuous rounds", tone: "neutral" },
+    ])
+  })
+
+  test("highlights blocked workflow reasons", () => {
+    expect(
+      getSessionWorkflowChips({
+        workflow: {
+          autonomous: { enabled: true },
+          state: "blocked",
+          stopReason: "resume_failed:provider_exhausted",
+        },
+      }),
+    ).toEqual([
+      { label: "Auto", tone: "info" },
+      { label: "Model auto", tone: "info" },
+      { label: "Blocked", tone: "warning" },
+      { label: "Resume failed: provider exhausted", tone: "warning" },
+    ])
+  })
+})
+
+describe("getSessionArbitrationChips", () => {
+  test("returns chips from latest arbitration trace metadata", () => {
+    expect(
+      getSessionArbitrationChips({
+        userParts: [
+          {
+            id: "p1",
+            sessionID: "s1",
+            messageID: "m1",
+            type: "text",
+            text: "continue",
+            metadata: {
+              modelArbitration: {
+                selected: {
+                  providerId: "google",
+                  modelID: "gemini-2.5-pro",
+                  source: "rotation_rescue",
+                },
+              },
+            },
+          } as any,
+        ],
+      }),
+    ).toEqual([
+      { label: "rotation rescue", tone: "info" },
+      { label: "google/gemini-2.5-pro", tone: "neutral" },
+    ])
   })
 })

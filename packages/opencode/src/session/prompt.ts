@@ -364,6 +364,7 @@ export namespace SessionPrompt {
               description: task.description,
               subagent_type: task.agent,
               command: task.command,
+              model: task.model ? `${task.model.providerId}/${task.model.modelID}` : undefined,
             },
             time: {
               start: Date.now(),
@@ -381,6 +382,7 @@ export namespace SessionPrompt {
             description: task.description,
             subagent_type: task.agent,
             command: task.command,
+            model: task.model ? `${task.model.providerId}/${task.model.modelID}` : undefined,
           },
           agent: task.agent,
           abort,

@@ -22,6 +22,7 @@ import { Todo } from "@/session/todo"
 import { ActivityBeacon } from "@/util/activity-beacon"
 import { BusEvent } from "@/bus/bus-event"
 import { Lock } from "@/util/lock"
+import { orchestrateModelSelection } from "@/session/model-orchestration"
 
 // NOTE: @event_task_tool_complex_input
 // Updated schema to support both simple string and complex structured input.
@@ -694,11 +695,16 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       if (msg.info.role !== "assistant") throw new Error("Not an assistant message")
 
       const modelArg = params.model ? Provider.parseModel(params.model) : undefined
-      const model = modelArg ??
-        agent.model ?? {
+      const arbitration = await orchestrateModelSelection({
+        agentName: agent.name,
+        explicitModel: modelArg,
+        agentModel: agent.model,
+        fallbackModel: {
           modelID: msg.info.modelID,
           providerId: msg.info.providerId,
-        }
+        },
+      })
+      const model = arbitration.model
 
       debugCheckpoint("task", "Model resolved for subagent", {
         modelArg,
@@ -713,6 +719,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         metadata: {
           sessionId: session.id,
           model,
+          modelArbitration: arbitration.trace,
         },
       })
 

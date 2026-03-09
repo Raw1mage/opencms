@@ -40,7 +40,14 @@ import { showToast } from "@opencode-ai/ui/toast"
 import { SessionHeader, SessionContextTab, SortableTab, FileVisual, NewSessionView } from "@/components/session"
 import { navMark, navParams } from "@/utils/perf"
 import { same } from "@/utils/same"
-import { createOpenReviewFile, focusTerminalById, getTabReorderIndex } from "@/pages/session/helpers"
+import {
+  createOpenReviewFile,
+  focusTerminalById,
+  getSessionArbitrationChips,
+  getSessionWorkflowChips,
+  getSessionScopedDirtyDiffs,
+  getTabReorderIndex,
+} from "@/pages/session/helpers"
 import { useSessionResumeSync } from "@/pages/session/use-session-resume-sync"
 import { createScrollSpy } from "@/pages/session/scroll-spy"
 import { createFileTabListSync } from "@/pages/session/file-tab-scroll"
@@ -289,6 +296,7 @@ export default function Page() {
   })
 
   const info = createMemo(() => (params.id ? sync.session.get(params.id) : undefined))
+  const workflowChips = createMemo(() => getSessionWorkflowChips(info() as any))
   const revertMessageID = createMemo(() => info()?.revert?.messageID)
   const messages = createMemo(() => (params.id ? (sync.data.message[params.id] ?? []) : []))
   const messagesReady = createMemo(() => {
@@ -498,6 +506,14 @@ export default function Page() {
     },
   )
   const lastUserMessage = createMemo(() => visibleUserMessages().at(-1))
+  const arbitrationChips = createMemo(() => {
+    const user = lastUserMessage()
+    if (!user) return []
+    const userParts = sync.data.part[user.id] ?? []
+    const assistant = messages().findLast((item) => item.role === "assistant" && item.parentID === user.id)
+    const assistantParts = assistant ? (sync.data.part[assistant.id] ?? []) : []
+    return getSessionArbitrationChips({ userParts, toolParts: assistantParts })
+  })
 
   createEffect(
     on(
@@ -521,29 +537,12 @@ export default function Page() {
     promptHeight: 0,
   })
 
-  const selectedTurnMessageID = createMemo(() => {
-    if (!store.messageId) return lastUserMessage()?.id
-    const found = visibleUserMessages()?.find((m) => m.id === store.messageId)
-    return (found ?? lastUserMessage())?.id
-  })
-
-  const reviewDiffKey = createMemo(() => {
-    const id = params.id
-    if (!id) return undefined
-    const messageID = selectedTurnMessageID()
-    return messageID ? `${id}:msg:${messageID}` : undefined
-  })
-
-  const [stableReviewDiffKey, setStableReviewDiffKey] = createSignal<string | undefined>()
-  createEffect(() => {
-    const key = reviewDiffKey()
-    if (key) setStableReviewDiffKey(key)
-  })
+  const reviewDiffKey = createMemo(() => params.id)
 
   const reviewDiffs = createMemo(() => {
-    const key = reviewDiffKey() ?? stableReviewDiffKey()
+    const key = reviewDiffKey()
     if (!key) return []
-    return sync.data.session_diff[key] ?? []
+    return getSessionScopedDirtyDiffs(sync.data.session_diff[key] ?? [], visibleUserMessages())
   })
   const reviewCount = createMemo(() => reviewDiffs().length)
   const hasReview = createMemo(() => reviewCount() > 0)
@@ -628,7 +627,7 @@ export default function Page() {
   const emptyDiffFiles: string[] = []
   const diffFiles = createMemo(() => reviewDiffs().map((d) => d.file), emptyDiffFiles, { equals: same })
   const diffsReady = createMemo(() => {
-    const key = reviewDiffKey() ?? stableReviewDiffKey()
+    const key = reviewDiffKey()
     if (!key) return true
     if (!hasReview()) return true
     return sync.data.session_diff[key] !== undefined
@@ -1018,6 +1017,14 @@ export default function Page() {
   createEffect(() => {
     const id = params.id
     if (!id) return
+    if (sync.status === "loading") return
+
+    void sync.session.diff(id)
+  })
+
+  createEffect(() => {
+    const id = params.id
+    if (!id) return
 
     const wants = isDesktop()
       ? (desktopToolSidebarOpen() && layout.fileTree.mode() === "changes") ||
@@ -1026,10 +1033,7 @@ export default function Page() {
     if (!wants) return
     if (sync.status === "loading") return
 
-    const messageID = selectedTurnMessageID()
-    if (!messageID) return
-
-    void sync.session.diff(id, { messageID })
+    void sync.session.diff(id)
   })
 
   let treeDir: string | undefined
@@ -1386,7 +1390,10 @@ export default function Page() {
                     showHeader={!!(info()?.title || info()?.parentID)}
                     centered={centered()}
                     title={info()?.title}
+                    dirtyCount={reviewCount()}
                     parentID={info()?.parentID}
+                    workflowChips={workflowChips()}
+                    arbitrationChips={arbitrationChips()}
                     openTitleEditor={openTitleEditor}
                     closeTitleEditor={closeTitleEditor}
                     saveTitleEditor={saveTitleEditor}

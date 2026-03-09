@@ -29,6 +29,7 @@ Status: In Progress
 - [x] 設計 Main Agent / subagent / scheduler / stop protocol
 - [x] 產出分階段落地計畫
 - [x] 落地 autonomous workflow Phase 1（metadata + state machine foundation）
+- [x] 落地 dynamic model orchestration foundation（autonomous main turn + subagent dispatch）
 
 ## Debug Checkpoints
 
@@ -228,6 +229,65 @@ Status: In Progress
   - 尚未加入多 session fairness、provider budget arbitration、backoff policy
   - 但已經從「有 queue」進展到「server runtime 會主動恢復 idle autonomous session」
 
+## Dynamic model orchestration foundation
+
+- `packages/opencode/src/session/model-orchestration.ts`
+  - 新增集中式 model orchestration helper：
+    - `domainForAgent(...)`
+    - `shouldAutoSwitchMainModel(...)`
+    - `selectOrchestratedModel(...)`
+    - `resolveProviderModel(...)`
+  - 規則先收斂為：
+    - explicit model 最高優先
+    - agent pinned model 次之
+    - 否則依 agent domain 走 `ModelScoring.select(...)`
+    - 若 scoring 失敗則回退到 caller fallback model
+- `packages/opencode/src/session/workflow-runner.ts`
+  - `enqueueAutonomousContinue(...)` 現在在 synthetic autonomous user turn 建立前，會檢查是否應 auto-switch main model
+  - 當 session 處於 autonomous synthetic continue 流程時，main agent 可從上一輪模型切到較適合當前 agent domain 的模型，而不是永遠沿用前一個 user-selected model
+- `packages/opencode/src/tool/task.ts`
+  - subagent dispatch 改為透過 orchestration helper 做 model resolve：
+    - 顯式 `model` 參數保留最高優先
+    - agent 自帶 pinned model 仍會保留
+    - 若都沒有，subagent 不再無條件繼承 parent model，而會先嘗試依 subagent domain 選出更適合的模型
+- `packages/opencode/src/session/prompt.ts`
+  - subtask part 若有 `task.model`，現在會把 model 明確傳入 `TaskTool`，避免 command/subtask 顯式指定模型時被後續 orchestration 意外覆蓋
+- `packages/opencode/src/session/model-orchestration.test.ts`
+  - 補 pure helper regression tests，驗證 domain mapping / autonomous synthetic gate / precedence order
+
+## Dynamic model orchestration follow-up
+
+- `packages/opencode/src/session/model-orchestration.ts`
+  - orchestration 現在不只看 agent domain scoring，也會接上現有 rotation/health 狀態：
+    - 先檢查 scored model 是否 operational（rate-limit / account health / provider health status）
+    - 若 scored model 不可用，退回 caller fallback model
+    - 若 scored 與 fallback 都不可用，會再透過 `findFallback(...)` 嘗試找可用 rescue candidate
+  - 這使 autonomous synthetic main turn 與 subagent dispatch 開始具備最小 quota/health-aware arbitration，而不是只做靜態 domain ranking
+- `packages/app/src/pages/session.tsx`
+  - session 頁面現在會從 session metadata 讀出 workflow/autonomous 狀態，整理成 header chips
+- `packages/app/src/pages/session/message-timeline.tsx`
+  - session header 現在可顯示：
+    - `Auto`
+    - `Model auto`
+    - workflow state（Running / Waiting / Blocked / Completed）
+    - stop reason 摘要
+- `packages/app/src/pages/session/helpers.ts`
+  - 新增 `getSessionWorkflowChips(...)`，集中處理 workflow state / stop reason 的 UI 摘要轉換，避免頁面直接耦合 raw metadata
+- `packages/opencode/src/session/model-orchestration.ts`
+  - 新增 `orchestrateModelSelection(...)`，除了回傳 resolved model，也產出可序列化的 arbitration trace
+- `packages/opencode/src/session/workflow-runner.ts`
+  - autonomous synthetic user part 會寫入 `metadata.modelArbitration`，把 main-agent auto-switch 的決策依據附著到該回合 user turn
+- `packages/opencode/src/tool/task.ts`
+  - subagent `TaskTool` metadata 現在除了 sessionId/model，也會帶 `modelArbitration`，讓 UI 可以看到 subagent 實際是 scored / fallback / rescue 哪種決策
+- `packages/app/src/pages/session/helpers.ts`
+  - 新增 `getSessionArbitrationChips(...)`，從 user/tool part metadata 抽出最新 arbitration trace 並轉成 UI chips
+- `packages/app/src/pages/session/message-timeline.tsx`
+  - session header 現在除了 workflow chips，也會顯示最新 arbitration trace 摘要（source + resolved provider/model）
+- 目前限制：
+  - scored candidate 的 arbitration 仍是 local/in-process 決策，尚未接到全域 multi-session budget scheduler
+  - explicit model / agent pinned model 仍保留最高優先，不主動覆寫
+  - header 目前只顯示「最新一筆」arbitration trace 摘要，尚未提供完整 per-turn trace timeline / debug inspector
+
 ### Validation
 
 - `bun run --cwd packages/opencode typecheck` ✅
@@ -239,5 +299,16 @@ Status: In Progress
 - Phase 4 in-process supervisor 驗證：
   - `bun run --cwd packages/opencode typecheck` ✅
   - `bun test --cwd packages/opencode src/session/index.test.ts src/session/workflow-runner.test.ts` ✅
+- Dynamic model orchestration foundation 驗證：
+  - `bun run --cwd packages/opencode typecheck` ✅
+  - `bun test packages/opencode/src/session/model-orchestration.test.ts packages/opencode/src/session/workflow-runner.test.ts packages/opencode/src/session/index.test.ts` ✅
+- Dynamic model orchestration follow-up 驗證：
+  - `bun run --cwd packages/opencode typecheck` ✅
+  - `bun run --cwd packages/app typecheck` ✅
+  - `bun test --preload packages/app/happydom.ts packages/app/src/pages/session/helpers.test.ts` ✅
+- Arbitration trace follow-up 驗證：
+  - `bun run --cwd packages/opencode typecheck && bun run --cwd packages/app typecheck` ✅
+  - `bun test packages/opencode/src/session/model-orchestration.test.ts packages/opencode/src/session/workflow-runner.test.ts packages/opencode/src/session/index.test.ts` ✅
+  - `bun test --preload packages/app/happydom.ts packages/app/src/pages/session/helpers.test.ts` ✅
 - Architecture Sync: Updated `docs/ARCHITECTURE.md`
-  - 本輪把 durable queue 進一步接到 in-process supervisor，因此同步更新 Session Core 與 server runtime/autonomous continuation 說明。
+  - 本輪再補上 arbitration trace persistence/display，說明 orchestration 不只是選模型，也會把「為何選這個模型」以最小可觀測形式回饋到 web session surface。
