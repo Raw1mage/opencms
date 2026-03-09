@@ -7,6 +7,7 @@ import { InlineInput } from "@opencode-ai/ui/inline-input"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { SessionTurn } from "@opencode-ai/ui/session-turn"
 import type { UserMessage } from "@opencode-ai/sdk/v2"
+import { DirtyCountBubble } from "@/components/dirty-count-bubble"
 import { shouldMarkBoundaryGesture, normalizeWheelDelta } from "@/pages/session/message-gesture"
 import { useSettings } from "@/context/settings"
 import type { SessionWorkflowChip } from "@/pages/session/helpers"
@@ -176,7 +177,7 @@ export function MessageTimeline(props: {
               <div
                 data-session-title
                 classList={{
-                  "sticky top-0 z-30 bg-background-stronger": true,
+                  "sticky top-0 z-30 bg-background-stronger group/session-title": true,
                   "w-full": true,
                   "px-4 md:px-6": true,
                   "max-w-[1000px] mx-auto": props.centered,
@@ -205,9 +206,12 @@ export function MessageTimeline(props: {
                               {props.title}
                             </h1>
                             <Show when={(props.dirtyCount ?? 0) > 0}>
-                              <span class="shrink-0 inline-flex min-w-5 h-5 px-1.5 items-center justify-center rounded-md bg-[#ffffff] text-[#000000] text-11-medium tabular-nums border border-[#ffffff] shadow-sm">
-                                {props.dirtyCount}
-                              </span>
+                              <DirtyCountBubble
+                                count={props.dirtyCount ?? 0}
+                                active
+                                rounded="md"
+                                interactiveGroup="session-title"
+                              />
                             </Show>
                           </div>
                         }

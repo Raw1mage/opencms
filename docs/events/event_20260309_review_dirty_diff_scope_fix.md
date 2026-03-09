@@ -9,6 +9,8 @@ Status: Completed
 - 視窗應只顯示當下 git dirty 狀態，而不是歷史累積內容。
 - 若可行，進一步讓不同 session 只聚焦自己 session 相關、且目前仍 dirty 的檔案。
 - 在對話標題區提供 dirty indicator，快速顯示目前檔案異動數量。
+- 在 session list row 上也提供 dirty count bubble，方便快速掃描多個 session。
+- webapp session list 已有清楚層級時，不需要再在標題前綴 `[repo]`。
 
 ## 範圍 (IN / OUT)
 
@@ -18,6 +20,9 @@ Status: Completed
 - `/home/pkcs12/projects/opencode/packages/app/src/pages/session/message-timeline.tsx`
 - `/home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.ts`
 - `/home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts`
+- `/home/pkcs12/projects/opencode/packages/app/src/components/dirty-count-bubble.tsx`
+- `/home/pkcs12/projects/opencode/packages/app/src/pages/layout/sidebar-items.tsx`
+- `/home/pkcs12/projects/opencode/packages/app/src/pages/layout/sidebar-workspace.tsx`
 - `/home/pkcs12/projects/opencode/packages/app/src/context/sync.tsx`（既有 current-dirty 路徑確認）
 - `/home/pkcs12/projects/opencode/packages/app/src/context/global-sync/event-reducer.ts`（既有政策確認）
 - `/home/pkcs12/projects/opencode/docs/events/event_20260309_review_dirty_diff_scope_fix.md`
@@ -65,12 +70,22 @@ Status: Completed
   - 使用當前 `reviewCount()` 作為數量來源。
   - 僅在 count > 0 時顯示。
   - 讓使用者不用展開檔案異動畫面，也能快速知道這個 session 目前有多少相關 dirty files。
+  - 進一步同步互動態：title bubble 也會在 hover / focus-within 時提高對比，和 sidebar row bubble 視覺一致。
+- 最後將 title / sidebar 兩處重複的 bubble 樣式抽成共用元件 `packages/app/src/components/dirty-count-bubble.tsx`，統一 active / hover / focus / 圓角策略，避免之後再出現視覺漂移。
+- 再依後續需求，在 `packages/app/src/pages/layout/sidebar-items.tsx` 的 session list row 上新增 dirty count bubble：
+  - bubble 顯示在 session 標題與時間之間。
+  - 數量來源優先使用 `sessionStore.session_diff[sessionID]` + `getSessionScopedDirtyDiffs(...)` 的 session-scope current-dirty 計算。
+  - 若該 session 已預取 message 但尚未有 dirty cache，row 會背景呼叫該 directory 的 `file.status()`，並把結果寫入 `session_diff[sessionID]`，讓 bubble 可在 list 中補齊顯示。
+  - 這讓 session list 不只是靜態歷史摘要，而能逐步反映目前 repo dirty 與 session scope 的交集。
+  - 針對 active row，bubble 也同步做反白處理，避免選取態下視覺層級不一致。
+  - 針對 hover / focus-within 狀態，也同步提高 bubble 對比，讓互動回饋一致。
+- 再依最新需求，在 `packages/app/src/pages/layout/sidebar-workspace.tsx` 移除 webapp session list 的 `[repo]` 前綴，保留純 session title（以及 child count），因為目前 sidebar 階層已足夠表達所屬 repo / workspace。
 
 ### Validation
 
 - 驗證指令：
   - `bun test --preload ./happydom.ts ./src/pages/session/helpers.test.ts`
   - `bun turbo typecheck --filter @opencode-ai/app`
-- 結果：passed
+- 結果：passed（包含 dirty bubble 共用元件抽取後再次驗證通過）
 - Architecture Sync: Verified (No doc changes)
   - 依據：本輪只修正 session page 取用 review diff 的資料來源，未改動架構邊界、API contract 或模組責任。

@@ -274,8 +274,7 @@ const WorkspaceSessionList = (props: {
         .map((id) => byID.get(id))
         .filter((session): session is Session => !!session)
         .sort((a, b) => (a.time.created ?? 0) - (b.time.created ?? 0))
-      const projectPrefix = props.projectLabel?.() ? `[${props.projectLabel!()}] ` : ""
-      const rootLabel = `${projectPrefix}${root.title}${children.length > 0 ? ` [${children.length}]` : ""}`
+      const rootLabel = `${root.title}${children.length > 0 ? ` [${children.length}]` : ""}`
       const rows: { session: Session; label: string; child: boolean }[] = [
         { session: root, label: rootLabel, child: false },
       ]

@@ -5,6 +5,8 @@ import { useLanguage } from "@/context/language"
 import { useLayout, type LocalProject, getAvatarColors } from "@/context/layout"
 import { useNotification } from "@/context/notification"
 import { usePermission } from "@/context/permission"
+import { DirtyCountBubble } from "@/components/dirty-count-bubble"
+import { getSessionScopedDirtyDiffs } from "@/pages/session/helpers"
 import { base64Encode } from "@opencode-ai/util/encode"
 import { Avatar } from "@opencode-ai/ui/avatar"
 import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
@@ -16,14 +18,27 @@ import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { showToast } from "@opencode-ai/ui/toast"
 import { Binary } from "@opencode-ai/util/binary"
 import { getFilename } from "@opencode-ai/util/path"
+import { createOpencodeClient } from "@opencode-ai/sdk/v2/client"
 import { type Message, type Session, type TextPart, type UserMessage } from "@opencode-ai/sdk/v2/client"
-import { For, Match, Show, Switch, createMemo, createSignal, onCleanup, type Accessor, type JSX } from "solid-js"
+import {
+  For,
+  Match,
+  Show,
+  Switch,
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  type Accessor,
+  type JSX,
+} from "solid-js"
 import { produce } from "solid-js/store"
 import { agentColor } from "@/utils/agent"
 import { hasProjectPermissions } from "./helpers"
 import { sessionPermissionRequest } from "../session/session-request-tree"
 
 const OPENCODE_PROJECT_ID = "4b0ea68d7af9a6031a7ffda7ad66e0cb83315750"
+const sidebarDirtyInflight = new Map<string, Promise<void>>()
 
 export const ProjectIcon = (props: {
   project: LocalProject
@@ -111,6 +126,7 @@ const SessionRow = (props: {
   scheduleHoverPrefetch: () => void
   cancelHoverPrefetch: () => void
   timeLabel: Accessor<string>
+  dirtyCount: Accessor<number>
   showActions: Accessor<boolean>
   actionMenu?: JSX.Element
   isActive: Accessor<boolean>
@@ -182,6 +198,9 @@ const SessionRow = (props: {
         >
           {props.label()}
         </span>
+        <Show when={props.dirtyCount() > 0}>
+          <DirtyCountBubble count={props.dirtyCount()} active={props.isActive()} interactiveGroup="session" />
+        </Show>
         <span
           class="shrink-0 min-w-[4.5rem] whitespace-nowrap text-right text-11-regular tabular-nums pr-0.5"
           classList={{
@@ -253,6 +272,14 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
   const unseenCount = createMemo(() => notification.session.unseenCount(props.session.id))
   const hasError = createMemo(() => notification.session.unseenHasError(props.session.id))
   const [sessionStore, setSessionStore] = globalSync.child(props.session.directory)
+  const directoryClient = createMemo(() =>
+    createOpencodeClient({
+      baseUrl: globalSDK.url,
+      fetch: globalSDK.fetch,
+      directory: props.session.directory,
+      throwOnError: true,
+    }),
+  )
   const hasPermissions = createMemo(() => {
     return !!sessionPermissionRequest(sessionStore.session, sessionStore.permission, props.session.id, (item) => {
       return !permission.autoResponds(item, props.session.directory)
@@ -283,6 +310,11 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
   const hoverMessages = createMemo(() =>
     sessionStore.message[props.session.id]?.filter((message): message is UserMessage => message.role === "user"),
   )
+  const dirtyCount = createMemo(() => {
+    const currentDiffs = sessionStore.session_diff[props.session.id]
+    if (!currentDiffs) return 0
+    return getSessionScopedDirtyDiffs(currentDiffs, hoverMessages() ?? []).length
+  })
   const hoverReady = createMemo(() => sessionStore.message[props.session.id] !== undefined)
   const hoverAllowed = createMemo(() => !props.mobile && props.sidebarExpanded())
   const hoverEnabled = createMemo(() => (props.popover ?? true) && hoverAllowed())
@@ -320,6 +352,34 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
 
   onCleanup(cancelHoverPrefetch)
 
+  createEffect(() => {
+    if (sessionStore.message[props.session.id] === undefined) return
+    if (sessionStore.session_diff[props.session.id] !== undefined) return
+
+    const requestKey = `${props.session.directory}:${props.session.id}`
+    if (sidebarDirtyInflight.has(requestKey)) return
+
+    const request = directoryClient()
+      .file.status()
+      .then((status) => {
+        const next = (status.data ?? []).map((item) => ({
+          file: item.path,
+          before: typeof (item as { before?: unknown }).before === "string" ? (item as any).before : "",
+          after: typeof (item as { after?: unknown }).after === "string" ? (item as any).after : "",
+          additions: typeof item.added === "number" ? item.added : 0,
+          deletions: typeof item.removed === "number" ? item.removed : 0,
+          status: item.status,
+        }))
+        setSessionStore("session_diff", props.session.id, next)
+      })
+      .catch(() => {})
+      .finally(() => {
+        sidebarDirtyInflight.delete(requestKey)
+      })
+
+    sidebarDirtyInflight.set(requestKey, request)
+  })
+
   const messageLabel = (message: Message) => {
     const parts = sessionStore.part[message.id] ?? []
     const text = parts.find((part): part is TextPart => part?.type === "text" && !part.synthetic && !part.ignored)
@@ -345,6 +405,7 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
       scheduleHoverPrefetch={scheduleHoverPrefetch}
       cancelHoverPrefetch={cancelHoverPrefetch}
       timeLabel={timeLabel}
+      dirtyCount={dirtyCount}
       showActions={showActions}
       isActive={isActive}
       ignoreClick={shouldIgnoreActiveClose}
