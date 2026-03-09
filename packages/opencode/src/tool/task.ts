@@ -21,6 +21,7 @@ import { Question } from "@/question"
 import { Todo } from "@/session/todo"
 import { ActivityBeacon } from "@/util/activity-beacon"
 import { BusEvent } from "@/bus/bus-event"
+import { Lock } from "@/util/lock"
 
 // NOTE: @event_task_tool_complex_input
 // Updated schema to support both simple string and complex structured input.
@@ -100,6 +101,7 @@ const BRIDGE_PREFIX = "__OPENCODE_BRIDGE_EVENT__ "
 const WORKER_PREFIX = "__OPENCODE_WORKER__ "
 const WORKER_READY_TIMEOUT_MS = 15_000
 const beacon = ActivityBeacon.scope("tool.task")
+const WORKER_ASSIGN_LOCK = "tool.task.worker.assign"
 
 export const TaskWorkerEvent = {
   Assigned: BusEvent.define(
@@ -462,6 +464,15 @@ async function ensureStandbyWorker(config: Awaited<ReturnType<typeof Config.get>
   return standbySpawn
 }
 
+async function assignWorker(input: { config: Awaited<ReturnType<typeof Config.get>>; abort: AbortSignal }) {
+  using _lock = await Lock.write(WORKER_ASSIGN_LOCK)
+  if (input.abort.aborted) throw new Error("task canceled before worker assignment")
+  const worker = await getReadyWorker(input.config)
+  if (input.abort.aborted) throw new Error("task canceled before worker dispatch")
+  worker.busy = true
+  return worker
+}
+
 async function dispatchToWorker(input: {
   sessionID: string
   config: Awaited<ReturnType<typeof Config.get>>
@@ -494,14 +505,9 @@ async function dispatchToWorker(input: {
   try {
     if (input.abort.aborted) throw new Error("task canceled before worker assignment")
 
-    worker = await getReadyWorker(input.config)
+    worker = await assignWorker({ config: input.config, abort: input.abort })
     beacon.hit("worker.assigned")
     input.onPhase?.("worker_assigned", { workerID: worker.id })
-    if (input.abort.aborted) {
-      throw new Error("task canceled before worker dispatch")
-    }
-
-    worker.busy = true
     void ensureStandbyWorker(input.config)
 
     requestID = Identifier.ascending("message")
@@ -542,6 +548,12 @@ async function dispatchToWorker(input: {
       hasFirstEvent: !!result.firstEventAt,
     })
     return result
+  } catch (error) {
+    if (worker && !requestID && !worker.current) {
+      worker.busy = false
+      void ensureStandbyWorker(input.config)
+    }
+    throw error
   } finally {
     input.abort.removeEventListener("abort", onAbort)
   }
