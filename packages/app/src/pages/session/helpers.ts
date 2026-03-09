@@ -102,6 +102,12 @@ type WorkflowLikeSession = {
           suggestedTodoID?: string
           suggestedAction?: string
           draftQuestion?: string
+          askUserHandoff?: {
+            question?: string
+            whyNow?: string
+            blockingDecision?: string
+            impactIfUnanswered?: string
+          }
           replanRequest?: {
             targetTodoID?: string
             requestedAction?: string
@@ -134,6 +140,12 @@ type WorkflowLikeSession = {
           suggestedTodoID?: string
           suggestedAction?: string
           draftQuestion?: string
+          askUserHandoff?: {
+            question?: string
+            whyNow?: string
+            blockingDecision?: string
+            impactIfUnanswered?: string
+          }
           replanRequest?: {
             targetTodoID?: string
             requestedAction?: string
@@ -285,6 +297,7 @@ export type SessionStatusSummary = {
     assist?: string
     suggestion?: string
     draftQuestion?: string
+    askUserHandoff?: string
     replanRequest?: string
     error?: string
   }>
@@ -470,6 +483,14 @@ export const getSessionStatusSummary = (input: {
       debugLines.push(`Ask-user draft: ${supervisor.lastGovernorTrace.suggestion.draftQuestion.slice(0, 120)}`)
     }
     if (
+      supervisor.lastGovernorTrace.suggestion.kind === "ask_user" &&
+      supervisor.lastGovernorTrace.suggestion.askUserHandoff?.blockingDecision
+    ) {
+      debugLines.push(
+        `Ask-user handoff: ${supervisor.lastGovernorTrace.suggestion.askUserHandoff.blockingDecision.slice(0, 120)}`,
+      )
+    }
+    if (
       supervisor.lastGovernorTrace.suggestion.kind === "replan" &&
       supervisor.lastGovernorTrace.suggestion.replanRequest?.proposedNextStep
     ) {
@@ -495,6 +516,7 @@ export const getSessionStatusSummary = (input: {
       ? `${trace.suggestion.kind}${trace.suggestion.suggestedAction ? ` · ${trace.suggestion.suggestedAction}` : ""}${trace.suggestion.reason ? ` · ${trace.suggestion.reason}` : ""}`
       : undefined,
     draftQuestion: trace.suggestion?.draftQuestion,
+    askUserHandoff: trace.suggestion?.askUserHandoff?.blockingDecision,
     replanRequest: trace.suggestion?.replanRequest?.proposedNextStep,
     error: trace.error,
   }))

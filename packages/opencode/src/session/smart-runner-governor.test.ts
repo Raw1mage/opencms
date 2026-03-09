@@ -302,6 +302,13 @@ describe("Smart Runner Governor", () => {
       suggestedTodoID: "t3",
       suggestedAction: "request_user_input",
       draftQuestion: "Suggesting a user clarification before continuing.",
+      askUserHandoff: {
+        question: "Suggesting a user clarification before continuing.",
+        whyNow: "The next step depends on a product choice the current context does not resolve",
+        blockingDecision: "Need a decision before continuing todo t3.",
+        impactIfUnanswered:
+          "Autonomous progress may continue in the wrong direction or stall on an unresolved product choice.",
+      },
     })
   })
 

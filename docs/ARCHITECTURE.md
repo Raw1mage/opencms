@@ -125,6 +125,7 @@ The `cms` branch is the primary product line for this environment, featuring sig
 - Smart Runner traces may also carry bounded `suggestion` metadata for non-authoritative route shaping. The currently unlocked suggestion types are `replan` and `ask_user`; both are surfaced in session inspection/history only and do not mutate todos or override deterministic control flow.
 - For `replan` suggestions, Smart Runner may now also attach a bounded replan request structure (`targetTodoID / requestedAction / proposedNextStep / note`) so humans can inspect the proposed reshaping without letting runtime mutate todos.
 - For `ask_user` suggestions, Smart Runner may now also attach a bounded draft question string so humans can inspect the proposed wording before any actual question flow is triggered.
+- For `ask_user` suggestions, Smart Runner may also attach a bounded handoff structure (`question / whyNow / blockingDecision / impactIfUnanswered`) so the human/session host can see exactly what decision is being escalated and why.
 - Session-side inspection now also derives a Smart Runner summary layer from recent trace history: applied/noop counts, assist-mode counts, suggestion counts, and a short recent-decision trend strip for faster human evaluation.
 - When Smart Runner actually rewrites autonomous loop text (synthetic continue instructions or narration overrides), runtime now prefixes that inserted text with `[AI]` so it is visually distinguishable from ordinary assistant output.
 - Model preference APIs: read/update.

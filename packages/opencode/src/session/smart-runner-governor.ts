@@ -71,6 +71,14 @@ const SmartRunnerTraceSchema = z.object({
       suggestedTodoID: z.string().optional(),
       suggestedAction: z.string().optional(),
       draftQuestion: z.string().optional(),
+      askUserHandoff: z
+        .object({
+          question: z.string().optional(),
+          whyNow: z.string().optional(),
+          blockingDecision: z.string().optional(),
+          impactIfUnanswered: z.string().optional(),
+        })
+        .optional(),
       replanRequest: z
         .object({
           targetTodoID: z.string().optional(),
@@ -263,6 +271,18 @@ export function annotateSmartRunnerTraceSuggestion(input: { trace: SmartRunnerTr
     input.trace.decision.decision === "ask_user"
       ? input.trace.decision.nextAction.narration.trim() || input.trace.decision.reason.trim()
       : undefined
+  const askUserHandoff =
+    input.trace.decision.decision === "ask_user"
+      ? {
+          question: draftQuestion,
+          whyNow: input.trace.decision.reason,
+          blockingDecision: input.trace.decision.nextAction.todoID
+            ? `Need a decision before continuing todo ${input.trace.decision.nextAction.todoID}.`
+            : "Need a user/product decision before continuing the current plan.",
+          impactIfUnanswered:
+            "Autonomous progress may continue in the wrong direction or stall on an unresolved product choice.",
+        }
+      : undefined
   const replanRequest =
     input.trace.decision.decision === "replan"
       ? {
@@ -284,6 +304,7 @@ export function annotateSmartRunnerTraceSuggestion(input: { trace: SmartRunnerTr
       suggestedTodoID: input.trace.decision.nextAction.todoID,
       suggestedAction: input.trace.decision.nextAction.kind,
       draftQuestion,
+      askUserHandoff,
       replanRequest,
     },
   })
