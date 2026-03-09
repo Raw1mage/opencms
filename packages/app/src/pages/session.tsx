@@ -34,6 +34,7 @@ import { UserMessage } from "@opencode-ai/sdk/v2"
 import { useSDK } from "@/context/sdk"
 import { usePrompt } from "@/context/prompt"
 import { useComments } from "@/context/comments"
+import { sendSessionReloadDebugBeacon } from "@/utils/debug-beacon"
 import { ConstrainDragYAxis, getDraggableId } from "@/utils/solid-dnd"
 import { usePermission } from "@/context/permission"
 import { showToast } from "@opencode-ai/ui/toast"
@@ -158,6 +159,7 @@ export default function Page() {
   const workspaceTabs = createMemo(() => layout.tabs(workspaceKey))
   const tabs = createMemo(() => layout.tabs(sessionKey))
   const view = createMemo(() => layout.view(sessionKey))
+  let initialHydratedSessionID: string | undefined
 
   createEffect(
     on(
@@ -303,6 +305,63 @@ export default function Page() {
     if (!id) return true
     return sync.data.message[id] !== undefined
   })
+  createEffect(
+    on(
+      () => [params.id, !!info(), messagesReady()] as const,
+      ([id, hasInfo, ready]) => {
+        if (!id) return
+        console.debug("[session-reload-debug] session-page:state", {
+          directory: sdk.directory,
+          sessionID: id,
+          hasInfo,
+          messagesReady: ready,
+          infoDirectory: info()?.directory,
+          totalMessages: sync.data.message[id]?.length ?? 0,
+        })
+        sendSessionReloadDebugBeacon({
+          sdk,
+          event: "session-page:state",
+          sessionID: id,
+          payload: {
+            hasInfo,
+            messagesReady: ready,
+            infoDirectory: info()?.directory,
+            totalMessages: sync.data.message[id]?.length ?? 0,
+          },
+        })
+      },
+      { defer: true },
+    ),
+  )
+  createEffect(
+    on(
+      () => [params.id, !!info(), messagesReady()] as const,
+      ([id, hasInfo, ready]) => {
+        if (!id) return
+        if (initialHydratedSessionID !== id) initialHydratedSessionID = undefined
+        if (hasInfo && ready) return
+        if (initialHydratedSessionID === id) return
+        initialHydratedSessionID = id
+        console.debug("[session-reload-debug] session-page:hydrate", {
+          directory: sdk.directory,
+          sessionID: id,
+          hasInfo,
+          messagesReady: ready,
+        })
+        sendSessionReloadDebugBeacon({
+          sdk,
+          event: "session-page:hydrate",
+          sessionID: id,
+          payload: {
+            hasInfo,
+            messagesReady: ready,
+          },
+        })
+        void sync.session.sync(id, { force: true })
+      },
+      { defer: true },
+    ),
+  )
   const historyMore = createMemo(() => {
     const id = params.id
     if (!id) return false
@@ -574,8 +633,93 @@ export default function Page() {
     const found = visibleUserMessages()?.find((m) => m.id === store.messageId)
     return found ?? lastUserMessage()
   })
+  createEffect(
+    on(
+      () => [params.id, messagesReady(), messages().length, visibleUserMessages().length, activeMessage()?.id] as const,
+      ([id, ready, total, visible, active]) => {
+        if (!id) return
+        console.debug("[session-reload-debug] session-page:render-gate", {
+          directory: sdk.directory,
+          sessionID: id,
+          messagesReady: ready,
+          totalMessages: total,
+          visibleUserMessages: visible,
+          activeMessageID: active,
+        })
+        sendSessionReloadDebugBeacon({
+          sdk,
+          event: "session-page:render-gate",
+          sessionID: id,
+          messageID: active,
+          payload: {
+            messagesReady: ready,
+            totalMessages: total,
+            visibleUserMessages: visible,
+          },
+        })
+      },
+      { defer: true },
+    ),
+  )
   const setActiveMessage = (message: UserMessage | undefined) => {
     setStore("messageId", message?.id)
+  }
+
+  createEffect(
+    on(
+      () =>
+        [
+          params.id,
+          messagesReady(),
+          visibleUserMessages().length,
+          renderedUserMessages().length,
+          store.turnStart,
+          mobileChanges(),
+        ] as const,
+      ([id, ready, visible, rendered, turnStart, mobile]) => {
+        if (!id) return
+        sendSessionReloadDebugBeacon({
+          sdk,
+          event: "session-page:timeline-input",
+          sessionID: id,
+          payload: {
+            messagesReady: ready,
+            visibleUserMessages: visible,
+            renderedUserMessages: rendered,
+            turnStart,
+            mobileChanges: mobile,
+          },
+        })
+      },
+      { defer: true },
+    ),
+  )
+
+  const SessionLoadingFallback = () => {
+    const id = params.id
+    createEffect(() => {
+      if (!id) return
+      sendSessionReloadDebugBeacon({
+        sdk,
+        event: "session-page:loading-fallback-render",
+        sessionID: id,
+        payload: {
+          messagesReady: messagesReady(),
+          hasInfo: !!info(),
+          totalMessages: messages().length,
+          visibleUserMessages: visibleUserMessages().length,
+          activeMessageID: activeMessage()?.id,
+        },
+      })
+    })
+    return (
+      <div
+        data-debug="session-page-loading-fallback"
+        class="h-full flex items-center justify-center px-6 text-center text-text-weak"
+      >
+        {language.t("session.messages.loading")}
+      </div>
+    )
   }
 
   function navigateMessageByOffset(offset: number) {
@@ -1062,6 +1206,8 @@ export default function Page() {
   const autoScroll = createAutoScroll({
     working: () => true,
     overflowAnchor: "dynamic",
+    debugName: "session-page",
+    followOnResize: false,
   })
 
   let scrollStateFrame: number | undefined
@@ -1357,7 +1503,7 @@ export default function Page() {
           <div class="flex-1 min-h-0 overflow-hidden">
             <Switch>
               <Match when={params.id}>
-                <Show when={activeMessage()}>
+                <Show when={messagesReady()} fallback={<SessionLoadingFallback />}>
                   <MessageTimeline
                     mobileChanges={mobileChanges()}
                     mobileFallback={reviewContent({

@@ -23,6 +23,7 @@ import { SessionRetry } from "./session-retry"
 import { Tooltip } from "./tooltip"
 import { createStore } from "solid-js/store"
 import { DateTime, DurationUnit, Interval } from "luxon"
+import { isScrollDebugEnabled, pushScrollDebug } from "../hooks/scroll-debug"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 
 type Translator = (key: UiI18nKey, params?: UiI18nParams) => string
@@ -134,6 +135,28 @@ function isAttachment(part: PartType | undefined) {
 function list<T>(value: T[] | undefined | null, fallback: T[]) {
   if (Array.isArray(value)) return value
   return fallback
+}
+
+function sendSessionTurnDebugBeacon(payload: Record<string, unknown>) {
+  if (typeof window === "undefined") return
+  const headers = new Headers({
+    "content-type": "application/json",
+  })
+  const csrf = window.__opencodeCsrfToken
+  if (csrf) headers.set("x-opencode-csrf", csrf)
+  void fetch("/api/v2/experimental/debug-beacon", {
+    method: "POST",
+    credentials: "include",
+    headers,
+    body: JSON.stringify({
+      source: "ui.session-turn",
+      event: "session-turn:render-state",
+      sessionID: typeof payload.sessionID === "string" ? payload.sessionID : undefined,
+      messageID: typeof payload.messageID === "string" ? payload.messageID : undefined,
+      payload,
+    }),
+    keepalive: true,
+  }).catch(() => {})
 }
 
 export function SessionTurn(
@@ -428,6 +451,33 @@ export function SessionTurn(
   const hasDiffs = createMemo(() => (message()?.summary?.diffs?.length ?? 0) > 0)
   const hideResponsePart = createMemo(() => !working() && !!responsePartId())
 
+  let renderStateLog = ""
+  createEffect(() => {
+    const payload = {
+      sessionID: props.sessionID,
+      messageID: props.messageID,
+      hasMessage: !!message(),
+      partCount: parts().length,
+      partTypes: parts().map((part) => part.type),
+      assistantCount: assistantMessages().length,
+      assistantPartCounts: assistantMessages().map((msg) => ({
+        id: msg.id,
+        count: list(data.store.part?.[msg.id], emptyParts).length,
+      })),
+      isLastUserMessage: isLastUserMessage(),
+      working: working(),
+      active: active(),
+      queued: queued(),
+      responseLength: response()?.length ?? 0,
+      statusType: status().type,
+    }
+    const key = JSON.stringify(payload)
+    if (key === renderStateLog) return
+    renderStateLog = key
+    console.debug("[session-reload-debug] session-turn:render-state", payload)
+    sendSessionTurnDebugBeacon(payload)
+  })
+
   const [copied, setCopied] = createSignal(false)
 
   const handleCopy = async () => {
@@ -446,6 +496,16 @@ export function SessionTurn(
     if (!root) return
     const next = Math.ceil(height)
     root.style.setProperty("--session-turn-sticky-height", `${next}px`)
+    if (isScrollDebugEnabled()) {
+      const entry = {
+        time: Date.now(),
+        scope: "session-turn-sticky",
+        event: "sticky-height",
+        height: next,
+      }
+      pushScrollDebug(entry)
+      console.debug("[scroll-debug]", entry)
+    }
   }
 
   function duration() {

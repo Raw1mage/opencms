@@ -120,6 +120,11 @@ export const { use: useWebAuth, provider: WebAuthProvider } = createSimpleContex
       if (!current.enabled || current.authenticated) setForcedUnauthenticated(false)
     })
 
+    createEffect(() => {
+      if (typeof window === "undefined") return
+      window.__opencodeCsrfToken = csrfToken() ?? undefined
+    })
+
     return {
       loading: () => session.loading,
       session: () => session.latest,
