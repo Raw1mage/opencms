@@ -536,6 +536,9 @@ function createGlobalSync() {
 
   const projectApi = {
     loadSessions,
+    refresh() {
+      return refreshGlobal({ project: true })
+    },
     meta(directory: string, patch: ProjectMeta) {
       children.projectMeta(directory, patch)
     },

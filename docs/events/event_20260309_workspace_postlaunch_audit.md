@@ -69,11 +69,21 @@ Status: In Progress
     - `ProjectIcon` 支援外部傳入 canonical directories，避免固定綁死在 `worktree + sandboxes`
   - `packages/app/src/pages/layout/sidebar-project-helpers.ts`
     - `projectSelected(...)` 改成直接判斷 canonical workspace directory 集合
+- 第二個 slice 進一步處理 operation convergence：
+  - `packages/app/src/context/global-sync.tsx`
+    - 對外補上 `globalSync.project.refresh()`，讓 workspace operation 成功後可用正式 global project refresh 收斂 state，而不是只靠 local patch
+  - `packages/app/src/pages/layout.tsx`
+    - `deleteWorkspace(...)` 成功後不再直接手改 `globalSync.data.project[].sandboxes`
+    - 改為 `await globalSync.project.refresh()` 後，再保留 UI-preference 層的 `workspaceOrder` 清理與 route/sidebar 收尾
+  - 結果是 workspace delete 流程現在更清楚分層：
+    - runtime/project metadata → 由正式 refresh 收斂
+    - UI preference (`workspaceOrder`) → 仍由 app local state 管理
 
 ### Validation
 
 - `bun run --cwd packages/app typecheck` ✅
 - `bun run --cwd packages/app test:unit -- src/pages/layout/sidebar-project-helpers.test.ts` ✅
+- `bun run --cwd packages/app test:unit` ✅
 - 期間另行修復 subagent `worker_busy` 阻斷，已獨立記錄於 `event_20260309_subagent_worker_busy_block.md`。
 - Architecture Sync: Verified (No doc changes)
   - 本輪屬於既有 app consumer consistency 收斂，未改變 workspace architecture boundary 或 runtime API contract。
