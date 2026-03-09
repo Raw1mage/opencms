@@ -47,6 +47,7 @@ import { WebAuth } from "./web-auth"
 import { RequestUser } from "@/runtime/request-user"
 import { LinuxUserExec } from "@/system/linux-user-exec"
 import { UserDaemonManager } from "./user-daemon"
+import { ensureAutonomousSupervisor } from "@/session/workflow-runner"
 
 // Declare external CORS whitelist (set by server.ts)
 declare global {
@@ -69,6 +70,7 @@ function applyProxyFriendlySSEHeaders(c: { header: (name: string, value: string)
  */
 export function createApp(app: Hono): Hono {
   UserDaemonManager.logRuntimeModeOnce()
+  ensureAutonomousSupervisor()
 
   app.onError((err, c) => {
     log.error("failed", {

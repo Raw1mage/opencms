@@ -207,6 +207,27 @@ Status: In Progress
 - 引入更完整的 queue fairness、rate limiting、multi-session arbitration
 - 避免多個 autonomous sessions 同時搶 worker/provider 資源
 
+## Phase 4 實作（in-process supervisor）
+
+- `packages/opencode/src/session/workflow-runner.ts`
+  - 新增 `shouldResumePendingContinuation(...)`，把 resume gate 條件收斂成可測邏輯
+  - 新增 `resumePendingContinuations()`：
+    - 掃描 durable pending continuation queue
+    - 檢查 session 是否 idle / autonomous enabled / 非 blocked / 非 completed
+    - 以 in-memory `resumeInFlight` + `Lock.write(...)` 避免重複 resume
+    - 透過 dynamic import 重新進入 `SessionPrompt.loop(sessionID)`
+    - 若 resume 失敗，會清 queue 並把 workflow state 轉成 `blocked`
+  - 新增 `ensureAutonomousSupervisor()`，啟動固定 interval 的 in-process queue scan
+- `packages/opencode/src/server/app.ts`
+  - server app 啟動時即啟用 `ensureAutonomousSupervisor()`
+  - 這使 web/server runtime 具備「只要 process 活著，就會持續掃 pending autonomous sessions」的最小 supervisor 能力
+- `packages/opencode/src/session/workflow-runner.test.ts`
+  - 補 `shouldResumePendingContinuation(...)` 的 resume gate 測試
+- 目前 Phase 4 仍有限制：
+  - supervisor 仍是單 process / in-process interval，不是獨立 daemon scheduler
+  - 尚未加入多 session fairness、provider budget arbitration、backoff policy
+  - 但已經從「有 queue」進展到「server runtime 會主動恢復 idle autonomous session」
+
 ### Validation
 
 - `bun run --cwd packages/opencode typecheck` ✅
@@ -215,5 +236,8 @@ Status: In Progress
 - Phase 3 foundation 驗證：
   - `bun run --cwd packages/opencode typecheck` ✅
   - `bun test --cwd packages/opencode src/session/index.test.ts src/session/workflow-runner.test.ts` ✅
+- Phase 4 in-process supervisor 驗證：
+  - `bun run --cwd packages/opencode typecheck` ✅
+  - `bun test --cwd packages/opencode src/session/index.test.ts src/session/workflow-runner.test.ts` ✅
 - Architecture Sync: Updated `docs/ARCHITECTURE.md`
-  - 本輪補上 durable continuation queue foundation，因此同步更新 Session Core 與 session storage/autonomous continuation 說明。
+  - 本輪把 durable queue 進一步接到 in-process supervisor，因此同步更新 Session Core 與 server runtime/autonomous continuation 說明。

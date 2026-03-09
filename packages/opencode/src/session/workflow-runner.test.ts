@@ -5,6 +5,7 @@ import {
   enqueuePendingContinuation,
   evaluateAutonomousContinuation,
   getPendingContinuation,
+  shouldResumePendingContinuation,
 } from "./workflow-runner"
 
 describe("Session workflow runner", () => {
@@ -109,5 +110,48 @@ describe("Session workflow runner", () => {
 
     await clearPendingContinuation(sessionID)
     await expect(getPendingContinuation(sessionID)).resolves.toBeUndefined()
+  })
+
+  it("only resumes idle autonomous root sessions that are not blocked", () => {
+    expect(
+      shouldResumePendingContinuation({
+        session: {
+          workflow: {
+            ...Session.defaultWorkflow(1),
+            autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
+          },
+        },
+        status: { type: "idle" },
+        inFlight: false,
+      }),
+    ).toBe(true)
+
+    expect(
+      shouldResumePendingContinuation({
+        session: {
+          workflow: {
+            ...Session.defaultWorkflow(1),
+            autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
+            state: "blocked",
+            updatedAt: 1,
+          },
+        },
+        status: { type: "idle" },
+        inFlight: false,
+      }),
+    ).toBe(false)
+
+    expect(
+      shouldResumePendingContinuation({
+        session: {
+          workflow: {
+            ...Session.defaultWorkflow(1),
+            autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
+          },
+        },
+        status: { type: "busy" },
+        inFlight: false,
+      }),
+    ).toBe(false)
   })
 })
