@@ -64,6 +64,14 @@ const SmartRunnerTraceSchema = z.object({
       narrationUsed: z.boolean().optional(),
     })
     .optional(),
+  suggestion: z
+    .object({
+      kind: z.enum(["replan"]),
+      reason: z.string(),
+      suggestedTodoID: z.string().optional(),
+      suggestedAction: z.string().optional(),
+    })
+    .optional(),
   error: z.string().optional(),
 })
 
@@ -226,6 +234,21 @@ export function annotateSmartRunnerTraceAssist(input: {
       mode: input.assist.mode,
       finalTextChanged: input.originalText !== input.assist.decision.text,
       narrationUsed: !!input.assist.narration,
+    },
+  })
+}
+
+export function annotateSmartRunnerTraceSuggestion(input: { trace: SmartRunnerTrace }) {
+  if (input.trace.status !== "advisory" || !input.trace.decision) return input.trace
+  if (input.trace.decision.decision !== "replan") return input.trace
+
+  return SmartRunnerTraceSchema.parse({
+    ...input.trace,
+    suggestion: {
+      kind: "replan",
+      reason: input.trace.decision.reason,
+      suggestedTodoID: input.trace.decision.nextAction.todoID,
+      suggestedAction: input.trace.decision.nextAction.kind,
     },
   })
 }

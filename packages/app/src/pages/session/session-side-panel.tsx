@@ -370,6 +370,11 @@ export function SessionSidePanel(props: {
                                 <Show when={entry.assist}>
                                   <div class="text-12-regular text-info break-words">Assist: {entry.assist}</div>
                                 </Show>
+                                <Show when={entry.suggestion}>
+                                  <div class="text-12-regular text-warning break-words">
+                                    Suggestion: {entry.suggestion}
+                                  </div>
+                                </Show>
                                 <Show when={entry.error}>
                                   <div class="text-12-regular text-warning break-words">Error: {entry.error}</div>
                                 </Show>

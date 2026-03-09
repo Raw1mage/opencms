@@ -408,3 +408,32 @@ Validation（next stage unlock）:
 - `bun test /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/workflow-runner.test.ts` ✅
 - `bun x eslint /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/prompt.ts` ✅
 - 結果：Smart Runner 現在已能在 bounded-assist 範圍內，把 docs/debug 模式從「語氣提示」提升為「結構化 preflight contract」，但仍不接管 stop/approval/replan authority。
+
+### Current Slice (replan suggestion)
+
+需求：依照後續建議，下一個最有價值但仍安全的解鎖點是 `replan suggestion`。這一輪先讓 Smart Runner 可以把「目前計畫可能失真」明確顯示在 trace / UI 裡，但仍不直接改 todo graph。
+
+範圍：
+
+- IN
+  - 將 Smart Runner 的 `replan` decision 顯示為明確 suggestion
+  - 在 session status / history 裡看得出為何建議 replan
+  - 保持 deterministic runner 與 todo graph 完全不變
+- OUT
+  - 不實作自動 replan
+  - 不改寫 todos
+  - 不接管 ask_user / stop / pause
+
+任務清單：
+
+- [x] 在 Smart Runner trace 中標示 replan suggestion metadata
+- [x] 在 session status / history 中顯示 replan suggestion 與原因
+- [x] 驗證 replan suggestion 只增加可觀測性，不改變控制流
+
+Validation（replan suggestion）:
+
+- `bun test /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/workflow-runner.test.ts`
+  - Smart Runner / workflow assertions 通過
+  - `helpers.test.ts` 仍有既存 DOM-less 失敗（`document is not defined`），與本輪 replan suggestion 修改無關
+- `bun x eslint /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/prompt.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/session-side-panel.tsx` ✅
+- 結果：Smart Runner 現在可在 trace / history 中明確標示 `replan` suggestion 與原因，但 deterministic runner 與 todo graph 仍完全不變。

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test"
 import { Session } from "."
 import {
+  annotateSmartRunnerTraceSuggestion,
   annotateSmartRunnerTraceAssist,
   applySmartRunnerBoundedAssist,
   buildSmartRunnerGovernorContext,
@@ -227,6 +228,39 @@ describe("Smart Runner Governor", () => {
       mode: "debug_preflight_first",
       finalTextChanged: true,
       narrationUsed: true,
+    })
+  })
+
+  it("annotates replan suggestions without changing control flow", () => {
+    const trace = annotateSmartRunnerTraceSuggestion({
+      trace: {
+        source: "smart_runner_governor",
+        dryRun: true,
+        status: "advisory",
+        createdAt: 1,
+        deterministicReason: "todo_pending",
+        decision: {
+          situation: "plan_invalid",
+          assessment: "Plan drifted",
+          decision: "replan",
+          reason: "The current todo ordering no longer matches the latest task state",
+          nextAction: {
+            kind: "replan_todos",
+            todoID: "t2",
+            skillHints: ["agent-workflow"],
+            narration: "Suggesting a replan before continuing.",
+          },
+          needsUserInput: false,
+          confidence: "high",
+        },
+      },
+    })
+
+    expect(trace.suggestion).toEqual({
+      kind: "replan",
+      reason: "The current todo ordering no longer matches the latest task state",
+      suggestedTodoID: "t2",
+      suggestedAction: "replan_todos",
     })
   })
 

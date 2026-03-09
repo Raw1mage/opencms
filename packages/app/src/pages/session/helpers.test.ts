@@ -172,6 +172,12 @@ describe("getSessionStatusSummary", () => {
                 deterministicReason: "todo_in_progress",
                 assessment: "Needs preflight",
                 assist: { enabled: true, applied: true, mode: "debug_preflight_first" },
+                suggestion: {
+                  kind: "replan",
+                  reason: "The current todo ordering no longer matches the latest task state",
+                  suggestedTodoID: "t2",
+                  suggestedAction: "replan_todos",
+                },
                 decision: {
                   decision: "debug_preflight_first",
                   confidence: "high",
@@ -185,6 +191,12 @@ describe("getSessionStatusSummary", () => {
                   deterministicReason: "todo_pending",
                   assessment: "Start next step cleanly",
                   assist: { enabled: true, applied: false },
+                  suggestion: {
+                    kind: "replan",
+                    reason: "The current todo ordering no longer matches the latest task state",
+                    suggestedTodoID: "t2",
+                    suggestedAction: "replan_todos",
+                  },
                   decision: {
                     decision: "continue",
                     confidence: "medium",
@@ -197,6 +209,12 @@ describe("getSessionStatusSummary", () => {
                   deterministicReason: "todo_in_progress",
                   assessment: "Needs preflight",
                   assist: { enabled: true, applied: true, mode: "debug_preflight_first" },
+                  suggestion: {
+                    kind: "replan",
+                    reason: "The current todo ordering no longer matches the latest task state",
+                    suggestedTodoID: "t2",
+                    suggestedAction: "replan_todos",
+                  },
                   decision: {
                     decision: "debug_preflight_first",
                     confidence: "high",
@@ -288,6 +306,12 @@ describe("getSessionStatusSummary", () => {
               deterministicReason: "todo_in_progress",
               assessment: "Needs preflight",
               assist: { enabled: true, applied: true, mode: "debug_preflight_first" },
+              suggestion: {
+                kind: "replan",
+                reason: "The current todo ordering no longer matches the latest task state",
+                suggestedTodoID: "t2",
+                suggestedAction: "replan_todos",
+              },
               decision: {
                 decision: "debug_preflight_first",
                 confidence: "high",
@@ -301,6 +325,12 @@ describe("getSessionStatusSummary", () => {
                 deterministicReason: "todo_pending",
                 assessment: "Start next step cleanly",
                 assist: { enabled: true, applied: false },
+                suggestion: {
+                  kind: "replan",
+                  reason: "The current todo ordering no longer matches the latest task state",
+                  suggestedTodoID: "t2",
+                  suggestedAction: "replan_todos",
+                },
                 decision: {
                   decision: "continue",
                   confidence: "medium",
@@ -313,6 +343,12 @@ describe("getSessionStatusSummary", () => {
                 deterministicReason: "todo_in_progress",
                 assessment: "Needs preflight",
                 assist: { enabled: true, applied: true, mode: "debug_preflight_first" },
+                suggestion: {
+                  kind: "replan",
+                  reason: "The current todo ordering no longer matches the latest task state",
+                  suggestedTodoID: "t2",
+                  suggestedAction: "replan_todos",
+                },
                 decision: {
                   decision: "debug_preflight_first",
                   confidence: "high",
@@ -380,6 +416,8 @@ describe("getSessionStatusSummary", () => {
       "Governor decision: debug_preflight_first (high)",
       "Governor next: request_debug_preflight",
       "Smart Runner assist: applied (debug_preflight_first)",
+      "Smart Runner suggestion: replan (replan_todos)",
+      "Replan why: The current todo ordering no longer matches the latest task state",
       expect.stringMatching(/^Governor at: \d{2}:\d{2}:\d{2}$/),
     ])
     expect(summary.smartRunnerHistory).toEqual([
@@ -391,6 +429,7 @@ describe("getSessionStatusSummary", () => {
         next: "request_debug_preflight",
         assessment: "Needs preflight",
         assist: "applied · debug_preflight_first",
+        suggestion: "replan · replan_todos · The current todo ordering no longer matches the latest task state",
         error: undefined,
       },
       {
@@ -401,6 +440,7 @@ describe("getSessionStatusSummary", () => {
         next: "start_next_todo",
         assessment: "Start next step cleanly",
         assist: "noop",
+        suggestion: "replan · replan_todos · The current todo ordering no longer matches the latest task state",
         error: undefined,
       },
     ])

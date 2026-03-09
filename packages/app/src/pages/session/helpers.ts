@@ -96,6 +96,12 @@ type WorkflowLikeSession = {
           applied?: boolean
           mode?: string
         }
+        suggestion?: {
+          kind?: string
+          reason?: string
+          suggestedTodoID?: string
+          suggestedAction?: string
+        }
         decision?: {
           decision?: string
           confidence?: string
@@ -114,6 +120,12 @@ type WorkflowLikeSession = {
           enabled?: boolean
           applied?: boolean
           mode?: string
+        }
+        suggestion?: {
+          kind?: string
+          reason?: string
+          suggestedTodoID?: string
+          suggestedAction?: string
         }
         decision?: {
           decision?: string
@@ -247,6 +259,7 @@ export type SessionStatusSummary = {
     next?: string
     assessment?: string
     assist?: string
+    suggestion?: string
     error?: string
   }>
   latestNarration?: {
@@ -375,6 +388,14 @@ export const getSessionStatusSummary = (input: {
       `Smart Runner assist: ${supervisor.lastGovernorTrace.assist.applied ? "applied" : "noop"}${supervisor.lastGovernorTrace.assist.mode ? ` (${supervisor.lastGovernorTrace.assist.mode})` : ""}`,
     )
   }
+  if (supervisor?.lastGovernorTrace?.suggestion?.kind === "replan") {
+    debugLines.push(
+      `Smart Runner suggestion: replan${supervisor.lastGovernorTrace.suggestion.suggestedAction ? ` (${supervisor.lastGovernorTrace.suggestion.suggestedAction})` : ""}`,
+    )
+    if (supervisor.lastGovernorTrace.suggestion.reason) {
+      debugLines.push(`Replan why: ${supervisor.lastGovernorTrace.suggestion.reason.slice(0, 120)}`)
+    }
+  }
   if (supervisor?.lastGovernorTraceAt)
     debugLines.push(`Governor at: ${formatDebugTime(supervisor.lastGovernorTraceAt)}`)
 
@@ -388,6 +409,10 @@ export const getSessionStatusSummary = (input: {
     assist: trace.assist?.enabled
       ? `${trace.assist.applied ? "applied" : "noop"}${trace.assist.mode ? ` · ${trace.assist.mode}` : ""}`
       : undefined,
+    suggestion:
+      trace.suggestion?.kind === "replan"
+        ? `replan${trace.suggestion.suggestedAction ? ` · ${trace.suggestion.suggestedAction}` : ""}${trace.suggestion.reason ? ` · ${trace.suggestion.reason}` : ""}`
+        : undefined,
     error: trace.error,
   }))
 

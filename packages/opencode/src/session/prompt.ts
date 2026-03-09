@@ -68,6 +68,7 @@ import {
 } from "./workflow-runner"
 import {
   annotateSmartRunnerTraceAssist,
+  annotateSmartRunnerTraceSuggestion,
   applySmartRunnerBoundedAssist,
   evaluateSmartRunnerGovernorDryRun,
   getSmartRunnerConfig,
@@ -765,7 +766,7 @@ export namespace SessionPrompt {
             trace,
           })
           const tracedAssist = annotateSmartRunnerTraceAssist({
-            trace,
+            trace: annotateSmartRunnerTraceSuggestion({ trace }),
             enabled: smartRunnerGovernor.assist,
             assist,
             originalText: decision.text,
