@@ -44,7 +44,7 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
   const sync = useSync()
   const { theme } = useTheme()
   const session = createMemo(() => sync.session.get(props.sessionID)!)
-  const diff = createMemo(() => sync.data.changes ?? [])
+  const diff = createMemo(() => sync.data.session_diff[props.sessionID] ?? [])
   const todo = createMemo(() => sync.data.todo[props.sessionID] ?? [])
   const messages = createMemo(() => sync.data.message[props.sessionID] ?? [])
 
@@ -463,7 +463,7 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                       <box flexDirection="row" gap={1}>
                         <text fg={theme.textMuted}>•</text>
                         <text fg={theme.textMuted} wrapMode="word">
-                          {item.path}
+                          {item.file}
                         </text>
                       </box>
                     )

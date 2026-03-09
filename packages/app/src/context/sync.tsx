@@ -119,7 +119,6 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       sessionTotal: 0,
       session_status: {},
       session_diff: {},
-      changes: undefined,
       todo: {},
       permission: {},
       question: {},
@@ -451,23 +450,18 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           const directory = sdk.directory
           const client = sdk.client
           const [store, setStore] = globalSync.child(directory)
-          if (!options?.messageID) {
-            if (!options?.force && store.changes !== undefined) return
-
-            const key = keyFor(directory, "changes")
-            return runInflight(inflightDiff, key, () =>
-              retry(() => client.file.status()).then((response) => {
-                setStore("changes", reconcile(response.data ?? [], { key: "path" }))
-              }),
-            )
-          }
-
           const cacheKey = diffCacheKey(sessionID, options?.messageID)
           if (!options?.force && store.session_diff[cacheKey] !== undefined) return
 
           const key = keyFor(directory, cacheKey)
           return runInflight(inflightDiff, key, () => {
-            return retry(() => client.session.diff({ sessionID, messageID: options.messageID })).then((response) => {
+            if (options?.messageID) {
+              return retry(() => client.session.diff({ sessionID, messageID: options.messageID })).then((response) => {
+                setStore("session_diff", cacheKey, reconcile(response.data ?? [], { key: "file" }))
+              })
+            }
+
+            return retry(() => client.session.diff({ sessionID })).then((response) => {
               setStore("session_diff", cacheKey, reconcile(response.data ?? [], { key: "file" }))
             })
           })

@@ -310,7 +310,7 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
     sessionStore.message[props.session.id]?.filter((message): message is UserMessage => message.role === "user"),
   )
   const dirtyCount = createMemo(() => {
-    const currentDiffs = sessionStore.changes
+    const currentDiffs = sessionStore.session_diff[props.session.id]
     return currentDiffs?.length ?? 0
   })
   const hoverReady = createMemo(() => sessionStore.message[props.session.id] !== undefined)
@@ -352,15 +352,15 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
 
   createEffect(() => {
     if (sessionStore.message[props.session.id] === undefined) return
-    if (sessionStore.changes !== undefined) return
+    if (sessionStore.session_diff[props.session.id] !== undefined) return
 
     const requestKey = `${props.session.directory}:${props.session.id}`
     if (sidebarDirtyInflight.has(requestKey)) return
 
     const request = directoryClient()
-      .file.status()
+      .session.diff({ sessionID: props.session.id })
       .then((response) => {
-        setSessionStore("changes", response.data ?? [])
+        setSessionStore("session_diff", props.session.id, response.data ?? [])
       })
       .catch(() => {})
       .finally(() => {

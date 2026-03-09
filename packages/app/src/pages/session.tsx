@@ -594,15 +594,12 @@ export default function Page() {
     promptHeight: 0,
   })
 
+  const reviewDiffKey = createMemo(() => params.id)
+
   const reviewDiffs = createMemo(() => {
-    return (sync.data.changes ?? []).map((item) => ({
-      file: item.path,
-      additions: item.added,
-      deletions: item.removed,
-      status: item.status,
-      before: item.before ?? "",
-      after: item.after ?? "",
-    }))
+    const key = reviewDiffKey()
+    if (!key) return []
+    return sync.data.session_diff[key] ?? []
   })
   const reviewCount = createMemo(() => reviewDiffs().length)
   const reviewBubbleCount = createMemo(() => reviewDiffs().length)
@@ -770,7 +767,12 @@ export default function Page() {
   })
   const emptyDiffFiles: string[] = []
   const diffFiles = createMemo(() => reviewDiffs().map((d) => d.file), emptyDiffFiles, { equals: same })
-  const diffsReady = createMemo(() => sync.data.changes !== undefined)
+  const diffsReady = createMemo(() => {
+    const key = reviewDiffKey()
+    if (!key) return true
+    if (!hasReview()) return true
+    return sync.data.session_diff[key] !== undefined
+  })
   const idle = { type: "idle" as const }
   let inputRef!: HTMLDivElement
   let promptDock: HTMLDivElement | undefined
