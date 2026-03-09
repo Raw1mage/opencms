@@ -589,11 +589,13 @@ export namespace MessageV2 {
         }
         for (const part of msg.parts) {
           if (part.type === "text")
-            assistantMessage.parts.push({
-              type: "text",
-              text: part.text,
-              ...(differentModel ? {} : { providerMetadata: part.metadata }),
-            })
+            if (part.metadata?.excludeFromModel === true) continue
+            else
+              assistantMessage.parts.push({
+                type: "text",
+                text: part.text,
+                ...(differentModel ? {} : { providerMetadata: part.metadata }),
+              })
           if (part.type === "tool") {
             toolNames.add(part.tool)
             if (part.state.status === "completed") {

@@ -255,6 +255,29 @@ Status: In Progress
 - `packages/opencode/src/session/model-orchestration.test.ts`
   - 補 pure helper regression tests，驗證 domain mapping / autonomous synthetic gate / precedence order
 
+## Phase 5 實作（progress narration + interrupt-safe replanning foundation）
+
+- `packages/opencode/src/session/prompt-runtime.ts`
+  - runtime entry 新增 `runID`
+  - `start(..., { replace: true })` 可安全取代正在執行的 autonomous runtime，並先 abort 舊 run
+  - `finish(sessionID, runID)` 只會清理對應 run，避免舊 loop 的 deferred cleanup 誤刪新 loop
+- `packages/opencode/src/session/prompt.ts`
+  - `prompt(...)` 現在在新使用者訊息進來時，會先判斷是否應該中斷 busy 的 autonomous synthetic run，再以 replace-runtime 方式重啟 loop
+  - autonomous `stop` 決策現在會先寫入簡短 synthetic assistant narration，讓訊息流顯示「正在接續哪個 todo」或「為何暫停」
+- `packages/opencode/src/session/workflow-runner.ts`
+  - continuation planner 現在回傳目前要處理的 todo，供 narrator 直接引用
+  - 新增 `describeAutonomousNextAction(...)` 與 `shouldInterruptAutonomousRun(...)`，把 progress narration / interrupt gate 收斂成可測 pure logic
+- `packages/opencode/src/session/message-v2.ts`
+  - narrator text part 透過 `metadata.excludeFromModel = true` 留在使用者可見訊息流，但不回灌模型上下文
+- `packages/opencode/src/session/prompt-runtime.test.ts`
+  - 補 runtime replace safety regression test，驗證舊 run finish 不會清掉新 run
+
+### Validation
+
+- `bun test "/home/pkcs12/projects/opencode/packages/opencode/src/session/workflow-runner.test.ts" "/home/pkcs12/projects/opencode/packages/opencode/src/session/prompt-runtime.test.ts"` ✅
+- `bun run --cwd "/home/pkcs12/projects/opencode/packages/opencode" typecheck` ✅
+- Architecture Sync: Verified (Doc updated for narration + runtime replacement contract)
+
 ## Dynamic model orchestration follow-up
 
 - `packages/opencode/src/session/model-orchestration.ts`
@@ -288,6 +311,245 @@ Status: In Progress
   - explicit model / agent pinned model 仍保留最高優先，不主動覆寫
   - header 目前只顯示「最新一筆」arbitration trace 摘要，尚未提供完整 per-turn trace timeline / debug inspector
 
+## Autonomous scheduler fairness follow-up
+
+- `packages/opencode/src/session/workflow-runner.ts`
+  - supervisor resume sweep 不再看到 queue 就全部同時拉起
+  - 新增 `pickPendingContinuationsForResume(...)`：
+    - 只挑符合 resume gate 的 session
+    - 依 `workflow.lastRunAt` 最久未跑優先
+    - 次序再看 queue `createdAt`
+    - 每輪 sweep 預設只拉起 1 個 autonomous session，避免同時 stampede
+  - scheduler 在實際 resume 前會先把 workflow state 設成 `running` 並更新 `lastRunAt`
+  - 這讓 autonomous supervisor 至少具備最小 fairness：不會因 queue scan 一口氣把所有 session 都搶起來，也比較不會讓先前剛跑過的 session 持續霸佔機會
+- `packages/opencode/src/session/workflow-runner.test.ts`
+  - 新增 fairness tests：
+    - oldest-starved session 先被挑中
+    - blocked / busy session 不會進入當輪 resume candidates
+- 目前限制：
+  - 仍是單 process / in-process interval scheduler
+  - fairness 目前是 time-based（lastRunAt / createdAt），尚未接入 provider-family level budget buckets
+  - 尚未做 weighted policy（例如 docs/coding/testing 不同 class 的配額）
+
+## Provider-family budget bucket follow-up
+
+- `packages/opencode/src/session/workflow-runner.ts`
+  - scheduler 現在會為每個 pending continuation 推導 budget bucket：
+    - 從 pending user message / arbitration metadata 推導 selected provider/model
+    - 解析成 canonical provider family
+    - 透過 `Account.getMinWaitTime(family, model)` 取得目前 family bucket wait time
+  - `pickPendingContinuationsForResume(...)` 排序規則擴充為：
+    - 先挑 `waitTimeMs === 0` 的 ready family buckets
+    - 再看 wait time 長短
+    - 再看 `lastRunAt`
+    - 再看 queue `createdAt`
+  - 同一輪 sweep 會先盡量分散到不同 provider families，再補第二個同 family session，避免某個 family 把全部 resume slot 吃掉
+- `packages/opencode/src/session/workflow-runner.test.ts`
+  - 新增 bucket-aware tests：
+    - ready family 優先於較老但仍在 cooldown/rate-limit 的 family
+    - 同一輪會先 spread 到不同 provider families
+- 目前限制：
+  - budget bucket 目前只看 family min wait time，尚未綜合 tokens/cost window/5hr quota 等更高階配額訊號
+  - 若所有 families 都在等待中，scheduler 仍會選最接近可用/最久未跑的 session，而不是完全停擺
+  - 尚未接入真正的 global budget oracle 或 daemon-level lease system
+
+## Supervisor lease / retry-backoff contract follow-up
+
+- `packages/opencode/src/session/index.ts`
+  - workflow schema 新增 `supervisor` 區塊，開始持久化：
+    - `leaseOwner`
+    - `leaseExpiresAt`
+    - `retryAt`
+    - `consecutiveResumeFailures`
+    - `lastResumeError`
+  - 新增 `Session.updateWorkflowSupervisor(...)`，讓 supervisor contract 可以和 workflow state 分開演進
+- `packages/opencode/src/session/workflow-runner.ts`
+  - 加入 process-local supervisor owner ID 與 lease TTL
+  - `shouldResumePendingContinuation(...)` 現在會檢查：
+    - foreign active lease
+    - future `retryAt`
+  - resume 成功後會清 lease / retry 狀態並把 failure counter 歸零
+  - resume 失敗後會：
+    - 累加 `consecutiveResumeFailures`
+    - 依 exponential backoff 設定下一次 `retryAt`
+    - failure 達門檻後轉成 `blocked`
+  - 這代表 scheduler 不再只是「掃 queue 然後再跑一次」，而是開始具備最小的 lease / retry / escalation contract
+- `packages/opencode/src/session/workflow-runner.test.ts`
+  - 新增 lease/backoff tests：
+    - same-owner lease recovery allowed
+    - foreign lease blocked
+    - exponential backoff capped at upper bound
+- 目前限制：
+  - lease 仍是存在 session workflow metadata 中，不是跨 process 的強一致 distributed lease
+  - in-flight round 若 process crash，只能靠 lease expiry + retryAt 恢復，不是精準 checkpoint replay
+  - failure classification 仍偏粗（目前以 generic resume failure 為主），尚未拆成 tool/network/provider/auth 類型化策略
+
+## Failure taxonomy / stop-block contract follow-up
+
+- `packages/opencode/src/session/workflow-runner.ts`
+  - 新增 `classifyResumeFailure(...)`，把 autonomous resume failure 初步分成：
+    - `provider_rate_limit`
+    - `provider_auth`
+    - `provider_transient`
+    - `tool_runtime`
+    - `session_state`
+    - `unknown`
+  - stop/block contract 現在會依 category 決定：
+    - auth / tool / session-state 類直接 block
+    - rate-limit / transient / unknown 類先 retry + backoff
+  - `stopReason` 也從 generic failure 改成：
+    - `resume_blocked:<category>:<reason>`
+    - `resume_retry_scheduled:<category>:<reason>`
+  - workflow supervisor metadata 也會持久化 `lastResumeCategory`
+- `packages/opencode/src/session/workflow-runner.test.ts`
+  - 新增 failure taxonomy tests：
+    - auth failure → immediate block
+    - tool runtime failure → immediate block
+    - transient provider failure → retry
+- 目前限制：
+  - taxonomy 目前仍以 message/error-shape heuristics 為主，還沒有完整 typed error graph
+  - 尚未把 permission/approval-required 類型提升成獨立 autonomous stop contract 類別
+  - 仍缺 per-tool/per-provider 專屬 retry policy
+
+## Session planner / executor contract follow-up
+
+- `packages/opencode/src/session/workflow-runner.ts`
+  - 新增 `planAutonomousNextAction(...)`，把 autonomous session 的下一步從單純 `todo_pending` 判斷，提升成最小 planner/executor contract
+  - planner 目前會區分：
+    - `continue: todo_in_progress` → 優先完成已在做的工作
+    - `continue: todo_pending` → 開始下一個待做事項
+    - `stop: wait_subagent` → 若當前 session 還有 active task tool/subagent，先等待而不是再塞 synthetic turn
+    - 其餘 stop reasons（blocked / complete / rounds reached ...）
+  - 新增 `countActiveSubtasks(...)`，會掃當前 session assistant tool parts 中 `task` 的 `pending/running` 狀態
+  - pending continuation queue 現在接受 `todo_in_progress` / `todo_pending` 兩種 planner reason
+- `packages/opencode/src/session/prompt.ts`
+  - autonomous continuation 不再固定塞同一句 prompt
+  - 改由 planner decision 決定 synthetic text
+  - 若 planner 回傳 `wait_subagent`，workflow 會停在 `waiting_user` + `stopReason=wait_subagent`
+- `packages/opencode/src/session/workflow-runner.test.ts`
+  - 新增 planner tests：
+    - in-progress todo 優先延續
+    - active subagent/task 存在時不再額外 enqueue autonomous turn
+- 目前限制：
+  - planner 仍是 heuristic/minimal contract，尚未形成完整 goal decomposition / explicit plan graph
+  - 還沒有真正的 plan revision / evidence checkpoint / subagent result synthesis loop
+  - `wait_subagent` 目前只依 tool part 狀態判斷，尚未引入 richer session graph supervisor semantics
+
+## Approval-needed / blocker contract follow-up
+
+- `packages/opencode/src/session/workflow-runner.ts`
+  - planner 現在在 autonomous next-action 決策前，會先檢查 session 是否存在：
+    - pending permission approvals → `approval_needed`
+    - pending questions / product clarifications → `product_decision_needed`
+  - 新增 `countPendingApprovals(...)` / `countPendingQuestions(...)`
+  - 這讓 autonomous session 遇到「真的該停下來等人」的情況時，會停在明確 contract，而不是被 generic retry/block 混掉
+  - failure classifier 也開始識別 approval/product-decision 類訊號，避免後續 supervisor 將其誤判為可重試 transient failure
+- `packages/opencode/src/session/prompt.ts`
+  - autonomous stop branch 現在會把這兩類 stop reason 寫回 workflow：
+    - `approval_needed`
+    - `product_decision_needed`
+- `packages/opencode/src/session/workflow-runner.test.ts`
+  - 新增 planner/blocker tests：
+    - pending approval → stop
+    - pending product question → stop
+- 目前限制：
+  - approval contract 目前只看 pending permission/question queues，尚未把 `requireApprovalFor` 直接提升成靜態 next-action gate
+  - product-decision detection 目前仍以 question queue / corrected feedback 為主，還不是完整 semantic blocker extractor
+  - UI 尚未把這兩類 blocker 單獨做成高顯著提醒面板
+
+## requireApprovalFor planner gate follow-up
+
+- `packages/opencode/src/session/workflow-runner.ts`
+  - 新增 `detectApprovalRequiredForTodos(...)`
+  - planner 現在不只看 live pending approval/question queues，也會直接讀 autonomous policy 的 `requireApprovalFor`
+  - 目前先以 minimal heuristic 把 actionable todo content 映射到三類 gate：
+    - `push`
+    - `destructive`
+    - `architecture_change`
+  - 若命中，autonomous next action 會直接停在 `approval_needed`
+  - 這表示 session master agent 已開始遵守靜態 safety policy，而不是等真的跑到 permission ask 才停
+- `packages/opencode/src/session/workflow-runner.test.ts`
+  - 新增 policy gate tests：
+    - push todo 命中 push gate
+    - delete/remove/reset 類 todo 命中 destructive gate
+    - schema/migration/refactor 類 todo 命中 architecture gate
+    - 即使當下還沒有 live permission queue，也會先停在 `approval_needed`
+- 目前限制：
+  - gate detection 目前仍以 todo text heuristics 為主，還沒有真正的 intent classifier / plan graph annotation
+  - 尚未把 tool input / command payload / diff intent 一起納入 gate 判斷
+  - 未來需要把 heuristic gate 升級成 structured action plan metadata，降低誤判
+
+## Structured action-plan metadata follow-up
+
+- `packages/opencode/src/session/todo.ts`
+  - `Todo.Info` 新增可選 `action` metadata，允許 planner 使用結構化訊號而非只靠 todo text
+  - 目前 action metadata 最小集合包含：
+    - `kind`
+    - `risk`
+    - `needsApproval`
+    - `canDelegate`
+    - `waitingOn`
+- `packages/opencode/src/session/workflow-runner.ts`
+  - planner 新增 structured action consumption：
+    - `detectStructuredStopReason(...)`
+    - `detectStructuredApprovalGate(...)`
+  - 若 todo 帶有結構化 action，planner 會優先採信它，而不是退回文字 heuristic
+  - 例如：
+    - `action.kind = push|destructive|architecture_change` 可直接命中 approval gate
+    - `action.waitingOn = subagent|approval|decision` 可直接對應 stop reason
+  - 這讓 autonomous session 開始從「讀文字猜下一步」轉向「讀 action metadata 做下一步決策」
+- `packages/opencode/src/session/workflow-runner.test.ts`
+  - 新增 structured action tests：
+    - structured `push` action 命中 approval gate
+    - structured `architecture_change` action 即使文字不明顯也會停在 approval gate
+    - structured `waitingOn=subagent` 會直接停在 `wait_subagent`
+- 目前限制：
+  - action metadata 雖已進入 planner，但尚未由上游 tools / agent 規劃流程穩定產生
+  - 還沒有 action graph / dependency graph，只是單點 metadata
+  - 下一步需要把 todowrite / subtask planning 流程也逐步導向輸出 structured action metadata
+
+## Structured action metadata propagation follow-up
+
+- `packages/opencode/src/session/todo.ts`
+  - 新增 `inferActionFromContent(...)`、`enrich(...)`、`enrichAll(...)`
+  - `Todo.update(...)` 現在會在寫入前自動補齊缺失的 action metadata
+  - 這表示即使上游 `todowrite` 還沒完全結構化輸出，runtime 仍會把 freeform todo 轉成最小 action metadata，供 autonomous planner 使用
+  - 目前自動推導涵蓋：
+    - push/release/deploy/publish → `push`
+    - delete/remove/drop/reset/destroy → `destructive`
+    - architecture/refactor/schema/migration → `architecture_change`
+    - waiting on / blocked by → `wait`
+    - delegate / subagent / hand off → `delegate`
+    - 其他預設 → `implement`
+- `packages/opencode/src/session/todo.test.ts`
+  - 新增 todo action inference/persistence tests，驗證 runtime enrichment 會把 freeform todo 穩定轉成 planner 可用的 structured metadata
+- 目前限制：
+  - propagation 現在是 runtime-side enrichment，不代表 agent 已經學會穩定主動輸出高品質 action metadata
+  - inference 仍屬 heuristic，尚未結合 tool call history / subtask results / session graph
+  - 下一步應考慮把 todowrite prompt/contract 顯式升級，讓 agent 原生輸出更準確的 structured action
+
+## todowrite contract / planning prompt upgrade follow-up
+
+- `packages/opencode/src/tool/todo.ts`
+  - `todowrite` tool schema description 現在明確要求：若已知，請原生提供 todo `action` metadata
+  - `TodoWriteTool.execute(...)` 現在回傳的是寫入後的 enriched todo state，而不是原始輸入，讓呼叫端立即看見最終 action metadata
+- `packages/opencode/src/tool/todowrite.txt`
+  - 補上 native structured action output 指南：
+    - `kind`
+    - `risk`
+    - `needsApproval`
+    - `canDelegate`
+    - `waitingOn`
+  - 同時明示：runtime inference 只是 best-effort，明確 metadata 才是首選
+- `packages/opencode/src/session/system.ts`
+  - planning guidance 現在會直接提醒 agent：使用 `todowrite()` 時優先提供結構化 `action` metadata，減少 autonomous planner 猜測
+- `packages/opencode/src/session/todo.test.ts`
+  - 補上 `Todo.update` / `Todo.get` round-trip test，驗證 todo 經 runtime 寫入後會保留 enriched action metadata
+- 目前限制：
+  - contract 已升級，但尚未對所有 agent/system prompt example 做全面 few-shot 改寫
+  - 上游規劃器仍可能輸出簡單 todo；目前靠 tool contract + runtime enrichment 雙軌兜底
+  - 後續可再把 subtask/result synthesis 也納入 action metadata 回寫
+
 ### Validation
 
 - `bun run --cwd packages/opencode typecheck` ✅
@@ -310,5 +572,177 @@ Status: In Progress
   - `bun run --cwd packages/opencode typecheck && bun run --cwd packages/app typecheck` ✅
   - `bun test packages/opencode/src/session/model-orchestration.test.ts packages/opencode/src/session/workflow-runner.test.ts packages/opencode/src/session/index.test.ts` ✅
   - `bun test --preload packages/app/happydom.ts packages/app/src/pages/session/helpers.test.ts` ✅
+- Autonomous scheduler fairness follow-up 驗證：
+  - `bun run --cwd packages/opencode typecheck` ✅
+  - `bun test packages/opencode/src/session/workflow-runner.test.ts packages/opencode/src/session/model-orchestration.test.ts packages/opencode/src/session/index.test.ts` ✅
+- Provider-family budget bucket follow-up 驗證：
+  - `bun run --cwd packages/opencode typecheck` ✅
+  - `bun test packages/opencode/src/session/workflow-runner.test.ts packages/opencode/src/session/model-orchestration.test.ts packages/opencode/src/session/index.test.ts` ✅
+- Supervisor lease / retry-backoff contract follow-up 驗證：
+  - `bun run --cwd packages/opencode typecheck` ✅
+  - `bun test packages/opencode/src/session/workflow-runner.test.ts packages/opencode/src/session/index.test.ts packages/opencode/src/session/model-orchestration.test.ts` ✅
+- Failure taxonomy / stop-block contract follow-up 驗證：
+  - `bun run --cwd packages/opencode typecheck` ✅
+  - `bun test packages/opencode/src/session/workflow-runner.test.ts packages/opencode/src/session/index.test.ts packages/opencode/src/session/model-orchestration.test.ts` ✅
+- Session planner / executor contract follow-up 驗證：
+  - `bun run --cwd packages/opencode typecheck` ✅
+  - `bun test packages/opencode/src/session/workflow-runner.test.ts packages/opencode/src/session/index.test.ts packages/opencode/src/session/model-orchestration.test.ts` ✅
+- Approval-needed / blocker contract follow-up 驗證：
+  - `bun run --cwd packages/opencode typecheck` ✅
+  - `bun test packages/opencode/src/session/workflow-runner.test.ts packages/opencode/src/session/index.test.ts packages/opencode/src/session/model-orchestration.test.ts` ✅
+- requireApprovalFor planner gate follow-up 驗證：
+  - `bun run --cwd packages/opencode typecheck` ✅
+  - `bun test packages/opencode/src/session/workflow-runner.test.ts packages/opencode/src/session/index.test.ts packages/opencode/src/session/model-orchestration.test.ts` ✅
+- Structured action-plan metadata follow-up 驗證：
+  - `bun run --cwd packages/opencode typecheck` ✅
+  - `bun test packages/opencode/src/session/workflow-runner.test.ts packages/opencode/src/session/index.test.ts packages/opencode/src/session/model-orchestration.test.ts` ✅
+- Structured action metadata propagation follow-up 驗證：
+  - `bun run --cwd packages/opencode typecheck` ✅
+  - `bun test packages/opencode/src/session/todo.test.ts packages/opencode/src/session/workflow-runner.test.ts packages/opencode/src/session/index.test.ts packages/opencode/src/session/model-orchestration.test.ts` ✅
+- todowrite contract / planning prompt upgrade follow-up 驗證：
+  - `bun run --cwd packages/opencode typecheck` ✅
+  - `bun test packages/opencode/src/session/todo.test.ts packages/opencode/src/session/workflow-runner.test.ts packages/opencode/src/session/index.test.ts packages/opencode/src/session/model-orchestration.test.ts` ✅
 - Architecture Sync: Updated `docs/ARCHITECTURE.md`
-  - 本輪再補上 arbitration trace persistence/display，說明 orchestration 不只是選模型，也會把「為何選這個模型」以最小可觀測形式回饋到 web session surface。
+  - 本輪再補上 todowrite contract/prompt 升級，讓文件反映 planning path 已開始原生鼓勵 structured action，而不只靠 runtime 補救。
+
+## TUI / Web parity note
+
+- 目前 session 互動表面不是分成獨立 `packages/tui` 與 `packages/app` 兩套實作；本 repo 現況是以 `packages/app/src/pages/session.tsx` 與相關 session components 作為共用 session surface
+- 因此本輪 workflow/arbitration/header visibility 的 UI 變更，已自然同時作用在現有 TUI/Web 共享 session 介面，而不是 Web-only feature branch
+- 後續規範：凡新增 autonomous session 相關可觀測性/操作能力，必須優先落在共享 session surface 或共享 runtime contract，避免先做單端漂移
+
+## Shared sidebar status audit
+
+- 已確認現有共享 session surface 其實已經有可重用的 sidebar status 基礎：
+  - `packages/app/src/pages/session/session-side-panel.tsx`
+  - `packages/app/src/pages/session/session-status-sections.tsx`
+  - `packages/app/src/pages/session/status-todo-list.tsx`
+  - `packages/app/src/pages/session/use-status-monitor.ts`
+  - `packages/app/src/pages/session/monitor-helper.ts`
+- 目前 sidebar 已具備兩條資料主軸：
+  - **Todo list**：由 `sync.data.todo[sessionID]` 驅動
+  - **Task monitor**：由 `session.top(... includeDescendants)` + tool/message status 推導 monitor entries
+- audit 判斷：這就是最適合落實 shared status panel 的現成骨架，應優先擴充，而不是另造新 sidebar
+- 目前仍存在的可觀測性缺口：
+  1. **Goal**：todo content 有，但尚未把 in-progress/current step 做高顯著聚焦
+  2. **Method**：task monitor 只顯示 active tool / model / token，缺少「採取的方法」摘要（例如 delegate / wait / approval / destructive gate）
+  3. **Process**：缺少 planner reason、workflow stop reason、action metadata 的清晰呈現
+  4. **Result**：monitor 著重 active work，較少顯示最近完成步驟/結果摘要
+- 因此下一個 shared status panel phase 應優先補：
+  - sidebar 置頂 current objective / current step
+  - todo action metadata 可視化（kind / waitingOn / approval）
+  - workflow stop reason / planner decision / latest result summary
+  - subagent/task method/result alignment，讓使用者能看到「目標、方法、過程、結果」
+
+## Shared sidebar status panel v1
+
+- `packages/app/src/pages/session/session-side-panel.tsx`
+  - 重用既有 Status mode，新增 shared summary 區塊，不另造新 sidebar
+  - summary 現在會顯示：
+    - **Current objective**：當前 in-progress / pending step
+    - **Method**：由 todo action metadata 推導的 chips（例如 wait / waiting: subagent / needs approval / delegable）
+    - **Process**：workflow state / stop reason / runtime status
+    - **Latest result**：最近 completed/cancelled todo 的結果摘要
+- `packages/app/src/pages/session/status-todo-list.tsx`
+  - todo list 現在會高亮 current step
+  - 同步顯示 todo action badges，讓 sidebar progress 不只看到文字，也看到方法/等待條件
+- `packages/app/src/pages/session/session-status-sections.tsx`
+  - Status mode 新增 `Autonomous` summary section，作為 shared status panel 的收斂入口
+- `packages/app/src/pages/session/helpers.ts`
+  - 新增 `getSessionStatusSummary(...)`
+  - 集中推導 current objective / method chips / process lines / latest result，避免 UI 自行拼湊 runtime 狀態
+- `packages/app/src/pages/session/helpers.test.ts`
+  - 新增 summary derivation tests，驗證 sidebar 會把「目標、方法、過程、結果」收斂成一致摘要
+- 目前限制：
+  - latest result 目前以 todo 完成/取消為主，尚未綁定更細的 assistant/subagent result artifacts
+  - method 層目前以 todo action metadata 為核心，尚未把 task monitor 的 tool/result 詳情做完整融合
+  - 下一步應把 subagent/task result synthesis 接到 summary，讓 sidebar 不只知道「做了什麼」，也知道「產出了什麼」
+
+## Sidebar subagent/task result synthesis
+
+- `packages/app/src/pages/session/helpers.ts`
+  - `getSessionStatusSummary(...)` 現在除了 todo/workflow，也會讀 assistant message parts
+  - 新增 task result synthesis：
+    - 最近完成的 `task` tool part → `Task completed · provider/model`
+    - 最近失敗的 `task` tool part → `Task blocked: ...`
+    - 最近仍在跑的 `task` tool part → `Task running · <subagent_type>`
+  - 這使 sidebar summary 開始從 todo-only 進化成能看見 subagent/task 的真實 execution result
+- `packages/app/src/pages/session/session-side-panel.tsx`
+  - summary 現在會把 `sync.data.part` 傳入 status summarizer，讓 shared sidebar 可以直接消化 runtime tool part 狀態
+- `packages/app/src/pages/session/helpers.test.ts`
+  - 補上 synthesized task result test，驗證最新 task tool completion 會優先成為 latest result，而不是被較舊的 todo completion 蓋掉
+- 目前限制：
+  - 目前仍是 latest-task-first 的簡化摘要，尚未做 per-todo ↔ per-task 精準關聯
+  - 尚未把 tool output/result body 壓縮成更細的可讀摘要
+  - 下一步若要再升級，應建立 todo-step 與 task part 的明確映射
+
+## Todo-step ↔ task monitor linkage
+
+- `packages/opencode/src/tool/task.ts`
+  - TaskTool 現在會在啟動 subagent 時，把 parent session 當前 todo step 附著到 task tool metadata：
+    - `todo.id`
+    - `todo.content`
+    - `todo.status`
+    - `todo.action`
+  - 這讓 runtime 從 task 啟動當下就保留「這個 SA 是為了哪一步 todo」的 linkage
+- `packages/app/src/pages/session/monitor-helper.ts`
+  - monitor entries 現在會從 tool part metadata 讀出 todo linkage 與 latest task result
+  - tool row / agent row 可開始攜帶：
+    - linked todo
+    - latest result
+- `packages/app/src/pages/session/session-side-panel.tsx`
+  - sidebar task monitor 現在直接顯示：
+    - `Todo: <step content>`
+    - `Method: <action kind / waitingOn / needsApproval>`
+    - `Result: <latest task result>`
+  - 這讓使用者在 task monitor 中可以直接看到「哪個 SA 在哪個 todo step 上」
+- `packages/app/src/pages/session/monitor-helper.test.ts`
+  - 新增 linkage test，驗證 task monitor row 會正確接回 todo 與 result
+- 目前限制：
+  - 目前 linkage 仍以「task 啟動時抓當前 todo」為主，尚未做到多 task 並行時的更強 dependency mapping
+  - agent/session level monitor row 的 linkage 仍是 best-effort，最精準的是 tool-level row
+  - 若未來要更準，需為 todo-step 建立顯式 task IDs / dependency edges
+
+## Todo dependency + auto-advance foundation
+
+- `packages/opencode/src/session/todo.ts`
+  - action metadata 新增 `dependsOn`，允許 todo step 表達最小 dependency
+  - 新增：
+    - `isDependencyReady(...)`
+    - `nextActionableTodo(...)`
+    - `reconcileProgress(...)`
+  - 行為：
+    - subagent/task 成功完成 linked todo 時，該 todo 會標成 `completed`
+    - 若沒有其他 in-progress step，下一個 dependency-ready pending todo 會自動推進為 `in_progress`
+    - task error 時，linked todo 會保留在 `in_progress` 並標成 `waitingOn=subagent`
+- `packages/opencode/src/tool/task.ts`
+  - task 成功/失敗後，會呼叫 `Todo.reconcileProgress(...)`，讓 todo progression 不再完全仰賴人工更新
+- `packages/opencode/src/session/workflow-runner.ts`
+  - planner 現在會用 `Todo.nextActionableTodo(...)` / dependency readiness 決定下一步，不會盲目挑到尚未解鎖的 pending step
+- `packages/opencode/src/session/todo.test.ts`
+  - 新增 auto-advance / dependency tests：
+    - linked step 完成後推進下一個 dependency-ready step
+    - task error 時轉為 wait-subagent style state
+- `packages/opencode/src/session/workflow-runner.test.ts`
+  - 新增 planner dependency test，驗證 planner 會跳過尚未 ready 的 pending step
+- 目前限制：
+  - 目前 dependency graph 仍是線性/最小版，尚未支援複雜 fan-in/fan-out planning
+  - auto-advance 目前主要由 task result 驅動，尚未涵蓋更多非-task execution result 類型
+  - 還沒有完整的 plan revision / dynamic reprioritization engine
+
+### Validation
+
+- Shared sidebar status panel v1 驗證：
+  - `bun test --preload packages/app/happydom.ts packages/app/src/pages/session/helpers.test.ts` ✅
+  - `bun run --cwd packages/app typecheck && bun run --cwd packages/opencode typecheck` ✅
+- Sidebar subagent/task result synthesis 驗證：
+  - `bun test --preload packages/app/happydom.ts packages/app/src/pages/session/helpers.test.ts` ✅
+  - `bun run --cwd packages/app typecheck && bun run --cwd packages/opencode typecheck` ✅
+- Todo-step ↔ task monitor linkage 驗證：
+  - `bun test --preload packages/app/happydom.ts packages/app/src/pages/session/helpers.test.ts packages/app/src/pages/session/monitor-helper.test.ts` ✅
+  - `bun run --cwd packages/app typecheck && bun run --cwd packages/opencode typecheck` ✅
+- Todo dependency + auto-advance foundation 驗證：
+  - `bun test packages/opencode/src/session/todo.test.ts packages/opencode/src/session/workflow-runner.test.ts packages/opencode/src/session/index.test.ts packages/opencode/src/session/model-orchestration.test.ts packages/app/src/pages/session/monitor-helper.test.ts` ✅
+  - `bun run --cwd packages/opencode typecheck && bun run --cwd packages/app typecheck` ✅
+- Architecture Sync: Updated `docs/ARCHITECTURE.md`
+  - 本輪再補上 todo dependency + auto-advance foundation，讓文件反映 autonomous session 已開始能依 execution result 自動推進下一步，而不只做可視化。

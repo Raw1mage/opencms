@@ -39,6 +39,7 @@ import {
   assertNotBusy as assertNotBusyRuntime,
   start as startRuntime,
   cancel as cancelRuntime,
+  finish as finishRuntime,
   enqueueCallback,
   consumeCallbacks,
 } from "./prompt-runtime"
@@ -56,7 +57,13 @@ import { persistUserMessage } from "./user-message-persist"
 import { prepareUserMessageContext } from "./user-message-context"
 import { buildUserMessageParts } from "./user-message-parts"
 import { materializeToolAttachments } from "./attachment-ownership"
-import { decideAutonomousContinuation, enqueueAutonomousContinue } from "./workflow-runner"
+import {
+  decideAutonomousContinuation,
+  describeAutonomousNextAction,
+  enqueueAutonomousContinue,
+  getPendingContinuation,
+  shouldInterruptAutonomousRun,
+} from "./workflow-runner"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
 
@@ -173,7 +180,8 @@ export namespace SessionPrompt {
       return message
     }
 
-    return loop(input.sessionID)
+    const shouldReplaceRuntime = await shouldInterruptForIncomingPrompt(input.sessionID)
+    return runLoop(input.sessionID, { replaceRuntime: shouldReplaceRuntime })
   })
 
   export async function resolvePromptParts(template: string): Promise<PromptInput["parts"]> {
@@ -206,8 +214,8 @@ export namespace SessionPrompt {
     })
   }
 
-  function start(sessionID: string) {
-    return startRuntime(sessionID)
+  function start(sessionID: string, options?: { replace?: boolean }) {
+    return startRuntime(sessionID, options)
   }
 
   export function cancel(sessionID: string) {
@@ -215,15 +223,97 @@ export namespace SessionPrompt {
     return cancelRuntime(sessionID)
   }
 
-  export const loop = fn(Identifier.schema("session"), async (sessionID) => {
-    const abort = start(sessionID)
-    if (!abort) {
+  async function emitAutonomousNarration(input: {
+    sessionID: string
+    parentID: string
+    agent: string
+    variant?: string
+    model: {
+      providerId: string
+      modelID: string
+    }
+    text: string
+    kind: "continue" | "pause" | "complete" | "interrupt"
+  }) {
+    const created = Date.now()
+    const assistantMessage: MessageV2.Assistant = {
+      id: Identifier.ascending("message"),
+      role: "assistant",
+      parentID: input.parentID,
+      sessionID: input.sessionID,
+      mode: input.agent,
+      agent: input.agent,
+      variant: input.variant,
+      path: {
+        cwd: Instance.directory,
+        root: Instance.worktree,
+      },
+      cost: 0,
+      tokens: {
+        input: 0,
+        output: 0,
+        reasoning: 0,
+        cache: { read: 0, write: 0 },
+      },
+      modelID: input.model.modelID,
+      providerId: input.model.providerId,
+      finish: "stop",
+      time: {
+        created,
+        completed: created,
+      },
+    }
+    await Session.updateMessage(assistantMessage)
+    await Session.updatePart({
+      id: Identifier.ascending("part"),
+      messageID: assistantMessage.id,
+      sessionID: input.sessionID,
+      type: "text",
+      text: input.text,
+      synthetic: true,
+      metadata: {
+        autonomousNarration: true,
+        narrationKind: input.kind,
+        excludeFromModel: true,
+      },
+      time: {
+        start: created,
+        end: created,
+      },
+    } satisfies MessageV2.TextPart)
+  }
+
+  async function shouldInterruptForIncomingPrompt(sessionID: string) {
+    const status = SessionStatus.get(sessionID)
+    if (status.type !== "busy") return false
+    const session = await Session.get(sessionID)
+    const pending = await getPendingContinuation(sessionID)
+    let lastUserSynthetic = false
+    for await (const message of MessageV2.stream(sessionID)) {
+      if (message.info.role !== "user") continue
+      lastUserSynthetic =
+        message.parts.length > 0 &&
+        message.parts.every((part) => part.type !== "text" || part.synthetic === true || part.ignored === true)
+      break
+    }
+    return shouldInterruptAutonomousRun({
+      session,
+      status,
+      lastUserSynthetic,
+      hasPendingContinuation: !!pending,
+    })
+  }
+
+  async function runLoop(sessionID: string, options?: { replaceRuntime?: boolean }) {
+    const runtime = start(sessionID, { replace: options?.replaceRuntime })
+    if (!runtime) {
       return new Promise<MessageV2.WithParts>((resolve, reject) => {
         enqueueCallback(sessionID, { resolve, reject })
       })
     }
 
-    using _ = defer(() => cancel(sessionID))
+    const abort = runtime.signal
+    using _ = defer(() => finishRuntime(sessionID, runtime.runID))
 
     let structuredOutput: unknown | undefined
 
@@ -693,14 +783,53 @@ export namespace SessionPrompt {
           sessionID,
           roundCount: autonomousRounds,
         })
+        const narration = describeAutonomousNextAction(
+          decision.continue
+            ? {
+                type: "continue",
+                reason: decision.reason,
+                text: decision.text,
+                todo: decision.todo,
+              }
+            : { type: "stop", reason: decision.reason },
+        )
         if (decision.continue) {
+          await emitAutonomousNarration({
+            sessionID,
+            parentID: lastUser.id,
+            agent: lastUser.agent,
+            variant: lastUser.variant,
+            model: lastUser.model,
+            text: narration.text,
+            kind: narration.kind,
+          })
           autonomousRounds++
           await enqueueAutonomousContinue({
             sessionID,
             user: lastUser,
             roundCount: autonomousRounds,
+            text: decision.text,
           })
           continue
+        }
+        if (
+          [
+            "approval_needed",
+            "product_decision_needed",
+            "wait_subagent",
+            "max_continuous_rounds",
+            "todo_complete",
+          ].includes(decision.reason)
+        ) {
+          await emitAutonomousNarration({
+            sessionID,
+            parentID: lastUser.id,
+            agent: lastUser.agent,
+            variant: lastUser.variant,
+            model: lastUser.model,
+            text: narration.text,
+            kind: narration.kind,
+          })
         }
         if (decision.reason === "todo_complete") {
           await Session.setWorkflowState({
@@ -714,6 +843,27 @@ export namespace SessionPrompt {
             sessionID,
             state: "waiting_user",
             stopReason: "max_continuous_rounds",
+            lastRunAt: Date.now(),
+          })
+        } else if (decision.reason === "approval_needed") {
+          await Session.setWorkflowState({
+            sessionID,
+            state: "waiting_user",
+            stopReason: "approval_needed",
+            lastRunAt: Date.now(),
+          })
+        } else if (decision.reason === "product_decision_needed") {
+          await Session.setWorkflowState({
+            sessionID,
+            state: "waiting_user",
+            stopReason: "product_decision_needed",
+            lastRunAt: Date.now(),
+          })
+        } else if (decision.reason === "wait_subagent") {
+          await Session.setWorkflowState({
+            sessionID,
+            state: "waiting_user",
+            stopReason: "wait_subagent",
             lastRunAt: Date.now(),
           })
         }
@@ -740,7 +890,9 @@ export namespace SessionPrompt {
       return item
     }
     throw new Error("Impossible")
-  })
+  }
+
+  export const loop = fn(Identifier.schema("session"), async (sessionID) => runLoop(sessionID))
 
   async function createUserMessage(input: PromptInput) {
     const { agent, partsInput, info } = await prepareUserMessageContext({
@@ -795,13 +947,13 @@ export namespace SessionPrompt {
   })
   export type ShellInput = z.infer<typeof ShellInput>
   export async function shell(input: ShellInput) {
-    const abort = start(input.sessionID)
-    if (!abort) {
+    const runtime = start(input.sessionID)
+    if (!runtime) {
       throw new Session.BusyError(input.sessionID)
     }
-    using _ = defer(() => cancel(input.sessionID))
+    using _ = defer(() => finishRuntime(input.sessionID, runtime.runID))
 
-    return runShellPrompt(input, abort)
+    return runShellPrompt(input, runtime.signal)
   }
 
   export const CommandInput = z.object({
