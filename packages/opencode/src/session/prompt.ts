@@ -56,6 +56,7 @@ import { persistUserMessage } from "./user-message-persist"
 import { prepareUserMessageContext } from "./user-message-context"
 import { buildUserMessageParts } from "./user-message-parts"
 import { materializeToolAttachments } from "./attachment-ownership"
+import { decideAutonomousContinuation, enqueueAutonomousContinue } from "./workflow-runner"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
 
@@ -227,6 +228,7 @@ export namespace SessionPrompt {
     let structuredOutput: unknown | undefined
 
     let step = 0
+    let autonomousRounds = 0
     const session = await Session.get(sessionID)
     const cachedInstructionPrompts = await InstructionPrompt.system()
     const environmentCache = new Map<string, string[]>()
@@ -684,7 +686,36 @@ export namespace SessionPrompt {
         await Session.updateMessage(processor.message)
         break
       }
-      if (result === "stop") break
+      if (result === "stop") {
+        const decision = await decideAutonomousContinuation({
+          sessionID,
+          roundCount: autonomousRounds,
+        })
+        if (decision.continue) {
+          autonomousRounds++
+          await enqueueAutonomousContinue({
+            sessionID,
+            user: lastUser,
+          })
+          continue
+        }
+        if (decision.reason === "todo_complete") {
+          await Session.setWorkflowState({
+            sessionID,
+            state: "completed",
+            stopReason: "todo_complete",
+            lastRunAt: Date.now(),
+          })
+        } else if (decision.reason === "max_continuous_rounds") {
+          await Session.setWorkflowState({
+            sessionID,
+            state: "waiting_user",
+            stopReason: "max_continuous_rounds",
+            lastRunAt: Date.now(),
+          })
+        }
+        break
+      }
       if (result === "compact") {
         await SessionCompaction.create({
           sessionID,

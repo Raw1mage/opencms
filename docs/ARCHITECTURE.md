@@ -112,7 +112,8 @@ The `cms` branch is the primary product line for this environment, featuring sig
    - Config APIs: read/update.
    - Account APIs: list + mutation routes.
    - Session APIs: list/read/status/top + mutation routes.
-   - Session records now also carry persisted workflow metadata (`workflow.autonomous`, `workflow.state`, stop reason, timestamps) as the Phase 1 foundation for future autonomous-session continuation.
+   - Session records now also carry persisted workflow metadata (`workflow.autonomous`, `workflow.state`, stop reason, timestamps) as the foundation for autonomous-session continuation.
+   - In-process continuation is now wired inside the prompt loop: after an assistant round completes, the runtime can synthesize the next user step from outstanding todos when autonomous mode is enabled and no blocker/approval stop condition is active.
    - Model preference APIs: read/update.
 
 5. **Web realtime behavior**
@@ -340,7 +341,7 @@ This package contains the core application logic, including the CLI, the Agent r
 | `src/session/index.ts`       | **Session Manager.** CRUD operations, persistence, event publishing. Also persists session workflow metadata (`autonomous` policy + workflow state) and emits workflow update events as the Phase 1 autonomous-session foundation. | `Session`, `create`, `get`        | **In:** ID/Data<br>**Out:** Session Info         |
 | `src/session/llm.ts`         | **LLM Interface.** Handles generation, streaming, tool resolution, cost tracking.                                                                                                                                                  | `LLM`, `stream`                   | **In:** Messages, Model<br>**Out:** StreamResult |
 | `src/session/message-v2.ts`  | **Message Schema.** Defines User/Assistant message structures and rich content parts.                                                                                                                                              | `MessageV2`, `Part`               | **In:** Raw Data<br>**Out:** Typed Message       |
-| `src/session/prompt.ts`      | **Prompt Loop.** Entry point for the main agent execution loop (tools/reasoning).                                                                                                                                                  | `SessionPrompt`, `prompt`, `loop` | **In:** User Input<br>**Out:** Execution Result  |
+| `src/session/prompt.ts`      | **Prompt Loop.** Entry point for the main agent execution loop (tools/reasoning). Now also hosts the Phase 2 in-process autonomous continuation hook that can enqueue the next synthetic user step when workflow policy allows.    | `SessionPrompt`, `prompt`, `loop` | **In:** User Input<br>**Out:** Execution Result  |
 | `src/session/instruction.ts` | **System Instructions.** Loads system prompts from `AGENTS.md` and config.                                                                                                                                                         | `InstructionPrompt`               | **In:** Context<br>**Out:** System Prompt        |
 
 #### D. Server & API (`src/server`)

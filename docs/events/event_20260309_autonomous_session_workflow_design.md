@@ -153,6 +153,30 @@ Status: In Progress
 - assistant 回合結束後，若條件成立就自動再進下一輪
 - 先不跨重啟恢復
 
+## Phase 2 實作
+
+- `packages/opencode/src/session/workflow-runner.ts`
+  - 新增 `evaluateAutonomousContinuation(...)` / `decideAutonomousContinuation(...)`
+  - 判斷條件目前收斂為：
+    - subagent session 不自動續跑
+    - autonomous disabled 不續跑
+    - blocked 不續跑
+    - `maxContinuousRounds` 達上限則停
+    - todo 還有 `pending` / `in_progress` 時才續跑
+  - 新增 `enqueueAutonomousContinue(...)`，在允許續跑時寫入 synthetic user message
+- `packages/opencode/src/session/prompt.ts`
+  - 在 `processor.process(...)` 回合完成、結果為 `stop` 後，不再一律直接 break
+  - 若 workflow runner 判定可續跑，會插入 synthetic continue user message 並留在同一個 `loop(...)` 中繼續下一輪
+  - 若 todo 已完成，workflow state 轉為 `completed`
+  - 若是 hit `maxContinuousRounds`，則保留在 `waiting_user` 並寫入 stopReason
+- `packages/opencode/src/session/workflow-runner.test.ts`
+  - 補 autonomous continuation 決策測試
+- 目前 Phase 2 仍是 **in-process skeleton**：
+  - 沒有 durable queue
+  - 沒有跨重啟恢復
+  - 沒有 multi-session fairness / scheduler arbitration
+  - 但已經能在單次 session loop 中，基於 todo 與 workflow policy 自動續跑下一步
+
 ### Phase 3 — Durable queue / resume
 
 - 將 pending continuation 寫入 storage
@@ -167,5 +191,6 @@ Status: In Progress
 
 - `bun run --cwd packages/opencode typecheck` ✅
 - `bun test --cwd packages/opencode src/session/index.test.ts` ✅
+- `bun test --cwd packages/opencode src/session/index.test.ts src/session/workflow-runner.test.ts` ✅
 - Architecture Sync: Updated `docs/ARCHITECTURE.md`
-  - 本輪已實際變更 session persistence / API contract / processor lifecycle metadata，因此同步更新 architecture 中的 Session Core 與 daemon-routed session API 說明。
+  - 本輪已從 Phase 1 metadata 進入 Phase 2 in-process autonomous continuation，因此同步更新 Session Core 與 prompt loop 行為描述。
