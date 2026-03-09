@@ -55,11 +55,6 @@ export default function SessionToolPageRoute() {
     return sync.data.todo[id]
   })
 
-  createEffect(() => {
-    const id = params.id
-    if (!id) return
-    void sync.session.sync(id)
-  })
   useSessionResumeSync({ enabled: () => true, sessionID: () => params.id, sync })
 
   useStatusTodoSync({

@@ -1,6 +1,7 @@
 import type { CommandOption } from "@/context/command"
 import { batch } from "solid-js"
 import type { Part } from "@opencode-ai/sdk/v2/client"
+import type { SessionStatus, Todo, Message } from "@opencode-ai/sdk/v2/client"
 
 export const focusTerminalById = (id: string) => {
   const wrapper = document.getElementById(`terminal-wrapper-${id}`)
@@ -139,8 +140,7 @@ const formatArbitrationSource = (source?: string) => {
 const readArbitrationTrace = (part?: Part): ModelArbitrationTrace | undefined => {
   if (!part) return undefined
   if (part.type === "text") return part.metadata?.modelArbitration as ModelArbitrationTrace | undefined
-  if (part.type === "tool" && "metadata" in part.state)
-    return part.state.metadata?.modelArbitration as ModelArbitrationTrace | undefined
+  if (part.type === "tool") return part.metadata?.modelArbitration as ModelArbitrationTrace | undefined
   return undefined
 }
 
@@ -160,4 +160,121 @@ export const getSessionArbitrationChips = (input: {
   const source = formatArbitrationSource(trace.selected.source)
   if (source) chips.unshift({ label: source, tone: "info" })
   return chips
+}
+
+type TodoWithAction = Todo & {
+  action?: {
+    kind?: string
+    risk?: string
+    needsApproval?: boolean
+    canDelegate?: boolean
+    waitingOn?: string
+  }
+}
+
+type TodoActionLike = TodoWithAction["action"]
+
+export const formatTodoActionLabel = (action?: TodoActionLike) => {
+  if (!action?.kind) return undefined
+  if (action.kind === "architecture_change") return "architecture"
+  if (action.kind === "destructive") return "destructive"
+  if (action.kind === "approval") return "approval"
+  if (action.kind === "decision") return "decision"
+  return action.kind.replaceAll("_", " ")
+}
+
+export const formatTodoWaitingLabel = (action?: TodoActionLike) => {
+  if (!action?.waitingOn) return undefined
+  return `waiting: ${action.waitingOn}`
+}
+
+export type SessionStatusSummary = {
+  currentStep?: TodoWithAction
+  methodChips: SessionWorkflowChip[]
+  processLines: string[]
+  latestResult?: {
+    label: string
+    tone: SessionWorkflowChip["tone"]
+  }
+}
+
+type PartsByMessage = Record<string, readonly Part[] | undefined>
+
+const summarizeTaskResult = (input: { messages?: readonly Message[]; partsByMessage?: PartsByMessage }) => {
+  const messages = input.messages ?? []
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index]
+    if (message.role !== "assistant") continue
+    const parts = input.partsByMessage?.[message.id] ?? []
+    for (let partIndex = parts.length - 1; partIndex >= 0; partIndex--) {
+      const part = parts[partIndex]
+      if (part.type !== "tool" || part.tool !== "task") continue
+      if (part.state.status === "completed") {
+        const metadata = part.metadata as
+          | { modelArbitration?: { selected?: { providerId?: string; modelID?: string } } }
+          | undefined
+        const model = metadata?.modelArbitration?.selected
+        return {
+          label: `Task completed${model?.providerId && model?.modelID ? ` · ${model.providerId}/${model.modelID}` : ""}`,
+          tone: "success" as const,
+        }
+      }
+      if (part.state.status === "error") {
+        return {
+          label: `Task blocked: ${part.state.error.slice(0, 120)}`,
+          tone: "warning" as const,
+        }
+      }
+      if (part.state.status === "running") {
+        return {
+          label: `Task running${part.state.input?.subagent_type ? ` · ${part.state.input.subagent_type}` : ""}`,
+          tone: "info" as const,
+        }
+      }
+    }
+  }
+}
+
+export const getSessionStatusSummary = (input: {
+  session?: WorkflowLikeSession
+  todos?: readonly Todo[]
+  status?: SessionStatus
+  messages?: readonly Message[]
+  partsByMessage?: PartsByMessage
+}): SessionStatusSummary => {
+  const todos = (input.todos ?? []) as TodoWithAction[]
+  const currentStep =
+    todos.find((todo) => todo.status === "in_progress") ?? todos.find((todo) => todo.status === "pending")
+  const methodChips: SessionWorkflowChip[] = []
+  const actionLabel = formatTodoActionLabel(currentStep?.action)
+  if (actionLabel) methodChips.push({ label: actionLabel, tone: "info" })
+  const waitingLabel = formatTodoWaitingLabel(currentStep?.action)
+  if (waitingLabel) methodChips.push({ label: waitingLabel, tone: "neutral" })
+  if (currentStep?.action?.needsApproval) methodChips.push({ label: "needs approval", tone: "warning" })
+  if (currentStep?.action?.canDelegate) methodChips.push({ label: "delegable", tone: "info" })
+
+  const processLines: string[] = []
+  const workflowState = prettyWorkflowState(input.session?.workflow?.state)
+  if (workflowState) processLines.push(`Workflow: ${workflowState}`)
+  const stopReason = prettyStopReason(input.session?.workflow?.stopReason)
+  if (stopReason) processLines.push(`Stop: ${stopReason}`)
+  if (input.status?.type && input.status.type !== "idle") processLines.push(`Runtime: ${input.status.type}`)
+
+  const latestTaskResult = summarizeTaskResult({ messages: input.messages, partsByMessage: input.partsByMessage })
+  const latestTodo = [...todos].reverse().find((todo) => todo.status === "completed" || todo.status === "cancelled")
+  const latestResult =
+    latestTaskResult ??
+    (latestTodo
+      ? {
+          label: `${latestTodo.status === "completed" ? "Completed" : "Stopped"}: ${latestTodo.content}`,
+          tone: latestTodo.status === "completed" ? ("success" as const) : ("warning" as const),
+        }
+      : undefined)
+
+  return {
+    currentStep,
+    methodChips,
+    processLines,
+    latestResult,
+  }
 }

@@ -583,405 +583,458 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       const startedAt = Date.now()
       const marks = new Map<string, number>()
       let assignedWorkerID: string | undefined
-      let subSessionID: string | undefined
-      const mark = (name: string, data?: Record<string, unknown>) => {
-        const now = Date.now()
-        marks.set(name, now)
-        debugCheckpoint("task.timeline", name, {
-          callID: ctx.callID,
-          sessionID: ctx.sessionID,
-          elapsedMs: now - startedAt,
-          ...data,
+      let linkedTodo:
+        | {
+            id: string
+            content: string
+            status: string
+            action?: (typeof Todo.Info.shape.action)["_output"]
+          }
+        | undefined
+      try {
+        let subSessionID: string | undefined
+        const mark = (name: string, data?: Record<string, unknown>) => {
+          const now = Date.now()
+          marks.set(name, now)
+          debugCheckpoint("task.timeline", name, {
+            callID: ctx.callID,
+            sessionID: ctx.sessionID,
+            elapsedMs: now - startedAt,
+            ...data,
+          })
+        }
+        const elapsedFromStart = () => Date.now() - startedAt
+        const stageOnTimeout = () => {
+          if (!marks.has("worker_assigned")) return "queue"
+          if (!marks.has("worker_dispatched")) return "dispatch"
+          if (!marks.has("first_bridge_event")) return "modeling"
+          return "finalize"
+        }
+        using __telemetry = defer(() => {
+          telemetryLog.info("task lifecycle timing", {
+            callID: ctx.callID,
+            parentSessionID: ctx.sessionID,
+            subSessionID,
+            totalMs: Date.now() - startedAt,
+            timeline: Array.from(marks.entries()).map(([name, ts]) => ({ name, ms: ts - startedAt })),
+          })
         })
-      }
-      const elapsedFromStart = () => Date.now() - startedAt
-      const stageOnTimeout = () => {
-        if (!marks.has("worker_assigned")) return "queue"
-        if (!marks.has("worker_dispatched")) return "dispatch"
-        if (!marks.has("first_bridge_event")) return "modeling"
-        return "finalize"
-      }
-      using __telemetry = defer(() => {
-        telemetryLog.info("task lifecycle timing", {
-          callID: ctx.callID,
-          parentSessionID: ctx.sessionID,
-          subSessionID,
-          totalMs: Date.now() - startedAt,
-          timeline: Array.from(marks.entries()).map(([name, ts]) => ({ name, ms: ts - startedAt })),
+
+        mark("start", { subagentType: params.subagent_type, hasSessionID: !!params.session_id })
+        debugCheckpoint("task", "Task tool execute started", {
+          description: params.description,
+          subagent_type: params.subagent_type,
+          model_param: params.model,
+          session_id: params.session_id,
         })
-      })
 
-      mark("start", { subagentType: params.subagent_type, hasSessionID: !!params.session_id })
-      debugCheckpoint("task", "Task tool execute started", {
-        description: params.description,
-        subagent_type: params.subagent_type,
-        model_param: params.model,
-        session_id: params.session_id,
-      })
+        const config = await Config.get()
+        mark("config_loaded")
 
-      const config = await Config.get()
-      mark("config_loaded")
+        // Skip permission check when user explicitly invoked via @ or command subtask
+        if (!ctx.extra?.bypassAgentCheck) {
+          await ctx.ask({
+            permission: "task",
+            patterns: [params.subagent_type],
+            always: ["*"],
+            metadata: {
+              description: params.description,
+              subagent_type: params.subagent_type,
+            },
+          })
+        }
+        mark("permission_checked", { bypassed: !!ctx.extra?.bypassAgentCheck })
 
-      // Skip permission check when user explicitly invoked via @ or command subtask
-      if (!ctx.extra?.bypassAgentCheck) {
-        await ctx.ask({
-          permission: "task",
-          patterns: [params.subagent_type],
-          always: ["*"],
-          metadata: {
-            description: params.description,
-            subagent_type: params.subagent_type,
+        const agent = await Agent.get(params.subagent_type)
+        if (!agent) throw new Error(`Unknown agent type: ${params.subagent_type} is not a valid agent type`)
+        debugCheckpoint("task", "Agent loaded", { agentName: agent.name, agentModel: agent.model })
+        mark("agent_loaded", { agent: agent.name })
+
+        const hasTaskPermission = agent.permission.some((rule) => rule.permission === "task")
+        const toolWhitelist = toolWhitelistForSubagent(agent.name)
+
+        const session = await iife(async () => {
+          if (params.session_id) {
+            const found = await Session.get(params.session_id).catch(() => {})
+            if (found) return found
+          }
+
+          const narrowedPermissions: PermissionNext.Ruleset = toolWhitelist
+            ? [
+                { permission: "*", pattern: "*", action: "deny" },
+                ...toolWhitelist.map((permission) => ({ permission, pattern: "*", action: "allow" as const })),
+              ]
+            : []
+
+          return await Session.create({
+            parentID: ctx.sessionID,
+            title: createSubsessionTitle(params, agent.name),
+            permission: [
+              ...narrowedPermissions,
+              {
+                permission: "todowrite",
+                pattern: "*",
+                action: "deny",
+              },
+              {
+                permission: "todoread",
+                pattern: "*",
+                action: "deny",
+              },
+              ...(hasTaskPermission
+                ? []
+                : [
+                    {
+                      permission: "task" as const,
+                      pattern: "*" as const,
+                      action: "deny" as const,
+                    },
+                  ]),
+              ...(config.experimental?.primary_tools?.map((t) => ({
+                pattern: "*",
+                action: "allow" as const,
+                permission: t,
+              })) ?? []),
+            ],
+          })
+        })
+        mark("subsession_ready", { subSessionID: session.id })
+        subSessionID = session.id
+        const msg = await MessageV2.get({ sessionID: ctx.sessionID, messageID: ctx.messageID })
+        if (msg.info.role !== "assistant") throw new Error("Not an assistant message")
+
+        const modelArg = params.model ? Provider.parseModel(params.model) : undefined
+        const arbitration = await orchestrateModelSelection({
+          agentName: agent.name,
+          explicitModel: modelArg,
+          agentModel: agent.model,
+          fallbackModel: {
+            modelID: msg.info.modelID,
+            providerId: msg.info.providerId,
           },
         })
-      }
-      mark("permission_checked", { bypassed: !!ctx.extra?.bypassAgentCheck })
+        const model = arbitration.model
+        linkedTodo =
+          (await Todo.get(ctx.sessionID)).find((todo) => todo.status === "in_progress") ??
+          (await Todo.get(ctx.sessionID)).find((todo) => todo.status === "pending")
 
-      const agent = await Agent.get(params.subagent_type)
-      if (!agent) throw new Error(`Unknown agent type: ${params.subagent_type} is not a valid agent type`)
-      debugCheckpoint("task", "Agent loaded", { agentName: agent.name, agentModel: agent.model })
-      mark("agent_loaded", { agent: agent.name })
-
-      const hasTaskPermission = agent.permission.some((rule) => rule.permission === "task")
-      const toolWhitelist = toolWhitelistForSubagent(agent.name)
-
-      const session = await iife(async () => {
-        if (params.session_id) {
-          const found = await Session.get(params.session_id).catch(() => {})
-          if (found) return found
-        }
-
-        const narrowedPermissions: PermissionNext.Ruleset = toolWhitelist
-          ? [
-              { permission: "*", pattern: "*", action: "deny" },
-              ...toolWhitelist.map((permission) => ({ permission, pattern: "*", action: "allow" as const })),
-            ]
-          : []
-
-        return await Session.create({
-          parentID: ctx.sessionID,
-          title: createSubsessionTitle(params, agent.name),
-          permission: [
-            ...narrowedPermissions,
-            {
-              permission: "todowrite",
-              pattern: "*",
-              action: "deny",
-            },
-            {
-              permission: "todoread",
-              pattern: "*",
-              action: "deny",
-            },
-            ...(hasTaskPermission
-              ? []
-              : [
-                  {
-                    permission: "task" as const,
-                    pattern: "*" as const,
-                    action: "deny" as const,
-                  },
-                ]),
-            ...(config.experimental?.primary_tools?.map((t) => ({
-              pattern: "*",
-              action: "allow" as const,
-              permission: t,
-            })) ?? []),
-          ],
+        debugCheckpoint("task", "Model resolved for subagent", {
+          modelArg,
+          agentModel: agent.model,
+          parentModel: { modelID: msg.info.modelID, providerId: msg.info.providerId },
+          finalModel: model,
         })
-      })
-      mark("subsession_ready", { subSessionID: session.id })
-      subSessionID = session.id
-      const msg = await MessageV2.get({ sessionID: ctx.sessionID, messageID: ctx.messageID })
-      if (msg.info.role !== "assistant") throw new Error("Not an assistant message")
+        mark("model_resolved", { providerId: model.providerId, modelID: model.modelID })
 
-      const modelArg = params.model ? Provider.parseModel(params.model) : undefined
-      const arbitration = await orchestrateModelSelection({
-        agentName: agent.name,
-        explicitModel: modelArg,
-        agentModel: agent.model,
-        fallbackModel: {
-          modelID: msg.info.modelID,
-          providerId: msg.info.providerId,
-        },
-      })
-      const model = arbitration.model
-
-      debugCheckpoint("task", "Model resolved for subagent", {
-        modelArg,
-        agentModel: agent.model,
-        parentModel: { modelID: msg.info.modelID, providerId: msg.info.providerId },
-        finalModel: model,
-      })
-      mark("model_resolved", { providerId: model.providerId, modelID: model.modelID })
-
-      ctx.metadata({
-        title: params.description,
-        metadata: {
-          sessionId: session.id,
-          model,
-          modelArbitration: arbitration.trace,
-        },
-      })
-
-      const messageID = Identifier.ascending("message")
-      const parts: Record<string, { id: string; tool: string; state: { status: string; title?: string } }> = {}
-      const unsub = Bus.subscribe(MessageV2.Event.PartUpdated, async (evt) => {
-        if (evt.properties.part.sessionID !== session.id) return
-        if (evt.properties.part.messageID === messageID) return
-        if (evt.properties.part.type !== "tool") return
-        const part = evt.properties.part
-        parts[part.id] = {
-          id: part.id,
-          tool: part.tool,
-          state: {
-            status: part.state.status,
-            title: part.state.status === "completed" ? part.state.title : undefined,
-          },
-        }
         ctx.metadata({
           title: params.description,
           metadata: {
             sessionId: session.id,
             model,
+            modelArbitration: arbitration.trace,
+            todo: linkedTodo
+              ? {
+                  id: linkedTodo.id,
+                  content: linkedTodo.content,
+                  status: linkedTodo.status,
+                  action: linkedTodo.action,
+                }
+              : undefined,
           },
         })
-      })
 
-      function cancel() {
-        SessionPrompt.cancel(session.id)
-      }
-      ctx.abort.addEventListener("abort", cancel)
-      using _ = defer(() => ctx.abort.removeEventListener("abort", cancel))
-
-      // Normalize prompt: convert complex structured input to simple string for resolvePromptParts
-      // This maintains backward compatibility while supporting the new complex input format
-      let normalizedPrompt: string
-      if (typeof params.prompt === "string") {
-        normalizedPrompt = params.prompt
-      } else {
-        // Convert structured input to human-readable format with metadata hint
-        let structured = `[${params.prompt.type.toUpperCase()}]\n${params.prompt.content}`
-        if (params.prompt.metadata && Object.keys(params.prompt.metadata).length > 0) {
-          structured += `\n\nMetadata: ${JSON.stringify(params.prompt.metadata, null, 2)}`
-        }
-        normalizedPrompt = structured
-      }
-
-      const promptParts = await SessionPrompt.resolvePromptParts(normalizedPrompt)
-      mark("prompt_parts_resolved", { partCount: promptParts.length })
-
-      // Add USER message to the session before spawning execution process
-      // This mimics what SessionPrompt.prompt does but allows us to execute the loop in a separate process
-      const userMessageInfo: MessageV2.User = {
-        id: Identifier.ascending("message"),
-        role: "user",
-        sessionID: session.id,
-        agent: agent.name,
-        model: {
-          modelID: model.modelID,
-          providerId: model.providerId,
-        },
-        time: {
-          created: Date.now(),
-        },
-        variant: "normal", // Default variant
-      }
-
-      await Session.updateMessage(userMessageInfo)
-
-      for (const part of promptParts) {
-        await Session.updatePart({
-          ...part,
-          id: Identifier.ascending("part"),
-          messageID: userMessageInfo.id,
-          sessionID: session.id,
+        const messageID = Identifier.ascending("message")
+        const parts: Record<string, { id: string; tool: string; state: { status: string; title?: string } }> = {}
+        const unsub = Bus.subscribe(MessageV2.Event.PartUpdated, async (evt) => {
+          if (evt.properties.part.sessionID !== session.id) return
+          if (evt.properties.part.messageID === messageID) return
+          if (evt.properties.part.type !== "tool") return
+          const part = evt.properties.part
+          parts[part.id] = {
+            id: part.id,
+            tool: part.tool,
+            state: {
+              status: part.state.status,
+              title: part.state.status === "completed" ? part.state.title : undefined,
+            },
+          }
+          ctx.metadata({
+            title: params.description,
+            metadata: {
+              sessionId: session.id,
+              model,
+              todo: linkedTodo
+                ? {
+                    id: linkedTodo.id,
+                    content: linkedTodo.content,
+                    status: linkedTodo.status,
+                    action: linkedTodo.action,
+                  }
+                : undefined,
+            },
+          })
         })
-      }
-      mark("subsession_seeded")
 
-      debugCheckpoint("task", "Dispatching subagent session to worker", { sessionID: session.id })
+        function cancel() {
+          SessionPrompt.cancel(session.id)
+        }
+        ctx.abort.addEventListener("abort", cancel)
+        using _ = defer(() => ctx.abort.removeEventListener("abort", cancel))
 
-      // Register logical task run in supervisor for monitor visibility.
-      if (ctx.callID) {
-        ProcessSupervisor.register({
-          id: ctx.callID,
-          kind: "task-subagent",
+        // Normalize prompt: convert complex structured input to simple string for resolvePromptParts
+        // This maintains backward compatibility while supporting the new complex input format
+        let normalizedPrompt: string
+        if (typeof params.prompt === "string") {
+          normalizedPrompt = params.prompt
+        } else {
+          // Convert structured input to human-readable format with metadata hint
+          let structured = `[${params.prompt.type.toUpperCase()}]\n${params.prompt.content}`
+          if (params.prompt.metadata && Object.keys(params.prompt.metadata).length > 0) {
+            structured += `\n\nMetadata: ${JSON.stringify(params.prompt.metadata, null, 2)}`
+          }
+          normalizedPrompt = structured
+        }
+
+        const promptParts = await SessionPrompt.resolvePromptParts(normalizedPrompt)
+        mark("prompt_parts_resolved", { partCount: promptParts.length })
+
+        // Add USER message to the session before spawning execution process
+        // This mimics what SessionPrompt.prompt does but allows us to execute the loop in a separate process
+        const userMessageInfo: MessageV2.User = {
+          id: Identifier.ascending("message"),
+          role: "user",
           sessionID: session.id,
-          parentSessionID: ctx.sessionID,
-        })
-      }
-
-      // Link abort signal to process kill via Manager
-      const cleanup = () => {
-        if (ctx.callID) ProcessSupervisor.kill(ctx.callID)
-        SessionPrompt.cancel(session.id)
-      }
-      ctx.abort.addEventListener("abort", cleanup)
-
-      // Default timeout: 10 minutes per subagent execution
-      // This prevents zombie processes that hang indefinitely
-      const SUBAGENT_TIMEOUT_MS = config.experimental?.task_timeout ?? 10 * 60 * 1000
-
-      // Activity tracking strategy (v2): heartbeat/event-first with low-frequency storage fallback.
-      // Keep orphan/zombie safety by preserving stale detection + supervisor stall markers.
-      let lastActivityTime = Date.now()
-      let lastSignature = ""
-      let lastFallbackPollAt = 0
-
-      const updateActivity = () => {
-        lastActivityTime = Date.now()
-        if (ctx.callID) ProcessSupervisor.touch(ctx.callID)
-      }
-
-      const FALLBACK_POLL_INTERVAL_MS = 60_000
-      const sampleChildActivity = async () => {
-        const messages = await Session.messages({ sessionID: session.id })
-        const last = messages.at(-1)?.info
-        const lastTime = last?.time as { created?: number; completed?: number } | undefined
-        const signature = `${messages.length}:${last?.id ?? ""}:${lastTime?.completed ?? lastTime?.created ?? 0}`
-        if (signature !== lastSignature) {
-          lastSignature = signature
-          updateActivity()
-          return true
-        }
-        return false
-      }
-
-      // Prime baseline once, then rely on worker heartbeat/events unless stale.
-      await sampleChildActivity().catch(() => false)
-
-      // Heartbeat check: if no activity for too long, process may be zombified
-      const HEARTBEAT_INTERVAL_MS = 10_000 // Check frequently with cheap in-memory signals
-      const HEARTBEAT_STALE_MS = 120_000 // Consider stale after 2 minutes of no activity
-
-      const heartbeatTimer = setInterval(() => {
-        const worker = assignedWorkerID ? workers.find((w) => w.id === assignedWorkerID) : undefined
-        const workerHeartbeatAge = worker?.lastHeartbeatAt ? Date.now() - worker.lastHeartbeatAt : undefined
-        const workerEventAge = worker?.current?.lastEventAt ? Date.now() - worker.current.lastEventAt : undefined
-
-        if (
-          (workerHeartbeatAge !== undefined && workerHeartbeatAge < HEARTBEAT_STALE_MS) ||
-          (workerEventAge !== undefined && workerEventAge < HEARTBEAT_STALE_MS)
-        ) {
-          updateActivity()
+          agent: agent.name,
+          model: {
+            modelID: model.modelID,
+            providerId: model.providerId,
+          },
+          time: {
+            created: Date.now(),
+          },
+          variant: "normal", // Default variant
         }
 
-        const staleDuration = Date.now() - lastActivityTime
+        await Session.updateMessage(userMessageInfo)
 
-        // Emergency storage probe only when activity appears stale and not too frequently.
-        if (staleDuration > HEARTBEAT_INTERVAL_MS && Date.now() - lastFallbackPollAt > FALLBACK_POLL_INTERVAL_MS) {
-          lastFallbackPollAt = Date.now()
-          void sampleChildActivity().catch((error) => {
-            Log.create({ service: "task" }).debug("Failed to fallback-poll subagent activity", {
+        for (const part of promptParts) {
+          await Session.updatePart({
+            ...part,
+            id: Identifier.ascending("part"),
+            messageID: userMessageInfo.id,
+            sessionID: session.id,
+          })
+        }
+        mark("subsession_seeded")
+
+        debugCheckpoint("task", "Dispatching subagent session to worker", { sessionID: session.id })
+
+        // Register logical task run in supervisor for monitor visibility.
+        if (ctx.callID) {
+          ProcessSupervisor.register({
+            id: ctx.callID,
+            kind: "task-subagent",
+            sessionID: session.id,
+            parentSessionID: ctx.sessionID,
+          })
+        }
+
+        // Link abort signal to process kill via Manager
+        const cleanup = () => {
+          if (ctx.callID) ProcessSupervisor.kill(ctx.callID)
+          SessionPrompt.cancel(session.id)
+        }
+        ctx.abort.addEventListener("abort", cleanup)
+
+        // Default timeout: 10 minutes per subagent execution
+        // This prevents zombie processes that hang indefinitely
+        const SUBAGENT_TIMEOUT_MS = config.experimental?.task_timeout ?? 10 * 60 * 1000
+
+        // Activity tracking strategy (v2): heartbeat/event-first with low-frequency storage fallback.
+        // Keep orphan/zombie safety by preserving stale detection + supervisor stall markers.
+        let lastActivityTime = Date.now()
+        let lastSignature = ""
+        let lastFallbackPollAt = 0
+
+        const updateActivity = () => {
+          lastActivityTime = Date.now()
+          if (ctx.callID) ProcessSupervisor.touch(ctx.callID)
+        }
+
+        const FALLBACK_POLL_INTERVAL_MS = 60_000
+        const sampleChildActivity = async () => {
+          const messages = await Session.messages({ sessionID: session.id })
+          const last = messages.at(-1)?.info
+          const lastTime = last?.time as { created?: number; completed?: number } | undefined
+          const signature = `${messages.length}:${last?.id ?? ""}:${lastTime?.completed ?? lastTime?.created ?? 0}`
+          if (signature !== lastSignature) {
+            lastSignature = signature
+            updateActivity()
+            return true
+          }
+          return false
+        }
+
+        // Prime baseline once, then rely on worker heartbeat/events unless stale.
+        await sampleChildActivity().catch(() => false)
+
+        // Heartbeat check: if no activity for too long, process may be zombified
+        const HEARTBEAT_INTERVAL_MS = 10_000 // Check frequently with cheap in-memory signals
+        const HEARTBEAT_STALE_MS = 120_000 // Consider stale after 2 minutes of no activity
+
+        const heartbeatTimer = setInterval(() => {
+          const worker = assignedWorkerID ? workers.find((w) => w.id === assignedWorkerID) : undefined
+          const workerHeartbeatAge = worker?.lastHeartbeatAt ? Date.now() - worker.lastHeartbeatAt : undefined
+          const workerEventAge = worker?.current?.lastEventAt ? Date.now() - worker.current.lastEventAt : undefined
+
+          if (
+            (workerHeartbeatAge !== undefined && workerHeartbeatAge < HEARTBEAT_STALE_MS) ||
+            (workerEventAge !== undefined && workerEventAge < HEARTBEAT_STALE_MS)
+          ) {
+            updateActivity()
+          }
+
+          const staleDuration = Date.now() - lastActivityTime
+
+          // Emergency storage probe only when activity appears stale and not too frequently.
+          if (staleDuration > HEARTBEAT_INTERVAL_MS && Date.now() - lastFallbackPollAt > FALLBACK_POLL_INTERVAL_MS) {
+            lastFallbackPollAt = Date.now()
+            void sampleChildActivity().catch((error) => {
+              Log.create({ service: "task" }).debug("Failed to fallback-poll subagent activity", {
+                callID: ctx.callID,
+                sessionID: session.id,
+                error: error instanceof Error ? error.message : String(error),
+              })
+            })
+          }
+
+          if (staleDuration > HEARTBEAT_STALE_MS) {
+            if (ctx.callID) ProcessSupervisor.markStalled(ctx.callID)
+            Log.create({ service: "task" }).warn("Subagent appears stalled, no activity detected", {
               callID: ctx.callID,
               sessionID: session.id,
-              error: error instanceof Error ? error.message : String(error),
+              staleDurationMs: staleDuration,
             })
+          }
+        }, HEARTBEAT_INTERVAL_MS)
+
+        try {
+          // Race between process exit and timeout
+          const timeoutPromise = new Promise<"timeout">((resolve) => {
+            setTimeout(() => resolve("timeout"), SUBAGENT_TIMEOUT_MS)
           })
+
+          const result = await Promise.race([
+            dispatchToWorker({
+              sessionID: session.id,
+              config,
+              abort: ctx.abort,
+              onPhase: (phase, data) => {
+                if (phase === "worker_assigned" && typeof data?.workerID === "string") {
+                  assignedWorkerID = data.workerID
+                }
+                mark(phase, data)
+              },
+            }).then((run) => ({ type: "done" as const, run })),
+            timeoutPromise,
+          ])
+
+          if (result === "timeout") {
+            mark("timed_out", { stage: stageOnTimeout(), timeoutMs: SUBAGENT_TIMEOUT_MS })
+            Log.create({ service: "task" }).error("Subagent execution timed out, killing process", {
+              callID: ctx.callID,
+              sessionID: session.id,
+              timeoutMs: SUBAGENT_TIMEOUT_MS,
+              timeoutStage: stageOnTimeout(),
+              elapsedMs: elapsedFromStart(),
+              workerID: assignedWorkerID,
+              workerHeartbeatAgeMs: (() => {
+                if (!assignedWorkerID) return undefined
+                const worker = workers.find((w) => w.id === assignedWorkerID)
+                if (!worker?.lastHeartbeatAt) return undefined
+                return Date.now() - worker.lastHeartbeatAt
+              })(),
+            })
+            SessionPrompt.cancel(session.id)
+            throw new Error(`Subagent execution timed out after ${SUBAGENT_TIMEOUT_MS / 1000} seconds`)
+          }
+          if (result.type === "done" && result.run.firstEventAt) {
+            marks.set("first_bridge_event", result.run.firstEventAt)
+          }
+          mark("worker_completed", {
+            eventCount: result.type === "done" ? result.run.eventCount : 0,
+            firstEventMs:
+              result.type === "done" && result.run.firstEventAt ? result.run.firstEventAt - startedAt : undefined,
+          })
+          if (linkedTodo?.id) {
+            await Todo.reconcileProgress({
+              sessionID: ctx.sessionID,
+              linkedTodoID: linkedTodo.id,
+              taskStatus: "completed",
+            }).catch(() => undefined)
+          }
+        } finally {
+          clearInterval(heartbeatTimer)
+          ctx.abort.removeEventListener("abort", cleanup)
+          unsub()
+          if (ctx.callID) ProcessSupervisor.kill(ctx.callID)
         }
 
-        if (staleDuration > HEARTBEAT_STALE_MS) {
-          if (ctx.callID) ProcessSupervisor.markStalled(ctx.callID)
-          Log.create({ service: "task" }).warn("Subagent appears stalled, no activity detected", {
-            callID: ctx.callID,
-            sessionID: session.id,
-            staleDurationMs: staleDuration,
-          })
+        // Read the result from the session logs
+        const messages = await Session.messages({ sessionID: session.id })
+        mark("result_loaded", { messageCount: messages.length })
+        const assistantMessages = messages.filter((x) => x.info.role === "assistant")
+        if (assistantMessages.length === 0) {
+          throw new Error("Subagent exited without assistant output")
         }
-      }, HEARTBEAT_INTERVAL_MS)
+        const lastAssistant = assistantMessages.at(-1)!
+        const text = lastAssistant.parts.findLast((x) => x.type === "text")?.text ?? ""
 
-      try {
-        // Race between process exit and timeout
-        const timeoutPromise = new Promise<"timeout">((resolve) => {
-          setTimeout(() => resolve("timeout"), SUBAGENT_TIMEOUT_MS)
-        })
+        // Check for error in message info if applicable (though V2 messages structure stores errors differently generally)
+        // We rely on the text output primarily for the "result"
 
-        const result = await Promise.race([
-          dispatchToWorker({
-            sessionID: session.id,
-            config,
-            abort: ctx.abort,
-            onPhase: (phase, data) => {
-              if (phase === "worker_assigned" && typeof data?.workerID === "string") {
-                assignedWorkerID = data.workerID
-              }
-              mark(phase, data)
+        const isToolPart = (part: MessageV2.Part): part is MessageV2.ToolPart => part.type === "tool"
+        const summary = messages
+          .filter((x) => x.info.role === "assistant")
+          .flatMap((msg) => msg.parts.filter(isToolPart))
+          .map((part) => ({
+            id: part.id,
+            tool: part.tool,
+            state: {
+              status: part.state.status,
+              title: part.state.status === "completed" ? part.state.title : undefined,
             },
-          }).then((run) => ({ type: "done" as const, run })),
-          timeoutPromise,
-        ])
+          }))
 
-        if (result === "timeout") {
-          mark("timed_out", { stage: stageOnTimeout(), timeoutMs: SUBAGENT_TIMEOUT_MS })
-          Log.create({ service: "task" }).error("Subagent execution timed out, killing process", {
-            callID: ctx.callID,
-            sessionID: session.id,
-            timeoutMs: SUBAGENT_TIMEOUT_MS,
-            timeoutStage: stageOnTimeout(),
-            elapsedMs: elapsedFromStart(),
-            workerID: assignedWorkerID,
-            workerHeartbeatAgeMs: (() => {
-              if (!assignedWorkerID) return undefined
-              const worker = workers.find((w) => w.id === assignedWorkerID)
-              if (!worker?.lastHeartbeatAt) return undefined
-              return Date.now() - worker.lastHeartbeatAt
-            })(),
-          })
-          SessionPrompt.cancel(session.id)
-          throw new Error(`Subagent execution timed out after ${SUBAGENT_TIMEOUT_MS / 1000} seconds`)
-        }
-        if (result.type === "done" && result.run.firstEventAt) {
-          marks.set("first_bridge_event", result.run.firstEventAt)
-        }
-        mark("worker_completed", {
-          eventCount: result.type === "done" ? result.run.eventCount : 0,
-          firstEventMs:
-            result.type === "done" && result.run.firstEventAt ? result.run.firstEventAt - startedAt : undefined,
-        })
-      } finally {
-        clearInterval(heartbeatTimer)
-        ctx.abort.removeEventListener("abort", cleanup)
-        unsub()
-        if (ctx.callID) ProcessSupervisor.kill(ctx.callID)
-      }
+        const output = text + "\n\n" + ["<task_metadata>", `session_id: ${session.id}`, "</task_metadata>"].join("\n")
+        mark("finished", { outputChars: output.length, toolSummaryCount: summary.length })
 
-      // Read the result from the session logs
-      const messages = await Session.messages({ sessionID: session.id })
-      mark("result_loaded", { messageCount: messages.length })
-      const assistantMessages = messages.filter((x) => x.info.role === "assistant")
-      if (assistantMessages.length === 0) {
-        throw new Error("Subagent exited without assistant output")
-      }
-      const lastAssistant = assistantMessages.at(-1)!
-      const text = lastAssistant.parts.findLast((x) => x.type === "text")?.text ?? ""
-
-      // Check for error in message info if applicable (though V2 messages structure stores errors differently generally)
-      // We rely on the text output primarily for the "result"
-
-      const isToolPart = (part: MessageV2.Part): part is MessageV2.ToolPart => part.type === "tool"
-      const summary = messages
-        .filter((x) => x.info.role === "assistant")
-        .flatMap((msg) => msg.parts.filter(isToolPart))
-        .map((part) => ({
-          id: part.id,
-          tool: part.tool,
-          state: {
-            status: part.state.status,
-            title: part.state.status === "completed" ? part.state.title : undefined,
+        return {
+          title: params.description,
+          metadata: {
+            summary,
+            sessionId: session.id,
+            model,
+            todo: linkedTodo
+              ? {
+                  id: linkedTodo.id,
+                  content: linkedTodo.content,
+                  status: linkedTodo.status,
+                  action: linkedTodo.action,
+                }
+              : undefined,
           },
-        }))
-
-      const output = text + "\n\n" + ["<task_metadata>", `session_id: ${session.id}`, "</task_metadata>"].join("\n")
-      mark("finished", { outputChars: output.length, toolSummaryCount: summary.length })
-
-      return {
-        title: params.description,
-        metadata: {
-          summary,
-          sessionId: session.id,
-          model,
-        },
-        output,
+          output,
+        }
+      } catch (error: unknown) {
+        if (linkedTodo?.id) {
+          await Todo.reconcileProgress({
+            sessionID: ctx.sessionID,
+            linkedTodoID: linkedTodo.id,
+            taskStatus: "error",
+          }).catch(() => undefined)
+        }
+        throw error
       }
     },
   }

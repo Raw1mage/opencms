@@ -241,6 +241,7 @@ Shell:
 Task & Planning:
 - task() for subagent delegation; prefer for file search to save context.
 - todowrite() frequently for planning; mark items complete immediately. todoread() to check progress.
+- When using todowrite(), prefer explicit todo \`action\` metadata (\`kind\`, \`waitingOn\`, \`needsApproval\`, \`canDelegate\`, \`risk\`) so autonomous session planning can safely continue without guessing.
 - question() when user request is ambiguous — ask before acting.
 
 Web: webfetch() with redirect follow-up; websearch(); codesearch().

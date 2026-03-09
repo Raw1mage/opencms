@@ -161,7 +161,11 @@ const useMcpToggle = (input: {
   return { loading, toggle }
 }
 
-export function SessionStatusSections(props: { todoContent?: JSX.Element; monitorContent?: JSX.Element }) {
+export function SessionStatusSections(props: {
+  summaryContent?: JSX.Element
+  todoContent?: JSX.Element
+  monitorContent?: JSX.Element
+}) {
   const sync = useSync()
   const sdk = useSDK()
   const server = useServer()
@@ -189,6 +193,7 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
   const pluginEmpty = createMemo(() => pluginEmptyMessage(language.t("dialog.plugins.empty"), "opencode.json"))
   const [expanded, setExpanded] = createStore({
     servers: true,
+    summary: true,
     monitor: true,
     todo: true,
     mcp: true,
@@ -220,6 +225,10 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
 
   return (
     <div class="bg-background-base px-3 py-3 h-full overflow-auto flex flex-col gap-3">
+      {renderSection("summary", "Autonomous", props.summaryContent!, {
+        hidden: !props.summaryContent,
+      })}
+
       {renderSection(
         "servers",
         language.t("status.popover.tab.servers"),

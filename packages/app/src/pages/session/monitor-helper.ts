@@ -1,4 +1,20 @@
-import type { Message, Session, SessionMonitorInfo, SessionStatus } from "@opencode-ai/sdk/v2/client"
+import type { Message, Session, SessionMonitorInfo, SessionStatus, Part } from "@opencode-ai/sdk/v2/client"
+
+type MonitorTodoLink = {
+  id?: string
+  content?: string
+  status?: string
+  action?: {
+    kind?: string
+    waitingOn?: string
+    needsApproval?: boolean
+  }
+}
+
+export type EnrichedMonitorEntry = SessionMonitorInfo & {
+  todo?: MonitorTodoLink
+  latestResult?: string
+}
 
 export const MONITOR_STATUS_LABELS: Record<string, string> = {
   busy: "Running",
@@ -93,7 +109,34 @@ export function buildMonitorEntries(input: {
   session?: Session
   messages: Message[]
   status?: SessionStatus
+  partsByMessage?: Record<string, readonly Part[] | undefined>
 }) {
+  const toolMeta = new Map<
+    string,
+    { todo?: MonitorTodoLink; result?: string; sessionID: string; agent?: string; tool: string }
+  >()
+  for (const message of input.messages) {
+    if (message.role !== "assistant") continue
+    const parts = input.partsByMessage?.[message.id] ?? []
+    for (const part of parts) {
+      if (part.type !== "tool") continue
+      const todo = part.metadata?.todo as MonitorTodoLink | undefined
+      const result =
+        part.state.status === "completed"
+          ? part.state.title || "completed"
+          : part.state.status === "error"
+            ? part.state.error.slice(0, 120)
+            : undefined
+      toolMeta.set(part.id, {
+        todo,
+        result,
+        sessionID: part.sessionID,
+        agent: message.agent,
+        tool: part.tool,
+      })
+    }
+  }
+
   const raw = input.raw
     .filter((x) => activeStatuses.has(x.status.type))
     .slice()
@@ -122,8 +165,21 @@ export function buildMonitorEntries(input: {
         activeToolStatus: undefined,
         updated: input.session.time.updated,
       },
-    ] satisfies SessionMonitorInfo[]
+    ] satisfies EnrichedMonitorEntry[]
   }
 
-  return deduped
+  return deduped.map((entry) => {
+    const partID = entry.level === "tool" ? entry.id.split(":").at(-1) : undefined
+    const direct = partID ? toolMeta.get(partID) : undefined
+    const inferred =
+      direct ??
+      [...toolMeta.values()].find(
+        (item) => item.sessionID === entry.sessionID && item.agent === entry.agent && item.tool === entry.activeTool,
+      )
+    return {
+      ...entry,
+      todo: inferred?.todo,
+      latestResult: inferred?.result,
+    } satisfies EnrichedMonitorEntry
+  })
 }

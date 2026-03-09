@@ -4,6 +4,7 @@ import {
   createOpenReviewFile,
   focusTerminalById,
   getSessionArbitrationChips,
+  getSessionStatusSummary,
   getSessionWorkflowChips,
   getTabReorderIndex,
 } from "./helpers"
@@ -147,5 +148,106 @@ describe("getSessionArbitrationChips", () => {
       { label: "rotation rescue", tone: "info" },
       { label: "google/gemini-2.5-pro", tone: "neutral" },
     ])
+  })
+})
+
+describe("getSessionStatusSummary", () => {
+  test("surfaces current objective, method chips, process, and latest result", () => {
+    expect(
+      getSessionStatusSummary({
+        session: {
+          workflow: {
+            autonomous: { enabled: true },
+            state: "waiting_user",
+            stopReason: "wait_subagent",
+          },
+        },
+        status: { type: "busy" },
+        todos: [
+          {
+            id: "a",
+            content: "delegate API audit",
+            status: "completed",
+            priority: "medium",
+          },
+          {
+            id: "b",
+            content: "wait for subagent result",
+            status: "in_progress",
+            priority: "high",
+            action: { kind: "wait", waitingOn: "subagent" },
+          },
+        ] as any,
+      }),
+    ).toEqual({
+      currentStep: {
+        id: "b",
+        content: "wait for subagent result",
+        status: "in_progress",
+        priority: "high",
+        action: { kind: "wait", waitingOn: "subagent" },
+      },
+      methodChips: [
+        { label: "wait", tone: "info" },
+        { label: "waiting: subagent", tone: "neutral" },
+      ],
+      processLines: ["Workflow: Waiting", "Stop: Wait subagent", "Runtime: busy"],
+      latestResult: { label: "Completed: delegate API audit", tone: "success" },
+    })
+  })
+
+  test("prefers synthesized task result over plain todo completion when available", () => {
+    expect(
+      getSessionStatusSummary({
+        todos: [
+          {
+            id: "a",
+            content: "implement feature",
+            status: "completed",
+            priority: "high",
+          },
+        ] as any,
+        messages: [
+          {
+            id: "m1",
+            sessionID: "s1",
+            role: "assistant",
+            parentID: "u1",
+            modelID: "gpt-5",
+            providerId: "openai",
+            mode: "default",
+            agent: "coding",
+            path: { cwd: "/tmp", root: "/tmp" },
+            cost: 0,
+            tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+            time: { created: 1 },
+          },
+        ] as any,
+        partsByMessage: {
+          m1: [
+            {
+              id: "p1",
+              sessionID: "s1",
+              messageID: "m1",
+              type: "tool",
+              callID: "c1",
+              tool: "task",
+              state: {
+                status: "completed",
+                output: "done",
+                time: { start: 1, end: 2 },
+              },
+              metadata: {
+                modelArbitration: {
+                  selected: { providerId: "google", modelID: "gemini-2.5-pro" },
+                },
+              },
+            },
+          ] as any,
+        },
+      }),
+    ).toMatchObject({
+      latestResult: { label: "Task completed · google/gemini-2.5-pro", tone: "success" },
+    })
   })
 })

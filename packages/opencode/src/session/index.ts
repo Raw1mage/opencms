@@ -186,12 +186,23 @@ export namespace Session {
   export const WorkflowState = z.enum(["idle", "running", "waiting_user", "blocked", "completed"])
   export type WorkflowState = z.output<typeof WorkflowState>
 
+  export const WorkflowSupervisor = z.object({
+    leaseOwner: z.string().optional(),
+    leaseExpiresAt: z.number().optional(),
+    retryAt: z.number().optional(),
+    consecutiveResumeFailures: z.number().optional(),
+    lastResumeCategory: z.string().optional(),
+    lastResumeError: z.string().optional(),
+  })
+  export type WorkflowSupervisor = z.output<typeof WorkflowSupervisor>
+
   export const WorkflowInfo = z.object({
     autonomous: AutonomousPolicy,
     state: WorkflowState,
     stopReason: z.string().optional(),
     updatedAt: z.number(),
     lastRunAt: z.number().optional(),
+    supervisor: WorkflowSupervisor.optional(),
   })
   export type WorkflowInfo = z.output<typeof WorkflowInfo>
 
@@ -249,6 +260,7 @@ export namespace Session {
       },
       state: "waiting_user",
       updatedAt: now,
+      supervisor: {},
     }
   }
 
@@ -544,6 +556,30 @@ export namespace Session {
         draft.workflow = {
           ...current,
           autonomous: mergeAutonomousPolicy(current.autonomous, input.policy),
+          updatedAt: Date.now(),
+        }
+      },
+      { touch: false },
+    )
+  }
+
+  export async function updateWorkflowSupervisor(input: {
+    sessionID: string
+    patch: Partial<WorkflowSupervisor>
+    clear?: Array<keyof WorkflowSupervisor>
+  }) {
+    return update(
+      input.sessionID,
+      (draft) => {
+        const current = draft.workflow ?? defaultWorkflow(draft.time.updated)
+        const supervisor = {
+          ...(current.supervisor ?? {}),
+          ...input.patch,
+        }
+        for (const key of input.clear ?? []) delete supervisor[key]
+        draft.workflow = {
+          ...current,
+          supervisor,
           updatedAt: Date.now(),
         }
       },

@@ -653,12 +653,6 @@ export default function Page() {
 
   const hasScrollGesture = () => Date.now() - ui.scrollGesture < scrollGestureWindowMs
 
-  createEffect(() => {
-    sdk.directory
-    const id = params.id
-    if (!id) return
-    sync.session.sync(id)
-  })
   useSessionResumeSync({ enabled: () => true, sessionID: () => params.id, sync })
 
   createEffect(() => {

@@ -30,6 +30,10 @@ Status: In Progress
 - [x] 產出分階段落地計畫
 - [x] 落地 autonomous workflow Phase 1（metadata + state machine foundation）
 - [x] 落地 dynamic model orchestration foundation（autonomous main turn + subagent dispatch）
+- [x] 落地 shared sidebar status panel v1（goal / method / process / result）
+- [x] 落地 todo-step ↔ task monitor linkage
+- [x] 落地 todo dependency / auto-advance foundation
+- [x] 落地 transcript-visible autonomous narration + interrupt-safe replanning foundation
 
 ## Debug Checkpoints
 
@@ -277,6 +281,20 @@ Status: In Progress
 - `bun test "/home/pkcs12/projects/opencode/packages/opencode/src/session/workflow-runner.test.ts" "/home/pkcs12/projects/opencode/packages/opencode/src/session/prompt-runtime.test.ts"` ✅
 - `bun run --cwd "/home/pkcs12/projects/opencode/packages/opencode" typecheck` ✅
 - Architecture Sync: Verified (Doc updated for narration + runtime replacement contract)
+
+## Current wrap-up pass
+
+### Execution
+
+- 本輪對尚未提交的 shared status UI / todo contract 相關 dirty diff 做聚焦盤點與驗證。
+- 聚焦驗證結果：runtime todo contract、shared sidebar status panel、task monitor linkage 目前皆可通過 focused tests 與 app/opencode typecheck。
+- 清除 `packages/app/src/pages/session/session-side-panel.tsx` 中一段 sidebar render `console.debug(...)` 殘留，避免把暫時性 debug 輸出留在交付狀態。
+
+### Validation
+
+- `bun test --preload "/home/pkcs12/projects/opencode/packages/app/happydom.ts" "/home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts" "/home/pkcs12/projects/opencode/packages/app/src/pages/session/monitor-helper.test.ts" "/home/pkcs12/projects/opencode/packages/opencode/src/session/todo.test.ts" "/home/pkcs12/projects/opencode/packages/opencode/src/session/index.test.ts"` ✅
+- `bun run --cwd "/home/pkcs12/projects/opencode/packages/app" typecheck && bun run --cwd "/home/pkcs12/projects/opencode/packages/opencode" typecheck` ✅
+- Architecture Sync: Verified (No doc changes required for debug-log cleanup; current architecture wording already covers sidebar status/todo linkage/runtime contract)
 
 ## Dynamic model orchestration follow-up
 

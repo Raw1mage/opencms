@@ -21,8 +21,10 @@ import { useLayout } from "@/context/layout"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import type { Message, Todo, UserMessage } from "@opencode-ai/sdk/v2/client"
+import { getSessionStatusSummary } from "./helpers"
 import {
   buildMonitorEntries,
+  type EnrichedMonitorEntry,
   MONITOR_LEVEL_LABELS,
   MONITOR_STATUS_LABELS,
   monitorTitle,
@@ -105,23 +107,22 @@ export function SessionSidePanel(props: {
       session: props.vm.info(),
       messages: props.vm.messages(),
       status: activeSessionID() ? sync.data.session_status[activeSessionID()!] : undefined,
+      partsByMessage: sync.data.part,
+    }),
+  )
+  const statusSummary = createMemo(() =>
+    getSessionStatusSummary({
+      session: props.vm.info() as any,
+      todos: todos() as Todo[] | undefined,
+      status: activeSessionID() ? sync.data.session_status[activeSessionID()!] : undefined,
+      messages: props.vm.messages(),
+      partsByMessage: sync.data.part,
     }),
   )
 
   const closeFilePane = () => {
     props.vm.view().filePane.close()
   }
-
-  createEffect(() => {
-    console.debug("[sidebar-debug][panel] render", {
-      fileOpen: props.fileOpen,
-      toolOpen: props.toolOpen,
-      sideMode: sideMode(),
-      width: props.layout.fileTree.width(),
-      activeFileTab: props.activeFileTab(),
-      openedTabs: props.openedTabs(),
-    })
-  })
 
   return (
     <>
@@ -267,6 +268,74 @@ export function SessionSidePanel(props: {
 
             <Show when={sideMode() === "status"}>
               <SessionStatusSections
+                summaryContent={
+                  <Show
+                    when={activeSessionID()}
+                    fallback={<div class="text-12-regular text-text-weak">No active session.</div>}
+                  >
+                    <div class="flex flex-col gap-3">
+                      <Show
+                        when={statusSummary().currentStep}
+                        fallback={<div class="text-12-regular text-text-weak">No current step.</div>}
+                      >
+                        {(step) => (
+                          <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
+                            <div class="text-11-medium uppercase tracking-wide text-text-weak">Current objective</div>
+                            <div class="text-12-medium text-text-strong break-words">{step().content}</div>
+                            <Show when={statusSummary().methodChips.length > 0}>
+                              <div class="flex flex-wrap gap-1 pt-1">
+                                <For each={statusSummary().methodChips}>
+                                  {(chip) => (
+                                    <span
+                                      class="inline-flex h-5 px-1.5 items-center rounded-full border text-[11px] font-medium"
+                                      classList={{
+                                        "bg-info/12 text-info border-info/20": chip.tone === "info",
+                                        "bg-success/12 text-success border-success/20": chip.tone === "success",
+                                        "bg-warning/12 text-warning border-warning/20": chip.tone === "warning",
+                                        "bg-surface-base text-text-muted border-border-weak-base":
+                                          chip.tone === "neutral",
+                                      }}
+                                    >
+                                      {chip.label}
+                                    </span>
+                                  )}
+                                </For>
+                              </div>
+                            </Show>
+                          </div>
+                        )}
+                      </Show>
+
+                      <Show when={statusSummary().processLines.length > 0}>
+                        <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
+                          <div class="text-11-medium uppercase tracking-wide text-text-weak">Process</div>
+                          <For each={statusSummary().processLines}>
+                            {(line) => <div class="text-12-regular text-text-weak break-words">{line}</div>}
+                          </For>
+                        </div>
+                      </Show>
+
+                      <Show when={statusSummary().latestResult}>
+                        {(result) => (
+                          <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
+                            <div class="text-11-medium uppercase tracking-wide text-text-weak">Latest result</div>
+                            <div
+                              class="text-12-medium break-words"
+                              classList={{
+                                "text-success": result().tone === "success",
+                                "text-warning": result().tone === "warning",
+                                "text-info": result().tone === "info",
+                                "text-text-strong": result().tone === "neutral",
+                              }}
+                            >
+                              {result().label}
+                            </div>
+                          </div>
+                        )}
+                      </Show>
+                    </div>
+                  </Show>
+                }
                 todoContent={
                   <Show
                     when={activeSessionID()}
@@ -280,7 +349,7 @@ export function SessionSidePanel(props: {
                         when={(todos()?.length ?? 0) > 0}
                         fallback={<div class="text-12-regular text-text-weak">No to-dos yet.</div>}
                       >
-                        <StatusTodoList todos={todos() as Todo[]} />
+                        <StatusTodoList todos={todos() as Todo[]} currentTodoID={statusSummary().currentStep?.id} />
                       </Show>
                     </Show>
                   </Show>
@@ -302,7 +371,7 @@ export function SessionSidePanel(props: {
                           when={monitorEntries().length > 0}
                           fallback={<div class="text-12-regular text-text-weak">No active tasks.</div>}
                         >
-                          <For each={monitorEntries()}>
+                          <For each={monitorEntries() as EnrichedMonitorEntry[]}>
                             {(item) => (
                               <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
                                 <div class="flex items-center gap-2 min-w-0">
@@ -311,11 +380,27 @@ export function SessionSidePanel(props: {
                                   </span>
                                   <span class="text-12-medium text-text-strong truncate">{monitorTitle(item)}</span>
                                 </div>
+                                <Show when={item.todo?.content}>
+                                  <div class="text-11-regular text-info break-words">Todo: {item.todo?.content}</div>
+                                </Show>
                                 <div class="text-11-regular text-text-weak break-words">
                                   {MONITOR_STATUS_LABELS[item.status.type] ?? item.status.type}
                                   {item.model ? ` · ${item.model.providerId}/${item.model.modelID}` : ""}
                                   {` · ${item.requests} reqs · ${item.totalTokens.toLocaleString()} tok`}
                                 </div>
+                                <Show
+                                  when={
+                                    item.todo?.action?.kind ||
+                                    item.todo?.action?.waitingOn ||
+                                    item.todo?.action?.needsApproval
+                                  }
+                                >
+                                  <div class="text-11-regular text-text-weak break-words">
+                                    Method: {item.todo?.action?.kind ?? "implement"}
+                                    {item.todo?.action?.waitingOn ? ` · waiting: ${item.todo.action.waitingOn}` : ""}
+                                    {item.todo?.action?.needsApproval ? " · needs approval" : ""}
+                                  </div>
+                                </Show>
                                 <Show when={item.activeTool}>
                                   <div class="text-11-regular text-text-weak break-words">
                                     Tool: {item.activeTool}
@@ -327,6 +412,11 @@ export function SessionSidePanel(props: {
                                     >
                                       {(toolStatus) => <> · {toolStatus()}</>}
                                     </Show>
+                                  </div>
+                                </Show>
+                                <Show when={item.latestResult}>
+                                  <div class="text-11-regular text-text-weak break-words">
+                                    Result: {item.latestResult}
                                   </div>
                                 </Show>
                               </div>

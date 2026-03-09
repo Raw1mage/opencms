@@ -91,6 +91,7 @@ describe("Session workflow helpers", () => {
         requireApprovalFor: ["push", "destructive", "architecture_change"],
       },
       state: "waiting_user",
+      supervisor: {},
       updatedAt: 123,
     })
   })
