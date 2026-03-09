@@ -34,10 +34,12 @@ export function Dialog(props: DialogProps) {
           onOpenAutoFocus={(e) => {
             const target = e.currentTarget as HTMLElement | null
             const autofocusEl = target?.querySelector("[autofocus]") as HTMLElement | null
+            e.preventDefault()
             if (autofocusEl) {
-              e.preventDefault()
               autofocusEl.focus()
+              return
             }
+            target?.focus()
           }}
         >
           <Show when={props.title || props.action}>

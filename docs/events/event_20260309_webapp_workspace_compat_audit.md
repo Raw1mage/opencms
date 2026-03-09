@@ -79,6 +79,10 @@ Status: Done
   - review 發現 cache scope 從 `store.workspace?.directory` 改成純 route directory 後，若 server 以 `X-Opencode-Resolved-Directory` 修正 alias/stale path，route 本身仍可能停留在舊 alias，造成 prompt/comments/terminal/file-view cache 分桶錯位
   - 已在 `packages/app/src/pages/directory-layout.tsx` 新增 canonical route replace：當 `sync.directory` 與當前 decoded route directory 不同時，自動以 resolved canonical directory 取代目前 URL，保留原本 nested route / query / hash
   - 已在 `packages/app/src/context/sync.tsx` 補 dev-only warning；若 `globalSync.child(...)` 意外缺席，不再完全靜默退回 fallback child，方便後續偵測 bootstrap 異常
+- 第五輪 accessibility follow-up：
+  - 使用者於 webapp console 回報 `Blocked aria-hidden on an element because its descendant retained focus`
+  - 根因為 modal dialog 開啟時，若內容內沒有 `[autofocus]` 元素，背景 trigger button 仍可能保留焦點，接著 Kobalte 對 app root 套上 `aria-hidden` 時就觸發 a11y warning
+  - 已在 `packages/ui/src/components/dialog.tsx` 將 `onOpenAutoFocus` 改為一律 `preventDefault()`，並在無 `[autofocus]` 目標時 fallback focus dialog content 本身，避免背景 button 持續佔有焦點
 - 以目前盤查結果，已處理會直接影響 webapp 啟動、workspace sidebar/session 顯示、workspace-scoped cache、以及主要 workspace compare 的高風險路徑。
 
 ### Validation
@@ -99,6 +103,7 @@ Status: Done
   - `HAS_BUFFER_ERROR: False`
 - 已觀察到一筆非阻塞 console `502` 資源錯誤，但未重現為 app startup failure，也未導致錯誤頁；目前不作為阻塞上線條件
 - alias/stale directory → resolved directory route healing 已補 canonical replace；可避免 workspace-scoped cache 因舊 URL 殘留而分裂
+- dialog open autofocus 已強制轉入 modal content，避免 console 出現 `aria-hidden` retained focus warning
 - Architecture Sync: Verified (No doc changes)
   - 本次為 webapp workspace 相容層與 UI state 修復，未改變 architecture boundary。
 - 結論：目前 webapp 已恢復可正常啟動，workspace 相關高風險 web regressions 已完成第一輪全面修補，且 build / full app unit tests / browser smoke 皆通過，可作為目前上線基線。
