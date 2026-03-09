@@ -1,11 +1,12 @@
 import { batch, createMemo } from "solid-js"
-import { createStore, produce, reconcile } from "solid-js/store"
+import { createStore, produce, reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import { Binary } from "@opencode-ai/util/binary"
 import { retry } from "@opencode-ai/util/retry"
 import { createSimpleContext } from "@opencode-ai/ui/context"
 import { useGlobalSync } from "./global-sync"
 import { useSDK } from "./sdk"
 import type { Message, Part } from "@opencode-ai/sdk/v2/client"
+import type { State } from "./global-sync/types"
 
 function sortParts(parts: Part[]) {
   return parts.filter((part) => !!part?.id).sort((a, b) => cmp(a.id, b.id))
@@ -102,12 +103,51 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
     type Child = ReturnType<(typeof globalSync)["child"]>
     type Setter = Child[1]
 
+    const fallbackChild: [Store<State>, SetStoreFunction<State>] = createStore<State>({
+      status: "loading" as const,
+      agent: [],
+      command: [],
+      project: "",
+      workspace: undefined,
+      projectMeta: undefined,
+      icon: undefined,
+      provider: { all: [], connected: [], default: {} },
+      config: {},
+      path: { state: "", config: "", worktree: "", directory: "", home: "" },
+      session: [],
+      sessionTotal: 0,
+      session_status: {},
+      session_diff: {},
+      todo: {},
+      permission: {},
+      question: {},
+      mcp: {},
+      lsp: [],
+      vcs: undefined,
+      limit: 5,
+      message: {},
+      part: {},
+    })
+    let fallbackWarned = false
     const current = createMemo(() => globalSync.child(sdk.directory))
+    const currentChild = () => {
+      const child = current()
+      if (child) return child
+      if (import.meta.env.DEV && !fallbackWarned) {
+        fallbackWarned = true
+        console.warn(
+          `[sync] Missing globalSync child for ${sdk.directory}; using fallback child store during bootstrap`,
+        )
+      }
+      return fallbackChild
+    }
+    const currentStore = () => currentChild()[0]
+    const currentSetter = () => currentChild()[1]
     const target = (directory?: string) => {
-      if (!directory || directory === sdk.directory) return current()
+      if (!directory || directory === sdk.directory) return currentChild()
       return globalSync.child(directory)
     }
-    const absolute = (path: string) => (current()[0].path.directory + "/" + path).replace("//", "/")
+    const absolute = (path: string) => (currentStore().path.directory + "/" + path).replace("//", "/")
     const messagePageSize = 400
     const inflight = new Map<string, Promise<void>>()
     const inflightDiff = new Map<string, Promise<void>>()
@@ -119,7 +159,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
     })
 
     const getSession = (sessionID: string) => {
-      const store = current()[0]
+      const store = currentStore()
       const match = Binary.search(store.session, sessionID, (s) => s.id)
       if (match.found) return store.session[match.index]
       return undefined
@@ -176,19 +216,19 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
 
     return {
       get data() {
-        return current()[0]
+        return currentStore()
       },
       get set(): Setter {
-        return current()[1]
+        return currentSetter()
       },
       get status() {
-        return current()[0].status
+        return currentStore().status
       },
       get ready() {
-        return current()[0].status !== "loading"
+        return currentStore().status !== "loading"
       },
       get project() {
-        const store = current()[0]
+        const store = currentStore()
         const match = Binary.search(globalSync.data.project, store.project, (p) => p.id)
         if (match.found) return globalSync.data.project[match.index]
         return undefined
@@ -320,7 +360,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         },
         history: {
           more(sessionID: string) {
-            const store = current()[0]
+            const store = currentStore()
             const key = keyFor(sdk.directory, sessionID)
             if (store.message[sessionID] === undefined) return false
             if (meta.limit[key] === undefined) return false
@@ -362,11 +402,11 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             setStore("session", reconcile(sessions, { key: "id" }))
           })
         },
-        more: createMemo(() => current()[0].session.length >= current()[0].limit),
+        more: createMemo(() => currentStore().session.length >= currentStore().limit),
       },
       absolute,
       get directory() {
-        return current()[0].path.directory
+        return currentStore().path.directory
       },
     }
   },

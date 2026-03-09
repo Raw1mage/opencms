@@ -19,6 +19,7 @@ import { Mark } from "@opencode-ai/ui/logo"
 import { DragDropProvider, DragDropSensors, DragOverlay, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd"
 import type { DragEvent } from "@thisbeyond/solid-dnd"
 import { useSync } from "@/context/sync"
+import { workspaceKey as normalizeWorkspaceKey } from "./layout/helpers"
 import { useTerminal, type LocalPTY } from "@/context/terminal"
 import { useLayout } from "@/context/layout"
 import { base64Encode } from "@opencode-ai/util/encode"
@@ -564,7 +565,8 @@ export default function Page() {
   const newSessionWorktree = createMemo(() => {
     if (store.newSessionWorktree === "create") return "create"
     const project = sync.project
-    if (project && sdk.directory !== project.worktree) return sdk.directory
+    if (project && normalizeWorkspaceKey(sdk.directory) !== normalizeWorkspaceKey(project.worktree))
+      return sdk.directory
     return "main"
   })
 

@@ -1,13 +1,9 @@
 import { getFilename } from "@opencode-ai/util/path"
 import { type Session } from "@opencode-ai/sdk/v2/client"
 import { formatApiErrorMessage } from "@/utils/api-error"
+import { normalizeWorkspaceDirectory } from "@/context/global-sync/workspace-adapter"
 
-export const workspaceKey = (directory: string) => {
-  const drive = directory.match(/^([A-Za-z]:)[\\/]+$/)
-  if (drive) return `${drive[1]}${directory.includes("\\") ? "\\" : "/"}`
-  if (/^[\\/]+$/.test(directory)) return directory.includes("\\") ? "\\" : "/"
-  return directory.replace(/[\\/]+$/, "")
-}
+export const workspaceKey = (directory: string) => normalizeWorkspaceDirectory(directory)
 
 export function sortSessions(now: number) {
   const oneMinuteAgo = now - 60 * 1000
@@ -76,8 +72,17 @@ export const errorMessage = (err: unknown, fallback: string) => {
 }
 
 export const syncWorkspaceOrder = (local: string, dirs: string[], existing?: string[]) => {
-  if (!existing) return dirs
-  const keep = existing.filter((d) => d !== local && dirs.includes(d))
-  const missing = dirs.filter((d) => d !== local && !existing.includes(d))
+  const root = workspaceKey(local)
+  const canonical = new Map(dirs.map((directory) => [workspaceKey(directory), directory]))
+  if (!existing) return [local, ...dirs.filter((directory) => workspaceKey(directory) !== root)]
+  const keep = existing.filter((directory) => {
+    const key = workspaceKey(directory)
+    return key !== root && canonical.has(key)
+  })
+  const keepKeys = new Set(keep.map((directory) => workspaceKey(directory)))
+  const missing = dirs.filter((directory) => {
+    const key = workspaceKey(directory)
+    return key !== root && !keepKeys.has(key)
+  })
   return [local, ...missing, ...keep]
 }

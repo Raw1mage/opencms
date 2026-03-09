@@ -436,13 +436,14 @@ export default function Layout(props: ParentProps) {
   const currentProject = createMemo(() => {
     const directory = currentDir()
     if (!directory) return
+    const currentKey = workspaceKey(directory)
 
     const projects = layout.projects.list()
 
-    const sandbox = projects.find((p) => p.sandboxes?.includes(directory))
+    const sandbox = projects.find((p) => p.sandboxes?.some((sandbox) => workspaceKey(sandbox) === currentKey))
     if (sandbox) return sandbox
 
-    const direct = projects.find((p) => p.worktree === directory)
+    const direct = projects.find((p) => workspaceKey(p.worktree) === currentKey)
     if (direct) return direct
 
     const [child] = globalSync.child(directory, { bootstrap: false })
@@ -562,7 +563,11 @@ export default function Layout(props: ParentProps) {
     const projects = layout.projects.list()
     for (const [directory, expanded] of Object.entries(store.workspaceExpanded)) {
       if (!expanded) continue
-      const project = projects.find((item) => item.worktree === directory || item.sandboxes?.includes(directory))
+      const key = workspaceKey(directory)
+      const project = projects.find(
+        (item) =>
+          workspaceKey(item.worktree) === key || item.sandboxes?.some((sandbox) => workspaceKey(sandbox) === key),
+      )
       if (!project) continue
       if (project.vcs === "git" && layout.sidebar.workspaces(project.worktree)()) continue
       setStore("workspaceExpanded", directory, false)
@@ -578,7 +583,11 @@ export default function Layout(props: ParentProps) {
       const activeDir = currentDir()
       const result: Session[] = []
       for (const dir of dirs) {
-        const expanded = store.workspaceExpanded[dir] ?? dir === project.worktree
+        const expanded = workspaceOpenState(
+          store.workspaceExpanded,
+          dir,
+          workspaceKey(dir) === workspaceKey(project.worktree),
+        )
         const active = dir === activeDir
         if (!expanded && !active) continue
         const [dirStore] = globalSync.child(dir, { bootstrap: true })
@@ -1036,7 +1045,11 @@ export default function Layout(props: ParentProps) {
     if (!directory) return
     const project = layout.projects
       .list()
-      .find((item) => item.worktree === directory || item.sandboxes?.includes(directory))
+      .find(
+        (item) =>
+          workspaceKey(item.worktree) === workspaceKey(directory) ||
+          item.sandboxes?.some((sandbox) => workspaceKey(sandbox) === workspaceKey(directory)),
+      )
     const root = project?.worktree ?? directory
     server.projects.touch(root)
 
@@ -1138,8 +1151,9 @@ export default function Layout(props: ParentProps) {
 
   function closeProject(directory: string) {
     const list = layout.projects.list()
-    const index = list.findIndex((x) => x.worktree === directory)
-    const active = currentProject()?.worktree === directory
+    const target = workspaceKey(directory)
+    const index = list.findIndex((x) => workspaceKey(x.worktree) === target)
+    const active = workspaceKey(currentProject()?.worktree ?? "") === target
     if (index === -1) return
     const next = list[index + 1]
 
@@ -1253,7 +1267,7 @@ export default function Layout(props: ParentProps) {
     layout.projects.close(directory)
     layout.projects.open(root)
 
-    if (params.dir && currentDir() === directory) {
+    if (params.dir && workspaceKey(currentDir()) === workspaceKey(directory)) {
       navigateToProject(root)
     }
   }
@@ -1467,9 +1481,9 @@ export default function Layout(props: ParentProps) {
         if (!directory) return
         setStore("lastSession", directory, id)
         notification.session.markViewed(id)
-        const expanded = untrack(() => store.workspaceExpanded[directory])
+        const expanded = untrack(() => store.workspaceExpanded[workspaceKey(directory)])
         if (expanded === false) {
-          setStore("workspaceExpanded", directory, true)
+          setStore("workspaceExpanded", workspaceKey(directory), true)
         }
         requestAnimationFrame(() => scrollToSession(id, `${directory}:${id}`))
       },
@@ -1497,7 +1511,11 @@ export default function Layout(props: ParentProps) {
       const activeDir = currentDir()
       const dirs = [project.worktree, ...(project.sandboxes ?? [])]
       for (const directory of dirs) {
-        const expanded = store.workspaceExpanded[directory] ?? directory === project.worktree
+        const expanded = workspaceOpenState(
+          store.workspaceExpanded,
+          directory,
+          workspaceKey(directory) === workspaceKey(project.worktree),
+        )
         const active = directory === activeDir
         if (!expanded && !active) continue
         next.add(directory)
@@ -1548,7 +1566,10 @@ export default function Layout(props: ParentProps) {
     const dirs = [local, ...(project.sandboxes ?? [])]
     const active = currentProject()
     const directory = active?.worktree === project.worktree ? currentDir() : undefined
-    const extra = directory && directory !== local && !dirs.includes(directory) ? directory : undefined
+    const localKey = workspaceKey(local)
+    const directoryKey = directory ? workspaceKey(directory) : undefined
+    const dirKeys = new Set(dirs.map((item) => workspaceKey(item)))
+    const extra = directoryKey && directoryKey !== localKey && !dirKeys.has(directoryKey) ? directory : undefined
     const pending = extra ? WorktreeState.get(extra)?.status === "pending" : false
 
     const existing = store.workspaceOrder[project.worktree]
@@ -1588,8 +1609,10 @@ export default function Layout(props: ParentProps) {
     if (!project) return
 
     const ids = workspaceIds(project)
-    const fromIndex = ids.findIndex((dir) => dir === draggable.id.toString())
-    const toIndex = ids.findIndex((dir) => dir === droppable.id.toString())
+    const draggableKey = workspaceKey(draggable.id.toString())
+    const droppableKey = workspaceKey(droppable.id.toString())
+    const fromIndex = ids.findIndex((dir) => workspaceKey(dir) === draggableKey)
+    const toIndex = ids.findIndex((dir) => workspaceKey(dir) === droppableKey)
     if (fromIndex === -1 || toIndex === -1) return
     if (fromIndex === toIndex) return
 

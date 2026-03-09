@@ -1,7 +1,7 @@
 # Workspace Phase Completion Checklist
 
 Date: 2026-03-09
-Status: Active Review
+Status: Milestone Reached
 
 ## Phase 1 — Kernel / Identity / Runtime Contract
 
@@ -56,12 +56,13 @@ Reason:
 
 ### Phase 3 Exit Assessment
 
-**Status:** Substantially Complete
+**Status:** Complete for current milestone
 
 Remaining notes:
 
 - some project/workspace-order UI mutations still remain app-local by design
 - rename/order UX is still app-owned and not part of runtime workspace domain
+- this is sufficient to declare the new workspace system live in `cms`
 
 ---
 
@@ -83,6 +84,10 @@ Reason:
 - implementing preview attachment now would be guesswork
 
 ---
+
+## Milestone Decision
+
+**Decision:** `new-workspace` has been merged into `cms`; the repository is now operating in the new workspace system era.
 
 ## Recommended Next Planning Decision
 

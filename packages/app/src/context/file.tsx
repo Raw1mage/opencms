@@ -116,8 +116,7 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
     const viewCache = createFileViewCache()
     const view = createMemo(() => {
       const directory = scope()
-      const [childStore] = globalSync.child(directory, { bootstrap: false })
-      return viewCache.load(directory, params.id, childStore.workspace?.directory)
+      return viewCache.load(directory, params.id)
     })
 
     const ensure = (file: string) => {

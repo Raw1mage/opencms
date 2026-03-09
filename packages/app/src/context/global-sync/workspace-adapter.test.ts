@@ -25,4 +25,9 @@ describe("global-sync workspace adapter", () => {
       }),
     )
   })
+
+  test("normalizes mixed separators and dot segments without node:path", () => {
+    expect(normalizeWorkspaceDirectory("C:\\repo\\workspace\\..\\sandbox\\")).toBe("C:/repo/sandbox")
+    expect(normalizeWorkspaceDirectory("/repo//nested/./sandbox/../child/")).toBe("/repo/nested/child")
+  })
 })

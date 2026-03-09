@@ -13,6 +13,7 @@ import { SessionContextUsage } from "@/components/session-context-usage"
 import { getFilename } from "@opencode-ai/util/path"
 import { decode64 } from "@/utils/base64"
 import { Persist, persisted } from "@/utils/persist"
+import { workspaceKey } from "@/pages/layout/helpers"
 
 import { Icon } from "@opencode-ai/ui/icon"
 import { IconButton } from "@opencode-ai/ui/icon-button"
@@ -111,7 +112,10 @@ export function SessionHeader() {
   const project = createMemo(() => {
     const directory = projectDirectory()
     if (!directory) return
-    return layout.projects.list().find((p) => p.worktree === directory || p.sandboxes?.includes(directory))
+    const key = workspaceKey(directory)
+    return layout.projects
+      .list()
+      .find((p) => workspaceKey(p.worktree) === key || p.sandboxes?.some((sandbox) => workspaceKey(sandbox) === key))
   })
   const name = createMemo(() => {
     const current = project()

@@ -4,6 +4,7 @@ import { createStore } from "solid-js/store"
 import { usePlatform } from "@/context/platform"
 import { Persist, persisted } from "@/utils/persist"
 import { checkServerHealth } from "@/utils/server-health"
+import { normalizeWorkspaceDirectory } from "./global-sync/workspace-adapter"
 
 type StoredProject = { worktree: string; expanded: boolean }
 const HEALTH_POLL_INTERVAL_MS = 10_000
@@ -181,38 +182,43 @@ export const { use: useServer, provider: ServerProvider } = createSimpleContext(
           const key = origin()
           if (!key) return
           const current = store.projects[key] ?? []
-          if (current.find((x) => x.worktree === directory)) return
+          const nextDirectory = normalizeWorkspaceDirectory(directory)
+          if (current.find((x) => normalizeWorkspaceDirectory(x.worktree) === nextDirectory)) return
           setStore("projects", key, [{ worktree: directory, expanded: true }, ...current])
         },
         close(directory: string) {
           const key = origin()
           if (!key) return
           const current = store.projects[key] ?? []
+          const target = normalizeWorkspaceDirectory(directory)
           setStore(
             "projects",
             key,
-            current.filter((x) => x.worktree !== directory),
+            current.filter((x) => normalizeWorkspaceDirectory(x.worktree) !== target),
           )
         },
         expand(directory: string) {
           const key = origin()
           if (!key) return
           const current = store.projects[key] ?? []
-          const index = current.findIndex((x) => x.worktree === directory)
+          const target = normalizeWorkspaceDirectory(directory)
+          const index = current.findIndex((x) => normalizeWorkspaceDirectory(x.worktree) === target)
           if (index !== -1) setStore("projects", key, index, "expanded", true)
         },
         collapse(directory: string) {
           const key = origin()
           if (!key) return
           const current = store.projects[key] ?? []
-          const index = current.findIndex((x) => x.worktree === directory)
+          const target = normalizeWorkspaceDirectory(directory)
+          const index = current.findIndex((x) => normalizeWorkspaceDirectory(x.worktree) === target)
           if (index !== -1) setStore("projects", key, index, "expanded", false)
         },
         move(directory: string, toIndex: number) {
           const key = origin()
           if (!key) return
           const current = store.projects[key] ?? []
-          const fromIndex = current.findIndex((x) => x.worktree === directory)
+          const target = normalizeWorkspaceDirectory(directory)
+          const fromIndex = current.findIndex((x) => normalizeWorkspaceDirectory(x.worktree) === target)
           if (fromIndex === -1 || fromIndex === toIndex) return
           const result = [...current]
           const [item] = result.splice(fromIndex, 1)

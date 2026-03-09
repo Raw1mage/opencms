@@ -3,7 +3,6 @@ import { createSimpleContext } from "@opencode-ai/ui/context"
 import { batch, createEffect, createMemo, createRoot, onCleanup } from "solid-js"
 import { useParams } from "@solidjs/router"
 import { useSDK } from "./sdk"
-import { useGlobalSync } from "./global-sync"
 import type { Platform } from "./platform"
 import { Persist, persisted, removePersisted } from "@/utils/persist"
 import { normalizeWorkspaceDirectory } from "./global-sync/workspace-adapter"
@@ -304,7 +303,6 @@ export const { use: useTerminal, provider: TerminalProvider } = createSimpleCont
   gate: false,
   init: () => {
     const sdk = useSDK()
-    const globalSync = useGlobalSync()
     const params = useParams()
     const cache = new Map<string, TerminalCacheEntry>()
 
@@ -351,11 +349,7 @@ export const { use: useTerminal, provider: TerminalProvider } = createSimpleCont
       return entry.value
     }
 
-    const workspaceDirectory = createMemo(() => {
-      const directory = params.dir!
-      const [store] = globalSync.child(directory, { bootstrap: false })
-      return getWorkspaceTerminalDirectory(directory, store.workspace?.directory)
-    })
+    const workspaceDirectory = createMemo(() => getWorkspaceTerminalDirectory(params.dir!))
 
     const workspace = createMemo(() => loadWorkspace(workspaceDirectory(), params.id))
 

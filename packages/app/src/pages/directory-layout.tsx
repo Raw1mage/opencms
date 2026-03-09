@@ -1,6 +1,6 @@
 import { createEffect, createMemo, Show, type ParentProps } from "solid-js"
 import { createStore } from "solid-js/store"
-import { useNavigate, useParams } from "@solidjs/router"
+import { useLocation, useNavigate, useParams } from "@solidjs/router"
 import { SDKProvider, useSDK } from "@/context/sdk"
 import { SyncProvider, useSync } from "@/context/sync"
 import { LocalProvider } from "@/context/local"
@@ -10,12 +10,32 @@ import type { QuestionAnswer } from "@opencode-ai/sdk/v2"
 import { decode64 } from "@/utils/base64"
 import { showToast } from "@opencode-ai/ui/toast"
 import { useLanguage } from "@/context/language"
+import { buildCanonicalDirectoryHref } from "./directory-layout-path"
 
 function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
   const params = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const sync = useSync()
   const sdk = useSDK()
+
+  createEffect(() => {
+    if (!params.dir) return
+    if (!sync.ready) return
+    if (!sync.directory) return
+    if (sync.directory === props.directory) return
+    const next = buildCanonicalDirectoryHref({
+      pathname: location.pathname,
+      dirParam: params.dir,
+      resolvedDirectory: sync.directory,
+      search: location.search,
+      hash: location.hash,
+    })
+    if (!next) return
+    const current = `${location.pathname}${location.search}${location.hash}`
+    if (next === current) return
+    navigate(next, { replace: true })
+  })
 
   return (
     <DataProvider

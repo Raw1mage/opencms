@@ -1,5 +1,9 @@
-export const projectSelected = (currentDir: string, worktree: string, sandboxes?: string[]) =>
-  worktree === currentDir || sandboxes?.includes(currentDir) === true
+import { workspaceKey } from "./helpers"
+
+export const projectSelected = (currentDir: string, worktree: string, sandboxes?: string[]) => {
+  const key = workspaceKey(currentDir)
+  return workspaceKey(worktree) === key || sandboxes?.some((sandbox) => workspaceKey(sandbox) === key) === true
+}
 
 export const projectTileActive = (args: {
   menu: boolean

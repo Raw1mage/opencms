@@ -3,7 +3,6 @@ import { createSimpleContext } from "@opencode-ai/ui/context"
 import { batch, createMemo, createRoot, onCleanup, createEffect } from "solid-js"
 import { useParams } from "@solidjs/router"
 import type { FileSelection } from "@/context/file"
-import { useGlobalSync } from "./global-sync"
 import { normalizeWorkspaceDirectory } from "./global-sync/workspace-adapter"
 import { Persist, persisted } from "@/utils/persist"
 import { checksum } from "@opencode-ai/util/encode"
@@ -240,7 +239,6 @@ export const { use: usePrompt, provider: PromptProvider } = createSimpleContext(
   gate: false,
   init: () => {
     const params = useParams()
-    const globalSync = useGlobalSync()
     const cache = new Map<string, PromptCacheEntry>()
 
     const disposeAll = () => {
@@ -263,8 +261,7 @@ export const { use: usePrompt, provider: PromptProvider } = createSimpleContext(
     }
 
     const load = (dir: string, id: string | undefined) => {
-      const [store] = globalSync.child(dir, { bootstrap: false })
-      const scopeDir = getPromptSessionScopeDirectory(dir, id, store.workspace?.directory)
+      const scopeDir = getPromptSessionScopeDirectory(dir, id)
       const key = `${scopeDir}:${id ?? WORKSPACE_KEY}`
       const existing = cache.get(key)
       if (existing) {
