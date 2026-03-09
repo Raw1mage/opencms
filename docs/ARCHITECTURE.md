@@ -349,17 +349,17 @@ This package contains the core application logic, including the CLI, the Agent r
 
 #### D. Server & API (`src/server`)
 
-| File Path                           | Description                                                                                                                                                                                                              | Key Exports          | Input / Output                                                                                |
-| :---------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------- | :-------------------------------------------------------------------------------------------- |
-| `src/server/server.ts`              | **Server Entry.** Configures Hono app and HTTP listener.                                                                                                                                                                 | `Server`, `listen`   | **In:** Config<br>**Out:** Running Server                                                     |
-| `src/server/routes/session.ts`      | **Session Routes.** API for chat session management.                                                                                                                                                                     | `SessionRoutes`      | **In:** HTTP Req<br>**Out:** JSON/Stream                                                      |
-| `src/server/routes/file.ts`         | **File Routes.** API for file reading, searching, and git status; emits review diagnostic headers for web observability.                                                                                                 | `FileRoutes`         | **In:** Path/Pattern<br>**Out:** Content/List                                                 |
-| `src/server/routes/project.ts`      | **Project Routes.** API for project metadata.                                                                                                                                                                            | `ProjectRoutes`      | **In:** ID<br>**Out:** Project Info                                                           |
-| `src/server/routes/workspace.ts`    | **Workspace Routes.** API boundary for workspace list/current/status/read plus lifecycle state transitions and runtime-owned reset/delete operations (`reset-run`, `delete-run`) backed by workspace service/operations. | `WorkspaceRoutes`    | **In:** Instance project/workspace<br>**Out:** Workspace list/read/status/lifecycle/operation |
-| `src/server/routes/provider.ts`     | **Provider Routes.** API for models and auth flows.                                                                                                                                                                      | `ProviderRoutes`     | **In:** ID<br>**Out:** Models/Auth                                                            |
-| `src/server/routes/global.ts`       | **Global Routes.** System health and SSE stream.                                                                                                                                                                         | `GlobalRoutes`       | **In:** N/A<br>**Out:** Health/Events                                                         |
-| `src/server/routes/account.ts`      | **Account Routes.** API for multi-account management.                                                                                                                                                                    | `AccountRoutes`      | **In:** ID<br>**Out:** Status                                                                 |
-| `src/server/routes/experimental.ts` | **Experimental/Diagnostics Routes.** Includes per-user daemon snapshots and debug-gated review data-path checkpoint endpoint.                                                                                            | `ExperimentalRoutes` | **In:** HTTP Req<br>**Out:** JSON diagnostics                                                 |
+| File Path                           | Description                                                                                                                                                                                                                                                                                                                                       | Key Exports          | Input / Output                                                                                |
+| :---------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------------- | :-------------------------------------------------------------------------------------------- |
+| `src/server/server.ts`              | **Server Entry.** Configures Hono app and HTTP listener.                                                                                                                                                                                                                                                                                          | `Server`, `listen`   | **In:** Config<br>**Out:** Running Server                                                     |
+| `src/server/routes/session.ts`      | **Session Routes.** API for chat session management. The `session.diff` endpoint now distinguishes message-summary diff (`messageID` provided) from runtime-owned session dirty attribution (`messageID` omitted), so web review/diff consumers can fetch authoritative session-scoped dirty files without re-implementing attribution in the UI. | `SessionRoutes`      | **In:** HTTP Req<br>**Out:** JSON/Stream                                                      |
+| `src/server/routes/file.ts`         | **File Routes.** API for file reading, searching, and git status; emits review diagnostic headers for web observability.                                                                                                                                                                                                                          | `FileRoutes`         | **In:** Path/Pattern<br>**Out:** Content/List                                                 |
+| `src/server/routes/project.ts`      | **Project Routes.** API for project metadata.                                                                                                                                                                                                                                                                                                     | `ProjectRoutes`      | **In:** ID<br>**Out:** Project Info                                                           |
+| `src/server/routes/workspace.ts`    | **Workspace Routes.** API boundary for workspace list/current/status/read plus lifecycle state transitions and runtime-owned reset/delete operations (`reset-run`, `delete-run`) backed by workspace service/operations.                                                                                                                          | `WorkspaceRoutes`    | **In:** Instance project/workspace<br>**Out:** Workspace list/read/status/lifecycle/operation |
+| `src/server/routes/provider.ts`     | **Provider Routes.** API for models and auth flows.                                                                                                                                                                                                                                                                                               | `ProviderRoutes`     | **In:** ID<br>**Out:** Models/Auth                                                            |
+| `src/server/routes/global.ts`       | **Global Routes.** System health and SSE stream.                                                                                                                                                                                                                                                                                                  | `GlobalRoutes`       | **In:** N/A<br>**Out:** Health/Events                                                         |
+| `src/server/routes/account.ts`      | **Account Routes.** API for multi-account management.                                                                                                                                                                                                                                                                                             | `AccountRoutes`      | **In:** ID<br>**Out:** Status                                                                 |
+| `src/server/routes/experimental.ts` | **Experimental/Diagnostics Routes.** Includes per-user daemon snapshots and debug-gated review data-path checkpoint endpoint.                                                                                                                                                                                                                     | `ExperimentalRoutes` | **In:** HTTP Req<br>**Out:** JSON diagnostics                                                 |
 
 #### E. Tools (`src/tool`)
 
@@ -396,7 +396,7 @@ This package contains the core application logic, including the CLI, the Agent r
 | `src/account/rotation3d.ts`       | **Rotation 3D.** Logic for fallback selection (Provider/Account/Model).                                                                                                                                                                                                                                                                                                                                                                                                                        | `findFallback`                                                                                                               | **In:** Vector<br>**Out:** Candidate                                                                                                              |
 | `src/account/rate-limit-judge.ts` | **Rate Limit Judge.** Central authority for rate limit detection.                                                                                                                                                                                                                                                                                                                                                                                                                              | `RateLimitJudge`                                                                                                             | **In:** Error<br>**Out:** Backoff                                                                                                                 |
 | `src/project/project.ts`          | **Project Manager.** Manages project metadata.                                                                                                                                                                                                                                                                                                                                                                                                                                                 | `Project`                                                                                                                    | **In:** Path<br>**Out:** Info                                                                                                                     |
-| `src/project/workspace/*`         | **Workspace Kernel (Phase 1).** Defines workspace aggregate types, directory→workspace resolution, attachment ownership contracts, registry interface, runtime workspace service façade, lifecycle/update events, worker attachment registration, and runtime workspace operations (`reset`, `delete`) that archive sessions + dispose instance state before delegating git worktree mutations. `previewIds` remains a reserved field until a real preview runtime domain/event source exists. | `resolveWorkspace`, `WorkspaceRegistry`, `WorkspaceService`, `WorkspaceEvent`, `WorkspaceOperation`, workspace schemas/types | **In:** Project info + directory + session/pty/worker events<br>**Out:** Workspace aggregate / registry/service/lifecycle/event/operation lookups |
+| `src/project/workspace/*`         | **Workspace Kernel (Phase 1).** Defines workspace aggregate types, directory→workspace resolution, attachment ownership contracts, registry interface, runtime workspace service façade, lifecycle/update events, worker attachment registration, runtime-owned session dirty attribution helpers, and runtime workspace operations (`reset`, `delete`) that archive sessions + dispose instance state before delegating git worktree mutations. `previewIds` remains a reserved field until a real preview runtime domain/event source exists. | `resolveWorkspace`, `WorkspaceRegistry`, `WorkspaceService`, `WorkspaceEvent`, `WorkspaceOperation`, owned-diff helpers, workspace schemas/types | **In:** Project info + directory + session/pty/worker events<br>**Out:** Workspace aggregate / registry/service/lifecycle/event/operation lookups |
 | `src/tool/task.ts`                | **Task Worker Orchestrator.** Manages subagent worker pool/dispatch, emits worker lifecycle bus events so workspace service can track worker attachments, and now resolves subagent execution model through shared orchestration rules instead of blindly inheriting the parent model whenever no explicit override exists.                                                                                                                                                                    | `TaskTool`, `TaskWorkerEvent`                                                                                                | **In:** Task request + sessionID<br>**Out:** Worker lifecycle + bridged subagent events                                                           |
 | `src/project/vcs.ts`              | **VCS Tracker.** Tracks current git branch.                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `Vcs`                                                                                                                        | **In:** Events<br>**Out:** Branch                                                                                                                 |
 | `src/file/index.ts`               | **File Ops.** Core file reading/listing/searching.                                                                                                                                                                                                                                                                                                                                                                                                                                             | `File`                                                                                                                       | **In:** Path<br>**Out:** Node/Content                                                                                                             |
@@ -1226,6 +1226,135 @@ The web app currently uses a mixed ownership model while the new workspace kerne
    - `global-sync` is now the first consumer-facing bridge between runtime workspace modeling and app-side persistence scope.
    - This is still an intermediate phase: runtime owns the canonical workspace kernel under `packages/opencode/src/project/workspace/*`, while app/runtime now share identity normalization via `@opencode-ai/util/workspace`.
 
+### C2. Workspace Abstraction Layer (authoritative current-state contract)
+
+Workspace is no longer just a sidebar label or normalized directory string. The intended architecture is an explicit **execution scope aggregate** that sits between project/worktree boundaries and higher-level app/session UX.
+
+#### Canonical entities
+
+1. **Project**
+   - Source of repo/worktree truth.
+   - Canonical root boundary comes from `Project.Info.worktree` and project metadata.
+
+2. **Workspace**
+   - Canonical runtime aggregate defined by `packages/opencode/src/project/workspace/types.ts`.
+   - Identity fields:
+     - `workspaceId`
+     - `projectId`
+     - `directory`
+     - `kind` = `root | sandbox | derived`
+   - State fields:
+     - `origin`
+     - `lifecycleState`
+     - `displayName`
+     - `branch`
+     - `attachments`
+
+3. **Session**
+   - Remains a session-domain object, but is attached to a workspace via `attachments.sessionIds` and `attachments.activeSessionId`.
+   - A session is therefore **workspace-affiliated**, not itself the owner of workspace-wide runtime state.
+
+4. **Workspace attachments**
+   - Ownership model currently distinguishes:
+     - `workspace`
+     - `session`
+     - `session_with_workspace_default`
+   - Attachment summary includes:
+     - `sessionIds`
+     - `ptyIds`
+     - `previewIds`
+     - `workerIds`
+     - `draftKeys`
+     - `fileTabKeys`
+     - `commentKeys`
+
+#### Architectural purpose
+
+The workspace layer exists to solve a class of scope/ownership problems that `directory` alone cannot express:
+
+- root vs sandbox vs derived execution scope
+- session affiliation inside the same worktree
+- PTY / worker / preview / comments / file-tab ownership
+- lifecycle transitions (`active`, `resetting`, `deleting`, `archived`, `failed`)
+- future workspace-scoped routing, cleanup, and attribution policies
+
+#### Runtime authority split
+
+1. **Runtime kernel is authoritative**
+   - `packages/opencode/src/project/workspace/*`
+   - Responsible for identity, registry lookup, lifecycle transitions, attachment summaries, and workspace event publication.
+
+2. **App is a consumer, not the source-of-truth**
+   - `packages/app/src/context/global-sync/bootstrap.ts` consumes `/api/v2/workspace/current`
+   - `packages/app/src/context/global-sync/event-reducer.ts` consumes live `workspace.*` events
+   - App-side adapters may normalize/persist UI state, but should not invent conflicting workspace identity rules.
+
+3. **Directory remains an input, not the final model**
+   - Directory is the lookup key used to resolve the workspace aggregate.
+   - Once resolved, downstream consumers should prefer workspace aggregate truth over raw path heuristics whenever scope/ownership matters.
+
+#### Data flow (current intended direction)
+
+```mermaid
+flowchart TD
+  DIR[Request / directory] --> RESOLVE[WorkspaceService.resolve]
+  RESOLVE --> REG[Workspace registry]
+  REG --> AGG[WorkspaceAggregate]
+  AGG --> API[/workspace/current / /workspace/status]
+  AGG --> EVT[workspace.created/updated/lifecycle.changed/attachment.*]
+  API --> BOOT[global-sync bootstrap]
+  EVT --> REDUCER[global-sync event reducer]
+  BOOT --> CHILD[directory child store]
+  REDUCER --> CHILD
+  CHILD --> APP[terminal / prompt / comments / file-view / layout]
+```
+
+#### Ownership rules by surface
+
+1. **Workspace-owned**
+   - terminal / PTY tabs
+   - workspace aggregate itself
+   - lifecycle/busy state for reset/delete flows
+
+2. **Session-owned**
+   - session messages
+   - todo / permission / question state
+   - message-derived review details
+
+3. **Session-with-workspace-default**
+   - prompt draft
+   - comments
+   - file-view cache
+   - future UX that should survive session switches inside the same workspace unless an explicit session scope exists
+
+#### Dirty/review/file-change boundary (important)
+
+Current review/diff ownership now follows a split contract: runtime owns session-scoped dirty attribution, while app still owns presentation and local caching behavior.
+
+1. **Workspace layer owns affiliation and execution-scope truth**
+   - which sessions belong to which workspace
+   - which runtime artifacts are attached to that workspace
+
+2. **Session layer may summarize message-local diffs**
+   - useful for turn review/history
+   - not sufficient by itself to act as the long-term authoritative source for session-owned dirty attribution
+
+3. **Authoritative session-owned file-diff attribution is now a runtime contract**
+   - current API surface: `session.diff` without `messageID`
+   - runtime resolves workspace affiliation first, then matches current dirty files against explicit mutating tool inputs plus latest session summarized diff snapshots
+   - app should consume this runtime-produced attribution result instead of re-implementing ownership in UI helpers
+
+4. **Message-level review remains separate**
+   - `session.diff` with `messageID` continues to mean summarized diff for that specific user turn
+   - this is review/history data, not the same thing as current workspace dirty ownership
+
+#### Invalidation / refresh contract
+
+1. Bootstrap hydrates the initial workspace snapshot.
+2. `workspace.*` SSE events update child-store workspace state incrementally.
+3. Session-local caches (messages, diffs, todos, permissions, questions) remain separate from workspace aggregate state.
+4. If a feature needs ownership truth across sessions in the same worktree, it should first ask whether the answer belongs in workspace runtime/service rather than another app-only cache.
+
 ### D. Runtime flow 3: Model selector and admin-lite parity path
 
 ```mermaid
@@ -1260,6 +1389,13 @@ Behavior boundary (current cms WebApp):
 - `docs/events/event_20260227_web_slash_commands_tui_alignment.md`
 - `docs/events/event_20260228_terminal_popout_return_and_selection_fix.md`
 - `docs/events/event_20260301_web_dev_refactor_integration.md`
+- `docs/events/event_20260307_workspace_context_analysis.md`
+- `docs/events/event_20260308_workspace_rewrite_spec.md`
+- `docs/events/event_20260308_workspace_registry_runtime_integration.md`
+- `docs/events/event_20260308_workspace_api_global_sync_consumption.md`
+- `docs/events/event_20260309_workspace_event_reducer_consumption.md`
+- `docs/events/event_20260309_workspace_architecture_and_diff_ownership_spec.md`
+- `docs/events/event_20260309_session_owned_file_diff_attribution_design.md`
 
 ---
 

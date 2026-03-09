@@ -45,8 +45,6 @@ import {
   focusTerminalById,
   getSessionArbitrationChips,
   getSessionWorkflowChips,
-  getSessionScopedDirtyDiffs,
-  getStrictSessionScopedDirtyDiffs,
   getTabReorderIndex,
 } from "@/pages/session/helpers"
 import { useSessionResumeSync } from "@/pages/session/use-session-resume-sync"
@@ -543,14 +541,10 @@ export default function Page() {
   const reviewDiffs = createMemo(() => {
     const key = reviewDiffKey()
     if (!key) return []
-    return getSessionScopedDirtyDiffs(sync.data.session_diff[key] ?? [], visibleUserMessages())
+    return sync.data.session_diff[key] ?? []
   })
   const reviewCount = createMemo(() => reviewDiffs().length)
-  const reviewBubbleCount = createMemo(() => {
-    const key = reviewDiffKey()
-    if (!key) return 0
-    return getStrictSessionScopedDirtyDiffs(sync.data.session_diff[key] ?? [], visibleUserMessages()).length
-  })
+  const reviewBubbleCount = createMemo(() => reviewDiffs().length)
   const hasReview = createMemo(() => reviewCount() > 0)
 
   const renderedUserMessages = createMemo(

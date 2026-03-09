@@ -1,0 +1,120 @@
+import { File } from "@/file"
+import { Instance } from "@/project/instance"
+import { Session } from "@/session"
+import { MessageV2 } from "@/session/message-v2"
+import { Snapshot } from "@/snapshot"
+import { WorkspaceService } from "./service"
+
+const normalizePath = (input: string) => input.replaceAll("\\", "/").replace(/\/+$/, "")
+const normalizeBody = (input: string) => input.replaceAll("\r\n", "\n")
+
+function collectExplicitTouchedFiles(messages: MessageV2.WithParts[]) {
+  const explicitTouched = new Set<string>()
+
+  const parseApplyPatchFiles = (patchText: string) => {
+    const matches = patchText.matchAll(/^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm)
+    for (const match of matches) {
+      const file = match[1]?.trim()
+      if (file) explicitTouched.add(normalizePath(file))
+    }
+  }
+
+  for (const message of messages) {
+    if (message.info.role !== "assistant") continue
+    for (const part of message.parts) {
+      if (part.type !== "tool") continue
+      if (part.state.status !== "completed" && part.state.status !== "error") continue
+      const input = part.state.input as Record<string, unknown>
+      if (part.tool === "edit" || part.tool === "write") {
+        const filePath = typeof input.filePath === "string" ? input.filePath : undefined
+        if (filePath) explicitTouched.add(normalizePath(filePath))
+      }
+      if (part.tool === "apply_patch") {
+        const patchText = typeof input.patchText === "string" ? input.patchText : undefined
+        if (patchText) parseApplyPatchFiles(patchText)
+      }
+      if (part.tool === "filesystem_write_file" || part.tool === "filesystem_edit_file") {
+        const filePath = typeof input.path === "string" ? input.path : undefined
+        if (filePath) explicitTouched.add(normalizePath(filePath))
+      }
+      if (part.tool === "filesystem_move_file") {
+        const source = typeof input.source === "string" ? input.source : undefined
+        const destination = typeof input.destination === "string" ? input.destination : undefined
+        if (source) explicitTouched.add(normalizePath(source))
+        if (destination) explicitTouched.add(normalizePath(destination))
+      }
+    }
+  }
+
+  return explicitTouched
+}
+
+function latestSummaryDiffByFile(messages: MessageV2.WithParts[]) {
+  const latestByFile = new Map<string, Snapshot.FileDiff>()
+  for (const message of messages) {
+    if (message.info.role !== "user") continue
+    for (const diff of message.info.summary?.diffs ?? []) {
+      latestByFile.set(normalizePath(diff.file), {
+        ...diff,
+        file: normalizePath(diff.file),
+        before: normalizeBody(diff.before),
+        after: normalizeBody(diff.after),
+      })
+    }
+  }
+  return latestByFile
+}
+
+export function computeOwnedSessionDirtyDiff(currentDiffs: Snapshot.FileDiff[], messages: MessageV2.WithParts[]) {
+  const explicitTouched = collectExplicitTouchedFiles(messages)
+  const latestByFile = latestSummaryDiffByFile(messages)
+  if (explicitTouched.size === 0 || latestByFile.size === 0) return []
+
+  return currentDiffs.filter((diff) => {
+    const file = normalizePath(diff.file)
+    if (!explicitTouched.has(file)) return false
+    const latest = latestByFile.get(file)
+    if (!latest) return false
+    const sameStatus = (latest.status ?? "modified") === (diff.status ?? "modified")
+    if (!sameStatus) return false
+    return latest.after === normalizeBody(diff.after)
+  })
+}
+
+function normalizeSnapshotDiffs(diffs: Snapshot.FileDiff[]) {
+  return diffs.map((diff) => ({
+    ...diff,
+    file: normalizePath(diff.file),
+  }))
+}
+
+export async function getSessionMessageDiff(input: { sessionID: string; messageID: string }) {
+  const messages = await Session.messages({ sessionID: input.sessionID })
+  const user = messages.find((message) => message.info.id === input.messageID && message.info.role === "user")
+  if (!user || user.info.role !== "user") return []
+  return normalizeSnapshotDiffs(user.info.summary?.diffs ?? [])
+}
+
+export async function getSessionOwnedDirtyDiff(input: { sessionID: string }) {
+  const session = await Session.get(input.sessionID)
+  const workspace = await WorkspaceService.resolve({ directory: session.directory })
+  if (workspace.attachments.sessionIds.length > 0 && !workspace.attachments.sessionIds.includes(input.sessionID))
+    return []
+
+  const [messages, currentDiffs] = await Promise.all([
+    Session.messages({ sessionID: input.sessionID }),
+    Instance.provide({ directory: session.directory, fn: () => File.status() }),
+  ])
+
+  return computeOwnedSessionDirtyDiff(
+    currentDiffs.map((diff) => ({
+      file: normalizePath(diff.path),
+      before: normalizeBody(diff.before),
+      after: normalizeBody(diff.after),
+      additions: diff.added,
+      deletions: diff.removed,
+      status: diff.status,
+    })),
+    messages,
+  )
+}

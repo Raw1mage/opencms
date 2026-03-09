@@ -6,7 +6,6 @@ import { useLayout, type LocalProject, getAvatarColors } from "@/context/layout"
 import { useNotification } from "@/context/notification"
 import { usePermission } from "@/context/permission"
 import { DirtyCountBubble } from "@/components/dirty-count-bubble"
-import { getStrictSessionScopedDirtyDiffs } from "@/pages/session/helpers"
 import { base64Encode } from "@opencode-ai/util/encode"
 import { Avatar } from "@opencode-ai/ui/avatar"
 import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
@@ -312,8 +311,7 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
   )
   const dirtyCount = createMemo(() => {
     const currentDiffs = sessionStore.session_diff[props.session.id]
-    if (!currentDiffs) return 0
-    return getStrictSessionScopedDirtyDiffs(currentDiffs, hoverMessages() ?? []).length
+    return currentDiffs?.length ?? 0
   })
   const hoverReady = createMemo(() => sessionStore.message[props.session.id] !== undefined)
   const hoverAllowed = createMemo(() => !props.mobile && props.sidebarExpanded())
@@ -360,17 +358,9 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
     if (sidebarDirtyInflight.has(requestKey)) return
 
     const request = directoryClient()
-      .file.status()
-      .then((status) => {
-        const next = (status.data ?? []).map((item) => ({
-          file: item.path,
-          before: typeof (item as { before?: unknown }).before === "string" ? (item as any).before : "",
-          after: typeof (item as { after?: unknown }).after === "string" ? (item as any).after : "",
-          additions: typeof item.added === "number" ? item.added : 0,
-          deletions: typeof item.removed === "number" ? item.removed : 0,
-          status: item.status,
-        }))
-        setSessionStore("session_diff", props.session.id, next)
+      .session.diff({ sessionID: props.session.id })
+      .then((response) => {
+        setSessionStore("session_diff", props.session.id, response.data ?? [])
       })
       .catch(() => {})
       .finally(() => {

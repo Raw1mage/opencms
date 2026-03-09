@@ -158,8 +158,9 @@ export function applyDirectoryEvent(input: {
       break
     }
     case "session.diff": {
-      // Ignore backend session.diff events.
-      // We rely completely on `git status` via client.file.status() instead.
+      // Ignore backend session.diff bus events.
+      // They reflect historical session summary snapshots, while web now fetches
+      // authoritative session-owned dirty diffs on demand through the session.diff API.
       break
     }
     case "todo.updated": {

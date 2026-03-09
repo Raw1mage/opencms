@@ -648,7 +648,7 @@ export namespace UserDaemonManager {
     })
   }
 
-  export async function callSessionDiff<T>(username: string, sessionID: string, messageID: string) {
+  export async function callSessionDiff<T>(username: string, sessionID: string, messageID?: string) {
     observe(username)
     const safe = LinuxUserExec.sanitizeUsername(username)
     if (!safe)
@@ -662,8 +662,16 @@ export namespace UserDaemonManager {
         ok: false,
         error: { code: "DAEMON_NOT_OBSERVED", message: "daemon not observed" },
       } satisfies DaemonCallResult<T>
-    const qs = new URLSearchParams({ messageID }).toString()
-    return callJSON<T>({ entry, method: "GET", path: `/session/${encodeURIComponent(sessionID)}/diff?${qs}` })
+    const qs = new URLSearchParams()
+    if (messageID) qs.set("messageID", messageID)
+    const suffix = qs.toString()
+    return callJSON<T>({
+      entry,
+      method: "GET",
+      path: suffix
+        ? `/session/${encodeURIComponent(sessionID)}/diff?${suffix}`
+        : `/session/${encodeURIComponent(sessionID)}/diff`,
+    })
   }
 
   export async function callSessionMessages<T>(username: string, sessionID: string, limit?: number) {

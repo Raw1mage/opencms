@@ -332,16 +332,8 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               })
             }
 
-            return retry(() => client.file.status()).then((status) => {
-              const next = (status.data ?? []).map((item) => ({
-                file: item.path,
-                before: typeof (item as { before?: unknown }).before === "string" ? (item as any).before : "",
-                after: typeof (item as { after?: unknown }).after === "string" ? (item as any).after : "",
-                additions: typeof item.added === "number" ? item.added : 0,
-                deletions: typeof item.removed === "number" ? item.removed : 0,
-                status: item.status,
-              }))
-              setStore("session_diff", cacheKey, reconcile(next, { key: "file" }))
+            return retry(() => client.session.diff({ sessionID })).then((response) => {
+              setStore("session_diff", cacheKey, reconcile(response.data ?? [], { key: "file" }))
             })
           })
         },

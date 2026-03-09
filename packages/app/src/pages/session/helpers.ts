@@ -2,10 +2,6 @@ import type { CommandOption } from "@/context/command"
 import { batch } from "solid-js"
 import type { Part } from "@opencode-ai/sdk/v2/client"
 
-const normalizeReviewPath = (input: string) => input.replaceAll("\\", "/").replace(/\/+$/, "")
-
-const normalizeReviewBody = (input: string) => input.replaceAll("\r\n", "\n")
-
 export const focusTerminalById = (id: string) => {
   const wrapper = document.getElementById(`terminal-wrapper-${id}`)
   const terminal = wrapper?.querySelector('[data-component="terminal"]')
@@ -57,56 +53,6 @@ export const getTabReorderIndex = (tabs: readonly string[], from: string, to: st
   const toIndex = tabs.indexOf(to)
   if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return undefined
   return toIndex
-}
-
-export const getSessionScopedDirtyDiffs = <
-  TDiff extends { file: string },
-  TMessage extends { summary?: { diffs?: readonly { file: string }[] } },
->(
-  currentDiffs: readonly TDiff[],
-  messages: readonly TMessage[],
-  options?: { fallback?: "all" | "none" },
-) => {
-  const touched = new Set<string>()
-  for (const message of messages) {
-    for (const diff of message.summary?.diffs ?? []) {
-      if (!diff.file) continue
-      touched.add(normalizeReviewPath(diff.file))
-    }
-  }
-
-  if (touched.size === 0) return options?.fallback === "none" ? [] : [...currentDiffs]
-  return currentDiffs.filter((diff) => touched.has(normalizeReviewPath(diff.file)))
-}
-
-export const getStrictSessionScopedDirtyDiffs = <
-  TDiff extends { file: string; after: string; status?: string },
-  TMessage extends { summary?: { diffs?: readonly { file: string; after: string; status?: string }[] } },
->(
-  currentDiffs: readonly TDiff[],
-  messages: readonly TMessage[],
-) => {
-  const latestByFile = new Map<string, { after: string; status?: string }>()
-
-  for (const message of messages) {
-    for (const diff of message.summary?.diffs ?? []) {
-      if (!diff.file) continue
-      latestByFile.set(normalizeReviewPath(diff.file), {
-        after: normalizeReviewBody(diff.after ?? ""),
-        status: diff.status,
-      })
-    }
-  }
-
-  if (latestByFile.size === 0) return []
-
-  return currentDiffs.filter((diff) => {
-    const latest = latestByFile.get(normalizeReviewPath(diff.file))
-    if (!latest) return false
-    const sameStatus = (latest.status ?? "modified") === (diff.status ?? "modified")
-    if (!sameStatus) return false
-    return latest.after === normalizeReviewBody(diff.after ?? "")
-  })
 }
 
 type WorkflowChipTone = "neutral" | "info" | "success" | "warning"

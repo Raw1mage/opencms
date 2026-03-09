@@ -4,9 +4,7 @@ import {
   createOpenReviewFile,
   focusTerminalById,
   getSessionArbitrationChips,
-  getStrictSessionScopedDirtyDiffs,
   getSessionWorkflowChips,
-  getSessionScopedDirtyDiffs,
   getTabReorderIndex,
 } from "./helpers"
 
@@ -79,72 +77,6 @@ describe("getTabReorderIndex", () => {
 
   test("returns undefined for unknown droppable id", () => {
     expect(getTabReorderIndex(["a", "b", "c"], "a", "missing")).toBeUndefined()
-  })
-})
-
-describe("getSessionScopedDirtyDiffs", () => {
-  test("returns all dirty diffs when session has no summarized file history", () => {
-    const diffs = [{ file: "a.ts" }, { file: "b.ts" }]
-
-    expect(getSessionScopedDirtyDiffs(diffs, [{}, {}])).toEqual(diffs)
-  })
-
-  test("can return empty when session history is missing and fallback is disabled", () => {
-    const diffs = [{ file: "a.ts" }, { file: "b.ts" }]
-
-    expect(getSessionScopedDirtyDiffs(diffs, [{}, {}], { fallback: "none" })).toEqual([])
-  })
-
-  test("keeps only dirty diffs that belong to the current session history", () => {
-    const diffs = [{ file: "a.ts" }, { file: "b.ts" }, { file: "c.ts" }]
-    const messages = [{ summary: { diffs: [{ file: "b.ts" }, { file: "c.ts" }] } }]
-
-    expect(getSessionScopedDirtyDiffs(diffs, messages)).toEqual([{ file: "b.ts" }, { file: "c.ts" }])
-  })
-
-  test("normalizes slash variants before matching files", () => {
-    const diffs = [{ file: "src/foo.ts" }, { file: "src/bar.ts" }]
-    const messages = [{ summary: { diffs: [{ file: "src\\foo.ts/" }] } }]
-
-    expect(getSessionScopedDirtyDiffs(diffs, messages)).toEqual([{ file: "src/foo.ts" }])
-  })
-})
-
-describe("getStrictSessionScopedDirtyDiffs", () => {
-  test("returns empty without session diff history", () => {
-    expect(getStrictSessionScopedDirtyDiffs([{ file: "a.ts", after: "x", status: "modified" }], [{}])).toEqual([])
-  })
-
-  test("matches only files whose latest session diff still equals current dirty content", () => {
-    const current = [
-      { file: "a.ts", after: "session-final", status: "modified" },
-      { file: "b.ts", after: "other-session", status: "modified" },
-    ]
-    const messages = [
-      { summary: { diffs: [{ file: "a.ts", after: "session-final", status: "modified" }] } },
-      { summary: { diffs: [{ file: "b.ts", after: "session-version", status: "modified" }] } },
-    ]
-
-    expect(getStrictSessionScopedDirtyDiffs(current, messages)).toEqual([
-      { file: "a.ts", after: "session-final", status: "modified" },
-    ])
-  })
-
-  test("uses the latest session diff per file", () => {
-    const current = [{ file: "a.ts", after: "latest", status: "modified" }]
-    const messages = [
-      { summary: { diffs: [{ file: "a.ts", after: "first", status: "modified" }] } },
-      { summary: { diffs: [{ file: "a.ts", after: "latest", status: "modified" }] } },
-    ]
-
-    expect(getStrictSessionScopedDirtyDiffs(current, messages)).toEqual(current)
-  })
-
-  test("normalizes file paths and line endings before matching", () => {
-    const current = [{ file: "src/foo.ts", after: "line1\nline2", status: "modified" }]
-    const messages = [{ summary: { diffs: [{ file: "src\\foo.ts/", after: "line1\r\nline2", status: "modified" }] } }]
-
-    expect(getStrictSessionScopedDirtyDiffs(current, messages)).toEqual(current)
   })
 })
 

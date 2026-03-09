@@ -10,6 +10,7 @@ import { SessionRevert } from "../../session/revert"
 import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
 import { SessionMonitor } from "@/session/monitor"
+import { getSessionMessageDiff, getSessionOwnedDirtyDiff } from "@/project/workspace"
 import { Todo } from "../../session/todo"
 import { Agent } from "../../agent/agent"
 import { Snapshot } from "@/snapshot"
@@ -654,8 +655,9 @@ export const SessionRoutes = lazy(() =>
     .get(
       "/:sessionID/diff",
       describeRoute({
-        summary: "Get message diff",
-        description: "Get the file changes (diff) that resulted from a specific user message in the session.",
+        summary: "Get session diff",
+        description:
+          "Get the authoritative session-owned dirty diff for the current workspace, or the summarized diff for a specific user message when messageID is provided.",
         operationId: "session.diff",
         responses: {
           200: {
@@ -683,9 +685,6 @@ export const SessionRoutes = lazy(() =>
       async (c) => {
         const query = c.req.valid("query")
         const params = c.req.valid("param")
-        if (!query.messageID) {
-          return c.json({ code: "BAD_REQUEST", message: "messageID is required" }, 400)
-        }
         const username = RequestUser.username()
         if (username && UserDaemonManager.routeSessionReadEnabled()) {
           const response = await UserDaemonManager.callSessionDiff<Snapshot.FileDiff[]>(
@@ -702,10 +701,9 @@ export const SessionRoutes = lazy(() =>
             503,
           )
         }
-        const result = await SessionSummary.diff({
-          sessionID: params.sessionID,
-          messageID: query.messageID,
-        })
+        const result = query.messageID
+          ? await getSessionMessageDiff({ sessionID: params.sessionID, messageID: query.messageID })
+          : await getSessionOwnedDirtyDiff({ sessionID: params.sessionID })
         return c.json(result)
       },
     )

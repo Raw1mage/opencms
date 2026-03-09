@@ -53,42 +53,44 @@ Status: Completed
 
 - 進一步追查後確認真正問題不在 backend `SessionSummary.diff`，而在 session page 本身仍把 review panel 綁到 `selectedTurnMessageID` + `sync.session.diff(id, { messageID })`。
 - 但 `packages/app/src/context/sync.tsx` 其實早已提供無 `messageID` 的 current-dirty 路徑：直接呼叫 `client.file.status()`，並把結果寫入 `session_diff[sessionID]`。
-- 同時 `packages/app/src/context/global-sync/event-reducer.ts` 也已明確註記：review panel 應依賴 `git status`，而非 backend `session.diff` event。
+- 同時 `packages/app/src/context/global-sync/event-reducer.ts` 也已明確註記：web 不應直接相信 backend `session.diff` bus event；前端應以 explicit fetch 的 authoritative review API 為準。
 - 第一階段最小修正集中在 `packages/app/src/pages/session.tsx`：
   - 移除 review panel 對 `selectedTurnMessageID` 的綁定。
   - `reviewDiffKey` 改為直接使用 `params.id`（sessionID）。
-  - 開啟檔案異動視窗時，改呼叫 `sync.session.diff(id)`，讓資料來源走既有的 `client.file.status()` current-dirty 路徑。
-- 第二階段再加上 session-scope 過濾：
-  - 在 `packages/app/src/pages/session/helpers.ts` 新增 `getSessionScopedDirtyDiffs(...)`。
-  - 邏輯為：以「目前 git dirty 清單」為基底，交集過濾目前 session 的 user message `summary.diffs` 曾觸及的檔案。
-  - 若 session 尚無可用的 summary diff 歷史，review 面板仍可保守 fallback 成顯示全部 current dirty，避免空白誤判。
-- 這樣可讓檔案異動視窗同時滿足：
-  - 不再顯示歷史累積 diff。
-  - 仍對得到真實 current dirty。
-  - 不同 session 可聚焦自己曾動到且目前仍 dirty 的檔案子集。
+  - 開啟檔案異動視窗時，改呼叫 `sync.session.diff(id)`。
+- 第二階段曾短暫使用 app-side heuristic（touched-file / content-match / tool-input attribution）來收斂 session bubble，但使用者指出這仍可能把其他 session 的異動誤算進來。
+- 第三階段正式收斂成 runtime-owned contract：
+  - 新增 `packages/opencode/src/project/workspace/owned-diff.ts`。
+  - backend `session.diff` route 現在改成：
+    - `messageID` 有值時：回傳該 user message 的 summarized diff
+    - `messageID` 缺省時：回傳 authoritative session-owned dirty diff
+  - authoritative session-owned dirty diff 的目前 runtime 規則為：
+    - 先透過 workspace layer resolve session 所屬 execution scope
+    - 若 workspace attachment 已有 session list，則只允許該 workspace 內已附著的 session 取值
+    - 再以 assistant tool parts 抽出明確寫入型檔案（`write` / `edit` / `apply_patch` / `filesystem_*`）
+    - 最後只保留目前 dirty diff 仍與該 session 最新 summarized diff (`after/status`) 相符的檔案
+- app 端同步簡化：
+  - `packages/app/src/context/sync.tsx` 不再以 `client.file.status()` 直接作為 session review/diff truth，而改成統一呼叫 `client.session.diff({ sessionID })`
+  - `packages/app/src/pages/session.tsx` 與 `packages/app/src/pages/layout/sidebar-items.tsx` 不再自行做 dirty attribution heuristic，而直接消費 runtime 回傳結果
+  - 先前新增於 app helper 的 session dirty attribution helper 已移除，避免重複造輪子
 - 依使用者後續需求，在 `packages/app/src/pages/session/message-timeline.tsx` 的對話標題右側新增 dirty indicator bubble：
-  - 初版曾用 touched-file 交集 / fallback-none 計數，但仍可能把同檔名、後續被其他 session 改寫過的 dirty 內容誤算進來。
-  - 現在改為使用 strict content-match 計數：以每個檔案在本 session `summary.diffs` 中的「最新 after/status」去比對目前 dirty diff。
-  - 因此 bubble 只會計入目前 session 最新變更內容仍然存在的 dirty 檔案，不會把其他 session 後續改寫過的異動算進來。
-  - 僅在 count > 0 時顯示。
-  - 讓使用者不用展開檔案異動畫面，也能快速知道這個 session 目前有多少相關 dirty files。
-  - 進一步同步互動態：title bubble 也會在 hover / focus-within 時提高對比，和 sidebar row bubble 視覺一致。
+  - 數量來源現已直接來自 runtime-owned session diff count
+  - 僅在 count > 0 時顯示
+  - hover / focus-within 與 sidebar row bubble 保持一致互動樣式
 - 最後將 title / sidebar 兩處重複的 bubble 樣式抽成共用元件 `packages/app/src/components/dirty-count-bubble.tsx`，統一 active / hover / focus / 圓角策略，避免之後再出現視覺漂移。
 - 再依後續需求，在 `packages/app/src/pages/layout/sidebar-items.tsx` 的 session list row 上新增 dirty count bubble：
-  - bubble 顯示在 session 標題與時間之間。
-  - 數量來源改為 `getStrictSessionScopedDirtyDiffs(...)`：用本 session 每個檔案最新 `after/status` 與目前 dirty diff 做精確比對。
-  - 若該 session 已預取 message 但尚未有 dirty cache，row 會背景呼叫該 directory 的 `file.status()`，並把結果寫入 `session_diff[sessionID]`，讓 bubble 可在 list 中補齊顯示。
-  - 這讓 session list 不只是靜態歷史摘要，而能逐步反映目前 repo dirty 與 session scope 的交集。
-  - 同時避免把其他 session 後續覆寫過的 dirty 檔案誤算進本 session bubble。
-  - 針對 active row，bubble 也同步做反白處理，避免選取態下視覺層級不一致。
-  - 針對 hover / focus-within 狀態，也同步提高 bubble 對比，讓互動回饋一致。
+  - bubble 顯示在 session 標題與時間之間
+  - 若該 session 已預取 message 但尚未有 dirty cache，row 會背景呼叫 `session.diff({ sessionID })` 補齊 runtime-owned count
+  - 針對 active row 與 hover / focus-within 狀態，也同步提高 bubble 對比
 - 再依最新需求，在 `packages/app/src/pages/layout/sidebar-workspace.tsx` 移除 webapp session list 的 `[repo]` 前綴，保留純 session title（以及 child count），因為目前 sidebar 階層已足夠表達所屬 repo / workspace。
 
 ### Validation
 
 - 驗證指令：
-  - `bun test --preload ./happydom.ts ./src/pages/session/helpers.test.ts`
+  - `bun test packages/opencode/test/project/workspace-service.test.ts packages/opencode/test/project/workspace-owned-diff.test.ts`
+  - `bun test --preload ./happydom.ts ./src/pages/session/helpers.test.ts` (in `packages/app`)
   - `bun turbo typecheck --filter @opencode-ai/app`
-- 結果：passed（包含 bubble strict content-match 修正後再次驗證通過）
-- Architecture Sync: Verified (No doc changes)
-  - 依據：本輪只修正 session page 取用 review diff 的資料來源，未改動架構邊界、API contract 或模組責任。
+  - `bun run --cwd packages/opencode typecheck`
+- 結果：passed（包含 runtime-owned session diff contract 導入後再次驗證通過）
+- Architecture Sync: Updated
+  - 依據：本輪已將 dirty/review ownership 從 app heuristic 收斂為 runtime-owned session diff contract，屬於 architecture boundary 變更，因此同步補強 `docs/ARCHITECTURE.md` 與對應 workspace 設計文件。
