@@ -525,3 +525,32 @@ Validation（bounded ask-user draft）:
   - `helpers.test.ts` 仍有既存 DOM-less 失敗（`document is not defined`），與本輪 ask-user draft 修改無關
 - `bun x eslint /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/session-side-panel.tsx` ✅
 - 結果：Smart Runner 現在能在 `ask_user` suggestion 上附帶 draft question，供人檢視與採納，但 deterministic question flow 仍完全不變。
+
+### Current Slice (bounded replan request)
+
+需求：下一步要讓 `replan suggestion` 再更具體一些，不只說「應該重排」，而是產生一個可審核的 request 結構，讓主持者知道它想怎麼重排，但仍不自動改 todo graph。
+
+範圍：
+
+- IN
+  - 為 `replan` suggestion 增加 bounded replan request metadata
+  - 在 session status / history 顯示 replan request
+  - 保持 deterministic runner 與 todo graph 不變
+- OUT
+  - 不直接改 todos
+  - 不自動採納 request
+  - 不接管 ask-user / stop / approval
+
+任務清單：
+
+- [x] 在 Smart Runner trace suggestion 中增加 bounded replan request
+- [x] 在 session status / history 顯示 replan request
+- [x] 驗證 replan request 只增加可觀測性，不改變控制流
+
+Validation（bounded replan request）:
+
+- `bun test /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts`
+  - Smart Runner bounded replan request assertions 通過
+  - `helpers.test.ts` 仍有既存 DOM-less 失敗（`document is not defined`），與本輪 replan request 修改無關
+- `bun x eslint /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/session-side-panel.tsx` ✅
+- 結果：Smart Runner 現在能在 `replan` suggestion 上附帶 bounded replan request，供人檢視與採納，但 deterministic runner 與 todo graph 仍完全不變。

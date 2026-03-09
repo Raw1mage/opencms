@@ -102,6 +102,12 @@ type WorkflowLikeSession = {
           suggestedTodoID?: string
           suggestedAction?: string
           draftQuestion?: string
+          replanRequest?: {
+            targetTodoID?: string
+            requestedAction?: string
+            proposedNextStep?: string
+            note?: string
+          }
         }
         decision?: {
           decision?: string
@@ -128,6 +134,12 @@ type WorkflowLikeSession = {
           suggestedTodoID?: string
           suggestedAction?: string
           draftQuestion?: string
+          replanRequest?: {
+            targetTodoID?: string
+            requestedAction?: string
+            proposedNextStep?: string
+            note?: string
+          }
         }
         decision?: {
           decision?: string
@@ -273,6 +285,7 @@ export type SessionStatusSummary = {
     assist?: string
     suggestion?: string
     draftQuestion?: string
+    replanRequest?: string
     error?: string
   }>
   latestNarration?: {
@@ -456,6 +469,14 @@ export const getSessionStatusSummary = (input: {
     ) {
       debugLines.push(`Ask-user draft: ${supervisor.lastGovernorTrace.suggestion.draftQuestion.slice(0, 120)}`)
     }
+    if (
+      supervisor.lastGovernorTrace.suggestion.kind === "replan" &&
+      supervisor.lastGovernorTrace.suggestion.replanRequest?.proposedNextStep
+    ) {
+      debugLines.push(
+        `Replan request: ${supervisor.lastGovernorTrace.suggestion.replanRequest.proposedNextStep.slice(0, 120)}`,
+      )
+    }
   }
   if (supervisor?.lastGovernorTraceAt)
     debugLines.push(`Governor at: ${formatDebugTime(supervisor.lastGovernorTraceAt)}`)
@@ -474,6 +495,7 @@ export const getSessionStatusSummary = (input: {
       ? `${trace.suggestion.kind}${trace.suggestion.suggestedAction ? ` · ${trace.suggestion.suggestedAction}` : ""}${trace.suggestion.reason ? ` · ${trace.suggestion.reason}` : ""}`
       : undefined,
     draftQuestion: trace.suggestion?.draftQuestion,
+    replanRequest: trace.suggestion?.replanRequest?.proposedNextStep,
     error: trace.error,
   }))
   const smartRunnerSummary = buildSmartRunnerSummary(supervisor?.governorTraceHistory ?? [])

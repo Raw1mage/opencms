@@ -261,6 +261,12 @@ describe("Smart Runner Governor", () => {
       reason: "The current todo ordering no longer matches the latest task state",
       suggestedTodoID: "t2",
       suggestedAction: "replan_todos",
+      replanRequest: {
+        targetTodoID: "t2",
+        requestedAction: "replan_todos",
+        proposedNextStep: "Re-evaluate todo t2 before continuing.",
+        note: "The current todo ordering no longer matches the latest task state",
+      },
     })
   })
 

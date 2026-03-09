@@ -71,6 +71,14 @@ const SmartRunnerTraceSchema = z.object({
       suggestedTodoID: z.string().optional(),
       suggestedAction: z.string().optional(),
       draftQuestion: z.string().optional(),
+      replanRequest: z
+        .object({
+          targetTodoID: z.string().optional(),
+          requestedAction: z.string().optional(),
+          proposedNextStep: z.string().optional(),
+          note: z.string().optional(),
+        })
+        .optional(),
     })
     .optional(),
   error: z.string().optional(),
@@ -247,6 +255,18 @@ export function annotateSmartRunnerTraceSuggestion(input: { trace: SmartRunnerTr
     input.trace.decision.decision === "ask_user"
       ? input.trace.decision.nextAction.narration.trim() || input.trace.decision.reason.trim()
       : undefined
+  const replanRequest =
+    input.trace.decision.decision === "replan"
+      ? {
+          targetTodoID: input.trace.decision.nextAction.todoID,
+          requestedAction: input.trace.decision.nextAction.kind,
+          proposedNextStep:
+            input.trace.decision.nextAction.todoID || input.trace.decision.nextAction.kind
+              ? `Re-evaluate todo ${input.trace.decision.nextAction.todoID ?? "(unspecified)"} before continuing.`
+              : undefined,
+          note: input.trace.decision.reason,
+        }
+      : undefined
 
   return SmartRunnerTraceSchema.parse({
     ...input.trace,
@@ -256,6 +276,7 @@ export function annotateSmartRunnerTraceSuggestion(input: { trace: SmartRunnerTr
       suggestedTodoID: input.trace.decision.nextAction.todoID,
       suggestedAction: input.trace.decision.nextAction.kind,
       draftQuestion,
+      replanRequest,
     },
   })
 }

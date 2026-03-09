@@ -411,6 +411,11 @@ export function SessionSidePanel(props: {
                                     Draft question: {entry.draftQuestion}
                                   </div>
                                 </Show>
+                                <Show when={entry.replanRequest}>
+                                  <div class="text-12-regular text-text-muted break-words">
+                                    Replan request: {entry.replanRequest}
+                                  </div>
+                                </Show>
                                 <Show when={entry.error}>
                                   <div class="text-12-regular text-warning break-words">Error: {entry.error}</div>
                                 </Show>
