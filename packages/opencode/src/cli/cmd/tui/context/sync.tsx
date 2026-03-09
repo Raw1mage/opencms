@@ -385,7 +385,9 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           break
 
         case "session.diff":
-          setStore("session_diff", event.properties.sessionID, event.properties.diff)
+          // Ignore backend session.diff bus events.
+          // They may represent historical/message summary snapshots rather than
+          // the authoritative current git-uncommitted session-owned changes used by TUI sidebar.
           break
 
         case "session.deleted": {
