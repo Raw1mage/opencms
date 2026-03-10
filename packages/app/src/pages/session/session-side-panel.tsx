@@ -360,6 +360,7 @@ export function SessionSidePanel(props: {
                                   <div>Approval: {summary().requestApproval}</div>
                                   <div>Risk pause: {summary().pauseForRisk}</div>
                                   <div>Complete: {summary().complete}</div>
+                                  <div>Pause: {summary().pause}</div>
                                   <div>Adopted: {summary().adopted}</div>
                                   <div>Not adopted: {summary().notAdopted}</div>
                                 </div>
@@ -439,6 +440,11 @@ export function SessionSidePanel(props: {
                                 <Show when={entry.completionRequest}>
                                   <div class="text-12-regular text-text-muted break-words">
                                     Complete proposal: {entry.completionRequest}
+                                  </div>
+                                </Show>
+                                <Show when={entry.pauseRequest}>
+                                  <div class="text-12-regular text-text-muted break-words">
+                                    Pause scope: {entry.pauseRequest}
                                   </div>
                                 </Show>
                                 <Show when={entry.replanRequest}>

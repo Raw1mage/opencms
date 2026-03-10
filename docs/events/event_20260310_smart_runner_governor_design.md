@@ -1247,3 +1247,31 @@ Validation（advisory pause suggestion surfacing）:
 - 結果：Smart Runner 的 plain `pause` 現在也會被轉成 advisory-only suggestion surface，能進入 trace/history，但不會誤生成新的 host-adoptable stop contract。
 - Architecture Sync: Updated
   - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 advisory-only `pause` suggestion contract
+
+### Current Slice (advisory pause observability parity)
+
+需求：runtime 已把 plain `pause` 補成 advisory-only suggestion，但 app side panel 的 summary/debug/history 尚未把它視為 first-class suggestion。若不補齊，使用者仍會在 UI 端漏看 governor 的一般暫停建議。
+
+範圍：
+
+- IN
+  - app session helper summary 加上 `pause` counter
+  - debug/history 顯示 `pauseScope` 與 advisory-only policy
+  - side panel 顯示 `Pause` 摘要與 history 行
+- OUT
+  - 不新增 adoption outcome（因為 plain `pause` 無 host-adoption contract）
+  - 不改 runtime decision logic
+
+任務清單：
+
+- [x] 擴充 `helpers.ts` summary/debug/history 映射以納入 `pause`
+- [x] 擴充 `helpers.test.ts` 覆蓋 advisory pause surface
+- [x] 更新 `session-side-panel.tsx` 顯示 `pause` 摘要與 history 行
+
+Validation（advisory pause observability parity）:
+
+- `bun x eslint /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/session-side-panel.tsx` ✅
+- `bun test /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts --test-name-pattern "getSessionStatusSummary"` ✅
+- 結果：session side panel 現在也能顯示 advisory `pause` 的摘要數量、pause scope 與 advisory-only policy，且不會誤顯示 adoptionOutcome。
+- Architecture Sync: Updated
+  - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 advisory pause observability parity

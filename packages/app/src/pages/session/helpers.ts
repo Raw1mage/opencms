@@ -156,6 +156,17 @@ type WorkflowLikeSession = {
             hostAdopted?: boolean
             hostAdoptionReason?: string
           }
+          pauseRequest?: {
+            rationale?: string
+            pauseScope?: string
+            advisoryNote?: string
+            policy?: {
+              trustLevel?: string
+              adoptionMode?: string
+              requiresUserConfirm?: boolean
+              requiresHostReview?: boolean
+            }
+          }
           replanRequest?: {
             targetTodoID?: string
             requestedAction?: string
@@ -257,6 +268,17 @@ type WorkflowLikeSession = {
             }
             hostAdopted?: boolean
             hostAdoptionReason?: string
+          }
+          pauseRequest?: {
+            rationale?: string
+            pauseScope?: string
+            advisoryNote?: string
+            policy?: {
+              trustLevel?: string
+              adoptionMode?: string
+              requiresUserConfirm?: boolean
+              requiresHostReview?: boolean
+            }
           }
           replanRequest?: {
             targetTodoID?: string
@@ -416,6 +438,7 @@ export type SessionStatusSummary = {
     requestApproval: number
     pauseForRisk: number
     complete: number
+    pause: number
     adopted: number
     notAdopted: number
     recentTrend: string[]
@@ -435,6 +458,7 @@ export type SessionStatusSummary = {
     approvalRequest?: string
     riskPauseRequest?: string
     completionRequest?: string
+    pauseRequest?: string
     replanRequest?: string
     replanAdoption?: string
     policy?: string
@@ -530,6 +554,7 @@ const buildSmartRunnerSummary = (
       approvalRequest?: { hostAdoptionReason?: string }
       riskPauseRequest?: { hostAdoptionReason?: string }
       completionRequest?: { hostAdoptionReason?: string }
+      pauseRequest?: { advisoryNote?: string }
     }
   }>,
 ) => {
@@ -545,6 +570,7 @@ const buildSmartRunnerSummary = (
     requestApproval: 0,
     pauseForRisk: 0,
     complete: 0,
+    pause: 0,
     adopted: 0,
     notAdopted: 0,
     recentTrend: [] as string[],
@@ -562,6 +588,7 @@ const buildSmartRunnerSummary = (
     if (trace.suggestion?.kind === "request_approval") summary.requestApproval += 1
     if (trace.suggestion?.kind === "pause_for_risk") summary.pauseForRisk += 1
     if (trace.suggestion?.kind === "complete") summary.complete += 1
+    if (trace.suggestion?.kind === "pause") summary.pause += 1
 
     const adoptionReasons = [
       trace.suggestion?.askUserAdoption?.hostAdoptionReason,
@@ -651,7 +678,9 @@ export const getSessionStatusSummary = (input: {
                   ? "Risk-pause why"
                   : supervisor.lastGovernorTrace.suggestion.kind === "complete"
                     ? "Complete why"
-                    : "Suggestion why"
+                    : supervisor.lastGovernorTrace.suggestion.kind === "pause"
+                      ? "Pause why"
+                      : "Suggestion why"
         }: ${supervisor.lastGovernorTrace.suggestion.reason.slice(0, 120)}`,
       )
     }
@@ -734,6 +763,17 @@ export const getSessionStatusSummary = (input: {
       }
     }
     if (
+      supervisor.lastGovernorTrace.suggestion.kind === "pause" &&
+      supervisor.lastGovernorTrace.suggestion.pauseRequest?.pauseScope
+    ) {
+      debugLines.push(`Pause scope: ${supervisor.lastGovernorTrace.suggestion.pauseRequest.pauseScope}`)
+      if (supervisor.lastGovernorTrace.suggestion.pauseRequest.policy?.adoptionMode) {
+        debugLines.push(
+          `Pause policy: ${supervisor.lastGovernorTrace.suggestion.pauseRequest.policy.adoptionMode}${supervisor.lastGovernorTrace.suggestion.pauseRequest.policy.trustLevel ? ` (${supervisor.lastGovernorTrace.suggestion.pauseRequest.policy.trustLevel})` : ""}`,
+        )
+      }
+    }
+    if (
       supervisor.lastGovernorTrace.suggestion.kind === "replan" &&
       supervisor.lastGovernorTrace.suggestion.replanRequest?.proposedNextStep
     ) {
@@ -790,6 +830,7 @@ export const getSessionStatusSummary = (input: {
     completionRequest: trace.suggestion?.completionRequest?.proposalID
       ? `${trace.suggestion.completionRequest.proposalID}${trace.suggestion.completionRequest.hostAdopted ? " · adopted" : ""}`
       : undefined,
+    pauseRequest: trace.suggestion?.pauseRequest?.pauseScope,
     replanRequest: trace.suggestion?.replanRequest?.proposedNextStep,
     replanAdoption: trace.suggestion?.replanAdoption?.proposalID
       ? `${trace.suggestion.replanAdoption.proposalID}${trace.suggestion.replanAdoption.hostAdopted ? " · adopted" : ""}`
@@ -802,9 +843,11 @@ export const getSessionStatusSummary = (input: {
           ? `${trace.suggestion.riskPauseRequest.policy.adoptionMode}${trace.suggestion.riskPauseRequest.policy.trustLevel ? ` · ${trace.suggestion.riskPauseRequest.policy.trustLevel}` : ""}`
           : trace.suggestion?.completionRequest?.policy?.adoptionMode
             ? `${trace.suggestion.completionRequest.policy.adoptionMode}${trace.suggestion.completionRequest.policy.trustLevel ? ` · ${trace.suggestion.completionRequest.policy.trustLevel}` : ""}`
-            : trace.suggestion?.replanAdoption?.policy?.adoptionMode
-              ? `${trace.suggestion.replanAdoption.policy.adoptionMode}${trace.suggestion.replanAdoption.policy.trustLevel ? ` · ${trace.suggestion.replanAdoption.policy.trustLevel}` : ""}`
-              : undefined,
+            : trace.suggestion?.pauseRequest?.policy?.adoptionMode
+              ? `${trace.suggestion.pauseRequest.policy.adoptionMode}${trace.suggestion.pauseRequest.policy.trustLevel ? ` · ${trace.suggestion.pauseRequest.policy.trustLevel}` : ""}`
+              : trace.suggestion?.replanAdoption?.policy?.adoptionMode
+                ? `${trace.suggestion.replanAdoption.policy.adoptionMode}${trace.suggestion.replanAdoption.policy.trustLevel ? ` · ${trace.suggestion.replanAdoption.policy.trustLevel}` : ""}`
+                : undefined,
     adoptionOutcome: trace.suggestion?.askUserAdoption?.hostAdoptionReason
       ? trace.suggestion.askUserAdoption.hostAdoptionReason === "adopted"
         ? "adopted"

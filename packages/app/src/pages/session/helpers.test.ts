@@ -609,6 +609,7 @@ describe("getSessionStatusSummary", () => {
       requestApproval: 0,
       pauseForRisk: 0,
       complete: 0,
+      pause: 0,
       adopted: 1,
       notAdopted: 1,
       recentTrend: ["continue → replan", "debug_preflight_first → ask_user"],
@@ -793,8 +794,77 @@ describe("getSessionStatusSummary", () => {
       requestApproval: 1,
       pauseForRisk: 1,
       complete: 1,
+      pause: 0,
       adopted: 2,
       notAdopted: 1,
+    })
+  })
+
+  test("surfaces advisory pause suggestions in debug and history without adoption semantics", () => {
+    const summary = getSessionStatusSummary({
+      session: {
+        workflow: {
+          supervisor: {
+            lastGovernorTrace: {
+              status: "advisory",
+              decision: { decision: "pause", confidence: "medium", nextAction: { kind: "request_user_input" } },
+              suggestion: {
+                kind: "pause",
+                reason: "Current evidence is too weak to continue safely",
+                suggestedAction: "request_user_input",
+                pauseRequest: {
+                  pauseScope: "Pause around todo t8 until a clearer next step exists.",
+                  advisoryNote:
+                    "This is an advisory-only Smart Runner pause suggestion; host should observe it but not auto-adopt it into a new stop contract.",
+                  policy: {
+                    trustLevel: "medium",
+                    adoptionMode: "advisory_only",
+                    requiresUserConfirm: false,
+                    requiresHostReview: true,
+                  },
+                },
+              },
+            },
+            governorTraceHistory: [
+              {
+                createdAt: 81_000,
+                status: "advisory",
+                decision: { decision: "pause", confidence: "medium", nextAction: { kind: "request_user_input" } },
+                suggestion: {
+                  kind: "pause",
+                  reason: "Current evidence is too weak to continue safely",
+                  suggestedAction: "request_user_input",
+                  pauseRequest: {
+                    pauseScope: "Pause around todo t8 until a clearer next step exists.",
+                    advisoryNote:
+                      "This is an advisory-only Smart Runner pause suggestion; host should observe it but not auto-adopt it into a new stop contract.",
+                    policy: {
+                      trustLevel: "medium",
+                      adoptionMode: "advisory_only",
+                      requiresUserConfirm: false,
+                      requiresHostReview: true,
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      } as any,
+    })
+
+    expect(summary.debugLines).toContain("Pause why: Current evidence is too weak to continue safely")
+    expect(summary.debugLines).toContain("Pause scope: Pause around todo t8 until a clearer next step exists.")
+    expect(summary.smartRunnerHistory[0]).toMatchObject({
+      suggestion: "pause · request_user_input · Current evidence is too weak to continue safely",
+      pauseRequest: "Pause around todo t8 until a clearer next step exists.",
+      policy: "advisory_only · medium",
+      adoptionOutcome: undefined,
+    })
+    expect(summary.smartRunnerSummary).toMatchObject({
+      pause: 1,
+      adopted: 0,
+      notAdopted: 0,
     })
   })
 
