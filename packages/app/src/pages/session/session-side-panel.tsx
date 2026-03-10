@@ -381,6 +381,22 @@ export function SessionSidePanel(props: {
                                     </div>
                                   </div>
                                 </Show>
+                                <Show when={summary().nonAdoptedReasons.length > 0}>
+                                  <div class="flex flex-col gap-1">
+                                    <div class="text-[11px] font-medium uppercase tracking-wide text-text-weak">
+                                      Non-adopted reasons
+                                    </div>
+                                    <div class="flex flex-wrap gap-1">
+                                      <For each={summary().nonAdoptedReasons}>
+                                        {(item) => (
+                                          <span class="rounded-full border border-border-weak-base px-2 py-0.5 text-[11px] text-text-weak">
+                                            {item.reason.replaceAll("_", " ")} × {item.count}
+                                          </span>
+                                        )}
+                                      </For>
+                                    </div>
+                                  </div>
+                                </Show>
                               </div>
                             )}
                           </Show>

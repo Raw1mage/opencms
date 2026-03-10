@@ -442,6 +442,7 @@ export type SessionStatusSummary = {
     pause: number
     adopted: number
     notAdopted: number
+    nonAdoptedReasons: Array<{ reason: string; count: number }>
     recentTrend: string[]
   }
   smartRunnerHistory: Array<{
@@ -575,8 +576,10 @@ const buildSmartRunnerSummary = (
     pause: 0,
     adopted: 0,
     notAdopted: 0,
+    nonAdoptedReasons: [] as Array<{ reason: string; count: number }>,
     recentTrend: [] as string[],
   }
+  const nonAdoptedReasonCounts = new Map<string, number>()
 
   for (const trace of traces) {
     if (trace.assist?.enabled) {
@@ -599,12 +602,20 @@ const buildSmartRunnerSummary = (
       trace.suggestion?.approvalRequest?.hostAdoptionReason,
       trace.suggestion?.riskPauseRequest?.hostAdoptionReason,
       trace.suggestion?.completionRequest?.hostAdoptionReason,
-    ].filter(Boolean)
+    ]
     for (const reason of adoptionReasons) {
+      if (!reason) continue
       if (reason === "adopted") summary.adopted += 1
-      else summary.notAdopted += 1
+      else {
+        summary.notAdopted += 1
+        nonAdoptedReasonCounts.set(reason, (nonAdoptedReasonCounts.get(reason) ?? 0) + 1)
+      }
     }
   }
+
+  summary.nonAdoptedReasons = [...nonAdoptedReasonCounts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([reason, count]) => ({ reason, count }))
 
   summary.recentTrend = traces.slice(-5).map((trace) => {
     const decision = trace.decision?.decision ?? "unknown"

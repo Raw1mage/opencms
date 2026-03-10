@@ -613,6 +613,7 @@ describe("getSessionStatusSummary", () => {
       pause: 0,
       adopted: 1,
       notAdopted: 1,
+      nonAdoptedReasons: [{ reason: "question_already_pending", count: 1 }],
       recentTrend: ["continue → replan", "debug_preflight_first → ask_user"],
     })
   })
@@ -799,6 +800,7 @@ describe("getSessionStatusSummary", () => {
       pauseAssist: 0,
       adopted: 2,
       notAdopted: 1,
+      nonAdoptedReasons: [{ reason: "not_terminal_after_completion", count: 1 }],
     })
   })
 
@@ -867,6 +869,7 @@ describe("getSessionStatusSummary", () => {
       pause: 1,
       adopted: 0,
       notAdopted: 0,
+      nonAdoptedReasons: [],
     })
   })
 
@@ -901,10 +904,71 @@ describe("getSessionStatusSummary", () => {
       assistApplied: 1,
       pauseAssist: 1,
       pause: 1,
+      nonAdoptedReasons: [],
     })
     expect(summary.smartRunnerHistory[0]).toMatchObject({
       assist: "applied · pause",
       suggestion: "pause · request_user_input · Current evidence is too weak to continue safely",
+    })
+  })
+
+  test("aggregates repeated non-adopted reasons across Smart Runner history", () => {
+    const summary = getSessionStatusSummary({
+      session: {
+        workflow: {
+          supervisor: {
+            governorTraceHistory: [
+              {
+                createdAt: 83_000,
+                status: "advisory",
+                suggestion: {
+                  kind: "request_approval",
+                  reason: "Needs approval",
+                  approvalRequest: {
+                    proposalID: "approval:t1",
+                    hostAdopted: false,
+                    hostAdoptionReason: "policy_not_host_adoptable",
+                  },
+                },
+              },
+              {
+                createdAt: 84_000,
+                status: "advisory",
+                suggestion: {
+                  kind: "pause_for_risk",
+                  reason: "Needs review",
+                  riskPauseRequest: {
+                    proposalID: "risk-pause:t2",
+                    hostAdopted: false,
+                    hostAdoptionReason: "policy_not_host_adoptable",
+                  },
+                },
+              },
+              {
+                createdAt: 85_000,
+                status: "advisory",
+                suggestion: {
+                  kind: "complete",
+                  reason: "Not terminal yet",
+                  completionRequest: {
+                    proposalID: "complete:t3",
+                    hostAdopted: false,
+                    hostAdoptionReason: "not_terminal_after_completion",
+                  },
+                },
+              },
+            ],
+          },
+        },
+      } as any,
+    })
+
+    expect(summary.smartRunnerSummary).toMatchObject({
+      notAdopted: 3,
+      nonAdoptedReasons: [
+        { reason: "policy_not_host_adoptable", count: 2 },
+        { reason: "not_terminal_after_completion", count: 1 },
+      ],
     })
   })
 

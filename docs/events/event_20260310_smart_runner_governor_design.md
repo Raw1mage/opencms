@@ -1357,5 +1357,33 @@ Validation（unified adoption policy evaluator）:
 - `bun x eslint /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts` ✅
 - `bun test /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts` ✅
 - 結果：`ask_user` 與 host-adoptable 類型現在共用同一組 policy-mode / user-confirm / host-review 判斷骨架；`ask_user` 只額外保留 question text 與 pending question 等專屬 gate，後續擴充新的 suggestion kind 時不必再複製整套 policy 邏輯。
+
+### Current Slice (non-adopted reason aggregate statistics)
+
+需求：目前 side panel 已能在 history row 看見單筆 adoptionOutcome，但若想快速知道近期最常見的「不採納原因」，仍得手動掃描多列 trace。需要把 non-adopted reasons 聚合成 summary 層級統計。
+
+範圍：
+
+- IN
+  - Smart Runner summary 新增 `nonAdoptedReasons`
+  - side panel 顯示 aggregated non-adopted reason chips
+  - 補 helper tests 覆蓋 repeated non-adopted reasons
+- OUT
+  - 不改 trace schema
+  - 不改單筆 history row 的 adoptionOutcome 文案
+
+任務清單：
+
+- [x] 擴充 `helpers.ts` 聚合 non-adopted reason counts
+- [x] 更新 side panel 顯示 non-adopted reason chips
+- [x] 補 helper regression 測試
+
+Validation（non-adopted reason aggregate statistics）:
+
+- `bun x eslint /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/session-side-panel.tsx` ✅
+- `bun test /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts --test-name-pattern "getSessionStatusSummary"` ✅
+- 結果：side panel summary 現在會聚合近期 Smart Runner 的 non-adopted reasons，能直接看出像 `policy_not_host_adoptable`、`question_already_pending`、`not_terminal_after_completion` 等拒絕模式，而不必逐列掃描 history。
+- Architecture Sync: Updated
+  - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 non-adopted reason aggregate statistics
 - Architecture Sync: Updated
   - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 unified adoption policy evaluator contract
