@@ -43,10 +43,14 @@ Status: In Progress
   - working 期間，最終 text response 仍包含在 `AssistantParts` / `session-turn-collapsible-content-inner` 內。
   - 完成後，原邏輯會把 response part 自 steps 區隱藏（`hideResponsePart`），並改到獨立的 `session-turn-summary-section` 重新渲染。
   - 這造成相同內容在完成瞬間切換到不同容器層級與左邊界，視覺上就像整段文字向左跳一格。
-- 本輪最小修正：
-  - 當 `props.stepsExpanded === true` 時，不再於完成瞬間隱藏 response part。
-  - 同時 summary section 只在 `!props.stepsExpanded` 時顯示。
-  - 也就是：展開 steps 的閱讀路徑中，response 會留在原本的 `AssistantParts` 容器內，不再於完成瞬間搬家。
+- 曾嘗試的過渡修正（後續確認為不正確的產品邊界）：
+  - 當 `props.stepsExpanded === true` 時，不於完成瞬間隱藏 response part，並同時隱藏 summary section。
+  - 這雖然避免了移位，但會讓原本屬於外層「回覆」區塊的內容被吸進「顯示步驟」容器。
+  - 使用者回饋確認這是不正確的呈現：展開 steps 不應改變回覆所屬層級。
+- 現行修正方向：
+  - 撤回上述 branch 合併做法。
+  - `response` 在完成後一律回到外層 `session-turn-summary-section`。
+  - text shift 問題改由 layout 對齊處理，不再透過改變步驟/回覆邊界來解。
 - 本輪第二次最小修正（視覺對齊）：
   - 比對 `session-turn-collapsible-content-inner` 與 `session-turn-summary-section` 後，確認主要左移來源是 steps 展開路徑額外的 `margin-left: 12px` + `padding-left: 12px`。
   - 依使用者偏好採 Route 2：不把 summary 往內推，而是把展開/inline 路徑往 summary 左邊界對齊。

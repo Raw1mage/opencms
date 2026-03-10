@@ -449,7 +449,7 @@ export function SessionTurn(
   const response = createMemo(() => lastTextPart()?.text)
   const responsePartId = createMemo(() => lastTextPart()?.id)
   const hasDiffs = createMemo(() => (message()?.summary?.diffs?.length ?? 0) > 0)
-  const hideResponsePart = createMemo(() => !working() && !props.stepsExpanded && !!responsePartId())
+  const hideResponsePart = createMemo(() => !working() && !!responsePartId())
   const stickyDisabled = createMemo(() => working() || props.stepsExpanded)
 
   let renderStateLog = ""
@@ -810,7 +810,7 @@ export function SessionTurn(
                     <div class="sr-only" aria-live="polite">
                       {!working() && response() ? response() : ""}
                     </div>
-                    <Show when={!working() && !props.stepsExpanded && response()}>
+                    <Show when={!working() && response()}>
                       <div data-slot="session-turn-summary-section">
                         <div data-slot="session-turn-summary-header">
                           <div data-slot="session-turn-summary-title-row">
