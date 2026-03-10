@@ -352,12 +352,14 @@ describe("getSessionStatusSummary", () => {
         "Runtime: busy",
         "AI layer: 1 narration",
         "AI latest: pause",
+        "AI role: interruption",
       ],
       smartRunnerConversation: {
         totalNarrations: 1,
         pauseNarrations: 1,
         completeNarrations: 0,
         latestKind: "pause",
+        latestRole: "interruption",
         latestLabel: "Paused: a delegated subagent task is still running.",
       },
       latestNarration: { label: "Paused: a delegated subagent task is still running.", tone: "warning" },
@@ -1108,9 +1110,11 @@ describe("getSessionStatusSummary", () => {
         { kind: "pause", count: 1 },
       ],
       latestKind: "continue",
+      latestRole: "continuation",
       latestLabel: "[AI] Starting the next step now.",
     })
     expect(summary.processLines).toContain("AI layer: 3 narrations")
     expect(summary.processLines).toContain("AI latest: continue")
+    expect(summary.processLines).toContain("AI role: continuation")
   })
 })

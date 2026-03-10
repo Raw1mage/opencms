@@ -481,6 +481,7 @@ export type SessionStatusSummary = {
     completeNarrations: number
     kindCounts: Array<{ kind: string; count: number }>
     latestKind?: string
+    latestRole?: string
     latestLabel?: string
   }
   latestResult?: {
@@ -560,7 +561,15 @@ const summarizeSmartRunnerConversation = (input: {
   let completeNarrations = 0
   const kindCounts = new Map<string, number>()
   let latestKind: string | undefined
+  let latestRole: string | undefined
   let latestLabel: string | undefined
+
+  const classifyRole = (kind?: string) => {
+    if (kind === "pause" || kind === "interrupt") return "interruption"
+    if (kind === "complete") return "completion"
+    if (kind === "continue") return "continuation"
+    return kind ? "other" : undefined
+  }
 
   for (let index = messages.length - 1; index >= 0; index--) {
     const message = messages[index]
@@ -577,6 +586,7 @@ const summarizeSmartRunnerConversation = (input: {
       kindCounts.set(kind ?? "unknown", (kindCounts.get(kind ?? "unknown") ?? 0) + 1)
       if (!latestLabel) {
         latestKind = kind
+        latestRole = classifyRole(kind)
         latestLabel = part.text
       }
     }
@@ -591,6 +601,7 @@ const summarizeSmartRunnerConversation = (input: {
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([kind, count]) => ({ kind, count })),
     latestKind,
+    latestRole,
     latestLabel,
   }
 }
@@ -970,6 +981,7 @@ export const getSessionStatusSummary = (input: {
       `AI layer: ${smartRunnerConversation.totalNarrations} narration${smartRunnerConversation.totalNarrations > 1 ? "s" : ""}`,
     )
     if (smartRunnerConversation.latestKind) processLines.push(`AI latest: ${smartRunnerConversation.latestKind}`)
+    if (smartRunnerConversation.latestRole) processLines.push(`AI role: ${smartRunnerConversation.latestRole}`)
   }
   const latestTodo = [...todos].reverse().find((todo) => todo.status === "completed" || todo.status === "cancelled")
   const latestResult =

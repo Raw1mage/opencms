@@ -1499,3 +1499,32 @@ Validation（AI narration kind distribution）:
 - 結果：conversation-layer 摘要現在會顯示 AI narration kind 的分佈，能更快看出近期 Smart Runner 主要是在 `continue`、`pause` 還是 `complete` 類型介入。
 - Architecture Sync: Updated
   - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 AI narration kind distribution
+
+### Current Slice (AI latest intervention role classification)
+
+需求：既然 session side 已能看見 `[AI]` narration 的 `latestKind` 與 kind distribution，下一步需要把「最新一次 Smart Runner 介入在會議語義上屬於什麼角色」也明確化，避免操作者只看到低階 kind 名稱而無法快速判讀這次介入是中斷、收尾還是續跑。
+
+範圍：
+
+- IN
+  - 在 Smart Runner conversation summary 中新增 `latestRole`
+  - 以最新 narration kind 映射語義角色：`interruption / completion / continuation / other`
+  - 在 process summary 與 session side panel 顯示該角色
+- OUT
+  - 不改 runtime 控制流
+  - 不新增新的 suggestion / assist 類型
+  - 不讓 Smart Runner 成為獨立對話角色
+
+任務清單：
+
+- [x] 為 `helpers.ts` conversation summary 補上 `latestRole` 映射
+- [x] 擴充 `helpers.test.ts` 驗證 `AI role` 與 `latestRole`
+- [x] 更新 `session-side-panel.tsx` 顯示 `Latest AI role`
+
+Validation（AI latest intervention role classification）:
+
+- `bun x eslint /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/session-side-panel.tsx` ✅
+- `bun test /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts --test-name-pattern "getSessionStatusSummary"` ✅
+- 結果：session summary 與 side panel 現在除了 `AI latest: <kind>` 之外，也會顯示 `AI role: <semantic role>` / `Latest AI role`，讓最新一次 Smart Runner 介入能以 meeting-style 語義快速被辨識。
+- Architecture Sync: Updated
+  - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 `latestRole` conversation-layer observability contract

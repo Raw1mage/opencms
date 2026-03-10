@@ -106,7 +106,7 @@ export function SessionHeader() {
   const platform = usePlatform()
   const language = useLanguage()
   const terminal = useTerminal()
-  const largeScreen = createMediaQuery("(min-width: 1024px)")
+  const largeScreen = createMediaQuery("(min-width: 450px)")
 
   const projectDirectory = createMemo(() => decode64(params.dir) ?? "")
   const project = createMemo(() => {
