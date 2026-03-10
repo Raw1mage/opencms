@@ -1471,3 +1471,31 @@ Validation（AI layer activity in process summary）:
   - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 meeting-model pre-observability layer
 - Architecture Sync: Updated
   - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 replan / complete observability detail refinement
+
+### Current Slice (AI narration kind distribution)
+
+需求：若 meeting-model 前置觀測只看 AI narration 總數，仍看不出 Smart Runner 近期主要是在「pause」、「continue」還是「complete」。需要把 AI narration kind 分佈也納入 conversation-layer 摘要。
+
+範圍：
+
+- IN
+  - `smartRunnerConversation` 新增 `kindCounts`
+  - side panel 顯示 AI narration kind chips
+  - 補 helper test 驗證 kind distribution
+- OUT
+  - 不改 message schema
+  - 不改 timeline speaker model
+
+任務清單：
+
+- [x] 在 conversation-layer summary 加入 `kindCounts`
+- [x] 在 side panel 顯示 AI narration kinds
+- [x] 補 helper regression 測試
+
+Validation（AI narration kind distribution）:
+
+- `bun x eslint /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/session-side-panel.tsx` ✅
+- `bun test /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts --test-name-pattern "getSessionStatusSummary"` ✅
+- 結果：conversation-layer 摘要現在會顯示 AI narration kind 的分佈，能更快看出近期 Smart Runner 主要是在 `continue`、`pause` 還是 `complete` 類型介入。
+- Architecture Sync: Updated
+  - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 AI narration kind distribution

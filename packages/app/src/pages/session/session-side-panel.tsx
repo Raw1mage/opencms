@@ -352,6 +352,17 @@ export function SessionSidePanel(props: {
                                 <div>AI narrations: {conversation().totalNarrations}</div>
                                 <div>AI pauses: {conversation().pauseNarrations}</div>
                                 <div>AI completes: {conversation().completeNarrations}</div>
+                                <Show when={conversation().kindCounts.length > 0}>
+                                  <div class="flex flex-wrap gap-1">
+                                    <For each={conversation().kindCounts}>
+                                      {(item) => (
+                                        <span class="rounded-full border border-border-weak-base px-2 py-0.5 text-[11px] text-text-weak">
+                                          {item.kind} × {item.count}
+                                        </span>
+                                      )}
+                                    </For>
+                                  </div>
+                                </Show>
                                 <Show when={conversation().latestKind}>
                                   <div>Latest AI kind: {conversation().latestKind}</div>
                                 </Show>

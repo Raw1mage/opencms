@@ -479,6 +479,7 @@ export type SessionStatusSummary = {
     totalNarrations: number
     pauseNarrations: number
     completeNarrations: number
+    kindCounts: Array<{ kind: string; count: number }>
     latestKind?: string
     latestLabel?: string
   }
@@ -557,6 +558,7 @@ const summarizeSmartRunnerConversation = (input: {
   let totalNarrations = 0
   let pauseNarrations = 0
   let completeNarrations = 0
+  const kindCounts = new Map<string, number>()
   let latestKind: string | undefined
   let latestLabel: string | undefined
 
@@ -572,6 +574,7 @@ const summarizeSmartRunnerConversation = (input: {
       const kind = typeof part.metadata?.narrationKind === "string" ? part.metadata.narrationKind : undefined
       if (kind === "pause" || kind === "interrupt") pauseNarrations += 1
       if (kind === "complete") completeNarrations += 1
+      kindCounts.set(kind ?? "unknown", (kindCounts.get(kind ?? "unknown") ?? 0) + 1)
       if (!latestLabel) {
         latestKind = kind
         latestLabel = part.text
@@ -584,6 +587,9 @@ const summarizeSmartRunnerConversation = (input: {
     totalNarrations,
     pauseNarrations,
     completeNarrations,
+    kindCounts: [...kindCounts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([kind, count]) => ({ kind, count })),
     latestKind,
     latestLabel,
   }

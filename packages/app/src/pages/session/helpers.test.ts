@@ -1102,6 +1102,11 @@ describe("getSessionStatusSummary", () => {
       totalNarrations: 3,
       pauseNarrations: 1,
       completeNarrations: 1,
+      kindCounts: [
+        { kind: "complete", count: 1 },
+        { kind: "continue", count: 1 },
+        { kind: "pause", count: 1 },
+      ],
       latestKind: "continue",
       latestLabel: "[AI] Starting the next step now.",
     })
