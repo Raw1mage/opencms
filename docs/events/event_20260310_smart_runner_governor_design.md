@@ -987,3 +987,30 @@ Validation（question reply/reject integration pair）:
 - 結果：ask-user host adoption 的 answered / rejected 兩條 event-flow integration 都已有真實 `Question` lifecycle coverage。
 - Architecture Sync: Verified (No doc changes)
   - 比對依據：此輪只補 question reply integration regression，未改 runtime flow / policy / data-path contract
+
+### Current Slice (continuation side-effects helper extraction)
+
+需求：在 ask-user / replan orchestration 都可測之後，剩下最接近 runLoop 的高風險區是 continue branch 的 side effects：narration emission、autonomous continue enqueue、round count 推進。為了往 runLoop regression 再前進一步，先把這段抽成 helper。
+
+範圍：
+
+- IN
+  - 將 continue branch 的 narration + enqueue + roundCount 推進抽成 helper
+  - 補 helper-level regression
+- OUT
+  - 不改 Smart Runner policy
+  - 不直接模擬整個 runLoop
+
+任務清單：
+
+- [x] 在 `prompt.ts` 新增 `handleSmartRunnerContinuationSideEffects(...)`
+- [x] 讓 prompt loop 改用該 helper 處理 continue branch
+- [x] 補 continuation side-effects helper regression
+
+Validation（continuation side-effects helper extraction）:
+
+- `bun x eslint /home/pkcs12/projects/opencode/packages/opencode/src/session/prompt.ts /home/pkcs12/projects/opencode/packages/opencode/test/session/smart-runner-prompt.test.ts` ✅
+- `bun test /home/pkcs12/projects/opencode/packages/opencode/test/session/smart-runner-prompt.test.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts` ✅
+- 結果：continue branch 的最主要 side effects 現在也被抽成可測 helper，Smart Runner prompt-side regressions 已經更接近真實 runLoop 行為。
+- Architecture Sync: Verified (No doc changes)
+  - 比對依據：此輪只做 continuation side-effects helper extraction，未改 runtime flow / policy / data-path contract

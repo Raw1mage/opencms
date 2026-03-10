@@ -385,4 +385,50 @@ describe("session.smart-runner-prompt", () => {
       todo: { id: "t2", content: "second", status: "in_progress", priority: "high" },
     })
   })
+
+  test("orchestrates continuation side effects for a Smart Runner continue branch", async () => {
+    const emitNarration = mock(async () => {})
+    const enqueueContinue = mock(async () => ({ id: "msg_next" }))
+
+    const result = await SessionPrompt.handleSmartRunnerContinuationSideEffects({
+      sessionID: "ses_test",
+      user: {
+        id: "msg_user",
+        sessionID: "ses_test",
+        role: "user",
+        time: { created: Date.now() },
+        agent: "build",
+        model: { providerId: "openai", modelID: "gpt-5.2" },
+        variant: undefined,
+        format: undefined,
+      },
+      decision: {
+        continue: true,
+        reason: "todo_pending",
+        text: "[AI] Continue with the next planned step.",
+        todo: { id: "t1", content: "next", status: "pending", priority: "high" },
+      },
+      narrationOverride: "[AI] Starting the next step now.",
+      autonomousRounds: 2,
+      emitNarration,
+      enqueueContinue,
+    })
+
+    expect(result.nextRoundCount).toBe(3)
+    expect(emitNarration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionID: "ses_test",
+        parentID: "msg_user",
+        text: "[AI] Starting the next step now.",
+        kind: "continue",
+      }),
+    )
+    expect(enqueueContinue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionID: "ses_test",
+        roundCount: 3,
+        text: "[AI] Continue with the next planned step.",
+      }),
+    )
+  })
 })

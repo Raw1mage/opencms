@@ -391,6 +391,46 @@ export namespace SessionPrompt {
     }
   }
 
+  export async function handleSmartRunnerContinuationSideEffects(input: {
+    sessionID: string
+    user: MessageV2.User
+    decision: Extract<Awaited<ReturnType<typeof decideAutonomousContinuation>>, { continue: true }>
+    narrationOverride?: string
+    autonomousRounds: number
+    emitNarration?: typeof emitAutonomousNarration
+    enqueueContinue?: typeof enqueueAutonomousContinue
+  }) {
+    const narration = describeAutonomousNextAction({
+      type: "continue",
+      reason: input.decision.reason,
+      text: input.decision.text,
+      todo: input.decision.todo,
+    })
+    const emitNarration = input.emitNarration ?? emitAutonomousNarration
+    const enqueueContinue = input.enqueueContinue ?? enqueueAutonomousContinue
+    const nextRoundCount = input.autonomousRounds + 1
+
+    await emitNarration({
+      sessionID: input.sessionID,
+      parentID: input.user.id,
+      agent: input.user.agent,
+      variant: input.user.variant,
+      model: input.user.model,
+      text: input.narrationOverride ?? narration.text,
+      kind: narration.kind,
+    })
+    await enqueueContinue({
+      sessionID: input.sessionID,
+      user: input.user,
+      roundCount: nextRoundCount,
+      text: input.decision.text,
+    })
+    return {
+      nextRoundCount,
+      narration,
+    }
+  }
+
   async function runLoop(sessionID: string, options?: { replaceRuntime?: boolean }) {
     const runtime = start(sessionID, { replace: options?.replaceRuntime })
     if (!runtime) {
@@ -964,22 +1004,14 @@ export namespace SessionPrompt {
               reason: decision.reason as Exclude<typeof decision.reason, "todo_pending" | "todo_in_progress">,
             })
         if (continueDecision) {
-          await emitAutonomousNarration({
-            sessionID,
-            parentID: lastUser.id,
-            agent: lastUser.agent,
-            variant: lastUser.variant,
-            model: lastUser.model,
-            text: narrationOverride ?? narration.text,
-            kind: narration.kind,
-          })
-          autonomousRounds++
-          await enqueueAutonomousContinue({
+          const continuationResult = await handleSmartRunnerContinuationSideEffects({
             sessionID,
             user: lastUser,
-            roundCount: autonomousRounds,
-            text: continueDecision.text,
+            decision: continueDecision,
+            narrationOverride,
+            autonomousRounds,
           })
+          autonomousRounds = continuationResult.nextRoundCount
           continue
         }
         if (
