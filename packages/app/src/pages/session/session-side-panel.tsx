@@ -346,6 +346,21 @@ export function SessionSidePanel(props: {
                       <Show when={statusSummary().smartRunnerHistory.length > 0}>
                         <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-2">
                           <div class="text-11-medium uppercase tracking-wide text-text-weak">Smart Runner history</div>
+                          <Show when={statusSummary().smartRunnerConversation}>
+                            {(conversation) => (
+                              <div class="rounded-md border border-border-weak-base bg-surface-panel px-2 py-2 flex flex-col gap-1 text-12-regular text-text-weak">
+                                <div>AI narrations: {conversation().totalNarrations}</div>
+                                <div>AI pauses: {conversation().pauseNarrations}</div>
+                                <div>AI completes: {conversation().completeNarrations}</div>
+                                <Show when={conversation().latestKind}>
+                                  <div>Latest AI kind: {conversation().latestKind}</div>
+                                </Show>
+                                <Show when={conversation().latestLabel}>
+                                  <div class="break-words">Latest AI text: {conversation().latestLabel}</div>
+                                </Show>
+                              </div>
+                            )}
+                          </Show>
                           <Show when={statusSummary().smartRunnerSummary}>
                             {(summary) => (
                               <div class="rounded-md border border-border-weak-base bg-surface-panel px-2 py-2 flex flex-col gap-2">

@@ -1414,5 +1414,34 @@ Validation（replan / complete observability detail refinement）:
 - `bun x eslint /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/session-side-panel.tsx` ✅
 - `bun test /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts --test-name-pattern "getSessionStatusSummary"` ✅
 - 結果：side panel 現在能直接顯示 replan 的 target/action 與 complete 的 scope，因此不必打開原始 trace JSON 也能看出 Smart Runner 想重排或完成哪個 slice。
+
+### Current Slice (meeting-model pre-observability layer)
+
+需求：使用者長期方向是走向 `user + Main Agent + Smart Runner` 的 meeting model，但目前還不宜直接升級成雙代理對話架構。可先補一層前置觀測：把 `[AI]` narration 作為獨立 conversation layer 統計出來，讓 Smart Runner 的「對話介入痕跡」先變得可見。
+
+範圍：
+
+- IN
+  - session summary 新增 `smartRunnerConversation`
+  - 統計 `[AI]` autonomous narration 的總數 / pause / complete 次數
+  - 顯示最新 AI narration 的 kind 與文本
+  - 補 helper tests 驗證 conversation-layer 摘要
+- OUT
+  - 不改 message schema
+  - 不改 Main Agent / Smart Runner 的實際 speaker model
+
+任務清單：
+
+- [x] 在 `helpers.ts` 新增 Smart Runner conversation-layer summary
+- [x] 在 side panel 顯示 AI narration 統計與最新文本
+- [x] 補 helper regression 測試
+
+Validation（meeting-model pre-observability layer）:
+
+- `bun x eslint /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/session-side-panel.tsx` ✅
+- `bun test /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts --test-name-pattern "getSessionStatusSummary"` ✅
+- 結果：session side panel 現在會把 `[AI]` autonomous narration 當成獨立 conversation layer 做摘要，能看到 AI narration 的總數、pause/complete 次數，以及最新 AI 文本，作為 meeting model 的前置觀測層。
+- Architecture Sync: Updated
+  - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 meeting-model pre-observability layer
 - Architecture Sync: Updated
   - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 replan / complete observability detail refinement

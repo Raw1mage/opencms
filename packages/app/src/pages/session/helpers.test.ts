@@ -1052,4 +1052,45 @@ describe("getSessionStatusSummary", () => {
       latestResult: { label: "Task completed · google/gemini-2.5-pro", tone: "success" },
     })
   })
+
+  test("surfaces Smart Runner conversation-layer narration stats for meeting-style observability", () => {
+    const summary = getSessionStatusSummary({
+      messages: [
+        { id: "m1", sessionID: "s1", role: "assistant" },
+        { id: "m2", sessionID: "s1", role: "assistant" },
+        { id: "m3", sessionID: "s1", role: "assistant" },
+      ] as any,
+      partsByMessage: {
+        m1: [
+          {
+            type: "text",
+            text: "[AI] Pause and wait for a clearer next step.",
+            metadata: { autonomousNarration: true, narrationKind: "pause" },
+          } as any,
+        ],
+        m2: [
+          {
+            type: "text",
+            text: "[AI] Current slice complete.",
+            metadata: { autonomousNarration: true, narrationKind: "complete" },
+          } as any,
+        ],
+        m3: [
+          {
+            type: "text",
+            text: "[AI] Starting the next step now.",
+            metadata: { autonomousNarration: true, narrationKind: "continue" },
+          } as any,
+        ],
+      },
+    })
+
+    expect(summary.smartRunnerConversation).toEqual({
+      totalNarrations: 3,
+      pauseNarrations: 1,
+      completeNarrations: 1,
+      latestKind: "continue",
+      latestLabel: "[AI] Starting the next step now.",
+    })
+  })
 })

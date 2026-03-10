@@ -475,6 +475,13 @@ export type SessionStatusSummary = {
     label: string
     tone: SessionWorkflowChip["tone"]
   }
+  smartRunnerConversation?: {
+    totalNarrations: number
+    pauseNarrations: number
+    completeNarrations: number
+    latestKind?: string
+    latestLabel?: string
+  }
   latestResult?: {
     label: string
     tone: SessionWorkflowChip["tone"]
@@ -539,6 +546,46 @@ const summarizeNarration = (input: { messages?: readonly Message[]; partsByMessa
               : ("info" as const),
       }
     }
+  }
+}
+
+const summarizeSmartRunnerConversation = (input: {
+  messages?: readonly Message[]
+  partsByMessage?: PartsByMessage
+}) => {
+  const messages = input.messages ?? []
+  let totalNarrations = 0
+  let pauseNarrations = 0
+  let completeNarrations = 0
+  let latestKind: string | undefined
+  let latestLabel: string | undefined
+
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index]
+    if (message.role !== "assistant") continue
+    const parts = input.partsByMessage?.[message.id] ?? []
+    for (let partIndex = parts.length - 1; partIndex >= 0; partIndex--) {
+      const part = parts[partIndex]
+      if (part.type !== "text") continue
+      if (part.metadata?.autonomousNarration !== true) continue
+      totalNarrations += 1
+      const kind = typeof part.metadata?.narrationKind === "string" ? part.metadata.narrationKind : undefined
+      if (kind === "pause" || kind === "interrupt") pauseNarrations += 1
+      if (kind === "complete") completeNarrations += 1
+      if (!latestLabel) {
+        latestKind = kind
+        latestLabel = part.text
+      }
+    }
+  }
+
+  if (totalNarrations === 0) return undefined
+  return {
+    totalNarrations,
+    pauseNarrations,
+    completeNarrations,
+    latestKind,
+    latestLabel,
   }
 }
 
@@ -908,6 +955,10 @@ export const getSessionStatusSummary = (input: {
 
   const latestTaskResult = summarizeTaskResult({ messages: input.messages, partsByMessage: input.partsByMessage })
   const latestNarration = summarizeNarration({ messages: input.messages, partsByMessage: input.partsByMessage })
+  const smartRunnerConversation = summarizeSmartRunnerConversation({
+    messages: input.messages,
+    partsByMessage: input.partsByMessage,
+  })
   const latestTodo = [...todos].reverse().find((todo) => todo.status === "completed" || todo.status === "cancelled")
   const latestResult =
     latestTaskResult ??
@@ -926,6 +977,7 @@ export const getSessionStatusSummary = (input: {
     smartRunnerSummary,
     smartRunnerHistory,
     latestNarration,
+    smartRunnerConversation,
     latestResult,
   }
 }
