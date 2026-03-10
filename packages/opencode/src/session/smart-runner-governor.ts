@@ -361,6 +361,15 @@ function buildDebugPreflightAssistText(input: { todo: Todo.Info }) {
   ].join("\n")
 }
 
+function buildPauseAssistText(input: { todo: Todo.Info }) {
+  return [
+    `Smart Runner pause check before execution.`,
+    `1. Do not continue implementation blindly on: ${input.todo.content}.`,
+    `2. Restate what is still unclear, risky, or weakly evidenced about the next move.`,
+    `3. Either ask for the missing decision/input or explain the exact evidence that now makes continuation safe.`,
+  ].join("\n")
+}
+
 type DeterministicContinueDecision = {
   continue: true
   reason: "todo_pending" | "todo_in_progress"
@@ -440,6 +449,18 @@ export function applySmartRunnerBoundedAssist(input: {
       narration: advisory.nextAction.narration,
       applied: true,
       mode: "debug_preflight_first",
+    }
+  }
+
+  if (advisory.decision === "pause") {
+    return {
+      decision: {
+        ...input.decision,
+        text: buildPauseAssistText({ todo: input.decision.todo }),
+      },
+      narration: advisory.nextAction.narration,
+      applied: true,
+      mode: "pause",
     }
   }
 

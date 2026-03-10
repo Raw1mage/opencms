@@ -858,6 +858,45 @@ describe("Smart Runner Governor", () => {
     )
   })
 
+  it("turns advisory pause into a bounded pause-check continuation", () => {
+    const assist = applySmartRunnerBoundedAssist({
+      enabled: true,
+      decision: {
+        continue: true,
+        reason: "todo_pending",
+        text: "Continue with the next planned step.",
+        todo: { id: "t8", content: "decide the next safe move", status: "pending", priority: "high" },
+      },
+      trace: {
+        source: "smart_runner_governor",
+        dryRun: true,
+        status: "advisory",
+        createdAt: 1,
+        deterministicReason: "todo_pending",
+        decision: {
+          situation: "execution_stalled",
+          assessment: "The plan should pause until a clearer next step exists",
+          decision: "pause",
+          reason: "Current evidence is too weak to continue safely",
+          nextAction: {
+            kind: "request_user_input",
+            todoID: "t8",
+            skillHints: [],
+            narration: "Pause and wait for a clearer next step.",
+          },
+          needsUserInput: true,
+          confidence: "medium",
+        },
+      },
+    })
+
+    expect(assist.applied).toBe(true)
+    expect(assist.mode).toBe("pause")
+    expect(assist.narration).toBe("Pause and wait for a clearer next step.")
+    expect(assist.decision.text).toContain("Smart Runner pause check before execution.")
+    expect(assist.decision.text).toContain("decide the next safe move")
+  })
+
   it("turns docs sync assist into an explicit preflight continuation", () => {
     const assist = applySmartRunnerBoundedAssist({
       enabled: true,

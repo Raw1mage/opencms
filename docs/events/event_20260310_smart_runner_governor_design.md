@@ -1273,5 +1273,32 @@ Validation（advisory pause observability parity）:
 - `bun x eslint /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/session-side-panel.tsx` ✅
 - `bun test /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts --test-name-pattern "getSessionStatusSummary"` ✅
 - 結果：session side panel 現在也能顯示 advisory `pause` 的摘要數量、pause scope 與 advisory-only policy，且不會誤顯示 adoptionOutcome。
+
+### Current Slice (advisory pause bounded assist)
+
+需求：plain `pause` 已能進入 trace/history，但若 runtime 只是照原 deterministic continue text 往下跑，這個建議仍然太容易被忽略。需要一個 bounded assist path：不真正改成 host stop contract，但至少把下一輪 continue 指令收斂成「先停、先重評估、再決定是否繼續」。
+
+範圍：
+
+- IN
+  - 在 `applySmartRunnerBoundedAssist(...)` 新增 `pause` assist mode
+  - 補 governor / prompt tests，確認 stop-decision 會帶出 pause-check text 與 narration override
+- OUT
+  - 不把 plain `pause` 升級成 adopted stop contract
+  - 不改 workflow state
+
+任務清單：
+
+- [x] 新增 advisory pause assist text builder
+- [x] 讓 bounded assist 支援 `decision: pause`
+- [x] 補 prompt-side regression，確認 pause advice 會改寫 continue text
+
+Validation（advisory pause bounded assist）:
+
+- `bun x eslint /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/opencode/test/session/smart-runner-prompt.test.ts` ✅
+- `bun test /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/opencode/test/session/smart-runner-prompt.test.ts` ✅
+- 結果：當 Smart Runner 給出 advisory `pause` 時，runtime 現在會在 assist mode 下把下一輪 continue text 收斂成 pause-check/preflight 指令，而不是直接忽略這個建議；同時仍不會建立新的 adopted stop contract。
+- Architecture Sync: Updated
+  - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 advisory pause bounded assist contract
 - Architecture Sync: Updated
   - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 advisory pause observability parity

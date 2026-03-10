@@ -869,6 +869,96 @@ describe("session.smart-runner-prompt", () => {
     expect(persistTrace).toHaveBeenCalledTimes(1)
   })
 
+  test("coordinates stop-decision pause advice into bounded assist continuation", async () => {
+    const getConfig = mock(async () => ({ enabled: true, assist: true }))
+    const evaluateGovernor = mock(async () => ({
+      source: "smart_runner_governor",
+      dryRun: true,
+      status: "advisory",
+      createdAt: Date.now(),
+      deterministicReason: "todo_pending",
+      decision: {
+        situation: "execution_stalled",
+        assessment: "The plan should pause until a clearer next step exists",
+        decision: "pause",
+        reason: "Current evidence is too weak to continue safely",
+        nextAction: {
+          kind: "request_user_input",
+          todoID: "t8",
+          skillHints: [],
+          narration: "Pause and wait for a clearer next step.",
+        },
+        needsUserInput: true,
+        confidence: "medium",
+      },
+    }))
+    const applyAssist = mock(() => ({
+      applied: true,
+      mode: "pause",
+      narration: "Pause and wait for a clearer next step.",
+      decision: {
+        continue: true as const,
+        reason: "todo_pending" as const,
+        text: "Smart Runner pause check before execution.\n1. Do not continue implementation blindly on: decide the next safe move.",
+        todo: { id: "t8", content: "decide the next safe move", status: "pending", priority: "high" },
+      },
+    }))
+    const persistTrace = mock(async () => {})
+
+    const result = await SessionPrompt.handleSmartRunnerStopDecision({
+      sessionID: "ses_test",
+      activeModel: { providerId: "openai", modelID: "gpt-5.2" } as any,
+      autonomousRounds: 0,
+      lastUser: {
+        id: "msg_user",
+        sessionID: "ses_test",
+        role: "user",
+        time: { created: Date.now() },
+        agent: "build",
+        model: { providerId: "openai", modelID: "gpt-5.2" },
+        variant: undefined,
+        format: undefined,
+      },
+      messages: [],
+      todos: [{ id: "t8", content: "decide the next safe move", status: "pending", priority: "high" }],
+      decision: {
+        continue: true,
+        reason: "todo_pending",
+        text: "Continue with the next planned step.",
+        todo: { id: "t8", content: "decide the next safe move", status: "pending", priority: "high" },
+      },
+      getConfig: getConfig as any,
+      evaluateGovernor: evaluateGovernor as any,
+      listQuestions: async () => [],
+      askUser: mock(async () => {
+        throw new Error("askUser should not run in pause advice path")
+      }) as any,
+      replan: mock(async () => ({
+        adopted: false as const,
+        reason: undefined,
+        decision: {
+          continue: true as const,
+          reason: "todo_pending" as const,
+          text: "Continue with the next planned step.",
+          todo: { id: "t8", content: "decide the next safe move", status: "pending", priority: "high" },
+        },
+      })) as any,
+      persistTrace: persistTrace as any,
+      applyAssist: applyAssist as any,
+    })
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        kind: "continue",
+        narrationOverride: "[AI] Pause and wait for a clearer next step.",
+      }),
+    )
+    if (result.kind !== "continue") throw new Error("expected continue result")
+    expect(result.continueDecision.text).toContain("[AI] Smart Runner pause check before execution.")
+    expect(applyAssist).toHaveBeenCalledTimes(1)
+    expect(persistTrace).toHaveBeenCalledTimes(1)
+  })
+
   test("coordinates stop-decision request-approval path", async () => {
     const getConfig = mock(async () => ({ enabled: true, assist: false }))
     const evaluateGovernor = mock(async () => ({
