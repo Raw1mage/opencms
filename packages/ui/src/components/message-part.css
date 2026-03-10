@@ -139,6 +139,7 @@
 
 [data-component="text-part"] {
   width: 100%;
+  overflow-anchor: none;
 
   [data-slot="text-part-body"] {
     position: relative;
@@ -168,6 +169,7 @@
   width: 100%;
   color: var(--text-base);
   line-height: var(--line-height-normal);
+  overflow-anchor: none;
 
   [data-component="markdown"] {
     margin-top: 24px;

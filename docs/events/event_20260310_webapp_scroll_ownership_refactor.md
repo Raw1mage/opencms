@@ -94,7 +94,8 @@ Status: In Progress
 - 新增使用者重現條件（phase3 後續觀察）：
   - 在 `follow-bottom` 模式下，若較上方已有展開中的卡片，且下方持續 streaming 新內容，畫面仍可能出現快速 scroll oscillation。
   - 使用者肉眼觀察不到具體是哪一塊在振動，但症狀符合「外層 page follow 與內層展開卡 anchoring/scroll state」互相競爭。
-  - 補充後續觀察：即使未立即復現 oscillation，只要上方有展開卡，追底也可能「追不夠底」，使最新內容局部落到可視範圍外。
+- 補充後續觀察：即使未立即復現 oscillation，只要上方有展開卡，追底也可能「追不夠底」，使最新內容局部落到可視範圍外。
+- 最新使用者觀察：在追底模式下，瀏覽器似乎會把錨點吸附到最後一個「文字類型」段落，而不是整個 growing bottom；當下方 toolcall/card 持續增生時，就形成最後文字段落固定、真正底部繼續往下長的錯位，進而導致 oscillation 或 under-follow。
 
 ### Execution
 
@@ -148,6 +149,27 @@ Status: In Progress
   3. 後續補強（under-follow after late layout）
      - 即使同一拍已執行 `resize-follow`，上方展開卡的晚到 layout 仍可能讓 page-level target 變大，造成「已追底但其實還差一截」
      - `create-auto-scroll.tsx` 現改為在 `resize-follow` 後再排一個下一幀 `deferred-follow` 檢查；若新的 `distanceFromBottom` 仍大於 1，就再補一次 bottom lock
+  4. 最新假設（last text segment anchoring）
+     - 除 `tool-output[data-scrollable]` 外，`text-part` / `reasoning-part` 本身也可能被瀏覽器選成 scroll anchor。
+     - 當最後一個文字段落停止生長、但底下 toolcall/card 繼續生長時，anchor 會停在該文字段落，造成「追底 target 被算成最後文字段落附近，而不是整個容器底部」。
+     - 最小修正：對 `text-part` / `reasoning-part` 也明確加上 `overflow-anchor: none`。
+  5. 最新重現收斂（shell toolcall vs previous shell window）
+     - 使用者觀察到 oscillation 更集中在「最新 shell toolcall（底部）」與「前一個 shell toolcall window」之間。
+     - 只要 toolcall 處於執行中且畫面持續更新，就容易進入震盪。
+     - 這強化了另一個假設：不只是文字段落，連整張 `Collapsible` tool 卡本身也可能被瀏覽器選為 scroll anchor。
+     - 最小修正：對共用 `collapsible` 與其 `collapsible-content` 也明確加上 `overflow-anchor: none`，讓 shell/tool cards 不再參與 anchor ownership。
+  6. Shell-specific instrumentation
+     - 在 `BashToolOutput` 內新增 `shell-toolcall` scroll debug checkpoints：
+       - `bash-output-text-update`
+       - `bash-output-resize`
+       - `bash-output-expand`
+       - `bash-output-collapse`
+     - 每筆事件都會記錄：
+       - shell card 高度 / clientHeight / viewport rect
+       - expanded / canExpand
+       - outer `.session-scroller` 的 `scrollTop / scrollHeight / clientHeight / distanceFromBottom`
+       - shell command/description 摘要（`debugLabel`）
+     - 目的：下次一旦復現，可直接判定是最新 shell 卡還是前一張 shell 卡觸發 reflow 與 anchor 競爭。
 
 ### Validation
 
@@ -168,5 +190,9 @@ Status: In Progress
   - 目的是避免內層展開卡與外層 session scroller 同時充當 scroll anchor owner
   - `create-auto-scroll.tsx` 在 `resize-follow` 後新增 `deferred-follow`
   - 目的是補上上方展開卡或晚到 reflow 造成的 page-level under-follow
+  - `text-part` / `reasoning-part` 現也強制 `overflow-anchor: none`
+  - 目的是避免瀏覽器將最後一個文字段落選為 anchor，與真正的 growing bottom 分離
+  - 共用 `collapsible` / `collapsible-content` 現也強制 `overflow-anchor: none`
+  - 目的是避免上一張 shell/tool card 整張被瀏覽器選為 anchor，與最新 growing shell output 互相競爭
 - Architecture Sync: Verified (No doc changes)
   - 依據：本輪僅收斂前端 scroll ownership 的 page-level mode 表示與 debug observability，未改變模組邊界、資料流或 runtime architecture contract。

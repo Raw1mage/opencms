@@ -577,6 +577,12 @@ const summarizeSmartRunnerConversation = (input: {
     if (kind === "continue") return "continuation"
     return kind ? "other" : undefined
   }
+  const digestRoleToken = (role: string) => {
+    if (role === "interruption") return "int"
+    if (role === "completion") return "cmp"
+    if (role === "continuation") return "cont"
+    return "other"
+  }
 
   for (let index = messages.length - 1; index >= 0; index--) {
     const message = messages[index]
@@ -608,7 +614,7 @@ const summarizeSmartRunnerConversation = (input: {
   const recentRoles = [...recentRolesNewestFirst].reverse()
   const digest = latestRole
     ? recentRoles.length > 1
-      ? `latest ${latestRole} · trend ${recentRoles.join(" → ")}`
+      ? `latest ${latestRole} · seq ${recentRoles.map(digestRoleToken).join("→")}`
       : `latest ${latestRole}`
     : undefined
   return {
@@ -1005,9 +1011,6 @@ export const getSessionStatusSummary = (input: {
     )
     if (smartRunnerConversation.latestKind) processLines.push(`AI latest: ${smartRunnerConversation.latestKind}`)
     if (smartRunnerConversation.latestRole) processLines.push(`AI role: ${smartRunnerConversation.latestRole}`)
-    if (smartRunnerConversation.recentRoles.length > 1) {
-      processLines.push(`AI trend: ${smartRunnerConversation.recentRoles.join(" → ")}`)
-    }
     if (smartRunnerConversation.digest) processLines.push(`AI digest: ${smartRunnerConversation.digest}`)
   }
   const latestTodo = [...todos].reverse().find((todo) => todo.status === "completed" || todo.status === "cancelled")

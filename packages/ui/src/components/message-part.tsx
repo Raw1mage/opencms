@@ -48,6 +48,7 @@ import { checksum } from "@opencode-ai/util/encode"
 import { Tooltip } from "./tooltip"
 import { IconButton } from "./icon-button"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
+import { isScrollDebugEnabled, pushScrollDebug } from "../hooks/scroll-debug"
 
 interface Diagnostic {
   range: {
@@ -88,11 +89,35 @@ function DiagnosticsDisplay(props: { diagnostics: Diagnostic[] }): JSX.Element {
   )
 }
 
-function BashToolOutput(props: { text: string }) {
+function BashToolOutput(props: { text: string; debugLabel?: string }) {
   const i18n = useI18n()
   const [expanded, setExpanded] = createSignal(false)
   const [canExpand, setCanExpand] = createSignal(false)
   let outputRef: HTMLDivElement | undefined
+
+  const emitShellScrollDebug = (event: string) => {
+    if (!isScrollDebugEnabled()) return
+    const el = outputRef
+    const scroller = el?.closest(".session-scroller") as HTMLElement | null | undefined
+    const rect = el?.getBoundingClientRect()
+    const distanceFromBottom = scroller ? scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop : undefined
+    pushScrollDebug({
+      time: Date.now(),
+      scope: "shell-toolcall",
+      event,
+      debugLabel: props.debugLabel,
+      expanded: expanded(),
+      canExpand: canExpand(),
+      cardHeight: el?.scrollHeight,
+      cardClientHeight: el?.clientHeight,
+      cardRectTop: rect?.top,
+      cardRectBottom: rect?.bottom,
+      scrollTop: scroller?.scrollTop,
+      scrollHeight: scroller?.scrollHeight,
+      clientHeight: scroller?.clientHeight,
+      distanceFromBottom,
+    })
+  }
 
   const updateCanExpand = () => {
     const el = outputRef
@@ -105,11 +130,13 @@ function BashToolOutput(props: { text: string }) {
     () => outputRef,
     () => {
       updateCanExpand()
+      emitShellScrollDebug("bash-output-resize")
     },
   )
 
   createEffect(() => {
     props.text
+    emitShellScrollDebug("bash-output-text-update")
     if (expanded()) {
       setCanExpand(true)
       return
@@ -134,7 +161,10 @@ function BashToolOutput(props: { text: string }) {
             type="button"
             data-slot="bottom-collapse-icon"
             aria-label={i18n.t("ui.message.collapse")}
-            onClick={() => setExpanded(false)}
+            onClick={() => {
+              setExpanded(false)
+              emitShellScrollDebug("bash-output-collapse")
+            }}
           >
             △
           </button>
@@ -147,7 +177,11 @@ function BashToolOutput(props: { text: string }) {
           aria-label={expanded() ? i18n.t("ui.message.collapse") : i18n.t("ui.message.expand")}
           onClick={(event) => {
             event.stopPropagation()
-            setExpanded((value) => !value)
+            setExpanded((value) => {
+              const next = !value
+              queueMicrotask(() => emitShellScrollDebug(next ? "bash-output-expand" : "bash-output-collapse"))
+              return next
+            })
           }}
         >
           <Icon name="chevron-down" size="small" />
@@ -1338,7 +1372,10 @@ ToolRegistry.register({
           subtitle: props.input.description,
         }}
       >
-        <BashToolOutput text={shellText()} />
+        <BashToolOutput
+          text={shellText()}
+          debugLabel={props.input.description || props.input.command || props.metadata.command}
+        />
       </BasicTool>
     )
   },

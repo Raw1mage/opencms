@@ -383,9 +383,6 @@ export function SessionSidePanel(props: {
                                 <Show when={conversation().latestRole}>
                                   <div>Latest AI role: {conversation().latestRole}</div>
                                 </Show>
-                                <Show when={conversation().recentRoles.length > 1}>
-                                  <div>Recent AI roles: {conversation().recentRoles.join(" → ")}</div>
-                                </Show>
                                 <Show when={conversation().latestLabel}>
                                   <div class="break-words">Latest AI text: {conversation().latestLabel}</div>
                                 </Show>

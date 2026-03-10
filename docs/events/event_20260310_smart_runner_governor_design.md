@@ -1644,3 +1644,32 @@ Validation（AI trend window contract）:
 - 結果：recent role trend 與 operator digest 現在都明確採用最近 5 次 Smart Runner narration roles 作為共享 observability window；未來若要調整，會是明確規格變更，而不是隱性行為漂移。
 - Architecture Sync: Updated
   - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 AI trend/digest 5-entry window contract
+
+### Current Slice (AI digest compact format)
+
+需求：雖然已有 `AI digest`，但 process summary 同時保留長版 `AI trend` 會造成重複資訊。這一輪要把 digest 進一步壓短，並讓 process summary 以 digest 作為主要趨勢行，降低操作者掃讀成本。
+
+範圍：
+
+- IN
+  - `AI digest` trend 段改為短 token 序列（`int/cmp/cont/other`）
+  - process summary 移除重複的長版 `AI trend` 行，保留 `AI digest`
+  - side panel 保留既有明細欄位（kind/role counts、latest kind/role）
+- OUT
+  - 不改 runtime 控制流
+  - 不改 5-entry observability window
+  - 不新增新的 suggestion / assist 類型
+
+任務清單：
+
+- [x] 在 `helpers.ts` 將 digest trend 改為 compact token 序列
+- [x] 在 process summary 移除重複長版 `AI trend` 行
+- [x] 擴充 `helpers.test.ts` 驗證 compact digest 輸出
+
+Validation（AI digest compact format）:
+
+- `bun x eslint /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/session-side-panel.tsx` ✅
+- `bun test /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts --test-name-pattern "getSessionStatusSummary"` ✅
+- 結果：process summary 現在以 compact `AI digest` 作為主要趨勢摘要（例如 `latest continuation · seq int→cmp→cont`），減少重複長字串，同時維持側欄完整明細可展開檢視。
+- Architecture Sync: Updated
+  - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 AI digest compact token contract

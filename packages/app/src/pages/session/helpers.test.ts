@@ -1120,7 +1120,7 @@ describe("getSessionStatusSummary", () => {
         { role: "interruption", count: 1 },
       ],
       recentRoles: ["interruption", "completion", "continuation"],
-      digest: "latest continuation · trend interruption → completion → continuation",
+      digest: "latest continuation · seq int→cmp→cont",
       latestKind: "continue",
       latestRole: "continuation",
       latestLabel: "[AI] Starting the next step now.",
@@ -1128,10 +1128,7 @@ describe("getSessionStatusSummary", () => {
     expect(summary.processLines).toContain("AI layer: 3 narrations")
     expect(summary.processLines).toContain("AI latest: continue")
     expect(summary.processLines).toContain("AI role: continuation")
-    expect(summary.processLines).toContain("AI trend: interruption → completion → continuation")
-    expect(summary.processLines).toContain(
-      "AI digest: latest continuation · trend interruption → completion → continuation",
-    )
+    expect(summary.processLines).toContain("AI digest: latest continuation · seq int→cmp→cont")
   })
 
   test("limits Smart Runner recent role trend to the configured window size", () => {
@@ -1189,8 +1186,6 @@ describe("getSessionStatusSummary", () => {
       "interruption",
       "continuation",
     ])
-    expect(summary.smartRunnerConversation?.digest).toBe(
-      "latest continuation · trend continuation → completion → continuation → interruption → continuation",
-    )
+    expect(summary.smartRunnerConversation?.digest).toBe("latest continuation · seq cont→cmp→cont→int→cont")
   })
 })

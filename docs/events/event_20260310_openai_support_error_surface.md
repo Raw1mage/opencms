@@ -72,6 +72,23 @@ Status: Done
   - 新增 coverage：
     - 會顯示 OpenAI request ID 與 escalation hint
     - 若 summary 與 message 相同則不重複輸出
+- 2026-03-10 晚間重現追查：
+  - `~/.local/share/opencode/log/debug.log`
+    - `2026-03-10T21:23:46.577+08:00`
+    - session: `ses_328369bceffe0yylXxCNPIsVVS`
+    - provider/model: `openai/gpt-5.4`
+    - account: `openai-subscription-pincyluo-gmail-com`
+    - upstream payload:
+      - `type = error`
+      - `error.type = server_error`
+      - `error.code = server_error`
+      - request ID `d6fe2ed1-efb4-425a-8b12-782c3ccf7334`
+  - session message 落盤：
+    - `~/.local/share/opencode/storage/session/ses_328369bceffe0yylXxCNPIsVVS/messages/msg_cd7ead7ff001vROMsma4yah3iE/info.json`
+    - `UnknownError.data.summary/hints/debug` 均存在
+  - 進一步檢查 `packages/opencode/src/session/llm.ts`
+    - `onError()` 只會對 `isAuthError()` 或 `isRateLimitError()` 走 `RateLimitJudge`
+    - 這次 OpenAI `server_error` 不屬於上述兩類，因此不會進 health/backoff/rotation 降權流程
 
 ### Root Cause
 
@@ -84,6 +101,11 @@ Status: Done
   - web UI 仍只露出笨重的原始錯誤段落
   - 操作者看不到已存在的 request ID 摘要與 support escalation hint
 - 結論：這是 **錯誤診斷資訊 surface gap**，不是 provider parsing 缺失，也不是新的 upstream routing/rotation 問題。
+- 重現後補充結論：
+  - 本次 request ID 對應的原始錯誤確實來自 OpenAI 上游 Responses API，而非本地 UI 偽造字串。
+  - 另一層缺口在 rotation/error policy：
+    - OpenAI `server_error` 目前只會記 log 與落盤 session error
+    - 不會被視為 temporary provider failure 進行 backoff / account health 降權 / fallback
 
 ### Validation
 
@@ -93,5 +115,10 @@ Status: Done
   - `bun test /home/pkcs12/projects/opencode/packages/opencode/test/session/message-v2.test.ts` ✅
 - App typecheck:
   - `bun run typecheck` (workdir: `packages/app`) ✅
+- Reproduction evidence:
+  - `sed -n '69760,69805p' ~/.local/share/opencode/log/debug.log` ✅
+  - `cat ~/.local/share/opencode/storage/session/ses_328369bceffe0yylXxCNPIsVVS/messages/msg_cd7ead7ff001vROMsma4yah3iE/info.json` ✅
+  - `sed -n '340,460p' packages/opencode/src/session/llm.ts` ✅
+  - `sed -n '1,220p' packages/opencode/src/account/rotation/error-classifier.ts` ✅
 - Architecture Sync: Verified (No doc changes)
   - 依據：本輪只修正 web error display surface，未改變 provider/runtime/session 的模組邊界、資料流或架構責任。
