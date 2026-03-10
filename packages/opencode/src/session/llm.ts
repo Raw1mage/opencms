@@ -50,6 +50,7 @@ export namespace LLM {
     user: MessageV2.User
     sessionID: string
     model: Provider.Model
+    accountId?: string
     agent: Agent.Info
     system: string[]
     abort: AbortSignal
@@ -134,7 +135,7 @@ export namespace LLM {
       providerId: input.model.providerId,
     })
     // Get account ID for rate limit tracking and provider options
-    const currentAccountId = await getAccountIdForProvider(input.model.providerId)
+    const currentAccountId = input.accountId ?? (await getAccountIdForProvider(input.model.providerId))
 
     const [language, cfg, provider, auth] = await Promise.all([
       Provider.getLanguage(input.model),
@@ -572,17 +573,17 @@ export namespace LLM {
    * @event_20260216_rate_limit_judge: Delegates to RateLimitJudge.recordSuccess
    * which clears rate limits, updates health, and broadcasts Cleared event.
    */
-  export async function recordSuccess(providerId: string, modelID?: string): Promise<void> {
-    log.info("recordSuccess called", { providerId, modelID })
-    debugCheckpoint("health", "llm.recordSuccess", { providerId, modelID })
+  export async function recordSuccess(providerId: string, modelID?: string, accountId?: string): Promise<void> {
+    log.info("recordSuccess called", { providerId, modelID, accountId })
+    debugCheckpoint("health", "llm.recordSuccess", { providerId, modelID, accountId })
 
-    const accountId = await getAccountIdForProvider(providerId)
-    if (accountId && modelID) {
-      await RateLimitJudge.recordSuccess(providerId, accountId, modelID)
-    } else if (accountId) {
+    const resolvedAccountId = accountId ?? (await getAccountIdForProvider(providerId))
+    if (resolvedAccountId && modelID) {
+      await RateLimitJudge.recordSuccess(providerId, resolvedAccountId, modelID)
+    } else if (resolvedAccountId) {
       // Fallback: if no modelID, use the old path
       const { Account } = await import("@/account")
-      await Account.recordSuccess(accountId, providerId)
+      await Account.recordSuccess(resolvedAccountId, providerId)
     }
   }
 
@@ -614,14 +615,15 @@ export namespace LLM {
     strategy: FallbackStrategy = "account-first",
     triedVectors: Set<string> = new Set(),
     error?: unknown,
-  ): Promise<Provider.Model | null> {
+    currentAccountIdInput?: string,
+  ): Promise<{ model: Provider.Model; accountId?: string } | null> {
     const { Account } = await import("@/account")
 
     const family = await Account.resolveFamily(currentModel.providerId)
     if (!family) return null
 
     // Get current account
-    const currentAccountId = await Account.getActive(family)
+    const currentAccountId = currentAccountIdInput ?? (await Account.getActive(family))
     if (!currentAccountId) return null
 
     // Build current vector key and add to tried set
@@ -657,7 +659,7 @@ export namespace LLM {
         triedCount: triedVectors.size,
       })
       // If it has been tried, recursively call again to find a *new* fallback
-      return handleRateLimitFallback(currentModel, strategy, triedVectors, error)
+      return handleRateLimitFallback(currentModel, strategy, triedVectors, error, currentAccountId)
     }
 
     // Mark as tried
@@ -719,10 +721,9 @@ export namespace LLM {
       },
     })
 
-    // If same model but different account, set the new account as active
+    // If same model but different account, keep the model object and return a
+    // session-local account override instead of mutating global active account.
     if (isSameModel && !isSameAccount && isSameProvider) {
-      await Account.setActive(family, fallback.accountId)
-
       // Notify user of account rotation (debounced)
       const now1 = Date.now()
       if (now1 - lastRotationToastAt >= TOAST_DEBOUNCE_MS) {
@@ -734,8 +735,8 @@ export namespace LLM {
         }).catch(() => {})
       }
 
-      // Return currentModel here, as the rotation only changed the account, not the model object itself
-      return currentModel
+      // Return currentModel here, as the rotation only changed the account.
+      return { model: currentModel, accountId: fallback.accountId }
     }
 
     // If different model or provider, get the full model info
@@ -747,15 +748,7 @@ export namespace LLM {
       })
       // If fallback model info can't be found, add it to tried and search again
       triedVectors.add(fallbackKey)
-      return handleRateLimitFallback(currentModel, strategy, triedVectors, error)
-    }
-
-    // If different account in a different provider family, set that account active too
-    if (!isSameProvider) {
-      const fallbackFamily = await Account.resolveFamily(fallback.providerId)
-      if (fallbackFamily) {
-        await Account.setActive(fallbackFamily, fallback.accountId)
-      }
+      return handleRateLimitFallback(currentModel, strategy, triedVectors, error, currentAccountId)
     }
 
     // Notify user of model/provider rotation (debounced)
@@ -769,7 +762,7 @@ export namespace LLM {
       }).catch(() => {})
     }
 
-    return fallbackModel
+    return { model: fallbackModel, accountId: fallback.accountId }
   }
 
   // formatRateLimitReason moved to @/account/rate-limit-judge.ts

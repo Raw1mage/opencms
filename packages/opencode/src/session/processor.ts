@@ -129,6 +129,7 @@ export namespace SessionProcessor {
     assistantMessage: MessageV2.Assistant
     sessionID: string
     model: Provider.Model
+    accountId?: string
     abort: AbortSignal
   }) {
     const toolcalls: Record<string, MessageV2.ToolPart> = {}
@@ -162,7 +163,8 @@ export namespace SessionProcessor {
             {
               const { Account } = await import("@/account")
               const family = await Account.resolveFamily(streamInput.model.providerId)
-              const accountId = family ? await Account.getActive(family) : undefined
+              const accountId =
+                streamInput.accountId ?? input.accountId ?? (family ? await Account.getActive(family) : undefined)
               if (accountId) {
                 const vector = {
                   providerId: streamInput.model.providerId,
@@ -189,17 +191,26 @@ export namespace SessionProcessor {
                   )
                   fallbackAttempts++
                   if (fallbackAttempts <= MAX_FALLBACK_ATTEMPTS) {
-                    const fallback = await LLM.handleRateLimitFallback(streamInput.model, "account-first", triedVectors)
+                    const fallback = await LLM.handleRateLimitFallback(
+                      streamInput.model,
+                      "account-first",
+                      triedVectors,
+                      undefined,
+                      accountId,
+                    )
                     if (fallback) {
                       log.info("Pre-flight: switched to fallback model", {
                         from: streamInput.model.id,
-                        to: fallback.id,
+                        to: fallback.model.id,
                         fallbackAttempts,
                       })
-                      streamInput.model = fallback
-                      input.model = fallback
-                      input.assistantMessage.modelID = fallback.id
-                      input.assistantMessage.providerId = fallback.providerId
+                      streamInput.model = fallback.model
+                      streamInput.accountId = fallback.accountId
+                      input.model = fallback.model
+                      input.accountId = fallback.accountId
+                      input.assistantMessage.modelID = fallback.model.id
+                      input.assistantMessage.providerId = fallback.model.providerId
+                      input.assistantMessage.accountId = fallback.accountId
                       await Session.updateMessage(input.assistantMessage)
                     }
                   }
@@ -524,7 +535,11 @@ export namespace SessionProcessor {
                     modelID: input.model.id,
                     sessionID: input.sessionID,
                   })
-                  await LLM.recordSuccess(input.model.providerId, input.model.id)
+                  await LLM.recordSuccess(
+                    input.model.providerId,
+                    input.model.id,
+                    streamInput.accountId ?? input.accountId,
+                  )
                   if (await SessionCompaction.isOverflow({ tokens: usage.tokens, model: input.model })) {
                     needsCompaction = true
                   }
@@ -590,7 +605,11 @@ export namespace SessionProcessor {
                     modelID: input.model.id,
                     sessionID: input.sessionID,
                   })
-                  await LLM.recordSuccess(input.model.providerId, input.model.id)
+                  await LLM.recordSuccess(
+                    input.model.providerId,
+                    input.model.id,
+                    streamInput.accountId ?? input.accountId,
+                  )
                   break
 
                 default:
@@ -618,17 +637,26 @@ export namespace SessionProcessor {
                   triedCount: triedVectors.size,
                 })
               } else {
-                const fallback = await LLM.handleRateLimitFallback(streamInput.model, "account-first", triedVectors, e)
+                const fallback = await LLM.handleRateLimitFallback(
+                  streamInput.model,
+                  "account-first",
+                  triedVectors,
+                  e,
+                  streamInput.accountId ?? input.accountId,
+                )
                 if (fallback) {
                   log.info("Switching to fallback model (temporary error)", {
                     from: streamInput.model.id,
-                    to: fallback.id,
+                    to: fallback.model.id,
                     fallbackAttempts,
                   })
-                  streamInput.model = fallback
-                  input.model = fallback
-                  input.assistantMessage.modelID = fallback.id
-                  input.assistantMessage.providerId = fallback.providerId
+                  streamInput.model = fallback.model
+                  streamInput.accountId = fallback.accountId
+                  input.model = fallback.model
+                  input.accountId = fallback.accountId
+                  input.assistantMessage.modelID = fallback.model.id
+                  input.assistantMessage.providerId = fallback.model.providerId
+                  input.assistantMessage.accountId = fallback.accountId
                   // Persist the updated modelID immediately so TUI can display the correct model
                   await Session.updateMessage(input.assistantMessage)
                   attempt = 0
@@ -658,17 +686,26 @@ export namespace SessionProcessor {
               // Trigger rotation to find a working model
               fallbackAttempts++
               if (fallbackAttempts <= MAX_FALLBACK_ATTEMPTS) {
-                const fallback = await LLM.handleRateLimitFallback(streamInput.model, "account-first", triedVectors, e)
+                const fallback = await LLM.handleRateLimitFallback(
+                  streamInput.model,
+                  "account-first",
+                  triedVectors,
+                  e,
+                  streamInput.accountId ?? input.accountId,
+                )
                 if (fallback) {
                   log.info("Switching to fallback model (permanent error)", {
                     from: streamInput.model.id,
-                    to: fallback.id,
+                    to: fallback.model.id,
                     fallbackAttempts,
                   })
-                  streamInput.model = fallback
-                  input.model = fallback
-                  input.assistantMessage.modelID = fallback.id
-                  input.assistantMessage.providerId = fallback.providerId
+                  streamInput.model = fallback.model
+                  streamInput.accountId = fallback.accountId
+                  input.model = fallback.model
+                  input.accountId = fallback.accountId
+                  input.assistantMessage.modelID = fallback.model.id
+                  input.assistantMessage.providerId = fallback.model.providerId
+                  input.assistantMessage.accountId = fallback.accountId
                   // Persist the updated modelID immediately so TUI can display the correct model
                   await Session.updateMessage(input.assistantMessage)
                   attempt = 0

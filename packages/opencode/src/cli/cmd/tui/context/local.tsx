@@ -79,9 +79,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       if (mcpRefreshState.timer) clearTimeout(mcpRefreshState.timer)
     })
 
-    function getAccountLabel(providerId: string, fallback: string) {
+    function getAccountLabel(providerId: string, fallback: string, accountId?: string) {
       const labels = accountDisplayNames()
       if (!labels || Object.keys(labels).length === 0) return fallback
+      if (accountId && labels[accountId]) return labels[accountId].label
       if (labels[providerId]) return labels[providerId].label
       const families = accountFamilies()
       const family = Account.parseProvider(providerId)
@@ -92,22 +93,28 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       return fallback
     }
 
-    function formatModelAnnouncement(model: { providerId: string; modelID: string }) {
+    function formatModelAnnouncement(model: { providerId: string; modelID: string; accountId?: string }) {
       const providerInfo = sync.data.provider.find((x) => x.id === model.providerId)
       const familyId = Account.parseProvider(model.providerId) ?? model.providerId
       const familyProviderInfo = sync.data.provider.find((x) => x.id === familyId)
       const providerLabel = familyProviderInfo?.name ?? providerInfo?.name ?? familyId
       const modelLabel = providerInfo?.models[model.modelID]?.name ?? model.modelID
-      const accountLabel = getAccountLabel(model.providerId, "default account")
+      const accountLabel = getAccountLabel(model.providerId, "default account", model.accountId)
       return `《${providerLabel}, ${accountLabel}, ${modelLabel}》`
     }
 
-    function isModelAvailable(model: { providerId: string; modelID: string }) {
+    function isModelAvailable(model: { providerId: string; modelID: string; accountId?: string }) {
       const provider = sync.data.provider.find((x) => x.id === model.providerId)
       return !!provider
     }
 
-    function getFirstValidModel(...modelFns: (() => { providerId: string; modelID: string } | undefined)[]) {
+    function getModelAccountId(model: { providerId: string; modelID: string; accountId?: string }) {
+      return "accountId" in model ? model.accountId : undefined
+    }
+
+    function getFirstValidModel(
+      ...modelFns: (() => { providerId: string; modelID: string; accountId?: string } | undefined)[]
+    ) {
       for (const modelFn of modelFns) {
         const model = modelFn()
         if (!model) continue
@@ -175,11 +182,13 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           {
             providerId: string
             modelID: string
+            accountId?: string
           }
         >
         recent: {
           providerId: string
           modelID: string
+          accountId?: string
         }[]
         favorite: {
           providerId: string
@@ -374,8 +383,11 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         )
       })
 
+      const currentAccountId = createMemo(() => currentModel()?.accountId)
+
       return {
         current: currentModel,
+        currentAccountId,
         get ready() {
           return modelStore.ready
         },
@@ -414,7 +426,12 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           const current = currentModel()
           if (!current) return
           const recent = modelStore.recent
-          const index = recent.findIndex((x) => x.providerId === current.providerId && x.modelID === current.modelID)
+          const index = recent.findIndex(
+            (x) =>
+              x.providerId === current.providerId &&
+              x.modelID === current.modelID &&
+              getModelAccountId(x) === current.accountId,
+          )
           if (index === -1) return
           let next = index + direction
           if (next < 0) next = recent.length - 1
@@ -448,16 +465,19 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           const next = favorites[index]
           if (!next) return
           setModelStore("model", agent.current().name, { ...next })
-          const uniq = uniqueBy([next, ...modelStore.recent], (x) => `${x.providerId}/${x.modelID}`)
+          const uniq = uniqueBy(
+            [next, ...modelStore.recent],
+            (x) => `${x.providerId}/${x.modelID}/${getModelAccountId(x) ?? ""}`,
+          )
           if (uniq.length > 10) uniq.pop()
           setModelStore(
             "recent",
-            uniq.map((x) => ({ providerId: x.providerId, modelID: x.modelID })),
+            uniq.map((x) => ({ providerId: x.providerId, modelID: x.modelID, accountId: getModelAccountId(x) })),
           )
           save()
         },
         set(
-          model: { providerId: string; modelID: string },
+          model: { providerId: string; modelID: string; accountId?: string },
           options?: { recent?: boolean; skipValidation?: boolean; announce?: boolean },
         ) {
           batch(() => {
@@ -471,11 +491,14 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             }
             setModelStore("model", agent.current().name, model)
             if (options?.recent) {
-              const uniq = uniqueBy([model, ...modelStore.recent], (x) => `${x.providerId}/${x.modelID}`)
+              const uniq = uniqueBy(
+                [model, ...modelStore.recent],
+                (x) => `${x.providerId}/${x.modelID}/${x.accountId ?? ""}`,
+              )
               if (uniq.length > 10) uniq.pop()
               setModelStore(
                 "recent",
-                uniq.map((x) => ({ providerId: x.providerId, modelID: x.modelID })),
+                uniq.map((x) => ({ providerId: x.providerId, modelID: x.modelID, accountId: x.accountId })),
               )
               save()
             }

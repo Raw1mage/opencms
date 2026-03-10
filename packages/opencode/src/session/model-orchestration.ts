@@ -11,10 +11,11 @@ type RotationPurpose = "coding" | "reasoning" | "image" | "docs" | "audio" | "vi
 export type ModelArbitrationTrace = {
   agentName: string
   domain: string
-  selected: { providerId: string; modelID: string; source: string }
+  selected: { providerId: string; modelID: string; accountId?: string; source: string }
   candidates: Array<{
     providerId: string
     modelID: string
+    accountId?: string
     source: string
     operational?: boolean
   }>
@@ -43,8 +44,8 @@ async function activeAccountIdForProvider(providerId: string) {
   return (await Account.getActive(family)) ?? "public"
 }
 
-async function isOperationalModel(model: { providerId: string; modelID: string }) {
-  const accountId = await activeAccountIdForProvider(model.providerId)
+async function isOperationalModel(model: { providerId: string; modelID: string; accountId?: string }) {
+  const accountId = model.accountId ?? (await activeAccountIdForProvider(model.providerId))
   const rateLimitTracker = getRateLimitTracker()
   if (rateLimitTracker.isRateLimited(accountId, model.providerId, model.modelID)) return false
 
@@ -56,10 +57,10 @@ async function isOperationalModel(model: { providerId: string; modelID: string }
 }
 
 async function findOperationalFallback(input: {
-  sourceModel: { providerId: string; modelID: string }
+  sourceModel: { providerId: string; modelID: string; accountId?: string }
   agentName: string
 }) {
-  const accountId = await activeAccountIdForProvider(input.sourceModel.providerId)
+  const accountId = input.sourceModel.accountId ?? (await activeAccountIdForProvider(input.sourceModel.providerId))
   const candidate = await findFallback(
     {
       providerId: input.sourceModel.providerId,
@@ -76,6 +77,7 @@ async function findOperationalFallback(input: {
   return {
     providerId: candidate.providerId,
     modelID: candidate.modelID,
+    accountId: candidate.accountId,
   }
 }
 
@@ -89,16 +91,16 @@ export function shouldAutoSwitchMainModel(input: {
 
 export async function orchestrateModelSelection(input: {
   agentName: string
-  explicitModel?: { providerId: string; modelID: string }
-  agentModel?: { providerId: string; modelID: string }
-  fallbackModel: { providerId: string; modelID: string }
+  explicitModel?: { providerId: string; modelID: string; accountId?: string }
+  agentModel?: { providerId: string; modelID: string; accountId?: string }
+  fallbackModel: { providerId: string; modelID: string; accountId?: string }
   selectModel?: typeof ModelScoring.select
-  isOperationalModel?: (model: { providerId: string; modelID: string }) => Promise<boolean>
+  isOperationalModel?: (model: { providerId: string; modelID: string; accountId?: string }) => Promise<boolean>
   findOperationalFallback?: (input: {
-    sourceModel: { providerId: string; modelID: string }
+    sourceModel: { providerId: string; modelID: string; accountId?: string }
     agentName: string
-  }) => Promise<{ providerId: string; modelID: string } | null>
-}): Promise<{ model: { providerId: string; modelID: string }; trace: ModelArbitrationTrace }> {
+  }) => Promise<{ providerId: string; modelID: string; accountId?: string } | null>
+}): Promise<{ model: { providerId: string; modelID: string; accountId?: string }; trace: ModelArbitrationTrace }> {
   const trace: ModelArbitrationTrace = {
     agentName: input.agentName,
     domain: domainForAgent(input.agentName),
@@ -129,6 +131,7 @@ export async function orchestrateModelSelection(input: {
     ? {
         providerId: selected.providerId,
         modelID: selected.modelID,
+        accountId: selected.accountId,
       }
     : null
 
@@ -164,24 +167,24 @@ export async function orchestrateModelSelection(input: {
 
 export async function selectOrchestratedModel(input: {
   agentName: string
-  explicitModel?: { providerId: string; modelID: string }
-  agentModel?: { providerId: string; modelID: string }
-  fallbackModel: { providerId: string; modelID: string }
+  explicitModel?: { providerId: string; modelID: string; accountId?: string }
+  agentModel?: { providerId: string; modelID: string; accountId?: string }
+  fallbackModel: { providerId: string; modelID: string; accountId?: string }
   selectModel?: typeof ModelScoring.select
-  isOperationalModel?: (model: { providerId: string; modelID: string }) => Promise<boolean>
+  isOperationalModel?: (model: { providerId: string; modelID: string; accountId?: string }) => Promise<boolean>
   findOperationalFallback?: (input: {
-    sourceModel: { providerId: string; modelID: string }
+    sourceModel: { providerId: string; modelID: string; accountId?: string }
     agentName: string
-  }) => Promise<{ providerId: string; modelID: string } | null>
+  }) => Promise<{ providerId: string; modelID: string; accountId?: string } | null>
 }) {
   return (await orchestrateModelSelection(input)).model
 }
 
 export async function resolveProviderModel(input: {
   agentName: string
-  explicitModel?: { providerId: string; modelID: string }
-  agentModel?: { providerId: string; modelID: string }
-  fallbackModel: { providerId: string; modelID: string }
+  explicitModel?: { providerId: string; modelID: string; accountId?: string }
+  agentModel?: { providerId: string; modelID: string; accountId?: string }
+  fallbackModel: { providerId: string; modelID: string; accountId?: string }
   selectModel?: typeof ModelScoring.select
   getModel?: typeof Provider.getModel
 }) {

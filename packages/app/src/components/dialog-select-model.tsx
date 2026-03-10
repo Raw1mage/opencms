@@ -1272,29 +1272,26 @@ export const DialogSelectModel: Component<{
     const previous = selectedAccountId()
     setSelectedAccountId(row.id)
     setSwitchingAccountId(row.id)
-
-    sdk.client.account
-      .setActive({ family, accountId: row.id })
-      .then(() => {
-        void refreshAccountState()
-        showToast({
-          variant: "success",
-          title: language.t("settings.accounts.toast.updated.title"),
-          description: language.t("settings.accounts.toast.updated.description", {
-            family,
-            account: row.label,
-          }),
-        })
+    try {
+      const currentSelection = local.model.selection()
+      if (currentSelection) {
+        local.model.set({ ...currentSelection, accountID: row.id })
+      }
+      showToast({
+        variant: "success",
+        title: language.t("settings.accounts.toast.updated.title"),
+        description: `${family}: ${row.label} selected for this session`,
       })
-      .catch((err) => {
-        setSelectedAccountId(previous)
-        showToast({
-          variant: "error",
-          title: language.t("common.requestFailed"),
-          description: err instanceof Error ? err.message : String(err),
-        })
+    } catch (err) {
+      setSelectedAccountId(previous)
+      showToast({
+        variant: "error",
+        title: language.t("common.requestFailed"),
+        description: err instanceof Error ? err.message : String(err),
       })
-      .finally(() => setSwitchingAccountId(""))
+    } finally {
+      setSwitchingAccountId("")
+    }
   }
 
   return (
@@ -1484,7 +1481,7 @@ export const DialogSelectModel: Component<{
                       <div class="flex items-center gap-2 min-w-0 flex-1">
                         <span class="truncate min-w-0 flex-1">{row.label}</span>
                         <span class="w-4 shrink-0 flex items-center justify-center">
-                          <Show when={row.active}>
+                          <Show when={selectedAccountId() === row.id}>
                             <Icon name="check-small" class="text-icon-success-base shrink-0" />
                           </Show>
                         </span>
@@ -1596,7 +1593,6 @@ export const DialogSelectModel: Component<{
                   })
                   return
                 }
-                const family = providerFamily
                 const familyCandidates = local.model
                   .list()
                   .filter((m) => m.id === x.id && familyOf(m.provider.id) === providerFamily)
@@ -1606,7 +1602,7 @@ export const DialogSelectModel: Component<{
                   x.provider.id
                 const applyModelSelection = () => {
                   local.model.set(
-                    { modelID: x.id, providerID: providerIDForSelection },
+                    { modelID: x.id, providerID: providerIDForSelection, accountID: accountId },
                     {
                       recent: true,
                     },
@@ -1624,19 +1620,7 @@ export const DialogSelectModel: Component<{
                   applyModelSelection()
                   return
                 }
-                sdk.client.account
-                  .setActive({ family, accountId })
-                  .then(() => {
-                    void refetchAccountInfo()
-                    applyModelSelection()
-                  })
-                  .catch((err) => {
-                    showToast({
-                      variant: "error",
-                      title: language.t("common.requestFailed"),
-                      description: err instanceof Error ? err.message : String(err),
-                    })
-                  })
+                applyModelSelection()
               }}
             >
               {(item) => (

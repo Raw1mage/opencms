@@ -12,7 +12,7 @@ export interface CommandPromptPrepInput {
   commandName: string
   sessionID: string
   inputAgent?: string
-  inputModel?: string
+  inputModel?: string | { providerId: string; modelID: string; accountId?: string }
   inputParts?: Array<{
     type: "file"
     url: string
@@ -26,6 +26,11 @@ export interface CommandPromptPrepInput {
 }
 
 export async function prepareCommandPrompt(input: CommandPromptPrepInput) {
+  const parseInputModel = (value: CommandPromptPrepInput["inputModel"]) => {
+    if (!value) return undefined
+    return typeof value === "string" ? Provider.parseModel(value) : value
+  }
+
   const command = input.commandInfo
   const agentName = command.agent ?? input.inputAgent ?? (await Agent.defaultAgent())
 
@@ -39,7 +44,8 @@ export async function prepareCommandPrompt(input: CommandPromptPrepInput) {
         return cmdAgent.model
       }
     }
-    if (input.inputModel) return Provider.parseModel(input.inputModel)
+    const parsedInputModel = parseInputModel(input.inputModel)
+    if (parsedInputModel) return parsedInputModel
     return await lastModel(input.sessionID)
   })()
 
@@ -97,11 +103,7 @@ export async function prepareCommandPrompt(input: CommandPromptPrepInput) {
     : [...templateParts, ...(input.inputParts ?? [])]
 
   const userAgent = isSubtask ? (input.inputAgent ?? (await Agent.defaultAgent())) : agentName
-  const userModel = isSubtask
-    ? input.inputModel
-      ? Provider.parseModel(input.inputModel)
-      : await lastModel(input.sessionID)
-    : taskModel
+  const userModel = isSubtask ? (parseInputModel(input.inputModel) ?? (await lastModel(input.sessionID))) : taskModel
 
   return {
     parts,

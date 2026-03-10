@@ -354,7 +354,10 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       accountFamilies: globalSync.data.account_families,
       formatCooldown: (minutes) => language.t("settings.models.recommendations.cooldown", { minutes }),
     })
-    return rows.find((row) => row.active)?.label ?? rows[0]?.label ?? "--"
+    const selected = local.model.selection()?.accountID
+    return (
+      rows.find((row) => row.id === selected)?.label ?? rows.find((row) => row.active)?.label ?? rows[0]?.label ?? "--"
+    )
   })
   const providerLabel = createMemo(() => {
     const model = currentModel()
@@ -386,10 +389,12 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
     const providerId = effectiveProviderFamily() ?? model.provider.id
     const modelID = model.id
+    const accountId = local.model.selection()?.accountID
     const requestVersion = ++quotaHintRequestVersion
     const cached = peekQuotaHint({
       baseURL: globalSDK.url,
       providerId,
+      accountId,
       modelID,
       format: "footer",
     })
@@ -401,6 +406,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       const hint = await loadQuotaHint((input) => globalSDK.fetch(input), {
         baseURL: globalSDK.url,
         providerId,
+        accountId,
         modelID,
         format: "footer",
       })

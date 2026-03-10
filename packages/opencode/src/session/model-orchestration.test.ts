@@ -111,6 +111,7 @@ describe("session model orchestration", () => {
     ).resolves.toEqual({
       providerId: "anthropic",
       modelID: "claude-opus-4-5",
+      accountId: "team-a",
     })
   })
 
@@ -147,11 +148,31 @@ describe("session model orchestration", () => {
         findOperationalFallback: async () => ({
           providerId: "google",
           modelID: "gemini-2.5-pro",
+          accountId: "team-b",
         }),
       }),
     ).resolves.toEqual({
       providerId: "google",
       modelID: "gemini-2.5-pro",
+      accountId: "team-b",
+    })
+  })
+
+  it("preserves accountId in explicit and fallback arbitration traces", async () => {
+    await expect(
+      orchestrateModelSelection({
+        agentName: "coding",
+        explicitModel: { providerId: "openai", modelID: "gpt-5", accountId: "acct-explicit" },
+        fallbackModel: { providerId: "anthropic", modelID: "claude-sonnet-4-5", accountId: "acct-fallback" },
+      }),
+    ).resolves.toEqual({
+      model: { providerId: "openai", modelID: "gpt-5", accountId: "acct-explicit" },
+      trace: {
+        agentName: "coding",
+        domain: "coding",
+        selected: { providerId: "openai", modelID: "gpt-5", accountId: "acct-explicit", source: "explicit" },
+        candidates: [{ providerId: "openai", modelID: "gpt-5", accountId: "acct-explicit", source: "explicit" }],
+      },
     })
   })
 
@@ -166,7 +187,7 @@ describe("session model orchestration", () => {
           accountId: "team-a",
         }),
         isOperationalModel: async (model) => model.providerId === "openai",
-        findOperationalFallback: async () => ({ providerId: "google", modelID: "gemini-2.5-pro" }),
+        findOperationalFallback: async () => ({ providerId: "google", modelID: "gemini-2.5-pro", accountId: "team-b" }),
       }),
     ).resolves.toEqual({
       model: { providerId: "openai", modelID: "gpt-5" },
@@ -175,7 +196,13 @@ describe("session model orchestration", () => {
         domain: "docs",
         selected: { providerId: "openai", modelID: "gpt-5", source: "fallback" },
         candidates: [
-          { providerId: "anthropic", modelID: "claude-opus-4-5", source: "scored", operational: false },
+          {
+            providerId: "anthropic",
+            modelID: "claude-opus-4-5",
+            accountId: "team-a",
+            source: "scored",
+            operational: false,
+          },
           { providerId: "openai", modelID: "gpt-5", source: "fallback", operational: true },
         ],
       },

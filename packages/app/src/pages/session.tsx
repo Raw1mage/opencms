@@ -579,7 +579,14 @@ export default function Page() {
         const msg = lastUserMessage()
         if (!msg) return
         if (msg.agent) local.agent.set(msg.agent)
-        if (msg.model) local.model.set({ providerID: msg.model.providerId, modelID: msg.model.modelID })
+        if (msg.model) {
+          const sessionModel = msg.model as { providerId: string; modelID: string; accountId?: string }
+          local.model.set({
+            providerID: sessionModel.providerId,
+            modelID: sessionModel.modelID,
+            accountID: sessionModel.accountId,
+          })
+        }
       },
     ),
   )

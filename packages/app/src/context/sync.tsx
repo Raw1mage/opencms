@@ -310,7 +310,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           messageID: string
           parts: Part[]
           agent: string
-          model: { providerId: string; modelID: string }
+          model: { providerId: string; modelID: string; accountId?: string }
         }) {
           const message: Message = {
             id: input.messageID,

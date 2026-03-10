@@ -197,6 +197,22 @@ The runtime must treat identities as explicit coordinates:
 
 No runtime decision should depend on "guessing" family from an arbitrary dashed provider string without canonical family inventory.
 
+#### A.1) Session execution identity contract
+
+- Session execution identity is now a persisted 3D coordinate: `{ providerId, modelID, accountId? }`.
+- Persistence surfaces that can now carry `accountId`:
+  - `MessageV2.User.model`
+  - `MessageV2.SubtaskPart.model`
+  - `MessageV2.Assistant`
+- Runtime propagation path is:
+  - prompt / shell / command input
+  - `user-message-context`
+  - session processor preflight
+  - LLM/provider transform options
+  - assistant message update after actual execution / fallback
+- Rule: runtime must prefer the session-carried `accountId` when present. Family-level active account is only a fallback for legacy/default execution paths that did not pin a session account.
+- Result: two sessions using the same provider family may now execute with different accounts without mutating each other's execution identity.
+
 #### B) TUI `/admin` provider operation pipeline (cms)
 
 | Stage                           | UI Component / Route                                                          | Runtime Side Effect                                                   |
@@ -207,6 +223,13 @@ No runtime decision should depend on "guessing" family from an arbitrary dashed 
 | Add Google API account          | `DialogGoogleApiAdd`                                                          | Adds `google-api` account with explicit family key                    |
 | OAuth account connect           | `DialogProvider` → `/provider/:id/oauth/*`                                    | Stores auth via `Auth.set(...)` / account module                      |
 | Active account switch           | `/account/:family/active`                                                     | Rotation and model availability read new active account               |
+
+#### B.0) Control-plane vs session-local selection boundary
+
+- **Global active account** remains a control-plane/admin concept. It is still changed through explicit account-management actions such as `/account/:family/active` and is used as the default account when no session-local override exists.
+- **Session model selection** in TUI/Web is a separate execution-state layer. Selecting a provider/model/account for the current session must update local session state first and must not require `setActive()` merely to choose the session's execution identity.
+- TUI `/admin` activity/model selection and Web model selection therefore operate on session-local `{ providerId, modelID, accountId? }` state, while explicit account-management screens continue to own true global active-account changes.
+- Rotation/fallback may still change the effective execution account, but that change is recorded back into session/assistant metadata instead of silently rewriting the global active account.
 
 #### B.1) Prompt footer quota/runtime metadata pipeline (TUI + Web)
 
@@ -220,7 +243,11 @@ This subsection documents how prompt footer usage/account metadata stays fresh w
      - **provider relevance gate**: quota path is only armed when current effective provider family is `openai`
      - **initial on-demand hydrate**: entering an OpenAI-backed footer can trigger one refresh if the last refresh is older than 60 seconds
      - **turn completion signal**: when `lastCompletedAssistant` changes, TUI refreshes quota only if the previous refresh is older than 60 seconds
-   - Footer account label and footer OpenAI quota both resolve from the same active-account snapshot, so account identity and usage stay paired when the active OpenAI account changes.
+   - Footer account label and footer OpenAI quota both resolve from the same effective account snapshot.
+   - Effective account precedence is:
+     1. current session-local `accountId`
+     2. family active account fallback
+   - This keeps footer identity/usage paired with the session's real execution identity instead of always reflecting the family-global active account.
    - The low-frequency footer timer (default 15s via `OPENCODE_TUI_FOOTER_REFRESH_MS`) is retained for lightweight elapsed/account display updates only; it does **not** poll OpenAI quota in the background.
    - Result: footer usage stays fresh during real OpenAI usage while avoiding idle quota polling.
 
@@ -234,6 +261,7 @@ This subsection documents how prompt footer usage/account metadata stays fresh w
 2. **Web prompt footer orchestration**
    - Entry point: `packages/app/src/components/prompt-input.tsx`
    - Web prompt footer also derives metadata from current provider/account state, but OpenAI quota refresh is stricter than TUI for browser efficiency.
+   - Effective account precedence mirrors TUI: prefer session-local selected `accountId`, then fall back to the family active account.
    - The web quota resource key is gated by `quotaRefresh` and only becomes active for `openai`.
    - Refresh policy is event-driven, not interval-driven:
      - wait for a **new completed assistant turn**

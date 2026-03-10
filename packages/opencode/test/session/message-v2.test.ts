@@ -70,7 +70,7 @@ function assistantInfo(
   id: string,
   parentID: string,
   error?: MessageV2.Assistant["error"],
-  meta?: { providerId: string; modelID: string },
+  meta?: { providerId: string; modelID: string; accountId?: string },
 ): MessageV2.Assistant {
   const infoModel = meta ?? { providerId: model.providerId, modelID: model.api.id }
   return {
@@ -82,6 +82,7 @@ function assistantInfo(
     parentID,
     modelID: infoModel.modelID,
     providerId: infoModel.providerId,
+    accountId: infoModel.accountId,
     mode: "",
     agent: "agent",
     path: { cwd: "/", root: "/" },
@@ -104,6 +105,51 @@ function basePart(messageID: string, id: string) {
 }
 
 describe("session.message-v2.toModelMessage", () => {
+  test("accepts accountId on persisted user, assistant, and subtask model identity", () => {
+    const user = MessageV2.User.parse({
+      id: "user-1",
+      sessionID,
+      role: "user",
+      time: { created: 1 },
+      agent: "agent",
+      model: { providerId: "openai", modelID: "gpt-5", accountId: "acct-user" },
+      tools: {},
+      mode: "prompt",
+    })
+    const assistant = MessageV2.Assistant.parse({
+      id: "assistant-1",
+      sessionID,
+      role: "assistant",
+      parentID: "user-1",
+      providerId: "openai",
+      modelID: "gpt-5",
+      accountId: "acct-assistant",
+      time: { created: 1 },
+      mode: "prompt",
+      agent: "agent",
+      path: { cwd: "/", root: "/" },
+      cost: 0,
+      tokens: {
+        input: 0,
+        output: 0,
+        reasoning: 0,
+        cache: { read: 0, write: 0 },
+      },
+    })
+    const subtask = MessageV2.SubtaskPart.parse({
+      ...basePart("assistant-1", "subtask-1"),
+      type: "subtask",
+      prompt: "continue",
+      description: "run a task",
+      agent: "testing",
+      model: { providerId: "openai", modelID: "gpt-5", accountId: "acct-subtask" },
+    })
+
+    expect(user.model.accountId).toBe("acct-user")
+    expect(assistant.accountId).toBe("acct-assistant")
+    expect(subtask.model?.accountId).toBe("acct-subtask")
+  })
+
   test("filters out messages with no parts", () => {
     const input: MessageV2.WithParts[] = [
       {

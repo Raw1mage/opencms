@@ -8,7 +8,7 @@ import { useProviders } from "@/hooks/use-providers"
 import { useModels } from "@/context/models"
 import { cycleModelVariant, getConfiguredAgentVariant, resolveModelVariant } from "./model-variant"
 
-export type ModelKey = { providerID: string; modelID: string }
+export type ModelKey = { providerID: string; modelID: string; accountID?: string }
 
 function parseConfiguredModel(input: unknown): ModelKey | undefined {
   if (!input) return undefined
@@ -25,11 +25,13 @@ function parseConfiguredModel(input: unknown): ModelKey | undefined {
     modelID?: string
     modelId?: string
     id?: string
+    accountID?: string
+    accountId?: string
   }
   const providerID = record.providerID ?? record.providerId
   const modelID = record.modelID ?? record.modelId ?? record.id
   if (!providerID || !modelID) return undefined
-  return { providerID, modelID }
+  return { providerID, modelID, accountID: record.accountID ?? record.accountId }
 }
 
 export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
@@ -143,14 +145,18 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         return resolveConfigured() ?? resolveRecent() ?? resolveDefault()
       })
 
-      const current = createMemo(() => {
+      const currentSelection = createMemo(() => {
         const a = agent.current()
         if (!a) return undefined
-        const key = getFirstValidModel(
+        return getFirstValidModel(
           () => ephemeral.model[a.name],
           () => (a.model ? { providerID: a.model.providerId, modelID: a.model.modelID } : undefined),
           fallbackModel,
         )
+      })
+
+      const current = createMemo(() => {
+        const key = currentSelection()
         if (!key) return undefined
         return models.find(key)
       })
@@ -195,6 +201,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       return {
         ready: models.ready,
         current,
+        selection: currentSelection,
         recent,
         list: models.list,
         cycle,

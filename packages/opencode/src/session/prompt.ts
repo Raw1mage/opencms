@@ -112,6 +112,7 @@ export namespace SessionPrompt {
       .object({
         providerId: z.string(),
         modelID: z.string(),
+        accountId: z.string().optional(),
       })
       .optional(),
     agent: z.string().optional(),
@@ -1076,6 +1077,7 @@ export namespace SessionPrompt {
           updatedInfo.model = {
             providerId: activeModel.providerId,
             modelID: activeModel.id,
+            accountId: lastUser.model.accountId,
           }
           await Session.updateMessage(updatedInfo)
         }
@@ -1110,6 +1112,7 @@ export namespace SessionPrompt {
           },
           modelID: activeModel.id,
           providerId: activeModel.providerId,
+          accountId: lastUser.model.accountId,
           time: {
             created: Date.now(),
           },
@@ -1117,6 +1120,7 @@ export namespace SessionPrompt {
         })) as MessageV2.Assistant,
         sessionID: sessionID,
         model: activeModel,
+        accountId: lastUser.model.accountId,
         abort,
       })
       // Check if user explicitly invoked an agent via @ in this turn
@@ -1442,6 +1446,7 @@ export namespace SessionPrompt {
       .object({
         providerId: z.string(),
         modelID: z.string(),
+        accountId: z.string().optional(),
       })
       .optional(),
     variant: z.string().optional(),
@@ -1462,7 +1467,16 @@ export namespace SessionPrompt {
     messageID: Identifier.schema("message").optional(),
     sessionID: Identifier.schema("session"),
     agent: z.string().optional(),
-    model: z.string().optional(),
+    model: z
+      .union([
+        z.string(),
+        z.object({
+          providerId: z.string(),
+          modelID: z.string(),
+          accountId: z.string().optional(),
+        }),
+      ])
+      .optional(),
     arguments: z.string(),
     command: z.string(),
     variant: z.string().optional(),

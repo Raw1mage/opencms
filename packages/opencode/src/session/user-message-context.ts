@@ -4,7 +4,7 @@ import { MessageV2 } from "./message-v2"
 import { lastModel } from "./last-model"
 import { maybeInjectWorkflowSubtasks } from "./subagent-workflow"
 
-type InputModel = { providerId: string; modelID: string }
+type InputModel = { providerId: string; modelID: string; accountId?: string }
 
 type InputPart = {
   type: string

@@ -198,14 +198,15 @@ export function Prompt(props: PromptProps) {
       const current = local.model.current()
       const providerId = current?.providerId
       if (!providerId) return ""
-      return `${providerId}:${footerTick()}`
+      const accountId = local.model.currentAccountId() ?? ""
+      return `${providerId}:${accountId}:${footerTick()}`
     },
     async (key) => {
-      const [providerId] = key.split(":")
+      const [providerId, selectedAccountId] = key.split(":")
       if (!providerId) return undefined
       try {
         const fam = Account.parseFamily(providerId) || providerId
-        const activeId = await Account.getActive(fam)
+        const activeId = selectedAccountId || (await Account.getActive(fam))
         if (!activeId) return undefined
         const info = await Account.get(fam, activeId)
         if (!info) {
@@ -379,9 +380,10 @@ export function Prompt(props: PromptProps) {
     const sessionID = props.sessionID
     const msg = lastAssistantMessage()
     if (!sessionID || !msg) return
+    const messageAccountId = "accountId" in msg && typeof msg.accountId === "string" ? msg.accountId : undefined
 
     // Use composite key to detect both new messages AND model changes within same message
-    const messageKey = `${msg.id}:${msg.providerId}:${msg.modelID}`
+    const messageKey = `${msg.id}:${msg.providerId}:${msg.modelID}:${messageAccountId ?? ""}`
     if (messageKey === syncedAssistantMessageKey) return
     syncedAssistantMessageKey = messageKey
 
@@ -390,11 +392,15 @@ export function Prompt(props: PromptProps) {
 
     if (msg.providerId && msg.modelID) {
       const current = local.model.current()
-      const same = current && current.providerId === msg.providerId && current.modelID === msg.modelID
+      const same =
+        current &&
+        current.providerId === msg.providerId &&
+        current.modelID === msg.modelID &&
+        current.accountId === messageAccountId
       if (!same) {
         // recent: true persists the fallback model so it's used on next startup
         local.model.set(
-          { providerId: msg.providerId, modelID: msg.modelID },
+          { providerId: msg.providerId, modelID: msg.modelID, accountId: messageAccountId },
           { skipValidation: true, announce: false, recent: true },
         )
       }
@@ -818,7 +824,8 @@ export function Prompt(props: PromptProps) {
         model: {
           providerId: selectedModel.providerId,
           modelID: selectedModel.modelID,
-        },
+          accountId: local.model.currentAccountId(),
+        } as any,
         command: inputText,
       })
       setStore("mode", "normal")
@@ -842,7 +849,11 @@ export function Prompt(props: PromptProps) {
         command: command.slice(1),
         arguments: args,
         agent: local.agent.current()?.name || "agent",
-        model: `${selectedModel.providerId}/${selectedModel.modelID}`,
+        model: {
+          providerId: selectedModel.providerId,
+          modelID: selectedModel.modelID,
+          accountId: local.model.currentAccountId(),
+        } as any,
         messageID,
         variant,
         parts: nonTextParts

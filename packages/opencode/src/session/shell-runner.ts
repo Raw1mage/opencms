@@ -14,6 +14,7 @@ export interface ShellRunInput {
   model?: {
     providerId: string
     modelID: string
+    accountId?: string
   }
   variant?: string
   command: string
@@ -26,6 +27,7 @@ export async function runShellPrompt(input: ShellRunInput, abort: AbortSignal): 
   }
   const agent = await Agent.get(input.agent)
   const model = input.model ?? agent.model ?? (await lastModel(input.sessionID))
+  const modelAccountId = "accountId" in model && typeof model.accountId === "string" ? model.accountId : undefined
 
   const userMsg: MessageV2.User = {
     id: Identifier.ascending("message"),
@@ -39,6 +41,7 @@ export async function runShellPrompt(input: ShellRunInput, abort: AbortSignal): 
     model: {
       providerId: model.providerId,
       modelID: model.modelID,
+      accountId: modelAccountId,
     },
   }
   await Session.updateMessage(userMsg)
@@ -76,6 +79,7 @@ export async function runShellPrompt(input: ShellRunInput, abort: AbortSignal): 
     },
     modelID: model.modelID,
     providerId: model.providerId,
+    accountId: modelAccountId,
   }
   await Session.updateMessage(msg)
   const part: MessageV2.Part = {

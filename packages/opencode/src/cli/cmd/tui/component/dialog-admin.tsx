@@ -866,6 +866,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     widths.account = Math.min(widths.account, ACTIVITY_ACCOUNT_COL_MAX)
 
     const currentModel = local.model.current()
+    const currentAccountId = local.model.currentAccountId()
 
     for (const entryModel of sortedModels) {
       const providerId = entryModel.providerId
@@ -893,7 +894,8 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         const accountCol = fitColumn(`${display || "-"}`, widths.account)
         const titleProviderCol = i === 0 ? providerCol : "".padEnd(widths.provider)
         const titleModelCol = i === 0 ? modelCol : "".padEnd(widths.model)
-        const isCurrentAccount = isCurrentModel && activeAccountId && activeAccountId === accountId
+        const isCurrentAccount =
+          isCurrentModel && (currentAccountId ? currentAccountId === accountId : activeAccountId === accountId)
         const rowSuffix = isCurrentAccount ? " ✅" : ""
 
         // @event_20260216_phase5 — Gemini RPD display moved to formatQuotaFooter
@@ -1002,20 +1004,11 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
     // Check if selecting an already-selected model (triggers auto-exit)
     // @event_20260208_double_enter_model_exit
-    // CRITICAL: Must check BEFORE handleSetActive, otherwise currentAccountId will already be updated
     const fam = family(providerId) || providerId
     const current = local.model.current()
-    const currentAccountId = iife(() => {
-      const accountData = activityAccounts()?.[resolvedProvider] ?? activityAccounts()?.[fam]
-      return accountData?.activeAccount
-    })
+    const currentAccountId = local.model.currentAccountId()
     const isAlreadySelected =
       current?.providerId === resolvedProvider && current?.modelID === modelID && currentAccountId === accountId
-
-    // FIX: Set the selected account as active
-    if (accountId && accountId !== "-") {
-      await handleSetActive(fam, accountId)
-    }
 
     debugCheckpoint("admin.activities", "select model", {
       accountId,
@@ -1026,7 +1019,10 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
     // FIX: In multi-account mode, local.model announce can read stale account cache.
     // Build toast from the selected row/accountId to avoid misleading account labels.
-    local.model.set({ providerId: resolvedProvider, modelID }, { recent: true, announce: false })
+    local.model.set(
+      { providerId: resolvedProvider, modelID, accountId: accountId !== "-" ? accountId : undefined },
+      { recent: true, announce: false },
+    )
     try {
       const providerInfo = sync.data.provider.find((x) => x.id === resolvedProvider)
       const providerLabel = providerInfo?.name ?? resolvedProvider
@@ -1062,11 +1058,9 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   const activityValue = createMemo(() => {
     const cur = local.model.current()
     if (!cur) return undefined
-    const accountData =
-      activityAccounts()?.[cur.providerId] ?? activityAccounts()?.[family(cur.providerId) ?? cur.providerId]
-    const activeAccountId = accountData?.activeAccount
+    const currentAccountId = local.model.currentAccountId()
     // @event_20260217_cursor_follow_fix - Fallback to "-" account if none active
-    return `${activeAccountId ?? "-"}:${cur.providerId}:${cur.modelID}`
+    return `${currentAccountId ?? "-"}:${cur.providerId}:${cur.modelID}`
   })
 
   // ---- OPTION GENERATION ----

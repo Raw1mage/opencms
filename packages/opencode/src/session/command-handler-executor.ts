@@ -15,7 +15,7 @@ export async function executeHandledCommand(input: {
   sessionID: string
   arguments: string
   agent?: string
-  model?: string
+  model?: string | { providerId: string; modelID: string; accountId?: string }
   messageID?: string
   variant?: string
 }): Promise<MessageV2.WithParts> {
@@ -25,7 +25,11 @@ export async function executeHandledCommand(input: {
   }
 
   const agent = await Agent.get(input.agent ?? (await Agent.defaultAgent()))
-  const model = input.model ? Provider.parseModel(input.model) : (agent.model ?? (await lastModel(input.sessionID)))
+  const model =
+    typeof input.model === "string"
+      ? Provider.parseModel(input.model)
+      : (input.model ?? agent.model ?? (await lastModel(input.sessionID)))
+  const modelAccountId = "accountId" in model && typeof model.accountId === "string" ? model.accountId : undefined
 
   const variant =
     input.variant ??
@@ -76,6 +80,7 @@ export async function executeHandledCommand(input: {
     },
     modelID: model.modelID,
     providerId: model.providerId,
+    accountId: modelAccountId,
     finish: "stop",
   }
   await Session.updateMessage(assistantMsg)

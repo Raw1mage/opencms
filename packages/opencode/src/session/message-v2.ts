@@ -228,6 +228,7 @@ export namespace MessageV2 {
       .object({
         providerId: z.string(),
         modelID: z.string(),
+        accountId: z.string().optional(),
       })
       .optional(),
     command: z.string().optional(),
@@ -376,6 +377,7 @@ export namespace MessageV2 {
     model: z.object({
       providerId: z.string(),
       modelID: z.string(),
+      accountId: z.string().optional(),
     }),
     format: Format.optional(),
     system: z.string().optional(),
@@ -426,6 +428,7 @@ export namespace MessageV2 {
     parentID: z.string(),
     modelID: z.string(),
     providerId: z.string(),
+    accountId: z.string().optional(),
     /**
      * @deprecated
      */
