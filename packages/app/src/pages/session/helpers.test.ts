@@ -604,6 +604,7 @@ describe("getSessionStatusSummary", () => {
       assistNoop: 1,
       docsSync: 0,
       debugPreflight: 1,
+      pauseAssist: 0,
       replan: 1,
       askUser: 1,
       requestApproval: 0,
@@ -795,6 +796,7 @@ describe("getSessionStatusSummary", () => {
       pauseForRisk: 1,
       complete: 1,
       pause: 0,
+      pauseAssist: 0,
       adopted: 2,
       notAdopted: 1,
     })
@@ -865,6 +867,44 @@ describe("getSessionStatusSummary", () => {
       pause: 1,
       adopted: 0,
       notAdopted: 0,
+    })
+  })
+
+  test("counts advisory pause assist mode in Smart Runner summary", () => {
+    const summary = getSessionStatusSummary({
+      session: {
+        workflow: {
+          supervisor: {
+            governorTraceHistory: [
+              {
+                createdAt: 82_000,
+                status: "advisory",
+                assist: {
+                  enabled: true,
+                  applied: true,
+                  mode: "pause",
+                },
+                decision: { decision: "pause", confidence: "medium", nextAction: { kind: "request_user_input" } },
+                suggestion: {
+                  kind: "pause",
+                  reason: "Current evidence is too weak to continue safely",
+                  suggestedAction: "request_user_input",
+                },
+              },
+            ],
+          },
+        },
+      } as any,
+    })
+
+    expect(summary.smartRunnerSummary).toMatchObject({
+      assistApplied: 1,
+      pauseAssist: 1,
+      pause: 1,
+    })
+    expect(summary.smartRunnerHistory[0]).toMatchObject({
+      assist: "applied · pause",
+      suggestion: "pause · request_user_input · Current evidence is too weak to continue safely",
     })
   })
 

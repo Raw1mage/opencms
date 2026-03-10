@@ -433,6 +433,7 @@ export type SessionStatusSummary = {
     assistNoop: number
     docsSync: number
     debugPreflight: number
+    pauseAssist: number
     replan: number
     askUser: number
     requestApproval: number
@@ -565,6 +566,7 @@ const buildSmartRunnerSummary = (
     assistNoop: 0,
     docsSync: 0,
     debugPreflight: 0,
+    pauseAssist: 0,
     replan: 0,
     askUser: 0,
     requestApproval: 0,
@@ -582,6 +584,7 @@ const buildSmartRunnerSummary = (
       else summary.assistNoop += 1
       if (trace.assist.mode === "docs_sync_first") summary.docsSync += 1
       if (trace.assist.mode === "debug_preflight_first") summary.debugPreflight += 1
+      if (trace.assist.mode === "pause") summary.pauseAssist += 1
     }
     if (trace.suggestion?.kind === "replan") summary.replan += 1
     if (trace.suggestion?.kind === "ask_user") summary.askUser += 1

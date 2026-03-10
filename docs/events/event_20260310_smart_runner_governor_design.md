@@ -1298,6 +1298,34 @@ Validation（advisory pause bounded assist）:
 - `bun x eslint /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/opencode/test/session/smart-runner-prompt.test.ts` ✅
 - `bun test /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/opencode/test/session/smart-runner-prompt.test.ts` ✅
 - 結果：當 Smart Runner 給出 advisory `pause` 時，runtime 現在會在 assist mode 下把下一輪 continue text 收斂成 pause-check/preflight 指令，而不是直接忽略這個建議；同時仍不會建立新的 adopted stop contract。
+
+### Current Slice (pause assist summary parity)
+
+需求：既然 app 端已能顯示 advisory `pause` suggestion，本輪又新增了 `pause` assist mode，side panel summary 應進一步把這種 assist 行為單獨計數，不然使用者無法分辨「有看到 pause 建議」和「pause 建議真的改寫了下一輪 continue text」。
+
+範圍：
+
+- IN
+  - app Smart Runner summary 新增 `pauseAssist` counter
+  - side panel 顯示 `Pause assist`
+  - 補 helper tests 驗證 assist summary 與 history
+- OUT
+  - 不改 runtime assist 行為
+  - 不改 trace schema
+
+任務清單：
+
+- [x] 擴充 `helpers.ts` summary counter 以納入 `assist.mode === pause`
+- [x] 更新 side panel 顯示 `Pause assist`
+- [x] 補 helper regression 測試
+
+Validation（pause assist summary parity）:
+
+- `bun x eslint /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts /home/pkcs12/projects/opencode/packages/app/src/pages/session/session-side-panel.tsx` ✅
+- `bun test /home/pkcs12/projects/opencode/packages/app/src/pages/session/helpers.test.ts --test-name-pattern "getSessionStatusSummary"` ✅
+- 結果：session side panel 現在會把 `assist.mode === pause` 單獨計成 `Pause assist`，因此可區分「只看到 pause 建議」與「pause 建議真的改寫了下一輪 continue text」。
+- Architecture Sync: Updated
+  - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 pause assist summary parity
 - Architecture Sync: Updated
   - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 advisory pause bounded assist contract
 - Architecture Sync: Updated

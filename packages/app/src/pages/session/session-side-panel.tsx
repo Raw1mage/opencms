@@ -355,6 +355,7 @@ export function SessionSidePanel(props: {
                                   <div>Assist noop: {summary().assistNoop}</div>
                                   <div>Docs sync: {summary().docsSync}</div>
                                   <div>Debug preflight: {summary().debugPreflight}</div>
+                                  <div>Pause assist: {summary().pauseAssist}</div>
                                   <div>Replan: {summary().replan}</div>
                                   <div>Ask user: {summary().askUser}</div>
                                   <div>Approval: {summary().requestApproval}</div>
