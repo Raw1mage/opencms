@@ -13,6 +13,11 @@
 5.  **`mcp-finder`**: MCP 擴充中樞。負責搜尋、安裝、設定新 MCP server。
 6.  **`skill-finder`**: Skill 擴充中樞。負責搜尋、安裝、設定新技能。
 
+## 語言回應規範
+
+- 對使用者的預設回應語言一律使用**繁體中文**。
+- 若使用者明確要求其他語言，或任務本身需要保留原文/特定語言格式，再依需求切換。
+
 ### 開發任務預設工作流（Mandatory Trigger）
 
 - 只要使用者提出**非瑣碎開發需求**（例如 implement / build / fix / refactor / debug / write tests / continue plan / make it autonomous），Main Agent **必須**以 `skill(name="agent-workflow")` 作為預設 workflow。

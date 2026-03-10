@@ -16,6 +16,11 @@
 4.  **載入 Skill 擴充器**：`skill(name="skill-finder")`
     - _目的_：讓 Agent 可在能力缺口時向外擴充 Skill。
 
+## 語言回應規範
+
+- 對使用者的預設回應語言一律使用**繁體中文**。
+- 若使用者明確要求其他語言，或任務本身需要保留原文/特定語言格式，再依需求切換。
+
 ### 開發任務預設工作流（Mandatory Trigger）
 
 - 只要使用者提出**非瑣碎開發需求**（例如 implement / build / fix / refactor / debug / write tests / continue plan / make it autonomous），Main Agent **必須**以 `skill(name="agent-workflow")` 作為預設 workflow。
