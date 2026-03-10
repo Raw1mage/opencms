@@ -431,6 +431,115 @@ export namespace SessionPrompt {
     }
   }
 
+  export async function handleSmartRunnerStopDecision(input: {
+    sessionID: string
+    activeModel: Provider.Model
+    autonomousRounds: number
+    lastUser: MessageV2.User
+    messages: MessageV2.WithParts[]
+    todos: Todo.Info[]
+    decision: Extract<Awaited<ReturnType<typeof decideAutonomousContinuation>>, { continue: true }>
+    getConfig?: typeof getSmartRunnerConfig
+    evaluateGovernor?: typeof evaluateSmartRunnerGovernorDryRun
+    listQuestions?: typeof Question.list
+    askUser?: typeof handleSmartRunnerAskUserAdoption
+    replan?: typeof handleSmartRunnerReplanAdoption
+    persistTrace?: typeof persistSmartRunnerGovernorTrace
+    applyAssist?: typeof applySmartRunnerBoundedAssist
+  }) {
+    const getConfig = input.getConfig ?? getSmartRunnerConfig
+    const evaluateGovernor = input.evaluateGovernor ?? evaluateSmartRunnerGovernorDryRun
+    const listQuestions = input.listQuestions ?? Question.list
+    const askUser = input.askUser ?? handleSmartRunnerAskUserAdoption
+    const replan = input.replan ?? handleSmartRunnerReplanAdoption
+    const persistTrace = input.persistTrace ?? persistSmartRunnerGovernorTrace
+    const applyAssist = input.applyAssist ?? applySmartRunnerBoundedAssist
+
+    const smartRunnerGovernor = await getConfig()
+    const trace = await evaluateGovernor({
+      sessionID: input.sessionID,
+      model: input.activeModel,
+      enabled: smartRunnerGovernor.enabled,
+      todos: input.todos,
+      roundCount: input.autonomousRounds,
+      deterministicDecision: input.decision,
+      messages: input.messages,
+    })
+    const suggestedTrace = annotateSmartRunnerTraceSuggestion({ trace })
+    let traceForAssist = suggestedTrace
+    const currentPendingQuestions = (await listQuestions()).filter((item) => item.sessionID === input.sessionID).length
+    const askUserAdoption = evaluateSmartRunnerAskUserAdoption({
+      suggestion: suggestedTrace.suggestion,
+      pendingQuestions: currentPendingQuestions,
+    })
+    const askUserQuestion = buildSmartRunnerQuestion({
+      questionText: getSmartRunnerAskUserQuestionText({ suggestion: suggestedTrace.suggestion }),
+    })
+
+    if (suggestedTrace.suggestion?.kind === "ask_user" && askUserAdoption.reason) {
+      traceForAssist = annotateSmartRunnerAskUserAdoption({
+        trace: suggestedTrace,
+        adopted: askUserAdoption.adopted,
+        reason: askUserAdoption.reason,
+      })
+      if (askUserAdoption.adopted && askUserQuestion) {
+        const adoptedResult = await askUser({
+          sessionID: input.sessionID,
+          question: askUserQuestion,
+          trace: traceForAssist,
+          lastUser: input.lastUser,
+        })
+        return {
+          kind: "ask_user" as const,
+          adopted: askUserAdoption.adopted,
+          outcome: adoptedResult.outcome,
+          trace: traceForAssist,
+        }
+      }
+    }
+
+    const adoptedReplan = await replan({
+      sessionID: input.sessionID,
+      todos: input.todos,
+      suggestion: suggestedTrace.suggestion,
+      roundCount: input.autonomousRounds,
+      fallbackDecision: input.decision,
+    })
+    const adoptedDecision = adoptedReplan.decision
+    const assist = applyAssist({
+      enabled: smartRunnerGovernor.assist,
+      decision: adoptedDecision,
+      trace: traceForAssist,
+    })
+    const tracedAssist = annotateSmartRunnerTraceAssist({
+      trace: annotateSmartRunnerReplanAdoption({
+        trace: traceForAssist,
+        adopted: adoptedReplan.adopted,
+        reason: adoptedReplan.reason,
+      }),
+      enabled: smartRunnerGovernor.assist,
+      assist,
+      originalText: adoptedDecision.text,
+    })
+    await persistTrace({
+      sessionID: input.sessionID,
+      trace: tracedAssist,
+    })
+    return {
+      kind: "continue" as const,
+      continueDecision: assist.applied
+        ? {
+            ...assist.decision,
+            text: prefixSmartRunnerText(assist.decision.text),
+          }
+        : assist.decision,
+      narrationOverride:
+        assist.applied && assist.narration ? prefixSmartRunnerText(assist.narration) : assist.narration,
+      trace: tracedAssist,
+      adoptedReplan,
+    }
+  }
+
   async function runLoop(sessionID: string, options?: { replaceRuntime?: boolean }) {
     const runtime = start(sessionID, { replace: options?.replaceRuntime })
     if (!runtime) {
@@ -914,83 +1023,22 @@ export namespace SessionPrompt {
         let continueDecision = decision.continue ? decision : undefined
         let narrationOverride: string | undefined
         if (decision.continue) {
-          const smartRunnerGovernor = await getSmartRunnerConfig()
           const todos = await Todo.get(sessionID)
-          const trace = await evaluateSmartRunnerGovernorDryRun({
+          const stopResult = await handleSmartRunnerStopDecision({
             sessionID,
-            model: activeModel,
-            enabled: smartRunnerGovernor.enabled,
-            todos,
-            roundCount: autonomousRounds,
-            deterministicDecision: decision,
+            activeModel,
+            autonomousRounds,
+            lastUser,
             messages: msgs,
-          })
-          const suggestedTrace = annotateSmartRunnerTraceSuggestion({ trace })
-          let traceForAssist = suggestedTrace
-          const currentPendingQuestions = (await Question.list()).filter((item) => item.sessionID === sessionID).length
-          const askUserAdoption = evaluateSmartRunnerAskUserAdoption({
-            suggestion: suggestedTrace.suggestion,
-            pendingQuestions: currentPendingQuestions,
-          })
-          const askUserQuestion = buildSmartRunnerQuestion({
-            questionText: getSmartRunnerAskUserQuestionText({ suggestion: suggestedTrace.suggestion }),
-          })
-
-          if (suggestedTrace.suggestion?.kind === "ask_user" && askUserAdoption.reason) {
-            traceForAssist = annotateSmartRunnerAskUserAdoption({
-              trace: suggestedTrace,
-              adopted: askUserAdoption.adopted,
-              reason: askUserAdoption.reason,
-            })
-            if (askUserAdoption.adopted && askUserQuestion) {
-              const adoptedResult = await handleSmartRunnerAskUserAdoption({
-                sessionID,
-                question: askUserQuestion,
-                trace: traceForAssist,
-                lastUser,
-              })
-              if (adoptedResult.outcome === "answered") {
-                continue
-              }
-              break
-            }
-          }
-
-          const adoptedReplan = await handleSmartRunnerReplanAdoption({
-            sessionID,
             todos,
-            suggestion: suggestedTrace.suggestion,
-            roundCount: autonomousRounds,
-            fallbackDecision: decision,
+            decision,
           })
-          const adoptedDecision = adoptedReplan.decision
-          const assist = applySmartRunnerBoundedAssist({
-            enabled: smartRunnerGovernor.assist,
-            decision: adoptedDecision,
-            trace: traceForAssist,
-          })
-          const tracedAssist = annotateSmartRunnerTraceAssist({
-            trace: annotateSmartRunnerReplanAdoption({
-              trace: traceForAssist,
-              adopted: adoptedReplan.adopted,
-              reason: adoptedReplan.reason,
-            }),
-            enabled: smartRunnerGovernor.assist,
-            assist,
-            originalText: adoptedDecision.text,
-          })
-          await persistSmartRunnerGovernorTrace({
-            sessionID,
-            trace: tracedAssist,
-          })
-          continueDecision = assist.applied
-            ? {
-                ...assist.decision,
-                text: prefixSmartRunnerText(assist.decision.text),
-              }
-            : assist.decision
-          narrationOverride =
-            assist.applied && assist.narration ? prefixSmartRunnerText(assist.narration) : assist.narration
+          if (stopResult.kind === "ask_user") {
+            if (stopResult.outcome === "answered") continue
+            break
+          }
+          continueDecision = stopResult.continueDecision
+          narrationOverride = stopResult.narrationOverride
         }
         const narration = continueDecision
           ? describeAutonomousNextAction({

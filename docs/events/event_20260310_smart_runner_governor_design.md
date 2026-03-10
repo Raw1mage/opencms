@@ -1014,3 +1014,30 @@ Validation（continuation side-effects helper extraction）:
 - 結果：continue branch 的最主要 side effects 現在也被抽成可測 helper，Smart Runner prompt-side regressions 已經更接近真實 runLoop 行為。
 - Architecture Sync: Verified (No doc changes)
   - 比對依據：此輪只做 continuation side-effects helper extraction，未改 runtime flow / policy / data-path contract
+
+### Current Slice (high-level stop-decision helper extraction)
+
+需求：直接 mock 整個 runLoop/module cache 不穩，因此將 `result === "stop" && decision.continue` 這段 Smart Runner 核心協調流程再抽高一層，形成可測的 stop-decision helper，覆蓋 ask-user adoption 與 replan+assist continue 兩條主幹。
+
+範圍：
+
+- IN
+  - 將 Smart Runner stop-decision 主幹抽成高層 helper
+  - 補 ask-user / continue path regression
+- OUT
+  - 不改 Smart Runner policy
+  - 不直接模擬整個 runLoop module cache 行為
+
+任務清單：
+
+- [x] 在 `prompt.ts` 新增 `handleSmartRunnerStopDecision(...)`
+- [x] 讓 prompt loop 改用該 helper 收斂 Smart Runner stop branch
+- [x] 補 ask-user adoption / replan+assist continue 兩條高層 regression
+
+Validation（high-level stop-decision helper extraction）:
+
+- `bun x eslint /home/pkcs12/projects/opencode/packages/opencode/src/session/prompt.ts /home/pkcs12/projects/opencode/packages/opencode/test/session/smart-runner-prompt.test.ts` ✅
+- `bun test /home/pkcs12/projects/opencode/packages/opencode/test/session/smart-runner-prompt.test.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts` ✅
+- 結果：Smart Runner 在 `stop -> continue-decision` 這段的高層 orchestration 現在也已可測，已比單純 helper 更接近 runLoop 真實決策路徑。
+- Architecture Sync: Verified (No doc changes)
+  - 比對依據：此輪只做 stop-decision helper extraction 與測試，未改 runtime flow / policy / data-path contract

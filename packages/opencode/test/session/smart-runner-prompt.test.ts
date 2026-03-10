@@ -431,4 +431,166 @@ describe("session.smart-runner-prompt", () => {
       }),
     )
   })
+
+  test("coordinates stop-decision ask-user adoption at a high level", async () => {
+    const getConfig = mock(async () => ({ enabled: true, assist: false }))
+    const evaluateGovernor = mock(async () => ({
+      source: "smart_runner_governor",
+      dryRun: true,
+      status: "advisory",
+      createdAt: Date.now(),
+      deterministicReason: "todo_pending",
+      decision: {
+        situation: "waiting_for_human",
+        assessment: "Needs clarification",
+        decision: "ask_user",
+        reason: "Need user input before continuing",
+        nextAction: {
+          kind: "request_user_input",
+          todoID: "t1",
+          skillHints: [],
+          narration: "Should we continue with the current product behavior?",
+        },
+        needsUserInput: true,
+        confidence: "high",
+      },
+    }))
+    const askUser = mock(async () => ({ outcome: "rejected" as const }))
+
+    const result = await SessionPrompt.handleSmartRunnerStopDecision({
+      sessionID: "ses_test",
+      activeModel: { providerId: "openai", modelID: "gpt-5.2" } as any,
+      autonomousRounds: 0,
+      lastUser: {
+        id: "msg_user",
+        sessionID: "ses_test",
+        role: "user",
+        time: { created: Date.now() },
+        agent: "build",
+        model: { providerId: "openai", modelID: "gpt-5.2" },
+        variant: undefined,
+        format: undefined,
+      },
+      messages: [],
+      todos: [{ id: "t1", content: "next", status: "pending", priority: "high" }],
+      decision: {
+        continue: true,
+        reason: "todo_pending",
+        text: "Continue with the next planned step.",
+        todo: { id: "t1", content: "next", status: "pending", priority: "high" },
+      },
+      getConfig: getConfig as any,
+      evaluateGovernor: evaluateGovernor as any,
+      listQuestions: async () => [],
+      askUser: askUser as any,
+      replan: mock(async () => {
+        throw new Error("replan should not run when ask_user is adopted")
+      }) as any,
+    })
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        kind: "ask_user",
+        adopted: true,
+        outcome: "rejected",
+      }),
+    )
+    expect(askUser).toHaveBeenCalledTimes(1)
+  })
+
+  test("coordinates stop-decision continue path with assist/replan outputs", async () => {
+    const getConfig = mock(async () => ({ enabled: true, assist: true }))
+    const evaluateGovernor = mock(async () => ({
+      source: "smart_runner_governor",
+      dryRun: true,
+      status: "advisory",
+      createdAt: Date.now(),
+      deterministicReason: "todo_pending",
+      decision: {
+        situation: "ready_to_continue",
+        assessment: "Can continue",
+        decision: "continue",
+        reason: "Safe to continue",
+        nextAction: {
+          kind: "continue_current",
+          todoID: "t1",
+          skillHints: [],
+          narration: "Continue",
+        },
+        needsUserInput: false,
+        confidence: "high",
+      },
+    }))
+    const replan = mock(async () => ({
+      adopted: true as const,
+      reason: "adopted" as const,
+      decision: {
+        continue: true as const,
+        reason: "todo_in_progress" as const,
+        text: "Continue the task already in progress.",
+        todo: { id: "t1", content: "next", status: "in_progress", priority: "high" },
+      },
+      todos: [{ id: "t1", content: "next", status: "in_progress", priority: "high" }],
+    }))
+    const applyAssist = mock(() => ({
+      applied: true,
+      decision: {
+        continue: true as const,
+        reason: "todo_in_progress" as const,
+        text: "Continue the task already in progress.",
+        todo: { id: "t1", content: "next", status: "in_progress", priority: "high" },
+      },
+      narration: "Starting the next step now.",
+    }))
+    const persistTrace = mock(async () => {})
+
+    const result = await SessionPrompt.handleSmartRunnerStopDecision({
+      sessionID: "ses_test",
+      activeModel: { providerId: "openai", modelID: "gpt-5.2" } as any,
+      autonomousRounds: 0,
+      lastUser: {
+        id: "msg_user",
+        sessionID: "ses_test",
+        role: "user",
+        time: { created: Date.now() },
+        agent: "build",
+        model: { providerId: "openai", modelID: "gpt-5.2" },
+        variant: undefined,
+        format: undefined,
+      },
+      messages: [],
+      todos: [{ id: "t1", content: "next", status: "pending", priority: "high" }],
+      decision: {
+        continue: true,
+        reason: "todo_pending",
+        text: "Continue with the next planned step.",
+        todo: { id: "t1", content: "next", status: "pending", priority: "high" },
+      },
+      getConfig: getConfig as any,
+      evaluateGovernor: evaluateGovernor as any,
+      listQuestions: async () => [],
+      askUser: mock(async () => {
+        throw new Error("askUser should not run in continue path")
+      }) as any,
+      replan: replan as any,
+      persistTrace: persistTrace as any,
+      applyAssist: applyAssist as any,
+    })
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        kind: "continue",
+        narrationOverride: "[AI] Starting the next step now.",
+        continueDecision: {
+          continue: true,
+          reason: "todo_in_progress",
+          text: "[AI] Continue the task already in progress.",
+          todo: { id: "t1", content: "next", status: "in_progress", priority: "high" },
+        },
+      }),
+    )
+    expect(replan).toHaveBeenCalledTimes(1)
+    expect(applyAssist).toHaveBeenCalledTimes(1)
+    expect(persistTrace).toHaveBeenCalledTimes(1)
+  })
 })
