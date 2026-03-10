@@ -480,7 +480,6 @@ export type SessionStatusSummary = {
     pauseNarrations: number
     completeNarrations: number
     kindCounts: Array<{ kind: string; count: number }>
-    roleCounts: Array<{ role: string; count: number }>
     latestKind?: string
     latestRole?: string
     latestLabel?: string
@@ -561,7 +560,6 @@ const summarizeSmartRunnerConversation = (input: {
   let pauseNarrations = 0
   let completeNarrations = 0
   const kindCounts = new Map<string, number>()
-  const roleCounts = new Map<string, number>()
   let latestKind: string | undefined
   let latestRole: string | undefined
   let latestLabel: string | undefined
@@ -583,14 +581,12 @@ const summarizeSmartRunnerConversation = (input: {
       if (part.metadata?.autonomousNarration !== true) continue
       totalNarrations += 1
       const kind = typeof part.metadata?.narrationKind === "string" ? part.metadata.narrationKind : undefined
-      const role = classifyRole(kind)
       if (kind === "pause" || kind === "interrupt") pauseNarrations += 1
       if (kind === "complete") completeNarrations += 1
       kindCounts.set(kind ?? "unknown", (kindCounts.get(kind ?? "unknown") ?? 0) + 1)
-      if (role) roleCounts.set(role, (roleCounts.get(role) ?? 0) + 1)
       if (!latestLabel) {
         latestKind = kind
-        latestRole = role
+        latestRole = classifyRole(kind)
         latestLabel = part.text
       }
     }
@@ -604,9 +600,6 @@ const summarizeSmartRunnerConversation = (input: {
     kindCounts: [...kindCounts.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([kind, count]) => ({ kind, count })),
-    roleCounts: [...roleCounts.entries()]
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .map(([role, count]) => ({ role, count })),
     latestKind,
     latestRole,
     latestLabel,

@@ -363,17 +363,6 @@ export function SessionSidePanel(props: {
                                     </For>
                                   </div>
                                 </Show>
-                                <Show when={conversation().roleCounts.length > 0}>
-                                  <div class="flex flex-wrap gap-1">
-                                    <For each={conversation().roleCounts}>
-                                      {(item) => (
-                                        <span class="rounded-full border border-border-weak-base px-2 py-0.5 text-[11px] text-text-weak">
-                                          {item.role} × {item.count}
-                                        </span>
-                                      )}
-                                    </For>
-                                  </div>
-                                </Show>
                                 <Show when={conversation().latestKind}>
                                   <div>Latest AI kind: {conversation().latestKind}</div>
                                 </Show>
