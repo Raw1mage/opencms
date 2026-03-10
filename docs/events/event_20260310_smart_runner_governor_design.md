@@ -1071,3 +1071,34 @@ Validation（request_approval proposal and host handling）:
 - 結果：Smart Runner 現在除了 `ask_user` / `replan` 外，也能產生並由 host 採納 `request_approval` proposal；採納後 workflow 會安全切到 `waiting_user / approval_needed`。
 - Architecture Sync: Updated
   - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 `request_approval` adopted path 與 proposal surface
+
+### Current Slice (pause_for_risk proposal and host handling)
+
+需求：在 `request_approval` 之外，再補一種較柔性的治理停點：當下一步雖未必是正式 approval gate，但風險高到值得刻意停下來做人類 review 時，Smart Runner 應能提出 `pause_for_risk` proposal，並由 deterministic host 採納為 `waiting_user / risk_review_needed`。
+
+範圍：
+
+- IN
+  - governor decision schema 新增 `pause_for_risk`
+  - suggestion/adoption metadata 新增 risk pause request path
+  - prompt host handling 新增 risk pause adoption helper
+  - high-level stop-decision helper 接上 `pause_for_risk` branch
+- OUT
+  - 不新增新的風險審核 UI
+  - 不改 workflow-runner 既有 deterministic approval gate
+  - 不把一般 `pause` advisory 直接升級為 adopted host stop path
+
+任務清單：
+
+- [x] 在 governor schema / suggestion annotation 新增 `pause_for_risk`
+- [x] 在 prompt 新增 `handleSmartRunnerRiskPause(...)`
+- [x] 讓 `handleSmartRunnerStopDecision(...)` 能處理 `pause_for_risk` adopted path
+- [x] 補 governor + prompt tests
+
+Validation（pause_for_risk proposal and host handling）:
+
+- `bun x eslint /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/prompt.ts /home/pkcs12/projects/opencode/packages/opencode/test/session/smart-runner-prompt.test.ts` ✅
+- `bun test /home/pkcs12/projects/opencode/packages/opencode/src/session/smart-runner-governor.test.ts /home/pkcs12/projects/opencode/packages/opencode/test/session/smart-runner-prompt.test.ts` ✅
+- 結果：Smart Runner 現在除了 `request_approval` 外，也能由 host 採納 `pause_for_risk` proposal；採納後 workflow 會安全切到 `waiting_user / risk_review_needed`，且不影響既有 deterministic approval gate。
+- Architecture Sync: Updated
+  - 已於 `/home/pkcs12/projects/opencode/docs/ARCHITECTURE.md` 補記 `pause_for_risk` adopted path 與 proposal surface

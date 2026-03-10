@@ -222,6 +222,44 @@ describe("session.smart-runner-prompt", () => {
     )
   })
 
+  test("orchestrates pause-for-risk into waiting_user risk-review state", async () => {
+    const persistTrace = mock(async () => {})
+    const setWorkflowState = mock(async () => ({}) as Awaited<ReturnType<typeof Session.setWorkflowState>>)
+
+    const result = await SessionPrompt.handleSmartRunnerRiskPause({
+      sessionID: "ses_test",
+      trace: {
+        source: "smart_runner_governor",
+        dryRun: true,
+        status: "advisory",
+        createdAt: Date.now(),
+        deterministicReason: "todo_pending",
+        suggestion: {
+          kind: "pause_for_risk",
+          reason: "Shared workflow change should pause for review",
+          riskPauseRequest: {
+            proposalID: "risk-pause:t7",
+            targetTodoID: "t7",
+            hostAdopted: true,
+            hostAdoptionReason: "adopted",
+          },
+        },
+      } as any,
+      persistTrace: persistTrace as any,
+      setWorkflowState,
+    })
+
+    expect(result).toEqual({ outcome: "paused" })
+    expect(persistTrace).toHaveBeenCalledTimes(1)
+    expect(setWorkflowState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionID: "ses_test",
+        state: "waiting_user",
+        stopReason: "risk_review_needed",
+      }),
+    )
+  })
+
   test("integrates with real Question reject flow for ask-user adoption", async () => {
     const question = SessionPrompt.buildSmartRunnerQuestion({
       questionText: "Should we continue with the current product behavior?",
@@ -699,5 +737,77 @@ describe("session.smart-runner-prompt", () => {
       }),
     )
     expect(requestApproval).toHaveBeenCalledTimes(1)
+  })
+
+  test("coordinates stop-decision pause-for-risk path", async () => {
+    const getConfig = mock(async () => ({ enabled: true, assist: false }))
+    const evaluateGovernor = mock(async () => ({
+      source: "smart_runner_governor",
+      dryRun: true,
+      status: "advisory",
+      createdAt: Date.now(),
+      deterministicReason: "todo_pending",
+      decision: {
+        situation: "execution_stalled",
+        assessment: "Shared workflow change needs a deliberate review pause",
+        decision: "pause_for_risk",
+        reason: "The next step is risky enough that the host should pause for review first",
+        nextAction: {
+          kind: "pause_for_risk",
+          todoID: "t7",
+          skillHints: [],
+          narration: "Pause for risk review before continuing.",
+        },
+        needsUserInput: true,
+        confidence: "high",
+      },
+    }))
+    const pauseForRisk = mock(async () => ({ outcome: "paused" as const }))
+
+    const result = await SessionPrompt.handleSmartRunnerStopDecision({
+      sessionID: "ses_test",
+      activeModel: { providerId: "openai", modelID: "gpt-5.2" } as any,
+      autonomousRounds: 0,
+      lastUser: {
+        id: "msg_user",
+        sessionID: "ses_test",
+        role: "user",
+        time: { created: Date.now() },
+        agent: "build",
+        model: { providerId: "openai", modelID: "gpt-5.2" },
+        variant: undefined,
+        format: undefined,
+      },
+      messages: [],
+      todos: [{ id: "t7", content: "touch shared workflow path", status: "pending", priority: "high" }],
+      decision: {
+        continue: true,
+        reason: "todo_pending",
+        text: "Continue with the next planned step.",
+        todo: { id: "t7", content: "touch shared workflow path", status: "pending", priority: "high" },
+      },
+      getConfig: getConfig as any,
+      evaluateGovernor: evaluateGovernor as any,
+      listQuestions: async () => [],
+      pauseForRisk: pauseForRisk as any,
+      askUser: mock(async () => {
+        throw new Error("askUser should not run in pause_for_risk path")
+      }) as any,
+      requestApproval: mock(async () => {
+        throw new Error("requestApproval should not run in pause_for_risk path")
+      }) as any,
+      replan: mock(async () => {
+        throw new Error("replan should not run in pause_for_risk path")
+      }) as any,
+    })
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        kind: "pause_for_risk",
+        adopted: true,
+        outcome: "paused",
+      }),
+    )
+    expect(pauseForRisk).toHaveBeenCalledTimes(1)
   })
 })

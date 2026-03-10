@@ -25,6 +25,7 @@ const SmartRunnerDecisionSchema = z.object({
     "replan",
     "ask_user",
     "request_approval",
+    "pause_for_risk",
     "pause",
     "complete",
     "docs_sync_first",
@@ -37,6 +38,7 @@ const SmartRunnerDecisionSchema = z.object({
       "start_next_todo",
       "replan_todos",
       "request_approval",
+      "pause_for_risk",
       "request_docs_sync",
       "request_debug_preflight",
       "request_user_input",
@@ -76,7 +78,7 @@ const SmartRunnerTraceSchema = z.object({
     .optional(),
   suggestion: z
     .object({
-      kind: z.enum(["replan", "ask_user", "request_approval"]),
+      kind: z.enum(["replan", "ask_user", "request_approval", "pause_for_risk"]),
       reason: z.string(),
       suggestedTodoID: z.string().optional(),
       suggestedAction: z.string().optional(),
@@ -124,6 +126,28 @@ const SmartRunnerTraceSchema = z.object({
           targetTodoID: z.string().optional(),
           rationale: z.string().optional(),
           approvalScope: z.string().optional(),
+          adoptionNote: z.string().optional(),
+          policy: z
+            .object({
+              trustLevel: z.enum(["low", "medium", "high"]).optional(),
+              adoptionMode: z.enum(["advisory_only", "host_adoptable", "user_confirm_required"]).optional(),
+              requiresUserConfirm: z.boolean().optional(),
+              requiresHostReview: z.boolean().optional(),
+            })
+            .optional(),
+          hostAdopted: z.boolean().optional(),
+          hostAdoptionReason: z
+            .enum(["adopted", "policy_not_host_adoptable", "user_confirm_required", "host_review_missing"])
+            .optional(),
+        })
+        .optional(),
+      riskPauseRequest: z
+        .object({
+          proposalID: z.string().optional(),
+          targetTodoID: z.string().optional(),
+          rationale: z.string().optional(),
+          riskSummary: z.string().optional(),
+          pauseScope: z.string().optional(),
           adoptionNote: z.string().optional(),
           policy: z
             .object({
@@ -406,7 +430,8 @@ export function annotateSmartRunnerTraceAssist(input: {
 
 export function annotateSmartRunnerTraceSuggestion(input: { trace: SmartRunnerTrace }) {
   if (input.trace.status !== "advisory" || !input.trace.decision) return input.trace
-  if (!["replan", "ask_user", "request_approval"].includes(input.trace.decision.decision)) return input.trace
+  if (!["replan", "ask_user", "request_approval", "pause_for_risk"].includes(input.trace.decision.decision))
+    return input.trace
 
   const draftQuestion =
     input.trace.decision.decision === "ask_user"
@@ -475,6 +500,27 @@ export function annotateSmartRunnerTraceSuggestion(input: { trace: SmartRunnerTr
           },
         }
       : undefined
+  const riskPauseRequest =
+    input.trace.decision.decision === "pause_for_risk"
+      ? {
+          proposalID: input.trace.decision.nextAction.todoID
+            ? `risk-pause:${input.trace.decision.nextAction.todoID}`
+            : "risk-pause:unspecified",
+          targetTodoID: input.trace.decision.nextAction.todoID,
+          rationale: input.trace.decision.reason,
+          riskSummary: input.trace.decision.assessment,
+          pauseScope: input.trace.decision.nextAction.todoID
+            ? `Pause before continuing risky todo ${input.trace.decision.nextAction.todoID}.`
+            : "Pause before continuing the current risky plan.",
+          adoptionNote: "Host may adopt this proposal into a real risk pause before continuing execution.",
+          policy: {
+            trustLevel: "medium",
+            adoptionMode: "host_adoptable",
+            requiresUserConfirm: false,
+            requiresHostReview: true,
+          },
+        }
+      : undefined
   const replanAdoption =
     input.trace.decision.decision === "replan"
       ? {
@@ -510,8 +556,35 @@ export function annotateSmartRunnerTraceSuggestion(input: { trace: SmartRunnerTr
       askUserHandoff,
       askUserAdoption,
       approvalRequest,
+      riskPauseRequest,
       replanRequest,
       replanAdoption,
+    },
+  })
+}
+
+export function annotateSmartRunnerRiskPauseAdoption(input: {
+  trace: SmartRunnerTrace
+  adopted: boolean
+  reason?: "adopted" | "policy_not_host_adoptable" | "user_confirm_required" | "host_review_missing"
+}) {
+  if (
+    input.trace.status !== "advisory" ||
+    input.trace.suggestion?.kind !== "pause_for_risk" ||
+    !input.trace.suggestion.riskPauseRequest
+  ) {
+    return input.trace
+  }
+
+  return SmartRunnerTraceSchema.parse({
+    ...input.trace,
+    suggestion: {
+      ...input.trace.suggestion,
+      riskPauseRequest: {
+        ...input.trace.suggestion.riskPauseRequest,
+        hostAdopted: input.adopted,
+        hostAdoptionReason: input.reason,
+      },
     },
   })
 }

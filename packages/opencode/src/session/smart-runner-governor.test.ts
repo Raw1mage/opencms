@@ -3,6 +3,7 @@ import { Session } from "."
 import {
   annotateSmartRunnerApprovalAdoption,
   annotateSmartRunnerAskUserAdoption,
+  annotateSmartRunnerRiskPauseAdoption,
   annotateSmartRunnerReplanAdoption,
   annotateSmartRunnerTraceSuggestion,
   annotateSmartRunnerTraceAssist,
@@ -622,6 +623,88 @@ describe("Smart Runner Governor", () => {
 
     expect(trace.suggestion?.approvalRequest?.hostAdopted).toBe(true)
     expect(trace.suggestion?.approvalRequest?.hostAdoptionReason).toBe("adopted")
+  })
+
+  it("annotates pause-for-risk suggestions without changing control flow", () => {
+    const trace = annotateSmartRunnerTraceSuggestion({
+      trace: {
+        source: "smart_runner_governor",
+        dryRun: true,
+        status: "advisory",
+        createdAt: 1,
+        deterministicReason: "todo_pending",
+        decision: {
+          situation: "execution_stalled",
+          assessment: "The next step is risky enough to justify a deliberate review pause",
+          decision: "pause_for_risk",
+          reason: "The upcoming step touches shared workflow behavior and should pause for risk review",
+          nextAction: {
+            kind: "pause_for_risk",
+            todoID: "t7",
+            skillHints: ["code-thinker"],
+            narration: "Pausing for a human risk review before continuing.",
+          },
+          needsUserInput: true,
+          confidence: "high",
+        },
+      },
+    })
+
+    expect(trace.suggestion).toEqual(
+      expect.objectContaining({
+        kind: "pause_for_risk",
+        reason: "The upcoming step touches shared workflow behavior and should pause for risk review",
+        suggestedTodoID: "t7",
+        suggestedAction: "pause_for_risk",
+        riskPauseRequest: {
+          proposalID: "risk-pause:t7",
+          targetTodoID: "t7",
+          rationale: "The upcoming step touches shared workflow behavior and should pause for risk review",
+          riskSummary: "The next step is risky enough to justify a deliberate review pause",
+          pauseScope: "Pause before continuing risky todo t7.",
+          adoptionNote: "Host may adopt this proposal into a real risk pause before continuing execution.",
+          policy: {
+            trustLevel: "medium",
+            adoptionMode: "host_adoptable",
+            requiresUserConfirm: false,
+            requiresHostReview: true,
+          },
+        },
+      }),
+    )
+  })
+
+  it("marks when a pause-for-risk proposal was host-adopted", () => {
+    const trace = annotateSmartRunnerRiskPauseAdoption({
+      trace: annotateSmartRunnerTraceSuggestion({
+        trace: {
+          source: "smart_runner_governor",
+          dryRun: true,
+          status: "advisory",
+          createdAt: 1,
+          deterministicReason: "todo_pending",
+          decision: {
+            situation: "execution_stalled",
+            assessment: "The next step is risky enough to justify a deliberate review pause",
+            decision: "pause_for_risk",
+            reason: "The upcoming step touches shared workflow behavior and should pause for risk review",
+            nextAction: {
+              kind: "pause_for_risk",
+              todoID: "t7",
+              skillHints: ["code-thinker"],
+              narration: "Pausing for a human risk review before continuing.",
+            },
+            needsUserInput: true,
+            confidence: "high",
+          },
+        },
+      }),
+      adopted: true,
+      reason: "adopted",
+    })
+
+    expect(trace.suggestion?.riskPauseRequest?.hostAdopted).toBe(true)
+    expect(trace.suggestion?.riskPauseRequest?.hostAdoptionReason).toBe("adopted")
   })
 
   it("turns docs sync assist into an explicit preflight continuation", () => {

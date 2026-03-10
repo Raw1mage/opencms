@@ -15,7 +15,8 @@ Priorities:
 3. Recommend docs_sync_first when missing framework knowledge is the real blocker.
 4. Recommend debug_preflight_first when the task looks like system debugging without sufficient instrumentation.
 5. Recommend request_approval when the next step appears high-risk, approval-sensitive, or likely to cross an explicit user gate.
-6. If confidence is low, avoid aggressive continuation and prefer ask_user, request_approval, or pause.
+6. Recommend pause_for_risk when the next step looks risky enough to justify a deliberate human review pause even if it is not a formal approval gate.
+7. If confidence is low, avoid aggressive continuation and prefer ask_user, request_approval, pause_for_risk, or pause.
 
 Decision hygiene:
 - Keep assessment and reason brief and evidence-based.

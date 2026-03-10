@@ -70,6 +70,7 @@ import {
 import {
   annotateSmartRunnerApprovalAdoption,
   annotateSmartRunnerAskUserAdoption,
+  annotateSmartRunnerRiskPauseAdoption,
   annotateSmartRunnerReplanAdoption,
   annotateSmartRunnerTraceAssist,
   annotateSmartRunnerTraceSuggestion,
@@ -380,6 +381,27 @@ export namespace SessionPrompt {
     return { outcome: "requested" as const }
   }
 
+  export async function handleSmartRunnerRiskPause(input: {
+    sessionID: string
+    trace: ReturnType<typeof annotateSmartRunnerRiskPauseAdoption>
+    persistTrace?: (input: {
+      sessionID: string
+      trace: ReturnType<typeof annotateSmartRunnerRiskPauseAdoption>
+    }) => Promise<void>
+    setWorkflowState?: typeof Session.setWorkflowState
+  }) {
+    const persistTrace = input.persistTrace ?? persistSmartRunnerGovernorTrace
+    const setWorkflowState = input.setWorkflowState ?? Session.setWorkflowState
+    await persistTrace({ sessionID: input.sessionID, trace: input.trace })
+    await setWorkflowState({
+      sessionID: input.sessionID,
+      state: "waiting_user",
+      stopReason: "risk_review_needed",
+      lastRunAt: Date.now(),
+    })
+    return { outcome: "paused" as const }
+  }
+
   export async function handleSmartRunnerReplanAdoption(input: {
     sessionID: string
     todos: Todo.Info[]
@@ -466,6 +488,7 @@ export namespace SessionPrompt {
     listQuestions?: typeof Question.list
     askUser?: typeof handleSmartRunnerAskUserAdoption
     requestApproval?: typeof handleSmartRunnerApprovalRequest
+    pauseForRisk?: typeof handleSmartRunnerRiskPause
     replan?: typeof handleSmartRunnerReplanAdoption
     persistTrace?: typeof persistSmartRunnerGovernorTrace
     applyAssist?: typeof applySmartRunnerBoundedAssist
@@ -475,6 +498,7 @@ export namespace SessionPrompt {
     const listQuestions = input.listQuestions ?? Question.list
     const askUser = input.askUser ?? handleSmartRunnerAskUserAdoption
     const requestApproval = input.requestApproval ?? handleSmartRunnerApprovalRequest
+    const pauseForRisk = input.pauseForRisk ?? handleSmartRunnerRiskPause
     const replan = input.replan ?? handleSmartRunnerReplanAdoption
     const persistTrace = input.persistTrace ?? persistSmartRunnerGovernorTrace
     const applyAssist = input.applyAssist ?? applySmartRunnerBoundedAssist
@@ -525,6 +549,35 @@ export namespace SessionPrompt {
           adopted: true,
           outcome: approvalResult.outcome,
           trace: approvalTrace,
+        }
+      }
+    }
+
+    if (suggestedTrace.suggestion?.kind === "pause_for_risk") {
+      const policy = suggestedTrace.suggestion.riskPauseRequest?.policy
+      const riskPauseReason =
+        policy?.adoptionMode !== "host_adoptable"
+          ? ("policy_not_host_adoptable" as const)
+          : policy?.requiresUserConfirm === true
+            ? ("user_confirm_required" as const)
+            : policy?.requiresHostReview === false
+              ? ("host_review_missing" as const)
+              : ("adopted" as const)
+      const riskPauseTrace = annotateSmartRunnerRiskPauseAdoption({
+        trace: suggestedTrace,
+        adopted: riskPauseReason === "adopted",
+        reason: riskPauseReason,
+      })
+      if (riskPauseReason === "adopted") {
+        const riskPauseResult = await pauseForRisk({
+          sessionID: input.sessionID,
+          trace: riskPauseTrace,
+        })
+        return {
+          kind: "pause_for_risk" as const,
+          adopted: true,
+          outcome: riskPauseResult.outcome,
+          trace: riskPauseTrace,
         }
       }
     }
@@ -1091,6 +1144,9 @@ export namespace SessionPrompt {
             break
           }
           if (stopResult.kind === "request_approval") {
+            break
+          }
+          if (stopResult.kind === "pause_for_risk") {
             break
           }
           continueDecision = stopResult.continueDecision
