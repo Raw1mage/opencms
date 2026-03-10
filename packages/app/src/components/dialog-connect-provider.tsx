@@ -16,14 +16,16 @@ import { Link } from "@/components/link"
 import { useLanguage } from "@/context/language"
 import { useGlobalSDK } from "@/context/global-sdk"
 import { useGlobalSync } from "@/context/global-sync"
-import { usePlatform } from "@/context/platform"
 import { DialogSelectProvider } from "./dialog-select-provider"
+
+export function shouldAutoOpenAuthorization() {
+  return false
+}
 
 export function DialogConnectProvider(props: { provider: string; onBack?: () => void }) {
   const dialog = useDialog()
   const globalSync = useGlobalSync()
   const globalSDK = useGlobalSDK()
-  const platform = usePlatform()
   const language = useLanguage()
 
   const alive = { value: true }
@@ -318,12 +320,6 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
       error: undefined as string | undefined,
     })
 
-    onMount(() => {
-      if (store.authorization?.method === "code" && store.authorization?.url) {
-        platform.openLink(store.authorization.url)
-      }
-    })
-
     async function handleSubmit(e: SubmitEvent) {
       e.preventDefault()
 
@@ -390,10 +386,6 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
 
     onMount(() => {
       void (async () => {
-        if (store.authorization?.url) {
-          platform.openLink(store.authorization.url)
-        }
-
         const result = await globalSDK.client.provider.oauth
           .callback({
             providerId: props.provider,

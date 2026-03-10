@@ -239,27 +239,54 @@ export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
               instructions: `Enter code: ${deviceData.user_code}`,
               method: "auto" as const,
               async callback() {
+                // Track when we started so we can respect the device code expiry (if provided).
+                const startedAt = Date.now()
+                const expiresMs = (deviceData as any).expires_in ? (deviceData as any).expires_in * 1000 : undefined
+
+                // Start with the server-provided interval (in seconds) or a sensible default.
+                let pollIntervalMs = (deviceData.interval || 5) * 1000
+
                 while (true) {
-                  const response = await fetch(urls.ACCESS_TOKEN_URL, {
-                    method: "POST",
-                    headers: {
-                      Accept: "application/json",
-                      "Content-Type": "application/json",
-                      "User-Agent": `opencode/${Installation.VERSION}`,
-                    },
-                    body: JSON.stringify({
-                      client_id: CLIENT_ID,
-                      device_code: deviceData.device_code,
-                      grant_type: "urn:ietf:params:oauth:grant-type:device_code",
-                    }),
-                  })
+                  // Respect overall expiry if provided by the device code response.
+                  if (expiresMs && Date.now() - startedAt > expiresMs) {
+                    return { type: "failed" as const }
+                  }
 
-                  if (!response.ok) return { type: "failed" as const }
+                  let response: Response
+                  try {
+                    response = await fetch(urls.ACCESS_TOKEN_URL, {
+                      method: "POST",
+                      headers: {
+                        Accept: "application/json",
+                        "Content-Type": "application/json",
+                        "User-Agent": `opencode/${Installation.VERSION}`,
+                      },
+                      body: JSON.stringify({
+                        client_id: CLIENT_ID,
+                        device_code: deviceData.device_code,
+                        grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+                      }),
+                    })
+                  } catch (err) {
+                    // Network error - wait and retry using the current poll interval.
+                    await Bun.sleep(pollIntervalMs + OAUTH_POLLING_SAFETY_MARGIN_MS)
+                    continue
+                  }
 
-                  const data = (await response.json()) as {
-                    access_token?: string
-                    error?: string
-                    interval?: number
+                  let data: any
+                  try {
+                    data = await response.json()
+                  } catch {
+                    // If we can't parse JSON and the response isn't OK, treat as a failure.
+                    if (!response.ok) return { type: "failed" as const }
+                    // Otherwise wait and retry.
+                    await Bun.sleep(pollIntervalMs + OAUTH_POLLING_SAFETY_MARGIN_MS)
+                    continue
+                  }
+
+                  // Server may suggest a new polling interval; respect it.
+                  if (typeof data.interval === "number" && data.interval > 0) {
+                    pollIntervalMs = data.interval * 1000
                   }
 
                   if (data.access_token) {
@@ -310,31 +337,29 @@ export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
                     return result
                   }
 
+                  // Standard device flow transient signals
                   if (data.error === "authorization_pending") {
-                    await Bun.sleep(deviceData.interval * 1000 + OAUTH_POLLING_SAFETY_MARGIN_MS)
+                    await Bun.sleep(pollIntervalMs + OAUTH_POLLING_SAFETY_MARGIN_MS)
                     continue
                   }
 
                   if (data.error === "slow_down") {
-                    // Based on the RFC spec, we must add 5 seconds to our current polling interval.
-                    // (See https://www.rfc-editor.org/rfc/rfc8628#section-3.5)
-                    let newInterval = (deviceData.interval + 5) * 1000
-
-                    // GitHub OAuth API may return the new interval in seconds in the response.
-                    // We should try to use that if provided with safety margin.
-                    const serverInterval = data.interval
-                    if (serverInterval && typeof serverInterval === "number" && serverInterval > 0) {
-                      newInterval = serverInterval * 1000
-                    }
-
-                    await Bun.sleep(newInterval + OAUTH_POLLING_SAFETY_MARGIN_MS)
+                    // RFC: increase polling interval by 5 seconds.
+                    pollIntervalMs = pollIntervalMs + 5000
+                    await Bun.sleep(pollIntervalMs + OAUTH_POLLING_SAFETY_MARGIN_MS)
                     continue
                   }
 
+                  // Fatal failures the user initiated or token expired.
+                  if (data.error === "access_denied" || data.error === "expired_token") {
+                    return { type: "failed" as const }
+                  }
+
+                  // Any other error from the server should fail-fast.
                   if (data.error) return { type: "failed" as const }
 
-                  await Bun.sleep(deviceData.interval * 1000 + OAUTH_POLLING_SAFETY_MARGIN_MS)
-                  continue
+                  // Otherwise, wait and retry using the last known interval.
+                  await Bun.sleep(pollIntervalMs + OAUTH_POLLING_SAFETY_MARGIN_MS)
                 }
               },
             }

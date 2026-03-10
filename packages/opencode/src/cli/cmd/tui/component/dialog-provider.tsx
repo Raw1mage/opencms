@@ -15,7 +15,6 @@ import type { ProviderAuthAuthorization } from "@opencode-ai/sdk/v2"
 import { useKeyboard } from "@opentui/solid"
 import { Clipboard } from "@tui/util/clipboard"
 import { useToast } from "../ui/toast"
-import open from "open"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
   opencode: 0,
@@ -150,7 +149,7 @@ export function DialogProvider(props: { providerId?: string }) {
           </text>
           <DialogDismiss onDismiss={() => dialog.clear()} />
         </box>
-        <text fg={theme.textMuted}>Opening authentication...</text>
+        <text fg={theme.textMuted}>Open the link below to continue authentication.</text>
       </box>
     </Show>
   )
@@ -243,9 +242,6 @@ function CodeMethod(props: CodeMethodProps) {
         .then(() => toast.show({ message: "URL copied to clipboard", variant: "info" }))
         .catch(toast.error)
     }
-    if (evt.name === "o" && evt.meta) {
-      open(props.authorization.url).catch(() => {})
-    }
   })
 
   return (
@@ -275,9 +271,6 @@ function CodeMethod(props: CodeMethodProps) {
           <box flexDirection="row" gap={2}>
             <text fg={theme.text}>
               alt+c <span style={{ fg: theme.textMuted }}>copy url</span>
-            </text>
-            <text fg={theme.text}>
-              alt+o <span style={{ fg: theme.textMuted }}>open browser</span>
             </text>
           </box>
           <Show when={error()}>

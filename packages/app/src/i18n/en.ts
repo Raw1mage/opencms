@@ -151,7 +151,7 @@ export const dict = {
   "provider.connect.oauth.code.visit.prefix": "Visit ",
   "provider.connect.oauth.code.visit.link": "this link",
   "provider.connect.oauth.code.visit.suffix":
-    " to collect your authorization code to connect your account and use {{provider}} models in OpenCode.",
+    " manually to collect your authorization code and connect your account to use {{provider}} models in OpenCode.",
   "provider.connect.oauth.code.label": "{{method}} authorization code",
   "provider.connect.oauth.code.placeholder": "Authorization code",
   "provider.connect.oauth.code.required": "Authorization code is required",
@@ -159,7 +159,7 @@ export const dict = {
   "provider.connect.oauth.auto.visit.prefix": "Visit ",
   "provider.connect.oauth.auto.visit.link": "this link",
   "provider.connect.oauth.auto.visit.suffix":
-    " and enter the code below to connect your account and use {{provider}} models in OpenCode.",
+    " manually, then enter the code below to connect your account and use {{provider}} models in OpenCode.",
   "provider.connect.oauth.auto.confirmationCode": "Confirmation code",
   "provider.connect.toast.connected.title": "{{provider}} connected",
   "provider.connect.toast.connected.description": "{{provider}} models are now available to use.",
