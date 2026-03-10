@@ -63,6 +63,7 @@ const serverEnv = {
   OPENCODE_DISABLE_LSP_DOWNLOAD: "true",
   OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
   OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: "true",
+  OPENCODE_USER_DAEMON_MODE: process.env.OPENCODE_USER_DAEMON_MODE ?? "1",
   OPENCODE_TEST_HOME: path.join(sandbox, "home"),
   XDG_DATA_HOME: path.join(sandbox, "share"),
   XDG_CACHE_HOME: path.join(sandbox, "cache"),
@@ -73,6 +74,7 @@ const serverEnv = {
   OPENCODE_E2E_MESSAGE: "Seeded for UI e2e",
   OPENCODE_E2E_MODEL: "opencode/gpt-5-nano",
   OPENCODE_CLIENT: "app",
+  PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH ?? path.join(os.homedir(), ".cache", "ms-playwright"),
 } satisfies Record<string, string>
 
 const runnerEnv = {
@@ -131,8 +133,8 @@ process.once("unhandledRejection", (error) => {
 let code = 1
 
 try {
-  seed = Bun.spawn(["bun", "script/seed-e2e.ts"], {
-    cwd: opencodeDir,
+  seed = Bun.spawn(["bun", path.join(repoDir, "script", "seed-e2e.ts")], {
+    cwd: repoDir,
     env: serverEnv,
     stdout: "inherit",
     stderr: "inherit",

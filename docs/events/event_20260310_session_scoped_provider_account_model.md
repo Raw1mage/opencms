@@ -144,6 +144,13 @@
   - `bun test /home/pkcs12/projects/opencode-beta/packages/opencode/test/session/message-v2.test.ts` ✅
 - Lint:
   - `bunx eslint` on touched session/TUI/docs-related TS/TSX files ✅ (no output)
+- E2E harness / integration verification:
+  - fixed `packages/app/script/e2e-local.ts` seed path to use repo-root `script/seed-e2e.ts` ✅
+  - fixed local E2E auth precondition by setting `OPENCODE_USER_DAEMON_MODE=1` in harness env, so loopback sandbox runs without web-auth challenge ✅
+  - fixed Playwright browser cache path in local harness via `PLAYWRIGHT_BROWSERS_PATH` passthrough/default ✅
+  - added compatibility re-export in `packages/app/e2e/utils.ts` so legacy root-level Playwright specs no longer fail during test discovery ✅
+  - reran `PLAYWRIGHT_BROWSERS_PATH="/home/pkcs12/.cache/ms-playwright" bun run test:e2e:local --grep "smoke model selection updates prompt footer|can send a prompt and receive a reply|can open an existing session and type into the prompt"` ✅ harness now executes browser tests
+  - result after harness fix: prompt/session cases pass, but duplicated root + nested model-picker smoke cases still fail because the current model manager DOM no longer guarantees an immediate `[data-slot="list-item"]` model row without extra provider/data selection; this is now an E2E test/data-shape issue, not an auth/harness blocker ⚠️
 - Focused verification notes:
   - TUI footer now resolves account/quota from session-local account when present ✅
   - TUI assistant fallback sync now reacts to account-only changes ✅
