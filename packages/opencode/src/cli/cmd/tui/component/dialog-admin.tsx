@@ -112,6 +112,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   debugCheckpoint("admin", "DialogAdmin init")
   const MIN_DIALOG_WIDTH = 85
   const route = useRoute()
+  const currentSessionID = () => (route.data.type === "session" ? route.data.sessionID : undefined)
   const local = useLocal()
   const sync = useSync()
   const sdk = useSDK()
@@ -203,6 +204,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   type Page = (typeof pages)[number]
   const [page, setPage] = createSignal<Page>("activities")
   const [selectedFamily, setSelectedFamily] = createSignal<string | null>(null)
+  const [selectedAccountID, setSelectedAccountID] = createSignal<string | null>(null)
 
   // This tracks the provider ID that models.ts/sync system naturally understands.
   const [selectedProviderID, setSelectedProviderID] = createSignal<string | null>(null)
@@ -626,6 +628,22 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     return display || undefined
   }
 
+  const currentSessionModel = createMemo(() => local.model.current(currentSessionID()))
+  const currentSessionAccountId = createMemo(() => local.model.currentAccountId(currentSessionID()))
+  const currentSessionFamily = createMemo(() => {
+    const providerId = currentSessionModel()?.providerId
+    if (!providerId) return undefined
+    return family(providerId) ?? providerId
+  })
+
+  const effectiveAccountIdForFamily = (familyId?: string | null) => {
+    if (!familyId) return undefined
+    const selected = selectedAccountID()
+    if (selected) return selected
+    if (currentSessionFamily() === familyId && currentSessionAccountId()) return currentSessionAccountId()
+    return coreAll()?.[familyId]?.activeAccount
+  }
+
   const resolveGoogleApiKey = async () => {
     return debugSpan("admin.google", "resolve api key", {}, async () => {
       try {
@@ -650,13 +668,18 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     })
   }
 
-  const probeAndSelectModel = (providerId: string, modelID: string, origin?: string) => {
+  const probeAndSelectModel = (providerId: string, modelID: string, accountId?: string, origin?: string) => {
     // Skip probe - directly select the model
-    debugCheckpoint("admin", "model selected (probe skipped)", { provider: providerId, model: modelID, origin })
+    debugCheckpoint("admin", "model selected (probe skipped)", {
+      provider: providerId,
+      model: modelID,
+      accountId,
+      origin,
+    })
     local.model.set(
-      { providerId: providerId, modelID: modelID },
+      { providerId: providerId, modelID: modelID, accountId },
       { recent: true, skipValidation: true, announce: true },
-      route.data.type === "session" ? route.data.sessionID : undefined,
+      currentSessionID(),
     )
     dialog.clear()
   }
@@ -770,10 +793,9 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     const currentProviderId = selectedProviderID()
     const familyId = selectedFamily() ?? (currentProviderId ? family(currentProviderId) : undefined)
     if (!familyId) return undefined
-    const familyData = coreAll()?.[familyId]
     return resolveCanonicalRuntimeProvider({
       family: familyId,
-      activeAccountId: familyData?.activeAccount,
+      activeAccountId: effectiveAccountIdForFamily(familyId),
       providers: syncProvidersForFamily(familyId),
     })
   })
@@ -887,10 +909,8 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     widths.model = Math.min(widths.model, ACTIVITY_MODEL_COL_MAX)
     widths.account = Math.min(widths.account, ACTIVITY_ACCOUNT_COL_MAX)
 
-    const currentModel = local.model.current(route.data.type === "session" ? route.data.sessionID : undefined)
-    const currentAccountId = local.model.currentAccountId(
-      route.data.type === "session" ? route.data.sessionID : undefined,
-    )
+    const currentModel = currentSessionModel()
+    const currentAccountId = currentSessionAccountId()
 
     for (const entryModel of sortedModels) {
       const providerId = entryModel.providerId
@@ -1083,11 +1103,9 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   }
 
   const activityValue = createMemo(() => {
-    const cur = local.model.current(route.data.type === "session" ? route.data.sessionID : undefined)
+    const cur = currentSessionModel()
     if (!cur) return undefined
-    const currentAccountId = local.model.currentAccountId(
-      route.data.type === "session" ? route.data.sessionID : undefined,
-    )
+    const currentAccountId = currentSessionAccountId()
     // @event_20260217_cursor_follow_fix - Fallback to "-" account if none active
     return `${currentAccountId ?? "-"}:${cur.providerId}:${cur.modelID}`
   })
@@ -1214,7 +1232,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               provider: item.providerId,
               model: item.modelID,
             })
-            probeAndSelectModel(item.providerId, item.modelID, origin)
+            probeAndSelectModel(item.providerId, item.modelID, undefined, origin)
           },
         }
       })
@@ -1282,6 +1300,8 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
           onSelect: () => {
             debugCheckpoint("admin", "select family", { family: fam })
             setSelectedFamily(fam)
+            setSelectedAccountID(effectiveAccountIdForFamily(fam) ?? null)
+            setSelectedProviderID(fam)
             setStepLogged("account_select", "select family")
             forceRefresh()
           },
@@ -1305,7 +1325,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         }
       }
 
-      const activeId = familyData?.activeAccount
+      const activeId = effectiveAccountIdForFamily(fam)
 
       for (const { id, info, coreFamily } of accountsWithFamily) {
         const displayName = Account.getDisplayName(id, info, fam) || info?.name || id
@@ -1388,7 +1408,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
         return !local.model.hidden().some((h) => h.providerId === baseProviderID && h.modelID === mid)
       }
 
-      const quotaAccountId = pid
+      const quotaAccountId = effectiveAccountIdForFamily(baseProviderID) ?? pid
 
       const baseEntries = pipe(
         p.models,
@@ -1430,8 +1450,9 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               isRateLimited ? Math.max(0, (providerRateLimit.coolingDownUntil ?? Date.now()) - Date.now()) : 0,
             ),
             onSelect: () => {
-              debugCheckpoint("admin", "select model", { provider: modelProviderID, model: mid })
-              probeAndSelectModel(modelProviderID, mid)
+              const accountId = effectiveAccountIdForFamily(baseProviderID)
+              debugCheckpoint("admin", "select model", { provider: modelProviderID, model: mid, accountId })
+              probeAndSelectModel(baseProviderID, mid, accountId)
             },
           }
         }),
@@ -1452,8 +1473,13 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
                 description: "Google AI Studio list",
                 footer: undefined,
                 onSelect: () => {
-                  debugCheckpoint("admin", "select dynamic model", { provider: modelProviderID, model: model.id })
-                  probeAndSelectModel(modelProviderID, model.id)
+                  const accountId = effectiveAccountIdForFamily(baseProviderID)
+                  debugCheckpoint("admin", "select dynamic model", {
+                    provider: modelProviderID,
+                    model: model.id,
+                    accountId,
+                  })
+                  probeAndSelectModel(baseProviderID, model.id, accountId)
                 },
               }
             })
@@ -1516,25 +1542,24 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
 
   const handleSetActive = async (fam: string, accountId: string, displayId?: string) => {
     debugCheckpoint("admin", "set active start", { family: fam, accountId, displayId })
-    // 1. Set Active in Backend
     return debugSpan("admin", "set active", { family: fam, accountId, displayId }, async () => {
-      try {
-        // Set active account for any provider with multi-account
-        await Account.setActive(fam, accountId)
-        await Account.refresh()
-      } catch (e) {
-        debugCheckpoint("admin", "set active error", {
-          family: fam,
-          error: String(e instanceof Error ? e.stack || e.message : e),
-        })
-      }
+      setSelectedAccountID(accountId)
       const nextProviderId = resolveCanonicalRuntimeProviderId({
         family: fam,
         activeAccountId: accountId,
         availableProviderIds: syncProvidersForFamily(fam).map((provider) => provider.id),
       })
-      setSelectedProviderID(nextProviderId ?? accountId)
-      forceRefresh() // Trigger UI redraw to show updated green dot
+      setSelectedProviderID(nextProviderId ?? fam)
+      const current = currentSessionModel()
+      const currentFamily = current ? (family(current.providerId) ?? current.providerId) : undefined
+      if (current && currentFamily === fam) {
+        local.model.set(
+          { providerId: fam, modelID: current.modelID, accountId },
+          { skipValidation: true, announce: false },
+          currentSessionID(),
+        )
+      }
+      forceRefresh()
       debugCheckpoint("admin", "set active end", { family: fam, accountId, displayId })
     })
   }
@@ -1629,13 +1654,20 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     // This enables automatic cursor following when sorting changes
     if (page() === "activities") return activityValue()
     if (step() === "account_select") {
+      const selectedAccount = selectedAccountID() ?? effectiveAccountIdForFamily(selectedFamily())
+      if (selectedAccount) return selectedAccount
       const first = options().find((option) => {
         if (!("disabled" in option)) return true
         return option.disabled !== true
       })
       if (first) return first.value
     }
-    return local.model.current(route.data.type === "session" ? route.data.sessionID : undefined)
+    if (step() === "model_select") {
+      const current = currentSessionModel()
+      if (!current) return undefined
+      return { providerId: current.providerId, modelID: current.modelID }
+    }
+    return currentSessionModel()
   })
 
   onMount(() => {

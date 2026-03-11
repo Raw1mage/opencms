@@ -1029,6 +1029,7 @@ export const DialogSelectModel: Component<{
   })
 
   const currentModel = createMemo(() => local.model.current(params.id))
+  const currentSelection = createMemo(() => local.model.selection(params.id))
   const preferredProviderId = createMemo(() => props.provider || familyOf(currentModel()?.provider.id ?? ""))
 
   const providers = createMemo(() => {
@@ -1173,6 +1174,7 @@ export const DialogSelectModel: Component<{
     setSelectedAccountId(
       pickSelectedAccount({
         selectedAccountId: selectedAccountId(),
+        preferredAccountId: currentSelection()?.accountID,
         accounts: accountsForSelectedProvider(),
       }),
     )

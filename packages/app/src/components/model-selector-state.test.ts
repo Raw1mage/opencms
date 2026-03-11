@@ -112,6 +112,19 @@ describe("model selector state", () => {
     ).toBe("acct2")
   })
 
+  test("pickSelectedAccount prefers session-scoped account before active account", () => {
+    expect(
+      pickSelectedAccount({
+        selectedAccountId: "",
+        preferredAccountId: "acct1",
+        accounts: [
+          { id: "acct1", active: false },
+          { id: "acct2", active: true },
+        ],
+      }),
+    ).toBe("acct1")
+  })
+
   test("favorites mode only keeps visible models in selected provider family", () => {
     const models = [
       { id: "m1", provider: { id: "openai-api-primary" } },

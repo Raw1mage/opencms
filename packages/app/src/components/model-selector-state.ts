@@ -259,11 +259,15 @@ export function pickSelectedProvider(input: {
 
 export function pickSelectedAccount(input: {
   selectedAccountId: string
+  preferredAccountId?: string
   accounts: Array<{ id: string; active: boolean }>
 }) {
   if (input.accounts.length === 0) return ""
   if (input.selectedAccountId && input.accounts.some((row) => row.id === input.selectedAccountId)) {
     return input.selectedAccountId
+  }
+  if (input.preferredAccountId && input.accounts.some((row) => row.id === input.preferredAccountId)) {
+    return input.preferredAccountId
   }
   return input.accounts.find((row) => row.active)?.id ?? input.accounts[0]?.id ?? ""
 }
