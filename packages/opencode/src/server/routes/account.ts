@@ -27,6 +27,7 @@ export const AccountRoutes = lazy(() =>
                   z.object({
                     providerId: z.string(),
                     providerKey: z.string(),
+                    // legacy compatibility field; operationally this is the canonical provider key
                     family: z.string(),
                     accountId: z.string().optional(),
                     hint: z.string().optional(),
@@ -77,16 +78,18 @@ export const AccountRoutes = lazy(() =>
       "/",
       describeRoute({
         summary: "List all accounts",
-        description: "Get a list of all configured accounts grouped by provider family.",
+        description:
+          "Get a list of all configured accounts grouped by provider key. Response keeps legacy 'families' for compatibility and also returns 'providers'.",
         operationId: "account.listAll",
         responses: {
           200: {
-            description: "List of accounts by family",
+            description: "List of accounts by provider key (with legacy families alias)",
             content: {
               "application/json": {
                 schema: resolver(
                   z.object({
                     providers: z.record(z.string(), Account.ProviderData),
+                    // legacy compatibility field; mirrors providers
                     families: z.record(z.string(), Account.FamilyData),
                   }),
                 ),
@@ -146,7 +149,8 @@ export const AccountRoutes = lazy(() =>
       "/:family/active",
       describeRoute({
         summary: "Set active account",
-        description: "Set the active account for a specific provider family.",
+        description:
+          "Set the active account for a specific provider key. Legacy route param name remains 'family' for compatibility.",
         operationId: "account.setActive",
         responses: {
           200: {
@@ -186,7 +190,8 @@ export const AccountRoutes = lazy(() =>
       "/auth/:family/login",
       describeRoute({
         summary: "Trigger login",
-        description: "Get the login URL for a provider family.",
+        description:
+          "Get the login URL for a provider key. Legacy route param name remains 'family' for compatibility.",
         operationId: "account.login",
         responses: {
           200: { description: "Login URL info" },
@@ -208,7 +213,8 @@ export const AccountRoutes = lazy(() =>
       "/:family/:accountId",
       describeRoute({
         summary: "Remove account",
-        description: "Remove a specific account.",
+        description:
+          "Remove a specific account under a provider key. Legacy route param name remains 'family' for compatibility.",
         operationId: "account.remove",
         responses: {
           200: {
@@ -246,7 +252,8 @@ export const AccountRoutes = lazy(() =>
       "/:family/:accountId",
       describeRoute({
         summary: "Update account metadata",
-        description: "Update editable account metadata such as display name.",
+        description:
+          "Update editable account metadata under a provider key. Legacy route param name remains 'family' for compatibility.",
         operationId: "account.update",
         responses: {
           200: {

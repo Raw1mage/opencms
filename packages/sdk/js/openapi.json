@@ -3774,6 +3774,24 @@
                   "title": {
                     "type": "string"
                   },
+                  "execution": {
+                    "type": "object",
+                    "properties": {
+                      "providerId": {
+                        "type": "string"
+                      },
+                      "modelID": {
+                        "type": "string"
+                      },
+                      "accountId": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "providerId",
+                      "modelID"
+                    ]
+                  },
                   "time": {
                     "type": "object",
                     "properties": {
@@ -7310,6 +7328,9 @@
                     "providerId": {
                       "type": "string"
                     },
+                    "providerKey": {
+                      "type": "string"
+                    },
                     "family": {
                       "type": "string"
                     },
@@ -7322,6 +7343,7 @@
                   },
                   "required": [
                     "providerId",
+                    "providerKey",
                     "family"
                   ]
                 }
@@ -7344,15 +7366,147 @@
           }
         ],
         "summary": "List all accounts",
-        "description": "Get a list of all configured accounts grouped by provider family.",
+        "description": "Get a list of all configured accounts grouped by provider key. Response keeps legacy 'families' for compatibility and also returns 'providers'.",
         "responses": {
           "200": {
-            "description": "List of accounts by family",
+            "description": "List of accounts by provider key (with legacy families alias)",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "providers": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "activeAccount": {
+                            "type": "string"
+                          },
+                          "accounts": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "api"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "apiKey": {
+                                      "type": "string"
+                                    },
+                                    "addedAt": {
+                                      "type": "number"
+                                    },
+                                    "projectId": {
+                                      "type": "string"
+                                    },
+                                    "metadata": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "name",
+                                    "apiKey",
+                                    "addedAt"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "subscription"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "email": {
+                                      "type": "string"
+                                    },
+                                    "refreshToken": {
+                                      "type": "string"
+                                    },
+                                    "accessToken": {
+                                      "type": "string"
+                                    },
+                                    "expiresAt": {
+                                      "type": "number"
+                                    },
+                                    "projectId": {
+                                      "type": "string"
+                                    },
+                                    "managedProjectId": {
+                                      "type": "string"
+                                    },
+                                    "accountId": {
+                                      "type": "string"
+                                    },
+                                    "addedAt": {
+                                      "type": "number"
+                                    },
+                                    "metadata": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    },
+                                    "rateLimitResetTimes": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {
+                                        "type": "number"
+                                      }
+                                    },
+                                    "coolingDownUntil": {
+                                      "type": "number"
+                                    },
+                                    "cooldownReason": {
+                                      "type": "string"
+                                    },
+                                    "fingerprint": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "name",
+                                    "refreshToken",
+                                    "addedAt"
+                                  ]
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "accounts"
+                        ]
+                      }
+                    },
                     "families": {
                       "type": "object",
                       "propertyNames": {
@@ -7487,6 +7641,7 @@
                     }
                   },
                   "required": [
+                    "providers",
                     "families"
                   ]
                 }
@@ -7517,7 +7672,7 @@
           }
         ],
         "summary": "Set active account",
-        "description": "Set the active account for a specific provider family.",
+        "description": "Set the active account for a specific provider key. Legacy route param name remains 'family' for compatibility.",
         "responses": {
           "200": {
             "description": "Active account set successfully",
@@ -7590,7 +7745,7 @@
           }
         ],
         "summary": "Trigger login",
-        "description": "Get the login URL for a provider family.",
+        "description": "Get the login URL for a provider key. Legacy route param name remains 'family' for compatibility.",
         "responses": {
           "200": {
             "description": "Login URL info"
@@ -7627,7 +7782,7 @@
           }
         ],
         "summary": "Remove account",
-        "description": "Remove a specific account.",
+        "description": "Remove a specific account under a provider key. Legacy route param name remains 'family' for compatibility.",
         "responses": {
           "200": {
             "description": "Account removed successfully",
@@ -7689,7 +7844,7 @@
           }
         ],
         "summary": "Update account metadata",
-        "description": "Update editable account metadata such as display name.",
+        "description": "Update editable account metadata under a provider key. Legacy route param name remains 'family' for compatibility.",
         "responses": {
           "200": {
             "description": "Account updated successfully",
@@ -7800,6 +7955,9 @@
                     "providerId": {
                       "type": "string"
                     },
+                    "providerKey": {
+                      "type": "string"
+                    },
                     "family": {
                       "type": "string"
                     },
@@ -7812,6 +7970,7 @@
                   },
                   "required": [
                     "providerId",
+                    "providerKey",
                     "family"
                   ]
                 }
@@ -7834,15 +7993,147 @@
           }
         ],
         "summary": "List all accounts",
-        "description": "Get a list of all configured accounts grouped by provider family.",
+        "description": "Get a list of all configured accounts grouped by provider key. Response keeps legacy 'families' for compatibility and also returns 'providers'.",
         "responses": {
           "200": {
-            "description": "List of accounts by family",
+            "description": "List of accounts by provider key (with legacy families alias)",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "providers": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "activeAccount": {
+                            "type": "string"
+                          },
+                          "accounts": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "api"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "apiKey": {
+                                      "type": "string"
+                                    },
+                                    "addedAt": {
+                                      "type": "number"
+                                    },
+                                    "projectId": {
+                                      "type": "string"
+                                    },
+                                    "metadata": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "name",
+                                    "apiKey",
+                                    "addedAt"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "subscription"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "email": {
+                                      "type": "string"
+                                    },
+                                    "refreshToken": {
+                                      "type": "string"
+                                    },
+                                    "accessToken": {
+                                      "type": "string"
+                                    },
+                                    "expiresAt": {
+                                      "type": "number"
+                                    },
+                                    "projectId": {
+                                      "type": "string"
+                                    },
+                                    "managedProjectId": {
+                                      "type": "string"
+                                    },
+                                    "accountId": {
+                                      "type": "string"
+                                    },
+                                    "addedAt": {
+                                      "type": "number"
+                                    },
+                                    "metadata": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    },
+                                    "rateLimitResetTimes": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {
+                                        "type": "number"
+                                      }
+                                    },
+                                    "coolingDownUntil": {
+                                      "type": "number"
+                                    },
+                                    "cooldownReason": {
+                                      "type": "string"
+                                    },
+                                    "fingerprint": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "name",
+                                    "refreshToken",
+                                    "addedAt"
+                                  ]
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "accounts"
+                        ]
+                      }
+                    },
                     "families": {
                       "type": "object",
                       "propertyNames": {
@@ -7977,6 +8268,7 @@
                     }
                   },
                   "required": [
+                    "providers",
                     "families"
                   ]
                 }
@@ -8007,7 +8299,7 @@
           }
         ],
         "summary": "Set active account",
-        "description": "Set the active account for a specific provider family.",
+        "description": "Set the active account for a specific provider key. Legacy route param name remains 'family' for compatibility.",
         "responses": {
           "200": {
             "description": "Active account set successfully",
@@ -8080,7 +8372,7 @@
           }
         ],
         "summary": "Trigger login",
-        "description": "Get the login URL for a provider family.",
+        "description": "Get the login URL for a provider key. Legacy route param name remains 'family' for compatibility.",
         "responses": {
           "200": {
             "description": "Login URL info"
@@ -8117,7 +8409,7 @@
           }
         ],
         "summary": "Remove account",
-        "description": "Remove a specific account.",
+        "description": "Remove a specific account under a provider key. Legacy route param name remains 'family' for compatibility.",
         "responses": {
           "200": {
             "description": "Account removed successfully",
@@ -8179,7 +8471,7 @@
           }
         ],
         "summary": "Update account metadata",
-        "description": "Update editable account metadata such as display name.",
+        "description": "Update editable account metadata under a provider key. Legacy route param name remains 'family' for compatibility.",
         "responses": {
           "200": {
             "description": "Account updated successfully",
@@ -13351,6 +13643,24 @@
                   "title": {
                     "type": "string"
                   },
+                  "execution": {
+                    "type": "object",
+                    "properties": {
+                      "providerId": {
+                        "type": "string"
+                      },
+                      "modelID": {
+                        "type": "string"
+                      },
+                      "accountId": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "providerId",
+                      "modelID"
+                    ]
+                  },
                   "time": {
                     "type": "object",
                     "properties": {
@@ -16887,6 +17197,9 @@
                     "providerId": {
                       "type": "string"
                     },
+                    "providerKey": {
+                      "type": "string"
+                    },
                     "family": {
                       "type": "string"
                     },
@@ -16899,6 +17212,7 @@
                   },
                   "required": [
                     "providerId",
+                    "providerKey",
                     "family"
                   ]
                 }
@@ -16921,15 +17235,147 @@
           }
         ],
         "summary": "List all accounts",
-        "description": "Get a list of all configured accounts grouped by provider family.",
+        "description": "Get a list of all configured accounts grouped by provider key. Response keeps legacy 'families' for compatibility and also returns 'providers'.",
         "responses": {
           "200": {
-            "description": "List of accounts by family",
+            "description": "List of accounts by provider key (with legacy families alias)",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "providers": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "activeAccount": {
+                            "type": "string"
+                          },
+                          "accounts": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "api"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "apiKey": {
+                                      "type": "string"
+                                    },
+                                    "addedAt": {
+                                      "type": "number"
+                                    },
+                                    "projectId": {
+                                      "type": "string"
+                                    },
+                                    "metadata": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "name",
+                                    "apiKey",
+                                    "addedAt"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "subscription"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "email": {
+                                      "type": "string"
+                                    },
+                                    "refreshToken": {
+                                      "type": "string"
+                                    },
+                                    "accessToken": {
+                                      "type": "string"
+                                    },
+                                    "expiresAt": {
+                                      "type": "number"
+                                    },
+                                    "projectId": {
+                                      "type": "string"
+                                    },
+                                    "managedProjectId": {
+                                      "type": "string"
+                                    },
+                                    "accountId": {
+                                      "type": "string"
+                                    },
+                                    "addedAt": {
+                                      "type": "number"
+                                    },
+                                    "metadata": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    },
+                                    "rateLimitResetTimes": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {
+                                        "type": "number"
+                                      }
+                                    },
+                                    "coolingDownUntil": {
+                                      "type": "number"
+                                    },
+                                    "cooldownReason": {
+                                      "type": "string"
+                                    },
+                                    "fingerprint": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "name",
+                                    "refreshToken",
+                                    "addedAt"
+                                  ]
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "accounts"
+                        ]
+                      }
+                    },
                     "families": {
                       "type": "object",
                       "propertyNames": {
@@ -17064,6 +17510,7 @@
                     }
                   },
                   "required": [
+                    "providers",
                     "families"
                   ]
                 }
@@ -17094,7 +17541,7 @@
           }
         ],
         "summary": "Set active account",
-        "description": "Set the active account for a specific provider family.",
+        "description": "Set the active account for a specific provider key. Legacy route param name remains 'family' for compatibility.",
         "responses": {
           "200": {
             "description": "Active account set successfully",
@@ -17167,7 +17614,7 @@
           }
         ],
         "summary": "Trigger login",
-        "description": "Get the login URL for a provider family.",
+        "description": "Get the login URL for a provider key. Legacy route param name remains 'family' for compatibility.",
         "responses": {
           "200": {
             "description": "Login URL info"
@@ -17204,7 +17651,7 @@
           }
         ],
         "summary": "Remove account",
-        "description": "Remove a specific account.",
+        "description": "Remove a specific account under a provider key. Legacy route param name remains 'family' for compatibility.",
         "responses": {
           "200": {
             "description": "Account removed successfully",
@@ -17266,7 +17713,7 @@
           }
         ],
         "summary": "Update account metadata",
-        "description": "Update editable account metadata such as display name.",
+        "description": "Update editable account metadata under a provider key. Legacy route param name remains 'family' for compatibility.",
         "responses": {
           "200": {
             "description": "Account updated successfully",
@@ -17377,6 +17824,9 @@
                     "providerId": {
                       "type": "string"
                     },
+                    "providerKey": {
+                      "type": "string"
+                    },
                     "family": {
                       "type": "string"
                     },
@@ -17389,6 +17839,7 @@
                   },
                   "required": [
                     "providerId",
+                    "providerKey",
                     "family"
                   ]
                 }
@@ -17411,15 +17862,147 @@
           }
         ],
         "summary": "List all accounts",
-        "description": "Get a list of all configured accounts grouped by provider family.",
+        "description": "Get a list of all configured accounts grouped by provider key. Response keeps legacy 'families' for compatibility and also returns 'providers'.",
         "responses": {
           "200": {
-            "description": "List of accounts by family",
+            "description": "List of accounts by provider key (with legacy families alias)",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "providers": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "activeAccount": {
+                            "type": "string"
+                          },
+                          "accounts": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "api"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "apiKey": {
+                                      "type": "string"
+                                    },
+                                    "addedAt": {
+                                      "type": "number"
+                                    },
+                                    "projectId": {
+                                      "type": "string"
+                                    },
+                                    "metadata": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "name",
+                                    "apiKey",
+                                    "addedAt"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "subscription"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "email": {
+                                      "type": "string"
+                                    },
+                                    "refreshToken": {
+                                      "type": "string"
+                                    },
+                                    "accessToken": {
+                                      "type": "string"
+                                    },
+                                    "expiresAt": {
+                                      "type": "number"
+                                    },
+                                    "projectId": {
+                                      "type": "string"
+                                    },
+                                    "managedProjectId": {
+                                      "type": "string"
+                                    },
+                                    "accountId": {
+                                      "type": "string"
+                                    },
+                                    "addedAt": {
+                                      "type": "number"
+                                    },
+                                    "metadata": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    },
+                                    "rateLimitResetTimes": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {
+                                        "type": "number"
+                                      }
+                                    },
+                                    "coolingDownUntil": {
+                                      "type": "number"
+                                    },
+                                    "cooldownReason": {
+                                      "type": "string"
+                                    },
+                                    "fingerprint": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "name",
+                                    "refreshToken",
+                                    "addedAt"
+                                  ]
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "accounts"
+                        ]
+                      }
+                    },
                     "families": {
                       "type": "object",
                       "propertyNames": {
@@ -17554,6 +18137,7 @@
                     }
                   },
                   "required": [
+                    "providers",
                     "families"
                   ]
                 }
@@ -17584,7 +18168,7 @@
           }
         ],
         "summary": "Set active account",
-        "description": "Set the active account for a specific provider family.",
+        "description": "Set the active account for a specific provider key. Legacy route param name remains 'family' for compatibility.",
         "responses": {
           "200": {
             "description": "Active account set successfully",
@@ -17657,7 +18241,7 @@
           }
         ],
         "summary": "Trigger login",
-        "description": "Get the login URL for a provider family.",
+        "description": "Get the login URL for a provider key. Legacy route param name remains 'family' for compatibility.",
         "responses": {
           "200": {
             "description": "Login URL info"
@@ -17694,7 +18278,7 @@
           }
         ],
         "summary": "Remove account",
-        "description": "Remove a specific account.",
+        "description": "Remove a specific account under a provider key. Legacy route param name remains 'family' for compatibility.",
         "responses": {
           "200": {
             "description": "Account removed successfully",
@@ -17756,7 +18340,7 @@
           }
         ],
         "summary": "Update account metadata",
-        "description": "Update editable account metadata such as display name.",
+        "description": "Update editable account metadata under a provider key. Legacy route param name remains 'family' for compatibility.",
         "responses": {
           "200": {
             "description": "Account updated successfully",
@@ -22293,6 +22877,34 @@
               "lastUpdated"
             ]
           },
+          "execution": {
+            "type": "object",
+            "properties": {
+              "providerId": {
+                "type": "string"
+              },
+              "modelID": {
+                "type": "string"
+              },
+              "accountId": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "updatedAt": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "providerId",
+              "modelID",
+              "revision",
+              "updatedAt"
+            ]
+          },
           "workflow": {
             "type": "object",
             "properties": {
@@ -26555,6 +27167,34 @@
               "totalTokens",
               "tokens",
               "lastUpdated"
+            ]
+          },
+          "execution": {
+            "type": "object",
+            "properties": {
+              "providerId": {
+                "type": "string"
+              },
+              "modelID": {
+                "type": "string"
+              },
+              "accountId": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "updatedAt": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "providerId",
+              "modelID",
+              "revision",
+              "updatedAt"
             ]
           },
           "workflow": {
