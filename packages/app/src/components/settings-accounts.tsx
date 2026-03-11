@@ -7,7 +7,7 @@ import { useLanguage } from "@/context/language"
 
 type AccountInfo = {
   id: string
-  family: string
+  providerKey: string
   name: string
   type: "api" | "subscription" | "oauth"
   active: boolean
@@ -18,12 +18,12 @@ type AccountInfo = {
 }
 
 type AccountFamily = {
-  family: string
+  providerKey: string
   activeAccount?: string
   accounts: AccountInfo[]
 }
 
-const familyName = (value: string) => value.charAt(0).toUpperCase() + value.slice(1)
+const providerName = (value: string) => value.charAt(0).toUpperCase() + value.slice(1)
 
 const cooldownLabel = (account: AccountInfo, t: ReturnType<typeof useLanguage>["t"]) => {
   if (!account.coolingDownUntil) return
@@ -35,12 +35,12 @@ const cooldownLabel = (account: AccountInfo, t: ReturnType<typeof useLanguage>["
 }
 
 const toFamilies = (input: unknown): AccountFamily[] => {
-  const familiesRecord = input as { families?: unknown } | undefined
-  const map = familiesRecord?.families
+  const familiesRecord = input as { providers?: unknown; families?: unknown } | undefined
+  const map = familiesRecord?.providers ?? familiesRecord?.families
   if (!map || typeof map !== "object") return []
 
   const list: AccountFamily[] = []
-  for (const [family, dataValue] of Object.entries(map as Record<string, unknown>)) {
+  for (const [providerKey, dataValue] of Object.entries(map as Record<string, unknown>)) {
     const data = dataValue as Record<string, unknown>
     const activeAccount = typeof data?.activeAccount === "string" ? data.activeAccount : undefined
     const accounts = data?.accounts && typeof data.accounts === "object" ? data.accounts : {}
@@ -52,7 +52,7 @@ const toFamilies = (input: unknown): AccountFamily[] => {
           type === "subscription" || type === "oauth" || type === "api" ? type : "api"
         return {
           id,
-          family,
+          providerKey,
           name: typeof raw?.name === "string" && raw.name.length > 0 ? raw.name : id,
           type: accountType,
           active: activeAccount === id,
@@ -69,13 +69,13 @@ const toFamilies = (input: unknown): AccountFamily[] => {
       })
 
     list.push({
-      family,
+      providerKey,
       activeAccount,
       accounts: normalized,
     })
   }
 
-  return list.sort((a, b) => a.family.localeCompare(b.family))
+  return list.sort((a, b) => a.providerKey.localeCompare(b.providerKey))
 }
 
 export const SettingsAccounts: Component = () => {
@@ -93,9 +93,9 @@ export const SettingsAccounts: Component = () => {
     return toFamilies(result)
   })
 
-  const setActive = async (family: string, accountId: string) => {
+  const setActive = async (providerKey: string, accountId: string) => {
     await globalSDK.client.account
-      .setActive({ family, accountId })
+      .setActive({ family: providerKey, accountId })
       .then(async () => {
         await globalSDK.client.global.dispose().catch(() => undefined)
         await actions.refetch()
@@ -104,7 +104,7 @@ export const SettingsAccounts: Component = () => {
           icon: "circle-check",
           title: language.t("settings.accounts.toast.updated.title"),
           description: language.t("settings.accounts.toast.updated.description", {
-            family: familyName(family),
+            family: providerName(providerKey),
             account: accountId,
           }),
         })
@@ -151,7 +151,7 @@ export const SettingsAccounts: Component = () => {
             <For each={accounts.latest}>
               {(group) => (
                 <div class="flex flex-col gap-2">
-                  <h3 class="text-14-medium text-text-strong">{familyName(group.family)}</h3>
+                  <h3 class="text-14-medium text-text-strong">{providerName(group.providerKey)}</h3>
                   <div class="bg-surface-raised-base px-4 rounded-lg">
                     <For each={group.accounts}>
                       {(account) => {
@@ -177,11 +177,9 @@ export const SettingsAccounts: Component = () => {
                                 size="small"
                                 variant={account.active ? "ghost" : "secondary"}
                                 disabled={account.active}
-                                onClick={() => setActive(group.family, account.id)}
+                                onClick={() => setActive(group.providerKey, account.id)}
                               >
-                                {account.active
-                                  ? ""
-                                  : language.t("settings.accounts.setActive")}
+                                {account.active ? "" : language.t("settings.accounts.setActive")}
                               </Button>
                             </div>
                           </div>

@@ -86,6 +86,7 @@ export const AccountRoutes = lazy(() =>
               "application/json": {
                 schema: resolver(
                   z.object({
+                    providers: z.record(z.string(), Account.ProviderData),
                     families: z.record(z.string(), Account.FamilyData),
                   }),
                 ),
@@ -113,6 +114,7 @@ export const AccountRoutes = lazy(() =>
             const parsed = response.data as { families?: unknown }
             if (parsed.families && typeof parsed.families === "object") {
               return c.json({
+                providers: parsed.families as Record<string, unknown>,
                 families: parsed.families,
               })
             }
@@ -135,6 +137,7 @@ export const AccountRoutes = lazy(() =>
         const families = await Account.listAll()
 
         return c.json({
+          providers: families,
           families,
         })
       },

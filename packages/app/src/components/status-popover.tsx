@@ -210,8 +210,10 @@ export function StatusPopover() {
   })
 
   const accountRows = createMemo(() => {
-    const families = accountInfo.latest?.families
-    if (!families || typeof families !== "object")
+    const providers =
+      (accountInfo.latest as { providers?: unknown; families?: unknown } | undefined)?.providers ??
+      accountInfo.latest?.families
+    if (!providers || typeof providers !== "object")
       return [] as Array<{
         family: string
         accountId: string
@@ -230,7 +232,7 @@ export function StatusPopover() {
       coolingDownUntil?: number
       cooldownReason?: string
     }> = []
-    for (const [family, value] of Object.entries(families as Record<string, unknown>)) {
+    for (const [family, value] of Object.entries(providers as Record<string, unknown>)) {
       const valueRecord = value as { accounts?: unknown; activeAccount?: unknown }
       const activeAccount =
         typeof valueRecord?.activeAccount === "string" ? (valueRecord.activeAccount as string) : undefined
