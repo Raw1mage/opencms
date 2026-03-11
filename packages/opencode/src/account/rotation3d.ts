@@ -15,7 +15,7 @@
  */
 
 import { Log } from "../util/log"
-import { getRateLimitTracker, getHealthTracker } from "./rotation"
+import { getRateLimitTracker, getHealthTracker, getSameProviderRotationGuard } from "./rotation"
 import { debugCheckpoint } from "../util/debug"
 import {
   loadInstructionBlock,
@@ -338,6 +338,10 @@ export function selectBestFallback(
   triedKeys?: Set<string>,
   purpose: RotationPurpose = "generic",
 ): FallbackCandidate | null {
+  const sameProviderRotationGuard = getSameProviderRotationGuard()
+  const sameProviderRotateWaitMs = sameProviderRotationGuard.getWaitTime(current.providerId)
+  let blockedBySameProviderGuard = 0
+
   // Filter to available candidates
   const available = candidates.filter((c) => {
     const key = makeKey(c)
@@ -355,21 +359,58 @@ export function selectBestFallback(
     // threshold yet.
     const meetsHealth = c.providerId === current.providerId ? c.healthScore >= config.minHealthScore : true
 
+    const isExactCurrent =
+      c.providerId === current.providerId && c.accountId === current.accountId && c.modelID === current.modelID
+    const isSameProviderRotateCandidate =
+      c.providerId === current.providerId &&
+      !isExactCurrent &&
+      (c.accountId !== current.accountId || c.modelID !== current.modelID)
+
+    if (sameProviderRotateWaitMs > 0 && isSameProviderRotateCandidate) {
+      blockedBySameProviderGuard++
+      return false
+    }
+
     return (
       !c.isRateLimited &&
       meetsHealth &&
       // Don't return the exact same vector
-      !(c.providerId === current.providerId && c.accountId === current.accountId && c.modelID === current.modelID)
+      !isExactCurrent
     )
   })
 
-  if (available.length === 0) {
-    log.warn("No available fallback candidates", {
+  if (sameProviderRotateWaitMs > 0) {
+    debugCheckpoint("rotation3d", "Same-provider rotate quota consumed; forcing cross-provider fallback", {
+      providerId: current.providerId,
       current: makeKey(current),
+      waitMs: sameProviderRotateWaitMs,
+      blockedCandidates: blockedBySameProviderGuard,
       totalCandidates: candidates.length,
       triedCount: triedKeys?.size ?? 0,
       purpose,
     })
+  }
+
+  if (available.length === 0) {
+    log.warn("No cross-provider fallback available; rotation stopped", {
+      current: makeKey(current),
+      totalCandidates: candidates.length,
+      triedCount: triedKeys?.size ?? 0,
+      purpose,
+      sameProviderRotateWaitMs,
+      blockedBySameProviderGuard,
+    })
+    if (sameProviderRotateWaitMs > 0) {
+      debugCheckpoint("rotation3d", "No cross-provider fallback available; rotation stopped", {
+        providerId: current.providerId,
+        current: makeKey(current),
+        waitMs: sameProviderRotateWaitMs,
+        blockedCandidates: blockedBySameProviderGuard,
+        totalCandidates: candidates.length,
+        triedCount: triedKeys?.size ?? 0,
+        purpose,
+      })
+    }
     return null
   }
 
@@ -403,6 +444,8 @@ export function selectBestFallback(
       candidatesCount: candidates.length,
       availableCount: available.length,
       triedCount: triedKeys?.size ?? 0,
+      sameProviderRotateWaitMs,
+      blockedBySameProviderGuard,
     })
   } else {
     debugCheckpoint("rotation3d", "No fallback available", {
@@ -411,6 +454,8 @@ export function selectBestFallback(
       totalCandidates: candidates.length,
       availableCount: available.length,
       triedCount: triedKeys?.size ?? 0,
+      sameProviderRotateWaitMs,
+      blockedBySameProviderGuard,
       reasons: available
         .map((c) => ({
           key: makeKey(c),

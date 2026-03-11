@@ -721,6 +721,24 @@ export namespace LLM {
       },
     })
 
+    if (isSameProvider && (!isSameAccount || !isSameModel)) {
+      const { getSameProviderRotationGuard, SAME_PROVIDER_ROTATE_COOLDOWN_MS } = await import("@/account/rotation")
+      getSameProviderRotationGuard().mark(
+        currentModel.providerId,
+        currentAccountId,
+        fallback.accountId,
+        fallback.modelID,
+        SAME_PROVIDER_ROTATE_COOLDOWN_MS,
+      )
+      debugCheckpoint("rotation3d", "Same-provider rotate guard armed", {
+        providerId: currentModel.providerId,
+        fromAccountId: currentAccountId,
+        toAccountId: fallback.accountId,
+        modelID: fallback.modelID,
+        waitMs: SAME_PROVIDER_ROTATE_COOLDOWN_MS,
+      })
+    }
+
     // If same model but different account, keep the model object and return a
     // session-local account override instead of mutating global active account.
     if (isSameModel && !isSameAccount && isSameProvider) {

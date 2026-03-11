@@ -23,12 +23,13 @@
 
 export type { RateLimitReason } from "./types"
 export type {
-    HealthScoreConfig,
-    HealthScoreState,
-    RateLimitState,
-    UnifiedRotationState,
-    AccountCandidate,
-    ErrorWithMetadata,
+  HealthScoreConfig,
+  HealthScoreState,
+  RateLimitState,
+  SameProviderRotationCooldownState,
+  UnifiedRotationState,
+  AccountCandidate,
+  ErrorWithMetadata,
 } from "./types"
 export { asErrorWithMetadata, getNextQuotaReset, getQuotaDayStart } from "./types"
 export { DEFAULT_HEALTH_SCORE_CONFIG } from "./types"
@@ -52,6 +53,7 @@ export { parseRateLimitReason, calculateBackoffMs } from "./backoff"
 
 export { HealthScoreTracker } from "./health-tracker"
 export { RateLimitTracker } from "./rate-limit-tracker"
+export { SameProviderRotationGuard, SAME_PROVIDER_ROTATE_COOLDOWN_MS } from "./same-provider-rotation-guard"
 
 // ============================================================================
 // Account Selection
@@ -78,35 +80,48 @@ export { isRateLimitError, isAuthError, extractRateLimitDetails } from "./error-
 
 import { HealthScoreTracker } from "./health-tracker"
 import { RateLimitTracker } from "./rate-limit-tracker"
+import { SameProviderRotationGuard } from "./same-provider-rotation-guard"
 import type { HealthScoreConfig } from "./types"
 
 let globalHealthTracker: HealthScoreTracker | null = null
 let globalRateLimitTracker: RateLimitTracker | null = null
+let globalSameProviderRotationGuard: SameProviderRotationGuard | null = null
 
 /**
  * Get the global health score tracker instance.
  */
 export function getHealthTracker(): HealthScoreTracker {
-    if (!globalHealthTracker) {
-        globalHealthTracker = new HealthScoreTracker()
-    }
-    return globalHealthTracker
+  if (!globalHealthTracker) {
+    globalHealthTracker = new HealthScoreTracker()
+  }
+  return globalHealthTracker
 }
 
 /**
  * Get the global rate limit tracker instance.
  */
 export function getRateLimitTracker(): RateLimitTracker {
-    if (!globalRateLimitTracker) {
-        globalRateLimitTracker = new RateLimitTracker()
-    }
-    return globalRateLimitTracker
+  if (!globalRateLimitTracker) {
+    globalRateLimitTracker = new RateLimitTracker()
+  }
+  return globalRateLimitTracker
+}
+
+/**
+ * Get the global same-provider rotation guard instance.
+ */
+export function getSameProviderRotationGuard(): SameProviderRotationGuard {
+  if (!globalSameProviderRotationGuard) {
+    globalSameProviderRotationGuard = new SameProviderRotationGuard()
+  }
+  return globalSameProviderRotationGuard
 }
 
 /**
  * Initialize global trackers with custom config.
  */
 export function initGlobalTrackers(healthConfig?: Partial<HealthScoreConfig>): void {
-    globalHealthTracker = new HealthScoreTracker(healthConfig)
-    globalRateLimitTracker = new RateLimitTracker()
+  globalHealthTracker = new HealthScoreTracker(healthConfig)
+  globalRateLimitTracker = new RateLimitTracker()
+  globalSameProviderRotationGuard = new SameProviderRotationGuard()
 }

@@ -23,17 +23,17 @@ export const LEGACY_ACCOUNT_HEALTH_FILE = path.join(Global.Path.state, "account-
 // ============================================================================
 
 export type RateLimitReason =
-    | "QUOTA_EXHAUSTED"
-    | "RATE_LIMIT_EXCEEDED"
-    | "RATE_LIMIT_SHORT"
-    | "RATE_LIMIT_LONG"
-    | "SERVICE_UNAVAILABLE_503"
-    | "SITE_OVERLOADED_529"
-    | "MODEL_CAPACITY_EXHAUSTED"
-    | "SERVER_ERROR"
-    | "AUTH_FAILED"
-    | "TOKEN_REFRESH_FAILED"
-    | "UNKNOWN"
+  | "QUOTA_EXHAUSTED"
+  | "RATE_LIMIT_EXCEEDED"
+  | "RATE_LIMIT_SHORT"
+  | "RATE_LIMIT_LONG"
+  | "SERVICE_UNAVAILABLE_503"
+  | "SITE_OVERLOADED_529"
+  | "MODEL_CAPACITY_EXHAUSTED"
+  | "SERVER_ERROR"
+  | "AUTH_FAILED"
+  | "TOKEN_REFRESH_FAILED"
+  | "UNKNOWN"
 
 // ============================================================================
 // State Interfaces
@@ -41,25 +41,35 @@ export type RateLimitReason =
 
 /** Health score state for a single account/provider/model */
 export interface HealthScoreState {
-    score: number
-    lastUpdated: number
-    lastSuccess: number
-    consecutiveFailures: number
+  score: number
+  lastUpdated: number
+  lastSuccess: number
+  consecutiveFailures: number
 }
 
 /** Rate limit state for a single account */
 export interface RateLimitState {
-    resetTime: number
-    reason: RateLimitReason
-    model?: string
+  resetTime: number
+  reason: RateLimitReason
+  model?: string
+}
+
+/** Same-provider rotate guard state for a provider */
+export interface SameProviderRotationCooldownState {
+  until: number
+  rotatedAt: number
+  fromAccountId: string
+  toAccountId: string
+  modelID: string
 }
 
 /** Unified state structure for cross-process rotation tracking */
 export interface UnifiedRotationState {
-    version: number
-    accountHealth: Record<string, HealthScoreState>
-    rateLimits: Record<string, Record<string, RateLimitState>>
-    dailyRateLimitCounts: Record<string, { count: number; lastReset: number }>
+  version: number
+  accountHealth: Record<string, HealthScoreState>
+  rateLimits: Record<string, Record<string, RateLimitState>>
+  dailyRateLimitCounts: Record<string, { count: number; lastReset: number }>
+  sameProviderRotationCooldowns: Record<string, SameProviderRotationCooldownState>
 }
 
 // ============================================================================
@@ -67,23 +77,23 @@ export interface UnifiedRotationState {
 // ============================================================================
 
 export interface HealthScoreConfig {
-    initial: number
-    successReward: number
-    rateLimitPenalty: number
-    failurePenalty: number
-    recoveryRatePerHour: number
-    minUsable: number
-    maxScore: number
+  initial: number
+  successReward: number
+  rateLimitPenalty: number
+  failurePenalty: number
+  recoveryRatePerHour: number
+  minUsable: number
+  maxScore: number
 }
 
 export const DEFAULT_HEALTH_SCORE_CONFIG: HealthScoreConfig = {
-    initial: 70,
-    successReward: 1,
-    rateLimitPenalty: -10,
-    failurePenalty: -20,
-    recoveryRatePerHour: 2,
-    minUsable: 50,
-    maxScore: 100,
+  initial: 70,
+  successReward: 1,
+  rateLimitPenalty: -10,
+  failurePenalty: -20,
+  recoveryRatePerHour: 2,
+  minUsable: 50,
+  maxScore: 100,
 }
 
 // ============================================================================
@@ -91,11 +101,11 @@ export const DEFAULT_HEALTH_SCORE_CONFIG: HealthScoreConfig = {
 // ============================================================================
 
 export interface AccountCandidate {
-    id: string
-    lastUsed: number
-    healthScore: number
-    isRateLimited: boolean
-    isCoolingDown?: boolean
+  id: string
+  lastUsed: number
+  healthScore: number
+  isRateLimited: boolean
+  isCoolingDown?: boolean
 }
 
 // ============================================================================
@@ -103,21 +113,19 @@ export interface AccountCandidate {
 // ============================================================================
 
 export type ErrorWithMetadata = {
-    status?: number
-    statusCode?: number
-    code?: number | string
-    message?: string
-    error?: { type?: string }
-    type?: string
-    headers?: Record<string, string | number | undefined>
-    retryAfter?: number | string
+  status?: number
+  statusCode?: number
+  code?: number | string
+  message?: string
+  error?: { type?: string }
+  type?: string
+  headers?: Record<string, string | number | undefined>
+  retryAfter?: number | string
 }
 
 export function asErrorWithMetadata(error: unknown): ErrorWithMetadata | undefined {
-    return error && typeof error === "object" ? (error as ErrorWithMetadata) : undefined
+  return error && typeof error === "object" ? (error as ErrorWithMetadata) : undefined
 }
-
-
 
 // ============================================================================
 // Quota Time Utilities
@@ -127,16 +135,16 @@ export function asErrorWithMetadata(error: unknown): ErrorWithMetadata | undefin
  * Get the timestamp of the next quota reset (16:00 Asia/Taipei).
  */
 export function getNextQuotaReset(): number {
-    const now = new Date()
-    const resetHourUTC = 8 // 16:00 Taipei is 08:00 UTC
-    const nextReset = new Date(now)
-    nextReset.setUTCHours(resetHourUTC, 0, 0, 0)
+  const now = new Date()
+  const resetHourUTC = 8 // 16:00 Taipei is 08:00 UTC
+  const nextReset = new Date(now)
+  nextReset.setUTCHours(resetHourUTC, 0, 0, 0)
 
-    if (now.getTime() >= nextReset.getTime()) {
-        // Already passed today's reset, next one is tomorrow
-        nextReset.setUTCDate(nextReset.getUTCDate() + 1)
-    }
-    return nextReset.getTime()
+  if (now.getTime() >= nextReset.getTime()) {
+    // Already passed today's reset, next one is tomorrow
+    nextReset.setUTCDate(nextReset.getUTCDate() + 1)
+  }
+  return nextReset.getTime()
 }
 
 /**
@@ -144,16 +152,16 @@ export function getNextQuotaReset(): number {
  * RPD limits reset at this exact time.
  */
 export function getQuotaDayStart(): number {
-    const now = new Date()
-    const resetHourUTC = 8 // 16:00 Taipei is 08:00 UTC
-    const todayReset = new Date(now)
-    todayReset.setUTCHours(resetHourUTC, 0, 0, 0)
+  const now = new Date()
+  const resetHourUTC = 8 // 16:00 Taipei is 08:00 UTC
+  const todayReset = new Date(now)
+  todayReset.setUTCHours(resetHourUTC, 0, 0, 0)
 
-    if (now.getTime() < todayReset.getTime()) {
-        // Before 16:00 today, the "day" started at 16:00 yesterday
-        const yesterdayReset = new Date(todayReset)
-        yesterdayReset.setUTCDate(yesterdayReset.getUTCDate() - 1)
-        return yesterdayReset.getTime()
-    }
-    return todayReset.getTime()
+  if (now.getTime() < todayReset.getTime()) {
+    // Before 16:00 today, the "day" started at 16:00 yesterday
+    const yesterdayReset = new Date(todayReset)
+    yesterdayReset.setUTCDate(yesterdayReset.getUTCDate() - 1)
+    return yesterdayReset.getTime()
+  }
+  return todayReset.getTime()
 }
