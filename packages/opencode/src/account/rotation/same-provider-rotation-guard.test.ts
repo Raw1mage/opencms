@@ -23,15 +23,16 @@ describe("SameProviderRotationGuard", () => {
     }))
   })
 
-  it("records a provider-level cooldown after same-provider rotation", async () => {
+  it("records a provider+account cooldown after same-provider rotation", async () => {
     const { SameProviderRotationGuard } = await import("./same-provider-rotation-guard")
     const guard = new SameProviderRotationGuard()
 
     guard.mark("github-copilot", "acct-a", "acct-b", "gpt-4o", 300_000)
 
-    expect(guard.isCoolingDown("github-copilot")).toBe(true)
-    expect(guard.getWaitTime("github-copilot")).toBeGreaterThan(0)
-    expect(state.sameProviderRotationCooldowns["github-copilot"]?.fromAccountId).toBe("acct-a")
-    expect(state.sameProviderRotationCooldowns["github-copilot"]?.toAccountId).toBe("acct-b")
+    expect(guard.isCoolingDown("github-copilot", "acct-a")).toBe(true)
+    expect(guard.isCoolingDown("github-copilot", "acct-b")).toBe(false)
+    expect(guard.getWaitTime("github-copilot", "acct-a")).toBeGreaterThan(0)
+    expect(state.sameProviderRotationCooldowns["github-copilot:acct-a"]?.fromAccountId).toBe("acct-a")
+    expect(state.sameProviderRotationCooldowns["github-copilot:acct-a"]?.toAccountId).toBe("acct-b")
   })
 })

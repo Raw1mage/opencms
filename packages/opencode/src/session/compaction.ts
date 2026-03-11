@@ -126,6 +126,8 @@ export namespace SessionCompaction {
     const model = agent.model
       ? await Provider.getModel(agent.model.providerId, agent.model.modelID)
       : await Provider.getModel(userMessage.model.providerId, userMessage.model.modelID)
+    const agentModel = agent.model as { accountId?: string } | undefined
+    const accountId = agentModel?.accountId ?? userMessage.model.accountId
     const msg = (await Session.updateMessage({
       id: Identifier.ascending("message"),
       role: "assistant",
@@ -148,6 +150,7 @@ export namespace SessionCompaction {
       },
       modelID: model.id,
       providerId: model.providerId,
+      accountId,
       time: {
         created: Date.now(),
       },
@@ -156,6 +159,7 @@ export namespace SessionCompaction {
       assistantMessage: msg,
       sessionID: input.sessionID,
       model,
+      accountId,
       abort: input.abort,
     })
     // Allow plugins to inject context or replace compaction prompt

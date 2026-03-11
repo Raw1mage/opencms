@@ -35,14 +35,14 @@ export function stripImageParts(messages: MessageV2.WithParts[]) {
   }
 }
 
-async function selectImageModel(current: Provider.Model): Promise<Provider.Model | undefined> {
+async function selectImageModel(current: Provider.Model, accountId?: string): Promise<Provider.Model | undefined> {
   const { Account } = await import("../account/index")
-  const family = await Account.resolveFamily(current.providerId)
-  const accountId = family ? ((await Account.getActive(family)) ?? current.providerId) : current.providerId
+  const resolvedAccountId = accountId ?? undefined
+  if (!resolvedAccountId) return undefined
 
   const candidates = await buildFallbackCandidates({
     providerId: current.providerId,
-    accountId,
+    accountId: resolvedAccountId,
     modelID: current.id,
   })
 
@@ -56,7 +56,7 @@ async function selectImageModel(current: Provider.Model): Promise<Provider.Model
 
     if (model.capabilities.input.image && !c.isRateLimited) {
       debugCheckpoint("rotation3d", "Image capability rotation", {
-        from: `${accountId}(${current.id})`,
+        from: `${resolvedAccountId}(${current.id})`,
         to: `${c.accountId}(${c.modelID})`,
         reason: "capability",
       })
@@ -67,6 +67,7 @@ async function selectImageModel(current: Provider.Model): Promise<Provider.Model
 
 export async function resolveImageRequest(input: {
   model: Provider.Model
+  accountId?: string
   message?: MessageV2.WithParts
   sessionID: string
 }): Promise<{ model: Provider.Model; dropImages: boolean; rotated: boolean }> {
@@ -78,7 +79,7 @@ export async function resolveImageRequest(input: {
     return { model: input.model, dropImages: false, rotated: false }
   }
 
-  const fallback = await selectImageModel(input.model)
+  const fallback = await selectImageModel(input.model, input.accountId)
   if (fallback) {
     return { model: fallback, dropImages: false, rotated: true }
   }

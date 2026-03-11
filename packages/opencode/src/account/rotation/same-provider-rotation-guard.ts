@@ -10,12 +10,16 @@ const log = Log.create({ service: "same-provider-rotation-guard" })
 export const SAME_PROVIDER_ROTATE_COOLDOWN_MS = 5 * 60 * 1000
 
 export class SameProviderRotationGuard {
+  private makeKey(providerId: string, accountId: string) {
+    return `${providerId}:${accountId}`
+  }
+
   private clearExpired(state = readUnifiedState()): ReturnType<typeof readUnifiedState> {
     const now = Date.now()
     let changed = false
-    for (const [providerId, entry] of Object.entries(state.sameProviderRotationCooldowns ?? {})) {
+    for (const [key, entry] of Object.entries(state.sameProviderRotationCooldowns ?? {})) {
       if (!entry || now >= entry.until) {
-        delete state.sameProviderRotationCooldowns[providerId]
+        delete state.sameProviderRotationCooldowns[key]
         changed = true
       }
     }
@@ -32,7 +36,7 @@ export class SameProviderRotationGuard {
   ): void {
     const state = this.clearExpired(readUnifiedState())
     const now = Date.now()
-    state.sameProviderRotationCooldowns[providerId] = {
+    state.sameProviderRotationCooldowns[this.makeKey(providerId, fromAccountId)] = {
       until: now + cooldownMs,
       rotatedAt: now,
       fromAccountId,
@@ -50,15 +54,15 @@ export class SameProviderRotationGuard {
     })
   }
 
-  getWaitTime(providerId: string): number {
+  getWaitTime(providerId: string, accountId: string): number {
     const state = this.clearExpired(readUnifiedState())
-    const entry = state.sameProviderRotationCooldowns?.[providerId]
+    const entry = state.sameProviderRotationCooldowns?.[this.makeKey(providerId, accountId)]
     if (!entry) return 0
     return Math.max(0, entry.until - Date.now())
   }
 
-  isCoolingDown(providerId: string): boolean {
-    return this.getWaitTime(providerId) > 0
+  isCoolingDown(providerId: string, accountId: string): boolean {
+    return this.getWaitTime(providerId, accountId) > 0
   }
 
   getSnapshot(): Record<
@@ -71,8 +75,8 @@ export class SameProviderRotationGuard {
       string,
       { until: number; rotatedAt: number; fromAccountId: string; toAccountId: string; modelID: string; waitMs: number }
     > = {}
-    for (const [providerId, entry] of Object.entries(state.sameProviderRotationCooldowns ?? {})) {
-      result[providerId] = {
+    for (const [key, entry] of Object.entries(state.sameProviderRotationCooldowns ?? {})) {
+      result[key] = {
         ...entry,
         waitMs: Math.max(0, entry.until - now),
       }
@@ -80,10 +84,11 @@ export class SameProviderRotationGuard {
     return result
   }
 
-  clear(providerId: string): void {
+  clear(providerId: string, accountId: string): void {
     const state = readUnifiedState()
-    if (!state.sameProviderRotationCooldowns?.[providerId]) return
-    delete state.sameProviderRotationCooldowns[providerId]
+    const key = this.makeKey(providerId, accountId)
+    if (!state.sameProviderRotationCooldowns?.[key]) return
+    delete state.sameProviderRotationCooldowns[key]
     writeUnifiedState(state)
   }
 

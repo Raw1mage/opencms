@@ -135,7 +135,16 @@ export namespace LLM {
       providerId: input.model.providerId,
     })
     // Get account ID for rate limit tracking and provider options
-    const currentAccountId = input.accountId ?? (await getAccountIdForProvider(input.model.providerId))
+    const sessionPinnedAccountId = input.accountId ?? input.user.model.accountId
+    const currentAccountId = sessionPinnedAccountId ?? (await getAccountIdForProvider(input.model.providerId))
+    if (!sessionPinnedAccountId && currentAccountId) {
+      debugCheckpoint("llm", "LLM.stream fell back to global active account", {
+        providerId: input.model.providerId,
+        modelID: input.model.id,
+        accountId: currentAccountId,
+        sessionID: input.sessionID,
+      })
+    }
 
     const [language, cfg, provider, auth] = await Promise.all([
       Provider.getLanguage(input.model),
@@ -642,7 +651,7 @@ export namespace LLM {
     }
 
     // Use 3D rotation to find best fallback
-    const fallback = await findFallback(currentVector, { strategy }, triedVectors)
+    const fallback = await findFallback(currentVector, { strategy, allowSameProviderFallback: false }, triedVectors)
 
     if (!fallback) {
       // If no fallback, return current tried vectors for next attempt

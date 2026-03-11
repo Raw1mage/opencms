@@ -13,6 +13,7 @@ export async function emitSessionNarration(input: {
   model: {
     providerId: string
     modelID: string
+    accountId?: string
   }
   text: string
   kind: SessionNarrationKind
@@ -40,6 +41,7 @@ export async function emitSessionNarration(input: {
     },
     modelID: input.model.modelID,
     providerId: input.model.providerId,
+    accountId: input.model.accountId,
     finish: "stop",
     time: {
       created,

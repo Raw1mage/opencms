@@ -176,6 +176,42 @@ describe("session model orchestration", () => {
     })
   })
 
+  it("forces fallback accountId for same-provider explicit models", async () => {
+    await expect(
+      orchestrateModelSelection({
+        agentName: "coding",
+        explicitModel: { providerId: "openai", modelID: "gpt-5", accountId: "acct-other" },
+        fallbackModel: { providerId: "openai", modelID: "gpt-5.4", accountId: "acct-session" },
+      }),
+    ).resolves.toEqual({
+      model: { providerId: "openai", modelID: "gpt-5", accountId: "acct-session" },
+      trace: {
+        agentName: "coding",
+        domain: "coding",
+        selected: { providerId: "openai", modelID: "gpt-5", accountId: "acct-session", source: "explicit" },
+        candidates: [{ providerId: "openai", modelID: "gpt-5", accountId: "acct-session", source: "explicit" }],
+      },
+    })
+  })
+
+  it("does not inherit fallback accountId across different providerIds", async () => {
+    await expect(
+      orchestrateModelSelection({
+        agentName: "coding",
+        explicitModel: { providerId: "github-copilot", modelID: "gpt-5" },
+        fallbackModel: { providerId: "openai", modelID: "gpt-5.4", accountId: "acct-session" },
+      }),
+    ).resolves.toEqual({
+      model: { providerId: "github-copilot", modelID: "gpt-5" },
+      trace: {
+        agentName: "coding",
+        domain: "coding",
+        selected: { providerId: "github-copilot", modelID: "gpt-5", source: "explicit" },
+        candidates: [{ providerId: "github-copilot", modelID: "gpt-5", source: "explicit" }],
+      },
+    })
+  })
+
   it("produces a readable arbitration trace for downstream UI", async () => {
     await expect(
       orchestrateModelSelection({

@@ -49,6 +49,7 @@ import { Account } from "@/account"
 import { formatOpenAIQuotaDisplay, getOpenAIQuotaForDisplay, OPENAI_QUOTA_DISPLAY_TTL_MS } from "@/account/quota"
 import { createTimerCoordinator } from "../../util/timer-coordinator"
 import { buildVariantOptions, getEffectiveVariantValue, shouldShowVariantControl } from "../../util/model-variant"
+import { isNarrationAssistantMessage } from "@/session/narration"
 
 export type PromptProps = {
   sessionID?: string
@@ -383,6 +384,7 @@ export function Prompt(props: PromptProps) {
     const msg = lastAssistantMessage()
     if (!sessionID || !msg) return
     const messageAccountId = "accountId" in msg && typeof msg.accountId === "string" ? msg.accountId : undefined
+    const parts = sync.data.part[msg.id] ?? []
 
     // Use composite key to detect both new messages AND model changes within same message
     const messageKey = `${msg.id}:${msg.providerId}:${msg.modelID}:${messageAccountId ?? ""}`
@@ -391,6 +393,7 @@ export function Prompt(props: PromptProps) {
 
     const isPrimaryAgent = local.agent.list().some((x) => x.name === msg.agent)
     if (msg.agent && !isPrimaryAgent) return
+    if (isNarrationAssistantMessage(msg as any, parts as any)) return
 
     if (msg.providerId && msg.modelID) {
       const lastUserModel = lastUserMessage()?.model
@@ -399,6 +402,14 @@ export function Prompt(props: PromptProps) {
       const currentSelectionKey = modelSelectionKey(current)
 
       if (lastUserModelKey && currentSelectionKey && currentSelectionKey !== lastUserModelKey) {
+        return
+      }
+      if (
+        !messageAccountId &&
+        current?.accountId &&
+        current.providerId === msg.providerId &&
+        current.modelID === msg.modelID
+      ) {
         return
       }
 

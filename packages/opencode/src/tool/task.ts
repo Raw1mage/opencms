@@ -52,6 +52,7 @@ const parameters = z.object({
   session_id: z.string().describe("Existing Task session to continue").optional(),
   command: z.string().describe("The command that triggered this task").optional(),
   model: z.string().describe("Optional model ID to use for this task (e.g. 'openai/gpt-5.1-codex-mini')").optional(),
+  account_id: z.string().describe("Optional account ID to pin for this task model").optional(),
 })
 
 function normalizeTitleText(text: string) {
@@ -703,7 +704,12 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         const msg = await MessageV2.get({ sessionID: ctx.sessionID, messageID: ctx.messageID })
         if (msg.info.role !== "assistant") throw new Error("Not an assistant message")
 
-        const modelArg = params.model ? Provider.parseModel(params.model) : undefined
+        const modelArg = params.model
+          ? {
+              ...Provider.parseModel(params.model),
+              accountId: params.account_id,
+            }
+          : undefined
         const arbitration = await orchestrateModelSelection({
           agentName: agent.name,
           explicitModel: modelArg,
@@ -711,6 +717,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           fallbackModel: {
             modelID: msg.info.modelID,
             providerId: msg.info.providerId,
+            accountId: "accountId" in msg.info ? msg.info.accountId : undefined,
           },
         })
         const model = arbitration.model
@@ -808,6 +815,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           model: {
             modelID: model.modelID,
             providerId: model.providerId,
+            accountId: model.accountId,
           },
           time: {
             created: Date.now(),

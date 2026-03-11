@@ -392,8 +392,19 @@ const ModelList: Component<{
   action?: JSX.Element
 }> = (props) => {
   const local = useLocal()
+  const globalSync = useGlobalSync()
   const language = useLanguage()
   const params = useParams()
+
+  const resolveSelectionAccountId = (providerId: string) => {
+    const targetFamily = familyOf(providerId)
+    const currentSelection = local.model.selection(params.id)
+    if (currentSelection && familyOf(currentSelection.providerID) === targetFamily && currentSelection.accountID) {
+      return currentSelection.accountID
+    }
+    const familyRow = globalSync.data.account_families?.[targetFamily]
+    return typeof familyRow?.activeAccount === "string" ? familyRow.activeAccount : undefined
+  }
 
   const models = createMemo(() =>
     local.model
@@ -431,7 +442,13 @@ const ModelList: Component<{
       )}
       onSelect={(x) => {
         local.model.set(
-          x ? { modelID: x.id, providerID: x.provider.id } : undefined,
+          x
+            ? {
+                modelID: x.id,
+                providerID: x.provider.id,
+                accountID: resolveSelectionAccountId(x.provider.id),
+              }
+            : undefined,
           {
             recent: true,
           },

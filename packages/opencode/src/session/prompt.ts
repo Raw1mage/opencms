@@ -879,6 +879,8 @@ export namespace SessionPrompt {
       if (task?.type === "subtask") {
         const taskTool = await TaskTool.init()
         const taskModel = task.model ? await Provider.getModel(task.model.providerId, task.model.modelID) : model
+        const taskAccountId =
+          task.model?.providerId === lastUser.model.providerId ? lastUser.model.accountId : task.model?.accountId
         const assistantMessage = (await Session.updateMessage({
           id: Identifier.ascending("message"),
           role: "assistant",
@@ -900,6 +902,7 @@ export namespace SessionPrompt {
           },
           modelID: taskModel.id,
           providerId: taskModel.providerId,
+          accountId: taskAccountId,
           time: {
             created: Date.now(),
           },
@@ -920,6 +923,7 @@ export namespace SessionPrompt {
               subagent_type: task.agent,
               command: task.command,
               model: task.model ? `${task.model.providerId}/${task.model.modelID}` : undefined,
+              account_id: taskAccountId,
             },
             time: {
               start: Date.now(),
@@ -938,6 +942,7 @@ export namespace SessionPrompt {
             subagent_type: task.agent,
             command: task.command,
             model: task.model ? `${task.model.providerId}/${task.model.modelID}` : undefined,
+            account_id: taskAccountId,
           },
           agent: task.agent,
           abort,
@@ -1059,7 +1064,12 @@ export namespace SessionPrompt {
 
       // normal processing
       const userMsg = msgs.findLast((m) => m.info.role === "user")
-      const imageResolution = await resolveImageRequest({ model, message: userMsg, sessionID })
+      const imageResolution = await resolveImageRequest({
+        model,
+        accountId: lastUser.model.accountId,
+        message: userMsg,
+        sessionID,
+      })
       const activeModel = imageResolution.model
       if (imageResolution.rotated) {
         const change = `${activeModel.providerId}/${activeModel.id}`

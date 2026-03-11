@@ -72,6 +72,17 @@ export function DialogModel(props: { providerId?: string }) {
     return fam ?? providerId
   }
 
+  const resolveSessionAccountIdForProvider = async (providerId: string) => {
+    const sessionID = route.data.type === "session" ? route.data.sessionID : undefined
+    const targetFamily = family(providerId) ?? providerId
+    const current = local.model.current(sessionID)
+    const currentAccountId = local.model.currentAccountId(sessionID)
+    const currentFamily = current ? (family(current.providerId) ?? current.providerId) : undefined
+    if (currentAccountId && currentFamily === targetFamily) return currentAccountId
+    if (!targetFamily) return undefined
+    return (await Account.getActive(targetFamily)) ?? undefined
+  }
+
   const toggleProviderExpanded = (providerId: string) => {
     const next = new Set(expandedProviders())
     if (next.has(providerId)) next.delete(providerId)
@@ -84,16 +95,18 @@ export function DialogModel(props: { providerId?: string }) {
     else setProvidersExpanded(!providersExpanded())
   }
 
-  const probeAndSelectModel = (providerId: string, modelID: string, origin?: string) => {
+  const probeAndSelectModel = async (providerId: string, modelID: string, origin?: string) => {
     const normalizedProviderId = normalizeProviderForRotation(providerId)
+    const accountId = await resolveSessionAccountIdForProvider(normalizedProviderId)
     debugCheckpoint("model", "selected (probe skipped)", {
       provider: providerId,
       providerNormalized: normalizedProviderId,
       model: modelID,
+      accountId,
       origin,
     })
     local.model.set(
-      { providerId: normalizedProviderId, modelID },
+      { providerId: normalizedProviderId, modelID, accountId },
       { recent: true, skipValidation: true, announce: true },
       route.data.type === "session" ? route.data.sessionID : undefined,
     )

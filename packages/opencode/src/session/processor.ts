@@ -163,8 +163,20 @@ export namespace SessionProcessor {
             {
               const { Account } = await import("@/account")
               const family = await Account.resolveFamily(streamInput.model.providerId)
-              const accountId =
-                streamInput.accountId ?? input.accountId ?? (family ? await Account.getActive(family) : undefined)
+              const sessionPinnedAccountId =
+                streamInput.accountId ??
+                input.accountId ??
+                input.assistantMessage.accountId ??
+                streamInput.user.model.accountId
+              const accountId = sessionPinnedAccountId ?? (family ? await Account.getActive(family) : undefined)
+              if (!sessionPinnedAccountId && accountId) {
+                debugCheckpoint("rotation3d", "Pre-flight fell back to global active account", {
+                  providerId: streamInput.model.providerId,
+                  modelID: streamInput.model.id,
+                  accountId,
+                  sessionID: input.sessionID,
+                })
+              }
               if (accountId) {
                 const vector = {
                   providerId: streamInput.model.providerId,
@@ -326,6 +338,7 @@ export namespace SessionProcessor {
                         model: {
                           providerId: input.assistantMessage.providerId,
                           modelID: input.assistantMessage.modelID,
+                          accountId: input.assistantMessage.accountId,
                         },
                         text: describeTaskNarration({
                           phase: "start",
@@ -408,6 +421,7 @@ export namespace SessionProcessor {
                         model: {
                           providerId: input.assistantMessage.providerId,
                           modelID: input.assistantMessage.modelID,
+                          accountId: input.assistantMessage.accountId,
                         },
                         text: describeTaskNarration({
                           phase: "complete",
@@ -453,6 +467,7 @@ export namespace SessionProcessor {
                         model: {
                           providerId: input.assistantMessage.providerId,
                           modelID: input.assistantMessage.modelID,
+                          accountId: input.assistantMessage.accountId,
                         },
                         text: describeTaskNarration({
                           phase: "error",
@@ -642,7 +657,10 @@ export namespace SessionProcessor {
                   "account-first",
                   triedVectors,
                   e,
-                  streamInput.accountId ?? input.accountId,
+                  streamInput.accountId ??
+                    input.accountId ??
+                    input.assistantMessage.accountId ??
+                    streamInput.user.model.accountId,
                 )
                 if (fallback) {
                   log.info("Switching to fallback model (temporary error)", {
@@ -691,7 +709,10 @@ export namespace SessionProcessor {
                   "account-first",
                   triedVectors,
                   e,
-                  streamInput.accountId ?? input.accountId,
+                  streamInput.accountId ??
+                    input.accountId ??
+                    input.assistantMessage.accountId ??
+                    streamInput.user.model.accountId,
                 )
                 if (fallback) {
                   log.info("Switching to fallback model (permanent error)", {

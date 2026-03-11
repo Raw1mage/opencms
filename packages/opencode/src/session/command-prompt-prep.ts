@@ -87,6 +87,7 @@ export async function prepareCommandPrompt(input: CommandPromptPrepInput) {
           model: {
             providerId: taskModel.providerId,
             modelID: taskModel.modelID,
+            accountId: "accountId" in taskModel ? taskModel.accountId : undefined,
           },
           prompt: templateParts.find((y) => y.type === "text")?.text ?? "",
           prompt_input: {
@@ -104,9 +105,30 @@ export async function prepareCommandPrompt(input: CommandPromptPrepInput) {
 
   const userAgent = isSubtask ? (input.inputAgent ?? (await Agent.defaultAgent())) : agentName
   const userModel = isSubtask ? (parseInputModel(input.inputModel) ?? (await lastModel(input.sessionID))) : taskModel
+  const userModelAccountId = "accountId" in userModel ? userModel.accountId : undefined
+  const subtaskParts = isSubtask
+    ? parts.map((part) =>
+        part.type === "subtask"
+          ? {
+              ...part,
+              model: part.model
+                ? {
+                    ...part.model,
+                    accountId:
+                      part.model.providerId === userModel.providerId
+                        ? userModelAccountId
+                        : "accountId" in taskModel
+                          ? taskModel.accountId
+                          : undefined,
+                  }
+                : part.model,
+            }
+          : part,
+      )
+    : parts
 
   return {
-    parts,
+    parts: subtaskParts,
     userAgent,
     userModel,
     taskModel,

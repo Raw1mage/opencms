@@ -88,6 +88,8 @@ export type FallbackStrategy =
 export interface Rotation3DConfig {
   /** Fallback strategy */
   strategy: FallbackStrategy
+  /** Whether rate-limit fallback may stay on same provider */
+  allowSameProviderFallback: boolean
   /** Whether to include models from different capability tiers */
   allowTierDowngrade: boolean
   /** Maximum candidates to consider */
@@ -104,6 +106,7 @@ export interface Rotation3DConfig {
 
 export const DEFAULT_ROTATION3D_CONFIG: Rotation3DConfig = {
   strategy: "account-first",
+  allowSameProviderFallback: true,
   allowTierDowngrade: true,
   maxCandidates: 50, // Allow many candidates to find a working model
   minHealthScore: 30,
@@ -114,6 +117,7 @@ export const DEFAULT_ROTATION3D_CONFIG: Rotation3DConfig = {
 
 const ROTATION_POLICY_SCHEMA = z.object({
   strategy: z.enum(["account-first", "model-first", "provider-first", "any-available"]).optional(),
+  allowSameProviderFallback: z.boolean().optional(),
   allowTierDowngrade: z.boolean().optional(),
   maxCandidates: z.number().int().min(1).max(200).optional(),
   minHealthScore: z.number().min(0).max(100).optional(),
@@ -339,7 +343,7 @@ export function selectBestFallback(
   purpose: RotationPurpose = "generic",
 ): FallbackCandidate | null {
   const sameProviderRotationGuard = getSameProviderRotationGuard()
-  const sameProviderRotateWaitMs = sameProviderRotationGuard.getWaitTime(current.providerId)
+  const sameProviderRotateWaitMs = sameProviderRotationGuard.getWaitTime(current.providerId, current.accountId)
   let blockedBySameProviderGuard = 0
 
   // Filter to available candidates
@@ -366,6 +370,11 @@ export function selectBestFallback(
       !isExactCurrent &&
       (c.accountId !== current.accountId || c.modelID !== current.modelID)
 
+    if (!config.allowSameProviderFallback && isSameProviderRotateCandidate) {
+      blockedBySameProviderGuard++
+      return false
+    }
+
     if (sameProviderRotateWaitMs > 0 && isSameProviderRotateCandidate) {
       blockedBySameProviderGuard++
       return false
@@ -384,6 +393,16 @@ export function selectBestFallback(
       providerId: current.providerId,
       current: makeKey(current),
       waitMs: sameProviderRotateWaitMs,
+      blockedCandidates: blockedBySameProviderGuard,
+      totalCandidates: candidates.length,
+      triedCount: triedKeys?.size ?? 0,
+      purpose,
+    })
+  }
+  if (!config.allowSameProviderFallback) {
+    debugCheckpoint("rotation3d", "Same-provider fallback disabled; forcing cross-provider fallback", {
+      providerId: current.providerId,
+      current: makeKey(current),
       blockedCandidates: blockedBySameProviderGuard,
       totalCandidates: candidates.length,
       triedCount: triedKeys?.size ?? 0,

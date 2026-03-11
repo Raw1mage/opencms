@@ -8,21 +8,34 @@ import { Tag } from "@opencode-ai/ui/tag"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { type Component, Show } from "solid-js"
 import { useLocal } from "@/context/local"
+import { useGlobalSync } from "@/context/global-sync"
 import { popularProviders, useProviders } from "@/hooks/use-providers"
 import { DialogConnectProvider } from "./dialog-connect-provider"
 import { DialogSelectProvider } from "./dialog-select-provider"
 import { ModelTooltip } from "./model-tooltip"
 import { useLanguage } from "@/context/language"
 import { useParams } from "@solidjs/router"
+import { familyOf } from "./model-selector-state"
 
 export const DialogSelectModelUnpaid: Component = () => {
   const local = useLocal()
+  const globalSync = useGlobalSync()
   const params = useParams()
   const dialog = useDialog()
   const providers = useProviders()
   const language = useLanguage()
 
   let listRef: ListRef | undefined
+  const resolveSelectionAccountId = (providerId: string) => {
+    const targetFamily = familyOf(providerId)
+    const currentSelection = local.model.selection(params.id)
+    if (currentSelection && familyOf(currentSelection.providerID) === targetFamily && currentSelection.accountID) {
+      return currentSelection.accountID
+    }
+    const familyRow = globalSync.data.account_families?.[targetFamily]
+    return typeof familyRow?.activeAccount === "string" ? familyRow.activeAccount : undefined
+  }
+
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape") return
     listRef?.onKeyDown(e)
@@ -59,7 +72,13 @@ export const DialogSelectModelUnpaid: Component = () => {
           )}
           onSelect={(x) => {
             local.model.set(
-              x ? { modelID: x.id, providerID: x.provider.id } : undefined,
+              x
+                ? {
+                    modelID: x.id,
+                    providerID: x.provider.id,
+                    accountID: resolveSelectionAccountId(x.provider.id),
+                  }
+                : undefined,
               {
                 recent: true,
               },

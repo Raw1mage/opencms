@@ -38,14 +38,27 @@ function purposeForAgent(agentName: string): RotationPurpose {
   return "coding"
 }
 
+function inheritAccountId<T extends { providerId: string; modelID: string; accountId?: string }>(
+  model: T,
+  fallbackModel: { providerId: string; modelID: string; accountId?: string },
+): T {
+  if (!fallbackModel.accountId) return model
+  if (model.providerId !== fallbackModel.providerId) return model
+  return {
+    ...model,
+    accountId: fallbackModel.accountId,
+  }
+}
+
 async function activeAccountIdForProvider(providerId: string) {
   const family = await Account.resolveFamily(providerId)
-  if (!family) return "public"
-  return (await Account.getActive(family)) ?? "public"
+  if (!family) return undefined
+  return (await Account.getActive(family)) ?? undefined
 }
 
 async function isOperationalModel(model: { providerId: string; modelID: string; accountId?: string }) {
   const accountId = model.accountId ?? (await activeAccountIdForProvider(model.providerId))
+  if (!accountId) return false
   const rateLimitTracker = getRateLimitTracker()
   if (rateLimitTracker.isRateLimited(accountId, model.providerId, model.modelID)) return false
 
@@ -61,6 +74,7 @@ async function findOperationalFallback(input: {
   agentName: string
 }) {
   const accountId = input.sourceModel.accountId ?? (await activeAccountIdForProvider(input.sourceModel.providerId))
+  if (!accountId) return null
   const candidate = await findFallback(
     {
       providerId: input.sourceModel.providerId,
@@ -113,14 +127,16 @@ export async function orchestrateModelSelection(input: {
   }
 
   if (input.explicitModel) {
-    trace.candidates.push({ ...input.explicitModel, source: "explicit" })
-    trace.selected = { ...input.explicitModel, source: "explicit" }
-    return { model: input.explicitModel, trace }
+    const explicitModel = inheritAccountId(input.explicitModel, input.fallbackModel)
+    trace.candidates.push({ ...explicitModel, source: "explicit" })
+    trace.selected = { ...explicitModel, source: "explicit" }
+    return { model: explicitModel, trace }
   }
   if (input.agentModel) {
-    trace.candidates.push({ ...input.agentModel, source: "agent_pinned" })
-    trace.selected = { ...input.agentModel, source: "agent_pinned" }
-    return { model: input.agentModel, trace }
+    const agentModel = inheritAccountId(input.agentModel, input.fallbackModel)
+    trace.candidates.push({ ...agentModel, source: "agent_pinned" })
+    trace.selected = { ...agentModel, source: "agent_pinned" }
+    return { model: agentModel, trace }
   }
 
   const selectModel = input.selectModel ?? ModelScoring.select
@@ -128,11 +144,14 @@ export async function orchestrateModelSelection(input: {
   const resolveFallback = input.findOperationalFallback ?? findOperationalFallback
   const selected = await selectModel(domainForAgent(input.agentName)).catch(() => null)
   const scoredModel = selected
-    ? {
-        providerId: selected.providerId,
-        modelID: selected.modelID,
-        accountId: selected.accountId,
-      }
+    ? inheritAccountId(
+        {
+          providerId: selected.providerId,
+          modelID: selected.modelID,
+          accountId: selected.accountId,
+        },
+        input.fallbackModel,
+      )
     : null
 
   if (scoredModel) {
