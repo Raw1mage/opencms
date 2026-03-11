@@ -1087,7 +1087,9 @@ export const DialogSelectModel: Component<{
         | undefined) ?? {},
   )
 
-  const activeAccountForFamily = (family: string) => getActiveAccountForFamily(accountFamilies(), family)
+  const providerAccountKey = (providerId: string) => normalizeProviderFamily(providerId) || providerId
+  const activeAccountForProvider = (providerId: string) =>
+    getActiveAccountForFamily(accountFamilies(), providerAccountKey(providerId))
 
   const modelUnavailableReason = (providerId: string, accountId?: string) =>
     getModelUnavailableReason({
@@ -1099,12 +1101,14 @@ export const DialogSelectModel: Component<{
     })
 
   const accountRecordsForSelectedProvider = createMemo(() => {
-    const family = selectedProviderId()
-    const familyRow = accountFamilies()[family]
+    const providerId = selectedProviderId()
+    if (!providerId) return [] as AccountRecord[]
+    const providerKey = providerAccountKey(providerId)
+    const familyRow = accountFamilies()[providerKey]
     if (!familyRow?.accounts) return [] as AccountRecord[]
 
     return Object.entries(familyRow.accounts)
-      .map(([accountId, raw]) => normalizeAccountRecord(family, accountId, raw, familyRow.activeAccount))
+      .map(([accountId, raw]) => normalizeAccountRecord(providerKey, accountId, raw, familyRow.activeAccount))
       .sort((a, b) => a.name.localeCompare(b.name))
   })
 
@@ -1119,7 +1123,7 @@ export const DialogSelectModel: Component<{
       | Record<string, { accounts?: Record<string, unknown>; activeAccount?: string }>
       | undefined
     return buildAccountRows({
-      selectedProviderFamily: providerId,
+      selectedProviderFamily: providerAccountKey(providerId),
       accountFamilies: families,
       formatCooldown: (minutes) => language.t("settings.models.recommendations.cooldown", { minutes }),
     })
@@ -1614,8 +1618,8 @@ export const DialogSelectModel: Component<{
               )}
               onSelect={(x) => {
                 if (!x) return
-                const providerFamily = familyOf(x.provider.id)
-                const accountId = selectedAccountId() || activeAccountForFamily(providerFamily)
+                const providerKey = providerAccountKey(x.provider.id)
+                const accountId = selectedAccountId() || activeAccountForProvider(x.provider.id)
                 const unavailable = modelUnavailableReason(x.provider.id, accountId)
                 if (unavailable) {
                   showToast({
@@ -1627,9 +1631,9 @@ export const DialogSelectModel: Component<{
                 }
                 const familyCandidates = local.model
                   .list()
-                  .filter((m) => m.id === x.id && familyOf(m.provider.id) === providerFamily)
+                  .filter((m) => m.id === x.id && providerAccountKey(m.provider.id) === providerKey)
                 const providerIDForSelection =
-                  familyCandidates.find((m) => m.provider.id === providerFamily)?.provider.id ??
+                  familyCandidates.find((m) => providerAccountKey(m.provider.id) === providerKey)?.provider.id ??
                   familyCandidates.find((m) => !isAccountLikeProviderId(m.provider.id))?.provider.id ??
                   x.provider.id
                 const applyModelSelection = () => {
@@ -1646,7 +1650,7 @@ export const DialogSelectModel: Component<{
                     variant: "success",
                     title: language.t("dialog.model.toast.updated.title"),
                     description: language.t("dialog.model.toast.updated.description", {
-                      provider: providerFamily,
+                      provider: providerKey,
                       model: x.name,
                     }),
                   })

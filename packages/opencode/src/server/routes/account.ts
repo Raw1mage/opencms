@@ -26,6 +26,7 @@ export const AccountRoutes = lazy(() =>
                 schema: resolver(
                   z.object({
                     providerId: z.string(),
+                    providerKey: z.string(),
                     family: z.string(),
                     accountId: z.string().optional(),
                     hint: z.string().optional(),
@@ -47,7 +48,8 @@ export const AccountRoutes = lazy(() =>
       ),
       async (c) => {
         const { providerId, modelID, accountId: requestedAccountId, format = "footer" } = c.req.valid("query")
-        const family = Account.parseFamily(providerId) ?? providerId
+        const providerKey = Account.parseProvider(providerId) ?? Account.parseFamily(providerId) ?? providerId
+        const family = providerKey
         const families = await Account.listAll()
         const familyAccounts = families[family]?.accounts ?? {}
         const accountId = requestedAccountId && familyAccounts[requestedAccountId] ? requestedAccountId : undefined
@@ -55,6 +57,7 @@ export const AccountRoutes = lazy(() =>
         if (!accountId) {
           return c.json({
             providerId,
+            providerKey,
             family,
           })
         }
@@ -63,6 +66,7 @@ export const AccountRoutes = lazy(() =>
 
         return c.json({
           providerId,
+          providerKey,
           family: quota.family,
           accountId: quota.accountId,
           hint: quota.hint,

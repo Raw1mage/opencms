@@ -41,15 +41,15 @@ export function DialogModel(props: { providerId?: string }) {
     props.providerId ? new Set([props.providerId]) : new Set(),
   )
 
-  const family = (id: string) => {
-    const parsed = Account.parseFamily(id)
+  const providerKey = (id: string) => {
+    const parsed = Account.parseProvider(id) ?? Account.parseFamily(id)
     if (parsed) return parsed
     if (id === "opencode" || id.startsWith("opencode-")) return "opencode"
     return undefined
   }
 
   const providerLabel = (name: string, id: string) => {
-    const fam = family(id)
+    const fam = providerKey(id)
     if (!fam) return name
     const map: Record<string, string> = {
       "claude-cli": "Claude CLI",
@@ -63,7 +63,7 @@ export function DialogModel(props: { providerId?: string }) {
   }
 
   const normalizeProviderForRotation = (providerId: string) => {
-    const fam = family(providerId)
+    const fam = providerKey(providerId)
     // Fix: if family is an email (e.g. from legacy account ID), map to known provider
     if (fam && fam.includes("@")) {
       if (fam.endsWith("gmail.com")) return "google-api"
@@ -74,13 +74,13 @@ export function DialogModel(props: { providerId?: string }) {
 
   const resolveSessionAccountIdForProvider = async (providerId: string) => {
     const sessionID = route.data.type === "session" ? route.data.sessionID : undefined
-    const targetFamily = family(providerId) ?? providerId
+    const targetProviderKey = providerKey(providerId) ?? providerId
     const current = local.model.current(sessionID)
     const currentAccountId = local.model.currentAccountId(sessionID)
-    const currentFamily = current ? (family(current.providerId) ?? current.providerId) : undefined
-    if (currentAccountId && currentFamily === targetFamily) return currentAccountId
-    if (!targetFamily) return undefined
-    return (await Account.getActive(targetFamily)) ?? undefined
+    const currentProviderKey = current ? (providerKey(current.providerId) ?? current.providerId) : undefined
+    if (currentAccountId && currentProviderKey === targetProviderKey) return currentAccountId
+    if (!targetProviderKey) return undefined
+    return (await Account.getActive(targetProviderKey)) ?? undefined
   }
 
   const toggleProviderExpanded = (providerId: string) => {
@@ -118,7 +118,7 @@ export function DialogModel(props: { providerId?: string }) {
   const groupedProviders = createMemo(() => {
     const map = new Map<string, typeof sync.data.provider>()
     for (const p of sync.data.provider) {
-      const fam = family(p.id) ?? p.id
+      const fam = providerKey(p.id) ?? p.id
       const list = map.get(fam)
       if (list) list.push(p)
       else map.set(fam, [p])
