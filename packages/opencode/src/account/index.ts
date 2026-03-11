@@ -106,6 +106,14 @@ export namespace Account {
   let _storage: Storage | undefined
   let _mtime: number | undefined
 
+  function providersOf(storage: Storage): Record<string, ProviderData> {
+    return storage.families
+  }
+
+  function providerKeysOf(storage: Storage): string[] {
+    return Object.keys(providersOf(storage))
+  }
+
   async function getDiskMtime(): Promise<number | undefined> {
     const file = Bun.file(filepath)
     if (!(await file.exists())) return
@@ -118,7 +126,7 @@ export namespace Account {
     if (_storage) {
       const mtime = await getDiskMtime()
       if (mtime === _mtime) {
-        debugCheckpoint("Account.state", "Using cached state", { providerKeys: Object.keys(_storage.families) })
+        debugCheckpoint("Account.state", "Using cached state", { providerKeys: providerKeysOf(_storage) })
         return _storage
       }
       debugCheckpoint("Account.state", "Loading from disk", { reason: "mtime-changed" })
@@ -128,7 +136,7 @@ export namespace Account {
 
     _storage = await load()
     _mtime = await getDiskMtime()
-    debugCheckpoint("Account.state", "Loaded", { providerKeys: Object.keys(_storage.families) })
+    debugCheckpoint("Account.state", "Loaded", { providerKeys: providerKeysOf(_storage) })
     return _storage
   }
 
@@ -275,7 +283,7 @@ export namespace Account {
     const includeStorage = options?.includeStorage ?? true
     const { ModelsDev } = await import("../provider/models")
     const fromModels = Object.keys(await ModelsDev.get().catch(() => ({}) as Record<string, unknown>))
-    const fromStorage = includeStorage ? Object.keys((await state()).families) : []
+    const fromStorage = includeStorage ? providerKeysOf(await state()) : []
     return Array.from(new Set([...PROVIDERS, ...fromModels, ...fromStorage]))
   }
 
@@ -426,7 +434,7 @@ export namespace Account {
       const content = JSON.stringify(storage, null, 2)
       debugCheckpoint("Account.save", "Content ready", {
         length: content.length,
-        families: Object.keys(storage.families),
+        providerKeys: providerKeysOf(storage),
       })
 
       // Primary save to ~/.config
@@ -451,7 +459,7 @@ export namespace Account {
    */
   export async function list(provider: string): Promise<Record<string, Info>> {
     const storage = await state()
-    const accounts = storage.families[provider]?.accounts ?? {}
+    const accounts = providersOf(storage)[provider]?.accounts ?? {}
     debugCheckpoint("Account.list", provider, {
       accountCount: Object.keys(accounts).length,
       accountIds: Object.keys(accounts),
@@ -464,7 +472,7 @@ export namespace Account {
    */
   export async function listAll(): Promise<Record<string, ProviderData>> {
     const storage = await state()
-    return storage.families
+    return providersOf(storage)
   }
 
   /**
@@ -472,7 +480,7 @@ export namespace Account {
    */
   export async function get(provider: string, accountId: string): Promise<Info | undefined> {
     const storage = await state()
-    return storage.families[provider]?.accounts[accountId]
+    return providersOf(storage)[provider]?.accounts[accountId]
   }
 
   /**
@@ -480,7 +488,7 @@ export namespace Account {
    */
   export async function getById(accountId: string): Promise<{ provider: string; info: Info } | undefined> {
     const storage = await state()
-    for (const [provider, data] of Object.entries(storage.families)) {
+    for (const [provider, data] of Object.entries(providersOf(storage))) {
       if (data.accounts[accountId]) {
         return { provider, info: data.accounts[accountId] }
       }
@@ -494,19 +502,19 @@ export namespace Account {
   export async function add(provider: string, accountId: string, info: Info): Promise<void> {
     debugCheckpoint("Account.add", "Starting", { provider, accountId, type: info.type })
     const storage = await state()
-    debugCheckpoint("Account.add", "Got state", { existingFamilies: Object.keys(storage.families) })
+    debugCheckpoint("Account.add", "Got state", { existingProviderKeys: providerKeysOf(storage) })
 
-    if (!storage.families[provider]) {
-      storage.families[provider] = { accounts: {} }
+    if (!providersOf(storage)[provider]) {
+      providersOf(storage)[provider] = { accounts: {} }
       debugCheckpoint("Account.add", "Created new provider entry", { provider })
     }
 
-    storage.families[provider].accounts[accountId] = info
-    debugCheckpoint("Account.add", "Added account", { accounts: Object.keys(storage.families[provider].accounts) })
+    providersOf(storage)[provider].accounts[accountId] = info
+    debugCheckpoint("Account.add", "Added account", { accounts: Object.keys(providersOf(storage)[provider].accounts) })
 
     // If this is the first account, make it active
-    if (!storage.families[provider].activeAccount) {
-      storage.families[provider].activeAccount = accountId
+    if (!providersOf(storage)[provider].activeAccount) {
+      providersOf(storage)[provider].activeAccount = accountId
       debugCheckpoint("Account.add", "Set as active account", { accountId })
     }
 
@@ -520,13 +528,13 @@ export namespace Account {
    */
   export async function update(provider: string, accountId: string, info: Partial<Info>): Promise<void> {
     const storage = await state()
-    const existing = storage.families[provider]?.accounts[accountId]
+    const existing = providersOf(storage)[provider]?.accounts[accountId]
 
     if (!existing) {
       throw new Error(`Account not found: ${provider}/${accountId}`)
     }
 
-    storage.families[provider].accounts[accountId] = { ...existing, ...info } as Info
+    providersOf(storage)[provider].accounts[accountId] = { ...existing, ...info } as Info
     await save(storage)
   }
 
@@ -540,8 +548,8 @@ export namespace Account {
     let fixed = 0
     let total = 0
 
-    for (const [provider, familyData] of Object.entries(storage.families)) {
-      for (const [accountId, info] of Object.entries(familyData.accounts)) {
+    for (const [provider, providerData] of Object.entries(providersOf(storage))) {
+      for (const [accountId, info] of Object.entries(providerData.accounts)) {
         if (info.type !== "subscription") continue
         total++
 
@@ -564,7 +572,7 @@ export namespace Account {
 
         if (newEmail && newEmail !== currentEmail) {
           log.info("Repairing account email", { provider, accountId, old: currentEmail, new: newEmail })
-          storage.families[provider].accounts[accountId] = {
+          providersOf(storage)[provider].accounts[accountId] = {
             ...sub,
             email: newEmail,
             name: sub.name === currentEmail ? newEmail : sub.name,
@@ -588,16 +596,16 @@ export namespace Account {
   export async function remove(provider: string, accountId: string): Promise<void> {
     const storage = await state()
 
-    if (!storage.families[provider]?.accounts[accountId]) {
+    if (!providersOf(storage)[provider]?.accounts[accountId]) {
       return
     }
 
-    delete storage.families[provider].accounts[accountId]
+    delete providersOf(storage)[provider].accounts[accountId]
 
     // If we removed the active account, pick another
-    if (storage.families[provider].activeAccount === accountId) {
-      const remaining = Object.keys(storage.families[provider].accounts)
-      storage.families[provider].activeAccount = remaining[0]
+    if (providersOf(storage)[provider].activeAccount === accountId) {
+      const remaining = Object.keys(providersOf(storage)[provider].accounts)
+      providersOf(storage)[provider].activeAccount = remaining[0]
     }
 
     await save(storage)
@@ -619,7 +627,7 @@ export namespace Account {
    */
   export async function deduplicateByToken(provider: string): Promise<number> {
     const storage = await state()
-    const accounts = storage.families[provider]?.accounts
+    const accounts = providersOf(storage)[provider]?.accounts
     if (!accounts) return 0
 
     // Group accounts by base token
@@ -656,8 +664,8 @@ export namespace Account {
         log.info("Removed duplicate account", { provider, accountId: idToRemove })
 
         // Update active account if needed
-        if (storage.families[provider].activeAccount === idToRemove) {
-          storage.families[provider].activeAccount = ids[0]
+        if (providersOf(storage)[provider].activeAccount === idToRemove) {
+          providersOf(storage)[provider].activeAccount = ids[0]
         }
       }
     }
@@ -674,11 +682,11 @@ export namespace Account {
   export async function setActive(provider: string, accountId: string): Promise<void> {
     const storage = await state()
 
-    if (!storage.families[provider]?.accounts[accountId]) {
+    if (!providersOf(storage)[provider]?.accounts[accountId]) {
       throw new Error(`Account not found: ${provider}/${accountId}`)
     }
 
-    storage.families[provider].activeAccount = accountId
+    providersOf(storage)[provider].activeAccount = accountId
     await save(storage)
     log.info("Active account changed", { provider, accountId })
   }
@@ -688,7 +696,7 @@ export namespace Account {
    */
   export async function getActive(provider: string): Promise<string | undefined> {
     const storage = await state()
-    return storage.families[provider]?.activeAccount
+    return providersOf(storage)[provider]?.activeAccount
   }
 
   /**
@@ -696,15 +704,15 @@ export namespace Account {
    */
   export async function getActiveInfo(provider: string): Promise<Info | undefined> {
     const storage = await state()
-    const activeId = storage.families[provider]?.activeAccount
+    const activeId = providersOf(storage)[provider]?.activeAccount
     debugCheckpoint("account", "getActiveInfo", {
       provider,
       activeId,
-      hasFamilyEntry: !!storage.families[provider],
-      familyKeys: Object.keys(storage.families),
+      hasProviderEntry: !!providersOf(storage)[provider],
+      providerKeys: providerKeysOf(storage),
     })
     if (!activeId) return undefined
-    const info = storage.families[provider]?.accounts[activeId]
+    const info = providersOf(storage)[provider]?.accounts[activeId]
     debugCheckpoint("account", "getActiveInfo result", {
       provider,
       activeId,
