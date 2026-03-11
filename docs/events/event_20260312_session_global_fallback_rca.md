@@ -333,6 +333,50 @@
 - `bun test /home/pkcs12/projects/opencode/packages/opencode/src/account/quota/hint.test.ts` ✅
 - `bunx eslint /home/pkcs12/projects/opencode/packages/opencode/src/server/routes/account.ts /home/pkcs12/projects/opencode/packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx /home/pkcs12/projects/opencode/packages/opencode/src/account/quota/hint.test.ts` ✅
 - `bunx tsc -p /home/pkcs12/projects/opencode/packages/opencode/tsconfig.json --noEmit` ✅ (quota/footer fail-fast hardening)
+
+## Remaining issues / next-round backlog
+
+### 1. TUI admin is still not a pure execution-truth surface
+
+- `packages/opencode/src/cli/cmd/tui/component/dialog-admin.tsx`
+- It still intentionally mixes:
+  - selected account
+  - current session account
+  - global active account
+- This is acceptable as a control-plane/admin UI, but it means admin display is still not guaranteed to equal actual request account.
+
+### 2. Web footer still reflects session/local UI state, not raw request trace
+
+- `packages/app/src/components/prompt-input.tsx`
+- It now behaves better because session/local selection is more stable, but footer identity/quota still derives from UI/session selection state rather than raw request-trace evidence.
+
+### 3. TUI footer still prefers local session selection over persisted session record
+
+- `packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx`
+- Active-account fallback has been removed, but footer still reads local selection instead of reading persisted `session.execution` directly.
+
+### 4. SDK/Web generated types have not been fully updated for `session.execution`
+
+- Web page code currently uses a local type extension/cast to read `session.execution`.
+- Proper follow-up should update the SDK schema / generated client types so `Session.execution` is first-class everywhere.
+
+### 5. provider vs family naming debt remains a systemic risk
+
+- Multiple APIs, routes, and UI helpers still use `family` language for behaviors that are actually provider/account-bound.
+- This remains a standing risk for future routing bugs and silent mis-design.
+
+### 6. Full request-trace ↔ UI-display traceability is still incomplete
+
+- Main request path now has much better request-level identity evidence.
+- But not every UI display field can yet be mapped directly to a raw outbound request trace ID.
+
+### Practical status after this round
+
+- Main dialog request path: mostly aligned with session execution identity
+- Delegated/subagent path: aligned enough for current session-account invariant
+- Quota route: now fail-fast instead of silently consulting active account
+- Web session-page model sync: now prefers persisted `session.execution`
+- Remaining work is now mostly display/control-plane consistency and type/terminology debt, not the original first-account token-burn root cause
 - `bunx eslint /home/pkcs12/projects/opencode/packages/opencode/src/server/routes/session.ts /home/pkcs12/projects/opencode/packages/app/src/context/local.tsx /home/pkcs12/projects/opencode/packages/app/src/components/dialog-select-model.tsx /home/pkcs12/projects/opencode/packages/app/src/components/dialog-select-model-unpaid.tsx /home/pkcs12/projects/opencode/packages/opencode/src/cli/cmd/tui/context/local.tsx /home/pkcs12/projects/opencode/packages/opencode/src/cli/cmd/tui/component/dialog-model.tsx /home/pkcs12/projects/opencode/packages/opencode/src/cli/cmd/tui/component/dialog-admin.tsx /home/pkcs12/projects/opencode/packages/opencode/src/cli/cmd/tui/app.tsx /home/pkcs12/projects/opencode/packages/opencode/src/session/index.test.ts` ✅
 - `bunx tsc -p /home/pkcs12/projects/opencode/packages/opencode/tsconfig.json --noEmit && bunx tsc -p /home/pkcs12/projects/opencode/packages/app/tsconfig.json --noEmit` ✅
 - Architecture Sync: Updated
