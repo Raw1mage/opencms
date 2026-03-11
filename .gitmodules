@@ -10,3 +10,6 @@
 [submodule "refs/claude-code"]
 	path = refs/claude-code
 	url = https://github.com/anthropics/claude-code
+[submodule "refs/codex"]
+	path = refs/codex
+	url = https://github.com/openai/codex
