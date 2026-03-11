@@ -35,6 +35,9 @@ let queued: ScrollDebugEntry[] = []
 let timer: ReturnType<typeof setTimeout> | undefined
 let inflight: Promise<void> | undefined
 let recentSessionPage: ScrollDebugEntry[] = []
+let recentViewportBlocks: ScrollDebugEntry[] = []
+let recentTurnLayout: ScrollDebugEntry[] = []
+let recentTurnSticky: ScrollDebugEntry[] = []
 let lastAutoCapture = 0
 
 const AUTO_CAPTURE_COOLDOWN_MS = 2000
@@ -60,9 +63,26 @@ async function sendAutoCapture(capture: ScrollDebugEntry) {
 }
 
 function recordRecent(entry: ScrollDebugEntry) {
-  if (entry.scope !== "session-page") return
-  recentSessionPage.push(entry)
-  if (recentSessionPage.length > 20) recentSessionPage.splice(0, recentSessionPage.length - 20)
+  if (entry.scope === "session-page") {
+    recentSessionPage.push(entry)
+    if (recentSessionPage.length > 20) recentSessionPage.splice(0, recentSessionPage.length - 20)
+    if (entry.event === "viewport-blocks") {
+      recentViewportBlocks.push(entry)
+      if (recentViewportBlocks.length > 8) recentViewportBlocks.splice(0, recentViewportBlocks.length - 8)
+    }
+    return
+  }
+
+  if (entry.scope === "session-turn-layout") {
+    recentTurnLayout.push(entry)
+    if (recentTurnLayout.length > 24) recentTurnLayout.splice(0, recentTurnLayout.length - 24)
+    return
+  }
+
+  if (entry.scope === "session-turn-sticky") {
+    recentTurnSticky.push(entry)
+    if (recentTurnSticky.length > 12) recentTurnSticky.splice(0, recentTurnSticky.length - 12)
+  }
 }
 
 function shouldAutoCapture(entry: ScrollDebugEntry) {
@@ -129,6 +149,39 @@ function shouldAutoCapture(entry: ScrollDebugEntry) {
       scrollTop: item.scrollTop,
       scrollHeight: item.scrollHeight,
       clientHeight: item.clientHeight,
+    })),
+    latestViewportBlocks: recentViewportBlocks.at(-1)
+      ? {
+          time: recentViewportBlocks.at(-1)?.time,
+          blocks: recentViewportBlocks.at(-1)?.blocks,
+          scrollTop: recentViewportBlocks.at(-1)?.scrollTop,
+          distanceFromBottom: recentViewportBlocks.at(-1)?.distanceFromBottom,
+        }
+      : undefined,
+    recentTurnLayout: recentTurnLayout.slice(-6).map((item) => ({
+      time: item.time,
+      section: item.section,
+      messageID: item.messageID,
+      working: item.working,
+      stepsExpanded: item.stepsExpanded,
+      stickyDisabled: item.stickyDisabled,
+      rectTop: item.rectTop,
+      rectBottom: item.rectBottom,
+      rectHeight: item.rectHeight,
+      relativeTop: item.relativeTop,
+      relativeBottom: item.relativeBottom,
+      scrollTop: item.scrollTop,
+      distanceFromBottom: item.distanceFromBottom,
+    })),
+    recentStickyMetrics: recentTurnSticky.slice(-4).map((item) => ({
+      time: item.time,
+      event: item.event,
+      height: item.height,
+      working: item.working,
+      stepsExpanded: item.stepsExpanded,
+      stickyDisabled: item.stickyDisabled,
+      scrollTop: item.scrollTop,
+      distanceFromBottom: item.distanceFromBottom,
     })),
   }
 

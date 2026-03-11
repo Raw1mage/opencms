@@ -2684,6 +2684,128 @@
         }
       }
     },
+    "/api/v2/experimental/scroll-capture/latest": {
+      "get": {
+        "operationId": "experimental.scrollCapture.latest",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Get latest scroll incident capture",
+        "description": "Return the latest retained web scroll incident capture plus recent history.",
+        "responses": {
+          "200": {
+            "description": "Latest scroll capture store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "latest": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "recent": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "file": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "recent",
+                    "file"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/experimental/scroll-capture": {
+      "post": {
+        "operationId": "experimental.scrollCapture.record",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Record scroll incident capture",
+        "description": "Persist a retained web scroll incident capture to a fixed server-side file for later RCA.",
+        "responses": {
+          "200": {
+            "description": "Scroll capture recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "file": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "file"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string"
+                  },
+                  "capturedAt": {
+                    "type": "number"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  }
+                },
+                "required": [
+                  "payload"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/experimental/review-checkpoint": {
       "get": {
         "operationId": "experimental.review.checkpoint",
@@ -4435,6 +4557,9 @@
                       },
                       "modelID": {
                         "type": "string"
+                      },
+                      "accountId": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -4862,6 +4987,9 @@
                       },
                       "modelID": {
                         "type": "string"
+                      },
+                      "accountId": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -5007,7 +5135,29 @@
                     "type": "string"
                   },
                   "model": {
-                    "type": "string"
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "providerId": {
+                            "type": "string"
+                          },
+                          "modelID": {
+                            "type": "string"
+                          },
+                          "accountId": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "providerId",
+                          "modelID"
+                        ]
+                      }
+                    ]
                   },
                   "arguments": {
                     "type": "string"
@@ -5136,6 +5286,9 @@
                         "type": "string"
                       },
                       "modelID": {
+                        "type": "string"
+                      },
+                      "accountId": {
                         "type": "string"
                       }
                     },
@@ -12108,6 +12261,128 @@
         }
       }
     },
+    "/experimental/scroll-capture/latest": {
+      "get": {
+        "operationId": "experimental.scrollCapture.latest",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Get latest scroll incident capture",
+        "description": "Return the latest retained web scroll incident capture plus recent history.",
+        "responses": {
+          "200": {
+            "description": "Latest scroll capture store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "latest": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "recent": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "file": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "recent",
+                    "file"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/experimental/scroll-capture": {
+      "post": {
+        "operationId": "experimental.scrollCapture.record",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Record scroll incident capture",
+        "description": "Persist a retained web scroll incident capture to a fixed server-side file for later RCA.",
+        "responses": {
+          "200": {
+            "description": "Scroll capture recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "file": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "file"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string"
+                  },
+                  "capturedAt": {
+                    "type": "number"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  }
+                },
+                "required": [
+                  "payload"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     "/experimental/review-checkpoint": {
       "get": {
         "operationId": "experimental.review.checkpoint",
@@ -13859,6 +14134,9 @@
                       },
                       "modelID": {
                         "type": "string"
+                      },
+                      "accountId": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -14286,6 +14564,9 @@
                       },
                       "modelID": {
                         "type": "string"
+                      },
+                      "accountId": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -14431,7 +14712,29 @@
                     "type": "string"
                   },
                   "model": {
-                    "type": "string"
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "providerId": {
+                            "type": "string"
+                          },
+                          "modelID": {
+                            "type": "string"
+                          },
+                          "accountId": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "providerId",
+                          "modelID"
+                        ]
+                      }
+                    ]
                   },
                   "arguments": {
                     "type": "string"
@@ -14560,6 +14863,9 @@
                         "type": "string"
                       },
                       "modelID": {
+                        "type": "string"
+                      },
+                      "accountId": {
                         "type": "string"
                       }
                     },
@@ -19236,6 +19542,9 @@
               },
               "modelID": {
                 "type": "string"
+              },
+              "accountId": {
+                "type": "string"
               }
             },
             "required": [
@@ -19548,6 +19857,9 @@
           "providerId": {
             "type": "string"
           },
+          "accountId": {
+            "type": "string"
+          },
           "mode": {
             "type": "string"
           },
@@ -19821,6 +20133,9 @@
                 "type": "string"
               },
               "modelID": {
+                "type": "string"
+              },
+              "accountId": {
                 "type": "string"
               }
             },
@@ -26733,6 +27048,9 @@
                 "type": "string"
               },
               "modelID": {
+                "type": "string"
+              },
+              "accountId": {
                 "type": "string"
               }
             },

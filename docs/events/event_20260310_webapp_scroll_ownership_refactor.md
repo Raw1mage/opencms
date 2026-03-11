@@ -97,6 +97,7 @@ Status: In Progress
 - 補充後續觀察：即使未立即復現 oscillation，只要上方有展開卡，追底也可能「追不夠底」，使最新內容局部落到可視範圍外。
 - 最新使用者觀察：在追底模式下，瀏覽器似乎會把錨點吸附到最後一個「文字類型」段落，而不是整個 growing bottom；當下方 toolcall/card 持續增生時，就形成最後文字段落固定、真正底部繼續往下長的錯位，進而導致 oscillation 或 under-follow。
 - 最新補充觀察：在所有 toolcall 結束、進入純文字回覆 streaming 的階段，只要使用者自己的 prompt window 處於展開態，且思考鏈也展開，viewport 震盪位置會鎖在中下方、靠近該 prompt window；症狀像是想追最新文字、卻瞬間被拉回 prompt window。
+- 使用者補充截圖：震盪區間可視上並不是「整頁底部附近亂跳」，而是明顯在同一個 session turn 內的兩段內容之間切換：上方偏 toolcall / read 區塊，與下方偏純文字 response 區塊；底部 prompt dock 只是參考邊界，不一定是唯一主因。
 
 ### Execution
 
@@ -205,6 +206,32 @@ Status: In Progress
       - 後端固定落點：`${Global.Path.log}/scroll-capture-latest.json`
       - 保留策略：`latest` + `recent[0..9]`
       - 目的：當使用者只說「發生了」時，可直接讀固定檔或 hit 固定 endpoint，不必再掃整份 debug.log
+  11. Turn-internal block tracing
+      - 根據 retained capture + 使用者截圖，假設從「prompt dock / shell 卡」再收斂到「同一個 session turn 內的 toolcall block 與 response block 之間的 anchor 競爭」。
+      - 新增 page-level `viewport-blocks` debug 事件：每次更新 scroll state 時，記錄目前 viewport 內最靠近上緣的幾個 block 候選：
+        - `session-turn-sticky`
+        - `session-turn-collapsible-content-inner`
+        - `session-turn-summary-section`
+        - `user-message`
+      - 新增 turn-level `section-metrics` debug 事件：對 `sticky / steps / summary` 三塊在 resize / render 後記錄：
+        - rect top / bottom / height
+        - 相對 scroller 的 top / bottom
+        - 當下 scroller `scrollTop / scrollHeight / clientHeight / distanceFromBottom`
+      - 目的：下次 retained capture 命中時，不只知道 root scroller 被回拉，也能知道「回拉瞬間 viewport 正在貼哪一塊、哪一塊剛改高度」。
+  12. Retained payload enrichment
+      - 為避免 `viewport-blocks / section-metrics` 又掉回 generic `/api/v2/log` 難以檢索，`scroll-debug.ts` 現在會把以下資訊直接併入 retained capture payload：
+        - `latestViewportBlocks`
+        - `recentTurnLayout`
+        - `recentStickyMetrics`
+      - 目的：之後使用者只說「發生了」，即可直接從 `scroll-capture-latest.json` 查看 block-level 證據，不必再依賴 batch log 搜索。
+  13. Evidence-based anchor suppression on steps block
+      - 後續 retained captures（含使用者回報的零星回跳）持續顯示：
+        - `recentTurnLayout` 幾乎全部是 `section: steps`
+        - `stepsExpanded: true`
+        - `working: true`
+        - `relativeBottom` 長時間固定在 ~`1053px`
+      - 判讀：展開中的 steps block 很像被當成 scroll restore / anchor owner。
+      - 最小修正：對 `session-turn-collapsible-content-inner` 新增 `overflow-anchor: none`，先阻止外層 root scroller 在 follow-bottom 模式下被這個 steps container 搶走 anchor 所有權。
 
 ### Validation
 
@@ -216,6 +243,15 @@ Status: In Progress
   - `cd /home/pkcs12/projects/opencode/packages/app && bun run typecheck`
 - 結果：passed（server-side retained capture path round）
 - 補充：`bun turbo typecheck --filter opencode --filter @opencode-ai/ui --filter @opencode-ai/app` 曾因 workspace 依賴建置超時而中斷，故改用各 package 直接 typecheck 驗證此次最小變更。
+- 驗證指令：
+  - `cd /home/pkcs12/projects/opencode/packages/ui && bun run typecheck`
+  - `cd /home/pkcs12/projects/opencode/packages/app && bun run typecheck`
+- 結果：passed（turn-internal block tracing round）
+- 驗證指令：
+  - `cd /home/pkcs12/projects/opencode/packages/ui && bun run typecheck`
+  - `cd /home/pkcs12/projects/opencode/packages/app && bun run typecheck`
+- 結果：passed（retained payload enrichment round）
+- 補充：本輪 `overflow-anchor` CSS 調整為樣式層單點修正，未涉及 TypeScript 變更；待使用者下一次復現後，以 retained capture 行為變化作為主要驗證依據。
 - 使用者觀察回饋（pre-phase2）
   - 已確認 agent 純文字輸出不再強制貼底，表示 page-level follow source 已顯著下降
   - 剩餘問題更集中在 thinking/steps 相關 focus 錨點，而非全文字流本身

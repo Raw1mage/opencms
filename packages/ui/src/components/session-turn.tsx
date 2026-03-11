@@ -491,6 +491,39 @@ export function SessionTurn(
 
   const [rootRef, setRootRef] = createSignal<HTMLDivElement | undefined>()
   const [stickyRef, setStickyRef] = createSignal<HTMLDivElement | undefined>()
+  const [stepsRef, setStepsRef] = createSignal<HTMLDivElement | undefined>()
+  const [summaryRef, setSummaryRef] = createSignal<HTMLDivElement | undefined>()
+
+  const emitSectionMetrics = (section: string, el?: HTMLElement) => {
+    if (!isScrollDebugEnabled()) return
+    const root = rootRef()
+    if (!root || !el) return
+    const scroller = root.closest(".session-scroller") as HTMLElement | null | undefined
+    const rect = el.getBoundingClientRect()
+    const scrollerRect = scroller?.getBoundingClientRect()
+    const entry = {
+      time: Date.now(),
+      scope: "session-turn-layout",
+      event: "section-metrics",
+      section,
+      sessionID: props.sessionID,
+      messageID: props.messageID,
+      working: working(),
+      stepsExpanded: props.stepsExpanded,
+      stickyDisabled: stickyDisabled(),
+      rectTop: rect.top,
+      rectBottom: rect.bottom,
+      rectHeight: rect.height,
+      relativeTop: scrollerRect ? rect.top - scrollerRect.top : undefined,
+      relativeBottom: scrollerRect ? rect.bottom - scrollerRect.top : undefined,
+      scrollTop: scroller?.scrollTop,
+      scrollHeight: scroller?.scrollHeight,
+      clientHeight: scroller?.clientHeight,
+      distanceFromBottom: scroller ? scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop : undefined,
+    }
+    pushScrollDebug(entry)
+    console.debug("[scroll-debug]", entry)
+  }
 
   const updateStickyHeight = (height: number) => {
     const root = rootRef()
@@ -502,11 +535,19 @@ export function SessionTurn(
     const next = Math.ceil(height)
     root.style.setProperty("--session-turn-sticky-height", `${next}px`)
     if (isScrollDebugEnabled()) {
+      const scroller = root?.closest(".session-scroller") as HTMLElement | null | undefined
       const entry = {
         time: Date.now(),
         scope: "session-turn-sticky",
         event: "sticky-height",
         height: next,
+        stickyDisabled: stickyDisabled(),
+        working: working(),
+        stepsExpanded: props.stepsExpanded,
+        scrollTop: scroller?.scrollTop,
+        scrollHeight: scroller?.scrollHeight,
+        clientHeight: scroller?.clientHeight,
+        distanceFromBottom: scroller ? scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop : undefined,
       }
       pushScrollDebug(entry)
       console.debug("[scroll-debug]", entry)
@@ -543,6 +584,21 @@ export function SessionTurn(
     () => stickyRef(),
     ({ height }) => {
       updateStickyHeight(height)
+      emitSectionMetrics("sticky", stickyRef())
+    },
+  )
+
+  createResizeObserver(
+    () => stepsRef(),
+    () => {
+      emitSectionMetrics("steps", stepsRef())
+    },
+  )
+
+  createResizeObserver(
+    () => summaryRef(),
+    () => {
+      emitSectionMetrics("summary", summaryRef())
     },
   )
 
@@ -555,6 +611,11 @@ export function SessionTurn(
       return
     }
     updateStickyHeight(sticky.getBoundingClientRect().height)
+    queueMicrotask(() => {
+      emitSectionMetrics("sticky", stickyRef())
+      emitSectionMetrics("steps", stepsRef())
+      emitSectionMetrics("summary", summaryRef())
+    })
   })
 
   const [store, setStore] = createStore({
@@ -770,7 +831,7 @@ export function SessionTurn(
                     <SessionRetry status={status()} show={isLastUserMessage()} />
                     {/* Response */}
                     <Show when={props.stepsExpanded && assistantMessages().length > 0}>
-                      <div data-slot="session-turn-collapsible-content-inner" aria-hidden={working()}>
+                      <div data-slot="session-turn-collapsible-content-inner" aria-hidden={working()} ref={setStepsRef}>
                         <AssistantParts
                           messages={assistantMessages()}
                           working={working()}
@@ -811,7 +872,7 @@ export function SessionTurn(
                       {!working() && response() ? response() : ""}
                     </div>
                     <Show when={!working() && response()}>
-                      <div data-slot="session-turn-summary-section">
+                      <div data-slot="session-turn-summary-section" ref={setSummaryRef}>
                         <div data-slot="session-turn-summary-header">
                           <div data-slot="session-turn-summary-title-row">
                             <h2 data-slot="session-turn-summary-title">{i18n.t("ui.sessionTurn.summary.response")}</h2>

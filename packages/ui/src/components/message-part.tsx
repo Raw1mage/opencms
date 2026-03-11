@@ -581,6 +581,24 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
     () => textRef,
     () => {
       updateCanExpand()
+      if (isScrollDebugEnabled()) {
+        const el = textRef
+        const scroller = el?.closest(".session-scroller") as HTMLElement | null | undefined
+        pushScrollDebug({
+          time: Date.now(),
+          scope: "user-message",
+          event: "user-message-resize",
+          expanded: expanded(),
+          canExpand: canExpand(),
+          textLength: text().length,
+          cardHeight: el?.scrollHeight,
+          cardClientHeight: el?.clientHeight,
+          scrollTop: scroller?.scrollTop,
+          scrollHeight: scroller?.scrollHeight,
+          clientHeight: scroller?.clientHeight,
+          distanceFromBottom: scroller ? scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop : undefined,
+        })
+      }
     },
   )
 
@@ -627,7 +645,32 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
 
   const toggleExpanded = () => {
     if (!canExpand()) return
-    setExpanded((value) => !value)
+    setExpanded((value) => {
+      const next = !value
+      if (isScrollDebugEnabled()) {
+        queueMicrotask(() => {
+          const el = textRef
+          const scroller = el?.closest(".session-scroller") as HTMLElement | null | undefined
+          pushScrollDebug({
+            time: Date.now(),
+            scope: "user-message",
+            event: next ? "user-message-expand" : "user-message-collapse",
+            expanded: next,
+            canExpand: canExpand(),
+            textLength: text().length,
+            cardHeight: el?.scrollHeight,
+            cardClientHeight: el?.clientHeight,
+            scrollTop: scroller?.scrollTop,
+            scrollHeight: scroller?.scrollHeight,
+            clientHeight: scroller?.clientHeight,
+            distanceFromBottom: scroller
+              ? scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop
+              : undefined,
+          })
+        })
+      }
+      return next
+    })
   }
 
   return (

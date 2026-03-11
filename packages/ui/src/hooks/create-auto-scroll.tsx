@@ -47,6 +47,17 @@ export function createAutoScroll(options: AutoScrollOptions) {
     return el.scrollHeight - el.clientHeight - el.scrollTop
   }
 
+  const metrics = (el?: HTMLElement) => {
+    if (!el) return {}
+    return {
+      scrollTop: el.scrollTop,
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight,
+      distanceFromBottom: distanceFromBottom(el),
+      maxScrollTop: Math.max(0, el.scrollHeight - el.clientHeight),
+    }
+  }
+
   const debug = (event: string, extra: Record<string, unknown> = {}) => {
     if (!debugEnabled()) return
     const el = scroll
@@ -58,10 +69,7 @@ export function createAutoScroll(options: AutoScrollOptions) {
       mode: store.mode,
       active: active(),
       settling,
-      scrollTop: el?.scrollTop,
-      scrollHeight: el?.scrollHeight,
-      clientHeight: el?.clientHeight,
-      distanceFromBottom: el ? distanceFromBottom(el) : undefined,
+      ...metrics(el),
       ...extra,
     }
     pushScrollDebug(entry)
@@ -104,15 +112,17 @@ export function createAutoScroll(options: AutoScrollOptions) {
   const scrollToBottomNow = (behavior: ScrollBehavior) => {
     const el = scroll
     if (!el) return
-    debug("scroll-apply", { behavior })
+    debug("scroll-apply", { behavior, phase: "before", ...metrics(el) })
     markAuto(el)
     if (behavior === "smooth") {
       el.scrollTo({ top: el.scrollHeight, behavior })
+      debug("scroll-apply", { behavior, phase: "after-scrollTo", ...metrics(el) })
       return
     }
 
     // `scrollTop` assignment bypasses any CSS `scroll-behavior: smooth`.
     el.scrollTop = el.scrollHeight
+    debug("scroll-apply", { behavior, phase: "after-assignment", ...metrics(el) })
   }
 
   const scheduleDeferredFollow = (reason: string) => {
@@ -149,6 +159,12 @@ export function createAutoScroll(options: AutoScrollOptions) {
     if (force && userScrolled()) setMode("follow-bottom", "forced-scroll")
 
     const distance = distanceFromBottom(el)
+    debug("bottom-formula", {
+      reason: "scroll-request",
+      threshold: threshold(),
+      followThreshold: followThreshold(),
+      distance,
+    })
     if (distance < 2) {
       debug("scroll-skip-near-bottom", { force })
       return
@@ -252,6 +268,13 @@ export function createAutoScroll(options: AutoScrollOptions) {
         return
       }
       const distance = el ? distanceFromBottom(el) : Infinity
+      debug("bottom-formula", {
+        reason: "resize-observer",
+        threshold: threshold(),
+        followThreshold: followThreshold(),
+        distance,
+        resumeOnly: options.resumeOnly === true,
+      })
       if (!options.resumeOnly && (!Number.isFinite(distance) || distance > followThreshold())) {
         debug("resize-blocked-distance", { distance, followThreshold: followThreshold() })
         return
