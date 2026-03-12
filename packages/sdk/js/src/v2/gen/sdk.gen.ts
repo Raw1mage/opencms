@@ -6634,7 +6634,7 @@ export class Account extends HeyApiClient {
   /**
    * List all accounts
    *
-   * Get a list of all configured accounts grouped by provider family.
+   * Get a list of all configured accounts grouped by provider key.
    */
   public listAll<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -6653,11 +6653,12 @@ export class Account extends HeyApiClient {
   /**
    * Set active account
    *
-   * Set the active account for a specific provider family.
+   * Set the active account for a specific provider key. The legacy `family` path parameter is still accepted, and `providerKey` is an additive alias.
    */
   public setActive<ThrowOnError extends boolean = false>(
     parameters: {
-      family: string
+      family?: string
+      providerKey?: string
       directory?: string
       accountId?: string
     },
@@ -6671,6 +6672,7 @@ export class Account extends HeyApiClient {
             { in: "path", key: "family" },
             { in: "query", key: "directory" },
             { in: "body", key: "accountId" },
+            { in: "body", key: "providerKey" },
           ],
         },
       ],
@@ -6678,11 +6680,47 @@ export class Account extends HeyApiClient {
     return (options?.client ?? this.client).post<AccountSetActiveResponses, AccountSetActiveErrors, ThrowOnError>({
       url: "/api/v2/account/{family}/active",
       ...options,
-      ...params,
+      ...buildClientParams(
+        [
+          {
+            ...parameters,
+            family: parameters.family ?? parameters.providerKey,
+            providerKey: parameters.providerKey ?? parameters.family,
+          },
+        ],
+        [
+          {
+            args: [
+              { in: "path", key: "family" },
+              { in: "query", key: "directory" },
+              { in: "body", key: "accountId" },
+              { in: "body", key: "providerKey" },
+            ],
+          },
+        ],
+      ),
       headers: {
         "Content-Type": "application/json",
         ...options?.headers,
-        ...params.headers,
+        ...buildClientParams(
+          [
+            {
+              ...parameters,
+              family: parameters.family ?? parameters.providerKey,
+              providerKey: parameters.providerKey ?? parameters.family,
+            },
+          ],
+          [
+            {
+              args: [
+                { in: "path", key: "family" },
+                { in: "query", key: "directory" },
+                { in: "body", key: "accountId" },
+                { in: "body", key: "providerKey" },
+              ],
+            },
+          ],
+        ).headers,
       },
     })
   }

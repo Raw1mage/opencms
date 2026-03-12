@@ -150,7 +150,7 @@ export const AccountRoutes = lazy(() =>
       describeRoute({
         summary: "Set active account",
         description:
-          "Set the active account for a specific provider key. Legacy route param name remains 'family' for compatibility.",
+          "Set the active account for a specific provider key. Legacy route param name remains 'family' for compatibility, and request bodies may also include matching 'providerKey' as an additive alias.",
         operationId: "account.setActive",
         responses: {
           200: {
@@ -165,10 +165,20 @@ export const AccountRoutes = lazy(() =>
         },
       }),
       validator("param", z.object({ family: z.string() })),
-      validator("json", z.object({ accountId: z.string() })),
+      validator("json", z.object({ accountId: z.string(), providerKey: z.string().optional() })),
       async (c) => {
         const providerKey = c.req.valid("param").family
-        const { accountId } = c.req.valid("json")
+        const { accountId, providerKey: requestedProviderKey } = c.req.valid("json")
+
+        if (requestedProviderKey && requestedProviderKey !== providerKey) {
+          return c.json(
+            {
+              code: "ACCOUNT_PROVIDER_MISMATCH",
+              message: `providerKey body does not match route provider: ${requestedProviderKey} !== ${providerKey}`,
+            },
+            400,
+          )
+        }
 
         const username = RequestUser.username()
         if (username && UserDaemonManager.routeAccountMutationEnabled()) {

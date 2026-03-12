@@ -358,6 +358,21 @@
 - `bunx eslint /home/pkcs12/projects/opencode/packages/opencode/src/server/routes/account.ts /home/pkcs12/projects/opencode/packages/app/src/components/settings-accounts.tsx /home/pkcs12/projects/opencode/packages/app/src/components/status-popover.tsx` ✅
 - `bunx tsc -p /home/pkcs12/projects/opencode/packages/app/tsconfig.json --noEmit && bunx tsc -p /home/pkcs12/projects/opencode/packages/opencode/tsconfig.json --noEmit` ✅ (provider-key response compatibility)
 - `bunx eslint /home/pkcs12/projects/opencode/packages/opencode/src/account/index.ts` ✅
+
+## Follow-up Slice: additive providerKey request-contract prep
+
+- Scope:
+  - keep legacy `/account/{family}/active` path stable
+  - add request-body `providerKey` alias so callers/SDKs can move to provider-key terminology without breaking current route shape
+  - migrate remaining console accounts page call site to prefer `providers` response alias and send `providerKey`
+- Updated files:
+  - `packages/opencode/src/server/routes/account.ts`
+  - `packages/sdk/js/src/v2/gen/sdk.gen.ts`
+  - `packages/sdk/js/src/v2/gen/types.gen.ts`
+  - `packages/console/app/src/routes/accounts.tsx`
+- Notes:
+  - server now rejects mismatched `{ path family, body providerKey }` pairs with `ACCOUNT_PROVIDER_MISMATCH` instead of silently accepting ambiguous routing
+  - this remains additive/non-breaking because existing callers can keep using path `family` only
 - `bunx tsc -p /home/pkcs12/projects/opencode/packages/opencode/tsconfig.json --noEmit` ✅ (provider-key storage helper migration)
 - `bunx eslint /home/pkcs12/projects/opencode/packages/app/src/components/dialog-select-model.tsx /home/pkcs12/projects/opencode/packages/app/src/components/prompt-input.tsx /home/pkcs12/projects/opencode/packages/app/src/context/global-sync/bootstrap.ts /home/pkcs12/projects/opencode/packages/app/src/context/global-sync.tsx` ✅
 - `bunx tsc -p /home/pkcs12/projects/opencode/packages/app/tsconfig.json --noEmit` ✅ (web provider-first compatibility read cleanup)

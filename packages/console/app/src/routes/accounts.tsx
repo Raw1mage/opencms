@@ -8,11 +8,11 @@ const fetchAccounts = async () => {
   return res.json()
 }
 
-const switchAccount = async (family: string, accountId: string) => {
-  const res = await fetch(`/api/account/${family}/active`, {
+const switchAccount = async (providerKey: string, accountId: string) => {
+  const res = await fetch(`/api/account/${providerKey}/active`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ accountId }),
+    body: JSON.stringify({ accountId, providerKey }),
   })
   if (res.ok) {
     window.location.reload()
@@ -23,6 +23,7 @@ const switchAccount = async (family: string, accountId: string) => {
 
 export default function AccountsPage() {
   const [data, { mutate, refetch }] = createResource(fetchAccounts)
+  const providerMap = () => data()?.providers ?? data()?.families ?? {}
 
   return (
     <main class="min-h-screen bg-gray-50/50 p-8">
@@ -48,19 +49,19 @@ export default function AccountsPage() {
           }
         >
           <div class="space-y-10">
-            <For each={Object.entries(data().families)}>
-              {([family, familyData]: [string, any]) => (
+            <For each={Object.entries(providerMap())}>
+              {([providerKey, providerData]: [string, any]) => (
                 <section>
                   <div class="flex items-center gap-2 mb-4">
-                    <h2 class="text-lg font-semibold capitalize text-gray-800">{family}</h2>
+                    <h2 class="text-lg font-semibold capitalize text-gray-800">{providerKey}</h2>
                     <span class="h-px flex-1 bg-gray-200"></span>
                   </div>
 
                   <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                     <div class="divide-y divide-gray-100">
-                      <For each={Object.entries(familyData.accounts)}>
+                      <For each={Object.entries(providerData.accounts)}>
                         {([id, info]: [string, any]) => {
-                          const isActive = familyData.activeAccount === id
+                          const isActive = providerData.activeAccount === id
                           return (
                             <div class="p-5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
                               <div class="flex-1 min-w-0">
@@ -77,7 +78,7 @@ export default function AccountsPage() {
 
                               <div class="ml-4 flex-shrink-0">
                                 <button
-                                  onClick={() => switchAccount(family, id)}
+                                  onClick={() => switchAccount(providerKey, id)}
                                   disabled={isActive}
                                   class={`inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-inset transition-all ${
                                     isActive
@@ -100,7 +101,7 @@ export default function AccountsPage() {
           </div>
         </Show>
 
-        <Show when={data() && Object.keys(data().families).length === 0}>
+        <Show when={data() && Object.keys(providerMap()).length === 0}>
           <div class="text-center py-20 bg-white border-2 border-dashed border-gray-200 rounded-2xl">
             <p class="text-gray-500">No accounts configured yet.</p>
           </div>
