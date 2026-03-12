@@ -145,8 +145,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     }
 
     function normalizeModelIdentity(model: { providerId: string; modelID: string; accountId?: string }) {
-      const normalizedProviderId =
-        Account.parseProvider(model.providerId) ?? Account.parseFamily(model.providerId) ?? model.providerId
+      const normalizedProviderId = Account.parseProvider(model.providerId) ?? model.providerId
       return {
         providerId: normalizedProviderId,
         modelID: model.modelID,

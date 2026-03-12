@@ -42,7 +42,7 @@ export function DialogModel(props: { providerId?: string }) {
   )
 
   const providerKey = (id: string) => {
-    const parsed = Account.parseProvider(id) ?? Account.parseFamily(id)
+    const parsed = Account.parseProvider(id)
     if (parsed) return parsed
     if (id === "opencode" || id.startsWith("opencode-")) return "opencode"
     return undefined

@@ -65,7 +65,7 @@ import { PromptDragOverlay } from "./prompt-input/drag-overlay"
 import { promptPlaceholder } from "./prompt-input/placeholder"
 import { shouldRefreshProviderQuota } from "./prompt-input/quota-refresh"
 import { ImagePreview } from "@opencode-ai/ui/image-preview"
-import { buildAccountRows, normalizeProviderFamily } from "./model-selector-state"
+import { buildAccountRows, normalizeProviderFamily, providerKeyOf } from "./model-selector-state"
 import { loadQuotaHint, peekQuotaHint } from "@/utils/quota-hint-cache"
 import { sendSessionReloadDebugBeacon } from "@/utils/debug-beacon"
 
@@ -322,13 +322,13 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const activeProviderKey = createMemo(() => {
     const providerID = currentModel()?.provider?.id
     if (!providerID) return
-    return normalizeProviderFamily(providerID) ?? providerID
+    return providerKeyOf(providerID) ?? providerID
   })
   const effectiveProviderKey = createMemo(() => {
     const model = currentModel()
     if (!model) return undefined
 
-    const normalized = normalizeProviderFamily(model.provider.id)
+    const normalized = providerKeyOf(model.provider.id)
     if (normalized && !normalized.includes("@")) return normalized
 
     const identities = [model.provider.id, model.provider.name]
@@ -346,11 +346,11 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       providers
         .all()
         .filter((provider) => !!provider.models?.[model.id])
-        .map((provider) => normalizeProviderFamily(provider.id) || provider.id),
+        .map((provider) => providerKeyOf(provider.id) || provider.id),
     )
 
     for (const [providerKey, providerRow] of Object.entries(accountProviders)) {
-      const canonicalProviderKey = normalizeProviderFamily(providerKey) || providerKey
+      const canonicalProviderKey = providerKeyOf(providerKey) || providerKey
       if (availableProviderKeys.size > 0 && !availableProviderKeys.has(canonicalProviderKey)) continue
       const accounts = providerRow?.accounts && typeof providerRow.accounts === "object" ? providerRow.accounts : {}
       for (const account of Object.values(accounts)) {

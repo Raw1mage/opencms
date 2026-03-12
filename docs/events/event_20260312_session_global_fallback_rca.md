@@ -970,6 +970,31 @@
 - Architecture Sync: Verified (No doc changes)
   - local helper/memo naming cleanup only; execution flow, persistence, and compatibility contracts remain unchanged
 
+## Follow-up Fix: provider-key terminology cleanup batch 20 (L3 Slice 2, selector edge-case pass)
+
+- Goal:
+  - finish another safe selector-semantics edge-case pass in the same Web/TUI local-state surfaces plus TUI dialog-model
+  - prefer provider-key-first helper usage where existing behavior already resolves through canonical provider parsing
+- Updated files:
+  - `packages/app/src/components/prompt-input.tsx`
+  - `packages/app/src/components/dialog-select-model.tsx`
+  - `packages/opencode/src/cli/cmd/tui/context/local.tsx`
+  - `packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx`
+  - `packages/opencode/src/cli/cmd/tui/component/dialog-model.tsx`
+- Applied changes:
+  - `prompt-input.tsx`
+    - switched local provider-key normalization call sites from compatibility helper `normalizeProviderFamily(...)` to `providerKeyOf(...)`
+  - `dialog-select-model.tsx`
+    - switched selection/toggle helper normalization from `normalizeProviderFamily(...)` to `providerKeyOf(...)`
+  - `tui/context/local.tsx`
+    - removed remaining local `parseFamily(...)` fallback from model identity normalization where `parseProvider(...)` already covers the intended provider-boundary behavior
+  - `tui/component/prompt/index.tsx`
+    - removed remaining local `parseFamily(...)` fallback from footer quota/account/variant provider-key resolution
+  - `dialog-model.tsx`
+    - removed remaining local `parseFamily(...)` fallback from provider-key normalization helper
+- Architecture Sync: Verified (No doc changes)
+  - selector/local-state helper cleanup only; no public contract, route, storage, or runtime fallback policy changed
+
 ### Slice 3 — Admin/control-plane semantics cleanup
 
 - Target files:

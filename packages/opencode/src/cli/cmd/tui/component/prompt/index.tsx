@@ -209,7 +209,7 @@ export function Prompt(props: PromptProps) {
       if (!providerId) return undefined
       if (!selectedAccountId) return undefined
       try {
-        const providerKey = Account.parseProvider(providerId) || Account.parseFamily(providerId) || providerId
+        const providerKey = Account.parseProvider(providerId) || providerId
         const info = await Account.get(providerKey, selectedAccountId)
         if (!info) {
           return {
@@ -1036,7 +1036,7 @@ export function Prompt(props: PromptProps) {
   const variantProviderKey = createMemo(() => {
     const providerId = local.model.current(props.sessionID)?.providerId
     if (!providerId) return undefined
-    return Account.parseProvider(providerId) ?? Account.parseFamily(providerId) ?? providerId
+    return Account.parseProvider(providerId) ?? providerId
   })
 
   const visibleVariants = createMemo(() => {
@@ -1120,11 +1120,7 @@ export function Prompt(props: PromptProps) {
     if (disableFooterMeta) return undefined
     const current = local.model.current(props.sessionID)
     if (!current) return undefined
-    if (
-      current.providerId === "openai" ||
-      Account.parseProvider(current.providerId) === "openai" ||
-      Account.parseFamily(current.providerId) === "openai"
-    ) {
+    if (current.providerId === "openai" || Account.parseProvider(current.providerId) === "openai") {
       if (isRateLimited()) return "(5hrs:0% | week:0%)"
       const quota = codexQuota()
       return formatOpenAIQuotaDisplay(quota, "footer")

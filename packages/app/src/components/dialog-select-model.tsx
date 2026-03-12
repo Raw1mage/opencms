@@ -45,7 +45,6 @@ import {
   getFilteredModelsForSelection,
   getModelUnavailableReason,
   isAccountLikeProviderId,
-  normalizeProviderFamily,
   pickSelectedAccount,
   pickSelectedProvider,
   providerKeyOf,
@@ -1093,7 +1092,7 @@ export const DialogSelectModel: Component<{
 
   const accountProvidersByKey = accountProviders
 
-  const providerKeyForSelection = (providerId: string) => normalizeProviderFamily(providerId) || providerId
+  const providerKeyForSelection = (providerId: string) => providerKeyOf(providerId) || providerId
   const activeAccountForProvider = (providerId: string) =>
     getActiveAccountForProviderKey(accountProvidersByKey(), providerKeyForSelection(providerId))
 
@@ -1268,7 +1267,7 @@ export const DialogSelectModel: Component<{
     e.stopPropagation()
     e.preventDefault()
     const current = new Set(effectiveDisabledProviders())
-    const normalized = normalizeProviderFamily(providerId)
+    const normalized = providerKeyOf(providerId)
     if (!normalized) return
     if (current.has(normalized)) {
       current.delete(normalized)
