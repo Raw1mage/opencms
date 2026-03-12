@@ -50,24 +50,22 @@ export function buildCanonicalProviderFamilyRows(
   input: BuildCanonicalProviderFamilyRowsInput,
 ): CanonicalProviderFamilyRow[] {
   const excludedFamilies = new Set(
-    (input.excludedFamilies ?? []).map((id) => normalizeCanonicalProviderFamily(id)).filter((id): id is string => !!id),
+    (input.excludedFamilies ?? []).map((id) => normalizeCanonicalProviderKey(id)).filter((id): id is string => !!id),
   )
   const disabledFamilies = new Set(
-    (input.disabledProviderIds ?? [])
-      .map((id) => normalizeCanonicalProviderFamily(id))
-      .filter((id): id is string => !!id),
+    (input.disabledProviderIds ?? []).map((id) => normalizeCanonicalProviderKey(id)).filter((id): id is string => !!id),
   )
   const connectedByProviderKey = new Map<string, string[]>()
   const providerKeyUniverse = new Set<string>()
 
   for (const providerKey of Object.keys(input.accountFamilies ?? {})) {
-    const normalized = normalizeCanonicalProviderFamily(providerKey)
+    const normalized = normalizeCanonicalProviderKey(providerKey)
     if (!normalized || excludedFamilies.has(normalized)) continue
     providerKeyUniverse.add(normalized)
   }
 
   for (const providerId of input.connectedProviderIds ?? []) {
-    const normalized = normalizeCanonicalProviderFamily(providerId)
+    const normalized = normalizeCanonicalProviderKey(providerId)
     if (!normalized || excludedFamilies.has(normalized)) continue
     providerKeyUniverse.add(normalized)
     const existing = connectedByProviderKey.get(normalized) ?? []
@@ -76,13 +74,13 @@ export function buildCanonicalProviderFamilyRows(
   }
 
   for (const providerId of input.modelsDevProviderIds ?? []) {
-    const normalized = normalizeCanonicalProviderFamily(providerId)
+    const normalized = normalizeCanonicalProviderKey(providerId)
     if (!normalized || excludedFamilies.has(normalized)) continue
     providerKeyUniverse.add(normalized)
   }
 
   for (const providerId of input.disabledProviderIds ?? []) {
-    const normalized = normalizeCanonicalProviderFamily(providerId)
+    const normalized = normalizeCanonicalProviderKey(providerId)
     if (!normalized || excludedFamilies.has(normalized)) continue
     providerKeyUniverse.add(normalized)
   }
@@ -94,7 +92,7 @@ export function buildCanonicalProviderFamilyRows(
       const activeCount = providerData?.activeAccount ? 1 : 0
       const connectedIds = connectedByProviderKey.get(providerKey) ?? []
       const inModelsDev = (input.modelsDevProviderIds ?? []).some(
-        (id) => normalizeCanonicalProviderFamily(id) === providerKey,
+        (id) => normalizeCanonicalProviderKey(id) === providerKey,
       )
       const inAccounts = !!providerData
       const inConnectedProviders = connectedIds.length > 0
@@ -125,11 +123,11 @@ export function resolveCanonicalRuntimeProviderId(input: {
   activeAccountId?: string
   availableProviderIds?: string[]
 }): string | undefined {
-  const family = normalizeCanonicalProviderFamily(input.family)
+  const family = normalizeCanonicalProviderKey(input.family)
   if (!family) return undefined
 
   const availableProviderIds = (input.availableProviderIds ?? []).filter(
-    (id) => normalizeCanonicalProviderFamily(id) === family,
+    (id) => normalizeCanonicalProviderKey(id) === family,
   )
   const exactFamily = availableProviderIds.find((id) => id === family)
   const activeAccountId = input.activeAccountId

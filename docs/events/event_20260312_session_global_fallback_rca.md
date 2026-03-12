@@ -842,3 +842,15 @@
     - renamed local fallback normalization variable from `family` to `providerKey`
 - Architecture Sync: Verified (No doc changes)
   - L2 alias-adoption only; no runtime behavior or contract changes
+
+## Follow-up Fix: provider-key terminology cleanup batch 17
+
+- Goal:
+  - execute one final safe L2 alias-adoption slice by switching canonical helper internals to provider-first aliases
+- Updated files:
+  - `packages/opencode/src/provider/canonical-family-source.ts`
+- Applied changes:
+  - switched internal normalization call sites from `normalizeCanonicalProviderFamily` to `normalizeCanonicalProviderKey`
+  - preserved exported compatibility names and `family`-shaped input fields to avoid contract churn
+- Architecture Sync: Verified (No doc changes)
+  - L2 alias-adoption only; no runtime behavior or contract changes
