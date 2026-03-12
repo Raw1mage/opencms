@@ -145,11 +145,11 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   })
   const [optimisticDisabledProviders, setOptimisticDisabledProviders] = createSignal<Set<string> | undefined>(undefined)
   const effectiveDisabledProviders = createMemo(() => optimisticDisabledProviders() ?? disabledProviders())
-  const isProviderDisabled = (familyId: string) => effectiveDisabledProviders().has(familyId)
-  const setProviderDisabled = (familyId: string, disabled: boolean) => {
+  const isProviderDisabled = (providerKey: string) => effectiveDisabledProviders().has(providerKey)
+  const setProviderDisabled = (providerKey: string, disabled: boolean) => {
     const next = new Set(effectiveDisabledProviders())
-    if (disabled) next.add(familyId)
-    else next.delete(familyId)
+    if (disabled) next.add(providerKey)
+    else next.delete(providerKey)
     setOptimisticDisabledProviders(next)
     void (async () => {
       try {
@@ -165,7 +165,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
       } catch (error) {
         setOptimisticDisabledProviders(undefined)
         toast.show({
-          message: `Failed to update provider "${familyId}"`,
+          message: `Failed to update provider "${providerKey}"`,
           variant: "error",
           duration: 2000,
         })

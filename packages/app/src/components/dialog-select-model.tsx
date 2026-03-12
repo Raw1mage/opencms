@@ -1110,11 +1110,11 @@ export const DialogSelectModel: Component<{
     const providerId = selectedProviderId()
     if (!providerId) return [] as AccountRecord[]
     const providerKey = providerAccountKey(providerId)
-    const familyRow = accountFamilies()[providerKey]
-    if (!familyRow?.accounts) return [] as AccountRecord[]
+    const providerRow = accountFamilies()[providerKey]
+    if (!providerRow?.accounts) return [] as AccountRecord[]
 
-    return Object.entries(familyRow.accounts)
-      .map(([accountId, raw]) => normalizeAccountRecord(providerKey, accountId, raw, familyRow.activeAccount))
+    return Object.entries(providerRow.accounts)
+      .map(([accountId, raw]) => normalizeAccountRecord(providerKey, accountId, raw, providerRow.activeAccount))
       .sort((a, b) => a.name.localeCompare(b.name))
   })
 
@@ -1632,12 +1632,12 @@ export const DialogSelectModel: Component<{
                   })
                   return
                 }
-                const familyCandidates = local.model
+                const providerCandidates = local.model
                   .list()
                   .filter((m) => m.id === x.id && providerAccountKey(m.provider.id) === providerKey)
                 const providerIDForSelection =
-                  familyCandidates.find((m) => providerAccountKey(m.provider.id) === providerKey)?.provider.id ??
-                  familyCandidates.find((m) => !isAccountLikeProviderId(m.provider.id))?.provider.id ??
+                  providerCandidates.find((m) => providerAccountKey(m.provider.id) === providerKey)?.provider.id ??
+                  providerCandidates.find((m) => !isAccountLikeProviderId(m.provider.id))?.provider.id ??
                   x.provider.id
                 const applyModelSelection = () => {
                   local.model.set(

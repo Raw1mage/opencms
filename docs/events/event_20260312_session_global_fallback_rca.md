@@ -656,3 +656,20 @@
     - switched safe local helper import/usage from `familyOf` to `providerKeyOf`
 - Architecture Sync: Verified (No doc changes)
   - rename-only/local-helper cleanup; no behavior or routing contract changed
+
+## Follow-up Fix: provider-key terminology cleanup batch 5
+
+- Goal:
+  - continue low-risk local/helper wording cleanup in TUI admin and Web model selector state without touching compatibility contracts
+- Updated files:
+  - `packages/opencode/src/cli/cmd/tui/component/dialog-admin.tsx`
+  - `packages/app/src/components/dialog-select-model.tsx`
+- Applied changes:
+  - `dialog-admin.tsx`
+    - renamed local provider-toggle parameters from `familyId` to `providerKey`
+    - updated related provider-toggle error copy to use provider-key naming internally
+  - `dialog-select-model.tsx`
+    - renamed selected-account locals from `familyRow` to `providerRow`
+    - renamed model-selection candidate list from `familyCandidates` to `providerCandidates`
+- Architecture Sync: Verified (No doc changes)
+  - rename-only/local-helper cleanup; no behavior or routing contract changed
