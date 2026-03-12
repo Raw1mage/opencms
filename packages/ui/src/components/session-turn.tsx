@@ -17,7 +17,6 @@ import { AssistantParts, Message, Part } from "./message-part"
 import { Markdown } from "./markdown"
 import { IconButton } from "./icon-button"
 import { Card } from "./card"
-import { Button } from "./button"
 import { Spinner } from "./spinner"
 import { SessionRetry } from "./session-retry"
 import { Tooltip } from "./tooltip"
@@ -334,7 +333,7 @@ export function SessionTurn(
   })
 
   const answeredQuestionParts = createMemo(() => {
-    if (props.stepsExpanded) return emptyQuestionParts
+    if (true) return emptyQuestionParts
     if (questions().length > 0) return emptyQuestionParts
 
     const result: { part: ToolPart; message: AssistantMessage }[] = []
@@ -450,7 +449,7 @@ export function SessionTurn(
   const responsePartId = createMemo(() => lastTextPart()?.id)
   const hasDiffs = createMemo(() => (message()?.summary?.diffs?.length ?? 0) > 0)
   const hideResponsePart = createMemo(() => !working() && !!responsePartId())
-  const stickyDisabled = createMemo(() => working() || props.stepsExpanded)
+  const stickyDisabled = createMemo(() => true)
 
   let renderStateLog = ""
   createEffect(() => {
@@ -742,102 +741,17 @@ export function SessionTurn(
                         <Message message={msg()} parts={stickyParts()} queued={queued()} />
                       </div>
 
-                      {/* Trigger (sticky) */}
-                      <Show when={working() || hasSteps()}>
-                        <div data-slot="session-turn-response-trigger">
-                          <Button
-                            data-expandable={assistantMessages().length > 0}
-                            data-slot="session-turn-collapsible-trigger-content"
-                            variant="ghost"
-                            size="small"
-                            onClick={props.onStepsExpandedToggle ?? (() => {})}
-                            aria-expanded={props.stepsExpanded}
-                          >
-                            <Switch>
-                              <Match when={working() && active()}>
-                                <Spinner />
-                              </Match>
-                              <Match when={!props.stepsExpanded}>
-                                <svg
-                                  width="10"
-                                  height="10"
-                                  viewBox="0 0 10 10"
-                                  fill="none"
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  data-slot="session-turn-trigger-icon"
-                                >
-                                  <path
-                                    d="M8.125 1.875H1.875L5 8.125L8.125 1.875Z"
-                                    fill="currentColor"
-                                    stroke="currentColor"
-                                    stroke-linejoin="round"
-                                  />
-                                </svg>
-                              </Match>
-                              <Match when={props.stepsExpanded}>
-                                <svg
-                                  width="10"
-                                  height="10"
-                                  viewBox="0 0 10 10"
-                                  fill="none"
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  class="text-icon-base"
-                                >
-                                  <path
-                                    d="M8.125 8.125H1.875L5 1.875L8.125 8.125Z"
-                                    fill="currentColor"
-                                    stroke="currentColor"
-                                    stroke-linejoin="round"
-                                  />
-                                </svg>
-                              </Match>
-                            </Switch>
-                            <Switch>
-                              <Match when={retry()}>
-                                <span data-slot="session-turn-retry-message">
-                                  {(() => {
-                                    const r = retry()
-                                    if (!r) return ""
-                                    const msg = unwrap(r.message)
-                                    return msg.length > 60 ? msg.slice(0, 60) + "..." : msg
-                                  })()}
-                                </span>
-                                <span data-slot="session-turn-retry-seconds">
-                                  · {i18n.t("ui.sessionTurn.retry.retrying")}
-                                  {store.retrySeconds > 0
-                                    ? " " + i18n.t("ui.sessionTurn.retry.inSeconds", { seconds: store.retrySeconds })
-                                    : ""}
-                                </span>
-                                <span data-slot="session-turn-retry-attempt">(#{retry()?.attempt})</span>
-                              </Match>
-                              <Match when={working() && active()}>
-                                <span data-slot="session-turn-status-text">
-                                  {store.status ?? i18n.t("ui.sessionTurn.status.consideringNextSteps")}
-                                </span>
-                              </Match>
-                              <Match when={props.stepsExpanded}>
-                                <span data-slot="session-turn-status-text">{i18n.t("ui.sessionTurn.steps.hide")}</span>
-                              </Match>
-                              <Match when={!props.stepsExpanded}>
-                                <span data-slot="session-turn-status-text">{i18n.t("ui.sessionTurn.steps.show")}</span>
-                              </Match>
-                            </Switch>
-                            <span aria-hidden="true">·</span>
-                            <span aria-live="off">{store.duration}</span>
-                          </Button>
-                        </div>
-                      </Show>
                     </div>
                     <SessionRetry status={status()} show={isLastUserMessage()} />
-                    {/* Response */}
-                    <Show when={props.stepsExpanded && assistantMessages().length > 0}>
+                    {/* Steps (always inline) */}
+                    <Show when={assistantMessages().length > 0}>
                       <div data-slot="session-turn-collapsible-content-inner" aria-hidden={working()} ref={setStepsRef}>
                         <AssistantParts
                           messages={assistantMessages()}
                           working={working()}
                           responsePartId={responsePartId()}
                           hideResponsePart={hideResponsePart()}
-                          hideReasoning={!working()}
+                          hideReasoning={false}
                           showReasoningSummaries={props.showReasoningSummaries ?? true}
                           hidden={hidden()}
                           shellToolDefaultOpen={props.shellToolDefaultOpen}
@@ -848,19 +762,40 @@ export function SessionTurn(
                             {errorText()}
                           </Card>
                         </Show>
-                        <div data-slot="session-turn-bottom-collapse">
-                          <button
-                            type="button"
-                            data-slot="bottom-collapse-icon"
-                            aria-label={i18n.t("ui.sessionTurn.steps.hide")}
-                            onClick={props.onStepsExpandedToggle ?? (() => {})}
-                          >
-                            △
-                          </button>
-                        </div>
                       </div>
                     </Show>
-                    <Show when={!props.stepsExpanded && answeredQuestionParts().length > 0}>
+                    <Show when={!!retry() || (working() && active())}>
+                      <div data-slot="session-turn-status-inline">
+                        <Switch>
+                          <Match when={retry()}>
+                            <span data-slot="session-turn-retry-message">
+                              {(() => {
+                                const r = retry()
+                                if (!r) return ""
+                                const msg = unwrap(r.message)
+                                return msg.length > 60 ? msg.slice(0, 60) + "..." : msg
+                              })()}
+                            </span>
+                            <span data-slot="session-turn-retry-seconds">
+                              · {i18n.t("ui.sessionTurn.retry.retrying")}
+                              {store.retrySeconds > 0
+                                ? " " + i18n.t("ui.sessionTurn.retry.inSeconds", { seconds: store.retrySeconds })
+                                : ""}
+                            </span>
+                            <span data-slot="session-turn-retry-attempt">(#{retry()?.attempt})</span>
+                          </Match>
+                          <Match when={working() && active()}>
+                            <Spinner />
+                            <span data-slot="session-turn-status-text">
+                              {store.status ?? i18n.t("ui.sessionTurn.status.consideringNextSteps")}
+                            </span>
+                          </Match>
+                        </Switch>
+                        <span aria-hidden="true">·</span>
+                        <span aria-live="off">{store.duration}</span>
+                      </div>
+                    </Show>
+                    <Show when={answeredQuestionParts().length > 0}>
                       <div data-slot="session-turn-answered-question-parts">
                         <For each={answeredQuestionParts()}>
                           {({ part, message }) => <Part part={part} message={message} />}

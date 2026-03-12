@@ -232,6 +232,45 @@ Status: In Progress
         - `relativeBottom` 長時間固定在 ~`1053px`
       - 判讀：展開中的 steps block 很像被當成 scroll restore / anchor owner。
       - 最小修正：對 `session-turn-collapsible-content-inner` 新增 `overflow-anchor: none`，先阻止外層 root scroller 在 follow-bottom 模式下被這個 steps container 搶走 anchor 所有權。
+  14. Structural simplification experiment (remove collapsible ownership)
+      - 使用者提出新的根治方向：放棄思考鏈/steps 的收折功能，不再讓 streaming 中的 thought/tool/reasoning 內容待在可收折容器與其 sticky trigger 契約內。
+      - 本輪實作先採最小結構版本：
+        - assistant steps/tool/reasoning 永遠直接渲染
+        - 不再顯示 steps expand/collapse trigger
+        - `hideReasoning` 改為固定顯示
+        - `stickyDisabled` 改為固定停用，避免 sticky header 參與 outer scroll ownership
+      - 使用者新增版位要求：平鋪出的 steps 內容必須位於「思考中 / 狀態動畫行」上方；因此狀態列改成單獨的 `session-turn-status-inline`，放在 steps 區塊之後，作為 working/retry 階段的底部狀態行。
+  15. Tool-card focused mitigation
+      - 使用者提供新症狀：畫面原本可正常追底，但一進入「修補 / patch」這類工具卡片階段，就開始跳回最後輸入點附近。
+      - 直接回找畫面對應 source 後，鎖定：
+        - `packages/ui/src/components/message-part.tsx` 的 `apply_patch` tool card
+        - `packages/ui/src/components/basic-tool.tsx` / `collapsible.tsx`
+        - `packages/ui/src/components/basic-tool.css` 中 `[data-component="tool-trigger"] { content-visibility: auto; }`
+      - 本輪最小修正：
+        - 移除 `tool-trigger` 的 `content-visibility: auto`
+        - 新增 `BasicTool.flat` 路徑，working 中的 tool card 直接 inline 顯示，不再走 `Collapsible.Trigger/Content`
+        - `ToolPartDisplay` 對 `part.state.status !== "completed"` 的 tool 一律傳入 `flat`
+      - 目的：避免 mobile / 長串流 / tool card 掛載時，由 collapsible + deferred layout（content-visibility）共同觸發 scroll jump。
+  16. Mobile-specific prompt dock repair
+      - 使用者確認：桌機版已大致穩定，只剩少量 under-follow；手機版在同一 session 仍非常容易 oscillation。
+      - 新判讀：手機版較容易受 browser chrome / visual viewport / safe-area 變化影響，而 `promptDock` 又是 absolute bottom 疊加層，且 resize 後會直接影響：
+        - `--prompt-height`
+        - session feed bottom padding
+        - resume button bottom offset
+        - `stick` 成立時的 `autoScroll.scrollToBottom()`
+      - 本輪最小 mobile repair：
+        - 新增 `mobileScrollRepair = !isDesktop()` 分支
+        - `status !== idle` 期間凍結 `mobilePromptHeightLock`
+        - mobile + working 時，`promptDock` resize 只記錄 `measured`，但 layout 使用鎖定高度
+        - mobile + working 時，停用 `promptDock` resize 觸發的 `autoScroll.scrollToBottom()`
+        - `prompt-dock-resize` debug 事件補記：
+          - `promptHeightMeasured`
+          - `mobileLocked`
+          - `innerHeight`
+          - `visualViewportHeight`
+          - `visualViewportOffsetTop`
+          - `visualViewportPageTop`
+      - 目的：讓手機版 working 期間不再因瀏覽器 viewport / prompt dock 細碎高度抖動而反覆改寫 outer scroller 與 bottom padding。
 
 ### Validation
 
@@ -252,6 +291,22 @@ Status: In Progress
   - `cd /home/pkcs12/projects/opencode/packages/app && bun run typecheck`
 - 結果：passed（retained payload enrichment round）
 - 補充：本輪 `overflow-anchor` CSS 調整為樣式層單點修正，未涉及 TypeScript 變更；待使用者下一次復現後，以 retained capture 行為變化作為主要驗證依據。
+- 驗證指令：
+  - `cd /home/pkcs12/projects/opencode/packages/ui && bun run typecheck`
+  - `cd /home/pkcs12/projects/opencode/packages/app && bun run typecheck`
+- 結果：passed（inline steps / bottom status row round）
+- 驗證指令：
+  - `cd /home/pkcs12/projects/opencode/packages/ui && bun run typecheck`
+  - `cd /home/pkcs12/projects/opencode/packages/app && bun run typecheck`
+- 結果：passed（flat working tool-card round）
+- 驗證指令：
+  - `cd /home/pkcs12/projects/opencode/packages/app && bun run typecheck`
+- 結果：passed（mobile prompt dock repair round）
+- 待實機驗證：
+  - steps/tool/reasoning 平鋪後，follow-bottom 不應再與可收折容器/sticky trigger 競爭
+  - working 狀態列應固定出現在所有 steps 輸出下方，而不是卡在其上方
+  - working 中的 patch/read/tool card 掛載不應再因 collapsible/content-visibility 路徑而觸發上跳
+  - mobile working 期間，browser chrome / visual viewport 抖動不應再反覆帶動 prompt-height 與 scroll jump
 - 使用者觀察回饋（pre-phase2）
   - 已確認 agent 純文字輸出不再強制貼底，表示 page-level follow source 已顯著下降
   - 剩餘問題更集中在 thinking/steps 相關 focus 錨點，而非全文字流本身
@@ -274,5 +329,5 @@ Status: In Progress
   - `user-message` 現也強制 `overflow-anchor: none`
   - 目的是避免展開中的 prompt window 在純文字 streaming 階段被選成 anchor，將 viewport 拉回使用者輸入位置
 - Architecture Sync: Updated
-  - 已同步 `docs/ARCHITECTURE.md`，新增 web scroll incident observability contract。
-  - 依據：本輪新增固定 server-side retained capture path（專用 POST / GET route + 固定 JSON 檔），已形成可長期依賴的 observability / retrieval contract。
+  - 已同步 `docs/ARCHITECTURE.md`，新增 web scroll incident observability contract，並補充 session turn 的 inline steps / bottom status row UI contract。
+  - 依據：本輪除 retained capture 外，也正式改變了 session turn 的顯示結構：steps 不再依賴可收折 trigger，working 狀態列改為底部行。這已屬穩定 UI/scroll ownership contract 變更。

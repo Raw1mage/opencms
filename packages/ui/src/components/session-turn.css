@@ -567,6 +567,18 @@
     text-overflow: ellipsis;
   }
 
+  [data-slot="session-turn-status-inline"] {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-weak);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 4px 0;
+  }
+
   [data-slot="session-turn-details-text"] {
     font-size: 13px;
     /* text-12-medium */
@@ -589,10 +601,6 @@
     flex-direction: column;
     align-self: stretch;
     gap: 12px;
-    margin-left: 0;
-    padding-left: 8px;
-    padding-right: 12px;
-    border-left: 1px solid var(--border-base);
     overflow-anchor: none;
 
     > :first-child > [data-component="markdown"]:first-child {
