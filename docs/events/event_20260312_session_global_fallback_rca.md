@@ -995,6 +995,22 @@
 - Architecture Sync: Verified (No doc changes)
   - selector/local-state helper cleanup only; no public contract, route, storage, or runtime fallback policy changed
 
+## Follow-up Fix: provider-key terminology cleanup batch 21 (L3 Slice 2, final cleanup audit)
+
+- Goal:
+  - complete one final safe audit pass on the requested Web/TUI selector/display/local-state surfaces
+  - only land remaining purely internal provider-key-first cleanup that stays below Slice 3/public-contract boundaries
+- Updated files:
+  - `packages/app/src/components/prompt-input.tsx`
+  - `packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx`
+- Applied changes:
+  - `prompt-input.tsx`
+    - removed a no-longer-used compatibility import for `normalizeProviderFamily`
+  - `tui/component/prompt/index.tsx`
+    - removed one final local `parseFamily(...)` fallback from footer quota provider-key resolution
+- Architecture Sync: Verified (No doc changes)
+  - audit cleanup only; no behavior, contract, persistence, or fallback policy changed
+
 ### Slice 3 — Admin/control-plane semantics cleanup
 
 - Target files:

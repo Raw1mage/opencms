@@ -138,7 +138,7 @@ export function Prompt(props: PromptProps) {
     if (disableFooterMeta) return undefined
     const providerId = local.model.current(props.sessionID)?.providerId
     if (!providerId) return undefined
-    return Account.parseProvider(providerId) ?? Account.parseFamily(providerId) ?? providerId
+    return Account.parseProvider(providerId) ?? providerId
   })
 
   const requestOpenAIQuotaRefresh = (options?: { force?: boolean }) => {

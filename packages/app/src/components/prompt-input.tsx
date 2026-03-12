@@ -65,7 +65,7 @@ import { PromptDragOverlay } from "./prompt-input/drag-overlay"
 import { promptPlaceholder } from "./prompt-input/placeholder"
 import { shouldRefreshProviderQuota } from "./prompt-input/quota-refresh"
 import { ImagePreview } from "@opencode-ai/ui/image-preview"
-import { buildAccountRows, normalizeProviderFamily, providerKeyOf } from "./model-selector-state"
+import { buildAccountRows, providerKeyOf } from "./model-selector-state"
 import { loadQuotaHint, peekQuotaHint } from "@/utils/quota-hint-cache"
 import { sendSessionReloadDebugBeacon } from "@/utils/debug-beacon"
 
