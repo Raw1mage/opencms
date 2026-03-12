@@ -9,8 +9,8 @@ import { mapValues } from "remeda"
 import { errors } from "../error"
 import { Account } from "../../account"
 import {
-  buildCanonicalProviderFamilyRows,
-  normalizeCanonicalProviderFamily,
+  buildCanonicalProviderRows,
+  normalizeCanonicalProviderKey,
   resolveCanonicalRuntimeProvider,
 } from "../../provider/canonical-family-source"
 import { lazy } from "../../util/lazy"
@@ -59,7 +59,7 @@ export const ProviderRoutes = lazy(() =>
         const disabledProviderIds = Array.isArray(config.disabled_providers)
           ? config.disabled_providers.filter((item): item is string => typeof item === "string")
           : []
-        const canonicalFamilies = buildCanonicalProviderFamilyRows({
+        const canonicalProviders = buildCanonicalProviderRows({
           accountFamilies: familiesWithAccounts,
           connectedProviderIds: Object.keys(connected),
           modelsDevProviderIds: Object.keys(allProviders),
@@ -69,12 +69,12 @@ export const ProviderRoutes = lazy(() =>
 
         const providers: Record<string, Provider.Info> = {}
 
-        for (const row of canonicalFamilies) {
+        for (const row of canonicalProviders) {
           const family = row.family
           const familyData = familiesWithAccounts[family]
           const activeAccountId = familyData?.activeAccount
           const connectedProviders = Object.values(connected).filter(
-            (provider) => normalizeCanonicalProviderFamily(provider.id) === family,
+            (provider) => normalizeCanonicalProviderKey(provider.id) === family,
           )
           const resolvedConnected = resolveCanonicalRuntimeProvider({
             family,
@@ -91,7 +91,7 @@ export const ProviderRoutes = lazy(() =>
           }
 
           const devEntry = Object.entries(allProviders).find(
-            ([id]) => normalizeCanonicalProviderFamily(id) === family,
+            ([id]) => normalizeCanonicalProviderKey(id) === family,
           )?.[1]
           if (!devEntry) continue
 

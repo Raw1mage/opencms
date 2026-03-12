@@ -826,3 +826,19 @@
     - switched internal helper usage from `isPromptQuotaProviderFamily` to `isPromptQuotaProviderKey`
 - Architecture Sync: Verified (No doc changes)
   - L2 alias-adoption only; no runtime behavior or contract changes
+
+## Follow-up Fix: provider-key terminology cleanup batch 16
+
+- Goal:
+  - continue L2 adoption by switching remaining safe internal call sites to provider-first canonical-helper aliases
+- Updated files:
+  - `packages/opencode/src/server/routes/provider.ts`
+  - `packages/opencode/src/provider/canonical-family-source.ts`
+- Applied changes:
+  - `server/routes/provider.ts`
+    - switched internal canonical helper imports/usages to `buildCanonicalProviderRows` and `normalizeCanonicalProviderKey`
+  - `canonical-family-source.ts`
+    - switched internal runtime-provider resolution to call `resolveCanonicalRuntimeProviderByKey`
+    - renamed local fallback normalization variable from `family` to `providerKey`
+- Architecture Sync: Verified (No doc changes)
+  - L2 alias-adoption only; no runtime behavior or contract changes

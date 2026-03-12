@@ -150,7 +150,7 @@ export function resolveCanonicalRuntimeProvider<T extends RuntimeProviderLike>(i
   activeAccountId?: string
   providers: T[]
 }) {
-  const providerId = resolveCanonicalRuntimeProviderId({
+  const providerId = resolveCanonicalRuntimeProviderByKey({
     family: input.family,
     activeAccountId: input.activeAccountId,
     availableProviderIds: input.providers.map((provider) => provider.id),
@@ -160,9 +160,9 @@ export function resolveCanonicalRuntimeProvider<T extends RuntimeProviderLike>(i
   const provider = input.providers.find((item) => item.id === providerId)
   if (provider) return { id: providerId, provider }
 
-  const family = normalizeCanonicalProviderFamily(input.family)
-  if (!family) return undefined
-  const fallback = input.providers.find((item) => normalizeCanonicalProviderFamily(item.id) === family)
+  const providerKey = normalizeCanonicalProviderKey(input.family)
+  if (!providerKey) return undefined
+  const fallback = input.providers.find((item) => normalizeCanonicalProviderKey(item.id) === providerKey)
   if (!fallback) return undefined
   return { id: fallback.id, provider: fallback }
 }
