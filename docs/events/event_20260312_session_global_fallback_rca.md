@@ -735,3 +735,15 @@
     - updated remaining local comments from `family` wording to `provider key` where they only described local grouping semantics
 - Architecture Sync: Verified (No doc changes)
   - alias/comment cleanup only; no runtime behavior or compatibility API contract changed
+
+## Follow-up Fix: provider-key terminology cleanup batch 10
+
+- Goal:
+  - keep compatibility aliases explicit while reducing future ambiguity for local helper consumers
+- Updated files:
+  - `packages/app/src/components/model-selector-state.ts`
+- Applied changes:
+  - documented `familyOf` as a compatibility alias for provider-key normalization
+  - documented `getActiveAccountForProviderKey` as the preferred provider-first alias while keeping the legacy export intact
+- Architecture Sync: Verified (No doc changes)
+  - documentation/comment-only cleanup; no runtime behavior or API contract changed

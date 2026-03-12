@@ -206,6 +206,7 @@ export function providerKeyOf(providerId: string) {
   return normalizeProviderFamily(providerId) || providerId
 }
 
+// Compatibility alias for older local call sites/tests that still use `family` wording.
 export const familyOf = providerKeyOf
 
 export function isAccountLikeProviderId(id: string) {
@@ -220,6 +221,7 @@ export function getActiveAccountForFamily(
   return typeof providerRow?.activeAccount === "string" ? providerRow.activeAccount : undefined
 }
 
+// Compatibility alias kept to avoid broad churn across existing helper call sites.
 export const getActiveAccountForProviderKey = getActiveAccountForFamily
 
 export function getModelUnavailableReason(input: {
