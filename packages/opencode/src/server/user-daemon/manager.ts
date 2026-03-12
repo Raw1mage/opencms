@@ -389,7 +389,7 @@ export namespace UserDaemonManager {
     })
   }
 
-  export async function callAccountSetActive<T>(username: string, family: string, accountId: string) {
+  export async function callAccountSetActive<T>(username: string, providerKey: string, accountId: string) {
     observe(username)
     const safe = LinuxUserExec.sanitizeUsername(username)
     if (!safe) {
@@ -414,12 +414,12 @@ export namespace UserDaemonManager {
     return callJSON<T>({
       entry,
       method: "POST",
-      path: `/account/${encodeURIComponent(family)}/active`,
+      path: `/account/${encodeURIComponent(providerKey)}/active`,
       body: { accountId },
     })
   }
 
-  export async function callAccountRemove<T>(username: string, family: string, accountId: string) {
+  export async function callAccountRemove<T>(username: string, providerKey: string, accountId: string) {
     observe(username)
     const safe = LinuxUserExec.sanitizeUsername(username)
     if (!safe) {
@@ -444,11 +444,16 @@ export namespace UserDaemonManager {
     return callJSON<T>({
       entry,
       method: "DELETE",
-      path: `/account/${encodeURIComponent(family)}/${encodeURIComponent(accountId)}`,
+      path: `/account/${encodeURIComponent(providerKey)}/${encodeURIComponent(accountId)}`,
     })
   }
 
-  export async function callAccountUpdate<T>(username: string, family: string, accountId: string, updates: unknown) {
+  export async function callAccountUpdate<T>(
+    username: string,
+    providerKey: string,
+    accountId: string,
+    updates: unknown,
+  ) {
     observe(username)
     const safe = LinuxUserExec.sanitizeUsername(username)
     if (!safe) {
@@ -473,7 +478,7 @@ export namespace UserDaemonManager {
     return callJSON<T>({
       entry,
       method: "PATCH",
-      path: `/account/${encodeURIComponent(family)}/${encodeURIComponent(accountId)}`,
+      path: `/account/${encodeURIComponent(providerKey)}/${encodeURIComponent(accountId)}`,
       body: updates,
     })
   }

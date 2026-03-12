@@ -922,6 +922,27 @@
 - Risk: medium (UI drift/confusing labels)
 - Depends on: Slice 1
 
+## Follow-up Fix: provider-key terminology cleanup batch 18 (L3 Slice 2, safe internal/account-admin pass)
+
+- Goal:
+  - continue L3 Slice 2 with a narrow non-breaking provider-key-first cleanup in Web/TUI-adjacent internal control paths
+  - avoid route/public-contract/storage changes while reducing remaining internal `family` naming on account operations
+- Updated files:
+  - `packages/opencode/src/cli/cmd/tui/component/dialog-admin.tsx`
+  - `packages/opencode/src/server/routes/account.ts`
+  - `packages/opencode/src/server/user-daemon/manager.ts`
+- Applied changes:
+  - `dialog-admin.tsx`
+    - renamed internal account edit/view dialog props and audit payload fields from `family` to `providerKey`
+    - updated account edit/view dialog call sites to pass provider-key terminology consistently
+  - `server/routes/account.ts`
+    - renamed local compatibility-route variables from `family` to `providerKey` in active/remove/update/login handlers while preserving `/:family/...` params and behavior
+    - updated one local login error string to describe missing auth for provider key rather than family
+  - `server/user-daemon/manager.ts`
+    - renamed account mutation helper parameters from `family` to `providerKey` while preserving the same compatibility route paths
+- Architecture Sync: Verified (No doc changes)
+  - internal naming cleanup only; public route params, storage shape, and runtime behavior remain unchanged
+
 ### Slice 3 — Admin/control-plane semantics cleanup
 
 - Target files:

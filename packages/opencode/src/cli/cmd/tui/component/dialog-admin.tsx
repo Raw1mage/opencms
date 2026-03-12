@@ -1910,7 +1910,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               dialog.push(
                 () => (
                   <DialogAccountEdit
-                    family={lookupProviderKey}
+                    providerKey={lookupProviderKey}
                     accountId={accountId}
                     currentName={accountInfo.name}
                     onCancel={() => {
@@ -1956,7 +1956,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
               dialog.push(
                 () => (
                   <DialogAccountView
-                    family={lookupProviderKey}
+                    providerKey={lookupProviderKey}
                     accountId={accountId}
                     accountInfo={accountInfo}
                     onClose={() => {
@@ -2869,7 +2869,7 @@ function formatWait(waitMs: number): string {
  * Uses cursor-based navigation with inline editing (same pattern as DialogGoogleApiAdd)
  */
 function DialogAccountEdit(props: {
-  family: string
+  providerKey: string
   accountId: string
   currentName: string
   onCancel: () => void
@@ -2893,7 +2893,7 @@ function DialogAccountEdit(props: {
   })
 
   onMount(() => {
-    debugCheckpoint("admin.account_edit", "mount", { family: props.family, id: props.accountId })
+    debugCheckpoint("admin.account_edit", "mount", { providerKey: props.providerKey, id: props.accountId })
   })
 
   const startEdit = () => {
@@ -2938,7 +2938,7 @@ function DialogAccountEdit(props: {
 
     setSaving(true)
     try {
-      const info = await Account.get(props.family, props.accountId)
+      const info = await Account.get(props.providerKey, props.accountId)
       if (!info) {
         setNameErr("Account not found")
         setSaving(false)
@@ -2946,10 +2946,14 @@ function DialogAccountEdit(props: {
       }
 
       // Update the account with new name
-      await Account.update(props.family, props.accountId, { ...info, name: newName })
+      await Account.update(props.providerKey, props.accountId, { ...info, name: newName })
       await Account.refresh()
 
-      debugCheckpoint("admin.account_edit", "save success", { family: props.family, id: props.accountId, newName })
+      debugCheckpoint("admin.account_edit", "save success", {
+        providerKey: props.providerKey,
+        id: props.accountId,
+        newName,
+      })
       toast.show({ message: "Account name updated", variant: "success", duration: 2000 })
       props.onSaved()
     } catch (e) {
@@ -3149,7 +3153,7 @@ function DialogAccountEdit(props: {
  * Dialog to view account JSON
  */
 function DialogAccountView(props: {
-  family: string
+  providerKey: string
   accountId: string
   accountInfo: Account.Info
   onClose: () => void
@@ -3177,7 +3181,7 @@ function DialogAccountView(props: {
   const visibleLines = 15
 
   onMount(() => {
-    debugCheckpoint("admin.account_view", "mount", { family: props.family, id: props.accountId })
+    debugCheckpoint("admin.account_view", "mount", { providerKey: props.providerKey, id: props.accountId })
   })
 
   useKeyboard((evt: KeyEvent) => {

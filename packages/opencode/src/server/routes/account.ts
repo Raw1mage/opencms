@@ -167,12 +167,12 @@ export const AccountRoutes = lazy(() =>
       validator("param", z.object({ family: z.string() })),
       validator("json", z.object({ accountId: z.string() })),
       async (c) => {
-        const family = c.req.valid("param").family
+        const providerKey = c.req.valid("param").family
         const { accountId } = c.req.valid("json")
 
         const username = RequestUser.username()
         if (username && UserDaemonManager.routeAccountMutationEnabled()) {
-          const response = await UserDaemonManager.callAccountSetActive<boolean>(username, family, accountId)
+          const response = await UserDaemonManager.callAccountSetActive<boolean>(username, providerKey, accountId)
           if (response.ok) return c.json(true)
           return c.json(
             {
@@ -182,7 +182,7 @@ export const AccountRoutes = lazy(() =>
             503,
           )
         }
-        await Account.setActive(family, accountId)
+        await Account.setActive(providerKey, accountId)
         return c.json(true)
       },
     )
@@ -199,10 +199,10 @@ export const AccountRoutes = lazy(() =>
       }),
       validator("param", z.object({ family: z.string() })),
       async (c) => {
-        const family = c.req.valid("param").family
-        const authMethod = await Plugin.getAuth(family)
+        const providerKey = c.req.valid("param").family
+        const authMethod = await Plugin.getAuth(providerKey)
         if (!authMethod || !authMethod.methods[0]?.authorize) {
-          return c.json({ error: "No auth method for family" }, 400)
+          return c.json({ error: "No auth method for provider key" }, 400)
         }
 
         const result = await authMethod.methods[0].authorize({ noBrowser: "true" })
@@ -230,11 +230,11 @@ export const AccountRoutes = lazy(() =>
       }),
       validator("param", z.object({ family: z.string(), accountId: z.string() })),
       async (c) => {
-        const { family, accountId } = c.req.valid("param")
+        const { family: providerKey, accountId } = c.req.valid("param")
 
         const username = RequestUser.username()
         if (username && UserDaemonManager.routeAccountMutationEnabled()) {
-          const response = await UserDaemonManager.callAccountRemove<boolean>(username, family, accountId)
+          const response = await UserDaemonManager.callAccountRemove<boolean>(username, providerKey, accountId)
           if (response.ok) return c.json(true)
           return c.json(
             {
@@ -244,7 +244,7 @@ export const AccountRoutes = lazy(() =>
             503,
           )
         }
-        await Account.remove(family, accountId)
+        await Account.remove(providerKey, accountId)
         return c.json(true)
       },
     )
@@ -275,7 +275,7 @@ export const AccountRoutes = lazy(() =>
         }),
       ),
       async (c) => {
-        const { family, accountId } = c.req.valid("param")
+        const { family: providerKey, accountId } = c.req.valid("param")
         const { name } = c.req.valid("json")
         const trimmedName = name.trim()
         if (!trimmedName) {
@@ -290,7 +290,7 @@ export const AccountRoutes = lazy(() =>
 
         const username = RequestUser.username()
         if (username && UserDaemonManager.routeAccountMutationEnabled()) {
-          const response = await UserDaemonManager.callAccountUpdate<boolean>(username, family, accountId, {
+          const response = await UserDaemonManager.callAccountUpdate<boolean>(username, providerKey, accountId, {
             name: trimmedName,
           })
           if (response.ok) return c.json(true)
@@ -303,18 +303,18 @@ export const AccountRoutes = lazy(() =>
           )
         }
 
-        const account = await Account.get(family, accountId)
+        const account = await Account.get(providerKey, accountId)
         if (!account) {
           return c.json(
             {
               code: "ACCOUNT_NOT_FOUND",
-              message: `Account not found: ${family}/${accountId}`,
+              message: `Account not found: ${providerKey}/${accountId}`,
             },
             404,
           )
         }
 
-        await Account.update(family, accountId, { ...account, name: trimmedName })
+        await Account.update(providerKey, accountId, { ...account, name: trimmedName })
         return c.json(true)
       },
     ),
