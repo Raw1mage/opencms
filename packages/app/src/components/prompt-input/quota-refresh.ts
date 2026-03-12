@@ -8,7 +8,7 @@ export function shouldRefreshProviderQuota(input: {
   now?: number
   minIntervalMs?: number
 }) {
-  if (!isPromptQuotaProviderFamily(input.providerKey)) return false
+  if (!isPromptQuotaProviderKey(input.providerKey)) return false
   const now = input.now ?? Date.now()
   const minIntervalMs = input.minIntervalMs ?? 60_000
   return now - input.lastRefreshAt >= minIntervalMs

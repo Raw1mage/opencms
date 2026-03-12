@@ -25,9 +25,9 @@ import { Account } from "@/account"
 import { Keybind } from "@/util/keybind"
 import { ModelsDev } from "@/provider/models"
 import {
-  buildCanonicalProviderKeyRows,
+  buildCanonicalProviderRows,
   resolveCanonicalRuntimeProvider,
-  resolveCanonicalRuntimeProviderKey,
+  resolveCanonicalRuntimeProviderByKey,
 } from "@/provider/canonical-family-source"
 import { DialogConfirm } from "@tui/ui/dialog-confirm"
 import { DialogPrompt } from "@tui/ui/dialog-prompt"
@@ -785,7 +785,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
   })
 
   const canonicalProviders = createMemo(() =>
-    buildCanonicalProviderKeyRows({
+    buildCanonicalProviderRows({
       accountFamilies: coreAll() ?? {},
       connectedProviderIds: sync.data.provider.map((provider) => provider.id),
       modelsDevProviderIds: Object.keys(modelsDevData() ?? {}),
@@ -1552,7 +1552,7 @@ export function DialogAdmin(props: DialogAdminProps = {}) {
     debugCheckpoint("admin", "set active start", { providerKey, accountId, displayId })
     return debugSpan("admin", "set active", { providerKey, accountId, displayId }, async () => {
       setSelectedAccountID(accountId)
-      const nextProviderId = resolveCanonicalRuntimeProviderKey({
+      const nextProviderId = resolveCanonicalRuntimeProviderByKey({
         family: providerKey,
         activeAccountId: accountId,
         availableProviderIds: syncProvidersForProviderKey(providerKey).map((provider) => provider.id),

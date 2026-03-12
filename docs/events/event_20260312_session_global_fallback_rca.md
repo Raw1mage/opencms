@@ -811,3 +811,18 @@
     - preserved compatibility row field names and existing exports to avoid contract churn
 - Architecture Sync: Verified (No doc changes)
   - L2 shared-helper alias adoption only; no runtime behavior or public/persisted contract changed
+
+## Follow-up Fix: provider-key terminology cleanup batch 15
+
+- Goal:
+  - continue L2 alias adoption by switching safe internal call sites to the new provider-first core/helper aliases
+- Updated files:
+  - `packages/opencode/src/cli/cmd/tui/component/dialog-admin.tsx`
+  - `packages/app/src/components/prompt-input/quota-refresh.ts`
+- Applied changes:
+  - `dialog-admin.tsx`
+    - switched canonical provider helper imports/usages from compatibility names to `buildCanonicalProviderRows` and `resolveCanonicalRuntimeProviderByKey`
+  - `prompt-input/quota-refresh.ts`
+    - switched internal helper usage from `isPromptQuotaProviderFamily` to `isPromptQuotaProviderKey`
+- Architecture Sync: Verified (No doc changes)
+  - L2 alias-adoption only; no runtime behavior or contract changes
