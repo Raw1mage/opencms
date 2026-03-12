@@ -81,7 +81,7 @@ cms 將 provider 管理從單體模式改為模組化分流，常見路徑如：
 角色分工先記住：
 
 - `install.sh`：初始化環境
-- `webctl.sh`：Web 啟停/重啟/狀態管理（唯一控制入口）
+- `webctl.sh`：Web 啟停/refresh/狀態管理（唯一控制入口）
 - `bun run dev`：TUI 互動入口
 
 ### 3.0 推薦快速流程（開發）
@@ -141,7 +141,7 @@ Web 的啟動/停止/重啟/檢查，一律透過 `webctl.sh`：
 ./webctl.sh logs
 ./webctl.sh dev-stop
 ./webctl.sh web-stop
-./webctl.sh web-restart
+./webctl.sh restart
 ./webctl.sh dev-refresh
 ./webctl.sh web-refresh
 ```
@@ -338,5 +338,7 @@ chmod +x ./install.sh
 
 1. 先 `install.sh`，再做各模式啟動。
 2. Web 模式不要手動拼 `opencode web` 命令，改用 `webctl.sh`。
-3. 前端改動後，先 `./webctl.sh build-frontend` 再 `dev-start` / `dev-refresh`。
-4. 要做系統服務部署時，優先 `./webctl.sh install --yes`（production 預設）。
+3. 若要直接讓 repo 更新重新套用到目前活躍 web runtime，優先用 `./webctl.sh restart`（dev 會走 `build + stop + flush + start`，prod 會走 `web-refresh`）。
+4. 若只想手動拆步，前端改動後可先 `./webctl.sh build-frontend` 再 `dev-start` / `dev-refresh`。
+5. 要做系統服務部署時，優先 `./webctl.sh install --yes`（production 預設）。
+6. `./webctl.sh flush --dry-run` 會列出目前被判定為 **stale interactive runtime** 的 `opencode` / MCP process tree；確認後可用 `./webctl.sh flush` 清理。

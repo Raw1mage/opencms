@@ -12,7 +12,8 @@
 #   dev-start, dev-up Start the development server from source
 #   dev-stop, dev-down Stop the development server
 #   stop              Stop active dev / production server(s)
-#   restart           Restart active dev / production server(s)
+#   flush             Clean orphaned webctl/opencode bun process trees
+#   restart           Refresh active dev / production server(s)
 #   dev-refresh       Build frontend + restart dev server
 #   web-start         Start production systemd service
 #   web-stop          Stop production systemd service
@@ -117,7 +118,7 @@ log_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
 
 is_owner_scoped_command() {
     case "${1:-}" in
-        install|dev-start|dev-up|dev-stop|dev-down|stop|restart|dev-refresh|web-refresh|_restart-worker|status|logs|build-frontend|build-binary)
+        install|dev-start|dev-up|dev-stop|dev-down|stop|flush|restart|dev-refresh|web-refresh|_restart-worker|status|logs|build-frontend|build-binary)
             return 0
             ;;
         *)
@@ -417,12 +418,372 @@ dev_pid_is_running() {
     return 1
 }
 
+list_orphan_candidates() {
+    ps -eo pid=,ppid=,args= 2>/dev/null | awk '
+        $2 != 1 { next }
+        {
+            pid = $1
+            $1 = ""
+            $2 = ""
+            sub(/^[[:space:]]+/, "", $0)
+            cmd = $0
+
+            is_webctl = index(cmd, "OPENCODE_LAUNCH_MODE=\"webctl\"") > 0
+            is_repo_beta_server = cmd ~ /bun -e / &&
+                cmd ~ /\/projects\/opencode[^ ]*\/packages\/opencode\/src\/server\/server\.ts/ &&
+                cmd ~ /Server\.listen/
+            is_direct_web = cmd ~ /\/packages\/opencode\/src\/index\.ts web/
+
+            if (is_webctl || is_repo_beta_server || is_direct_web) {
+                printf "%s\t%s\n", pid, cmd
+            }
+        }
+    '
+}
+
+list_orphan_mcp_candidates() {
+    ps -eo pid=,ppid=,args= 2>/dev/null | awk '
+        $2 != 1 { next }
+        {
+            pid = $1
+            $1 = ""
+            $2 = ""
+            sub(/^[[:space:]]+/, "", $0)
+            cmd = $0
+
+            is_internal_mcp_binary = (cmd ~ /\/usr\/local\/lib\/opencode\/mcp\/(system-manager|refacting-merger|gcp-grounding)( |$)/)
+            is_internal_mcp_source = (cmd ~ /\/packages\/mcp\/(system-manager\/src\/index\.ts|refacting-merger\/src\/index\.ts|gcp-grounding\/index\.ts)( |$)/)
+            is_memory_mcp = ((cmd ~ /@modelcontextprotocol\/server-memory/) || (cmd ~ /server-memory( |$)/))
+            is_filesystem_mcp = ((cmd ~ /@modelcontextprotocol\/server-filesystem/) || (cmd ~ /server-filesystem( |$)/))
+            is_fetch_mcp = ((cmd ~ /@modelcontextprotocol\/server-fetch/) || (cmd ~ /server-fetch( |$)/))
+            is_sequential_thinking_mcp = ((cmd ~ /@modelcontextprotocol\/server-sequential-thinking/) || (cmd ~ /server-sequential-thinking( |$)/))
+
+            if (is_internal_mcp_binary || is_internal_mcp_source || is_memory_mcp || is_filesystem_mcp || is_fetch_mcp || is_sequential_thinking_mcp) {
+                printf "%s\t%s\t%s\n", "mcp", pid, cmd
+            }
+        }
+    '
+}
+
+tracked_dev_pids() {
+    local pid_file
+    for pid_file in "${BACKEND_PID_FILE}" "${PID_FILE}" "${FRONTEND_PID_FILE}"; do
+        if [ -f "${pid_file}" ]; then
+            local pid
+            pid="$(cat "${pid_file}" 2>/dev/null || true)"
+            if [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null; then
+                printf '%s\n' "${pid}"
+            fi
+        fi
+    done | awk '!seen[$0]++'
+}
+
+candidate_tree_contains_tracked_pid() {
+    local root_pid="${1:-}"
+    [ -n "${root_pid}" ] || return 1
+
+    local tracked
+    tracked="$(tracked_dev_pids)"
+    [ -n "${tracked}" ] || return 1
+
+    local tree
+    tree="$(collect_process_tree_pids "${root_pid}")"
+    [ -n "${tree}" ] || return 1
+
+    local pid
+    for pid in ${tracked}; do
+        if printf '%s\n' "${tree}" | grep -Fxq "${pid}"; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+list_flushable_orphan_candidates() {
+    local raw
+    raw="$(list_orphan_candidates || true)"
+    [ -n "${raw}" ] || return 0
+
+    while IFS=$'\t' read -r pid cmd; do
+        [ -n "${pid}" ] || continue
+        if candidate_tree_contains_tracked_pid "${pid}"; then
+            continue
+        fi
+        printf '%s\t%s\n' "${pid}" "${cmd}"
+    done <<< "${raw}"
+}
+
+list_flushable_orphan_mcp_candidates() {
+    list_orphan_mcp_candidates || true
+}
+
+list_flushable_orphan_all_candidates() {
+    local runtime_lines
+    runtime_lines="$(list_flushable_orphan_candidates || true)"
+    if [ -n "${runtime_lines}" ]; then
+        while IFS=$'\t' read -r pid cmd; do
+            [ -n "${pid}" ] || continue
+            printf '%s\t%s\t%s\n' "runtime" "${pid}" "${cmd}"
+        done <<< "${runtime_lines}"
+    fi
+
+    list_flushable_orphan_mcp_candidates
+}
+
+count_orphan_candidates() {
+    local lines
+    lines="$(list_flushable_orphan_candidates || true)"
+    if [ -z "${lines}" ]; then
+        echo 0
+        return
+    fi
+    printf '%s\n' "${lines}" | wc -l | tr -d ' '
+}
+
+count_orphan_mcp_candidates() {
+    local lines
+    lines="$(list_flushable_orphan_mcp_candidates || true)"
+    if [ -z "${lines}" ]; then
+        echo 0
+        return
+    fi
+    printf '%s\n' "${lines}" | wc -l | tr -d ' '
+}
+
+collect_process_tree_pids() {
+    local root_pid="${1:-}"
+    [ -n "${root_pid}" ] || return 0
+
+    local all_pids="${root_pid}"
+    local frontier="${root_pid}"
+
+    while [ -n "${frontier}" ]; do
+        local next=""
+        local parent
+        for parent in ${frontier}; do
+            local children
+            children="$(ps -eo pid=,ppid= 2>/dev/null | awk -v p="${parent}" '$2 == p { print $1 }')"
+            if [ -n "${children}" ]; then
+                local child
+                for child in ${children}; do
+                    case " ${all_pids} " in
+                        *" ${child} "*) ;;
+                        *)
+                            all_pids="${all_pids} ${child}"
+                            next="${next} ${child}"
+                            ;;
+                    esac
+                done
+            fi
+        done
+        frontier="$(printf '%s' "${next}" | xargs 2>/dev/null || true)"
+    done
+
+    printf '%s\n' "${all_pids}" | tr ' ' '\n' | awk 'NF' | tac
+}
+
+terminate_process_tree() {
+    local root_pid="${1:-}"
+    local label="${2:-process}"
+    [ -n "${root_pid}" ] || return 0
+
+    local -a tree_pids=()
+    while IFS= read -r pid; do
+        [ -n "${pid}" ] || continue
+        tree_pids+=("${pid}")
+    done < <(collect_process_tree_pids "${root_pid}")
+
+    if [ "${#tree_pids[@]}" -eq 0 ]; then
+        return 0
+    fi
+
+    log_info "Stopping ${label} process tree: ${tree_pids[*]}"
+    kill -TERM "${tree_pids[@]}" 2>/dev/null || true
+
+    local attempt
+    for attempt in 1 2 3; do
+        local alive=0
+        local pid
+        for pid in "${tree_pids[@]}"; do
+            if kill -0 "${pid}" 2>/dev/null; then
+                alive=1
+                break
+            fi
+        done
+        if [ "${alive}" -eq 0 ]; then
+            return 0
+        fi
+        sleep 1
+    done
+
+    local -a survivors=()
+    local pid
+    for pid in "${tree_pids[@]}"; do
+        if kill -0 "${pid}" 2>/dev/null; then
+            survivors+=("${pid}")
+        fi
+    done
+
+    if [ "${#survivors[@]}" -gt 0 ]; then
+        log_warn "${label} still alive after TERM, escalating to KILL: ${survivors[*]}"
+        kill -KILL "${survivors[@]}" 2>/dev/null || true
+    fi
+}
+
 system_service_is_active() {
     if ! command -v systemctl >/dev/null 2>&1; then
         return 1
     fi
 
     [ "$(systemctl is-active "${SYSTEM_SERVICE_NAME}.service" 2>/dev/null || true)" = "active" ]
+}
+
+system_service_main_pid() {
+    if ! system_service_is_active; then
+        return 0
+    fi
+
+    if ! command -v systemctl >/dev/null 2>&1; then
+        return 0
+    fi
+
+    local main_pid
+    main_pid="$(systemctl show -p MainPID --value "${SYSTEM_SERVICE_NAME}.service" 2>/dev/null || true)"
+    if [ -n "${main_pid}" ] && [ "${main_pid}" != "0" ]; then
+        printf '%s\n' "${main_pid}"
+    fi
+}
+
+tree_contains_pid() {
+    local root_pid="${1:-}"
+    local target_pid="${2:-}"
+    [ -n "${root_pid}" ] || return 1
+    [ -n "${target_pid}" ] || return 1
+
+    local tree
+    tree="$(collect_process_tree_pids "${root_pid}")"
+    [ -n "${tree}" ] || return 1
+    printf '%s\n' "${tree}" | grep -Fxq "${target_pid}"
+}
+
+list_interactive_process_candidates() {
+    ps -eo pid=,ppid=,tty=,args= 2>/dev/null | awk '
+        {
+            pid = $1
+            ppid = $2
+            tty = $3
+            $1 = ""
+            $2 = ""
+            $3 = ""
+            sub(/^[[:space:]]+/, "", $0)
+            cmd = $0
+
+            is_runtime = index(cmd, "OPENCODE_LAUNCH_MODE=\"webctl\"") > 0 ||
+                cmd ~ /\/packages\/opencode\/src\/index\.ts web( |$)/ ||
+                cmd ~ /(^|[[:space:]])([^[:space:]]*\/)?opencode([[:space:]]|$)/
+
+            is_internal_mcp_binary = (cmd ~ /\/usr\/local\/lib\/opencode\/mcp\/(system-manager|refacting-merger|gcp-grounding)( |$)/)
+            is_internal_mcp_source = (cmd ~ /\/packages\/mcp\/(system-manager\/src\/index\.ts|refacting-merger\/src\/index\.ts|gcp-grounding\/index\.ts)( |$)/)
+            is_memory_mcp = ((cmd ~ /@modelcontextprotocol\/server-memory/) || (cmd ~ /server-memory( |$)/))
+            is_filesystem_mcp = ((cmd ~ /@modelcontextprotocol\/server-filesystem/) || (cmd ~ /server-filesystem( |$)/))
+            is_fetch_mcp = ((cmd ~ /@modelcontextprotocol\/server-fetch/) || (cmd ~ /server-fetch( |$)/))
+            is_sequential_thinking_mcp = ((cmd ~ /@modelcontextprotocol\/server-sequential-thinking/) || (cmd ~ /server-sequential-thinking( |$)/))
+            is_mcp = is_internal_mcp_binary || is_internal_mcp_source || is_memory_mcp || is_filesystem_mcp || is_fetch_mcp || is_sequential_thinking_mcp
+
+            if (is_runtime || is_mcp) {
+                kind = is_runtime ? "runtime" : "mcp"
+                printf "%s\t%s\t%s\t%s\t%s\n", kind, pid, ppid, tty, cmd
+            }
+        }
+    '
+}
+
+list_stale_interactive_candidates() {
+    local service_main_pid
+    service_main_pid="$(system_service_main_pid || true)"
+
+    local raw
+    raw="$(list_interactive_process_candidates || true)"
+    [ -n "${raw}" ] || return 0
+
+    declare -A kind_map=()
+    declare -A ppid_map=()
+    declare -A tty_map=()
+    declare -A cmd_map=()
+    declare -A roots=()
+
+    while IFS=$'\t' read -r kind pid ppid tty cmd; do
+        [ -n "${pid}" ] || continue
+        kind_map["${pid}"]="${kind}"
+        ppid_map["${pid}"]="${ppid}"
+        tty_map["${pid}"]="${tty}"
+        cmd_map["${pid}"]="${cmd}"
+    done <<< "${raw}"
+
+    local pid
+    for pid in "${!kind_map[@]}"; do
+        local root="${pid}"
+        local parent="${ppid_map[$root]:-}"
+        while [ -n "${parent}" ] && [ -n "${kind_map[$parent]:-}" ]; do
+            root="${parent}"
+            parent="${ppid_map[$root]:-}"
+        done
+        roots["${root}"]=1
+    done
+
+    local root
+    for root in "${!roots[@]}"; do
+        [ -n "${root}" ] || continue
+
+        local root_cmd="${cmd_map[$root]:-}"
+        local root_tty="${tty_map[$root]:-?}"
+        local root_ppid="${ppid_map[$root]:-}"
+        local reasons=()
+
+        if [ -z "${root_cmd}" ]; then
+            continue
+        fi
+
+        if candidate_tree_contains_tracked_pid "${root}"; then
+            continue
+        fi
+
+        if [ -n "${service_main_pid}" ] && tree_contains_pid "${root}" "${service_main_pid}"; then
+            continue
+        fi
+
+        if [[ "${root_cmd}" == *"_restart-worker"* ]]; then
+            continue
+        fi
+
+        if [ "${root_tty}" != "?" ] && [ "${root_tty}" != "-" ]; then
+            continue
+        fi
+
+        reasons+=("untracked")
+        reasons+=("no-tty")
+
+        if [ "${root_ppid}" = "1" ]; then
+            reasons+=("ppid=1")
+        else
+            reasons+=("detached-from-active-ledger")
+        fi
+
+        local reason_csv
+        reason_csv="$(IFS=,; printf '%s' "${reasons[*]}")"
+        printf '%s\t%s\t%s\t%s\n' "stale-interactive" "${root}" "${reason_csv}" "${root_cmd}"
+    done | sort -u
+}
+
+count_stale_interactive_candidates() {
+    local lines
+    lines="$(list_stale_interactive_candidates || true)"
+    if [ -z "${lines}" ]; then
+        echo 0
+        return
+    fi
+    printf '%s\n' "${lines}" | wc -l | tr -d ' '
 }
 
 # ---------------------------------------------------------------------------
@@ -563,10 +924,10 @@ do_dev_start() {
         log_info "Starting server from source on port ${WEB_PORT}..."
         if command -v script >/dev/null 2>&1; then
             nohup script -qefc \
-                "env OPENCODE_LAUNCH_MODE=\"webctl\" OPENCODE_ALLOW_GLOBAL_FS_BROWSE=\"${OPENCODE_ALLOW_GLOBAL_FS_BROWSE:-1}\" OPENCODE_FRONTEND_PATH=\"${FRONTEND_DIST}\" OPENCODE_WEB_NO_OPEN=\"${OPENCODE_WEB_NO_OPEN:-1}\" OPENCODE_AUTH_MODE=\"${AUTH_MODE}\" \"${BUN_BIN}\" --conditions=browser \"${PROJECT_ROOT}/packages/opencode/src/index.ts\" web --port \"${WEB_PORT}\" --hostname \"${WEB_HOSTNAME}\"" \
+                "env OPENCODE_LAUNCH_MODE=\"webctl\" OPENCODE_INTERNAL_MCP_MODE=\"source\" OPENCODE_REPO_ROOT=\"${PROJECT_ROOT}\" OPENCODE_ALLOW_GLOBAL_FS_BROWSE=\"${OPENCODE_ALLOW_GLOBAL_FS_BROWSE:-1}\" OPENCODE_FRONTEND_PATH=\"${FRONTEND_DIST}\" OPENCODE_WEB_NO_OPEN=\"${OPENCODE_WEB_NO_OPEN:-1}\" OPENCODE_AUTH_MODE=\"${AUTH_MODE}\" \"${BUN_BIN}\" --conditions=browser \"${PROJECT_ROOT}/packages/opencode/src/index.ts\" web --port \"${WEB_PORT}\" --hostname \"${WEB_HOSTNAME}\"" \
                 /dev/null >"${SERVER_LOG_FILE}" 2>&1 < /dev/null &
         else
-            nohup env OPENCODE_LAUNCH_MODE="webctl" OPENCODE_ALLOW_GLOBAL_FS_BROWSE="${OPENCODE_ALLOW_GLOBAL_FS_BROWSE:-1}" OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" OPENCODE_WEB_NO_OPEN="${OPENCODE_WEB_NO_OPEN:-1}" OPENCODE_AUTH_MODE="${AUTH_MODE}" \
+            nohup env OPENCODE_LAUNCH_MODE="webctl" OPENCODE_INTERNAL_MCP_MODE="source" OPENCODE_REPO_ROOT="${PROJECT_ROOT}" OPENCODE_ALLOW_GLOBAL_FS_BROWSE="${OPENCODE_ALLOW_GLOBAL_FS_BROWSE:-1}" OPENCODE_FRONTEND_PATH="${FRONTEND_DIST}" OPENCODE_WEB_NO_OPEN="${OPENCODE_WEB_NO_OPEN:-1}" OPENCODE_AUTH_MODE="${AUTH_MODE}" \
                 "${BUN_BIN}" --conditions=browser \
                 "${PROJECT_ROOT}/packages/opencode/src/index.ts" \
                 web --port "${WEB_PORT}" --hostname "${WEB_HOSTNAME}" \
@@ -760,6 +1121,56 @@ do_stop() {
     fi
 }
 
+do_flush() {
+    local dry_run=0
+
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --dry-run|--list)
+                dry_run=1
+                ;;
+            *)
+                log_warn "Unknown flush option: $1"
+                ;;
+        esac
+        shift
+    done
+
+    local candidates
+    candidates="$(list_stale_interactive_candidates || true)"
+
+    echo ""
+    echo "=== webctl stale interactive runtime flush ==="
+    echo ""
+
+    if [ -z "${candidates}" ]; then
+        log_success "No stale interactive opencode/MCP candidates found"
+        return 0
+    fi
+
+    echo "${candidates}" | while IFS=$'\t' read -r class pid reasons cmd; do
+        printf '  class=%s pid=%s reasons=%s cmd=%s\n' "${class}" "${pid}" "${reasons}" "${cmd}"
+    done
+
+    if [ "${dry_run}" -eq 1 ]; then
+        echo ""
+        log_info "Dry run only. Re-run without --dry-run to terminate the stale process trees above."
+        return 0
+    fi
+
+    local count=0
+    while IFS=$'\t' read -r class pid reasons cmd; do
+        [ -n "${pid}" ] || continue
+        terminate_process_tree "${pid}" "${class} pid ${pid} (${reasons})"
+        count=$((count + 1))
+    done <<< "${candidates}"
+
+    rm -f "${PID_FILE}" "${BACKEND_PID_FILE}"
+
+    echo ""
+    log_success "Flushed ${count} stale interactive process tree(s)"
+}
+
 do_dev_restart() {
     local mode="detached"
     local graceful=1
@@ -837,31 +1248,31 @@ do_restart() {
     fi
 
     if [ "${dev_running}" -eq 1 ] && [ "${prod_running}" -eq 0 ]; then
-        do_dev_restart "$@"
+        do_dev_refresh "$@"
         return
     fi
 
     if [ "${prod_running}" -eq 1 ] && [ "${dev_running}" -eq 0 ]; then
         if [ "$#" -gt 0 ]; then
-            log_warn "Dev restart options are ignored for production service restart"
+            log_warn "Dev restart options are ignored for production refresh"
         fi
-        ensure_non_interactive_sudo web-restart
-        do_web_restart
+        ensure_non_interactive_sudo web-refresh
+        do_web_refresh
         return
     fi
 
     if [ "${dev_running}" -eq 1 ] && [ "${prod_running}" -eq 1 ]; then
         if [ "$#" -gt 0 ]; then
-            log_warn "Restart options apply to dev restart only; production service restart uses systemctl semantics"
+            log_warn "Restart options apply to dev refresh only; production path uses web-refresh semantics"
         fi
-        ensure_non_interactive_sudo web-restart
-        do_web_restart
-        do_dev_restart "$@"
+        ensure_non_interactive_sudo web-refresh
+        do_web_refresh
+        do_dev_refresh "$@"
         return
     fi
 
-    log_warn "No active server detected; defaulting to development restart"
-    do_dev_restart "$@"
+    log_warn "No active server detected; defaulting to development refresh"
+    do_dev_refresh "$@"
 }
 
 # Internal command used by detached restart worker.
@@ -906,6 +1317,15 @@ do_restart_worker() {
     append_restart_event "${txid}" "stop" "started" "stopping current server" "${mode}" "${graceful}"
     do_dev_stop
     append_restart_event "${txid}" "stop" "ok" "current server stopped" "${mode}" "${graceful}"
+
+    append_restart_event "${txid}" "flush" "started" "flushing orphan candidates after stop" "${mode}" "${graceful}"
+    if do_flush; then
+        append_restart_event "${txid}" "flush" "ok" "flush completed" "${mode}" "${graceful}"
+    else
+        append_restart_event "${txid}" "flush" "failed" "flush failed; aborting restart" "${mode}" "${graceful}"
+        return 1
+    fi
+
     sleep 1
 
     append_restart_event "${txid}" "start" "started" "starting server" "${mode}" "${graceful}"
@@ -933,7 +1353,11 @@ do_dev_refresh() {
 
     log_info "Refreshing dev webapp (build frontend + restart)..."
     do_build_frontend
-    do_restart --graceful
+    if [ "$#" -gt 0 ]; then
+        do_dev_restart "$@"
+    else
+        do_dev_restart --graceful
+    fi
 }
 
 do_web_refresh() {
@@ -994,6 +1418,13 @@ do_status() {
     if [ $dev_running -eq 0 ]; then
         echo -e "  Status:   ${RED}stopped${NC}"
         echo "  Run: ./webctl.sh dev-start"
+    fi
+
+    local stale_count
+    stale_count="$(count_stale_interactive_candidates)"
+    if [ "${stale_count}" -gt 0 ]; then
+        echo -e "  Stale:    ${YELLOW}${stale_count}${NC} interactive runtime candidate(s)"
+        echo "  Flush:    ./webctl.sh flush --dry-run"
     fi
 
     echo ""
@@ -1106,7 +1537,8 @@ do_help() {
     echo "  dev-start, dev-up Start the development server from source"
     echo "  dev-stop, dev-down Stop the development server"
     echo "  stop              Stop active dev / production server(s)"
-    echo "  restart           Restart active dev / production server(s)"
+    echo "  flush             Clean stale interactive opencode/MCP process trees"
+    echo "  restart           Refresh active dev / production server(s)"
     echo "  dev-refresh       Build frontend + restart dev server"
     echo "  web-start         Start production systemd service"
     echo "  web-stop          Stop production systemd service"
@@ -1146,7 +1578,9 @@ do_help() {
     echo "  # Start / restart server:"
     echo "  ./webctl.sh dev-start"
     echo "  ./webctl.sh stop"
-    echo "  ./webctl.sh restart              # active mode(s); dev defaults to detached + graceful"
+    echo "  ./webctl.sh flush --dry-run"
+    echo "  ./webctl.sh flush"
+    echo "  ./webctl.sh restart              # dev=build+stop+flush+start, prod=web-refresh"
     echo "  ./webctl.sh restart --graceful   # explicit (same as default)"
     echo "  ./webctl.sh restart --inline"
     echo "  ./webctl.sh dev-refresh"
@@ -1173,6 +1607,7 @@ case "${1:-}" in
     dev-start|dev-up)       do_dev_start      ;;
     dev-stop|dev-down)      do_dev_stop       ;;
     stop)                   do_stop           ;;
+    flush)                  do_flush "${@:2}" ;;
     dev-refresh)            do_dev_refresh    ;;
     web-start)              do_web_start      ;;
     web-stop)               do_web_stop       ;;

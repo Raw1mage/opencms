@@ -93,6 +93,7 @@ The `cms` branch is the primary product line for this environment, featuring sig
 - Dev config sync scripts use non-owner/non-group-preserving rsync semantics for template/runtime mirroring, preventing permission failures when runtime user and repo owner differ.
 - For dev safety, template/runtime skill mirroring is skipped when the effective runtime `skills` path resolves outside the current user's home (for example a shared symlink such as `~betaman/.config/opencode/skills -> /home/pkcs12/projects/skills`). This prevents beta launches from mutating shared/cms-adjacent skill trees.
 - `script/runtime-init-check.ts` is a **dev-only preflight** wired into `bun run dev` variants. Its job is to ensure baseline XDG runtime dirs/files exist from `templates/manifest.json` before local development startup. Production/runtime install responsibility remains with `install.sh` + `script/install.ts`, not with this dev helper.
+- `./webctl.sh dev-start` now declares internal MCP source mode explicitly (`OPENCODE_INTERNAL_MCP_MODE=source` + `OPENCODE_REPO_ROOT`). In that mode, project-owned MCP entries such as `system-manager` and `refacting-merger` are deterministically normalized to `bun <repo>/packages/mcp/...` commands instead of `/usr/local/lib/opencode/mcp/*` system binaries; enable/disable still remains config-driven via each MCP entry's `enabled` flag.
 
 #### Web multi-user runtime architecture
 
@@ -224,6 +225,13 @@ Architectural rule: **provider and model family are not synonyms**.
 The system must prioritize provider as the operational identity boundary, while model family remains a model-catalog concept.
 No runtime decision should depend on guessing provider/account ownership from an arbitrary model-family-like string.
 
+Provider-first migration status:
+
+- high-risk runtime/account selection paths now prefer provider-key helpers over family-named helpers
+- account/selection UI paths now group for display but bind accounts/routing via canonical provider keys
+- response contracts are in compatibility mode: account APIs may still expose legacy `families` fields/paths, but newer payloads also expose provider-oriented fields such as `providerKey` / `providers`
+- storage file format remains backward compatible (`accounts.json` still stores `families`), but internal helpers now increasingly treat that map as provider-keyed storage
+
 #### A.1) Session execution identity contract
 
 - Session execution identity is now a persisted 3D coordinate: `{ providerId, modelID, accountId? }`.
@@ -292,8 +300,8 @@ This subsection documents how prompt footer usage/account metadata stays fresh w
 
 - Effective account precedence is:
   1.  current session-local `accountId`
-  2.  provider active account fallback
-- This keeps footer identity/usage paired with the session's real execution identity instead of always reflecting the provider-global active account.
+  2.  fail-soft / no quota label when account identity is absent
+- Footer/quota paths must no longer silently switch to another active account just to fill UI gaps.
   - The low-frequency footer timer (default 15s via `OPENCODE_TUI_FOOTER_REFRESH_MS`) is retained for lightweight elapsed/account display updates only; it does **not** poll OpenAI quota in the background.
   - Result: footer usage stays fresh during real OpenAI usage while avoiding idle quota polling.
 
@@ -314,6 +322,7 @@ This subsection documents how prompt footer usage/account metadata stays fresh w
    - Guard rule: Web must not treat autonomous narration-only assistant messages as execution-identity updates, and it must not overwrite a session-local selection that the operator has already manually changed away from the last user-pinned model.
 
 - Effective account precedence mirrors TUI: prefer session-local selected `accountId`, then fall back to the provider active account.
+- Web footer is still session/local-state-driven, but account/quota surfaces should prefer explicit session account identity and fail soft rather than silently consulting a different account.
 - The web quota resource key is gated by `quotaRefresh` and only becomes active for `openai`.
 - Observability contract for turn-level execution identity now includes explicit `audit.identity` checkpoints in debug log:
   - `requestPhase=preflight`: processor selected the current turn's provider/model/account before API call
@@ -368,6 +377,14 @@ This subsection documents how prompt footer usage/account metadata stays fresh w
 5. Merge account families (`Account.listAll`) into account-scoped provider entries.
 6. Apply plugin/custom loaders.
 7. Apply model/provider filtering (ignored/deprecated/disabled/rate-limit aware checks).
+
+Implementation note:
+
+- several internals still use legacy names like `family`, `knownFamilies`, and `storage.families` for compatibility
+- however, current design intent should be read as:
+  - provider key = account-bearing boundary
+  - model family = model catalog grouping only
+  - legacy `family` names are compatibility wrappers, not a semantic license to route by model-family abstraction
 
 This order guarantees provider-owned model catalogs are assembled first, then account- and plugin-specific behavior is overlaid.
 
@@ -755,18 +772,18 @@ In addition to the standard `packages/` directory, these top-level folders serve
 
 The root directory is kept minimal, containing only essential configuration and orchestration files.
 
-| File            | Description                                                                                                                                                                                                                                                                                                                                            |
-| :-------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.env`          | **Runtime Secrets.** Local environment variables for API keys and database URLs.                                                                                                                                                                                                                                                                       |
-| `package.json`  | **Monorepo Manifest.** Defines project dependencies, workspace structure, and core scripts.                                                                                                                                                                                                                                                            |
-| `bun.lock`      | **Lockfile.** Ensures consistent dependency versions across environments.                                                                                                                                                                                                                                                                              |
-| `turbo.json`    | **TurboRepo Config.** Orchestrates build, lint, and test tasks across the monorepo.                                                                                                                                                                                                                                                                    |
-| `sst.config.ts` | **SST Entry.** Main entry point for serverless infrastructure deployment.                                                                                                                                                                                                                                                                              |
-| `flake.nix`     | **Nix Shell.** Defines a reproducible development environment with all required system tools.                                                                                                                                                                                                                                                          |
-| `tsconfig.json` | **TypeScript Config.** Global compiler options and path aliases.                                                                                                                                                                                                                                                                                       |
-| `README.md`     | **Documentation Entry.** The primary project overview and quickstart guide.                                                                                                                                                                                                                                                                            |
-| `LICENSE`       | **License Information.** MIT License terms for the project.                                                                                                                                                                                                                                                                                            |
-| `webctl.sh`     | **Web Control Entry Point.** Unified command surface for bootstrap install (`install`), development runtime (`dev-*` / `dev-refresh`), production systemd control (`web-*` / `web-refresh`), plus mode-aware `restart` refresh semantics (`dev-refresh` for dev, `web-refresh` for prod), with non-interactive sudo preflight for privileged commands. |
+| File            | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| :-------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `.env`          | **Runtime Secrets.** Local environment variables for API keys and database URLs.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `package.json`  | **Monorepo Manifest.** Defines project dependencies, workspace structure, and core scripts.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `bun.lock`      | **Lockfile.** Ensures consistent dependency versions across environments.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `turbo.json`    | **TurboRepo Config.** Orchestrates build, lint, and test tasks across the monorepo.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `sst.config.ts` | **SST Entry.** Main entry point for serverless infrastructure deployment.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `flake.nix`     | **Nix Shell.** Defines a reproducible development environment with all required system tools.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `tsconfig.json` | **TypeScript Config.** Global compiler options and path aliases.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `README.md`     | **Documentation Entry.** The primary project overview and quickstart guide.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `LICENSE`       | **License Information.** MIT License terms for the project.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `webctl.sh`     | **Web Control Entry Point.** Unified command surface for bootstrap install (`install`), development runtime (`dev-*` / `dev-refresh`), production systemd control (`web-*` / `web-refresh`), plus mode-aware `restart` refresh semantics (`dev-refresh` for dev, `web-refresh` for prod). Dev restart is executed through a detached worker pipeline `stop -> flush -> start`, with non-interactive sudo preflight for privileged commands. `flush` classifies and removes stale interactive `opencode` / MCP process trees while protecting active webctl trees and systemd-owned service trees. |
 
 ---
 
@@ -1775,6 +1792,7 @@ Canonical launch paths:
 - **Dev**: `./webctl.sh dev-start` (reads `/etc/opencode/opencode.cfg`, injects `OPENCODE_LAUNCH_MODE=webctl`)
 - **Prod**: `./webctl.sh web-start` (systemd service with `EnvironmentFile=/etc/opencode/opencode.cfg`, injects `OPENCODE_LAUNCH_MODE=systemd`)
 - **Mode-aware refresh shortcut**: `./webctl.sh restart` resolves to `dev-refresh` for active dev runtime, `web-refresh` for active production runtime, and refreshes both when both modes are active.
+- **Dev restart cleanup contract**: the detached dev restart worker performs `stop -> flush -> start`; `flush` targets **stale interactive runtime trees** (including stale `opencode` / internal MCP trees), while explicitly excluding active webctl-tracked trees, live-TTY interactive roots, restart workers, and systemd-owned service trees. Broad bun-wide kill patterns remain forbidden.
 
 Direct manual `opencode web` launch is guarded by launch-mode checks to prevent configuration drift.
 
