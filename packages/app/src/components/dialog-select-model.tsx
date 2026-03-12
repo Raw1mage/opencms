@@ -1091,26 +1091,26 @@ export const DialogSelectModel: Component<{
     if (!selectedProviderId()) setAccountManagementMode(false)
   })
 
-  const accountFamilies = accountProviders
+  const accountProvidersByKey = accountProviders
 
-  const providerAccountKey = (providerId: string) => normalizeProviderFamily(providerId) || providerId
+  const providerKeyForSelection = (providerId: string) => normalizeProviderFamily(providerId) || providerId
   const activeAccountForProvider = (providerId: string) =>
-    getActiveAccountForProviderKey(accountFamilies(), providerAccountKey(providerId))
+    getActiveAccountForProviderKey(accountProvidersByKey(), providerKeyForSelection(providerId))
 
   const modelUnavailableReason = (providerId: string, accountId?: string) =>
     getModelUnavailableReason({
       providerId,
       accountId,
       providerStatus: providerStatus(),
-      accountFamilies: accountFamilies(),
+      accountFamilies: accountProvidersByKey(),
       formatCooldown: (minutes) => language.t("settings.models.recommendations.cooldown", { minutes }),
     })
 
   const accountRecordsForSelectedProvider = createMemo(() => {
     const providerId = selectedProviderId()
     if (!providerId) return [] as AccountRecord[]
-    const providerKey = providerAccountKey(providerId)
-    const providerRow = accountFamilies()[providerKey]
+    const providerKey = providerKeyForSelection(providerId)
+    const providerRow = accountProvidersByKey()[providerKey]
     if (!providerRow?.accounts) return [] as AccountRecord[]
 
     return Object.entries(providerRow.accounts)
@@ -1126,8 +1126,8 @@ export const DialogSelectModel: Component<{
     const providerId = selectedProviderId()
     if (!providerId) return [] as Array<{ id: string; label: string; active: boolean; unavailable?: string }>
     return buildAccountRows({
-      selectedProviderKey: providerAccountKey(providerId),
-      accountFamilies: accountFamilies(),
+      selectedProviderKey: providerKeyForSelection(providerId),
+      accountFamilies: accountProvidersByKey(),
       formatCooldown: (minutes) => language.t("settings.models.recommendations.cooldown", { minutes }),
     })
   })
@@ -1292,7 +1292,7 @@ export const DialogSelectModel: Component<{
   const switchActiveAccount = (row: { id: string; label: string; unavailable?: string }) => {
     const providerId = selectedProviderId()
     if (!providerId) return
-    const providerKey = providerAccountKey(providerId)
+    const providerKey = providerKeyForSelection(providerId)
     if (!providerKey) return
 
     if (row.unavailable) {
@@ -1621,7 +1621,7 @@ export const DialogSelectModel: Component<{
               )}
               onSelect={(x) => {
                 if (!x) return
-                const providerKey = providerAccountKey(x.provider.id)
+                const providerKey = providerKeyForSelection(x.provider.id)
                 const accountId = selectedAccountId() || activeAccountForProvider(x.provider.id)
                 const unavailable = modelUnavailableReason(x.provider.id, accountId)
                 if (unavailable) {
@@ -1634,9 +1634,9 @@ export const DialogSelectModel: Component<{
                 }
                 const providerCandidates = local.model
                   .list()
-                  .filter((m) => m.id === x.id && providerAccountKey(m.provider.id) === providerKey)
+                  .filter((m) => m.id === x.id && providerKeyForSelection(m.provider.id) === providerKey)
                 const providerIDForSelection =
-                  providerCandidates.find((m) => providerAccountKey(m.provider.id) === providerKey)?.provider.id ??
+                  providerCandidates.find((m) => providerKeyForSelection(m.provider.id) === providerKey)?.provider.id ??
                   providerCandidates.find((m) => !isAccountLikeProviderId(m.provider.id))?.provider.id ??
                   x.provider.id
                 const applyModelSelection = () => {

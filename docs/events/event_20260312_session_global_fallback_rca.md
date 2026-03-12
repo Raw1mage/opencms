@@ -943,6 +943,33 @@
 - Architecture Sync: Verified (No doc changes)
   - internal naming cleanup only; public route params, storage shape, and runtime behavior remain unchanged
 
+## Follow-up Fix: provider-key terminology cleanup batch 19 (L3 Slice 2, local-state/selector semantics pass)
+
+- Goal:
+  - continue L3 Slice 2 in the requested Web/TUI local-state surfaces using provider-key-first naming where safe
+  - keep behavior unchanged and avoid any route/schema/OpenAPI/SDK migration
+- Updated files:
+  - `packages/app/src/components/prompt-input.tsx`
+  - `packages/app/src/components/dialog-select-model.tsx`
+  - `packages/app/src/context/local.tsx`
+  - `packages/opencode/src/cli/cmd/tui/context/local.tsx`
+  - `packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx`
+- Applied changes:
+  - `prompt-input.tsx`
+    - renamed local provider-grouping memos from family-oriented wording to provider-key wording (`activeProviderKey`, `effectiveProviderKey`)
+    - clarified local available-provider set naming without changing quota/footer behavior
+  - `dialog-select-model.tsx`
+    - renamed local account/provider grouping helpers to provider-key-first names (`accountProvidersByKey`, `providerKeyForSelection`)
+    - updated selected-account/model selection call sites to use the renamed provider-key helper consistently
+  - `context/local.tsx`
+    - switched local provider-key normalization helper to the newer `providerKeyOf()` alias while preserving behavior
+  - `tui/context/local.tsx`
+    - renamed local account map variables from family wording to provider-account wording in account label / replacement helpers
+  - `tui/component/prompt/index.tsx`
+    - kept behavior unchanged; retained provider-key resolution naming in footer/variant helpers for consistency with the local-state pass
+- Architecture Sync: Verified (No doc changes)
+  - local helper/memo naming cleanup only; execution flow, persistence, and compatibility contracts remain unchanged
+
 ### Slice 3 — Admin/control-plane semantics cleanup
 
 - Target files:

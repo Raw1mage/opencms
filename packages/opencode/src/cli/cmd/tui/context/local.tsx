@@ -84,25 +84,25 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       if (!labels || Object.keys(labels).length === 0) return fallback
       if (accountId && labels[accountId]) return labels[accountId].label
       if (labels[providerId]) return labels[providerId].label
-      const families = accountFamilies()
+      const providerAccounts = accountFamilies()
       const providerKey = Account.parseProvider(providerId)
-      if (providerKey && families?.[providerKey]?.activeAccount) {
-        const active = families[providerKey]!.activeAccount
+      if (providerKey && providerAccounts?.[providerKey]?.activeAccount) {
+        const active = providerAccounts[providerKey]!.activeAccount
         if (active && labels[active]) return labels[active].label
       }
       return fallback
     }
 
     function availableAccountIds(providerId: string) {
-      const families = accountFamilies()
+      const providerAccounts = accountFamilies()
       const providerKey = Account.parseProvider(providerId) ?? providerId
-      return Object.keys(families?.[providerKey]?.accounts ?? {})
+      return Object.keys(providerAccounts?.[providerKey]?.accounts ?? {})
     }
 
     function replacementAccountId(providerId: string, currentAccountId?: string) {
-      const families = accountFamilies()
+      const providerAccounts = accountFamilies()
       const providerKey = Account.parseProvider(providerId) ?? providerId
-      const providerData = families?.[providerKey]
+      const providerData = providerAccounts?.[providerKey]
       const active = providerData?.activeAccount
       const ids = Object.keys(providerData?.accounts ?? {})
       if (active && active !== currentAccountId && ids.includes(active)) return active

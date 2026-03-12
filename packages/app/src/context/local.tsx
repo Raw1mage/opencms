@@ -8,7 +8,7 @@ import { base64Encode } from "@opencode-ai/util/encode"
 import { useProviders } from "@/hooks/use-providers"
 import { useModels } from "@/context/models"
 import { cycleModelVariant, getConfiguredAgentVariant, resolveModelVariant } from "./model-variant"
-import { normalizeProviderFamily } from "@/components/model-selector-state"
+import { providerKeyOf } from "@/components/model-selector-state"
 
 export type ModelKey = { providerID: string; modelID: string; accountID?: string }
 
@@ -50,7 +50,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     const connected = createMemo(() => new Set(providers.connected().map((provider) => provider.id)))
 
     function resolveProviderKey(providerID: string) {
-      return normalizeProviderFamily(providerID) || providerID
+      return providerKeyOf(providerID) || providerID
     }
 
     function availableAccountIds(providerID: string) {

@@ -302,7 +302,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
   createEffect(() => {
     const model = currentModel()
-    const providerKey = model ? (effectiveProviderFamily() ?? model.provider.id) : undefined
+    const providerKey = model ? (effectiveProviderKey() ?? model.provider.id) : undefined
     const last = lastCompletedAssistant()
     const completed =
       last && "completed" in last.time && typeof last.time.completed === "number" ? last.time.completed : undefined
@@ -319,12 +319,12 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     prompt.current().filter((part): part is ImageAttachmentPart => part.type === "image"),
   )
   const currentModel = createMemo(() => local.model.current(params.id))
-  const activeFamily = createMemo(() => {
+  const activeProviderKey = createMemo(() => {
     const providerID = currentModel()?.provider?.id
     if (!providerID) return
     return normalizeProviderFamily(providerID) ?? providerID
   })
-  const effectiveProviderFamily = createMemo(() => {
+  const effectiveProviderKey = createMemo(() => {
     const model = currentModel()
     if (!model) return undefined
 
@@ -342,7 +342,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       | undefined
     if (!accountProviders) return normalized ?? model.provider.id
 
-    const availableFamilies = new Set(
+    const availableProviderKeys = new Set(
       providers
         .all()
         .filter((provider) => !!provider.models?.[model.id])
@@ -351,7 +351,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
     for (const [providerKey, providerRow] of Object.entries(accountProviders)) {
       const canonicalProviderKey = normalizeProviderFamily(providerKey) || providerKey
-      if (availableFamilies.size > 0 && !availableFamilies.has(canonicalProviderKey)) continue
+      if (availableProviderKeys.size > 0 && !availableProviderKeys.has(canonicalProviderKey)) continue
       const accounts = providerRow?.accounts && typeof providerRow.accounts === "object" ? providerRow.accounts : {}
       for (const account of Object.values(accounts)) {
         const row = account as { name?: unknown; email?: unknown; accountId?: unknown }
@@ -367,7 +367,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     return normalized ?? model.provider.id
   })
   const activeAccountLabel = createMemo(() => {
-    const providerKey = activeFamily()
+    const providerKey = activeProviderKey()
     if (!providerKey) return "--"
     const rows = buildAccountRows({
       selectedProviderKey: providerKey,
@@ -392,7 +392,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const providerLabel = createMemo(() => {
     const model = currentModel()
     if (!model) return "--"
-    const providerKey = effectiveProviderFamily()
+    const providerKey = effectiveProviderKey()
     if (providerKey === "openai") return "OpenAI"
     if (providerKey === "claude-cli") return "Claude CLI"
     if (providerKey === "google-api") return "Google-API"
@@ -417,7 +417,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       return
     }
 
-    const providerId = effectiveProviderFamily() ?? model.provider.id
+    const providerId = effectiveProviderKey() ?? model.provider.id
     const modelID = model.id
     const accountId = local.model.selection(params.id)?.accountID
     const requestVersion = ++quotaHintRequestVersion
@@ -457,7 +457,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   }
   type VariantOption = { value: string; label: string }
   const variantOptions = createMemo<VariantOption[]>(() => {
-    const providerKey = activeFamily()
+    const providerKey = activeProviderKey()
     let values = local.model.variant.list(params.id)
     if (providerKey === "openai") {
       const preferred = ["low", "medium", "high", "xhigh", "extra"]
@@ -481,7 +481,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     if (!value) return undefined
     const exact = variantOptions().find((item) => item.value === value)
     if (exact) return exact
-    const providerKey = activeFamily()
+    const providerKey = activeProviderKey()
     const targetLabel = formatVariantLabel(value, providerKey)
     return variantOptions().find((item) => item.label === targetLabel)
   })
