@@ -1388,6 +1388,25 @@
 - Architecture Sync: Verified (No doc changes)
   - description-only contract clarification; no runtime behavior change
 
+## Follow-up Fix: provider-key migration batch 26 (route-level compatibility guard tests)
+
+- Goal:
+  - add focused route-level compatibility tests proving canonical providerKey guard behavior on legacy `:family` account routes
+  - avoid helper-level contract confusion and validate at actual API boundary
+- Updated files:
+  - `packages/opencode/test/server/account-providerkey-compat.test.ts`
+  - `docs/events/event_20260312_session_global_fallback_rca.md`
+- Applied changes:
+  - added focused server tests for `ACCOUNT_PROVIDER_MISMATCH` guard:
+    - `POST /api/v2/account/:family/active` with mismatched body `providerKey`
+    - `GET /api/v2/account/auth/:family/login` with mismatched query `providerKey`
+  - assertions target explicit non-breaking compatibility guard semantics at route boundary
+- Validation:
+  - `bun test /home/pkcs12/projects/opencode/packages/opencode/test/server/account-providerkey-compat.test.ts --timeout 30000` ✅
+  - `bun run lint -- /home/pkcs12/projects/opencode/packages/opencode/test/server/account-providerkey-compat.test.ts` ✅
+- Architecture Sync: Verified (No doc changes)
+  - test-only slice; no runtime behavior changes
+
 ## Follow-up Note: compatibility test boundary clarification
 
 - Observation:
