@@ -119,6 +119,26 @@ export function createAutoScroll(options: AutoScrollOptions) {
     return true
   }
 
+  // Circuit breaker: if a second anchor correction fires within 500ms of
+  // the previous one, we're in a correction↔anchor loop. Stop immediately
+  // — even 2 rapid corrections cause visible flashing.
+  let circuitBroken = false
+  let lastCorrectionTime = 0
+
+  const checkCircuitBreaker = (): boolean => {
+    const now = Date.now()
+    if (now - lastCorrectionTime < 500) {
+      // Two corrections within 500ms = loop detected. Trip immediately.
+      circuitBroken = true
+      stopRafLoop()
+      setMode("free-reading", "circuit-breaker")
+      debug("circuit-breaker-tripped", { gap: now - lastCorrectionTime })
+      return true
+    }
+    lastCorrectionTime = now
+    return false
+  }
+
   // The primary follow-bottom mechanism during streaming is the handleScroll
   // correction: when iOS anchor restoration fires a scroll event, we correct
   // scrollTop synchronously (before paint → flicker-free). The rAF loop below
@@ -134,11 +154,13 @@ export function createAutoScroll(options: AutoScrollOptions) {
         loopActive = false
         return
       }
-      const distance = distanceFromBottom(el)
-      if (distance > followThreshold()) {
-        markAuto(el)
-        el.scrollTop = el.scrollHeight - el.clientHeight
-        lastScrollHeight = el.scrollHeight
+      if (!circuitBroken) {
+        const distance = distanceFromBottom(el)
+        if (distance > followThreshold()) {
+          markAuto(el)
+          el.scrollTop = el.scrollHeight - el.clientHeight
+          lastScrollHeight = el.scrollHeight
+        }
       }
       requestAnimationFrame(tick)
     }
@@ -152,6 +174,10 @@ export function createAutoScroll(options: AutoScrollOptions) {
   const scrollToBottomNow = (behavior: ScrollBehavior) => {
     const el = scroll
     if (!el) return
+    if (circuitBroken) {
+      debug("scroll-apply-circuit-broken", { behavior })
+      return
+    }
     debug("scroll-apply", { behavior, phase: "before", ...metrics(el) })
     markAuto(el)
     if (behavior === "smooth") {
@@ -254,6 +280,9 @@ export function createAutoScroll(options: AutoScrollOptions) {
     const el = scroll
     if (!el) return
 
+    // Circuit breaker — stop ALL scroll processing immediately.
+    if (circuitBroken) return
+
     if (!canScroll(el)) {
       if (userScrolled()) setMode("follow-bottom", "no-overflow")
       return
@@ -271,6 +300,7 @@ export function createAutoScroll(options: AutoScrollOptions) {
     // restoration but BEFORE paint, so this correction is flicker-free.
     // User scrolls are handled by handleWheel (upward gesture → free-reading).
     if (!userScrolled() && active()) {
+      if (checkCircuitBreaker()) return
       markAuto(el)
       el.scrollTop = el.scrollHeight - el.clientHeight
       lastScrollHeight = el.scrollHeight
@@ -337,6 +367,12 @@ export function createAutoScroll(options: AutoScrollOptions) {
         return
       }
 
+      // Circuit breaker tripped — only track scrollHeight, don't move scrollTop.
+      if (circuitBroken) {
+        debug("resize-circuit-broken", { delta })
+        return
+      }
+
       const distance = distanceFromBottom(el)
       debug("resize-delta", {
         delta,
@@ -348,18 +384,12 @@ export function createAutoScroll(options: AutoScrollOptions) {
       markAuto(el)
 
       if (delta > 0) {
-        // Content grew — adjust scrollTop by the delta to maintain
-        // the same relative position. This is the JS equivalent of
-        // CSS scroll-anchoring: it preserves the viewport position
-        // without setting an absolute scrollTop that can fight other
-        // scroll sources.
         el.scrollTop += delta
       }
 
       // Safety net: if we're far from bottom after the adjustment (or after
       // a scrollHeight shrink caused by SolidJS re-renders clamping scrollTop),
-      // snap to bottom. This handles the iOS scrollHeight dip scenario where
-      // the browser clamps scrollTop and delta alone can't recover.
+      // snap to bottom.
       const remaining = distanceFromBottom(el)
       if (remaining > followThreshold()) {
         el.scrollTop = el.scrollHeight - el.clientHeight
@@ -449,6 +479,12 @@ export function createAutoScroll(options: AutoScrollOptions) {
       stop()
     },
     resume: () => {
+      // Reset circuit breaker on explicit user action
+      if (circuitBroken) {
+        circuitBroken = false
+        lastCorrectionTime = 0
+        debug("circuit-breaker-reset-by-user")
+      }
       if (userScrolled()) setMode("follow-bottom", "explicit-resume")
       debug("resume")
       scrollToBottom(true)
