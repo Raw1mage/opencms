@@ -1373,6 +1373,21 @@
 - Architecture Sync: Verified (No doc changes)
   - process-level validation scope adjustment only
 
+## Follow-up Fix: provider-key migration batch 25 (account route canonical wording pass)
+
+- Goal:
+  - align remaining account-route OpenAPI descriptions with canonical provider-key request semantics while preserving legacy path/field compatibility
+- Updated files:
+  - `packages/opencode/src/server/routes/account.ts`
+  - `docs/events/event_20260312_session_global_fallback_rca.md`
+- Applied changes:
+  - updated operation descriptions for account activation/login/remove/update endpoints to explicitly state canonical provider-key request semantics
+  - retained legacy `:family` path compatibility wording and behavior unchanged
+- Validation:
+  - `bun run lint -- /home/pkcs12/projects/opencode/packages/opencode/src/server/routes/account.ts` ✅
+- Architecture Sync: Verified (No doc changes)
+  - description-only contract clarification; no runtime behavior change
+
 ### Critical notes / edge cases
 
 - Do not rename public `/:family/...` routes yet; only add compatibility wording/docs.
