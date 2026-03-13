@@ -76,24 +76,76 @@ export namespace Config {
     return memory
   }
 
+  const INTERNAL_MCP_SOURCES = {
+    "system-manager": "packages/mcp/system-manager/src/index.ts",
+    "refacting-merger": "packages/mcp/refacting-merger/src/index.ts",
+    "gcp-grounding": "packages/mcp/gcp-grounding/index.ts",
+  } as const
+
+  type InternalMcpName = keyof typeof INTERNAL_MCP_SOURCES
+
+  function isInternalMcpName(name: string): name is InternalMcpName {
+    return name in INTERNAL_MCP_SOURCES
+  }
+
+  function getInternalMcpMode() {
+    const raw = Env.get("OPENCODE_INTERNAL_MCP_MODE")
+    if (raw === "source" || raw === "binary") return raw
+    return "auto"
+  }
+
+  function getInternalMcpSystemBinary(name: InternalMcpName) {
+    return path.join("/usr/local/lib/opencode/mcp", name)
+  }
+
+  function getInternalMcpSourceCommand(name: InternalMcpName) {
+    const repoRoot = Env.get("OPENCODE_REPO_ROOT")
+    if (!repoRoot) {
+      throw new Error(`OPENCODE_INTERNAL_MCP_MODE=source requires OPENCODE_REPO_ROOT for internal MCP ${name}`)
+    }
+    const entry = path.join(repoRoot, INTERNAL_MCP_SOURCES[name])
+    if (!existsSync(entry)) {
+      throw new Error(`Internal MCP source entry not found for ${name}: ${entry}`)
+    }
+    return ["bun", entry]
+  }
+
+  function isInternalMcpRepoCommand(command: string[], name: InternalMcpName) {
+    const sourcePath = INTERNAL_MCP_SOURCES[name]
+    return command.some((part) => part.includes(sourcePath) || part.includes("packages/mcp/"))
+  }
+
   function normalizeMcpCommands(config: Info): Info {
     if (!config.mcp) return config
     const mcp = { ...config.mcp }
-    const mcpBinDir = "/usr/local/lib/opencode/mcp"
-    const internalMcps = ["system-manager", "refacting-merger", "gcp-grounding"]
+    const mode = getInternalMcpMode()
 
     for (const [name, entry] of Object.entries(mcp)) {
-      if (!internalMcps.includes(name)) continue
+      if (!isInternalMcpName(name)) continue
       if (!entry || typeof entry !== "object") continue
       if (!("type" in entry) || entry.type !== "local") continue
       if (!("command" in entry) || !Array.isArray(entry.command)) continue
 
-      const systemBin = path.join(mcpBinDir, name)
-      // If we are in a production/system install and the binary exists, use it.
-      // But only if current command looks like a repo path (facilitating migration)
-      // or if it's already pointing to a binary but we want to ensure it's the right one.
-      const currentCmdStr = entry.command.join(" ")
-      const isRepoPath = currentCmdStr.includes("packages/mcp/")
+      const systemBin = getInternalMcpSystemBinary(name)
+      const isRepoPath = isInternalMcpRepoCommand(entry.command, name)
+
+      if (mode === "source") {
+        mcp[name] = {
+          ...entry,
+          command: getInternalMcpSourceCommand(name),
+        }
+        log.debug(`resolved mcp ${name} to source command`, { command: mcp[name].command })
+        continue
+      }
+
+      if (mode === "binary") {
+        mcp[name] = {
+          ...entry,
+          command: [systemBin],
+        }
+        log.debug(`resolved mcp ${name} to system binary`, { path: systemBin })
+        continue
+      }
 
       if (isRepoPath && existsSync(systemBin)) {
         mcp[name] = {

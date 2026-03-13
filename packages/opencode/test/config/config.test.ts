@@ -1203,6 +1203,97 @@ test("permission config preserves key order", async () => {
 
 // MCP config merging tests
 
+test("internal MCP source mode rewrites system binary command to bun source entry and preserves enabled flag", async () => {
+  const originalMode = process.env.OPENCODE_INTERNAL_MCP_MODE
+  const originalRepoRoot = process.env.OPENCODE_REPO_ROOT
+  process.env.OPENCODE_INTERNAL_MCP_MODE = "source"
+  const repoRoot = path.resolve(import.meta.dir, "../../../..")
+  process.env.OPENCODE_REPO_ROOT = repoRoot
+  Config.global.reset()
+
+  try {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(
+          path.join(dir, "opencode.json"),
+          JSON.stringify({
+            $schema: "https://opencode.ai/config.json",
+            mcp: {
+              "system-manager": {
+                type: "local",
+                command: ["/usr/local/lib/opencode/mcp/system-manager"],
+                enabled: false,
+              },
+            },
+          }),
+        )
+      },
+    })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const config = await Config.get()
+        expect(config.mcp?.["system-manager"]).toEqual({
+          type: "local",
+          command: ["bun", path.join(repoRoot, "packages/mcp/system-manager/src/index.ts")],
+          enabled: false,
+        })
+      },
+    })
+  } finally {
+    Config.global.reset()
+    if (originalMode !== undefined) process.env.OPENCODE_INTERNAL_MCP_MODE = originalMode
+    else delete process.env.OPENCODE_INTERNAL_MCP_MODE
+    if (originalRepoRoot !== undefined) process.env.OPENCODE_REPO_ROOT = originalRepoRoot
+    else delete process.env.OPENCODE_REPO_ROOT
+  }
+})
+
+test("internal MCP binary mode rewrites repo command to system binary path", async () => {
+  const originalMode = process.env.OPENCODE_INTERNAL_MCP_MODE
+  const originalRepoRoot = process.env.OPENCODE_REPO_ROOT
+  process.env.OPENCODE_INTERNAL_MCP_MODE = "binary"
+  delete process.env.OPENCODE_REPO_ROOT
+  Config.global.reset()
+
+  try {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(
+          path.join(dir, "opencode.json"),
+          JSON.stringify({
+            $schema: "https://opencode.ai/config.json",
+            mcp: {
+              "refacting-merger": {
+                type: "local",
+                command: ["/work/repo/packages/mcp/refacting-merger/src/index.ts"],
+                enabled: true,
+              },
+            },
+          }),
+        )
+      },
+    })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const config = await Config.get()
+        expect(config.mcp?.["refacting-merger"]).toEqual({
+          type: "local",
+          command: ["/usr/local/lib/opencode/mcp/refacting-merger"],
+          enabled: true,
+        })
+      },
+    })
+  } finally {
+    Config.global.reset()
+    if (originalMode !== undefined) process.env.OPENCODE_INTERNAL_MCP_MODE = originalMode
+    else delete process.env.OPENCODE_INTERNAL_MCP_MODE
+    if (originalRepoRoot !== undefined) process.env.OPENCODE_REPO_ROOT = originalRepoRoot
+    else delete process.env.OPENCODE_REPO_ROOT
+  }
+})
+
 test("project config can override MCP server enabled status", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {
