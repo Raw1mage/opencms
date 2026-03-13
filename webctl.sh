@@ -1383,26 +1383,7 @@ do_dev_refresh() {
 }
 
 do_web_refresh() {
-    if [ "${IS_SOURCE_REPO:-0}" -ne 1 ]; then
-        log_info "Standalone mode: running web-restart only."
-        do_web_restart
-        return
-    fi
-
-    load_server_cfg
-    ensure_clean_repo_deploy_source
-
-    log_info "Refreshing production web frontend (binary-safe deploy + restart)..."
-    log_info "Installed binary is preserved; web-refresh only rebuilds/deploys frontend assets."
-
-    do_build_frontend
-
-    ensure_non_interactive_sudo web-refresh
-    log_info "Deploying frontend to ${FRONTEND_DIST}..."
-    run_as_root install -d -m 755 "${FRONTEND_DIST}"
-    run_as_root rm -rf "${FRONTEND_DIST}"/*
-    run_as_root cp -r "${PROJECT_ROOT}/packages/app/dist/"* "${FRONTEND_DIST}/"
-
+    log_info "Refreshing production web runtime (restart only; install/deploy is separate)."
     do_web_restart
 }
 
@@ -1571,7 +1552,7 @@ do_help() {
     echo "  web-start         Start production systemd service"
     echo "  web-stop          Stop production systemd service"
     echo "  web-restart       Restart production systemd service"
-    echo "  web-refresh       Rebuild/deploy + restart production service"
+    echo "  web-refresh       Restart installed production service (no repo rebuild/deploy)"
     echo "  status            Show server status and health"
     echo "  logs              Follow PTY debug log (/tmp/pty-debug.log)"
     echo "  build-frontend    Build packages/app/dist/ (run after frontend changes)"
@@ -1590,7 +1571,6 @@ do_help() {
     echo "  OPENCODE_SERVER_PASSWORD   Password env (legacy mode only)"
     echo "  OPENCODE_SERVER_USERNAME   Username for legacy mode"
     echo "  OPENCODE_SYSTEM_SERVICE_NAME systemd service basename (default: opencode-web)"
-    echo "  OPENCODE_WEB_REFRESH_FULL_BOOTSTRAP 1=web-refresh runs full install incl. system packages"
     echo "  HOME / XDG_*               Set these to isolate runtime state per user/profile"
     echo ""
     echo "Typical workflow:"
@@ -1608,7 +1588,7 @@ do_help() {
     echo "  ./webctl.sh stop"
     echo "  ./webctl.sh flush --dry-run"
     echo "  ./webctl.sh flush"
-    echo "  ./webctl.sh restart              # dev=build+stop+flush+start, prod=web-refresh"
+    echo "  ./webctl.sh restart              # dev=build+stop+flush+start, prod=web-refresh(restart only)"
     echo "  ./webctl.sh restart --graceful   # explicit (same as default)"
     echo "  ./webctl.sh restart --inline"
     echo "  ./webctl.sh dev-refresh"
