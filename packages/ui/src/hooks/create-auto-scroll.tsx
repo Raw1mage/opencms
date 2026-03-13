@@ -119,24 +119,29 @@ export function createAutoScroll(options: AutoScrollOptions) {
     return true
   }
 
-  // Circuit breaker: if a second anchor correction fires within 500ms of
-  // the previous one, we're in a correction↔anchor loop. Stop immediately
-  // — even 2 rapid corrections cause visible flashing.
+  // Circuit breaker: detect anchor oscillation by tracking scroll events
+  // that land far from bottom during active streaming. During conclusion
+  // streaming, every character triggers ResizeObserver → scrollTop change →
+  // iOS anchor fights back. The handleScroll correction may land in
+  // bottom-zone and never call the breaker. Instead, count ALL non-bottom
+  // scroll events during active streaming as "anchor hits".
   let circuitBroken = false
-  let lastCorrectionTime = 0
+  let anchorHitTimes: number[] = []
 
-  const checkCircuitBreaker = (): boolean => {
+  const recordAnchorHit = () => {
     const now = Date.now()
-    if (now - lastCorrectionTime < 500) {
-      // Two corrections within 500ms = loop detected. Trip immediately.
+    anchorHitTimes.push(now)
+    // Keep only hits within last 1 second
+    while (anchorHitTimes.length > 0 && now - anchorHitTimes[0] > 1000) {
+      anchorHitTimes.shift()
+    }
+    // 3+ anchor hits in 1 second = oscillation loop
+    if (anchorHitTimes.length >= 3) {
       circuitBroken = true
       stopRafLoop()
       setMode("free-reading", "circuit-breaker")
-      debug("circuit-breaker-tripped", { gap: now - lastCorrectionTime })
-      return true
+      debug("circuit-breaker-tripped", { hits: anchorHitTimes.length })
     }
-    lastCorrectionTime = now
-    return false
   }
 
   // The primary follow-bottom mechanism during streaming is the handleScroll
@@ -294,13 +299,12 @@ export function createAutoScroll(options: AutoScrollOptions) {
       return
     }
 
-    // During active streaming, the scroll event can fire from iOS anchor
-    // restoration (which overrides our scrollTop). Rather than ignoring it,
-    // correct scrollTop immediately. The scroll event fires AFTER layout/anchor
-    // restoration but BEFORE paint, so this correction is flicker-free.
-    // User scrolls are handled by handleWheel (upward gesture → free-reading).
+    // During active streaming, any scroll event that lands away from
+    // the bottom is likely caused by iOS anchor restoration. Record it
+    // as an anchor hit for circuit breaker detection, then correct.
     if (!userScrolled() && active()) {
-      if (checkCircuitBreaker()) return
+      recordAnchorHit()
+      if (circuitBroken) return
       markAuto(el)
       el.scrollTop = el.scrollHeight - el.clientHeight
       lastScrollHeight = el.scrollHeight
@@ -389,9 +393,15 @@ export function createAutoScroll(options: AutoScrollOptions) {
 
       // Safety net: if we're far from bottom after the adjustment (or after
       // a scrollHeight shrink caused by SolidJS re-renders clamping scrollTop),
-      // snap to bottom.
+      // snap to bottom. But first check circuit breaker — repeated snaps
+      // mean iOS anchor is fighting back every resize cycle.
       const remaining = distanceFromBottom(el)
       if (remaining > followThreshold()) {
+        recordAnchorHit()
+        if (circuitBroken) {
+          debug("resize-circuit-broken-snap", { delta, remaining })
+          return
+        }
         el.scrollTop = el.scrollHeight - el.clientHeight
         debug("resize-delta-snap", { delta, remaining, ...metrics(el) })
       } else {
@@ -482,7 +492,7 @@ export function createAutoScroll(options: AutoScrollOptions) {
       // Reset circuit breaker on explicit user action
       if (circuitBroken) {
         circuitBroken = false
-        lastCorrectionTime = 0
+        anchorHitTimes.length = 0
         debug("circuit-breaker-reset-by-user")
       }
       if (userScrolled()) setMode("follow-bottom", "explicit-resume")

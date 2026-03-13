@@ -13,3 +13,6 @@
 [submodule "refs/codex"]
 	path = refs/codex
 	url = https://github.com/openai/codex
+[submodule "refs/openspec"]
+	path = refs/openspec
+	url = https://github.com/Fission-AI/OpenSpec
