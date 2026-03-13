@@ -95,7 +95,7 @@ export const SettingsAccounts: Component = () => {
 
   const setActive = async (providerKey: string, accountId: string) => {
     await globalSDK.client.account
-      .setActive({ family: providerKey, accountId })
+      .setActive({ providerKey, family: providerKey, accountId })
       .then(async () => {
         await globalSDK.client.global.dispose().catch(() => undefined)
         await actions.refetch()
