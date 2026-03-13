@@ -1447,6 +1447,16 @@
 - Architecture Sync: Verified (No doc changes)
   - OpenAPI metadata consistency only; runtime behavior unchanged
 
+## Follow-up Note: provider route key-behavior boundary
+
+- Attempted change:
+  - local provider-route canonical-row naming cleanup in `server/routes/provider.ts`
+- Outcome:
+  - reverted in the same slice after focused test evidence (`provider-cms.test.ts`) showed key-level behavior dependency on canonical-family indexing
+- Decision:
+  - treat provider-route key indexing as behavior-sensitive contract surface for now
+  - defer deeper cleanup to a dedicated slice with explicit compatibility strategy, rather than local rename-only pass
+
 ## Follow-up Note: compatibility test boundary clarification
 
 - Observation:
