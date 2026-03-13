@@ -1531,6 +1531,25 @@
 - Architecture Sync: Verified (No doc changes)
   - metadata/test coverage expansion only; no runtime contract break
 
+## Follow-up Fix: provider-key migration batch 31 (accounts alias-route contract coverage)
+
+- Goal:
+  - extend deterministic route-level alias contract coverage to the `/api/v2/accounts` compatibility paths
+- Updated files:
+  - `packages/opencode/test/server/account-contract-aliases.test.ts`
+  - `docs/events/event_20260312_session_global_fallback_rca.md`
+- Applied changes:
+  - added list alias coverage:
+    - `GET /api/v2/accounts` mirrors canonical `providers` and legacy `families`
+  - added quota alias coverage:
+    - `GET /api/v2/accounts/quota` preserves canonical `providerKey` and legacy `family` alias consistency
+  - kept auth-aware deterministic test pattern (401 short-circuit in password-protected environments)
+- Validation:
+  - `bun test /home/pkcs12/projects/opencode/packages/opencode/test/server/account-contract-aliases.test.ts --timeout 30000` ✅
+  - `bun run lint -- /home/pkcs12/projects/opencode/packages/opencode/test/server/account-contract-aliases.test.ts` ✅
+- Architecture Sync: Verified (No doc changes)
+  - test-only coverage expansion; runtime/API behavior unchanged
+
 ## Freeze checkpoint: provider-key migration working baseline
 
 - Reason:
