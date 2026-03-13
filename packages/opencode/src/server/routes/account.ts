@@ -158,7 +158,7 @@ export const AccountRoutes = lazy(() =>
       describeRoute({
         summary: "Set active account",
         description:
-          "Set the active account for a specific provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and request bodies may also include matching 'providerKey' as an additive alias.",
+          "Set the active account for a specific provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and request bodies may also include matching 'providerKey' as a deprecated compatibility alias.",
         operationId: "account.setActive",
         responses: {
           200: {
@@ -222,7 +222,7 @@ export const AccountRoutes = lazy(() =>
       describeRoute({
         summary: "Trigger login",
         description:
-          "Get the login URL for a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and query may also include matching 'providerKey' as an additive alias.",
+          "Get the login URL for a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and query may also include matching 'providerKey' as a deprecated compatibility alias.",
         operationId: "account.login",
         responses: {
           200: { description: "Login URL info" },
@@ -270,7 +270,7 @@ export const AccountRoutes = lazy(() =>
       describeRoute({
         summary: "Remove account",
         description:
-          "Remove a specific account under a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and query may also include matching 'providerKey' as an additive alias.",
+          "Remove a specific account under a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and query may also include matching 'providerKey' as a deprecated compatibility alias.",
         operationId: "account.remove",
         responses: {
           200: {
@@ -334,7 +334,7 @@ export const AccountRoutes = lazy(() =>
       describeRoute({
         summary: "Update account metadata",
         description:
-          "Update editable account metadata under a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and request bodies may also include matching 'providerKey' as an additive alias.",
+          "Update editable account metadata under a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and request bodies may also include matching 'providerKey' as a deprecated compatibility alias.",
         operationId: "account.update",
         responses: {
           200: {

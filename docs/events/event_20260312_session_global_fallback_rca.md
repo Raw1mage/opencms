@@ -1475,6 +1475,29 @@
 - Architecture Sync: Verified (No doc changes)
   - test-only contract verification slice; no runtime changes
 
+## Oneshot A+B convergence slice (non-breaking)
+
+- Goal:
+  - execute dedicated lane A (contract/spec metadata consistency) and lane B (route-level compatibility tests) in one bounded non-breaking pass
+- Updated files:
+  - `packages/opencode/src/server/routes/account.ts`
+  - `packages/opencode/test/server/account-providerkey-compat.test.ts`
+  - `packages/opencode/test/server/account-contract-aliases.test.ts`
+  - `docs/events/event_20260312_session_global_fallback_rca.md`
+- Applied changes:
+  - lane A:
+    - normalized account route request metadata wording from "additive alias" to explicit "deprecated compatibility alias" language where appropriate
+  - lane B:
+    - added deterministic success-side guard test that asserts matching `providerKey` does not trigger `ACCOUNT_PROVIDER_MISMATCH`
+    - retained existing mismatch guard tests for setActive/login/remove/update
+    - retained canonical+legacy response alias tests (`providers`+`families`, `providerKey`+`family`)
+- Validation (scoped, non-blocking):
+  - `bun test /home/pkcs12/projects/opencode/packages/opencode/test/server/account-providerkey-compat.test.ts --timeout 30000` ✅
+  - `bun test /home/pkcs12/projects/opencode/packages/opencode/test/server/account-contract-aliases.test.ts --timeout 30000` ✅
+  - `bun run lint -- /home/pkcs12/projects/opencode/packages/opencode/src/server/routes/account.ts /home/pkcs12/projects/opencode/packages/opencode/test/server/account-providerkey-compat.test.ts /home/pkcs12/projects/opencode/packages/opencode/test/server/account-contract-aliases.test.ts` ✅
+- Architecture Sync: Verified (No doc changes)
+  - metadata/test coverage expansion only; no runtime contract break
+
 ## Follow-up Note: compatibility test boundary clarification
 
 - Observation:
