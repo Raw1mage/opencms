@@ -1550,6 +1550,27 @@
 - Architecture Sync: Verified (No doc changes)
   - test-only coverage expansion; runtime/API behavior unchanged
 
+## Oneshot C lane final pass (artifact parity closeout)
+
+- Goal:
+  - perform final parity check on mainline contract artifacts after A/B convergence
+- Checked files:
+  - `packages/opencode/src/server/routes/account.ts`
+  - `packages/sdk/openapi.json`
+  - `packages/sdk/js/openapi.json`
+  - `packages/sdk/js/src/v2/gen/sdk.gen.ts`
+  - `packages/sdk/js/src/v2/gen/types.gen.ts`
+- Outcome:
+  - no remaining diff detected in the mainline contract artifact set
+  - OpenAPI artifacts parse successfully
+  - scoped SDK typecheck passes
+- Validation:
+  - `node -e "JSON.parse(...packages/sdk/openapi.json); JSON.parse(...packages/sdk/js/openapi.json)"` ✅
+  - `bun run lint -- /home/pkcs12/projects/opencode/packages/sdk/js/src/v2/gen/types.gen.ts` ✅
+  - `bun run typecheck --filter=@opencode-ai/sdk` ✅
+- Architecture Sync: Verified (No doc changes)
+  - parity closeout only; no new runtime/schema modifications
+
 ## Freeze checkpoint: provider-key migration working baseline
 
 - Reason:
