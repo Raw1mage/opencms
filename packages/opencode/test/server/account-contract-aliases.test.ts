@@ -46,4 +46,29 @@ describe("account contract canonical + legacy aliases", () => {
     expect(body.family).toBeDefined()
     expect(body.providerKey).toBe(body.family)
   })
+
+  test("quota endpoint fail-soft preserves providerKey/family aliases when requested account is invalid", async () => {
+    const app = Server.App()
+    const response = await app.request("/api/v2/account/quota?providerId=openai&accountId=missing-account")
+
+    if (response.status === 401) {
+      expect(Flag.OPENCODE_SERVER_PASSWORD).toBeTruthy()
+      return
+    }
+
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as {
+      providerId?: string
+      providerKey?: string
+      family?: string
+      accountId?: string
+      hint?: string
+    }
+
+    expect(body.providerId).toBe("openai")
+    expect(body.providerKey).toBe("openai")
+    expect(body.family).toBe("openai")
+    expect(body.accountId).toBeUndefined()
+    expect(body.hint).toBeUndefined()
+  })
 })

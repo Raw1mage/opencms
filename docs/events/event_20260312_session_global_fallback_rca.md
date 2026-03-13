@@ -416,6 +416,23 @@
   - duplicated account alias methods/types (`*2`, `*3`, `*4`) now match the additive provider-key request/response compatibility already added to the primary account surface
   - this appears to be the practical end of safe additive parity work inside checked-in generated SDK artifacts; any further cleanup would likely want a broader OpenAPI/SDK regeneration policy decision rather than more manual drift edits
 - `bunx tsc -p /home/pkcs12/projects/opencode/packages/opencode/tsconfig.json --noEmit` ✅ (provider-key storage helper migration)
+
+## Follow-up Slice: artifact parity for account provider-key aliases
+
+- Scope:
+  - align checked-in OpenAPI and generated JS SDK artifacts with the current `server/routes/account.ts` provider-key compatibility contract
+  - keep all legacy `family` / `families` response and path surfaces intact
+  - avoid persistence or route-shape changes
+- Updated files:
+  - `packages/sdk/openapi.json`
+  - `packages/sdk/js/openapi.json`
+  - `packages/sdk/js/src/v2/gen/types.gen.ts`
+- Applied changes:
+  - synced account route descriptions to the current server wording: provider-key is canonical, legacy `family` path/query/body aliases remain compatibility-only
+  - fixed remaining generated alias drift in `types.gen.ts` for `/accounts` account surfaces so `login4` / `remove4` / `update4` expose optional `providerKey` and optional legacy `family`, matching the checked-in OpenAPI artifacts and runtime behavior
+  - added missing legacy-compatibility doc comments for `AccountQuotaHint3/4Responses.family` to match the primary generated account quota types
+- Minimal generation note:
+  - no full generator rerun was required for this lane; checked-in generated artifacts were patched directly because the necessary parity delta was narrow and deterministic
 - `bunx eslint /home/pkcs12/projects/opencode/packages/app/src/components/dialog-select-model.tsx /home/pkcs12/projects/opencode/packages/app/src/components/prompt-input.tsx /home/pkcs12/projects/opencode/packages/app/src/context/global-sync/bootstrap.ts /home/pkcs12/projects/opencode/packages/app/src/context/global-sync.tsx` ✅
 - `bunx tsc -p /home/pkcs12/projects/opencode/packages/app/tsconfig.json --noEmit` ✅ (web provider-first compatibility read cleanup)
 - `bunx eslint /home/pkcs12/projects/opencode/packages/opencode/src/cli/cmd/tui/component/dialog-admin.tsx` ✅
@@ -653,6 +670,22 @@
 - Quota route: now fail-fast instead of silently consulting active account
 - Web session-page model sync: now prefers persisted `session.execution`
 - Remaining work is now mostly display/control-plane consistency and type/terminology debt, not the original first-account token-burn root cause
+
+## Follow-up Slice: route-level compatibility deterministic coverage
+
+- Scope:
+  - add deterministic route-level compatibility assertions for provider-key/account aliases without changing runtime behavior
+  - keep coverage local to account server routes; no broad e2e expansion
+- Updated files:
+  - `packages/opencode/test/server/account-providerkey-compat.test.ts`
+  - `packages/opencode/test/server/account-contract-aliases.test.ts`
+- Added assertions:
+  - mismatch-guard tests now also assert the returned error message includes the concrete `requestedProviderKey !== route provider` pair, making the route contract more explicit
+  - matching `providerKey` compatibility paths now have non-mismatch coverage for `login`, `remove`, and `update` in addition to existing `setActive`
+  - quota compatibility now has a deterministic fail-soft assertion: invalid `accountId` still returns `200` with canonical `providerKey` + legacy `family` alias preserved, while omitting `accountId`/`hint`
+- Intent:
+  - lock in the additive provider-first compatibility contract at the route layer
+  - ensure future refactors do not regress by silently reintroducing ambiguous mismatch handling or active-account fallback in quota metadata
 - `bunx eslint /home/pkcs12/projects/opencode/packages/opencode/src/server/routes/session.ts /home/pkcs12/projects/opencode/packages/app/src/context/local.tsx /home/pkcs12/projects/opencode/packages/app/src/components/dialog-select-model.tsx /home/pkcs12/projects/opencode/packages/app/src/components/dialog-select-model-unpaid.tsx /home/pkcs12/projects/opencode/packages/opencode/src/cli/cmd/tui/context/local.tsx /home/pkcs12/projects/opencode/packages/opencode/src/cli/cmd/tui/component/dialog-model.tsx /home/pkcs12/projects/opencode/packages/opencode/src/cli/cmd/tui/component/dialog-admin.tsx /home/pkcs12/projects/opencode/packages/opencode/src/cli/cmd/tui/app.tsx /home/pkcs12/projects/opencode/packages/opencode/src/session/index.test.ts` ✅
 - `bunx tsc -p /home/pkcs12/projects/opencode/packages/opencode/tsconfig.json --noEmit && bunx tsc -p /home/pkcs12/projects/opencode/packages/app/tsconfig.json --noEmit` ✅
 - Architecture Sync: Updated
