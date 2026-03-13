@@ -1531,6 +1531,29 @@
 - Architecture Sync: Verified (No doc changes)
   - metadata/test coverage expansion only; no runtime contract break
 
+## Freeze checkpoint: provider-key migration working baseline
+
+- Reason:
+  - lock a known-good non-breaking baseline before continuing deeper legacy/deprecation work
+  - reduce future AI-agent hallucination risk around mixed canonical/legacy contract surfaces
+
+- Snapshot artifacts:
+  - checkpoint tag:
+    - `checkpoint/provider-key-migration-20260313-1`
+    - points to commit: `dffa0c2d10`
+  - local bundle backup:
+    - `/home/pkcs12/projects/opencode/recyclebin/provider-key-migration-20260313-1.bundle`
+
+- Baseline scope (included in checkpoint target):
+  - completed L1 + safe L2 + L3 slice 1/2/3 non-breaking migration work
+  - additive contract prep for providerKey/family compatibility
+  - deterministic route-level compatibility test coverage
+  - OpenAPI/SDK artifact parity updates up to checkpoint commit
+
+- Important note:
+  - checkpoint tag/bundle intentionally capture commit graph state only
+  - unrelated dirty working-tree files remain outside this checkpoint and should not be mixed into migration commits
+
 ## Follow-up Note: compatibility test boundary clarification
 
 - Observation:
