@@ -10,10 +10,8 @@ import { usePlatform } from "@/context/platform"
 import { useServer } from "@/context/server"
 import { useTerminal } from "@/context/terminal"
 import { SessionContextUsage } from "@/components/session-context-usage"
-import { getFilename } from "@opencode-ai/util/path"
 import { decode64 } from "@/utils/base64"
 import { Persist, persisted } from "@/utils/persist"
-import { workspaceKey } from "@/pages/layout/helpers"
 
 import { Icon } from "@opencode-ai/ui/icon"
 import { IconButton } from "@opencode-ai/ui/icon-button"
@@ -22,7 +20,6 @@ import { AppIcon } from "@opencode-ai/ui/app-icon"
 import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { TooltipKeybind } from "@opencode-ai/ui/tooltip"
-import { Keybind } from "@opencode-ai/ui/keybind"
 import { Spinner } from "@opencode-ai/ui/spinner"
 import { showToast } from "@opencode-ai/ui/toast"
 
@@ -109,21 +106,6 @@ export function SessionHeader() {
   const largeScreen = createMediaQuery("(min-width: 450px)")
 
   const projectDirectory = createMemo(() => decode64(params.dir) ?? "")
-  const project = createMemo(() => {
-    const directory = projectDirectory()
-    if (!directory) return
-    const key = workspaceKey(directory)
-    return layout.projects
-      .list()
-      .find((p) => workspaceKey(p.worktree) === key || p.sandboxes?.some((sandbox) => workspaceKey(sandbox) === key))
-  })
-  const name = createMemo(() => {
-    const current = project()
-    if (current) return current.name || getFilename(current.worktree)
-    return getFilename(projectDirectory())
-  })
-  const hotkey = createMemo(() => command.keybind("file.open"))
-
   const sessionKey = createMemo(() => `${params.dir}${params.id ? "/" + params.id : ""}`)
   const view = createMemo(() => layout.view(sessionKey))
   const os = createMemo(() => detectOS(platform))
@@ -332,30 +314,7 @@ export function SessionHeader() {
       <Show when={leftMount()}>
         {(mount) => (
           <Portal mount={mount()}>
-            <Show
-              when={subpageTitle()}
-              fallback={
-                <button
-                  type="button"
-                  class="hidden md:flex w-[320px] max-w-full min-w-0 h-[24px] px-2 pl-1.5 items-center gap-2 justify-between rounded-md border border-border-base bg-surface-panel transition-colors cursor-default hover:bg-surface-raised-base-hover focus-visible:bg-surface-raised-base-hover active:bg-surface-raised-base-active"
-                  onClick={() => command.trigger("file.open")}
-                  aria-label={language.t("session.header.searchFiles")}
-                >
-                  <div class="flex min-w-0 flex-1 items-center gap-2 overflow-visible">
-                    <Icon name="magnifying-glass" size="normal" class="icon-base shrink-0" />
-                    <span class="flex-1 min-w-0 text-14-regular text-text-weak truncate h-4.5 flex items-center">
-                      {language.t("session.header.search.placeholder", { project: name() })}
-                    </span>
-                  </div>
-
-                  <Show when={hotkey()}>
-                    {(keybind) => (
-                      <Keybind class="shrink-0 !border-0 !bg-transparent !shadow-none px-0">{keybind()}</Keybind>
-                    )}
-                  </Show>
-                </button>
-              }
-            >
+            <Show when={subpageTitle()}>
               {(title) => (
                 <button
                   type="button"
@@ -467,13 +426,11 @@ export function SessionHeader() {
                       onClick={toggleMobileReview}
                       aria-label={language.t("command.review.toggle")}
                     >
-                      <div class="relative flex items-center justify-center size-4 [&>*]:absolute [&>*]:inset-0">
-                        <Icon
-                          size="small"
-                          name={mobileActiveTool() === "changes" ? "layout-right-full" : "layout-right"}
-                          class="group-hover/review-toggle:hidden"
-                        />
-                      </div>
+                      <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="1" />
+                        <line x1="10" y1="2.25" x2="10" y2="13.75" />
+                        {mobileActiveTool() === "changes" && <rect x="2.5" y="3" width="6.75" height="10" rx="0.5" fill="currentColor" fill-opacity="0.15" />}
+                      </svg>
                     </Button>
                     <SessionContextUsage
                       mobileToolPage
@@ -535,27 +492,15 @@ export function SessionHeader() {
                         aria-expanded={layout.fileTree.opened() && layout.fileTree.mode() === "changes"}
                         aria-controls="session-side-panel-secondary"
                       >
-                        <div class="relative flex items-center justify-center size-4 shrink-0 [&>*]:absolute [&>*]:inset-0">
-                          <Icon
-                            size="small"
-                            name={view().filePane.opened() ? "layout-right-full" : "layout-right"}
-                            class="group-hover/review-toggle:hidden"
-                          />
-                          <Icon
-                            size="small"
-                            name="layout-right-partial"
-                            class="hidden group-hover/review-toggle:inline-block"
-                          />
-                          <Icon
-                            size="small"
-                            name={view().filePane.opened() ? "layout-right" : "layout-right-full"}
-                            class="hidden group-active/review-toggle:inline-block"
-                          />
-                        </div>
+                        <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.5">
+                          <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="1" />
+                          <line x1="10" y1="2.25" x2="10" y2="13.75" />
+                          {view().filePane.opened() && <rect x="2.5" y="3" width="6.75" height="10" rx="0.5" fill="currentColor" fill-opacity="0.15" />}
+                        </svg>
                       </Button>
                     </TooltipKeybind>
                   </div>
-                  <SessionContextUsage />
+                  <SessionContextUsage buttonClass={desktopNavButtonClass(desktopActiveTool() === "context")} />
                   <Tooltip value={language.t("status.popover.trigger")}>
                     <Button
                       type="button"

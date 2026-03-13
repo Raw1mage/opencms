@@ -133,16 +133,16 @@ const SessionRow = (props: {
   ignoreClick?: () => boolean
 }): JSX.Element => (
   <div class={`flex items-center min-w-0 w-full ${props.dense ? "gap-1" : "gap-2"}`}>
-    <div
-      data-session-action
-      class={`shrink-0 flex items-center justify-center text-text-weak ${props.dense ? "w-6" : "size-6"}`}
-      onPointerDown={(event) => event.stopPropagation()}
-      onClick={(event) => event.stopPropagation()}
-    >
-      <Show when={props.showActions()} fallback={<span class="text-12-regular">-</span>}>
+    <Show when={props.showActions()}>
+      <div
+        data-session-action
+        class={`shrink-0 flex items-center justify-center text-text-weak ${props.dense ? "w-6" : "size-6"}`}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+      >
         {props.actionMenu}
-      </Show>
-    </div>
+      </div>
+    </Show>
     <A
       href={`/${props.slug}/session/${props.session.id}`}
       class={`flex items-center justify-between min-w-0 text-left w-full focus:outline-none ${props.dense ? "py-0.5 gap-1" : "py-1 gap-2"}`}

@@ -1943,7 +1943,7 @@ export default function Layout(props: ParentProps) {
               aria-label={language.t("sidebar.nav.projectsAndSessions")}
               data-component="sidebar-nav-desktop"
               class="relative shrink-0"
-              style={{ width: "64px" }}
+              style={{ width: "64px", "z-index": "10" }}
               ref={(el) => {
                 setState("nav", el)
               }}
@@ -2002,8 +2002,8 @@ export default function Layout(props: ParentProps) {
             <Show when={layout.sidebar.opened() && desktopOverlayProject()} keyed>
               {(project) => (
                 <>
-                  <div class="absolute inset-y-0 left-16 right-0 z-40" onClick={() => layout.sidebar.close()} />
-                  <div class="absolute inset-y-0 left-16 z-50 flex" style={{ width: `${layout.sidebar.width()}px` }}>
+                  <div class="absolute inset-y-0 left-16 right-0 z-[1]" onClick={() => layout.sidebar.close()} />
+                  <div class="absolute inset-y-0 left-16 z-[5] flex" style={{ width: `${layout.sidebar.width()}px` }}>
                     <SidebarPanel project={project} />
                     <ResizeHandle
                       class="z-30"
