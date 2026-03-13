@@ -712,17 +712,48 @@ export const TaskTool = Tool.define("task", async (ctx) => {
               accountId: params.account_id,
             }
           : undefined
+        const fallbackModel = {
+          modelID: pinnedExecution?.modelID ?? msg.info.modelID,
+          providerId: pinnedExecution?.providerId ?? msg.info.providerId,
+          accountId: pinnedExecution?.accountId ?? ("accountId" in msg.info ? msg.info.accountId : undefined),
+        }
+
+        // SYSLOG: Log subagent account inheritance chain (Bug #1 & #3)
+        debugCheckpoint("syslog.subagent", "task: subagent account inheritance", {
+          parentSessionID: ctx.sessionID,
+          childSessionID: session.id,
+          agentName: agent.name,
+          parentPinnedExecution: pinnedExecution,
+          parentMessageModel: {
+            modelID: msg.info.modelID,
+            providerId: msg.info.providerId,
+            accountId: "accountId" in msg.info ? msg.info.accountId : undefined,
+          },
+          resolvedFallbackModel: fallbackModel,
+          explicitModelArg: modelArg,
+          agentModel: agent.model,
+          note: "check if child inherits correct accountId from parent or gets unexpected account",
+        })
+
         const arbitration = await orchestrateModelSelection({
           agentName: agent.name,
           explicitModel: modelArg,
           agentModel: agent.model,
-          fallbackModel: {
-            modelID: pinnedExecution?.modelID ?? msg.info.modelID,
-            providerId: pinnedExecution?.providerId ?? msg.info.providerId,
-            accountId: pinnedExecution?.accountId ?? ("accountId" in msg.info ? msg.info.accountId : undefined),
-          },
+          fallbackModel,
         })
         const model = arbitration.model
+
+        // SYSLOG: Log final subagent model decision
+        debugCheckpoint("syslog.subagent", "task: subagent model decision", {
+          parentSessionID: ctx.sessionID,
+          childSessionID: session.id,
+          agentName: agent.name,
+          selectedModel: model,
+          selectedSource: arbitration.trace.selected.source,
+          parentAccountId: fallbackModel.accountId,
+          childAccountId: model.accountId,
+          accountMismatch: fallbackModel.accountId !== model.accountId,
+        })
         linkedTodo =
           (await Todo.get(ctx.sessionID)).find((todo) => todo.status === "in_progress") ??
           (await Todo.get(ctx.sessionID)).find((todo) => todo.status === "pending")

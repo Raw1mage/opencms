@@ -677,21 +677,27 @@ export namespace LLM {
     }
 
     // Use 3D rotation to find best fallback
-    const fallback = await findFallback(currentVector, { strategy, allowSameProviderFallback: false }, triedVectors)
+    // Same-provider account rotation is guarded by SameProviderRotationGuard
+    // (max once per cooldown). Cross-provider rotation is unrestricted.
+    const fallback = await findFallback(currentVector, { strategy, allowSameProviderFallback: true }, triedVectors)
+
+    // SYSLOG: Log findFallback result
+    debugCheckpoint("syslog.rotation", "handleRateLimitFallback: findFallback returned", {
+      currentVector: `${currentModel.providerId}:${currentAccountId}:${currentModel.id}`,
+      fallbackResult: fallback
+        ? `${fallback.providerId}:${fallback.accountId}:${fallback.modelID} (reason=${fallback.reason})`
+        : "null",
+      strategy,
+      triedVectorCount: triedVectors.size,
+      triedVectors: Array.from(triedVectors),
+    })
 
     if (!fallback) {
-      // If no fallback, return current tried vectors for next attempt
-      return null
-    }
-
-    if (fallback.providerId !== currentModel.providerId || fallback.accountId !== currentAccountId) {
-      debugCheckpoint("rotation3d", "Session identity blocked provider/account fallback", {
-        providerId: currentModel.providerId,
-        accountId: currentAccountId,
-        modelID: currentModel.id,
-        blockedProviderId: fallback.providerId,
-        blockedAccountId: fallback.accountId,
-        blockedModelID: fallback.modelID,
+      debugCheckpoint("syslog.rotation", "handleRateLimitFallback: no fallback candidate found", {
+        currentVector: `${currentModel.providerId}:${currentAccountId}:${currentModel.id}`,
+        strategy,
+        triedVectorCount: triedVectors.size,
+        note: "all candidates exhausted or rate-limited",
       })
       return null
     }

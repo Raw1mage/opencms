@@ -141,8 +141,13 @@ export namespace SessionProcessor {
     // Track fallback attempts to prevent infinite loops
     const triedVectors = new Set<string>()
     let fallbackAttempts = 0
-    // Allow many attempts to find a working model across all accounts/providers
-    const MAX_FALLBACK_ATTEMPTS = 50
+    // Cap total rotation attempts to avoid high-frequency retry loops that
+    // can trigger server-side abuse detection / IP bans.
+    const MAX_FALLBACK_ATTEMPTS = 8
+    // Consecutive "no fallback found" counter — when rotation3d returns null
+    // repeatedly, it means all accounts are exhausted. Stop early.
+    let consecutiveNullFallbacks = 0
+    const MAX_CONSECUTIVE_NULL_FALLBACKS = 2
 
     const result = {
       get message() {
@@ -170,12 +175,53 @@ export namespace SessionProcessor {
                 input.assistantMessage.accountId ??
                 streamInput.user.model.accountId
               const accountId = sessionPinnedAccountId ?? (family ? await Account.getActive(family) : undefined)
+
+              // SYSLOG: Full account resolution trace for Bug #1 diagnosis
+              debugCheckpoint("syslog.session", "preflight account resolution trace", {
+                sessionID: input.sessionID,
+                providerId: streamInput.model.providerId,
+                modelID: streamInput.model.id,
+                resolution: {
+                  streamInputAccountId: streamInput.accountId,
+                  inputAccountId: input.accountId,
+                  assistantMessageAccountId: input.assistantMessage.accountId,
+                  userMessageAccountId: streamInput.user.model.accountId,
+                  sessionPinnedAccountId,
+                  globalActiveAccountId: family ? await Account.getActive(family) : undefined,
+                  resolvedAccountId: accountId,
+                  source: sessionPinnedAccountId ? "pinned" : "global-active",
+                },
+                family,
+                fallbackAttempts,
+              })
+
               if (!sessionPinnedAccountId && accountId) {
                 debugCheckpoint("rotation3d", "Pre-flight fell back to global active account", {
                   providerId: streamInput.model.providerId,
                   modelID: streamInput.model.id,
                   accountId,
                   sessionID: input.sessionID,
+                })
+                // FIX(Bug #1): Pin resolved account onto session so subsequent
+                // requests in this session won't drift when the global active
+                // account changes (e.g. via TUI dialog or another session).
+                streamInput.accountId = accountId
+                input.accountId = accountId
+                input.assistantMessage.accountId = accountId
+                await Session.pinExecutionIdentity({
+                  sessionID: input.sessionID,
+                  model: {
+                    providerId: streamInput.model.providerId,
+                    modelID: streamInput.model.id,
+                    accountId,
+                  },
+                })
+                debugCheckpoint("syslog.session", "pinned global-active account to session identity", {
+                  sessionID: input.sessionID,
+                  accountId,
+                  providerId: streamInput.model.providerId,
+                  modelID: streamInput.model.id,
+                  note: "prevents silent account drift from global active changes",
                 })
               }
               if (accountId) {
@@ -275,6 +321,15 @@ export namespace SessionProcessor {
             let reasoningMap: Record<string, MessageV2.ReasoningPart> = {}
             const stream = await LLM.stream(streamInput)
             if (streamInput.accountId && input.assistantMessage.accountId !== streamInput.accountId) {
+              // SYSLOG: Account changed after LLM.stream — potential silent account switch (Bug #1)
+              debugCheckpoint("syslog.session", "post-stream account changed", {
+                sessionID: input.sessionID,
+                previousAccountId: input.assistantMessage.accountId,
+                newAccountId: streamInput.accountId,
+                providerId: input.assistantMessage.providerId,
+                modelID: input.assistantMessage.modelID,
+                note: "LLM.stream mutated streamInput.accountId — session identity is being silently switched",
+              })
               input.accountId = streamInput.accountId
               input.assistantMessage.accountId = streamInput.accountId
               await Session.updateMessage(input.assistantMessage)
@@ -703,6 +758,17 @@ export namespace SessionProcessor {
           } catch (e: any) {
             // 1. Handle Temporary Errors (Rate Limit, Quota, Server Busy)
             if (isModelTemporaryError(e)) {
+              // SYSLOG: Rate limit or temporary error hit — rotation should kick in
+              debugCheckpoint("syslog.rotation", "temporary error: rotation3d should activate", {
+                sessionID: input.sessionID,
+                error: e.message,
+                status: (e as any)?.status ?? (e as any)?.statusCode,
+                providerId: streamInput.model.providerId,
+                modelID: streamInput.model.id,
+                accountId: streamInput.accountId ?? input.accountId ?? input.assistantMessage.accountId,
+                fallbackAttempts,
+                triedVectorCount: triedVectors.size,
+              })
               debugCheckpoint("rotation3d", "Temporary failure detected", {
                 error: e.message,
                 model: streamInput.model.id,
@@ -716,6 +782,12 @@ export namespace SessionProcessor {
                   attempts: fallbackAttempts,
                   triedCount: triedVectors.size,
                 })
+                debugCheckpoint("syslog.rotation", "CIRCUIT BREAKER: max fallback attempts exceeded", {
+                  sessionID: input.sessionID,
+                  fallbackAttempts,
+                  triedVectors: Array.from(triedVectors),
+                  note: "stopping rotation to avoid server-side abuse detection",
+                })
               } else {
                 const fallback = await LLM.handleRateLimitFallback(
                   streamInput.model,
@@ -728,6 +800,7 @@ export namespace SessionProcessor {
                     streamInput.user.model.accountId,
                 )
                 if (fallback) {
+                  consecutiveNullFallbacks = 0
                   log.info("Switching to fallback model (temporary error)", {
                     from: streamInput.model.id,
                     to: fallback.model.id,
@@ -773,6 +846,28 @@ export namespace SessionProcessor {
                   attempt = 0
                   await new Promise((resolve) => setTimeout(resolve, 100))
                   continue
+                } else {
+                  // Circuit breaker: no fallback available — all accounts exhausted
+                  consecutiveNullFallbacks++
+                  debugCheckpoint("syslog.rotation", "no fallback available (accounts exhausted)", {
+                    sessionID: input.sessionID,
+                    consecutiveNullFallbacks,
+                    fallbackAttempts,
+                    triedVectors: Array.from(triedVectors),
+                  })
+                  if (consecutiveNullFallbacks >= MAX_CONSECUTIVE_NULL_FALLBACKS) {
+                    log.error("All accounts exhausted, stopping rotation to prevent abuse detection", {
+                      consecutiveNullFallbacks,
+                      fallbackAttempts,
+                      triedCount: triedVectors.size,
+                    })
+                    debugCheckpoint("syslog.rotation", "CIRCUIT BREAKER: all accounts exhausted, surfacing error", {
+                      sessionID: input.sessionID,
+                      consecutiveNullFallbacks,
+                      fallbackAttempts,
+                    })
+                    // Fall through to normal error handling below
+                  }
                 }
               }
             }
@@ -808,6 +903,7 @@ export namespace SessionProcessor {
                     streamInput.user.model.accountId,
                 )
                 if (fallback) {
+                  consecutiveNullFallbacks = 0
                   log.info("Switching to fallback model (permanent error)", {
                     from: streamInput.model.id,
                     to: fallback.model.id,
@@ -853,6 +949,15 @@ export namespace SessionProcessor {
                   attempt = 0
                   await new Promise((resolve) => setTimeout(resolve, 100))
                   continue
+                } else {
+                  consecutiveNullFallbacks++
+                  if (consecutiveNullFallbacks >= MAX_CONSECUTIVE_NULL_FALLBACKS) {
+                    log.error("All accounts exhausted on permanent error, surfacing to user", {
+                      consecutiveNullFallbacks,
+                      fallbackAttempts,
+                    })
+                    // Fall through to normal error handling
+                  }
                 }
               }
             }

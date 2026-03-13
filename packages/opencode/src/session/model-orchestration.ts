@@ -5,6 +5,7 @@ import { getHealthTracker, getRateLimitTracker } from "@/account/rotation"
 import { ProviderHealth } from "@/provider/health"
 import { Session } from "./index"
 import { MessageV2 } from "./message-v2"
+import { debugCheckpoint } from "@/util/debug"
 
 type RotationPurpose = "coding" | "reasoning" | "image" | "docs" | "audio" | "video" | "long-context" | "generic"
 
@@ -56,8 +57,30 @@ function constrainToSessionIdentity<T extends { providerId: string; modelID: str
 ): T | undefined {
   const inherited = inheritAccountId(model, fallbackModel)
   if (!fallbackModel.accountId) return inherited
-  if (inherited.providerId !== fallbackModel.providerId) return undefined
-  if (inherited.accountId && inherited.accountId !== fallbackModel.accountId) return undefined
+  if (inherited.providerId !== fallbackModel.providerId) {
+    // SYSLOG: Subagent cross-provider blocked
+    debugCheckpoint("syslog.subagent", "constrainToSessionIdentity: blocked cross-provider", {
+      candidateProviderId: model.providerId,
+      candidateModelID: model.modelID,
+      candidateAccountId: model.accountId,
+      parentProviderId: fallbackModel.providerId,
+      parentAccountId: fallbackModel.accountId,
+      note: "subagent tried different provider than parent — blocked by session identity constraint",
+    })
+    return undefined
+  }
+  if (inherited.accountId && inherited.accountId !== fallbackModel.accountId) {
+    // SYSLOG: Subagent cross-account blocked
+    debugCheckpoint("syslog.subagent", "constrainToSessionIdentity: blocked cross-account", {
+      candidateProviderId: model.providerId,
+      candidateModelID: model.modelID,
+      candidateAccountId: inherited.accountId,
+      parentProviderId: fallbackModel.providerId,
+      parentAccountId: fallbackModel.accountId,
+      note: "subagent tried different account than parent — blocked by session identity constraint",
+    })
+    return undefined
+  }
   return {
     ...inherited,
     accountId: fallbackModel.accountId,
@@ -145,6 +168,14 @@ export async function orchestrateModelSelection(input: {
     candidates: [],
   }
 
+  // SYSLOG: Log orchestration input for subagent diagnosis (Bug #3)
+  debugCheckpoint("syslog.subagent", "orchestrateModelSelection: input", {
+    agentName: input.agentName,
+    explicitModel: input.explicitModel,
+    agentModel: input.agentModel,
+    fallbackModel: input.fallbackModel,
+  })
+
   if (input.explicitModel) {
     const explicitModel = constrainToSessionIdentity(input.explicitModel, input.fallbackModel)
     if (explicitModel) {
@@ -204,6 +235,14 @@ export async function orchestrateModelSelection(input: {
   }
 
   trace.selected = { ...input.fallbackModel, source: "fallback_forced" }
+  // SYSLOG: All candidates exhausted, forced fallback
+  debugCheckpoint("syslog.subagent", "orchestrateModelSelection: forced fallback (all candidates failed)", {
+    agentName: input.agentName,
+    selected: trace.selected,
+    candidates: trace.candidates,
+    fallbackModel: input.fallbackModel,
+    note: "no operational model found — forced to use fallback regardless of health/ratelimit",
+  })
   return { model: input.fallbackModel, trace }
 }
 
