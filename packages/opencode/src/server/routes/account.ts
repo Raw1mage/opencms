@@ -178,7 +178,15 @@ export const AccountRoutes = lazy(() =>
           family: z.string().meta({ description: "Deprecated path param alias of providerKey" }),
         }),
       ),
-      validator("json", z.object({ accountId: z.string(), providerKey: z.string().optional() })),
+      validator(
+        "json",
+        z.object({
+          accountId: z.string().meta({ description: "Target account ID under the selected provider key" }),
+          providerKey: z.string().optional().meta({
+            description: "Canonical provider key alias; must match legacy :family route param when provided",
+          }),
+        }),
+      ),
       async (c) => {
         const providerKey = c.req.valid("param").family
         const { accountId, providerKey: requestedProviderKey } = c.req.valid("json")
@@ -226,7 +234,14 @@ export const AccountRoutes = lazy(() =>
           family: z.string().meta({ description: "Deprecated path param alias of providerKey" }),
         }),
       ),
-      validator("query", z.object({ providerKey: z.string().optional() })),
+      validator(
+        "query",
+        z.object({
+          providerKey: z.string().optional().meta({
+            description: "Canonical provider key alias; must match legacy :family route param when provided",
+          }),
+        }),
+      ),
       async (c) => {
         const providerKey = c.req.valid("param").family
         const { providerKey: requestedProviderKey } = c.req.valid("query")
@@ -276,7 +291,14 @@ export const AccountRoutes = lazy(() =>
           accountId: z.string(),
         }),
       ),
-      validator("query", z.object({ providerKey: z.string().optional() })),
+      validator(
+        "query",
+        z.object({
+          providerKey: z.string().optional().meta({
+            description: "Canonical provider key alias; must match legacy :family route param when provided",
+          }),
+        }),
+      ),
       async (c) => {
         const { family: providerKey, accountId } = c.req.valid("param")
         const { providerKey: requestedProviderKey } = c.req.valid("query")
@@ -337,7 +359,9 @@ export const AccountRoutes = lazy(() =>
         "json",
         z.object({
           name: z.string().min(1),
-          providerKey: z.string().optional(),
+          providerKey: z.string().optional().meta({
+            description: "Canonical provider key alias; must match legacy :family route param when provided",
+          }),
         }),
       ),
       async (c) => {

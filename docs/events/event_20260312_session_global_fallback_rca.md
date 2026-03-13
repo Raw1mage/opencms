@@ -1428,6 +1428,25 @@
 - Architecture Sync: Verified (No doc changes)
   - test-only coverage expansion; no runtime behavior changes
 
+## Follow-up Fix: provider-key migration batch 28 (account OpenAPI request metadata consistency)
+
+- Goal:
+  - align account mutation/login request parameter metadata with canonical providerKey semantics in OpenAPI source annotations
+  - keep runtime behavior and legacy `:family` route compatibility unchanged
+- Updated files:
+  - `packages/opencode/src/server/routes/account.ts`
+  - `docs/events/event_20260312_session_global_fallback_rca.md`
+- Applied changes:
+  - added/expanded request field metadata descriptions for account route validators:
+    - `providerKey` request aliases now explicitly described as canonical key aliases that must match legacy `:family`
+    - `accountId` request field description clarified under provider-key context
+  - no route/path/schema removals; additive description-only contract clarification
+- Validation:
+  - `bun run lint -- /home/pkcs12/projects/opencode/packages/opencode/src/server/routes/account.ts` ✅
+  - `bun test /home/pkcs12/projects/opencode/packages/opencode/test/server/account-providerkey-compat.test.ts --timeout 30000` ✅
+- Architecture Sync: Verified (No doc changes)
+  - OpenAPI metadata consistency only; runtime behavior unchanged
+
 ## Follow-up Note: compatibility test boundary clarification
 
 - Observation:
