@@ -444,6 +444,26 @@ export function selectBestFallback(
 
   const best = scored[0]
   if (best) {
+    // CHECKPOINT: ivon0829 tracker — fire when rotation selects this account
+    if (best.accountId && best.accountId.includes("ivon0829")) {
+      debugCheckpoint("syslog.ivon0829", "⚠ ivon0829 selected by rotation3d fallback", {
+        from: makeKey(current),
+        to: makeKey(best),
+        reason: best.reason,
+        priority: best.priority,
+        healthScore: best.healthScore,
+        purpose,
+        candidatesCount: candidates.length,
+        availableCount: available.length,
+        topScored: scored.slice(0, 5).map((c) => ({
+          key: makeKey(c),
+          priority: c.priority,
+          healthScore: c.healthScore,
+          reason: c.reason,
+        })),
+      })
+    }
+
     best.from = current
     log.info("Selected fallback", {
       from: makeKey(current),

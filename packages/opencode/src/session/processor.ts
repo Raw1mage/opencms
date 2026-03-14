@@ -221,6 +221,25 @@ export namespace SessionProcessor {
                 fallbackAttempts,
               })
 
+              // CHECKPOINT: ivon0829 tracker — fire whenever this account is resolved
+              if (accountId && accountId.includes("ivon0829")) {
+                debugCheckpoint("syslog.ivon0829", "⚠ ivon0829 resolved in processor preflight", {
+                  sessionID: input.sessionID,
+                  providerId: streamInput.model.providerId,
+                  modelID: streamInput.model.id,
+                  accountId,
+                  source: sessionPinnedAccountId ? "session-pinned" : "global-active",
+                  pinChain: {
+                    streamInputAccountId: streamInput.accountId,
+                    inputAccountId: input.accountId,
+                    assistantMessageAccountId: input.assistantMessage.accountId,
+                    userMessageAccountId: streamInput.user.model.accountId,
+                  },
+                  fallbackAttempts,
+                  stack: new Error().stack,
+                })
+              }
+
               if (!sessionPinnedAccountId && accountId) {
                 debugCheckpoint("rotation3d", "Pre-flight fell back to global active account", {
                   providerId: streamInput.model.providerId,
@@ -340,6 +359,36 @@ export namespace SessionProcessor {
                         fallbackAttempts,
                         note: "preflight switched away from rate-limited vector",
                       })
+                    } else {
+                      // FIX(Bug #5): Pre-flight null fallback — all same-identity candidates
+                      // are exhausted. Surface error and stop instead of proceeding to call
+                      // LLM.stream with a known rate-limited vector (which would just fail again).
+                      log.error("Pre-flight: no fallback available, all accounts rate-limited", {
+                        providerId: streamInput.model.providerId,
+                        modelID: streamInput.model.id,
+                        accountId,
+                        sessionID: input.sessionID,
+                      })
+                      debugCheckpoint("syslog.rotation", "CIRCUIT BREAKER: pre-flight no fallback, surfacing error", {
+                        sessionID: input.sessionID,
+                        providerId: streamInput.model.providerId,
+                        modelID: streamInput.model.id,
+                        accountId,
+                        fallbackAttempts,
+                        note: "all same-identity candidates exhausted at pre-flight, stopping",
+                      })
+                      const rateLimitError = new Error(
+                        `All accounts for ${streamInput.model.providerId} are rate-limited. Please wait a few minutes.`,
+                      )
+                      input.assistantMessage.error = MessageV2.fromError(rateLimitError, {
+                        providerId: streamInput.model.providerId,
+                      })
+                      Bus.publish(Session.Event.Error, {
+                        sessionID: input.assistantMessage.sessionID,
+                        error: input.assistantMessage.error,
+                      })
+                      SessionStatus.set(input.sessionID, { type: "idle" })
+                      break
                     }
                   }
                 }
@@ -845,6 +894,14 @@ export namespace SessionProcessor {
                   triedVectors: Array.from(triedVectors),
                   note: "stopping rotation to avoid server-side abuse detection",
                 })
+                // Surface error and stop — do NOT fall through to SessionRetry
+                input.assistantMessage.error = MessageV2.fromError(e, { providerId: input.model.providerId })
+                Bus.publish(Session.Event.Error, {
+                  sessionID: input.assistantMessage.sessionID,
+                  error: input.assistantMessage.error,
+                })
+                SessionStatus.set(input.sessionID, { type: "idle" })
+                break
               } else {
                 const fallback = await LLM.handleRateLimitFallback(
                   streamInput.model,
@@ -924,7 +981,17 @@ export namespace SessionProcessor {
                       consecutiveNullFallbacks,
                       fallbackAttempts,
                     })
-                    // Fall through to normal error handling below
+                    // Surface error and stop — do NOT fall through to SessionRetry
+                    // which would cause an infinite retry loop when session identity
+                    // blocks cross-provider rotation and all same-provider accounts
+                    // are rate-limited.
+                    input.assistantMessage.error = MessageV2.fromError(e, { providerId: input.model.providerId })
+                    Bus.publish(Session.Event.Error, {
+                      sessionID: input.assistantMessage.sessionID,
+                      error: input.assistantMessage.error,
+                    })
+                    SessionStatus.set(input.sessionID, { type: "idle" })
+                    break
                   }
                 }
               }
@@ -1015,7 +1082,14 @@ export namespace SessionProcessor {
                       consecutiveNullFallbacks,
                       fallbackAttempts,
                     })
-                    // Fall through to normal error handling
+                    // Surface error and stop — same fix as temporary error path
+                    input.assistantMessage.error = MessageV2.fromError(e, { providerId: input.model.providerId })
+                    Bus.publish(Session.Event.Error, {
+                      sessionID: input.assistantMessage.sessionID,
+                      error: input.assistantMessage.error,
+                    })
+                    SessionStatus.set(input.sessionID, { type: "idle" })
+                    break
                   }
                 }
               }

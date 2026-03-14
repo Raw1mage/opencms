@@ -24,11 +24,12 @@ Workspace: /home/pkcs12/projects/opencode
 1. **Phase 1 — 崩潰 (Bug 1 + Bug 3)**：subagent 啟動 → fetch wrapper per-request overhead + 前端 reactive cascade → server 100% CPU → 死亡 → 504/502
 2. **Phase 2 — 修復崩潰但仍卡慢**：移除 fetch wrapper + console.log 後 server 不再死亡，但 idle CPU 仍 38%，思考鏈仍需 5-11 分鐘
 3. **Phase 3 — 定位 Bus event storm (Bug 2)**：`pinExecutionIdentity` 5×/loop 無條件 publish → Storage I/O + SSE + snapshot scan 飽和 event loop → LLM stream 延遲
-4. **Phase 4 — 修復後 idle CPU <11%**，思考鏈恢復正常
+4. **Phase 4 — 修復 Bus storm 後 idle CPU <11%**，思考鏈恢復正常
+5. **Phase 5 — 發現靜默 retry loop (Bug 4)**：session identity 阻止跨 provider rotation + 所有同 provider accounts rate limited → circuit breaker 只 log 不 break → 無限 retry → CPU 72% + 前端無任何 error toast
 
 ## Root Cause
 
-三個獨立 bug，均由 commit `a17ee24602` (fix(web): make MCP session open switch sessions via loopback control) 及同期 session identity 系列 commits 引入：
+四個獨立 bug，均由 commit `a17ee24602` (fix(web): make MCP session open switch sessions via loopback control) 及同期 session identity 系列 commits (`327c53e4d7`, `d089d94731`) 引入：
 
 ### Bug 1: server.ts — fetch wrapper causes event loop blocking (致命)
 
@@ -124,6 +125,22 @@ const resolveScopedSelection = (sessionID?: string) => {
 
 **修復**：移除 debug console.log，直接 return。
 
+### Bug 4: processor.ts — circuit breaker 只 log 不 break（靜默 infinite retry）
+
+Processor 的 `while(true)` loop 中有三層 circuit breaker，但第 2、3 層**只 log 不 break**：
+
+| Circuit Breaker | 設計意圖 | Bug |
+|---|---|---|
+| `MAX_CONSECUTIVE_ERRORS` (5) | 連續失敗就停 | ✅ 有 break |
+| `MAX_FALLBACK_ATTEMPTS` (8) | fallback 太多次就停 | ❌ 只 log，fall through 到 `SessionRetry.retryable()` → `continue` |
+| `MAX_CONSECUTIVE_NULL_FALLBACKS` (2) | 帳號耗盡就停 | ❌ 只 log，fall through 到 `SessionRetry.retryable()` → `continue` |
+
+rate limit error → `isModelTemporaryError` → 找不到 fallback（session identity 阻止跨 provider） → circuit breaker 觸發但不 break → fall through → `SessionRetry.retryable()` 回傳 truthy → `continue` → 永遠不會到達 `Bus.publish(Error)` → **前端永遠收不到 error toast**。
+
+每次重試都呼叫 `findFallback3D()` 掃描 153 個 candidates → 瘋狂讀 `rotation-state.json` → idle CPU 72% → 思考鏈卡慢。
+
+**修復**：三個 circuit breaker 觸發後都加上 `Bus.publish(Error)` + `SessionStatus.set("idle")` + `break`，確保 error 被 surface 到前端且 loop 停止。
+
 ## Files Changed
 
 | File | Change |
@@ -132,6 +149,7 @@ const resolveScopedSelection = (sessionID?: string) => {
 | `packages/opencode/src/server/web-auth.ts` | `isTrustedLoopbackRequest` 不再依賴 injected header，改為純 URL hostname + proxy header 檢查 |
 | `packages/app/src/context/local.tsx` | 移除 `resolveScopedSelection` 中的 `console.log` |
 | `packages/opencode/src/session/index.ts` | `pinExecutionIdentity` 增加 identity 比較，unchanged 時跳過 update/Bus 事件 |
+| `packages/opencode/src/session/processor.ts` | 三個 circuit breaker 都加上 error surfacing + `break`，防止靜默 infinite retry |
 
 ## Lessons Learned
 
@@ -141,3 +159,5 @@ const resolveScopedSelection = (sessionID?: string) => {
 4. **CPU 100% + server alive (health OK) ≠ server working** — 如果 event loop 被阻塞，health endpoint 可能偶爾回應但所有業務請求都 timeout。監控應結合 CPU% 和 request latency。
 5. **idempotent guard 對 hot-path 函數至關重要** — `pinExecutionIdentity` 被呼叫 5×/loop，每次無條件觸發 Storage write + Bus publish + SSE push + 前端 snapshot scan。加上 `sameExecutionIdentity` 比較後，99% 的呼叫直接 return，idle CPU 從 38% 降到 <11%。
 6. **Bus event cascade 是隱形殺手** — 後端發一個 `session.updated` → SSE → 前端 debounce timer reset → snapshot scan。高頻事件讓 debounce 失效（timer 不斷被 clear/reset），最終前端和後端都飽和。
+7. **Circuit breaker 必須 break** — 只 log 不 break 的 circuit breaker 是假安全感。在 `while(true)` loop 中，任何 `continue` 路徑都必須確認所有 circuit breaker 已經被正確處理。Fall through 到 retry 邏輯的 comment 是危險的 — 因為 retry 邏輯本身也是 `continue`。
+8. **靜默失敗比崩潰更危險** — 用戶無法從 UI 得知系統在做無意義的 retry。所有 circuit breaker 觸發時都必須 surface error 到前端（`Bus.publish(Error)` + toast notification），而非僅寫 server log。

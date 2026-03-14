@@ -141,6 +141,20 @@ export namespace LLM {
     if (!input.accountId && currentAccountId) {
       input.accountId = currentAccountId
     }
+    // CHECKPOINT: ivon0829 tracker
+    if (currentAccountId && currentAccountId.includes("ivon0829")) {
+      debugCheckpoint("syslog.ivon0829", "⚠ ivon0829 resolved in LLM.stream", {
+        sessionID: input.sessionID,
+        providerId: input.model.providerId,
+        modelID: input.model.id,
+        accountId: currentAccountId,
+        source: sessionPinnedAccountId ? "session-pinned" : "global-active",
+        inputAccountId: input.accountId,
+        userMessageAccountId: input.user.model.accountId,
+        stack: new Error().stack,
+      })
+    }
+
     if (!sessionPinnedAccountId && currentAccountId) {
       debugCheckpoint("llm", "LLM.stream fell back to global active account", {
         providerId: input.model.providerId,
@@ -680,7 +694,7 @@ export namespace LLM {
     // Use 3D rotation to find best fallback
     // Same-provider account rotation is guarded by SameProviderRotationGuard
     // (max once per cooldown). Cross-provider rotation is unrestricted.
-    const fallback = await findFallback(currentVector, { strategy, allowSameProviderFallback: true }, triedVectors)
+    let fallback = await findFallback(currentVector, { strategy, allowSameProviderFallback: true }, triedVectors)
 
     // SYSLOG: Log findFallback result
     debugCheckpoint("syslog.rotation", "handleRateLimitFallback: findFallback returned", {
@@ -706,40 +720,73 @@ export namespace LLM {
     // FIX: Enforce session identity constraint — when a session has pinned
     // provider/account, rotation must NOT escape to a different provider or
     // account. This prevents subagent account drift during rate-limit rotation.
-    if (sessionIdentity?.accountId) {
-      if (fallback.providerId !== sessionIdentity.providerId) {
-        debugCheckpoint("syslog.rotation", "handleRateLimitFallback: blocked cross-provider by session identity", {
+    //
+    // FIX(Bug #5): Use iterative loop instead of recursion to avoid O(N)
+    // recursive findFallback3D calls (each doing synchronous file I/O).
+    // Session identity blocks most candidates → recursion scanned 179 vectors
+    // → 179 synchronous readFileSync of rotation-state.json → event loop blocked.
+    const MAX_IDENTITY_FILTER_ITERATIONS = 20
+    let identityFilterIterations = 0
+    let currentFallback: typeof fallback | null = fallback
+    while (currentFallback && sessionIdentity?.accountId && identityFilterIterations < MAX_IDENTITY_FILTER_ITERATIONS) {
+      const blocked =
+        currentFallback.providerId !== sessionIdentity.providerId ||
+        currentFallback.accountId !== sessionIdentity.accountId
+      if (!blocked) break
+
+      const reason = currentFallback.providerId !== sessionIdentity.providerId ? "cross-provider" : "cross-account"
+      if (identityFilterIterations === 0) {
+        debugCheckpoint("syslog.rotation", `handleRateLimitFallback: filtering ${reason} candidates by session identity`, {
           sessionIdentity,
-          fallback: `${fallback.providerId}:${fallback.accountId}:${fallback.modelID}`,
-          note: "session has pinned identity — cross-provider rotation blocked",
+          firstBlocked: `${currentFallback.providerId}:${currentFallback.accountId}:${currentFallback.modelID}`,
         })
-        const fallbackKey = `${fallback.providerId}:${fallback.accountId}:${fallback.modelID}`
-        triedVectors.add(fallbackKey)
-        return handleRateLimitFallback(currentModel, strategy, triedVectors, error, currentAccountId, sessionIdentity)
       }
-      if (fallback.accountId !== sessionIdentity.accountId) {
-        debugCheckpoint("syslog.rotation", "handleRateLimitFallback: blocked cross-account by session identity", {
-          sessionIdentity,
-          fallback: `${fallback.providerId}:${fallback.accountId}:${fallback.modelID}`,
-          note: "session has pinned identity — cross-account rotation blocked, model-only rotation allowed",
-        })
-        const fallbackKey = `${fallback.providerId}:${fallback.accountId}:${fallback.modelID}`
-        triedVectors.add(fallbackKey)
-        return handleRateLimitFallback(currentModel, strategy, triedVectors, error, currentAccountId, sessionIdentity)
-      }
+
+      const blockedKey = `${currentFallback.providerId}:${currentFallback.accountId}:${currentFallback.modelID}`
+      triedVectors.add(blockedKey)
+      identityFilterIterations++
+
+      // Get next candidate without recursion
+      const nextFallback = await findFallback(
+        { providerId: currentModel.providerId, accountId: currentAccountId, modelID: currentModel.id },
+        { strategy, allowSameProviderFallback: true },
+        triedVectors,
+      )
+      currentFallback = nextFallback
     }
+
+    if (identityFilterIterations >= MAX_IDENTITY_FILTER_ITERATIONS) {
+      debugCheckpoint("syslog.rotation", "handleRateLimitFallback: identity filter exhausted max iterations", {
+        sessionIdentity,
+        iterations: identityFilterIterations,
+        triedCount: triedVectors.size,
+        note: "all same-identity candidates exhausted",
+      })
+      return null
+    }
+
+    if (!currentFallback) {
+      debugCheckpoint("syslog.rotation", "handleRateLimitFallback: no same-identity fallback found", {
+        sessionIdentity,
+        identityFilterIterations,
+        triedCount: triedVectors.size,
+      })
+      return null
+    }
+
+    // Use the identity-filtered fallback from here on
+    fallback = currentFallback
 
     // Add the selected fallback to tried vectors to avoid immediate retry in subsequent attempts
     const fallbackKey = `${fallback.providerId}:${fallback.accountId}:${fallback.modelID}`
 
     // Check if this fallback has already been tried (should be caught by findFallback, but as a safeguard)
     if (triedVectors.has(fallbackKey)) {
-      log.warn("Fallback already tried after selection, attempting to find another", {
+      log.warn("Fallback already tried after selection", {
         fallback: fallbackKey,
         triedCount: triedVectors.size,
       })
-      // If it has been tried, recursively call again to find a *new* fallback
-      return handleRateLimitFallback(currentModel, strategy, triedVectors, error, currentAccountId, sessionIdentity)
+      return null
     }
 
     // Mark as tried
