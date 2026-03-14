@@ -8,6 +8,7 @@ import os from "os"
 import path from "path"
 import { fileURLToPath } from "url"
 import { validateForkResult, validateForkSource } from "./system-manager-session"
+import { patchSessionExecutionViaApi, patchSessionViaApi } from "./system-manager-http"
 
 const execAsync = promisify(exec)
 
@@ -281,24 +282,71 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: { type: "object", properties: {} },
       },
       {
-        name: "switch_account",
-        description: "Switch active account for a family.",
+        name: "switch_session",
+        description:
+          "Switch the active/visible session by sessionID. Treat natural-language requests like 'open that session' or 'switch to session X' as session-based navigation. If the target session is ambiguous, ask with question first. Do not silently guess a session.",
         inputSchema: {
           type: "object",
-          properties: { family: { type: "string" }, accountId: { type: "string" } },
-          required: ["family", "accountId"],
+          properties: { sessionID: { type: "string" } },
+          required: ["sessionID"],
         },
       },
       {
         name: "switch_model",
-        description: "Switch the global default model by updating recent models list.",
+        description:
+          "Switch the model for a session's execution context. This is always session-based; there is no global model switch here. Natural-language requests like 'switch to 5.2' should resolve against the current session context first. If multiple models match, ask with question. Do not silently fallback or guess.",
         inputSchema: {
           type: "object",
           properties: {
+            sessionID: { type: "string" },
             providerId: { type: "string" },
             modelID: { type: "string" },
+            accountId: { type: "string" },
           },
-          required: ["providerId", "modelID"],
+          required: ["sessionID", "modelID"],
+        },
+      },
+      {
+        name: "switch_account",
+        description:
+          "Switch the account for a session's execution context. This is always session-based; there is no global active-account switch here. If the session already has a provider/model, the agent may reuse that execution context when unambiguous. If the target account or provider is ambiguous, ask with question instead of guessing.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            sessionID: { type: "string" },
+            family: { type: "string" },
+            accountId: { type: "string" },
+            modelID: { type: "string" },
+          },
+          required: ["sessionID", "family", "accountId"],
+        },
+      },
+      {
+        name: "switch_provider",
+        description:
+          "Switch the provider for a session's execution context. This is always session-based. Provider and model are coupled operationally, so the target model should be explicit or unambiguous. If the user only says 'switch provider' without a clear model choice, ask with question. Do not invent a cross-provider fallback.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            sessionID: { type: "string" },
+            providerId: { type: "string" },
+            modelID: { type: "string" },
+            accountId: { type: "string" },
+          },
+          required: ["sessionID", "providerId", "modelID"],
+        },
+      },
+      {
+        name: "rename_session",
+        description:
+          "Rename a session. This is a session-based metadata update for requests like 'rename this session to X'. If the new title is missing or unclear, ask with question rather than inventing one.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            sessionID: { type: "string" },
+            title: { type: "string" },
+          },
+          required: ["sessionID", "title"],
         },
       },
       {
@@ -380,24 +428,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "manage_session",
-        description: "Manage opencode sessions (rename, fork, summarize, undo, redo, create, open, list, search).",
+        description:
+          "Manage opencode sessions for non-switching operations (fork, summarize, undo, redo, create, list, search). Use switch_session / rename_session / switch_model / switch_account / switch_provider for session-based control actions. If a user asks in natural language to switch session/provider/account/model or rename a session, prefer those dedicated tools over manage_session.",
         inputSchema: {
           type: "object",
           properties: {
             operation: {
               type: "string",
-              enum: ["rename", "fork", "summarize", "undo", "redo", "create", "open", "list", "search"],
+              enum: ["fork", "summarize", "undo", "redo", "create", "list", "search"],
             },
             sessionID: { type: "string" },
-            title: { type: "string", description: "New title for rename" },
             messageID: { type: "string", description: "Message ID to fork from" },
             query: { type: "string", description: "Search keyword for session titles (used with 'search' operation)" },
             limit: { type: "number", description: "Max results for search (default 10)" },
-            mode: {
-              type: "string",
-              description:
-                "Optional dispatch hint for open. Session selection is routed through /api/v2/tui/select-session, which emits shared tui.session.select event consumed by both TUI and Web.",
-            },
           },
           required: ["operation"],
         },
@@ -538,36 +581,120 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
     }
 
+    if (name === "switch_session") {
+      const { sessionID } = args as { sessionID: string }
+      const session = JSON.parse(await fs.readFile(path.join(STORAGE_BASE, "session", sessionID, "info.json"), "utf-8"))
+      const dir = session.directory ?? ""
+      const dirBase64 = Buffer.from(dir).toString("base64")
+      const baseUrl = await getServerApiBaseUrl()
+      const headers = await getServerRequestHeaders("POST")
+      headers.set("Content-Type", "application/json")
+      const response = await fetch(`${baseUrl}/tui/select-session`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ sessionID }),
+      })
+      if (!response.ok) throw new Error(`Failed to switch session ${sessionID}: HTTP ${response.status}`)
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Switched to session ${sessionID}\nTitle: ${session.title ?? "(untitled)"}\nURL: /${dirBase64}/session/${sessionID}`,
+          },
+        ],
+      }
+    }
+
     if (name === "switch_account") {
-      const { family, accountId } = args as { family: string; accountId: string }
-      const raw = await fs.readFile(ACCOUNTS_PATH, "utf-8")
-      const accounts = JSON.parse(raw)
-      if (!accounts.families[family]) throw new Error(`Family ${family} not found`)
-      accounts.families[family].activeAccount = accountId
-      await fs.writeFile(ACCOUNTS_PATH, JSON.stringify(accounts, null, 2))
-      return { content: [{ type: "text", text: `Switched ${family} to ${accountId}` }] }
+      const { sessionID, family, accountId, modelID } = args as {
+        sessionID: string
+        family: string
+        accountId: string
+        modelID?: string
+      }
+      const session = JSON.parse(await fs.readFile(path.join(STORAGE_BASE, "session", sessionID, "info.json"), "utf-8"))
+      const currentExecution = session.execution ?? {}
+      const nextModelID = modelID ?? currentExecution.modelID
+      if (!nextModelID) throw new Error("modelID is required when session has no existing execution model")
+      const baseUrl = await getServerApiBaseUrl()
+      const headers = await getServerRequestHeaders("PATCH")
+      await patchSessionExecutionViaApi({
+        fetchImpl: fetch as any,
+        baseUrl,
+        headers,
+        sessionID,
+        providerId: family,
+        modelID: nextModelID,
+        accountId,
+      })
+      return {
+        content: [{ type: "text", text: `Switched session ${sessionID} account to ${accountId} under ${family}` }],
+      }
     }
 
     if (name === "switch_model") {
-      const { providerId, modelID } = args as { providerId: string; modelID: string }
-      let data: any = { recent: [], favorite: [], hidden: [], hiddenProviders: [], variant: {} }
-      try {
-        const raw = await fs.readFile(MODEL_STATE_PATH, "utf-8")
-        data = JSON.parse(raw)
-      } catch (e) {}
-
-      // Update recent: Move to front or add if new
-      const index = data.recent.findIndex((m: any) => m.providerId === providerId && m.modelID === modelID)
-      if (index !== -1) {
-        data.recent.splice(index, 1)
+      const { sessionID, providerId, modelID, accountId } = args as {
+        sessionID: string
+        providerId?: string
+        modelID: string
+        accountId?: string
       }
-      data.recent.unshift({ providerId, modelID })
+      const session = JSON.parse(await fs.readFile(path.join(STORAGE_BASE, "session", sessionID, "info.json"), "utf-8"))
+      const currentExecution = session.execution ?? {}
+      const nextProviderId = providerId ?? currentExecution.providerId
+      if (!nextProviderId) throw new Error("providerId is required when session has no existing execution provider")
+      const baseUrl = await getServerApiBaseUrl()
+      const headers = await getServerRequestHeaders("PATCH")
+      await patchSessionExecutionViaApi({
+        fetchImpl: fetch as any,
+        baseUrl,
+        headers,
+        sessionID,
+        providerId: nextProviderId,
+        modelID,
+        accountId: accountId ?? currentExecution.accountId,
+      })
+      return {
+        content: [{ type: "text", text: `Switched session ${sessionID} model to ${nextProviderId}:${modelID}` }],
+      }
+    }
 
-      // Limit recent to 10
-      data.recent = data.recent.slice(0, 10)
+    if (name === "switch_provider") {
+      const { sessionID, providerId, modelID, accountId } = args as {
+        sessionID: string
+        providerId: string
+        modelID: string
+        accountId?: string
+      }
+      const baseUrl = await getServerApiBaseUrl()
+      const headers = await getServerRequestHeaders("PATCH")
+      await patchSessionExecutionViaApi({
+        fetchImpl: fetch as any,
+        baseUrl,
+        headers,
+        sessionID,
+        providerId,
+        modelID,
+        accountId,
+      })
+      return {
+        content: [{ type: "text", text: `Switched session ${sessionID} provider to ${providerId} (${modelID})` }],
+      }
+    }
 
-      await fs.writeFile(MODEL_STATE_PATH, JSON.stringify(data, null, 2))
-      return { content: [{ type: "text", text: `Switched global model to ${providerId}:${modelID}` }] }
+    if (name === "rename_session") {
+      const { sessionID, title } = args as { sessionID: string; title: string }
+      const baseUrl = await getServerApiBaseUrl()
+      const headers = await getServerRequestHeaders("PATCH")
+      await patchSessionViaApi({
+        fetchImpl: fetch as any,
+        baseUrl,
+        headers,
+        sessionID,
+        body: { title },
+        errorPrefix: `Failed to rename session ${sessionID}`,
+      })
+      return { content: [{ type: "text", text: `Renamed session ${sessionID} to "${title}"` }] }
     }
 
     if (name === "get_favorites") {
@@ -782,49 +909,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: "Creating new session UI..." }] }
       }
 
-      if (operation === "open") {
-        if (!sessionID) throw new Error("sessionID is required for open operation")
-        const session = JSON.parse(
-          await fs.readFile(path.join(STORAGE_BASE, "session", sessionID, "info.json"), "utf-8"),
-        )
-        const dir = session.directory ?? ""
-        const dirBase64 = Buffer.from(dir).toString("base64")
-        const baseUrl = await getServerApiBaseUrl()
-        const headers = await getServerRequestHeaders("POST")
-        headers.set("Content-Type", "application/json")
-        const response = await fetch(`${baseUrl}/tui/select-session`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ sessionID }),
-        })
-        if (!response.ok) {
-          if (response.status === 401 || response.status === 403) {
-            throw new Error(
-              `Failed to open session ${sessionID}: server auth rejected request (${response.status}). Provide OPENCODE_SERVER_PASSWORD env for Basic Auth, or use an authenticated Web session path.`,
-            )
-          }
-          throw new Error(`Failed to open session ${sessionID}: /tui/select-session returned HTTP ${response.status}`)
-        }
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Dispatched TUI session selection: ${sessionID}\nTitle: ${session.title ?? "(untitled)"}\nURL: /${dirBase64}/session/${sessionID}`,
-            },
-          ],
-        }
-      }
-
       if (!sessionID) throw new Error("sessionID is required for this operation")
       const sessionInfoPath = `${STORAGE_BASE}/session/${sessionID}/info.json`
-
-      if (operation === "rename") {
-        if (!title) throw new Error("Title is required for rename")
-        const session = JSON.parse(await fs.readFile(sessionInfoPath, "utf-8"))
-        session.title = title
-        await fs.writeFile(sessionInfoPath, JSON.stringify(session, null, 2))
-        return { content: [{ type: "text", text: `Renamed session ${sessionID} to "${title}"` }] }
-      }
 
       if (operation === "undo") {
         const messageDir = `${STORAGE_BASE}/message/${sessionID}`

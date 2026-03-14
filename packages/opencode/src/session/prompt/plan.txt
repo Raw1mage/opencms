@@ -26,6 +26,10 @@ The implementation spec is not a loose summary. It must become a standardized ex
 Use this exact section order in `implementation-spec.md`: `## Goal`, `## Scope`, `## Assumptions`, `## Stop Gates`, `## Critical Files`, `## Structured Execution Phases`, `## Validation`, `## Handoff`.
 
 Ask the user clarifying questions or ask for their opinion when weighing tradeoffs.
+- Default to MCP question with structured multiple-choice options whenever the missing detail is a bounded planning decision with 2-5 plausible paths.
+- Prefer choice-based MCP question prompts for scope, priority, approval posture, validation target, and delegation strategy.
+- Use freeform clarification only when the user truly needs to provide open-ended domain context that cannot be represented as fixed options.
+- Do not ask plain conversational clarification when a structured question choice would work.
 
 **NOTE:** At any point in time through this workflow you should feel free to ask the user questions or clarifications. Don't make large assumptions about user intent. The goal is to present a well researched plan to the user, and tie any loose ends before implementation begins.
 

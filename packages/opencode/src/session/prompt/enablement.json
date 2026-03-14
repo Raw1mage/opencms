@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "last_updated": "2026-03-08",
+  "last_updated": "2026-03-14",
   "purpose": "Single source of truth for tool/skill/MCP capability discovery and routing.",
   "usage_contract": {
     "prompt_injection": "Inject a concise snapshot from this registry into SYSTEM prompt context.",
@@ -12,7 +12,7 @@
     "core": [
       {
         "name": "question",
-        "capability": "Collect explicit user decisions and disambiguation inputs"
+        "capability": "Collect explicit user decisions and disambiguation inputs; prefer this for bounded choices, missing critical parameters, and ambiguous natural-language requests instead of freeform clarification"
       },
       {
         "name": "bash",
@@ -202,6 +202,54 @@
         "keywords": ["architecture", "design", "tradeoff", "scalability", "system design"],
         "prefer": ["skill:software-architect"],
         "fallback": ["task:general"]
+      },
+      {
+        "intent": "session-based runtime control",
+        "keywords": [
+          "switch session",
+          "rename session",
+          "switch model",
+          "switch account",
+          "switch provider",
+          "change model",
+          "change account",
+          "change provider"
+        ],
+        "prefer": [
+          "system-manager_switch_session",
+          "system-manager_rename_session",
+          "system-manager_switch_model",
+          "system-manager_switch_account",
+          "system-manager_switch_provider"
+        ],
+        "notes": [
+          "Treat all switching as session-based; do not assume global control-plane semantics.",
+          "If a natural-language request is ambiguous, use question before calling a switch tool.",
+          "Do not silently fallback or guess provider/account/model/session targets."
+        ],
+        "fallback": ["question"]
+      },
+      {
+        "intent": "bounded decisions and disambiguation",
+        "keywords": [
+          "choose",
+          "which one",
+          "which model",
+          "which account",
+          "which provider",
+          "ambiguous",
+          "unclear",
+          "missing parameter",
+          "decision",
+          "select"
+        ],
+        "prefer": ["question"],
+        "notes": [
+          "When the next step depends on a bounded user decision, prefer question over freeform clarification.",
+          "Use question when a request is ambiguous or when a critical provider/account/model/session field is missing.",
+          "Do not ask plain conversational follow-ups if the choice can be represented as explicit options."
+        ],
+        "fallback": ["question"]
       }
     ],
     "mcp_policy": {

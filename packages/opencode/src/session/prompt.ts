@@ -102,6 +102,104 @@ export namespace SessionPrompt {
   const log = Log.create({ service: "session.prompt" })
   export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
 
+  const PLAN_ENFORCEMENT_ALLOWED_PROGRESS_PATTERNS = [
+    /^(progress|status|current plan|current goal|resolved decisions|remaining open questions|next step)/i,
+    /^(I (have|will|am)|We (have|will|are))/i,
+  ]
+
+  const PLAN_DECISION_QUESTION_PATTERNS = [
+    /\?$/,
+    /\b(should|which|what should|do you want|would you like|prefer|pick|choose|A or B|name|naming)\b/i,
+    /還是|或者|要不要|是否|命名|選哪|哪個/i,
+  ]
+
+  const PLAN_DECISION_KEYWORDS = [
+    "scope",
+    "priority",
+    "approval",
+    "validation",
+    "delegate",
+    "delegation",
+    "risk",
+    "naming",
+    "model",
+    "provider",
+    "account",
+    "session-local",
+    "global",
+    "範圍",
+    "優先",
+    "批准",
+    "驗證",
+    "委派",
+    "風險",
+    "命名",
+    "provider",
+    "account",
+    "model",
+  ]
+
+  export function classifyPlanModeAssistantTurn(input: {
+    agentName: string
+    finish?: string
+    parts: MessageV2.WithParts["parts"]
+  }) {
+    if (input.agentName !== "plan")
+      return { enforced: false as const, violation: false as const, reason: "not_plan" as const }
+
+    const toolParts = input.parts.filter((part) => part.type === "tool")
+    const hasQuestionTool = toolParts.some((part) => part.tool === "question")
+    const hasPlanExitTool = toolParts.some((part) => part.tool === "plan_exit")
+    if (hasQuestionTool || hasPlanExitTool || input.finish === "tool-calls") {
+      return {
+        enforced: true as const,
+        violation: false as const,
+        reason: hasQuestionTool
+          ? ("question_tool" as const)
+          : hasPlanExitTool
+            ? ("plan_exit_tool" as const)
+            : ("tool_calls" as const),
+      }
+    }
+
+    const textParts = input.parts.filter((part): part is MessageV2.TextPart => part.type === "text" && !part.synthetic)
+    const text = textParts
+      .map((part) => part.text.trim())
+      .filter(Boolean)
+      .join("\n")
+      .trim()
+    if (!text) return { enforced: true as const, violation: false as const, reason: "empty_text" as const }
+
+    const looksLikeProgress = PLAN_ENFORCEMENT_ALLOWED_PROGRESS_PATTERNS.some((pattern) => pattern.test(text))
+    const looksLikeDecisionQuestion =
+      PLAN_DECISION_QUESTION_PATTERNS.some((pattern) => pattern.test(text)) &&
+      PLAN_DECISION_KEYWORDS.some((keyword) => text.toLowerCase().includes(keyword.toLowerCase()))
+
+    if (looksLikeDecisionQuestion) {
+      return {
+        enforced: true as const,
+        violation: true as const,
+        reason: "plain_text_decision_question" as const,
+        text,
+      }
+    }
+
+    if (text.includes("?") && !looksLikeProgress) {
+      return {
+        enforced: true as const,
+        violation: true as const,
+        reason: "plain_text_question" as const,
+        text,
+      }
+    }
+
+    return {
+      enforced: true as const,
+      violation: false as const,
+      reason: looksLikeProgress ? ("progress_summary" as const) : ("non_question_text" as const),
+    }
+  }
+
   export function assertNotBusy(sessionID: string) {
     return assertNotBusyRuntime(sessionID)
   }
@@ -1392,6 +1490,21 @@ export namespace SessionPrompt {
         break
       }
       if (result === "stop") {
+        const planTurnCheck = classifyPlanModeAssistantTurn({
+          agentName: agent.name,
+          finish: processor.message.finish,
+          parts: await MessageV2.parts(processor.message.id),
+        })
+        if (planTurnCheck.enforced && planTurnCheck.violation) {
+          processor.message.error = new NamedError.Unknown({
+            message:
+              `Plan mode enforcement violation: ${planTurnCheck.reason}. ` +
+              `Bounded or execution-shaping questions must use MCP question; allowed endings are question tool, plan_exit, or non-question progress summary.`,
+          }).toObject()
+          await Session.updateMessage(processor.message)
+          break
+        }
+
         const decision = await decideAutonomousContinuation({
           sessionID,
           roundCount: autonomousRounds,

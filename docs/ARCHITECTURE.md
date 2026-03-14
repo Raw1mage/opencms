@@ -300,6 +300,28 @@ Provider-first migration status:
 - Rotation observability now exposes explicit checkpoints for this guard: `Same-provider rotate guard armed`, `Same-provider rotate quota consumed; forcing cross-provider fallback`, and `No cross-provider fallback available; rotation stopped`.
 - Terminology rule for future work: account-binding logic, routing, cooldowns, and execution identity should be reasoned about in **provider** terms first, not in model-family terms.
 
+#### B.0.a) Planner / build handoff contract (authoritative)
+
+- Planner/build phase control is a **runtime state + formal artifact** contract, not a prompt-text contract.
+- `plan_enter` and `plan_exit` are the authoritative phase-transition tools.
+- Planner intent and executor instructions must be transmitted only through:
+  1. planner artifacts (`implementation-spec.md`, `proposal.md`, `spec.md`, `design.md`, `tasks.md`, `handoff.md`)
+  2. `plan_exit` handoff metadata
+- Runtime must not rely on `<system-reminder>...</system-reminder>` text to tell build mode what to do.
+- `packages/opencode/src/session/prompt/plan.txt` is the single prompt SSOT for plan-mode behavioral guidance, but it is not the source of truth for phase state or handoff authority.
+- Plan-mode enforcement is now runtime-based:
+  - allowed endings: `question` tool call, `plan_exit` tool call, or non-question progress summary
+  - plain-text bounded decision questions in plan mode are enforcement violations and must fail fast instead of being repaired through synthetic retry prompt text
+- Design rule: if planner wants build to know something, that information belongs in formal artifacts / handoff metadata, not in synthetic reminder text.
+
+#### B.0.b) Synthetic reminder boundary
+
+- Synthetic text wrappers may still exist for generic runtime packaging of queued user messages, but these wrappers are **not** authoritative control-plane signals.
+- Operators and future runtime changes must distinguish:
+  - **control state** → workflow/session/runtime metadata and tool transitions
+  - **display or packaging text** → synthetic text parts that help model formatting or conversation continuity
+- Any future attempt to encode planner/build control, approval gates, or execution permissions in synthetic reminder text should be treated as an architectural regression.
+
 #### B.1) Prompt footer quota/runtime metadata pipeline (TUI + Web)
 
 This subsection documents how prompt footer usage/account metadata stays fresh without high CPU polling.

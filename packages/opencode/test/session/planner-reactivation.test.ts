@@ -7,6 +7,75 @@ import { Question } from "../../src/question"
 import { Todo } from "../../src/session/todo"
 import { tmpdir } from "../fixture/fixture"
 
+describe("plan mode enforcement classifier", () => {
+  test("flags plain-text bounded decision question as violation", async () => {
+    const { SessionPrompt } = await import("../../src/session/prompt")
+    const result = SessionPrompt.classifyPlanModeAssistantTurn({
+      agentName: "plan",
+      finish: "stop",
+      parts: [
+        {
+          id: "part1",
+          sessionID: "ses_test",
+          messageID: "msg_test",
+          type: "text",
+          text: "session-local 的 execution 切換工具要叫 manage_session.set_execution 還是 switch_session_execution？",
+        },
+      ] as any,
+    })
+    expect(result.enforced).toBe(true)
+    expect(result.violation).toBe(true)
+    expect(result.reason).toBe("plain_text_decision_question")
+  })
+
+  test("allows question tool call in plan mode", async () => {
+    const { SessionPrompt } = await import("../../src/session/prompt")
+    const result = SessionPrompt.classifyPlanModeAssistantTurn({
+      agentName: "plan",
+      finish: "tool-calls",
+      parts: [
+        {
+          id: "part2",
+          sessionID: "ses_test",
+          messageID: "msg_test",
+          type: "tool",
+          callID: "call_test",
+          tool: "question",
+          state: {
+            status: "completed",
+            input: {},
+            output: { text: "ok" },
+            time: { start: Date.now(), end: Date.now() },
+          },
+        },
+      ] as any,
+    })
+    expect(result.enforced).toBe(true)
+    expect(result.violation).toBe(false)
+    expect(result.reason).toBe("question_tool")
+  })
+
+  test("allows progress summary without question", async () => {
+    const { SessionPrompt } = await import("../../src/session/prompt")
+    const result = SessionPrompt.classifyPlanModeAssistantTurn({
+      agentName: "plan",
+      finish: "stop",
+      parts: [
+        {
+          id: "part3",
+          sessionID: "ses_test",
+          messageID: "msg_test",
+          type: "text",
+          text: "Current goal: finalize the system-manager planning scope. Resolved decisions: session-local is the default. Next step: write proposal/spec/design/tasks/handoff.",
+        },
+      ] as any,
+    })
+    expect(result.enforced).toBe(true)
+    expect(result.violation).toBe(false)
+    expect(result.reason).toBe("progress_summary")
+  })
+})
+
 async function waitForPendingQuestion(sessionID: string, timeoutMs = 2000) {
   const start = Date.now()
   while (Date.now() - start < timeoutMs) {
@@ -184,6 +253,168 @@ describe("planner reactivation", () => {
     } finally {
       if (originalClient === undefined) delete process.env.OPENCODE_CLIENT
       else process.env.OPENCODE_CLIENT = originalClient
+    }
+  })
+
+  test("plan mode reminder requires choice-based MCP question for bounded planning decisions", async () => {
+    const originalClient = process.env.OPENCODE_CLIENT
+    process.env.OPENCODE_CLIENT = "app"
+
+    try {
+      await using tmp = await tmpdir({ git: true })
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const session = await Session.create({})
+          const { insertReminders } = await import("../../src/session/reminders")
+          const { Agent } = await import("../../src/agent/agent")
+          const planAgent = await Agent.get("plan")
+          const fallbackModel = { providerId: "openai", modelID: "gpt-5.4" }
+
+          const userMessage = {
+            info: {
+              id: "msg_user",
+              sessionID: session.id,
+              role: "user",
+              agent: "plan",
+              time: { created: Date.now() },
+              model: fallbackModel,
+            },
+            parts: [],
+          } as unknown as MessageV2.WithParts
+
+          const assistantMessage = {
+            info: {
+              id: "msg_assistant",
+              sessionID: session.id,
+              role: "assistant",
+              agent: "build",
+              time: { created: Date.now() - 1 },
+              parentID: "msg_parent",
+              modelID: fallbackModel.modelID,
+              providerId: fallbackModel.providerId,
+              mode: "chat",
+              path: { cwd: tmp.path, root: tmp.path },
+              cost: 0,
+              tokens: {
+                input: 0,
+                output: 0,
+                reasoning: 0,
+                cache: { read: 0, write: 0 },
+              },
+            },
+            parts: [],
+          } as unknown as MessageV2.WithParts
+
+          const messages = [assistantMessage, userMessage]
+          await insertReminders({
+            messages,
+            agent: planAgent,
+            session,
+          })
+
+          if (userMessage.parts.length === 0) {
+            throw new Error(`expected reminder part, got none for message shape: ${JSON.stringify(userMessage.info)}`)
+          }
+
+          const reminder = userMessage.parts.find(
+            (part) =>
+              part.type === "text" &&
+              part.synthetic &&
+              part.text.includes("<system-reminder>") &&
+              part.text.includes("# Plan Mode - System Reminder"),
+          )
+          if (!reminder || reminder.type !== "text") {
+            throw new Error(
+              `expected plan mode reminder, got parts: ${JSON.stringify(
+                userMessage.parts.map((part) => (part.type === "text" ? part.text : part.type)),
+              )}`,
+            )
+          }
+          expect(reminder.text).toContain("Default to MCP question with structured multiple-choice options")
+          expect(reminder.text).toContain(
+            "Do not ask plain conversational clarification when a structured question choice would work.",
+          )
+          await Session.remove(session.id)
+        },
+      })
+    } finally {
+      if (originalClient === undefined) delete process.env.OPENCODE_CLIENT
+      else process.env.OPENCODE_CLIENT = originalClient
+    }
+  })
+
+  test("experimental plan mode still uses plan.txt as the single prompt source", async () => {
+    const originalClient = process.env.OPENCODE_CLIENT
+    const originalPlanMode = process.env.OPENCODE_EXPERIMENTAL_PLAN_MODE
+    process.env.OPENCODE_CLIENT = "app"
+    process.env.OPENCODE_EXPERIMENTAL_PLAN_MODE = "1"
+
+    try {
+      await using tmp = await tmpdir({ git: true })
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const session = await Session.create({})
+          const { insertReminders } = await import("../../src/session/reminders")
+          const { Agent } = await import("../../src/agent/agent")
+          const planAgent = await Agent.get("plan")
+          const fallbackModel = { providerId: "openai", modelID: "gpt-5.4" }
+
+          const userMessage = {
+            info: {
+              id: "msg_user_exp",
+              sessionID: session.id,
+              role: "user",
+              agent: "plan",
+              time: { created: Date.now() },
+              model: fallbackModel,
+            },
+            parts: [],
+          } as unknown as MessageV2.WithParts
+
+          const assistantMessage = {
+            info: {
+              id: "msg_assistant_exp",
+              sessionID: session.id,
+              role: "assistant",
+              agent: "build",
+              time: { created: Date.now() - 1 },
+              parentID: "msg_parent_exp",
+              modelID: fallbackModel.modelID,
+              providerId: fallbackModel.providerId,
+              mode: "chat",
+              path: { cwd: tmp.path, root: tmp.path },
+              cost: 0,
+              tokens: {
+                input: 0,
+                output: 0,
+                reasoning: 0,
+                cache: { read: 0, write: 0 },
+              },
+            },
+            parts: [],
+          } as unknown as MessageV2.WithParts
+
+          await insertReminders({
+            messages: [assistantMessage, userMessage],
+            agent: planAgent,
+            session,
+          })
+
+          const reminder = userMessage.parts.find((part) => part.type === "text" && part.synthetic)
+          if (!reminder || reminder.type !== "text") throw new Error("expected plan prompt part")
+          expect(reminder.text).toContain("# Plan Mode - System Reminder")
+          expect(reminder.text).toContain("Default to MCP question with structured multiple-choice options")
+          expect(reminder.text).not.toContain("## Plan File Info:")
+          await Session.remove(session.id)
+        },
+      })
+    } finally {
+      if (originalClient === undefined) delete process.env.OPENCODE_CLIENT
+      else process.env.OPENCODE_CLIENT = originalClient
+      if (originalPlanMode === undefined) delete process.env.OPENCODE_EXPERIMENTAL_PLAN_MODE
+      else process.env.OPENCODE_EXPERIMENTAL_PLAN_MODE = originalPlanMode
     }
   })
 

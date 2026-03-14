@@ -16,7 +16,6 @@ import PROMPT_CODEX from "./prompt/codex_header.txt"
 import PROMPT_PLAN from "./prompt/plan.txt"
 import PROMPT_PLAN_REMINDER_ANTHROPIC from "./prompt/plan-reminder-anthropic.txt"
 import PROMPT_MAX_STEPS from "./prompt/max-steps.txt"
-import PROMPT_BUILD_SWITCH from "./prompt/build-switch.txt"
 import PROMPT_COPILOT_GPT5 from "./prompt/copilot-gpt-5.txt"
 import PROMPT_ENABLEMENT from "./prompt/enablement.json"
 
@@ -86,7 +85,6 @@ export namespace SystemPrompt {
       "session/plan.txt": PROMPT_PLAN,
       "session/plan-reminder-anthropic.txt": PROMPT_PLAN_REMINDER_ANTHROPIC,
       "session/max-steps.txt": PROMPT_MAX_STEPS,
-      "session/build-switch.txt": PROMPT_BUILD_SWITCH,
       "session/instructions.txt": PROMPT_CODEX.trim(),
       "enablement.json":
         typeof PROMPT_ENABLEMENT === "string" ? PROMPT_ENABLEMENT : JSON.stringify(PROMPT_ENABLEMENT, null, 2),
