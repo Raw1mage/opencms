@@ -237,6 +237,15 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
           tab: "changes" as "changes" | "all",
           mode: "changes" as "files" | "status" | "changes" | "context",
         },
+        statusSidebar: {
+          order: ["monitor", "todo", "servers", "mcp"] as Array<"monitor" | "todo" | "servers" | "mcp">,
+          expanded: {
+            monitor: true,
+            todo: true,
+            servers: true,
+            mcp: true,
+          } as Record<"monitor" | "todo" | "servers" | "mcp", boolean>,
+        },
         session: {
           width: DEFAULT_SESSION_WIDTH,
         },
@@ -668,6 +677,21 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
             return
           }
           setStore("fileTree", "width", width)
+        },
+      },
+      statusSidebar: {
+        order: createMemo(() => store.statusSidebar?.order ?? ["monitor", "todo", "servers", "mcp"]),
+        setOrder(order: Array<"monitor" | "todo" | "servers" | "mcp">) {
+          setStore("statusSidebar", "order", order)
+        },
+        expanded(key: "monitor" | "todo" | "servers" | "mcp") {
+          return () => store.statusSidebar?.expanded?.[key] ?? true
+        },
+        setExpanded(key: "monitor" | "todo" | "servers" | "mcp", value: boolean) {
+          setStore("statusSidebar", "expanded", key, value)
+        },
+        toggleExpanded(key: "monitor" | "todo" | "servers" | "mcp") {
+          setStore("statusSidebar", "expanded", key, (value) => !value)
         },
       },
       session: {

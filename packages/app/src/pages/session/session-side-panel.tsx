@@ -301,330 +301,6 @@ export function SessionSidePanel(props: {
 
             <Show when={sideMode() === "status"}>
               <SessionStatusSections
-                summaryContent={
-                  <Show
-                    when={activeSessionID()}
-                    fallback={<div class="text-12-regular text-text-weak">No active session.</div>}
-                  >
-                    <div class="flex flex-col gap-3">
-                      <Show
-                        when={statusSummary().currentStep}
-                        fallback={<div class="text-12-regular text-text-weak">No current step.</div>}
-                      >
-                        {(step) => (
-                          <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
-                            <div class="text-11-medium uppercase tracking-wide text-text-weak">Current objective</div>
-                            <div class="text-12-medium text-text-strong break-words">{step().content}</div>
-                            <Show when={statusSummary().methodChips.length > 0}>
-                              <div class="flex flex-wrap gap-1 pt-1">
-                                <For each={statusSummary().methodChips}>
-                                  {(chip) => (
-                                    <span
-                                      class="inline-flex h-5 px-1.5 items-center rounded-full border text-[11px] font-medium"
-                                      classList={{
-                                        "bg-info/12 text-info border-info/20": chip.tone === "info",
-                                        "bg-success/12 text-success border-success/20": chip.tone === "success",
-                                        "bg-warning/12 text-warning border-warning/20": chip.tone === "warning",
-                                        "bg-surface-base text-text-muted border-border-weak-base":
-                                          chip.tone === "neutral",
-                                      }}
-                                    >
-                                      {chip.label}
-                                    </span>
-                                  )}
-                                </For>
-                              </div>
-                            </Show>
-                          </div>
-                        )}
-                      </Show>
-
-                      <Show when={autonomousHealth.data?.queue.hasPendingContinuation}>
-                        <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-2">
-                          <div class="text-11-medium uppercase tracking-wide text-text-weak">Queue control</div>
-                          <div class="flex flex-wrap gap-2">
-                            <Button
-                              size="small"
-                              variant="secondary"
-                              disabled={queueControlLoading() !== null}
-                              onClick={() => void runQueueControl("resume_once")}
-                            >
-                              {queueControlLoading() === "resume_once" ? "Resuming…" : "Resume once"}
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="ghost"
-                              disabled={queueControlLoading() !== null}
-                              onClick={() => void runQueueControl("drop_pending")}
-                            >
-                              {queueControlLoading() === "drop_pending" ? "Dropping…" : "Drop pending"}
-                            </Button>
-                          </div>
-                          <Show when={queueControlError()}>
-                            {(message) => <div class="text-11-regular text-warning">{message()}</div>}
-                          </Show>
-                        </div>
-                      </Show>
-
-                      <Show when={statusSummary().processLines.length > 0}>
-                        <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
-                          <div class="text-11-medium uppercase tracking-wide text-text-weak">Process</div>
-                          <For each={statusSummary().processLines}>
-                            {(line) => <div class="text-12-regular text-text-weak break-words">{line}</div>}
-                          </For>
-                        </div>
-                      </Show>
-
-                      <Show when={statusSummary().latestNarration}>
-                        {(result) => (
-                          <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
-                            <div class="text-11-medium uppercase tracking-wide text-text-weak">Latest narration</div>
-                            <div
-                              class="text-12-medium break-words"
-                              classList={{
-                                "text-success": result().tone === "success",
-                                "text-warning": result().tone === "warning",
-                                "text-info": result().tone === "info",
-                                "text-text-strong": result().tone === "neutral",
-                              }}
-                            >
-                              {result().label}
-                            </div>
-                          </div>
-                        )}
-                      </Show>
-
-                      <Show when={statusSummary().debugLines.length > 0}>
-                        <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
-                          <div class="text-11-medium uppercase tracking-wide text-text-weak">Debug</div>
-                          <For each={statusSummary().debugLines}>
-                            {(line) => <div class="text-12-regular text-text-weak break-words">{line}</div>}
-                          </For>
-                        </div>
-                      </Show>
-
-                      <Show when={statusSummary().smartRunnerHistory.length > 0}>
-                        <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-2">
-                          <div class="text-11-medium uppercase tracking-wide text-text-weak">Smart Runner history</div>
-                          <Show when={statusSummary().smartRunnerConversation}>
-                            {(conversation) => (
-                              <div class="rounded-md border border-border-weak-base bg-surface-panel px-2 py-2 flex flex-col gap-1 text-12-regular text-text-weak">
-                                <div>AI narrations: {conversation().totalNarrations}</div>
-                                <div>AI pauses: {conversation().pauseNarrations}</div>
-                                <div>AI completes: {conversation().completeNarrations}</div>
-                                <Show when={conversation().digest}>
-                                  <div>AI digest: {conversation().digest}</div>
-                                </Show>
-                                <Show when={conversation().kindCounts.length > 0}>
-                                  <div class="flex flex-wrap gap-1">
-                                    <For each={conversation().kindCounts}>
-                                      {(item) => (
-                                        <span class="rounded-full border border-border-weak-base px-2 py-0.5 text-[11px] text-text-weak">
-                                          {item.kind} × {item.count}
-                                        </span>
-                                      )}
-                                    </For>
-                                  </div>
-                                </Show>
-                                <Show when={conversation().roleCounts.length > 0}>
-                                  <div class="flex flex-wrap gap-1">
-                                    <For each={conversation().roleCounts}>
-                                      {(item) => (
-                                        <span class="rounded-full border border-border-weak-base px-2 py-0.5 text-[11px] text-text-weak">
-                                          {item.role} × {item.count}
-                                        </span>
-                                      )}
-                                    </For>
-                                  </div>
-                                </Show>
-                                <Show when={conversation().latestKind}>
-                                  <div>Latest AI kind: {conversation().latestKind}</div>
-                                </Show>
-                                <Show when={conversation().latestRole}>
-                                  <div>Latest AI role: {conversation().latestRole}</div>
-                                </Show>
-                                <Show when={conversation().latestLabel}>
-                                  <div class="break-words">Latest AI text: {conversation().latestLabel}</div>
-                                </Show>
-                              </div>
-                            )}
-                          </Show>
-                          <Show when={statusSummary().smartRunnerSummary}>
-                            {(summary) => (
-                              <div class="rounded-md border border-border-weak-base bg-surface-panel px-2 py-2 flex flex-col gap-2">
-                                <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-12-regular text-text-weak">
-                                  <div>Total traces: {summary().total}</div>
-                                  <div>Assist applied: {summary().assistApplied}</div>
-                                  <div>Assist noop: {summary().assistNoop}</div>
-                                  <div>Docs sync: {summary().docsSync}</div>
-                                  <div>Debug preflight: {summary().debugPreflight}</div>
-                                  <div>Pause assist: {summary().pauseAssist}</div>
-                                  <div>Replan: {summary().replan}</div>
-                                  <div>Ask user: {summary().askUser}</div>
-                                  <div>Approval: {summary().requestApproval}</div>
-                                  <div>Risk pause: {summary().pauseForRisk}</div>
-                                  <div>Complete: {summary().complete}</div>
-                                  <div>Pause: {summary().pause}</div>
-                                  <div>Adopted: {summary().adopted}</div>
-                                  <div>Not adopted: {summary().notAdopted}</div>
-                                </div>
-                                <Show when={summary().recentTrend.length > 0}>
-                                  <div class="flex flex-col gap-1">
-                                    <div class="text-[11px] font-medium uppercase tracking-wide text-text-weak">
-                                      Recent trend
-                                    </div>
-                                    <div class="flex flex-wrap gap-1">
-                                      <For each={summary().recentTrend}>
-                                        {(item) => (
-                                          <span class="rounded-full border border-border-weak-base px-2 py-0.5 text-[11px] text-text-weak">
-                                            {item}
-                                          </span>
-                                        )}
-                                      </For>
-                                    </div>
-                                  </div>
-                                </Show>
-                                <Show when={summary().nonAdoptedReasons.length > 0}>
-                                  <div class="flex flex-col gap-1">
-                                    <div class="text-[11px] font-medium uppercase tracking-wide text-text-weak">
-                                      Non-adopted reasons
-                                    </div>
-                                    <div class="flex flex-wrap gap-1">
-                                      <For each={summary().nonAdoptedReasons}>
-                                        {(item) => (
-                                          <span class="rounded-full border border-border-weak-base px-2 py-0.5 text-[11px] text-text-weak">
-                                            {item.reason.replaceAll("_", " ")} × {item.count}
-                                          </span>
-                                        )}
-                                      </For>
-                                    </div>
-                                  </div>
-                                </Show>
-                              </div>
-                            )}
-                          </Show>
-                          <For each={statusSummary().smartRunnerHistory}>
-                            {(entry) => (
-                              <div class="rounded-md border border-border-weak-base bg-surface-panel px-2 py-2 flex flex-col gap-1">
-                                <div class="flex flex-wrap items-center gap-2">
-                                  <span class="text-[11px] font-medium text-text-strong">
-                                    {entry.time ?? "--:--:--"}
-                                  </span>
-                                  <span class="text-[11px] text-text-weak">{entry.status}</span>
-                                  <Show when={entry.decision}>
-                                    <span class="text-[11px] text-info">{entry.decision}</span>
-                                  </Show>
-                                  <Show when={entry.confidence}>
-                                    <span class="text-[11px] text-text-weak">{entry.confidence}</span>
-                                  </Show>
-                                </div>
-                                <Show when={entry.next}>
-                                  <div class="text-12-regular text-text-weak break-words">Next: {entry.next}</div>
-                                </Show>
-                                <Show when={entry.assessment}>
-                                  <div class="text-12-regular text-text-muted break-words">{entry.assessment}</div>
-                                </Show>
-                                <Show when={entry.assist}>
-                                  <div class="text-12-regular text-info break-words">Assist: {entry.assist}</div>
-                                </Show>
-                                <Show when={entry.suggestion}>
-                                  <div class="text-12-regular text-warning break-words">
-                                    Suggestion: {entry.suggestion}
-                                  </div>
-                                </Show>
-                                <Show when={entry.draftQuestion}>
-                                  <div class="text-12-regular text-text-muted break-words">
-                                    Draft question: {entry.draftQuestion}
-                                  </div>
-                                </Show>
-                                <Show when={entry.askUserHandoff}>
-                                  <div class="text-12-regular text-text-muted break-words">
-                                    Ask-user handoff: {entry.askUserHandoff}
-                                  </div>
-                                </Show>
-                                <Show when={entry.askUserAdoption}>
-                                  <div class="text-12-regular text-text-muted break-words">
-                                    Ask-user proposal: {entry.askUserAdoption}
-                                  </div>
-                                </Show>
-                                <Show when={entry.approvalRequest}>
-                                  <div class="text-12-regular text-text-muted break-words">
-                                    Approval proposal: {entry.approvalRequest}
-                                  </div>
-                                </Show>
-                                <Show when={entry.riskPauseRequest}>
-                                  <div class="text-12-regular text-text-muted break-words">
-                                    Risk-pause proposal: {entry.riskPauseRequest}
-                                  </div>
-                                </Show>
-                                <Show when={entry.completionRequest}>
-                                  <div class="text-12-regular text-text-muted break-words">
-                                    Complete proposal: {entry.completionRequest}
-                                  </div>
-                                </Show>
-                                <Show when={entry.completionScope}>
-                                  <div class="text-12-regular text-text-muted break-words">
-                                    Complete scope: {entry.completionScope}
-                                  </div>
-                                </Show>
-                                <Show when={entry.pauseRequest}>
-                                  <div class="text-12-regular text-text-muted break-words">
-                                    Pause scope: {entry.pauseRequest}
-                                  </div>
-                                </Show>
-                                <Show when={entry.replanRequest}>
-                                  <div class="text-12-regular text-text-muted break-words">
-                                    Replan request: {entry.replanRequest}
-                                  </div>
-                                </Show>
-                                <Show when={entry.replanTarget}>
-                                  <div class="text-12-regular text-text-muted break-words">
-                                    Replan target: {entry.replanTarget}
-                                  </div>
-                                </Show>
-                                <Show when={entry.replanAdoption}>
-                                  <div class="text-12-regular text-text-muted break-words">
-                                    Replan proposal: {entry.replanAdoption}
-                                  </div>
-                                </Show>
-                                <Show when={entry.policy}>
-                                  <div class="text-12-regular text-text-muted break-words">Policy: {entry.policy}</div>
-                                </Show>
-                                <Show when={entry.adoptionOutcome}>
-                                  <div class="text-12-regular text-text-muted break-words">
-                                    Adoption: {entry.adoptionOutcome}
-                                  </div>
-                                </Show>
-                                <Show when={entry.error}>
-                                  <div class="text-12-regular text-warning break-words">Error: {entry.error}</div>
-                                </Show>
-                              </div>
-                            )}
-                          </For>
-                        </div>
-                      </Show>
-
-                      <Show when={statusSummary().latestResult}>
-                        {(result) => (
-                          <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
-                            <div class="text-11-medium uppercase tracking-wide text-text-weak">Latest result</div>
-                            <div
-                              class="text-12-medium break-words"
-                              classList={{
-                                "text-success": result().tone === "success",
-                                "text-warning": result().tone === "warning",
-                                "text-info": result().tone === "info",
-                                "text-text-strong": result().tone === "neutral",
-                              }}
-                            >
-                              {result().label}
-                            </div>
-                          </div>
-                        )}
-                      </Show>
-                    </div>
-                  </Show>
-                }
                 todoContent={
                   <Show
                     when={activeSessionID()}
@@ -656,72 +332,144 @@ export function SessionSidePanel(props: {
                         when={!monitor.error}
                         fallback={<div class="text-12-regular text-text-danger">{monitor.error}</div>}
                       >
-                        <Show
-                          when={monitorEntries().length > 0}
-                          fallback={<div class="text-12-regular text-text-weak">No active tasks.</div>}
-                        >
-                          <For each={monitorEntries() as EnrichedMonitorEntry[]}>
-                            {(item) => (
+                        <div class="flex flex-col gap-3">
+                          <Show
+                            when={statusSummary().currentStep}
+                            fallback={<div class="text-12-regular text-text-weak">No current step.</div>}
+                          >
+                            {(step) => (
                               <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
-                                <div class="flex items-center gap-2 min-w-0">
-                                  <span class="text-11-medium text-text-weak shrink-0">
-                                    [{MONITOR_LEVEL_LABELS[item.level] ?? item.level}]
-                                  </span>
-                                  <span class="text-12-medium text-text-strong truncate">{monitorTitle(item)}</span>
+                                <div class="text-11-medium uppercase tracking-wide text-text-weak">
+                                  Current objective
                                 </div>
-                                <Show when={item.todo?.content}>
-                                  <div class="text-11-regular text-info break-words">Todo: {item.todo?.content}</div>
-                                </Show>
-                                <Show when={item.todo?.status}>
-                                  <div class="text-11-regular text-text-weak break-words">
-                                    Todo status: {item.todo?.status}
-                                  </div>
-                                </Show>
-                                <div class="text-11-regular text-text-weak break-words">
-                                  {MONITOR_STATUS_LABELS[item.status.type] ?? item.status.type}
-                                  {item.model ? ` · ${item.model.providerId}/${item.model.modelID}` : ""}
-                                  {` · ${item.requests} reqs · ${item.totalTokens.toLocaleString()} tok`}
-                                </div>
-                                <Show
-                                  when={
-                                    item.todo?.action?.kind ||
-                                    item.todo?.action?.waitingOn ||
-                                    item.todo?.action?.needsApproval
-                                  }
-                                >
-                                  <div class="text-11-regular text-text-weak break-words">
-                                    Method: {item.todo?.action?.kind ?? "implement"}
-                                    {item.todo?.action?.waitingOn ? ` · waiting: ${item.todo.action.waitingOn}` : ""}
-                                    {item.todo?.action?.needsApproval ? " · needs approval" : ""}
-                                  </div>
-                                </Show>
-                                <Show when={item.activeTool}>
-                                  <div class="text-11-regular text-text-weak break-words">
-                                    Tool: {item.activeTool}
-                                    <Show
-                                      when={monitorToolStatus({
-                                        statusType: item.status.type,
-                                        activeToolStatus: item.activeToolStatus,
-                                      })}
-                                    >
-                                      {(toolStatus) => <> · {toolStatus()}</>}
-                                    </Show>
-                                  </div>
-                                </Show>
-                                <Show when={item.latestResult}>
-                                  <div class="text-11-regular text-text-weak break-words">
-                                    Result: {item.latestResult}
-                                  </div>
-                                </Show>
-                                <Show when={item.latestNarration}>
-                                  <div class="text-11-regular text-info break-words">
-                                    Narration: {item.latestNarration}
+                                <div class="text-12-medium text-text-strong break-words">{step().content}</div>
+                                <Show when={statusSummary().methodChips.length > 0}>
+                                  <div class="flex flex-wrap gap-1 pt-1">
+                                    <For each={statusSummary().methodChips}>
+                                      {(chip) => (
+                                        <span
+                                          class="inline-flex h-5 px-1.5 items-center rounded-full border text-[11px] font-medium"
+                                          classList={{
+                                            "bg-info/12 text-info border-info/20": chip.tone === "info",
+                                            "bg-success/12 text-success border-success/20": chip.tone === "success",
+                                            "bg-warning/12 text-warning border-warning/20": chip.tone === "warning",
+                                            "bg-surface-base text-text-muted border-border-weak-base":
+                                              chip.tone === "neutral",
+                                          }}
+                                        >
+                                          {chip.label}
+                                        </span>
+                                      )}
+                                    </For>
                                   </div>
                                 </Show>
                               </div>
                             )}
-                          </For>
-                        </Show>
+                          </Show>
+
+                          <Show when={autonomousHealth.data?.queue.hasPendingContinuation}>
+                            <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-2">
+                              <div class="text-11-medium uppercase tracking-wide text-text-weak">Queue control</div>
+                              <div class="flex flex-wrap gap-2">
+                                <Button
+                                  size="small"
+                                  variant="secondary"
+                                  disabled={queueControlLoading() !== null}
+                                  onClick={() => void runQueueControl("resume_once")}
+                                >
+                                  {queueControlLoading() === "resume_once" ? "Resuming…" : "Resume once"}
+                                </Button>
+                                <Button
+                                  size="small"
+                                  variant="ghost"
+                                  disabled={queueControlLoading() !== null}
+                                  onClick={() => void runQueueControl("drop_pending")}
+                                >
+                                  {queueControlLoading() === "drop_pending" ? "Dropping…" : "Drop pending"}
+                                </Button>
+                              </div>
+                              <Show when={queueControlError()}>
+                                {(message) => <div class="text-11-regular text-warning">{message()}</div>}
+                              </Show>
+                            </div>
+                          </Show>
+
+                          <Show when={statusSummary().processLines.length > 0}>
+                            <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
+                              <div class="text-11-medium uppercase tracking-wide text-text-weak">Status</div>
+                              <For each={statusSummary().processLines}>
+                                {(line) => <div class="text-12-regular text-text-weak break-words">{line}</div>}
+                              </For>
+                            </div>
+                          </Show>
+
+                          <Show
+                            when={monitorEntries().length > 0}
+                            fallback={<div class="text-12-regular text-text-weak">No active tasks.</div>}
+                          >
+                            <For each={monitorEntries() as EnrichedMonitorEntry[]}>
+                              {(item) => (
+                                <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
+                                  <div class="flex items-center gap-2 min-w-0">
+                                    <span class="text-11-medium text-text-weak shrink-0">
+                                      [{MONITOR_LEVEL_LABELS[item.level] ?? item.level}]
+                                    </span>
+                                    <span class="text-12-medium text-text-strong truncate">{monitorTitle(item)}</span>
+                                  </div>
+                                  <Show when={item.todo?.content}>
+                                    <div class="text-11-regular text-info break-words">Todo: {item.todo?.content}</div>
+                                  </Show>
+                                  <Show when={item.todo?.status}>
+                                    <div class="text-11-regular text-text-weak break-words">
+                                      Todo status: {item.todo?.status}
+                                    </div>
+                                  </Show>
+                                  <div class="text-11-regular text-text-weak break-words">
+                                    {MONITOR_STATUS_LABELS[item.status.type] ?? item.status.type}
+                                    {item.model ? ` · ${item.model.providerId}/${item.model.modelID}` : ""}
+                                    {` · ${item.requests} reqs · ${item.totalTokens.toLocaleString()} tok`}
+                                  </div>
+                                  <Show
+                                    when={
+                                      item.todo?.action?.kind ||
+                                      item.todo?.action?.waitingOn ||
+                                      item.todo?.action?.needsApproval
+                                    }
+                                  >
+                                    <div class="text-11-regular text-text-weak break-words">
+                                      Method: {item.todo?.action?.kind ?? "implement"}
+                                      {item.todo?.action?.waitingOn ? ` · waiting: ${item.todo.action.waitingOn}` : ""}
+                                      {item.todo?.action?.needsApproval ? " · needs approval" : ""}
+                                    </div>
+                                  </Show>
+                                  <Show when={item.activeTool}>
+                                    <div class="text-11-regular text-text-weak break-words">
+                                      Tool: {item.activeTool}
+                                      <Show
+                                        when={monitorToolStatus({
+                                          statusType: item.status.type,
+                                          activeToolStatus: item.activeToolStatus,
+                                        })}
+                                      >
+                                        {(toolStatus) => <> · {toolStatus()}</>}
+                                      </Show>
+                                    </div>
+                                  </Show>
+                                  <Show when={item.latestResult}>
+                                    <div class="text-11-regular text-text-weak break-words">
+                                      Result: {item.latestResult}
+                                    </div>
+                                  </Show>
+                                  <Show when={item.latestNarration}>
+                                    <div class="text-11-regular text-info break-words">
+                                      Narration: {item.latestNarration}
+                                    </div>
+                                  </Show>
+                                </div>
+                              )}
+                            </For>
+                          </Show>
+                        </div>
                       </Show>
                     </Show>
                   </Show>

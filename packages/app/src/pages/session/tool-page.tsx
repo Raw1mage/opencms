@@ -10,8 +10,10 @@ import { useLayout } from "@/context/layout"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import type { Todo, UserMessage } from "@opencode-ai/sdk/v2/client"
+import { getSessionStatusSummary } from "./helpers"
 import {
   buildMonitorEntries,
+  type EnrichedMonitorEntry,
   MONITOR_LEVEL_LABELS,
   MONITOR_STATUS_LABELS,
   monitorTitle,
@@ -21,6 +23,7 @@ import { SessionStatusSections } from "./session-status-sections"
 import { StatusTodoList } from "./status-todo-list"
 import { useStatusMonitor } from "./use-status-monitor"
 import { useStatusTodoSync } from "./use-status-todo-sync"
+import { useAutonomousHealthSync } from "./use-autonomous-health-sync"
 import { useSessionResumeSync } from "./use-session-resume-sync"
 import { decode64 } from "@/utils/base64"
 
@@ -70,6 +73,12 @@ export default function SessionToolPageRoute() {
     sdk,
     sync,
   })
+  const autonomousHealth = useAutonomousHealthSync({
+    enabled: () => tool() === "status",
+    sessionID: () => params.id,
+    sdk,
+    status: () => (params.id ? sync.data.session_status[params.id] : undefined),
+  })
 
   const monitorEntries = createMemo(() =>
     buildMonitorEntries({
@@ -77,6 +86,17 @@ export default function SessionToolPageRoute() {
       session: info(),
       messages: messages(),
       status: params.id ? sync.data.session_status[params.id] : undefined,
+      partsByMessage: sync.data.part,
+    }),
+  )
+  const statusSummary = createMemo(() =>
+    getSessionStatusSummary({
+      session: info() as any,
+      todos: todos() as Todo[] | undefined,
+      status: params.id ? sync.data.session_status[params.id] : undefined,
+      messages: messages(),
+      partsByMessage: sync.data.part,
+      autonomousHealth: autonomousHealth.data,
     }),
   )
 
@@ -193,7 +213,7 @@ export default function SessionToolPageRoute() {
                     when={(todos()?.length ?? 0) > 0}
                     fallback={<div class="text-12-regular text-text-weak">No to-dos yet.</div>}
                   >
-                    <StatusTodoList todos={todos() as Todo[]} />
+                    <StatusTodoList todos={todos() as Todo[]} currentTodoID={statusSummary().currentStep?.id} />
                   </Show>
                 </Show>
               </Show>
@@ -208,41 +228,115 @@ export default function SessionToolPageRoute() {
                     when={!monitor.error}
                     fallback={<div class="text-12-regular text-text-danger">{monitor.error}</div>}
                   >
-                    <Show
-                      when={monitorEntries().length > 0}
-                      fallback={<div class="text-12-regular text-text-weak">No active tasks.</div>}
-                    >
-                      <For each={monitorEntries()}>
-                        {(item) => (
+                    <div class="flex flex-col gap-3">
+                      <Show
+                        when={statusSummary().currentStep}
+                        fallback={<div class="text-12-regular text-text-weak">No current step.</div>}
+                      >
+                        {(step) => (
                           <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
-                            <div class="flex items-center gap-2 min-w-0">
-                              <span class="text-11-medium text-text-weak shrink-0">
-                                [{MONITOR_LEVEL_LABELS[item.level] ?? item.level}]
-                              </span>
-                              <span class="text-12-medium text-text-strong truncate">{monitorTitle(item)}</span>
-                            </div>
-                            <div class="text-11-regular text-text-weak break-words">
-                              {MONITOR_STATUS_LABELS[item.status.type] ?? item.status.type}
-                              {item.model ? ` · ${item.model.providerId}/${item.model.modelID}` : ""}
-                              {` · ${item.requests} reqs · ${item.totalTokens.toLocaleString()} tok`}
-                            </div>
-                            <Show when={item.activeTool}>
-                              <div class="text-11-regular text-text-weak break-words">
-                                Tool: {item.activeTool}
-                                <Show
-                                  when={monitorToolStatus({
-                                    statusType: item.status.type,
-                                    activeToolStatus: item.activeToolStatus,
-                                  })}
-                                >
-                                  {(toolStatus) => <> · {toolStatus()}</>}
-                                </Show>
+                            <div class="text-11-medium uppercase tracking-wide text-text-weak">Current objective</div>
+                            <div class="text-12-medium text-text-strong break-words">{step().content}</div>
+                            <Show when={statusSummary().methodChips.length > 0}>
+                              <div class="flex flex-wrap gap-1 pt-1">
+                                <For each={statusSummary().methodChips}>
+                                  {(chip) => (
+                                    <span
+                                      class="inline-flex h-5 px-1.5 items-center rounded-full border text-[11px] font-medium"
+                                      classList={{
+                                        "bg-info/12 text-info border-info/20": chip.tone === "info",
+                                        "bg-success/12 text-success border-success/20": chip.tone === "success",
+                                        "bg-warning/12 text-warning border-warning/20": chip.tone === "warning",
+                                        "bg-surface-base text-text-muted border-border-weak-base":
+                                          chip.tone === "neutral",
+                                      }}
+                                    >
+                                      {chip.label}
+                                    </span>
+                                  )}
+                                </For>
                               </div>
                             </Show>
                           </div>
                         )}
-                      </For>
-                    </Show>
+                      </Show>
+
+                      <Show when={statusSummary().processLines.length > 0}>
+                        <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
+                          <div class="text-11-medium uppercase tracking-wide text-text-weak">Status</div>
+                          <For each={statusSummary().processLines}>
+                            {(line) => <div class="text-12-regular text-text-weak break-words">{line}</div>}
+                          </For>
+                        </div>
+                      </Show>
+
+                      <Show
+                        when={monitorEntries().length > 0}
+                        fallback={<div class="text-12-regular text-text-weak">No active tasks.</div>}
+                      >
+                        <For each={monitorEntries() as EnrichedMonitorEntry[]}>
+                          {(item) => (
+                            <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
+                              <div class="flex items-center gap-2 min-w-0">
+                                <span class="text-11-medium text-text-weak shrink-0">
+                                  [{MONITOR_LEVEL_LABELS[item.level] ?? item.level}]
+                                </span>
+                                <span class="text-12-medium text-text-strong truncate">{monitorTitle(item)}</span>
+                              </div>
+                              <Show when={item.todo?.content}>
+                                <div class="text-11-regular text-info break-words">Todo: {item.todo?.content}</div>
+                              </Show>
+                              <Show when={item.todo?.status}>
+                                <div class="text-11-regular text-text-weak break-words">
+                                  Todo status: {item.todo?.status}
+                                </div>
+                              </Show>
+                              <div class="text-11-regular text-text-weak break-words">
+                                {MONITOR_STATUS_LABELS[item.status.type] ?? item.status.type}
+                                {item.model ? ` · ${item.model.providerId}/${item.model.modelID}` : ""}
+                                {` · ${item.requests} reqs · ${item.totalTokens.toLocaleString()} tok`}
+                              </div>
+                              <Show
+                                when={
+                                  item.todo?.action?.kind ||
+                                  item.todo?.action?.waitingOn ||
+                                  item.todo?.action?.needsApproval
+                                }
+                              >
+                                <div class="text-11-regular text-text-weak break-words">
+                                  Method: {item.todo?.action?.kind ?? "implement"}
+                                  {item.todo?.action?.waitingOn ? ` · waiting: ${item.todo.action.waitingOn}` : ""}
+                                  {item.todo?.action?.needsApproval ? " · needs approval" : ""}
+                                </div>
+                              </Show>
+                              <Show when={item.activeTool}>
+                                <div class="text-11-regular text-text-weak break-words">
+                                  Tool: {item.activeTool}
+                                  <Show
+                                    when={monitorToolStatus({
+                                      statusType: item.status.type,
+                                      activeToolStatus: item.activeToolStatus,
+                                    })}
+                                  >
+                                    {(toolStatus) => <> · {toolStatus()}</>}
+                                  </Show>
+                                </div>
+                              </Show>
+                              <Show when={item.latestResult}>
+                                <div class="text-11-regular text-text-weak break-words">
+                                  Result: {item.latestResult}
+                                </div>
+                              </Show>
+                              <Show when={item.latestNarration}>
+                                <div class="text-11-regular text-info break-words">
+                                  Narration: {item.latestNarration}
+                                </div>
+                              </Show>
+                            </div>
+                          )}
+                        </For>
+                      </Show>
+                    </div>
                   </Show>
                 </Show>
               </Show>

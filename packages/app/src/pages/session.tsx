@@ -321,14 +321,17 @@ export default function Page() {
       () => [params.id, !!info(), messagesReady()] as const,
       ([id, hasInfo, ready]) => {
         if (!id) return
-        if (false /* disabled */) console.debug("[session-reload-debug] session-page:state", {
-          directory: sdk.directory,
-          sessionID: id,
-          hasInfo,
-          messagesReady: ready,
-          infoDirectory: info()?.directory,
-          totalMessages: sync.data.message[id]?.length ?? 0,
-        })
+        const messageList = sync.data.message[id]
+        const totalMessages = messageList?.length ?? 0
+        if (false /* disabled */)
+          console.debug("[session-reload-debug] session-page:state", {
+            directory: sdk.directory,
+            sessionID: id,
+            hasInfo,
+            messagesReady: ready,
+            infoDirectory: info()?.directory,
+            totalMessages,
+          })
         sendSessionReloadDebugBeacon({
           sdk,
           event: "session-page:state",
@@ -337,7 +340,7 @@ export default function Page() {
             hasInfo,
             messagesReady: ready,
             infoDirectory: info()?.directory,
-            totalMessages: sync.data.message[id]?.length ?? 0,
+            totalMessages,
           },
         })
       },
@@ -353,12 +356,13 @@ export default function Page() {
         if (hasInfo && ready) return
         if (initialHydratedSessionID === id) return
         initialHydratedSessionID = id
-        if (false /* disabled */) console.debug("[session-reload-debug] session-page:hydrate", {
-          directory: sdk.directory,
-          sessionID: id,
-          hasInfo,
-          messagesReady: ready,
-        })
+        if (false /* disabled */)
+          console.debug("[session-reload-debug] session-page:hydrate", {
+            directory: sdk.directory,
+            sessionID: id,
+            hasInfo,
+            messagesReady: ready,
+          })
         sendSessionReloadDebugBeacon({
           sdk,
           event: "session-page:hydrate",
@@ -689,14 +693,15 @@ export default function Page() {
       () => [params.id, messagesReady(), messages().length, visibleUserMessages().length, activeMessage()?.id] as const,
       ([id, ready, total, visible, active]) => {
         if (!id) return
-        if (false /* disabled */) console.debug("[session-reload-debug] session-page:render-gate", {
-          directory: sdk.directory,
-          sessionID: id,
-          messagesReady: ready,
-          totalMessages: total,
-          visibleUserMessages: visible,
-          activeMessageID: active,
-        })
+        if (false /* disabled */)
+          console.debug("[session-reload-debug] session-page:render-gate", {
+            directory: sdk.directory,
+            sessionID: id,
+            messagesReady: ready,
+            totalMessages: total,
+            visibleUserMessages: visible,
+            activeMessageID: active,
+          })
         sendSessionReloadDebugBeacon({
           sdk,
           event: "session-page:render-gate",

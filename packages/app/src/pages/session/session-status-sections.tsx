@@ -10,6 +10,14 @@ import {
   type JSX,
 } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
+import {
+  createSortable,
+  type DragEvent,
+  DragDropProvider,
+  DragDropSensors,
+  SortableProvider,
+  closestCenter,
+} from "@thisbeyond/solid-dnd"
 import { useNavigate } from "@solidjs/router"
 import { Button } from "@opencode-ai/ui/button"
 import { Switch } from "@opencode-ai/ui/switch"
@@ -21,8 +29,8 @@ import { usePlatform } from "@/context/platform"
 import { useSDK } from "@/context/sdk"
 import { normalizeServerUrl, useServer } from "@/context/server"
 import { useSync } from "@/context/sync"
+import { useLayout } from "@/context/layout"
 import { DialogSelectServer } from "@/components/dialog-select-server"
-import { DialogSettings } from "@/components/dialog-settings"
 import { ServerRow } from "@/components/server/server-row"
 import { checkServerHealth, type ServerHealth } from "@/utils/server-health"
 
@@ -161,15 +169,12 @@ const useMcpToggle = (input: {
   return { loading, toggle }
 }
 
-export function SessionStatusSections(props: {
-  summaryContent?: JSX.Element
-  todoContent?: JSX.Element
-  monitorContent?: JSX.Element
-}) {
+export function SessionStatusSections(props: { todoContent?: JSX.Element; monitorContent?: JSX.Element }) {
   const sync = useSync()
   const sdk = useSDK()
   const server = useServer()
   const platform = usePlatform()
+  const layout = useLayout()
   const dialog = useDialog()
   const language = useLanguage()
   const navigate = useNavigate()
@@ -188,50 +193,34 @@ export function SessionStatusSections(props: {
   const defaultServer = useDefaultServerUrl(platform.getDefaultServerUrl)
   const mcpNames = createMemo(() => Object.keys(sync.data.mcp ?? {}).sort((a, b) => a.localeCompare(b)))
   const mcpStatus = (name: string) => sync.data.mcp?.[name]?.status
-  const lspItems = createMemo(() => sync.data.lsp ?? [])
-  const plugins = createMemo(() => sync.data.config.plugin ?? [])
-  const pluginEmpty = createMemo(() => pluginEmptyMessage(language.t("dialog.plugins.empty"), "opencode.json"))
-  const [expanded, setExpanded] = createStore({
-    servers: true,
-    summary: true,
-    monitor: true,
-    todo: true,
-    mcp: true,
-    lsp: true,
-    plugins: true,
-  })
+  type StatusCardKey = "monitor" | "todo" | "servers" | "mcp"
 
-  const renderSection = (
-    key: keyof typeof expanded,
-    title: string,
-    children: JSX.Element,
-    options?: { hidden?: boolean },
-  ) => {
+  const renderSection = (key: StatusCardKey, title: string, children: JSX.Element, options?: { hidden?: boolean }) => {
     if (options?.hidden) return null
     return (
       <section class="flex flex-col gap-2 rounded-md border border-border-weak-base bg-surface-panel px-3 py-3">
         <button
           type="button"
           class="flex items-center gap-2 text-left"
-          onClick={() => setExpanded(key, (value) => !value)}
+          onClick={() => layout.statusSidebar.toggleExpanded(key)}
         >
-          <span class="text-12-medium text-text-base">{expanded[key] ? "▼" : "▶"}</span>
+          <span class="text-12-medium text-text-base">{layout.statusSidebar.expanded(key)() ? "▼" : "▶"}</span>
           <span class="text-12-medium text-text-weak uppercase tracking-wide">{title}</span>
         </button>
-        <Show when={expanded[key]}>{children}</Show>
+        <Show when={layout.statusSidebar.expanded(key)()}>{children}</Show>
       </section>
     )
   }
 
-  return (
-    <div class="bg-background-base px-3 py-3 h-full overflow-auto flex flex-col gap-3">
-      {renderSection("summary", "Autonomous", props.summaryContent!, {
-        hidden: !props.summaryContent,
-      })}
-
-      {renderSection(
-        "servers",
-        language.t("status.popover.tab.servers"),
+  const cards = createMemo(() => {
+    const result: Array<{ key: StatusCardKey; title: string; content: JSX.Element }> = []
+    if (props.monitorContent) result.push({ key: "monitor", title: "工作監控", content: props.monitorContent })
+    if (props.todoContent)
+      result.push({ key: "todo", title: language.t("session.tools.todo"), content: props.todoContent })
+    result.push({
+      key: "servers",
+      title: language.t("status.popover.tab.servers"),
+      content: (
         <Show
           when={sortedServers().length > 0}
           fallback={<div class="text-12-regular text-text-weak">{language.t("dialog.server.empty")}</div>}
@@ -286,20 +275,13 @@ export function SessionStatusSections(props: {
           >
             {language.t("status.popover.action.manageServers")}
           </Button>
-        </Show>,
-      )}
-
-      {renderSection("monitor", language.t("session.tools.monitor"), props.monitorContent!, {
-        hidden: !props.monitorContent,
-      })}
-
-      {renderSection("todo", language.t("session.tools.todo"), props.todoContent!, {
-        hidden: !props.todoContent,
-      })}
-
-      {renderSection(
-        "mcp",
-        language.t("status.popover.tab.mcp"),
+        </Show>
+      ),
+    })
+    result.push({
+      key: "mcp",
+      title: language.t("status.popover.tab.mcp"),
+      content: (
         <Show
           when={mcpNames().length > 0}
           fallback={<div class="text-12-regular text-text-weak">{language.t("dialog.mcp.empty")}</div>}
@@ -332,56 +314,49 @@ export function SessionStatusSections(props: {
               )
             }}
           </For>
-        </Show>,
-      )}
+        </Show>
+      ),
+    })
+    const order = layout.statusSidebar.order()
+    const orderIndex = new Map(order.map((key, index) => [key, index]))
+    return result.sort((a, b) => (orderIndex.get(a.key) ?? 99) - (orderIndex.get(b.key) ?? 99))
+  })
 
-      {renderSection(
-        "lsp",
-        language.t("status.popover.tab.lsp"),
-        <Show
-          when={lspItems().length > 0}
-          fallback={
-            <div class="text-12-regular text-text-weak">
-              {sync.data.config.lsp === false
-                ? "LSPs have been disabled in settings"
-                : "LSPs will activate as files are read"}
-            </div>
-          }
-        >
-          <For each={lspItems()}>
-            {(item) => (
-              <div class="flex items-start gap-2 w-full px-2 py-1">
-                <div
-                  classList={{
-                    "size-1.5 rounded-full shrink-0": true,
-                    "bg-icon-success-base": item.status === "connected",
-                    "bg-icon-critical-base": item.status === "error",
-                  }}
-                />
-                <div class="min-w-0 flex-1">
-                  <div class="text-14-regular text-text-base break-all">{item.id}</div>
-                  <div class="text-12-regular text-text-weak break-all">{item.root}</div>
-                </div>
-              </div>
+  const handleDragEnd = (event: DragEvent) => {
+    const from = event.draggable?.id as StatusCardKey | undefined
+    const to = event.droppable?.id as StatusCardKey | undefined
+    if (!from || !to || from === to) return
+    const current = [...layout.statusSidebar.order()]
+    const fromIndex = current.indexOf(from)
+    const toIndex = current.indexOf(to)
+    if (fromIndex === -1 || toIndex === -1) return
+    current.splice(toIndex, 0, current.splice(fromIndex, 1)[0]!)
+    layout.statusSidebar.setOrder(current)
+  }
+
+  return (
+    <div class="bg-background-base px-3 py-3 h-full overflow-auto flex flex-col gap-3">
+      <DragDropProvider onDragEnd={handleDragEnd} collisionDetector={closestCenter}>
+        <DragDropSensors />
+        <SortableProvider ids={cards().map((card) => card.key)}>
+          <For each={cards()}>
+            {(card) => (
+              <SortableStatusSection id={card.key}>
+                {renderSection(card.key, card.title, card.content)}
+              </SortableStatusSection>
             )}
           </For>
-        </Show>,
-      )}
+        </SortableProvider>
+      </DragDropProvider>
+    </div>
+  )
+}
 
-      {renderSection(
-        "plugins",
-        language.t("status.popover.tab.plugins"),
-        <Show when={plugins().length > 0} fallback={<div class="text-12-regular text-text-weak">{pluginEmpty()}</div>}>
-          <For each={plugins()}>
-            {(plugin) => (
-              <div class="flex items-center gap-2 w-full px-2 py-1">
-                <div class="size-1.5 rounded-full shrink-0 bg-icon-success-base" />
-                <span class="text-14-regular text-text-base truncate">{plugin}</span>
-              </div>
-            )}
-          </For>
-        </Show>,
-      )}
+function SortableStatusSection(props: { id: "monitor" | "todo" | "servers" | "mcp"; children: JSX.Element }) {
+  const sortable = createSortable(props.id)
+  return (
+    <div use:sortable classList={{ "opacity-40": sortable.isActiveDraggable }}>
+      {props.children}
     </div>
   )
 }
