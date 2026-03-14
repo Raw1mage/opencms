@@ -121,10 +121,14 @@
     }
 
     [data-slot="user-message-bottom-collapse"] {
-      width: 100%;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
       display: flex;
       justify-content: center;
-      padding-top: 12px;
+      pointer-events: none;
+      translate: 0 50%;
     }
   }
 
@@ -279,16 +283,20 @@
 }
 
 [data-slot="bottom-collapse-icon"] {
+  pointer-events: auto;
   border: none;
   background: transparent;
-  padding: 0;
+  padding: 6px 12px;
   cursor: pointer;
   color: var(--text-weak);
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-small);
+  font-size: 10px;
   line-height: 1;
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
 
   &:hover {
+    opacity: 1;
     color: var(--text-base);
   }
 }
@@ -322,10 +330,14 @@
   }
 
   [data-slot="bash-output-bottom-collapse"] {
-    width: 100%;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
     display: flex;
     justify-content: center;
-    padding-top: 12px;
+    pointer-events: none;
+    translate: 0 50%;
   }
 
   [data-slot="bash-output-expand"] {

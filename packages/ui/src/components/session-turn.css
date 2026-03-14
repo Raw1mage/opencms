@@ -128,6 +128,7 @@
 
   [data-component="user-message"][data-expanded="true"] [data-slot="user-message-text"] {
     max-height: none;
+    overflow: visible;
   }
 
   [data-component="user-message"][data-can-expand="true"] [data-slot="user-message-text"] {
