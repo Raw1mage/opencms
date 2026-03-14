@@ -32,9 +32,6 @@ export namespace Account {
 
   /** @deprecated Use PROVIDERS instead */
   export const FAMILIES = PROVIDERS
-  /** @deprecated Use Provider instead */
-  export type Family = Provider
-
   // Account type schemas
   export const ApiAccount = z.object({
     type: z.literal("api"),
@@ -88,7 +85,7 @@ export namespace Account {
   export const knownProviders = knownFamilies
   export const resolveProvider = resolveFamily
   export const resolveProviderOrSelf = resolveFamilyOrSelf
-  export const parseProviderKey = parseProvider
+  // @event_20260314: removed parseProviderKey (zero importers)
 
   // Storage schema
   // NOTE: Uses "families" key for backward compatibility with existing accounts.json files.
@@ -101,7 +98,6 @@ export namespace Account {
 
   const CURRENT_VERSION = 2
   const filepath = path.join(Global.Path.user, "accounts.json")
-  const legacyFilepath = path.join(Global.Path.data, "accounts.json")
   const legacyOpencodeFilepath = path.join(Global.Path.home, ".opencode", "accounts.json")
 
   // Cached state
@@ -174,17 +170,8 @@ export namespace Account {
       }
     }
 
-    // Auto-migrate from old XDG location (~/.local/share/opencode/accounts.json)
-    if (!exists) {
-      const legacyFile = Bun.file(legacyFilepath)
-      if (await legacyFile.exists()) {
-        log.info("Migrating accounts.json from legacy path", { from: legacyFilepath, to: filepath })
-        await fs.mkdir(path.dirname(filepath), { recursive: true }).catch(() => {})
-        await Bun.write(filepath, await legacyFile.text())
-        await fs.chmod(filepath, 0o600)
-        exists = true
-      }
-    }
+    // @event_20260314: removed legacy XDG migration (~/.local/share/opencode/accounts.json)
+    // That file was a shadow-write artifact, not a genuine legacy source.
 
     if (!exists) {
       // Try migration from old formats
@@ -204,17 +191,7 @@ export namespace Account {
       }
       let storage = parsed.data
 
-      // One-time migration from 'anthropic' to 'claude-cli'
-      if (storage.families.anthropic) {
-        log.info("Migrating anthropic accounts to claude-cli...")
-        storage.families["claude-cli"] = storage.families["claude-cli"] || { accounts: {} }
-        Object.assign(storage.families["claude-cli"].accounts, storage.families.anthropic.accounts)
-        if (!storage.families["claude-cli"].activeAccount) {
-          storage.families["claude-cli"].activeAccount = storage.families.anthropic.activeAccount
-        }
-        delete storage.families.anthropic
-        await save(storage)
-      }
+      // @event_20260314: removed anthropic→claude-cli one-time migration (B1)
 
       if (storage.version < 2) {
         storage = await migrateToV2(storage)
@@ -223,43 +200,8 @@ export namespace Account {
 
       let shouldSave = false
 
-      // Fix: add {provider}-{type}- prefix to account IDs that are missing it.
-      // A broken generateId (commit 3bf52500a) produced bare names like "default",
-      // "yeatsluo-g-ncu-edu-tw" instead of "gemini-cli-api-default",
-      // "google-api-api-yeatsluo-g-ncu-edu-tw", causing parseProvider() to fail
-      // and the admin panel to show them as separate providers.
-      let fixedIds = false
-      for (const [fam, data] of Object.entries(storage.families)) {
-        const renames: Array<[string, string]> = []
-        for (const [id, info] of Object.entries(data.accounts)) {
-          // Already has the correct prefix — skip
-          if (id.startsWith(`${fam}-api-`) || id.startsWith(`${fam}-subscription-`)) continue
-          // Build the correct ID
-          const suffix =
-            id === fam || id === "default" ? info.name?.toLowerCase().replace(/[^a-z0-9]/g, "-") || "default" : id
-          let newId = `${fam}-${info.type}-${suffix}`
-          // Avoid collision with an existing account — append a counter
-          if (data.accounts[newId]) {
-            let counter = 2
-            while (data.accounts[`${newId}-${counter}`]) counter++
-            newId = `${newId}-${counter}`
-          }
-          if (newId !== id) {
-            renames.push([id, newId])
-          }
-        }
-        for (const [oldId, newId] of renames) {
-          data.accounts[newId] = data.accounts[oldId]
-          delete data.accounts[oldId]
-          if (data.activeAccount === oldId) {
-            data.activeAccount = newId
-          }
-          fixedIds = true
-        }
-      }
-      if (fixedIds) {
-        shouldSave = true
-      }
+      // @event_20260314: removed account ID prefix fix (B3) — generateId() is fixed,
+      // all existing accounts already corrected. See commit 3bf52500a for history.
 
       // Normalize family keys that were created from provider instance IDs
       // (e.g. "nvidia-work" should resolve back to canonical family "nvidia").
@@ -448,11 +390,6 @@ export namespace Account {
       // Primary save to ~/.config
       await Bun.write(filepath, content)
       await fs.chmod(filepath, 0o600)
-
-      // Shadow save to ~/.local/share (just in case)
-      await fs.mkdir(path.dirname(legacyFilepath), { recursive: true }).catch(() => {})
-      await Bun.write(legacyFilepath, content)
-      await fs.chmod(legacyFilepath, 0o600).catch(() => {})
 
       _mtime = await getDiskMtime()
       debugCheckpoint("Account.save", "Write successful")

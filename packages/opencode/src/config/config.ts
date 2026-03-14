@@ -366,10 +366,8 @@ export namespace Config {
 
     if (!result.username) result.username = os.userInfo().username
 
-    // Handle migration from autoshare to share field
-    if (result.autoshare === true && !result.share) {
-      result.share = "auto"
-    }
+    // @event_20260314: removed autoshare→share migration (E2)
+    // Schema field retained to prevent .strict() rejection of existing configs.
 
     if (!result.keybinds) result.keybinds = Info.shape.keybinds.parse({})
 
