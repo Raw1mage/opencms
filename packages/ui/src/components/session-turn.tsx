@@ -689,8 +689,11 @@ export function SessionTurn(
 
     update()
 
-    // Only keep ticking while the active (in-progress) turn is running.
-    if (!working()) return
+    // Keep ticking while the turn has no completed timestamp (still in progress).
+    // Previously used working() which stops when subagents are delegated,
+    // causing the timer to freeze mid-count.
+    const completed = assistantMessages().some((m) => typeof m.time.completed === "number")
+    if (completed) return
 
     const timer = setInterval(update, 1000)
     onCleanup(() => clearInterval(timer))
