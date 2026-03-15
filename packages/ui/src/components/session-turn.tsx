@@ -564,12 +564,19 @@ export function SessionTurn(
     const msg = message()
     if (!msg) return ""
 
-    const completed = assistantMessages().reduce<number | undefined>((max, item) => {
-      const value = item.time.completed
-      if (typeof value !== "number") return max
-      if (max === undefined) return value
-      return Math.max(max, value)
-    }, undefined)
+    // Only use a fixed "to" time when ALL assistant messages have completed.
+    // If any is still running (e.g. main message during subagent delegation),
+    // keep using DateTime.now() so the timer doesn't freeze.
+    const msgs = assistantMessages()
+    const allCompleted = msgs.length > 0 && msgs.every((m) => typeof m.time.completed === "number")
+    const completed = allCompleted
+      ? msgs.reduce<number | undefined>((max, item) => {
+          const value = item.time.completed
+          if (typeof value !== "number") return max
+          if (max === undefined) return value
+          return Math.max(max, value)
+        }, undefined)
+      : undefined
 
     const from = DateTime.fromMillis(msg.time.created)
     const to = completed ? DateTime.fromMillis(completed) : DateTime.now()
@@ -689,10 +696,12 @@ export function SessionTurn(
 
     update()
 
-    // Keep ticking while the turn has no completed timestamp (still in progress).
-    // Previously used working() which stops when subagents are delegated,
-    // causing the timer to freeze mid-count.
-    const completed = assistantMessages().some((m) => typeof m.time.completed === "number")
+    // Keep ticking while any assistant message in this turn is still in progress.
+    // Use .every() not .some(): narration messages (e.g. "Delegating to explore: ...")
+    // are created with time.completed already set, but the main assistant message
+    // is still running. Using .some() would freeze the timer when narration fires.
+    const msgs = assistantMessages()
+    const completed = msgs.length > 0 && msgs.every((m) => typeof m.time.completed === "number")
     if (completed) return
 
     const timer = setInterval(update, 1000)
