@@ -138,13 +138,14 @@ The `cms` branch is the primary product line for this environment, featuring sig
   - this means entering `plan` does not conceptually imply “absolutely no edits ever”, and being in `build` does not imply “planning is forbidden”; instead, the difference is the default responsibility and gate posture
 - In-process continuation is now wired inside the prompt loop: after an assistant round completes, the runtime can synthesize the next user step from outstanding todos when autonomous mode is enabled and no blocker/approval stop condition is active.
 - `plan_exit` is now the canonical bridge from planning to runner execution authority: after companion artifacts pass completeness gates and the user approves the handoff, runtime both materializes structured todos and persists the approved mission contract onto the session. This means `/specs` plans are no longer just planner-side artifacts; they are the first supported runtime mission source for autonomous runner work.
-- Todo is now treated as a **runtime projection of planner artifacts**, not the primary authoring surface for real feature work:
-  - the durable source of truth for planned work is the active planner package under `specs/<date>_<plan-title>/`
-  - `tasks.md`/handoff drive runtime todo materialization
-  - build-side agents and autorunner consume todo as the immediate execution surface
-  - sidebar/work monitor is the observability surface for that runtime todo state, not the planning source of truth
-  - visible runtime todo should remain stable unless planner artifacts/replan/status actually changed; it must not drift just because the assistant internally reorganized its own short-term working notes
+- Todo authority is now **mode-aware** with two distinct semantics:
+  - **Plan mode (working ledger)**: todowrite() may be used freely for exploration, debugging, small fixes, and temporary tracking. Structure changes are auto-promoted to `working_ledger` mode. No planner artifacts are required before writing todos.
+  - **Build mode (execution ledger)**: todo is a runtime projection of planner artifacts, not a freeform authoring surface. The durable source of truth is the active planner package under `specs/<date>_<plan-title>/`. `tasks.md`/handoff drive runtime todo materialization. Structure changes require explicit `plan_materialization` or `replan_adoption` mode. `status_update` mode is limited to status transitions only.
+  - sidebar/work monitor is the observability surface for runtime todo state in both modes
+  - in build mode, visible runtime todo should remain stable unless planner artifacts/replan/status actually changed; it must not drift just because the assistant internally reorganized its own short-term working notes
   - when the system asks the user for a decision, it should reference the same planner-derived runtime todo names shown in sidebar/work monitor
+  - `plan_exit` is the canonical transition point: it materializes planner-derived execution todos and switches todo authority from working ledger to execution ledger
+  - `plan_enter` switches todo authority back to working ledger mode
 - Planner package layout is now:
   - root: `specs/<date>_<plan-title>/`
   - title segment uses a slugified session title when available; default generated session titles fall back to session slug

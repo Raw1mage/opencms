@@ -4,7 +4,7 @@ import z from "zod"
 import { Storage } from "../storage/storage"
 
 export namespace Todo {
-  export const UpdateMode = z.enum(["status_update", "plan_materialization", "replan_adoption"])
+  export const UpdateMode = z.enum(["status_update", "plan_materialization", "replan_adoption", "working_ledger"])
   export type UpdateMode = z.infer<typeof UpdateMode>
 
   export const Action = z
@@ -350,11 +350,13 @@ export namespace Todo {
     const current = await get(input.sessionID)
     const mode = input.mode ?? "replan_adoption"
     const todos =
-      mode === "status_update"
-        ? applyStatusOnlyUpdate(current, input.todos)
-        : mode === "plan_materialization"
-          ? projectProgressOntoSeed(current, input.todos)
-          : mergePreservingProgress(current, input.todos)
+      mode === "working_ledger"
+        ? enrichAll(input.todos)
+        : mode === "status_update"
+          ? applyStatusOnlyUpdate(current, input.todos)
+          : mode === "plan_materialization"
+            ? projectProgressOntoSeed(current, input.todos)
+            : mergePreservingProgress(current, input.todos)
     await Storage.write(["todo", input.sessionID], todos)
     Bus.publish(Event.Updated, {
       sessionID: input.sessionID,

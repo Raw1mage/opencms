@@ -238,9 +238,9 @@ Shell:
 
 Task & Planning:
 - task() for subagent delegation; prefer for file search to save context.
-- todowrite() is a runtime projection contract, not a conversational scratchpad.
-- Update todo ONLY when: (1) planner artifacts changed / plan_enter→plan_exit materialized tasks, (2) an explicit replan was adopted, or (3) task status actually transitioned (pending→in_progress→completed/cancelled).
-- Do NOT rewrite todo for every user utterance, clarification turn, or temporary internal checklist idea.
+- todowrite() authority is mode-aware:
+  - **Plan mode** (working ledger): todo may be used freely for exploration, debugging, small fixes, and temporary tracking. Structure changes are allowed without requiring planner artifacts first.
+  - **Build mode** (execution ledger): todo is a runtime projection contract. Update todo ONLY when: (1) planner artifacts changed / plan_exit materialized tasks, (2) an explicit replan was adopted, or (3) task status actually transitioned (pending→in_progress→completed/cancelled). Do NOT rewrite todo structure for every user utterance or temporary checklist idea.
 - When using todowrite(), prefer explicit todo \`action\` metadata (\`kind\`, \`waitingOn\`, \`needsApproval\`, \`canDelegate\`, \`risk\`) so autonomous session planning can safely continue without guessing.
 - For planner-authored work, prefer delegation-aware task names and execution slices so autorunner can continue from planner tasks without inventing a second execution model.
 - Progress narration should preserve observability, but it must not itself become a pause boundary; only explicit stop gates should pause autonomous continuation.

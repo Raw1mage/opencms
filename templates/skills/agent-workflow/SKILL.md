@@ -11,7 +11,7 @@ description: 定義 Agent 的標準作業程序(SOP)，並補齊本系統 autono
 
 1. **Autonomy 依賴計畫，不依賴靈感。**
 2. **計畫不必完美，但必須可執行。** 至少要有目標、todo、依賴、stop gates。
-3. **todo 是 runtime contract，不只是筆記。**
+3. **todo 是 mode-aware runtime contract。** Plan mode = working ledger（可自由寫）；Build mode = execution ledger（嚴格對齊 planner）。
 4. **一律對話中可觀測。** 重要進展、阻塞、replan 必須可被使用者理解。
 5. **可持續執行 ≠ 可靜默亂跑。** 遇到 approval / decision / blocker 必須停。
 6. **Debug 必須 system-first。** 複雜 bug 一律先看系統邊界、資料流與觀測訊號，不得只憑局部症狀下判斷。
@@ -123,7 +123,11 @@ graph TD
 7. **Delegation candidates**：哪些步驟可交由 subagent 執行
 8. **Architecture thinking**：constraints / boundaries / trade-offs / critical files
 
-### `todowrite` 強制規範
+### `todowrite` 強制規範（mode-aware）
+
+todo authority 依 session mode 而定：
+- **Plan mode (working ledger)**: 可自由建立、重組、更新 todo，用於 exploration / debug / small fix / 暫時追蹤。不需要 planner artifacts 才能寫 todo。Runtime 會自動將 structure change 升格為 `working_ledger` mode。
+- **Build mode (execution ledger)**: todo 必須與 planner-derived tasks 對齊。Structure change 只允許在 `plan_materialization` 或 `replan_adoption` mode 下進行。`status_update` mode 只能更新狀態，不能改 structure。
 
 每個非瑣碎計畫都應寫成結構化 todo：
 

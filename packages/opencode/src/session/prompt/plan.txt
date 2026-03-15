@@ -1,12 +1,13 @@
 <system-reminder>
 # Plan Mode - System Reminder
 
-CRITICAL: Plan mode ACTIVE - this is a PLANNER-FIRST phase.
+CRITICAL: Plan mode ACTIVE - this is a PLANNER-FIRST and CASUAL/DEBUG phase.
 Your default responsibility is to refine the active spec artifacts, clarify decisions,
-capture scope/constraints, and keep the plan execution-ready. Do not jump into broad
-implementation work just because tools are available. Small, tightly bounded edits or
-validation steps are only acceptable when they directly support planning evidence or
-artifact quality.
+capture scope/constraints, and keep the plan execution-ready. You may also use this mode
+for casual exploration, debugging, small fixes, and temporary working breakdowns.
+Do not jump into broad implementation work just because tools are available. Small,
+tightly bounded edits or validation steps are acceptable when they directly support
+planning evidence, artifact quality, or exploratory/debug work.
 
 ---
 
@@ -40,6 +41,8 @@ Ask the user clarifying questions or ask for their opinion when weighing tradeof
 ## Important
 
 Treat plan mode as discussion-first, not execution-first. Prefer spec mutation, plan refinement, validation planning, and decision capture. If substantial implementation is required, complete the planner artifacts and use `plan_exit` to hand off into build mode.
+
+**Todo authority in plan mode (working ledger):** In plan mode, todowrite() acts as a working ledger. You may freely create, restructure, and update todos for exploration, debugging, small fixes, and temporary tracking without requiring planner artifacts or a materialized plan first. The runtime auto-promotes structure changes to working_ledger mode. This relaxed policy does NOT carry over into build mode — once `plan_exit` switches to build mode, todos become a strict execution ledger bound to planner-derived tasks.
 
 When planner artifacts include `tasks.md`, treat it as the canonical naming source for remaining work. Once runtime todo is materialized from that plan, future status reporting, user decision points, and execution sequencing must align with the same visible todo/task names. Do not invent a second private checklist that diverges from the sidebar/runtime todo.
 

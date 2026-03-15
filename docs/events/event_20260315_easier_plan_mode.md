@@ -1,7 +1,7 @@
 # Event: easier_plan_mode
 
 Date: 2026-03-15
-Status: Planned
+Status: Implemented
 Branch: cms
 Workspace: /home/pkcs12/projects/opencode
 
@@ -32,6 +32,11 @@ Workspace: /home/pkcs12/projects/opencode
 - [x] 建立 easier_plan_mode 的獨立 spec package 與 event
 - [x] 把 plan mode 寬鬆 todo policy 與 build mode 嚴格 sync policy 寫成 execution-ready spec
 - [x] 收斂 transition rule、受影響檔案與驗證策略
+- [x] 實作 runtime mode-aware todowrite: `working_ledger` UpdateMode + plan-mode auto-promotion
+- [x] 更新 system.ts / plan.txt / claude.txt / anthropic-20250930.txt todowrite 規範為 mode-aware
+- [x] 更新 agent-workflow SKILL.md todowrite 章節
+- [x] 更新 plan_enter / plan_exit handoff 訊息明確宣告 todo authority 切換
+- [x] 同步 docs/ARCHITECTURE.md: todo 從 planner-projection-only 改為 mode-aware contract
 
 ## Debug Checkpoints
 
@@ -71,6 +76,18 @@ Workspace: /home/pkcs12/projects/opencode
 
 ## Architecture Sync
 
-- Architecture Sync: Deferred to implementation
-- 本輪為 planning task；尚未修改 runtime/doc surfaces。
-- 後續 build 必須同步更新 `docs/ARCHITECTURE.md` 中關於 todo 為 planner projection 的單一敘事，改成 mode-aware contract。
+- `docs/ARCHITECTURE.md` 已更新：todo 從 "runtime projection of planner artifacts" 改為 mode-aware contract（plan mode = working ledger, build mode = execution ledger）。
+- `plan_enter` / `plan_exit` handoff 訊息已明確宣告 todo authority 切換。
+
+## Implementation Summary
+
+### Runtime changes
+- `todo.ts`: 新增 `working_ledger` UpdateMode，直接 enrichAll 而不走 merge/projection 邏輯
+- `tool/todo.ts`: todowrite handler 現在 mode-aware — plan mode 下 structure change 自動升格為 `working_ledger`；build mode 維持嚴格 `status_update` 限制
+
+### Prompt/doc changes
+- `system.ts`: todowrite 規範拆成 plan mode (working ledger) vs build mode (execution ledger)
+- `plan.txt`: 加入 casual/debug/small-fix 語言，明確宣告 plan mode 下的 relaxed todo policy
+- `claude.txt` / `anthropic-20250930.txt`: plan/build mode todowrite 行為分開描述
+- `agent-workflow/SKILL.md`: todowrite 強制規範改為 mode-aware 版本
+- `plan.ts`: plan_enter 和 plan_exit 的 handoff 訊息明確宣告 todo authority 切換

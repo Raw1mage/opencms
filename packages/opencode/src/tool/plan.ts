@@ -574,6 +574,7 @@ export const PlanExitTool = Tool.define("plan_exit", {
       type: "text",
       text:
         `The plan at ${plan} has been approved. You are now in build mode, which is execution-first. ` +
+        `Todo authority is now strict (execution ledger mode): todos must align with planner-derived tasks. Structure changes require plan_materialization or replan_adoption mode. ` +
         `Use the plan file as the implementation specification and execute it end-to-end. ` +
         `Treat the plan as the source of truth for goal, scope, assumptions, stop gates, validation, critical files, execution phases, and handoff instructions. ` +
         `Before coding, read the plan file carefully, convert its execution phases into structured todos/action metadata, and then continue implementing from that spec. Update the plan artifacts when user intent or scope changes.`,
@@ -697,13 +698,13 @@ export const PlanEnterTool = Tool.define("plan_enter", {
       messageID: userMsg.id,
       sessionID: ctx.sessionID,
       type: "text",
-      text: "User has requested to enter plan mode. Switch to plan mode and begin planner-first discussion, spec maintenance, and plan refinement.",
+      text: "User has requested to enter plan mode. Switch to plan mode and begin planner-first discussion, spec maintenance, and plan refinement. Todo authority is now relaxed: you may use todowrite() freely as a working ledger for exploration, debugging, small fixes, and temporary tracking without requiring planner artifacts first.",
       synthetic: true,
     } satisfies MessageV2.TextPart)
 
     return {
       title: "Switching to plan agent",
-      output: `User confirmed to switch to plan mode. A new message has been created to switch you to plan mode. The implementation spec will be at ${plan} and companion artifacts are available under ${path.relative(Instance.worktree, planRoot)}. Begin planner-first discussion and keep the artifacts aligned.`,
+      output: `User confirmed to switch to plan mode. A new message has been created to switch you to plan mode. The implementation spec will be at ${plan} and companion artifacts are available under ${path.relative(Instance.worktree, planRoot)}. Begin planner-first discussion and keep the artifacts aligned. Todo authority is now relaxed (working ledger mode).`,
       metadata: {},
     }
   },
