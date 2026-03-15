@@ -361,6 +361,9 @@ export const GlobalRoutes = lazy(() =>
       }),
       async (c) => {
         const webctlPath = resolveWebctlPath()
+        const txid = `web-${Date.now()}-${process.pid}`
+        const runtimeTmp = process.env.XDG_RUNTIME_DIR || "/tmp"
+        const errorLogPath = path.join(runtimeTmp, `opencode-web-restart-${txid}.error.log`)
         const exists = await Bun.file(webctlPath).exists()
         if (!exists) {
           log.error("web restart rejected: control script missing", { webctlPath })
@@ -378,16 +381,30 @@ export const GlobalRoutes = lazy(() =>
           stdout: "ignore",
           stderr: "pipe",
           stdin: "ignore",
+          env: {
+            ...process.env,
+            OPENCODE_RESTART_TXID: txid,
+            OPENCODE_RESTART_ERROR_LOG_FILE: errorLogPath,
+          },
         })
         const stderrText = proc.stderr ? new Response(proc.stderr).text() : Promise.resolve("")
         const exitCode = await proc.exited
         const stderr = (await stderrText).trim()
         if (exitCode !== 0) {
-          log.error("web restart failed to schedule", { webctlPath, exitCode, stderr })
+          const hint =
+            process.env.OPENCODE_LAUNCH_MODE === "webctl"
+              ? "Current runtime appears to be webctl/dev mode; restart may rebuild frontend before restarting. See the restart error log for full output."
+              : undefined
+          log.error("web restart failed to schedule", { webctlPath, exitCode, stderr, txid, errorLogPath })
           return c.json(
             {
               code: "WEB_RESTART_FAILED",
               message: stderr || `web restart command failed (${exitCode})`,
+              exitCode,
+              hint,
+              webctlPath,
+              txid,
+              errorLogPath,
             },
             500,
           )
@@ -398,6 +415,7 @@ export const GlobalRoutes = lazy(() =>
           accepted: true,
           mode: "controlled_restart",
           probePath: "/api/v2/global/health",
+          txid,
           recommendedInitialDelayMs: 1500,
           fallbackReloadAfterMs: 10000,
         })

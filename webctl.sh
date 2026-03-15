@@ -77,6 +77,7 @@ FRONTEND_PID_FILE="${RUNTIME_TMP_BASE}/opencode-web-frontend-${PROFILE_SAFE}.pid
 SERVER_LOG_FILE="${RUNTIME_TMP_BASE}/opencode-web-${PROFILE_SAFE}.log"
 RESTART_LOCK_FILE="${RUNTIME_TMP_BASE}/opencode-web-restart-${PROFILE_SAFE}.lock"
 RESTART_EVENT_LOG="${RUNTIME_TMP_BASE}/opencode-web-restart-${PROFILE_SAFE}.jsonl"
+RESTART_ERROR_LOG_FILE="${RUNTIME_TMP_BASE}/opencode-web-restart-${PROFILE_SAFE}.error.log"
 SYSTEM_SERVICE_NAME="${OPENCODE_SYSTEM_SERVICE_NAME:-opencode-web}"
 
 load_server_cfg() {
@@ -102,6 +103,21 @@ load_server_cfg() {
         exit 1
     fi
     FRONTEND_DIST="${OPENCODE_FRONTEND_PATH}"
+
+    if [ "${IS_SOURCE_REPO:-0}" -ne 1 ] && [ -f "${FRONTEND_DIST}/index.html" ]; then
+        case "${FRONTEND_DIST}" in
+            */projects/*/packages/app/dist)
+                local candidate_root
+                candidate_root="${FRONTEND_DIST%/packages/app/dist}"
+                if [ -f "${candidate_root}/packages/opencode/src/index.ts" ]; then
+                    IS_SOURCE_REPO=1
+                    PROJECT_ROOT="${candidate_root}"
+                    OPENCODE_BIN=""
+                    REPO_OWNER="$(stat -c '%U' "${PROJECT_ROOT}" 2>/dev/null || id -un)"
+                fi
+                ;;
+        esac
+    fi
 }
 
 # Colors
@@ -115,6 +131,36 @@ log_info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[OK]${NC} $1"; }
 log_warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
+
+is_restart_logging_command() {
+    case "${1:-}" in
+        restart|dev-refresh|web-refresh|_restart-worker)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+setup_restart_error_capture() {
+    local cmd="${1:-}"
+
+    if ! is_restart_logging_command "${cmd}"; then
+        return
+    fi
+
+    local log_file="${OPENCODE_RESTART_ERROR_LOG_FILE:-${RESTART_ERROR_LOG_FILE}}"
+    mkdir -p "$(dirname "${log_file}")"
+    {
+        printf '=== %s restart trace ===\n' "$(date -Iseconds)"
+        printf 'command: %s\n' "$*"
+        printf 'profile: %s\n' "${OPENCODE_PROFILE}"
+        printf 'user: %s\n\n' "$(id -un 2>/dev/null || echo unknown)"
+    } > "${log_file}"
+    exec > >(tee -a "${log_file}") 2>&1
+    trap "status=\$?; printf '\n[EXIT] %s\n' \"\${status}\" >> \"${log_file}\"" EXIT
+}
 
 ensure_clean_repo_deploy_source() {
     if [ "${IS_SOURCE_REPO:-0}" -ne 1 ]; then
@@ -1258,7 +1304,7 @@ do_dev_restart() {
     done
 
     local txid
-    txid="$(date +%Y%m%dT%H%M%S)-$$"
+    txid="${OPENCODE_RESTART_TXID:-$(date +%Y%m%dT%H%M%S)-$$}"
 
     if [ "${mode}" = "inline" ] && [ "${OPENCODE_ALLOW_INLINE_RESTART:-0}" != "1" ]; then
         log_warn "Inline restart is disabled by default; falling back to detached graceful restart."
@@ -1279,7 +1325,7 @@ do_dev_restart() {
         return
     fi
 
-    local restart_log_file="${RUNTIME_TMP_BASE}/opencode-web-restart-${PROFILE_SAFE}.log"
+    local restart_log_file="${RUNTIME_TMP_BASE}/opencode-web-restart-${PROFILE_SAFE}-${txid}.log"
     local worker_pid
     local -a worker_args
     worker_args=("_restart-worker" "--txid" "${txid}" "--mode" "${mode}")
@@ -1295,6 +1341,7 @@ do_dev_restart() {
     log_info "Restart scheduled in detached worker (pid ${worker_pid})"
     log_info "Restart TX: ${txid}"
     log_info "Monitor restart log: ${restart_log_file}"
+    log_info "Monitor restart error log: ${OPENCODE_RESTART_ERROR_LOG_FILE:-${RESTART_ERROR_LOG_FILE}}"
     log_info "Monitor restart events: ${RESTART_EVENT_LOG}"
     log_info "Check result after a few seconds: ./webctl.sh status"
 }
@@ -1346,6 +1393,8 @@ do_restart_worker() {
     local txid="unknown"
     local mode="detached"
     local graceful=0
+
+    load_server_cfg
 
     while [ "$#" -gt 0 ]; do
         case "$1" in
@@ -1417,8 +1466,13 @@ do_restart_worker() {
 # ---------------------------------------------------------------------------
 do_dev_refresh() {
     if [ "${IS_SOURCE_REPO:-0}" -ne 1 ]; then
-        log_error "dev-refresh is only available when running from source repo."
-        exit 1
+        log_warn "Source repo unavailable; skipping frontend build and performing controlled dev restart."
+        if [ "$#" -gt 0 ]; then
+            do_dev_restart "$@"
+        else
+            do_dev_restart --graceful
+        fi
+        return $?
     fi
 
     log_info "Refreshing dev webapp (build frontend + restart)..."
@@ -1655,6 +1709,7 @@ do_help() {
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+setup_restart_error_capture "${1:-}"
 ensure_repo_owner_identity "$@"
 ensure_non_interactive_sudo "$@"
 
