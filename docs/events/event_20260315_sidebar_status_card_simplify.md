@@ -190,6 +190,30 @@ Status: Completed
 - `bun test "/home/pkcs12/projects/opencode/packages/opencode/src/session/todo.test.ts"` ✅
 - `bun run typecheck` (cwd=`packages/opencode`) ✅
 
+## Todo SSOT follow-up RCA
+
+- 使用者回報 sidebar todo 仍會浮動，且 web restart 後只是重新顯示舊內容。
+- RCA：
+  - sidebar session todo API 原本只是回傳持久化 store (`Todo.get(sessionID)`)，不是 planner-aware projection
+  - 因此 web restart / sidebar refresh 只會重新 fetch 舊 session todo，**不會自動重新對齊 planner tasks**
+  - 當前 session (`ses_319c7349fffe2WUgHGiesxW78S`) 也被臨時 implementation checklist 汙染成 visible todo，因此畫面會顯示不屬於 planner tasks 的殘留項目
+- 修正：
+  - `Todo.update()` 正式分成 `status_update` / `plan_materialization` / `replan_adoption`
+  - `status_update` 只能更新進度，不能改變 todo 結構
+  - `plan_materialization` 會以 planner seed 重投影 todo 結構，保留 matching progress，但清掉不在 seed 內的 stale 項目
+  - `/api/v2/session/:sessionID/todo` 在 session 具備 active mission 時，會用 `tasks.md` seed + 現有 progress overlay 做必要才執行的 reconcile，不走每次 render 現算
+  - 當前污染 session 已人工清理，將殘留 checklist 項目全部標記為 `completed`
+- 結果：
+  - sidebar 現已可明確顯示該 session 的 todo 完成狀態
+  - 後續仍應繼續把「非 planner checklist 不得進 visible todo」做更完整的長期治理
+
+### Todo SSOT validation addendum
+
+- `bun test "/home/pkcs12/projects/opencode/packages/opencode/src/session/todo.test.ts" "/home/pkcs12/projects/opencode/packages/opencode/test/session/planner-reactivation.test.ts" "/home/pkcs12/projects/opencode/packages/opencode/src/session/workflow-runner.test.ts"` ✅
+- `bun run typecheck` (cwd=`packages/opencode`) ✅
+- web restarted after backend todo reconcile changes ✅
+- current session todo store manually normalized to completed state ✅
+
 ## Architecture Sync
 
 - Architecture Sync: Updated

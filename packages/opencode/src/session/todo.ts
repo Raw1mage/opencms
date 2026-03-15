@@ -4,6 +4,9 @@ import z from "zod"
 import { Storage } from "../storage/storage"
 
 export namespace Todo {
+  export const UpdateMode = z.enum(["status_update", "plan_materialization", "replan_adoption"])
+  export type UpdateMode = z.infer<typeof UpdateMode>
+
   export const Action = z
     .object({
       kind: z.enum([
@@ -132,6 +135,73 @@ export namespace Todo {
       }
       return todo
     })
+  }
+
+  function projectProgressOntoSeed(current: Info[], seed: Info[]) {
+    if (!seed.length) return []
+    if (!current.length) return enrichAll(seed)
+
+    const enrichedCurrent = enrichAll(current)
+    const enrichedSeed = enrichAll(seed)
+    const currentByID = new Map(enrichedCurrent.map((todo) => [todo.id, todo]))
+    const currentByContent = new Map(enrichedCurrent.map((todo) => [normalizeContent(todo.content), todo]))
+
+    return enrichedSeed.map((todo, index) => {
+      const previous = currentByID.get(todo.id) ?? currentByContent.get(normalizeContent(todo.content))
+      if (!previous) return todo
+      if (previous.status === "completed" || previous.status === "cancelled") {
+        return {
+          ...todo,
+          status: previous.status,
+          action: previous.action ?? todo.action,
+        }
+      }
+      if (previous.status === "in_progress") {
+        return {
+          ...todo,
+          status: "in_progress",
+          action: previous.action ?? todo.action,
+        }
+      }
+      return {
+        ...todo,
+        action: previous.action ?? todo.action,
+      }
+    })
+  }
+
+  function applyStatusOnlyUpdate(current: Info[], incoming: Info[]) {
+    const enrichedCurrent = enrichAll(current)
+    const enrichedIncoming = enrichAll(incoming)
+    const currentByID = new Map(enrichedCurrent.map((todo) => [todo.id, todo]))
+    const currentByContent = new Map(enrichedCurrent.map((todo) => [normalizeContent(todo.content), todo]))
+
+    return enrichedCurrent.map((todo) => {
+      const incomingTodo = enrichedIncoming.find(
+        (candidate) =>
+          candidate.id === todo.id || normalizeContent(candidate.content) === normalizeContent(todo.content),
+      )
+      if (!incomingTodo) return todo
+      return {
+        ...todo,
+        status: incomingTodo.status,
+        priority: incomingTodo.priority ?? todo.priority,
+        action: incomingTodo.action ?? todo.action,
+      }
+    })
+  }
+
+  export function projectSeedWithProgress(current: Info[], seed: Info[]) {
+    return projectProgressOntoSeed(current, seed)
+  }
+
+  export function sameStructure(a: Info[], b: Info[]) {
+    const signature = (todos: Info[]) =>
+      todos
+        .map((todo) => `${todo.id}::${normalizeContent(todo.content)}`)
+        .sort()
+        .join("||")
+    return signature(a) === signature(b)
   }
 
   export function isDependencyReady(todo: Info, todos: Info[]) {
@@ -272,13 +342,19 @@ export namespace Todo {
       }
     }
 
-    await update({ sessionID: input.sessionID, todos })
+    await update({ sessionID: input.sessionID, todos, mode: "status_update" })
     return todos
   }
 
-  export async function update(input: { sessionID: string; todos: Info[] }) {
+  export async function update(input: { sessionID: string; todos: Info[]; mode?: UpdateMode }) {
     const current = await get(input.sessionID)
-    const todos = mergePreservingProgress(current, input.todos)
+    const mode = input.mode ?? "replan_adoption"
+    const todos =
+      mode === "status_update"
+        ? applyStatusOnlyUpdate(current, input.todos)
+        : mode === "plan_materialization"
+          ? projectProgressOntoSeed(current, input.todos)
+          : mergePreservingProgress(current, input.todos)
     await Storage.write(["todo", input.sessionID], todos)
     Bus.publish(Event.Updated, {
       sessionID: input.sessionID,
@@ -290,5 +366,15 @@ export namespace Todo {
     return Storage.read<Info[]>(["todo", sessionID])
       .then((x) => x || [])
       .catch(() => [])
+  }
+
+  export async function setDerived(input: { sessionID: string; todos: Info[] }) {
+    const todos = enrichAll(input.todos)
+    await Storage.write(["todo", input.sessionID], todos)
+    Bus.publish(Event.Updated, {
+      sessionID: input.sessionID,
+      todos,
+    })
+    return todos
   }
 }

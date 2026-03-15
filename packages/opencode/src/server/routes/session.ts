@@ -1,4 +1,5 @@
 import { Hono } from "hono"
+import path from "path"
 import { stream } from "hono/streaming"
 import { describeRoute, validator, resolver } from "hono-openapi"
 import z from "zod"
@@ -12,6 +13,7 @@ import { SessionSummary } from "@/session/summary"
 import { SessionMonitor } from "@/session/monitor"
 import { getSessionMessageDiff, getSessionOwnedDirtyDiff } from "@/project/workspace"
 import { Todo } from "../../session/todo"
+import { extractChecklistItems } from "@/session/tasks-checklist"
 import { Agent } from "../../agent/agent"
 import { Snapshot } from "@/snapshot"
 import { Log } from "../../util/log"
@@ -423,8 +425,32 @@ export const SessionRoutes = lazy(() =>
             503,
           )
         }
-        const todos = await Todo.get(sessionID)
-        return c.json(todos)
+        const session = await Session.get(sessionID)
+        const currentTodos = await Todo.get(sessionID)
+
+        if (session?.mission?.executionReady) {
+          const tasksPath = session.mission.artifactPaths.tasks
+          const absoluteTasksPath = path.isAbsolute(tasksPath)
+            ? tasksPath
+            : path.resolve(session.directory || process.cwd(), tasksPath)
+          const tasksFile = Bun.file(absoluteTasksPath)
+          if (await tasksFile.exists()) {
+            const tasksText = await tasksFile.text().catch(() => "")
+            const seedTodos = extractChecklistItems(tasksText).map((content, index) => ({
+              id: `plan_${index + 1}`,
+              content,
+              status: "pending",
+              priority: "medium",
+            }))
+            const projected = Todo.projectSeedWithProgress(currentTodos, seedTodos)
+            if (!Todo.sameStructure(currentTodos, projected)) {
+              const reconciled = await Todo.setDerived({ sessionID, todos: projected })
+              return c.json(reconciled)
+            }
+          }
+        }
+
+        return c.json(currentTodos)
       },
     )
     .post(

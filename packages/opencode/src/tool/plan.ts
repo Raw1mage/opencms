@@ -67,6 +67,35 @@ const ARTIFACT_TEMPLATES = {
   handoff: `# Handoff\n\n## Execution Contract\n- Build agent must read implementation-spec.md first\n- Materialize tasks.md into runtime todos before coding\n\n## Required Reads\n- implementation-spec.md\n- design.md\n- tasks.md\n\n## Stop Gates In Force\n- Preserve approval, decision, and blocker gates from implementation-spec.md\n\n## Execution-Ready Checklist\n- [ ] Implementation spec is complete\n- [ ] Companion artifacts are aligned\n- [ ] Validation plan is explicit\n`,
 } as const
 
+async function loadPlannerTemplate(relativePath: string, fallback: string) {
+  const candidates = [
+    process.env.OPENCODE_PLANNER_TEMPLATE_DIR || "/etc/opencode/specs",
+    path.join(Instance.worktree, "templates", "specs"),
+  ]
+
+  for (const base of candidates) {
+    const templatePath = path.join(base, relativePath)
+    const file = Bun.file(templatePath)
+    if (await file.exists()) {
+      const text = await file.text().catch(() => "")
+      if (text.trim()) return text
+    }
+  }
+
+  return fallback
+}
+
+async function loadArtifactTemplates() {
+  return {
+    implementationSpec: await loadPlannerTemplate("implementation-spec.md", PLAN_SPEC_TEMPLATE),
+    proposal: await loadPlannerTemplate("proposal.md", ARTIFACT_TEMPLATES.proposal),
+    spec: await loadPlannerTemplate("spec.md", ARTIFACT_TEMPLATES.spec),
+    design: await loadPlannerTemplate("design.md", ARTIFACT_TEMPLATES.design),
+    tasks: await loadPlannerTemplate("tasks.md", ARTIFACT_TEMPLATES.tasks),
+    handoff: await loadPlannerTemplate("handoff.md", ARTIFACT_TEMPLATES.handoff),
+  }
+}
+
 const ARTIFACT_REQUIRED_HEADINGS = {
   proposal: ["Why", "What Changes", "Capabilities", "Impact"],
   spec: ["Purpose", "Requirements", "Acceptance Checks"],
@@ -495,7 +524,7 @@ export const PlanExitTool = Tool.define("plan_exit", {
       )
     }
     const planTodos = materializePlanTodos({ implementationSpec: planMarkdown, tasks: artifacts.tasks })
-    await Todo.update({ sessionID: ctx.sessionID, todos: planTodos })
+    await Todo.update({ sessionID: ctx.sessionID, todos: planTodos, mode: "plan_materialization" })
     await Session.setMission({
       sessionID: ctx.sessionID,
       mission: {
@@ -637,12 +666,13 @@ export const PlanEnterTool = Tool.define("plan_enter", {
     const existing = await Bun.file(planFile).exists()
     if (!existing) {
       await fs.mkdir(planRoot, { recursive: true })
-      await Bun.write(planFile, PLAN_SPEC_TEMPLATE)
-      await Bun.write(artifactPaths.proposal, ARTIFACT_TEMPLATES.proposal)
-      await Bun.write(artifactPaths.spec, ARTIFACT_TEMPLATES.spec)
-      await Bun.write(artifactPaths.design, ARTIFACT_TEMPLATES.design)
-      await Bun.write(artifactPaths.tasks, ARTIFACT_TEMPLATES.tasks)
-      await Bun.write(artifactPaths.handoff, ARTIFACT_TEMPLATES.handoff)
+      const templates = await loadArtifactTemplates()
+      await Bun.write(planFile, templates.implementationSpec)
+      await Bun.write(artifactPaths.proposal, templates.proposal)
+      await Bun.write(artifactPaths.spec, templates.spec)
+      await Bun.write(artifactPaths.design, templates.design)
+      await Bun.write(artifactPaths.tasks, templates.tasks)
+      await Bun.write(artifactPaths.handoff, templates.handoff)
     }
 
     const userMsg: MessageV2.User = {

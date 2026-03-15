@@ -7,6 +7,7 @@ import { MessageV2 } from "../../src/session/message-v2"
 import { Question } from "../../src/question"
 import { Todo } from "../../src/session/todo"
 import { tmpdir } from "../fixture/fixture"
+import path from "path"
 
 describe("plan mode enforcement classifier", () => {
   test("flags plain-text bounded decision question as violation", async () => {
@@ -137,6 +138,100 @@ describe("planner reactivation", () => {
     } finally {
       if (originalClient === undefined) delete process.env.OPENCODE_CLIENT
       else process.env.OPENCODE_CLIENT = originalClient
+    }
+  })
+
+  test("plan_enter prefers templates/specs artifacts when available", async () => {
+    const originalClient = process.env.OPENCODE_CLIENT
+    process.env.OPENCODE_CLIENT = "app"
+
+    try {
+      await using tmp = await tmpdir({ git: true })
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const templatesRoot = path.join(tmp.path, "templates", "specs")
+          await Bun.write(path.join(templatesRoot, "proposal.md"), "# Proposal\n\n## Why\n- template proposal marker\n\n## Original Requirement Wording (Baseline)\n- \"template baseline\"\n\n## Requirement Revision History\n- template revision\n\n## Effective Requirement Description\n1. template effective requirement\n\n## Scope\n### IN\n- template in\n\n### OUT\n- template out\n\n## Non-Goals\n- template non-goal\n\n## Constraints\n- template constraint\n\n## What Changes\n- template what changes\n\n## Capabilities\n### New Capabilities\n- template-capability: template capability\n\n### Modified Capabilities\n- existing-capability: template delta\n\n## Impact\n- template impact\n")
+          const session = await Session.create({})
+          const { PlanEnterTool } = await import("../../src/tool/plan")
+          const tool = await PlanEnterTool.init()
+          const execute = tool.execute({}, {
+            sessionID: session.id,
+            abort: new AbortController().signal,
+            messageID: "msg_test_template",
+            callID: "call_test_template",
+            agent: "build",
+            messages: [],
+            metadata: async () => {},
+            ask: async () => [["Yes"]],
+            extra: {},
+          } as any)
+
+          const pending = await waitForPendingQuestion(session.id)
+          expect(pending.length).toBe(1)
+          await Question.reply({ requestID: pending[0].id, answers: [["Yes"]] })
+          await execute
+
+          const artifacts = plannerArtifacts(session)
+          const proposalText = await Bun.file(artifacts.proposal).text()
+          expect(proposalText).toContain("template proposal marker")
+          expect(proposalText).toContain("template effective requirement")
+          await Session.remove(session.id)
+        },
+      })
+    } finally {
+      if (originalClient === undefined) delete process.env.OPENCODE_CLIENT
+      else process.env.OPENCODE_CLIENT = originalClient
+    }
+  })
+
+  test("plan_enter prefers OPENCODE_PLANNER_TEMPLATE_DIR over repo templates", async () => {
+    const originalClient = process.env.OPENCODE_CLIENT
+    const originalTemplateDir = process.env.OPENCODE_PLANNER_TEMPLATE_DIR
+    process.env.OPENCODE_CLIENT = "app"
+
+    try {
+      await using tmp = await tmpdir({ git: true })
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const systemTemplatesRoot = path.join(tmp.path, "system-specs")
+          const repoTemplatesRoot = path.join(tmp.path, "templates", "specs")
+          await Bun.write(path.join(systemTemplatesRoot, "proposal.md"), "# Proposal\n\n## Why\n- system template marker\n\n## Original Requirement Wording (Baseline)\n- \"system baseline\"\n\n## Requirement Revision History\n- system revision\n\n## Effective Requirement Description\n1. system effective requirement\n\n## Scope\n### IN\n- system in\n\n### OUT\n- system out\n\n## Non-Goals\n- system non-goal\n\n## Constraints\n- system constraint\n\n## What Changes\n- system what changes\n\n## Capabilities\n### New Capabilities\n- system-capability: system capability\n\n### Modified Capabilities\n- system-existing: system delta\n\n## Impact\n- system impact\n")
+          await Bun.write(path.join(repoTemplatesRoot, "proposal.md"), "# Proposal\n\n## Why\n- repo template marker\n\n## Original Requirement Wording (Baseline)\n- \"repo baseline\"\n\n## Requirement Revision History\n- repo revision\n\n## Effective Requirement Description\n1. repo effective requirement\n\n## Scope\n### IN\n- repo in\n\n### OUT\n- repo out\n\n## Non-Goals\n- repo non-goal\n\n## Constraints\n- repo constraint\n\n## What Changes\n- repo what changes\n\n## Capabilities\n### New Capabilities\n- repo-capability: repo capability\n\n### Modified Capabilities\n- repo-existing: repo delta\n\n## Impact\n- repo impact\n")
+          process.env.OPENCODE_PLANNER_TEMPLATE_DIR = systemTemplatesRoot
+          const session = await Session.create({})
+          const { PlanEnterTool } = await import("../../src/tool/plan")
+          const tool = await PlanEnterTool.init()
+          const execute = tool.execute({}, {
+            sessionID: session.id,
+            abort: new AbortController().signal,
+            messageID: "msg_test_system_template",
+            callID: "call_test_system_template",
+            agent: "build",
+            messages: [],
+            metadata: async () => {},
+            ask: async () => [["Yes"]],
+            extra: {},
+          } as any)
+
+          const pending = await waitForPendingQuestion(session.id)
+          expect(pending.length).toBe(1)
+          await Question.reply({ requestID: pending[0].id, answers: [["Yes"]] })
+          await execute
+
+          const artifacts = plannerArtifacts(session)
+          const proposalText = await Bun.file(artifacts.proposal).text()
+          expect(proposalText).toContain("system template marker")
+          expect(proposalText).not.toContain("repo template marker")
+          await Session.remove(session.id)
+        },
+      })
+    } finally {
+      if (originalClient === undefined) delete process.env.OPENCODE_CLIENT
+      else process.env.OPENCODE_CLIENT = originalClient
+      if (originalTemplateDir === undefined) delete process.env.OPENCODE_PLANNER_TEMPLATE_DIR
+      else process.env.OPENCODE_PLANNER_TEMPLATE_DIR = originalTemplateDir
     }
   })
 

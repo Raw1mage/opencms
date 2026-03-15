@@ -324,6 +324,82 @@ describe("Session todo action metadata", () => {
     ])
   })
 
+  it("reprojects todo structure from planner seed while preserving matching progress", async () => {
+    const sessionID = "session_todo_plan_seed_projection"
+    await Todo.update({
+      sessionID,
+      mode: "replan_adoption",
+      todos: [
+        { id: "old", content: "stale leftover item", status: "pending", priority: "low" },
+        { id: "a", content: "active seeded item", status: "in_progress", priority: "high" },
+      ],
+    })
+
+    await Todo.update({
+      sessionID,
+      mode: "plan_materialization",
+      todos: [
+        { id: "a", content: "active seeded item", status: "pending", priority: "high" },
+        { id: "b", content: "new planner item", status: "pending", priority: "medium" },
+      ],
+    })
+
+    await expect(Todo.get(sessionID)).resolves.toEqual([
+      {
+        id: "a",
+        content: "active seeded item",
+        status: "in_progress",
+        priority: "high",
+        action: { kind: "implement", canDelegate: undefined },
+      },
+      {
+        id: "b",
+        content: "new planner item",
+        status: "pending",
+        priority: "medium",
+        action: { kind: "implement", canDelegate: true },
+      },
+    ])
+  })
+
+  it("status_update changes progress without altering todo structure", async () => {
+    const sessionID = "session_todo_status_overlay_only"
+    await Todo.update({
+      sessionID,
+      mode: "plan_materialization",
+      todos: [
+        { id: "a", content: "seeded item", status: "in_progress", priority: "high" },
+        { id: "b", content: "next item", status: "pending", priority: "medium" },
+      ],
+    })
+
+    await Todo.update({
+      sessionID,
+      mode: "status_update",
+      todos: [
+        { id: "a", content: "seeded item", status: "completed", priority: "high" },
+        { id: "c", content: "should not be added by status update", status: "pending", priority: "low" },
+      ],
+    })
+
+    await expect(Todo.get(sessionID)).resolves.toEqual([
+      {
+        id: "a",
+        content: "seeded item",
+        status: "completed",
+        priority: "high",
+        action: { kind: "implement", canDelegate: undefined },
+      },
+      {
+        id: "b",
+        content: "next item",
+        status: "pending",
+        priority: "medium",
+        action: { kind: "implement", canDelegate: true },
+      },
+    ])
+  })
+
   it("preserves cancelled todos when overlapping plans are rewritten", async () => {
     const sessionID = "session_todo_merge_cancelled_preserved"
     await Todo.update({

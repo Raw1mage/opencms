@@ -6,6 +6,12 @@ import { Todo } from "../session/todo"
 export const TodoWriteTool = Tool.define("todowrite", {
   description: DESCRIPTION_WRITE,
   parameters: z.object({
+    mode: z
+      .enum(["status_update", "plan_materialization", "replan_adoption"])
+      .optional()
+      .describe(
+        "Why this update is happening. status_update = progress/status only (no structure drift). plan_materialization/replan_adoption allow explicit structure changes from planner artifacts.",
+      ),
     todos: z
       .array(z.object(Todo.Info.shape))
       .describe(
@@ -20,9 +26,29 @@ export const TodoWriteTool = Tool.define("todowrite", {
       metadata: {},
     })
 
+    const mode = params.mode ?? "status_update"
+    const current = await Todo.get(ctx.sessionID)
+
+    const signature = (todos: Todo.Info[]) =>
+      todos
+        .map((todo) => `${todo.id}::${todo.content.trim().toLowerCase().replace(/\s+/g, " ")}`)
+        .sort()
+        .join("||")
+
+    const currentSignature = signature(current)
+    const incomingSignature = signature(params.todos)
+    const structureChanged = currentSignature !== incomingSignature
+
+    if (mode === "status_update" && structureChanged && current.length > 0) {
+      throw new Error(
+        "todowrite(status_update) cannot rewrite todo structure. Use mode=plan_materialization or mode=replan_adoption only when planner artifacts changed or a replan was explicitly adopted.",
+      )
+    }
+
     await Todo.update({
       sessionID: ctx.sessionID,
       todos: params.todos,
+      mode,
     })
     const todos = await Todo.get(ctx.sessionID)
     return {

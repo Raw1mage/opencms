@@ -238,6 +238,8 @@ EOF
   local tmp_runtime_cfg="/tmp/opencode.cfg.$$"
   local installed_frontend_path="/usr/local/share/opencode/frontend"
   local runtime_webctl_dst="${env_dir}/webctl.sh"
+  local planner_templates_src="${ROOT_DIR}/templates/specs"
+  local planner_templates_dst="${env_dir}/specs"
   run_as_root install -d -m 755 "${env_dir}"
   if files_identical_root "${ROOT_DIR}/webctl.sh" "${runtime_webctl_dst}"; then
     log_ok "Runtime web controller up-to-date: ${runtime_webctl_dst}"
@@ -265,6 +267,18 @@ EOF
   if [[ ! -f "${runtime_cfg_template}" ]]; then
     log_err "Missing runtime config template: ${runtime_cfg_template}"
     exit 1
+  fi
+
+  if [[ -d "${planner_templates_src}" ]]; then
+    run_as_root install -d -m 755 "${planner_templates_dst}"
+    if dirs_identical_root "${planner_templates_src}" "${planner_templates_dst}"; then
+      log_ok "Planner templates up-to-date: ${planner_templates_dst}"
+    else
+      run_as_root cp -r "${planner_templates_src}/"* "${planner_templates_dst}/"
+      log_ok "Installed planner templates: ${planner_templates_dst}"
+    fi
+  else
+    log_warn "Planner templates source not found: ${planner_templates_src}"
   fi
 
   if run_as_root test -f "${runtime_cfg_file}"; then

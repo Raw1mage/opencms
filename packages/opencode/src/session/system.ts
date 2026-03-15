@@ -238,7 +238,9 @@ Shell:
 
 Task & Planning:
 - task() for subagent delegation; prefer for file search to save context.
-- todowrite() frequently for planning; mark items complete immediately. todoread() to check progress.
+- todowrite() is a runtime projection contract, not a conversational scratchpad.
+- Update todo ONLY when: (1) planner artifacts changed / plan_enter→plan_exit materialized tasks, (2) an explicit replan was adopted, or (3) task status actually transitioned (pending→in_progress→completed/cancelled).
+- Do NOT rewrite todo for every user utterance, clarification turn, or temporary internal checklist idea.
 - When using todowrite(), prefer explicit todo \`action\` metadata (\`kind\`, \`waitingOn\`, \`needsApproval\`, \`canDelegate\`, \`risk\`) so autonomous session planning can safely continue without guessing.
 - question() when user request is ambiguous — ask before acting.
 - For non-trivial multi-step dev / autonomous / architecture-sensitive work, prefer planning-first flow: use plan_enter() before implementation so the planner can clarify requirements and produce an execution-ready plan.
