@@ -5,16 +5,12 @@
 
 ## 1. 核心啟動 (Bootstrap Protocol)
 
-**啟動後必須立即執行以下操作，建立基礎作業系統：**
+**啟動後只需載入最小必要底盤：**
 
 1.  **載入工作流**：`skill(name="agent-workflow")`
-    - _目的_：獲取 ANALYSIS -> PLANNING -> EXECUTION 的標準狀態機。
-2.  **載入資源地圖**：`skill(name="model-selector")`
-    - _目的_：獲取各模型的能力與成本資訊，用於後續指派 Subagent。
-3.  **載入 MCP 擴充器**：`skill(name="mcp-finder")`
-    - _目的_：讓 Agent 可在能力缺口時向外擴充 MCP。
-4.  **載入 Skill 擴充器**：`skill(name="skill-finder")`
-    - _目的_：讓 Agent 可在能力缺口時向外擴充 Skill。
+    - _目的_：獲取 planner-first + delegation-first 的 autorunner 工作流契約。
+
+其餘 skills（如 `model-selector`、`mcp-finder`、`skill-finder`、`software-architect`）均為 **on-demand**，不應在 bootstrap 預設加載。
 
 ## 語言回應規範
 
@@ -33,7 +29,7 @@
 - 若上述骨架尚未成立，**不得**宣稱可安全 autonomous 持續執行；必須先補 plan，再進入 execution。
 - 在 planning / clarification 階段，凡屬於**有明確選項的選擇題**（例如 milestone、scope、approval posture、validation target、delegation strategy），**預設必須使用 MCP `question`** 呈現，而不是用自由文字把選項混在 prose 內；只有在使用者需要先用長篇背景補充脈絡時，才先 freeform 再用 `question` 收斂決策。
 - 若任務變更模組邊界、資料流、狀態機、debug checkpoints 或沉澱了重要 root cause，Main Agent **必須**委派 documentation agent（搭配 `doc-coauthoring`）同步框架文件。
-- 其他技能（如 `code-thinker`, `software-architect`, `webapp-testing`, `doc-coauthoring`）屬於加值裝備；`agent-workflow` 是所有非瑣碎開發任務的底盤。
+- 其他技能（如 `code-thinker`, `webapp-testing`, `doc-coauthoring`）屬於按需加值裝備；`agent-workflow` 是所有非瑣碎開發任務的唯一預設底盤。
 
 ### 核心文件責任分工（Hard-coded）
 
@@ -116,14 +112,9 @@
 
 ## 4. 資源調度智慧 (Resource Dispatch)
 
-**在指派 Subagent 時，依據 `model-selector` 與 `system-manager` 的建議選擇模型：**
-
-- **⚡ Flash (輕量級)**: `gemini-1.5-flash`, `gemini-2.5-flash`
-  - _適用_: 簡單檔案讀寫、翻譯、單檔重構、Log 分析。
-  - _原則_: 預設首選，速度快且免費/便宜。
-- **🧠 Pro/Sonnet (重量級)**: `gemini-1.5-pro`, `claude-3-5-sonnet`
-  - _適用_: 複雜邏輯推理、架構設計、跨檔案重構、寫測試案例。
-  - _原則_: 僅在任務複雜度高且 System Status 顯示配額健康時使用。
+- 預設策略：避免頻繁切換 model / account；優先在當前 session execution identity 下完成工作。
+- 若任務真的需要額外模型策略分析，才 on-demand 使用 `model-selector` 或 `system-manager`。
+- 不要把模型切換當成 autorunner 的日常主路徑；autorunner 的主要問題應先由 planner / workflow / delegation contract 解決。
 
 ## 5. 指揮官紅線 (Commander's Red Lines)
 

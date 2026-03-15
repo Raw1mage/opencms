@@ -78,6 +78,8 @@ describe("Session workflow runner", () => {
       todo: { id: "a", content: "next", status: "pending", priority: "high" },
     })
     expect(decision.text).toContain("You are the runner contract for autonomous build-mode continuation.")
+    expect(decision.text).toContain("Prefer delegation-first execution")
+    expect(decision.text).toContain("Progress narration is visibility only")
   })
 
   it("uses planner contract to continue in-progress work before starting new todos", () => {

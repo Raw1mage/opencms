@@ -242,6 +242,8 @@ Task & Planning:
 - Update todo ONLY when: (1) planner artifacts changed / plan_enter→plan_exit materialized tasks, (2) an explicit replan was adopted, or (3) task status actually transitioned (pending→in_progress→completed/cancelled).
 - Do NOT rewrite todo for every user utterance, clarification turn, or temporary internal checklist idea.
 - When using todowrite(), prefer explicit todo \`action\` metadata (\`kind\`, \`waitingOn\`, \`needsApproval\`, \`canDelegate\`, \`risk\`) so autonomous session planning can safely continue without guessing.
+- For planner-authored work, prefer delegation-aware task names and execution slices so autorunner can continue from planner tasks without inventing a second execution model.
+- Progress narration should preserve observability, but it must not itself become a pause boundary; only explicit stop gates should pause autonomous continuation.
 - question() when user request is ambiguous — ask before acting.
 - For non-trivial multi-step dev / autonomous / architecture-sensitive work, prefer planning-first flow: use plan_enter() before implementation so the planner can clarify requirements and produce an execution-ready plan.
 

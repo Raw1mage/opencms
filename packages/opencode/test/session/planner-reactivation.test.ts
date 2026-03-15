@@ -132,6 +132,10 @@ describe("planner reactivation", () => {
           expect(await Bun.file(artifacts.design).exists()).toBe(true)
           expect(await Bun.file(artifacts.tasks).exists()).toBe(true)
           expect(await Bun.file(artifacts.handoff).exists()).toBe(true)
+          expect(await Bun.file(artifacts.proposal).text()).toContain("## Effective Requirement Description")
+          expect(await Bun.file(artifacts.design).text()).toContain("## Data / State / Control Flow")
+          expect(await Bun.file(artifacts.tasks).text()).toContain("## 2. Delegated Execution Slices")
+          expect(await Bun.file(artifacts.handoff).text()).toContain("Prefer delegation-first execution")
           await Session.remove(session.id)
         },
       })
@@ -151,7 +155,10 @@ describe("planner reactivation", () => {
         directory: tmp.path,
         fn: async () => {
           const templatesRoot = path.join(tmp.path, "templates", "specs")
-          await Bun.write(path.join(templatesRoot, "proposal.md"), "# Proposal\n\n## Why\n- template proposal marker\n\n## Original Requirement Wording (Baseline)\n- \"template baseline\"\n\n## Requirement Revision History\n- template revision\n\n## Effective Requirement Description\n1. template effective requirement\n\n## Scope\n### IN\n- template in\n\n### OUT\n- template out\n\n## Non-Goals\n- template non-goal\n\n## Constraints\n- template constraint\n\n## What Changes\n- template what changes\n\n## Capabilities\n### New Capabilities\n- template-capability: template capability\n\n### Modified Capabilities\n- existing-capability: template delta\n\n## Impact\n- template impact\n")
+          await Bun.write(
+            path.join(templatesRoot, "proposal.md"),
+            '# Proposal\n\n## Why\n- template proposal marker\n\n## Original Requirement Wording (Baseline)\n- "template baseline"\n\n## Requirement Revision History\n- template revision\n\n## Effective Requirement Description\n1. template effective requirement\n\n## Scope\n### IN\n- template in\n\n### OUT\n- template out\n\n## Non-Goals\n- template non-goal\n\n## Constraints\n- template constraint\n\n## What Changes\n- template what changes\n\n## Capabilities\n### New Capabilities\n- template-capability: template capability\n\n### Modified Capabilities\n- existing-capability: template delta\n\n## Impact\n- template impact\n',
+          )
           const session = await Session.create({})
           const { PlanEnterTool } = await import("../../src/tool/plan")
           const tool = await PlanEnterTool.init()
@@ -197,8 +204,14 @@ describe("planner reactivation", () => {
         fn: async () => {
           const systemTemplatesRoot = path.join(tmp.path, "system-specs")
           const repoTemplatesRoot = path.join(tmp.path, "templates", "specs")
-          await Bun.write(path.join(systemTemplatesRoot, "proposal.md"), "# Proposal\n\n## Why\n- system template marker\n\n## Original Requirement Wording (Baseline)\n- \"system baseline\"\n\n## Requirement Revision History\n- system revision\n\n## Effective Requirement Description\n1. system effective requirement\n\n## Scope\n### IN\n- system in\n\n### OUT\n- system out\n\n## Non-Goals\n- system non-goal\n\n## Constraints\n- system constraint\n\n## What Changes\n- system what changes\n\n## Capabilities\n### New Capabilities\n- system-capability: system capability\n\n### Modified Capabilities\n- system-existing: system delta\n\n## Impact\n- system impact\n")
-          await Bun.write(path.join(repoTemplatesRoot, "proposal.md"), "# Proposal\n\n## Why\n- repo template marker\n\n## Original Requirement Wording (Baseline)\n- \"repo baseline\"\n\n## Requirement Revision History\n- repo revision\n\n## Effective Requirement Description\n1. repo effective requirement\n\n## Scope\n### IN\n- repo in\n\n### OUT\n- repo out\n\n## Non-Goals\n- repo non-goal\n\n## Constraints\n- repo constraint\n\n## What Changes\n- repo what changes\n\n## Capabilities\n### New Capabilities\n- repo-capability: repo capability\n\n### Modified Capabilities\n- repo-existing: repo delta\n\n## Impact\n- repo impact\n")
+          await Bun.write(
+            path.join(systemTemplatesRoot, "proposal.md"),
+            '# Proposal\n\n## Why\n- system template marker\n\n## Original Requirement Wording (Baseline)\n- "system baseline"\n\n## Requirement Revision History\n- system revision\n\n## Effective Requirement Description\n1. system effective requirement\n\n## Scope\n### IN\n- system in\n\n### OUT\n- system out\n\n## Non-Goals\n- system non-goal\n\n## Constraints\n- system constraint\n\n## What Changes\n- system what changes\n\n## Capabilities\n### New Capabilities\n- system-capability: system capability\n\n### Modified Capabilities\n- system-existing: system delta\n\n## Impact\n- system impact\n',
+          )
+          await Bun.write(
+            path.join(repoTemplatesRoot, "proposal.md"),
+            '# Proposal\n\n## Why\n- repo template marker\n\n## Original Requirement Wording (Baseline)\n- "repo baseline"\n\n## Requirement Revision History\n- repo revision\n\n## Effective Requirement Description\n1. repo effective requirement\n\n## Scope\n### IN\n- repo in\n\n### OUT\n- repo out\n\n## Non-Goals\n- repo non-goal\n\n## Constraints\n- repo constraint\n\n## What Changes\n- repo what changes\n\n## Capabilities\n### New Capabilities\n- repo-capability: repo capability\n\n### Modified Capabilities\n- repo-existing: repo delta\n\n## Impact\n- repo impact\n',
+          )
           process.env.OPENCODE_PLANNER_TEMPLATE_DIR = systemTemplatesRoot
           const session = await Session.create({})
           const { PlanEnterTool } = await import("../../src/tool/plan")

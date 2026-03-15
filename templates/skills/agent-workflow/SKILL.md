@@ -15,6 +15,8 @@ description: 定義 Agent 的標準作業程序(SOP)，並補齊本系統 autono
 4. **一律對話中可觀測。** 重要進展、阻塞、replan 必須可被使用者理解。
 5. **可持續執行 ≠ 可靜默亂跑。** 遇到 approval / decision / blocker 必須停。
 6. **Debug 必須 system-first。** 複雜 bug 一律先看系統邊界、資料流與觀測訊號，不得只憑局部症狀下判斷。
+7. **Delegation-first。** 能安全切分的 execution slice，預設先考慮委派而不是全部由主代理親手完成。
+8. **Narration ≠ Pause。** 進度敘述是可觀測性，不是把控制權交還給使用者；只有 stop gate 才應真正暫停。
 
 ---
 
@@ -118,6 +120,8 @@ graph TD
 4. **Dependencies**：哪些步驟要先做
 5. **Validation**：每段怎麼驗證
 6. **Stop gates**：哪裡需要 approval / decision
+7. **Delegation candidates**：哪些步驟可交由 subagent 執行
+8. **Architecture thinking**：constraints / boundaries / trade-offs / critical files
 
 ### `todowrite` 強制規範
 
@@ -179,13 +183,14 @@ graph TD
 2. 完成後立刻：
    - 標記 `completed`
    - dependency-ready 的下一步可轉 `in_progress`
-3. 遇到 subagent：
+3. 若步驟可安全切分，預設優先委派 subagent，再由主流程整合結果
+4. 遇到 subagent：
    - 父任務保留可追蹤 todo
    - `waitingOn=subagent`
-4. 遇到 approval / decision：
+5. 遇到 approval / decision：
    - 不得硬做
    - 停下來請求使用者
-5. 每輪改動後都要驗證
+6. 每輪改動後都要驗證
 
 ### Documentation Agent（Mandatory for Non-trivial System Knowledge）
 
@@ -304,6 +309,8 @@ Task prompt 至少包含：
 
 autonomous agent 必須持續說明自己在做什麼。
 
+但請記住：**narration 是 side-channel visibility，不是 pause boundary**。
+
 ### 必須可見的 narration 類型
 
 1. **Kickoff**
@@ -420,6 +427,7 @@ Next after reply:
 - One `in_progress` todo at a time
 - Use structured todo metadata, not vague bullet lists
 - Narrate meaningful progress in the conversation
+- Prefer delegation-first execution for bounded slices
 - Stop for approval / decision / blocker
 - Replan explicitly when the user interrupts
 - Finish only after validation + event + architecture sync

@@ -23,6 +23,8 @@ The primary artifact is `implementation-spec.md`, but you must keep the companio
 
 The implementation spec is not a loose summary. It must become a standardized execution contract that another AI can execute end-to-end with minimal reinterpretation.
 
+Treat planner artifacts as the place where architecture-thinking now lives by default: constraints, boundaries, trade-offs, critical files, validation posture, and delegation strategy must be encoded in the artifacts instead of relying on a separate always-loaded architecture skill.
+
 Use this exact section order in `implementation-spec.md`: `## Goal`, `## Scope`, `## Assumptions`, `## Stop Gates`, `## Critical Files`, `## Structured Execution Phases`, `## Validation`, `## Handoff`.
 
 Ask the user clarifying questions or ask for their opinion when weighing tradeoffs.
@@ -40,4 +42,6 @@ Ask the user clarifying questions or ask for their opinion when weighing tradeof
 Treat plan mode as discussion-first, not execution-first. Prefer spec mutation, plan refinement, validation planning, and decision capture. If substantial implementation is required, complete the planner artifacts and use `plan_exit` to hand off into build mode.
 
 When planner artifacts include `tasks.md`, treat it as the canonical naming source for remaining work. Once runtime todo is materialized from that plan, future status reporting, user decision points, and execution sequencing must align with the same visible todo/task names. Do not invent a second private checklist that diverges from the sidebar/runtime todo.
+
+When writing `tasks.md`, prefer delegation-aware slices (`rewrite`, `delegate`, `integrate`, `validate`, `sync docs`) over vague generic bullets like `implement feature`. The build-side runner should be able to continue directly from these task names.
 </system-reminder>

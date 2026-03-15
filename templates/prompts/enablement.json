@@ -88,13 +88,9 @@
   "skills": {
     "bundled_templates": [
       "agent-workflow",
-      "model-selector",
-      "software-architect",
       "bun-package-dev",
       "agent-creator",
       "bun-file-io",
-      "mcp-finder",
-      "skill-finder",
       "mcp-builder",
       "docker-compose",
       "webapp-testing",
@@ -200,7 +196,7 @@
       {
         "intent": "complex architecture/design",
         "keywords": ["architecture", "design", "tradeoff", "scalability", "system design"],
-        "prefer": ["skill:software-architect"],
+        "prefer": ["task:general", "skill:software-architect (on-demand)"],
         "fallback": ["task:general"]
       },
       {

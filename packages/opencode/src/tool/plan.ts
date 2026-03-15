@@ -43,28 +43,34 @@ const PLAN_SPEC_TEMPLATE = `# Implementation Spec
 
 ## Stop Gates
 - <approval / decision / blocker conditions>
+- <when to stop and re-enter planning>
 
 ## Critical Files
 - <absolute or repo-relative file paths>
 
 ## Structured Execution Phases
-- <phase 1>
-- <phase 2>
-- <phase 3>
+- <phase 1: planner / runtime contract rewrite>
+- <phase 2: delegated execution / integration slice>
+- <phase 3: validation / documentation sync>
 
 ## Validation
 - <tests / commands / end-to-end checks>
+- <operator or runtime verification>
 
 ## Handoff
-- Build agent should read this spec, materialize todos, and execute from this plan.
+- Build agent must read this spec first.
+- Build agent must read \
+  proposal.md / spec.md / design.md / tasks.md / handoff.md before coding.
+- Build agent must materialize runtime todo from tasks.md and preserve planner task naming.
+- Build agent must prefer delegation-first execution when the task slice can be safely handed off.
 `
 
 const ARTIFACT_TEMPLATES = {
-  proposal: `# Proposal\n\n## Why\n- <motivation for this change>\n\n## What Changes\n- <what will change>\n\n## Capabilities\n### New Capabilities\n- <capability>: <brief description>\n\n### Modified Capabilities\n- <existing capability>: <behavior delta>\n\n## Impact\n- <affected code, APIs, systems, or operators>\n`,
-  spec: `# Spec\n\n## Purpose\n- <behavioral intent of this change>\n\n## Requirements\n\n### Requirement: <name>\nThe system SHALL <behavior>.\n\n#### Scenario: <name>\n- **GIVEN** <context>\n- **WHEN** <action>\n- **THEN** <outcome>\n\n## Acceptance Checks\n- <observable verification point>\n`,
-  design: `# Design\n\n## Context\n- <current state / background>\n\n## Goals / Non-Goals\n**Goals:**\n- <goal>\n\n**Non-Goals:**\n- <non-goal>\n\n## Decisions\n- <decision and rationale>\n\n## Risks / Trade-offs\n- <risk> -> <mitigation>\n\n## Critical Files\n- <file path>\n`,
-  tasks: `# Tasks\n\n## 1. Planning Follow-through\n- [ ] 1.1 Read the approved implementation spec\n- [ ] 1.2 Confirm scope and stop gates\n- [ ] 1.3 Execute implementation phases\n\n## 2. Validation\n- [ ] 2.1 Run targeted validation\n`,
-  handoff: `# Handoff\n\n## Execution Contract\n- Build agent must read implementation-spec.md first\n- Materialize tasks.md into runtime todos before coding\n\n## Required Reads\n- implementation-spec.md\n- design.md\n- tasks.md\n\n## Stop Gates In Force\n- Preserve approval, decision, and blocker gates from implementation-spec.md\n\n## Execution-Ready Checklist\n- [ ] Implementation spec is complete\n- [ ] Companion artifacts are aligned\n- [ ] Validation plan is explicit\n`,
+  proposal: `# Proposal\n\n## Why\n- <why this work exists>\n- <problem / opportunity / pressure>\n\n## Original Requirement Wording (Baseline)\n- \"<record the user's original requirement wording as faithfully as practical>\"\n\n## Requirement Revision History\n- <date or stage>: <what changed and why>\n\n## Effective Requirement Description\n1. <effective requirement>\n2. <effective requirement>\n\n## Scope\n### IN\n- <in scope>\n\n### OUT\n- <out of scope>\n\n## Non-Goals\n- <explicitly not being solved>\n\n## Constraints\n- <technical / product / policy constraint>\n\n## What Changes\n- <what will change>\n- <what behavior / modules / flows are affected>\n\n## Capabilities\n### New Capabilities\n- <capability>: <brief description>\n\n### Modified Capabilities\n- <existing capability>: <behavior delta>\n\n## Impact\n- <affected code, APIs, systems, operators, or docs>\n`,
+  spec: `# Spec\n\n## Purpose\n- <behavioral intent of this change>\n\n## Requirements\n\n### Requirement: <name>\nThe system SHALL <behavior>.\n\n#### Scenario: <name>\n- **GIVEN** <context>\n- **WHEN** <action>\n- **THEN** <outcome>\n\n## Acceptance Checks\n- <observable verification point>\n- <runtime / UX / operator-visible acceptance check>\n`,
+  design: `# Design\n\n## Context\n- <current state / background>\n- <relevant architecture / runtime / operator context>\n\n## Goals / Non-Goals\n**Goals:**\n- <goal>\n- <goal>\n\n**Non-Goals:**\n- <non-goal>\n- <non-goal>\n\n## Decisions\n- <decision and rationale>\n- <decision and rationale>\n\n## Data / State / Control Flow\n- <request / state / config flow>\n- <boundary transitions>\n\n## Risks / Trade-offs\n- <risk> -> <mitigation>\n- <trade-off> -> <why chosen>\n\n## Critical Files\n- <file path>\n- <file path>\n`,
+  tasks: `# Tasks\n\n## 1. Planner Contract Rewrite\n- [ ] 1.1 Read the approved implementation spec and companion artifacts\n- [ ] 1.2 Rewrite planner/runtime contract files\n\n## 2. Delegated Execution Slices\n- [ ] 2.1 Delegate or implement the first dependency-ready execution slice\n- [ ] 2.2 Integrate follow-up slices using the same planner task naming\n\n## 3. Validation\n- [ ] 3.1 Run targeted validation\n- [ ] 3.2 Record validation evidence\n\n## 4. Documentation / Retrospective\n- [ ] 4.1 Sync relevant event / architecture docs\n- [ ] 4.2 Compare implementation against the proposal's effective requirement description\n`,
+  handoff: `# Handoff\n\n## Execution Contract\n- Build agent must read implementation-spec.md first\n- Build agent must read proposal.md / spec.md / design.md / tasks.md before coding\n- Materialize tasks.md into runtime todos before coding\n- Preserve planner task naming in user-visible progress and runtime todo\n- Prefer delegation-first execution when a task slice can be safely handed off\n\n## Required Reads\n- implementation-spec.md\n- proposal.md\n- spec.md\n- design.md\n- tasks.md\n\n## Stop Gates In Force\n- Preserve approval, decision, and blocker gates from implementation-spec.md\n- Return to planning if a new implementation slice is not represented in planner artifacts\n\n## Execution-Ready Checklist\n- [ ] Implementation spec is complete\n- [ ] Companion artifacts are aligned\n- [ ] Validation plan is explicit\n- [ ] Runtime todo seed is present in tasks.md\n`,
 } as const
 
 async function loadPlannerTemplate(relativePath: string, fallback: string) {
