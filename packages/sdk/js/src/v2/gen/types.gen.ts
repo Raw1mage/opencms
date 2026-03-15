@@ -124,6 +124,7 @@ export type UserMessage = {
   model: {
     providerId: string
     modelID: string
+    accountId?: string
   }
   format?: OutputFormat
   system?: string
@@ -145,6 +146,11 @@ export type UnknownError = {
   name: "UnknownError"
   data: {
     message: string
+    debug?: {
+      [key: string]: unknown
+    }
+    summary?: string
+    hints?: Array<string>
   }
 }
 
@@ -213,6 +219,7 @@ export type AssistantMessage = {
   parentID: string
   modelID: string
   providerId: string
+  accountId?: string
   mode: string
   agent: string
   variant?: string
@@ -290,6 +297,7 @@ export type SubtaskPart = {
   model?: {
     providerId: string
     modelID: string
+    accountId?: string
   }
   command?: string
 }
@@ -765,6 +773,44 @@ export type EventQuestionRejected = {
   }
 }
 
+export type Todo = {
+  /**
+   * Brief description of the task
+   */
+  content: string
+  /**
+   * Current status of the task: pending, in_progress, completed, cancelled
+   */
+  status: string
+  /**
+   * Priority level of the task: high, medium, low
+   */
+  priority: string
+  /**
+   * Unique identifier for the todo item
+   */
+  id: string
+  /**
+   * Structured planner metadata for autonomous session execution
+   */
+  action?: {
+    kind: "implement" | "delegate" | "wait" | "approval" | "decision" | "push" | "destructive" | "architecture_change"
+    risk?: "low" | "medium" | "high"
+    needsApproval?: boolean
+    canDelegate?: boolean
+    waitingOn?: "subagent" | "approval" | "decision" | "external"
+    dependsOn?: Array<string>
+  }
+}
+
+export type EventTodoUpdated = {
+  type: "todo.updated"
+  properties: {
+    sessionID: string
+    todos: Array<Todo>
+  }
+}
+
 export type EventSessionCompacted = {
   type: "session.compacted"
   properties: {
@@ -809,33 +855,6 @@ export type EventFileWatcherUpdated = {
   properties: {
     file: string
     event: "add" | "change" | "unlink"
-  }
-}
-
-export type Todo = {
-  /**
-   * Brief description of the task
-   */
-  content: string
-  /**
-   * Current status of the task: pending, in_progress, completed, cancelled
-   */
-  status: string
-  /**
-   * Priority level of the task: high, medium, low
-   */
-  priority: string
-  /**
-   * Unique identifier for the todo item
-   */
-  id: string
-}
-
-export type EventTodoUpdated = {
-  type: "todo.updated"
-  properties: {
-    sessionID: string
-    todos: Array<Todo>
   }
 }
 
@@ -910,13 +929,6 @@ export type Session = {
     snapshot?: string
     diff?: string
   }
-  execution?: {
-    providerId: string
-    modelID: string
-    accountId?: string
-    revision?: number
-    updatedAt?: number
-  }
   stats?: {
     requestsTotal: number
     totalTokens: number
@@ -930,6 +942,61 @@ export type Session = {
       }
     }
     lastUpdated: number
+  }
+  execution?: {
+    providerId: string
+    modelID: string
+    accountId?: string
+    revision: number
+    updatedAt: number
+  }
+  workflow?: {
+    autonomous: {
+      enabled: boolean
+      maxContinuousRounds?: number
+      stopOnTestsFail?: boolean
+      requireApprovalFor?: Array<string>
+    }
+    state: "idle" | "running" | "waiting_user" | "blocked" | "completed"
+    stopReason?: string
+    updatedAt: number
+    lastRunAt?: number
+    supervisor?: {
+      leaseOwner?: string
+      leaseExpiresAt?: number
+      retryAt?: number
+      consecutiveResumeFailures?: number
+      lastResumeCategory?: string
+      lastResumeError?: string
+      lastGovernorTraceAt?: number
+      lastGovernorTrace?: {
+        [key: string]: unknown
+      }
+      governorTraceHistory?: Array<{
+        [key: string]: unknown
+      }>
+    }
+  }
+  mission?: {
+    source: "openspec_compiled_plan"
+    contract: "implementation_spec"
+    approvedAt: number
+    planPath: string
+    artifactPaths: {
+      root: string
+      implementationSpec: string
+      proposal: string
+      spec: string
+      design: string
+      tasks: string
+      handoff: string
+    }
+    artifactIntegrity?: {
+      implementationSpec: string
+      tasks: string
+      handoff: string
+    }
+    executionReady: boolean
   }
 }
 
@@ -974,6 +1041,40 @@ export type EventSessionError = {
       | StructuredOutputError
       | ContextOverflowError
       | ApiError
+  }
+}
+
+export type EventSessionWorkflowUpdated = {
+  type: "session.workflow.updated"
+  properties: {
+    sessionID: string
+    workflow: {
+      autonomous: {
+        enabled: boolean
+        maxContinuousRounds?: number
+        stopOnTestsFail?: boolean
+        requireApprovalFor?: Array<string>
+      }
+      state: "idle" | "running" | "waiting_user" | "blocked" | "completed"
+      stopReason?: string
+      updatedAt: number
+      lastRunAt?: number
+      supervisor?: {
+        leaseOwner?: string
+        leaseExpiresAt?: number
+        retryAt?: number
+        consecutiveResumeFailures?: number
+        lastResumeCategory?: string
+        lastResumeError?: string
+        lastGovernorTraceAt?: number
+        lastGovernorTrace?: {
+          [key: string]: unknown
+        }
+        governorTraceHistory?: Array<{
+          [key: string]: unknown
+        }>
+      }
+    }
   }
 }
 
@@ -1250,13 +1351,13 @@ export type Event =
   | EventQuestionAsked
   | EventQuestionReplied
   | EventQuestionRejected
+  | EventTodoUpdated
   | EventSessionCompacted
   | EventMcpToolsChanged
   | EventMcpBrowserOpenFailed
   | EventCommandExecuted
   | EventFileEdited
   | EventFileWatcherUpdated
-  | EventTodoUpdated
   | EventTaskWorkerAssigned
   | EventTaskWorkerDone
   | EventTaskWorkerFailed
@@ -1266,6 +1367,7 @@ export type Event =
   | EventSessionDeleted
   | EventSessionDiff
   | EventSessionError
+  | EventSessionWorkflowUpdated
   | EventVcsBranchUpdated
   | EventWorkspaceCreated
   | EventWorkspaceUpdated
@@ -2216,6 +2318,16 @@ export type Config = {
         [key: string]: string
       }
     }
+    smart_runner?: {
+      /**
+       * Enable Smart Runner dry-run tracing
+       */
+      enabled?: boolean
+      /**
+       * Allow Smart Runner to refine low-risk continuation wording
+       */
+      assist?: boolean
+    }
     /**
      * Timeout in milliseconds for model context protocol (MCP) requests
      */
@@ -2450,6 +2562,61 @@ export type GlobalSession = {
     }
     lastUpdated: number
   }
+  execution?: {
+    providerId: string
+    modelID: string
+    accountId?: string
+    revision: number
+    updatedAt: number
+  }
+  workflow?: {
+    autonomous: {
+      enabled: boolean
+      maxContinuousRounds?: number
+      stopOnTestsFail?: boolean
+      requireApprovalFor?: Array<string>
+    }
+    state: "idle" | "running" | "waiting_user" | "blocked" | "completed"
+    stopReason?: string
+    updatedAt: number
+    lastRunAt?: number
+    supervisor?: {
+      leaseOwner?: string
+      leaseExpiresAt?: number
+      retryAt?: number
+      consecutiveResumeFailures?: number
+      lastResumeCategory?: string
+      lastResumeError?: string
+      lastGovernorTraceAt?: number
+      lastGovernorTrace?: {
+        [key: string]: unknown
+      }
+      governorTraceHistory?: Array<{
+        [key: string]: unknown
+      }>
+    }
+  }
+  mission?: {
+    source: "openspec_compiled_plan"
+    contract: "implementation_spec"
+    approvedAt: number
+    planPath: string
+    artifactPaths: {
+      root: string
+      implementationSpec: string
+      proposal: string
+      spec: string
+      design: string
+      tasks: string
+      handoff: string
+    }
+    artifactIntegrity?: {
+      implementationSpec: string
+      tasks: string
+      handoff: string
+    }
+    executionReady: boolean
+  }
   project: ProjectSummary | null
 }
 
@@ -2560,6 +2727,7 @@ export type SubtaskPartInput = {
   model?: {
     providerId: string
     modelID: string
+    accountId?: string
   }
   command?: string
 }
@@ -2844,6 +3012,29 @@ export type GlobalConfigUpdateResponses = {
 }
 
 export type GlobalConfigUpdateResponse = GlobalConfigUpdateResponses[keyof GlobalConfigUpdateResponses]
+
+export type GlobalWebRestartData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v2/global/web/restart"
+}
+
+export type GlobalWebRestartResponses = {
+  /**
+   * Restart accepted
+   */
+  200: {
+    ok: true
+    accepted: true
+    mode: "controlled_restart"
+    probePath: "/api/v2/global/health"
+    recommendedInitialDelayMs: number
+    fallbackReloadAfterMs: number
+  }
+}
+
+export type GlobalWebRestartResponse = GlobalWebRestartResponses[keyof GlobalWebRestartResponses]
 
 export type GlobalDisposeData = {
   body?: never
@@ -3740,6 +3931,90 @@ export type ConfigProvidersResponses = {
 
 export type ConfigProvidersResponse = ConfigProvidersResponses[keyof ConfigProvidersResponses]
 
+export type ExperimentalDebugBeaconData = {
+  body?: {
+    source?: string
+    event: string
+    directory?: string
+    sessionID?: string
+    messageID?: string
+    payload?: {
+      [key: string]: unknown
+    }
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/experimental/debug-beacon"
+}
+
+export type ExperimentalDebugBeaconResponses = {
+  /**
+   * Beacon recorded
+   */
+  200: {
+    ok: true
+  }
+}
+
+export type ExperimentalDebugBeaconResponse = ExperimentalDebugBeaconResponses[keyof ExperimentalDebugBeaconResponses]
+
+export type ExperimentalScrollCaptureLatestData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/experimental/scroll-capture/latest"
+}
+
+export type ExperimentalScrollCaptureLatestResponses = {
+  /**
+   * Latest scroll capture store
+   */
+  200: {
+    latest?: {
+      [key: string]: unknown
+    }
+    recent: Array<{
+      [key: string]: unknown
+    }>
+    file: string
+  }
+}
+
+export type ExperimentalScrollCaptureLatestResponse =
+  ExperimentalScrollCaptureLatestResponses[keyof ExperimentalScrollCaptureLatestResponses]
+
+export type ExperimentalScrollCaptureRecordData = {
+  body?: {
+    source?: string
+    capturedAt?: number
+    payload: {
+      [key: string]: unknown
+    }
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/experimental/scroll-capture"
+}
+
+export type ExperimentalScrollCaptureRecordResponses = {
+  /**
+   * Scroll capture recorded
+   */
+  200: {
+    ok: true
+    file: string
+  }
+}
+
+export type ExperimentalScrollCaptureRecordResponse =
+  ExperimentalScrollCaptureRecordResponses[keyof ExperimentalScrollCaptureRecordResponses]
+
 export type ExperimentalReviewCheckpointData = {
   body?: never
   path?: never
@@ -4233,8 +4508,23 @@ export type SessionGetResponse = SessionGetResponses[keyof SessionGetResponses]
 export type SessionUpdateData = {
   body?: {
     title?: string
+    execution?: {
+      providerId: string
+      modelID: string
+      accountId?: string
+    }
     time?: {
       archived?: number
+    }
+    workflow?: {
+      autonomous?: {
+        enabled?: boolean
+        maxContinuousRounds?: number
+        stopOnTestsFail?: boolean
+        requireApprovalFor?: Array<string>
+      }
+      state?: "idle" | "running" | "waiting_user" | "blocked" | "completed"
+      stopReason?: string | null
     }
   }
   path: {
@@ -4336,6 +4626,283 @@ export type SessionTodoResponses = {
 }
 
 export type SessionTodoResponse = SessionTodoResponses[keyof SessionTodoResponses]
+
+export type SessionAutonomousData = {
+  body?: {
+    enabled: boolean
+    enqueue?: boolean
+  }
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/session/{sessionID}/autonomous"
+}
+
+export type SessionAutonomousErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionAutonomousError = SessionAutonomousErrors[keyof SessionAutonomousErrors]
+
+export type SessionAutonomousResponses = {
+  /**
+   * Updated autonomous workflow state
+   */
+  200: Session
+}
+
+export type SessionAutonomousResponse = SessionAutonomousResponses[keyof SessionAutonomousResponses]
+
+export type SessionAutonomousHealthData = {
+  body?: never
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/session/{sessionID}/autonomous/health"
+}
+
+export type SessionAutonomousHealthErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionAutonomousHealthError = SessionAutonomousHealthErrors[keyof SessionAutonomousHealthErrors]
+
+export type SessionAutonomousHealthResponses = {
+  /**
+   * Autonomous workflow health snapshot
+   */
+  200: {
+    state: "idle" | "running" | "waiting_user" | "blocked" | "completed"
+    stopReason?: string
+    queue: {
+      hasPendingContinuation: boolean
+      roundCount?: number
+      reason?: string
+      queuedAt?: number
+    }
+    supervisor: {
+      leaseOwner?: string
+      leaseExpiresAt?: number
+      retryAt?: number
+      consecutiveResumeFailures: number
+      lastResumeCategory?: string
+      lastResumeError?: string
+    }
+    anomalies: {
+      recentCount: number
+      latestEventType?: string
+      latestAt?: number
+      flags: Array<string>
+      countsByType: {
+        [key: string]: number
+      }
+    }
+    summary: {
+      health: "healthy" | "queued" | "paused" | "degraded" | "blocked" | "completed"
+      label: string
+    }
+  }
+}
+
+export type SessionAutonomousHealthResponse = SessionAutonomousHealthResponses[keyof SessionAutonomousHealthResponses]
+
+export type SessionAutonomousQueueData = {
+  body?: never
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/session/{sessionID}/autonomous/queue"
+}
+
+export type SessionAutonomousQueueErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionAutonomousQueueError = SessionAutonomousQueueErrors[keyof SessionAutonomousQueueErrors]
+
+export type SessionAutonomousQueueResponses = {
+  /**
+   * Pending continuation queue inspection
+   */
+  200: {
+    hasPendingContinuation: boolean
+    pending?: {
+      sessionID: string
+      messageID: string
+      createdAt: number
+      roundCount: number
+      reason: "todo_pending" | "todo_in_progress"
+      text: string
+    }
+    status: "idle" | "busy" | "retry"
+    inFlight: boolean
+    resumable: boolean
+    blockedReasons: Array<string>
+    health: {
+      state: "idle" | "running" | "waiting_user" | "blocked" | "completed"
+      stopReason?: string
+      queue: {
+        hasPendingContinuation: boolean
+        roundCount?: number
+        reason?: string
+        queuedAt?: number
+      }
+      supervisor: {
+        leaseOwner?: string
+        leaseExpiresAt?: number
+        retryAt?: number
+        consecutiveResumeFailures: number
+        lastResumeCategory?: string
+        lastResumeError?: string
+      }
+      anomalies: {
+        recentCount: number
+        latestEventType?: string
+        latestAt?: number
+        flags: Array<string>
+        countsByType: {
+          [key: string]: number
+        }
+      }
+      summary: {
+        health: "healthy" | "queued" | "paused" | "degraded" | "blocked" | "completed"
+        label: string
+      }
+    }
+  }
+}
+
+export type SessionAutonomousQueueResponse = SessionAutonomousQueueResponses[keyof SessionAutonomousQueueResponses]
+
+export type SessionAutonomousQueueControlData = {
+  body?: {
+    action: "resume_once" | "drop_pending"
+  }
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/session/{sessionID}/autonomous/queue"
+}
+
+export type SessionAutonomousQueueControlErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionAutonomousQueueControlError =
+  SessionAutonomousQueueControlErrors[keyof SessionAutonomousQueueControlErrors]
+
+export type SessionAutonomousQueueControlResponses = {
+  /**
+   * Pending continuation queue control result
+   */
+  200: {
+    action: "resume_once" | "drop_pending"
+    applied: boolean
+    reason: "resumed" | "dropped" | "no_pending_continuation" | "not_resumable" | "resume_dispatch_skipped"
+    blockedReasons?: Array<string>
+    inspection: {
+      hasPendingContinuation: boolean
+      pending?: {
+        sessionID: string
+        messageID: string
+        createdAt: number
+        roundCount: number
+        reason: "todo_pending" | "todo_in_progress"
+        text: string
+      }
+      status: "idle" | "busy" | "retry"
+      inFlight: boolean
+      resumable: boolean
+      blockedReasons: Array<string>
+      health: {
+        state: "idle" | "running" | "waiting_user" | "blocked" | "completed"
+        stopReason?: string
+        queue: {
+          hasPendingContinuation: boolean
+          roundCount?: number
+          reason?: string
+          queuedAt?: number
+        }
+        supervisor: {
+          leaseOwner?: string
+          leaseExpiresAt?: number
+          retryAt?: number
+          consecutiveResumeFailures: number
+          lastResumeCategory?: string
+          lastResumeError?: string
+        }
+        anomalies: {
+          recentCount: number
+          latestEventType?: string
+          latestAt?: number
+          flags: Array<string>
+          countsByType: {
+            [key: string]: number
+          }
+        }
+        summary: {
+          health: "healthy" | "queued" | "paused" | "degraded" | "blocked" | "completed"
+          label: string
+        }
+      }
+    }
+  }
+}
+
+export type SessionAutonomousQueueControlResponse =
+  SessionAutonomousQueueControlResponses[keyof SessionAutonomousQueueControlResponses]
 
 export type SessionInitData = {
   body?: {
@@ -4605,6 +5172,7 @@ export type SessionPromptData = {
     model?: {
       providerId: string
       modelID: string
+      accountId?: string
     }
     agent?: string
     noReply?: boolean
@@ -4834,6 +5402,7 @@ export type SessionPromptAsyncData = {
     model?: {
       providerId: string
       modelID: string
+      accountId?: string
     }
     agent?: string
     noReply?: boolean
@@ -4846,6 +5415,7 @@ export type SessionPromptAsyncData = {
     format?: OutputFormat
     system?: string
     variant?: string
+    autonomous?: boolean
     parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
   }
   path: {
@@ -4886,7 +5456,13 @@ export type SessionCommandData = {
   body?: {
     messageID?: string
     agent?: string
-    model?: string
+    model?:
+      | string
+      | {
+          providerId: string
+          modelID: string
+          accountId?: string
+        }
     arguments: string
     command: string
     variant?: string
@@ -4942,6 +5518,7 @@ export type SessionShellData = {
     model?: {
       providerId: string
       modelID: string
+      accountId?: string
     }
     variant?: string
     command: string
@@ -5962,10 +6539,18 @@ export type AccountQuotaHintResponses = {
    * Quota hint
    */
   200: {
+    /**
+     * Resolved runtime provider ID
+     */
     providerId: string
+    /**
+     * Canonical provider identity key
+     */
     providerKey: string
     /**
-     * Legacy compatibility alias for providerKey
+     * Deprecated alias of providerKey kept for compatibility
+     *
+     * @deprecated
      */
     family: string
     accountId?: string
@@ -5986,9 +6571,12 @@ export type AccountListAllData = {
 
 export type AccountListAllResponses = {
   /**
-   * List of accounts by provider key, with legacy families alias
+   * List of accounts by provider key (with legacy families alias)
    */
   200: {
+    /**
+     * Canonical provider-keyed account map
+     */
     providers: {
       [key: string]: {
         activeAccount?: string
@@ -6030,6 +6618,11 @@ export type AccountListAllResponses = {
         }
       }
     }
+    /**
+     * Deprecated alias of providers kept for compatibility
+     *
+     * @deprecated
+     */
     families: {
       [key: string]: {
         activeAccount?: string
@@ -6078,11 +6671,20 @@ export type AccountListAllResponse = AccountListAllResponses[keyof AccountListAl
 
 export type AccountSetActiveData = {
   body?: {
+    /**
+     * Target account ID under the selected provider key
+     */
     accountId: string
+    /**
+     * Canonical provider key alias; must match legacy :family route param when provided
+     */
     providerKey?: string
   }
   path: {
-    family?: string
+    /**
+     * Deprecated path param alias of providerKey
+     */
+    family: string
   }
   query?: {
     directory?: string
@@ -6115,10 +6717,16 @@ export type AccountSetActiveResponse = AccountSetActiveResponses[keyof AccountSe
 export type AccountLoginData = {
   body?: never
   path: {
-    family?: string
+    /**
+     * Deprecated path param alias of providerKey
+     */
+    family: string
   }
   query?: {
     directory?: string
+    /**
+     * Canonical provider key alias; must match legacy :family route param when provided
+     */
     providerKey?: string
   }
   url: "/api/v2/account/auth/{family}/login"
@@ -6134,11 +6742,17 @@ export type AccountLoginResponses = {
 export type AccountRemoveData = {
   body?: never
   path: {
-    family?: string
+    /**
+     * Deprecated path param alias of providerKey
+     */
+    family: string
     accountId: string
   }
   query?: {
     directory?: string
+    /**
+     * Canonical provider key alias; must match legacy :family route param when provided
+     */
     providerKey?: string
   }
   url: "/api/v2/account/{family}/{accountId}"
@@ -6169,10 +6783,16 @@ export type AccountRemoveResponse = AccountRemoveResponses[keyof AccountRemoveRe
 export type AccountUpdateData = {
   body?: {
     name: string
+    /**
+     * Canonical provider key alias; must match legacy :family route param when provided
+     */
     providerKey?: string
   }
   path: {
-    family?: string
+    /**
+     * Deprecated path param alias of providerKey
+     */
+    family: string
     accountId: string
   }
   query?: {
@@ -6221,10 +6841,18 @@ export type AccountQuotaHint2Responses = {
    * Quota hint
    */
   200: {
+    /**
+     * Resolved runtime provider ID
+     */
     providerId: string
+    /**
+     * Canonical provider identity key
+     */
     providerKey: string
     /**
-     * Legacy compatibility alias for providerKey
+     * Deprecated alias of providerKey kept for compatibility
+     *
+     * @deprecated
      */
     family: string
     accountId?: string
@@ -6245,9 +6873,12 @@ export type AccountListAll2Data = {
 
 export type AccountListAll2Responses = {
   /**
-   * List of accounts by provider key, with legacy families alias
+   * List of accounts by provider key (with legacy families alias)
    */
   200: {
+    /**
+     * Canonical provider-keyed account map
+     */
     providers: {
       [key: string]: {
         activeAccount?: string
@@ -6289,6 +6920,11 @@ export type AccountListAll2Responses = {
         }
       }
     }
+    /**
+     * Deprecated alias of providers kept for compatibility
+     *
+     * @deprecated
+     */
     families: {
       [key: string]: {
         activeAccount?: string
@@ -6337,11 +6973,20 @@ export type AccountListAll2Response = AccountListAll2Responses[keyof AccountList
 
 export type AccountSetActive2Data = {
   body?: {
+    /**
+     * Target account ID under the selected provider key
+     */
     accountId: string
+    /**
+     * Canonical provider key alias; must match legacy :family route param when provided
+     */
     providerKey?: string
   }
   path: {
-    family?: string
+    /**
+     * Deprecated path param alias of providerKey
+     */
+    family: string
   }
   query?: {
     directory?: string
@@ -6374,10 +7019,16 @@ export type AccountSetActive2Response = AccountSetActive2Responses[keyof Account
 export type AccountLogin2Data = {
   body?: never
   path: {
-    family?: string
+    /**
+     * Deprecated path param alias of providerKey
+     */
+    family: string
   }
   query?: {
     directory?: string
+    /**
+     * Canonical provider key alias; must match legacy :family route param when provided
+     */
     providerKey?: string
   }
   url: "/api/v2/accounts/auth/{family}/login"
@@ -6393,11 +7044,17 @@ export type AccountLogin2Responses = {
 export type AccountRemove2Data = {
   body?: never
   path: {
-    family?: string
+    /**
+     * Deprecated path param alias of providerKey
+     */
+    family: string
     accountId: string
   }
   query?: {
     directory?: string
+    /**
+     * Canonical provider key alias; must match legacy :family route param when provided
+     */
     providerKey?: string
   }
   url: "/api/v2/accounts/{family}/{accountId}"
@@ -6428,10 +7085,16 @@ export type AccountRemove2Response = AccountRemove2Responses[keyof AccountRemove
 export type AccountUpdate2Data = {
   body?: {
     name: string
+    /**
+     * Canonical provider key alias; must match legacy :family route param when provided
+     */
     providerKey?: string
   }
   path: {
-    family?: string
+    /**
+     * Deprecated path param alias of providerKey
+     */
+    family: string
     accountId: string
   }
   query?: {
@@ -7167,6 +7830,29 @@ export type GlobalConfigUpdate2Responses = {
 }
 
 export type GlobalConfigUpdate2Response = GlobalConfigUpdate2Responses[keyof GlobalConfigUpdate2Responses]
+
+export type GlobalWebRestart2Data = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/web/restart"
+}
+
+export type GlobalWebRestart2Responses = {
+  /**
+   * Restart accepted
+   */
+  200: {
+    ok: true
+    accepted: true
+    mode: "controlled_restart"
+    probePath: "/api/v2/global/health"
+    recommendedInitialDelayMs: number
+    fallbackReloadAfterMs: number
+  }
+}
+
+export type GlobalWebRestart2Response = GlobalWebRestart2Responses[keyof GlobalWebRestart2Responses]
 
 export type GlobalDispose2Data = {
   body?: never
@@ -8063,6 +8749,91 @@ export type ConfigProviders2Responses = {
 
 export type ConfigProviders2Response = ConfigProviders2Responses[keyof ConfigProviders2Responses]
 
+export type ExperimentalDebugBeacon2Data = {
+  body?: {
+    source?: string
+    event: string
+    directory?: string
+    sessionID?: string
+    messageID?: string
+    payload?: {
+      [key: string]: unknown
+    }
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/experimental/debug-beacon"
+}
+
+export type ExperimentalDebugBeacon2Responses = {
+  /**
+   * Beacon recorded
+   */
+  200: {
+    ok: true
+  }
+}
+
+export type ExperimentalDebugBeacon2Response =
+  ExperimentalDebugBeacon2Responses[keyof ExperimentalDebugBeacon2Responses]
+
+export type ExperimentalScrollCaptureLatest2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/experimental/scroll-capture/latest"
+}
+
+export type ExperimentalScrollCaptureLatest2Responses = {
+  /**
+   * Latest scroll capture store
+   */
+  200: {
+    latest?: {
+      [key: string]: unknown
+    }
+    recent: Array<{
+      [key: string]: unknown
+    }>
+    file: string
+  }
+}
+
+export type ExperimentalScrollCaptureLatest2Response =
+  ExperimentalScrollCaptureLatest2Responses[keyof ExperimentalScrollCaptureLatest2Responses]
+
+export type ExperimentalScrollCaptureRecord2Data = {
+  body?: {
+    source?: string
+    capturedAt?: number
+    payload: {
+      [key: string]: unknown
+    }
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/experimental/scroll-capture"
+}
+
+export type ExperimentalScrollCaptureRecord2Responses = {
+  /**
+   * Scroll capture recorded
+   */
+  200: {
+    ok: true
+    file: string
+  }
+}
+
+export type ExperimentalScrollCaptureRecord2Response =
+  ExperimentalScrollCaptureRecord2Responses[keyof ExperimentalScrollCaptureRecord2Responses]
+
 export type ExperimentalReviewCheckpoint2Data = {
   body?: never
   path?: never
@@ -8557,8 +9328,23 @@ export type SessionGet2Response = SessionGet2Responses[keyof SessionGet2Response
 export type SessionUpdate2Data = {
   body?: {
     title?: string
+    execution?: {
+      providerId: string
+      modelID: string
+      accountId?: string
+    }
     time?: {
       archived?: number
+    }
+    workflow?: {
+      autonomous?: {
+        enabled?: boolean
+        maxContinuousRounds?: number
+        stopOnTestsFail?: boolean
+        requireApprovalFor?: Array<string>
+      }
+      state?: "idle" | "running" | "waiting_user" | "blocked" | "completed"
+      stopReason?: string | null
     }
   }
   path: {
@@ -8660,6 +9446,284 @@ export type SessionTodo2Responses = {
 }
 
 export type SessionTodo2Response = SessionTodo2Responses[keyof SessionTodo2Responses]
+
+export type SessionAutonomous2Data = {
+  body?: {
+    enabled: boolean
+    enqueue?: boolean
+  }
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/autonomous"
+}
+
+export type SessionAutonomous2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionAutonomous2Error = SessionAutonomous2Errors[keyof SessionAutonomous2Errors]
+
+export type SessionAutonomous2Responses = {
+  /**
+   * Updated autonomous workflow state
+   */
+  200: Session
+}
+
+export type SessionAutonomous2Response = SessionAutonomous2Responses[keyof SessionAutonomous2Responses]
+
+export type SessionAutonomousHealth2Data = {
+  body?: never
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/autonomous/health"
+}
+
+export type SessionAutonomousHealth2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionAutonomousHealth2Error = SessionAutonomousHealth2Errors[keyof SessionAutonomousHealth2Errors]
+
+export type SessionAutonomousHealth2Responses = {
+  /**
+   * Autonomous workflow health snapshot
+   */
+  200: {
+    state: "idle" | "running" | "waiting_user" | "blocked" | "completed"
+    stopReason?: string
+    queue: {
+      hasPendingContinuation: boolean
+      roundCount?: number
+      reason?: string
+      queuedAt?: number
+    }
+    supervisor: {
+      leaseOwner?: string
+      leaseExpiresAt?: number
+      retryAt?: number
+      consecutiveResumeFailures: number
+      lastResumeCategory?: string
+      lastResumeError?: string
+    }
+    anomalies: {
+      recentCount: number
+      latestEventType?: string
+      latestAt?: number
+      flags: Array<string>
+      countsByType: {
+        [key: string]: number
+      }
+    }
+    summary: {
+      health: "healthy" | "queued" | "paused" | "degraded" | "blocked" | "completed"
+      label: string
+    }
+  }
+}
+
+export type SessionAutonomousHealth2Response =
+  SessionAutonomousHealth2Responses[keyof SessionAutonomousHealth2Responses]
+
+export type SessionAutonomousQueue2Data = {
+  body?: never
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/autonomous/queue"
+}
+
+export type SessionAutonomousQueue2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionAutonomousQueue2Error = SessionAutonomousQueue2Errors[keyof SessionAutonomousQueue2Errors]
+
+export type SessionAutonomousQueue2Responses = {
+  /**
+   * Pending continuation queue inspection
+   */
+  200: {
+    hasPendingContinuation: boolean
+    pending?: {
+      sessionID: string
+      messageID: string
+      createdAt: number
+      roundCount: number
+      reason: "todo_pending" | "todo_in_progress"
+      text: string
+    }
+    status: "idle" | "busy" | "retry"
+    inFlight: boolean
+    resumable: boolean
+    blockedReasons: Array<string>
+    health: {
+      state: "idle" | "running" | "waiting_user" | "blocked" | "completed"
+      stopReason?: string
+      queue: {
+        hasPendingContinuation: boolean
+        roundCount?: number
+        reason?: string
+        queuedAt?: number
+      }
+      supervisor: {
+        leaseOwner?: string
+        leaseExpiresAt?: number
+        retryAt?: number
+        consecutiveResumeFailures: number
+        lastResumeCategory?: string
+        lastResumeError?: string
+      }
+      anomalies: {
+        recentCount: number
+        latestEventType?: string
+        latestAt?: number
+        flags: Array<string>
+        countsByType: {
+          [key: string]: number
+        }
+      }
+      summary: {
+        health: "healthy" | "queued" | "paused" | "degraded" | "blocked" | "completed"
+        label: string
+      }
+    }
+  }
+}
+
+export type SessionAutonomousQueue2Response = SessionAutonomousQueue2Responses[keyof SessionAutonomousQueue2Responses]
+
+export type SessionAutonomousQueueControl2Data = {
+  body?: {
+    action: "resume_once" | "drop_pending"
+  }
+  path: {
+    /**
+     * Session ID
+     */
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/session/{sessionID}/autonomous/queue"
+}
+
+export type SessionAutonomousQueueControl2Errors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionAutonomousQueueControl2Error =
+  SessionAutonomousQueueControl2Errors[keyof SessionAutonomousQueueControl2Errors]
+
+export type SessionAutonomousQueueControl2Responses = {
+  /**
+   * Pending continuation queue control result
+   */
+  200: {
+    action: "resume_once" | "drop_pending"
+    applied: boolean
+    reason: "resumed" | "dropped" | "no_pending_continuation" | "not_resumable" | "resume_dispatch_skipped"
+    blockedReasons?: Array<string>
+    inspection: {
+      hasPendingContinuation: boolean
+      pending?: {
+        sessionID: string
+        messageID: string
+        createdAt: number
+        roundCount: number
+        reason: "todo_pending" | "todo_in_progress"
+        text: string
+      }
+      status: "idle" | "busy" | "retry"
+      inFlight: boolean
+      resumable: boolean
+      blockedReasons: Array<string>
+      health: {
+        state: "idle" | "running" | "waiting_user" | "blocked" | "completed"
+        stopReason?: string
+        queue: {
+          hasPendingContinuation: boolean
+          roundCount?: number
+          reason?: string
+          queuedAt?: number
+        }
+        supervisor: {
+          leaseOwner?: string
+          leaseExpiresAt?: number
+          retryAt?: number
+          consecutiveResumeFailures: number
+          lastResumeCategory?: string
+          lastResumeError?: string
+        }
+        anomalies: {
+          recentCount: number
+          latestEventType?: string
+          latestAt?: number
+          flags: Array<string>
+          countsByType: {
+            [key: string]: number
+          }
+        }
+        summary: {
+          health: "healthy" | "queued" | "paused" | "degraded" | "blocked" | "completed"
+          label: string
+        }
+      }
+    }
+  }
+}
+
+export type SessionAutonomousQueueControl2Response =
+  SessionAutonomousQueueControl2Responses[keyof SessionAutonomousQueueControl2Responses]
 
 export type SessionInit2Data = {
   body?: {
@@ -8929,6 +9993,7 @@ export type SessionPrompt2Data = {
     model?: {
       providerId: string
       modelID: string
+      accountId?: string
     }
     agent?: string
     noReply?: boolean
@@ -8941,6 +10006,7 @@ export type SessionPrompt2Data = {
     format?: OutputFormat
     system?: string
     variant?: string
+    autonomous?: boolean
     parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
   }
   path: {
@@ -9157,6 +10223,7 @@ export type SessionPromptAsync2Data = {
     model?: {
       providerId: string
       modelID: string
+      accountId?: string
     }
     agent?: string
     noReply?: boolean
@@ -9169,6 +10236,7 @@ export type SessionPromptAsync2Data = {
     format?: OutputFormat
     system?: string
     variant?: string
+    autonomous?: boolean
     parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
   }
   path: {
@@ -9209,7 +10277,13 @@ export type SessionCommand2Data = {
   body?: {
     messageID?: string
     agent?: string
-    model?: string
+    model?:
+      | string
+      | {
+          providerId: string
+          modelID: string
+          accountId?: string
+        }
     arguments: string
     command: string
     variant?: string
@@ -9265,6 +10339,7 @@ export type SessionShell2Data = {
     model?: {
       providerId: string
       modelID: string
+      accountId?: string
     }
     variant?: string
     command: string
@@ -10285,10 +11360,18 @@ export type AccountQuotaHint3Responses = {
    * Quota hint
    */
   200: {
+    /**
+     * Resolved runtime provider ID
+     */
     providerId: string
+    /**
+     * Canonical provider identity key
+     */
     providerKey: string
     /**
-     * Legacy compatibility alias for providerKey
+     * Deprecated alias of providerKey kept for compatibility
+     *
+     * @deprecated
      */
     family: string
     accountId?: string
@@ -10309,9 +11392,12 @@ export type AccountListAll3Data = {
 
 export type AccountListAll3Responses = {
   /**
-   * List of accounts by provider key, with legacy families alias
+   * List of accounts by provider key (with legacy families alias)
    */
   200: {
+    /**
+     * Canonical provider-keyed account map
+     */
     providers: {
       [key: string]: {
         activeAccount?: string
@@ -10323,7 +11409,9 @@ export type AccountListAll3Responses = {
                 apiKey: string
                 addedAt: number
                 projectId?: string
-                metadata?: { [key: string]: unknown }
+                metadata?: {
+                  [key: string]: unknown
+                }
               }
             | {
                 type: "subscription"
@@ -10336,15 +11424,26 @@ export type AccountListAll3Responses = {
                 managedProjectId?: string
                 accountId?: string
                 addedAt: number
-                metadata?: { [key: string]: unknown }
-                rateLimitResetTimes?: { [key: string]: number }
+                metadata?: {
+                  [key: string]: unknown
+                }
+                rateLimitResetTimes?: {
+                  [key: string]: number
+                }
                 coolingDownUntil?: number
                 cooldownReason?: string
-                fingerprint?: { [key: string]: unknown }
+                fingerprint?: {
+                  [key: string]: unknown
+                }
               }
         }
       }
     }
+    /**
+     * Deprecated alias of providers kept for compatibility
+     *
+     * @deprecated
+     */
     families: {
       [key: string]: {
         activeAccount?: string
@@ -10393,11 +11492,20 @@ export type AccountListAll3Response = AccountListAll3Responses[keyof AccountList
 
 export type AccountSetActive3Data = {
   body?: {
+    /**
+     * Target account ID under the selected provider key
+     */
     accountId: string
+    /**
+     * Canonical provider key alias; must match legacy :family route param when provided
+     */
     providerKey?: string
   }
   path: {
-    family?: string
+    /**
+     * Deprecated path param alias of providerKey
+     */
+    family: string
   }
   query?: {
     directory?: string
@@ -10430,10 +11538,16 @@ export type AccountSetActive3Response = AccountSetActive3Responses[keyof Account
 export type AccountLogin3Data = {
   body?: never
   path: {
-    family?: string
+    /**
+     * Deprecated path param alias of providerKey
+     */
+    family: string
   }
   query?: {
     directory?: string
+    /**
+     * Canonical provider key alias; must match legacy :family route param when provided
+     */
     providerKey?: string
   }
   url: "/account/auth/{family}/login"
@@ -10449,11 +11563,17 @@ export type AccountLogin3Responses = {
 export type AccountRemove3Data = {
   body?: never
   path: {
-    family?: string
+    /**
+     * Deprecated path param alias of providerKey
+     */
+    family: string
     accountId: string
   }
   query?: {
     directory?: string
+    /**
+     * Canonical provider key alias; must match legacy :family route param when provided
+     */
     providerKey?: string
   }
   url: "/account/{family}/{accountId}"
@@ -10484,10 +11604,16 @@ export type AccountRemove3Response = AccountRemove3Responses[keyof AccountRemove
 export type AccountUpdate3Data = {
   body?: {
     name: string
+    /**
+     * Canonical provider key alias; must match legacy :family route param when provided
+     */
     providerKey?: string
   }
   path: {
-    family?: string
+    /**
+     * Deprecated path param alias of providerKey
+     */
+    family: string
     accountId: string
   }
   query?: {
@@ -10536,10 +11662,18 @@ export type AccountQuotaHint4Responses = {
    * Quota hint
    */
   200: {
+    /**
+     * Resolved runtime provider ID
+     */
     providerId: string
+    /**
+     * Canonical provider identity key
+     */
     providerKey: string
     /**
-     * Legacy compatibility alias for providerKey
+     * Deprecated alias of providerKey kept for compatibility
+     *
+     * @deprecated
      */
     family: string
     accountId?: string
@@ -10560,9 +11694,12 @@ export type AccountListAll4Data = {
 
 export type AccountListAll4Responses = {
   /**
-   * List of accounts by provider key, with legacy families alias
+   * List of accounts by provider key (with legacy families alias)
    */
   200: {
+    /**
+     * Canonical provider-keyed account map
+     */
     providers: {
       [key: string]: {
         activeAccount?: string
@@ -10574,7 +11711,9 @@ export type AccountListAll4Responses = {
                 apiKey: string
                 addedAt: number
                 projectId?: string
-                metadata?: { [key: string]: unknown }
+                metadata?: {
+                  [key: string]: unknown
+                }
               }
             | {
                 type: "subscription"
@@ -10587,15 +11726,26 @@ export type AccountListAll4Responses = {
                 managedProjectId?: string
                 accountId?: string
                 addedAt: number
-                metadata?: { [key: string]: unknown }
-                rateLimitResetTimes?: { [key: string]: number }
+                metadata?: {
+                  [key: string]: unknown
+                }
+                rateLimitResetTimes?: {
+                  [key: string]: number
+                }
                 coolingDownUntil?: number
                 cooldownReason?: string
-                fingerprint?: { [key: string]: unknown }
+                fingerprint?: {
+                  [key: string]: unknown
+                }
               }
         }
       }
     }
+    /**
+     * Deprecated alias of providers kept for compatibility
+     *
+     * @deprecated
+     */
     families: {
       [key: string]: {
         activeAccount?: string
@@ -10644,11 +11794,20 @@ export type AccountListAll4Response = AccountListAll4Responses[keyof AccountList
 
 export type AccountSetActive4Data = {
   body?: {
+    /**
+     * Target account ID under the selected provider key
+     */
     accountId: string
+    /**
+     * Canonical provider key alias; must match legacy :family route param when provided
+     */
     providerKey?: string
   }
   path: {
-    family?: string
+    /**
+     * Deprecated path param alias of providerKey
+     */
+    family: string
   }
   query?: {
     directory?: string
@@ -10681,10 +11840,16 @@ export type AccountSetActive4Response = AccountSetActive4Responses[keyof Account
 export type AccountLogin4Data = {
   body?: never
   path: {
-    family?: string
+    /**
+     * Deprecated path param alias of providerKey
+     */
+    family: string
   }
   query?: {
     directory?: string
+    /**
+     * Canonical provider key alias; must match legacy :family route param when provided
+     */
     providerKey?: string
   }
   url: "/accounts/auth/{family}/login"
@@ -10700,11 +11865,17 @@ export type AccountLogin4Responses = {
 export type AccountRemove4Data = {
   body?: never
   path: {
-    family?: string
+    /**
+     * Deprecated path param alias of providerKey
+     */
+    family: string
     accountId: string
   }
   query?: {
     directory?: string
+    /**
+     * Canonical provider key alias; must match legacy :family route param when provided
+     */
     providerKey?: string
   }
   url: "/accounts/{family}/{accountId}"
@@ -10735,10 +11906,16 @@ export type AccountRemove4Response = AccountRemove4Responses[keyof AccountRemove
 export type AccountUpdate4Data = {
   body?: {
     name: string
+    /**
+     * Canonical provider key alias; must match legacy :family route param when provided
+     */
     providerKey?: string
   }
   path: {
-    family?: string
+    /**
+     * Deprecated path param alias of providerKey
+     */
+    family: string
     accountId: string
   }
   query?: {

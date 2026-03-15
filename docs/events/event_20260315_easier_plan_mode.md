@@ -68,24 +68,42 @@ Workspace: /home/pkcs12/projects/opencode
 
 ### Validation
 
-- 本 plan 已明確定義後續 build validation：
-  - plan mode 可自由寫 working-ledger todo
-  - build mode 必須維持 planner-derived execution todo
-  - `plan_exit` 必須明確定義 runtime todo 的 materialize/adopt/replace 規則
-  - runtime `todowrite` 需具備 mode-aware enforcement
+- 實作檢核結果：符合本 plan 主要交付。
+- 已檢查關鍵 runtime / prompt / docs surface：
+  - `packages/opencode/src/tool/todo.ts`
+  - `packages/opencode/src/session/todo.ts`
+  - `packages/opencode/src/session/system.ts`
+  - `packages/opencode/src/session/prompt/plan.txt`
+  - `packages/opencode/src/tool/plan.ts`
+  - `templates/skills/agent-workflow/SKILL.md`
+  - `docs/ARCHITECTURE.md`
+- 實測驗證：
+  - `bun test "/home/pkcs12/projects/opencode/packages/opencode/src/session/todo.test.ts" "/home/pkcs12/projects/opencode/packages/opencode/test/session/planner-reactivation.test.ts"`
+  - 結果：34 passed / 0 failed
+- 驗證結論：
+  - plan mode 已允許 working-ledger 結構變更（透過 `working_ledger` / auto-promotion）
+  - build mode 仍保留 planner-derived execution ledger 限制
+  - `plan_enter` / `plan_exit` 已明確宣告 todo authority 切換
+  - 未發現需要在本 event 中追加的 blocker 或 regression evidence
 
 ## Architecture Sync
 
-- `docs/ARCHITECTURE.md` 已更新：todo 從 "runtime projection of planner artifacts" 改為 mode-aware contract（plan mode = working ledger, build mode = execution ledger）。
-- `plan_enter` / `plan_exit` handoff 訊息已明確宣告 todo authority 切換。
+- Architecture Sync: Verified (Doc already updated by implementation)
+- 已確認 `docs/ARCHITECTURE.md` 第 142-148 行附近已同步為 mode-aware contract：
+  - **Plan mode (working ledger)**
+  - **Build mode (execution ledger)**
+  - `plan_enter` / `plan_exit` authority switch
+- 本輪檢核不需要再追加 architecture 文本修改。
 
 ## Implementation Summary
 
 ### Runtime changes
+
 - `todo.ts`: 新增 `working_ledger` UpdateMode，直接 enrichAll 而不走 merge/projection 邏輯
 - `tool/todo.ts`: todowrite handler 現在 mode-aware — plan mode 下 structure change 自動升格為 `working_ledger`；build mode 維持嚴格 `status_update` 限制
 
 ### Prompt/doc changes
+
 - `system.ts`: todowrite 規範拆成 plan mode (working ledger) vs build mode (execution ledger)
 - `plan.txt`: 加入 casual/debug/small-fix 語言，明確宣告 plan mode 下的 relaxed todo policy
 - `claude.txt` / `anthropic-20250930.txt`: plan/build mode todowrite 行為分開描述

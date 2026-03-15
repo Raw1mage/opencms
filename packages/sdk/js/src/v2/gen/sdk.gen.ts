@@ -75,10 +75,16 @@ import type {
   EventTuiProviderRefresh,
   EventTuiSessionSelect,
   EventTuiToastShow,
+  ExperimentalDebugBeacon2Responses,
+  ExperimentalDebugBeaconResponses,
   ExperimentalResourceList2Responses,
   ExperimentalResourceListResponses,
   ExperimentalReviewCheckpoint2Responses,
   ExperimentalReviewCheckpointResponses,
+  ExperimentalScrollCaptureLatest2Responses,
+  ExperimentalScrollCaptureLatestResponses,
+  ExperimentalScrollCaptureRecord2Responses,
+  ExperimentalScrollCaptureRecordResponses,
   ExperimentalSessionList2Responses,
   ExperimentalSessionListResponses,
   ExperimentalUserDaemonList2Responses,
@@ -117,6 +123,8 @@ import type {
   GlobalEventResponses,
   GlobalHealth2Responses,
   GlobalHealthResponses,
+  GlobalWebRestart2Responses,
+  GlobalWebRestartResponses,
   InstanceDispose2Responses,
   InstanceDisposeResponses,
   LspStatus2Responses,
@@ -243,6 +251,22 @@ import type {
   SessionAbort2Responses,
   SessionAbortErrors,
   SessionAbortResponses,
+  SessionAutonomous2Errors,
+  SessionAutonomous2Responses,
+  SessionAutonomousErrors,
+  SessionAutonomousHealth2Errors,
+  SessionAutonomousHealth2Responses,
+  SessionAutonomousHealthErrors,
+  SessionAutonomousHealthResponses,
+  SessionAutonomousQueue2Errors,
+  SessionAutonomousQueue2Responses,
+  SessionAutonomousQueueControl2Errors,
+  SessionAutonomousQueueControl2Responses,
+  SessionAutonomousQueueControlErrors,
+  SessionAutonomousQueueControlResponses,
+  SessionAutonomousQueueErrors,
+  SessionAutonomousQueueResponses,
+  SessionAutonomousResponses,
   SessionChildren2Errors,
   SessionChildren2Responses,
   SessionChildrenErrors,
@@ -677,6 +701,32 @@ export class Config extends HeyApiClient {
   }
 }
 
+export class Web extends HeyApiClient {
+  /**
+   * Restart web runtime
+   *
+   * Schedule a controlled web runtime restart. Intended for authenticated operators; clients should wait for health recovery and then reload.
+   */
+  public restart<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).post<GlobalWebRestartResponses, unknown, ThrowOnError>({
+      url: "/api/v2/global/web/restart",
+      ...options,
+    })
+  }
+
+  /**
+   * Restart web runtime
+   *
+   * Schedule a controlled web runtime restart. Intended for authenticated operators; clients should wait for health recovery and then reload.
+   */
+  public restart2<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).post<GlobalWebRestart2Responses, unknown, ThrowOnError>({
+      url: "/global/web/restart",
+      ...options,
+    })
+  }
+}
+
 export class Global extends HeyApiClient {
   /**
    * Get health
@@ -758,6 +808,11 @@ export class Global extends HeyApiClient {
   private _config?: Config
   get config(): Config {
     return (this._config ??= new Config({ client: this.client }))
+  }
+
+  private _web?: Web
+  get web(): Web {
+    return (this._web ??= new Web({ client: this.client }))
   }
 }
 
@@ -2189,6 +2244,240 @@ export class Config2 extends HeyApiClient {
   }
 }
 
+export class Debug extends HeyApiClient {
+  /**
+   * Record frontend debug beacon
+   *
+   * Accept browser-side debug checkpoints and mirror them into debug.log for RCA.
+   */
+  public beacon<ThrowOnError extends boolean = false>(
+    parameters?: {
+      query_directory?: string
+      source?: string
+      event?: string
+      body_directory?: string
+      sessionID?: string
+      messageID?: string
+      payload?: {
+        [key: string]: unknown
+      }
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            {
+              in: "query",
+              key: "query_directory",
+              map: "directory",
+            },
+            { in: "body", key: "source" },
+            { in: "body", key: "event" },
+            {
+              in: "body",
+              key: "body_directory",
+              map: "directory",
+            },
+            { in: "body", key: "sessionID" },
+            { in: "body", key: "messageID" },
+            { in: "body", key: "payload" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<ExperimentalDebugBeaconResponses, unknown, ThrowOnError>({
+      url: "/api/v2/experimental/debug-beacon",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Record frontend debug beacon
+   *
+   * Accept browser-side debug checkpoints and mirror them into debug.log for RCA.
+   */
+  public beacon2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      query_directory?: string
+      source?: string
+      event?: string
+      body_directory?: string
+      sessionID?: string
+      messageID?: string
+      payload?: {
+        [key: string]: unknown
+      }
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            {
+              in: "query",
+              key: "query_directory",
+              map: "directory",
+            },
+            { in: "body", key: "source" },
+            { in: "body", key: "event" },
+            {
+              in: "body",
+              key: "body_directory",
+              map: "directory",
+            },
+            { in: "body", key: "sessionID" },
+            { in: "body", key: "messageID" },
+            { in: "body", key: "payload" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<ExperimentalDebugBeacon2Responses, unknown, ThrowOnError>({
+      url: "/experimental/debug-beacon",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
+export class ScrollCapture extends HeyApiClient {
+  /**
+   * Get latest scroll incident capture
+   *
+   * Return the latest retained web scroll incident capture plus recent history.
+   */
+  public latest<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<ExperimentalScrollCaptureLatestResponses, unknown, ThrowOnError>({
+      url: "/api/v2/experimental/scroll-capture/latest",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Record scroll incident capture
+   *
+   * Persist a retained web scroll incident capture to a fixed server-side file for later RCA.
+   */
+  public record<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      source?: string
+      capturedAt?: number
+      payload?: {
+        [key: string]: unknown
+      }
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "source" },
+            { in: "body", key: "capturedAt" },
+            { in: "body", key: "payload" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<ExperimentalScrollCaptureRecordResponses, unknown, ThrowOnError>({
+      url: "/api/v2/experimental/scroll-capture",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Get latest scroll incident capture
+   *
+   * Return the latest retained web scroll incident capture plus recent history.
+   */
+  public latest2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<ExperimentalScrollCaptureLatest2Responses, unknown, ThrowOnError>({
+      url: "/experimental/scroll-capture/latest",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Record scroll incident capture
+   *
+   * Persist a retained web scroll incident capture to a fixed server-side file for later RCA.
+   */
+  public record2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      source?: string
+      capturedAt?: number
+      payload?: {
+        [key: string]: unknown
+      }
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "source" },
+            { in: "body", key: "capturedAt" },
+            { in: "body", key: "payload" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<ExperimentalScrollCaptureRecord2Responses, unknown, ThrowOnError>({
+      url: "/experimental/scroll-capture",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Review extends HeyApiClient {
   /**
    * Review data-path checkpoint
@@ -2392,6 +2681,16 @@ export class Resource extends HeyApiClient {
 }
 
 export class Experimental extends HeyApiClient {
+  private _debug?: Debug
+  get debug(): Debug {
+    return (this._debug ??= new Debug({ client: this.client }))
+  }
+
+  private _scrollCapture?: ScrollCapture
+  get scrollCapture(): ScrollCapture {
+    return (this._scrollCapture ??= new ScrollCapture({ client: this.client }))
+  }
+
   private _review?: Review
   get review(): Review {
     return (this._review ??= new Review({ client: this.client }))
@@ -2767,6 +3066,233 @@ export class Worktree extends HeyApiClient {
   }
 }
 
+export class Queue extends HeyApiClient {
+  /**
+   * Control pending autonomous continuation queue
+   *
+   * Apply operator control actions for one session pending queue (resume once or drop pending item), returning post-action inspection state.
+   */
+  public control<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      action?: "resume_once" | "drop_pending"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "body", key: "action" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      SessionAutonomousQueueControlResponses,
+      SessionAutonomousQueueControlErrors,
+      ThrowOnError
+    >({
+      url: "/api/v2/session/{sessionID}/autonomous/queue",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Control pending autonomous continuation queue
+   *
+   * Apply operator control actions for one session pending queue (resume once or drop pending item), returning post-action inspection state.
+   */
+  public control2<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      action?: "resume_once" | "drop_pending"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "body", key: "action" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      SessionAutonomousQueueControl2Responses,
+      SessionAutonomousQueueControl2Errors,
+      ThrowOnError
+    >({
+      url: "/session/{sessionID}/autonomous/queue",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
+export class Autonomous extends HeyApiClient {
+  /**
+   * Get autonomous workflow health
+   *
+   * Return a converged health snapshot for autonomous execution, including queue state, supervisor retry state, and recent anomaly evidence.
+   */
+  public health<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      SessionAutonomousHealthResponses,
+      SessionAutonomousHealthErrors,
+      ThrowOnError
+    >({
+      url: "/api/v2/session/{sessionID}/autonomous/health",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Inspect pending autonomous continuation queue state
+   *
+   * Return queue inspection for one session, including pending continuation payload, resumable/blocked classification, and block reasons.
+   */
+  public queue<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      SessionAutonomousQueueResponses,
+      SessionAutonomousQueueErrors,
+      ThrowOnError
+    >({
+      url: "/api/v2/session/{sessionID}/autonomous/queue",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get autonomous workflow health
+   *
+   * Return a converged health snapshot for autonomous execution, including queue state, supervisor retry state, and recent anomaly evidence.
+   */
+  public health2<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      SessionAutonomousHealth2Responses,
+      SessionAutonomousHealth2Errors,
+      ThrowOnError
+    >({
+      url: "/session/{sessionID}/autonomous/health",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Inspect pending autonomous continuation queue state
+   *
+   * Return queue inspection for one session, including pending continuation payload, resumable/blocked classification, and block reasons.
+   */
+  public queue2<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      SessionAutonomousQueue2Responses,
+      SessionAutonomousQueue2Errors,
+      ThrowOnError
+    >({
+      url: "/session/{sessionID}/autonomous/queue",
+      ...options,
+      ...params,
+    })
+  }
+
+  private _queue?: Queue
+  get queue3(): Queue {
+    return (this._queue ??= new Queue({ client: this.client }))
+  }
+}
+
 export class Session2 extends HeyApiClient {
   /**
    * List sessions
@@ -2974,6 +3500,16 @@ export class Session2 extends HeyApiClient {
       time?: {
         archived?: number
       }
+      workflow?: {
+        autonomous?: {
+          enabled?: boolean
+          maxContinuousRounds?: number
+          stopOnTestsFail?: boolean
+          requireApprovalFor?: Array<string>
+        }
+        state?: "idle" | "running" | "waiting_user" | "blocked" | "completed"
+        stopReason?: string | null
+      }
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -2987,6 +3523,7 @@ export class Session2 extends HeyApiClient {
             { in: "body", key: "title" },
             { in: "body", key: "execution" },
             { in: "body", key: "time" },
+            { in: "body", key: "workflow" },
           ],
         },
       ],
@@ -3060,6 +3597,45 @@ export class Session2 extends HeyApiClient {
       url: "/api/v2/session/{sessionID}/todo",
       ...options,
       ...params,
+    })
+  }
+
+  /**
+   * Toggle autonomous session mode
+   *
+   * Enable or disable autonomous continuation for a session, and optionally enqueue an immediate continue turn.
+   */
+  public autonomous<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      enabled?: boolean
+      enqueue?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "body", key: "enabled" },
+            { in: "body", key: "enqueue" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SessionAutonomousResponses, SessionAutonomousErrors, ThrowOnError>({
+      url: "/api/v2/session/{sessionID}/autonomous",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     })
   }
 
@@ -3232,9 +3808,9 @@ export class Session2 extends HeyApiClient {
   }
 
   /**
-   * Get message diff
+   * Get session diff
    *
-   * Get the file changes (diff) that resulted from a specific user message in the session.
+   * Get the authoritative session-owned dirty diff for the current workspace, or the summarized diff for a specific user message when messageID is provided.
    */
   public diff<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3349,6 +3925,7 @@ export class Session2 extends HeyApiClient {
       model?: {
         providerId: string
         modelID: string
+        accountId?: string
       }
       agent?: string
       noReply?: boolean
@@ -3477,6 +4054,7 @@ export class Session2 extends HeyApiClient {
       model?: {
         providerId: string
         modelID: string
+        accountId?: string
       }
       agent?: string
       noReply?: boolean
@@ -3535,7 +4113,13 @@ export class Session2 extends HeyApiClient {
       directory?: string
       messageID?: string
       agent?: string
-      model?: string
+      model?:
+        | string
+        | {
+            providerId: string
+            modelID: string
+            accountId?: string
+          }
       arguments?: string
       command?: string
       variant?: string
@@ -3593,6 +4177,7 @@ export class Session2 extends HeyApiClient {
       model?: {
         providerId: string
         modelID: string
+        accountId?: string
       }
       variant?: string
       command?: string
@@ -3901,6 +4486,16 @@ export class Session2 extends HeyApiClient {
       time?: {
         archived?: number
       }
+      workflow?: {
+        autonomous?: {
+          enabled?: boolean
+          maxContinuousRounds?: number
+          stopOnTestsFail?: boolean
+          requireApprovalFor?: Array<string>
+        }
+        state?: "idle" | "running" | "waiting_user" | "blocked" | "completed"
+        stopReason?: string | null
+      }
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -3914,6 +4509,7 @@ export class Session2 extends HeyApiClient {
             { in: "body", key: "title" },
             { in: "body", key: "execution" },
             { in: "body", key: "time" },
+            { in: "body", key: "workflow" },
           ],
         },
       ],
@@ -3987,6 +4583,45 @@ export class Session2 extends HeyApiClient {
       url: "/session/{sessionID}/todo",
       ...options,
       ...params,
+    })
+  }
+
+  /**
+   * Toggle autonomous session mode
+   *
+   * Enable or disable autonomous continuation for a session, and optionally enqueue an immediate continue turn.
+   */
+  public autonomous2<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      enabled?: boolean
+      enqueue?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "body", key: "enabled" },
+            { in: "body", key: "enqueue" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SessionAutonomous2Responses, SessionAutonomous2Errors, ThrowOnError>({
+      url: "/session/{sessionID}/autonomous",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     })
   }
 
@@ -4159,9 +4794,9 @@ export class Session2 extends HeyApiClient {
   }
 
   /**
-   * Get message diff
+   * Get session diff
    *
-   * Get the file changes (diff) that resulted from a specific user message in the session.
+   * Get the authoritative session-owned dirty diff for the current workspace, or the summarized diff for a specific user message when messageID is provided.
    */
   public diff2<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4276,6 +4911,7 @@ export class Session2 extends HeyApiClient {
       model?: {
         providerId: string
         modelID: string
+        accountId?: string
       }
       agent?: string
       noReply?: boolean
@@ -4404,6 +5040,7 @@ export class Session2 extends HeyApiClient {
       model?: {
         providerId: string
         modelID: string
+        accountId?: string
       }
       agent?: string
       noReply?: boolean
@@ -4464,7 +5101,13 @@ export class Session2 extends HeyApiClient {
       directory?: string
       messageID?: string
       agent?: string
-      model?: string
+      model?:
+        | string
+        | {
+            providerId: string
+            modelID: string
+            accountId?: string
+          }
       arguments?: string
       command?: string
       variant?: string
@@ -4522,6 +5165,7 @@ export class Session2 extends HeyApiClient {
       model?: {
         providerId: string
         modelID: string
+        accountId?: string
       }
       variant?: string
       command?: string
@@ -4622,6 +5266,11 @@ export class Session2 extends HeyApiClient {
       ...options,
       ...params,
     })
+  }
+
+  private _autonomous?: Autonomous
+  get autonomous3(): Autonomous {
+    return (this._autonomous ??= new Autonomous({ client: this.client }))
   }
 }
 
@@ -6610,7 +7259,7 @@ export class Account extends HeyApiClient {
   /**
    * Get quota hint for current model
    *
-   * Returns provider-specific quota hint text for prompt footer metadata, including canonical `providerKey` plus legacy `family` compatibility.
+   * Returns provider-specific quota hint text for prompt footer metadata.
    */
   public quotaHint<ThrowOnError extends boolean = false>(
     parameters: {
@@ -6646,7 +7295,7 @@ export class Account extends HeyApiClient {
   /**
    * List all accounts
    *
-   * Get a list of all configured accounts grouped by provider key.
+   * Get a list of all configured accounts grouped by provider key. Response keeps legacy 'families' for compatibility and also returns 'providers'.
    */
   public listAll<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -6665,14 +7314,14 @@ export class Account extends HeyApiClient {
   /**
    * Set active account
    *
-   * Set the active account for a specific provider key. The legacy `family` path parameter is still accepted, and `providerKey` is an additive alias.
+   * Set the active account for a specific provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and request bodies may also include matching 'providerKey' as a deprecated compatibility alias.
    */
   public setActive<ThrowOnError extends boolean = false>(
     parameters: {
-      family?: string
-      providerKey?: string
+      family: string
       directory?: string
       accountId?: string
+      providerKey?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -6692,47 +7341,11 @@ export class Account extends HeyApiClient {
     return (options?.client ?? this.client).post<AccountSetActiveResponses, AccountSetActiveErrors, ThrowOnError>({
       url: "/api/v2/account/{family}/active",
       ...options,
-      ...buildClientParams(
-        [
-          {
-            ...parameters,
-            family: parameters.family ?? parameters.providerKey,
-            providerKey: parameters.providerKey ?? parameters.family,
-          },
-        ],
-        [
-          {
-            args: [
-              { in: "path", key: "family" },
-              { in: "query", key: "directory" },
-              { in: "body", key: "accountId" },
-              { in: "body", key: "providerKey" },
-            ],
-          },
-        ],
-      ),
+      ...params,
       headers: {
         "Content-Type": "application/json",
         ...options?.headers,
-        ...buildClientParams(
-          [
-            {
-              ...parameters,
-              family: parameters.family ?? parameters.providerKey,
-              providerKey: parameters.providerKey ?? parameters.family,
-            },
-          ],
-          [
-            {
-              args: [
-                { in: "path", key: "family" },
-                { in: "query", key: "directory" },
-                { in: "body", key: "accountId" },
-                { in: "body", key: "providerKey" },
-              ],
-            },
-          ],
-        ).headers,
+        ...params.headers,
       },
     })
   }
@@ -6740,13 +7353,13 @@ export class Account extends HeyApiClient {
   /**
    * Trigger login
    *
-   * Get the login URL for a provider key. The legacy `family` path parameter is still accepted, and `providerKey` is an additive alias.
+   * Get the login URL for a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and query may also include matching 'providerKey' as a deprecated compatibility alias.
    */
   public login<ThrowOnError extends boolean = false>(
     parameters: {
-      family?: string
-      providerKey?: string
+      family: string
       directory?: string
+      providerKey?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -6765,38 +7378,21 @@ export class Account extends HeyApiClient {
     return (options?.client ?? this.client).get<AccountLoginResponses, unknown, ThrowOnError>({
       url: "/api/v2/account/auth/{family}/login",
       ...options,
-      ...buildClientParams(
-        [
-          {
-            ...parameters,
-            family: parameters.family ?? parameters.providerKey,
-            providerKey: parameters.providerKey ?? parameters.family,
-          },
-        ],
-        [
-          {
-            args: [
-              { in: "path", key: "family" },
-              { in: "query", key: "directory" },
-              { in: "query", key: "providerKey" },
-            ],
-          },
-        ],
-      ),
+      ...params,
     })
   }
 
   /**
    * Remove account
    *
-   * Remove a specific account under a provider key. The legacy `family` path parameter is still accepted, and `providerKey` is an additive alias.
+   * Remove a specific account under a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and query may also include matching 'providerKey' as a deprecated compatibility alias.
    */
   public remove<ThrowOnError extends boolean = false>(
     parameters: {
-      family?: string
-      providerKey?: string
+      family: string
       accountId: string
       directory?: string
+      providerKey?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -6816,40 +7412,22 @@ export class Account extends HeyApiClient {
     return (options?.client ?? this.client).delete<AccountRemoveResponses, AccountRemoveErrors, ThrowOnError>({
       url: "/api/v2/account/{family}/{accountId}",
       ...options,
-      ...buildClientParams(
-        [
-          {
-            ...parameters,
-            family: parameters.family ?? parameters.providerKey,
-            providerKey: parameters.providerKey ?? parameters.family,
-          },
-        ],
-        [
-          {
-            args: [
-              { in: "path", key: "family" },
-              { in: "path", key: "accountId" },
-              { in: "query", key: "directory" },
-              { in: "query", key: "providerKey" },
-            ],
-          },
-        ],
-      ),
+      ...params,
     })
   }
 
   /**
    * Update account metadata
    *
-   * Update editable account metadata under a provider key. The legacy `family` path parameter is still accepted, and `providerKey` is an additive alias.
+   * Update editable account metadata under a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and request bodies may also include matching 'providerKey' as a deprecated compatibility alias.
    */
   public update<ThrowOnError extends boolean = false>(
     parameters: {
-      family?: string
-      providerKey?: string
+      family: string
       accountId: string
       directory?: string
       name?: string
+      providerKey?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -6870,49 +7448,11 @@ export class Account extends HeyApiClient {
     return (options?.client ?? this.client).patch<AccountUpdateResponses, AccountUpdateErrors, ThrowOnError>({
       url: "/api/v2/account/{family}/{accountId}",
       ...options,
-      ...buildClientParams(
-        [
-          {
-            ...parameters,
-            family: parameters.family ?? parameters.providerKey,
-            providerKey: parameters.providerKey ?? parameters.family,
-          },
-        ],
-        [
-          {
-            args: [
-              { in: "path", key: "family" },
-              { in: "path", key: "accountId" },
-              { in: "query", key: "directory" },
-              { in: "body", key: "name" },
-              { in: "body", key: "providerKey" },
-            ],
-          },
-        ],
-      ),
+      ...params,
       headers: {
         "Content-Type": "application/json",
         ...options?.headers,
-        ...buildClientParams(
-          [
-            {
-              ...parameters,
-              family: parameters.family ?? parameters.providerKey,
-              providerKey: parameters.providerKey ?? parameters.family,
-            },
-          ],
-          [
-            {
-              args: [
-                { in: "path", key: "family" },
-                { in: "path", key: "accountId" },
-                { in: "query", key: "directory" },
-                { in: "body", key: "name" },
-                { in: "body", key: "providerKey" },
-              ],
-            },
-          ],
-        ).headers,
+        ...params.headers,
       },
     })
   }
@@ -6956,7 +7496,7 @@ export class Account extends HeyApiClient {
   /**
    * List all accounts
    *
-   * Get a list of all configured accounts grouped by provider key, with legacy `families` compatibility.
+   * Get a list of all configured accounts grouped by provider key. Response keeps legacy 'families' for compatibility and also returns 'providers'.
    */
   public listAll2<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -6975,14 +7515,14 @@ export class Account extends HeyApiClient {
   /**
    * Set active account
    *
-   * Set the active account for a specific provider key. The legacy `family` path parameter is still accepted, and `providerKey` is an additive alias.
+   * Set the active account for a specific provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and request bodies may also include matching 'providerKey' as a deprecated compatibility alias.
    */
   public setActive2<ThrowOnError extends boolean = false>(
     parameters: {
-      family?: string
-      providerKey?: string
+      family: string
       directory?: string
       accountId?: string
+      providerKey?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -7002,47 +7542,11 @@ export class Account extends HeyApiClient {
     return (options?.client ?? this.client).post<AccountSetActive2Responses, AccountSetActive2Errors, ThrowOnError>({
       url: "/api/v2/accounts/{family}/active",
       ...options,
-      ...buildClientParams(
-        [
-          {
-            ...parameters,
-            family: parameters.family ?? parameters.providerKey,
-            providerKey: parameters.providerKey ?? parameters.family,
-          },
-        ],
-        [
-          {
-            args: [
-              { in: "path", key: "family" },
-              { in: "query", key: "directory" },
-              { in: "body", key: "accountId" },
-              { in: "body", key: "providerKey" },
-            ],
-          },
-        ],
-      ),
+      ...params,
       headers: {
         "Content-Type": "application/json",
         ...options?.headers,
-        ...buildClientParams(
-          [
-            {
-              ...parameters,
-              family: parameters.family ?? parameters.providerKey,
-              providerKey: parameters.providerKey ?? parameters.family,
-            },
-          ],
-          [
-            {
-              args: [
-                { in: "path", key: "family" },
-                { in: "query", key: "directory" },
-                { in: "body", key: "accountId" },
-                { in: "body", key: "providerKey" },
-              ],
-            },
-          ],
-        ).headers,
+        ...params.headers,
       },
     })
   }
@@ -7050,13 +7554,13 @@ export class Account extends HeyApiClient {
   /**
    * Trigger login
    *
-   * Get the login URL for a provider key. The legacy `family` path parameter is still accepted, and `providerKey` is an additive alias.
+   * Get the login URL for a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and query may also include matching 'providerKey' as a deprecated compatibility alias.
    */
   public login2<ThrowOnError extends boolean = false>(
     parameters: {
-      family?: string
-      providerKey?: string
+      family: string
       directory?: string
+      providerKey?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -7075,38 +7579,21 @@ export class Account extends HeyApiClient {
     return (options?.client ?? this.client).get<AccountLogin2Responses, unknown, ThrowOnError>({
       url: "/api/v2/accounts/auth/{family}/login",
       ...options,
-      ...buildClientParams(
-        [
-          {
-            ...parameters,
-            family: parameters.family ?? parameters.providerKey,
-            providerKey: parameters.providerKey ?? parameters.family,
-          },
-        ],
-        [
-          {
-            args: [
-              { in: "path", key: "family" },
-              { in: "query", key: "directory" },
-              { in: "query", key: "providerKey" },
-            ],
-          },
-        ],
-      ),
+      ...params,
     })
   }
 
   /**
    * Remove account
    *
-   * Remove a specific account under a provider key. The legacy `family` path parameter is still accepted, and `providerKey` is an additive alias.
+   * Remove a specific account under a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and query may also include matching 'providerKey' as a deprecated compatibility alias.
    */
   public remove2<ThrowOnError extends boolean = false>(
     parameters: {
-      family?: string
-      providerKey?: string
+      family: string
       accountId: string
       directory?: string
+      providerKey?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -7126,40 +7613,22 @@ export class Account extends HeyApiClient {
     return (options?.client ?? this.client).delete<AccountRemove2Responses, AccountRemove2Errors, ThrowOnError>({
       url: "/api/v2/accounts/{family}/{accountId}",
       ...options,
-      ...buildClientParams(
-        [
-          {
-            ...parameters,
-            family: parameters.family ?? parameters.providerKey,
-            providerKey: parameters.providerKey ?? parameters.family,
-          },
-        ],
-        [
-          {
-            args: [
-              { in: "path", key: "family" },
-              { in: "path", key: "accountId" },
-              { in: "query", key: "directory" },
-              { in: "query", key: "providerKey" },
-            ],
-          },
-        ],
-      ),
+      ...params,
     })
   }
 
   /**
    * Update account metadata
    *
-   * Update editable account metadata under a provider key. The legacy `family` path parameter is still accepted, and `providerKey` is an additive alias.
+   * Update editable account metadata under a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and request bodies may also include matching 'providerKey' as a deprecated compatibility alias.
    */
   public update2<ThrowOnError extends boolean = false>(
     parameters: {
-      family?: string
-      providerKey?: string
+      family: string
       accountId: string
       directory?: string
       name?: string
+      providerKey?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -7180,49 +7649,11 @@ export class Account extends HeyApiClient {
     return (options?.client ?? this.client).patch<AccountUpdate2Responses, AccountUpdate2Errors, ThrowOnError>({
       url: "/api/v2/accounts/{family}/{accountId}",
       ...options,
-      ...buildClientParams(
-        [
-          {
-            ...parameters,
-            family: parameters.family ?? parameters.providerKey,
-            providerKey: parameters.providerKey ?? parameters.family,
-          },
-        ],
-        [
-          {
-            args: [
-              { in: "path", key: "family" },
-              { in: "path", key: "accountId" },
-              { in: "query", key: "directory" },
-              { in: "body", key: "name" },
-              { in: "body", key: "providerKey" },
-            ],
-          },
-        ],
-      ),
+      ...params,
       headers: {
         "Content-Type": "application/json",
         ...options?.headers,
-        ...buildClientParams(
-          [
-            {
-              ...parameters,
-              family: parameters.family ?? parameters.providerKey,
-              providerKey: parameters.providerKey ?? parameters.family,
-            },
-          ],
-          [
-            {
-              args: [
-                { in: "path", key: "family" },
-                { in: "path", key: "accountId" },
-                { in: "query", key: "directory" },
-                { in: "body", key: "name" },
-                { in: "body", key: "providerKey" },
-              ],
-            },
-          ],
-        ).headers,
+        ...params.headers,
       },
     })
   }
@@ -7230,7 +7661,7 @@ export class Account extends HeyApiClient {
   /**
    * Get quota hint for current model
    *
-   * Returns provider-specific quota hint text for prompt footer metadata, including canonical `providerKey` plus legacy `family` compatibility.
+   * Returns provider-specific quota hint text for prompt footer metadata.
    */
   public quotaHint3<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7266,7 +7697,7 @@ export class Account extends HeyApiClient {
   /**
    * List all accounts
    *
-   * Get a list of all configured accounts grouped by provider key, with legacy `families` compatibility.
+   * Get a list of all configured accounts grouped by provider key. Response keeps legacy 'families' for compatibility and also returns 'providers'.
    */
   public listAll3<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -7285,14 +7716,14 @@ export class Account extends HeyApiClient {
   /**
    * Set active account
    *
-   * Set the active account for a specific provider key. The legacy `family` path parameter is still accepted, and `providerKey` is an additive alias.
+   * Set the active account for a specific provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and request bodies may also include matching 'providerKey' as a deprecated compatibility alias.
    */
   public setActive3<ThrowOnError extends boolean = false>(
     parameters: {
-      family?: string
-      providerKey?: string
+      family: string
       directory?: string
       accountId?: string
+      providerKey?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -7312,47 +7743,11 @@ export class Account extends HeyApiClient {
     return (options?.client ?? this.client).post<AccountSetActive3Responses, AccountSetActive3Errors, ThrowOnError>({
       url: "/account/{family}/active",
       ...options,
-      ...buildClientParams(
-        [
-          {
-            ...parameters,
-            family: parameters.family ?? parameters.providerKey,
-            providerKey: parameters.providerKey ?? parameters.family,
-          },
-        ],
-        [
-          {
-            args: [
-              { in: "path", key: "family" },
-              { in: "query", key: "directory" },
-              { in: "body", key: "accountId" },
-              { in: "body", key: "providerKey" },
-            ],
-          },
-        ],
-      ),
+      ...params,
       headers: {
         "Content-Type": "application/json",
         ...options?.headers,
-        ...buildClientParams(
-          [
-            {
-              ...parameters,
-              family: parameters.family ?? parameters.providerKey,
-              providerKey: parameters.providerKey ?? parameters.family,
-            },
-          ],
-          [
-            {
-              args: [
-                { in: "path", key: "family" },
-                { in: "query", key: "directory" },
-                { in: "body", key: "accountId" },
-                { in: "body", key: "providerKey" },
-              ],
-            },
-          ],
-        ).headers,
+        ...params.headers,
       },
     })
   }
@@ -7360,13 +7755,13 @@ export class Account extends HeyApiClient {
   /**
    * Trigger login
    *
-   * Get the login URL for a provider key. The legacy `family` path parameter is still accepted, and `providerKey` is an additive alias.
+   * Get the login URL for a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and query may also include matching 'providerKey' as a deprecated compatibility alias.
    */
   public login3<ThrowOnError extends boolean = false>(
     parameters: {
-      family?: string
-      providerKey?: string
+      family: string
       directory?: string
+      providerKey?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -7385,38 +7780,21 @@ export class Account extends HeyApiClient {
     return (options?.client ?? this.client).get<AccountLogin3Responses, unknown, ThrowOnError>({
       url: "/account/auth/{family}/login",
       ...options,
-      ...buildClientParams(
-        [
-          {
-            ...parameters,
-            family: parameters.family ?? parameters.providerKey,
-            providerKey: parameters.providerKey ?? parameters.family,
-          },
-        ],
-        [
-          {
-            args: [
-              { in: "path", key: "family" },
-              { in: "query", key: "directory" },
-              { in: "query", key: "providerKey" },
-            ],
-          },
-        ],
-      ),
+      ...params,
     })
   }
 
   /**
    * Remove account
    *
-   * Remove a specific account under a provider key. The legacy `family` path parameter is still accepted, and `providerKey` is an additive alias.
+   * Remove a specific account under a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and query may also include matching 'providerKey' as a deprecated compatibility alias.
    */
   public remove3<ThrowOnError extends boolean = false>(
     parameters: {
-      family?: string
-      providerKey?: string
+      family: string
       accountId: string
       directory?: string
+      providerKey?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -7436,40 +7814,22 @@ export class Account extends HeyApiClient {
     return (options?.client ?? this.client).delete<AccountRemove3Responses, AccountRemove3Errors, ThrowOnError>({
       url: "/account/{family}/{accountId}",
       ...options,
-      ...buildClientParams(
-        [
-          {
-            ...parameters,
-            family: parameters.family ?? parameters.providerKey,
-            providerKey: parameters.providerKey ?? parameters.family,
-          },
-        ],
-        [
-          {
-            args: [
-              { in: "path", key: "family" },
-              { in: "path", key: "accountId" },
-              { in: "query", key: "directory" },
-              { in: "query", key: "providerKey" },
-            ],
-          },
-        ],
-      ),
+      ...params,
     })
   }
 
   /**
    * Update account metadata
    *
-   * Update editable account metadata under a provider key. The legacy `family` path parameter is still accepted, and `providerKey` is an additive alias.
+   * Update editable account metadata under a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and request bodies may also include matching 'providerKey' as a deprecated compatibility alias.
    */
   public update3<ThrowOnError extends boolean = false>(
     parameters: {
-      family?: string
-      providerKey?: string
+      family: string
       accountId: string
       directory?: string
       name?: string
+      providerKey?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -7490,49 +7850,11 @@ export class Account extends HeyApiClient {
     return (options?.client ?? this.client).patch<AccountUpdate3Responses, AccountUpdate3Errors, ThrowOnError>({
       url: "/account/{family}/{accountId}",
       ...options,
-      ...buildClientParams(
-        [
-          {
-            ...parameters,
-            family: parameters.family ?? parameters.providerKey,
-            providerKey: parameters.providerKey ?? parameters.family,
-          },
-        ],
-        [
-          {
-            args: [
-              { in: "path", key: "family" },
-              { in: "path", key: "accountId" },
-              { in: "query", key: "directory" },
-              { in: "body", key: "name" },
-              { in: "body", key: "providerKey" },
-            ],
-          },
-        ],
-      ),
+      ...params,
       headers: {
         "Content-Type": "application/json",
         ...options?.headers,
-        ...buildClientParams(
-          [
-            {
-              ...parameters,
-              family: parameters.family ?? parameters.providerKey,
-              providerKey: parameters.providerKey ?? parameters.family,
-            },
-          ],
-          [
-            {
-              args: [
-                { in: "path", key: "family" },
-                { in: "path", key: "accountId" },
-                { in: "query", key: "directory" },
-                { in: "body", key: "name" },
-                { in: "body", key: "providerKey" },
-              ],
-            },
-          ],
-        ).headers,
+        ...params.headers,
       },
     })
   }
@@ -7540,7 +7862,7 @@ export class Account extends HeyApiClient {
   /**
    * Get quota hint for current model
    *
-   * Returns provider-specific quota hint text for prompt footer metadata, including canonical `providerKey` plus legacy `family` compatibility.
+   * Returns provider-specific quota hint text for prompt footer metadata.
    */
   public quotaHint4<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7576,7 +7898,7 @@ export class Account extends HeyApiClient {
   /**
    * List all accounts
    *
-   * Get a list of all configured accounts grouped by provider key, with legacy `families` compatibility.
+   * Get a list of all configured accounts grouped by provider key. Response keeps legacy 'families' for compatibility and also returns 'providers'.
    */
   public listAll4<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -7595,14 +7917,14 @@ export class Account extends HeyApiClient {
   /**
    * Set active account
    *
-   * Set the active account for a specific provider key. The legacy `family` path parameter is still accepted, and `providerKey` is an additive alias.
+   * Set the active account for a specific provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and request bodies may also include matching 'providerKey' as a deprecated compatibility alias.
    */
   public setActive4<ThrowOnError extends boolean = false>(
     parameters: {
-      family?: string
-      providerKey?: string
+      family: string
       directory?: string
       accountId?: string
+      providerKey?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -7622,47 +7944,11 @@ export class Account extends HeyApiClient {
     return (options?.client ?? this.client).post<AccountSetActive4Responses, AccountSetActive4Errors, ThrowOnError>({
       url: "/accounts/{family}/active",
       ...options,
-      ...buildClientParams(
-        [
-          {
-            ...parameters,
-            family: parameters.family ?? parameters.providerKey,
-            providerKey: parameters.providerKey ?? parameters.family,
-          },
-        ],
-        [
-          {
-            args: [
-              { in: "path", key: "family" },
-              { in: "query", key: "directory" },
-              { in: "body", key: "accountId" },
-              { in: "body", key: "providerKey" },
-            ],
-          },
-        ],
-      ),
+      ...params,
       headers: {
         "Content-Type": "application/json",
         ...options?.headers,
-        ...buildClientParams(
-          [
-            {
-              ...parameters,
-              family: parameters.family ?? parameters.providerKey,
-              providerKey: parameters.providerKey ?? parameters.family,
-            },
-          ],
-          [
-            {
-              args: [
-                { in: "path", key: "family" },
-                { in: "query", key: "directory" },
-                { in: "body", key: "accountId" },
-                { in: "body", key: "providerKey" },
-              ],
-            },
-          ],
-        ).headers,
+        ...params.headers,
       },
     })
   }
@@ -7670,13 +7956,13 @@ export class Account extends HeyApiClient {
   /**
    * Trigger login
    *
-   * Get the login URL for a provider key. The legacy `family` path parameter is still accepted, and `providerKey` is an additive alias.
+   * Get the login URL for a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and query may also include matching 'providerKey' as a deprecated compatibility alias.
    */
   public login4<ThrowOnError extends boolean = false>(
     parameters: {
-      family?: string
-      providerKey?: string
+      family: string
       directory?: string
+      providerKey?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -7695,38 +7981,21 @@ export class Account extends HeyApiClient {
     return (options?.client ?? this.client).get<AccountLogin4Responses, unknown, ThrowOnError>({
       url: "/accounts/auth/{family}/login",
       ...options,
-      ...buildClientParams(
-        [
-          {
-            ...parameters,
-            family: parameters.family ?? parameters.providerKey,
-            providerKey: parameters.providerKey ?? parameters.family,
-          },
-        ],
-        [
-          {
-            args: [
-              { in: "path", key: "family" },
-              { in: "query", key: "directory" },
-              { in: "query", key: "providerKey" },
-            ],
-          },
-        ],
-      ),
+      ...params,
     })
   }
 
   /**
    * Remove account
    *
-   * Remove a specific account under a provider key. The legacy `family` path parameter is still accepted, and `providerKey` is an additive alias.
+   * Remove a specific account under a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and query may also include matching 'providerKey' as a deprecated compatibility alias.
    */
   public remove4<ThrowOnError extends boolean = false>(
     parameters: {
-      family?: string
-      providerKey?: string
+      family: string
       accountId: string
       directory?: string
+      providerKey?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -7746,40 +8015,22 @@ export class Account extends HeyApiClient {
     return (options?.client ?? this.client).delete<AccountRemove4Responses, AccountRemove4Errors, ThrowOnError>({
       url: "/accounts/{family}/{accountId}",
       ...options,
-      ...buildClientParams(
-        [
-          {
-            ...parameters,
-            family: parameters.family ?? parameters.providerKey,
-            providerKey: parameters.providerKey ?? parameters.family,
-          },
-        ],
-        [
-          {
-            args: [
-              { in: "path", key: "family" },
-              { in: "path", key: "accountId" },
-              { in: "query", key: "directory" },
-              { in: "query", key: "providerKey" },
-            ],
-          },
-        ],
-      ),
+      ...params,
     })
   }
 
   /**
    * Update account metadata
    *
-   * Update editable account metadata under a provider key. The legacy `family` path parameter is still accepted, and `providerKey` is an additive alias.
+   * Update editable account metadata under a provider key. Canonical request semantics are provider-key based. Legacy route param name remains 'family' for compatibility, and request bodies may also include matching 'providerKey' as a deprecated compatibility alias.
    */
   public update4<ThrowOnError extends boolean = false>(
     parameters: {
-      family?: string
-      providerKey?: string
+      family: string
       accountId: string
       directory?: string
       name?: string
+      providerKey?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -7800,49 +8051,11 @@ export class Account extends HeyApiClient {
     return (options?.client ?? this.client).patch<AccountUpdate4Responses, AccountUpdate4Errors, ThrowOnError>({
       url: "/accounts/{family}/{accountId}",
       ...options,
-      ...buildClientParams(
-        [
-          {
-            ...parameters,
-            family: parameters.family ?? parameters.providerKey,
-            providerKey: parameters.providerKey ?? parameters.family,
-          },
-        ],
-        [
-          {
-            args: [
-              { in: "path", key: "family" },
-              { in: "path", key: "accountId" },
-              { in: "query", key: "directory" },
-              { in: "body", key: "name" },
-              { in: "body", key: "providerKey" },
-            ],
-          },
-        ],
-      ),
+      ...params,
       headers: {
         "Content-Type": "application/json",
         ...options?.headers,
-        ...buildClientParams(
-          [
-            {
-              ...parameters,
-              family: parameters.family ?? parameters.providerKey,
-              providerKey: parameters.providerKey ?? parameters.family,
-            },
-          ],
-          [
-            {
-              args: [
-                { in: "path", key: "family" },
-                { in: "path", key: "accountId" },
-                { in: "query", key: "directory" },
-                { in: "body", key: "name" },
-                { in: "body", key: "providerKey" },
-              ],
-            },
-          ],
-        ).headers,
+        ...params.headers,
       },
     })
   }

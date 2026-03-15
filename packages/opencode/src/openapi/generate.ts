@@ -6,6 +6,7 @@ const outputPath = process.argv[2]
 
 if (outputPath) {
   await Bun.write(outputPath, json)
+  process.exit(0)
 } else {
   await new Promise<void>((resolve, reject) => {
     process.stdout.write(json, (err) => {

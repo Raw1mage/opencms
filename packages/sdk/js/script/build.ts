@@ -1,16 +1,13 @@
-#!/usr/bin/env bun
-
-import { fileURLToPath } from "url"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+import { $ } from "bun"
+import { createClient } from "@hey-api/openapi-ts"
+import { execSync } from "child_process"
 
 const dir = fileURLToPath(new URL("..", import.meta.url))
-process.chdir(dir)
 
-import { $ } from "bun"
-import path from "path"
-
-import { createClient } from "@hey-api/openapi-ts"
-
-await $`bun run ./src/openapi/generate.ts ${dir}/openapi.json`.cwd(path.resolve(dir, "../../opencode"))
+const opencodeDir = path.resolve(dir, "../../opencode")
+execSync(`bun run ./src/openapi/generate.ts ${dir}/openapi.json`, { cwd: opencodeDir, stdio: "inherit" });
 
 await createClient({
   input: "./openapi.json",
@@ -41,6 +38,4 @@ await createClient({
 
 await $`bun prettier --write src/gen`
 await $`bun prettier --write src/v2`
-await $`rm -rf dist`
 await $`bun tsc`
-await $`rm openapi.json`
