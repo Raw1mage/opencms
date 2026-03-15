@@ -94,6 +94,15 @@ Captures:
 - scope / non-goals
 - user intent and constraints
 - high-level success target
+- the user's requirement wording as close to original phrasing as possible
+- requirement revisions / reversals over time, with clear traceability
+- effective requirement description synthesized from original wording + revision history
+
+Recommended internal sections:
+
+- `Original Requirement Wording` (near-verbatim baseline)
+- `Requirement Revision History` (what changed, when, why)
+- `Effective Requirement Description` (the final requirement set used for implementation and retrospective)
 
 ### spec.md
 
@@ -242,13 +251,24 @@ The user should not need to manually draft all artifacts from scratch.
 Instead:
 
 1. user states intent in conversation
-2. planner explores and asks questions
-3. planner updates artifacts under `specs/<date>_<plan-title>/`
-4. user refines intent
-5. planner tightens artifacts again
-6. eventually artifacts become execution-ready
+2. planner records the user's requirement wording as faithfully as possible
+3. planner explores and asks questions
+4. planner updates artifacts under `specs/<date>_<plan-title>/`
+5. user refines, adjusts, or overturns earlier ideas
+6. planner records those requirement revisions explicitly rather than silently overwriting history
+7. planner tightens artifacts again
+8. eventually artifacts become execution-ready
 
 This makes the planner an active collaborator, not just a document generator.
+
+### Requirement history rule
+
+Planner artifacts must preserve a reader-auditable requirement history:
+
+- the original user request wording should be retained as close to verbatim as practical
+- later requirement changes should be appended as revisions, not silently merged away
+- the final effective requirement set should be explicit
+- a future reviewer should be able to reconstruct how the request evolved without rereading the full chat transcript
 
 ## 6.3 Stop gates are explicit runtime constraints
 
@@ -299,6 +319,8 @@ Must include:
 - scope
 - non-goals
 - constraints
+- original user requirement wording (near-verbatim when practical)
+- requirement revision history / change log
 
 ## spec.md
 
@@ -335,6 +357,7 @@ Must include:
 - expected runtime todo seed
 - stop gates still in force
 - definition of execution-ready
+- post-implementation retrospective / validation checklist expectations
 
 ---
 
@@ -369,11 +392,40 @@ Before leaving plan mode, planner should validate required sections and ask foll
 
 Later, implementation should be checked against:
 
+- proposal (including original user wording + revision history + effective requirement description)
 - spec
 - design
 - tasks
 
 and then synced into long-term project knowledge.
+
+### Phase E1 — post-implementation retrospective
+
+Completion should include a structured retrospective artifact section that answers:
+
+- what the user originally asked for
+- how the requirement changed over time
+- what the final effective requirement description was
+- what was ultimately implemented
+- which requirements were fully satisfied
+- which requirements were partially satisfied
+- which requirements were deferred / not implemented
+- whether a follow-up plan is actually needed
+
+### Phase E2 — validation checklist generation
+
+The assistant should generate a validation checklist from:
+
+1. planner `tasks.md`
+2. runtime todo / completion states
+3. actual implementation results
+4. executed validations / test outcomes
+
+Important:
+
+- this checklist should be derived and auditable
+- it should not expose raw internal chain-of-thought
+- it should present concise requirement coverage, gaps, evidence, and next actions
 
 ---
 

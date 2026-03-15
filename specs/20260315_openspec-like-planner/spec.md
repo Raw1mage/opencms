@@ -46,6 +46,26 @@ The system SHALL allow runner, target-model, restart, and roadmap analyses to ac
 - **WHEN** the work needs runner contract or compatibility analysis
 - **THEN** those documents should be added under the same plan root as supporting docs
 
+### Requirement: Requirement history must be preserved for retrospective use
+
+The system SHALL preserve the user's original requirement wording as close to verbatim as practical, plus a traceable history of later requirement changes, so post-implementation review has a stable baseline.
+
+#### Scenario: the user changes direction mid-stream
+
+- **GIVEN** a plan already contains earlier requirement wording
+- **WHEN** the user adjusts, overturns, or narrows the request
+- **THEN** the planner must record that revision explicitly rather than silently replacing the earlier requirement history
+
+### Requirement: Completion must include a retrospective validation checklist
+
+The system SHALL produce a post-implementation validation checklist derived from planner tasks, runtime todo state, implementation results, and executed validations.
+
+#### Scenario: implementation is declared complete
+
+- **GIVEN** the work has been implemented
+- **WHEN** the assistant prepares the completion review
+- **THEN** it must provide a concise, auditable checklist covering requirement satisfaction, remaining gaps, and validation evidence without exposing raw internal chain-of-thought
+
 ### Requirement: A repo may contain multiple plans only with user-approved branching
 
 The system SHALL allow multiple planner roots in `/specs/`, but a new plan root may only be created when the user explicitly requests a new plan, or when the assistant proposes a new plan and the user explicitly approves it.

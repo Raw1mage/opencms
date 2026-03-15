@@ -49,6 +49,7 @@
 - 其剩餘價值主要是：
   - 回灌 `docs/ARCHITECTURE.md`
   - 未來重構時再喚醒重用
+  - 作為完工復盤時的需求基線與實作對照來源
 - template-only 殘留 roots 已移除。
 - 已修正 repo 內大多數指向舊 `specs/changes/` 或錯誤 workstream root 的實際引用。
 
@@ -69,4 +70,5 @@
   - planner regression assertion that old path must not reappear
   - historical external `opencode-runner` event paths (not part of this repo migration)
 - `specs/changes/` directory removed ✅
+- 已補入新規則：需求原話保留、需求修訂歷程追蹤、完工後以 todo + 實作結果生成 validation checklist 作為復盤基礎 ✅
 - Architecture Sync: Verified (No additional ARCHITECTURE.md changes needed)

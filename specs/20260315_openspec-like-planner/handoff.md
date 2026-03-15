@@ -11,7 +11,7 @@
 
 ## Required Reads
 
-- `proposal.md`
+- `proposal.md` (including original user wording + revision history)
 - `spec.md`
 - `design.md`
 - `implementation-spec.md`
@@ -43,6 +43,13 @@
 - [x] Supporting docs for runner/target-model/restart work are collocated in the same root
 - [x] Runtime todo is materialized from `tasks.md`
 - [x] Build-mode continuation resumes from documented plan artifacts rather than conversation memory alone
+
+## Completion / Retrospective Contract
+
+- At completion time, review against the original user requirement wording and its tracked revisions.
+- Produce a validation checklist derived from `tasks.md`, runtime todo outcomes, implementation results, and executed validations.
+- Report requirement coverage, partial fulfillment, deferred items, and remaining gaps as concise review output.
+- Do not expose raw internal chain-of-thought; expose only auditable conclusions and evidence.
 
 ## Naming and expansion rule
 
