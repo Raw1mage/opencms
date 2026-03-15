@@ -195,11 +195,19 @@ export namespace SessionProcessor {
             {
               const { Account } = await import("@/account")
               const family = await Account.resolveFamily(streamInput.model.providerId)
-              const sessionPinnedAccountId =
+              // Resolution chain: check all explicit sources, then session's
+              // pinned execution identity, before falling back to global-active.
+              // The execution identity check prevents internal agents (compaction,
+              // etc.) from accidentally overwriting the user's chosen account.
+              const explicitAccountId =
                 streamInput.accountId ??
                 input.accountId ??
                 input.assistantMessage.accountId ??
                 streamInput.user.model.accountId
+              const sessionExecution = !explicitAccountId
+                ? (await Session.get(input.sessionID))?.execution?.accountId
+                : undefined
+              const sessionPinnedAccountId = explicitAccountId ?? sessionExecution
               const accountId = sessionPinnedAccountId ?? (family ? await Account.getActive(family) : undefined)
 
               // SYSLOG: Full account resolution trace for Bug #1 diagnosis
@@ -212,10 +220,15 @@ export namespace SessionProcessor {
                   inputAccountId: input.accountId,
                   assistantMessageAccountId: input.assistantMessage.accountId,
                   userMessageAccountId: streamInput.user.model.accountId,
+                  sessionExecutionAccountId: sessionExecution,
                   sessionPinnedAccountId,
                   globalActiveAccountId: family ? await Account.getActive(family) : undefined,
                   resolvedAccountId: accountId,
-                  source: sessionPinnedAccountId ? "pinned" : "global-active",
+                  source: sessionPinnedAccountId
+                    ? sessionExecution && sessionPinnedAccountId === sessionExecution
+                      ? "session-execution"
+                      : "pinned"
+                    : "global-active",
                 },
                 family,
                 fallbackAttempts,

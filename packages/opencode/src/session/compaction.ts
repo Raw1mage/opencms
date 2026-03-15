@@ -127,7 +127,14 @@ export namespace SessionCompaction {
       ? await Provider.getModel(agent.model.providerId, agent.model.modelID)
       : await Provider.getModel(userMessage.model.providerId, userMessage.model.modelID)
     const agentModel = agent.model as { accountId?: string } | undefined
-    const accountId = agentModel?.accountId ?? userMessage.model.accountId
+    // Read session's pinned execution identity so compaction inherits the
+    // account the user was actually using, not the global-active fallback.
+    // Without this, compaction resolves to global-active and then the
+    // processor pins that account onto the session — silently overwriting
+    // the user's chosen account.
+    const session = await Session.get(input.sessionID)
+    const accountId =
+      agentModel?.accountId ?? userMessage.model.accountId ?? session?.execution?.accountId
     const msg = (await Session.updateMessage({
       id: Identifier.ascending("message"),
       role: "assistant",
