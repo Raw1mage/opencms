@@ -190,18 +190,34 @@ cms 採 Monorepo 架構（Bun + TurboRepo），核心分層如下：
 └────────────────────────────────────────────────────┘
 ```
 
-### 4.1 `openclaw` 架構導入後，系統現在怎麼運作
+### 4.1 自主執行架構（Autonomous Execution Stack）
 
-`cms` 並不是把 OpenClaw 原樣搬進來，而是吸收它的幾個核心控制面概念，再接到既有的 session-based runtime。
+`cms` 的自主執行能力分為三層：**Smart Runner → Workflow Runner → Autorunner Daemon（規劃中）**。
 
-目前已落地的主軸是：
+#### Smart Runner Governor（已落地）
 
-- **session 仍是唯一執行邊界**：每個 session 保留自己的 todo、workflow state、pending continuation 與 supervisor 狀態，避免多個 autonomous run 同時踩同一份 session 狀態。
-- **`workflow-runner` 變成 orchestration 中心**：它會根據 todo、mission approval、blocker gate、subagent 狀態與 recent anomalies，判斷下一步是繼續、排隊待續，還是停在 `waiting_user` / `blocked`。
-- **continuation queue 成為 trigger 吸收層**：當 prompt loop、operator action 或 runtime API 要求「繼續跑下一步」時，不直接粗暴重入，而是先寫入 pending continuation，讓 runner 以可觀測、可恢復的方式續跑。
-- **supervisor 提供 lease / retry / anomaly evidence**：這一層不是 scheduler daemon，而是先把 autonomous run 的 ownership、backoff 與異常訊號固定下來，確保 Web / TUI / API 看到的是同一份健康狀態。
+Smart Runner 是 session 級的決策引擎，在每個 autonomous turn 之間判斷下一步動作。它以結構化方式評估當前狀態，輸出以下決策之一：
 
-你可以把它理解成下面這條路徑：
+- `continue` / `replan` / `ask_user` / `request_approval` / `pause_for_risk` / `pause` / `complete` / `docs_sync_first` / `debug_preflight_first`
+
+核心特性：
+
+- **bounded adoption**：host prompt loop 不盲目接受所有建議，而是依 adoption policy 判定是否生效
+- **risk pause**：偵測到高風險操作時主動暫停，要求 operator 確認
+- **replan**：當 todo 與實際進度偏離時，主動提出 replan 建議
+- **narration**：每個 decision 附帶可供 UI 顯示的自然語言解釋
+
+實作路徑：`packages/opencode/src/session/smart-runner-governor.ts`
+
+#### Workflow Runner（已落地）
+
+Workflow Runner 是 orchestration 中心，管理 session 的整體自主執行流程：
+
+- 根據 todo、mission approval、blocker gate、subagent 狀態與 recent anomalies，判斷下一步是繼續、排隊待續，還是停在 `waiting_user` / `blocked`
+- continuation queue 作為 trigger 吸收層：把「繼續跑下一步」視為可持久化、可觀測的事件
+- supervisor 提供 lease / retry / anomaly evidence，確保 Web / TUI / API 看到的是同一份健康狀態
+
+執行路徑：
 
 ```text
 User / API / Operator action
@@ -210,7 +226,7 @@ User / API / Operator action
  mission + todos + approval gates
           │
           ▼
- enqueue pending continuation
+ Smart Runner evaluates → decision + narration
           │
           ▼
  workflow-runner decides continue / pause / block
@@ -225,19 +241,60 @@ User / API / Operator action
  Web / TUI read the same workflow + queue health
 ```
 
-這個設計直接對應 OpenClaw 帶來的幾個啟發，但只移植了目前風險最低、最能與 `cms` 現況接軌的部分：
+#### Autorunner Daemon（規劃中，尚未落地）
 
-- **已吸收**
-  - lane/queue 思維：先排隊、再進單一 session turn
-  - trigger 思維：把「繼續執行」視為可持久化、可檢查的事件，而不是一個隱形副作用
-  - orchestration 思維：由 runner 根據 workflow 狀態決定是否繼續，而不是每層各自猜
-- **刻意延後**
-  - always-on daemon / gateway 常駐排程
-  - heartbeat / cron 觸發源
-  - host-wide isolated job sessions
-  - restart / drain / host scheduler lifecycle
+目標是把 session 從 conversation-turn-centric 提升為 **daemon-owned long-lived job**：
 
-換句話說，`cms` 現在的 shape 是：**先把 OpenClaw 的 queue-first、orchestration-first、observable-state-first 收進 session runtime，還沒有直接擴張成一個 7x24 的全域 daemon scheduler。**
+- session 作為 durable actor，由 daemon control plane 管理 lifecycle、lease、heartbeat、checkpoint
+- prompt loop 降級為 execution adapter（不再是 orchestration owner）
+- event-sourced runtime model：所有 lifecycle/worker/todo 變更通過 journal 記錄
+- worker supervisor 獨立管理 subagent 生命週期，task tool 表面只是 presentation layer
+
+目標拓撲：
+
+```text
+API Gateway / Session Query Surface
+      ↓
+Autorunner Control Plane Daemon
+      ├─ Session Coordinator + Workflow State Reducer
+      ├─ Durable Queue / Lease Manager
+      ├─ Worker Supervisor Registry
+      └─ Health / Anomaly Deriver
+             ↓
+      Execution Adapters
+      ├─ Prompt Loop Adapter
+      ├─ Subagent Task Adapter
+      └─ Question / Approval Adapter
+```
+
+這個方向繼承了 OpenClaw 帶來的啟發：queue-first、orchestration-first、observable-state-first，但目前只落地了 session-scoped 的 workflow runner + smart runner，daemon substrate 尚在規劃階段。
+
+詳見：`docs/specs/autorunner_daemon_architecture.md`
+
+### 4.2 Planning Agent（已落地）
+
+非平凡任務進入自主執行前，系統會優先導向 **planning mode**：
+
+1. 偵測 request 為 planning-worthy（多檔案、架構敏感、scope 不明確）
+2. 自動或建議進入 plan mode（`plan_enter` tool）
+3. 以 question-driven clarification 釐清需求
+4. 產出 plan file + 結構化 todo/action metadata
+5. `plan_exit` 後自然過渡到 build/continuous execution
+
+Planning mode 不只是文件撰寫，而是 autorunner 的前置 substrate：plan output 直接餵入 workflow runner 作為 todo 與 stop gate 的來源。
+
+詳見：`docs/specs/planning_agent_runtime_reactivation.md`
+
+### 4.3 Provider-Key 統一遷移（已完成）
+
+`cms` 已完成從 legacy `family` 欄位到 canonical **provider-key** 語義的全面遷移：
+
+- 所有 account 操作、API route、SDK response 統一使用 `providerKey` 作為 primary key
+- legacy `family` 欄位透過 compatibility alias 保留向後相容，但不再是 primary
+- quota helper、selector path、state store 均已對齊 provider-key 語義
+- 新的 account activation payload 以 provider-key 為主鍵
+
+這個遷移讓 provider 身分解析從字串猜測升級為 canonical resolver 驅動，消除了 family/providerId 混用的隱性錯誤。
 
 ---
 
@@ -245,8 +302,8 @@ User / API / Operator action
 
 ### A. 身分解析必須 canonical
 
-- 不依賴字串猜測 provider 身分；正式語義應以 canonical provider key 為準。
-- 使用 canonical resolver（如 `Account.resolveFamily(...)`）維持一致性。
+- 所有 provider 身分以 canonical `providerKey` 為準（legacy `family` 僅作 compatibility alias）。
+- 使用 canonical resolver（如 `Account.resolveProviderKey(...)`）維持一致性。
 
 ### B. Provider 組裝順序固定
 
@@ -275,9 +332,14 @@ User / API / Operator action
 
 - `packages/opencode/src/account/`：帳號管理、rotation3d、限流判斷
 - `packages/opencode/src/provider/`：provider 組裝、模型/健康度、橋接邏輯
+- `packages/opencode/src/session/smart-runner-governor.ts`：Smart Runner 決策引擎
+- `packages/opencode/src/session/prompt/`：plan mode reminders、smart runner prompts
+- `packages/opencode/src/tool/plan.ts`：plan_enter / plan_exit 工具
 - `packages/opencode/src/server/routes/`：`/provider`、`/account`、`/session` 等 API
 - `packages/opencode/src/cli/cmd/tui/`：TUI 與 `/admin` 互動流程
 - `packages/opencode/src/plugin/`：provider 擴充插件
+- `docs/specs/autorunner_daemon_architecture.md`：Autorunner Daemon 架構規劃
+- `docs/specs/planning_agent_runtime_reactivation.md`：Planning Agent 啟動規格
 - `docs/ARCHITECTURE.md`：完整架構細節（本 README 的延伸）
 
 ---
