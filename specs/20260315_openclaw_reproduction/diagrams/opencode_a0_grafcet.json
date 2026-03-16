@@ -61,7 +61,7 @@
     "StepAction": "Emit observability events and health probes for completed operation",
     "LinkInputType": ["convergence_or"],
     "LinkInputNumber": [1, 2],
-    "LinkOutputNumber": [0],
+    "LinkOutputNumber": [7],
     "LinkOutputType": "track",
     "Condition": ["events_emitted"],
     "SubGrafcet": []
@@ -88,6 +88,42 @@
     "LinkOutputNumber": [0],
     "LinkOutputType": "track",
     "Condition": ["lanes_reset_complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Verify end-to-end integration across channels (boot, isolation, kill-switch, compat)",
+    "LinkInputType": [],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [8],
+    "LinkOutputType": "track",
+    "Condition": ["e2e_verification_complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A7",
+    "StepType": "normal",
+    "StepAction": "Render operator surface (channel management, health dashboard, session picker)",
+    "LinkInputType": [],
+    "LinkInputNumber": [7],
+    "LinkOutputNumber": [9],
+    "LinkOutputType": "track",
+    "Condition": ["ui_rendered"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 9,
+    "ModuleRef": "A8",
+    "StepType": "normal",
+    "StepAction": "Govern channel extensions (quota, cron scope, migration, RBAC)",
+    "LinkInputType": [],
+    "LinkInputNumber": [8],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["extensions_applied"],
     "SubGrafcet": []
   }
 ]

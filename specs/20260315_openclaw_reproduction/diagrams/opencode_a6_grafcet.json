@@ -1,0 +1,74 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A6",
+    "StepType": "initial",
+    "StepAction": "Prepare integration test environment with multi-channel config",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["test_env_ready"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A61",
+    "StepType": "normal",
+    "StepAction": "Boot daemon with ChannelStore restore and register per-channel lanes",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 3],
+    "LinkOutputType": "divergence_and",
+    "Condition": ["daemon_booted"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A62",
+    "StepType": "normal",
+    "StepAction": "Verify cross-channel session isolation (lane keys, storage boundaries)",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["isolation_verified"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A63",
+    "StepType": "normal",
+    "StepAction": "Execute channel-scoped kill-switch E2E (trigger, abort, audit)",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["killswitch_e2e_passed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A64",
+    "StepType": "normal",
+    "StepAction": "Validate default channel backward compatibility",
+    "LinkInputType": ["convergence_and"],
+    "LinkInputNumber": [2, 3],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["compat_verified"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Generate integration verification report and tear down test environment",
+    "LinkInputType": [],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["report_generated"],
+    "SubGrafcet": []
+  }
+]

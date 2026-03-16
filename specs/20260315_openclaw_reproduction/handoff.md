@@ -37,7 +37,8 @@
 
 1. ~~**No production API without security sign-off**~~ — **CLEARED** (2026-03-16, approved by project owner)
 2. **No build beyond Trigger + Queue** without explicit user approval for Phases 5-6
-3. **No D.1-D.3 build** without explicit approval — specs expanded (2026-03-17), awaiting build approval
+3. ~~**No D.1-D.3 build** without explicit approval~~ — **CLEARED** (2026-03-17, D.1-D.3 delivered)
+7. **No Stage B/C/D build** without explicit approval — specs expanded (2026-03-17), awaiting build approval
 4. **No silent fallback** or implicit authority recovery in any implementation
 5. **No multi-authority plan drift** — if a new sibling plan is needed, user must explicitly approve
 6. **Preserve gate semantics** — trigger/queue abstraction must not break approved mission / approval / decision gates
@@ -50,8 +51,17 @@
 
 ### Next
 
-1. Open new spec: `specs/YYYYMMDD_recurring-scheduler-persistence/` — cron job persistence across restart, SQLite or file store
-2. Daemon rewrite + channel features (long-term)
+1. **Stage 4 (B)**: E2E Integration Verification — multi-channel boot, session isolation, kill-switch E2E, backward compat (Phases 11-14)
+2. **Stage 5 (C)**: Webapp/Operator Surface — channel management UI, health dashboard, session picker (Phases 15-17)
+3. **Stage 6 (D)**: Future Channel Extensions — quota, cron scope, migration, RBAC (Phases 18-21)
+
+### Dependency Chain
+
+```
+Stage 4 (B: E2E Verification) → independent, ship first
+Stage 5 (C: Operator Surface) → depends on Stage 4 passing
+Stage 6 (D: Extensions) → depends on Stage 5 for UI, can start D.4/D.5 in parallel with C
+```
 
 ## Resolved Design Decisions
 
@@ -61,7 +71,7 @@
 
 ## Pending Design Decisions
 
-None — all design decisions resolved.
+Stage B/C/D design decisions pending — see design.md DD-13 to DD-16.
 
 | ID | Decision | Resolution | Rationale |
 |----|----------|------------|-----------|
@@ -99,6 +109,10 @@ None — all design decisions resolved.
 - [x] aws4fetch + ioredis removed — dependencies and dead code paths deleted (2026-03-17)
 - [x] heartbeat integration test — real imports, 7 tests (2026-03-17)
 - [x] openclaw branch merged to cms — fast-forward at `b4c6013d8f` (2026-03-17)
+- [x] Stage B/C/D specs expanded — IDEF0 (A6-A8 L1 + A61/A71/A81 L2, 7 files) + GRAFCET (A0 updated + A6/A7/A8, 4 files) + 40 new tasks + DD-13 to DD-16
+- [ ] Stage 4 (B) E2E integration verification
+- [ ] Stage 5 (C) webapp/operator surface
+- [ ] Stage 6 (D) future channel extensions
 
 ## Completion / Retrospective Contract
 

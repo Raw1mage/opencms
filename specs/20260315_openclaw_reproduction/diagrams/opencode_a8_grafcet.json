@@ -1,0 +1,100 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A8",
+    "StepType": "initial",
+    "StepAction": "Await channel extension request or policy evaluation trigger",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1, 2, 3, 4],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "event == 'session_request' || event == 'token_consumed'",
+      "event == 'cron_trigger' && job.channelId",
+      "event == 'migration_request'",
+      "event == 'access_check'"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A81",
+    "StepType": "normal",
+    "StepAction": "Evaluate channel quota and rate limit (token budget, request rate, session cap)",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [5, 6],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "quota_allowed",
+      "quota_exceeded"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A82",
+    "StepType": "normal",
+    "StepAction": "Scope cron job trigger to channel and check channel kill-switch state",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [5, 6],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "channel_active",
+      "channel_killed || channel_disabled"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A83",
+    "StepType": "normal",
+    "StepAction": "Execute channel migration (re-key sessions, move cron jobs, update lanes)",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["migration_complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A84",
+    "StepType": "normal",
+    "StepAction": "Enforce channel RBAC (check role, gate operation, write audit entry)",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [5, 6],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "access_granted",
+      "access_denied"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A8",
+    "StepType": "normal",
+    "StepAction": "Proceed with allowed operation and emit audit event",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [1, 2, 3, 4],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["operation_processed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A8",
+    "StepType": "normal",
+    "StepAction": "Reject operation with reason and emit rejection audit event",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [1, 2, 4],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["rejection_emitted"],
+    "SubGrafcet": []
+  }
+]

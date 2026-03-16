@@ -257,6 +257,110 @@ OpenClaw benchmark: `refs/openclaw/src/cli/gateway-cli/run-loop.ts`, `refs/openc
 - 10e. **Restart Loop** — Try `restartGatewayProcessWithFreshPid()` (full respawn, better for TCC permissions). Fallback to in-process restart if `OPENCLAW_NO_RESPAWN`. Close HTTP server with `close(reason, restartExpectedMs)`. Loop back to server start.
 - 10f. **Generation & Recovery** — Increment `generation` on restart. Stale task completions from previous generation silently ignored. `resetAllLanes()` clears activeTaskIds, bumps generation, re-drains queued entries. `Daemon.info()` exposes session count + lane sizes + generation via health endpoint.
 
+### Stage 4 — E2E Integration Verification（B）
+
+IDEF0 reference: A6 (Verify End-to-End Integration) → A61-A64
+GRAFCET reference: opencode_a6_grafcet.json
+
+#### Phase 11 — Multi-Channel Daemon Boot Verification（B.1）
+
+Deliverables: integration test proving daemon boots with ChannelStore restore, registers per-channel lanes, health endpoint reports all channels.
+
+- 11a. **Channel Store Restore E2E** — boot daemon with 3+ pre-seeded channel files, verify ChannelStore.list() returns all, verify schema validation rejects corrupt files — IDEF0: A611
+- 11b. **Per-Channel Lane Registration E2E** — verify each channel's lanePolicy is registered as composite keys, verify getActiveTaskCount() per channel, verify lane isolation between channels — IDEF0: A612
+- 11c. **Health Endpoint Channel Coverage** — assert GET /api/v2/admin/health includes per-channel breakdown, lane utilization, active session count — IDEF0: A613
+
+#### Phase 12 — Cross-Channel Session Isolation（B.2）
+
+Deliverables: test suite proving sessions in different channels do not interfere.
+
+- 12a. **Session Creation with channelId** — create sessions via API with explicit channelId, verify Session.Info.channelId is persisted
+- 12b. **Lane Namespace Isolation** — enqueue tasks in channel-A and channel-B simultaneously, verify composite keys prevent cross-pollination — IDEF0: A62
+- 12c. **Storage Boundary Verification** — verify session files are not accessible via wrong channel's store queries
+
+#### Phase 13 — Channel-Scoped Kill-Switch E2E（B.3）
+
+Deliverables: end-to-end test from HTTP trigger → state change → session abort → audit, scoped to a single channel.
+
+- 13a. **Scoped Trigger E2E** — POST kill-switch trigger with channelId, verify only target channel sessions are aborted — IDEF0: A63
+- 13b. **Global Override E2E** — POST global trigger, verify all channels affected regardless of channel-scoped state
+- 13c. **Audit Trail Channel Scope** — verify audit entries include channelId field when trigger is channel-scoped
+
+#### Phase 14 — Default Channel Backward Compatibility（B.4）
+
+Deliverables: regression tests proving pre-channel behavior is identical.
+
+- 14a. **Implicit Default Channel** — sessions created without channelId default to "default" channel lanes — IDEF0: A64
+- 14b. **Global Kill-Switch Unchanged** — trigger without channelId behaves identically to pre-channel kill-switch
+- 14c. **Lane Limits Preserved** — default channel lane policy matches pre-channel global limits
+
+### Stage 5 — Webapp / Operator Surface（C）
+
+IDEF0 reference: A7 (Render Operator Surface) → A71-A74
+GRAFCET reference: opencode_a7_grafcet.json
+
+#### Phase 15 — Channel Management UI（C.1）
+
+Deliverables: Web Admin panel for channel CRUD, lane policy editor, SSE-driven status.
+
+- 15a. **Channel List View** — Solid.js table component fetching GET /api/v2/channel/, sortable, with enable/disable toggle and delete button — IDEF0: A711
+- 15b. **Channel Create/Edit Form** — modal form with name, description, lanePolicy inputs, validation against LanePolicySchema — IDEF0: A712
+- 15c. **Channel Delete Confirmation** — double-click confirmation pattern (matches kill-switch UI), default channel guard (409), active session count warning — IDEF0: A713
+- 15d. **SSE Channel Events** — BusEvent `channel.changed` → event-reducer → store update → reactive UI refresh — IDEF0: A74
+
+#### Phase 16 — Health Dashboard Channel Breakdown（C.2）
+
+Deliverables: per-channel lane utilization, session counts, kill-switch scope in health dashboard.
+
+- 16a. **Channel Health Cards** — one card per channel showing lane utilization bars, active/idle session ratio — IDEF0: A72
+- 16b. **Kill-Switch Scope Indicator** — badge showing global vs channel-scoped kill-switch state per channel
+- 16c. **Aggregate Global Health** — top-level summary aggregating all channel metrics
+
+#### Phase 17 — Session Creation Channel Picker（C.3）
+
+Deliverables: channel selector in session creation flow (Web + TUI).
+
+- 17a. **Web Channel Picker** — dropdown populated from channel API, defaults to "default" — IDEF0: A73
+- 17b. **TUI Channel Picker** — DialogSelect component with channel list, integrated into new-session flow
+- 17c. **Channel Validation Gate** — reject session creation if selected channel is disabled or does not exist
+
+### Stage 6 — Future Channel Extensions（D）
+
+IDEF0 reference: A8 (Govern Channel Extensions) → A81-A84
+GRAFCET reference: opencode_a8_grafcet.json
+
+#### Phase 18 — Channel Quota and Rate Limiting（D.4）
+
+Deliverables: per-channel token budget, request rate ceiling, concurrent session cap.
+
+- 18a. **Token Budget Tracking** — accumulate provider token usage per channel per billing period from session completion events — IDEF0: A811
+- 18b. **Request Rate Limiter** — sliding window counter per channel, configurable ceiling, throttle or reject when exceeded — IDEF0: A812
+- 18c. **Concurrent Session Cap** — count active sessions per channel, reject new creation when cap exceeded, emit quota_exceeded event — IDEF0: A813
+
+#### Phase 19 — Channel-Scoped Cron Jobs（D.5）
+
+Deliverables: cron job ↔ channel association, channel kill-switch suppression, cascade disable on channel delete.
+
+- 19a. **Channel-Cron Binding** — extend CronJobState with optional channelId, cron triggers respect channel scope — IDEF0: A82
+- 19b. **Channel Kill-Switch Suppression** — channel-scoped kill-switch suppresses cron triggers for that channel only
+- 19c. **Cascade Disable on Channel Delete** — deleting a channel disables all associated cron jobs with reason "channel_deleted"
+
+#### Phase 20 — Channel Migration（D.6）
+
+Deliverables: move sessions and cron jobs between channels, re-key lane namespace.
+
+- 20a. **Session Migration** — re-assign Session.Info.channelId, update lane composite keys — IDEF0: A83
+- 20b. **Cron Job Migration** — update CronJobState.channelId, recompute next fire time if active hours differ
+- 20c. **Run-Log Preservation** — migrate run-log JSONL entries, update session references
+
+#### Phase 21 — Channel RBAC（D.7）
+
+Deliverables: per-channel role model (owner/operator/viewer), gate operations by role, audit.
+
+- 21a. **Channel Role Schema** — extend Channel.Info with roles map, define owner/operator/viewer permissions — IDEF0: A84
+- 21b. **Operation Gating** — gate channel CRUD, session creation, kill-switch trigger by caller's channel role
+- 21c. **RBAC Audit Trail** — log role-gated operations with caller identity, action, channel, and decision
+
 ---
 
 ## Validation
@@ -271,11 +375,15 @@ OpenClaw benchmark: `refs/openclaw/src/cli/gateway-cli/run-loop.ts`, `refs/openc
 - Trigger model: unit/regression/integration validation for RunTrigger changes
 - Queue: validation for lane policy enforcement and orchestrator dispatch
 - Architecture docs must express planner authority vs trigger authority separation
+- **Stage B**: all E2E integration tests pass (multi-channel boot, isolation, kill-switch E2E, backward compat)
+- **Stage C**: channel management UI renders correctly, SSE events propagate, session creation with channel picker works
+- **Stage D**: quota enforcement rejects over-limit, cron-channel binding cascades on delete, migration preserves history, RBAC gates operations
 
 ## Handoff
 
 - This package is the single planning authority for OpenClaw-aligned runner reproduction work.
 - Old `openclaw_runner_benchmark` and `openclaw_scheduler_substrate` packages are reference history only.
 - `specs/20260316_kill-switch/` is the implementation detail reference for Slice 1.
+- `specs/20260317_scheduler-persistence-daemon/` is the implementation detail reference for channel model + scheduler recovery.
 - Build agent must read `tasks.md` before coding; runtime todo must be materialized from `tasks.md`.
-- Next build entry: Phase 5 (Trigger Model Extraction) → Phase 6 (Lane-aware Run Queue). Requires explicit user approval per stop gate #2.
+- Next build entry: Stage 4 (E2E Integration Verification) → Stage 5 (Operator Surface) → Stage 6 (Future Extensions). Each stage requires explicit user approval.

@@ -1,0 +1,144 @@
+{
+  "diagram_title": "Verify End-to-End Integration — Stage B Decomposition",
+  "node_reference": "A6",
+  "activities": [
+    {
+      "id": "A61",
+      "title": "Boot Multi-Channel Daemon",
+      "description": "Start daemon with ChannelStore.restoreOrBootstrap(), register per-channel lanes, verify health endpoint reports all channels",
+      "decomposition": "A61"
+    },
+    {
+      "id": "A62",
+      "title": "Verify Cross-Channel Session Isolation",
+      "description": "Create sessions in different channels, confirm lane namespace isolation, verify session storage does not leak across channel boundaries",
+      "decomposition": null
+    },
+    {
+      "id": "A63",
+      "title": "Execute Channel-Scoped Kill-Switch End-to-End",
+      "description": "Trigger kill-switch with channelId, verify target channel sessions abort while other channels continue, validate audit trail includes channel scope",
+      "decomposition": null
+    },
+    {
+      "id": "A64",
+      "title": "Validate Default Channel Backward Compatibility",
+      "description": "Verify pre-channel behavior is preserved: sessions without channelId default to 'default' channel, global kill-switch still affects all, lane limits unchanged",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "I1",
+      "source": "EXTERNAL",
+      "target": "A61:input",
+      "label": "Channel Configuration Set",
+      "type": "input"
+    },
+    {
+      "id": "I2",
+      "source": "A61",
+      "target": "A62:input",
+      "label": "Booted Daemon Instance",
+      "type": "input"
+    },
+    {
+      "id": "I3",
+      "source": "A61",
+      "target": "A63:input",
+      "label": "Active Multi-Channel State",
+      "type": "input"
+    },
+    {
+      "id": "I4",
+      "source": "A61",
+      "target": "A64:input",
+      "label": "Default Channel Context",
+      "type": "input"
+    },
+    {
+      "id": "C1",
+      "source": "EXTERNAL",
+      "target": "A61:control",
+      "label": "Boot Sequence Spec",
+      "type": "control"
+    },
+    {
+      "id": "C2",
+      "source": "EXTERNAL",
+      "target": "A62:control",
+      "label": "Isolation Acceptance Criteria",
+      "type": "control"
+    },
+    {
+      "id": "C3",
+      "source": "EXTERNAL",
+      "target": "A63:control",
+      "label": "Kill-Switch E2E Scenarios",
+      "type": "control"
+    },
+    {
+      "id": "C4",
+      "source": "EXTERNAL",
+      "target": "A64:control",
+      "label": "Backward Compat Assertions",
+      "type": "control"
+    },
+    {
+      "id": "O1",
+      "source": "A61",
+      "target": "EXTERNAL",
+      "label": "Boot Verification Report",
+      "type": "output"
+    },
+    {
+      "id": "O2",
+      "source": "A62",
+      "target": "EXTERNAL",
+      "label": "Isolation Test Results",
+      "type": "output"
+    },
+    {
+      "id": "O3",
+      "source": "A63",
+      "target": "EXTERNAL",
+      "label": "Kill-Switch E2E Results",
+      "type": "output"
+    },
+    {
+      "id": "O4",
+      "source": "A64",
+      "target": "EXTERNAL",
+      "label": "Compat Verification Results",
+      "type": "output"
+    },
+    {
+      "id": "M1",
+      "source": "EXTERNAL",
+      "target": "A61:mechanism",
+      "label": "Daemon Boot Runtime",
+      "type": "mechanism"
+    },
+    {
+      "id": "M2",
+      "source": "EXTERNAL",
+      "target": "A62:mechanism",
+      "label": "Test Runner Framework",
+      "type": "mechanism"
+    },
+    {
+      "id": "M3",
+      "source": "EXTERNAL",
+      "target": "A63:mechanism",
+      "label": "Kill-Switch Service API",
+      "type": "mechanism"
+    },
+    {
+      "id": "M4",
+      "source": "EXTERNAL",
+      "target": "A64:mechanism",
+      "label": "Legacy Session API",
+      "type": "mechanism"
+    }
+  ]
+}

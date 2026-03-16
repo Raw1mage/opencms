@@ -483,3 +483,68 @@ LanePolicy
 - **D.3 command queue** — 新模組，需確認與現有 supervisor loop 的互斥性，避免 double-dispatch
 - **D.1 session retention reaper** — 需確認不會誤刪 active cron run-sessions（race condition）
 - **D.2 heartbeat stagger** — deterministic stagger 需 stable hash，確保重啟後同一 job 得到相同 offset
+- **B E2E tests** — integration tests need daemon boot, may require test harness for HTTP + SSE + channels
+- **C.1 SSE channel events** — need new BusEvent type `channel.changed`, verify event-reducer handles gracefully
+- **D.4 token budget** — accumulation depends on provider billing granularity; edge cases with multi-provider channels
+- **D.7 RBAC** — role model must not conflict with existing kill-switch RBAC; decide if per-channel roles layer on top or replace
+
+---
+
+## Stage B/C/D Design Decisions
+
+| ID | Decision | Options | Status |
+|----|----------|---------|--------|
+| DD-13 | E2E integration test framework | (a) Bun:test with real daemon boot (b) Playwright E2E (c) HTTP client test harness | pending |
+| DD-14 | Channel UI component pattern | (a) Solid.js reactive store with SSE reconciler (b) Polling-based refresh (c) Hybrid | pending — recommend (a), consistent with kill-switch UI |
+| DD-15 | Quota enforcement layer | (a) API middleware (pre-route) (b) Service-level check in ChannelStore (c) Dedicated QuotaService | pending — recommend (c) for separation of concerns |
+| DD-16 | Channel RBAC model | (a) Per-channel roles (owner/operator/viewer) (b) Global roles with channel scope filter (c) Attribute-based access control | pending — recommend (a) for simplicity |
+
+### Stage B/C/D Architecture Overview
+
+```
+                     ┌─────────────────────────────────┐
+                     │    Stage B: E2E Verification      │
+                     │  (boot, isolation, kill-switch,   │
+                     │   backward compat)                │
+                     └──────────────┬────────────────────┘
+                                    │ verified
+                     ┌──────────────▼────────────────────┐
+                     │    Stage C: Operator Surface       │
+                     │  ┌─────────┐ ┌──────────┐ ┌─────┐ │
+                     │  │ Channel │ │ Health   │ │ Sess│ │
+                     │  │ Mgmt UI │ │Dashboard │ │Pickr│ │
+                     │  └────┬────┘ └────┬─────┘ └──┬──┘ │
+                     │       │           │          │     │
+                     │       └───── SSE ─┴──────────┘     │
+                     └──────────────┬────────────────────┘
+                                    │ UI ready
+                     ┌──────────────▼────────────────────┐
+                     │    Stage D: Channel Extensions     │
+                     │  ┌───────┐ ┌──────┐ ┌─────┐ ┌───┐ │
+                     │  │ Quota │ │ Cron │ │Migr │ │RBAC│ │
+                     │  │ /Rate │ │Scope │ │ation│ │    │ │
+                     │  └───────┘ └──────┘ └─────┘ └───┘ │
+                     └───────────────────────────────────┘
+```
+
+### Critical Files (Stage B/C/D)
+
+#### Stage B — E2E Tests
+- `packages/opencode/src/server/routes/channel.test.ts` — existing, extend with E2E
+- `packages/opencode/src/server/killswitch/service.test.ts` — existing, extend with channel E2E
+- `packages/opencode/src/daemon/index.ts` — daemon boot sequence (verify channel wiring)
+- `packages/opencode/src/channel/` — ChannelStore, types, index
+
+#### Stage C — Operator Surface
+- `packages/app/src/components/settings-channels.tsx` — new: channel management panel
+- `packages/app/src/components/health-dashboard.tsx` — new or extend existing
+- `packages/app/src/context/global-sync/event-reducer.ts` — add `channel.changed` handler
+- `packages/app/src/context/global-sync/types.ts` — add channel_status store field
+- `packages/opencode/src/server/event.ts` — add ChannelChanged BusEvent
+- `packages/opencode/src/cli/cmd/tui/component/dialog-new-session.tsx` — channel picker
+
+#### Stage D — Future Extensions
+- `packages/opencode/src/channel/quota.ts` — new: QuotaService
+- `packages/opencode/src/cron/store.ts` — extend CronJobState with channelId
+- `packages/opencode/src/channel/migration.ts` — new: migration engine
+- `packages/opencode/src/channel/rbac.ts` — new: per-channel role model
