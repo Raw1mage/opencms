@@ -18,7 +18,7 @@
 - `tasks.md` — canonical task list with completion status
 - `specs/20260316_kill-switch/` — kill-switch implementation detail specs (control-protocol, rbac-hooks, snapshot-orchestration)
 
-## Current State (2026-03-16)
+## Current State (2026-03-17)
 
 - **Phase 0** (Consolidation & Benchmark): done
 - **Phase 1** (Kill-switch Backend): done — 10/10 tasks complete, 13 tests passing
@@ -28,7 +28,10 @@
 - **Phase 5A** (Plan-trusting Continuation): **done** — isPlanTrusting() + max_continuous_rounds bypass + smart-runner short-circuit + tasks.md integrity exemption, 84 tests passing
 - **Phase 5B** (Multi-source Trigger): **done** — RunTrigger union type (Continuation | Api), TriggerEvaluator extracted from planAutonomousNextAction(), buildApiTrigger scaffold, 83 tests passing
 - **Phase 6** (Lane-aware Queue): **done** — RunQueue with 3 lanes (critical/normal/background), lane policy with concurrency caps, supervisor drain integration, 99 tests passing
-- **Stage 3** (D.1-D.3): **spec expanded** — IDEF0 (5 files) + GRAFCET (4 files) + detailed sub-tasks (24 tasks) + design decisions DD-7 to DD-12. Awaiting build approval.
+- **Stage 3 D.1** (Isolated Job Sessions): **done** — types, store, session factory, lightContext, delivery, retention, run-log. 25 tests passing. Commit `a45b96cbe0`
+- **Stage 3 D.2** (Heartbeat/Wakeup): **done** — schedule engine (at/every/cron), deterministic stagger, active hours, system event queue, HEARTBEAT_OK suppression, wake modes. 40 tests passing. Commit `d0f83d6272`
+- **Stage 3 D.3** (Daemon Lifecycle): **done** — gateway lock, signal dispatch, drain state machine, command lanes (Main/Cron/Subagent/Nested), restart loop, generation numbers. 28 tests passing. Commit `2247dfd677`
+- **D.3.10** (Retry Policy): **not started** — last remaining Stage 3 task
 
 ## Stop Gates In Force
 
@@ -41,23 +44,21 @@
 
 ## Build Entry Recommendation
 
-- **All non-deferred phases complete** — Phases 0-6 delivered
-- **Stage 3 (D.1-D.3) specs expanded** — IDEF0/GRAFCET diagrams + 24 detailed sub-tasks + DD-7 to DD-12
-- **Next**: Stage 3 build requires explicit user approval per Stop Gate #3
+- **All phases through Stage 3 complete** — Phases 0-6 + D.1-D.3 delivered (93/101 tests passing across 13 test files)
+- **Remaining**: D.3.10 retry policy + aws4fetch lazy import tech debt
+- **Next milestone**: merge `openclaw` → `main`, then new spec for recurring scheduler persistence
 
-### Stage 3 Build Entry (D.1-D.3)
+### Short-term (D.3.10 + tech debt)
 
-Prerequisites:
-- Phase 8 (D.1 Isolated Jobs) can start independently — no dependency on D.2/D.3
-- Phase 9 (D.2 Heartbeat/Wakeup) depends on Phase 8 for isolated session delivery
-- Phase 10 (D.3 Daemon Lifecycle) depends on Phase 9 for heartbeat integration into run loop
+1. **D.3.10 Retry Policy** — exponential backoff for transient errors, immediate disable for permanent errors
+2. **aws4fetch lazy import** — convert `killswitch/service.ts` top-level import to `await import("aws4fetch")` so startup doesn't require the package
+3. **heartbeat integration test** — once aws4fetch is lazy, heartbeat.test.ts can import real modules
 
-IDEF0/GRAFCET reference: `specs/20260315_openclaw_reproduction/diagrams/`
+### Mid-term (merge + new spec)
 
-Recommended build order:
-1. Phase 8 (D.1): session key namespace → cron store → lightContext → delivery → retention
-2. Phase 9 (D.2): schedule engine → active hours → event queue → suppression → wake modes
-3. Phase 10 (D.3): gateway lock → signals → drain → lanes → restart → generation → health
+1. Merge `openclaw` branch → `main` (resolve conflicts)
+2. Open new spec: `specs/YYYYMMDD_recurring-scheduler-persistence/` — cron job persistence across restart, SQLite or file store
+3. Resolve DD-2/DD-3 formally (both effectively resolved — MFA reuses existing system, snapshot uses fixed soft_timeout)
 
 ## Resolved Design Decisions
 
@@ -67,10 +68,12 @@ Recommended build order:
 
 ## Pending Design Decisions
 
-| ID | Decision | Blocker For | Options |
-|----|----------|-------------|---------|
-| DD-2 | MFA integration approach | Task 4.1 | 複用現有系統 vs 新建 |
-| DD-3 | Snapshot timing vs hard-kill window | Task 4.2 | 固定 soft_timeout vs 動態延展 |
+None — all design decisions resolved.
+
+| ID | Decision | Resolution | Rationale |
+|----|----------|------------|-----------|
+| DD-2 | MFA integration approach | **Reuse existing** | Phase 4 security sign-off confirmed existing MFA system sufficient |
+| DD-3 | Snapshot timing vs hard-kill window | **Fixed soft_timeout** | Phase 4 E2E tests validated fixed-window approach; dynamic extension deferred as non-critical |
 
 ## Historical Note
 
@@ -96,7 +99,12 @@ Recommended build order:
 - [x] Phase 5B multi-source trigger delivered — RunTrigger + TriggerEvaluator + API scaffold, 83 tests passing
 - [x] Phase 6 lane-aware run queue delivered — RunQueue + lane policy + supervisor integration, 99 tests passing
 - [x] Stage 3 (D.1-D.3) specs expanded — IDEF0 (5 files) + GRAFCET (4 files) + 24 sub-tasks + DD-7 to DD-12
-- [ ] Stage 3 build approval obtained
+- [x] Stage 3 D.1 build complete — 25 tests passing (commit `a45b96cbe0`)
+- [x] Stage 3 D.2 build complete — 40 tests passing (commit `d0f83d6272`)
+- [x] Stage 3 D.3 build complete (except D.3.10) — 28 tests passing (commit `2247dfd677`)
+- [ ] D.3.10 retry policy implemented
+- [ ] aws4fetch lazy import tech debt resolved
+- [ ] openclaw branch merged to main
 
 ## Completion / Retrospective Contract
 

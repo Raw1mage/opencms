@@ -79,35 +79,46 @@
 
 IDEF0/GRAFCET diagrams: `specs/20260315_openclaw_reproduction/diagrams/`
 
-### D.1 — Isolated Job Sessions（Phase 8）
+### D.1 — Isolated Job Sessions（Phase 8）✅
 
-- [ ] D.1.1 Define session key namespace scheme — main session `agent:<agentId>:main` vs isolated `cron:<jobId>:run:<uuid>` — IDEF0: A11
-- [ ] D.1.2 Implement `CronSessionTarget` type (`"main" | "isolated"`) and session factory — creates fresh Session.Info with scoped key, no parent context carryover
-- [ ] D.1.3 Implement `lightContext` bootstrap mode — skip workspace file injection, provide cron-prefixed system prompt with minimal token footprint — IDEF0: A12
-- [ ] D.1.4 Implement cron job store — `~/.config/opencode/cron/jobs.json` persistence, CRUD operations, Zod schema with CronJobState (nextRunAtMs, runningAtMs, lastRunStatus, consecutiveErrors) — benchmark: `refs/openclaw/src/cron/types.ts`
-- [ ] D.1.5 Implement delivery routing — announce/webhook/none per job config, post summary to main session if configured, chunk per channel format rules — IDEF0: A13
-- [ ] D.1.6 Implement session retention reaper — prune expired cron run-sessions by age (default 24h), trim run-log JSONL by size (2MB) and line count (2000) — IDEF0: A14
-- [ ] D.1.7 Implement run-log JSONL — append-only per-job log at `~/.config/opencode/cron/runs/<jobId>.jsonl`, auto-pruning on retention check
+- [x] D.1.1 Define session key namespace scheme — main session `agent:<agentId>:main` vs isolated `cron:<jobId>:run:<uuid>` — IDEF0: A11
+- [x] D.1.2 Implement `CronSessionTarget` type (`"main" | "isolated"`) and session factory — creates fresh Session.Info with scoped key, no parent context carryover
+- [x] D.1.3 Implement `lightContext` bootstrap mode — skip workspace file injection, provide cron-prefixed system prompt with minimal token footprint — IDEF0: A12
+- [x] D.1.4 Implement cron job store — `~/.config/opencode/cron/jobs.json` persistence, CRUD operations, Zod schema with CronJobState (nextRunAtMs, runningAtMs, lastRunStatus, consecutiveErrors) — benchmark: `refs/openclaw/src/cron/types.ts`
+- [x] D.1.5 Implement delivery routing — announce/webhook/none per job config, post summary to main session if configured, chunk per channel format rules — IDEF0: A13
+- [x] D.1.6 Implement session retention reaper — prune expired cron run-sessions by age (default 24h), trim run-log JSONL by size (2MB) and line count (2000) — IDEF0: A14
+- [x] D.1.7 Implement run-log JSONL — append-only per-job log at `~/.config/opencode/cron/runs/<jobId>.jsonl`, auto-pruning on retention check
 
-### D.2 — Heartbeat / Wakeup Substrate（Phase 9）
+Tests: 25 passing (types 13, store 7, light-context 3, run-log 5, delivery 5) — commit `a45b96cbe0`
 
-- [ ] D.2.1 Define schedule expression engine — 3 kinds: `at` (one-shot ISO timestamp), `every` (fixed interval string), `cron` (5/6-field expression with IANA timezone) — IDEF0: A21
-- [ ] D.2.2 Implement deterministic stagger — top-of-hour expressions offset by up to 5min based on job ID hash to reduce thundering herd, `--stagger` override, `--exact` bypass
-- [ ] D.2.3 Implement active hours gating — `activeHours: { start: "HH:MM", end: "HH:MM" }` filter, suppress triggers outside window, compute next eligible fire time — IDEF0: A22
-- [ ] D.2.4 Implement system event queue — in-memory FIFO per session key (max 20 events), `enqueueSystemEvent(text, { sessionKey, contextKey? })`, `drainSystemEventEntries(sessionKey)` — IDEF0: A23, benchmark: `refs/openclaw/src/infra/system-events.ts`
-- [ ] D.2.5 Implement HEARTBEAT_OK smart suppression — execute heartbeat checklist from HEARTBEAT.md, if no actionable content return HEARTBEAT_OK token and suppress delivery
-- [ ] D.2.6 Implement wake modes — `wakeMode: "now"` (immediate agent turn) vs `"next-heartbeat"` (event waits for next scheduled heartbeat run) — IDEF0: A23/A24
-- [ ] D.2.7 Integrate heartbeat with AutonomousPolicy throttle governor — respect cooldown/budget/escalation from Phase 5, HEARTBEAT.md checklist as heartbeat prompt source
+### D.2 — Heartbeat / Wakeup Substrate（Phase 9）✅
 
-### D.3 — Daemon Lifecycle / Host-wide Scheduler Health（Phase 10）
+- [x] D.2.1 Define schedule expression engine — 3 kinds: `at` (one-shot ISO timestamp), `every` (fixed interval string), `cron` (5/6-field expression with IANA timezone) — IDEF0: A21
+- [x] D.2.2 Implement deterministic stagger — top-of-hour expressions offset by up to 5min based on job ID hash to reduce thundering herd, `--stagger` override, `--exact` bypass
+- [x] D.2.3 Implement active hours gating — `activeHours: { start: "HH:MM", end: "HH:MM" }` filter, suppress triggers outside window, compute next eligible fire time — IDEF0: A22
+- [x] D.2.4 Implement system event queue — in-memory FIFO per session key (max 20 events), `enqueueSystemEvent(text, { sessionKey, contextKey? })`, `drainSystemEventEntries(sessionKey)` — IDEF0: A23, benchmark: `refs/openclaw/src/infra/system-events.ts`
+- [x] D.2.5 Implement HEARTBEAT_OK smart suppression — execute heartbeat checklist from HEARTBEAT.md, if no actionable content return HEARTBEAT_OK token and suppress delivery
+- [x] D.2.6 Implement wake modes — `wakeMode: "now"` (immediate agent turn) vs `"next-heartbeat"` (event waits for next scheduled heartbeat run) — IDEF0: A23/A24
+- [x] D.2.7 Integrate heartbeat with AutonomousPolicy throttle governor — respect cooldown/budget/escalation from Phase 5, HEARTBEAT.md checklist as heartbeat prompt source
 
-- [ ] D.3.1 Implement gateway lock — `acquireGatewayLock()` / `releaseLockIfHeld()` via port-based or file-based mechanism, prevent multiple daemon instances — IDEF0: A31
-- [ ] D.3.2 Implement signal handlers — SIGTERM/SIGINT → graceful shutdown, SIGUSR1 → in-process restart with authorization check — IDEF0: A32, benchmark: `refs/openclaw/src/cli/gateway-cli/run-loop.ts`
-- [ ] D.3.3 Implement drain state machine — `markGatewayDraining()` → reject new enqueues with `GatewayDrainingError` → wait active tasks (DRAIN_TIMEOUT_MS=90s) → proceed — IDEF0: A33
-- [ ] D.3.4 Implement command queue with lane types — Main/Cron/Subagent/Nested lanes, per-lane `maxConcurrent` (1/1/2/1), per-session lanes for single-threaded execution — IDEF0: A41, benchmark: `refs/openclaw/src/process/command-queue.ts`
-- [ ] D.3.5 Implement per-lane concurrency limits and priority drain pump — dequeue when active < maxConcurrent, track taskId and generation, emit diagnostic if queue wait > 2s — IDEF0: A43
-- [ ] D.3.6 Implement process restart loop — try full process respawn via `restartGatewayProcessWithFreshPid()`, fallback to in-process restart if `OPENCLAW_NO_RESPAWN`, close HTTP server with `restartExpectedMs` — IDEF0: A34
-- [ ] D.3.7 Implement generation numbers — increment on restart cycle, stale task completions from previous generation ignored by lane pump — IDEF0: A35
-- [ ] D.3.8 Implement `resetAllLanes()` post-restart recovery — clear activeTaskIds, bump generation, re-drain queued entries — IDEF0: A44
-- [ ] D.3.9 Wire `Daemon.info()` to active session count, lane queue sizes, and generation number — expose via health endpoint for operator observability — IDEF0: A5
+Tests: 40 passing (schedule 18, active-hours 6, system-events 12, heartbeat 4) — commit `d0f83d6272`
+
+### D.3 — Daemon Lifecycle / Host-wide Scheduler Health（Phase 10）✅
+
+- [x] D.3.1 Implement gateway lock — `acquireGatewayLock()` / `releaseLockIfHeld()` via port-based or file-based mechanism, prevent multiple daemon instances — IDEF0: A31
+- [x] D.3.2 Implement signal handlers — SIGTERM/SIGINT → graceful shutdown, SIGUSR1 → in-process restart with authorization check — IDEF0: A32, benchmark: `refs/openclaw/src/cli/gateway-cli/run-loop.ts`
+- [x] D.3.3 Implement drain state machine — `markGatewayDraining()` → reject new enqueues with `GatewayDrainingError` → wait active tasks (DRAIN_TIMEOUT_MS=90s) → proceed — IDEF0: A33
+- [x] D.3.4 Implement command queue with lane types — Main/Cron/Subagent/Nested lanes, per-lane `maxConcurrent` (1/1/2/1), per-session lanes for single-threaded execution — IDEF0: A41, benchmark: `refs/openclaw/src/process/command-queue.ts`
+- [x] D.3.5 Implement per-lane concurrency limits and priority drain pump — dequeue when active < maxConcurrent, track taskId and generation, emit diagnostic if queue wait > 2s — IDEF0: A43
+- [x] D.3.6 Implement process restart loop — try full process respawn via `restartGatewayProcessWithFreshPid()`, fallback to in-process restart if `OPENCLAW_NO_RESPAWN`, close HTTP server with `restartExpectedMs` — IDEF0: A34
+- [x] D.3.7 Implement generation numbers — increment on restart cycle, stale task completions from previous generation ignored by lane pump — IDEF0: A35
+- [x] D.3.8 Implement `resetAllLanes()` post-restart recovery — clear activeTaskIds, bump generation, re-drain queued entries — IDEF0: A44
+- [x] D.3.9 Wire `Daemon.info()` to active session count, lane queue sizes, and generation number — expose via health endpoint for operator observability — IDEF0: A5
 - [ ] D.3.10 Implement retry policy — transient errors (rate_limit, overload, 5xx) → exponential backoff (30s→1m→5m→15m→60m), permanent errors (auth, config) → disable immediately — benchmark: OpenClaw CronJobState error classification
+
+Tests: 28 passing (gateway-lock 7, drain 7, lanes 11, signals 3) — commit `2247dfd677`
+
+### Known Tech Debt
+
+- `aws4fetch` top-level import in `killswitch/service.ts` blocks startup if package missing — convert to lazy `await import()` or internalize SigV4
+- `heartbeat.test.ts` uses inlined pure helpers to avoid transitive `aws4fetch` import chain — will resolve when aws4fetch is lazy-loaded
