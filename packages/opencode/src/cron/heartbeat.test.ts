@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test"
 
 // Test the pure heartbeat helpers directly to avoid transitive import chain
-// (heartbeat.ts → session → storage → server/killswitch → aws4fetch)
 const HEARTBEAT_OK_TOKEN = "HEARTBEAT_OK"
 
 function isHeartbeatOk(text: string): boolean {

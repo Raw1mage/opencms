@@ -10,8 +10,6 @@ import z from "zod"
 const log = Log.create({ service: "killswitch" })
 
 export namespace KillSwitchService {
-  export class ControlTransportConfigError extends Error {}
-  export class SnapshotBackendConfigError extends Error {}
 
   export const State = z.object({
     active: z.boolean(),
@@ -331,7 +329,6 @@ export namespace KillSwitchService {
     try {
       return await backend.create(input)
     } catch (error: any) {
-      if (error instanceof SnapshotBackendConfigError) throw error
       await writeAudit({
         requestID: input.requestID,
         initiator: input.initiator,
@@ -356,84 +353,8 @@ export namespace KillSwitchService {
     }
   }
 
-  let redisPub: import("ioredis").default | undefined
-  let redisSub: import("ioredis").default | undefined
-
-  async function getRedisClients(redisURL: string) {
-    const { default: Redis } = await import("ioredis")
-    if (!redisPub) redisPub = new Redis(redisURL, { lazyConnect: true, maxRetriesPerRequest: 1 })
-    if (!redisSub) redisSub = new Redis(redisURL, { lazyConnect: true, maxRetriesPerRequest: 1 })
-    return { pub: redisPub, sub: redisSub }
-  }
-
-  async function createRedisControlTransport(): Promise<ControlTransport> {
-    const redisURL = process.env.OPENCODE_REDIS_URL
-    if (!redisURL) {
-      throw new ControlTransportConfigError(
-        "control transport 'redis' selected but OPENCODE_REDIS_URL is not configured",
-      )
-    }
-    const { pub, sub } = await getRedisClients(redisURL)
-
-    return {
-      async publishAndAwaitAck(input) {
-        const timeoutMs = input.timeoutMs ?? 5000
-        const controlChannel = `ks:control:${input.sessionID}`
-        const ackChannel = `ks:ack:${input.requestID}:${input.seq}`
-
-        await sub.connect().catch(() => {})
-        await pub.connect().catch(() => {})
-
-        const ackPromise = new Promise<z.infer<typeof Ack>>((resolve, reject) => {
-          const timer = setTimeout(() => {
-            sub.unsubscribe(ackChannel).catch(() => {})
-            reject(new Error("ACK timeout"))
-          }, timeoutMs)
-
-          sub.subscribe(ackChannel, (err) => {
-            if (err) {
-              clearTimeout(timer)
-              reject(err)
-            }
-          })
-
-          sub.on("message", (channel, message) => {
-            if (channel !== ackChannel) return
-            clearTimeout(timer)
-            sub.unsubscribe(ackChannel).catch(() => {})
-            try {
-              resolve(Ack.parse(JSON.parse(message)))
-            } catch (e: any) {
-              reject(new Error(`invalid ACK payload: ${e?.message}`))
-            }
-          })
-        })
-
-        const controlMessage = JSON.stringify({
-          requestID: input.requestID,
-          sessionID: input.sessionID,
-          seq: input.seq,
-          action: input.action,
-          initiator: input.initiator,
-        })
-        await pub.publish(controlChannel, controlMessage)
-
-        return ackPromise
-      },
-    }
-  }
-
-  export function resolveControlTransportMode() {
-    return (process.env.OPENCODE_KILLSWITCH_CONTROL_TRANSPORT ?? "local").trim().toLowerCase()
-  }
-
   async function resolveControlTransport(): Promise<ControlTransport> {
-    const mode = resolveControlTransportMode()
-    if (mode === "local") return createLocalControlTransport()
-    if (mode === "redis") return await createRedisControlTransport()
-    throw new ControlTransportConfigError(
-      `unknown kill-switch control transport mode '${mode}', expected one of: local, redis`,
-    )
+    return createLocalControlTransport()
   }
 
   function createLocalSnapshotBackend(): SnapshotBackend {
@@ -456,76 +377,7 @@ export namespace KillSwitchService {
     }
   }
 
-  let _awsClientModule: typeof import("aws4fetch") | undefined
-  let _cachedAwsClient: { key: string; client: InstanceType<typeof import("aws4fetch").AwsClient> } | undefined
-
-  async function getAwsClientModule() {
-    if (!_awsClientModule) _awsClientModule = await import("aws4fetch")
-    return _awsClientModule
-  }
-
-  async function createMinioSnapshotBackend(): Promise<SnapshotBackend> {
-    const endpoint = process.env.OPENCODE_MINIO_ENDPOINT
-    const accessKey = process.env.OPENCODE_MINIO_ACCESS_KEY
-    const secretKey = process.env.OPENCODE_MINIO_SECRET_KEY
-    const bucket = process.env.OPENCODE_MINIO_BUCKET
-    const region = process.env.OPENCODE_MINIO_REGION || "us-east-1"
-    if (!endpoint || !accessKey || !secretKey || !bucket) {
-      throw new SnapshotBackendConfigError(
-        "snapshot backend 'minio' selected but required env is missing: OPENCODE_MINIO_ENDPOINT, OPENCODE_MINIO_ACCESS_KEY, OPENCODE_MINIO_SECRET_KEY, OPENCODE_MINIO_BUCKET",
-      )
-    }
-    const cacheKey = `${accessKey}:${secretKey}:${region}`
-    let client: InstanceType<typeof import("aws4fetch").AwsClient>
-    if (_cachedAwsClient?.key === cacheKey) {
-      client = _cachedAwsClient.client
-    } else {
-      const { AwsClient } = await getAwsClientModule()
-      client = new AwsClient({ accessKeyId: accessKey, secretAccessKey: secretKey, region })
-      _cachedAwsClient = { key: cacheKey, client }
-    }
-    const base = `${endpoint.replace(/\/$/, "")}/${bucket}`
-
-    return {
-      async create(input) {
-        const snapshot = {
-          requestID: input.requestID,
-          initiator: input.initiator,
-          mode: input.mode,
-          scope: input.scope,
-          reason: input.reason,
-          activeSessions: listBusySessionIDs(),
-          capturedAt: Date.now(),
-          source: "minio",
-        }
-        const objectPath = `killswitch/snapshots/${input.requestID}.json`
-        const url = `${base}/${objectPath}`
-        const req = new Request(url, {
-          method: "PUT",
-          body: JSON.stringify(snapshot),
-          headers: { "Content-Type": "application/json" },
-        })
-        const signed = await client.sign(req)
-        const response = await fetch(signed)
-        if (!response.ok) {
-          throw new Error(`MinIO PUT failed: ${response.status} ${response.statusText}`)
-        }
-        log.info("snapshot uploaded to minio", { url, requestID: input.requestID })
-        return url
-      },
-    }
-  }
-
-  export function resolveSnapshotBackendMode() {
-    return (process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND ?? "local").trim().toLowerCase()
-  }
-
   async function resolveSnapshotBackend(): Promise<SnapshotBackend> {
-    const mode = resolveSnapshotBackendMode()
-    if (mode === "local") return createLocalSnapshotBackend()
-    if (mode === "minio" || mode === "s3") return await createMinioSnapshotBackend()
-    throw new SnapshotBackendConfigError(
-      `unknown kill-switch snapshot backend mode '${mode}', expected one of: local, minio, s3`,
-    )
+    return createLocalSnapshotBackend()
   }
 }
