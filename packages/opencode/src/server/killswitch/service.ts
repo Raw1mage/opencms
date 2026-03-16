@@ -5,8 +5,6 @@ import { SessionPrompt } from "@/session/prompt"
 import { SessionStatus } from "@/session/status"
 import { Storage } from "@/storage/storage"
 import { Log } from "@/util/log"
-import { AwsClient } from "aws4fetch"
-import Redis from "ioredis"
 import z from "zod"
 
 const log = Log.create({ service: "killswitch" })
@@ -272,7 +270,7 @@ export namespace KillSwitchService {
     initiator: string
     timeoutMs?: number
   }) {
-    const transport = resolveControlTransport()
+    const transport = await resolveControlTransport()
     const timeoutMs = input.timeoutMs ?? 5000
     await writeAudit({
       requestID: input.requestID,
@@ -329,7 +327,7 @@ export namespace KillSwitchService {
     scope: string
     reason: string
   }) {
-    const backend = resolveSnapshotBackend()
+    const backend = await resolveSnapshotBackend()
     try {
       return await backend.create(input)
     } catch (error: any) {
@@ -358,23 +356,24 @@ export namespace KillSwitchService {
     }
   }
 
-  let redisPub: Redis | undefined
-  let redisSub: Redis | undefined
+  let redisPub: import("ioredis").default | undefined
+  let redisSub: import("ioredis").default | undefined
 
-  function getRedisClients(redisURL: string) {
+  async function getRedisClients(redisURL: string) {
+    const { default: Redis } = await import("ioredis")
     if (!redisPub) redisPub = new Redis(redisURL, { lazyConnect: true, maxRetriesPerRequest: 1 })
     if (!redisSub) redisSub = new Redis(redisURL, { lazyConnect: true, maxRetriesPerRequest: 1 })
     return { pub: redisPub, sub: redisSub }
   }
 
-  function createRedisControlTransport(): ControlTransport {
+  async function createRedisControlTransport(): Promise<ControlTransport> {
     const redisURL = process.env.OPENCODE_REDIS_URL
     if (!redisURL) {
       throw new ControlTransportConfigError(
         "control transport 'redis' selected but OPENCODE_REDIS_URL is not configured",
       )
     }
-    const { pub, sub } = getRedisClients(redisURL)
+    const { pub, sub } = await getRedisClients(redisURL)
 
     return {
       async publishAndAwaitAck(input) {
@@ -428,10 +427,10 @@ export namespace KillSwitchService {
     return (process.env.OPENCODE_KILLSWITCH_CONTROL_TRANSPORT ?? "local").trim().toLowerCase()
   }
 
-  function resolveControlTransport(): ControlTransport {
+  async function resolveControlTransport(): Promise<ControlTransport> {
     const mode = resolveControlTransportMode()
     if (mode === "local") return createLocalControlTransport()
-    if (mode === "redis") return createRedisControlTransport()
+    if (mode === "redis") return await createRedisControlTransport()
     throw new ControlTransportConfigError(
       `unknown kill-switch control transport mode '${mode}', expected one of: local, redis`,
     )
@@ -457,7 +456,15 @@ export namespace KillSwitchService {
     }
   }
 
-  function createMinioSnapshotBackend(): SnapshotBackend {
+  let _awsClientModule: typeof import("aws4fetch") | undefined
+  let _cachedAwsClient: { key: string; client: InstanceType<typeof import("aws4fetch").AwsClient> } | undefined
+
+  async function getAwsClientModule() {
+    if (!_awsClientModule) _awsClientModule = await import("aws4fetch")
+    return _awsClientModule
+  }
+
+  async function createMinioSnapshotBackend(): Promise<SnapshotBackend> {
     const endpoint = process.env.OPENCODE_MINIO_ENDPOINT
     const accessKey = process.env.OPENCODE_MINIO_ACCESS_KEY
     const secretKey = process.env.OPENCODE_MINIO_SECRET_KEY
@@ -468,11 +475,15 @@ export namespace KillSwitchService {
         "snapshot backend 'minio' selected but required env is missing: OPENCODE_MINIO_ENDPOINT, OPENCODE_MINIO_ACCESS_KEY, OPENCODE_MINIO_SECRET_KEY, OPENCODE_MINIO_BUCKET",
       )
     }
-    const client = new AwsClient({
-      accessKeyId: accessKey,
-      secretAccessKey: secretKey,
-      region,
-    })
+    const cacheKey = `${accessKey}:${secretKey}:${region}`
+    let client: InstanceType<typeof import("aws4fetch").AwsClient>
+    if (_cachedAwsClient?.key === cacheKey) {
+      client = _cachedAwsClient.client
+    } else {
+      const { AwsClient } = await getAwsClientModule()
+      client = new AwsClient({ accessKeyId: accessKey, secretAccessKey: secretKey, region })
+      _cachedAwsClient = { key: cacheKey, client }
+    }
     const base = `${endpoint.replace(/\/$/, "")}/${bucket}`
 
     return {
@@ -489,11 +500,13 @@ export namespace KillSwitchService {
         }
         const objectPath = `killswitch/snapshots/${input.requestID}.json`
         const url = `${base}/${objectPath}`
-        const response = await client.fetch(url, {
+        const req = new Request(url, {
           method: "PUT",
           body: JSON.stringify(snapshot),
           headers: { "Content-Type": "application/json" },
         })
+        const signed = await client.sign(req)
+        const response = await fetch(signed)
         if (!response.ok) {
           throw new Error(`MinIO PUT failed: ${response.status} ${response.statusText}`)
         }
@@ -507,10 +520,10 @@ export namespace KillSwitchService {
     return (process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND ?? "local").trim().toLowerCase()
   }
 
-  function resolveSnapshotBackend(): SnapshotBackend {
+  async function resolveSnapshotBackend(): Promise<SnapshotBackend> {
     const mode = resolveSnapshotBackendMode()
     if (mode === "local") return createLocalSnapshotBackend()
-    if (mode === "minio" || mode === "s3") return createMinioSnapshotBackend()
+    if (mode === "minio" || mode === "s3") return await createMinioSnapshotBackend()
     throw new SnapshotBackendConfigError(
       `unknown kill-switch snapshot backend mode '${mode}', expected one of: local, minio, s3`,
     )

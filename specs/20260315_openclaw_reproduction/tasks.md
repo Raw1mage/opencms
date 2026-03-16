@@ -114,7 +114,7 @@ Tests: 40 passing (schedule 18, active-hours 6, system-events 12, heartbeat 4) �
 - [x] D.3.7 Implement generation numbers — increment on restart cycle, stale task completions from previous generation ignored by lane pump — IDEF0: A35
 - [x] D.3.8 Implement `resetAllLanes()` post-restart recovery — clear activeTaskIds, bump generation, re-drain queued entries — IDEF0: A44
 - [x] D.3.9 Wire `Daemon.info()` to active session count, lane queue sizes, and generation number — expose via health endpoint for operator observability — IDEF0: A5
-- [ ] D.3.10 Implement retry policy — transient errors (rate_limit, overload, 5xx) → exponential backoff (30s→1m→5m→15m→60m), permanent errors (auth, config) → disable immediately — benchmark: OpenClaw CronJobState error classification
+- [x] D.3.10 Implement retry policy — transient errors (rate_limit, overload, 5xx) → exponential backoff (30s→1m→5m→15m→60m), permanent errors (auth, config) → disable immediately — benchmark: OpenClaw CronJobState error classification
 
 Tests: 28 passing (gateway-lock 7, drain 7, lanes 11, signals 3) — commit `2247dfd677`
 

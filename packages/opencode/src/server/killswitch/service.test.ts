@@ -1,7 +1,13 @@
-import { afterAll, describe, expect, it, mock } from "bun:test"
+import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test"
 import { KillSwitchService } from "./service"
 
 describe("KillSwitchService", () => {
+  // Pre-warm lazy imports so dynamic import("aws4fetch") doesn't race with mocked fetch
+  beforeAll(async () => {
+    await import("aws4fetch").catch(() => {})
+    await import("ioredis").catch(() => {})
+  })
+
   afterAll(() => {
     // restore env for other test suites
     delete process.env.OPENCODE_KILLSWITCH_CONTROL_TRANSPORT

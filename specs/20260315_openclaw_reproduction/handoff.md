@@ -31,7 +31,7 @@
 - **Stage 3 D.1** (Isolated Job Sessions): **done** — types, store, session factory, lightContext, delivery, retention, run-log. 25 tests passing. Commit `a45b96cbe0`
 - **Stage 3 D.2** (Heartbeat/Wakeup): **done** — schedule engine (at/every/cron), deterministic stagger, active hours, system event queue, HEARTBEAT_OK suppression, wake modes. 40 tests passing. Commit `d0f83d6272`
 - **Stage 3 D.3** (Daemon Lifecycle): **done** — gateway lock, signal dispatch, drain state machine, command lanes (Main/Cron/Subagent/Nested), restart loop, generation numbers. 28 tests passing. Commit `2247dfd677`
-- **D.3.10** (Retry Policy): **not started** — last remaining Stage 3 task
+- **D.3.10** (Retry Policy): **done** — error classification (transient/permanent), exponential backoff, one-shot vs recurring policy. 20 tests passing.
 
 ## Stop Gates In Force
 
@@ -50,9 +50,9 @@
 
 ### Short-term (D.3.10 + tech debt)
 
-1. **D.3.10 Retry Policy** — exponential backoff for transient errors, immediate disable for permanent errors
-2. **aws4fetch lazy import** — convert `killswitch/service.ts` top-level import to `await import("aws4fetch")` so startup doesn't require the package
-3. **heartbeat integration test** — once aws4fetch is lazy, heartbeat.test.ts can import real modules
+1. ~~**D.3.10 Retry Policy**~~ — **done** — `cron/retry.ts`, 20 tests
+2. ~~**aws4fetch lazy import**~~ — **done** — `killswitch/service.ts` uses `await import("aws4fetch")` + `client.sign()` instead of `client.fetch()` (fixes hang bug)
+3. **heartbeat integration test** — can now import real modules since aws4fetch is lazy
 
 ### Mid-term (merge + new spec)
 
@@ -102,8 +102,8 @@ None — all design decisions resolved.
 - [x] Stage 3 D.1 build complete — 25 tests passing (commit `a45b96cbe0`)
 - [x] Stage 3 D.2 build complete — 40 tests passing (commit `d0f83d6272`)
 - [x] Stage 3 D.3 build complete (except D.3.10) — 28 tests passing (commit `2247dfd677`)
-- [ ] D.3.10 retry policy implemented
-- [ ] aws4fetch lazy import tech debt resolved
+- [x] D.3.10 retry policy implemented — 20 tests passing
+- [x] aws4fetch lazy import resolved — `client.sign()` + manual `fetch()` (fixes `client.fetch()` hang)
 - [ ] openclaw branch merged to main
 
 ## Completion / Retrospective Contract
