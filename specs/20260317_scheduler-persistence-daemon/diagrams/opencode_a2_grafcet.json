@@ -1,0 +1,74 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A2",
+    "StepType": "initial",
+    "StepAction": "Await Channel Operation Request",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1, 2, 3],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["channel_operation_received"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A21",
+    "StepType": "normal",
+    "StepAction": "Bootstrap Default Channel on Empty Store",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "convergence_or",
+    "Condition": ["store_is_empty == true"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A23",
+    "StepType": "normal",
+    "StepAction": "Validate Channel Schema for Create or Update",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "convergence_or",
+    "Condition": ["operation_type == create_or_update"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A24",
+    "StepType": "normal",
+    "StepAction": "Remove Inactive Channel After Session Guard",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "convergence_or",
+    "Condition": ["operation_type == delete AND active_sessions == 0"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A22",
+    "StepType": "normal",
+    "StepAction": "Persist Channel Configuration to File",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [1, 2, 3],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["persistence_complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Emit Channel Change Event",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["event_emitted"],
+    "SubGrafcet": []
+  }
+]

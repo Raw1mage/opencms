@@ -1,0 +1,48 @@
+{
+  "diagram_title": "Expose Channel Health and API",
+  "node_reference": "A5",
+  "activities": [
+    {
+      "id": "A51",
+      "title": "Handle Channel CRUD Requests",
+      "description": "GET/POST/PATCH/DELETE /api/v2/channel/ endpoints",
+      "decomposition": null
+    },
+    {
+      "id": "A52",
+      "title": "Aggregate Per-Channel Status",
+      "description": "Collect lane occupancy, active task count, and last activity per channel",
+      "decomposition": null
+    },
+    {
+      "id": "A53",
+      "title": "Route Session to Channel",
+      "description": "Accept channelId on session creation, assign session to target channel",
+      "decomposition": null
+    },
+    {
+      "id": "A54",
+      "title": "Serve Health Endpoint",
+      "description": "Extend GET /api/v2/global/health with per-channel breakdown",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "BOUNDARY", "target": "A51:input", "label": "HTTP API Request", "type": "input" },
+    { "id": "I2", "source": "BOUNDARY", "target": "A52:input", "label": "Channel Store State", "type": "input" },
+    { "id": "I3", "source": "BOUNDARY", "target": "A52:input", "label": "Lane Occupancy Snapshot", "type": "input" },
+    { "id": "I4", "source": "BOUNDARY", "target": "A53:input", "label": "Session Create Request", "type": "input" },
+    { "id": "I5", "source": "BOUNDARY", "target": "A54:input", "label": "Health Check Request", "type": "input" },
+    { "id": "I6", "source": "A52:output", "target": "A54:input", "label": "Channel Status Summary", "type": "input" },
+    { "id": "C1", "source": "BOUNDARY", "target": "A51:control", "label": "Route Authorization", "type": "control" },
+    { "id": "C2", "source": "BOUNDARY", "target": "A53:control", "label": "Channel Existence Guard", "type": "control" },
+    { "id": "C3", "source": "BOUNDARY", "target": "A54:control", "label": "Health Endpoint Policy", "type": "control" },
+    { "id": "O1", "source": "A51:output", "target": "BOUNDARY", "label": "Channel CRUD Response", "type": "output" },
+    { "id": "O2", "source": "A53:output", "target": "BOUNDARY", "label": "Session Assignment", "type": "output" },
+    { "id": "O3", "source": "A54:output", "target": "BOUNDARY", "label": "API Response", "type": "output" },
+    { "id": "M1", "source": "BOUNDARY", "target": "A51:mechanism", "label": "Hono HTTP Server", "type": "mechanism" },
+    { "id": "M2", "source": "BOUNDARY", "target": "A52:mechanism", "label": "ChannelStore Module", "type": "mechanism" },
+    { "id": "M3", "source": "BOUNDARY", "target": "A53:mechanism", "label": "Hono HTTP Server", "type": "mechanism" },
+    { "id": "M4", "source": "BOUNDARY", "target": "A54:mechanism", "label": "Hono HTTP Server", "type": "mechanism" }
+  ]
+}

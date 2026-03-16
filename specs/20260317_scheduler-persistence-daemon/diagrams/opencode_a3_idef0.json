@@ -1,0 +1,46 @@
+{
+  "diagram_title": "Allocate Per-Channel Lane Resources",
+  "node_reference": "A3",
+  "activities": [
+    {
+      "id": "A31",
+      "title": "Map Lane Namespace Key",
+      "description": "Transform lane name to channel:lane composite key for isolation",
+      "decomposition": null
+    },
+    {
+      "id": "A32",
+      "title": "Enforce Concurrency Cap",
+      "description": "Check per-channel lane policy before enqueuing, block or queue if at capacity",
+      "decomposition": null
+    },
+    {
+      "id": "A33",
+      "title": "Drain Channel Lane Set",
+      "description": "Drain specific channel lanes or all channels during global drain",
+      "decomposition": null
+    },
+    {
+      "id": "A34",
+      "title": "Reset Lane State Post Restart",
+      "description": "Clear in-memory lane queues after daemon restart, scheduler recovery re-populates",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "BOUNDARY", "target": "A31:input", "label": "Channel Configuration", "type": "input" },
+    { "id": "I2", "source": "A31:output", "target": "A32:input", "label": "Namespaced Lane Key", "type": "input" },
+    { "id": "I3", "source": "BOUNDARY", "target": "A33:input", "label": "Drain Request", "type": "input" },
+    { "id": "I4", "source": "BOUNDARY", "target": "A34:input", "label": "Restart Signal", "type": "input" },
+    { "id": "C1", "source": "BOUNDARY", "target": "A31:control", "label": "Lane Naming Convention", "type": "control" },
+    { "id": "C2", "source": "BOUNDARY", "target": "A32:control", "label": "Lane Concurrency Limits", "type": "control" },
+    { "id": "C3", "source": "BOUNDARY", "target": "A33:control", "label": "Drain Scope", "type": "control" },
+    { "id": "C4", "source": "BOUNDARY", "target": "A34:control", "label": "Generation Number", "type": "control" },
+    { "id": "O1", "source": "A32:output", "target": "BOUNDARY", "label": "Isolated Lane Set", "type": "output" },
+    { "id": "O2", "source": "A33:output", "target": "BOUNDARY", "label": "Drain Completion Signal", "type": "output" },
+    { "id": "O3", "source": "A34:output", "target": "BOUNDARY", "label": "Clean Lane State", "type": "output" },
+    { "id": "M1", "source": "BOUNDARY", "target": "A31:mechanism", "label": "Lanes Module", "type": "mechanism" },
+    { "id": "M2", "source": "BOUNDARY", "target": "A32:mechanism", "label": "Lanes Module", "type": "mechanism" },
+    { "id": "M3", "source": "BOUNDARY", "target": "A33:mechanism", "label": "Lanes Module", "type": "mechanism" }
+  ]
+}

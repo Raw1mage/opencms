@@ -1,0 +1,62 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A4",
+    "StepType": "initial",
+    "StepAction": "Monitor Kill-Switch State",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1, 2, 3],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["killswitch_event_received"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A41",
+    "StepType": "normal",
+    "StepAction": "Assert Scheduling Permission With Channel Scope",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "convergence_or",
+    "Condition": ["event_type == session_enqueue"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A42",
+    "StepType": "normal",
+    "StepAction": "Abort All Sessions in Target Channel",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "convergence_or",
+    "Condition": ["event_type == channel_kill_trigger"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A43",
+    "StepType": "normal",
+    "StepAction": "Override With Global Stop Across All Channels",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "convergence_or",
+    "Condition": ["event_type == global_kill_trigger"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Update Kill-Switch State and Write Audit Trail",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [1, 2, 3],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["audit_written"],
+    "SubGrafcet": []
+  }
+]

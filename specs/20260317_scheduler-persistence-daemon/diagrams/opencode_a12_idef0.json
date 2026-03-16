@@ -1,0 +1,35 @@
+{
+  "diagram_title": "Detect Stale Schedule Entries",
+  "node_reference": "A12",
+  "activities": [
+    {
+      "id": "A121",
+      "title": "Compare NextRunAtMs Against Current Time",
+      "description": "Identify jobs where nextRunAtMs is in the past, marking them as stale candidates",
+      "decomposition": null
+    },
+    {
+      "id": "A122",
+      "title": "Classify Job Schedule Kind",
+      "description": "Partition stale jobs by schedule.kind: at (one-shot), every (interval), cron (expression)",
+      "decomposition": null
+    },
+    {
+      "id": "A123",
+      "title": "Evaluate Consecutive Error Count",
+      "description": "Flag jobs with consecutiveErrors > 0 for retry backoff overlay during recomputation",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "BOUNDARY", "target": "A121:input", "label": "Enabled Job List", "type": "input" },
+    { "id": "I2", "source": "A121:output", "target": "A122:input", "label": "Stale Job Candidates", "type": "input" },
+    { "id": "I3", "source": "A122:output", "target": "A123:input", "label": "Classified Stale Jobs", "type": "input" },
+    { "id": "C1", "source": "BOUNDARY", "target": "A121:control", "label": "Current Timestamp", "type": "control" },
+    { "id": "C2", "source": "BOUNDARY", "target": "A122:control", "label": "Schedule Kind Enum", "type": "control" },
+    { "id": "C3", "source": "BOUNDARY", "target": "A123:control", "label": "Error Threshold Policy", "type": "control" },
+    { "id": "O1", "source": "A121:output", "target": "BOUNDARY", "label": "Clean Job Entries", "type": "output" },
+    { "id": "O2", "source": "A123:output", "target": "BOUNDARY", "label": "Stale Job Entries", "type": "output" },
+    { "id": "M1", "source": "BOUNDARY", "target": "A121:mechanism", "label": "CronStore Module", "type": "mechanism" }
+  ]
+}

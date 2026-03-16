@@ -1,0 +1,74 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A3",
+    "StepType": "initial",
+    "StepAction": "Await Lane Allocation Request",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["lane_request_received"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A31",
+    "StepType": "normal",
+    "StepAction": "Map Lane Namespace Key to Channel Composite",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["namespace_key_resolved"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A32",
+    "StepType": "normal",
+    "StepAction": "Enforce Concurrency Cap for Channel Lane",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 4],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["concurrency_checked"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A32",
+    "StepType": "normal",
+    "StepAction": "Enqueue Task to Channel Lane",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "convergence_or",
+    "Condition": ["lane_occupancy < concurrency_cap"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A32",
+    "StepType": "normal",
+    "StepAction": "Wait for Lane Slot Availability",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "convergence_or",
+    "Condition": ["lane_occupancy >= concurrency_cap"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Execute Task and Release Lane Slot",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [3, 4],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["task_complete"],
+    "SubGrafcet": []
+  }
+]

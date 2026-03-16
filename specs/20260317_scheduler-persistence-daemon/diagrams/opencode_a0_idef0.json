@@ -1,0 +1,60 @@
+{
+  "diagram_title": "Orchestrate Scheduler Persistence and Channel Isolation",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Recover Scheduler State on Boot",
+      "description": "Read persisted CronStore jobs, detect stale schedules, recompute timing, re-register intervals",
+      "decomposition": "A1"
+    },
+    {
+      "id": "A2",
+      "title": "Manage Channel Lifecycle",
+      "description": "Bootstrap default channel, CRUD operations, schema validation, per-file JSON persistence",
+      "decomposition": "A2"
+    },
+    {
+      "id": "A3",
+      "title": "Allocate Per-Channel Lane Resources",
+      "description": "Namespace lane keys per channel, enforce concurrency caps, drain and reset lane sets",
+      "decomposition": "A3"
+    },
+    {
+      "id": "A4",
+      "title": "Enforce Channel-Scoped Kill-Switch",
+      "description": "Assert scheduling permission with optional channel scope, abort channel sessions, global override",
+      "decomposition": "A4"
+    },
+    {
+      "id": "A5",
+      "title": "Expose Channel Health and API",
+      "description": "Channel CRUD endpoints, health with per-channel breakdown, session-to-channel routing",
+      "decomposition": "A5"
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "EXTERNAL", "target": "A1:input", "label": "Persisted CronJobState", "type": "input" },
+    { "id": "I2", "source": "EXTERNAL", "target": "A2:input", "label": "Channel Create Request", "type": "input" },
+    { "id": "I3", "source": "EXTERNAL", "target": "A5:input", "label": "HTTP API Request", "type": "input" },
+    { "id": "I4", "source": "A2:output", "target": "A3:input", "label": "Channel Configuration", "type": "input" },
+    { "id": "I5", "source": "A2:output", "target": "A4:input", "label": "Channel Registry", "type": "input" },
+    { "id": "I6", "source": "A2:output", "target": "A5:input", "label": "Channel Store State", "type": "input" },
+    { "id": "I7", "source": "A3:output", "target": "A5:input", "label": "Lane Occupancy Snapshot", "type": "input" },
+    { "id": "C1", "source": "EXTERNAL", "target": "A1:control", "label": "Daemon Boot Signal", "type": "control" },
+    { "id": "C2", "source": "EXTERNAL", "target": "A2:control", "label": "Channel Schema Policy", "type": "control" },
+    { "id": "C3", "source": "EXTERNAL", "target": "A3:control", "label": "Lane Concurrency Limits", "type": "control" },
+    { "id": "C4", "source": "EXTERNAL", "target": "A4:control", "label": "Kill-Switch Trigger Event", "type": "control" },
+    { "id": "C5", "source": "EXTERNAL", "target": "A5:control", "label": "Route Authorization", "type": "control" },
+    { "id": "O1", "source": "A1:output", "target": "EXTERNAL", "label": "Restored Schedule Timers", "type": "output" },
+    { "id": "O2", "source": "A2:output", "target": "EXTERNAL", "label": "Channel Persistence Files", "type": "output" },
+    { "id": "O3", "source": "A3:output", "target": "EXTERNAL", "label": "Isolated Lane Set", "type": "output" },
+    { "id": "O4", "source": "A4:output", "target": "EXTERNAL", "label": "Kill-Switch State Change", "type": "output" },
+    { "id": "O5", "source": "A5:output", "target": "EXTERNAL", "label": "API Response", "type": "output" },
+    { "id": "M1", "source": "EXTERNAL", "target": "A1:mechanism", "label": "CronStore Module", "type": "mechanism" },
+    { "id": "M2", "source": "EXTERNAL", "target": "A2:mechanism", "label": "ChannelStore Module", "type": "mechanism" },
+    { "id": "M3", "source": "EXTERNAL", "target": "A3:mechanism", "label": "Lanes Module", "type": "mechanism" },
+    { "id": "M4", "source": "EXTERNAL", "target": "A4:mechanism", "label": "KillSwitchService", "type": "mechanism" },
+    { "id": "M5", "source": "EXTERNAL", "target": "A5:mechanism", "label": "Hono HTTP Server", "type": "mechanism" }
+  ]
+}

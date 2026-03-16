@@ -1,0 +1,37 @@
+{
+  "diagram_title": "Recompute Next Run Timing",
+  "node_reference": "A13",
+  "activities": [
+    {
+      "id": "A131",
+      "title": "Apply Skip-to-Next for Recurring Job",
+      "description": "Compute next future fire time from now using Schedule.nextRunAtMs for every/cron jobs",
+      "decomposition": null
+    },
+    {
+      "id": "A132",
+      "title": "Disable Expired One-Shot Job",
+      "description": "Set enabled=false with reason expired_on_boot for at-type jobs with past timestamp",
+      "decomposition": null
+    },
+    {
+      "id": "A133",
+      "title": "Overlay Retry Backoff Delay",
+      "description": "For jobs with consecutiveErrors > 0, nextRunAtMs = max(skip-to-next, now + backoffMs(n))",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "BOUNDARY", "target": "A131:input", "label": "Stale Recurring Jobs", "type": "input" },
+    { "id": "I2", "source": "BOUNDARY", "target": "A132:input", "label": "Stale One-Shot Jobs", "type": "input" },
+    { "id": "I3", "source": "A131:output", "target": "A133:input", "label": "Skip-to-Next Candidates", "type": "input" },
+    { "id": "C1", "source": "BOUNDARY", "target": "A131:control", "label": "Schedule Kind Policy", "type": "control" },
+    { "id": "C2", "source": "BOUNDARY", "target": "A132:control", "label": "One-Shot Expiry Rule", "type": "control" },
+    { "id": "C3", "source": "BOUNDARY", "target": "A133:control", "label": "Backoff Configuration", "type": "control" },
+    { "id": "O1", "source": "A131:output", "target": "BOUNDARY", "label": "Recomputed Recurring Schedule", "type": "output" },
+    { "id": "O2", "source": "A132:output", "target": "BOUNDARY", "label": "Disabled One-Shot Jobs", "type": "output" },
+    { "id": "O3", "source": "A133:output", "target": "BOUNDARY", "label": "Backoff-Adjusted Schedule", "type": "output" },
+    { "id": "M1", "source": "BOUNDARY", "target": "A131:mechanism", "label": "Schedule Module", "type": "mechanism" },
+    { "id": "M2", "source": "BOUNDARY", "target": "A133:mechanism", "label": "RetryPolicy Module", "type": "mechanism" }
+  ]
+}

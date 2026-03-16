@@ -1,0 +1,86 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Begin Boot Recovery",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["boot_recovery_initiated"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A11",
+    "StepType": "normal",
+    "StepAction": "Load Persisted Job State From CronStore",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["enabled_jobs_loaded"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A12",
+    "StepType": "normal",
+    "StepAction": "Detect Stale Schedule Entries",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 4],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["stale_detection_complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A13",
+    "StepType": "normal",
+    "StepAction": "Recompute Next Run Timing for Stale Jobs",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "convergence_or",
+    "Condition": ["has_stale_entries == true"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A11",
+    "StepType": "normal",
+    "StepAction": "Preserve Clean Schedule Unchanged",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "convergence_or",
+    "Condition": ["has_stale_entries == false"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A14",
+    "StepType": "normal",
+    "StepAction": "Re-register Active Schedules to Heartbeat",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [3, 4],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["schedules_re_registered"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Recovery Complete",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": [],
+    "SubGrafcet": []
+  }
+]

@@ -1,0 +1,46 @@
+{
+  "diagram_title": "Recover Scheduler State on Boot",
+  "node_reference": "A1",
+  "activities": [
+    {
+      "id": "A11",
+      "title": "Load Persisted Job State",
+      "description": "Read all enabled CronJobState entries from CronStore jobs.json",
+      "decomposition": null
+    },
+    {
+      "id": "A12",
+      "title": "Detect Stale Schedule Entries",
+      "description": "Compare nextRunAtMs against current time, classify by schedule kind and error count",
+      "decomposition": "A12"
+    },
+    {
+      "id": "A13",
+      "title": "Recompute Next Run Timing",
+      "description": "Apply skip-to-next for recurring, disable for expired one-shot, overlay retry backoff",
+      "decomposition": "A13"
+    },
+    {
+      "id": "A14",
+      "title": "Re-register Active Schedules",
+      "description": "Write updated nextRunAtMs to CronStore and let heartbeat tick pick up restored jobs",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "BOUNDARY", "target": "A11:input", "label": "Persisted CronJobState", "type": "input" },
+    { "id": "I2", "source": "A11:output", "target": "A12:input", "label": "Enabled Job List", "type": "input" },
+    { "id": "I3", "source": "A12:output", "target": "A13:input", "label": "Stale Job Entries", "type": "input" },
+    { "id": "I4", "source": "A13:output", "target": "A14:input", "label": "Recomputed Schedule State", "type": "input" },
+    { "id": "I5", "source": "A12:output", "target": "A14:input", "label": "Clean Job Entries", "type": "input" },
+    { "id": "C1", "source": "BOUNDARY", "target": "A11:control", "label": "Daemon Boot Signal", "type": "control" },
+    { "id": "C2", "source": "BOUNDARY", "target": "A12:control", "label": "Current Timestamp", "type": "control" },
+    { "id": "C3", "source": "BOUNDARY", "target": "A13:control", "label": "Schedule Kind Policy", "type": "control" },
+    { "id": "C4", "source": "BOUNDARY", "target": "A14:control", "label": "CronStore Write Lock", "type": "control" },
+    { "id": "O1", "source": "A14:output", "target": "BOUNDARY", "label": "Restored Schedule Timers", "type": "output" },
+    { "id": "O2", "source": "A13:output", "target": "BOUNDARY", "label": "Disabled One-Shot Jobs", "type": "output" },
+    { "id": "M1", "source": "BOUNDARY", "target": "A11:mechanism", "label": "CronStore Module", "type": "mechanism" },
+    { "id": "M2", "source": "BOUNDARY", "target": "A13:mechanism", "label": "Schedule Module", "type": "mechanism" },
+    { "id": "M3", "source": "BOUNDARY", "target": "A13:mechanism", "label": "RetryPolicy Module", "type": "mechanism" }
+  ]
+}

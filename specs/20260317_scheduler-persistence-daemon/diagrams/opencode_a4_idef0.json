@@ -1,0 +1,41 @@
+{
+  "diagram_title": "Enforce Channel-Scoped Kill-Switch",
+  "node_reference": "A4",
+  "activities": [
+    {
+      "id": "A41",
+      "title": "Assert Scheduling Permission",
+      "description": "Check kill-switch state: global kill blocks all, channel kill blocks only target channel",
+      "decomposition": null
+    },
+    {
+      "id": "A42",
+      "title": "Abort Channel Sessions",
+      "description": "Send cancel to all busy sessions belonging to the target channel",
+      "decomposition": null
+    },
+    {
+      "id": "A43",
+      "title": "Override With Global Stop",
+      "description": "Global abort-all overrides any channel-scoped kill-switch, stops all channels",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "BOUNDARY", "target": "A41:input", "label": "Session Enqueue Request", "type": "input" },
+    { "id": "I2", "source": "BOUNDARY", "target": "A42:input", "label": "Channel Kill Trigger", "type": "input" },
+    { "id": "I3", "source": "BOUNDARY", "target": "A43:input", "label": "Global Kill Trigger", "type": "input" },
+    { "id": "I4", "source": "BOUNDARY", "target": "A41:input", "label": "Channel Registry", "type": "input" },
+    { "id": "C1", "source": "BOUNDARY", "target": "A41:control", "label": "Kill-Switch Trigger Event", "type": "control" },
+    { "id": "C2", "source": "BOUNDARY", "target": "A42:control", "label": "Channel Scope Filter", "type": "control" },
+    { "id": "C3", "source": "BOUNDARY", "target": "A43:control", "label": "Global Override Priority", "type": "control" },
+    { "id": "O1", "source": "A41:output", "target": "BOUNDARY", "label": "Scheduling Decision", "type": "output" },
+    { "id": "O2", "source": "A42:output", "target": "BOUNDARY", "label": "Channel Abort Result", "type": "output" },
+    { "id": "O3", "source": "A43:output", "target": "BOUNDARY", "label": "Kill-Switch State Change", "type": "output" },
+    { "id": "O4", "source": "A42:output", "target": "BOUNDARY", "label": "Audit Trail Entry", "type": "output" },
+    { "id": "O5", "source": "A43:output", "target": "BOUNDARY", "label": "Audit Trail Entry", "type": "output" },
+    { "id": "M1", "source": "BOUNDARY", "target": "A41:mechanism", "label": "KillSwitchService", "type": "mechanism" },
+    { "id": "M2", "source": "BOUNDARY", "target": "A42:mechanism", "label": "KillSwitchService", "type": "mechanism" },
+    { "id": "M3", "source": "BOUNDARY", "target": "A43:mechanism", "label": "KillSwitchService", "type": "mechanism" }
+  ]
+}

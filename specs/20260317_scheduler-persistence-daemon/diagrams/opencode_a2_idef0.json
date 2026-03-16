@@ -1,0 +1,46 @@
+{
+  "diagram_title": "Manage Channel Lifecycle",
+  "node_reference": "A2",
+  "activities": [
+    {
+      "id": "A21",
+      "title": "Bootstrap Default Channel",
+      "description": "Auto-create default channel on empty store with current global lane limits",
+      "decomposition": null
+    },
+    {
+      "id": "A22",
+      "title": "Persist Channel Configuration",
+      "description": "Write, read, and delete per-file JSON at ~/.config/opencode/channels/<channelId>.json",
+      "decomposition": "A22"
+    },
+    {
+      "id": "A23",
+      "title": "Validate Channel Schema",
+      "description": "Enforce Channel.Info schema on create and update, reject invalid lanePolicy values",
+      "decomposition": null
+    },
+    {
+      "id": "A24",
+      "title": "Remove Inactive Channel",
+      "description": "Delete channel file and release associated lane namespace after confirming zero active sessions",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "BOUNDARY", "target": "A21:input", "label": "Empty Channel Store Signal", "type": "input" },
+    { "id": "I2", "source": "BOUNDARY", "target": "A23:input", "label": "Channel Create Request", "type": "input" },
+    { "id": "I3", "source": "A23:output", "target": "A22:input", "label": "Validated Channel.Info", "type": "input" },
+    { "id": "I4", "source": "A21:output", "target": "A22:input", "label": "Default Channel.Info", "type": "input" },
+    { "id": "I5", "source": "BOUNDARY", "target": "A24:input", "label": "Channel Delete Request", "type": "input" },
+    { "id": "C1", "source": "BOUNDARY", "target": "A21:control", "label": "Channel Schema Policy", "type": "control" },
+    { "id": "C2", "source": "BOUNDARY", "target": "A23:control", "label": "Channel Schema Policy", "type": "control" },
+    { "id": "C3", "source": "BOUNDARY", "target": "A24:control", "label": "Active Session Count Guard", "type": "control" },
+    { "id": "C4", "source": "BOUNDARY", "target": "A22:control", "label": "File Lock", "type": "control" },
+    { "id": "O1", "source": "A22:output", "target": "BOUNDARY", "label": "Channel Persistence Files", "type": "output" },
+    { "id": "O2", "source": "A22:output", "target": "BOUNDARY", "label": "Channel Configuration", "type": "output" },
+    { "id": "O3", "source": "A24:output", "target": "BOUNDARY", "label": "Channel Removal Confirmation", "type": "output" },
+    { "id": "M1", "source": "BOUNDARY", "target": "A22:mechanism", "label": "ChannelStore Module", "type": "mechanism" },
+    { "id": "M2", "source": "BOUNDARY", "target": "A21:mechanism", "label": "ChannelStore Module", "type": "mechanism" }
+  ]
+}

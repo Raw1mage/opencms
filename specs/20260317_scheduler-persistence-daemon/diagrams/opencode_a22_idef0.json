@@ -1,0 +1,37 @@
+{
+  "diagram_title": "Persist Channel Configuration",
+  "node_reference": "A22",
+  "activities": [
+    {
+      "id": "A221",
+      "title": "Write Channel File With Lock",
+      "description": "Atomically write Channel.Info JSON to ~/.config/opencode/channels/<channelId>.json with file lock",
+      "decomposition": null
+    },
+    {
+      "id": "A222",
+      "title": "Read Channel File",
+      "description": "Load and parse channel JSON file, return Channel.Info or null if not found",
+      "decomposition": null
+    },
+    {
+      "id": "A223",
+      "title": "Delete Channel File",
+      "description": "Remove channel JSON file after confirming zero active sessions",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "BOUNDARY", "target": "A221:input", "label": "Validated Channel.Info", "type": "input" },
+    { "id": "I2", "source": "BOUNDARY", "target": "A222:input", "label": "Channel ID Lookup", "type": "input" },
+    { "id": "I3", "source": "BOUNDARY", "target": "A223:input", "label": "Channel Delete Request", "type": "input" },
+    { "id": "C1", "source": "BOUNDARY", "target": "A221:control", "label": "File Lock", "type": "control" },
+    { "id": "C2", "source": "BOUNDARY", "target": "A223:control", "label": "Active Session Count Guard", "type": "control" },
+    { "id": "O1", "source": "A221:output", "target": "BOUNDARY", "label": "Channel Persistence Files", "type": "output" },
+    { "id": "O2", "source": "A222:output", "target": "BOUNDARY", "label": "Channel Configuration", "type": "output" },
+    { "id": "O3", "source": "A223:output", "target": "BOUNDARY", "label": "Channel Removal Confirmation", "type": "output" },
+    { "id": "M1", "source": "BOUNDARY", "target": "A221:mechanism", "label": "Bun File I/O", "type": "mechanism" },
+    { "id": "M2", "source": "BOUNDARY", "target": "A222:mechanism", "label": "Bun File I/O", "type": "mechanism" },
+    { "id": "M3", "source": "BOUNDARY", "target": "A223:mechanism", "label": "Bun File I/O", "type": "mechanism" }
+  ]
+}

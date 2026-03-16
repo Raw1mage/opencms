@@ -1,0 +1,86 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A0",
+    "StepType": "initial",
+    "StepAction": "Await Daemon Boot Signal",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["daemon_boot_signal_received"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "sub_grafcet",
+    "StepAction": "Recover Scheduler State on Boot",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["recovery_complete"],
+    "SubGrafcet": ["opencode_a1_grafcet.json"]
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "sub_grafcet",
+    "StepAction": "Manage Channel Lifecycle",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 4],
+    "LinkOutputType": "divergence_and",
+    "Condition": ["channel_registry_ready"],
+    "SubGrafcet": ["opencode_a2_grafcet.json"]
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A3",
+    "StepType": "sub_grafcet",
+    "StepAction": "Allocate Per-Channel Lane Resources",
+    "LinkInputType": ["divergence_and"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "convergence_and",
+    "Condition": ["lanes_allocated"],
+    "SubGrafcet": ["opencode_a3_grafcet.json"]
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A4",
+    "StepType": "sub_grafcet",
+    "StepAction": "Enforce Channel-Scoped Kill-Switch",
+    "LinkInputType": ["divergence_and"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "convergence_and",
+    "Condition": ["killswitch_scope_initialized"],
+    "SubGrafcet": ["opencode_a4_grafcet.json"]
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A5",
+    "StepType": "sub_grafcet",
+    "StepAction": "Expose Channel Health and API",
+    "LinkInputType": ["convergence_and"],
+    "LinkInputNumber": [3, 4],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["api_server_listening"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A0",
+    "StepType": "normal",
+    "StepAction": "Run Active Daemon Loop",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["restart_signal_received"],
+    "SubGrafcet": []
+  }
+]
