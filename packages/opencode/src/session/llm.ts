@@ -431,7 +431,11 @@ export namespace LLM {
         status: obj?.status ?? obj?.statusCode ?? data?.status,
         code: obj?.code ?? data?.code,
         name: obj?.name,
-        message: obj?.message ?? data?.message,
+        message: (() => {
+          const raw = obj?.message ?? data?.message
+          if (raw == null) return undefined
+          return typeof raw === "string" ? raw : JSON.stringify(raw)
+        })(),
         responseHeaders: data?.responseHeaders,
         responseBody: data?.responseBody,
         headers: obj?.headers ?? data?.headers,
@@ -469,7 +473,9 @@ export namespace LLM {
               ? details.message
               : error instanceof Error
                 ? error.message
-                : String(error)
+                : typeof error === "object" && error !== null
+                  ? JSON.stringify(error)
+                  : String(error)
           Bus.publish(LlmErrorEvent, {
             providerId: input.model.providerId,
             modelId: input.model.id,

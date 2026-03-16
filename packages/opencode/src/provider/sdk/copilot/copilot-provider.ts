@@ -83,10 +83,17 @@ export function createOpenaiCompatible(options: OpenaiCompatibleProviderSettings
     })
   }
 
-  const createLanguageModel = (modelId: OpenaiCompatibleModelId) => createChatModel(modelId)
+  const shouldUseResponsesApi = (modelId: string): boolean => {
+    const match = /^gpt-(\d+)/.exec(modelId)
+    if (!match) return false
+    return Number(match[1]) >= 5 && !modelId.startsWith("gpt-5-mini")
+  }
+
+  const createLanguageModel = (modelId: OpenaiCompatibleModelId) =>
+    shouldUseResponsesApi(modelId) ? createResponsesModel(modelId) : createChatModel(modelId)
 
   const provider = function (modelId: OpenaiCompatibleModelId) {
-    return createChatModel(modelId)
+    return createLanguageModel(modelId)
   }
 
   provider.languageModel = createLanguageModel
