@@ -1,0 +1,104 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A41",
+    "StepType": "initial",
+    "StepAction": "Register command lanes with configured concurrency limits",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["lanes_registered"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A42",
+    "StepType": "normal",
+    "StepAction": "Await task enqueue request",
+    "LinkInputType": [],
+    "LinkInputNumber": [0, 7],
+    "LinkOutputNumber": [2, 3],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "enqueue_request && !draining",
+      "enqueue_request && draining"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A42",
+    "StepType": "normal",
+    "StepAction": "Accept task and assign to target lane queue",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["task_queued"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A42",
+    "StepType": "normal",
+    "StepAction": "Reject enqueue with GatewayDrainingError",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["rejection_delivered"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A43",
+    "StepType": "normal",
+    "StepAction": "Check lane active count against maxConcurrent limit",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [5, 1],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "active_count < maxConcurrent",
+      "active_count >= maxConcurrent"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A43",
+    "StepType": "normal",
+    "StepAction": "Execute task and track activeTaskId with current generation",
+    "LinkInputType": [],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["task_completed || task_failed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A43",
+    "StepType": "normal",
+    "StepAction": "Validate generation number and resolve task promise",
+    "LinkInputType": [],
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["generation_valid && promise_resolved"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A44",
+    "StepType": "normal",
+    "StepAction": "Reset all lane state and bump generation number post restart",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["restart_signal_received && lanes_reset"],
+    "SubGrafcet": []
+  }
+]
