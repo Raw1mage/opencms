@@ -1,6 +1,7 @@
 import { Bus } from "@/bus"
 import { Identifier } from "@/id/id"
 import { Event } from "@/server/event"
+import { Session } from "@/session"
 import { SessionPrompt } from "@/session/prompt"
 import { SessionStatus } from "@/session/status"
 import { Storage } from "@/storage/storage"
@@ -306,11 +307,23 @@ export namespace KillSwitchService {
     })
   }
 
-  export function listBusySessionIDs() {
+  export async function listBusySessionIDs(channelId?: string) {
     const statuses = SessionStatus.list()
-    return Object.entries(statuses)
+    const allBusy = Object.entries(statuses)
       .filter(([, value]) => value.type !== "idle")
       .map(([sessionID]) => sessionID)
+
+    if (!channelId) return allBusy
+
+    // Channel-scoped filter: resolve each session's channelId from Session.Info.
+    // Busy count is typically very small (1-3), so parallel lookup is fast.
+    const results = await Promise.all(
+      allBusy.map(async (sessionID) => {
+        const info = await Session.get(sessionID).catch(() => undefined)
+        return { sessionID, match: info?.channelId === channelId }
+      }),
+    )
+    return results.filter((r) => r.match).map((r) => r.sessionID)
   }
 
   /**

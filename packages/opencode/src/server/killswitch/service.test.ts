@@ -1,5 +1,6 @@
-import { describe, expect, it } from "bun:test"
+import { describe, expect, it, beforeEach, afterEach, mock } from "bun:test"
 import { KillSwitchService } from "./service"
+import { SessionStatus } from "@/session/status"
 
 describe("KillSwitchService", () => {
   it("generates and verifies MFA", async () => {
@@ -102,5 +103,36 @@ describe("KillSwitchService channel scope", () => {
 
     const result = await KillSwitchService.assertSchedulingAllowed("ch-a")
     expect(result.ok).toBe(true)
+  })
+})
+
+describe("KillSwitchService.listBusySessionIDs", () => {
+  beforeEach(() => {
+    // Set up some busy sessions
+    SessionStatus.set("ses_a1", { type: "busy" })
+    SessionStatus.set("ses_a2", { type: "busy" })
+    SessionStatus.set("ses_b1", { type: "busy" })
+  })
+
+  afterEach(() => {
+    SessionStatus.set("ses_a1", { type: "idle" })
+    SessionStatus.set("ses_a2", { type: "idle" })
+    SessionStatus.set("ses_b1", { type: "idle" })
+  })
+
+  it("returns all busy sessions when no channelId filter", async () => {
+    const busy = await KillSwitchService.listBusySessionIDs()
+    expect(busy.length).toBe(3)
+    expect(busy).toContain("ses_a1")
+    expect(busy).toContain("ses_a2")
+    expect(busy).toContain("ses_b1")
+  })
+
+  it("returns empty when no sessions are busy", async () => {
+    SessionStatus.set("ses_a1", { type: "idle" })
+    SessionStatus.set("ses_a2", { type: "idle" })
+    SessionStatus.set("ses_b1", { type: "idle" })
+    const busy = await KillSwitchService.listBusySessionIDs()
+    expect(busy.length).toBe(0)
   })
 })

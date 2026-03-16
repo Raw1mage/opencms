@@ -288,6 +288,7 @@ export namespace Session {
         })
         .optional(),
       stats: Stats.optional(),
+      channelId: z.string().optional(),
       execution: ExecutionIdentity.optional(),
       workflow: WorkflowInfo.optional(),
       mission: MissionContract.optional(),
@@ -424,6 +425,7 @@ export namespace Session {
         parentID: Identifier.schema("session").optional(),
         title: z.string().optional(),
         permission: Info.shape.permission,
+        channelId: z.string().optional(),
       })
       .optional(),
     async (input) => {
@@ -432,6 +434,7 @@ export namespace Session {
         directory: Instance.directory,
         title: input?.title,
         permission: input?.permission,
+        channelId: input?.channelId,
       })
     },
   )
@@ -490,6 +493,7 @@ export namespace Session {
     parentID?: string
     directory: string
     permission?: PermissionNext.Ruleset
+    channelId?: string
   }) {
     const result: Info = {
       id: Identifier.descending("session", input.id),
@@ -500,6 +504,7 @@ export namespace Session {
       parentID: input.parentID,
       title: input.title ?? createDefaultTitle(!!input.parentID),
       permission: input.permission,
+      channelId: input.channelId,
       time: {
         created: Date.now(),
         updated: Date.now(),
