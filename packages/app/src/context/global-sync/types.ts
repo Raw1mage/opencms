@@ -83,6 +83,7 @@ export type State = {
   mcp: {
     [name: string]: McpStatus
   }
+  llm_errors: LlmErrorEntry[]
   lsp: LspStatus[]
   vcs: VcsInfo | undefined
   limit: number
@@ -92,6 +93,20 @@ export type State = {
   part: {
     [messageID: string]: Part[]
   }
+}
+
+export type LlmErrorEntry = {
+  providerId: string
+  accountId: string
+  modelId: string
+  sessionID?: string
+  status?: number
+  message: string
+  timestamp: number
+  /** "ratelimit" | "auth_failed" | "error" */
+  type: string
+  reason?: string
+  backoffMs?: number
 }
 
 export type VcsCache = {

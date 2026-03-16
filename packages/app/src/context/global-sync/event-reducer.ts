@@ -10,7 +10,7 @@ import type {
   SessionStatus,
   Todo,
 } from "@opencode-ai/sdk/v2/client"
-import type { State, VcsCache } from "./types"
+import type { LlmErrorEntry, State, VcsCache } from "./types"
 import { trimSessions } from "./session-trim"
 
 export function applyGlobalEvent(input: {
@@ -366,6 +366,134 @@ export function applyDirectoryEvent(input: {
     }
     case "lsp.updated": {
       input.loadLsp()
+      break
+    }
+    case "llm.error": {
+      const props = event.properties as {
+        providerId: string
+        modelId: string
+        accountId: string
+        sessionID: string
+        status?: number
+        message: string
+        timestamp: number
+      }
+      const entry: LlmErrorEntry = {
+        providerId: props.providerId,
+        accountId: props.accountId,
+        modelId: props.modelId,
+        sessionID: props.sessionID,
+        status: props.status,
+        message: props.message,
+        timestamp: props.timestamp,
+        type: "error",
+      }
+      input.setStore(
+        produce((draft) => {
+          if (!draft.llm_errors) draft.llm_errors = []
+          // Replace existing entry for same provider+account+model vector
+          const idx = draft.llm_errors.findIndex(
+            (e) => e.providerId === props.providerId && e.accountId === props.accountId && e.modelId === props.modelId,
+          )
+          if (idx !== -1) {
+            draft.llm_errors[idx] = entry
+          } else {
+            draft.llm_errors.push(entry)
+          }
+          // Cap at 30 entries
+          if (draft.llm_errors.length > 30) {
+            draft.llm_errors = draft.llm_errors.slice(-30)
+          }
+        }),
+      )
+      break
+    }
+    case "ratelimit.detected": {
+      const props = event.properties as {
+        providerId: string
+        accountId: string
+        modelId: string
+        reason: string
+        backoffMs: number
+        source: string
+        timestamp: number
+      }
+      const entry: LlmErrorEntry = {
+        providerId: props.providerId,
+        accountId: props.accountId,
+        modelId: props.modelId,
+        message: props.reason,
+        timestamp: props.timestamp,
+        type: "ratelimit",
+        reason: props.reason,
+        backoffMs: props.backoffMs,
+      }
+      input.setStore(
+        produce((draft) => {
+          if (!draft.llm_errors) draft.llm_errors = []
+          const idx = draft.llm_errors.findIndex(
+            (e) => e.providerId === props.providerId && e.accountId === props.accountId && e.modelId === props.modelId,
+          )
+          if (idx !== -1) {
+            draft.llm_errors[idx] = entry
+          } else {
+            draft.llm_errors.push(entry)
+          }
+          if (draft.llm_errors.length > 30) {
+            draft.llm_errors = draft.llm_errors.slice(-30)
+          }
+        }),
+      )
+      break
+    }
+    case "ratelimit.cleared": {
+      const props = event.properties as {
+        providerId: string
+        accountId: string
+        modelId: string
+      }
+      input.setStore(
+        produce((draft) => {
+          if (!draft.llm_errors) return
+          draft.llm_errors = draft.llm_errors.filter(
+            (e) =>
+              !(e.providerId === props.providerId && e.accountId === props.accountId && e.modelId === props.modelId),
+          )
+        }),
+      )
+      break
+    }
+    case "ratelimit.auth_failed": {
+      const props = event.properties as {
+        providerId: string
+        accountId: string
+        modelId: string
+        message: string
+        timestamp: number
+      }
+      const entry: LlmErrorEntry = {
+        providerId: props.providerId,
+        accountId: props.accountId,
+        modelId: props.modelId,
+        message: props.message,
+        timestamp: props.timestamp,
+        type: "auth_failed",
+        reason: "AUTH_FAILED",
+        backoffMs: 3_600_000,
+      }
+      input.setStore(
+        produce((draft) => {
+          if (!draft.llm_errors) draft.llm_errors = []
+          const idx = draft.llm_errors.findIndex(
+            (e) => e.providerId === props.providerId && e.accountId === props.accountId && e.modelId === props.modelId,
+          )
+          if (idx !== -1) {
+            draft.llm_errors[idx] = entry
+          } else {
+            draft.llm_errors.push(entry)
+          }
+        }),
+      )
       break
     }
   }

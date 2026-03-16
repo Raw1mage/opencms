@@ -248,9 +248,9 @@ export default function SessionToolPageRoute() {
                             <div class="text-12-medium text-text-strong break-words">{runnerCard().title}</div>
                           </div>
                         </div>
-                        <Show when={runnerCard().chips.length > 0}>
+                        <Show when={(runnerCard().chips ?? []).length > 0}>
                           <div class="flex flex-wrap gap-1">
-                            <For each={runnerCard().chips}>
+                            <For each={runnerCard().chips ?? []}>
                               {(chip) => (
                                 <span
                                   class="inline-flex h-5 px-1.5 items-center rounded-full border text-[11px] font-medium"
@@ -267,16 +267,16 @@ export default function SessionToolPageRoute() {
                             </For>
                           </div>
                         </Show>
-                        <For each={runnerCard().lines}>
+                        <For each={runnerCard().lines ?? []}>
                           {(line) => <div class="text-12-regular text-text-weak break-words">{line}</div>}
                         </For>
                       </div>
 
                       <Show
-                        when={monitorEntries().length > 0}
+                        when={(monitorEntries() ?? []).length > 0}
                         fallback={<div class="text-12-regular text-text-weak">No active tasks.</div>}
                       >
-                        <For each={monitorEntries() as EnrichedMonitorEntry[]}>
+                        <For each={(monitorEntries() ?? []) as EnrichedMonitorEntry[]}>
                           {(item) => (
                             <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
                               <div class="flex items-start gap-2 min-w-0">

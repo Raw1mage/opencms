@@ -975,37 +975,29 @@ export namespace SessionProcessor {
                   await new Promise((resolve) => setTimeout(resolve, 100))
                   continue
                 } else {
-                  // Circuit breaker: no fallback available — all accounts exhausted
+                  // No fallback available — all accounts exhausted.
+                  // MUST break immediately to prevent fall-through to SessionRetry,
+                  // which would retry with the same rate-limited vector in an infinite loop.
                   consecutiveNullFallbacks++
-                  debugCheckpoint("syslog.rotation", "no fallback available (accounts exhausted)", {
+                  log.error("All accounts exhausted, surfacing error immediately", {
+                    consecutiveNullFallbacks,
+                    fallbackAttempts,
+                    triedCount: triedVectors.size,
+                  })
+                  debugCheckpoint("syslog.rotation", "CIRCUIT BREAKER: no fallback, surfacing error (no retry fall-through)", {
                     sessionID: input.sessionID,
                     consecutiveNullFallbacks,
                     fallbackAttempts,
                     triedVectors: Array.from(triedVectors),
+                    note: "immediate break prevents infinite retry with rate-limited vector",
                   })
-                  if (consecutiveNullFallbacks >= MAX_CONSECUTIVE_NULL_FALLBACKS) {
-                    log.error("All accounts exhausted, stopping rotation to prevent abuse detection", {
-                      consecutiveNullFallbacks,
-                      fallbackAttempts,
-                      triedCount: triedVectors.size,
-                    })
-                    debugCheckpoint("syslog.rotation", "CIRCUIT BREAKER: all accounts exhausted, surfacing error", {
-                      sessionID: input.sessionID,
-                      consecutiveNullFallbacks,
-                      fallbackAttempts,
-                    })
-                    // Surface error and stop — do NOT fall through to SessionRetry
-                    // which would cause an infinite retry loop when session identity
-                    // blocks cross-provider rotation and all same-provider accounts
-                    // are rate-limited.
-                    input.assistantMessage.error = MessageV2.fromError(e, { providerId: input.model.providerId })
-                    Bus.publish(Session.Event.Error, {
-                      sessionID: input.assistantMessage.sessionID,
-                      error: input.assistantMessage.error,
-                    })
-                    SessionStatus.set(input.sessionID, { type: "idle" })
-                    break
-                  }
+                  input.assistantMessage.error = MessageV2.fromError(e, { providerId: input.model.providerId })
+                  Bus.publish(Session.Event.Error, {
+                    sessionID: input.assistantMessage.sessionID,
+                    error: input.assistantMessage.error,
+                  })
+                  SessionStatus.set(input.sessionID, { type: "idle" })
+                  break
                 }
               }
             }
@@ -1089,21 +1081,19 @@ export namespace SessionProcessor {
                   await new Promise((resolve) => setTimeout(resolve, 100))
                   continue
                 } else {
+                  // No fallback for permanent error — break immediately
                   consecutiveNullFallbacks++
-                  if (consecutiveNullFallbacks >= MAX_CONSECUTIVE_NULL_FALLBACKS) {
-                    log.error("All accounts exhausted on permanent error, surfacing to user", {
-                      consecutiveNullFallbacks,
-                      fallbackAttempts,
-                    })
-                    // Surface error and stop — same fix as temporary error path
-                    input.assistantMessage.error = MessageV2.fromError(e, { providerId: input.model.providerId })
-                    Bus.publish(Session.Event.Error, {
-                      sessionID: input.assistantMessage.sessionID,
-                      error: input.assistantMessage.error,
-                    })
-                    SessionStatus.set(input.sessionID, { type: "idle" })
-                    break
-                  }
+                  log.error("All accounts exhausted on permanent error, surfacing to user", {
+                    consecutiveNullFallbacks,
+                    fallbackAttempts,
+                  })
+                  input.assistantMessage.error = MessageV2.fromError(e, { providerId: input.model.providerId })
+                  Bus.publish(Session.Event.Error, {
+                    sessionID: input.assistantMessage.sessionID,
+                    error: input.assistantMessage.error,
+                  })
+                  SessionStatus.set(input.sessionID, { type: "idle" })
+                  break
                 }
               }
             }
@@ -1120,6 +1110,84 @@ export namespace SessionProcessor {
             }
             const retry = SessionRetry.retryable(error)
             if (retry !== undefined) {
+              // FIX: Before falling into retry-with-delay, attempt rotation first.
+              // Rate limit errors that slip past isModelTemporaryError() (e.g. parsed
+              // from JSON body as "too_many_requests" or "rate_limit") should still
+              // trigger rotation instead of blindly retrying the same rate-limited vector.
+              const isRateLimitRetry =
+                retry === "Too Many Requests" ||
+                retry === "Rate Limited" ||
+                retry === "Provider is overloaded" ||
+                isRateLimitError(e)
+              if (isRateLimitRetry && fallbackAttempts <= MAX_FALLBACK_ATTEMPTS) {
+                fallbackAttempts++
+                const fallback = await LLM.handleRateLimitFallback(
+                  streamInput.model,
+                  "account-first",
+                  triedVectors,
+                  e,
+                  streamInput.accountId ??
+                    input.accountId ??
+                    input.assistantMessage.accountId ??
+                    streamInput.user.model.accountId,
+                  sessionIdentity,
+                )
+                if (fallback) {
+                  consecutiveNullFallbacks = 0
+                  log.info("Retry-path rotation: switching to fallback", {
+                    from: streamInput.model.id,
+                    to: fallback.model.id,
+                    retryMessage: retry,
+                    fallbackAttempts,
+                  })
+                  streamInput.model = fallback.model
+                  streamInput.accountId = fallback.accountId
+                  input.model = fallback.model
+                  input.accountId = fallback.accountId
+                  input.assistantMessage.modelID = fallback.model.id
+                  input.assistantMessage.providerId = fallback.model.providerId
+                  input.assistantMessage.accountId = fallback.accountId
+                  await Session.updateMessage(input.assistantMessage)
+                  await Session.pinExecutionIdentity({
+                    sessionID: input.sessionID,
+                    model: {
+                      providerId: input.assistantMessage.providerId,
+                      modelID: input.assistantMessage.modelID,
+                      accountId: input.assistantMessage.accountId,
+                    },
+                  })
+                  logSessionAccountAudit({
+                    requestPhase: "fallback-switch",
+                    sessionID: input.sessionID,
+                    userMessageID: streamInput.user.id,
+                    assistantMessageID: input.assistantMessage.id,
+                    providerId: fallback.model.providerId,
+                    modelID: fallback.model.id,
+                    accountId: fallback.accountId,
+                    source: "rate-limit-fallback",
+                    fallbackAttempts,
+                    note: "rate limit retry redirected to rotation",
+                  })
+                  attempt = 0
+                  await new Promise((resolve) => setTimeout(resolve, 100))
+                  continue
+                } else {
+                  // No fallback — surface error immediately, don't retry
+                  log.error("Retry-path rotation: no fallback, surfacing error", {
+                    retryMessage: retry,
+                    fallbackAttempts,
+                  })
+                  input.assistantMessage.error = error
+                  Bus.publish(Session.Event.Error, {
+                    sessionID: input.assistantMessage.sessionID,
+                    error: input.assistantMessage.error,
+                  })
+                  SessionStatus.set(input.sessionID, { type: "idle" })
+                  break
+                }
+              }
+
+              // Non-rate-limit retryable errors: use normal retry-with-delay
               attempt++
               const delay = SessionRetry.delay(attempt, error.name === "APIError" ? error : undefined)
               SessionStatus.set(input.sessionID, {

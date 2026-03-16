@@ -193,7 +193,7 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
   const defaultServer = useDefaultServerUrl(platform.getDefaultServerUrl)
   const mcpNames = createMemo(() => Object.keys(sync.data.mcp ?? {}).sort((a, b) => a.localeCompare(b)))
   const mcpStatus = (name: string) => sync.data.mcp?.[name]?.status
-  type StatusCardKey = "monitor" | "todo" | "servers" | "mcp"
+  type StatusCardKey = "monitor" | "todo" | "servers" | "mcp" | "llm"
 
   const renderSection = (key: StatusCardKey, title: string, children: JSX.Element, options?: { hidden?: boolean }) => {
     if (options?.hidden) return null
@@ -212,8 +212,79 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
     )
   }
 
+  const ERROR_TTL_MS = 5 * 60 * 1000 // show generic errors for 5 minutes
+
+  // Tick signal MUST be declared before any memo that references it (TDZ)
+  const [llmTick, setLlmTick] = createSignal(0)
+  {
+    const id = setInterval(() => setLlmTick((v) => v + 1), 10_000)
+    onCleanup(() => clearInterval(id))
+  }
+
+  const llmErrors = createMemo(() => sync.data.llm_errors ?? [])
+  const activeLlmErrors = createMemo(() => {
+    llmTick() // reactive dependency
+    const now = Date.now()
+    return llmErrors().filter((e) => {
+      if (e.backoffMs) return e.timestamp + e.backoffMs > now
+      return e.timestamp + ERROR_TTL_MS > now
+    })
+  })
+
+  const formatAge = (timestamp: number) => {
+    llmTick()
+    const ago = Date.now() - timestamp
+    if (ago < 60_000) return `${Math.floor(ago / 1000)}s ago`
+    if (ago < 3_600_000) return `${Math.floor(ago / 60_000)}m ago`
+    return `${Math.round(ago / 3_600_000 * 10) / 10}h ago`
+  }
+
   const cards = createMemo(() => {
     const result: Array<{ key: StatusCardKey; title: string; content: JSX.Element }> = []
+
+    // LLM status card — always present, shows active errors or "ok" state
+    result.push({
+      key: "llm",
+      title: `LLM 狀態${activeLlmErrors().length > 0 ? ` (${activeLlmErrors().length})` : ""}`,
+      content: (
+        <Show
+          when={activeLlmErrors().length > 0}
+          fallback={
+            <div class="flex items-center gap-2 py-1">
+              <div class="size-1.5 rounded-full bg-icon-success-base shrink-0" />
+              <span class="text-12-regular text-text-weak">All models operational</span>
+            </div>
+          }
+        >
+          <div class="flex flex-col gap-1">
+            <For each={activeLlmErrors()}>
+              {(entry) => (
+                <div class="flex items-start gap-2 py-1 px-1 rounded-md text-left">
+                  <div
+                    classList={{
+                      "size-1.5 rounded-full shrink-0 mt-1.5": true,
+                      "bg-icon-critical-base": entry.type === "auth_failed",
+                      "bg-icon-warning-base": entry.type === "ratelimit" || entry.type === "error",
+                    }}
+                  />
+                  <div class="flex flex-col gap-0.5 min-w-0 flex-1">
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-12-medium text-text-base truncate">{entry.modelId}</span>
+                      <span class="text-11-regular text-text-weak shrink-0">{formatAge(entry.timestamp)}</span>
+                    </div>
+                    <span class="text-11-regular text-text-weak truncate">{entry.providerId}</span>
+                    <span class="text-11-regular text-text-critical break-words whitespace-pre-wrap">
+                      {entry.message}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </For>
+          </div>
+        </Show>
+      ),
+    })
+
     if (props.monitorContent) result.push({ key: "monitor", title: "工作監控", content: props.monitorContent })
     if (props.todoContent)
       result.push({ key: "todo", title: language.t("session.tools.todo"), content: props.todoContent })
@@ -352,7 +423,7 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
   )
 }
 
-function SortableStatusSection(props: { id: "monitor" | "todo" | "servers" | "mcp"; children: JSX.Element }) {
+function SortableStatusSection(props: { id: "monitor" | "todo" | "servers" | "mcp" | "llm"; children: JSX.Element }) {
   const sortable = createSortable(props.id)
   return (
     <div use:sortable classList={{ "opacity-40": sortable.isActiveDraggable }}>

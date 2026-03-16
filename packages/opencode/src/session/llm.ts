@@ -26,8 +26,10 @@ import { Flag } from "@/flag/flag"
 import { PermissionNext } from "@/permission/next"
 import { Auth } from "@/auth"
 
+import z from "zod"
 import { findFallback, type ModelVector, type FallbackStrategy, isVectorRateLimited } from "@/account/rotation3d"
 import { Bus } from "@/bus"
+import { BusEvent } from "@/bus/bus-event"
 import { TuiEvent } from "@/cli/cmd/tui/event"
 import { debugCheckpoint } from "@/util/debug"
 import { RateLimitJudge, isRateLimitError, isAuthError, formatRateLimitReason } from "@/account/rate-limit-judge"
@@ -35,6 +37,23 @@ import { RateLimitJudge, isRateLimitError, isAuthError, formatRateLimitReason } 
 import { RequestMonitor } from "@/account/monitor"
 import ENABLEMENT from "./prompt/enablement.json"
 import { logSessionAccountAudit, resolveAccountAuditSource } from "./account-audit"
+
+/**
+ * Bus event for real-time LLM error reporting to the webapp sidebar.
+ * Fires for EVERY error in onError — not just rate limits.
+ */
+export const LlmErrorEvent = BusEvent.define(
+  "llm.error",
+  z.object({
+    providerId: z.string(),
+    modelId: z.string(),
+    accountId: z.string(),
+    sessionID: z.string(),
+    status: z.number().optional(),
+    message: z.string(),
+    timestamp: z.number(),
+  }),
+)
 
 export namespace LLM {
   const log = Log.create({ service: "llm" })
@@ -440,6 +459,27 @@ export namespace LLM {
           sessionID: input.sessionID,
           errorDetail: serializeErrorForDebug(error),
         })
+
+        // Publish raw error to webapp sidebar — fires for ALL errors
+        {
+          const details = serializeErrorForDebug(error)
+          const status = typeof details.status === "number" ? details.status : undefined
+          const msg =
+            typeof details.message === "string"
+              ? details.message
+              : error instanceof Error
+                ? error.message
+                : String(error)
+          Bus.publish(LlmErrorEvent, {
+            providerId: input.model.providerId,
+            modelId: input.model.id,
+            accountId: accountId || "unknown",
+            sessionID: input.sessionID,
+            status,
+            message: msg.length > 300 ? msg.slice(0, 300) + "…" : msg,
+            timestamp: Date.now(),
+          }).catch(() => {})
+        }
 
         if (!accountId) return
 

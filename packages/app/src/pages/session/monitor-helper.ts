@@ -116,7 +116,7 @@ export function buildRunnerDisplayCard(input: {
     }
   }
 
-  for (const message of input.messages ?? []) {
+  for (const message of (input.messages ?? [])) {
     if (message.role !== "assistant") continue
     const parts = input.partsByMessage?.[message.id] ?? []
     for (const part of parts) {
@@ -237,7 +237,7 @@ export function buildMonitorEntries(input: {
   partsByMessage?: Record<string, readonly Part[] | undefined>
 }) {
   const taskNarration = new Map<string, string>()
-  for (const message of input.messages) {
+  for (const message of input.messages ?? []) {
     if (message.role !== "assistant") continue
     const parts = input.partsByMessage?.[message.id] ?? []
     for (const part of parts) {
@@ -253,7 +253,7 @@ export function buildMonitorEntries(input: {
     string,
     { todo?: MonitorTodoLink; result?: string; narration?: string; sessionID: string; agent?: string; tool: string }
   >()
-  for (const message of input.messages) {
+  for (const message of input.messages ?? []) {
     if (message.role !== "assistant") continue
     const parts = input.partsByMessage?.[message.id] ?? []
     for (const part of parts) {
@@ -276,7 +276,7 @@ export function buildMonitorEntries(input: {
     }
   }
 
-  const raw = input.raw
+  const raw = (input.raw ?? [])
     .filter((x) => activeStatuses.has(x.status.type))
     .slice()
     .sort((a, b) => b.updated - a.updated)

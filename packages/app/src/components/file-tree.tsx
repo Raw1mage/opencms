@@ -331,7 +331,7 @@ export default function FileTree(props: {
   })
 
   const nodes = createMemo(() => {
-    const nodes = file.tree.children(props.path)
+    const nodes = file.tree.children(props.path) ?? []
     const current = filter()
     if (!current) return nodes
 
