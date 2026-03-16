@@ -6,15 +6,15 @@ import type { ApprovalGate, ContinuationDecisionReason } from "./workflow-runner
  * RunTrigger — represents an intent to start or continue work in a session.
  *
  * Decouples "what wants to run" from "should it be allowed to run" (gate evaluation).
- * Currently two trigger types exist:
+ * Currently three trigger types exist:
  *   - continuation: the existing todo-driven autonomous continuation path
  *   - api: scaffold for external API-initiated triggers (Phase 5B.4)
- *
- * Future types (scheduled, webhook, etc.) extend this union.
+ *   - cron: scheduled job execution triggers (Phase 8 / D.1)
  */
 export type RunTrigger =
   | RunTrigger.Continuation
   | RunTrigger.Api
+  | RunTrigger.Cron
 
 export namespace RunTrigger {
   export type Continuation = {
@@ -35,6 +35,19 @@ export namespace RunTrigger {
       text: string
       todo?: Todo.Info
       apiContext?: Record<string, unknown>
+    }
+    priority: TriggerPriority
+    gatePolicy: TriggerGatePolicy
+  }
+
+  export type Cron = {
+    type: "cron"
+    source: "scheduled" | "heartbeat"
+    payload: {
+      text: string
+      jobId: string
+      runId: string
+      lightContext: boolean
     }
     priority: TriggerPriority
     gatePolicy: TriggerGatePolicy
@@ -62,6 +75,13 @@ export const API_GATE_POLICY: TriggerGatePolicy = {
   respectMaxRounds: false,
   checkApprovalGates: true,
   checkStructuredStops: true,
+}
+
+export const CRON_GATE_POLICY: TriggerGatePolicy = {
+  requireApprovedMission: false,
+  respectMaxRounds: false,
+  checkApprovalGates: false,
+  checkStructuredStops: false,
 }
 
 /**
@@ -213,5 +233,31 @@ export function buildApiTrigger(input: {
     },
     priority: input.priority ?? "normal",
     gatePolicy: API_GATE_POLICY,
+  }
+}
+
+/**
+ * Build a cron trigger for a scheduled job execution (D.1).
+ * Cron triggers bypass all session-level gates (mission, rounds, approvals, stops).
+ */
+export function buildCronTrigger(input: {
+  source: "scheduled" | "heartbeat"
+  text: string
+  jobId: string
+  runId: string
+  lightContext?: boolean
+  priority?: TriggerPriority
+}): RunTrigger.Cron {
+  return {
+    type: "cron",
+    source: input.source,
+    payload: {
+      text: input.text,
+      jobId: input.jobId,
+      runId: input.runId,
+      lightContext: input.lightContext ?? false,
+    },
+    priority: input.priority ?? "background",
+    gatePolicy: CRON_GATE_POLICY,
   }
 }
