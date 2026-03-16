@@ -84,6 +84,7 @@ export type State = {
     [name: string]: McpStatus
   }
   llm_errors: LlmErrorEntry[]
+  llm_history: LlmHistoryEntry[]
   lsp: LspStatus[]
   vcs: VcsInfo | undefined
   limit: number
@@ -108,6 +109,17 @@ export type LlmErrorEntry = {
   reason?: string
   backoffMs?: number
 }
+
+export type LlmHistoryEntry = {
+  providerId: string
+  modelId: string
+  timestamp: number
+  /** "error" | "ratelimit" | "auth_failed" | "recovered" */
+  state: string
+  message?: string
+}
+
+export const LLM_HISTORY_CAP = 5
 
 export type VcsCache = {
   store: Store<{ value: VcsInfo | undefined }>

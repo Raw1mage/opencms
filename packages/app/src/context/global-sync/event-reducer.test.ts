@@ -102,6 +102,7 @@ const baseState = (input: Partial<State> = {}) =>
     question: {},
     mcp: {},
     llm_errors: [],
+    llm_history: [],
     lsp: [],
     vcs: undefined,
     limit: 10,

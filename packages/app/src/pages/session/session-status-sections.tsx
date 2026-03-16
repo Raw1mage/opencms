@@ -230,6 +230,7 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
       return e.timestamp + ERROR_TTL_MS > now
     })
   })
+  const llmHistory = createMemo(() => sync.data.llm_history ?? [])
 
   const formatAge = (timestamp: number) => {
     llmTick()
@@ -242,21 +243,16 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
   const cards = createMemo(() => {
     const result: Array<{ key: StatusCardKey; title: string; content: JSX.Element }> = []
 
-    // LLM status card — always present, shows active errors or "ok" state
+    // LLM status card — shows active errors + recent history rotation
+    const activeCount = activeLlmErrors().length
+    const history = llmHistory()
     result.push({
       key: "llm",
-      title: `LLM 狀態${activeLlmErrors().length > 0 ? ` (${activeLlmErrors().length})` : ""}`,
+      title: `LLM 狀態${activeCount > 0 ? ` (${activeCount})` : ""}`,
       content: (
-        <Show
-          when={activeLlmErrors().length > 0}
-          fallback={
-            <div class="flex items-center gap-2 py-1">
-              <div class="size-1.5 rounded-full bg-icon-success-base shrink-0" />
-              <span class="text-12-regular text-text-weak">All models operational</span>
-            </div>
-          }
-        >
-          <div class="flex flex-col gap-1">
+        <div class="flex flex-col gap-1">
+          {/* Active errors — shown first when present */}
+          <Show when={activeCount > 0}>
             <For each={activeLlmErrors()}>
               {(entry) => (
                 <div class="flex items-start gap-2 py-1 px-1 rounded-md text-left">
@@ -280,8 +276,53 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
                 </div>
               )}
             </For>
-          </div>
-        </Show>
+          </Show>
+          {/* History rotation — last 5 state changes */}
+          <Show
+            when={history.length > 0}
+            fallback={
+              <Show when={activeCount === 0}>
+                <div class="flex items-center gap-2 py-1">
+                  <div class="size-1.5 rounded-full bg-icon-success-base shrink-0" />
+                  <span class="text-12-regular text-text-weak">All models operational</span>
+                </div>
+              </Show>
+            }
+          >
+            <Show when={activeCount > 0}>
+              <div class="border-t border-border-weak-base my-1" />
+            </Show>
+            <div class="flex items-center gap-1 py-0.5">
+              <span class="text-11-regular text-text-weak uppercase tracking-wide">Recent</span>
+            </div>
+            <For each={history}>
+              {(h) => (
+                <div class="flex items-center gap-2 py-0.5 px-1">
+                  <div
+                    classList={{
+                      "size-1.5 rounded-full shrink-0": true,
+                      "bg-icon-success-base": h.state === "recovered",
+                      "bg-icon-critical-base": h.state === "auth_failed",
+                      "bg-icon-warning-base": h.state === "error" || h.state === "ratelimit",
+                    }}
+                  />
+                  <span class="text-11-regular text-text-base truncate flex-1">{h.modelId}</span>
+                  <span
+                    classList={{
+                      "text-11-regular shrink-0": true,
+                      "text-success": h.state === "recovered",
+                      "text-text-critical": h.state === "auth_failed",
+                      "text-text-warning": h.state === "error" || h.state === "ratelimit",
+                    }}
+                  >
+                    {h.state === "recovered" ? "OK" : h.state === "auth_failed" ? "AUTH" : h.state === "ratelimit" ? "RATE" : "ERR"}
+                  </span>
+                  <span class="text-11-regular text-text-weak shrink-0">{formatAge(h.timestamp)}</span>
+                </div>
+              )}
+            </For>
+          </Show>
+        </div>
       ),
     })
 

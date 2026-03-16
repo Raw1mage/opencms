@@ -10,8 +10,17 @@ import type {
   SessionStatus,
   Todo,
 } from "@opencode-ai/sdk/v2/client"
-import type { LlmErrorEntry, State, VcsCache } from "./types"
+import type { LlmErrorEntry, LlmHistoryEntry, State, VcsCache } from "./types"
+import { LLM_HISTORY_CAP } from "./types"
 import { trimSessions } from "./session-trim"
+
+function pushLlmHistory(draft: State, entry: LlmHistoryEntry) {
+  if (!draft.llm_history) draft.llm_history = []
+  draft.llm_history.push(entry)
+  if (draft.llm_history.length > LLM_HISTORY_CAP) {
+    draft.llm_history = draft.llm_history.slice(-LLM_HISTORY_CAP)
+  }
+}
 
 export function applyGlobalEvent(input: {
   event: { type: string; properties?: unknown }
@@ -404,6 +413,14 @@ export function applyDirectoryEvent(input: {
           if (draft.llm_errors.length > 30) {
             draft.llm_errors = draft.llm_errors.slice(-30)
           }
+          // Push to history ring buffer
+          pushLlmHistory(draft, {
+            providerId: props.providerId,
+            modelId: props.modelId,
+            timestamp: props.timestamp,
+            state: "error",
+            message: props.message,
+          })
         }),
       )
       break
@@ -442,6 +459,13 @@ export function applyDirectoryEvent(input: {
           if (draft.llm_errors.length > 30) {
             draft.llm_errors = draft.llm_errors.slice(-30)
           }
+          pushLlmHistory(draft, {
+            providerId: props.providerId,
+            modelId: props.modelId,
+            timestamp: props.timestamp,
+            state: "ratelimit",
+            message: props.reason,
+          })
         }),
       )
       break
@@ -459,6 +483,12 @@ export function applyDirectoryEvent(input: {
             (e) =>
               !(e.providerId === props.providerId && e.accountId === props.accountId && e.modelId === props.modelId),
           )
+          pushLlmHistory(draft, {
+            providerId: props.providerId,
+            modelId: props.modelId,
+            timestamp: Date.now(),
+            state: "recovered",
+          })
         }),
       )
       break
@@ -492,6 +522,13 @@ export function applyDirectoryEvent(input: {
           } else {
             draft.llm_errors.push(entry)
           }
+          pushLlmHistory(draft, {
+            providerId: props.providerId,
+            modelId: props.modelId,
+            timestamp: props.timestamp,
+            state: "auth_failed",
+            message: props.message,
+          })
         }),
       )
       break
