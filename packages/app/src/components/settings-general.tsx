@@ -9,6 +9,7 @@ import { useTheme, type ColorScheme } from "@opencode-ai/ui/theme"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { useGlobalSDK } from "@/context/global-sdk"
+import { useSync } from "@/context/sync"
 import { useSettings, monoFontFamily } from "@/context/settings"
 import { buildTriggerPayload, normalizeKillSwitchStatus } from "./settings-kill-switch"
 import { formatRestartErrorResponse } from "@/utils/restart-errors"
@@ -47,11 +48,22 @@ export const SettingsGeneral: Component = () => {
   const settings = useSettings()
   const [restartState, setRestartState] = createSignal<"idle" | "restarting" | "waiting" | "error">("idle")
   const [restartMessage, setRestartMessage] = createSignal<string>("")
+  const sync = useSync()
   const [killSwitchReason, setKillSwitchReason] = createSignal("")
   const [killSwitchMfa, setKillSwitchMfa] = createSignal("")
   const [killSwitchRequestID, setKillSwitchRequestID] = createSignal<string | null>(null)
   const [killSwitchMessage, setKillSwitchMessage] = createSignal("")
   const [killSwitchBusy, setKillSwitchBusy] = createSignal(false)
+  const [killSwitchConfirm, setKillSwitchConfirm] = createSignal<"idle" | "trigger" | "cancel">("idle")
+  const [killSwitchSnapshot, setKillSwitchSnapshot] = createSignal(true)
+
+  const ksStatus = createMemo(() => {
+    const sse = sync.data.killswitch_status
+    if (sse) return { active: sse.active, state: sse.state, requestID: sse.requestID, snapshotURL: sse.snapshotURL }
+    const fetched = killSwitchStatus()
+    if (fetched) return { active: fetched.active, state: fetched.state, requestID: fetched.requestID, snapshotURL: fetched.snapshotURL }
+    return undefined
+  })
 
   const [killSwitchStatus, killSwitchActions] = createResource(async () => {
     const response = await globalSDK.fetch(`${globalSDK.url}/api/v2/admin/kill-switch/status`, {
@@ -151,7 +163,12 @@ export const SettingsGeneral: Component = () => {
       setKillSwitchMessage("Reason is required.")
       return
     }
-    if (!window.confirm("Trigger kill-switch now? This will pause/cancel ongoing work.")) return
+    if (killSwitchConfirm() !== "trigger") {
+      setKillSwitchConfirm("trigger")
+      setKillSwitchMessage("Click Trigger again to confirm.")
+      return
+    }
+    setKillSwitchConfirm("idle")
 
     setKillSwitchBusy(true)
     setKillSwitchMessage("")
@@ -159,7 +176,7 @@ export const SettingsGeneral: Component = () => {
       const first = await globalSDK.fetch(`${globalSDK.url}/api/v2/admin/kill-switch/trigger`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(buildTriggerPayload({ reason })),
+        body: JSON.stringify(buildTriggerPayload({ reason, snapshot: killSwitchSnapshot() })),
       })
 
       if (first.status === 202) {
@@ -218,7 +235,12 @@ export const SettingsGeneral: Component = () => {
 
   const cancelKillSwitch = async () => {
     if (killSwitchBusy()) return
-    if (!window.confirm("Cancel kill-switch and resume new scheduling?")) return
+    if (killSwitchConfirm() !== "cancel") {
+      setKillSwitchConfirm("cancel")
+      setKillSwitchMessage("Click Cancel again to confirm.")
+      return
+    }
+    setKillSwitchConfirm("idle")
 
     setKillSwitchBusy(true)
     setKillSwitchMessage("")
@@ -589,20 +611,32 @@ export const SettingsGeneral: Component = () => {
           description="Emergency control for global pause/resume. Trigger supports MFA challenge flow."
         >
           <div class="flex flex-col items-end gap-2 w-[420px] max-w-full">
-            <div class="text-11-regular text-text-weak text-right break-all">
-              status: {killSwitchStatus.loading ? "loading…" : killSwitchStatus()?.active ? "active" : "inactive"}
-              <br />
-              request_id: {killSwitchStatus()?.requestID ?? killSwitchRequestID() ?? "-"}
-              <br />
-              state: {killSwitchStatus()?.state ?? "-"}
-              <br />
-              snapshot_url: {killSwitchStatus()?.snapshotURL ?? "-"}
+            <div class="flex items-center gap-2 text-12-medium">
+              <span
+                classList={{
+                  "px-2 py-0.5 rounded-full text-11-medium": true,
+                  "bg-red-500/15 text-red-500": !!ksStatus()?.active,
+                  "bg-emerald-500/15 text-emerald-500": !ksStatus()?.active,
+                }}
+              >
+                {killSwitchStatus.loading ? "loading…" : ksStatus()?.active ? "ACTIVE" : "inactive"}
+              </span>
+              <Show when={ksStatus()?.active}>
+                <span class="text-11-regular text-text-weak">
+                  {ksStatus()?.state} · {ksStatus()?.requestID ?? "-"}
+                </span>
+              </Show>
             </div>
+            <Show when={ksStatus()?.snapshotURL}>
+              <span class="text-11-regular text-text-weak text-right break-all">
+                snapshot: {ksStatus()!.snapshotURL}
+              </span>
+            </Show>
 
             <div class="w-full">
               <TextField
                 value={killSwitchReason()}
-                onChange={setKillSwitchReason}
+                onChange={(v) => { setKillSwitchReason(v); setKillSwitchConfirm("idle") }}
                 placeholder="Reason (required)"
                 hideLabel
                 disabled={killSwitchBusy()}
@@ -622,21 +656,24 @@ export const SettingsGeneral: Component = () => {
             </Show>
 
             <div class="flex items-center gap-2">
-              <Button
-                size="small"
-                variant="secondary"
-                onClick={() => void killSwitchActions.refetch()}
-                disabled={killSwitchBusy()}
-              >
-                Refresh
-              </Button>
+              <label class="flex items-center gap-1.5 text-11-regular text-text-weak cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={killSwitchSnapshot()}
+                  onChange={(e) => setKillSwitchSnapshot(e.currentTarget.checked)}
+                  disabled={killSwitchBusy()}
+                  class="accent-current"
+                />
+                Snapshot
+              </label>
+              <div class="flex-1" />
               <Button
                 size="small"
                 variant="secondary"
                 onClick={() => void cancelKillSwitch()}
                 disabled={killSwitchBusy()}
               >
-                Cancel
+                {killSwitchConfirm() === "cancel" ? "Confirm Cancel" : "Cancel"}
               </Button>
               <Button
                 size="small"
@@ -644,7 +681,7 @@ export const SettingsGeneral: Component = () => {
                 onClick={() => void triggerKillSwitch()}
                 disabled={killSwitchBusy()}
               >
-                Trigger
+                {killSwitchConfirm() === "trigger" ? "Confirm Trigger" : "Trigger"}
               </Button>
             </div>
 

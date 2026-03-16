@@ -1,31 +1,26 @@
 ## Goal
 
-建立 kill-switch phase-1 的「執行契約版」規格：以 runtime 真實路徑（`packages/opencode/**`）收斂後端控制平面與測試驗證，確保可授權觸發、可阻擋新排程、可觀測 ACK/fallback 與可審計。
+建立一套可由 coding agent 直接執行的 kill-switch 實作規範，能讓有權限的操作者透過 Web/TUI/API 以受控、安全、可觀測的方式暫停或終止自動代理系統（global scope）。
+
+Parent plan: specs/20260315_openclaw_reproduction/ (this kill-switch workstream is a continuation of the OpenClaw plan and should align with its authority and artifacts)
 
 ## Scope
 
-- IN (milestone-1):
-  - `/api/v2/admin/kill-switch/*` 後端路由契約（status/trigger/cancel/task control）
-  - `KillSwitchService`（state/audit/idempotency/cooldown/mfa/ack/fallback）
-  - session scheduling gate（`message`/`prompt_async` -> `409 KILL_SWITCH_ACTIVE`）
-  - auth-bound operator gate + capability gate `kill_switch.trigger`（deny-by-default）
-  - 後端測試與 typecheck
-- OUT (deferred):
-  - Web Admin UI
-  - TUI 控制入口
-  - Redis/MinIO 強綁定部署（改為 adapter phase）
+- Primary: Global kill-switch 實作，支援可選 scope (global | session | instance)。
+- Secondary: Web Admin + TUI trigger 與受控 API；RBAC 與 MFA 驗證；snapshot 與 audit 寫入。
+- Out of scope: provider-side連帶自動重啟（須另案處理）、跨集群 multi-region replication（視部署而定）。
 
 ## Assumptions
 
-- `RequestUser` 與 `WebAuth` 已可提供 request-level operator 身份邊界。
-- global config permission 可由 `Config.getGlobal().permission` 取得並用 `PermissionNext` 評估。
-- runtime 已有 `Storage` 可持久化 kill-switch state/audit/snapshot placeholder。
+- 系統已有身份驗證與角色管理機制可擴展 RBAC。
+- 系統 agent 與 scheduler 皆在啟動/派發任務前可檢查全域狀態（能讀取 Redis/etcd/DB）。
+- 有一個可寫入的持久 storage（DB 或 object store）與通知通道（Slack/Email/Webhook）。
 
 ## Stop Gates
 
-- 若 capability policy 非 `allow`，kill-switch 操作必須 fail-fast（403）；不得新增隱式 fallback。
-- 若測試矩陣（route/service/session-gate）或 typecheck 未過，不得宣告里程碑完成。
-- 若新實作切片未在 `tasks.md` 命名，不得進入 build execution。
+- 不可繼續：任何實作在未通過安全審查（task `security-review`）前不得啟用公開 API。
+- 實作完成度必須通過：API 單元測試、RBAC 驗證測試、E2E Web 路徑測試。
+- 任何變更必須先於 `specs/*` 與 `tasks.md` 註記並且得到一位 owner 批准。
 
 ## Critical Files
 
@@ -36,72 +31,58 @@
 - specs/20260316_kill-switch/control-protocol.md
 - specs/20260316_kill-switch/rbac-hooks.md
 - specs/20260316_kill-switch/snapshot-orchestration.md
-- packages/opencode/src/server/app.ts
-- packages/opencode/src/server/routes/killswitch.ts
-- packages/opencode/src/server/killswitch/service.ts
-- packages/opencode/src/server/routes/session.ts
-- packages/opencode/src/server/routes/killswitch.test.ts
-- packages/opencode/src/server/routes/session.killswitch-gate.test.ts
-- packages/opencode/src/server/killswitch/service.test.ts
+- src/server/routes/admin/kill_switch.\* (controller + router)
+- src/server/services/kill_switch_state.\* (state management, TTL, persistence)
+- src/agents/launcher (check kill-switch state before launching agents)
+- webapp/src/admin/KillSwitchButton.\* (frontend)
+- tui/src/commands/kill_switch.\* (TUI integration)
 
 ## Structured Execution Phases
 
-Phase A — Planner convergence (done)
+Phase A — Spec & Security (planner)
 
-- Rewrite all companion artifacts to runtime truth.
+- Deliverables: implementation-spec.md, design.md, security checklist.
+- Owner: planner / security.
 
-Phase B — Backend control-plane convergence (done)
+Phase B — Core API & State (coding)
 
-- Runtime route/service integration + session scheduling gate + ACK/fallback behavior.
+- Implement state store, API endpoints (status, trigger, cancel), audit writes, snapshot orchestration.
+- Ensure endpoints are idempotent and return request_id.
 
-Phase C — Security hardening (done)
+Phase C — Integration (coding)
 
-- auth-bound operator gate + capability `kill_switch.trigger` deny-by-default + MFA challenge/verify path.
+- Integrate check into agent startup / scheduler path (read state key, short-circuit new task start).
+- Implement soft-pause semantics: mark state -> prevent new tasks -> notify running tasks to begin graceful shutdown (via signal or control channel).
 
-Phase D — Validation convergence (done)
+Phase D — Enforce & Observability (coding)
 
-- route/service/session-gate tests green + package typecheck green.
+- Implement forced-kill after timeout: iterate tasks still running -> terminate worker processes -> write final audit.
+- Implement snapshot generation and upload, then link in audit.
 
-Phase E — Ops closure (done)
+Phase E — UI & TUI (frontend)
 
-- `finalize-deploy-policy-doc`
-- `build-runbook`
+- Web Admin: button, confirmation modal, reason field, snapshot toggle, display state/status
+- TUI: hotkey + confirmation flow
 
-Artifacts:
+Phase F — Tests & Runbook
 
-- `docs/policies/kill-switch-deployment-policy.md`
-- `docs/runbooks/kill-switch-incident-runbook.md`
-
-Phase F — Deferred phase-2 (completed in this execution round)
-
-- Redis control adapter
-- MinIO snapshot adapter
-- Web/TUI operator UI
-
-Artifacts:
-
-- `packages/opencode/src/server/killswitch/service.ts` (control transport + snapshot backend adapters)
-- `packages/opencode/src/server/killswitch/service.test.ts` (adapter fail-fast tests)
-- `packages/opencode/src/cli/cmd/killswitch.ts` + `packages/opencode/test/cli/killswitch.test.ts`
-- `packages/app/src/components/settings-general.tsx`
-- `packages/app/src/components/settings-kill-switch.ts`
-- `packages/app/src/components/settings-kill-switch.test.ts`
+- Unit tests, integration tests, E2E tests, runbook + postmortem template.
 
 ## Validation
 
-- Acceptance criteria:
-  1. authorized & capability-allowed trigger returns `request_id` (+ snapshot_url placeholder)
-  2. unauthorized/unauthenticated/capability-denied request fail-fast with explicit error
-  3. kill-switch active blocks scheduling endpoints with `409 KILL_SWITCH_ACTIVE`
-  4. ack rejected/timeout leads to forceKill fallback and auditable failure path
+- Acceptance criteria (explicit):
+  1. Authorized user can POST /api/admin/kill-switch with reason -> returns accepted + request_id and snapshot_url.
+  2. After trigger, new task launches are rejected; existing tasks enter graceful window; system-wide state readable via GET /api/admin/kill-switch/status.
+  3. After soft_timeout, remaining tasks are forcefully terminated and audit contains final state + snapshot.
+  4. Audit entries recorded for trigger/cancel with required fields.
 
-- Required evidence:
-  - `bun test packages/opencode/src/server/routes/killswitch.test.ts packages/opencode/src/server/routes/session.killswitch-gate.test.ts packages/opencode/src/server/killswitch/service.test.ts`
-  - `bun run typecheck` (workdir `packages/opencode`)
+- Tests to write:
+  - API unit tests for auth + payload validation.
+  - Integration test simulating scheduler + agent respecting state.
+  - Timeout E2E verifying hard-kill path.
 
 ## Handoff
 
-- Use `tasks.md` canonical names for runtime todo materialization.
-- Build mode should execute pending milestone-1 tasks first (`finalize-deploy-policy-doc`, `build-runbook`).
-- Any new implementation slice must be added back to spec/tasks before coding.
-- After confirming this plan package, switch via `plan_exit`.
+- Provide `request_id` for each trigger for traceability.
+- Keep `tasks.md` as the canonical task list; build agent should run `tasks.md` items sequentially.
+- After build readiness, call `plan_exit` to switch to build mode.

@@ -83,6 +83,16 @@ export type State = {
   mcp: {
     [name: string]: McpStatus
   }
+  killswitch_status:
+    | {
+        active: boolean
+        state: string
+        requestID?: string
+        initiator?: string
+        reason?: string
+        snapshotURL?: string | null
+      }
+    | undefined
   llm_errors: LlmErrorEntry[]
   llm_history: LlmHistoryEntry[]
   lsp: LspStatus[]

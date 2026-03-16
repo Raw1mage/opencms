@@ -208,6 +208,7 @@ export function createChildStoreManager(input: {
             permission: {},
             question: {},
             mcp: {},
+            killswitch_status: undefined,
             llm_errors: [],
             llm_history: [],
             lsp: [],

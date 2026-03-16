@@ -377,6 +377,18 @@ export function applyDirectoryEvent(input: {
       input.loadLsp()
       break
     }
+    case "killswitch.status.changed": {
+      const props = event.properties as {
+        active: boolean
+        state: string
+        requestID?: string
+        initiator?: string
+        reason?: string
+        snapshotURL?: string | null
+      }
+      input.setStore("killswitch_status", reconcile(props))
+      break
+    }
     case "llm.error": {
       const props = event.properties as {
         providerId: string

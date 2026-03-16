@@ -1,59 +1,36 @@
-# Tasks for Kill-switch Implementation (phase-1 canonical)
+# Tasks for Kill-switch Implementation
 
-## Milestone-1: Backend + tests convergence
+1-spec: 完成 planner artifacts（implementation-spec.md, spec.md, design.md） — owner: planner — status: done
 
-1. `rewrite-spec-bundle` (planner) — **done**
-   - proposal/spec/design/implementation-spec/tasks/handoff/control-protocol/rbac-hooks/snapshot-orchestration/mapping 對齊 runtime 現況
+2-core-api: 實作 state store 與 API endpoints — status: done
+- files: packages/opencode/src/server/killswitch/service.ts , packages/opencode/src/server/routes/killswitch.ts
 
-2. `integrate-runtime-routes` (backend) — **done**
-   - kill-switch route mount in `packages/opencode/src/server/app.ts`
-   - runtime routes/service moved to `packages/opencode/src/server/**`
+3-rbac-mfa: 整合 RBAC 與 MFA 檢查到 API — status: done
+- owner: backend/security
 
-3. `enforce-scheduling-gate` (backend) — **done**
-   - block new scheduling in session message/prompt_async when kill-switch active
+4-agent-check: 在 agent 啟動與 scheduler path 加入 check（短路新任務） — status: done
+- owner: infra 
 
-4. `harden-auth-gate` (backend/security) — **done**
-   - replace header role with auth-bound operator gate
+5-soft-kill: 實作 soft-pause signaling (Local transport) — status: done
+- owner: infra
 
-5. `harden-capability-gate` (backend/security) — **done**
-   - explicit capability `kill_switch.trigger`, deny-by-default
+6-hard-kill: 實作 timeout 驅動的 force termination — status: done
+- owner: infra
 
-6. `validate-killswitch-test-matrix` (qa/backend) — **done**
-   - route/service/session-gate tests pass + typecheck pass
+7-snapshot: snapshot generator 與稽核寫入 — status: done
+- owner: infra/ops
 
-7. `finalize-deploy-policy-doc` (ops/security) — **done**
-   - document required global config permission (`kill_switch.trigger = allow`) and rollout checklist
-   - output: `docs/policies/kill-switch-deployment-policy.md`
+8-cli: 實作 CLI 控制命令 — status: done
+- file: packages/opencode/src/cli/cmd/killswitch.ts
 
-8. `build-runbook` (ops) — **done**
-   - incident runbook + postmortem template for trigger/cancel/fallback handling
-   - output: `docs/runbooks/kill-switch-incident-runbook.md`
+9-web-ui: admin button 與 modal — status: pending
+- owner: frontend
 
-## Milestone-2: Deferred adapters and UI
+10-tui: TUI hotkey + confirmation flow — status: pending
+- owner: tui
 
-9. `adapterize-control-transport` (infra/backend) — done
-   - Redis/NATS transport adapter with same seq/ACK contract
-   - output: adapterized selection in `packages/opencode/src/server/killswitch/service.ts`
-   - default: `local`, explicit `redis` mode fail-fast without required config
+11-tests: 單元與集成測試 — status: done
+- tests: packages/opencode/src/server/killswitch/service.test.ts, packages/opencode/src/server/routes/killswitch.test.ts
 
-10. `adapterize-snapshot-backend` (infra/ops) — done
-    - MinIO/S3 upload adapter + signed URL policy
-    - output: backend selection in `packages/opencode/src/server/killswitch/service.ts`
-    - default: `local`, explicit `minio|s3` mode fail-fast without required config
-
-11. `web-admin-killswitch-ui` (frontend) — done
-    - output: `packages/app/src/components/settings-general.tsx` + helper/test files
-
-12. `tui-killswitch-control` (tui) — done
-    - output: `packages/opencode/src/cli/cmd/killswitch.ts` + CLI tests
-
-## Dependency order
-
-- milestone-1: `1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8`
-- milestone-2: `9 -> 10 -> 11,12`
-
-## Validation-oriented closure gates
-
-- Gate-A: backend tests + typecheck green
-- Gate-B: deploy policy documented and reviewed
-- Gate-C: runbook completed and linked in events
+12-security-review: 安全團隊 review 並 sign-off — status: pending
+- owner: security

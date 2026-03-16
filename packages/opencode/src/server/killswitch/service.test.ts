@@ -1,7 +1,13 @@
-import { describe, expect, it } from "bun:test"
+import { afterAll, describe, expect, it, mock } from "bun:test"
 import { KillSwitchService } from "./service"
 
 describe("KillSwitchService", () => {
+  afterAll(() => {
+    // restore env for other test suites
+    delete process.env.OPENCODE_KILLSWITCH_CONTROL_TRANSPORT
+    delete process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND
+  })
+
   it("generates and verifies MFA", async () => {
     const requestID = await KillSwitchService.idempotentRequestID("tester", "reason", 1000)
     const code = await KillSwitchService.generateMfa(requestID, "tester")
@@ -66,6 +72,151 @@ describe("KillSwitchService", () => {
       else process.env.OPENCODE_KILLSWITCH_CONTROL_TRANSPORT = prevMode
       if (prevRedis === undefined) delete process.env.OPENCODE_REDIS_URL
       else process.env.OPENCODE_REDIS_URL = prevRedis
+    }
+  })
+
+  it("resolves control transport mode to redis when env is set", () => {
+    const prev = process.env.OPENCODE_KILLSWITCH_CONTROL_TRANSPORT
+    process.env.OPENCODE_KILLSWITCH_CONTROL_TRANSPORT = "redis"
+    try {
+      expect(KillSwitchService.resolveControlTransportMode()).toBe("redis")
+    } finally {
+      if (prev === undefined) delete process.env.OPENCODE_KILLSWITCH_CONTROL_TRANSPORT
+      else process.env.OPENCODE_KILLSWITCH_CONTROL_TRANSPORT = prev
+    }
+  })
+
+  it("resolves snapshot backend mode to minio when env is set", () => {
+    const prev = process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND
+    process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND = "minio"
+    try {
+      expect(KillSwitchService.resolveSnapshotBackendMode()).toBe("minio")
+    } finally {
+      if (prev === undefined) delete process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND
+      else process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND = prev
+    }
+  })
+
+  it("resolves snapshot backend mode to s3 alias", () => {
+    const prev = process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND
+    process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND = "s3"
+    try {
+      expect(KillSwitchService.resolveSnapshotBackendMode()).toBe("s3")
+    } finally {
+      if (prev === undefined) delete process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND
+      else process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND = prev
+    }
+  })
+
+  it("minio snapshot backend uploads via aws4fetch PUT", async () => {
+    const prevBackend = process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND
+    const prevEndpoint = process.env.OPENCODE_MINIO_ENDPOINT
+    const prevAK = process.env.OPENCODE_MINIO_ACCESS_KEY
+    const prevSK = process.env.OPENCODE_MINIO_SECRET_KEY
+    const prevBucket = process.env.OPENCODE_MINIO_BUCKET
+    const prevRegion = process.env.OPENCODE_MINIO_REGION
+
+    process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND = "minio"
+    process.env.OPENCODE_MINIO_ENDPOINT = "http://localhost:9000"
+    process.env.OPENCODE_MINIO_ACCESS_KEY = "testkey"
+    process.env.OPENCODE_MINIO_SECRET_KEY = "testsecret"
+    process.env.OPENCODE_MINIO_BUCKET = "test-bucket"
+    process.env.OPENCODE_MINIO_REGION = "us-east-1"
+
+    const originalFetch = globalThis.fetch
+    let capturedUrl = ""
+    let capturedMethod = ""
+    let capturedContentType = ""
+    let capturedBody = ""
+    globalThis.fetch = mock(async (input: any, init?: any) => {
+      // aws4fetch passes a Request object (not separate url+init)
+      if (input instanceof Request) {
+        capturedUrl = input.url
+        capturedMethod = input.method
+        capturedContentType = input.headers.get("Content-Type") ?? ""
+        capturedBody = await input.text()
+      } else {
+        capturedUrl = typeof input === "string" ? input : input.toString()
+        capturedMethod = init?.method ?? "GET"
+        capturedContentType = init?.headers?.["Content-Type"] ?? ""
+        capturedBody = init?.body ?? ""
+      }
+      return new Response("OK", { status: 200 })
+    }) as any
+
+    try {
+      const result = await KillSwitchService.createSnapshotPlaceholder({
+        requestID: "ks_test_minio_upload",
+        initiator: "tester",
+        mode: "global",
+        scope: "global",
+        reason: "test upload",
+      })
+      expect(result).toContain("killswitch/snapshots/ks_test_minio_upload.json")
+      expect(capturedMethod).toBe("PUT")
+      expect(capturedContentType).toBe("application/json")
+      const body = JSON.parse(capturedBody)
+      expect(body.requestID).toBe("ks_test_minio_upload")
+      expect(body.source).toBe("minio")
+    } finally {
+      globalThis.fetch = originalFetch
+      if (prevBackend === undefined) delete process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND
+      else process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND = prevBackend
+      if (prevEndpoint === undefined) delete process.env.OPENCODE_MINIO_ENDPOINT
+      else process.env.OPENCODE_MINIO_ENDPOINT = prevEndpoint
+      if (prevAK === undefined) delete process.env.OPENCODE_MINIO_ACCESS_KEY
+      else process.env.OPENCODE_MINIO_ACCESS_KEY = prevAK
+      if (prevSK === undefined) delete process.env.OPENCODE_MINIO_SECRET_KEY
+      else process.env.OPENCODE_MINIO_SECRET_KEY = prevSK
+      if (prevBucket === undefined) delete process.env.OPENCODE_MINIO_BUCKET
+      else process.env.OPENCODE_MINIO_BUCKET = prevBucket
+      if (prevRegion === undefined) delete process.env.OPENCODE_MINIO_REGION
+      else process.env.OPENCODE_MINIO_REGION = prevRegion
+    }
+  })
+
+  it("minio snapshot backend returns null on PUT failure without blocking kill path", async () => {
+    const prevBackend = process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND
+    const prevEndpoint = process.env.OPENCODE_MINIO_ENDPOINT
+    const prevAK = process.env.OPENCODE_MINIO_ACCESS_KEY
+    const prevSK = process.env.OPENCODE_MINIO_SECRET_KEY
+    const prevBucket = process.env.OPENCODE_MINIO_BUCKET
+
+    process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND = "minio"
+    process.env.OPENCODE_MINIO_ENDPOINT = "http://localhost:9000"
+    process.env.OPENCODE_MINIO_ACCESS_KEY = "testkey"
+    process.env.OPENCODE_MINIO_SECRET_KEY = "testsecret"
+    process.env.OPENCODE_MINIO_BUCKET = "test-bucket"
+
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = mock(async (input: any) => {
+      // consume body if Request to avoid hanging
+      if (input instanceof Request) await input.text().catch(() => {})
+      return new Response("Service Unavailable", { status: 503 })
+    }) as any
+
+    try {
+      const result = await KillSwitchService.createSnapshotPlaceholder({
+        requestID: "ks_test_minio_fail",
+        initiator: "tester",
+        mode: "global",
+        scope: "global",
+        reason: "test failure resilience",
+      })
+      // Should return null (not throw) — kill path must not be blocked by snapshot failure
+      expect(result).toBeNull()
+    } finally {
+      globalThis.fetch = originalFetch
+      if (prevBackend === undefined) delete process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND
+      else process.env.OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND = prevBackend
+      if (prevEndpoint === undefined) delete process.env.OPENCODE_MINIO_ENDPOINT
+      else process.env.OPENCODE_MINIO_ENDPOINT = prevEndpoint
+      if (prevAK === undefined) delete process.env.OPENCODE_MINIO_ACCESS_KEY
+      else process.env.OPENCODE_MINIO_ACCESS_KEY = prevAK
+      if (prevSK === undefined) delete process.env.OPENCODE_MINIO_SECRET_KEY
+      else process.env.OPENCODE_MINIO_SECRET_KEY = prevSK
+      if (prevBucket === undefined) delete process.env.OPENCODE_MINIO_BUCKET
+      else process.env.OPENCODE_MINIO_BUCKET = prevBucket
     }
   })
 

@@ -84,6 +84,10 @@ The `cms` branch is the primary product line for this environment, featuring sig
 
 - **TUI `/admin`** is the canonical control plane for provider/account/model operations and rotation-aware diagnostics.
 - **Web** provides an admin-lite model manager that reuses the same backend account/provider APIs, including provider visibility toggles plus account add/view/rename/delete/set-active flows inside `packages/app/src/components/dialog-select-model.tsx`.
+- **KillSwitch (Global Control Plane)**: A centralized emergency system to pause or terminate all autonomous activities.
+  - Managed via `KillSwitchService` and exposed through `KillSwitchRoutes`.
+  - Supports MFA-guarded triggers, scoped actions (global/session), and automated snapshots.
+  - Enforcement is integrated into the session prompt path and scheduler.
 - **Shared external session-switch bridge** now reuses the existing `tui.session.select` event contract across both surfaces:
   - backend route `/api/v2/tui/select-session` publishes `TuiEvent.SessionSelect`
   - `system-manager.manage_session.open` targets the local loopback runtime control URL derived from `/etc/opencode/opencode.cfg` (`http://127.0.0.1:<OPENCODE_PORT>/api/v2`), not the public proxy URL
@@ -1999,6 +2003,8 @@ This section details the current Systemd-based user isolation, PAM authenticatio
 | `packages/opencode/src/runtime/request-user.ts`   | **Context Manager:** Holds the `username` associated with the _current asynchronous request/call stack_.                                | Enables deep functions (like PTY spawners) to know who originated the HTTP request without prop drilling.          |
 | `packages/opencode/src/server/web-auth.ts`        | **PAM Authenticator:** Validates credentials via Node-PAM. On success, issues a signed session cookie containing the `username`.        | The sole gatekeeper for browser-to-server trust. Extracts Linux user info and injects it into the request context. |
 | `packages/opencode/src/server/app.ts`             | **Auth Middleware:** Rejects unauthenticated requests. Parses session cookies or bypass tokens and populates `RequestUser`.             | Secures all backend routes from unauthorized web access.                                                           |
+| `packages/opencode/src/server/killswitch/service.ts` | **KillSwitch Service:** Logic for state management, MFA, control distribution, and snapshots. | Core logic for the global emergency stop system. |
+| `packages/opencode/src/server/routes/killswitch.ts` | **KillSwitch Routes:** API endpoints for status, trigger, and cancel actions. | Exposes the emergency stop system to operators. |
 | `scripts/opencode-run-as-user.sh`                 | **Sudo Target Script:** A restricted script that executes a payload as the target user while loading their `.bashrc` / `.bash_profile`. | Ensures the shell and agents have the correct environment variables (Node, Git, IDE settings) for that user.       |
 
 ### C. The TUI Auth Bypass (`OPENCODE_CLI_TOKEN`)

@@ -1,8 +1,12 @@
+import { Bus } from "@/bus"
 import { Identifier } from "@/id/id"
+import { Event } from "@/server/event"
 import { SessionPrompt } from "@/session/prompt"
 import { SessionStatus } from "@/session/status"
 import { Storage } from "@/storage/storage"
 import { Log } from "@/util/log"
+import { AwsClient } from "aws4fetch"
+import Redis from "ioredis"
 import z from "zod"
 
 const log = Log.create({ service: "killswitch" })
@@ -143,10 +147,22 @@ export namespace KillSwitchService {
 
   export async function setState(state: z.infer<typeof State>) {
     await Storage.write(["killswitch", "state", "current"], state)
+    Bus.publish(Event.KillSwitchChanged, {
+      active: state.active,
+      state: state.state,
+      requestID: state.requestID,
+      initiator: state.initiator,
+      reason: state.reason,
+      snapshotURL: state.snapshotURL ?? null,
+    })
   }
 
   export async function clearState() {
     await Storage.remove(["killswitch", "state", "current"]).catch(() => undefined)
+    Bus.publish(Event.KillSwitchChanged, {
+      active: false,
+      state: "inactive",
+    })
   }
 
   async function getLastSeq(sessionID: string) {
@@ -342,6 +358,15 @@ export namespace KillSwitchService {
     }
   }
 
+  let redisPub: Redis | undefined
+  let redisSub: Redis | undefined
+
+  function getRedisClients(redisURL: string) {
+    if (!redisPub) redisPub = new Redis(redisURL, { lazyConnect: true, maxRetriesPerRequest: 1 })
+    if (!redisSub) redisSub = new Redis(redisURL, { lazyConnect: true, maxRetriesPerRequest: 1 })
+    return { pub: redisPub, sub: redisSub }
+  }
+
   function createRedisControlTransport(): ControlTransport {
     const redisURL = process.env.OPENCODE_REDIS_URL
     if (!redisURL) {
@@ -349,9 +374,52 @@ export namespace KillSwitchService {
         "control transport 'redis' selected but OPENCODE_REDIS_URL is not configured",
       )
     }
+    const { pub, sub } = getRedisClients(redisURL)
+
     return {
-      async publishAndAwaitAck() {
-        throw new Error("redis control transport adapter scaffold selected but not implemented")
+      async publishAndAwaitAck(input) {
+        const timeoutMs = input.timeoutMs ?? 5000
+        const controlChannel = `ks:control:${input.sessionID}`
+        const ackChannel = `ks:ack:${input.requestID}:${input.seq}`
+
+        await sub.connect().catch(() => {})
+        await pub.connect().catch(() => {})
+
+        const ackPromise = new Promise<z.infer<typeof Ack>>((resolve, reject) => {
+          const timer = setTimeout(() => {
+            sub.unsubscribe(ackChannel).catch(() => {})
+            reject(new Error("ACK timeout"))
+          }, timeoutMs)
+
+          sub.subscribe(ackChannel, (err) => {
+            if (err) {
+              clearTimeout(timer)
+              reject(err)
+            }
+          })
+
+          sub.on("message", (channel, message) => {
+            if (channel !== ackChannel) return
+            clearTimeout(timer)
+            sub.unsubscribe(ackChannel).catch(() => {})
+            try {
+              resolve(Ack.parse(JSON.parse(message)))
+            } catch (e: any) {
+              reject(new Error(`invalid ACK payload: ${e?.message}`))
+            }
+          })
+        })
+
+        const controlMessage = JSON.stringify({
+          requestID: input.requestID,
+          sessionID: input.sessionID,
+          seq: input.seq,
+          action: input.action,
+          initiator: input.initiator,
+        })
+        await pub.publish(controlChannel, controlMessage)
+
+        return ackPromise
       },
     }
   }
@@ -394,14 +462,43 @@ export namespace KillSwitchService {
     const accessKey = process.env.OPENCODE_MINIO_ACCESS_KEY
     const secretKey = process.env.OPENCODE_MINIO_SECRET_KEY
     const bucket = process.env.OPENCODE_MINIO_BUCKET
+    const region = process.env.OPENCODE_MINIO_REGION || "us-east-1"
     if (!endpoint || !accessKey || !secretKey || !bucket) {
       throw new SnapshotBackendConfigError(
         "snapshot backend 'minio' selected but required env is missing: OPENCODE_MINIO_ENDPOINT, OPENCODE_MINIO_ACCESS_KEY, OPENCODE_MINIO_SECRET_KEY, OPENCODE_MINIO_BUCKET",
       )
     }
+    const client = new AwsClient({
+      accessKeyId: accessKey,
+      secretAccessKey: secretKey,
+      region,
+    })
+    const base = `${endpoint.replace(/\/$/, "")}/${bucket}`
+
     return {
-      async create() {
-        throw new Error("minio snapshot backend adapter scaffold selected but upload is not implemented")
+      async create(input) {
+        const snapshot = {
+          requestID: input.requestID,
+          initiator: input.initiator,
+          mode: input.mode,
+          scope: input.scope,
+          reason: input.reason,
+          activeSessions: listBusySessionIDs(),
+          capturedAt: Date.now(),
+          source: "minio",
+        }
+        const objectPath = `killswitch/snapshots/${input.requestID}.json`
+        const url = `${base}/${objectPath}`
+        const response = await client.fetch(url, {
+          method: "PUT",
+          body: JSON.stringify(snapshot),
+          headers: { "Content-Type": "application/json" },
+        })
+        if (!response.ok) {
+          throw new Error(`MinIO PUT failed: ${response.status} ${response.statusText}`)
+        }
+        log.info("snapshot uploaded to minio", { url, requestID: input.requestID })
+        return url
       },
     }
   }

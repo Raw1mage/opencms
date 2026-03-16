@@ -1,38 +1,29 @@
-# Control Protocol（phase-1 authoritative）
+# Control Protocol（runner-control protocol）
 
-目的：定義 `KillSwitchService.publishControl(...)` 與 worker 控制回應的最低契約，確保 seq/ACK 可驗證且失敗可 fallback。
+目的：定義 worker 與 orchestrator 之間的 control messages 與事件格式，支援 pause/resume/cancel/snapshot/set_priority 等指令，並包含 seq-num/ACK 與 RBAC 檢查點。
 
-## 1) Control message contract
+消息格式（JSON）：
 
-- Source: orchestrator / admin route
-- Shape:
-  - `{ requestID, sessionID, seq, action, initiator, timeoutMs }`
-  - `action ∈ {pause,resume,cancel,snapshot,set_priority}`
+- Event (from worker -> orchestrator)
+  - { type: 'event', name: 'task_started'|'task_progress'|'task_completed'|'task_failed'|'task_heartbeat', request_id, seq, timestamp, meta }
 
-## 2) ACK contract
+- Control (from orchestrator/UI -> worker)
+  - { type: 'control', action: 'pause'|'resume'|'cancel'|'snapshot'|'set_priority', request_id, seq, initiator, timestamp, meta }
 
-- Worker ACK shape:
-  - `{ requestID, sessionID, seq, status, reason?, timestamp }`
-  - `status ∈ {accepted,rejected,error}`
+要求：
 
-## 3) Sequence semantics
+- 每個 control message 必含 seq（整數）以利原子比對；worker 僅接受 seq > last_seq。
+- Worker 必須對 control message 回 ACK：{ type: 'ack', request_id, seq, status: 'accepted'|'rejected'|'error', timestamp, reason? }
+- 若 ACK 未回或回 error，orchestrator 在 timeout (configurable, default 5s) 後進行 fallback（例如強制 kill）。
 
-- Worker 必須維護 per-session `last_seq`
-- 僅接受 `seq > last_seq`
-- 舊序列應回 `rejected`（reason: `seq_not_higher` 類型）
+傳輸層選項：
 
-## 4) Timeout & fallback semantics
+- Redis pub/sub（快速原型）或 WebSocket / NATS（更完整可靠性）。
 
-- `timeoutMs` 預設 5000ms
-- ACK 超時或異常時：orchestrator 進入 fallback (`forceKill`)
-- ACK `rejected/error`：視為控制失敗，直接 fallback (`forceKill`)
+安全：
 
-## 5) Transport strategy
+- Control gateway 必須在接受 control message 時進行 RBAC 檢查（見 rbac-hooks.md），並記錄 audit entry。
 
-- Phase-1: runtime-native implementation（Storage-first，不強綁 Redis）
-- Phase-2: 可插拔 transport adapter（Redis/NATS/WebSocket）
+實作提示：
 
-## 6) Audit requirements
-
-- control receive / ack result / fallback action 皆應可寫 audit（至少在 route 層記錄）
-- destructive fallback 必須帶 `requestID`, `sessionID`, `initiator`, `reason`
+- 在 worker 層維護 last_seq 與 pending_control_map，並在執行控制後上報 event/ack。

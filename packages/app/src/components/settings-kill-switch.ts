@@ -14,11 +14,12 @@ export const normalizeKillSwitchStatus = (input: unknown): KillSwitchStatus => {
   return { active, requestID, state, snapshotURL }
 }
 
-export const buildTriggerPayload = (input: { reason: string; requestID?: string; mfaCode?: string }) => {
-  const payload: { reason: string; requestID?: string; mfaCode?: string } = {
+export const buildTriggerPayload = (input: { reason: string; requestID?: string; mfaCode?: string; snapshot?: boolean }) => {
+  const payload: { reason: string; requestID?: string; mfaCode?: string; snapshot?: boolean } = {
     reason: input.reason,
   }
   if (input.requestID) payload.requestID = input.requestID
   if (input.mfaCode) payload.mfaCode = input.mfaCode
+  if (input.snapshot !== undefined) payload.snapshot = input.snapshot
   return payload
 }

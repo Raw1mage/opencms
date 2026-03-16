@@ -1,37 +1,23 @@
-# Snapshot Orchestration（phase-1 / phase-2）
+# Snapshot Orchestration
 
-目的：定義 trigger/cancel/control 流程中 snapshot 證據的生成與可追溯性策略。
+目的：定義在 trigger / cancel / incident 時生成系統快照的流程與內容，並上傳至 object store，將 snapshot_url 寫回 audit 與 state。
 
-## Phase-1 (current milestone)
+流程（建議）
 
-- 策略：Storage-first placeholder
-- 行為：
-  1. trigger accepted 後建立 snapshot placeholder URL（local/storage path）
-  2. 將 `snapshot_url` 寫入 state 與 audit
-  3. 若 placeholder 建立失敗，寫 `snapshot_failure` audit，但不阻塞 kill-switch 主流程
+1. 接到 trigger (global 或 per-task snapshot request) 後，orchestrator 立刻產生 request_id 並回應 accept。
+2. orchestrator 發起 snapshot job 至 snapshot worker queue，並回傳 snapshot_job_id。
+3. snapshot worker 收集：recent logs window、active sessions、outstanding tasks、provider usage sample、worker traces/pids。
+4. snapshot worker 把資料打包並上傳到 object store (S3) 並回傳 snapshot_url。
+5. orchestrator 更新 audit entry 與 state 以包含 snapshot_url 與完整 metadata。
 
-## Phase-2 (deferred adapter)
+內容與大小控制
 
-- 策略：MinIO/S3 adapter（可插拔）
-- 目標：
-  - snapshot job 收集 logs/sessions/tasks/provider sample
-  - upload object store
-  - 回填 signed `snapshot_url`
+- 預設限制：logs 最多 1000 行或 1MB，worker traces 取最近 1 minute sample，task list 完整列出 request_id 與 minimal meta。
 
-## Data contract
+錯誤處理
 
-- snapshot metadata 最少包含：
-  - `request_id`
-  - `initiator`
-  - `mode/scope`
-  - `created_at`
-  - `source`（placeholder|minio）
+- snapshot job 失敗：記錄 snapshot_failure 到 audit 並繼續 kill 路徑（不要阻塞 kill）。
 
-## Failure handling
+安全與存取
 
-- snapshot 失敗不阻斷 kill 流程
-- 必須在 audit 可檢索到失敗原因與 request_id
-
-## Security note
-
-- phase-2 signed URL TTL 與 ACL 由部署策略決定；spec 不允許公開永久 URL
+- snapshot_url 應是有短期有效性的 signed URL（例如 1 week），並將存取權限限制在 audit 與 incident 範圍內。
