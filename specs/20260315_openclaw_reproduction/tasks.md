@@ -120,5 +120,5 @@ Tests: 28 passing (gateway-lock 7, drain 7, lanes 11, signals 3) — commit `224
 
 ### Known Tech Debt
 
-- `aws4fetch` top-level import in `killswitch/service.ts` blocks startup if package missing — convert to lazy `await import()` or internalize SigV4
-- `heartbeat.test.ts` uses inlined pure helpers to avoid transitive `aws4fetch` import chain — will resolve when aws4fetch is lazy-loaded
+- ~~`aws4fetch` top-level import~~ — **resolved**: aws4fetch + ioredis removed entirely (2026-03-17)
+- ~~`heartbeat.test.ts` inlined helpers~~ — **resolved**: real imports, 7 integration tests (2026-03-17)

@@ -23,7 +23,7 @@
 - **Phase 0** (Consolidation & Benchmark): done
 - **Phase 1** (Kill-switch Backend): done — 10/10 tasks complete, 13 tests passing
 - **Phase 2** (Kill-switch UI): **done** — DD-1 resolved (SSE), Web Admin UI + TUI integration complete, 27 tests passing
-- **Phase 3** (Kill-switch Infra): **done** — Redis pub/sub transport + MinIO/S3 snapshot backend implemented, 34 tests passing
+- **Phase 3** (Kill-switch Infra): **done** — local-only transport + snapshot (redis/minio adapters removed 2026-03-17), 3 tests passing
 - **Phase 4** (Security & Ops): **done** — security sign-off approved (2026-03-16), E2E tests (5), runbook delivered, 39 tests passing
 - **Phase 5A** (Plan-trusting Continuation): **done** — isPlanTrusting() + max_continuous_rounds bypass + smart-runner short-circuit + tasks.md integrity exemption, 84 tests passing
 - **Phase 5B** (Multi-source Trigger): **done** — RunTrigger union type (Continuation | Api), TriggerEvaluator extracted from planAutonomousNextAction(), buildApiTrigger scaffold, 83 tests passing
@@ -44,21 +44,14 @@
 
 ## Build Entry Recommendation
 
-- **All phases through Stage 3 complete** — Phases 0-6 + D.1-D.3 delivered (93/101 tests passing across 13 test files)
-- **Remaining**: D.3.10 retry policy + aws4fetch lazy import tech debt
-- **Next milestone**: merge `openclaw` → `cms`, then new spec for recurring scheduler persistence
+- **All phases through Stage 3 complete** — Phases 0-6 + D.1-D.3 delivered
+- **Cleanup done (2026-03-17)**: aws4fetch + ioredis removed, heartbeat integration test added
+- **openclaw merged to cms** (2026-03-17) — fast-forward at `b4c6013d8f`
 
-### Short-term (D.3.10 + tech debt)
+### Next
 
-1. ~~**D.3.10 Retry Policy**~~ — **done** — `cron/retry.ts`, 20 tests
-2. ~~**aws4fetch lazy import**~~ — **done** — `killswitch/service.ts` uses `await import("aws4fetch")` + `client.sign()` instead of `client.fetch()` (fixes hang bug)
-3. **heartbeat integration test** — can now import real modules since aws4fetch is lazy
-
-### Mid-term (merge + new spec)
-
-1. Merge `openclaw` branch → `main` (resolve conflicts)
-2. Open new spec: `specs/YYYYMMDD_recurring-scheduler-persistence/` — cron job persistence across restart, SQLite or file store
-3. Resolve DD-2/DD-3 formally (both effectively resolved — MFA reuses existing system, snapshot uses fixed soft_timeout)
+1. Open new spec: `specs/YYYYMMDD_recurring-scheduler-persistence/` — cron job persistence across restart, SQLite or file store
+2. Daemon rewrite + channel features (long-term)
 
 ## Resolved Design Decisions
 
@@ -93,7 +86,7 @@ None — all design decisions resolved.
 - [x] Phase 0-1 delivered and verified
 - [x] Phase 2 design decision (DD-1) resolved — SSE
 - [x] Phase 2 delivered and verified — 27 tests passing
-- [x] Phase 3 delivered and verified — Redis transport + MinIO snapshot, 34 tests passing
+- [x] Phase 3 delivered and verified — local-only (redis/minio removed), 3 tests passing
 - [x] Phase 4 security sign-off obtained — APPROVED (2026-03-16)
 - [x] Phase 5A plan-trusting continuation mode delivered — 84 tests passing
 - [x] Phase 5B multi-source trigger delivered — RunTrigger + TriggerEvaluator + API scaffold, 83 tests passing
@@ -103,8 +96,9 @@ None — all design decisions resolved.
 - [x] Stage 3 D.2 build complete — 40 tests passing (commit `d0f83d6272`)
 - [x] Stage 3 D.3 build complete (except D.3.10) — 28 tests passing (commit `2247dfd677`)
 - [x] D.3.10 retry policy implemented — 20 tests passing
-- [x] aws4fetch lazy import resolved — `client.sign()` + manual `fetch()` (fixes `client.fetch()` hang)
-- [ ] openclaw branch merged to cms
+- [x] aws4fetch + ioredis removed — dependencies and dead code paths deleted (2026-03-17)
+- [x] heartbeat integration test — real imports, 7 tests (2026-03-17)
+- [x] openclaw branch merged to cms — fast-forward at `b4c6013d8f` (2026-03-17)
 
 ## Completion / Retrospective Contract
 

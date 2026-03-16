@@ -86,7 +86,7 @@ opencode killswitch status
 ## What Happens When Triggered
 
 1. **State set**: `active=true, state=soft_paused`
-2. **Snapshot created**: 系統快照寫入 local storage 或 MinIO/S3
+2. **Snapshot created**: 系統快照寫入 local storage
 3. **New sessions blocked**: `assertSchedulingAllowed()` 在 session route 中攔截，回傳 409 `KILL_SWITCH_ACTIVE`
 4. **Busy sessions controlled**: 對每個 busy session 發送 `cancel` control message（seq/ack protocol）
 5. **ACK timeout fallback**: 若 5s 內未收到 ACK，自動 force-kill
@@ -99,15 +99,9 @@ opencode killswitch status
 
 | Variable | Purpose | Required |
 |----------|---------|----------|
-| `OPENCODE_KILLSWITCH_CONTROL_TRANSPORT` | Transport mode: `local` (default) or `redis` | No |
-| `OPENCODE_REDIS_URL` | Redis URL for pub/sub transport | Only if transport=redis |
-| `OPENCODE_KILLSWITCH_SNAPSHOT_BACKEND` | Snapshot backend: `local` (default), `minio`, or `s3` | No |
-| `OPENCODE_MINIO_ENDPOINT` | MinIO/S3 endpoint URL | Only if backend=minio/s3 |
-| `OPENCODE_MINIO_ACCESS_KEY` | MinIO/S3 access key | Only if backend=minio/s3 |
-| `OPENCODE_MINIO_SECRET_KEY` | MinIO/S3 secret key | Only if backend=minio/s3 |
-| `OPENCODE_MINIO_BUCKET` | MinIO/S3 bucket name | Only if backend=minio/s3 |
-| `OPENCODE_MINIO_REGION` | AWS region (default: us-east-1) | No |
 | `OPENCODE_DEV_MFA` | Set to `true` to return MFA code in dev response | Dev only |
+
+> **Note**: Redis transport (`OPENCODE_REDIS_URL`) and MinIO/S3 snapshot (`OPENCODE_MINIO_*`) env vars were removed in 2026-03-17. Kill-switch now uses local-only transport and snapshot.
 
 ---
 
@@ -115,8 +109,6 @@ opencode killswitch status
 
 ### Kill-switch triggered but sessions still running
 - Check audit log for force-kill entries
-- Verify `OPENCODE_KILLSWITCH_CONTROL_TRANSPORT` matches deployment
-- If using Redis: verify `OPENCODE_REDIS_URL` connectivity
 
 ### MFA code not received
 - Dev/local: check `dev_code` in 202 response
@@ -125,7 +117,6 @@ opencode killswitch status
 ### Snapshot URL is null
 - Snapshot failure does not block kill path (by design)
 - Check audit for `snapshot.failure` entry
-- Verify MinIO/S3 credentials and bucket permissions
 
 ### 429 on trigger attempt
 - Cooldown is 5s per initiator
@@ -140,7 +131,6 @@ opencode killswitch status
 
 1. **Ops**: If kill-switch cannot be canceled, restart the opencode server process
 2. **Security**: If unauthorized trigger detected, check audit log for initiator + requestID
-3. **Infra**: If Redis transport fails, fallback to `local` transport by unsetting `OPENCODE_KILLSWITCH_CONTROL_TRANSPORT`
 
 ---
 
