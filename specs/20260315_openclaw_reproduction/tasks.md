@@ -20,3 +20,4 @@
 
 - [ ] 4.1 Update related events and references so only `openclaw_reproduction` remains the active authority
 - [ ] 4.2 Verify whether `docs/ARCHITECTURE.md` needs wording updates after consolidation
+- [ ] 4.3 Add kill-switch implementation as an OpenClaw follow-up slice: specs/20260316_kill-switch/
