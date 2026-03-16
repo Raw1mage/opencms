@@ -17,6 +17,29 @@ This profile is a practical normalization of IEC 60848-style modeling for portab
 - **LinkOutputType**: `track` | `divergence_or` | `divergence_and` | `convergence_and`
 - **Condition**: transition guard condition list
 
+## Strict alternation rule
+
+Steps (states) and Transitions must alternate strictly. No Step-to-Step or Transition-to-Transition direct connections.
+
+## Evolution rules (IEC 60848)
+
+1. **Alternation**: Steps and Transitions must alternate strictly.
+2. **Minimum model**: At least 2 Steps + 1 Transition. Exactly one Initial Step per independent graph.
+3. **Step semantics**: Each Step = stable behavior. Actions execute only when Step is active.
+4. **Transition semantics**: Every Transition must have an explicit, evaluable boolean condition.
+5. **Transition firing**: ALL preceding Steps must be active AND condition must be True.
+6. **Synchronous evolution**: Firing simultaneously deactivates all preceding Steps and activates all succeeding Steps.
+7. **Simultaneous clearing**: Multiple armed+triggered Transitions fire simultaneously.
+8. **Activation priority**: If a Step is simultaneously activated and deactivated, activation wins.
+
+## Structure logic (LinkOutputType)
+
+| Type | Semantics |
+|------|-----------|
+| `track` | Single sequential segment |
+| `divergence_or` / `convergence_or` | Conditional branch / selection (If-Else) |
+| `divergence_and` / `convergence_and` | Parallel fork / synchronization join |
+
 ## Minimum compliant requirements (MUST)
 
 1. Exactly one initial step per independent graph unless explicitly modularized.
