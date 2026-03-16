@@ -42,6 +42,7 @@ import { AccountRoutes } from "./routes/account"
 import { RotationRoutes } from "./routes/rotation"
 import { ModelRoutes } from "./routes/model"
 import { KillSwitchRoutes } from "./routes/killswitch"
+import { ChannelRoutes } from "./routes/channel"
 import { Env } from "@/env"
 import { ActivityBeacon } from "@/util/activity-beacon"
 import { WebAuth } from "./web-auth"
@@ -375,6 +376,7 @@ export function createApp(app: Hono): Hono {
   api.route("/accounts", AccountRoutes())
   api.route("/rotation", RotationRoutes())
   api.route("/model", ModelRoutes())
+  api.route("/channel", ChannelRoutes())
   api.route("/admin/kill-switch", KillSwitchRoutes())
   api.route("/", FileRoutes())
 

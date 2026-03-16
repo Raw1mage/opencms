@@ -52,7 +52,30 @@ export const GlobalRoutes = lazy(() =>
         },
       }),
       async (c) => {
-        return c.json({ healthy: true, version: Installation.VERSION })
+        // Import dynamically to avoid circular deps at module load
+        const { Daemon } = await import("@/daemon")
+        const { ChannelStore } = await import("@/channel")
+
+        const daemonInfo = Daemon.info()
+        const channels = await ChannelStore.list()
+        const channelBreakdown = channels.map((ch) => ({
+          id: ch.id,
+          name: ch.name,
+          enabled: ch.enabled,
+          lanes: ch.lanePolicy,
+          activeSessions: ch.state.activeSessionCount,
+          lastActivityAtMs: ch.state.lastActivityAtMs,
+        }))
+
+        return c.json({
+          healthy: true,
+          version: Installation.VERSION,
+          daemon: {
+            state: daemonInfo.state,
+            activeTasks: daemonInfo.activeTasks,
+          },
+          channels: channelBreakdown,
+        })
       },
     )
     .get(

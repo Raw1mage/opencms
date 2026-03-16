@@ -6,6 +6,7 @@ import { Lanes } from "./lanes"
 import { Restart } from "./restart"
 import { CronRetention } from "../cron/retention"
 import { Heartbeat } from "../cron/heartbeat"
+import { ChannelStore } from "../channel"
 
 export { GatewayLock } from "./gateway-lock"
 export { Signals } from "./signals"
@@ -67,8 +68,16 @@ export namespace Daemon {
       }
     })
 
-    // Initialize command lanes
+    // Initialize default command lanes
     Lanes.register(opts?.laneConcurrency)
+
+    // Restore channels and register per-channel lanes
+    const channels = await ChannelStore.restoreOrBootstrap()
+    for (const ch of channels) {
+      if (ch.id !== "default" && ch.enabled) {
+        Lanes.registerChannel({ channelId: ch.id, concurrency: ch.lanePolicy })
+      }
+    }
 
     // Recover cron schedules from persisted state before registering heartbeat
     await Heartbeat.recoverSchedules()
