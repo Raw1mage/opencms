@@ -66,6 +66,7 @@ import {
   clearPendingContinuation,
   enqueueAutonomousContinue,
   getPendingContinuation,
+  isPlanTrusting,
   shouldInterruptAutonomousRun,
 } from "./workflow-runner"
 import { consumeMissionArtifacts, deriveDelegatedExecutionRole } from "./mission-consumption"
@@ -868,6 +869,7 @@ export namespace SessionPrompt {
     messages: MessageV2.WithParts[]
     todos: Todo.Info[]
     decision: Extract<Awaited<ReturnType<typeof decideAutonomousContinuation>>, { continue: true }>
+    mission?: Session.Info["mission"]
     getConfig?: typeof getSmartRunnerConfig
     evaluateGovernor?: typeof evaluateSmartRunnerGovernorDryRun
     listQuestions?: typeof Question.list
@@ -879,6 +881,22 @@ export namespace SessionPrompt {
     persistTrace?: typeof persistSmartRunnerGovernorTrace
     applyAssist?: typeof applySmartRunnerBoundedAssist
   }) {
+    // Plan-trusting short-circuit: when a fully approved mission exists,
+    // skip the entire LLM governor pipeline and continue execution directly.
+    // Only real blockers (kill-switch, auth errors, test failures, approval gates)
+    // should stop a plan-trusting session — those are caught by the deterministic
+    // layer in planAutonomousNextAction() before we reach this function.
+    const missionForTrust = input.mission ?? (await Session.get(input.sessionID).catch(() => undefined))?.mission
+    if (isPlanTrusting(missionForTrust)) {
+      return {
+        kind: "continue" as const,
+        continueDecision: input.decision,
+        narrationOverride: undefined,
+        trace: undefined,
+        adoptedReplan: { adopted: false as const, reason: "plan_trusting" as const, decision: input.decision },
+      }
+    }
+
     const getConfig = input.getConfig ?? getSmartRunnerConfig
     const evaluateGovernor = input.evaluateGovernor ?? evaluateSmartRunnerGovernorDryRun
     const listQuestions = input.listQuestions ?? Question.list
@@ -1568,6 +1586,7 @@ export namespace SessionPrompt {
             messages: msgs,
             todos,
             decision,
+            mission: session.mission,
           })
           if (stopResult.kind === "ask_user") {
             if (stopResult.outcome === "answered") continue

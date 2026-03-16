@@ -22,6 +22,7 @@ import {
   getPendingContinuationQueueInspection,
   getPendingContinuation,
   mutatePendingContinuationQueue,
+  isPlanTrusting,
   planAutonomousNextAction,
   pickPendingContinuationsForResume,
   shouldInterruptAutonomousRun,
@@ -528,7 +529,8 @@ describe("Session workflow runner", () => {
     })
   })
 
-  it("stops when max continuous rounds is reached", () => {
+  it("bypasses max continuous rounds for plan-trusting sessions", () => {
+    // Plan-trusting sessions (approved mission) should continue past maxContinuousRounds
     const decision = evaluateAutonomousContinuation({
       session: {
         parentID: undefined,
@@ -547,8 +549,8 @@ describe("Session workflow runner", () => {
       todos: [{ id: "a", content: "next", status: "in_progress", priority: "high" }],
       roundCount: 2,
     })
-
-    expect(decision).toEqual({ continue: false, reason: "max_continuous_rounds" })
+    expect(decision.continue).toBe(true)
+    expect(decision.reason).toBe("todo_in_progress")
   })
 
   it("marks workflow complete when no actionable todos remain", () => {
@@ -1740,5 +1742,133 @@ describe("Session workflow runner", () => {
     })
 
     expect(picked.map((item) => item.pending.sessionID)).toEqual(["session_healthy"])
+  })
+})
+
+describe("isPlanTrusting", () => {
+  it("returns true for fully approved mission", () => {
+    expect(isPlanTrusting(approvedMission())).toBe(true)
+  })
+
+  it("returns false when mission is undefined", () => {
+    expect(isPlanTrusting(undefined)).toBe(false)
+  })
+
+  it("returns false when executionReady is false", () => {
+    expect(isPlanTrusting({ ...approvedMission(), executionReady: false })).toBe(false)
+  })
+
+  it("returns false when source is not openspec_compiled_plan", () => {
+    expect(isPlanTrusting({ ...approvedMission(), source: "openspec_compiled_plan" as any })).toBe(true)
+    expect(isPlanTrusting({ ...approvedMission(), source: "manual" as any })).toBe(false)
+  })
+
+  it("returns false when contract is not implementation_spec", () => {
+    expect(isPlanTrusting({ ...approvedMission(), contract: "other" as any })).toBe(false)
+  })
+})
+
+describe("plan-trusting mode: max_continuous_rounds bypass", () => {
+  it("skips max_continuous_rounds when plan-trusting", () => {
+    const decision = planAutonomousNextAction({
+      session: {
+        parentID: undefined,
+        mission: approvedMission(),
+        workflow: {
+          ...Session.defaultWorkflow(1),
+          autonomous: {
+            ...Session.defaultWorkflow(1).autonomous,
+            enabled: true,
+            maxContinuousRounds: 3,
+          },
+          state: "waiting_user",
+        },
+        time: { created: 1, updated: 1 },
+      },
+      todos: [{ id: "a", content: "next task", status: "pending", priority: "high" }],
+      roundCount: 100, // Way over the limit
+    })
+    expect(decision.type).toBe("continue")
+    expect(decision.reason).toBe("todo_pending")
+  })
+
+  it("still enforces max_continuous_rounds when NOT plan-trusting", () => {
+    const decision = planAutonomousNextAction({
+      session: {
+        parentID: undefined,
+        mission: { ...approvedMission(), executionReady: false },
+        workflow: {
+          ...Session.defaultWorkflow(1),
+          autonomous: {
+            ...Session.defaultWorkflow(1).autonomous,
+            enabled: true,
+            maxContinuousRounds: 3,
+          },
+          state: "waiting_user",
+        },
+        time: { created: 1, updated: 1 },
+      },
+      todos: [{ id: "a", content: "next task", status: "pending", priority: "high" }],
+      roundCount: 5,
+    })
+    expect(decision.type).toBe("stop")
+    expect(decision.reason).toBe("mission_not_approved")
+  })
+
+  it("still stops for real blockers even in plan-trusting mode", () => {
+    // blocked state
+    expect(
+      planAutonomousNextAction({
+        session: {
+          parentID: undefined,
+          mission: approvedMission(),
+          workflow: {
+            ...Session.defaultWorkflow(1),
+            autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
+            state: "blocked",
+          },
+          time: { created: 1, updated: 1 },
+        },
+        todos: [{ id: "a", content: "next", status: "pending", priority: "high" }],
+        roundCount: 0,
+      }),
+    ).toEqual({ type: "stop", reason: "blocked" })
+
+    // approval needed
+    expect(
+      planAutonomousNextAction({
+        session: {
+          parentID: undefined,
+          mission: approvedMission(),
+          workflow: {
+            ...Session.defaultWorkflow(1),
+            autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
+            state: "waiting_user",
+          },
+          time: { created: 1, updated: 1 },
+        },
+        todos: [{ id: "a", content: "next", status: "pending", priority: "high" }],
+        roundCount: 0,
+        pendingApprovals: 1,
+      }),
+    ).toEqual({ type: "stop", reason: "approval_needed" })
+
+    // todo complete
+    expect(
+      planAutonomousNextAction({
+        session: {
+          parentID: undefined,
+          mission: approvedMission(),
+          workflow: {
+            ...Session.defaultWorkflow(1),
+            autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
+            state: "waiting_user",
+          },
+          time: { created: 1, updated: 1 },
+        },
+        todos: [],
+        roundCount: 0,
+      }),
+    ).toEqual({ type: "stop", reason: "todo_complete" })
   })
 })

@@ -26,6 +26,20 @@ function applyRunnerContract(text: string) {
   return `${RUNNER_CONTRACT.trim()}\n\n${text}`
 }
 
+/**
+ * Plan-trusting mode: when a session has a fully approved mission
+ * (openspec_compiled_plan + implementation_spec + executionReady),
+ * the runner should trust the plan and not stop for advisory reasons.
+ */
+export function isPlanTrusting(mission: Session.Info["mission"]): boolean {
+  return (
+    !!mission &&
+    mission.source === "openspec_compiled_plan" &&
+    mission.contract === "implementation_spec" &&
+    mission.executionReady === true
+  )
+}
+
 function buildMissionMetadata(session: Pick<Session.Info, "mission">) {
   const mission = session.mission
   if (!mission) return undefined
@@ -699,8 +713,9 @@ export function planAutonomousNextAction(input: {
   if (!current) {
     return { type: "stop", reason: "todo_complete" }
   }
+  const planTrusting = isPlanTrusting(input.session.mission)
   const maxRounds = workflow.autonomous.maxContinuousRounds
-  if (typeof maxRounds === "number" && input.roundCount >= maxRounds) {
+  if (!planTrusting && typeof maxRounds === "number" && input.roundCount >= maxRounds) {
     return { type: "stop", reason: "max_continuous_rounds" }
   }
   if (current?.status === "in_progress") {

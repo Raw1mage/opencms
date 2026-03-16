@@ -217,9 +217,8 @@ export async function consumeMissionArtifacts(mission: Session.Info["mission"]):
     if (digest(implementationSpec.text) !== mission.artifactIntegrity.implementationSpec) {
       issues.push("spec_dirty: implementationSpec changed after approval")
     }
-    if (digest(tasks.text) !== mission.artifactIntegrity.tasks) {
-      issues.push("spec_dirty: tasks changed after approval")
-    }
+    // tasks.md is expected to change during execution (checkbox updates = progress).
+    // Only implementationSpec and handoff integrity violations are real spec corruption.
     if (digest(handoff.text) !== mission.artifactIntegrity.handoff) {
       issues.push("spec_dirty: handoff changed after approval")
     }

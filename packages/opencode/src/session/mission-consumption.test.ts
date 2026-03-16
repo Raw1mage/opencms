@@ -234,4 +234,70 @@ describe("mission consumption", () => {
       },
     })
   })
+
+  it("allows tasks.md changes without triggering spec_dirty (progress, not corruption)", async () => {
+    await using tmp = await tmpdir({ git: true })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const planRoot = path.join(tmp.path, "specs", "20260315_test")
+        const implText =
+          "# Implementation Spec\n\n## Goal\n- Ship feature\n\n## Scope\n### IN\n- runtime\n\n### OUT\n- rewrite\n\n## Assumptions\n- exist\n\n## Stop Gates\n- stop\n\n## Critical Files\n- file.ts\n\n## Structured Execution Phases\n- phase\n\n## Validation\n- validate\n\n## Handoff\n- handoff\n"
+        const originalTasksText = "# Tasks\n\n- [ ] First task\n- [ ] Second task\n"
+        const handoffText =
+          "# Handoff\n\n## Execution Contract\n- contract\n\n## Required Reads\n- implementation-spec.md\n\n## Stop Gates In Force\n- stop\n\n## Execution-Ready Checklist\n- [ ] ready\n"
+
+        await Bun.write(path.join(planRoot, "implementation-spec.md"), implText)
+        await Bun.write(path.join(planRoot, "tasks.md"), originalTasksText)
+        await Bun.write(path.join(planRoot, "handoff.md"), handoffText)
+
+        // Now simulate execution: tasks.md gets updated (checkboxes checked off)
+        const updatedTasksText = "# Tasks\n\n- [x] First task\n- [ ] Second task\n"
+        await Bun.write(path.join(planRoot, "tasks.md"), updatedTasksText)
+
+        const result = await consumeMissionArtifacts({
+          ...approvedMission(),
+          artifactIntegrity: {
+            implementationSpec: digest(implText),
+            tasks: digest(originalTasksText), // Original hash — tasks.md has changed
+            handoff: digest(handoffText),
+          },
+        })
+        // Should succeed: tasks.md changes are progress, not corruption
+        expect(result.ok).toBe(true)
+      },
+    })
+  })
+
+  it("still detects spec_dirty for implementationSpec and handoff changes", async () => {
+    await using tmp = await tmpdir({ git: true })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const planRoot = path.join(tmp.path, "specs", "20260315_test")
+        const implText =
+          "# Implementation Spec\n\n## Goal\n- Ship feature\n\n## Scope\n### IN\n- runtime\n\n### OUT\n- rewrite\n\n## Assumptions\n- exist\n\n## Stop Gates\n- stop\n\n## Critical Files\n- file.ts\n\n## Structured Execution Phases\n- phase\n\n## Validation\n- validate\n\n## Handoff\n- handoff\n"
+        const tasksText = "# Tasks\n\n- [ ] First task\n"
+        const handoffText =
+          "# Handoff\n\n## Execution Contract\n- contract\n\n## Required Reads\n- implementation-spec.md\n\n## Stop Gates In Force\n- stop\n\n## Execution-Ready Checklist\n- [ ] ready\n"
+
+        // Write modified implementationSpec (different from integrity hash)
+        await Bun.write(path.join(planRoot, "implementation-spec.md"), implText + "\n## Extra Section\n")
+        await Bun.write(path.join(planRoot, "tasks.md"), tasksText)
+        await Bun.write(path.join(planRoot, "handoff.md"), handoffText)
+
+        const result = await consumeMissionArtifacts({
+          ...approvedMission(),
+          artifactIntegrity: {
+            implementationSpec: digest(implText), // Original — now mismatched
+            tasks: digest(tasksText),
+            handoff: digest(handoffText),
+          },
+        })
+        expect(result.ok).toBe(false)
+        if (result.ok) throw new Error("expected spec_dirty for implementationSpec")
+        expect(result.issues.some((issue) => issue.includes("implementationSpec changed"))).toBe(true)
+      },
+    })
+  })
 })
