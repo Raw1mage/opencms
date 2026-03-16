@@ -5,6 +5,7 @@ import { CronSession } from "./session"
 import { ActiveHours } from "./active-hours"
 import { SystemEvents } from "./system-events"
 import { Schedule } from "./schedule"
+import { RetryPolicy } from "./retry"
 import { RunLog } from "./run-log"
 import { CronDeliveryRouter } from "./delivery"
 import { buildCronTrigger } from "../session/trigger"
@@ -65,6 +66,127 @@ export namespace Heartbeat {
       run: () => tick(config),
     })
     log.info("registered", { intervalMs })
+  }
+
+  /**
+   * Boot recovery — restore schedules from persisted CronStore state.
+   *
+   * For each enabled job:
+   *   1. If nextRunAtMs is in the future → preserve (clean boot)
+   *   2. If stale one-shot ("at") → disable with reason "expired_on_boot"
+   *   3. If stale recurring ("every"/"cron") → skip-to-next future fire time
+   *   4. If consecutiveErrors > 0 → overlay retry backoff on skip-to-next
+   *
+   * IDEF0 reference: A1 (Recover Scheduler State on Boot)
+   * GRAFCET reference: opencode_a1_grafcet.json
+   * Design decision: DD-13 (skip-to-next, no catchup)
+   */
+  export async function recoverSchedules(): Promise<RecoveryResult> {
+    const jobs = await CronStore.listEnabled()
+    const now = Date.now()
+    const result: RecoveryResult = {
+      total: jobs.length,
+      clean: 0,
+      skippedToNext: 0,
+      disabledExpired: 0,
+      backoffApplied: 0,
+    }
+
+    if (jobs.length === 0) {
+      log.info("recovery: no enabled jobs")
+      return result
+    }
+
+    for (const job of jobs) {
+      try {
+        await recoverJob(job, now, result)
+      } catch (e) {
+        log.error("recovery: job failed", { jobId: job.id, error: e })
+      }
+    }
+
+    log.info("recovery complete", result)
+    return result
+  }
+
+  export type RecoveryResult = {
+    total: number
+    clean: number
+    skippedToNext: number
+    disabledExpired: number
+    backoffApplied: number
+  }
+
+  async function recoverJob(
+    job: CronJob,
+    nowMs: number,
+    result: RecoveryResult,
+  ): Promise<void> {
+    const nextRun = job.state.nextRunAtMs
+
+    // Clean boot: nextRunAtMs is in the future (or not set yet)
+    if (!nextRun || nextRun > nowMs) {
+      // If nextRunAtMs is not set, compute initial schedule
+      if (!nextRun) {
+        const nextFireMs = Schedule.computeNextRunAtMs(job.schedule, nowMs)
+        if (nextFireMs) {
+          await CronStore.updateState(job.id, { nextRunAtMs: nextFireMs })
+        } else if (job.schedule.kind === "at") {
+          // One-shot with no future fire time — disable
+          await CronStore.update(job.id, {
+            enabled: false,
+            state: { nextRunAtMs: undefined },
+          })
+          result.disabledExpired++
+          log.info("recovery: disabled expired one-shot (no nextRun)", { jobId: job.id })
+          return
+        }
+      }
+      result.clean++
+      return
+    }
+
+    // Stale: nextRunAtMs is in the past
+    if (job.schedule.kind === "at") {
+      // One-shot expired — disable
+      await CronStore.update(job.id, {
+        enabled: false,
+        state: { nextRunAtMs: undefined },
+      })
+      result.disabledExpired++
+      log.info("recovery: disabled expired one-shot", { jobId: job.id, staleBy: nowMs - nextRun })
+      return
+    }
+
+    // Recurring (every/cron): skip-to-next
+    let nextFireMs = Schedule.computeNextRunAtMs(job.schedule, nowMs)
+    if (!nextFireMs) {
+      log.warn("recovery: no future fire time for recurring job", { jobId: job.id })
+      return
+    }
+
+    // Overlay retry backoff if job has consecutive errors
+    const errors = job.state.consecutiveErrors ?? 0
+    if (errors > 0) {
+      const backoff = RetryPolicy.backoffMs(errors)
+      const backoffNext = nowMs + backoff
+      nextFireMs = Math.max(nextFireMs, backoffNext)
+      result.backoffApplied++
+      log.info("recovery: backoff overlay", {
+        jobId: job.id,
+        consecutiveErrors: errors,
+        backoffMs: backoff,
+        nextRunAtMs: nextFireMs,
+      })
+    }
+
+    await CronStore.updateState(job.id, { nextRunAtMs: nextFireMs })
+    result.skippedToNext++
+    log.info("recovery: skipped to next", {
+      jobId: job.id,
+      staleBy: nowMs - nextRun,
+      nextRunAtMs: nextFireMs,
+    })
   }
 
   /**

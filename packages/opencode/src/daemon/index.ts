@@ -70,6 +70,9 @@ export namespace Daemon {
     // Initialize command lanes
     Lanes.register(opts?.laneConcurrency)
 
+    // Recover cron schedules from persisted state before registering heartbeat
+    await Heartbeat.recoverSchedules()
+
     // Start cron subsystems
     CronRetention.register({ retentionMs: opts?.retentionMs })
     Heartbeat.register(opts?.heartbeat)
