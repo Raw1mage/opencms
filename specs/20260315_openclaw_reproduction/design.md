@@ -37,11 +37,13 @@
 - lane-aware run queue（Slice 3）
 - workflow-runner as generic orchestrator
 
-### Deferred later
+### Deferred later → Stage 3（D.1-D.3, now expanded）
 
-- isolated jobs
-- heartbeat / wakeup substrate
-- daemon lifecycle / host-wide scheduler health
+- D.1 isolated job sessions → Phase 8
+- D.2 heartbeat / wakeup substrate → Phase 9
+- D.3 daemon lifecycle / host-wide scheduler health → Phase 10
+
+IDEF0/GRAFCET: `specs/20260315_openclaw_reproduction/diagrams/`
 
 ---
 
@@ -412,11 +414,72 @@ LanePolicy
 
 ---
 
+## Stage 3 Design Decisions（D.1-D.3）
+
+| ID | Decision | Resolution | Rationale |
+|----|----------|------------|-----------|
+| DD-7 | Isolated session key scheme | `cron:<jobId>:run:<uuid>` for isolated, `agent:<agentId>:main` for main | Matches OpenClaw convention (`refs/openclaw/src/cron/types.ts`). UUID per run ensures no session key collision. Key encodes both job identity and run uniqueness. |
+| DD-8 | Cron job store location | `~/.config/opencode/cron/jobs.json` | Aligns with existing `Global.Path.user` convention (`~/.config/opencode/`). Single JSON file sufficient for expected job count (<100). Zod schema with CronJobState for persistence. |
+| DD-9 | Heartbeat interval default | 30 minutes | Matches OpenClaw default. Configurable via agent config `heartbeat.every`. Balance between responsiveness (too short = token waste) and staleness (too long = missed events). |
+| DD-10 | System event queue | In-memory FIFO, max 20 per session | Matches OpenClaw `system-events.ts` pattern. Events are transient notifications (not durable state). 20-event cap prevents unbounded memory growth. Drain on heartbeat clears queue. |
+| DD-11 | Daemon restart strategy | Try full process respawn first, fallback to in-process restart with generation bump | Full respawn provides clean memory state. Fallback for environments where respawn is unavailable (`OPENCLAW_NO_RESPAWN`). Generation number invalidates stale task completions. |
+| DD-12 | Command lane concurrency defaults | Main=1, Cron=1, Subagent=2, Nested=1 | Main=1 ensures single-threaded session execution (matches existing behavior). Cron=1 conservative default (can be raised). Subagent=2 allows parallel delegation. Nested=1 prevents recursive explosion. |
+
+### Stage 3 Architecture Overview
+
+```
+                     ┌─────────────────────────────┐
+                     │    Schedule Timer Runtime    │
+                     │  (cron/at/every expressions) │
+                     └────────────┬────────────────┘
+                                  │
+                     ┌────────────▼────────────────┐
+                     │ A2: Schedule Trigger Eval    │
+                     │  - Active hours gate         │
+                     │  - System event queue        │
+                     │  - HEARTBEAT_OK suppression  │
+                     └──────┬──────────┬───────────┘
+                            │          │
+              ┌─────────────▼──┐  ┌────▼──────────────┐
+              │ Main session   │  │ A1: Isolated Job   │
+              │ (system event  │  │  - Scoped key      │
+              │  injection)    │  │  - Light context   │
+              └────────────────┘  │  - Delivery route  │
+                                  │  - Retention prune │
+                                  └───────┬───────────┘
+                                          │
+                     ┌────────────────────▼────────────────┐
+                     │ A4: Command Lane Queue              │
+                     │  Main(1) | Cron(1) | Sub(2) | Nest(1) │
+                     │  - Drain guard                       │
+                     │  - Generation tracking                │
+                     └────────────────────┬────────────────┘
+                                          │
+                     ┌────────────────────▼────────────────┐
+                     │ A3: Daemon Lifecycle                 │
+                     │  - Gateway lock                      │
+                     │  - SIGTERM/SIGINT → shutdown (5s)    │
+                     │  - SIGUSR1 → drain (90s) → restart   │
+                     │  - resetAllLanes + generation bump   │
+                     └────────────────────┬────────────────┘
+                                          │
+                     ┌────────────────────▼────────────────┐
+                     │ A5: Host Observability               │
+                     │  - Session count, lane sizes          │
+                     │  - Health probes, event bus           │
+                     └─────────────────────────────────────┘
+```
+
+---
+
 ## Risks
 
 - ~~若 kill-switch UI 使用 SSE 推送，需先解決 ghost responses 的 SSE 問題~~ — Phase 2 已交付，SSE 穩定
 - ~~Redis transport 需確認 multi-instance pub/sub 的 message ordering guarantee~~ — Phase 3 已交付
-- Trigger model extraction 若破壞現有 approved mission gate semantics，必須停下補 spec
-- 若太早把 deferred slices 混進 build，會重新掉入 full scheduler complexity
-- Phase 5 的 `planAutonomousNextAction()` 重構涉及 14 種判斷路徑，測試覆蓋必須完整
-- Phase 6 的 queue persistence 選擇影響重啟行為，需要 DD-7 先決定
+- ~~Trigger model extraction 若破壞現有 approved mission gate semantics~~ — Phase 5B 已交付，14 種 gate 語意不變
+- ~~Phase 5 的 `planAutonomousNextAction()` 重構涉及 14 種判斷路徑~~ — Phase 5B 全覆蓋，83 tests
+- ~~Phase 6 的 queue persistence 選擇影響重啟行為~~ — Phase 6 已交付，Storage-backed with legacy compat
+- **D.3 signal handling (SIGUSR1)** — 需在 Linux/WSL 環境測試，in-process restart 不能破壞 HTTP server
+- **D.3 command queue** — 新模組，需確認與現有 supervisor loop 的互斥性，避免 double-dispatch
+- **D.1 session retention reaper** — 需確認不會誤刪 active cron run-sessions（race condition）
+- **D.2 heartbeat stagger** — deterministic stagger 需 stable hash，確保重啟後同一 job 得到相同 offset

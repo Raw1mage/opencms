@@ -1,0 +1,93 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A0",
+    "StepType": "initial",
+    "StepAction": "Await external trigger or scheduled event",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1, 2, 3],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "trigger.kind == 'cron' && sessionTarget == 'isolated'",
+      "trigger.kind == 'cron' || trigger.kind == 'heartbeat'",
+      "signal_received"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Manage isolated job session lifecycle (scope, bootstrap, execute, deliver, prune)",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["session_complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Evaluate schedule trigger and dispatch to appropriate target",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["dispatch_complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Execute daemon lifecycle transition (drain, restart, or shutdown)",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [5, 6],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "lifecycle_transition == 'shutdown'",
+      "lifecycle_transition == 'restart'"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Emit observability events and health probes for completed operation",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [1, 2],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["events_emitted"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Release gateway lock and exit daemon process",
+    "LinkInputType": [],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["process_exited"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Reset command lane state and resume active loop",
+    "LinkInputType": [],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["lanes_reset_complete"],
+    "SubGrafcet": []
+  }
+]

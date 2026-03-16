@@ -1,0 +1,199 @@
+{
+  "diagram_title": "Orchestrate Autonomous Workflow Execution — D.1-D.3 Deferred Phases",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Manage Isolated Job Sessions",
+      "description": "D.1: Create scoped sessions for cron/background jobs, bootstrap lightweight context, route delivery output, enforce retention policy",
+      "decomposition": "A1"
+    },
+    {
+      "id": "A2",
+      "title": "Schedule Trigger Evaluation",
+      "description": "D.2: Parse cron/at/every schedule expressions, gate active hours, dispatch system events and agent turns, handle heartbeat wakeup",
+      "decomposition": "A2"
+    },
+    {
+      "id": "A3",
+      "title": "Supervise Daemon Lifecycle",
+      "description": "D.3: Acquire gateway lock, handle signals, execute drain state machine, coordinate restart, track generation numbers",
+      "decomposition": "A3"
+    },
+    {
+      "id": "A4",
+      "title": "Govern Command Lane Execution",
+      "description": "D.3 queue substrate: Register lane concurrency, enqueue with drain guard, pump priority drain, reset lanes post-restart",
+      "decomposition": "A4"
+    },
+    {
+      "id": "A5",
+      "title": "Emit Host Observability Events",
+      "description": "D.3 monitoring: Publish daemon events via event bus, emit heartbeat health probes, track active session counts, notify subscribers",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "I1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "Cron Job Definitions",
+      "type": "input"
+    },
+    {
+      "id": "I2",
+      "source": "EXTERNAL",
+      "target": "A2:input",
+      "label": "RunTrigger Events",
+      "type": "input"
+    },
+    {
+      "id": "I3",
+      "source": "EXTERNAL",
+      "target": "A3:input",
+      "label": "Process Signals",
+      "type": "input"
+    },
+    {
+      "id": "I4",
+      "source": "A2",
+      "target": "A1:input",
+      "label": "Isolated Session Trigger",
+      "type": "input"
+    },
+    {
+      "id": "I5",
+      "source": "A1",
+      "target": "A4:input",
+      "label": "Enqueue Requests",
+      "type": "input"
+    },
+    {
+      "id": "I6",
+      "source": "A2",
+      "target": "A4:input",
+      "label": "Scheduled Task Enqueue",
+      "type": "input"
+    },
+    {
+      "id": "C1",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Session Retention Policy",
+      "type": "control"
+    },
+    {
+      "id": "C2",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "Active Hours Config",
+      "type": "control"
+    },
+    {
+      "id": "C3",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "AutonomousPolicy Throttle",
+      "type": "control"
+    },
+    {
+      "id": "C4",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "Drain Timeout Policy",
+      "type": "control"
+    },
+    {
+      "id": "C5",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "Lane Concurrency Limits",
+      "type": "control"
+    },
+    {
+      "id": "C6",
+      "source": "A3",
+      "target": "A4:control",
+      "label": "Draining Flag",
+      "type": "control"
+    },
+    {
+      "id": "C7",
+      "source": "EXTERNAL",
+      "target": "A5:control",
+      "label": "Observability Config",
+      "type": "control"
+    },
+    {
+      "id": "O1",
+      "source": "A1",
+      "target": "EXTERNAL",
+      "label": "Delivery Payloads",
+      "type": "output"
+    },
+    {
+      "id": "O2",
+      "source": "A2",
+      "target": "EXTERNAL",
+      "label": "Dispatched Turns",
+      "type": "output"
+    },
+    {
+      "id": "O3",
+      "source": "A3",
+      "target": "EXTERNAL",
+      "label": "Lifecycle State Changes",
+      "type": "output"
+    },
+    {
+      "id": "O4",
+      "source": "A4",
+      "target": "EXTERNAL",
+      "label": "Executed Task Results",
+      "type": "output"
+    },
+    {
+      "id": "O5",
+      "source": "A5",
+      "target": "EXTERNAL",
+      "label": "Health Probes and Events",
+      "type": "output"
+    },
+    {
+      "id": "M1",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "Storage Layer",
+      "type": "mechanism"
+    },
+    {
+      "id": "M2",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "Schedule Timer Runtime",
+      "type": "mechanism"
+    },
+    {
+      "id": "M3",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "Signal Handler Runtime",
+      "type": "mechanism"
+    },
+    {
+      "id": "M4",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "Async Task Executor",
+      "type": "mechanism"
+    },
+    {
+      "id": "M5",
+      "source": "EXTERNAL",
+      "target": "A5:mechanism",
+      "label": "Event Bus",
+      "type": "mechanism"
+    }
+  ]
+}

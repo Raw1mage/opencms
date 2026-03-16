@@ -210,11 +210,52 @@ Deliverables: `RunQueue` 介面、lane policy、supervisor 重構、workflow-run
 - `RunQueue.drain()` respects per-lane concurrency caps and preferred session ✅
 - Tests: 99 tests passing (83 Phase 5B + 16 Phase 6) ✅
 
-### Deferred Phases（requires explicit approval）
+### Stage 3 — Isolated Jobs + Heartbeat + Daemon Lifecycle（D.1-D.3）
 
-- Phase D-1: Isolated job sessions
-- Phase D-2: Heartbeat / wakeup substrate
-- Phase D-3: Daemon lifecycle / host-wide scheduler health
+IDEF0 functional decomposition and GRAFCET state machines: `specs/20260315_openclaw_reproduction/diagrams/`
+
+#### Phase 8 — Isolated Job Sessions（D.1）
+
+Deliverables: scoped session key namespace, CronSessionTarget factory, lightContext bootstrap, cron job store, delivery routing, session retention reaper, run-log JSONL.
+
+IDEF0 reference: A1 (Manage Isolated Job Sessions) → A11-A14
+GRAFCET reference: opencode_a1_grafcet.json (Session Lifecycle)
+OpenClaw benchmark: `refs/openclaw/src/cron/types.ts`, `refs/openclaw/src/cron/isolated-agent/session.ts`
+
+- 8a. **Session Key Namespace** — `cron:<jobId>:run:<uuid>` for isolated sessions, `agent:<agentId>:main` for main sessions. Session.create() extended with optional `keyNamespace` parameter.
+- 8b. **Cron Job Store** — `~/.config/opencode/cron/jobs.json` with Zod schema. CronJobState tracks nextRunAtMs, runningAtMs, lastRunStatus, consecutiveErrors, lastErrorReason. CRUD: create/read/update/delete/list.
+- 8c. **Light Context Bootstrap** — `lightContext: true` skips workspace file injection. Cron-prefixed system prompt with minimal token footprint. Reuses existing Session.create() + system prompt registry.
+- 8d. **Delivery Routing** — announce (post to main session) / webhook (HTTP POST with bearer auth) / none. Per-job config. Chunking per channel format rules.
+- 8e. **Session Retention and Run-log** — Reaper prunes by `cron.sessionRetention` (default 24h). Run-log JSONL at `~/.config/opencode/cron/runs/<jobId>.jsonl`, auto-pruned at 2MB + 2000 lines.
+
+#### Phase 9 — Heartbeat / Wakeup Substrate（D.2）
+
+Deliverables: schedule expression engine (at/every/cron), active hours gating, system event queue, HEARTBEAT_OK suppression, wake mode dispatch, throttle integration.
+
+IDEF0 reference: A2 (Schedule Trigger Evaluation) → A21-A24
+GRAFCET reference: opencode_a2_grafcet.json (Heartbeat Supervision)
+OpenClaw benchmark: `refs/openclaw/src/infra/heartbeat-runner.ts`, `refs/openclaw/src/infra/system-events.ts`, `refs/openclaw/docs/automation/cron-vs-heartbeat.md`
+
+- 9a. **Schedule Expression Engine** — 3 kinds: `at` (one-shot ISO timestamp), `every` (interval string "30m"), `cron` (5/6-field with IANA timezone). Deterministic stagger: top-of-hour offset up to 5min by job ID hash, `--stagger` override, `--exact` bypass.
+- 9b. **Active Hours Gating** — `activeHours: { start: "HH:MM", end: "HH:MM" }`. Suppress triggers outside window. Compute next eligible fire time when suppressed.
+- 9c. **System Event Queue** — In-memory FIFO per session key, max 20 events. `enqueueSystemEvent(text, { sessionKey, contextKey? })` / `drainSystemEventEntries(sessionKey)`. Events injected into heartbeat prompt.
+- 9d. **HEARTBEAT_OK Suppression** — Execute heartbeat checklist from HEARTBEAT.md. If no actionable content → emit HEARTBEAT_OK token, suppress delivery. Prevents empty heartbeat noise.
+- 9e. **Wake Mode Dispatch** — `"now"`: immediate agent turn via RunTrigger. `"next-heartbeat"`: event enqueued and batched until next scheduled heartbeat. Integrates with AutonomousPolicy throttle governor (cooldown/budget/escalation).
+
+#### Phase 10 — Daemon Lifecycle / Host-wide Scheduler Health（D.3）
+
+Deliverables: gateway lock, signal dispatch, drain state machine, command lane queue, restart loop, generation numbering, lane reset, health endpoint.
+
+IDEF0 reference: A3 (Supervise Daemon Lifecycle) → A31-A35, A4 (Govern Command Lane Execution) → A41-A44, A5 (Emit Host Observability Events)
+GRAFCET reference: opencode_a3_grafcet.json (Daemon Lifecycle)
+OpenClaw benchmark: `refs/openclaw/src/cli/gateway-cli/run-loop.ts`, `refs/openclaw/src/process/command-queue.ts`
+
+- 10a. **Gateway Lock** — `acquireGatewayLock()` / `releaseLockIfHeld()` via port-based or file-based lock. Prevents multiple daemon instances. Release on shutdown, reacquire on in-process restart.
+- 10b. **Signal Dispatch** — SIGTERM/SIGINT → graceful shutdown (SHUTDOWN_TIMEOUT_MS=5s). SIGUSR1 → in-process restart with authorization check. Signal → lifecycle state transition mapping.
+- 10c. **Drain State Machine** — `markGatewayDraining()` → set draining flag → reject new enqueues with `GatewayDrainingError` → abort in-flight compaction → wait for active tasks + embedded runs (DRAIN_TIMEOUT_MS=90s) → proceed to shutdown or restart.
+- 10d. **Command Lane Queue** — 4 lanes: Main (maxConcurrent=1), Cron (1), Subagent (2), Nested (1). Per-session lanes `session:<key>` for single-threaded execution. Global lane caps overall parallelism. `enqueueCommandInLane<T>()`, `getActiveTaskCount()`, `waitForActiveTasks(timeoutMs)`.
+- 10e. **Restart Loop** — Try `restartGatewayProcessWithFreshPid()` (full respawn, better for TCC permissions). Fallback to in-process restart if `OPENCLAW_NO_RESPAWN`. Close HTTP server with `close(reason, restartExpectedMs)`. Loop back to server start.
+- 10f. **Generation & Recovery** — Increment `generation` on restart. Stale task completions from previous generation silently ignored. `resetAllLanes()` clears activeTaskIds, bumps generation, re-drains queued entries. `Daemon.info()` exposes session count + lane sizes + generation via health endpoint.
 
 ---
 

@@ -1,0 +1,151 @@
+{
+  "diagram_title": "Schedule Trigger Evaluation — D.2 Decomposition",
+  "node_reference": "A2",
+  "activities": [
+    {
+      "id": "A21",
+      "title": "Parse Schedule Expression",
+      "description": "Handle at/every/cron schedule kinds. Apply IANA timezone conversion. Compute deterministic stagger offset for top-of-hour expressions to reduce thundering herd.",
+      "decomposition": null
+    },
+    {
+      "id": "A22",
+      "title": "Gate Active Hours Window",
+      "description": "Filter trigger firing against activeHours.start/end configuration. Suppress triggers outside the window. Compute next eligible fire time when suppressed.",
+      "decomposition": null
+    },
+    {
+      "id": "A23",
+      "title": "Dispatch System Event",
+      "description": "For main-session wakeup: enqueue SystemEvent into in-memory queue (max 20/session). Support wake modes: now (immediate heartbeat) vs next-heartbeat (batched).",
+      "decomposition": null
+    },
+    {
+      "id": "A24",
+      "title": "Dispatch Agent Turn",
+      "description": "For isolated jobs: create fresh session via A11, run agentTurn payload with optional model/thinking overrides. For main-session: inject into existing session context.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "I1",
+      "source": "EXTERNAL",
+      "target": "A21:input",
+      "label": "Schedule Definitions",
+      "type": "input"
+    },
+    {
+      "id": "I2",
+      "source": "A21",
+      "target": "A22:input",
+      "label": "Parsed Fire Times",
+      "type": "input"
+    },
+    {
+      "id": "I3",
+      "source": "A22",
+      "target": "A23:input",
+      "label": "Gated Main Session Triggers",
+      "type": "input"
+    },
+    {
+      "id": "I4",
+      "source": "A22",
+      "target": "A24:input",
+      "label": "Gated Isolated Job Triggers",
+      "type": "input"
+    },
+    {
+      "id": "I5",
+      "source": "EXTERNAL",
+      "target": "A24:input",
+      "label": "Agent Turn Payload",
+      "type": "input"
+    },
+    {
+      "id": "C1",
+      "source": "EXTERNAL",
+      "target": "A21:control",
+      "label": "Timezone and Stagger Config",
+      "type": "control"
+    },
+    {
+      "id": "C2",
+      "source": "EXTERNAL",
+      "target": "A22:control",
+      "label": "Active Hours Config",
+      "type": "control"
+    },
+    {
+      "id": "C3",
+      "source": "EXTERNAL",
+      "target": "A23:control",
+      "label": "Wake Mode Policy",
+      "type": "control"
+    },
+    {
+      "id": "C4",
+      "source": "EXTERNAL",
+      "target": "A24:control",
+      "label": "AutonomousPolicy Throttle",
+      "type": "control"
+    },
+    {
+      "id": "O1",
+      "source": "A21",
+      "target": "EXTERNAL",
+      "label": "Next Fire Time Schedule",
+      "type": "output"
+    },
+    {
+      "id": "O2",
+      "source": "A22",
+      "target": "EXTERNAL",
+      "label": "Suppression Records",
+      "type": "output"
+    },
+    {
+      "id": "O3",
+      "source": "A23",
+      "target": "EXTERNAL",
+      "label": "Queued System Events",
+      "type": "output"
+    },
+    {
+      "id": "O4",
+      "source": "A24",
+      "target": "EXTERNAL",
+      "label": "Dispatched Agent Turns",
+      "type": "output"
+    },
+    {
+      "id": "M1",
+      "source": "EXTERNAL",
+      "target": "A21:mechanism",
+      "label": "Cron Expression Parser",
+      "type": "mechanism"
+    },
+    {
+      "id": "M2",
+      "source": "EXTERNAL",
+      "target": "A22:mechanism",
+      "label": "Clock and Timer Runtime",
+      "type": "mechanism"
+    },
+    {
+      "id": "M3",
+      "source": "EXTERNAL",
+      "target": "A23:mechanism",
+      "label": "In-Memory Event Queue",
+      "type": "mechanism"
+    },
+    {
+      "id": "M4",
+      "source": "EXTERNAL",
+      "target": "A24:mechanism",
+      "label": "Session Factory",
+      "type": "mechanism"
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A31",
+    "StepType": "initial",
+    "StepAction": "Acquire gateway lock to prevent multiple daemon instances",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["lock_acquired"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Start gateway HTTP server and initialize supervisor",
+    "LinkInputType": [],
+    "LinkInputNumber": [0, 10],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["server_started"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Run active loop accepting triggers and processing tasks",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 4],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "SIGTERM_received || SIGINT_received",
+      "SIGUSR1_received && authorized"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A33",
+    "StepType": "normal",
+    "StepAction": "Initiate graceful shutdown drain with SHUTDOWN_TIMEOUT_MS",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [7],
+    "LinkOutputType": "track",
+    "Condition": ["shutdown_drain_complete || SHUTDOWN_TIMEOUT_MS_elapsed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A33",
+    "StepType": "normal",
+    "StepAction": "Mark gateway as draining and reject new task enqueues",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [5, 6],
+    "LinkOutputType": "divergence_and",
+    "Condition": ["draining_flag_set"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A33",
+    "StepType": "normal",
+    "StepAction": "Wait for active command lane tasks to drain",
+    "LinkInputType": [],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [8],
+    "LinkOutputType": "track",
+    "Condition": ["tasks_drained || DRAIN_TIMEOUT_MS_elapsed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A33",
+    "StepType": "normal",
+    "StepAction": "Wait for embedded agent runs to complete",
+    "LinkInputType": [],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [8],
+    "LinkOutputType": "track",
+    "Condition": ["runs_drained || DRAIN_TIMEOUT_MS_elapsed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A31",
+    "StepType": "normal",
+    "StepAction": "Release gateway lock and exit daemon process",
+    "LinkInputType": [],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["process_exited"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A34",
+    "StepType": "normal",
+    "StepAction": "Close HTTP server and prepare restart",
+    "LinkInputType": ["convergence_and"],
+    "LinkInputNumber": [5, 6],
+    "LinkOutputNumber": [9, 7],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "respawn_mode == 'in_process'",
+      "respawn_mode == 'spawned'"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 9,
+    "ModuleRef": "A34",
+    "StepType": "normal",
+    "StepAction": "Reacquire gateway lock for in-process restart",
+    "LinkInputType": [],
+    "LinkInputNumber": [8],
+    "LinkOutputNumber": [10],
+    "LinkOutputType": "track",
+    "Condition": ["lock_reacquired"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 10,
+    "ModuleRef": "A44",
+    "StepType": "normal",
+    "StepAction": "Reset all lane state and bump generation number",
+    "LinkInputType": [],
+    "LinkInputNumber": [9],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["lanes_reset_complete"],
+    "SubGrafcet": []
+  }
+]

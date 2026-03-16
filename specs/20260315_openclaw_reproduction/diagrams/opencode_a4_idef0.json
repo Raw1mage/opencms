@@ -1,0 +1,144 @@
+{
+  "diagram_title": "Govern Command Lane Execution — D.3 Queue Decomposition",
+  "node_reference": "A4",
+  "activities": [
+    {
+      "id": "A41",
+      "title": "Register Lane Concurrency",
+      "description": "Define command lanes (Main/Cron/Subagent/Nested) with per-lane maxConcurrent limits. Support per-session lanes for single-threaded session execution.",
+      "decomposition": null
+    },
+    {
+      "id": "A42",
+      "title": "Enqueue Task With Drain Guard",
+      "description": "Accept task for lane execution. Reject with GatewayDrainingError if draining flag is set. Assign task ID and track enqueue timestamp. Emit diagnostic if queue wait exceeds threshold.",
+      "decomposition": null
+    },
+    {
+      "id": "A43",
+      "title": "Pump Lane Priority Drain",
+      "description": "Per-lane pump loop: dequeue next task when active count < maxConcurrent. Track activeTaskIds per generation. Execute task and resolve/reject promise on completion.",
+      "decomposition": null
+    },
+    {
+      "id": "A44",
+      "title": "Reset Lane State Post Restart",
+      "description": "Clear all activeTaskIds sets. Bump generation number to invalidate stale completions. Re-drain any queued entries that survived the restart cycle.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "I1",
+      "source": "EXTERNAL",
+      "target": "A41:input",
+      "label": "Lane Definitions",
+      "type": "input"
+    },
+    {
+      "id": "I2",
+      "source": "EXTERNAL",
+      "target": "A42:input",
+      "label": "Task Enqueue Request",
+      "type": "input"
+    },
+    {
+      "id": "I3",
+      "source": "A42",
+      "target": "A43:input",
+      "label": "Queued Task Entry",
+      "type": "input"
+    },
+    {
+      "id": "I4",
+      "source": "EXTERNAL",
+      "target": "A44:input",
+      "label": "Restart Cycle Signal",
+      "type": "input"
+    },
+    {
+      "id": "C1",
+      "source": "EXTERNAL",
+      "target": "A41:control",
+      "label": "Concurrency Config",
+      "type": "control"
+    },
+    {
+      "id": "C2",
+      "source": "EXTERNAL",
+      "target": "A42:control",
+      "label": "Draining Flag State",
+      "type": "control"
+    },
+    {
+      "id": "C3",
+      "source": "EXTERNAL",
+      "target": "A43:control",
+      "label": "Generation Number",
+      "type": "control"
+    },
+    {
+      "id": "C4",
+      "source": "EXTERNAL",
+      "target": "A44:control",
+      "label": "Reset Policy",
+      "type": "control"
+    },
+    {
+      "id": "O1",
+      "source": "A41",
+      "target": "EXTERNAL",
+      "label": "Registered Lane Map",
+      "type": "output"
+    },
+    {
+      "id": "O2",
+      "source": "A42",
+      "target": "EXTERNAL",
+      "label": "Enqueue Confirmation",
+      "type": "output"
+    },
+    {
+      "id": "O3",
+      "source": "A43",
+      "target": "EXTERNAL",
+      "label": "Executed Task Results",
+      "type": "output"
+    },
+    {
+      "id": "O4",
+      "source": "A44",
+      "target": "EXTERNAL",
+      "label": "Reset Completion Status",
+      "type": "output"
+    },
+    {
+      "id": "M1",
+      "source": "EXTERNAL",
+      "target": "A41:mechanism",
+      "label": "Lane State Registry",
+      "type": "mechanism"
+    },
+    {
+      "id": "M2",
+      "source": "EXTERNAL",
+      "target": "A42:mechanism",
+      "label": "Promise Resolver Pool",
+      "type": "mechanism"
+    },
+    {
+      "id": "M3",
+      "source": "EXTERNAL",
+      "target": "A43:mechanism",
+      "label": "Async Task Executor",
+      "type": "mechanism"
+    },
+    {
+      "id": "M4",
+      "source": "EXTERNAL",
+      "target": "A44:mechanism",
+      "label": "Atomic Counter Store",
+      "type": "mechanism"
+    }
+  ]
+}

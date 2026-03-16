@@ -1,0 +1,178 @@
+{
+  "diagram_title": "Supervise Daemon Lifecycle — D.3 Decomposition",
+  "node_reference": "A3",
+  "activities": [
+    {
+      "id": "A31",
+      "title": "Acquire Gateway Lock",
+      "description": "Prevent multiple daemon instances via port-based or file-based lock. Release lock on shutdown. Reacquire on in-process restart.",
+      "decomposition": null
+    },
+    {
+      "id": "A32",
+      "title": "Handle Signal Dispatch",
+      "description": "SIGTERM/SIGINT trigger graceful shutdown path. SIGUSR1 triggers in-process restart with authorization check. Map signals to lifecycle transitions.",
+      "decomposition": null
+    },
+    {
+      "id": "A33",
+      "title": "Execute Drain State Machine",
+      "description": "Mark gateway as draining. Reject new task enqueues with GatewayDrainingError. Wait for active tasks to complete within DRAIN_TIMEOUT_MS (90s). Abort embedded agent runs.",
+      "decomposition": null
+    },
+    {
+      "id": "A34",
+      "title": "Coordinate Process Restart",
+      "description": "Try full process respawn via restartGatewayProcessWithFreshPid(). Fall back to in-process restart if OPENCLAW_NO_RESPAWN. Close HTTP server, inform clients with restartExpectedMs.",
+      "decomposition": null
+    },
+    {
+      "id": "A35",
+      "title": "Track Lifecycle Generation Number",
+      "description": "Increment generation counter on each restart cycle. Stale task completions from previous generations are ignored by lane pump. Enables safe in-process restart without data corruption.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "I1",
+      "source": "EXTERNAL",
+      "target": "A31:input",
+      "label": "Daemon Startup Request",
+      "type": "input"
+    },
+    {
+      "id": "I2",
+      "source": "EXTERNAL",
+      "target": "A32:input",
+      "label": "OS Process Signals",
+      "type": "input"
+    },
+    {
+      "id": "I3",
+      "source": "A32",
+      "target": "A33:input",
+      "label": "Drain Command",
+      "type": "input"
+    },
+    {
+      "id": "I4",
+      "source": "A33",
+      "target": "A34:input",
+      "label": "Drain Complete Notification",
+      "type": "input"
+    },
+    {
+      "id": "I5",
+      "source": "A34",
+      "target": "A35:input",
+      "label": "Restart Cycle Event",
+      "type": "input"
+    },
+    {
+      "id": "C1",
+      "source": "EXTERNAL",
+      "target": "A31:control",
+      "label": "Lock File Path Config",
+      "type": "control"
+    },
+    {
+      "id": "C2",
+      "source": "EXTERNAL",
+      "target": "A32:control",
+      "label": "Signal Authorization Policy",
+      "type": "control"
+    },
+    {
+      "id": "C3",
+      "source": "EXTERNAL",
+      "target": "A33:control",
+      "label": "Drain Timeout Policy",
+      "type": "control"
+    },
+    {
+      "id": "C4",
+      "source": "EXTERNAL",
+      "target": "A34:control",
+      "label": "Respawn Mode Config",
+      "type": "control"
+    },
+    {
+      "id": "C5",
+      "source": "EXTERNAL",
+      "target": "A35:control",
+      "label": "Generation Validation Rules",
+      "type": "control"
+    },
+    {
+      "id": "O1",
+      "source": "A31",
+      "target": "EXTERNAL",
+      "label": "Lock Acquired Confirmation",
+      "type": "output"
+    },
+    {
+      "id": "O2",
+      "source": "A32",
+      "target": "EXTERNAL",
+      "label": "Lifecycle Transition Events",
+      "type": "output"
+    },
+    {
+      "id": "O3",
+      "source": "A33",
+      "target": "EXTERNAL",
+      "label": "Drain Completion Status",
+      "type": "output"
+    },
+    {
+      "id": "O4",
+      "source": "A34",
+      "target": "EXTERNAL",
+      "label": "Restart Outcome",
+      "type": "output"
+    },
+    {
+      "id": "O5",
+      "source": "A35",
+      "target": "EXTERNAL",
+      "label": "Current Generation Number",
+      "type": "output"
+    },
+    {
+      "id": "M1",
+      "source": "EXTERNAL",
+      "target": "A31:mechanism",
+      "label": "File Lock Manager",
+      "type": "mechanism"
+    },
+    {
+      "id": "M2",
+      "source": "EXTERNAL",
+      "target": "A32:mechanism",
+      "label": "Node Process Signal API",
+      "type": "mechanism"
+    },
+    {
+      "id": "M3",
+      "source": "EXTERNAL",
+      "target": "A33:mechanism",
+      "label": "Task Wait Controller",
+      "type": "mechanism"
+    },
+    {
+      "id": "M4",
+      "source": "EXTERNAL",
+      "target": "A34:mechanism",
+      "label": "Child Process Spawner",
+      "type": "mechanism"
+    },
+    {
+      "id": "M5",
+      "source": "EXTERNAL",
+      "target": "A35:mechanism",
+      "label": "Atomic Counter Store",
+      "type": "mechanism"
+    }
+  ]
+}

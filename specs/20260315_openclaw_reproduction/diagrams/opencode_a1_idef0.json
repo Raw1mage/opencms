@@ -1,0 +1,151 @@
+{
+  "diagram_title": "Manage Isolated Job Sessions — D.1 Decomposition",
+  "node_reference": "A1",
+  "activities": [
+    {
+      "id": "A11",
+      "title": "Scope Session Key Namespace",
+      "description": "Assign cron:<jobId>:run:<uuid> key for isolated sessions vs agent:<agentId>:main for main sessions. Enforce uniqueness and ancestry tracking.",
+      "decomposition": null
+    },
+    {
+      "id": "A12",
+      "title": "Bootstrap Lightweight Context",
+      "description": "Skip workspace file injection when lightContext=true. Provide cron-prefixed system prompt with minimal token footprint.",
+      "decomposition": null
+    },
+    {
+      "id": "A13",
+      "title": "Route Delivery Output",
+      "description": "Choose announce/webhook/none for isolated job results. Post summary to main session if configured. Chunk per channel format rules.",
+      "decomposition": null
+    },
+    {
+      "id": "A14",
+      "title": "Enforce Session Retention Policy",
+      "description": "Prune expired cron run-sessions by age (default 24h). Trim run-log JSONL by size (2MB) and line count (2000). Remove orphaned storage entries.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "I1",
+      "source": "EXTERNAL",
+      "target": "A11:input",
+      "label": "Cron Job Definition",
+      "type": "input"
+    },
+    {
+      "id": "I2",
+      "source": "A11",
+      "target": "A12:input",
+      "label": "Scoped Session Key",
+      "type": "input"
+    },
+    {
+      "id": "I3",
+      "source": "EXTERNAL",
+      "target": "A12:input",
+      "label": "Agent Turn Payload",
+      "type": "input"
+    },
+    {
+      "id": "I4",
+      "source": "A12",
+      "target": "A13:input",
+      "label": "Completed Turn Result",
+      "type": "input"
+    },
+    {
+      "id": "I5",
+      "source": "EXTERNAL",
+      "target": "A14:input",
+      "label": "Session Store Entries",
+      "type": "input"
+    },
+    {
+      "id": "C1",
+      "source": "EXTERNAL",
+      "target": "A11:control",
+      "label": "CronSessionTarget Config",
+      "type": "control"
+    },
+    {
+      "id": "C2",
+      "source": "EXTERNAL",
+      "target": "A12:control",
+      "label": "Light Context Flag",
+      "type": "control"
+    },
+    {
+      "id": "C3",
+      "source": "EXTERNAL",
+      "target": "A13:control",
+      "label": "Delivery Mode Config",
+      "type": "control"
+    },
+    {
+      "id": "C4",
+      "source": "EXTERNAL",
+      "target": "A14:control",
+      "label": "Retention Policy Thresholds",
+      "type": "control"
+    },
+    {
+      "id": "O1",
+      "source": "A11",
+      "target": "EXTERNAL",
+      "label": "Namespaced Session Record",
+      "type": "output"
+    },
+    {
+      "id": "O2",
+      "source": "A12",
+      "target": "EXTERNAL",
+      "label": "Bootstrapped Session",
+      "type": "output"
+    },
+    {
+      "id": "O3",
+      "source": "A13",
+      "target": "EXTERNAL",
+      "label": "Delivery Payloads",
+      "type": "output"
+    },
+    {
+      "id": "O4",
+      "source": "A14",
+      "target": "EXTERNAL",
+      "label": "Pruned Storage State",
+      "type": "output"
+    },
+    {
+      "id": "M1",
+      "source": "EXTERNAL",
+      "target": "A11:mechanism",
+      "label": "Storage Layer",
+      "type": "mechanism"
+    },
+    {
+      "id": "M2",
+      "source": "EXTERNAL",
+      "target": "A12:mechanism",
+      "label": "System Prompt Registry",
+      "type": "mechanism"
+    },
+    {
+      "id": "M3",
+      "source": "EXTERNAL",
+      "target": "A13:mechanism",
+      "label": "Delivery Dispatcher",
+      "type": "mechanism"
+    },
+    {
+      "id": "M4",
+      "source": "EXTERNAL",
+      "target": "A14:mechanism",
+      "label": "File System Reaper",
+      "type": "mechanism"
+    }
+  ]
+}

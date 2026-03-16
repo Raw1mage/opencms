@@ -28,13 +28,13 @@
 - **Phase 5A** (Plan-trusting Continuation): **done** — isPlanTrusting() + max_continuous_rounds bypass + smart-runner short-circuit + tasks.md integrity exemption, 84 tests passing
 - **Phase 5B** (Multi-source Trigger): **done** — RunTrigger union type (Continuation | Api), TriggerEvaluator extracted from planAutonomousNextAction(), buildApiTrigger scaffold, 83 tests passing
 - **Phase 6** (Lane-aware Queue): **done** — RunQueue with 3 lanes (critical/normal/background), lane policy with concurrency caps, supervisor drain integration, 99 tests passing
-- **Deferred**: isolated jobs, heartbeat, daemon lifecycle
+- **Stage 3** (D.1-D.3): **spec expanded** — IDEF0 (5 files) + GRAFCET (4 files) + detailed sub-tasks (24 tasks) + design decisions DD-7 to DD-12. Awaiting build approval.
 
 ## Stop Gates In Force
 
 1. ~~**No production API without security sign-off**~~ — **CLEARED** (2026-03-16, approved by project owner)
 2. **No build beyond Trigger + Queue** without explicit user approval for Phases 5-6
-3. **No deferred slices** (D.1-D.3) without explicit approval to enter build
+3. **No D.1-D.3 build** without explicit approval — specs expanded (2026-03-17), awaiting build approval
 4. **No silent fallback** or implicit authority recovery in any implementation
 5. **No multi-authority plan drift** — if a new sibling plan is needed, user must explicitly approve
 6. **Preserve gate semantics** — trigger/queue abstraction must not break approved mission / approval / decision gates
@@ -42,9 +42,22 @@
 ## Build Entry Recommendation
 
 - **All non-deferred phases complete** — Phases 0-6 delivered
-- **Next**: Deferred phases (D.1-D.3) require explicit user approval to enter build
-- Kill-switch Phases 1-4 fully delivered; control plane stable for trigger abstraction
-- Phase 5A plan-trusting mode delivered; root cause of 40+ hour autonomous runner failure identified and fixed
+- **Stage 3 (D.1-D.3) specs expanded** — IDEF0/GRAFCET diagrams + 24 detailed sub-tasks + DD-7 to DD-12
+- **Next**: Stage 3 build requires explicit user approval per Stop Gate #3
+
+### Stage 3 Build Entry (D.1-D.3)
+
+Prerequisites:
+- Phase 8 (D.1 Isolated Jobs) can start independently — no dependency on D.2/D.3
+- Phase 9 (D.2 Heartbeat/Wakeup) depends on Phase 8 for isolated session delivery
+- Phase 10 (D.3 Daemon Lifecycle) depends on Phase 9 for heartbeat integration into run loop
+
+IDEF0/GRAFCET reference: `specs/20260315_openclaw_reproduction/diagrams/`
+
+Recommended build order:
+1. Phase 8 (D.1): session key namespace → cron store → lightContext → delivery → retention
+2. Phase 9 (D.2): schedule engine → active hours → event queue → suppression → wake modes
+3. Phase 10 (D.3): gateway lock → signals → drain → lanes → restart → generation → health
 
 ## Resolved Design Decisions
 
@@ -82,6 +95,8 @@
 - [x] Phase 5A plan-trusting continuation mode delivered — 84 tests passing
 - [x] Phase 5B multi-source trigger delivered — RunTrigger + TriggerEvaluator + API scaffold, 83 tests passing
 - [x] Phase 6 lane-aware run queue delivered — RunQueue + lane policy + supervisor integration, 99 tests passing
+- [x] Stage 3 (D.1-D.3) specs expanded — IDEF0 (5 files) + GRAFCET (4 files) + 24 sub-tasks + DD-7 to DD-12
+- [ ] Stage 3 build approval obtained
 
 ## Completion / Retrospective Contract
 

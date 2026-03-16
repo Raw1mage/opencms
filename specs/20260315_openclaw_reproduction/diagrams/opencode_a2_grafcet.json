@@ -1,0 +1,119 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A2",
+    "StepType": "initial",
+    "StepAction": "Initialize heartbeat timer and schedule evaluator",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["timer_configured"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A22",
+    "StepType": "normal",
+    "StepAction": "Check active hours gate window",
+    "LinkInputType": [],
+    "LinkInputNumber": [0, 8],
+    "LinkOutputNumber": [2, 4],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "inside_active_hours",
+      "outside_active_hours"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Evaluate pending system events in session queue",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 5],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "events_present",
+      "events_empty"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A23",
+    "StepType": "normal",
+    "StepAction": "Drain system event queue and inject into heartbeat context",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["queue_drained"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A22",
+    "StepType": "normal",
+    "StepAction": "Suppress trigger until next active hours window opens",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["active_hours_start"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Execute heartbeat checklist from HEARTBEAT.md",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [2, 3],
+    "LinkOutputNumber": [6, 7],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "actionable_content_detected",
+      "no_actionable_content"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Deliver heartbeat result to target session or channel",
+    "LinkInputType": [],
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [8],
+    "LinkOutputType": "track",
+    "Condition": ["delivered"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Emit HEARTBEAT_OK token and suppress delivery",
+    "LinkInputType": [],
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [8],
+    "LinkOutputType": "track",
+    "Condition": ["suppressed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Wait for next heartbeat interval to elapse",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [6, 7],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["interval_elapsed"],
+    "SubGrafcet": []
+  }
+]

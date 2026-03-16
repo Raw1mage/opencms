@@ -1,0 +1,120 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Await isolated job trigger arrival",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1, 2, 3],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "trigger.kind == 'user'",
+      "trigger.kind == 'cron' && sessionTarget == 'isolated'",
+      "trigger.kind == 'continuation'"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Execute interactive turn in main session",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["turn_complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A11",
+    "StepType": "normal",
+    "StepAction": "Scope session key namespace as cron:<jobId>:run:<uuid>",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["session_key_assigned"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Resume autonomous continuation from pending queue",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [0, 7],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "turn_complete && todo_pending",
+      "turn_complete && !todo_pending"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A12",
+    "StepType": "normal",
+    "StepAction": "Bootstrap lightweight context with cron-prefixed system prompt",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["context_ready"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A24",
+    "StepType": "normal",
+    "StepAction": "Run agent turn payload in isolated session",
+    "LinkInputType": [],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6, 8],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "run_complete && delivery.mode != 'none'",
+      "run_complete && delivery.mode == 'none'"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A13",
+    "StepType": "normal",
+    "StepAction": "Route delivery output via announce or webhook",
+    "LinkInputType": [],
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [8],
+    "LinkOutputType": "track",
+    "Condition": ["delivered"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Complete workflow and finalize session state",
+    "LinkInputType": [],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["workflow_finalized"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A14",
+    "StepType": "normal",
+    "StepAction": "Enforce session retention policy and prune expired records",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [5, 6],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["retention_check_done"],
+    "SubGrafcet": []
+  }
+]
