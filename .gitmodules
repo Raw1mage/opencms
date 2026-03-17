@@ -19,3 +19,6 @@
 [submodule "refs/openclaw"]
 	path = refs/openclaw
 	url = https://github.com/openclaw/openclaw
+[submodule "templates/skills"]
+	path = templates/skills
+	url = git@github.com:Raw1mage/skills.git
