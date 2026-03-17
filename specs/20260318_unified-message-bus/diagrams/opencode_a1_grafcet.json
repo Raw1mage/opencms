@@ -1,0 +1,74 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A11",
+    "StepType": "initial",
+    "StepAction": "Receive Publish Call",
+    "LinkInputType": [],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["publish_called"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A11",
+    "StepType": "normal",
+    "StepAction": "Extract Topic Type And Props",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["parsed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A12",
+    "StepType": "normal",
+    "StepAction": "Run Zod Schema Validation",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 5],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["schema_valid", "schema_invalid"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A13",
+    "StepType": "normal",
+    "StepAction": "Lookup Registered Subscribers For Topic",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["subscribers_resolved"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A14",
+    "StepType": "normal",
+    "StepAction": "Invoke Each Subscriber Callback Synchronously",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [3, 5],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["all_dispatched"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A12",
+    "StepType": "normal",
+    "StepAction": "Log Validation Error And Skip Dispatch",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "convergence_or",
+    "Condition": ["error_logged"],
+    "SubGrafcet": []
+  }
+]

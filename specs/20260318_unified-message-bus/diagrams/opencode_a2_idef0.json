@@ -1,0 +1,103 @@
+{
+  "diagram_title": "Route To Backend Subscribers",
+  "node_reference": "A2",
+  "activities": [
+    {
+      "id": "A21",
+      "title": "Evaluate LogLevel Subscriber Gate",
+      "description": "Each subscriber checks OPENCODE_LOG_LEVEL against its own threshold. debug-writer >= 1, toaster >= 2, card >= 1. Gate is subscriber-side, not publisher-side.",
+      "decomposition": null
+    },
+    {
+      "id": "A22",
+      "title": "Write Debug Log Entry",
+      "description": "debug-writer subscriber: append structured entry to debug.log file. Format compatible with legacy debugCheckpoint output. Gated by logLevel >= 1.",
+      "decomposition": null
+    },
+    {
+      "id": "A23",
+      "title": "Deliver Toast Notification",
+      "description": "tui-toaster subscriber: format event props into toast message and display via TUI toast API. Gated by logLevel >= 2.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A21:input",
+      "label": "Validated Event With Topic",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A21:control",
+      "label": "OPENCODE_LOG_LEVEL Env Value",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A22:control",
+      "label": "Debug Log Format Specification",
+      "type": "control"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A23:control",
+      "label": "Toast Format And Duration Config",
+      "type": "control"
+    },
+    {
+      "id": "AR5",
+      "source": "A21:output",
+      "target": "A22:input",
+      "label": "Event Passing LogLevel Gate For Debug",
+      "type": "output"
+    },
+    {
+      "id": "AR6",
+      "source": "A21:output",
+      "target": "A23:input",
+      "label": "Event Passing LogLevel Gate For Toast",
+      "type": "output"
+    },
+    {
+      "id": "AR7",
+      "source": "A22:output",
+      "target": "EXTERNAL",
+      "label": "Debug Log File Entries",
+      "type": "output"
+    },
+    {
+      "id": "AR8",
+      "source": "A23:output",
+      "target": "EXTERNAL",
+      "label": "TUI Toast Notifications",
+      "type": "output"
+    },
+    {
+      "id": "AR9",
+      "source": "EXTERNAL",
+      "target": "A21:mechanism",
+      "label": "LogLevel Threshold Comparator",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR10",
+      "source": "EXTERNAL",
+      "target": "A22:mechanism",
+      "label": "Bun File Append API",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR11",
+      "source": "EXTERNAL",
+      "target": "A23:mechanism",
+      "label": "TUI Toast Display API",
+      "type": "mechanism"
+    }
+  ]
+}

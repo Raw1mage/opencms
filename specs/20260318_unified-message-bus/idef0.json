@@ -1,0 +1,164 @@
+{
+  "diagram_title": "Operate Unified Message Bus",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Publish Event To Topic",
+      "description": "Validate event props against zod schema and dispatch to all topic subscribers. Entry point for 124 Bus.publish sites + 318 debugCheckpoint sites via Bus.debug wrapper.",
+      "decomposition": "A1"
+    },
+    {
+      "id": "A2",
+      "title": "Route To Backend Subscribers",
+      "description": "Execute registered backend subscriber callbacks: debug-writer (debug.log), tui-toaster (TUI toast). Each subscriber applies its own logLevel gate.",
+      "decomposition": "A2"
+    },
+    {
+      "id": "A3",
+      "title": "Transport To Frontend Via SSE",
+      "description": "GlobalBus SSE transport adapter — wildcard subscriber that relays all events to frontend via Hono streamSSE endpoint /api/v2/global/event.",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Route Frontend Events To Components",
+      "description": "Broadcast-first delivery to all children stores. Frontend subscribers (webapp toaster, LLM card, session list) process events via event-reducer.",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Migrate Legacy Event Callers",
+      "description": "Backward-compatible wrappers: debugCheckpoint() → Bus.debug(), GlobalBus.emit() → Bus.publish(), TuiEvent.ToastShow → tui-toaster subscriber.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "Event Props From Publisher",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A5:input",
+      "label": "Legacy debugCheckpoint And GlobalBus Calls",
+      "type": "input"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Zod Schema Validation",
+      "type": "control"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "OPENCODE_LOG_LEVEL Subscriber Filter",
+      "type": "control"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "Broadcast-First Routing Policy",
+      "type": "control"
+    },
+    {
+      "id": "AR6",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "Validated Event With Topic",
+      "type": "output"
+    },
+    {
+      "id": "AR7",
+      "source": "A1:output",
+      "target": "A3:input",
+      "label": "Validated Event For SSE Transport",
+      "type": "output"
+    },
+    {
+      "id": "AR8",
+      "source": "A2:output",
+      "target": "EXTERNAL",
+      "label": "Debug Log Entries",
+      "type": "output"
+    },
+    {
+      "id": "AR9",
+      "source": "A2:output",
+      "target": "EXTERNAL",
+      "label": "TUI Toast Notifications",
+      "type": "output"
+    },
+    {
+      "id": "AR10",
+      "source": "A3:output",
+      "target": "A4:input",
+      "label": "SSE Event Stream",
+      "type": "output"
+    },
+    {
+      "id": "AR11",
+      "source": "A4:output",
+      "target": "EXTERNAL",
+      "label": "Webapp Toast Notifications",
+      "type": "output"
+    },
+    {
+      "id": "AR12",
+      "source": "A4:output",
+      "target": "EXTERNAL",
+      "label": "Webapp Card State Updates",
+      "type": "output"
+    },
+    {
+      "id": "AR13",
+      "source": "A5:output",
+      "target": "A1:input",
+      "label": "Wrapped Legacy Events",
+      "type": "output"
+    },
+    {
+      "id": "AR14",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "Bus.publish Dispatcher",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR15",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "Bus.subscribe Callback Registry",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR16",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "GlobalBus SSE Adapter And Hono streamSSE",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR17",
+      "source": "EXTERNAL",
+      "target": "A4:mechanism",
+      "label": "SolidJS Store And Event Reducer",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR18",
+      "source": "EXTERNAL",
+      "target": "A5:mechanism",
+      "label": "Backward Compatible Wrapper Functions",
+      "type": "mechanism"
+    }
+  ]
+}

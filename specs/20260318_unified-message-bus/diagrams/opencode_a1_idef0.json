@@ -1,0 +1,123 @@
+{
+  "diagram_title": "Publish Event To Topic",
+  "node_reference": "A1",
+  "activities": [
+    {
+      "id": "A11",
+      "title": "Parse Event Type And Props",
+      "description": "Extract topic type and properties from Bus.publish(Topic, props) call. Support multi-topic publish for different granularity output.",
+      "decomposition": null
+    },
+    {
+      "id": "A12",
+      "title": "Validate Against Zod Schema",
+      "description": "Run zod parse on event props using schema from BusEvent.define(). Reject invalid payloads before dispatch.",
+      "decomposition": null
+    },
+    {
+      "id": "A13",
+      "title": "Resolve Topic Subscriber List",
+      "description": "Look up all registered callbacks for this topic in Bus.subscribe registry. Include wildcard subscribers (SSE transport).",
+      "decomposition": null
+    },
+    {
+      "id": "A14",
+      "title": "Dispatch To Each Subscriber",
+      "description": "Synchronous push: forEach subscriber callback, invoke with validated props. Fire-and-forget — no queue, no buffer.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A11:input",
+      "label": "Event Props From Publisher",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A11:input",
+      "label": "Wrapped Legacy Events",
+      "type": "input"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A12:control",
+      "label": "Zod Schema Definition",
+      "type": "control"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A14:control",
+      "label": "Synchronous Push Dispatch Policy",
+      "type": "control"
+    },
+    {
+      "id": "AR5",
+      "source": "A11:output",
+      "target": "A12:input",
+      "label": "Parsed Topic And Props",
+      "type": "output"
+    },
+    {
+      "id": "AR6",
+      "source": "A12:output",
+      "target": "A13:input",
+      "label": "Validated Event Payload",
+      "type": "output"
+    },
+    {
+      "id": "AR7",
+      "source": "A12:output",
+      "target": "EXTERNAL",
+      "label": "Validation Error",
+      "type": "output"
+    },
+    {
+      "id": "AR8",
+      "source": "A13:output",
+      "target": "A14:input",
+      "label": "Matched Subscriber Callbacks",
+      "type": "output"
+    },
+    {
+      "id": "AR9",
+      "source": "A14:output",
+      "target": "EXTERNAL",
+      "label": "Dispatched Event To Subscribers",
+      "type": "output"
+    },
+    {
+      "id": "AR10",
+      "source": "EXTERNAL",
+      "target": "A11:mechanism",
+      "label": "Bus.publish Entry Point",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR11",
+      "source": "EXTERNAL",
+      "target": "A12:mechanism",
+      "label": "Zod Runtime Parser",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR12",
+      "source": "EXTERNAL",
+      "target": "A13:mechanism",
+      "label": "Bus.subscribe Callback Registry",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR13",
+      "source": "EXTERNAL",
+      "target": "A14:mechanism",
+      "label": "Synchronous forEach Dispatcher",
+      "type": "mechanism"
+    }
+  ]
+}

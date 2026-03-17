@@ -1,0 +1,86 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A21",
+    "StepType": "initial",
+    "StepAction": "Receive Dispatched Event",
+    "LinkInputType": [],
+    "LinkInputNumber": [4, 5],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["event_received"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A21",
+    "StepType": "normal",
+    "StepAction": "Check LogLevel Against Subscriber Thresholds",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 6],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["logLevel_nonzero", "logLevel_zero"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A21",
+    "StepType": "normal",
+    "StepAction": "Fork To Eligible Subscribers",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 4],
+    "LinkOutputType": "divergence_and",
+    "Condition": ["dispatch_to_subscribers"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A22",
+    "StepType": "normal",
+    "StepAction": "Append Structured Entry To Debug Log",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "convergence_and",
+    "Condition": ["log_written"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A23",
+    "StepType": "normal",
+    "StepAction": "Format And Display Toast Message",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "convergence_and",
+    "Condition": ["toast_displayed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A21",
+    "StepType": "normal",
+    "StepAction": "Backend Dispatch Complete",
+    "LinkInputType": ["convergence_and"],
+    "LinkInputNumber": [3, 4],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["reset"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A21",
+    "StepType": "normal",
+    "StepAction": "Skip All Subscribers Due To LogLevel Zero",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["skipped"],
+    "SubGrafcet": []
+  }
+]
