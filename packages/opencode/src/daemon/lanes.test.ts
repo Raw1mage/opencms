@@ -139,32 +139,31 @@ describe("Lanes", () => {
   })
 })
 
-// --- Per-channel lane isolation tests (Phase 3) ---
+// --- Per-workspace lane isolation tests (Stage 4) ---
 
-describe("Per-channel lane isolation", () => {
+describe("Per-workspace lane isolation", () => {
   beforeEach(() => {
     Drain.reset()
     Lanes.register()
   })
 
   it("buildLaneKey creates composite key", () => {
-    expect(Lanes.buildLaneKey("ch-a", Lanes.CommandLane.Main)).toBe("ch-a:main")
+    expect(Lanes.buildLaneKey("ws-a", Lanes.CommandLane.Main)).toBe("ws-a:main")
     expect(Lanes.buildLaneKey("default", Lanes.CommandLane.Cron)).toBe("default:cron")
   })
 
-  it("parseLaneKey extracts channelId and lane", () => {
-    const parsed = Lanes.parseLaneKey("ch-a:main")
-    expect(parsed).toEqual({ channelId: "ch-a", lane: Lanes.CommandLane.Main })
+  it("parseLaneKey extracts workspaceId and lane", () => {
+    const parsed = Lanes.parseLaneKey("ws-a:main")
+    expect(parsed).toEqual({ workspaceId: "ws-a", lane: Lanes.CommandLane.Main })
   })
 
-  it("cross-channel isolation: channel A full does not block channel B", async () => {
-    // Register channel A with main=1 and channel B with main=1
-    Lanes.registerChannel({ channelId: "ch-a", concurrency: { main: 1 } })
-    Lanes.registerChannel({ channelId: "ch-b", concurrency: { main: 1 } })
+  it("cross-workspace isolation: workspace A full does not block workspace B", async () => {
+    Lanes.registerWorkspace({ workspaceId: "ws-a", concurrency: { main: 1 } })
+    Lanes.registerWorkspace({ workspaceId: "ws-b", concurrency: { main: 1 } })
 
     const order: string[] = []
 
-    // Occupy channel A's main lane
+    // Occupy workspace A's main lane
     const pA = Lanes.enqueue(
       Lanes.CommandLane.Main,
       async () => {
@@ -172,57 +171,57 @@ describe("Per-channel lane isolation", () => {
         order.push("a-done")
         return "a"
       },
-      "ch-a",
+      "ws-a",
     )
 
-    // Channel B should execute immediately despite channel A being full
+    // Workspace B should execute immediately despite workspace A being full
     const pB = Lanes.enqueue(
       Lanes.CommandLane.Main,
       async () => {
         order.push("b-done")
         return "b"
       },
-      "ch-b",
+      "ws-b",
     )
 
     await pB
     expect(order).toContain("b-done")
-    // Channel A should still be running
-    expect(Lanes.channelActiveTasks("ch-a")).toBe(1)
+    // Workspace A should still be running
+    expect(Lanes.workspaceActiveTasks("ws-a")).toBe(1)
 
     await pA
     expect(order).toEqual(["b-done", "a-done"])
   })
 
-  it("channel-scoped active task count", async () => {
-    Lanes.registerChannel({ channelId: "ch-x" })
+  it("workspace-scoped active task count", async () => {
+    Lanes.registerWorkspace({ workspaceId: "ws-x" })
 
     const p = Lanes.enqueue(
       Lanes.CommandLane.Main,
       () => new Promise((r) => setTimeout(r, 100)),
-      "ch-x",
+      "ws-x",
     )
     await new Promise((r) => setTimeout(r, 10))
 
-    expect(Lanes.channelActiveTasks("ch-x")).toBe(1)
-    expect(Lanes.channelActiveTasks("default")).toBe(0) // default unaffected
+    expect(Lanes.workspaceActiveTasks("ws-x")).toBe(1)
+    expect(Lanes.workspaceActiveTasks("default")).toBe(0) // default unaffected
 
     await p
-    expect(Lanes.channelActiveTasks("ch-x")).toBe(0)
+    expect(Lanes.workspaceActiveTasks("ws-x")).toBe(0)
   })
 
-  it("unregisterChannel clears channel lanes", () => {
-    Lanes.registerChannel({ channelId: "ephemeral" })
+  it("unregisterWorkspace clears workspace lanes", () => {
+    Lanes.registerWorkspace({ workspaceId: "ephemeral" })
     const info = Lanes.info()
     expect(info["ephemeral:main"]).toBeDefined()
 
-    Lanes.unregisterChannel("ephemeral")
+    Lanes.unregisterWorkspace("ephemeral")
     const infoAfter = Lanes.info()
     expect(infoAfter["ephemeral:main"]).toBeUndefined()
   })
 
-  it("default channel backward compatibility", async () => {
-    // enqueue without channelId should use default channel
+  it("default workspace backward compatibility", async () => {
+    // enqueue without workspaceId should use default workspace
     const result = await Lanes.enqueue(Lanes.CommandLane.Main, async () => "default-works")
     expect(result).toBe("default-works")
   })

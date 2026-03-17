@@ -24,7 +24,7 @@ const TriggerInput = z.object({
   reason: z.string().min(1),
   mode: z.string().default("global"),
   scope: z.string().default("global"),
-  channelId: z.string().optional(),
+  workspaceId: z.string().optional(),
   ttl: z.number().optional(),
   mfaCode: z.string().optional(),
   requestID: z.string().optional(),
@@ -222,8 +222,8 @@ export function KillSwitchRoutes() {
           reason: body.reason,
           initiatedAt,
           mode: body.mode,
-          scope: body.channelId ? "channel" : body.scope,
-          channelId: body.channelId,
+          scope: body.workspaceId ? "workspace" : body.scope,
+          workspaceId: body.workspaceId,
           ttl: body.ttl ?? null,
           snapshotURL,
         })
@@ -234,12 +234,12 @@ export function KillSwitchRoutes() {
           action: "kill_switch.trigger",
           permission: "kill_switch.trigger",
           result: "accepted",
-          meta: { mode: body.mode, scope: body.channelId ? "channel" : body.scope, channelId: body.channelId, snapshotURL },
+          meta: { mode: body.mode, scope: body.workspaceId ? "workspace" : body.scope, workspaceId: body.workspaceId, snapshotURL },
         })
 
         // soft-pause/hard-kill path: cancel all busy sessions with seq/ack
-        // If channelId is set, only cancel sessions belonging to that channel
-        const busy = await KillSwitchService.listBusySessionIDs(body.channelId)
+        // If workspaceId is set, only cancel sessions belonging to that workspace
+        const busy = await KillSwitchService.listBusySessionIDs(body.workspaceId)
         const failures: Array<{ sessionID: string; reason: string }> = []
         for (const sessionID of busy) {
           const seq = Date.now()

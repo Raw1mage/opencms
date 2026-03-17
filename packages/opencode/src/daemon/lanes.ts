@@ -1,6 +1,7 @@
 import { Log } from "../util/log"
 import { Drain } from "./drain"
-import { DEFAULT_CHANNEL_ID } from "../channel/types"
+
+const DEFAULT_WORKSPACE_ID = "default"
 
 /**
  * Command lane queue with concurrency control (D.3.4-D.3.5, D.3.7).
@@ -8,12 +9,12 @@ import { DEFAULT_CHANNEL_ID } from "../channel/types"
  * Each lane has its own FIFO queue, concurrency limit, and generation number.
  * Generation numbers are bumped on restart to invalidate stale task completions.
  *
- * Lanes are namespaced per channel using composite keys: `<channelId>:<lane>` (DD-15).
- * The default channel preserves backward-compatible behavior.
+ * Lanes are namespaced per workspace using composite keys: `<workspaceId>:<lane>` (DD-15).
+ * The default workspace preserves backward-compatible behavior.
  *
- * IDEF0 reference: A3 (Allocate Per-Channel Lane Resources), A41-A44
+ * IDEF0 reference: A3 (Allocate Per-Workspace Lane Resources), A41-A44
  * GRAFCET reference: opencode_a3_grafcet.json (lane allocation state machine)
- * Design decisions: DD-12 (lane concurrency defaults), DD-15 (channel:lane composite key)
+ * Design decisions: DD-12 (lane concurrency defaults), DD-15 (workspace:lane composite key)
  * Benchmark: refs/openclaw/src/process/command-queue.ts
  */
 export namespace Lanes {
@@ -35,22 +36,22 @@ export namespace Lanes {
   }
 
   /**
-   * Build composite lane key: `<channelId>:<lane>` (DD-15).
+   * Build composite lane key: `<workspaceId>:<lane>` (DD-15).
    */
-  export function buildLaneKey(channelId: string, lane: CommandLane): string {
-    return `${channelId}:${lane}`
+  export function buildLaneKey(workspaceId: string, lane: CommandLane): string {
+    return `${workspaceId}:${lane}`
   }
 
   /**
-   * Parse composite lane key back to channelId and lane.
+   * Parse composite lane key back to workspaceId and lane.
    */
-  export function parseLaneKey(key: string): { channelId: string; lane: CommandLane } | undefined {
+  export function parseLaneKey(key: string): { workspaceId: string; lane: CommandLane } | undefined {
     const idx = key.lastIndexOf(":")
     if (idx === -1) return undefined
-    const channelId = key.slice(0, idx)
+    const workspaceId = key.slice(0, idx)
     const lane = key.slice(idx + 1) as CommandLane
     if (!Object.values(CommandLane).includes(lane)) return undefined
-    return { channelId, lane }
+    return { workspaceId, lane }
   }
 
   type QueueEntry<T = unknown> = {
@@ -72,26 +73,26 @@ export namespace Lanes {
   let taskIdCounter = 0
   const lanes = new Map<string, LaneState>()
 
-  export type ChannelLaneConfig = {
-    channelId: string
+  export type WorkspaceLaneConfig = {
+    workspaceId: string
     concurrency?: Partial<Record<CommandLane, number>>
   }
 
   /**
-   * Initialize lanes for the default channel (D.3.4, GRAFCET step S0).
+   * Initialize lanes for the default workspace (D.3.4, GRAFCET step S0).
    * Backward-compatible: creates `default:<lane>` entries.
    */
   export function register(overrides?: Partial<Record<CommandLane, number>>): void {
-    registerChannel({ channelId: DEFAULT_CHANNEL_ID, concurrency: overrides })
+    registerWorkspace({ workspaceId: DEFAULT_WORKSPACE_ID, concurrency: overrides })
   }
 
   /**
-   * Register lanes for a specific channel with its own concurrency policy.
-   * Each channel gets isolated lane queues (DD-15).
+   * Register lanes for a specific workspace with its own concurrency policy.
+   * Each workspace gets isolated lane queues (DD-15).
    */
-  export function registerChannel(config: ChannelLaneConfig): void {
+  export function registerWorkspace(config: WorkspaceLaneConfig): void {
     for (const lane of Object.values(CommandLane)) {
-      const key = buildLaneKey(config.channelId, lane)
+      const key = buildLaneKey(config.workspaceId, lane)
       const maxConcurrent = config.concurrency?.[lane] ?? DEFAULT_CONCURRENCY[lane]
       lanes.set(key, {
         queue: [],
@@ -101,22 +102,22 @@ export namespace Lanes {
         draining: false,
       })
     }
-    log.info("channel lanes registered", {
-      channelId: config.channelId,
+    log.info("workspace lanes registered", {
+      workspaceId: config.workspaceId,
       lanes: Object.fromEntries(
         [...lanes.entries()]
-          .filter(([k]) => k.startsWith(config.channelId + ":"))
+          .filter(([k]) => k.startsWith(config.workspaceId + ":"))
           .map(([k, v]) => [k, v.maxConcurrent]),
       ),
     })
   }
 
   /**
-   * Unregister all lanes for a specific channel.
+   * Unregister all lanes for a specific workspace.
    */
-  export function unregisterChannel(channelId: string): void {
+  export function unregisterWorkspace(workspaceId: string): void {
     for (const lane of Object.values(CommandLane)) {
-      const key = buildLaneKey(channelId, lane)
+      const key = buildLaneKey(workspaceId, lane)
       const laneState = lanes.get(key)
       if (laneState) {
         for (const entry of laneState.queue) {
@@ -125,24 +126,24 @@ export namespace Lanes {
         lanes.delete(key)
       }
     }
-    log.info("channel lanes unregistered", { channelId })
+    log.info("workspace lanes unregistered", { workspaceId })
   }
 
   /**
    * Enqueue a task in a lane (D.3.4, GRAFCET steps S1-S2).
    * Rejects with GatewayDrainingError if daemon is draining.
-   * Defaults to the default channel if channelId is not specified.
+   * Defaults to the default workspace if workspaceId is not specified.
    */
   export function enqueue<T>(
     lane: CommandLane,
     task: () => Promise<T>,
-    channelId: string = DEFAULT_CHANNEL_ID,
+    workspaceId: string = DEFAULT_WORKSPACE_ID,
   ): Promise<T> {
     if (Drain.isDraining()) {
       return Promise.reject(new GatewayDrainingError())
     }
 
-    const key = buildLaneKey(channelId, lane)
+    const key = buildLaneKey(workspaceId, lane)
     const laneState = getLane(key)
     const id = ++taskIdCounter
     const generation = laneState.generation
@@ -235,21 +236,21 @@ export namespace Lanes {
   }
 
   /**
-   * Get queue size for a specific lane (defaults to default channel).
+   * Get queue size for a specific lane (defaults to default workspace).
    */
-  export function queueSize(lane: CommandLane, channelId: string = DEFAULT_CHANNEL_ID): number {
-    const key = buildLaneKey(channelId, lane)
+  export function queueSize(lane: CommandLane, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
+    const key = buildLaneKey(workspaceId, lane)
     const laneState = lanes.get(key)
     if (!laneState) return 0
     return laneState.queue.length + laneState.activeTaskIds.size
   }
 
   /**
-   * Get active task count for a specific channel.
+   * Get active task count for a specific workspace.
    */
-  export function channelActiveTasks(channelId: string): number {
+  export function workspaceActiveTasks(workspaceId: string): number {
     let total = 0
-    const prefix = channelId + ":"
+    const prefix = workspaceId + ":"
     for (const [key, laneState] of lanes.entries()) {
       if (key.startsWith(prefix)) {
         total += laneState.activeTaskIds.size
@@ -266,10 +267,10 @@ export namespace Lanes {
   }
 
   /**
-   * Check if a specific channel has no active tasks.
+   * Check if a specific workspace has no active tasks.
    */
-  export function isChannelIdle(channelId: string): boolean {
-    return channelActiveTasks(channelId) === 0
+  export function isWorkspaceIdle(workspaceId: string): boolean {
+    return workspaceActiveTasks(workspaceId) === 0
   }
 
   /**

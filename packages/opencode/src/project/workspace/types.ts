@@ -1,5 +1,25 @@
 import z from "zod"
 
+// --- Lane policy (moved from channel/types.ts) ---
+
+export const LanePolicySchema = z.object({
+  main: z.number().int().positive(),
+  cron: z.number().int().positive(),
+  subagent: z.number().int().positive(),
+  nested: z.number().int().positive(),
+})
+export type LanePolicy = z.infer<typeof LanePolicySchema>
+
+export const DEFAULT_LANE_POLICY: LanePolicy = {
+  main: 1,
+  cron: 1,
+  subagent: 2,
+  nested: 1,
+}
+
+export const KillSwitchScopeSchema = z.enum(["workspace", "global"])
+export type KillSwitchScope = z.infer<typeof KillSwitchScopeSchema>
+
 export const WorkspaceKindSchema = z.enum(["root", "sandbox", "derived"])
 export type WorkspaceKind = z.infer<typeof WorkspaceKindSchema>
 
@@ -42,5 +62,7 @@ export const WorkspaceAggregateSchema = WorkspaceIdentitySchema.extend({
   displayName: z.string().optional(),
   branch: z.string().optional(),
   attachments: WorkspaceAttachmentSummarySchema,
+  lanePolicy: LanePolicySchema.optional(),
+  killSwitchScope: KillSwitchScopeSchema.optional(),
 })
 export type WorkspaceAggregate = z.infer<typeof WorkspaceAggregateSchema>

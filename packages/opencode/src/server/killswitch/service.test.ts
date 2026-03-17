@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach, mock } from "bun:test"
+import { describe, expect, it, beforeEach, afterEach } from "bun:test"
 import { KillSwitchService } from "./service"
 import { SessionStatus } from "@/session/status"
 
@@ -47,10 +47,10 @@ describe("KillSwitchService", () => {
   })
 })
 
-// --- Channel-scoped kill-switch tests (Phase 4) ---
+// --- Workspace-scoped kill-switch tests (Stage 4) ---
 
-describe("KillSwitchService channel scope", () => {
-  it("global kill-switch blocks all channels", async () => {
+describe("KillSwitchService workspace scope", () => {
+  it("global kill-switch blocks all workspaces", async () => {
     await KillSwitchService.setState({
       active: true,
       state: "soft_paused",
@@ -62,10 +62,10 @@ describe("KillSwitchService channel scope", () => {
       scope: "global",
     })
 
-    const resultA = await KillSwitchService.assertSchedulingAllowed("ch-a")
+    const resultA = await KillSwitchService.assertSchedulingAllowed("ws-a")
     expect(resultA.ok).toBe(false)
 
-    const resultB = await KillSwitchService.assertSchedulingAllowed("ch-b")
+    const resultB = await KillSwitchService.assertSchedulingAllowed("ws-b")
     expect(resultB.ok).toBe(false)
 
     const resultNone = await KillSwitchService.assertSchedulingAllowed()
@@ -74,41 +74,40 @@ describe("KillSwitchService channel scope", () => {
     await KillSwitchService.clearState()
   })
 
-  it("channel-scoped kill-switch only blocks target channel", async () => {
+  it("workspace-scoped kill-switch only blocks target workspace", async () => {
     await KillSwitchService.setState({
       active: true,
       state: "soft_paused",
-      requestID: "ks_channel_test",
+      requestID: "ks_workspace_test",
       initiator: "tester",
-      reason: "test channel scope",
+      reason: "test workspace scope",
       initiatedAt: Date.now(),
-      mode: "channel",
-      scope: "channel",
-      channelId: "ch-a",
+      mode: "workspace",
+      scope: "workspace",
+      workspaceId: "ws-a",
     })
 
-    // Channel A should be blocked
-    const resultA = await KillSwitchService.assertSchedulingAllowed("ch-a")
+    // Workspace A should be blocked
+    const resultA = await KillSwitchService.assertSchedulingAllowed("ws-a")
     expect(resultA.ok).toBe(false)
 
-    // Channel B should NOT be blocked
-    const resultB = await KillSwitchService.assertSchedulingAllowed("ch-b")
+    // Workspace B should NOT be blocked
+    const resultB = await KillSwitchService.assertSchedulingAllowed("ws-b")
     expect(resultB.ok).toBe(true)
 
     await KillSwitchService.clearState()
   })
 
-  it("inactive kill-switch allows all channels", async () => {
+  it("inactive kill-switch allows all workspaces", async () => {
     await KillSwitchService.clearState()
 
-    const result = await KillSwitchService.assertSchedulingAllowed("ch-a")
+    const result = await KillSwitchService.assertSchedulingAllowed("ws-a")
     expect(result.ok).toBe(true)
   })
 })
 
 describe("KillSwitchService.listBusySessionIDs", () => {
   beforeEach(() => {
-    // Set up some busy sessions
     SessionStatus.set("ses_a1", { type: "busy" })
     SessionStatus.set("ses_a2", { type: "busy" })
     SessionStatus.set("ses_b1", { type: "busy" })
@@ -120,7 +119,7 @@ describe("KillSwitchService.listBusySessionIDs", () => {
     SessionStatus.set("ses_b1", { type: "idle" })
   })
 
-  it("returns all busy sessions when no channelId filter", async () => {
+  it("returns all busy sessions when no workspaceId filter", async () => {
     const busy = await KillSwitchService.listBusySessionIDs()
     expect(busy.length).toBe(3)
     expect(busy).toContain("ses_a1")

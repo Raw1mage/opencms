@@ -21,7 +21,7 @@ export namespace KillSwitchService {
     initiatedAt: z.number(),
     mode: z.string(),
     scope: z.string(),
-    channelId: z.string().optional(),
+    workspaceId: z.string().optional(),
     ttl: z.number().nullable().optional(),
     snapshotURL: z.string().nullable().optional(),
   })
@@ -307,44 +307,51 @@ export namespace KillSwitchService {
     })
   }
 
-  export async function listBusySessionIDs(channelId?: string) {
+  export async function listBusySessionIDs(workspaceId?: string) {
     const statuses = SessionStatus.list()
     const allBusy = Object.entries(statuses)
       .filter(([, value]) => value.type !== "idle")
       .map(([sessionID]) => sessionID)
 
-    if (!channelId) return allBusy
+    if (!workspaceId) return allBusy
 
-    // Channel-scoped filter: resolve each session's channelId from Session.Info.
+    // Workspace-scoped filter: resolve workspace from session directory.
     // Busy count is typically very small (1-3), so parallel lookup is fast.
+    const { resolveWorkspace } = await import("@/project/workspace/resolver")
     const results = await Promise.all(
       allBusy.map(async (sessionID) => {
         const info = await Session.get(sessionID).catch(() => undefined)
-        return { sessionID, match: info?.channelId === channelId }
+        if (!info) return { sessionID, match: false }
+        try {
+          const ws = await resolveWorkspace({ directory: info.directory })
+          return { sessionID, match: ws.workspaceId === workspaceId }
+        } catch {
+          return { sessionID, match: false }
+        }
       }),
     )
     return results.filter((r) => r.match).map((r) => r.sessionID)
   }
 
   /**
-   * Assert scheduling is allowed, with optional channel scope (DD-16).
+   * Assert scheduling is allowed, with optional workspace scope (DD-16).
    *
-   * - Global kill-switch (no channelId) blocks everything.
-   * - Channel-scoped kill-switch (channelId set) only blocks that channel.
-   * - If caller provides channelId, a channel-scoped kill-switch for a
-   *   different channel does NOT block.
+   * - Global kill-switch (no workspaceId) blocks everything.
+   * - Workspace-scoped kill-switch (workspaceId set) only blocks that workspace.
+   * - If caller provides workspaceId, a workspace-scoped kill-switch for a
+   *   different workspace does NOT block.
    */
-  export async function assertSchedulingAllowed(channelId?: string) {
+  export async function assertSchedulingAllowed(workspaceId?: string) {
     const state = await getState()
     if (!state || !state.active) return { ok: true as const }
 
-    // Global kill-switch blocks all channels
-    if (state.scope === "global" || !state.channelId) {
+    // Global kill-switch blocks all workspaces
+    if (state.scope === "global" || !state.workspaceId) {
       return { ok: false as const, state }
     }
 
-    // Channel-scoped kill-switch: only block the target channel
-    if (channelId && state.channelId !== channelId) {
+    // Workspace-scoped kill-switch: only block the target workspace
+    if (workspaceId && state.workspaceId !== workspaceId) {
       return { ok: true as const }
     }
 

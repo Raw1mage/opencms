@@ -1,5 +1,6 @@
 import { Project } from "../project"
 import { createEmptyWorkspaceAttachmentSummary } from "./attachments"
+import { DEFAULT_LANE_POLICY } from "./types"
 import type { WorkspaceAggregate, WorkspaceKind, WorkspaceLocator, WorkspaceOrigin } from "./types"
 import { createWorkspaceId, normalizeWorkspaceDirectory } from "./identity"
 
@@ -30,6 +31,8 @@ function buildWorkspace(args: {
     displayName: args.displayName,
     branch: args.branch,
     attachments: createEmptyWorkspaceAttachmentSummary(),
+    lanePolicy: { ...DEFAULT_LANE_POLICY },
+    killSwitchScope: "global",
   }
 }
 
