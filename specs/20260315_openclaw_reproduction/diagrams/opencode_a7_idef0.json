@@ -1,0 +1,151 @@
+{
+  "diagram_title": "Render Operator Surface — Stage C Decomposition",
+  "node_reference": "A7",
+  "activities": [
+    {
+      "id": "A71",
+      "title": "Present Channel Management Interface",
+      "description": "Render CRUD panel for channels: create, rename, enable/disable, delete with confirmation. Display lane policy editor per channel.",
+      "decomposition": "A71"
+    },
+    {
+      "id": "A72",
+      "title": "Display Health Dashboard Channel Breakdown",
+      "description": "Show per-channel lane utilization, active session count, kill-switch scope. Aggregate global health from channel-level data.",
+      "decomposition": null
+    },
+    {
+      "id": "A73",
+      "title": "Render Session Creation Channel Picker",
+      "description": "Add channel selector to session creation flow. Default to 'default' channel. Validate channel exists and is enabled before creating session.",
+      "decomposition": null
+    },
+    {
+      "id": "A74",
+      "title": "Stream Real-Time Channel Status Updates",
+      "description": "Subscribe to channel state change events via SSE. Update UI reactively on channel create/update/delete/kill-switch changes.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "I1",
+      "source": "EXTERNAL",
+      "target": "A71:input",
+      "label": "Operator CRUD Requests",
+      "type": "input"
+    },
+    {
+      "id": "I2",
+      "source": "EXTERNAL",
+      "target": "A72:input",
+      "label": "Daemon Health Data",
+      "type": "input"
+    },
+    {
+      "id": "I3",
+      "source": "EXTERNAL",
+      "target": "A73:input",
+      "label": "Session Creation Request",
+      "type": "input"
+    },
+    {
+      "id": "I4",
+      "source": "EXTERNAL",
+      "target": "A74:input",
+      "label": "SSE Channel Events",
+      "type": "input"
+    },
+    {
+      "id": "I5",
+      "source": "A71",
+      "target": "A74:input",
+      "label": "Channel Mutation Events",
+      "type": "input"
+    },
+    {
+      "id": "C1",
+      "source": "EXTERNAL",
+      "target": "A71:control",
+      "label": "UI Component Standards",
+      "type": "control"
+    },
+    {
+      "id": "C2",
+      "source": "EXTERNAL",
+      "target": "A72:control",
+      "label": "Dashboard Layout Spec",
+      "type": "control"
+    },
+    {
+      "id": "C3",
+      "source": "EXTERNAL",
+      "target": "A73:control",
+      "label": "Channel Validation Rules",
+      "type": "control"
+    },
+    {
+      "id": "C4",
+      "source": "EXTERNAL",
+      "target": "A74:control",
+      "label": "SSE Event Schema",
+      "type": "control"
+    },
+    {
+      "id": "O1",
+      "source": "A71",
+      "target": "EXTERNAL",
+      "label": "Channel CRUD Confirmations",
+      "type": "output"
+    },
+    {
+      "id": "O2",
+      "source": "A72",
+      "target": "EXTERNAL",
+      "label": "Rendered Health Dashboard",
+      "type": "output"
+    },
+    {
+      "id": "O3",
+      "source": "A73",
+      "target": "EXTERNAL",
+      "label": "Channel-Affiliated Session",
+      "type": "output"
+    },
+    {
+      "id": "O4",
+      "source": "A74",
+      "target": "EXTERNAL",
+      "label": "Updated Channel UI State",
+      "type": "output"
+    },
+    {
+      "id": "M1",
+      "source": "EXTERNAL",
+      "target": "A71:mechanism",
+      "label": "Solid.js Reactive Runtime",
+      "type": "mechanism"
+    },
+    {
+      "id": "M2",
+      "source": "EXTERNAL",
+      "target": "A72:mechanism",
+      "label": "Health API Client",
+      "type": "mechanism"
+    },
+    {
+      "id": "M3",
+      "source": "EXTERNAL",
+      "target": "A73:mechanism",
+      "label": "Session API Client",
+      "type": "mechanism"
+    },
+    {
+      "id": "M4",
+      "source": "EXTERNAL",
+      "target": "A74:mechanism",
+      "label": "SSE Event Stream",
+      "type": "mechanism"
+    }
+  ]
+}

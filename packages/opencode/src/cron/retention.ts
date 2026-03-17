@@ -1,5 +1,5 @@
 import { Session } from "../session"
-import { Storage } from "../storage"
+import { Storage } from "@/storage/storage"
 import { Scheduler } from "../scheduler"
 import { Log } from "../util/log"
 import { CronSession } from "./session"

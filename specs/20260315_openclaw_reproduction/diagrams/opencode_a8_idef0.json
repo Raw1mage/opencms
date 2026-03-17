@@ -1,0 +1,151 @@
+{
+  "diagram_title": "Govern Channel Extensions — Stage D Decomposition",
+  "node_reference": "A8",
+  "activities": [
+    {
+      "id": "A81",
+      "title": "Enforce Channel Quota and Rate Limits",
+      "description": "Define per-channel token budget, request rate ceiling, and concurrent session cap. Reject or queue requests exceeding limits.",
+      "decomposition": "A81"
+    },
+    {
+      "id": "A82",
+      "title": "Scope Cron Jobs to Channel",
+      "description": "Associate cron job definitions with a channel. Channel kill-switch suppresses channel-scoped cron triggers. Channel deletion cascades to cron job disable.",
+      "decomposition": null
+    },
+    {
+      "id": "A83",
+      "title": "Execute Channel Migration",
+      "description": "Move sessions and cron jobs between channels. Preserve session history and run-logs. Re-key lane namespace to target channel.",
+      "decomposition": null
+    },
+    {
+      "id": "A84",
+      "title": "Enforce Channel Access Control",
+      "description": "Define per-channel RBAC roles (owner, operator, viewer). Gate channel CRUD, session creation, and kill-switch trigger by role. Audit role-gated actions.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "I1",
+      "source": "EXTERNAL",
+      "target": "A81:input",
+      "label": "Channel Usage Metrics",
+      "type": "input"
+    },
+    {
+      "id": "I2",
+      "source": "EXTERNAL",
+      "target": "A82:input",
+      "label": "Cron Job Definitions",
+      "type": "input"
+    },
+    {
+      "id": "I3",
+      "source": "EXTERNAL",
+      "target": "A83:input",
+      "label": "Migration Request",
+      "type": "input"
+    },
+    {
+      "id": "I4",
+      "source": "EXTERNAL",
+      "target": "A84:input",
+      "label": "Access Control Request",
+      "type": "input"
+    },
+    {
+      "id": "I5",
+      "source": "A81",
+      "target": "A82:input",
+      "label": "Quota Enforcement State",
+      "type": "input"
+    },
+    {
+      "id": "C1",
+      "source": "EXTERNAL",
+      "target": "A81:control",
+      "label": "Quota Policy Config",
+      "type": "control"
+    },
+    {
+      "id": "C2",
+      "source": "EXTERNAL",
+      "target": "A82:control",
+      "label": "Channel-Cron Binding Rules",
+      "type": "control"
+    },
+    {
+      "id": "C3",
+      "source": "EXTERNAL",
+      "target": "A83:control",
+      "label": "Migration Safety Checks",
+      "type": "control"
+    },
+    {
+      "id": "C4",
+      "source": "EXTERNAL",
+      "target": "A84:control",
+      "label": "RBAC Policy Definition",
+      "type": "control"
+    },
+    {
+      "id": "O1",
+      "source": "A81",
+      "target": "EXTERNAL",
+      "label": "Quota Enforcement Decisions",
+      "type": "output"
+    },
+    {
+      "id": "O2",
+      "source": "A82",
+      "target": "EXTERNAL",
+      "label": "Channel-Scoped Cron State",
+      "type": "output"
+    },
+    {
+      "id": "O3",
+      "source": "A83",
+      "target": "EXTERNAL",
+      "label": "Migration Completion Report",
+      "type": "output"
+    },
+    {
+      "id": "O4",
+      "source": "A84",
+      "target": "EXTERNAL",
+      "label": "Access Audit Trail",
+      "type": "output"
+    },
+    {
+      "id": "M1",
+      "source": "EXTERNAL",
+      "target": "A81:mechanism",
+      "label": "Quota Tracker",
+      "type": "mechanism"
+    },
+    {
+      "id": "M2",
+      "source": "EXTERNAL",
+      "target": "A82:mechanism",
+      "label": "Cron Store",
+      "type": "mechanism"
+    },
+    {
+      "id": "M3",
+      "source": "EXTERNAL",
+      "target": "A83:mechanism",
+      "label": "Storage Migration Engine",
+      "type": "mechanism"
+    },
+    {
+      "id": "M4",
+      "source": "EXTERNAL",
+      "target": "A84:mechanism",
+      "label": "RBAC Engine",
+      "type": "mechanism"
+    }
+  ]
+}

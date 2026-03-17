@@ -18,7 +18,7 @@
 
 - 本輪不直接做 full daemon rewrite
 - 本輪不直接做 recurring scheduler persistence store
-- 本輪不直接移植 OpenClaw channel-centric product features
+- ~~本輪不直接移植 OpenClaw channel-centric product features~~ — channel 概念已取消 (2026-03-17)，改為 channel-to-workspace refactor
 - 本輪不新增 fallback mechanism
 - 跨集群 multi-region replication
 
@@ -257,6 +257,67 @@ OpenClaw benchmark: `refs/openclaw/src/cli/gateway-cli/run-loop.ts`, `refs/openc
 - 10e. **Restart Loop** — Try `restartGatewayProcessWithFreshPid()` (full respawn, better for TCC permissions). Fallback to in-process restart if `OPENCLAW_NO_RESPAWN`. Close HTTP server with `close(reason, restartExpectedMs)`. Loop back to server start.
 - 10f. **Generation & Recovery** — Increment `generation` on restart. Stale task completions from previous generation silently ignored. `resetAllLanes()` clears activeTaskIds, bumps generation, re-drains queued entries. `Daemon.info()` exposes session count + lane sizes + generation via health endpoint.
 
+### Stage 4 — Channel-to-Workspace Refactor
+
+**Architectural pivot (2026-03-17)**: Channel is a redundant abstraction that duplicates workspace's role as runtime scope. Both are invisible to the user. Channel's useful features (lane isolation via lanePolicy, kill-switch scope) are refactored into workspace. Channel module is then deleted entirely. Previous Stages B/C/D (channel E2E, channel UI, channel extensions) are cancelled and replaced by this refactoring.
+
+Rationale: workspace already auto-resolves from directory, tracks all attachments (sessions, ptys, workers), and has lifecycle management. Adding lanePolicy + killSwitchScope to workspace covers all channel use cases without a separate module.
+
+Mental model: Project → Workspace (runtime scope with resource control) → Session (one auto runner doing one thing)
+
+#### Phase 11 — Extend Workspace Schema（4.1）
+
+Deliverables: WorkspaceAggregate extended with lanePolicy and killSwitchScope.
+
+- 11a. **LanePolicy on Workspace** — add `lanePolicy: LanePolicySchema` to WorkspaceAggregate with default `{ main: 1, cron: 1, subagent: 2, nested: 1 }`. Move LanePolicySchema from channel/types.ts to workspace/types.ts.
+- 11b. **KillSwitchScope on Workspace** — add `killSwitchScope: z.enum(["workspace", "global"])` with default "global". Enum value changes from "channel" to "workspace".
+- 11c. **Resolver Defaults** — set defaults in buildRootWorkspace, buildSandboxWorkspace, buildDerivedWorkspace.
+
+#### Phase 12 — Migrate Lanes Module（4.2）
+
+Deliverables: Lanes module uses workspaceId instead of channelId.
+
+- 12a. **API Rename** — registerChannel → registerWorkspace, ChannelLaneConfig → WorkspaceLaneConfig, channelId → workspaceId in all function signatures.
+- 12b. **Composite Key Migration** — buildLaneKey(channelId, lane) → buildLaneKey(workspaceId, lane), parseLaneKey updated.
+- 12c. **Daemon Boot** — replace ChannelStore.restoreOrBootstrap() with workspace-based lane registration. Resolve workspaces for known project directories; register default lanes as fallback.
+
+#### Phase 13 — Migrate KillSwitch Service（4.3）
+
+Deliverables: KillSwitch uses workspaceId instead of channelId for scoping.
+
+- 13a. **State Schema** — replace channelId with workspaceId in KillSwitch.State.
+- 13b. **Scheduling Gate** — assertSchedulingAllowed(channelId?) → assertSchedulingAllowed(workspaceId?).
+- 13c. **Busy Session Filter** — listBusySessionIDs resolves workspace from session.directory via workspace registry instead of matching session.channelId. Registry lookup is in-memory O(1).
+- 13d. **Routes** — kill-switch /trigger endpoint: channelId → workspaceId in body schema.
+
+#### Phase 14 — Remove Channel from Session（4.4）
+
+Deliverables: Session.Info no longer carries channelId.
+
+- 14a. **Schema Change** — remove channelId from Session.Info zod schema.
+- 14b. **Backward Compat** — Zod strips unknown fields; persisted sessions with channelId load without error.
+- 14c. **Creation Code** — remove any session creation code that sets channelId.
+
+#### Phase 15 — Delete Channel Module（4.5）
+
+Deliverables: Channel module and all references removed from codebase.
+
+- 15a. **Delete Module** — rm packages/opencode/src/channel/ (types.ts, store.ts, index.ts).
+- 15b. **Delete Routes** — rm channel API route file, remove route registration from server setup.
+- 15c. **Remove Imports** — clean up channel imports from daemon/index.ts and any other consumers.
+- 15d. **Grep Sweep** — verify no channelId/ChannelStore references remain in production code.
+
+#### Phase 16 — Rewrite Tests（4.6）
+
+Deliverables: All tests pass with workspace-based scoping; no channel test artifacts remain.
+
+- 16a. **Lanes Tests** — rewrite lanes.test.ts: per-channel → per-workspace isolation.
+- 16b. **KillSwitch Tests** — rewrite killswitch service.test.ts: channel-scoped → workspace-scoped.
+- 16c. **Delete Channel Tests** — rm channel store.test.ts, channel API tests, E2E channel-integration.test.ts.
+- 16d. **New E2E** — workspace-integration.test.ts: workspace-scoped lane isolation + kill-switch E2E.
+- 16e. **Schema Tests** — workspace schema validation tests for lanePolicy + killSwitchScope.
+- 16f. **Final Verification** — `bun test` all green, grep for channelId/ChannelStore returns zero hits.
+
 ---
 
 ## Validation
@@ -271,6 +332,7 @@ OpenClaw benchmark: `refs/openclaw/src/cli/gateway-cli/run-loop.ts`, `refs/openc
 - Trigger model: unit/regression/integration validation for RunTrigger changes
 - Queue: validation for lane policy enforcement and orchestrator dispatch
 - Architecture docs must express planner authority vs trigger authority separation
+- **Stage 4**: channel-to-workspace refactor complete — workspace has lanePolicy + killSwitchScope, lanes use workspaceId, kill-switch scopes to workspace, channel module deleted, all tests pass, zero channelId/ChannelStore references in production code
 
 ## Handoff
 
@@ -278,4 +340,4 @@ OpenClaw benchmark: `refs/openclaw/src/cli/gateway-cli/run-loop.ts`, `refs/openc
 - Old `openclaw_runner_benchmark` and `openclaw_scheduler_substrate` packages are reference history only.
 - `specs/20260316_kill-switch/` is the implementation detail reference for Slice 1.
 - Build agent must read `tasks.md` before coding; runtime todo must be materialized from `tasks.md`.
-- Next build entry: Phase 5 (Trigger Model Extraction) → Phase 6 (Lane-aware Run Queue). Requires explicit user approval per stop gate #2.
+- Next build entry: Stage 4 (Channel-to-Workspace Refactor, Phases 11-16). Requires explicit user approval.

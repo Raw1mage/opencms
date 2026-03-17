@@ -1,0 +1,110 @@
+{
+  "diagram_title": "Boot Multi-Channel Daemon — A61 L2 Decomposition",
+  "node_reference": "A61",
+  "activities": [
+    {
+      "id": "A611",
+      "title": "Restore Channel Store State",
+      "description": "Call ChannelStore.restoreOrBootstrap() to load persisted channels or create default channel. Validate schema integrity of each channel file.",
+      "decomposition": null
+    },
+    {
+      "id": "A612",
+      "title": "Register Per-Channel Lane Policies",
+      "description": "Iterate restored channels and call Lanes.registerChannel(config) for each. Build composite lane keys (channelId:lane). Verify no key collision.",
+      "decomposition": null
+    },
+    {
+      "id": "A613",
+      "title": "Assert Health Endpoint Channel Coverage",
+      "description": "Query Daemon.info() to confirm per-channel lane status, active session counts, and channel list match restored state. Fail boot if mismatch.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "I1",
+      "source": "EXTERNAL",
+      "target": "A611:input",
+      "label": "Channel Persistence Files",
+      "type": "input"
+    },
+    {
+      "id": "I2",
+      "source": "A611",
+      "target": "A612:input",
+      "label": "Restored Channel List",
+      "type": "input"
+    },
+    {
+      "id": "I3",
+      "source": "A612",
+      "target": "A613:input",
+      "label": "Registered Lane State",
+      "type": "input"
+    },
+    {
+      "id": "C1",
+      "source": "EXTERNAL",
+      "target": "A611:control",
+      "label": "Channel Schema Validator",
+      "type": "control"
+    },
+    {
+      "id": "C2",
+      "source": "EXTERNAL",
+      "target": "A612:control",
+      "label": "Lane Policy Defaults",
+      "type": "control"
+    },
+    {
+      "id": "C3",
+      "source": "EXTERNAL",
+      "target": "A613:control",
+      "label": "Health Assertion Thresholds",
+      "type": "control"
+    },
+    {
+      "id": "O1",
+      "source": "A611",
+      "target": "EXTERNAL",
+      "label": "Validated Channel State",
+      "type": "output"
+    },
+    {
+      "id": "O2",
+      "source": "A612",
+      "target": "EXTERNAL",
+      "label": "Lane Registration Confirmation",
+      "type": "output"
+    },
+    {
+      "id": "O3",
+      "source": "A613",
+      "target": "EXTERNAL",
+      "label": "Boot Health Report",
+      "type": "output"
+    },
+    {
+      "id": "M1",
+      "source": "EXTERNAL",
+      "target": "A611:mechanism",
+      "label": "ChannelStore Module",
+      "type": "mechanism"
+    },
+    {
+      "id": "M2",
+      "source": "EXTERNAL",
+      "target": "A612:mechanism",
+      "label": "Lanes Module",
+      "type": "mechanism"
+    },
+    {
+      "id": "M3",
+      "source": "EXTERNAL",
+      "target": "A613:mechanism",
+      "label": "Daemon Health API",
+      "type": "mechanism"
+    }
+  ]
+}

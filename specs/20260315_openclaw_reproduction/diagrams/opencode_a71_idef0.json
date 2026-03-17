@@ -1,0 +1,110 @@
+{
+  "diagram_title": "Present Channel Management Interface — A71 L2 Decomposition",
+  "node_reference": "A71",
+  "activities": [
+    {
+      "id": "A711",
+      "title": "Render Channel List View",
+      "description": "Fetch channels from GET /api/v2/channel/, display as sortable table with name, enabled status, lane policy summary, and action buttons.",
+      "decomposition": null
+    },
+    {
+      "id": "A712",
+      "title": "Handle Channel Create and Edit Form",
+      "description": "Validate name uniqueness, parse lane policy inputs, submit POST or PATCH to channel API. Show inline validation errors.",
+      "decomposition": null
+    },
+    {
+      "id": "A713",
+      "title": "Confirm Channel Deletion",
+      "description": "Guard against default channel deletion (409). Show double-click confirmation with active session count warning. Submit DELETE request.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "I1",
+      "source": "EXTERNAL",
+      "target": "A711:input",
+      "label": "Channel API Response",
+      "type": "input"
+    },
+    {
+      "id": "I2",
+      "source": "EXTERNAL",
+      "target": "A712:input",
+      "label": "Operator Form Input",
+      "type": "input"
+    },
+    {
+      "id": "I3",
+      "source": "A711",
+      "target": "A713:input",
+      "label": "Selected Channel for Deletion",
+      "type": "input"
+    },
+    {
+      "id": "C1",
+      "source": "EXTERNAL",
+      "target": "A711:control",
+      "label": "UI Component Library",
+      "type": "control"
+    },
+    {
+      "id": "C2",
+      "source": "EXTERNAL",
+      "target": "A712:control",
+      "label": "Channel Schema Validation",
+      "type": "control"
+    },
+    {
+      "id": "C3",
+      "source": "EXTERNAL",
+      "target": "A713:control",
+      "label": "Default Channel Guard",
+      "type": "control"
+    },
+    {
+      "id": "O1",
+      "source": "A711",
+      "target": "EXTERNAL",
+      "label": "Rendered Channel Table",
+      "type": "output"
+    },
+    {
+      "id": "O2",
+      "source": "A712",
+      "target": "EXTERNAL",
+      "label": "Channel Mutation Result",
+      "type": "output"
+    },
+    {
+      "id": "O3",
+      "source": "A713",
+      "target": "EXTERNAL",
+      "label": "Deletion Confirmation Result",
+      "type": "output"
+    },
+    {
+      "id": "M1",
+      "source": "EXTERNAL",
+      "target": "A711:mechanism",
+      "label": "Solid.js Table Component",
+      "type": "mechanism"
+    },
+    {
+      "id": "M2",
+      "source": "EXTERNAL",
+      "target": "A712:mechanism",
+      "label": "Form Validation Library",
+      "type": "mechanism"
+    },
+    {
+      "id": "M3",
+      "source": "EXTERNAL",
+      "target": "A713:mechanism",
+      "label": "Confirmation Dialog Component",
+      "type": "mechanism"
+    }
+  ]
+}

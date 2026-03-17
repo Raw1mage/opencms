@@ -1,0 +1,117 @@
+{
+  "diagram_title": "Enforce Channel Quota and Rate Limits — A81 L2 Decomposition",
+  "node_reference": "A81",
+  "activities": [
+    {
+      "id": "A811",
+      "title": "Track Channel Token Consumption",
+      "description": "Accumulate provider token usage per channel per billing period. Read from session completion events. Persist running totals to channel state.",
+      "decomposition": null
+    },
+    {
+      "id": "A812",
+      "title": "Evaluate Rate Limit Window",
+      "description": "Maintain sliding window counter for requests per channel. Compare current rate against configured ceiling. Return allow/throttle/reject decision.",
+      "decomposition": null
+    },
+    {
+      "id": "A813",
+      "title": "Cap Concurrent Session Count",
+      "description": "Count active sessions per channel from SessionStatus. Reject new session creation if channel concurrent cap exceeded. Emit quota_exceeded event.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "I1",
+      "source": "EXTERNAL",
+      "target": "A811:input",
+      "label": "Session Completion Events",
+      "type": "input"
+    },
+    {
+      "id": "I2",
+      "source": "EXTERNAL",
+      "target": "A812:input",
+      "label": "Incoming Request",
+      "type": "input"
+    },
+    {
+      "id": "I3",
+      "source": "EXTERNAL",
+      "target": "A813:input",
+      "label": "Session Creation Request",
+      "type": "input"
+    },
+    {
+      "id": "I4",
+      "source": "A811",
+      "target": "A812:input",
+      "label": "Current Token Budget State",
+      "type": "input"
+    },
+    {
+      "id": "C1",
+      "source": "EXTERNAL",
+      "target": "A811:control",
+      "label": "Token Budget Config",
+      "type": "control"
+    },
+    {
+      "id": "C2",
+      "source": "EXTERNAL",
+      "target": "A812:control",
+      "label": "Rate Limit Config",
+      "type": "control"
+    },
+    {
+      "id": "C3",
+      "source": "EXTERNAL",
+      "target": "A813:control",
+      "label": "Concurrent Session Cap",
+      "type": "control"
+    },
+    {
+      "id": "O1",
+      "source": "A811",
+      "target": "EXTERNAL",
+      "label": "Updated Token Ledger",
+      "type": "output"
+    },
+    {
+      "id": "O2",
+      "source": "A812",
+      "target": "EXTERNAL",
+      "label": "Rate Limit Decision",
+      "type": "output"
+    },
+    {
+      "id": "O3",
+      "source": "A813",
+      "target": "EXTERNAL",
+      "label": "Session Cap Decision",
+      "type": "output"
+    },
+    {
+      "id": "M1",
+      "source": "EXTERNAL",
+      "target": "A811:mechanism",
+      "label": "Channel State Store",
+      "type": "mechanism"
+    },
+    {
+      "id": "M2",
+      "source": "EXTERNAL",
+      "target": "A812:mechanism",
+      "label": "Sliding Window Counter",
+      "type": "mechanism"
+    },
+    {
+      "id": "M3",
+      "source": "EXTERNAL",
+      "target": "A813:mechanism",
+      "label": "Session Status Registry",
+      "type": "mechanism"
+    }
+  ]
+}

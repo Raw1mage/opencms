@@ -1,5 +1,5 @@
 {
-  "diagram_title": "Orchestrate Autonomous Workflow Execution — D.1-D.3 Deferred Phases",
+  "diagram_title": "Orchestrate Autonomous Workflow Execution — Full Lifecycle",
   "node_reference": "A0",
   "activities": [
     {
@@ -31,6 +31,24 @@
       "title": "Emit Host Observability Events",
       "description": "D.3 monitoring: Publish daemon events via event bus, emit heartbeat health probes, track active session counts, notify subscribers",
       "decomposition": null
+    },
+    {
+      "id": "A6",
+      "title": "Verify End-to-End Integration",
+      "description": "Stage B: Boot multi-channel daemon, verify cross-channel session isolation, execute channel-scoped kill-switch E2E, validate default channel backward compatibility",
+      "decomposition": "A6"
+    },
+    {
+      "id": "A7",
+      "title": "Render Operator Surface",
+      "description": "Stage C: Present channel management UI, display health dashboard with channel breakdown, render session creation channel picker, stream real-time channel status",
+      "decomposition": "A7"
+    },
+    {
+      "id": "A8",
+      "title": "Govern Channel Extensions",
+      "description": "Stage D: Enforce channel quota and rate limits, scope cron jobs to channel, execute channel migration, enforce channel access control",
+      "decomposition": "A8"
     }
   ],
   "arrows": [
@@ -74,6 +92,48 @@
       "source": "A2",
       "target": "A4:input",
       "label": "Scheduled Task Enqueue",
+      "type": "input"
+    },
+    {
+      "id": "I7",
+      "source": "EXTERNAL",
+      "target": "A6:input",
+      "label": "Integration Test Scenarios",
+      "type": "input"
+    },
+    {
+      "id": "I8",
+      "source": "A5",
+      "target": "A6:input",
+      "label": "Health Probe Results",
+      "type": "input"
+    },
+    {
+      "id": "I9",
+      "source": "EXTERNAL",
+      "target": "A7:input",
+      "label": "Operator Commands",
+      "type": "input"
+    },
+    {
+      "id": "I10",
+      "source": "A5",
+      "target": "A7:input",
+      "label": "Channel Status Events",
+      "type": "input"
+    },
+    {
+      "id": "I11",
+      "source": "EXTERNAL",
+      "target": "A8:input",
+      "label": "Channel Extension Config",
+      "type": "input"
+    },
+    {
+      "id": "I12",
+      "source": "A7",
+      "target": "A8:input",
+      "label": "Operator Policy Changes",
       "type": "input"
     },
     {
@@ -126,6 +186,27 @@
       "type": "control"
     },
     {
+      "id": "C8",
+      "source": "EXTERNAL",
+      "target": "A6:control",
+      "label": "E2E Acceptance Criteria",
+      "type": "control"
+    },
+    {
+      "id": "C9",
+      "source": "EXTERNAL",
+      "target": "A7:control",
+      "label": "UI Component Standards",
+      "type": "control"
+    },
+    {
+      "id": "C10",
+      "source": "EXTERNAL",
+      "target": "A8:control",
+      "label": "Quota and RBAC Policy",
+      "type": "control"
+    },
+    {
       "id": "O1",
       "source": "A1",
       "target": "EXTERNAL",
@@ -161,6 +242,27 @@
       "type": "output"
     },
     {
+      "id": "O6",
+      "source": "A6",
+      "target": "EXTERNAL",
+      "label": "Integration Verification Reports",
+      "type": "output"
+    },
+    {
+      "id": "O7",
+      "source": "A7",
+      "target": "EXTERNAL",
+      "label": "Rendered Operator Views",
+      "type": "output"
+    },
+    {
+      "id": "O8",
+      "source": "A8",
+      "target": "EXTERNAL",
+      "label": "Enforced Channel Policies",
+      "type": "output"
+    },
+    {
       "id": "M1",
       "source": "EXTERNAL",
       "target": "A1:mechanism",
@@ -193,6 +295,27 @@
       "source": "EXTERNAL",
       "target": "A5:mechanism",
       "label": "Event Bus",
+      "type": "mechanism"
+    },
+    {
+      "id": "M6",
+      "source": "EXTERNAL",
+      "target": "A6:mechanism",
+      "label": "Test Runner Framework",
+      "type": "mechanism"
+    },
+    {
+      "id": "M7",
+      "source": "EXTERNAL",
+      "target": "A7:mechanism",
+      "label": "Solid.js Reactive Runtime",
+      "type": "mechanism"
+    },
+    {
+      "id": "M8",
+      "source": "EXTERNAL",
+      "target": "A8:mechanism",
+      "label": "Channel Store and RBAC Engine",
       "type": "mechanism"
     }
   ]

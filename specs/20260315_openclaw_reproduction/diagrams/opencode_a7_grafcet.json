@@ -1,0 +1,81 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A7",
+    "StepType": "initial",
+    "StepAction": "Await operator navigation to channel management surface",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1, 2, 3],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "route == '/admin/channels'",
+      "route == '/admin/health'",
+      "action == 'create_session'"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A71",
+    "StepType": "normal",
+    "StepAction": "Present channel management CRUD interface",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [4, 5],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "mutation_submitted",
+      "no_action"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A72",
+    "StepType": "normal",
+    "StepAction": "Display health dashboard with per-channel breakdown",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["dashboard_rendered"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A73",
+    "StepType": "normal",
+    "StepAction": "Render session creation form with channel picker",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["session_created || cancelled"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A74",
+    "StepType": "normal",
+    "StepAction": "Stream real-time channel status update via SSE and reconcile UI state",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["state_reconciled"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A7",
+    "StepType": "normal",
+    "StepAction": "Return to idle awaiting next operator interaction",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [1, 2, 3, 4],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["interaction_complete"],
+    "SubGrafcet": []
+  }
+]

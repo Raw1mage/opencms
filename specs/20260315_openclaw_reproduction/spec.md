@@ -200,7 +200,7 @@ The kill-switch public API SHALL NOT be enabled in production without security t
 
 ---
 
-## Slice 2: Trigger Model Extraction（pending）
+## Slice 2: Trigger Model Extraction（done — Phase 5B）
 
 ### Requirement: Generic trigger model
 
@@ -254,7 +254,7 @@ The kill-switch public API SHALL NOT be enabled in production without security t
 
 ---
 
-## Slice 3: Lane-aware Run Queue（pending）
+## Slice 3: Lane-aware Run Queue（done — Phase 6 + workspace integration）
 
 ### Requirement: 分道佇列
 
@@ -304,8 +304,86 @@ pending continuation queue SHALL 升級為帶優先級通道的通用 `RunQueue`
 
 ---
 
-## Deferred Slices（requires explicit approval to enter build）
+## Completed Deferred Slices
 
-### Slice D-1: Isolated job sessions
-### Slice D-2: Heartbeat / wakeup substrate
-### Slice D-3: Daemon lifecycle / host-wide scheduler health
+### Slice D-1: Isolated job sessions — done (Stage 3)
+### Slice D-2: Heartbeat / wakeup substrate — done (Stage 3)
+### Slice D-3: Daemon lifecycle / host-wide scheduler health — done (Stage 3)
+
+---
+
+## Slice 4: Channel-to-Workspace Refactor（Stage 4, requires explicit approval to enter build）
+
+### Requirement: Workspace lane isolation
+
+The system SHALL register per-workspace lane queues at daemon boot, using the workspace's lanePolicy to set concurrency limits per lane type.
+
+#### Scenario: Two workspaces with different lane policies
+
+- **GIVEN** workspace A has lanePolicy `{ main: 1, cron: 1, subagent: 2, nested: 1 }` and workspace B has lanePolicy `{ main: 2, cron: 1, subagent: 1, nested: 1 }`
+- **WHEN** daemon boots and registers lanes for both workspaces
+- **THEN** workspace A's main lane allows 1 concurrent task and workspace B's main lane allows 2, and they do not interfere
+
+#### Scenario: Lane key format uses workspaceId
+
+- **GIVEN** a workspace with workspaceId "ws-abc123"
+- **WHEN** buildLaneKey is called with workspaceId and lane "main"
+- **THEN** the returned key is "ws-abc123:main"
+
+### Requirement: Workspace-scoped kill-switch
+
+The system SHALL support kill-switch activation scoped to a specific workspace, blocking only sessions in that workspace.
+
+#### Scenario: Workspace-scoped kill blocks target only
+
+- **GIVEN** workspace A has two busy sessions and workspace B has one busy session
+- **WHEN** kill-switch is activated with scope "workspace" and workspaceId = workspace A's ID
+- **THEN** assertSchedulingAllowed returns `{ ok: false }` for workspace A and `{ ok: true }` for workspace B
+
+#### Scenario: Global kill-switch blocks all workspaces
+
+- **GIVEN** workspace A and workspace B both have busy sessions
+- **WHEN** kill-switch is activated with scope "global" (no workspaceId)
+- **THEN** assertSchedulingAllowed returns `{ ok: false }` for both workspaces
+
+#### Scenario: Kill-switch lists busy sessions by workspace
+
+- **GIVEN** session S1 is busy in workspace A and session S2 is busy in workspace B
+- **WHEN** listBusySessionIDs is called with workspace A's workspaceId
+- **THEN** only S1 is returned
+
+### Requirement: Session has no channel affiliation
+
+The system SHALL NOT require or use a channelId on session objects. Workspace affiliation is derived from session's directory.
+
+#### Scenario: Session created without channelId
+
+- **GIVEN** a session is created with directory "/project/myapp"
+- **WHEN** the session is persisted and retrieved
+- **THEN** no channelId field exists on the session object
+
+#### Scenario: Legacy session with channelId is readable
+
+- **GIVEN** a persisted session JSON file contains a channelId field
+- **WHEN** the session is loaded
+- **THEN** the session loads successfully and the channelId field is ignored
+
+### Requirement: Channel module is removed
+
+The system SHALL NOT contain any channel module code, channel API routes, or channel store logic.
+
+#### Scenario: No channel references in codebase
+
+- **GIVEN** the refactoring is complete
+- **WHEN** the codebase is searched for "ChannelStore", "channelId", or channel imports
+- **THEN** no production code references are found
+
+### Acceptance Checks (Stage 4)
+
+- All `bun test` tests pass
+- `grep -r "channelId" src/` returns no hits in production code
+- `grep -r "ChannelStore" src/` returns no hits
+- `ls src/channel/` returns "No such file or directory"
+- Kill-switch workspace scoping works in integration test
+- Lane isolation per workspace works in integration test
+- Daemon boots without channel store restore

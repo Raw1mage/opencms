@@ -5,6 +5,7 @@
 - `openclaw_reproduction` is the single active planning authority for OpenClaw-aligned runner evolution.
 - Use benchmark conclusions and implementation slices from this package together; do not bounce between older `openclaw*` packages as if they were co-equal active plans.
 - `specs/20260316_kill-switch/` is the implementation detail reference for kill-switch work; authority remains here.
+- Channel concept cancelled (2026-03-17) — all channel-related specs, IDEF0/GRAFCET (A6-A8), and former Stages B/C/D are obsolete.
 - Build agent must read `tasks.md` before coding; runtime todo must be materialized from `tasks.md` before execution continues.
 - Build agent must not resume from discussion memory alone when this plan package is available.
 - User-visible progress and decision prompts must reuse the same planner-derived todo naming.
@@ -32,12 +33,15 @@
 - **Stage 3 D.2** (Heartbeat/Wakeup): **done** — schedule engine (at/every/cron), deterministic stagger, active hours, system event queue, HEARTBEAT_OK suppression, wake modes. 40 tests passing. Commit `d0f83d6272`
 - **Stage 3 D.3** (Daemon Lifecycle): **done** — gateway lock, signal dispatch, drain state machine, command lanes (Main/Cron/Subagent/Nested), restart loop, generation numbers. 28 tests passing. Commit `2247dfd677`
 - **D.3.10** (Retry Policy): **done** — error classification (transient/permanent), exponential backoff, one-shot vs recurring policy. 20 tests passing.
+- **Stage 4** (Channel-to-Workspace Refactor): **done** — channel module deleted, lanePolicy+killSwitchScope on Workspace, lanes/killswitch/session all use workspaceId. 25 tests passing (lanes 14 + killswitch 11). Zero channelId/ChannelStore in production code.
 
 ## Stop Gates In Force
 
 1. ~~**No production API without security sign-off**~~ — **CLEARED** (2026-03-16, approved by project owner)
 2. **No build beyond Trigger + Queue** without explicit user approval for Phases 5-6
-3. **No D.1-D.3 build** without explicit approval — specs expanded (2026-03-17), awaiting build approval
+3. ~~**No D.1-D.3 build** without explicit approval~~ — **CLEARED** (2026-03-17, D.1-D.3 delivered)
+7. ~~**No Stage B/C/D build**~~ — **CANCELLED** (2026-03-17, channel concept removed, replaced by Stage 4: Channel-to-Workspace Refactor)
+8. ~~**No Stage 4 (Channel-to-Workspace Refactor) build**~~ — **CLEARED** (2026-03-17, Stage 4 delivered)
 4. **No silent fallback** or implicit authority recovery in any implementation
 5. **No multi-authority plan drift** — if a new sibling plan is needed, user must explicitly approve
 6. **Preserve gate semantics** — trigger/queue abstraction must not break approved mission / approval / decision gates
@@ -50,8 +54,14 @@
 
 ### Next
 
-1. Open new spec: `specs/YYYYMMDD_recurring-scheduler-persistence/` — cron job persistence across restart, SQLite or file store
-2. Daemon rewrite + channel features (long-term)
+All core phases (0-6), deferred slices (D.1-D.3), and Stage 4 refactor are complete. The spec-defined work is fully delivered.
+
+All spec slices delivered:
+- **Slice 2** (Trigger Model Extraction): delivered in Phase 5B — RunTrigger union (Continuation/Api/Cron), evaluateGates(), pluggable trigger types
+- **Slice 3** (Lane-aware Run Queue): delivered in Phase 6 + workspace integration — RunQueue with priority lanes, kill-switch blocks dequeue, supervisor routes through workspace command lanes
+
+~~Former Stages B/C/D (channel E2E, channel UI, channel extensions) — cancelled~~
+~~Stage 4 (Channel-to-Workspace Refactor) — delivered (2026-03-17)~~
 
 ## Resolved Design Decisions
 
@@ -61,7 +71,7 @@
 
 ## Pending Design Decisions
 
-None — all design decisions resolved.
+No pending design decisions. All DD-1 through DD-19 resolved.
 
 | ID | Decision | Resolution | Rationale |
 |----|----------|------------|-----------|
@@ -99,6 +109,9 @@ None — all design decisions resolved.
 - [x] aws4fetch + ioredis removed — dependencies and dead code paths deleted (2026-03-17)
 - [x] heartbeat integration test — real imports, 7 tests (2026-03-17)
 - [x] openclaw branch merged to cms — fast-forward at `b4c6013d8f` (2026-03-17)
+- [x] ~~Stage B/C/D specs expanded~~ — **cancelled** (2026-03-17, channel concept removed)
+- [x] Stage 4 (Channel-to-Workspace Refactor) spec written — 6 phases (11-16), 31 tasks, DD-13 to DD-19
+- [x] Stage 4 build complete — channel module deleted, workspace schema extended, 25 tests passing (2026-03-17)
 
 ## Completion / Retrospective Contract
 

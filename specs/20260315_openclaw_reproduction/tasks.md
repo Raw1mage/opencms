@@ -122,3 +122,57 @@ Tests: 28 passing (gateway-lock 7, drain 7, lanes 11, signals 3) — commit `224
 
 - ~~`aws4fetch` top-level import~~ — **resolved**: aws4fetch + ioredis removed entirely (2026-03-17)
 - ~~`heartbeat.test.ts` inlined helpers~~ — **resolved**: real imports, 7 integration tests (2026-03-17)
+
+## Stage 4 — Channel-to-Workspace Refactor
+
+**Architectural decision (2026-03-17)**: Channel is a redundant abstraction that duplicates workspace's role as runtime scope. Channel's useful features (lane isolation, kill-switch scope) are refactored into workspace. Channel module is then deleted entirely.
+
+Rationale: "應該趁channel還沒有扮演很重角色的時候取消channel的設計，重新在workspace裏把需要的控制功能重構進去"
+
+Mental model: Project → Workspace (runtime scope with resource control) → Session (one auto runner doing one thing)
+
+### 4.1 — Extend Workspace Schema（Phase 11）✅
+
+- [x] 4.1.1 Add LanePolicy import and `lanePolicy` field to WorkspaceAggregate / WorkspaceAggregateSchema
+- [x] 4.1.2 Add `killSwitchScope: "workspace" | "global"` field to WorkspaceAggregate / WorkspaceAggregateSchema
+- [x] 4.1.3 Set default lanePolicy and killSwitchScope in workspace resolver (buildRootWorkspace, buildSandboxWorkspace, buildDerivedWorkspace)
+- [x] 4.1.4 Move LanePolicySchema from channel/types.ts to workspace/types.ts (or shared location)
+- [x] 4.1.5 Validate: workspace schema tests pass with new fields
+
+### 4.2 — Migrate Lanes Module（Phase 12）✅
+
+- [x] 4.2.1 Rename registerChannel → registerWorkspace, ChannelLaneConfig → WorkspaceLaneConfig
+- [x] 4.2.2 Replace channelId with workspaceId in buildLaneKey, parseLaneKey
+- [x] 4.2.3 Update all internal lane key references from channelId to workspaceId
+- [x] 4.2.4 Update daemon/index.ts boot: replace ChannelStore.restoreOrBootstrap() with workspace-based lane registration
+- [x] 4.2.5 Validate: lanes.test.ts updated and passing
+
+### 4.3 — Migrate KillSwitch Service（Phase 13）✅
+
+- [x] 4.3.1 Replace channelId with workspaceId in KillSwitch.State schema
+- [x] 4.3.2 Update assertSchedulingAllowed: channelId param → workspaceId param
+- [x] 4.3.3 Update listBusySessionIDs: resolve workspace from session.directory instead of matching session.channelId
+- [x] 4.3.4 Update kill-switch routes: channelId → workspaceId in /trigger endpoint body schema
+- [x] 4.3.5 Validate: killswitch service.test.ts updated and passing
+
+### 4.4 — Remove Channel from Session（Phase 14）✅
+
+- [x] 4.4.1 Remove channelId from Session.Info zod schema
+- [x] 4.4.2 Ensure backward-compatible read (Zod strips unknown fields)
+- [x] 4.4.3 Remove any session creation code that sets channelId
+- [x] 4.4.4 Validate: session tests pass without channelId
+
+### 4.5 — Delete Channel Module（Phase 15）✅
+
+- [x] 4.5.1 Delete packages/opencode/src/channel/ directory (types.ts, store.ts, index.ts)
+- [x] 4.5.2 Delete channel API route file and route registration
+- [x] 4.5.3 Remove all channel imports from daemon/index.ts and other consumers
+- [x] 4.5.4 Grep for remaining channelId/ChannelStore references — fix any stragglers
+
+### 4.6 — Rewrite Tests（Phase 16）✅
+
+- [x] 4.6.1 Rewrite lanes.test.ts: per-channel → per-workspace isolation tests
+- [x] 4.6.2 Rewrite killswitch service.test.ts: channel-scoped → workspace-scoped tests
+- [x] 4.6.3 Delete channel store.test.ts, channel API tests, and E2E channel-integration.test.ts
+- [x] 4.6.4 Run test suite: 25 tests passing (lanes 14 + killswitch 11)
+- [x] 4.6.5 Grep verification: no channelId/ChannelStore in production code
