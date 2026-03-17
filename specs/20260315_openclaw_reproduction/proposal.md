@@ -20,6 +20,7 @@
 - 2026-03-16: 識別後續工作：kill-switch UI 表面（Web Admin + TUI）、基礎設施擴展（Redis transport + MinIO/S3）、安全審查、Trigger model extraction、lane-aware run queue
 - 2026-03-17: Phases 0-6 + Stage 3 (D.1-D.3) all complete. Scheduler persistence + daemon channel model delivered via scheduler-daemon spec.
 - 2026-03-17: Extend plan with Stage B (E2E Integration Verification), Stage C (Webapp/Operator Surface), Stage D (Future Channel Extensions: quota, cron scope, migration, RBAC). New IDEF0/GRAFCET diagrams (A6-A8 + L2 decompositions).
+- 2026-03-17: **Architectural pivot** — cancel channel abstraction entirely. Channel duplicates workspace's role as runtime scope. Refactor channel's useful features (lanePolicy, killSwitchScope) into workspace. Stages B/C/D replaced by Stage 4: Channel-to-Workspace Refactor (Phases 11-16). IDEF0 A6-A8 diagrams obsoleted.
 
 ## Effective Requirement Description
 
@@ -42,7 +43,7 @@
 
 - 本輪不直接做 full daemon rewrite
 - 本輪不直接做 recurring scheduler persistence store
-- 本輪不直接移植 OpenClaw channel-centric product features
+- 本輪不直接移植 OpenClaw channel-centric product features（channel 概念已取消，2026-03-17）
 - 本輪不新增 silent fallback mechanism
 - 跨集群 multi-region replication（視部署而定，另案處理）
 
@@ -66,6 +67,7 @@
 - Trigger model extraction 為第二實作切片（Phase 5A/5B done）
 - Lane-aware run queue 為第三實作切片（Phase 6 done）
 - Stage 3 (D.1-D.3): isolated jobs, heartbeat, daemon lifecycle — done
-- Stage 4 (B): E2E integration verification — pending
-- Stage 5 (C): webapp/operator surface — pending
-- Stage 6 (D): future channel extensions (quota, cron scope, migration, RBAC) — pending
+- ~~Stage 4 (B): E2E integration verification~~ — **cancelled** (channel concept removed)
+- ~~Stage 5 (C): webapp/operator surface~~ — **cancelled** (channel concept removed)
+- ~~Stage 6 (D): future channel extensions~~ — **cancelled** (channel concept removed)
+- Stage 4 (new): Channel-to-Workspace Refactor — pending (replaces B/C/D)

@@ -123,88 +123,56 @@ Tests: 28 passing (gateway-lock 7, drain 7, lanes 11, signals 3) — commit `224
 - ~~`aws4fetch` top-level import~~ — **resolved**: aws4fetch + ioredis removed entirely (2026-03-17)
 - ~~`heartbeat.test.ts` inlined helpers~~ — **resolved**: real imports, 7 integration tests (2026-03-17)
 
-## Stage 4 — E2E Integration Verification（B）
+## Stage 4 — Channel-to-Workspace Refactor
 
-IDEF0/GRAFCET: A6 (opencode_a6_idef0.json / opencode_a6_grafcet.json)
+**Architectural decision (2026-03-17)**: Channel is a redundant abstraction that duplicates workspace's role as runtime scope. Channel's useful features (lane isolation, kill-switch scope) are refactored into workspace. Channel module is then deleted entirely.
 
-### B.1 — Multi-Channel Daemon Boot（Phase 11）
+Rationale: "應該趁channel還沒有扮演很重角色的時候取消channel的設計，重新在workspace裏把需要的控制功能重構進去"
 
-- [ ] B.1.1 E2E test: boot daemon with 3+ pre-seeded channel files, verify ChannelStore.list() — IDEF0: A611
-- [ ] B.1.2 E2E test: per-channel lane registration with composite keys, getActiveTaskCount() — IDEF0: A612
-- [ ] B.1.3 E2E test: health endpoint includes per-channel breakdown — IDEF0: A613
+Mental model: Project → Workspace (runtime scope with resource control) → Session (one auto runner doing one thing)
 
-### B.2 — Cross-Channel Session Isolation（Phase 12）
+### 4.1 — Extend Workspace Schema（Phase 11）✅
 
-- [ ] B.2.1 Test: session creation with explicit channelId via API, Session.Info.channelId persisted
-- [ ] B.2.2 Test: lane namespace isolation — concurrent tasks in channel-A and channel-B, no cross-pollination — IDEF0: A62
-- [ ] B.2.3 Test: storage boundary — wrong channel query returns empty
+- [x] 4.1.1 Add LanePolicy import and `lanePolicy` field to WorkspaceAggregate / WorkspaceAggregateSchema
+- [x] 4.1.2 Add `killSwitchScope: "workspace" | "global"` field to WorkspaceAggregate / WorkspaceAggregateSchema
+- [x] 4.1.3 Set default lanePolicy and killSwitchScope in workspace resolver (buildRootWorkspace, buildSandboxWorkspace, buildDerivedWorkspace)
+- [x] 4.1.4 Move LanePolicySchema from channel/types.ts to workspace/types.ts (or shared location)
+- [x] 4.1.5 Validate: workspace schema tests pass with new fields
 
-### B.3 — Channel-Scoped Kill-Switch E2E（Phase 13）
+### 4.2 — Migrate Lanes Module（Phase 12）✅
 
-- [ ] B.3.1 E2E test: POST trigger with channelId, only target channel sessions aborted — IDEF0: A63
-- [ ] B.3.2 E2E test: global trigger overrides channel scope, all channels affected
-- [ ] B.3.3 Test: audit entries include channelId when trigger is channel-scoped
+- [x] 4.2.1 Rename registerChannel → registerWorkspace, ChannelLaneConfig → WorkspaceLaneConfig
+- [x] 4.2.2 Replace channelId with workspaceId in buildLaneKey, parseLaneKey
+- [x] 4.2.3 Update all internal lane key references from channelId to workspaceId
+- [x] 4.2.4 Update daemon/index.ts boot: replace ChannelStore.restoreOrBootstrap() with workspace-based lane registration
+- [x] 4.2.5 Validate: lanes.test.ts updated and passing
 
-### B.4 — Default Channel Backward Compat（Phase 14）
+### 4.3 — Migrate KillSwitch Service（Phase 13）✅
 
-- [ ] B.4.1 Regression test: sessions without channelId default to "default" channel lanes — IDEF0: A64
-- [ ] B.4.2 Regression test: global kill-switch trigger without channelId identical to pre-channel
-- [ ] B.4.3 Regression test: default channel lane policy matches pre-channel global limits
+- [x] 4.3.1 Replace channelId with workspaceId in KillSwitch.State schema
+- [x] 4.3.2 Update assertSchedulingAllowed: channelId param → workspaceId param
+- [x] 4.3.3 Update listBusySessionIDs: resolve workspace from session.directory instead of matching session.channelId
+- [x] 4.3.4 Update kill-switch routes: channelId → workspaceId in /trigger endpoint body schema
+- [x] 4.3.5 Validate: killswitch service.test.ts updated and passing
 
-## Stage 5 — Webapp / Operator Surface（C）
+### 4.4 — Remove Channel from Session（Phase 14）✅
 
-IDEF0/GRAFCET: A7 (opencode_a7_idef0.json / opencode_a7_grafcet.json)
+- [x] 4.4.1 Remove channelId from Session.Info zod schema
+- [x] 4.4.2 Ensure backward-compatible read (Zod strips unknown fields)
+- [x] 4.4.3 Remove any session creation code that sets channelId
+- [x] 4.4.4 Validate: session tests pass without channelId
 
-### C.1 — Channel Management UI（Phase 15）
+### 4.5 — Delete Channel Module（Phase 15）✅
 
-- [ ] C.1.1 Implement channel list view — Solid.js table, GET /api/v2/channel/, enable/disable toggle — IDEF0: A711
-- [ ] C.1.2 Implement channel create/edit form — modal, name/description/lanePolicy inputs — IDEF0: A712
-- [ ] C.1.3 Implement channel delete confirmation — double-click, default guard, session count warning — IDEF0: A713
-- [ ] C.1.4 Implement SSE channel events — BusEvent `channel.changed` → event-reducer → UI — IDEF0: A74
-- [ ] C.1.5 Test: channel management CRUD UI flow
+- [x] 4.5.1 Delete packages/opencode/src/channel/ directory (types.ts, store.ts, index.ts)
+- [x] 4.5.2 Delete channel API route file and route registration
+- [x] 4.5.3 Remove all channel imports from daemon/index.ts and other consumers
+- [x] 4.5.4 Grep for remaining channelId/ChannelStore references — fix any stragglers
 
-### C.2 — Health Dashboard Channel Breakdown（Phase 16）
+### 4.6 — Rewrite Tests（Phase 16）✅
 
-- [ ] C.2.1 Implement channel health cards — per-channel lane utilization, session counts — IDEF0: A72
-- [ ] C.2.2 Implement kill-switch scope indicator badge per channel
-- [ ] C.2.3 Implement aggregate global health summary
-- [ ] C.2.4 Test: dashboard renders with multi-channel data
-
-### C.3 — Session Creation Channel Picker（Phase 17）
-
-- [ ] C.3.1 Implement Web channel picker dropdown — defaults to "default" — IDEF0: A73
-- [ ] C.3.2 Implement TUI channel picker — DialogSelect with channel list
-- [ ] C.3.3 Implement channel validation gate — reject if disabled or nonexistent
-- [ ] C.3.4 Test: session creation with channel picker
-
-## Stage 6 — Future Channel Extensions（D）
-
-IDEF0/GRAFCET: A8 (opencode_a8_idef0.json / opencode_a8_grafcet.json)
-
-### D.4 — Channel Quota and Rate Limiting（Phase 18）
-
-- [ ] D.4.1 Implement token budget tracking — per-channel per-period accumulation — IDEF0: A811
-- [ ] D.4.2 Implement request rate limiter — sliding window counter — IDEF0: A812
-- [ ] D.4.3 Implement concurrent session cap — reject when exceeded, emit quota_exceeded — IDEF0: A813
-- [ ] D.4.4 Test: quota enforcement rejects over-limit requests
-
-### D.5 — Channel-Scoped Cron Jobs（Phase 19）
-
-- [ ] D.5.1 Extend CronJobState with optional channelId — IDEF0: A82
-- [ ] D.5.2 Implement channel kill-switch cron suppression
-- [ ] D.5.3 Implement cascade disable on channel delete
-- [ ] D.5.4 Test: channel-cron binding and cascade
-
-### D.6 — Channel Migration（Phase 20）
-
-- [ ] D.6.1 Implement session migration — re-assign channelId, update lane keys — IDEF0: A83
-- [ ] D.6.2 Implement cron job migration — update channelId, recompute timing
-- [ ] D.6.3 Implement run-log preservation during migration
-- [ ] D.6.4 Test: migration preserves all session history
-
-### D.7 — Channel RBAC（Phase 21）
-
-- [ ] D.7.1 Define channel role schema — owner/operator/viewer permissions — IDEF0: A84
-- [ ] D.7.2 Implement operation gating by channel role
-- [ ] D.7.3 Implement RBAC audit trail
-- [ ] D.7.4 Test: RBAC gates operations correctly
+- [x] 4.6.1 Rewrite lanes.test.ts: per-channel → per-workspace isolation tests
+- [x] 4.6.2 Rewrite killswitch service.test.ts: channel-scoped → workspace-scoped tests
+- [x] 4.6.3 Delete channel store.test.ts, channel API tests, and E2E channel-integration.test.ts
+- [x] 4.6.4 Run test suite: 25 tests passing (lanes 14 + killswitch 11)
+- [x] 4.6.5 Grep verification: no channelId/ChannelStore in production code

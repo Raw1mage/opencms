@@ -483,68 +483,74 @@ LanePolicy
 - **D.3 command queue** — 新模組，需確認與現有 supervisor loop 的互斥性，避免 double-dispatch
 - **D.1 session retention reaper** — 需確認不會誤刪 active cron run-sessions（race condition）
 - **D.2 heartbeat stagger** — deterministic stagger 需 stable hash，確保重啟後同一 job 得到相同 offset
-- **B E2E tests** — integration tests need daemon boot, may require test harness for HTTP + SSE + channels
-- **C.1 SSE channel events** — need new BusEvent type `channel.changed`, verify event-reducer handles gracefully
-- **D.4 token budget** — accumulation depends on provider billing granularity; edge cases with multi-provider channels
-- **D.7 RBAC** — role model must not conflict with existing kill-switch RBAC; decide if per-channel roles layer on top or replace
+- **Stage 4 workspace resolution latency** — listBusySessionIDs now resolves workspace per session instead of simple string comparison. Mitigation: workspace registry is in-memory O(1) by directory
+- **Stage 4 lazy workspace at boot** — daemon boot may not have resolved all workspaces yet. Mitigation: register default lanes; register workspace-specific lanes on first session arrival
+- **Stage 4 channel data loss** — custom lane policies from channel store are lost. Mitigation: channel was barely used; defaults cover all cases
 
 ---
 
-## Stage B/C/D Design Decisions
+## Stage 4 Design: Channel-to-Workspace Refactor
 
-| ID | Decision | Options | Status |
-|----|----------|---------|--------|
-| DD-13 | E2E integration test framework | (a) Bun:test with real daemon boot (b) Playwright E2E (c) HTTP client test harness | pending |
-| DD-14 | Channel UI component pattern | (a) Solid.js reactive store with SSE reconciler (b) Polling-based refresh (c) Hybrid | pending — recommend (a), consistent with kill-switch UI |
-| DD-15 | Quota enforcement layer | (a) API middleware (pre-route) (b) Service-level check in ChannelStore (c) Dedicated QuotaService | pending — recommend (c) for separation of concerns |
-| DD-16 | Channel RBAC model | (a) Per-channel roles (owner/operator/viewer) (b) Global roles with channel scope filter (c) Attribute-based access control | pending — recommend (a) for simplicity |
+### Architectural Pivot (2026-03-17)
 
-### Stage B/C/D Architecture Overview
+Channel is a redundant abstraction layer that duplicates workspace's role as "runtime scope for sessions." Both are invisible to the user — there is no "enter channel" or "enter workspace" screen. The overlap creates unnecessary indirection.
+
+Channel was introduced to provide lane isolation and kill-switch scoping per execution context. But workspace already provides execution context — it's auto-resolved from the directory, tracks all attachments, and has lifecycle management. The useful parts (lanePolicy, killSwitchScope) move to workspace. Channel module + API + UI plans (former Stages B/C/D) are cancelled.
+
+User's words: "應該趁channel還沒有扮演很重角色的時候取消channel的設計，重新在workspace裏把需要的控制功能重構進去。首先，不要想太複雜。以後一個session就只會放一個auto runner做一件事。"
+
+### Design Decisions
+
+| ID | Decision | Resolution | Rationale |
+|----|----------|------------|-----------|
+| DD-13 | LanePolicy ownership | **Workspace** — lanePolicy moves from ChannelInfo to WorkspaceAggregate | Workspace is the natural owner — it represents the runtime scope where sessions execute |
+| DD-14 | KillSwitchScope ownership | **Workspace** — killSwitchScope moves to WorkspaceAggregate, enum changes from "channel" to "workspace" | Consistent with DD-13 |
+| DD-15 | Lane composite key namespace | **workspaceId** — `workspaceId:lane` replaces `channelId:lane` | Direct replacement, same namespacing role |
+| DD-16 | Kill-switch session resolution | **Workspace registry lookup** — resolve workspace from session.directory instead of matching session.channelId | WorkspaceId is derivable from directory, no explicit field needed on Session.Info |
+| DD-17 | Channel data migration | **Abandoned** — channel data at ~/.config/opencode/channels/ is not migrated | Channel was recently introduced and not widely configured; default lane policies cover all current use cases |
+| DD-18 | Session.Info backward compat | **Zod strip** — channelId field ignored on persisted session read | WorkspaceId derived from directory, explicit channel/workspace ID on session is redundant |
+| DD-19 | Daemon boot lane registration | **Workspace-based** — resolve workspaces for known project directories, register lanes per workspace, default lanes as fallback | Workspace resolution is lazy and deterministic; on-demand registration via Bus event for new workspaces |
+
+### Architecture
 
 ```
-                     ┌─────────────────────────────────┐
-                     │    Stage B: E2E Verification      │
-                     │  (boot, isolation, kill-switch,   │
-                     │   backward compat)                │
-                     └──────────────┬────────────────────┘
-                                    │ verified
-                     ┌──────────────▼────────────────────┐
-                     │    Stage C: Operator Surface       │
-                     │  ┌─────────┐ ┌──────────┐ ┌─────┐ │
-                     │  │ Channel │ │ Health   │ │ Sess│ │
-                     │  │ Mgmt UI │ │Dashboard │ │Pickr│ │
-                     │  └────┬────┘ └────┬─────┘ └──┬──┘ │
-                     │       │           │          │     │
-                     │       └───── SSE ─┴──────────┘     │
-                     └──────────────┬────────────────────┘
-                                    │ UI ready
-                     ┌──────────────▼────────────────────┐
-                     │    Stage D: Channel Extensions     │
-                     │  ┌───────┐ ┌──────┐ ┌─────┐ ┌───┐ │
-                     │  │ Quota │ │ Cron │ │Migr │ │RBAC│ │
-                     │  │ /Rate │ │Scope │ │ation│ │    │ │
-                     │  └───────┘ └──────┘ └─────┘ └───┘ │
-                     └───────────────────────────────────┘
+Project → Workspace (auto-resolved from directory)
+              │
+              ├─ lanePolicy: { main: 1, cron: 1, subagent: 2, nested: 1 }
+              ├─ killSwitchScope: "workspace" | "global"
+              ├─ attachments: { sessionIds, ptyIds, workerIds, ... }
+              └─ lifecycleState: active | archived | ...
+                    │
+                    ├─ Session (one auto runner doing one thing)
+                    │     └─ directory → workspace resolution → workspaceId
+                    │
+                    ├─ Lanes: workspaceId:main, workspaceId:cron, ...
+                    │
+                    └─ KillSwitch: scope to workspaceId or global
 ```
 
-### Critical Files (Stage B/C/D)
+### Critical Files (Stage 4)
 
-#### Stage B — E2E Tests
-- `packages/opencode/src/server/routes/channel.test.ts` — existing, extend with E2E
-- `packages/opencode/src/server/killswitch/service.test.ts` — existing, extend with channel E2E
-- `packages/opencode/src/daemon/index.ts` — daemon boot sequence (verify channel wiring)
-- `packages/opencode/src/channel/` — ChannelStore, types, index
+**Modify:**
+- `packages/opencode/src/project/workspace/types.ts` — schema extension
+- `packages/opencode/src/project/workspace/resolver.ts` — default values
+- `packages/opencode/src/daemon/lanes.ts` — channelId → workspaceId
+- `packages/opencode/src/daemon/index.ts` — boot sequence
+- `packages/opencode/src/server/killswitch/service.ts` — channelId → workspaceId
+- `packages/opencode/src/server/routes/killswitch.ts` — workspaceId param
+- `packages/opencode/src/session/index.ts` — remove channelId
 
-#### Stage C — Operator Surface
-- `packages/app/src/components/settings-channels.tsx` — new: channel management panel
-- `packages/app/src/components/health-dashboard.tsx` — new or extend existing
-- `packages/app/src/context/global-sync/event-reducer.ts` — add `channel.changed` handler
-- `packages/app/src/context/global-sync/types.ts` — add channel_status store field
-- `packages/opencode/src/server/event.ts` — add ChannelChanged BusEvent
-- `packages/opencode/src/cli/cmd/tui/component/dialog-new-session.tsx` — channel picker
+**Delete:**
+- `packages/opencode/src/channel/` — entire module
+- Channel API routes and tests
 
-#### Stage D — Future Extensions
-- `packages/opencode/src/channel/quota.ts` — new: QuotaService
-- `packages/opencode/src/cron/store.ts` — extend CronJobState with channelId
-- `packages/opencode/src/channel/migration.ts` — new: migration engine
-- `packages/opencode/src/channel/rbac.ts` — new: per-channel role model
+### IDEF0/GRAFCET Impact
+
+The B/C/D IDEF0 diagrams (A6-A8 and L2 decompositions) and GRAFCET diagrams are now **obsolete** — they describe channel-centric features that are cancelled. The A0 context diagram should be updated to remove A6-A8.
+
+Affected diagrams in `diagrams/`:
+- `opencode_a0_idef0.json` — remove A6-A8 and associated ICOM arrows
+- `opencode_a6_*.json`, `opencode_a7_*.json`, `opencode_a8_*.json` — obsolete
+- `opencode_a61_*.json`, `opencode_a71_*.json`, `opencode_a81_*.json` — obsolete
+- `opencode_a0_grafcet.json` — remove S7-S9 steps
+- `opencode_a6_grafcet.json`, `opencode_a7_grafcet.json`, `opencode_a8_grafcet.json` — obsolete

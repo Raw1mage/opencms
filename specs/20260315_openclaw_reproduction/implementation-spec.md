@@ -18,7 +18,7 @@
 
 - 本輪不直接做 full daemon rewrite
 - 本輪不直接做 recurring scheduler persistence store
-- 本輪不直接移植 OpenClaw channel-centric product features
+- ~~本輪不直接移植 OpenClaw channel-centric product features~~ — channel 概念已取消 (2026-03-17)，改為 channel-to-workspace refactor
 - 本輪不新增 fallback mechanism
 - 跨集群 multi-region replication
 
@@ -257,109 +257,66 @@ OpenClaw benchmark: `refs/openclaw/src/cli/gateway-cli/run-loop.ts`, `refs/openc
 - 10e. **Restart Loop** — Try `restartGatewayProcessWithFreshPid()` (full respawn, better for TCC permissions). Fallback to in-process restart if `OPENCLAW_NO_RESPAWN`. Close HTTP server with `close(reason, restartExpectedMs)`. Loop back to server start.
 - 10f. **Generation & Recovery** — Increment `generation` on restart. Stale task completions from previous generation silently ignored. `resetAllLanes()` clears activeTaskIds, bumps generation, re-drains queued entries. `Daemon.info()` exposes session count + lane sizes + generation via health endpoint.
 
-### Stage 4 — E2E Integration Verification（B）
+### Stage 4 — Channel-to-Workspace Refactor
 
-IDEF0 reference: A6 (Verify End-to-End Integration) → A61-A64
-GRAFCET reference: opencode_a6_grafcet.json
+**Architectural pivot (2026-03-17)**: Channel is a redundant abstraction that duplicates workspace's role as runtime scope. Both are invisible to the user. Channel's useful features (lane isolation via lanePolicy, kill-switch scope) are refactored into workspace. Channel module is then deleted entirely. Previous Stages B/C/D (channel E2E, channel UI, channel extensions) are cancelled and replaced by this refactoring.
 
-#### Phase 11 — Multi-Channel Daemon Boot Verification（B.1）
+Rationale: workspace already auto-resolves from directory, tracks all attachments (sessions, ptys, workers), and has lifecycle management. Adding lanePolicy + killSwitchScope to workspace covers all channel use cases without a separate module.
 
-Deliverables: integration test proving daemon boots with ChannelStore restore, registers per-channel lanes, health endpoint reports all channels.
+Mental model: Project → Workspace (runtime scope with resource control) → Session (one auto runner doing one thing)
 
-- 11a. **Channel Store Restore E2E** — boot daemon with 3+ pre-seeded channel files, verify ChannelStore.list() returns all, verify schema validation rejects corrupt files — IDEF0: A611
-- 11b. **Per-Channel Lane Registration E2E** — verify each channel's lanePolicy is registered as composite keys, verify getActiveTaskCount() per channel, verify lane isolation between channels — IDEF0: A612
-- 11c. **Health Endpoint Channel Coverage** — assert GET /api/v2/admin/health includes per-channel breakdown, lane utilization, active session count — IDEF0: A613
+#### Phase 11 — Extend Workspace Schema（4.1）
 
-#### Phase 12 — Cross-Channel Session Isolation（B.2）
+Deliverables: WorkspaceAggregate extended with lanePolicy and killSwitchScope.
 
-Deliverables: test suite proving sessions in different channels do not interfere.
+- 11a. **LanePolicy on Workspace** — add `lanePolicy: LanePolicySchema` to WorkspaceAggregate with default `{ main: 1, cron: 1, subagent: 2, nested: 1 }`. Move LanePolicySchema from channel/types.ts to workspace/types.ts.
+- 11b. **KillSwitchScope on Workspace** — add `killSwitchScope: z.enum(["workspace", "global"])` with default "global". Enum value changes from "channel" to "workspace".
+- 11c. **Resolver Defaults** — set defaults in buildRootWorkspace, buildSandboxWorkspace, buildDerivedWorkspace.
 
-- 12a. **Session Creation with channelId** — create sessions via API with explicit channelId, verify Session.Info.channelId is persisted
-- 12b. **Lane Namespace Isolation** — enqueue tasks in channel-A and channel-B simultaneously, verify composite keys prevent cross-pollination — IDEF0: A62
-- 12c. **Storage Boundary Verification** — verify session files are not accessible via wrong channel's store queries
+#### Phase 12 — Migrate Lanes Module（4.2）
 
-#### Phase 13 — Channel-Scoped Kill-Switch E2E（B.3）
+Deliverables: Lanes module uses workspaceId instead of channelId.
 
-Deliverables: end-to-end test from HTTP trigger → state change → session abort → audit, scoped to a single channel.
+- 12a. **API Rename** — registerChannel → registerWorkspace, ChannelLaneConfig → WorkspaceLaneConfig, channelId → workspaceId in all function signatures.
+- 12b. **Composite Key Migration** — buildLaneKey(channelId, lane) → buildLaneKey(workspaceId, lane), parseLaneKey updated.
+- 12c. **Daemon Boot** — replace ChannelStore.restoreOrBootstrap() with workspace-based lane registration. Resolve workspaces for known project directories; register default lanes as fallback.
 
-- 13a. **Scoped Trigger E2E** — POST kill-switch trigger with channelId, verify only target channel sessions are aborted — IDEF0: A63
-- 13b. **Global Override E2E** — POST global trigger, verify all channels affected regardless of channel-scoped state
-- 13c. **Audit Trail Channel Scope** — verify audit entries include channelId field when trigger is channel-scoped
+#### Phase 13 — Migrate KillSwitch Service（4.3）
 
-#### Phase 14 — Default Channel Backward Compatibility（B.4）
+Deliverables: KillSwitch uses workspaceId instead of channelId for scoping.
 
-Deliverables: regression tests proving pre-channel behavior is identical.
+- 13a. **State Schema** — replace channelId with workspaceId in KillSwitch.State.
+- 13b. **Scheduling Gate** — assertSchedulingAllowed(channelId?) → assertSchedulingAllowed(workspaceId?).
+- 13c. **Busy Session Filter** — listBusySessionIDs resolves workspace from session.directory via workspace registry instead of matching session.channelId. Registry lookup is in-memory O(1).
+- 13d. **Routes** — kill-switch /trigger endpoint: channelId → workspaceId in body schema.
 
-- 14a. **Implicit Default Channel** — sessions created without channelId default to "default" channel lanes — IDEF0: A64
-- 14b. **Global Kill-Switch Unchanged** — trigger without channelId behaves identically to pre-channel kill-switch
-- 14c. **Lane Limits Preserved** — default channel lane policy matches pre-channel global limits
+#### Phase 14 — Remove Channel from Session（4.4）
 
-### Stage 5 — Webapp / Operator Surface（C）
+Deliverables: Session.Info no longer carries channelId.
 
-IDEF0 reference: A7 (Render Operator Surface) → A71-A74
-GRAFCET reference: opencode_a7_grafcet.json
+- 14a. **Schema Change** — remove channelId from Session.Info zod schema.
+- 14b. **Backward Compat** — Zod strips unknown fields; persisted sessions with channelId load without error.
+- 14c. **Creation Code** — remove any session creation code that sets channelId.
 
-#### Phase 15 — Channel Management UI（C.1）
+#### Phase 15 — Delete Channel Module（4.5）
 
-Deliverables: Web Admin panel for channel CRUD, lane policy editor, SSE-driven status.
+Deliverables: Channel module and all references removed from codebase.
 
-- 15a. **Channel List View** — Solid.js table component fetching GET /api/v2/channel/, sortable, with enable/disable toggle and delete button — IDEF0: A711
-- 15b. **Channel Create/Edit Form** — modal form with name, description, lanePolicy inputs, validation against LanePolicySchema — IDEF0: A712
-- 15c. **Channel Delete Confirmation** — double-click confirmation pattern (matches kill-switch UI), default channel guard (409), active session count warning — IDEF0: A713
-- 15d. **SSE Channel Events** — BusEvent `channel.changed` → event-reducer → store update → reactive UI refresh — IDEF0: A74
+- 15a. **Delete Module** — rm packages/opencode/src/channel/ (types.ts, store.ts, index.ts).
+- 15b. **Delete Routes** — rm channel API route file, remove route registration from server setup.
+- 15c. **Remove Imports** — clean up channel imports from daemon/index.ts and any other consumers.
+- 15d. **Grep Sweep** — verify no channelId/ChannelStore references remain in production code.
 
-#### Phase 16 — Health Dashboard Channel Breakdown（C.2）
+#### Phase 16 — Rewrite Tests（4.6）
 
-Deliverables: per-channel lane utilization, session counts, kill-switch scope in health dashboard.
+Deliverables: All tests pass with workspace-based scoping; no channel test artifacts remain.
 
-- 16a. **Channel Health Cards** — one card per channel showing lane utilization bars, active/idle session ratio — IDEF0: A72
-- 16b. **Kill-Switch Scope Indicator** — badge showing global vs channel-scoped kill-switch state per channel
-- 16c. **Aggregate Global Health** — top-level summary aggregating all channel metrics
-
-#### Phase 17 — Session Creation Channel Picker（C.3）
-
-Deliverables: channel selector in session creation flow (Web + TUI).
-
-- 17a. **Web Channel Picker** — dropdown populated from channel API, defaults to "default" — IDEF0: A73
-- 17b. **TUI Channel Picker** — DialogSelect component with channel list, integrated into new-session flow
-- 17c. **Channel Validation Gate** — reject session creation if selected channel is disabled or does not exist
-
-### Stage 6 — Future Channel Extensions（D）
-
-IDEF0 reference: A8 (Govern Channel Extensions) → A81-A84
-GRAFCET reference: opencode_a8_grafcet.json
-
-#### Phase 18 — Channel Quota and Rate Limiting（D.4）
-
-Deliverables: per-channel token budget, request rate ceiling, concurrent session cap.
-
-- 18a. **Token Budget Tracking** — accumulate provider token usage per channel per billing period from session completion events — IDEF0: A811
-- 18b. **Request Rate Limiter** — sliding window counter per channel, configurable ceiling, throttle or reject when exceeded — IDEF0: A812
-- 18c. **Concurrent Session Cap** — count active sessions per channel, reject new creation when cap exceeded, emit quota_exceeded event — IDEF0: A813
-
-#### Phase 19 — Channel-Scoped Cron Jobs（D.5）
-
-Deliverables: cron job ↔ channel association, channel kill-switch suppression, cascade disable on channel delete.
-
-- 19a. **Channel-Cron Binding** — extend CronJobState with optional channelId, cron triggers respect channel scope — IDEF0: A82
-- 19b. **Channel Kill-Switch Suppression** — channel-scoped kill-switch suppresses cron triggers for that channel only
-- 19c. **Cascade Disable on Channel Delete** — deleting a channel disables all associated cron jobs with reason "channel_deleted"
-
-#### Phase 20 — Channel Migration（D.6）
-
-Deliverables: move sessions and cron jobs between channels, re-key lane namespace.
-
-- 20a. **Session Migration** — re-assign Session.Info.channelId, update lane composite keys — IDEF0: A83
-- 20b. **Cron Job Migration** — update CronJobState.channelId, recompute next fire time if active hours differ
-- 20c. **Run-Log Preservation** — migrate run-log JSONL entries, update session references
-
-#### Phase 21 — Channel RBAC（D.7）
-
-Deliverables: per-channel role model (owner/operator/viewer), gate operations by role, audit.
-
-- 21a. **Channel Role Schema** — extend Channel.Info with roles map, define owner/operator/viewer permissions — IDEF0: A84
-- 21b. **Operation Gating** — gate channel CRUD, session creation, kill-switch trigger by caller's channel role
-- 21c. **RBAC Audit Trail** — log role-gated operations with caller identity, action, channel, and decision
+- 16a. **Lanes Tests** — rewrite lanes.test.ts: per-channel → per-workspace isolation.
+- 16b. **KillSwitch Tests** — rewrite killswitch service.test.ts: channel-scoped → workspace-scoped.
+- 16c. **Delete Channel Tests** — rm channel store.test.ts, channel API tests, E2E channel-integration.test.ts.
+- 16d. **New E2E** — workspace-integration.test.ts: workspace-scoped lane isolation + kill-switch E2E.
+- 16e. **Schema Tests** — workspace schema validation tests for lanePolicy + killSwitchScope.
+- 16f. **Final Verification** — `bun test` all green, grep for channelId/ChannelStore returns zero hits.
 
 ---
 
@@ -375,15 +332,12 @@ Deliverables: per-channel role model (owner/operator/viewer), gate operations by
 - Trigger model: unit/regression/integration validation for RunTrigger changes
 - Queue: validation for lane policy enforcement and orchestrator dispatch
 - Architecture docs must express planner authority vs trigger authority separation
-- **Stage B**: all E2E integration tests pass (multi-channel boot, isolation, kill-switch E2E, backward compat)
-- **Stage C**: channel management UI renders correctly, SSE events propagate, session creation with channel picker works
-- **Stage D**: quota enforcement rejects over-limit, cron-channel binding cascades on delete, migration preserves history, RBAC gates operations
+- **Stage 4**: channel-to-workspace refactor complete — workspace has lanePolicy + killSwitchScope, lanes use workspaceId, kill-switch scopes to workspace, channel module deleted, all tests pass, zero channelId/ChannelStore references in production code
 
 ## Handoff
 
 - This package is the single planning authority for OpenClaw-aligned runner reproduction work.
 - Old `openclaw_runner_benchmark` and `openclaw_scheduler_substrate` packages are reference history only.
 - `specs/20260316_kill-switch/` is the implementation detail reference for Slice 1.
-- `specs/20260317_scheduler-persistence-daemon/` is the implementation detail reference for channel model + scheduler recovery.
 - Build agent must read `tasks.md` before coding; runtime todo must be materialized from `tasks.md`.
-- Next build entry: Stage 4 (E2E Integration Verification) → Stage 5 (Operator Surface) → Stage 6 (Future Extensions). Each stage requires explicit user approval.
+- Next build entry: Stage 4 (Channel-to-Workspace Refactor, Phases 11-16). Requires explicit user approval.
