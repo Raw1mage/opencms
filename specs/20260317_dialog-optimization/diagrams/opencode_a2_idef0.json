@@ -1,0 +1,137 @@
+{
+  "diagram_title": "Load Messages Incrementally",
+  "node_reference": "A2",
+  "activities": [
+    {
+      "id": "A21",
+      "title": "Execute Initial Fast Load",
+      "description": "Fetch most recent N messages and render immediately",
+      "decomposition": null
+    },
+    {
+      "id": "A22",
+      "title": "Schedule Background Backfill",
+      "description": "Determine if backfill needed, initiate cursor-based batch fetching",
+      "decomposition": null
+    },
+    {
+      "id": "A23",
+      "title": "Prepend Older Messages Stably",
+      "description": "Insert older messages into store without viewport jump",
+      "decomposition": null
+    },
+    {
+      "id": "A24",
+      "title": "Update Loading State Signal",
+      "description": "Manage loadingState transitions: idle → loading-initial → backfilling → complete",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A21:input",
+      "label": "Session Enter Event",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A21:control",
+      "label": "Initial Batch Size (20)",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A21:mechanism",
+      "label": "SDK Client",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR4",
+      "source": "A21:output",
+      "target": "A22:input",
+      "label": "Initial Messages + Cursor Headers",
+      "type": "input"
+    },
+    {
+      "id": "AR5",
+      "source": "A21:output",
+      "target": "EXTERNAL",
+      "label": "Rendered Initial Messages",
+      "type": "output"
+    },
+    {
+      "id": "AR6",
+      "source": "A21:output",
+      "target": "A24:input",
+      "label": "Initial Load Complete Event",
+      "type": "input"
+    },
+    {
+      "id": "AR7",
+      "source": "EXTERNAL",
+      "target": "A22:control",
+      "label": "Short Session Threshold",
+      "type": "control"
+    },
+    {
+      "id": "AR8",
+      "source": "EXTERNAL",
+      "target": "A22:control",
+      "label": "Compaction Boundary Stop Rule",
+      "type": "control"
+    },
+    {
+      "id": "AR9",
+      "source": "A22:output",
+      "target": "A23:input",
+      "label": "Backfill Message Batch",
+      "type": "input"
+    },
+    {
+      "id": "AR10",
+      "source": "EXTERNAL",
+      "target": "A23:control",
+      "label": "Scrollbox Sticky Scroll Policy",
+      "type": "control"
+    },
+    {
+      "id": "AR11",
+      "source": "EXTERNAL",
+      "target": "A23:mechanism",
+      "label": "SolidJS produce() + reconcile()",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR12",
+      "source": "EXTERNAL",
+      "target": "A23:mechanism",
+      "label": "Scrollbox Renderer",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR13",
+      "source": "A23:output",
+      "target": "EXTERNAL",
+      "label": "Updated Message List",
+      "type": "output"
+    },
+    {
+      "id": "AR14",
+      "source": "A22:output",
+      "target": "A24:input",
+      "label": "Backfill Progress Event",
+      "type": "input"
+    },
+    {
+      "id": "AR15",
+      "source": "A24:output",
+      "target": "EXTERNAL",
+      "label": "Loading State Signal",
+      "type": "output"
+    }
+  ]
+}

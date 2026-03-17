@@ -1,0 +1,123 @@
+{
+  "diagram_title": "Serve Paginated Messages",
+  "node_reference": "A1",
+  "activities": [
+    {
+      "id": "A11",
+      "title": "Parse Pagination Parameters",
+      "description": "Extract cursor, limit from HTTP query params",
+      "decomposition": null
+    },
+    {
+      "id": "A12",
+      "title": "Stream Messages From Storage",
+      "description": "Reverse-iterate storage keys, skip-until cursor if provided",
+      "decomposition": null
+    },
+    {
+      "id": "A13",
+      "title": "Detect Compaction Boundary",
+      "description": "Scan message parts for compaction markers during iteration",
+      "decomposition": null
+    },
+    {
+      "id": "A14",
+      "title": "Assemble Paginated Response",
+      "description": "Build response body + cursor metadata headers",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A11:input",
+      "label": "HTTP Request Query Params",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "A11:output",
+      "target": "A12:input",
+      "label": "Parsed Cursor + Limit",
+      "type": "input"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A12:mechanism",
+      "label": "MessageV2.stream()",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A12:mechanism",
+      "label": "Storage.list()",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A12:control",
+      "label": "Storage Key Sort Order",
+      "type": "control"
+    },
+    {
+      "id": "AR6",
+      "source": "A12:output",
+      "target": "A13:input",
+      "label": "Message Stream Slice",
+      "type": "input"
+    },
+    {
+      "id": "AR7",
+      "source": "EXTERNAL",
+      "target": "A13:control",
+      "label": "Compaction Part Type Detection",
+      "type": "control"
+    },
+    {
+      "id": "AR8",
+      "source": "A12:output",
+      "target": "A14:input",
+      "label": "Collected Messages",
+      "type": "input"
+    },
+    {
+      "id": "AR9",
+      "source": "A13:output",
+      "target": "A14:input",
+      "label": "Compaction Boundary MessageID",
+      "type": "input"
+    },
+    {
+      "id": "AR10",
+      "source": "A14:output",
+      "target": "EXTERNAL",
+      "label": "Paginated Message Batch",
+      "type": "output"
+    },
+    {
+      "id": "AR11",
+      "source": "A14:output",
+      "target": "EXTERNAL",
+      "label": "X-Cursor-Next Header",
+      "type": "output"
+    },
+    {
+      "id": "AR12",
+      "source": "A14:output",
+      "target": "EXTERNAL",
+      "label": "X-Compaction-At Header",
+      "type": "output"
+    },
+    {
+      "id": "AR13",
+      "source": "EXTERNAL",
+      "target": "A14:control",
+      "label": "Response Header Policy",
+      "type": "control"
+    }
+  ]
+}
