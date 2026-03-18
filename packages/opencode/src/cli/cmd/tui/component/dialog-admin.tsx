@@ -2403,13 +2403,12 @@ function DialogGoogleApiAdd(props: { onCancel: () => void; onSaved: () => void }
         }
       }
 
-      const info: Account.ApiAccount = {
+      const { Auth } = await import("../../../../auth")
+      const wrote = await Auth.set("google-api", {
         type: "api",
         name: nextName,
-        apiKey: nextKey,
-        addedAt: Date.now(),
-      }
-      const wrote = await Account.add("google-api", id, info)
+        key: nextKey,
+      })
         .then(() => true)
         .catch((err) => {
           const msg = String(err instanceof Error ? err.stack || err.message : err)
@@ -2763,13 +2762,12 @@ function DialogApiKeyAdd(props: {
       }
     }
 
-    const info: Account.ApiAccount = {
+    const { Auth } = await import("../../../../auth")
+    const wrote = await Auth.set(props.providerId, {
       type: "api",
       name: nextName,
-      apiKey: nextKey,
-      addedAt: Date.now(),
-    }
-    const wrote = await Account.add(props.providerId, id, info)
+      key: nextKey,
+    })
       .then(() => true)
       .catch((err) => {
         const msg = String(err instanceof Error ? err.stack || err.message : err)

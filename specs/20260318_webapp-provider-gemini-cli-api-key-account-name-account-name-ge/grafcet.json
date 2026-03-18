@@ -1,0 +1,86 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Wait for user account action (add/remove)",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["User initiates action via CLI/TUI/Webapp"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Check existing accounts for deduplication",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 3],
+    "LinkOutputType": "divergence_or",
+    "Condition": [],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Resolve ID collision by appending suffix",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["Collision Detected == True"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Use provided ID directly",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["Collision Detected == False"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Attempt storage operation (insert/delete)",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [2, 3],
+    "LinkOutputNumber": [5, 6],
+    "LinkOutputType": "divergence_or",
+    "Condition": [],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Throw Error (Fallback to Error Handler)",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["Storage constraint violated (Duplicate ID)"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Trigger background lifecycle cleanup (Async dispose)",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["Storage Operation Succeeded"],
+    "SubGrafcet": []
+  }
+]

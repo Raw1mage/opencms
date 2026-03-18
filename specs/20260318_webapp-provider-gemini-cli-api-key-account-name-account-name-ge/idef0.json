@@ -1,0 +1,128 @@
+{
+  "diagram_title": "Account Management Framework",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A0",
+      "title": "Manage Model Provider Accounts",
+      "description": "System-wide orchestration of account persistence, identity deduplication, and lifecycle operations across CLI, TUI, and Webapp interfaces.",
+      "decomposition": {
+        "node_reference": "A0",
+        "activities": [
+          {
+            "id": "A1",
+            "title": "Receive Account Action Request",
+            "description": "Accepts user inputs from various UI clients (CLI, TUI, Webapp) and normalizes the request data for processing.",
+            "decomposition": null
+          },
+          {
+            "id": "A2",
+            "title": "Resolve Account Identity",
+            "description": "Validates request, checks for identity duplication, and generates a unique Account ID, resolving collisions safely.",
+            "decomposition": null
+          },
+          {
+            "id": "A3",
+            "title": "Persist Account Data",
+            "description": "Strict repository layer that reads from and writes to the underlying JSON file storage.",
+            "decomposition": null
+          },
+          {
+            "id": "A4",
+            "title": "Manage Provider Lifecycle",
+            "description": "Orchestrates background cleanup tasks such as instantiating and disposing of provider runtime connections.",
+            "decomposition": null
+          }
+        ],
+        "arrows": [
+          {
+            "id": "arr1",
+            "source": "EXTERNAL",
+            "target": "A1:input",
+            "label": "User Input (Credentials, Deletion Target)",
+            "type": "input"
+          },
+          {
+            "id": "arr2",
+            "source": "A1:output",
+            "target": "A2:input",
+            "label": "Normalized Request Payload",
+            "type": "output"
+          },
+          {
+            "id": "arr3",
+            "source": "A2:output",
+            "target": "A3:input",
+            "label": "Resolved Identity Payload (Add/Remove)",
+            "type": "output"
+          },
+          {
+            "id": "arr4",
+            "source": "A3:output",
+            "target": "A4:input",
+            "label": "Account State Change Event",
+            "type": "output"
+          },
+          {
+            "id": "arr5",
+            "source": "A4:output",
+            "target": "EXTERNAL",
+            "label": "Execution Success / Disposal Confirmation",
+            "type": "output"
+          },
+          {
+            "id": "arr6",
+            "source": "EXTERNAL",
+            "target": "A1:control",
+            "label": "Client Interface Policy",
+            "type": "control"
+          },
+          {
+            "id": "arr7",
+            "source": "EXTERNAL",
+            "target": "A2:control",
+            "label": "Deduplication Rules",
+            "type": "control"
+          },
+          {
+            "id": "arr8",
+            "source": "EXTERNAL",
+            "target": "A3:control",
+            "label": "File System Constraints",
+            "type": "control"
+          },
+          {
+            "id": "arr9",
+            "source": "EXTERNAL",
+            "target": "A4:control",
+            "label": "Background Job Constraints",
+            "type": "control"
+          }
+        ]
+      }
+    }
+  ],
+  "arrows": [
+    {
+      "id": "root1",
+      "source": "EXTERNAL",
+      "target": "A0:input",
+      "label": "Account Action Requests",
+      "type": "input"
+    },
+    {
+      "id": "root2",
+      "source": "A0:output",
+      "target": "EXTERNAL",
+      "label": "Synchronized Account State",
+      "type": "output"
+    },
+    {
+      "id": "root3",
+      "source": "EXTERNAL",
+      "target": "A0:control",
+      "label": "System Architecture Boundaries",
+      "type": "control"
+    }
+  ]
+}

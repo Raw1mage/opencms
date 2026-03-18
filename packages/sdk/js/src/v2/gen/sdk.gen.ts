@@ -127,6 +127,14 @@ import type {
   GlobalWebRestartResponses,
   InstanceDispose2Responses,
   InstanceDisposeResponses,
+  KillswitchCancel2Responses,
+  KillswitchCancelResponses,
+  KillswitchStatus2Responses,
+  KillswitchStatusResponses,
+  KillswitchTaskControl2Responses,
+  KillswitchTaskControlResponses,
+  KillswitchTrigger2Responses,
+  KillswitchTriggerResponses,
   LspStatus2Responses,
   LspStatusResponses,
   McpAdd2Errors,
@@ -249,6 +257,8 @@ import type {
   RotationStatusResponses,
   SessionAbort2Errors,
   SessionAbort2Responses,
+  SessionAbortAll2Responses,
+  SessionAbortAllResponses,
   SessionAbortErrors,
   SessionAbortResponses,
   SessionAutonomous2Errors,
@@ -3748,6 +3758,25 @@ export class Session2 extends HeyApiClient {
   }
 
   /**
+   * Abort all sessions
+   *
+   * Emergency stop: abort every busy session and activate the kill-switch to block new work. No MFA required — designed for double-click emergency use.
+   */
+  public abortAll<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).post<SessionAbortAllResponses, unknown, ThrowOnError>({
+      url: "/api/v2/session/abort-all",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
    * Unshare session
    *
    * Remove the shareable link for a session, making it private again.
@@ -4728,6 +4757,25 @@ export class Session2 extends HeyApiClient {
     )
     return (options?.client ?? this.client).post<SessionAbort2Responses, SessionAbort2Errors, ThrowOnError>({
       url: "/session/{sessionID}/abort",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Abort all sessions
+   *
+   * Emergency stop: abort every busy session and activate the kill-switch to block new work. No MFA required — designed for double-click emergency use.
+   */
+  public abortAll2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).post<SessionAbortAll2Responses, unknown, ThrowOnError>({
+      url: "/session/abort-all",
       ...options,
       ...params,
     })
@@ -8406,6 +8454,291 @@ export class Model extends HeyApiClient {
   }
 }
 
+export class Task extends HeyApiClient {
+  /**
+   * Control one session task
+   */
+  public control<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      initiator?: string
+      action?: "pause" | "resume" | "cancel" | "snapshot" | "set_priority"
+      seq?: number
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "body", key: "initiator" },
+            { in: "body", key: "action" },
+            { in: "body", key: "seq" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<KillswitchTaskControlResponses, unknown, ThrowOnError>({
+      url: "/api/v2/admin/kill-switch/tasks/{sessionID}/control",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Control one session task
+   */
+  public control2<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      initiator?: string
+      action?: "pause" | "resume" | "cancel" | "snapshot" | "set_priority"
+      seq?: number
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "body", key: "initiator" },
+            { in: "body", key: "action" },
+            { in: "body", key: "seq" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<KillswitchTaskControl2Responses, unknown, ThrowOnError>({
+      url: "/admin/kill-switch/tasks/{sessionID}/control",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
+export class Killswitch extends HeyApiClient {
+  /**
+   * Get kill-switch status
+   */
+  public status<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<KillswitchStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v2/admin/kill-switch/status",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Trigger kill-switch
+   */
+  public trigger<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      initiator?: string
+      reason?: string
+      mode?: string
+      scope?: string
+      workspaceId?: string
+      ttl?: number
+      mfaCode?: string
+      requestID?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "initiator" },
+            { in: "body", key: "reason" },
+            { in: "body", key: "mode" },
+            { in: "body", key: "scope" },
+            { in: "body", key: "workspaceId" },
+            { in: "body", key: "ttl" },
+            { in: "body", key: "mfaCode" },
+            { in: "body", key: "requestID" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<KillswitchTriggerResponses, unknown, ThrowOnError>({
+      url: "/api/v2/admin/kill-switch/trigger",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Cancel kill-switch
+   */
+  public cancel<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      requestID?: string
+      initiator?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "requestID" },
+            { in: "body", key: "initiator" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<KillswitchCancelResponses, unknown, ThrowOnError>({
+      url: "/api/v2/admin/kill-switch/cancel",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Get kill-switch status
+   */
+  public status2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<KillswitchStatus2Responses, unknown, ThrowOnError>({
+      url: "/admin/kill-switch/status",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Trigger kill-switch
+   */
+  public trigger2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      initiator?: string
+      reason?: string
+      mode?: string
+      scope?: string
+      workspaceId?: string
+      ttl?: number
+      mfaCode?: string
+      requestID?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "initiator" },
+            { in: "body", key: "reason" },
+            { in: "body", key: "mode" },
+            { in: "body", key: "scope" },
+            { in: "body", key: "workspaceId" },
+            { in: "body", key: "ttl" },
+            { in: "body", key: "mfaCode" },
+            { in: "body", key: "requestID" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<KillswitchTrigger2Responses, unknown, ThrowOnError>({
+      url: "/admin/kill-switch/trigger",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Cancel kill-switch
+   */
+  public cancel2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      requestID?: string
+      initiator?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "requestID" },
+            { in: "body", key: "initiator" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<KillswitchCancel2Responses, unknown, ThrowOnError>({
+      url: "/admin/kill-switch/cancel",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  private _task?: Task
+  get task(): Task {
+    return (this._task ??= new Task({ client: this.client }))
+  }
+}
+
 export class Find extends HeyApiClient {
   /**
    * Find text
@@ -9305,6 +9638,11 @@ export class OpencodeClient extends HeyApiClient {
   private _model?: Model
   get model(): Model {
     return (this._model ??= new Model({ client: this.client }))
+  }
+
+  private _killswitch?: Killswitch
+  get killswitch(): Killswitch {
+    return (this._killswitch ??= new Killswitch({ client: this.client }))
   }
 
   private _find?: Find

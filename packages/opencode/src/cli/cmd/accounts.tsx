@@ -188,15 +188,14 @@ export const AccountsCommand = cmd({
         })
         if (p.isCancel(keyVal)) return
 
+        const { Auth } = await import("../../auth")
         const extractedEmail = JWT.getEmail(keyVal as string)
         const finalName = nameIn && (nameIn as string).length > 0 ? (nameIn as string) : extractedEmail || "Default"
 
-        const id = Account.generateId(finalFamily, "api", finalName)
-        await Account.add(finalFamily, id, {
+        await Auth.set(finalFamily, {
           type: "api",
           name: finalName,
-          apiKey: keyVal as string,
-          addedAt: Date.now(),
+          key: keyVal as string,
         })
         p.log.success(`Added.`)
         await new Promise((r) => setTimeout(r, 600))

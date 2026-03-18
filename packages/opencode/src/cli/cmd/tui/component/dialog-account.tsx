@@ -58,8 +58,25 @@ export function DialogAccount() {
   }
 
   const remove = async (providerKey: string, accountId: string) => {
-    await Account.remove(providerKey, accountId)
-    await loadAccounts()
+    // Optimistic UI update
+    setProviderAccounts(prev => {
+      const next = { ...prev }
+      if (next[providerKey] && next[providerKey].accounts) {
+        // Deep copy the accounts object before mutating
+        next[providerKey] = {
+          ...next[providerKey],
+          accounts: { ...next[providerKey].accounts }
+        }
+        delete next[providerKey].accounts[accountId]
+      }
+      return next
+    })
+    
+    // Perform backend deletion
+    const { Auth } = await import("../../../../auth")
+    await Auth.remove(accountId)
+    // Silently refresh true state in background
+    loadAccounts()
   }
 
   const getAccountStatus = (info: Account.Info): { icon: string; color: any; text: string } | null => {

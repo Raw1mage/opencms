@@ -141,6 +141,9 @@ export const dict = {
   "provider.connect.apiKey.description":
     "Enter your {{provider}} API key to connect your account and use {{provider}} models in OpenCode.",
   "provider.connect.apiKey.label": "{{provider}} API key",
+  "provider.connect.accountName.label": "Account Name (optional)",
+  "provider.connect.accountName.placeholder": "Default: {{defaultValue}}",
+  "provider.connect.accountName.default": "Default",
   "provider.connect.apiKey.placeholder": "API key",
   "provider.connect.apiKey.required": "API key is required",
   "provider.connect.opencodeZen.line1":

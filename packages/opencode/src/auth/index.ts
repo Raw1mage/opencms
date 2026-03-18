@@ -28,6 +28,7 @@ export namespace Auth {
       type: z.literal("api"),
       key: z.string(),
       projectId: z.string().optional(),
+      name: z.string().optional(),
     })
     .meta({ ref: "ApiAuth" })
 
@@ -156,14 +157,44 @@ export namespace Auth {
   /**
    * Set auth for a provider (creates/updates account in Account module)
    */
-  export async function set(providerId: string, info: Info) {
+  export async function set(providerId: string, info: Info): Promise<string | undefined> {
     const { Account } = await import("../account")
     const providerKey = await Account.resolveProviderOrSelf(providerId)
 
     if (info.type === "api") {
       const raw = providerId.startsWith(`${providerKey}-`) ? providerId.slice(providerKey.length + 1) : providerId
-      const label = raw || providerId
-      const accountId = Account.generateId(providerKey, "api", label)
+      let label = info.name || raw || providerId
+      let accountId = Account.generateId(providerKey, "api", label)
+      
+      const existingAccounts = await Account.list(providerKey)
+      
+      // API Key Deduplication: if the exact same API key already exists for this provider, we update it or return it,
+      // rather than creating a phantom duplicate account under a new name.
+      let duplicateId: string | undefined
+      for (const [id, acc] of Object.entries(existingAccounts)) {
+        if (acc.type === "api" && acc.apiKey === info.key) {
+          duplicateId = id
+          break
+        }
+      }
+
+      if (duplicateId) {
+        // If the key exists, we simply update its name/projectId if they were provided
+        await Account.update(providerKey, duplicateId, {
+          name: info.name || existingAccounts[duplicateId].name,
+          projectId: info.projectId || (existingAccounts[duplicateId] as any).projectId,
+        })
+        return duplicateId
+      }
+
+      // Handle ID collision if the user happened to provide a generic name like "Default" that already exists
+      let counter = 1
+      while (existingAccounts[accountId]) {
+        label = `${info.name || raw || providerId}-${counter}`
+        accountId = Account.generateId(providerKey, "api", label)
+        counter++
+      }
+
       await Account.add(providerKey, accountId, {
         type: "api",
         name: label,
@@ -171,6 +202,7 @@ export namespace Auth {
         addedAt: Date.now(),
         projectId: info.projectId,
       })
+      return accountId
     } else if (info.type === "oauth") {
       // Unified identity resolution chain:
       // 1. explicit email, 2. JWT decode from access token, 3. JWT decode from refresh token
@@ -217,6 +249,7 @@ export namespace Auth {
           managedProjectId,
           metadata: info.orgID ? { orgID: info.orgID } : undefined,
         })
+        return existingAccountId
       } else {
         // Unified slug resolution: email > username > token-hash (never falls back to providerId)
         const tokenHash = createHash("sha256").update(baseToken).digest("hex").slice(0, 8)
@@ -235,8 +268,10 @@ export namespace Auth {
           addedAt: Date.now(),
           metadata: info.orgID ? { orgID: info.orgID } : undefined,
         })
+        return accountId
       }
     }
+    return undefined
   }
 
   /**

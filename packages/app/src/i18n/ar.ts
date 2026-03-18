@@ -112,6 +112,9 @@ export const dict = {
   "provider.connect.apiKey.description":
     "أدخل مفتاح واجهة برمجة تطبيقات {{provider}} الخاص بك لتوصيل حسابك واستخدام نماذج {{provider}} في OpenCode.",
   "provider.connect.apiKey.label": "مفتاح واجهة برمجة تطبيقات {{provider}}",
+  "provider.connect.accountName.label": "Account Name (optional)",
+  "provider.connect.accountName.placeholder": "Default: {{defaultValue}}",
+  "provider.connect.accountName.default": "Default",
   "provider.connect.apiKey.placeholder": "مفتاح API",
   "provider.connect.apiKey.required": "مفتاح API مطلوب",
   "provider.connect.opencodeZen.line1":

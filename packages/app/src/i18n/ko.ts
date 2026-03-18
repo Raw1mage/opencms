@@ -116,6 +116,9 @@ export const dict = {
   "provider.connect.apiKey.description":
     "{{provider}} API 키를 입력하여 계정을 연결하고 OpenCode에서 {{provider}} 모델을 사용하세요.",
   "provider.connect.apiKey.label": "{{provider}} API 키",
+  "provider.connect.accountName.label": "Account Name (optional)",
+  "provider.connect.accountName.placeholder": "Default: {{defaultValue}}",
+  "provider.connect.accountName.default": "Default",
   "provider.connect.apiKey.placeholder": "API 키",
   "provider.connect.apiKey.required": "API 키가 필요합니다",
   "provider.connect.opencodeZen.line1":

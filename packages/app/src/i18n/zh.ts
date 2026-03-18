@@ -162,6 +162,9 @@ export const dict = {
   "provider.connect.apiKey.description":
     "输入你的 {{provider}} API 密钥以连接帐户，并在 OpenCode 中使用 {{provider}} 模型。",
   "provider.connect.apiKey.label": "{{provider}} API 密钥",
+  "provider.connect.accountName.label": "账号名称（选填）",
+  "provider.connect.accountName.placeholder": "默认：{{defaultValue}}",
+  "provider.connect.accountName.default": "默认",
   "provider.connect.apiKey.placeholder": "API 密钥",
   "provider.connect.apiKey.required": "API 密钥为必填项",
   "provider.connect.opencodeZen.line1": "OpenCode Zen 为你提供一组精选的可靠优化模型，用于代码智能体。",

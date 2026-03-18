@@ -124,6 +124,9 @@ export const dict = {
   "provider.connect.apiKey.description":
     "ป้อนคีย์ API ของ {{provider}} เพื่อเชื่อมต่อบัญชีและใช้โมเดล {{provider}} ใน OpenCode",
   "provider.connect.apiKey.label": "คีย์ API ของ {{provider}}",
+  "provider.connect.accountName.label": "Account Name (optional)",
+  "provider.connect.accountName.placeholder": "Default: {{defaultValue}}",
+  "provider.connect.accountName.default": "Default",
   "provider.connect.apiKey.placeholder": "คีย์ API",
   "provider.connect.apiKey.required": "ต้องใช้คีย์ API",
   "provider.connect.opencodeZen.line1":

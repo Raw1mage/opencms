@@ -68,6 +68,18 @@ export type EventGlobalDisposed = {
   }
 }
 
+export type EventKillswitchStatusChanged = {
+  type: "killswitch.status.changed"
+  properties: {
+    active: boolean
+    state: string
+    requestID?: string
+    initiator?: string
+    reason?: string
+    snapshotURL?: string | null
+  }
+}
+
 export type EventLspClientDiagnostics = {
   type: "lsp.client.diagnostics"
   properties: {
@@ -702,6 +714,33 @@ export type EventRatelimitAuthFailed = {
   }
 }
 
+export type EventLlmError = {
+  type: "llm.error"
+  properties: {
+    providerId: string
+    modelId: string
+    accountId: string
+    sessionID: string
+    status?: number
+    message: string
+    timestamp: number
+  }
+}
+
+export type EventRotationExecuted = {
+  type: "rotation.executed"
+  properties: {
+    fromProviderId: string
+    fromModelId: string
+    fromAccountId: string
+    toProviderId: string
+    toModelId: string
+    toAccountId: string
+    reason: string
+    timestamp: number
+  }
+}
+
 export type QuestionOption = {
   /**
    * Display text (1-5 words, concise)
@@ -990,6 +1029,8 @@ export type Session = {
       design: string
       tasks: string
       handoff: string
+      idef0?: string
+      grafcet?: string
     }
     artifactIntegrity?: {
       implementationSpec: string
@@ -1107,6 +1148,13 @@ export type EventWorkspaceCreated = {
         fileTabKeys: Array<string>
         commentKeys: Array<string>
       }
+      lanePolicy?: {
+        main: number
+        cron: number
+        subagent: number
+        nested: number
+      }
+      killSwitchScope?: "workspace" | "global"
     }
   }
 }
@@ -1133,6 +1181,13 @@ export type EventWorkspaceUpdated = {
         fileTabKeys: Array<string>
         commentKeys: Array<string>
       }
+      lanePolicy?: {
+        main: number
+        cron: number
+        subagent: number
+        nested: number
+      }
+      killSwitchScope?: "workspace" | "global"
     }
     previous?: {
       directory: string
@@ -1153,6 +1208,13 @@ export type EventWorkspaceUpdated = {
         fileTabKeys: Array<string>
         commentKeys: Array<string>
       }
+      lanePolicy?: {
+        main: number
+        cron: number
+        subagent: number
+        nested: number
+      }
+      killSwitchScope?: "workspace" | "global"
     }
   }
 }
@@ -1179,6 +1241,13 @@ export type EventWorkspaceLifecycleChanged = {
         fileTabKeys: Array<string>
         commentKeys: Array<string>
       }
+      lanePolicy?: {
+        main: number
+        cron: number
+        subagent: number
+        nested: number
+      }
+      killSwitchScope?: "workspace" | "global"
     }
     previous: {
       directory: string
@@ -1199,6 +1268,13 @@ export type EventWorkspaceLifecycleChanged = {
         fileTabKeys: Array<string>
         commentKeys: Array<string>
       }
+      lanePolicy?: {
+        main: number
+        cron: number
+        subagent: number
+        nested: number
+      }
+      killSwitchScope?: "workspace" | "global"
     }
     previousState: "active" | "archived" | "resetting" | "deleting" | "failed"
     nextState: "active" | "archived" | "resetting" | "deleting" | "failed"
@@ -1227,6 +1303,13 @@ export type EventWorkspaceAttachmentAdded = {
         fileTabKeys: Array<string>
         commentKeys: Array<string>
       }
+      lanePolicy?: {
+        main: number
+        cron: number
+        subagent: number
+        nested: number
+      }
+      killSwitchScope?: "workspace" | "global"
     }
     attachment: {
       type: "session" | "pty" | "preview" | "worker" | "draft" | "file_tab" | "comment"
@@ -1259,6 +1342,13 @@ export type EventWorkspaceAttachmentRemoved = {
         fileTabKeys: Array<string>
         commentKeys: Array<string>
       }
+      lanePolicy?: {
+        main: number
+        cron: number
+        subagent: number
+        nested: number
+      }
+      killSwitchScope?: "workspace" | "global"
     }
     attachment: {
       type: "session" | "pty" | "preview" | "worker" | "draft" | "file_tab" | "comment"
@@ -1330,6 +1420,7 @@ export type Event =
   | EventInstallationUpdateAvailable
   | EventServerConnected
   | EventGlobalDisposed
+  | EventKillswitchStatusChanged
   | EventLspClientDiagnostics
   | EventLspUpdated
   | EventMessageUpdated
@@ -1348,6 +1439,8 @@ export type Event =
   | EventRatelimitDetected
   | EventRatelimitCleared
   | EventRatelimitAuthFailed
+  | EventLlmError
+  | EventRotationExecuted
   | EventQuestionAsked
   | EventQuestionReplied
   | EventQuestionRejected
@@ -2363,6 +2456,7 @@ export type ApiAuth = {
   type: "api"
   key: string
   projectId?: string
+  name?: string
 }
 
 export type WellKnownAuth = {
@@ -2609,6 +2703,8 @@ export type GlobalSession = {
       design: string
       tasks: string
       handoff: string
+      idef0?: string
+      grafcet?: string
     }
     artifactIntegrity?: {
       implementationSpec: string
@@ -3220,6 +3316,13 @@ export type WorkspaceListResponses = {
       fileTabKeys: Array<string>
       commentKeys: Array<string>
     }
+    lanePolicy?: {
+      main: number
+      cron: number
+      subagent: number
+      nested: number
+    }
+    killSwitchScope?: "workspace" | "global"
   }>
 }
 
@@ -3257,6 +3360,13 @@ export type WorkspaceCurrentResponses = {
       fileTabKeys: Array<string>
       commentKeys: Array<string>
     }
+    lanePolicy?: {
+      main: number
+      cron: number
+      subagent: number
+      nested: number
+    }
+    killSwitchScope?: "workspace" | "global"
   }
 }
 
@@ -3337,6 +3447,13 @@ export type WorkspaceGetResponses = {
       fileTabKeys: Array<string>
       commentKeys: Array<string>
     }
+    lanePolicy?: {
+      main: number
+      cron: number
+      subagent: number
+      nested: number
+    }
+    killSwitchScope?: "workspace" | "global"
   }
 }
 
@@ -3386,6 +3503,13 @@ export type WorkspaceResetRunResponses = {
         fileTabKeys: Array<string>
         commentKeys: Array<string>
       }
+      lanePolicy?: {
+        main: number
+        cron: number
+        subagent: number
+        nested: number
+      }
+      killSwitchScope?: "workspace" | "global"
     }
     archivedSessionIDs: Array<string>
     archivedSessionCount: number
@@ -3438,6 +3562,13 @@ export type WorkspaceDeleteRunResponses = {
         fileTabKeys: Array<string>
         commentKeys: Array<string>
       }
+      lanePolicy?: {
+        main: number
+        cron: number
+        subagent: number
+        nested: number
+      }
+      killSwitchScope?: "workspace" | "global"
     }
     archivedSessionIDs: Array<string>
     archivedSessionCount: number
@@ -3491,6 +3622,13 @@ export type WorkspaceResetResponses = {
       fileTabKeys: Array<string>
       commentKeys: Array<string>
     }
+    lanePolicy?: {
+      main: number
+      cron: number
+      subagent: number
+      nested: number
+    }
+    killSwitchScope?: "workspace" | "global"
   }
 }
 
@@ -3539,6 +3677,13 @@ export type WorkspaceDeleteResponses = {
       fileTabKeys: Array<string>
       commentKeys: Array<string>
     }
+    lanePolicy?: {
+      main: number
+      cron: number
+      subagent: number
+      nested: number
+    }
+    killSwitchScope?: "workspace" | "global"
   }
 }
 
@@ -3587,6 +3732,13 @@ export type WorkspaceArchiveResponses = {
       fileTabKeys: Array<string>
       commentKeys: Array<string>
     }
+    lanePolicy?: {
+      main: number
+      cron: number
+      subagent: number
+      nested: number
+    }
+    killSwitchScope?: "workspace" | "global"
   }
 }
 
@@ -3635,6 +3787,13 @@ export type WorkspaceActiveResponses = {
       fileTabKeys: Array<string>
       commentKeys: Array<string>
     }
+    lanePolicy?: {
+      main: number
+      cron: number
+      subagent: number
+      nested: number
+    }
+    killSwitchScope?: "workspace" | "global"
   }
 }
 
@@ -3683,6 +3842,13 @@ export type WorkspaceFailedResponses = {
       fileTabKeys: Array<string>
       commentKeys: Array<string>
     }
+    lanePolicy?: {
+      main: number
+      cron: number
+      subagent: number
+      nested: number
+    }
+    killSwitchScope?: "workspace" | "global"
   }
 }
 
@@ -4998,6 +5164,27 @@ export type SessionAbortResponses = {
 }
 
 export type SessionAbortResponse = SessionAbortResponses[keyof SessionAbortResponses]
+
+export type SessionAbortAllData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/session/abort-all"
+}
+
+export type SessionAbortAllResponses = {
+  /**
+   * All sessions aborted
+   */
+  200: {
+    aborted: number
+    killSwitchActive: boolean
+  }
+}
+
+export type SessionAbortAllResponse = SessionAbortAllResponses[keyof SessionAbortAllResponses]
 
 export type SessionUnshareData = {
   body?: never
@@ -7343,6 +7530,126 @@ export type ModelPreferencesUpdateResponses = {
 
 export type ModelPreferencesUpdateResponse = ModelPreferencesUpdateResponses[keyof ModelPreferencesUpdateResponses]
 
+export type KillswitchStatusData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/admin/kill-switch/status"
+}
+
+export type KillswitchStatusResponses = {
+  /**
+   * Kill-switch status
+   */
+  200: {
+    ok: boolean
+    active: boolean
+    initiator: string | null
+    initiated_at: number | null
+    mode: string | null
+    scope: string | null
+    ttl: number | null
+    snapshot_url: string | null
+    request_id?: string | null
+    state?: string | null
+  }
+}
+
+export type KillswitchStatusResponse = KillswitchStatusResponses[keyof KillswitchStatusResponses]
+
+export type KillswitchTriggerData = {
+  body?: {
+    initiator?: string
+    reason: string
+    mode?: string
+    scope?: string
+    workspaceId?: string
+    ttl?: number
+    mfaCode?: string
+    requestID?: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/admin/kill-switch/trigger"
+}
+
+export type KillswitchTriggerResponses = {
+  /**
+   * Triggered
+   */
+  200: {
+    ok: boolean
+    request_id: string
+    snapshot_url: string | null
+  }
+}
+
+export type KillswitchTriggerResponse = KillswitchTriggerResponses[keyof KillswitchTriggerResponses]
+
+export type KillswitchCancelData = {
+  body?: {
+    requestID?: string
+    initiator?: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/admin/kill-switch/cancel"
+}
+
+export type KillswitchCancelResponses = {
+  /**
+   * Canceled
+   */
+  200: {
+    ok: boolean
+    request_id?: string | null
+  }
+}
+
+export type KillswitchCancelResponse = KillswitchCancelResponses[keyof KillswitchCancelResponses]
+
+export type KillswitchTaskControlData = {
+  body?: {
+    initiator?: string
+    action?: "pause" | "resume" | "cancel" | "snapshot" | "set_priority"
+    seq?: number
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/api/v2/admin/kill-switch/tasks/{sessionID}/control"
+}
+
+export type KillswitchTaskControlResponses = {
+  /**
+   * Control applied
+   */
+  200: {
+    ok: boolean
+    request_id: string
+    session_id: string
+    ack?: {
+      requestID: string
+      sessionID: string
+      seq: number
+      status: "accepted" | "rejected" | "error"
+      reason?: string
+      timestamp: number
+    }
+  }
+}
+
+export type KillswitchTaskControlResponse = KillswitchTaskControlResponses[keyof KillswitchTaskControlResponses]
+
 export type FindTextData = {
   body?: never
   path?: never
@@ -8038,6 +8345,13 @@ export type WorkspaceList2Responses = {
       fileTabKeys: Array<string>
       commentKeys: Array<string>
     }
+    lanePolicy?: {
+      main: number
+      cron: number
+      subagent: number
+      nested: number
+    }
+    killSwitchScope?: "workspace" | "global"
   }>
 }
 
@@ -8075,6 +8389,13 @@ export type WorkspaceCurrent2Responses = {
       fileTabKeys: Array<string>
       commentKeys: Array<string>
     }
+    lanePolicy?: {
+      main: number
+      cron: number
+      subagent: number
+      nested: number
+    }
+    killSwitchScope?: "workspace" | "global"
   }
 }
 
@@ -8155,6 +8476,13 @@ export type WorkspaceGet2Responses = {
       fileTabKeys: Array<string>
       commentKeys: Array<string>
     }
+    lanePolicy?: {
+      main: number
+      cron: number
+      subagent: number
+      nested: number
+    }
+    killSwitchScope?: "workspace" | "global"
   }
 }
 
@@ -8204,6 +8532,13 @@ export type WorkspaceResetRun2Responses = {
         fileTabKeys: Array<string>
         commentKeys: Array<string>
       }
+      lanePolicy?: {
+        main: number
+        cron: number
+        subagent: number
+        nested: number
+      }
+      killSwitchScope?: "workspace" | "global"
     }
     archivedSessionIDs: Array<string>
     archivedSessionCount: number
@@ -8256,6 +8591,13 @@ export type WorkspaceDeleteRun2Responses = {
         fileTabKeys: Array<string>
         commentKeys: Array<string>
       }
+      lanePolicy?: {
+        main: number
+        cron: number
+        subagent: number
+        nested: number
+      }
+      killSwitchScope?: "workspace" | "global"
     }
     archivedSessionIDs: Array<string>
     archivedSessionCount: number
@@ -8309,6 +8651,13 @@ export type WorkspaceReset2Responses = {
       fileTabKeys: Array<string>
       commentKeys: Array<string>
     }
+    lanePolicy?: {
+      main: number
+      cron: number
+      subagent: number
+      nested: number
+    }
+    killSwitchScope?: "workspace" | "global"
   }
 }
 
@@ -8357,6 +8706,13 @@ export type WorkspaceDelete2Responses = {
       fileTabKeys: Array<string>
       commentKeys: Array<string>
     }
+    lanePolicy?: {
+      main: number
+      cron: number
+      subagent: number
+      nested: number
+    }
+    killSwitchScope?: "workspace" | "global"
   }
 }
 
@@ -8405,6 +8761,13 @@ export type WorkspaceArchive2Responses = {
       fileTabKeys: Array<string>
       commentKeys: Array<string>
     }
+    lanePolicy?: {
+      main: number
+      cron: number
+      subagent: number
+      nested: number
+    }
+    killSwitchScope?: "workspace" | "global"
   }
 }
 
@@ -8453,6 +8816,13 @@ export type WorkspaceActive2Responses = {
       fileTabKeys: Array<string>
       commentKeys: Array<string>
     }
+    lanePolicy?: {
+      main: number
+      cron: number
+      subagent: number
+      nested: number
+    }
+    killSwitchScope?: "workspace" | "global"
   }
 }
 
@@ -8501,6 +8871,13 @@ export type WorkspaceFailed2Responses = {
       fileTabKeys: Array<string>
       commentKeys: Array<string>
     }
+    lanePolicy?: {
+      main: number
+      cron: number
+      subagent: number
+      nested: number
+    }
+    killSwitchScope?: "workspace" | "global"
   }
 }
 
@@ -9819,6 +10196,27 @@ export type SessionAbort2Responses = {
 }
 
 export type SessionAbort2Response = SessionAbort2Responses[keyof SessionAbort2Responses]
+
+export type SessionAbortAll2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/session/abort-all"
+}
+
+export type SessionAbortAll2Responses = {
+  /**
+   * All sessions aborted
+   */
+  200: {
+    aborted: number
+    killSwitchActive: boolean
+  }
+}
+
+export type SessionAbortAll2Response = SessionAbortAll2Responses[keyof SessionAbortAll2Responses]
 
 export type SessionUnshare2Data = {
   body?: never
@@ -12163,6 +12561,126 @@ export type ModelPreferencesUpdate2Responses = {
 }
 
 export type ModelPreferencesUpdate2Response = ModelPreferencesUpdate2Responses[keyof ModelPreferencesUpdate2Responses]
+
+export type KillswitchStatus2Data = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/admin/kill-switch/status"
+}
+
+export type KillswitchStatus2Responses = {
+  /**
+   * Kill-switch status
+   */
+  200: {
+    ok: boolean
+    active: boolean
+    initiator: string | null
+    initiated_at: number | null
+    mode: string | null
+    scope: string | null
+    ttl: number | null
+    snapshot_url: string | null
+    request_id?: string | null
+    state?: string | null
+  }
+}
+
+export type KillswitchStatus2Response = KillswitchStatus2Responses[keyof KillswitchStatus2Responses]
+
+export type KillswitchTrigger2Data = {
+  body?: {
+    initiator?: string
+    reason: string
+    mode?: string
+    scope?: string
+    workspaceId?: string
+    ttl?: number
+    mfaCode?: string
+    requestID?: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/admin/kill-switch/trigger"
+}
+
+export type KillswitchTrigger2Responses = {
+  /**
+   * Triggered
+   */
+  200: {
+    ok: boolean
+    request_id: string
+    snapshot_url: string | null
+  }
+}
+
+export type KillswitchTrigger2Response = KillswitchTrigger2Responses[keyof KillswitchTrigger2Responses]
+
+export type KillswitchCancel2Data = {
+  body?: {
+    requestID?: string
+    initiator?: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/admin/kill-switch/cancel"
+}
+
+export type KillswitchCancel2Responses = {
+  /**
+   * Canceled
+   */
+  200: {
+    ok: boolean
+    request_id?: string | null
+  }
+}
+
+export type KillswitchCancel2Response = KillswitchCancel2Responses[keyof KillswitchCancel2Responses]
+
+export type KillswitchTaskControl2Data = {
+  body?: {
+    initiator?: string
+    action?: "pause" | "resume" | "cancel" | "snapshot" | "set_priority"
+    seq?: number
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/admin/kill-switch/tasks/{sessionID}/control"
+}
+
+export type KillswitchTaskControl2Responses = {
+  /**
+   * Control applied
+   */
+  200: {
+    ok: boolean
+    request_id: string
+    session_id: string
+    ack?: {
+      requestID: string
+      sessionID: string
+      seq: number
+      status: "accepted" | "rejected" | "error"
+      reason?: string
+      timestamp: number
+    }
+  }
+}
+
+export type KillswitchTaskControl2Response = KillswitchTaskControl2Responses[keyof KillswitchTaskControl2Responses]
 
 export type FindText2Data = {
   body?: never

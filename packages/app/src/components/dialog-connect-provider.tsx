@@ -246,6 +246,7 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
   function ApiAuthView() {
     const [formStore, setFormStore] = createStore({
       value: "",
+      name: "",
       error: undefined as string | undefined,
     })
 
@@ -255,6 +256,7 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
       const form = e.currentTarget as HTMLFormElement
       const formData = new FormData(form)
       const apiKey = formData.get("apiKey") as string
+      const accountName = formData.get("accountName") as string
 
       if (!apiKey?.trim()) {
         setFormStore("error", language.t("provider.connect.apiKey.required"))
@@ -267,6 +269,7 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
         auth: {
           type: "api",
           key: apiKey,
+          name: accountName?.trim() || undefined,
         },
       })
       await complete()
@@ -305,6 +308,16 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
             onChange={(v) => setFormStore("value", v)}
             validationState={formStore.error ? "invalid" : undefined}
             error={formStore.error}
+          />
+          <TextField
+            type="text"
+            label={language.t("provider.connect.accountName.label", {
+              defaultValue: language.t("provider.connect.accountName.default"),
+            })}
+            placeholder={language.t("provider.connect.accountName.placeholder")}
+            name="accountName"
+            value={formStore.name}
+            onChange={(v) => setFormStore("name", v)}
           />
           <Button class="w-auto" type="submit" size="large" variant="primary">
             {language.t("common.submit")}

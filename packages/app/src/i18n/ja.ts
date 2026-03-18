@@ -112,6 +112,9 @@ export const dict = {
   "provider.connect.apiKey.description":
     "{{provider}}のAPIキーを入力してアカウントを接続し、OpenCodeで{{provider}}モデルを使用します。",
   "provider.connect.apiKey.label": "{{provider}} APIキー",
+  "provider.connect.accountName.label": "Account Name (optional)",
+  "provider.connect.accountName.placeholder": "Default: {{defaultValue}}",
+  "provider.connect.accountName.default": "Default",
   "provider.connect.apiKey.placeholder": "APIキー",
   "provider.connect.apiKey.required": "APIキーが必要です",
   "provider.connect.opencodeZen.line1":

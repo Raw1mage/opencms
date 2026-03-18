@@ -112,6 +112,9 @@ export const dict = {
   "provider.connect.apiKey.description":
     "Digite sua chave de API do {{provider}} para conectar sua conta e usar modelos do {{provider}} no OpenCode.",
   "provider.connect.apiKey.label": "Chave de API do {{provider}}",
+  "provider.connect.accountName.label": "Account Name (optional)",
+  "provider.connect.accountName.placeholder": "Default: {{defaultValue}}",
+  "provider.connect.accountName.default": "Default",
   "provider.connect.apiKey.placeholder": "Chave de API",
   "provider.connect.apiKey.required": "A chave de API é obrigatória",
   "provider.connect.opencodeZen.line1":

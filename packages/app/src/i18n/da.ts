@@ -124,6 +124,9 @@ export const dict = {
   "provider.connect.apiKey.description":
     "Indtast din {{provider}} API-nøgle for at forbinde din konto og bruge {{provider}} modeller i OpenCode.",
   "provider.connect.apiKey.label": "{{provider}} API-nøgle",
+  "provider.connect.accountName.label": "Account Name (optional)",
+  "provider.connect.accountName.placeholder": "Default: {{defaultValue}}",
+  "provider.connect.accountName.default": "Default",
   "provider.connect.apiKey.placeholder": "API-nøgle",
   "provider.connect.apiKey.required": "API-nøgle er påkrævet",
   "provider.connect.opencodeZen.line1":

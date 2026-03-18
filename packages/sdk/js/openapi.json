@@ -685,6 +685,44 @@
                           "fileTabKeys",
                           "commentKeys"
                         ]
+                      },
+                      "lanePolicy": {
+                        "type": "object",
+                        "properties": {
+                          "main": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "cron": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "subagent": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "nested": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "main",
+                          "cron",
+                          "subagent",
+                          "nested"
+                        ]
+                      },
+                      "killSwitchScope": {
+                        "type": "string",
+                        "enum": [
+                          "workspace",
+                          "global"
+                        ]
                       }
                     },
                     "required": [
@@ -824,6 +862,44 @@
                         "draftKeys",
                         "fileTabKeys",
                         "commentKeys"
+                      ]
+                    },
+                    "lanePolicy": {
+                      "type": "object",
+                      "properties": {
+                        "main": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "cron": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "subagent": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "nested": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "main",
+                        "cron",
+                        "subagent",
+                        "nested"
+                      ]
+                    },
+                    "killSwitchScope": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "global"
                       ]
                     }
                   },
@@ -1056,6 +1132,44 @@
                         "fileTabKeys",
                         "commentKeys"
                       ]
+                    },
+                    "lanePolicy": {
+                      "type": "object",
+                      "properties": {
+                        "main": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "cron": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "subagent": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "nested": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "main",
+                        "cron",
+                        "subagent",
+                        "nested"
+                      ]
+                    },
+                    "killSwitchScope": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "global"
+                      ]
                     }
                   },
                   "required": [
@@ -1215,6 +1329,44 @@
                             "draftKeys",
                             "fileTabKeys",
                             "commentKeys"
+                          ]
+                        },
+                        "lanePolicy": {
+                          "type": "object",
+                          "properties": {
+                            "main": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "cron": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "subagent": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "nested": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "main",
+                            "cron",
+                            "subagent",
+                            "nested"
+                          ]
+                        },
+                        "killSwitchScope": {
+                          "type": "string",
+                          "enum": [
+                            "workspace",
+                            "global"
                           ]
                         }
                       },
@@ -1391,6 +1543,44 @@
                             "draftKeys",
                             "fileTabKeys",
                             "commentKeys"
+                          ]
+                        },
+                        "lanePolicy": {
+                          "type": "object",
+                          "properties": {
+                            "main": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "cron": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "subagent": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "nested": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "main",
+                            "cron",
+                            "subagent",
+                            "nested"
+                          ]
+                        },
+                        "killSwitchScope": {
+                          "type": "string",
+                          "enum": [
+                            "workspace",
+                            "global"
                           ]
                         }
                       },
@@ -1573,6 +1763,44 @@
                         "fileTabKeys",
                         "commentKeys"
                       ]
+                    },
+                    "lanePolicy": {
+                      "type": "object",
+                      "properties": {
+                        "main": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "cron": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "subagent": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "nested": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "main",
+                        "cron",
+                        "subagent",
+                        "nested"
+                      ]
+                    },
+                    "killSwitchScope": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "global"
+                      ]
                     }
                   },
                   "required": [
@@ -1729,6 +1957,44 @@
                         "draftKeys",
                         "fileTabKeys",
                         "commentKeys"
+                      ]
+                    },
+                    "lanePolicy": {
+                      "type": "object",
+                      "properties": {
+                        "main": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "cron": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "subagent": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "nested": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "main",
+                        "cron",
+                        "subagent",
+                        "nested"
+                      ]
+                    },
+                    "killSwitchScope": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "global"
                       ]
                     }
                   },
@@ -1887,6 +2153,44 @@
                         "fileTabKeys",
                         "commentKeys"
                       ]
+                    },
+                    "lanePolicy": {
+                      "type": "object",
+                      "properties": {
+                        "main": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "cron": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "subagent": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "nested": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "main",
+                        "cron",
+                        "subagent",
+                        "nested"
+                      ]
+                    },
+                    "killSwitchScope": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "global"
+                      ]
                     }
                   },
                   "required": [
@@ -2044,6 +2348,44 @@
                         "fileTabKeys",
                         "commentKeys"
                       ]
+                    },
+                    "lanePolicy": {
+                      "type": "object",
+                      "properties": {
+                        "main": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "cron": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "subagent": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "nested": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "main",
+                        "cron",
+                        "subagent",
+                        "nested"
+                      ]
+                    },
+                    "killSwitchScope": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "global"
+                      ]
                     }
                   },
                   "required": [
@@ -2200,6 +2542,44 @@
                         "draftKeys",
                         "fileTabKeys",
                         "commentKeys"
+                      ]
+                    },
+                    "lanePolicy": {
+                      "type": "object",
+                      "properties": {
+                        "main": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "cron": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "subagent": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "nested": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "main",
+                        "cron",
+                        "subagent",
+                        "nested"
+                      ]
+                    },
+                    "killSwitchScope": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "global"
                       ]
                     }
                   },
@@ -5031,6 +5411,46 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/session/abort-all": {
+      "post": {
+        "operationId": "session.abortAll",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Abort all sessions",
+        "description": "Emergency stop: abort every busy session and activate the kill-switch to block new work. No MFA required — designed for double-click emergency use.",
+        "responses": {
+          "200": {
+            "description": "All sessions aborted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "aborted": {
+                      "type": "number"
+                    },
+                    "killSwitchActive": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "aborted",
+                    "killSwitchActive"
+                  ]
                 }
               }
             }
@@ -10137,6 +10557,399 @@
         }
       }
     },
+    "/api/v2/admin/kill-switch/status": {
+      "get": {
+        "operationId": "killswitch.status",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Get kill-switch status",
+        "responses": {
+          "200": {
+            "description": "Kill-switch status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "active": {
+                      "type": "boolean"
+                    },
+                    "initiator": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "initiated_at": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "mode": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "scope": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "ttl": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "snapshot_url": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "request_id": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "state": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "active",
+                    "initiator",
+                    "initiated_at",
+                    "mode",
+                    "scope",
+                    "ttl",
+                    "snapshot_url"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/admin/kill-switch/trigger": {
+      "post": {
+        "operationId": "killswitch.trigger",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Trigger kill-switch",
+        "responses": {
+          "200": {
+            "description": "Triggered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "snapshot_url": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "request_id",
+                    "snapshot_url"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "initiator": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "mode": {
+                    "default": "global",
+                    "type": "string"
+                  },
+                  "scope": {
+                    "default": "global",
+                    "type": "string"
+                  },
+                  "workspaceId": {
+                    "type": "string"
+                  },
+                  "ttl": {
+                    "type": "number"
+                  },
+                  "mfaCode": {
+                    "type": "string"
+                  },
+                  "requestID": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/admin/kill-switch/cancel": {
+      "post": {
+        "operationId": "killswitch.cancel",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Cancel kill-switch",
+        "responses": {
+          "200": {
+            "description": "Canceled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "request_id": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "requestID": {
+                    "type": "string"
+                  },
+                  "initiator": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/admin/kill-switch/tasks/{sessionID}/control": {
+      "post": {
+        "operationId": "killswitch.task.control",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string",
+              "pattern": "^ses.*"
+            },
+            "required": true
+          }
+        ],
+        "summary": "Control one session task",
+        "responses": {
+          "200": {
+            "description": "Control applied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "session_id": {
+                      "type": "string"
+                    },
+                    "ack": {
+                      "type": "object",
+                      "properties": {
+                        "requestID": {
+                          "type": "string"
+                        },
+                        "sessionID": {
+                          "type": "string"
+                        },
+                        "seq": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "accepted",
+                            "rejected",
+                            "error"
+                          ]
+                        },
+                        "reason": {
+                          "type": "string"
+                        },
+                        "timestamp": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "requestID",
+                        "sessionID",
+                        "seq",
+                        "status",
+                        "timestamp"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "request_id",
+                    "session_id"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "initiator": {
+                    "type": "string"
+                  },
+                  "action": {
+                    "default": "cancel",
+                    "type": "string",
+                    "enum": [
+                      "pause",
+                      "resume",
+                      "cancel",
+                      "snapshot",
+                      "set_priority"
+                    ]
+                  },
+                  "seq": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/find": {
       "get": {
         "operationId": "find.text",
@@ -11504,6 +12317,44 @@
                           "fileTabKeys",
                           "commentKeys"
                         ]
+                      },
+                      "lanePolicy": {
+                        "type": "object",
+                        "properties": {
+                          "main": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "cron": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "subagent": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "nested": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "main",
+                          "cron",
+                          "subagent",
+                          "nested"
+                        ]
+                      },
+                      "killSwitchScope": {
+                        "type": "string",
+                        "enum": [
+                          "workspace",
+                          "global"
+                        ]
                       }
                     },
                     "required": [
@@ -11643,6 +12494,44 @@
                         "draftKeys",
                         "fileTabKeys",
                         "commentKeys"
+                      ]
+                    },
+                    "lanePolicy": {
+                      "type": "object",
+                      "properties": {
+                        "main": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "cron": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "subagent": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "nested": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "main",
+                        "cron",
+                        "subagent",
+                        "nested"
+                      ]
+                    },
+                    "killSwitchScope": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "global"
                       ]
                     }
                   },
@@ -11875,6 +12764,44 @@
                         "fileTabKeys",
                         "commentKeys"
                       ]
+                    },
+                    "lanePolicy": {
+                      "type": "object",
+                      "properties": {
+                        "main": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "cron": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "subagent": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "nested": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "main",
+                        "cron",
+                        "subagent",
+                        "nested"
+                      ]
+                    },
+                    "killSwitchScope": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "global"
+                      ]
                     }
                   },
                   "required": [
@@ -12034,6 +12961,44 @@
                             "draftKeys",
                             "fileTabKeys",
                             "commentKeys"
+                          ]
+                        },
+                        "lanePolicy": {
+                          "type": "object",
+                          "properties": {
+                            "main": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "cron": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "subagent": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "nested": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "main",
+                            "cron",
+                            "subagent",
+                            "nested"
+                          ]
+                        },
+                        "killSwitchScope": {
+                          "type": "string",
+                          "enum": [
+                            "workspace",
+                            "global"
                           ]
                         }
                       },
@@ -12210,6 +13175,44 @@
                             "draftKeys",
                             "fileTabKeys",
                             "commentKeys"
+                          ]
+                        },
+                        "lanePolicy": {
+                          "type": "object",
+                          "properties": {
+                            "main": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "cron": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "subagent": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "nested": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "main",
+                            "cron",
+                            "subagent",
+                            "nested"
+                          ]
+                        },
+                        "killSwitchScope": {
+                          "type": "string",
+                          "enum": [
+                            "workspace",
+                            "global"
                           ]
                         }
                       },
@@ -12392,6 +13395,44 @@
                         "fileTabKeys",
                         "commentKeys"
                       ]
+                    },
+                    "lanePolicy": {
+                      "type": "object",
+                      "properties": {
+                        "main": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "cron": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "subagent": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "nested": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "main",
+                        "cron",
+                        "subagent",
+                        "nested"
+                      ]
+                    },
+                    "killSwitchScope": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "global"
+                      ]
                     }
                   },
                   "required": [
@@ -12548,6 +13589,44 @@
                         "draftKeys",
                         "fileTabKeys",
                         "commentKeys"
+                      ]
+                    },
+                    "lanePolicy": {
+                      "type": "object",
+                      "properties": {
+                        "main": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "cron": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "subagent": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "nested": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "main",
+                        "cron",
+                        "subagent",
+                        "nested"
+                      ]
+                    },
+                    "killSwitchScope": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "global"
                       ]
                     }
                   },
@@ -12706,6 +13785,44 @@
                         "fileTabKeys",
                         "commentKeys"
                       ]
+                    },
+                    "lanePolicy": {
+                      "type": "object",
+                      "properties": {
+                        "main": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "cron": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "subagent": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "nested": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "main",
+                        "cron",
+                        "subagent",
+                        "nested"
+                      ]
+                    },
+                    "killSwitchScope": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "global"
+                      ]
                     }
                   },
                   "required": [
@@ -12863,6 +13980,44 @@
                         "fileTabKeys",
                         "commentKeys"
                       ]
+                    },
+                    "lanePolicy": {
+                      "type": "object",
+                      "properties": {
+                        "main": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "cron": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "subagent": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "nested": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "main",
+                        "cron",
+                        "subagent",
+                        "nested"
+                      ]
+                    },
+                    "killSwitchScope": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "global"
+                      ]
                     }
                   },
                   "required": [
@@ -13019,6 +14174,44 @@
                         "draftKeys",
                         "fileTabKeys",
                         "commentKeys"
+                      ]
+                    },
+                    "lanePolicy": {
+                      "type": "object",
+                      "properties": {
+                        "main": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "cron": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "subagent": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "nested": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "main",
+                        "cron",
+                        "subagent",
+                        "nested"
+                      ]
+                    },
+                    "killSwitchScope": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "global"
                       ]
                     }
                   },
@@ -15850,6 +17043,46 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/session/abort-all": {
+      "post": {
+        "operationId": "session.abortAll",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Abort all sessions",
+        "description": "Emergency stop: abort every busy session and activate the kill-switch to block new work. No MFA required — designed for double-click emergency use.",
+        "responses": {
+          "200": {
+            "description": "All sessions aborted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "aborted": {
+                      "type": "number"
+                    },
+                    "killSwitchActive": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "aborted",
+                    "killSwitchActive"
+                  ]
                 }
               }
             }
@@ -20956,6 +22189,399 @@
         }
       }
     },
+    "/admin/kill-switch/status": {
+      "get": {
+        "operationId": "killswitch.status",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Get kill-switch status",
+        "responses": {
+          "200": {
+            "description": "Kill-switch status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "active": {
+                      "type": "boolean"
+                    },
+                    "initiator": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "initiated_at": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "mode": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "scope": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "ttl": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "snapshot_url": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "request_id": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "state": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "active",
+                    "initiator",
+                    "initiated_at",
+                    "mode",
+                    "scope",
+                    "ttl",
+                    "snapshot_url"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/kill-switch/trigger": {
+      "post": {
+        "operationId": "killswitch.trigger",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Trigger kill-switch",
+        "responses": {
+          "200": {
+            "description": "Triggered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "snapshot_url": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "request_id",
+                    "snapshot_url"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "initiator": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "mode": {
+                    "default": "global",
+                    "type": "string"
+                  },
+                  "scope": {
+                    "default": "global",
+                    "type": "string"
+                  },
+                  "workspaceId": {
+                    "type": "string"
+                  },
+                  "ttl": {
+                    "type": "number"
+                  },
+                  "mfaCode": {
+                    "type": "string"
+                  },
+                  "requestID": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/kill-switch/cancel": {
+      "post": {
+        "operationId": "killswitch.cancel",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Cancel kill-switch",
+        "responses": {
+          "200": {
+            "description": "Canceled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "request_id": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "requestID": {
+                    "type": "string"
+                  },
+                  "initiator": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/kill-switch/tasks/{sessionID}/control": {
+      "post": {
+        "operationId": "killswitch.task.control",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionID",
+            "schema": {
+              "type": "string",
+              "pattern": "^ses.*"
+            },
+            "required": true
+          }
+        ],
+        "summary": "Control one session task",
+        "responses": {
+          "200": {
+            "description": "Control applied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "session_id": {
+                      "type": "string"
+                    },
+                    "ack": {
+                      "type": "object",
+                      "properties": {
+                        "requestID": {
+                          "type": "string"
+                        },
+                        "sessionID": {
+                          "type": "string"
+                        },
+                        "seq": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "accepted",
+                            "rejected",
+                            "error"
+                          ]
+                        },
+                        "reason": {
+                          "type": "string"
+                        },
+                        "timestamp": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "requestID",
+                        "sessionID",
+                        "seq",
+                        "status",
+                        "timestamp"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "request_id",
+                    "session_id"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "initiator": {
+                    "type": "string"
+                  },
+                  "action": {
+                    "default": "cancel",
+                    "type": "string",
+                    "enum": [
+                      "pause",
+                      "resume",
+                      "cancel",
+                      "snapshot",
+                      "set_priority"
+                    ]
+                  },
+                  "seq": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/find": {
       "get": {
         "operationId": "find.text",
@@ -21833,6 +23459,53 @@
           "properties": {
             "type": "object",
             "properties": {}
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.killswitch.status.changed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "killswitch.status.changed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "active": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string"
+              },
+              "requestID": {
+                "type": "string"
+              },
+              "initiator": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "snapshotURL": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "active",
+              "state"
+            ]
           }
         },
         "required": [
@@ -24009,6 +25682,105 @@
           "properties"
         ]
       },
+      "Event.llm.error": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "llm.error"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "providerId": {
+                "type": "string"
+              },
+              "modelId": {
+                "type": "string"
+              },
+              "accountId": {
+                "type": "string"
+              },
+              "sessionID": {
+                "type": "string"
+              },
+              "status": {
+                "type": "number"
+              },
+              "message": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "providerId",
+              "modelId",
+              "accountId",
+              "sessionID",
+              "message",
+              "timestamp"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.rotation.executed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "rotation.executed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "fromProviderId": {
+                "type": "string"
+              },
+              "fromModelId": {
+                "type": "string"
+              },
+              "fromAccountId": {
+                "type": "string"
+              },
+              "toProviderId": {
+                "type": "string"
+              },
+              "toModelId": {
+                "type": "string"
+              },
+              "toAccountId": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "fromProviderId",
+              "fromModelId",
+              "fromAccountId",
+              "toProviderId",
+              "toModelId",
+              "toAccountId",
+              "reason",
+              "timestamp"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
       "QuestionOption": {
         "type": "object",
         "properties": {
@@ -24940,6 +26712,12 @@
                   },
                   "handoff": {
                     "type": "string"
+                  },
+                  "idef0": {
+                    "type": "string"
+                  },
+                  "grafcet": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -25398,6 +27176,44 @@
                       "fileTabKeys",
                       "commentKeys"
                     ]
+                  },
+                  "lanePolicy": {
+                    "type": "object",
+                    "properties": {
+                      "main": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "cron": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "subagent": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "nested": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "main",
+                      "cron",
+                      "subagent",
+                      "nested"
+                    ]
+                  },
+                  "killSwitchScope": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "global"
+                    ]
                   }
                 },
                 "required": [
@@ -25533,6 +27349,44 @@
                       "fileTabKeys",
                       "commentKeys"
                     ]
+                  },
+                  "lanePolicy": {
+                    "type": "object",
+                    "properties": {
+                      "main": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "cron": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "subagent": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "nested": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "main",
+                      "cron",
+                      "subagent",
+                      "nested"
+                    ]
+                  },
+                  "killSwitchScope": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "global"
+                    ]
                   }
                 },
                 "required": [
@@ -25646,6 +27500,44 @@
                       "draftKeys",
                       "fileTabKeys",
                       "commentKeys"
+                    ]
+                  },
+                  "lanePolicy": {
+                    "type": "object",
+                    "properties": {
+                      "main": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "cron": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "subagent": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "nested": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "main",
+                      "cron",
+                      "subagent",
+                      "nested"
+                    ]
+                  },
+                  "killSwitchScope": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "global"
                     ]
                   }
                 },
@@ -25782,6 +27674,44 @@
                       "fileTabKeys",
                       "commentKeys"
                     ]
+                  },
+                  "lanePolicy": {
+                    "type": "object",
+                    "properties": {
+                      "main": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "cron": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "subagent": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "nested": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "main",
+                      "cron",
+                      "subagent",
+                      "nested"
+                    ]
+                  },
+                  "killSwitchScope": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "global"
+                    ]
                   }
                 },
                 "required": [
@@ -25895,6 +27825,44 @@
                       "draftKeys",
                       "fileTabKeys",
                       "commentKeys"
+                    ]
+                  },
+                  "lanePolicy": {
+                    "type": "object",
+                    "properties": {
+                      "main": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "cron": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "subagent": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "nested": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "main",
+                      "cron",
+                      "subagent",
+                      "nested"
+                    ]
+                  },
+                  "killSwitchScope": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "global"
                     ]
                   }
                 },
@@ -26053,6 +28021,44 @@
                       "draftKeys",
                       "fileTabKeys",
                       "commentKeys"
+                    ]
+                  },
+                  "lanePolicy": {
+                    "type": "object",
+                    "properties": {
+                      "main": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "cron": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "subagent": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "nested": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "main",
+                      "cron",
+                      "subagent",
+                      "nested"
+                    ]
+                  },
+                  "killSwitchScope": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "global"
                     ]
                   }
                 },
@@ -26225,6 +28231,44 @@
                       "draftKeys",
                       "fileTabKeys",
                       "commentKeys"
+                    ]
+                  },
+                  "lanePolicy": {
+                    "type": "object",
+                    "properties": {
+                      "main": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "cron": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "subagent": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "nested": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "main",
+                      "cron",
+                      "subagent",
+                      "nested"
+                    ]
+                  },
+                  "killSwitchScope": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "global"
                     ]
                   }
                 },
@@ -26504,6 +28548,9 @@
             "$ref": "#/components/schemas/Event.global.disposed"
           },
           {
+            "$ref": "#/components/schemas/Event.killswitch.status.changed"
+          },
+          {
             "$ref": "#/components/schemas/Event.lsp.client.diagnostics"
           },
           {
@@ -26556,6 +28603,12 @@
           },
           {
             "$ref": "#/components/schemas/Event.ratelimit.auth_failed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.llm.error"
+          },
+          {
+            "$ref": "#/components/schemas/Event.rotation.executed"
           },
           {
             "$ref": "#/components/schemas/Event.question.asked"
@@ -28447,6 +30500,9 @@
           },
           "projectId": {
             "type": "string"
+          },
+          "name": {
+            "type": "string"
           }
         },
         "required": [
@@ -29315,6 +31371,12 @@
                     "type": "string"
                   },
                   "handoff": {
+                    "type": "string"
+                  },
+                  "idef0": {
+                    "type": "string"
+                  },
+                  "grafcet": {
                     "type": "string"
                   }
                 },

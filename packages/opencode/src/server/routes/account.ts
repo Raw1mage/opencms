@@ -325,7 +325,8 @@ export const AccountRoutes = lazy(() =>
             503,
           )
         }
-        await Account.remove(providerKey, accountId)
+        const { Auth } = await import("../../auth")
+        await Auth.remove(accountId)
         return c.json(true)
       },
     )

@@ -144,6 +144,9 @@ export const dict = {
   "provider.connect.apiKey.description":
     "輸入你的 {{provider}} API 金鑰以連線帳戶，並在 OpenCode 中使用 {{provider}} 模型。",
   "provider.connect.apiKey.label": "{{provider}} API 金鑰",
+  "provider.connect.accountName.label": "帳號名稱（選填）",
+  "provider.connect.accountName.placeholder": "預設：{{defaultValue}}",
+  "provider.connect.accountName.default": "預設",
   "provider.connect.apiKey.placeholder": "API 金鑰",
   "provider.connect.apiKey.required": "API 金鑰為必填",
   "provider.connect.opencodeZen.line1": "OpenCode Zen 為你提供一組精選的可靠最佳化模型，用於程式碼代理程式。",

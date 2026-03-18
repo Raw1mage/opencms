@@ -454,6 +454,10 @@ export namespace Account {
       debugCheckpoint("Account.add", "Created new provider entry", { provider })
     }
 
+    if (providersOf(storage)[provider].accounts[accountId]) {
+      throw new Error(`Account ID ${accountId} already exists for provider ${provider}. Account.add does not permit silent overwrites.`)
+    }
+
     providersOf(storage)[provider].accounts[accountId] = info
     debugCheckpoint("Account.add", "Added account", { accounts: Object.keys(providersOf(storage)[provider].accounts) })
 

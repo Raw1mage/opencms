@@ -124,6 +124,9 @@ export const dict = {
   "provider.connect.apiKey.description":
     "Unesi svoj {{provider}} API ključ da povežeš račun i koristiš {{provider}} modele u OpenCode-u.",
   "provider.connect.apiKey.label": "{{provider}} API ključ",
+  "provider.connect.accountName.label": "Account Name (optional)",
+  "provider.connect.accountName.placeholder": "Default: {{defaultValue}}",
+  "provider.connect.accountName.default": "Default",
   "provider.connect.apiKey.placeholder": "API ključ",
   "provider.connect.apiKey.required": "API ključ je obavezan",
   "provider.connect.opencodeZen.line1":

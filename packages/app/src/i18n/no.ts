@@ -127,6 +127,9 @@ export const dict = {
   "provider.connect.apiKey.description":
     "Skriv inn din {{provider}} API-nøkkel for å koble til kontoen din og bruke {{provider}}-modeller i OpenCode.",
   "provider.connect.apiKey.label": "{{provider}} API-nøkkel",
+  "provider.connect.accountName.label": "Account Name (optional)",
+  "provider.connect.accountName.placeholder": "Default: {{defaultValue}}",
+  "provider.connect.accountName.default": "Default",
   "provider.connect.apiKey.placeholder": "API-nøkkel",
   "provider.connect.apiKey.required": "API-nøkkel er påkrevd",
   "provider.connect.opencodeZen.line1":
