@@ -3,7 +3,7 @@ import { Context } from "../util/context"
 import { Project } from "./project"
 import { State } from "./state"
 import { iife } from "@/util/iife"
-import { GlobalBus } from "@/bus/global"
+import { Bus } from "@/bus"
 import { Filesystem } from "@/util/filesystem"
 
 interface Context {
@@ -89,17 +89,11 @@ export const Instance = {
   },
   async dispose() {
     Log.Default.info("disposing instance", { directory: Instance.directory })
+    // Publish before state disposal so Bus.publish can dispatch to local
+    // subscribers without resurrecting the already-cleaned-up state map.
+    await Bus.publish(Bus.InstanceDisposed, { directory: Instance.directory })
     await State.dispose(Instance.directory)
     cache.delete(Instance.directory)
-    GlobalBus.emit("event", {
-      directory: Instance.directory,
-      payload: {
-        type: "server.instance.disposed",
-        properties: {
-          directory: Instance.directory,
-        },
-      },
-    })
   },
   async disposeAll() {
     if (disposal.all) return disposal.all

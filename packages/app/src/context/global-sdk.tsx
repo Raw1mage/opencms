@@ -72,12 +72,14 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
 
     const streamFetch = eventFetch ?? fetchWithAuth
 
+    type EventWithContext = Event & { _busContext?: BusContext }
     const emitter = createGlobalEmitter<{
-      [key: string]: Event
+      [key: string]: EventWithContext
     }>()
     const [reconnectVersion, setReconnectVersion] = createSignal(0)
 
-    type Queued = { directory: string; payload: Event }
+    type BusContext = { directory: string; worktree: string; projectId: string; sessionId?: string }
+    type Queued = { directory: string; payload: Event; context?: BusContext }
     const FLUSH_FRAME_MS = 16
     const STREAM_YIELD_MS = 8
     const RECONNECT_DELAY_MS = 250
@@ -123,7 +125,10 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
             if (!props?.messageID || !props?.partID) continue
             if (skip.has(deltaKey(event.directory, props.messageID, props.partID))) continue
           }
-          emitter.emit(event.directory, event.payload)
+          const emitted = event.context
+            ? { ...event.payload, _busContext: event.context }
+            : event.payload
+          emitter.emit(event.directory, emitted)
         }
       })
 
@@ -196,11 +201,12 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
               streamErrorLogged = false
               const directory = normalizeDirectoryKey(event.directory ?? "global")
               const payload = event.payload
+              const context = (event as any).context as BusContext | undefined
               const k = key(directory, payload)
               if (k) {
                 const i = coalesced.get(k)
                 if (i !== undefined) {
-                  queue[i] = { directory, payload }
+                  queue[i] = { directory, payload, context }
                   if (payload.type === "message.part.updated") {
                     const part = payload.properties.part
                     staleDeltas.add(deltaKey(directory, part.messageID, part.id))
@@ -209,7 +215,7 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
                 }
                 coalesced.set(k, queue.length)
               }
-              queue.push({ directory, payload })
+              queue.push({ directory, payload, context })
               schedule()
 
               if (Date.now() - yielded < STREAM_YIELD_MS) continue

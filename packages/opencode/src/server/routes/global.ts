@@ -4,6 +4,7 @@ import { streamSSE } from "hono/streaming"
 import path from "node:path"
 import z from "zod"
 import { BusEvent } from "@/bus/bus-event"
+import { Bus } from "@/bus"
 import { GlobalBus } from "@/bus/global"
 import { Instance } from "../../project/instance"
 import { Installation } from "@/installation"
@@ -453,13 +454,7 @@ export const GlobalRoutes = lazy(() =>
       }),
       async (c) => {
         await Instance.disposeAll()
-        GlobalBus.emit("event", {
-          directory: "global",
-          payload: {
-            type: GlobalDisposedEvent.type,
-            properties: {},
-          },
-        })
+        await Bus.publish(GlobalDisposedEvent, {}, { directory: "global" })
         return c.json(true)
       },
     ),
