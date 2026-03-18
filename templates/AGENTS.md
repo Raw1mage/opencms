@@ -170,13 +170,19 @@
    - 複雜 debug / 開發任務應優先讀取相關框架文件，而不是每次從原始碼重新建模整個系統。
    - 若框架文件不足，應在本次任務中補齊，而不是接受知識缺口常態化。
 
-8. **Web Runtime 單一啟動入口（Fail-Fast）**
+8. **Spec-Driven Builder Contract（依 /specs/ plan 實作時的強制規則）**
+   當 coding agent 依據 `specs/<plan>/` 下的計畫文件實作時，必須遵守：
+   - **Tasks Checklist 即時同步**：每完成一個 task item，立即更新 `specs/<plan>/tasks.md` 的 checkbox（`[ ]` → `[x]`）。若 task 不適用或需拆分，標記 `[~] <reason>`。禁止所有工作完成後才一次性勾選。
+   - **Session Event Log**：每個 session 結束前（或 commit 前），建立/更新 `docs/events/event_<YYYYMMDD>_<topic>.md`，至少包含 Scope（引用 tasks.md item 編號）、Key Decisions、Issues Found、Verification、Remaining。
+   - **Commit Gate**：commit 前必須確認 (1) tasks.md checkbox 已同步 (2) event log 已建立/更新 (3) 架構變更已同步 `specs/architecture.md`。禁止在 tasks.md 和 event log 未更新的情況下 commit code changes。
+
+9. **Web Runtime 單一啟動入口（Fail-Fast）**
 
 - 本 repo 的 web runtime **只允許**透過 `./webctl.sh dev-start`（或 `dev-refresh`）啟動。
 - 禁止直接使用 `bun ... opencode ... web` / `opencode web` 手動啟動，避免載入錯誤前端 bundle 或錯誤 env。
 - 所有 server runtime 參數（含 `OPENCODE_FRONTEND_PATH`）必須集中定義於 `/etc/opencode/opencode.cfg`，作為單一事實來源。
 
-9. **禁止新增 fallback mechanism（使用者天條）**
+10. **禁止新增 fallback mechanism（使用者天條）**
    - 實作、重構、除錯時，**不允許主動新增任何 fallback mechanism**，除非使用者明確批准。
    - 尤其禁止以下行為：
      - 在 account / provider / model / session identity 不一致時，以 silent fallback 掩蓋問題

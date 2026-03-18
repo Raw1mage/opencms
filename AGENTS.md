@@ -152,6 +152,12 @@
    - 複雜 debug / 開發任務應優先讀取相關框架文件，而不是每次從原始碼重新建模整個系統。
    - 若框架文件不足，應在本次任務中補齊，而不是接受知識缺口常態化。
 
+7. **Spec-Driven Builder Contract（依 /specs/ plan 實作時的強制規則）**：
+   當 coding agent 依據 `specs/<plan>/` 下的計畫文件實作時，必須遵守：
+   - **Tasks Checklist 即時同步**：每完成一個 task item，立即更新 `specs/<plan>/tasks.md` 的 checkbox（`[ ]` → `[x]`）。若 task 不適用或需拆分，標記 `[~] <reason>`。禁止所有工作完成後才一次性勾選。
+   - **Session Event Log**：每個 session 結束前（或 commit 前），建立/更新 `docs/events/event_<YYYYMMDD>_<topic>.md`，至少包含 Scope（引用 tasks.md item 編號）、Key Decisions、Issues Found、Verification、Remaining。
+   - **Commit Gate**：commit 前必須確認 (1) tasks.md checkbox 已同步 (2) event log 已建立/更新 (3) 架構變更已同步 `specs/architecture.md`。禁止在 tasks.md 和 event log 未更新的情況下 commit code changes。
+
 ### Release 前檢查清單（Prompt / Agent / Skill）
 
 - [ ] 若調整工作流或規範，已同步更新 `templates/**` 與對應 `runtime`（如 `$XDG_CONFIG_HOME/opencode/skills/**`）。
