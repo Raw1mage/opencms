@@ -15,7 +15,8 @@ ts-dist
 **/.serena
 .serena/
 /result
-refs
+# refs — tracked as submodules, don't ignore
+# refs
 Session.vim
 opencode.json
 /config/opencode/
