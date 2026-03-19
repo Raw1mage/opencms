@@ -151,6 +151,73 @@ const GRAFCET_TEMPLATE = JSON.stringify(
   2,
 )
 
+const C4_TEMPLATE = JSON.stringify(
+  {
+    diagram_title: "System Components",
+    diagram_level: "component",
+    systems: [
+      {
+        id: "SYS1",
+        name: "Target System",
+        description: "The system being designed or refactored",
+        external: false,
+      },
+    ],
+    containers: [
+      {
+        id: "CT1",
+        name: "Primary Container",
+        description: "Main runtime container",
+        technology: "TypeScript",
+        systemRef: "SYS1",
+      },
+    ],
+    components: [
+      {
+        id: "C1",
+        name: "Core Component",
+        description: "Primary component derived from requirement",
+        technology: "TypeScript module",
+        containerRef: "CT1",
+        moduleRef: "A1",
+        filePath: null,
+      },
+    ],
+    relationships: [
+      {
+        id: "REL1",
+        source: "C1",
+        target: "SYS1",
+        description: "Primary interaction",
+        technology: "function call",
+      },
+    ],
+  },
+  null,
+  2,
+)
+
+const SEQUENCE_TEMPLATE = JSON.stringify(
+  [
+    {
+      diagram_title: "Primary Flow",
+      scenario: "Main success scenario derived from requirement",
+      moduleRef: "A1",
+      participants: [
+        { id: "P1", name: "Actor", type: "actor", componentRef: "C1" },
+        { id: "P2", name: "Component", type: "component", componentRef: "C1" },
+      ],
+      messages: [
+        { id: "MSG1", from: "P1", to: "P2", label: "Request", type: "sync", order: 1 },
+        { id: "MSG2", from: "P2", to: "P1", label: "Response", type: "return", order: 2 },
+      ],
+      fragments: [],
+    },
+  ],
+  null,
+  2,
+)
+
 async function loadPlannerTemplate(relativePath: string, fallback: string) {
   const candidates = [
     process.env.OPENCODE_PLANNER_TEMPLATE_DIR || "/etc/opencode/specs",
@@ -179,6 +246,8 @@ async function loadArtifactTemplates() {
     handoff: await loadPlannerTemplate("handoff.md", ARTIFACT_TEMPLATES.handoff),
     idef0: await loadPlannerTemplate("idef0.json", IDEF0_TEMPLATE),
     grafcet: await loadPlannerTemplate("grafcet.json", GRAFCET_TEMPLATE),
+    c4: await loadPlannerTemplate("c4.json", C4_TEMPLATE),
+    sequence: await loadPlannerTemplate("sequence.json", SEQUENCE_TEMPLATE),
   }
 }
 
@@ -244,7 +313,13 @@ async function readPlannerArtifacts(session: Session.Info) {
   const grafcet = await Bun.file(artifactPaths.grafcet)
     .text()
     .catch(() => "")
-  return { root, implementationSpec, proposal, spec, design, tasks, handoff, idef0, grafcet }
+  const c4 = await Bun.file(artifactPaths.c4)
+    .text()
+    .catch(() => "")
+  const sequence = await Bun.file(artifactPaths.sequence)
+    .text()
+    .catch(() => "")
+  return { root, implementationSpec, proposal, spec, design, tasks, handoff, idef0, grafcet, c4, sequence }
 }
 
 async function hasImplementationSpec(root: string) {
@@ -266,6 +341,8 @@ async function resolvePlannerArtifacts(session: Session.Info) {
         handoff: path.join(absoluteMissionRoot, "handoff.md"),
         idef0: path.join(absoluteMissionRoot, "idef0.json"),
         grafcet: path.join(absoluteMissionRoot, "grafcet.json"),
+        c4: path.join(absoluteMissionRoot, "c4.json"),
+        sequence: path.join(absoluteMissionRoot, "sequence.json"),
       }
     }
   }
@@ -587,6 +664,252 @@ function analyzeGrafcetArtifact(jsonText: string, idef0Text: string) {
   return { issues }
 }
 
+function analyzeC4Artifact(jsonText: string, idef0Text: string) {
+  const issues: string[] = []
+  if (!jsonText.trim()) {
+    issues.push("c4.json is empty")
+    return { issues }
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(jsonText)
+  } catch {
+    issues.push("c4.json is not valid JSON")
+    return { issues }
+  }
+  const obj = parsed as Record<string, unknown>
+  if (!obj.diagram_title || typeof obj.diagram_title !== "string") {
+    issues.push("c4.json must have a non-empty diagram_title string")
+  }
+  const validLevels = ["context", "container", "component"]
+  if (!obj.diagram_level || !validLevels.includes(obj.diagram_level as string)) {
+    issues.push(`c4.json must have diagram_level as one of: ${validLevels.join(", ")}`)
+  }
+  if (!Array.isArray(obj.systems) || obj.systems.length === 0) {
+    issues.push("c4.json must have at least one system")
+  } else {
+    const sysIds = new Set<string>()
+    for (const sys of obj.systems as Array<Record<string, unknown>>) {
+      if (!sys.id || typeof sys.id !== "string" || !/^SYS\d+$/.test(sys.id)) {
+        issues.push(`c4.json system has invalid id: ${String(sys.id)} (expected SYS<number>)`)
+      } else if (sysIds.has(sys.id)) {
+        issues.push(`c4.json has duplicate system id: ${sys.id}`)
+      } else {
+        sysIds.add(sys.id)
+      }
+    }
+  }
+  if (!Array.isArray(obj.containers) || obj.containers.length === 0) {
+    issues.push("c4.json must have at least one container")
+  } else {
+    const ctIds = new Set<string>()
+    for (const ct of obj.containers as Array<Record<string, unknown>>) {
+      if (!ct.id || typeof ct.id !== "string" || !/^CT\d+$/.test(ct.id)) {
+        issues.push(`c4.json container has invalid id: ${String(ct.id)} (expected CT<number>)`)
+      } else if (ctIds.has(ct.id)) {
+        issues.push(`c4.json has duplicate container id: ${ct.id}`)
+      } else {
+        ctIds.add(ct.id)
+      }
+    }
+  }
+  if (!Array.isArray(obj.components) || obj.components.length === 0) {
+    issues.push("c4.json must have at least one component")
+  } else {
+    const compIds = new Set<string>()
+    for (const comp of obj.components as Array<Record<string, unknown>>) {
+      if (!comp.id || typeof comp.id !== "string" || !/^C\d+$/.test(comp.id)) {
+        issues.push(`c4.json component has invalid id: ${String(comp.id)} (expected C<number>)`)
+      } else if (compIds.has(comp.id)) {
+        issues.push(`c4.json has duplicate component id: ${comp.id}`)
+      } else {
+        compIds.add(comp.id)
+      }
+      if (!comp.name || typeof comp.name !== "string") {
+        issues.push(`c4.json component ${String(comp.id)} must have a non-empty name`)
+      }
+    }
+  }
+  if (!Array.isArray(obj.relationships)) {
+    issues.push("c4.json must have a relationships array")
+  } else {
+    const relIds = new Set<string>()
+    for (const rel of obj.relationships as Array<Record<string, unknown>>) {
+      if (!rel.id || typeof rel.id !== "string" || !/^REL\d+$/.test(rel.id)) {
+        issues.push(`c4.json relationship has invalid id: ${String(rel.id)} (expected REL<number>)`)
+      } else if (relIds.has(rel.id)) {
+        issues.push(`c4.json has duplicate relationship id: ${rel.id}`)
+      } else {
+        relIds.add(rel.id)
+      }
+      if (!rel.source || !rel.target || !rel.description) {
+        issues.push(`c4.json relationship ${String(rel.id)} missing required fields (source/target/description)`)
+      }
+    }
+  }
+
+  // Traceability: check moduleRef in components references IDEF0 activities
+  if (idef0Text.trim() && Array.isArray(obj.components)) {
+    try {
+      const idef0 = JSON.parse(idef0Text) as Record<string, unknown>
+      const activityIds = new Set<string>()
+      function collectC4Ids(node: Record<string, unknown>) {
+        if (Array.isArray(node.activities)) {
+          for (const act of node.activities as Array<Record<string, unknown>>) {
+            if (typeof act.id === "string") activityIds.add(act.id)
+            if (act.decomposition && typeof act.decomposition === "object") {
+              collectC4Ids(act.decomposition as Record<string, unknown>)
+            }
+          }
+        }
+      }
+      collectC4Ids(idef0)
+      for (const comp of obj.components as Array<Record<string, unknown>>) {
+        const ref = comp.moduleRef as string
+        if (ref && /^A\d+$/.test(ref) && !activityIds.has(ref)) {
+          issues.push(`c4.json component ${String(comp.id)} references moduleRef '${ref}' not found in idef0.json`)
+        }
+      }
+    } catch {
+      // idef0 parse failed — already caught by analyzeIdef0Artifact
+    }
+  }
+
+  // Check that placeholder template content has been replaced
+  if (obj.diagram_title === "System Components" && Array.isArray(obj.components) && obj.components.length === 1) {
+    const comp = (obj.components as Array<Record<string, unknown>>)[0]
+    if (comp?.name === "Core Component") {
+      issues.push("c4.json still contains template placeholder content — replace with actual component decomposition")
+    }
+  }
+  return { issues }
+}
+
+function analyzeSequenceArtifact(jsonText: string, c4Text: string) {
+  const issues: string[] = []
+  if (!jsonText.trim()) {
+    issues.push("sequence.json is empty")
+    return { issues }
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(jsonText)
+  } catch {
+    issues.push("sequence.json is not valid JSON")
+    return { issues }
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    issues.push("sequence.json must be a non-empty array of sequence diagram objects")
+    return { issues }
+  }
+  const diagrams = parsed as Array<Record<string, unknown>>
+  const validMessageTypes = ["sync", "async", "return", "create", "destroy"]
+  const validParticipantTypes = ["actor", "component", "system"]
+  const validFragmentTypes = ["alt", "opt", "loop", "par", "break", "critical"]
+
+  for (let di = 0; di < diagrams.length; di++) {
+    const diag = diagrams[di]
+    const prefix = `sequence.json[${di}]`
+    if (!diag.diagram_title || typeof diag.diagram_title !== "string") {
+      issues.push(`${prefix} must have a non-empty diagram_title`)
+    }
+    if (!Array.isArray(diag.participants) || diag.participants.length < 2) {
+      issues.push(`${prefix} must have at least 2 participants`)
+    } else {
+      const pIds = new Set<string>()
+      for (const p of diag.participants as Array<Record<string, unknown>>) {
+        if (!p.id || typeof p.id !== "string" || !/^P\d+$/.test(p.id)) {
+          issues.push(`${prefix} participant has invalid id: ${String(p.id)} (expected P<number>)`)
+        } else if (pIds.has(p.id)) {
+          issues.push(`${prefix} has duplicate participant id: ${p.id}`)
+        } else {
+          pIds.add(p.id)
+        }
+        if (p.type && !validParticipantTypes.includes(p.type as string)) {
+          issues.push(`${prefix} participant ${String(p.id)} has invalid type: ${String(p.type)}`)
+        }
+      }
+    }
+    if (!Array.isArray(diag.messages) || diag.messages.length === 0) {
+      issues.push(`${prefix} must have at least one message`)
+    } else {
+      const msgIds = new Set<string>()
+      for (const msg of diag.messages as Array<Record<string, unknown>>) {
+        if (!msg.id || typeof msg.id !== "string" || !/^MSG\d+$/.test(msg.id)) {
+          issues.push(`${prefix} message has invalid id: ${String(msg.id)} (expected MSG<number>)`)
+        } else if (msgIds.has(msg.id)) {
+          issues.push(`${prefix} has duplicate message id: ${msg.id}`)
+        } else {
+          msgIds.add(msg.id)
+        }
+        if (!msg.from || !msg.to || !msg.label) {
+          issues.push(`${prefix} message ${String(msg.id)} missing required fields (from/to/label)`)
+        }
+        if (msg.type && !validMessageTypes.includes(msg.type as string)) {
+          issues.push(`${prefix} message ${String(msg.id)} has invalid type: ${String(msg.type)}`)
+        }
+      }
+    }
+    if (Array.isArray(diag.fragments)) {
+      const fragIds = new Set<string>()
+      for (const frag of diag.fragments as Array<Record<string, unknown>>) {
+        if (!frag.id || typeof frag.id !== "string" || !/^FRAG\d+$/.test(frag.id)) {
+          issues.push(`${prefix} fragment has invalid id: ${String(frag.id)} (expected FRAG<number>)`)
+        } else if (fragIds.has(frag.id)) {
+          issues.push(`${prefix} has duplicate fragment id: ${frag.id}`)
+        } else {
+          fragIds.add(frag.id)
+        }
+        if (frag.type && !validFragmentTypes.includes(frag.type as string)) {
+          issues.push(`${prefix} fragment ${String(frag.id)} has invalid type: ${String(frag.type)}`)
+        }
+      }
+    }
+  }
+
+  // Traceability: check componentRef in participants references C4 components
+  if (c4Text.trim()) {
+    try {
+      const c4 = JSON.parse(c4Text) as Record<string, unknown>
+      const compIds = new Set<string>()
+      if (Array.isArray(c4.components)) {
+        for (const comp of c4.components as Array<Record<string, unknown>>) {
+          if (typeof comp.id === "string") compIds.add(comp.id)
+        }
+      }
+      // Also accept system IDs
+      if (Array.isArray(c4.systems)) {
+        for (const sys of c4.systems as Array<Record<string, unknown>>) {
+          if (typeof sys.id === "string") compIds.add(sys.id)
+        }
+      }
+      for (const diag of diagrams) {
+        if (!Array.isArray(diag.participants)) continue
+        for (const p of diag.participants as Array<Record<string, unknown>>) {
+          const ref = p.componentRef as string
+          if (ref && /^(C|SYS)\d+$/.test(ref) && !compIds.has(ref)) {
+            issues.push(
+              `sequence.json participant ${String(p.id)} references componentRef '${ref}' not found in c4.json`,
+            )
+          }
+        }
+      }
+    } catch {
+      // c4 parse failed — already caught by analyzeC4Artifact
+    }
+  }
+
+  // Check that placeholder template content has been replaced
+  if (diagrams.length === 1 && diagrams[0].diagram_title === "Primary Flow") {
+    const msgs = diagrams[0].messages as Array<Record<string, unknown>> | undefined
+    if (msgs && msgs.length === 2 && msgs[0]?.label === "Request") {
+      issues.push("sequence.json still contains template placeholder content — replace with actual interaction flows")
+    }
+  }
+
+  return { issues }
+}
+
 function buildClarificationMapping(input: {
   implementationSpec: ReturnType<typeof analyzePlanSpec>
   proposal: string
@@ -739,6 +1062,8 @@ export const PlanExitTool = Tool.define("plan_exit", {
     const handoffArtifact = analyzeHandoffArtifact(artifacts.handoff)
     const idef0Artifact = analyzeIdef0Artifact(artifacts.idef0)
     const grafcetArtifact = analyzeGrafcetArtifact(artifacts.grafcet, artifacts.idef0)
+    const c4Artifact = analyzeC4Artifact(artifacts.c4, artifacts.idef0)
+    const sequenceArtifact = analyzeSequenceArtifact(artifacts.sequence, artifacts.c4)
     const clarificationMapping = buildClarificationMapping({
       implementationSpec: spec,
       proposal: artifacts.proposal,
@@ -756,7 +1081,9 @@ export const PlanExitTool = Tool.define("plan_exit", {
       taskArtifact.issues.length ||
       handoffArtifact.issues.length ||
       idef0Artifact.issues.length ||
-      grafcetArtifact.issues.length
+      grafcetArtifact.issues.length ||
+      c4Artifact.issues.length ||
+      sequenceArtifact.issues.length
     ) {
       const details = [
         spec.missingSections.length ? `missing sections: ${spec.missingSections.join(", ")}` : undefined,
@@ -770,6 +1097,8 @@ export const PlanExitTool = Tool.define("plan_exit", {
         handoffArtifact.issues.length ? `handoff artifact issues: ${handoffArtifact.issues.join("; ")}` : undefined,
         idef0Artifact.issues.length ? `idef0 artifact issues: ${idef0Artifact.issues.join("; ")}` : undefined,
         grafcetArtifact.issues.length ? `grafcet artifact issues: ${grafcetArtifact.issues.join("; ")}` : undefined,
+        c4Artifact.issues.length ? `c4 artifact issues: ${c4Artifact.issues.join("; ")}` : undefined,
+        sequenceArtifact.issues.length ? `sequence artifact issues: ${sequenceArtifact.issues.join("; ")}` : undefined,
       ]
         .filter(Boolean)
         .join(" | ")
@@ -797,6 +1126,8 @@ export const PlanExitTool = Tool.define("plan_exit", {
           handoff: path.relative(Instance.worktree, artifactPaths.handoff),
           idef0: path.relative(Instance.worktree, artifactPaths.idef0),
           grafcet: path.relative(Instance.worktree, artifactPaths.grafcet),
+          c4: path.relative(Instance.worktree, artifactPaths.c4),
+          sequence: path.relative(Instance.worktree, artifactPaths.sequence),
         },
         artifactIntegrity: {
           implementationSpec: digest(artifacts.implementationSpec),
@@ -852,6 +1183,8 @@ export const PlanExitTool = Tool.define("plan_exit", {
             handoff: handoffArtifact.issues,
             idef0: idef0Artifact.issues,
             grafcet: grafcetArtifact.issues,
+            c4: c4Artifact.issues,
+            sequence: sequenceArtifact.issues,
           },
           clarificationMapping,
           materializedTodos: planTodos.map((todo) => ({
@@ -881,6 +1214,8 @@ export const PlanExitTool = Tool.define("plan_exit", {
             handoff: path.relative(Instance.worktree, path.join(planRoot, "handoff.md")),
             idef0: path.relative(Instance.worktree, path.join(planRoot, "idef0.json")),
             grafcet: path.relative(Instance.worktree, path.join(planRoot, "grafcet.json")),
+            c4: path.relative(Instance.worktree, path.join(planRoot, "c4.json")),
+            sequence: path.relative(Instance.worktree, path.join(planRoot, "sequence.json")),
           },
         },
       },
@@ -936,6 +1271,8 @@ export const PlanEnterTool = Tool.define("plan_enter", {
       await Bun.write(artifactPaths.handoff, templates.handoff)
       await Bun.write(artifactPaths.idef0, templates.idef0)
       await Bun.write(artifactPaths.grafcet, templates.grafcet)
+      await Bun.write(artifactPaths.c4, templates.c4)
+      await Bun.write(artifactPaths.sequence, templates.sequence)
     }
 
     const userMsg: MessageV2.User = {

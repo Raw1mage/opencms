@@ -1,128 +1,177 @@
 {
-  "diagram_title": "Account Management Framework",
+  "diagram_title": "Account Manager Unified Refactor v2",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A0",
-      "title": "Manage Model Provider Accounts",
-      "description": "System-wide orchestration of account persistence, identity deduplication, and lifecycle operations across CLI, TUI, and Webapp interfaces.",
+      "title": "Unified Account Manager Refactor",
+      "description": "Build AccountManager service layer with event bus, eliminate silent fallbacks, unify mutation paths across all surfaces, and harden deploy verification.",
       "decomposition": {
         "node_reference": "A0",
         "activities": [
           {
             "id": "A1",
-            "title": "Receive Account Action Request",
-            "description": "Accepts user inputs from various UI clients (CLI, TUI, Webapp) and normalizes the request data for processing.",
-            "decomposition": null
+            "title": "Build AccountManager Service + Event Bus (Slice 0)",
+            "description": "Create the central AccountManager service, integrate typed event bus, implement write-ahead storage safety, and declare provider capabilities.",
+            "decomposition": {
+              "node_reference": "A1",
+              "activities": [
+                {
+                  "id": "A11",
+                  "title": "Define AccountManager API",
+                  "description": "Create account/manager.ts with connectAccount, renameAccount, removeAccount, setActiveAccount, beginLogin, getQuotaHint signatures.",
+                  "decomposition": null
+                },
+                {
+                  "id": "A12",
+                  "title": "Integrate Event Bus",
+                  "description": "Define typed account events (connected/renamed/removed/active-changed) and emit from each mutation method.",
+                  "decomposition": null
+                },
+                {
+                  "id": "A13",
+                  "title": "Implement Write-Ahead Storage",
+                  "description": "Refactor Account.save() to temp-file → rename → update-memory pattern ensuring crash-safe writes.",
+                  "decomposition": null
+                },
+                {
+                  "id": "A14",
+                  "title": "Declare Provider Capabilities",
+                  "description": "Add ProviderCapabilities interface to provider config, replace hardcoded gemini-cli/google-api branches with capability lookups.",
+                  "decomposition": null
+                },
+                {
+                  "id": "A15",
+                  "title": "Setup Event Consumers",
+                  "description": "Wire TUI subscriber, Web SSE channel, and Console SSE listener for account events.",
+                  "decomposition": null
+                }
+              ],
+              "arrows": [
+                { "id": "a1arr1", "source": "EXTERNAL", "target": "A11:input", "label": "Current Auth+Account API", "type": "input" },
+                { "id": "a1arr2", "source": "A11:output", "target": "A12:input", "label": "AccountManager API", "type": "output" },
+                { "id": "a1arr3", "source": "A12:output", "target": "A13:input", "label": "Event-Emitting Service", "type": "output" },
+                { "id": "a1arr4", "source": "A13:output", "target": "A14:input", "label": "Safe-Write Service", "type": "output" },
+                { "id": "a1arr5", "source": "A14:output", "target": "A15:input", "label": "Capability-Aware Service", "type": "output" },
+                { "id": "a1arr6", "source": "A15:output", "target": "A2:input", "label": "Complete Service Layer", "type": "output" }
+              ]
+            }
           },
           {
             "id": "A2",
-            "title": "Resolve Account Identity",
-            "description": "Validates request, checks for identity duplication, and generates a unique Account ID, resolving collisions safely.",
-            "decomposition": null
+            "title": "Backend Convergence (Slice A+B)",
+            "description": "Delegate all route mutations to AccountManager, add mismatch guards, eliminate silent fallbacks.",
+            "decomposition": {
+              "node_reference": "A2",
+              "activities": [
+                {
+                  "id": "A21",
+                  "title": "Route Service Delegation (Slice A)",
+                  "description": "Rewrite all mutation routes to delegate to AccountManager, add providerKey/family mismatch guard returning 400.",
+                  "decomposition": null
+                },
+                {
+                  "id": "A22",
+                  "title": "Silent Fallback Elimination (Slice B)",
+                  "description": "Auth.set disclosure, UserDaemonManager single-path, mutation target validation, explicit migration logging.",
+                  "decomposition": null
+                }
+              ],
+              "arrows": [
+                { "id": "a2arr1", "source": "A1:output", "target": "A21:input", "label": "AccountManager Service", "type": "input" },
+                { "id": "a2arr2", "source": "A1:output", "target": "A22:input", "label": "AccountManager Service", "type": "input" },
+                { "id": "a2arr3", "source": "A21:output", "target": "A3:input", "label": "Delegated Routes", "type": "output" },
+                { "id": "a2arr4", "source": "A22:output", "target": "A3:input", "label": "Fallback-Free Service", "type": "output" }
+              ]
+            }
           },
           {
             "id": "A3",
-            "title": "Persist Account Data",
-            "description": "Strict repository layer that reads from and writes to the underlying JSON file storage.",
+            "title": "CLI/TUI Convergence (Slice C)",
+            "description": "Replace all direct Account.*/Auth.* mutation calls in CLI and TUI with AccountManager calls.",
             "decomposition": null
           },
           {
             "id": "A4",
-            "title": "Manage Provider Lifecycle",
-            "description": "Orchestrates background cleanup tasks such as instantiating and disposing of provider runtime connections.",
-            "decomposition": null
+            "title": "Frontend Convergence (Slice D+E)",
+            "description": "Unify session-local vs global active authority, align app/console surface contracts, replace console full-reload with SSE sync.",
+            "decomposition": {
+              "node_reference": "A4",
+              "activities": [
+                {
+                  "id": "A41",
+                  "title": "Authority Unification (Slice D)",
+                  "description": "Define session-local ephemeral selection vs global active account, implement separate UI badges, handle session-local account deletion.",
+                  "decomposition": null
+                },
+                {
+                  "id": "A42",
+                  "title": "Surface Alignment (Slice E)",
+                  "description": "Unify app/console form semantics, route model-manager actions through AccountManager, replace console reload with SSE.",
+                  "decomposition": null
+                }
+              ],
+              "arrows": [
+                { "id": "a4arr1", "source": "A3:output", "target": "A41:input", "label": "Converged CLI/TUI", "type": "input" },
+                { "id": "a4arr2", "source": "A3:output", "target": "A42:input", "label": "Converged CLI/TUI", "type": "input" },
+                { "id": "a4arr3", "source": "A41:output", "target": "A5:input", "label": "Unified Authority", "type": "output" },
+                { "id": "a4arr4", "source": "A42:output", "target": "A5:input", "label": "Aligned Surfaces", "type": "output" }
+              ]
+            }
+          },
+          {
+            "id": "A5",
+            "title": "Hardening (Slice F)",
+            "description": "Automate deploy SHA256 gate, harden Account ID format, completely eliminate family naming drift, make silent migrations explicit.",
+            "decomposition": {
+              "node_reference": "A5",
+              "activities": [
+                {
+                  "id": "A51",
+                  "title": "Deploy Gate Automation",
+                  "description": "Add verify_deploy() SHA256 check to webctl.sh, fail dev-refresh on hash mismatch.",
+                  "decomposition": null
+                },
+                {
+                  "id": "A52",
+                  "title": "Legacy Cleanup — Family 完全消除",
+                  "description": "Eliminate parseProvider()/parseFamily() entirely, remove all FamilyData/FAMILIES/resolveFamily exports, rename canonical-family-source → canonical-provider-source, migrate storage key families→providers, make migrations explicit.",
+                  "decomposition": null
+                }
+              ],
+              "arrows": [
+                { "id": "a5arr1", "source": "A4:output", "target": "A51:input", "label": "Converged System", "type": "input" },
+                { "id": "a5arr2", "source": "A51:output", "target": "A52:input", "label": "Verified Deploy", "type": "output" },
+                { "id": "a5arr3", "source": "A52:output", "target": "EXTERNAL", "label": "Hardened System", "type": "output" }
+              ]
+            }
           }
         ],
         "arrows": [
-          {
-            "id": "arr1",
-            "source": "EXTERNAL",
-            "target": "A1:input",
-            "label": "User Input (Credentials, Deletion Target)",
-            "type": "input"
-          },
-          {
-            "id": "arr2",
-            "source": "A1:output",
-            "target": "A2:input",
-            "label": "Normalized Request Payload",
-            "type": "output"
-          },
-          {
-            "id": "arr3",
-            "source": "A2:output",
-            "target": "A3:input",
-            "label": "Resolved Identity Payload (Add/Remove)",
-            "type": "output"
-          },
-          {
-            "id": "arr4",
-            "source": "A3:output",
-            "target": "A4:input",
-            "label": "Account State Change Event",
-            "type": "output"
-          },
-          {
-            "id": "arr5",
-            "source": "A4:output",
-            "target": "EXTERNAL",
-            "label": "Execution Success / Disposal Confirmation",
-            "type": "output"
-          },
-          {
-            "id": "arr6",
-            "source": "EXTERNAL",
-            "target": "A1:control",
-            "label": "Client Interface Policy",
-            "type": "control"
-          },
-          {
-            "id": "arr7",
-            "source": "EXTERNAL",
-            "target": "A2:control",
-            "label": "Deduplication Rules",
-            "type": "control"
-          },
-          {
-            "id": "arr8",
-            "source": "EXTERNAL",
-            "target": "A3:control",
-            "label": "File System Constraints",
-            "type": "control"
-          },
-          {
-            "id": "arr9",
-            "source": "EXTERNAL",
-            "target": "A4:control",
-            "label": "Background Job Constraints",
-            "type": "control"
-          }
+          { "id": "arr1", "source": "EXTERNAL", "target": "A1:input", "label": "Current Account System", "type": "input" },
+          { "id": "arr2", "source": "A1:output", "target": "A2:input", "label": "AccountManager + Event Bus", "type": "output" },
+          { "id": "arr3", "source": "A2:output", "target": "A3:input", "label": "Backend Converged", "type": "output" },
+          { "id": "arr4", "source": "A3:output", "target": "A4:input", "label": "All Mutations Unified", "type": "output" },
+          { "id": "arr5", "source": "A4:output", "target": "A5:input", "label": "Frontend Converged", "type": "output" },
+          { "id": "arr6", "source": "A5:output", "target": "EXTERNAL", "label": "Hardened Unified System", "type": "output" },
+          { "id": "arr7", "source": "EXTERNAL", "target": "A1:control", "label": "No Silent Fallback Policy", "type": "control" },
+          { "id": "arr8", "source": "EXTERNAL", "target": "A2:control", "label": "Transport-Only Route Policy", "type": "control" },
+          { "id": "arr9", "source": "EXTERNAL", "target": "A3:control", "label": "Single Mutation Entry Policy", "type": "control" },
+          { "id": "arr10", "source": "EXTERNAL", "target": "A4:control", "label": "Authority Separation Policy", "type": "control" },
+          { "id": "arr11", "source": "EXTERNAL", "target": "A5:control", "label": "Family Elimination Policy + UX Invariance Constraint", "type": "control" },
+          { "id": "arr12", "source": "EXTERNAL", "target": "A1:mechanism", "label": "Bus Infrastructure + Provider Config", "type": "mechanism" },
+          { "id": "arr13", "source": "EXTERNAL", "target": "A2:mechanism", "label": "Route Source + Auth Source", "type": "mechanism" },
+          { "id": "arr14", "source": "EXTERNAL", "target": "A3:mechanism", "label": "CLI/TUI Source", "type": "mechanism" },
+          { "id": "arr15", "source": "EXTERNAL", "target": "A4:mechanism", "label": "App/Console/Dialog Source", "type": "mechanism" },
+          { "id": "arr16", "source": "EXTERNAL", "target": "A5:mechanism", "label": "webctl.sh + Lint Tools", "type": "mechanism" }
         ]
       }
     }
   ],
   "arrows": [
-    {
-      "id": "root1",
-      "source": "EXTERNAL",
-      "target": "A0:input",
-      "label": "Account Action Requests",
-      "type": "input"
-    },
-    {
-      "id": "root2",
-      "source": "A0:output",
-      "target": "EXTERNAL",
-      "label": "Synchronized Account State",
-      "type": "output"
-    },
-    {
-      "id": "root3",
-      "source": "EXTERNAL",
-      "target": "A0:control",
-      "label": "System Architecture Boundaries",
-      "type": "control"
-    }
+    { "id": "root1", "source": "EXTERNAL", "target": "A0:input", "label": "Fragmented Account System", "type": "input" },
+    { "id": "root2", "source": "A0:output", "target": "EXTERNAL", "label": "Unified Account Manager with Event Bus", "type": "output" },
+    { "id": "root3", "source": "EXTERNAL", "target": "A0:control", "label": "Architecture + No-Fallback Constraints", "type": "control" },
+    { "id": "root4", "source": "EXTERNAL", "target": "A0:mechanism", "label": "Planner + Builder Workflow", "type": "mechanism" }
   ]
 }

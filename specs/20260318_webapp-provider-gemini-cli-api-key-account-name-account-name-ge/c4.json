@@ -1,0 +1,243 @@
+{
+  "diagram_title": "Account Manager Unified Refactor — C4 Component Diagram",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "OpenCode Platform",
+      "description": "AI-powered coding assistant with multi-account management",
+      "external": false
+    },
+    {
+      "id": "SYS2",
+      "name": "Provider APIs",
+      "description": "External AI provider services (Anthropic, Google, OpenAI, etc.)",
+      "external": true
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "Backend Service",
+      "description": "Core server runtime (Bun/Hono)",
+      "technology": "TypeScript / Bun",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT2",
+      "name": "Web App (packages/app)",
+      "description": "Primary web UI for chat and account management",
+      "technology": "React / SolidJS",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT3",
+      "name": "Console (packages/console)",
+      "description": "Admin console for workspace and provider management",
+      "technology": "React",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT4",
+      "name": "CLI/TUI",
+      "description": "Terminal interface for direct account operations",
+      "technology": "TypeScript / Ink",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT5",
+      "name": "Event Bus (packages/bus)",
+      "description": "Typed event infrastructure for cross-surface sync",
+      "technology": "TypeScript",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT6",
+      "name": "Storage",
+      "description": "File-based account persistence (accounts.json)",
+      "technology": "JSON / fs",
+      "systemRef": "SYS1"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "AccountManager",
+      "description": "Central mutation orchestration service — single entry point for all account mutations (connect, rename, remove, setActive, beginLogin, getQuotaHint). Emits typed events after each mutation.",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/account/manager.ts"
+    },
+    {
+      "id": "C2",
+      "name": "Auth (Identity Resolution)",
+      "description": "Token parsing, provider resolution, API key dedup detection, collision resolution. Utility layer — no longer owns mutation orchestration.",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/auth/index.ts"
+    },
+    {
+      "id": "C3",
+      "name": "Account (Repository)",
+      "description": "Pure CRUD on accounts.json. Write-ahead pattern (temp → rename → update memory). No business logic.",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/account/index.ts"
+    },
+    {
+      "id": "C4",
+      "name": "Account Routes",
+      "description": "HTTP transport layer — delegates all mutations to AccountManager. Provides mismatch guard (400). No direct Account/Auth calls.",
+      "technology": "Hono routes",
+      "containerRef": "CT1",
+      "moduleRef": "A21",
+      "filePath": "packages/opencode/src/server/routes/account.ts"
+    },
+    {
+      "id": "C5",
+      "name": "Provider Capabilities",
+      "description": "Declarative provider config (supportsSubscription, requiresProjectId, autoSwitchOnConnect). Replaces hardcoded if/else branches.",
+      "technology": "TypeScript interface + config",
+      "containerRef": "CT1",
+      "moduleRef": "A14",
+      "filePath": "packages/opencode/src/provider/canonical-family-source.ts"
+    },
+    {
+      "id": "C6",
+      "name": "SSE Account Channel",
+      "description": "Server-Sent Events channel for account event push to web clients.",
+      "technology": "SSE endpoint",
+      "containerRef": "CT1",
+      "moduleRef": "A15"
+    },
+    {
+      "id": "C7",
+      "name": "Connect Provider Dialog",
+      "description": "Onboarding/connect flow — calls AccountManager.connectAccount() via route.",
+      "technology": "React component",
+      "containerRef": "CT2",
+      "moduleRef": "A42",
+      "filePath": "packages/app/src/components/dialog-connect-provider.tsx"
+    },
+    {
+      "id": "C8",
+      "name": "Settings Accounts",
+      "description": "Account inventory and global active switch — calls AccountManager.setActiveAccount() via route.",
+      "technology": "React component",
+      "containerRef": "CT2",
+      "moduleRef": "A42",
+      "filePath": "packages/app/src/components/settings-accounts.tsx"
+    },
+    {
+      "id": "C9",
+      "name": "Model Selection Dialog",
+      "description": "Session-local account/model selection (ephemeral). Metadata actions (rename/remove/connect) are global mutations via AccountManager.",
+      "technology": "React component",
+      "containerRef": "CT2",
+      "moduleRef": "A41",
+      "filePath": "packages/app/src/components/dialog-select-model.tsx"
+    },
+    {
+      "id": "C10",
+      "name": "Console Accounts Page",
+      "description": "Account list and active switch. Uses SSE events for state sync (no full-page reload).",
+      "technology": "React component",
+      "containerRef": "CT3",
+      "moduleRef": "A42",
+      "filePath": "packages/console/app/src/routes/accounts.tsx"
+    },
+    {
+      "id": "C11",
+      "name": "Console Provider Section",
+      "description": "BYOK credential management — calls AccountManager.connectAccount() via route.",
+      "technology": "React component",
+      "containerRef": "CT3",
+      "moduleRef": "A42",
+      "filePath": "packages/console/app/src/routes/workspace/[id]/provider-section.tsx"
+    },
+    {
+      "id": "C12",
+      "name": "CLI Accounts Command",
+      "description": "Terminal account management — all mutations via AccountManager (no direct Account/Auth calls).",
+      "technology": "Ink component",
+      "containerRef": "CT4",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/cli/cmd/accounts.tsx"
+    },
+    {
+      "id": "C13",
+      "name": "TUI Admin Dialog",
+      "description": "TUI control plane — account remove/rename via AccountManager.",
+      "technology": "Ink component",
+      "containerRef": "CT4",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/cli/cmd/tui/component/dialog-admin.tsx"
+    },
+    {
+      "id": "C14",
+      "name": "TUI Account Dialog",
+      "description": "TUI account selection — setActive via AccountManager.",
+      "technology": "Ink component",
+      "containerRef": "CT4",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/cli/cmd/tui/component/dialog-account.tsx"
+    },
+    {
+      "id": "C15",
+      "name": "Event Bus Core",
+      "description": "Typed event publish/subscribe infrastructure. Carries account:connected, account:renamed, account:removed, account:active-changed.",
+      "technology": "TypeScript module",
+      "containerRef": "CT5",
+      "moduleRef": "A12"
+    },
+    {
+      "id": "C16",
+      "name": "Write-Ahead Storage",
+      "description": "Crash-safe file persistence: clone → write tmp → rename → update memory. Prevents dirty in-memory state on write failure.",
+      "technology": "fs atomic write",
+      "containerRef": "CT6",
+      "moduleRef": "A13"
+    },
+    {
+      "id": "C17",
+      "name": "Deploy Verification Gate",
+      "description": "SHA256 hash comparison between build dist and runtime index.html. Runs at dev-refresh end.",
+      "technology": "Bash / webctl.sh",
+      "containerRef": "CT1",
+      "moduleRef": "A51",
+      "filePath": "webctl.sh"
+    },
+    {
+      "id": "C18",
+      "name": "Session Context",
+      "description": "Ephemeral session-local account override. In-memory only, cleared on session end.",
+      "technology": "TypeScript runtime",
+      "containerRef": "CT1",
+      "moduleRef": "A41"
+    }
+  ],
+  "relationships": [
+    { "id": "REL1", "source": "C4", "target": "C1", "description": "Delegates all mutations", "technology": "function call" },
+    { "id": "REL2", "source": "C1", "target": "C2", "description": "Identity resolution (token parse, dedup detect)", "technology": "function call" },
+    { "id": "REL3", "source": "C1", "target": "C3", "description": "CRUD operations on accounts", "technology": "function call" },
+    { "id": "REL4", "source": "C1", "target": "C15", "description": "Emits typed account events after each mutation", "technology": "event bus publish" },
+    { "id": "REL5", "source": "C1", "target": "C5", "description": "Reads provider capabilities for behavior dispatch", "technology": "config lookup" },
+    { "id": "REL6", "source": "C3", "target": "C16", "description": "Persists via write-ahead pattern", "technology": "fs write" },
+    { "id": "REL7", "source": "C15", "target": "C6", "description": "Pushes account events to SSE channel", "technology": "event subscribe → SSE push" },
+    { "id": "REL8", "source": "C6", "target": "C10", "description": "SSE account event stream", "technology": "SSE" },
+    { "id": "REL9", "source": "C6", "target": "C7", "description": "SSE account event stream", "technology": "SSE" },
+    { "id": "REL10", "source": "C6", "target": "C8", "description": "SSE account event stream", "technology": "SSE" },
+    { "id": "REL11", "source": "C12", "target": "C1", "description": "CLI mutations via AccountManager", "technology": "direct import" },
+    { "id": "REL12", "source": "C13", "target": "C1", "description": "TUI admin mutations via AccountManager", "technology": "direct import" },
+    { "id": "REL13", "source": "C14", "target": "C1", "description": "TUI account selection via AccountManager", "technology": "direct import" },
+    { "id": "REL14", "source": "C9", "target": "C18", "description": "Writes session-local account override (ephemeral)", "technology": "in-memory" },
+    { "id": "REL15", "source": "C9", "target": "C4", "description": "Metadata actions (rename/remove/connect) via HTTP route → AccountManager", "technology": "HTTP" },
+    { "id": "REL16", "source": "C4", "target": "SYS2", "description": "Proxies login/quota to provider APIs", "technology": "HTTP" },
+    { "id": "REL17", "source": "C11", "target": "C4", "description": "BYOK credential management via HTTP route", "technology": "HTTP" },
+    { "id": "REL18", "source": "C15", "target": "C14", "description": "TUI subscribes to account events for state sync", "technology": "event subscribe" },
+    { "id": "REL19", "source": "C17", "target": "C16", "description": "Verifies runtime matches build output", "technology": "SHA256 comparison" }
+  ]
+}

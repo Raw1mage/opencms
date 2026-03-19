@@ -1,0 +1,112 @@
+[
+  {
+    "diagram_title": "Connect Account — Route → AccountManager → Event Bus",
+    "scenario": "User connects a new provider account via web UI. The route delegates to AccountManager, which resolves identity, persists with write-ahead, emits event, and SSE pushes to all surfaces.",
+    "moduleRef": "A1",
+    "participants": [
+      { "id": "P1", "name": "Web Client", "type": "actor", "componentRef": "C7" },
+      { "id": "P2", "name": "Account Route", "type": "component", "componentRef": "C4" },
+      { "id": "P3", "name": "AccountManager", "type": "component", "componentRef": "C1" },
+      { "id": "P4", "name": "Auth", "type": "component", "componentRef": "C2" },
+      { "id": "P5", "name": "Account Repo", "type": "component", "componentRef": "C3" },
+      { "id": "P6", "name": "Event Bus", "type": "component", "componentRef": "C15" },
+      { "id": "P7", "name": "SSE Channel", "type": "component", "componentRef": "C6" },
+      { "id": "P8", "name": "Console", "type": "actor", "componentRef": "C10" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "PUT /auth/{providerId} { apiKey, accountName }", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P2", "label": "Mismatch guard: validate providerId vs body providerKey", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P2", "to": "P3", "label": "connectAccount({ providerKey, accountName, credentials })", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P3", "to": "P4", "label": "Auth.set({ providerKey, token, accountName })", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P4", "to": "P3", "label": "{ accountId, action: 'created' | 'updated_existing', reason? }", "type": "return", "order": 5 },
+      { "id": "MSG6", "from": "P3", "to": "P5", "label": "save() — write-ahead (clone → tmp → rename → memory)", "type": "sync", "order": 6 },
+      { "id": "MSG7", "from": "P5", "to": "P3", "label": "OK (in-memory updated after disk success)", "type": "return", "order": 7 },
+      { "id": "MSG8", "from": "P3", "to": "P6", "label": "emit('account:connected', { providerKey, accountId, source: 'route' })", "type": "async", "order": 8 },
+      { "id": "MSG9", "from": "P3", "to": "P2", "label": "ConnectResult { accountId, action }", "type": "return", "order": 9 },
+      { "id": "MSG10", "from": "P2", "to": "P1", "label": "200 { accountId, action, reason }", "type": "return", "order": 10 },
+      { "id": "MSG11", "from": "P6", "to": "P7", "label": "Push account:connected event", "type": "async", "order": 11 },
+      { "id": "MSG12", "from": "P7", "to": "P8", "label": "SSE: account:connected → React state update (no reload)", "type": "async", "order": 12 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "alt", "label": "Mismatch guard: providerId ≠ body providerKey → 400", "messageRefs": ["MSG2"] },
+      { "id": "FRAG2", "type": "alt", "label": "Auth.set detects same token → action='updated_existing'", "messageRefs": ["MSG4", "MSG5"] }
+    ]
+  },
+  {
+    "diagram_title": "Set Active Account — Session-Local vs Global",
+    "scenario": "Two paths: (1) Model selection dialog sets session-local override (ephemeral), (2) Settings/CLI sets global active via AccountManager.",
+    "moduleRef": "A41",
+    "participants": [
+      { "id": "P1", "name": "Model Dialog", "type": "actor", "componentRef": "C9" },
+      { "id": "P2", "name": "Session Context", "type": "component", "componentRef": "C18" },
+      { "id": "P3", "name": "Settings UI", "type": "actor", "componentRef": "C8" },
+      { "id": "P4", "name": "Account Route", "type": "component", "componentRef": "C4" },
+      { "id": "P5", "name": "AccountManager", "type": "component", "componentRef": "C1" },
+      { "id": "P6", "name": "Account Repo", "type": "component", "componentRef": "C3" },
+      { "id": "P7", "name": "Event Bus", "type": "component", "componentRef": "C15" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "session.setLocalAccount(accountId) — ephemeral, in-memory only", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P1", "label": "OK (session-local override set, badge shows 'Session')", "type": "return", "order": 2 },
+      { "id": "MSG3", "from": "P3", "to": "P4", "label": "POST /account/:family/active { accountId }", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P4", "to": "P5", "label": "setActiveAccount({ providerKey, accountId })", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P5", "to": "P5", "label": "Validate target exists (throw AccountNotFoundError if missing)", "type": "sync", "order": 5 },
+      { "id": "MSG6", "from": "P5", "to": "P6", "label": "save() — write-ahead", "type": "sync", "order": 6 },
+      { "id": "MSG7", "from": "P5", "to": "P7", "label": "emit('account:active-changed', { providerKey, accountId, previousAccountId })", "type": "async", "order": 7 },
+      { "id": "MSG8", "from": "P5", "to": "P4", "label": "OK", "type": "return", "order": 8 },
+      { "id": "MSG9", "from": "P4", "to": "P3", "label": "200 OK", "type": "return", "order": 9 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "par", "label": "Session-local path (ephemeral, no persistence)", "messageRefs": ["MSG1", "MSG2"] },
+      { "id": "FRAG2", "type": "par", "label": "Global active path (persisted, event emitted)", "messageRefs": ["MSG3", "MSG4", "MSG5", "MSG6", "MSG7", "MSG8", "MSG9"] }
+    ]
+  },
+  {
+    "diagram_title": "Remove Account — Mutation + Target Validation + Event",
+    "scenario": "User removes an account. AccountManager validates target exists (no silent noop), uses write-ahead save, emits event. Session-local overrides fallback if the removed account was active.",
+    "moduleRef": "A22",
+    "participants": [
+      { "id": "P1", "name": "Caller (Route/CLI/TUI)", "type": "actor", "componentRef": "C4" },
+      { "id": "P2", "name": "AccountManager", "type": "component", "componentRef": "C1" },
+      { "id": "P3", "name": "Account Repo", "type": "component", "componentRef": "C3" },
+      { "id": "P4", "name": "Event Bus", "type": "component", "componentRef": "C15" },
+      { "id": "P5", "name": "Session Context", "type": "component", "componentRef": "C18" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "removeAccount({ providerKey, accountId })", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "Account.get(providerKey, accountId)", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P3", "to": "P2", "label": "Account data (or null → throw AccountNotFoundError → 404)", "type": "return", "order": 3 },
+      { "id": "MSG4", "from": "P2", "to": "P3", "label": "Account.remove(providerKey, accountId) + save() — write-ahead", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P3", "to": "P2", "label": "OK (persisted)", "type": "return", "order": 5 },
+      { "id": "MSG6", "from": "P2", "to": "P4", "label": "emit('account:removed', { providerKey, accountId, source })", "type": "async", "order": 6 },
+      { "id": "MSG7", "from": "P4", "to": "P5", "label": "If session-local override matches removed account → fallback to global active + notify user", "type": "async", "order": 7 },
+      { "id": "MSG8", "from": "P2", "to": "P1", "label": "OK", "type": "return", "order": 8 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "alt", "label": "Target not found → AccountNotFoundError → 404 (no silent noop)", "messageRefs": ["MSG2", "MSG3"] },
+      { "id": "FRAG2", "type": "opt", "label": "Session-local fallback on removed account", "messageRefs": ["MSG7"] }
+    ]
+  },
+  {
+    "diagram_title": "Write-Ahead Storage Safety",
+    "scenario": "Account.save() crash-safe pattern: clone → write tmp → atomic rename → update in-memory. Failure at any step leaves in-memory clean.",
+    "moduleRef": "A13",
+    "participants": [
+      { "id": "P1", "name": "AccountManager", "type": "component", "componentRef": "C1" },
+      { "id": "P2", "name": "Account Repo", "type": "component", "componentRef": "C3" },
+      { "id": "P3", "name": "Filesystem", "type": "system", "componentRef": "C16" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "Apply mutation on _storage clone", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "Write clone → accounts.json.tmp", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P3", "to": "P2", "label": "tmp written OK", "type": "return", "order": 3 },
+      { "id": "MSG4", "from": "P2", "to": "P3", "label": "fs.rename('accounts.json.tmp', 'accounts.json')", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P3", "to": "P2", "label": "rename OK", "type": "return", "order": 5 },
+      { "id": "MSG6", "from": "P2", "to": "P2", "label": "Update _storage = clone, _mtime = new mtime", "type": "sync", "order": 6 },
+      { "id": "MSG7", "from": "P2", "to": "P1", "label": "save() succeeded", "type": "return", "order": 7 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "alt", "label": "Write/rename failure → throw, _storage remains pre-mutation state", "messageRefs": ["MSG2", "MSG3", "MSG4", "MSG5"] }
+    ]
+  }
+]
