@@ -141,30 +141,28 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
   const route = useRoute()
   const local = useLocal()
 
-  // LLM status card — deduplicated history + age ticker
-  const [llmTick, setLlmTick] = createSignal(0)
-  {
-    const id = setInterval(() => setLlmTick((v) => v + 1), 10_000)
-    onCleanup(() => clearInterval(id))
-  }
-
+  // LLM status card — deduplicated history
   const llmHistory = createMemo(() => {
     const raw = sync.data.llm_history ?? []
     const deduped: LlmHistoryEntry[] = []
     for (const entry of raw) {
       const prev = deduped[deduped.length - 1]
-      if (prev && prev.providerId === entry.providerId && prev.modelId === entry.modelId && prev.accountId === entry.accountId && prev.state === entry.state) continue
+      if (
+        prev &&
+        prev.providerId === entry.providerId &&
+        prev.modelId === entry.modelId &&
+        prev.accountId === entry.accountId &&
+        prev.state === entry.state
+      )
+        continue
       deduped.push(entry)
     }
     return deduped.slice(-5)
   })
 
-  const formatAge = (timestamp: number) => {
-    llmTick()
-    const ago = Date.now() - timestamp
-    if (ago < 60_000) return `${Math.floor(ago / 1000)}s`
-    if (ago < 3_600_000) return `${Math.floor(ago / 60_000)}m`
-    return `${Math.round((ago / 3_600_000) * 10) / 10}h`
+  const formatTime = (timestamp: number) => {
+    const d = new Date(timestamp)
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
   }
 
   const shortModel = (id: string) => {
@@ -489,7 +487,8 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                       if (!m) return <span style={{ fg: theme.textMuted }}> (No model)</span>
                       return (
                         <span style={{ fg: theme.textMuted }}>
-                          {" "}({shortModel(m.modelID)} <span style={{ fg: theme.success }}>OK</span>)
+                          {" "}
+                          ({shortModel(m.modelID)} <span style={{ fg: theme.success }}>OK</span>)
                         </span>
                       )
                     })()}
@@ -500,75 +499,60 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                 {(() => {
                   const currentModel = local.model.current(props.sessionID)
                   const history = llmHistory()
-                  // Check if the latest history entry is "recovered" for the same model — skip current header to avoid duplication
-                  const lastHistory = history.length > 0 ? history[history.length - 1] : undefined
-                  const currentIsDuplicate = currentModel && lastHistory
-                    && lastHistory.state === "recovered"
-                    && lastHistory.providerId === currentModel.providerId
-                    && lastHistory.modelId === currentModel.modelID
-                  const accountLabel = currentModel
-                    ? local.resolveAccountLabel(currentModel.accountId, currentModel.providerId)
-                    : undefined
                   return (
                     <>
-                      <Show when={currentModel && !currentIsDuplicate}>
-                        <text fg={theme.text} wrapMode="word">
-                          <span style={{ fg: theme.success }}>•</span> {currentModel!.providerId}/{shortModel(currentModel!.modelID)}
-                          <Show when={accountLabel}>
-                            {" "}<span style={{ fg: theme.textMuted }}>({accountLabel})</span>
-                          </Show>
-                          {" "}<span style={{ fg: theme.success }}>OK</span>
-                        </text>
-                      </Show>
-                      <Show when={!currentModel}>
-                        <text fg={theme.textMuted}>
-                          <span style={{ fg: theme.warning }}>•</span> No model selected
-                        </text>
-                      </Show>
-                      <Show when={history.length > 0}>
+                      <Show when={history.length > 0} fallback={<text fg={theme.textMuted}>No recent events</text>}>
                         <For each={history}>
                           {(h) => {
-                            const acct = local.resolveAccountLabel(h.accountId, h.providerId)
+                            // Resolve provider: bus events may use family ID or account ID;
+                            // fall back to currentModel's providerId when history entry is missing it
+                            const effectiveProvider = h.providerId || currentModel?.providerId || ""
+                            const acct =
+                              local.resolveAccountLabel(h.accountId, effectiveProvider) ??
+                              (currentModel
+                                ? local.resolveAccountLabel(currentModel.accountId, currentModel.providerId)
+                                : undefined)
                             const acctSuffix = acct ? ` (${acct})` : ""
                             if (h.state === "rotated") {
                               const toAcct = local.resolveAccountLabel(h.toAccountId, h.toProviderId)
                               return (
                                 <box>
-                                  <text fg={theme.text} wrapMode="word">
-                                    <span style={{ fg: theme.warning }}>•</span> {h.providerId}/{shortModel(h.modelId)}{acctSuffix}{" "}
-                                    <span style={{ fg: theme.warning }}>RATE</span>{" "}
-                                    <span style={{ fg: theme.textMuted }}>{formatAge(h.timestamp)}</span>
-                                  </text>
-                                  <text fg={theme.textMuted} wrapMode="word">
-                                    {"  "}→ {h.toProviderId}/{shortModel(h.toModelId ?? h.modelId)}
-                                    <Show when={toAcct}>
-                                      {" "}({toAcct})
-                                    </Show>
+                                  <box flexDirection="row">
+                                    <text fg={theme.text} flexGrow={1} flexShrink={1} overflow="hidden" wrapMode="none">
+                                      <span style={{ fg: theme.warning }}>•</span> {effectiveProvider}/{shortModel(h.modelId)}{acctSuffix}
+                                    </text>
+                                    <text flexShrink={0}> <span style={{ fg: theme.warning }}>RATE</span> <span style={{ fg: theme.textMuted }}>{formatTime(h.timestamp)}</span></text>
+                                  </box>
+                                  <text fg={theme.textMuted} overflow="hidden" wrapMode="none">
+                                    {"  "}→ {h.toProviderId}/{shortModel(h.toModelId ?? h.modelId)}<Show when={toAcct}> ({toAcct})</Show>
                                   </text>
                                 </box>
                               )
                             }
                             if (h.state === "recovered") {
                               return (
-                                <text fg={theme.text} wrapMode="word">
-                                  <span style={{ fg: theme.success }}>•</span> {h.providerId}/{shortModel(h.modelId)}{acctSuffix}{" "}
-                                  <span style={{ fg: theme.success }}>OK</span>{" "}
-                                  <span style={{ fg: theme.textMuted }}>{formatAge(h.timestamp)}</span>
-                                </text>
+                                <box flexDirection="row">
+                                  <text fg={theme.text} flexGrow={1} flexShrink={1} overflow="hidden" wrapMode="none">
+                                    <span style={{ fg: theme.success }}>•</span> {effectiveProvider}/{shortModel(h.modelId)}{acctSuffix}
+                                  </text>
+                                  <text flexShrink={0}> <span style={{ fg: theme.success }}>OK</span> <span style={{ fg: theme.textMuted }}>{formatTime(h.timestamp)}</span></text>
+                                </box>
                               )
                             }
                             // error / ratelimit / auth_failed
                             const stateColor = h.state === "auth_failed" ? theme.error : theme.warning
-                            const stateLabel = h.state === "auth_failed" ? "AUTH" : h.state === "ratelimit" ? "RATE" : "ERR"
+                            const stateLabel =
+                              h.state === "auth_failed" ? "AUTH" : h.state === "ratelimit" ? "RATE" : "ERR"
                             return (
                               <box>
-                                <text fg={theme.text} wrapMode="word">
-                                  <span style={{ fg: stateColor }}>•</span> {h.providerId}/{shortModel(h.modelId)}{acctSuffix}{" "}
-                                  <span style={{ fg: stateColor }}>{stateLabel}</span>{" "}
-                                  <span style={{ fg: theme.textMuted }}>{formatAge(h.timestamp)}</span>
-                                </text>
+                                <box flexDirection="row">
+                                  <text fg={theme.text} flexGrow={1} flexShrink={1} overflow="hidden" wrapMode="none">
+                                    <span style={{ fg: stateColor }}>•</span> {effectiveProvider}/{shortModel(h.modelId)}{acctSuffix}
+                                  </text>
+                                  <text flexShrink={0}> <span style={{ fg: stateColor }}>{stateLabel}</span> <span style={{ fg: theme.textMuted }}>{formatTime(h.timestamp)}</span></text>
+                                </box>
                                 <Show when={h.message}>
-                                  <text fg={theme.textMuted} wrapMode="word">
+                                  <text fg={theme.textMuted} overflow="hidden" wrapMode="none">
                                     {"  "}{h.message}
                                   </text>
                                 </Show>

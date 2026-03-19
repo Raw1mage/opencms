@@ -564,13 +564,17 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             message: string
             timestamp: number
           }
-          setStore("llm_history", pushLlmHistory(store.llm_history, {
-            providerId: props.providerId,
-            modelId: props.modelId,
-            timestamp: props.timestamp,
-            state: "error",
-            message: props.message,
-          }))
+          setStore(
+            "llm_history",
+            pushLlmHistory(store.llm_history, {
+              providerId: props.providerId,
+              accountId: props.accountId,
+              modelId: props.modelId,
+              timestamp: props.timestamp,
+              state: "error",
+              message: props.message,
+            }),
+          )
           break
         }
 
@@ -583,13 +587,17 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             backoffMs: number
             timestamp: number
           }
-          setStore("llm_history", pushLlmHistory(store.llm_history, {
-            providerId: props.providerId,
-            modelId: props.modelId,
-            timestamp: props.timestamp,
-            state: "ratelimit",
-            message: props.reason,
-          }))
+          setStore(
+            "llm_history",
+            pushLlmHistory(store.llm_history, {
+              providerId: props.providerId,
+              accountId: props.accountId,
+              modelId: props.modelId,
+              timestamp: props.timestamp,
+              state: "ratelimit",
+              message: props.reason,
+            }),
+          )
           break
         }
 
@@ -599,12 +607,16 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             accountId: string
             modelId: string
           }
-          setStore("llm_history", pushLlmHistory(store.llm_history, {
-            providerId: props.providerId,
-            modelId: props.modelId,
-            timestamp: Date.now(),
-            state: "recovered",
-          }))
+          setStore(
+            "llm_history",
+            pushLlmHistory(store.llm_history, {
+              providerId: props.providerId,
+              accountId: props.accountId,
+              modelId: props.modelId,
+              timestamp: Date.now(),
+              state: "recovered",
+            }),
+          )
           break
         }
 
@@ -616,13 +628,17 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             message: string
             timestamp: number
           }
-          setStore("llm_history", pushLlmHistory(store.llm_history, {
-            providerId: props.providerId,
-            modelId: props.modelId,
-            timestamp: props.timestamp,
-            state: "auth_failed",
-            message: props.message,
-          }))
+          setStore(
+            "llm_history",
+            pushLlmHistory(store.llm_history, {
+              providerId: props.providerId,
+              accountId: props.accountId,
+              modelId: props.modelId,
+              timestamp: props.timestamp,
+              state: "auth_failed",
+              message: props.message,
+            }),
+          )
           break
         }
 
@@ -637,17 +653,20 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             reason: string
             timestamp: number
           }
-          setStore("llm_history", pushLlmHistory(store.llm_history, {
-            providerId: props.fromProviderId,
-            modelId: props.fromModelId,
-            accountId: props.fromAccountId,
-            timestamp: props.timestamp,
-            state: "rotated",
-            message: props.reason,
-            toProviderId: props.toProviderId,
-            toModelId: props.toModelId,
-            toAccountId: props.toAccountId,
-          }))
+          setStore(
+            "llm_history",
+            pushLlmHistory(store.llm_history, {
+              providerId: props.fromProviderId,
+              modelId: props.fromModelId,
+              accountId: props.fromAccountId,
+              timestamp: props.timestamp,
+              state: "rotated",
+              message: props.reason,
+              toProviderId: props.toProviderId,
+              toModelId: props.toModelId,
+              toAccountId: props.toAccountId,
+            }),
+          )
           break
         }
       }

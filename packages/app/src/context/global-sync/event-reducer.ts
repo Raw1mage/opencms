@@ -428,6 +428,7 @@ export function applyDirectoryEvent(input: {
           // Push to history ring buffer
           pushLlmHistory(draft, {
             providerId: props.providerId,
+            accountId: props.accountId,
             modelId: props.modelId,
             timestamp: props.timestamp,
             state: "error",
@@ -473,6 +474,7 @@ export function applyDirectoryEvent(input: {
           }
           pushLlmHistory(draft, {
             providerId: props.providerId,
+            accountId: props.accountId,
             modelId: props.modelId,
             timestamp: props.timestamp,
             state: "ratelimit",
@@ -497,6 +499,7 @@ export function applyDirectoryEvent(input: {
           )
           pushLlmHistory(draft, {
             providerId: props.providerId,
+            accountId: props.accountId,
             modelId: props.modelId,
             timestamp: Date.now(),
             state: "recovered",
@@ -536,6 +539,7 @@ export function applyDirectoryEvent(input: {
           }
           pushLlmHistory(draft, {
             providerId: props.providerId,
+            accountId: props.accountId,
             modelId: props.modelId,
             timestamp: props.timestamp,
             state: "auth_failed",

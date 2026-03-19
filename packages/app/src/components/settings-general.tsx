@@ -9,8 +9,8 @@ import { useTheme, type ColorScheme } from "@opencode-ai/ui/theme"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { useGlobalSDK } from "@/context/global-sdk"
-import { useSync } from "@/context/sync"
 import { useSettings, monoFontFamily } from "@/context/settings"
+import { useSync } from "@/context/sync"
 import { buildTriggerPayload, normalizeKillSwitchStatus } from "./settings-kill-switch"
 import { formatRestartErrorResponse } from "@/utils/restart-errors"
 import { playSound, SOUND_OPTIONS } from "@/utils/sound"
@@ -48,38 +48,6 @@ export const SettingsGeneral: Component = () => {
   const settings = useSettings()
   const [restartState, setRestartState] = createSignal<"idle" | "restarting" | "waiting" | "error">("idle")
   const [restartMessage, setRestartMessage] = createSignal<string>("")
-  const sync = useSync()
-  const [killSwitchReason, setKillSwitchReason] = createSignal("")
-  const [killSwitchMfa, setKillSwitchMfa] = createSignal("")
-  const [killSwitchRequestID, setKillSwitchRequestID] = createSignal<string | null>(null)
-  const [killSwitchMessage, setKillSwitchMessage] = createSignal("")
-  const [killSwitchBusy, setKillSwitchBusy] = createSignal(false)
-  const [killSwitchConfirm, setKillSwitchConfirm] = createSignal<"idle" | "trigger" | "cancel">("idle")
-  const [killSwitchSnapshot, setKillSwitchSnapshot] = createSignal(true)
-
-  const ksStatus = createMemo(() => {
-    const sse = sync.data.killswitch_status
-    if (sse) return { active: sse.active, state: sse.state, requestID: sse.requestID, snapshotURL: sse.snapshotURL }
-    const fetched = killSwitchStatus()
-    if (fetched)
-      return {
-        active: fetched.active,
-        state: fetched.state,
-        requestID: fetched.requestID,
-        snapshotURL: fetched.snapshotURL,
-      }
-    return undefined
-  })
-
-  const [killSwitchStatus, killSwitchActions] = createResource(async () => {
-    const response = await globalSDK.fetch(`${globalSDK.url}/api/v2/admin/kill-switch/status`, {
-      method: "GET",
-      cache: "no-store",
-    })
-    if (!response.ok) throw new Error(`Status failed (${response.status})`)
-    const data = await response.json()
-    return normalizeKillSwitchStatus(data)
-  })
 
   const linux = createMemo(() => platform.platform === "desktop" && platform.os === "linux")
   const web = createMemo(() => platform.platform === "web")
@@ -162,126 +130,6 @@ export const SettingsGeneral: Component = () => {
     } catch (error) {
       setRestartState("error")
       setRestartMessage(error instanceof Error ? error.message : String(error))
-    }
-  }
-
-  const readError = async (response: Response) => {
-    try {
-      const data = await response.json()
-      if (typeof data?.reason === "string" && data.reason) return data.reason
-      if (typeof data?.error === "string" && data.error) return data.error
-      if (typeof data?.message === "string" && data.message) return data.message
-      return `Request failed (${response.status})`
-    } catch {
-      return `Request failed (${response.status})`
-    }
-  }
-
-  const triggerKillSwitch = async () => {
-    if (killSwitchBusy()) return
-    const reason = killSwitchReason().trim()
-    if (!reason) {
-      setKillSwitchMessage("Reason is required.")
-      return
-    }
-    if (killSwitchConfirm() !== "trigger") {
-      setKillSwitchConfirm("trigger")
-      setKillSwitchMessage("Click Trigger again to confirm.")
-      return
-    }
-    setKillSwitchConfirm("idle")
-
-    setKillSwitchBusy(true)
-    setKillSwitchMessage("")
-    try {
-      const first = await globalSDK.fetch(`${globalSDK.url}/api/v2/admin/kill-switch/trigger`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(buildTriggerPayload({ reason, snapshot: killSwitchSnapshot() })),
-      })
-
-      if (first.status === 202) {
-        const challenge = (await first.json()) as { mfa_required?: boolean; request_id?: string }
-        if (challenge?.mfa_required && challenge.request_id) {
-          setKillSwitchRequestID(challenge.request_id)
-          if (!killSwitchMfa().trim()) {
-            setKillSwitchMessage(`MFA required. Enter code for request_id ${challenge.request_id}.`)
-            return
-          }
-          const second = await globalSDK.fetch(`${globalSDK.url}/api/v2/admin/kill-switch/trigger`, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(
-              buildTriggerPayload({
-                reason,
-                requestID: challenge.request_id,
-                mfaCode: killSwitchMfa().trim(),
-              }),
-            ),
-          })
-          if (!second.ok) {
-            setKillSwitchMessage(await readError(second))
-            return
-          }
-          const done = (await second.json()) as { request_id?: string; snapshot_url?: string | null }
-          setKillSwitchRequestID(done.request_id ?? challenge.request_id)
-          setKillSwitchMessage(
-            `Triggered. request_id=${done.request_id ?? challenge.request_id}${done.snapshot_url ? ` snapshot=${done.snapshot_url}` : ""}`,
-          )
-          setKillSwitchMfa("")
-          await killSwitchActions.refetch()
-          return
-        }
-        setKillSwitchMessage("MFA required but challenge payload is invalid.")
-        return
-      }
-
-      if (!first.ok) {
-        setKillSwitchMessage(await readError(first))
-        return
-      }
-
-      const done = (await first.json()) as { request_id?: string; snapshot_url?: string | null }
-      setKillSwitchRequestID(done.request_id ?? null)
-      setKillSwitchMessage(
-        `Triggered. request_id=${done.request_id ?? "n/a"}${done.snapshot_url ? ` snapshot=${done.snapshot_url}` : ""}`,
-      )
-      await killSwitchActions.refetch()
-    } catch (error) {
-      setKillSwitchMessage(error instanceof Error ? error.message : String(error))
-    } finally {
-      setKillSwitchBusy(false)
-    }
-  }
-
-  const cancelKillSwitch = async () => {
-    if (killSwitchBusy()) return
-    if (killSwitchConfirm() !== "cancel") {
-      setKillSwitchConfirm("cancel")
-      setKillSwitchMessage("Click Cancel again to confirm.")
-      return
-    }
-    setKillSwitchConfirm("idle")
-
-    setKillSwitchBusy(true)
-    setKillSwitchMessage("")
-    try {
-      const response = await globalSDK.fetch(`${globalSDK.url}/api/v2/admin/kill-switch/cancel`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ requestID: killSwitchRequestID() ?? undefined }),
-      })
-      if (!response.ok) {
-        setKillSwitchMessage(await readError(response))
-        return
-      }
-      const done = (await response.json()) as { request_id?: string | null }
-      setKillSwitchMessage(`Canceled.${done.request_id ? ` request_id=${done.request_id}` : ""}`)
-      await killSwitchActions.refetch()
-    } catch (error) {
-      setKillSwitchMessage(error instanceof Error ? error.message : String(error))
-    } finally {
-      setKillSwitchBusy(false)
     }
   }
 
@@ -593,7 +441,167 @@ export const SettingsGeneral: Component = () => {
     </div>
   )
 
-  const RuntimeSection = () => (
+  const RuntimeSection = () => {
+    // useSync may not be available — dialog renders outside SyncProvider.
+    // The context throws synchronously if no provider is found, so try-catch is safe.
+    let sync: ReturnType<typeof useSync> | undefined
+    try {
+      sync = useSync()
+    } catch {}
+
+    const [killSwitchReason, setKillSwitchReason] = createSignal("")
+    const [killSwitchMfa, setKillSwitchMfa] = createSignal("")
+    const [killSwitchRequestID, setKillSwitchRequestID] = createSignal<string | null>(null)
+    const [killSwitchMessage, setKillSwitchMessage] = createSignal("")
+    const [killSwitchBusy, setKillSwitchBusy] = createSignal(false)
+    const [killSwitchConfirm, setKillSwitchConfirm] = createSignal<"idle" | "trigger" | "cancel">("idle")
+    const [killSwitchSnapshot, setKillSwitchSnapshot] = createSignal(true)
+
+    const [killSwitchStatus, killSwitchActions] = createResource(async () => {
+      const response = await globalSDK.fetch(`${globalSDK.url}/api/v2/admin/kill-switch/status`, {
+        method: "GET",
+        cache: "no-store",
+      })
+      if (!response.ok) throw new Error(`Status failed (${response.status})`)
+      const data = await response.json()
+      return normalizeKillSwitchStatus(data)
+    })
+
+    const ksStatus = createMemo(() => {
+      const sse = sync?.data?.killswitch_status
+      if (sse) return { active: sse.active, state: sse.state, requestID: sse.requestID, snapshotURL: sse.snapshotURL }
+      const fetched = killSwitchStatus()
+      if (fetched)
+        return {
+          active: fetched.active,
+          state: fetched.state,
+          requestID: fetched.requestID,
+          snapshotURL: fetched.snapshotURL,
+        }
+      return undefined
+    })
+
+    const readError = async (response: Response) => {
+      try {
+        const data = await response.json()
+        if (typeof data?.reason === "string" && data.reason) return data.reason
+        if (typeof data?.error === "string" && data.error) return data.error
+        if (typeof data?.message === "string" && data.message) return data.message
+        return `Request failed (${response.status})`
+      } catch {
+        return `Request failed (${response.status})`
+      }
+    }
+
+    const triggerKillSwitch = async () => {
+      if (killSwitchBusy()) return
+      const reason = killSwitchReason().trim()
+      if (!reason) {
+        setKillSwitchMessage("Reason is required.")
+        return
+      }
+      if (killSwitchConfirm() !== "trigger") {
+        setKillSwitchConfirm("trigger")
+        setKillSwitchMessage("Click Trigger again to confirm.")
+        return
+      }
+      setKillSwitchConfirm("idle")
+
+      setKillSwitchBusy(true)
+      setKillSwitchMessage("")
+      try {
+        const first = await globalSDK.fetch(`${globalSDK.url}/api/v2/admin/kill-switch/trigger`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(buildTriggerPayload({ reason, snapshot: killSwitchSnapshot() })),
+        })
+
+        if (first.status === 202) {
+          const challenge = (await first.json()) as { mfa_required?: boolean; request_id?: string }
+          if (challenge?.mfa_required && challenge.request_id) {
+            setKillSwitchRequestID(challenge.request_id)
+            if (!killSwitchMfa().trim()) {
+              setKillSwitchMessage(`MFA required. Enter code for request_id ${challenge.request_id}.`)
+              return
+            }
+            const second = await globalSDK.fetch(`${globalSDK.url}/api/v2/admin/kill-switch/trigger`, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(
+                buildTriggerPayload({
+                  reason,
+                  requestID: challenge.request_id,
+                  mfaCode: killSwitchMfa().trim(),
+                }),
+              ),
+            })
+            if (!second.ok) {
+              setKillSwitchMessage(await readError(second))
+              return
+            }
+            const done = (await second.json()) as { request_id?: string; snapshot_url?: string | null }
+            setKillSwitchRequestID(done.request_id ?? challenge.request_id)
+            setKillSwitchMessage(
+              `Triggered. request_id=${done.request_id ?? challenge.request_id}${done.snapshot_url ? ` snapshot=${done.snapshot_url}` : ""}`,
+            )
+            setKillSwitchMfa("")
+            await killSwitchActions.refetch()
+            return
+          }
+          setKillSwitchMessage("MFA required but challenge payload is invalid.")
+          return
+        }
+
+        if (!first.ok) {
+          setKillSwitchMessage(await readError(first))
+          return
+        }
+
+        const done = (await first.json()) as { request_id?: string; snapshot_url?: string | null }
+        setKillSwitchRequestID(done.request_id ?? null)
+        setKillSwitchMessage(
+          `Triggered. request_id=${done.request_id ?? "n/a"}${done.snapshot_url ? ` snapshot=${done.snapshot_url}` : ""}`,
+        )
+        await killSwitchActions.refetch()
+      } catch (error) {
+        setKillSwitchMessage(error instanceof Error ? error.message : String(error))
+      } finally {
+        setKillSwitchBusy(false)
+      }
+    }
+
+    const cancelKillSwitch = async () => {
+      if (killSwitchBusy()) return
+      if (killSwitchConfirm() !== "cancel") {
+        setKillSwitchConfirm("cancel")
+        setKillSwitchMessage("Click Cancel again to confirm.")
+        return
+      }
+      setKillSwitchConfirm("idle")
+
+      setKillSwitchBusy(true)
+      setKillSwitchMessage("")
+      try {
+        const response = await globalSDK.fetch(`${globalSDK.url}/api/v2/admin/kill-switch/cancel`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ requestID: killSwitchRequestID() ?? undefined }),
+        })
+        if (!response.ok) {
+          setKillSwitchMessage(await readError(response))
+          return
+        }
+        const done = (await response.json()) as { request_id?: string | null }
+        setKillSwitchMessage(`Canceled.${done.request_id ? ` request_id=${done.request_id}` : ""}`)
+        await killSwitchActions.refetch()
+      } catch (error) {
+        setKillSwitchMessage(error instanceof Error ? error.message : String(error))
+      } finally {
+        setKillSwitchBusy(false)
+      }
+    }
+
+    return (
     <div class="flex flex-col gap-1">
       <h3 class="text-14-medium text-text-strong pb-2">Runtime</h3>
 
@@ -718,7 +726,8 @@ export const SettingsGeneral: Component = () => {
         </SettingsRow>
       </div>
     </div>
-  )
+    )
+  }
 
   return (
     <div class="flex flex-col h-full overflow-y-auto no-scrollbar px-4 pb-10 sm:px-10 sm:pb-10">

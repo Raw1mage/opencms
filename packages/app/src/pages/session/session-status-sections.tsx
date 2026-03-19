@@ -217,13 +217,6 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
     )
   }
 
-  // Tick signal MUST be declared before any memo that references it (TDZ)
-  const [llmTick, setLlmTick] = createSignal(0)
-  {
-    const id = setInterval(() => setLlmTick((v) => v + 1), 10_000)
-    onCleanup(() => clearInterval(id))
-  }
-
   const llmHistory = createMemo(() => {
     const raw = sync.data.llm_history ?? []
     // Deduplicate: skip consecutive entries with same provider+model+account+state
@@ -243,12 +236,9 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
     return deduped.slice(-5)
   })
 
-  const formatAge = (timestamp: number) => {
-    llmTick()
-    const ago = Date.now() - timestamp
-    if (ago < 60_000) return `${Math.floor(ago / 1000)}s ago`
-    if (ago < 3_600_000) return `${Math.floor(ago / 60_000)}m ago`
-    return `${Math.round(ago / 3_600_000 * 10) / 10}h ago`
+  const formatTime = (timestamp: number) => {
+    const d = new Date(timestamp)
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
   }
 
   const shortModel = (id: string) => {
@@ -282,31 +272,12 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
       title: "LLM 狀態",
       content: (
         <div class="flex flex-col gap-1">
-          {/* Current model + account */}
-          <Show
-            when={currentModel}
-            fallback={
-              <div class="flex items-center gap-2 py-1">
-                <div class="size-1.5 rounded-full bg-icon-warning-base shrink-0" />
-                <span class="text-12-regular text-text-weak">No model selected</span>
-              </div>
-            }
-          >
-            {(model) => (
-              <div class="flex items-center gap-2 py-1 px-1">
-                <div class="size-1.5 rounded-full bg-icon-success-base shrink-0" />
-                <span class="text-12-medium text-text-base truncate">
-                  {model().provider.name ?? model().provider.id}{" "}
-                  {model().name ?? shortModel(model().id)}
-                  {activeAccountId ? ` (${resolveAccountLabel(activeAccountId, currentModel?.provider.id)})` : ""}
-                </span>
-                <span class="text-11-regular text-success shrink-0">OK</span>
-              </div>
-            )}
-          </Show>
           {/* Recent status log — last 5 deduplicated entries */}
-          <Show when={history.length > 0}>
-            <div class="border-t border-border-weak-base my-1" />
+          <Show when={history.length > 0} fallback={
+            <div class="flex items-center gap-2 py-1 px-1">
+              <span class="text-12-regular text-text-weak">No recent events</span>
+            </div>
+          }>
             <For each={history}>
               {(h) => {
                 if (h.state === "rotated") {
@@ -315,14 +286,14 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
                       <div class="flex items-center gap-1.5">
                         <div class="size-1.5 rounded-full bg-icon-warning-base shrink-0" />
                         <span class="text-11-regular text-text-warning truncate">
-                          {shortModel(h.modelId)} rate limited
+                          {h.providerId}/{shortModel(h.modelId)}{h.accountId ? ` (${resolveAccountLabel(h.accountId, h.providerId)})` : ""} rate limited
                         </span>
-                        <span class="text-11-regular text-text-weak shrink-0">{formatAge(h.timestamp)}</span>
+                        <span class="text-11-regular text-text-weak shrink-0">{formatTime(h.timestamp)}</span>
                       </div>
                       <div class="flex items-center gap-1.5 pl-[14px]">
                         <span class="text-11-regular text-text-weak">→</span>
                         <span class="text-11-regular text-text-base truncate">
-                          {shortModel(h.toModelId ?? h.modelId)}
+                          {h.toProviderId ?? h.providerId}/{shortModel(h.toModelId ?? h.modelId)}
                         </span>
                         <Show when={h.toAccountId && h.toAccountId !== h.accountId}>
                           <span class="text-11-regular text-text-weak truncate">
@@ -338,9 +309,9 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
                     <div class="flex items-center gap-1.5 py-0.5 px-1">
                       <div class="size-1.5 rounded-full bg-icon-success-base shrink-0" />
                       <span class="text-11-regular text-success truncate flex-1">
-                        {shortModel(h.modelId)}{h.accountId ? ` (${resolveAccountLabel(h.accountId, h.providerId)})` : ""} OK
+                        {h.providerId}/{shortModel(h.modelId)}{h.accountId ? ` (${resolveAccountLabel(h.accountId, h.providerId)})` : ""} OK
                       </span>
-                      <span class="text-11-regular text-text-weak shrink-0">{formatAge(h.timestamp)}</span>
+                      <span class="text-11-regular text-text-weak shrink-0">{formatTime(h.timestamp)}</span>
                     </div>
                   )
                 }
@@ -356,7 +327,7 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
                         }}
                       />
                       <span class="text-11-regular text-text-base truncate flex-1">
-                        {shortModel(h.modelId)}{h.accountId ? ` (${resolveAccountLabel(h.accountId, h.providerId)})` : ""}
+                        {h.providerId}/{shortModel(h.modelId)}{h.accountId ? ` (${resolveAccountLabel(h.accountId, h.providerId)})` : ""}
                       </span>
                       <span
                         classList={{
@@ -367,7 +338,7 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
                       >
                         {h.state === "auth_failed" ? "AUTH" : h.state === "ratelimit" ? "RATE" : "ERR"}
                       </span>
-                      <span class="text-11-regular text-text-weak shrink-0">{formatAge(h.timestamp)}</span>
+                      <span class="text-11-regular text-text-weak shrink-0">{formatTime(h.timestamp)}</span>
                     </div>
                     <Show when={h.message}>
                       <span class="text-11-regular text-text-critical break-words whitespace-pre-wrap pl-[14px]">
