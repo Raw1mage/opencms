@@ -34,6 +34,26 @@ import { TuiEvent } from "../event"
 import { createTimerCoordinator } from "../util/timer-coordinator"
 import { useRoute } from "@tui/context/route"
 
+export type LlmHistoryEntry = {
+  providerId: string
+  modelId: string
+  accountId?: string
+  timestamp: number
+  /** "error" | "ratelimit" | "auth_failed" | "recovered" | "rotated" */
+  state: string
+  message?: string
+  toProviderId?: string
+  toModelId?: string
+  toAccountId?: string
+}
+
+const LLM_HISTORY_CAP = 10
+
+function pushLlmHistory(history: LlmHistoryEntry[], entry: LlmHistoryEntry): LlmHistoryEntry[] {
+  const next = [...history, entry]
+  return next.length > LLM_HISTORY_CAP ? next.slice(-LLM_HISTORY_CAP) : next
+}
+
 export const { use: useSync, provider: SyncProvider } = createSimpleContext({
   name: "Sync",
   init: () => {
@@ -81,6 +101,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       formatter: FormatterStatus[]
       vcs: VcsInfo | undefined
       path: Path
+      llm_history: LlmHistoryEntry[]
     }>({
       provider_next: {
         all: [],
@@ -110,6 +131,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       formatter: [],
       vcs: undefined,
       path: { state: "", config: "", worktree: "", directory: "" },
+      llm_history: [],
     })
 
     const sdk = useSDK()
@@ -526,6 +548,101 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
 
         case "vcs.branch.updated": {
           setStore("vcs", { branch: event.properties.branch })
+          break
+        }
+
+        case "llm.error": {
+          const props = event.properties as {
+            providerId: string
+            modelId: string
+            accountId: string
+            message: string
+            timestamp: number
+          }
+          setStore("llm_history", pushLlmHistory(store.llm_history, {
+            providerId: props.providerId,
+            modelId: props.modelId,
+            timestamp: props.timestamp,
+            state: "error",
+            message: props.message,
+          }))
+          break
+        }
+
+        case "ratelimit.detected": {
+          const props = event.properties as {
+            providerId: string
+            accountId: string
+            modelId: string
+            reason: string
+            backoffMs: number
+            timestamp: number
+          }
+          setStore("llm_history", pushLlmHistory(store.llm_history, {
+            providerId: props.providerId,
+            modelId: props.modelId,
+            timestamp: props.timestamp,
+            state: "ratelimit",
+            message: props.reason,
+          }))
+          break
+        }
+
+        case "ratelimit.cleared": {
+          const props = event.properties as {
+            providerId: string
+            accountId: string
+            modelId: string
+          }
+          setStore("llm_history", pushLlmHistory(store.llm_history, {
+            providerId: props.providerId,
+            modelId: props.modelId,
+            timestamp: Date.now(),
+            state: "recovered",
+          }))
+          break
+        }
+
+        case "ratelimit.auth_failed": {
+          const props = event.properties as {
+            providerId: string
+            accountId: string
+            modelId: string
+            message: string
+            timestamp: number
+          }
+          setStore("llm_history", pushLlmHistory(store.llm_history, {
+            providerId: props.providerId,
+            modelId: props.modelId,
+            timestamp: props.timestamp,
+            state: "auth_failed",
+            message: props.message,
+          }))
+          break
+        }
+
+        case "rotation.executed": {
+          const props = event.properties as {
+            fromProviderId: string
+            fromModelId: string
+            fromAccountId: string
+            toProviderId: string
+            toModelId: string
+            toAccountId: string
+            reason: string
+            timestamp: number
+          }
+          setStore("llm_history", pushLlmHistory(store.llm_history, {
+            providerId: props.fromProviderId,
+            modelId: props.fromModelId,
+            accountId: props.fromAccountId,
+            timestamp: props.timestamp,
+            state: "rotated",
+            message: props.reason,
+            toProviderId: props.toProviderId,
+            toModelId: props.toModelId,
+            toAccountId: props.toAccountId,
+          }))
           break
         }
       }

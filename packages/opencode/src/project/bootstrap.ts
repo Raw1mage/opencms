@@ -23,28 +23,38 @@ export async function InstanceBootstrap() {
   const { Account } = await import("../account")
   await debugSpan("bootstrap", "Account.forceFullMigration", {}, () => Account.forceFullMigration())
 
-  // Clean up duplicate subscription accounts (e.g., same token stored with different IDs)
+  // Clean up duplicate subscription accounts — parallelize across providers
   const families = await Account.listAll()
-  for (const family of Object.keys(families)) {
-    await debugSpan("bootstrap", "Account.deduplicateByToken", { provider: family }, () =>
-      Account.deduplicateByToken(family),
-    )
-  }
+  await Promise.all(
+    Object.keys(families).map((family) =>
+      debugSpan("bootstrap", "Account.deduplicateByToken", { provider: family }, () =>
+        Account.deduplicateByToken(family),
+      ),
+    ),
+  )
 
   Log.Default.info("bootstrapping", { directory: Instance.directory })
-  await debugSpan("bootstrap", "Plugin.init", {}, () => Plugin.init())
-  await debugSpan("bootstrap", "Share.init", {}, () => Share.init())
-  await debugSpan("bootstrap", "ShareNext.init", {}, () => ShareNext.init())
-  await debugSpan("bootstrap", "Format.init", {}, () => Format.init())
-  await debugSpan("bootstrap", "LSP.init", {}, () => LSP.init())
-  await debugSpan("bootstrap", "FileWatcher.init", {}, () => FileWatcher.init())
-  await debugSpan("bootstrap", "File.init", {}, () => File.init())
-  await debugSpan("bootstrap", "Vcs.init", {}, () => Vcs.init())
-  await debugSpan("bootstrap", "WorkspaceService.initEventSubscriptions", {}, () =>
-    Promise.resolve(WorkspaceService.initEventSubscriptions()),
-  )
-  await debugSpan("bootstrap", "Snapshot.init", {}, () => Snapshot.init())
-  await debugSpan("bootstrap", "Truncate.init", {}, () => Truncate.init())
+
+  // Parallelize init calls. Only hard dependency: Vcs requires FileWatcher.
+  await Promise.all([
+    // Group A: independent inits (Bus subscriptions, config reads, schedulers)
+    debugSpan("bootstrap", "Plugin.init", {}, () => Plugin.init()),
+    debugSpan("bootstrap", "Share.init", {}, () => Share.init()),
+    debugSpan("bootstrap", "ShareNext.init", {}, () => ShareNext.init()),
+    debugSpan("bootstrap", "Format.init", {}, () => Format.init()),
+    debugSpan("bootstrap", "LSP.init", {}, () => LSP.init()),
+    debugSpan("bootstrap", "File.init", {}, () => File.init()),
+    debugSpan("bootstrap", "WorkspaceService.initEventSubscriptions", {}, () =>
+      Promise.resolve(WorkspaceService.initEventSubscriptions()),
+    ),
+    debugSpan("bootstrap", "Snapshot.init", {}, () => Snapshot.init()),
+    debugSpan("bootstrap", "Truncate.init", {}, () => Truncate.init()),
+
+    // Group B: FileWatcher → Vcs chain (Vcs subscribes to FileWatcher events)
+    debugSpan("bootstrap", "FileWatcher.init", {}, () => FileWatcher.init()).then(() =>
+      debugSpan("bootstrap", "Vcs.init", {}, () => Vcs.init()),
+    ),
+  ])
 
   Bus.subscribe(Command.Event.Executed, async (payload) => {
     if (payload.properties.name === Command.Default.INIT) {

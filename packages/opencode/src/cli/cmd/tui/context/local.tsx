@@ -773,6 +773,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       model,
       agent,
       mcp,
+      resolveAccountLabel(accountId?: string, providerId?: string) {
+        if (!accountId) return undefined
+        return getAccountLabel(providerId ?? "", accountId, accountId)
+      },
     }
     return result
   },

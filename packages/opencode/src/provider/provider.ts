@@ -73,15 +73,24 @@ export namespace Provider {
     family: string
     reasoning?: boolean
   }> = [
-    // Free tier models (most likely available)
+    // Fast and lightweight
+    { id: "gpt-5.4-mini", name: "GPT-5.4 mini", family: "openai" },
+    { id: "gpt-5-mini", name: "GPT-5 mini", family: "openai" },
+    { id: "grok-code-fast-1", name: "Grok Code Fast 1", family: "xai" },
+    { id: "gemini-3-flash", name: "Gemini 3 Flash", family: "gemini" },
+    // Versatile and highly intelligent
+    { id: "gpt-5.1", name: "GPT-5.1", family: "openai" },
     { id: "claude-haiku-4.5", name: "Claude Haiku 4.5", family: "claude" },
-    { id: "gpt-4o-mini", name: "GPT-4o Mini", family: "openai" },
-    // Pro/Enterprise tier models (may require paid subscription)
-    { id: "claude-sonnet-4", name: "Claude Sonnet 4", family: "claude" },
+    { id: "gpt-5.2", name: "GPT-5.2", family: "openai" },
+    { id: "gpt-4.1", name: "GPT-4.1", family: "openai" },
     { id: "gpt-4o", name: "GPT-4o", family: "openai" },
-    { id: "o1", name: "OpenAI o1", family: "openai", reasoning: true },
-    { id: "o1-mini", name: "OpenAI o1 Mini", family: "openai", reasoning: true },
-    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", family: "gemini" },
+    // Most powerful at complex tasks
+    { id: "gemini-3.1-pro", name: "Gemini 3.1 Pro", family: "gemini" },
+    { id: "gpt-5.2-codex", name: "GPT-5.2-Codex", family: "openai", reasoning: true },
+    { id: "gpt-5.3-codex", name: "GPT-5.3-Codex", family: "openai", reasoning: true },
+    { id: "gpt-5.1-codex-max", name: "GPT-5.1-Codex-Max", family: "openai", reasoning: true },
+    { id: "gemini-3-pro", name: "Gemini 3 Pro", family: "gemini" },
+    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", family: "gemini" },
   ]
 
   /**
@@ -946,8 +955,9 @@ export namespace Provider {
     // Remove legacy 'anthropic' provider entirely to prevent user confusion
     delete database["anthropic"]
 
-    // Inject github-copilot with bundled default models if not in models.dev or if models are empty
-    if (!database["github-copilot"] || Object.keys(database["github-copilot"].models || {}).length === 0) {
+    // Always replace github-copilot models with curated bundled defaults.
+    // models.dev is NOT an official source; dynamic fetch is disabled for non-enterprise.
+    {
       debugCheckpoint("provider", "injecting copilot defaults")
       const copilotModels: Record<string, Model> = {}
       for (const m of GITHUB_COPILOT_DEFAULT_MODELS) {
@@ -963,33 +973,9 @@ export namespace Provider {
           models: copilotModels,
         }
       } else {
-        // Provider exists but has no models - inject bundled models
         database["github-copilot"].models = copilotModels
       }
       log.info("Injected bundled github-copilot models", { count: Object.keys(copilotModels).length })
-    }
-    if (
-      !database["github-copilot-enterprise"] ||
-      Object.keys(database["github-copilot-enterprise"].models || {}).length === 0
-    ) {
-      const copilotModels: Record<string, Model> = {}
-      for (const m of GITHUB_COPILOT_DEFAULT_MODELS) {
-        copilotModels[m.id] = createCopilotModel("github-copilot-enterprise", m)
-      }
-      if (!database["github-copilot-enterprise"]) {
-        database["github-copilot-enterprise"] = {
-          id: "github-copilot-enterprise",
-          source: "custom",
-          name: "GitHub Copilot Enterprise",
-          env: [],
-          options: {},
-          models: copilotModels,
-        }
-      } else {
-        // Provider exists but has no models - inject bundled models
-        database["github-copilot-enterprise"].models = copilotModels
-      }
-      log.info("Injected bundled github-copilot-enterprise models", { count: Object.keys(copilotModels).length })
     }
 
     const disabled = new Set(config.disabled_providers ?? [])
@@ -1646,6 +1632,17 @@ export namespace Provider {
         const copilotProviders = [family, enterpriseProviderID].filter((id) => !disabled.has(id) && providers[id])
 
         for (const copilotID of copilotProviders) {
+          // Non-enterprise github-copilot: use bundled defaults only.
+          // models.dev and api.githubcopilot.com/models both return stale/versioned
+          // variants that pollute the model list. Only enterprise benefits from dynamic fetch.
+          if (copilotID === family) {
+            log.info("Using bundled defaults only for github-copilot (no dynamic fetch)", {
+              count: Object.keys(providers[copilotID]?.models || {}).length,
+            })
+            continue
+          }
+
+          // Enterprise: dynamic fetch to discover org-specific models
           const auth = await Auth.get(copilotID)
           if (!auth || auth.type !== "oauth") continue
 
@@ -1661,19 +1658,20 @@ export namespace Provider {
           debugCheckpoint("provider", "fetching dynamic models end", { copilotID, count: fetchedModels?.length })
 
           if (fetchedModels && fetchedModels.length > 0) {
-            log.info("Fetched dynamic models from provider", {
-              providerId: copilotID,
-              count: fetchedModels.length,
-            })
-
-            // Merge fetched models into provider
+            const fetchedIds = new Set<string>()
             for (const fm of fetchedModels) {
+              if (fetchedIds.has(fm.id)) continue
+              fetchedIds.add(fm.id)
               if (!providers[copilotID].models[fm.id]) {
                 providers[copilotID].models[fm.id] = createCopilotModel(copilotID, fm)
               }
             }
+            log.info("Enterprise copilot models from API", {
+              providerId: copilotID,
+              total: Object.keys(providers[copilotID].models).length,
+            })
           } else {
-            log.info("Using bundled default models for provider", {
+            log.info("Using inherited models for enterprise provider", {
               providerId: copilotID,
               count: Object.keys(providers[copilotID]?.models || {}).length,
             })

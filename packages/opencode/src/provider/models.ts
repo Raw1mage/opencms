@@ -121,6 +121,10 @@ export namespace ModelsDev {
 
   function applyProviderCurations(data: Record<string, Provider>): Record<string, Provider> {
     const curated = structuredClone(data)
+    // models.dev is NOT an official source for github-copilot models.
+    // Bundled defaults in provider.ts are the single source of truth.
+    delete curated["github-copilot"]
+    delete curated["github-copilot-enterprise"]
     for (const [providerId, provider] of Object.entries(curated)) {
       const additions =
         providerId === "openai" ? (OPENAI_RAW_MODEL_ADDITIONS as typeof provider.models) : undefined
@@ -164,6 +168,8 @@ export namespace ModelsDev {
       .catch(() => undefined)
     if (snapshotData) {
       for (const [providerKey, snapshotProvider] of Object.entries(snapshotData)) {
+        // Skip copilot — bundled defaults in provider.ts are the SSOT
+        if (providerKey === "github-copilot" || providerKey === "github-copilot-enterprise") continue
         const existing = data[providerKey]
         if (existing && snapshotProvider.models) {
           for (const [modelId, model] of Object.entries(snapshotProvider.models)) {

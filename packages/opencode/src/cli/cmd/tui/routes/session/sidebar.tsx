@@ -1,5 +1,5 @@
-import { useSync } from "@tui/context/sync"
-import { createMemo, For, Show, Switch, Match } from "solid-js"
+import { useSync, type LlmHistoryEntry } from "@tui/context/sync"
+import { createMemo, createSignal, For, onCleanup, Show, Switch, Match } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useTheme } from "../../context/theme"
 import { Locale } from "@/util/locale"
@@ -53,6 +53,7 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
     diff: false,
     todo: true,
     lsp: true,
+    llm: true,
   })
 
   // Sort MCP servers alphabetically for consistent display order
@@ -139,6 +140,37 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
   const kv = useKV()
   const route = useRoute()
   const local = useLocal()
+
+  // LLM status card — deduplicated history + age ticker
+  const [llmTick, setLlmTick] = createSignal(0)
+  {
+    const id = setInterval(() => setLlmTick((v) => v + 1), 10_000)
+    onCleanup(() => clearInterval(id))
+  }
+
+  const llmHistory = createMemo(() => {
+    const raw = sync.data.llm_history ?? []
+    const deduped: LlmHistoryEntry[] = []
+    for (const entry of raw) {
+      const prev = deduped[deduped.length - 1]
+      if (prev && prev.providerId === entry.providerId && prev.modelId === entry.modelId && prev.accountId === entry.accountId && prev.state === entry.state) continue
+      deduped.push(entry)
+    }
+    return deduped.slice(-5)
+  })
+
+  const formatAge = (timestamp: number) => {
+    llmTick()
+    const ago = Date.now() - timestamp
+    if (ago < 60_000) return `${Math.floor(ago / 1000)}s`
+    if (ago < 3_600_000) return `${Math.floor(ago / 60_000)}m`
+    return `${Math.round((ago / 3_600_000) * 10) / 10}h`
+  }
+
+  const shortModel = (id: string) => {
+    const parts = id.split("/")
+    return parts[parts.length - 1] ?? id
+  }
 
   const monitorStatusColors = {
     busy: theme.success,
@@ -445,6 +477,111 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                 </Show>
               </box>
             </Show>
+            {/* LLM Status Card */}
+            <box>
+              <box flexDirection="row" gap={1} onMouseDown={() => setExpanded("llm", !expanded.llm)}>
+                <text fg={theme.text}>{expanded.llm ? "▼" : "▶"}</text>
+                <text fg={theme.text}>
+                  <b>LLM</b>
+                  <Show when={!expanded.llm}>
+                    {(() => {
+                      const m = local.model.current(props.sessionID)
+                      if (!m) return <span style={{ fg: theme.textMuted }}> (No model)</span>
+                      return (
+                        <span style={{ fg: theme.textMuted }}>
+                          {" "}({shortModel(m.modelID)} <span style={{ fg: theme.success }}>OK</span>)
+                        </span>
+                      )
+                    })()}
+                  </Show>
+                </text>
+              </box>
+              <Show when={expanded.llm}>
+                {(() => {
+                  const currentModel = local.model.current(props.sessionID)
+                  const history = llmHistory()
+                  // Check if the latest history entry is "recovered" for the same model — skip current header to avoid duplication
+                  const lastHistory = history.length > 0 ? history[history.length - 1] : undefined
+                  const currentIsDuplicate = currentModel && lastHistory
+                    && lastHistory.state === "recovered"
+                    && lastHistory.providerId === currentModel.providerId
+                    && lastHistory.modelId === currentModel.modelID
+                  const accountLabel = currentModel
+                    ? local.resolveAccountLabel(currentModel.accountId, currentModel.providerId)
+                    : undefined
+                  return (
+                    <>
+                      <Show when={currentModel && !currentIsDuplicate}>
+                        <text fg={theme.text} wrapMode="word">
+                          <span style={{ fg: theme.success }}>•</span> {currentModel!.providerId}/{shortModel(currentModel!.modelID)}
+                          <Show when={accountLabel}>
+                            {" "}<span style={{ fg: theme.textMuted }}>({accountLabel})</span>
+                          </Show>
+                          {" "}<span style={{ fg: theme.success }}>OK</span>
+                        </text>
+                      </Show>
+                      <Show when={!currentModel}>
+                        <text fg={theme.textMuted}>
+                          <span style={{ fg: theme.warning }}>•</span> No model selected
+                        </text>
+                      </Show>
+                      <Show when={history.length > 0}>
+                        <For each={history}>
+                          {(h) => {
+                            const acct = local.resolveAccountLabel(h.accountId, h.providerId)
+                            const acctSuffix = acct ? ` (${acct})` : ""
+                            if (h.state === "rotated") {
+                              const toAcct = local.resolveAccountLabel(h.toAccountId, h.toProviderId)
+                              return (
+                                <box>
+                                  <text fg={theme.text} wrapMode="word">
+                                    <span style={{ fg: theme.warning }}>•</span> {h.providerId}/{shortModel(h.modelId)}{acctSuffix}{" "}
+                                    <span style={{ fg: theme.warning }}>RATE</span>{" "}
+                                    <span style={{ fg: theme.textMuted }}>{formatAge(h.timestamp)}</span>
+                                  </text>
+                                  <text fg={theme.textMuted} wrapMode="word">
+                                    {"  "}→ {h.toProviderId}/{shortModel(h.toModelId ?? h.modelId)}
+                                    <Show when={toAcct}>
+                                      {" "}({toAcct})
+                                    </Show>
+                                  </text>
+                                </box>
+                              )
+                            }
+                            if (h.state === "recovered") {
+                              return (
+                                <text fg={theme.text} wrapMode="word">
+                                  <span style={{ fg: theme.success }}>•</span> {h.providerId}/{shortModel(h.modelId)}{acctSuffix}{" "}
+                                  <span style={{ fg: theme.success }}>OK</span>{" "}
+                                  <span style={{ fg: theme.textMuted }}>{formatAge(h.timestamp)}</span>
+                                </text>
+                              )
+                            }
+                            // error / ratelimit / auth_failed
+                            const stateColor = h.state === "auth_failed" ? theme.error : theme.warning
+                            const stateLabel = h.state === "auth_failed" ? "AUTH" : h.state === "ratelimit" ? "RATE" : "ERR"
+                            return (
+                              <box>
+                                <text fg={theme.text} wrapMode="word">
+                                  <span style={{ fg: stateColor }}>•</span> {h.providerId}/{shortModel(h.modelId)}{acctSuffix}{" "}
+                                  <span style={{ fg: stateColor }}>{stateLabel}</span>{" "}
+                                  <span style={{ fg: theme.textMuted }}>{formatAge(h.timestamp)}</span>
+                                </text>
+                                <Show when={h.message}>
+                                  <text fg={theme.textMuted} wrapMode="word">
+                                    {"  "}{h.message}
+                                  </text>
+                                </Show>
+                              </box>
+                            )
+                          }}
+                        </For>
+                      </Show>
+                    </>
+                  )
+                })()}
+              </Show>
+            </box>
             <box>
               <box flexDirection="row" gap={1} onMouseDown={() => setExpanded("diff", !expanded.diff)}>
                 <text fg={theme.text}>{expanded.diff ? "▼" : "▶"}</text>
