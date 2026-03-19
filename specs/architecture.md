@@ -18,8 +18,78 @@ OpenCode is a desktop/TUI/Webapp multi-interface platform for interacting with A
 - **`src/auth`**: Identity resolution, OAuth token parsing, high-level API key addition, collision avoidance.
 - **`src/provider`**: Manages active connections to model providers and their runtime instances.
 
+## Account Bus Events
+- **Event Types**: `account.added`, `account.removed`, `account.activated` — defined in `src/bus/index.ts`.
+- **Sanitization**: `sanitizeInfo()` strips secrets (apiKey, refreshToken) before inclusion in bus event payloads.
+- **Mutation Mutex**: All account mutations (`add`, `remove`, `setActive`, `update`) are serialized via an in-process Promise-chain mutex (`withMutex`) in `src/account/index.ts`, preventing concurrent race conditions on `accounts.json`.
+
 ## Data Flow (Account Deletion)
 1. **User Request**: Triggered from TUI/Webapp.
 2. **Optimistic UI**: Component removes account from local state immediately.
 3. **Service Layer**: `Auth.remove()` calls `Account.remove()` (sync disk deletion).
 4. **Background Cleanup**: `Auth.remove()` initiates a non-blocking promise to call `Provider.dispose()` and final disk save.
+5. **Bus Event**: `Account.remove()` publishes `account.removed` via GlobalBus → SSE → all connected clients.
+
+## Daemon Architecture (Multi-User Web Runtime)
+
+### Overview
+The web runtime supports a multi-user deployment model with process-level isolation:
+
+```
+Internet → [C Gateway :1080] → Unix Socket → [Per-User Daemon (uid=user)]
+                                             → [Per-User Daemon (uid=user2)]
+```
+
+### Components
+
+#### C Root Gateway (`daemon/opencode-gateway.c`)
+- Runs as root, listens on TCP port (default :1080)
+- **PAM Authentication**: Validates Linux credentials via `pam_authenticate`
+- **JWT Sessions**: Issues HMAC-SHA256 JWT cookies (uid, username, exp) on successful auth
+- **Per-User Daemon Spawning**: On first auth, `fork() → setgid() → setuid() → exec("opencode serve --unix-socket ...")`
+- **splice() Proxy**: Zero-copy bidirectional forwarding between TCP client and per-user Unix socket using Linux `splice()` with intermediate pipe pairs
+- **Registry**: In-memory UID → (pid, socket_path, state) mapping; SIGCHLD handler cleans up crashed daemons
+- **Login Page**: Serves static HTML login form for unauthenticated requests
+
+#### Per-User Daemon (`opencode serve --unix-socket`)
+- Runs as the authenticated user's UID
+- Listens on Unix socket at `$XDG_RUNTIME_DIR/opencode/daemon.sock`
+- Full opencode server (API + SSE + WebSocket) available over Unix socket
+- **Discovery File**: `$XDG_RUNTIME_DIR/opencode/daemon.json` — contains `{ socketPath, pid, startedAt, version }`
+- **PID File**: `$XDG_RUNTIME_DIR/opencode/daemon.pid` — single-instance guard
+- **Cleanup**: Removes discovery + PID files on SIGTERM/SIGINT/process exit; stale files detected and cleaned by `readDiscovery()`
+- **Idle Timeout**: 120s TCP/Unix socket idle timeout via `Bun.serve({ idleTimeout: 120 })`
+
+#### TUI Attach Mode (`opencode --attach`)
+- Connects to an already-running per-user daemon via Unix socket
+- **Discovery**: Reads `daemon.json`, validates PID alive (`kill -0`)
+- **Custom Fetch**: `createUnixFetch(socketPath)` — routes HTTP requests over Unix socket
+- **Custom SSE**: `createUnixEventSource(socketPath, baseUrl)` — streaming SSE client with manual line parsing over Unix socket fetch
+- **Graceful Disconnect**: Ctrl+C closes SSE (AbortController) without affecting daemon
+- **No Fallback**: `--attach` without a running daemon → error + exit 1 (no silent fallback to worker mode)
+
+### SSE Event ID + Catch-up (Phase ζ)
+- **Global Counter**: Monotonically increasing `_sseCounter` in `src/server/routes/global.ts`
+- **Ring Buffer**: Array of `{ id, event }` entries (MAX_SIZE = 1000)
+- **Reconnect**: Client sends `Last-Event-ID` header → server replays missed events from buffer
+- **Buffer Overflow**: If `lastId` is older than buffer range → server sends `sync.required` event → client does full bootstrap refresh
+
+### Security Migration (Phase δ)
+- **Removed**: `LinuxUserExec`, `buildSudoInvocation`, `opencode-run-as-user.sh`, all sudo wrapper logic
+- **Rationale**: Per-user daemon already runs as the correct UID; shell/PTY commands spawn directly without privilege escalation
+- **Preserved**: Utility functions `sanitizeUsername`, `resolveLinuxUserHome`, `resolveLinuxUserUID` in `src/system/linux-user-exec.ts`
+
+### Performance Hardening (Phase θ)
+- **SDK LRU Cache**: `sdkSet()` in `src/provider/provider.ts` — Map-based FIFO eviction (MAX_SIZE = 50)
+- **Server Idle Timeout**: 120s for both TCP and Unix socket modes
+
+### Deployment (webctl.sh)
+- `compile-gateway`: Compiles `daemon/opencode-gateway.c` via gcc
+- `gateway-start`: Compiles + starts gateway daemon (nohup, PID file tracked)
+- `gateway-stop`: Graceful SIGTERM → wait → SIGKILL fallback
+- `install.sh --system-init`: Installs `opencode-gateway.service` + `opencode-user@.service` systemd units + gateway binary + login page
+- **Coexistence**: Existing `dev-start`/`web-start` commands preserved unchanged; gateway is an additive deployment option
+
+### systemd Units
+- `opencode-gateway.service`: Root-level gateway daemon (`/usr/local/bin/opencode-gateway`)
+- `opencode-user@.service`: Per-user daemon template (`/usr/local/bin/opencode serve --unix-socket ...`)
