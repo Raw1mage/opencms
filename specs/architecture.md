@@ -62,11 +62,17 @@ Internet → [C Gateway :1080] → Unix Socket → [Per-User Daemon (uid=user)]
 
 #### TUI Attach Mode (`opencode --attach`)
 - Connects to an already-running per-user daemon via Unix socket
+- **Auto-Spawn**: If no daemon is discovered, `Daemon.spawn()` launches a detached `opencode serve --unix-socket` child process, polls for `daemon.json` readiness (timeout 10s), then attaches
 - **Discovery**: Reads `daemon.json`, validates PID alive (`kill -0`)
 - **Custom Fetch**: `createUnixFetch(socketPath)` — routes HTTP requests over Unix socket
 - **Custom SSE**: `createUnixEventSource(socketPath, baseUrl)` — streaming SSE client with manual line parsing over Unix socket fetch
 - **Graceful Disconnect**: Ctrl+C closes SSE (AbortController) without affecting daemon
-- **No Fallback**: `--attach` without a running daemon → error + exit 1 (no silent fallback to worker mode)
+
+#### Daemon Coordination (Discovery-First)
+- **Discovery file is truth, in-memory registry is cache**: Both TUI and C gateway use `daemon.json` as the canonical coordination point
+- **TUI auto-spawn**: `--attach` → no daemon → `Daemon.spawn()` → daemon writes `daemon.json` → TUI attaches
+- **Gateway adopt**: On web login, C gateway checks `daemon.json` before spawning a new daemon. If PID alive → adopt into registry → splice proxy. Covers daemons pre-spawned by TUI `--attach`
+- **Race safety**: `daemon.pid` acts as single-instance guard; whoever creates the daemon first wins, latecomers discover and adopt
 
 ### SSE Event ID + Catch-up (Phase ζ)
 - **Global Counter**: Monotonically increasing `_sseCounter` in `src/server/routes/global.ts`

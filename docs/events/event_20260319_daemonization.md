@@ -63,6 +63,12 @@
 - Phase θ: provider.ts 新增 SDK LRU cache (sdkSet, MAX=50)，server.ts idleTimeout 120s
 - Phase ω: webctl.sh 新增 compile_gateway/start_gateway/stop_gateway，install.sh 新增 gateway unit 安裝
 
+**Session 2 (2026-03-19)** — Daemon Auto-Spawn + Gateway Adopt:
+- γ.4b 改為 auto-spawn：`--attach` 找不到 daemon → `Daemon.spawn()` → detached child `opencode serve --unix-socket` → poll discovery file → attach
+- γ.4e 新增 `Daemon.spawn()`：resolve executable（OPENCODE_BIN > Bun.argv[0]）、detached Bun.spawn + unref、poll readDiscovery 150ms interval、timeout 10s
+- α.6e 新增 `try_adopt_from_discovery()`：C gateway 在 `ensure_daemon_running()` fork/exec 前，先讀 `/run/user/<uid>/opencode/daemon.json`（fallback `/tmp/opencode-<uid>/daemon.json`），若 PID alive 則 adopt 進 registry
+- Architecture sync：新增 "Daemon Coordination (Discovery-First)" 章節
+
 **Issues Found**:
 - `Bun.serve()` TypeScript overload mismatch for Unix socket mode → resolved with double-cast
 - C compile error: `DaemonInfo` vs `Connection` struct member access → fixed

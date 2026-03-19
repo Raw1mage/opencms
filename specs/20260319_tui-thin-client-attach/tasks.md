@@ -16,6 +16,7 @@
   - [ ] α.6b 首次 auth → fork() + setgid() + setuid() + exec("opencode serve --unix-socket ...")
   - [ ] α.6c 等待 per-user daemon 的 Unix socket 出現（poll with timeout）
   - [ ] α.6d SIGCHLD handler：偵測 per-user daemon crash → 從 registry 移除
+  - [x] α.6e **Gateway adopt**：spawn 前先讀 discovery file（`/run/user/<uid>/opencode/daemon.json`），若 PID alive 則 adopt 進 registry（支援 TUI --attach 預先啟動的 daemon）
 - [ ] α.7 splice() proxy：
   - [ ] α.7a 連接到 per-user daemon 的 Unix socket
   - [ ] α.7b 建立 pipe pair（splice 需要中繼 pipe）
@@ -60,9 +61,10 @@
   - [ ] γ.3c 確認 SG-3：Bun Unix socket client 可正常運作（待執行時驗證）
 - [x] γ.4 TUI 啟動流程分支（thread.ts）：
   - [x] γ.4a 若 --attach → discoverDaemon() → 取得 socket path
-  - [x] γ.4b --attach 且找不到 daemon → 顯示錯誤訊息 + exit 1（不 fallback）
+  - [x] γ.4b --attach 且找不到 daemon → auto-spawn per-user daemon → 等 discovery ready → attach
   - [x] γ.4c --attach 且找到 → 建立 Unix socket client → attach mode
   - [x] γ.4d 無 --attach → 維持現有 Worker thread 獨立模式（向下相容）
+  - [x] γ.4e Daemon.spawn()：detached child process + poll discovery file + timeout 10s
 - [x] γ.5 Attach mode RPC methods：
   - [x] γ.5a fetch → HTTP request over Unix socket（createUnixFetch）
   - [~] γ.5b server → 回傳 daemon info（attach mode 不需要 server RPC，url 固定）
