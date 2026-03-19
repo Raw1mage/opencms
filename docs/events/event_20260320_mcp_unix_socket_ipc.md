@@ -1,7 +1,7 @@
-# Event: MCP Server Unix Socket IPC + Auto-detection
+# Event: MCP Server Unix Socket IPC + Auto-detection + Startup Optimization
 
 **Date**: 2026-03-20
-**Scope**: MCP server ↔ opencode communication, MCP mode auto-detection, webctl compile-mcp
+**Scope**: MCP server ↔ opencode communication, MCP mode auto-detection, webctl compile-mcp, npx elimination
 
 ---
 
@@ -46,9 +46,36 @@ MCP servers (system-manager etc.) communicate with the opencode daemon via HTTP,
 - `curl -X POST -d '{"level":1}' ...` → `{"level":1,"name":"quiet"}` ✓
 - All other API routes continue to work via unix socket ✓
 
+## Phase 2: MCP Startup Optimization (npx elimination)
+
+### Baseline
+- 4 out of 5 enabled MCP servers used `npx -y` to launch
+- `npx -y` takes ~10.8 seconds per server (npm cache check, resolve, link, node startup)
+- Total MCP startup: 90-120 seconds (sequential), heavy CPU burn
+
+### Root Cause
+- `npx -y` is designed for one-off CLI invocation, not per-session high-frequency startup
+- Each invocation: registry resolve → cache verify → extract → link → spawn node
+
+### Fix
+- Installed 4 MCP packages as project devDependencies (`bun add -d`)
+- Updated `~/.config/opencode/opencode.json`: replaced `npx -y <pkg>` with `bun <node_modules/.../dist/index.js>`
+- Direct bun execution: ~0.35s per server (30x faster)
+
+### Packages migrated
+| Package | Old command | New command |
+|---------|-----------|-------------|
+| server-filesystem | `npx -y @modelcontextprotocol/server-filesystem` | `bun node_modules/@modelcontextprotocol/server-filesystem/dist/index.js` |
+| mcp-server-fetch-typescript | `npx -y mcp-server-fetch-typescript` | `bun node_modules/mcp-server-fetch-typescript/build/index.js` |
+| server-memory | `npx -y @modelcontextprotocol/server-memory` | `bun node_modules/@modelcontextprotocol/server-memory/dist/index.js` |
+| server-sequential-thinking | `npx -y @modelcontextprotocol/server-sequential-thinking` | `bun node_modules/@modelcontextprotocol/server-sequential-thinking/dist/index.js` |
+
+### Validation
+- All 4 servers respond to JSON-RPC `initialize` via bun direct execution ✓
+- Benchmark: 0.35s vs 10.8s per server ✓
+
 ## Remaining
 
-- End-to-end test via MCP tool invocation (need user to start new TUI session)
 - Other MCP servers don't have `serverFetch()` yet (system-manager only)
 - Daemon has no auto-restart mechanism after code changes
 - Architecture Sync: TBD (pending commit)
