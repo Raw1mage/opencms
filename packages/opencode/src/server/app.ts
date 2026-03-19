@@ -661,7 +661,11 @@ api.route("/admin/kill-switch", KillSwitchRoutes())
           beacon.hit("event.publish")
           await stream
             .writeSSE({
-              data: JSON.stringify(event),
+              data: JSON.stringify({
+                type: event.type,
+                properties: event.properties,
+                context: event.context,
+              }),
             })
             .catch(() => {
               // Write failed, stream probably aborted

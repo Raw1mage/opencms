@@ -1,5 +1,6 @@
 import z from "zod"
-import { debugCheckpoint, DEBUG_LOG_PATH } from "./debug"
+import { emitDebug } from "../bus/sink"
+import { DEBUG_LOG_PATH } from "./debug"
 
 export namespace Log {
   export const Level = z.enum(["DEBUG", "INFO", "WARN", "ERROR"]).meta({ ref: "LogLevel", description: "Log level" })
@@ -78,25 +79,25 @@ export namespace Log {
     const result: Logger = {
       debug(message?: any, extra?: Record<string, any>) {
         if (shouldLog("DEBUG")) {
-          debugCheckpoint("log", `DEBUG ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
+          emitDebug("log", `DEBUG ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
           if (printToStderr) process.stderr.write(`DEBUG ${formatMessage(message)}\n`)
         }
       },
       info(message?: any, extra?: Record<string, any>) {
         if (shouldLog("INFO")) {
-          debugCheckpoint("log", `INFO ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
+          emitDebug("log", `INFO ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
           if (printToStderr) process.stderr.write(`INFO  ${formatMessage(message)}\n`)
         }
       },
       error(message?: any, extra?: Record<string, any>) {
         if (shouldLog("ERROR")) {
-          debugCheckpoint("log", `ERROR ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
+          emitDebug("log", `ERROR ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
           if (printToStderr) process.stderr.write(`ERROR ${formatMessage(message)}\n`)
         }
       },
       warn(message?: any, extra?: Record<string, any>) {
         if (shouldLog("WARN")) {
-          debugCheckpoint("log", `WARN ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
+          emitDebug("log", `WARN ${formatMessage(message)}`, extra ? { ...tags, ...extra } : tags)
           if (printToStderr) process.stderr.write(`WARN  ${formatMessage(message)}\n`)
         }
       },

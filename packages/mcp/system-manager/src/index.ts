@@ -480,6 +480,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["sessionID"],
         },
       },
+      {
+        name: "set_log_level",
+        description:
+          "Dynamically set the Bus log level for all subscribers. Takes effect within 5 seconds. Levels: 0=off (all subscribers silent), 1=quiet (debug.log only, no toast), 2=normal (debug.log + toast + card, default), 3=verbose (same as normal, reserved for future expansion). Use 'get' action to read the current level without changing it.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            action: { type: "string", enum: ["set", "get"], description: "set: change level, get: read current level" },
+            level: { type: "number", enum: [0, 1, 2, 3], description: "Log level (required for 'set' action)" },
+          },
+          required: ["action"],
+        },
+      },
     ],
   }
 })
@@ -1089,6 +1102,58 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: `Transcript exported and opened: ${finalPath}` }] }
       } else {
         return { content: [{ type: "text", text: `Transcript saved to: ${finalPath}` }] }
+      }
+    }
+
+    if (name === "set_log_level") {
+      const LEVEL_NAMES: Record<number, string> = { 0: "off", 1: "quiet", 2: "normal", 3: "verbose" }
+      const action = (args as any)?.action ?? "get"
+      const apiBase = await getServerApiBaseUrl()
+      const headers = await getServerRequestHeaders("GET")
+
+      if (action === "get") {
+        try {
+          headers.set("Accept", "application/json")
+          const res = await fetch(`${apiBase}/global/log-level`, { headers })
+          if (res.ok) {
+            const data = (await res.json()) as { level: number; name: string }
+            return {
+              content: [{
+                type: "text",
+                text: `Current log level: ${data.level} (${data.name})\n\nAvailable levels:\n  0 = off (all subscribers silent)\n  1 = quiet (debug.log writes, no toast)\n  2 = normal (debug.log + toast + card)\n  3 = verbose (reserved for future expansion)`,
+              }],
+            }
+          }
+          return { content: [{ type: "text", text: `Error: server returned ${res.status}` }], isError: true }
+        } catch (e: any) {
+          return { content: [{ type: "text", text: `Error: cannot reach server — ${e.message}` }], isError: true }
+        }
+      }
+
+      // action === "set"
+      const level = (args as any)?.level
+      if (level === undefined || level < 0 || level > 3) {
+        return { content: [{ type: "text", text: "Error: level must be 0, 1, 2, or 3" }], isError: true }
+      }
+      try {
+        headers.set("Content-Type", "application/json")
+        const res = await fetch(`${apiBase}/global/log-level`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ level }),
+        })
+        if (res.ok) {
+          const data = (await res.json()) as { level: number; name: string }
+          return {
+            content: [{
+              type: "text",
+              text: `Log level set to ${data.level} (${data.name}). Effective immediately.\n\nLevels:\n  0 = off\n  1 = quiet\n  2 = normal\n  3 = verbose`,
+            }],
+          }
+        }
+        return { content: [{ type: "text", text: `Error: server returned ${res.status}` }], isError: true }
+      } catch (e: any) {
+        return { content: [{ type: "text", text: `Error: cannot reach server — ${e.message}` }], isError: true }
       }
     }
 

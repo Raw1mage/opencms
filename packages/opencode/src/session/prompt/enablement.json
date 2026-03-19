@@ -70,7 +70,8 @@
       "system-manager_manage_session",
       "system-manager_app_control",
       "system-manager_set_ui_config",
-      "system-manager_export_transcript"
+      "system-manager_export_transcript",
+      "system-manager_set_log_level"
     ],
     "fetch_mcp": ["fetch_get_raw_text", "fetch_get_rendered_html", "fetch_get_markdown", "fetch_get_markdown_summary"],
     "memory_mcp": [
@@ -224,6 +225,12 @@
           "Do not silently fallback or guess provider/account/model/session targets."
         ],
         "fallback": ["question"]
+      },
+      {
+        "intent": "log level / debug observability control",
+        "keywords": ["log level", "loglevel", "debug log", "set log", "get log", "verbose", "quiet", "debug mode"],
+        "prefer": ["system-manager_set_log_level"],
+        "fallback": ["bash"]
       },
       {
         "intent": "bounded decisions and disambiguation",

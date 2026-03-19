@@ -32,10 +32,11 @@ import { PrCommand } from "./cli/cmd/pr"
 import { SessionCommand } from "./cli/cmd/session"
 import { AdminCommand } from "./cli/cmd/admin"
 import { KillSwitchCommand } from "./cli/cmd/killswitch"
-import { debugInit, debugCheckpoint } from "./util/debug"
+import { debugCheckpoint } from "./util/debug"
 import { ProcessSupervisor } from "./process/supervisor"
+import { registerDebugWriter } from "./bus/subscribers/debug-writer"
 
-debugInit()
+registerDebugWriter()
 debugCheckpoint("app", "start", { args: process.argv.slice(2) })
 
 process.on("unhandledRejection", (e) => {

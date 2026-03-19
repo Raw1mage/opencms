@@ -4,7 +4,9 @@ import { streamSSE } from "hono/streaming"
 import path from "node:path"
 import z from "zod"
 import { BusEvent } from "@/bus/bus-event"
+import { Bus } from "@/bus"
 import { GlobalBus } from "@/bus/global"
+import { getLogLevel, setLogLevel, LOG_LEVELS, type LogLevel } from "@/bus/log-level"
 import { Instance } from "../../project/instance"
 import { Installation } from "@/installation"
 import { Log } from "../../util/log"
@@ -530,14 +532,57 @@ export const GlobalRoutes = lazy(() =>
       }),
       async (c) => {
         await Instance.disposeAll()
-        GlobalBus.emit("event", {
-          directory: "global",
-          payload: {
-            type: GlobalDisposedEvent.type,
-            properties: {},
-          },
-        })
+        await Bus.publish(GlobalDisposedEvent, {}, { directory: "global" })
         return c.json(true)
+      },
+    )
+    .get(
+      "/log-level",
+      describeRoute({
+        summary: "Get log level",
+        description: "Get the current Bus log level.",
+        operationId: "global.logLevel.get",
+        responses: {
+          200: {
+            description: "Current log level",
+            content: {
+              "application/json": {
+                schema: resolver(z.object({ level: z.number(), name: z.string() })),
+              },
+            },
+          },
+        },
+      }),
+      async (c) => {
+        const level = getLogLevel()
+        return c.json({ level, name: LOG_LEVELS[level] })
+      },
+    )
+    .post(
+      "/log-level",
+      describeRoute({
+        summary: "Set log level",
+        description: "Set the Bus log level dynamically. Takes effect immediately in-process.",
+        operationId: "global.logLevel.set",
+        responses: {
+          200: {
+            description: "Updated log level",
+            content: {
+              "application/json": {
+                schema: resolver(z.object({ level: z.number(), name: z.string() })),
+              },
+            },
+          },
+        },
+      }),
+      validator(
+        "json",
+        z.object({ level: z.number().int().min(0).max(3) }),
+      ),
+      async (c) => {
+        const { level } = c.req.valid("json")
+        setLogLevel(level as LogLevel)
+        return c.json({ level, name: LOG_LEVELS[level as LogLevel] })
       },
     ),
 )

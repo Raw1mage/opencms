@@ -27,7 +27,6 @@ import { Installation } from "@/installation"
 import { ConfigMarkdown } from "./markdown"
 import { constants, existsSync } from "fs"
 import { Bus } from "@/bus"
-import { GlobalBus } from "@/bus/global"
 import { Event } from "../server/event"
 import { Env } from "@/env"
 import { iife } from "@/util/iife"
@@ -1722,13 +1721,7 @@ export namespace Config {
     } catch {
       // Best-effort disposal; still emit disposed event to trigger downstream refresh.
     } finally {
-      GlobalBus.emit("event", {
-        directory: "global",
-        payload: {
-          type: Event.Disposed.type,
-          properties: {},
-        },
-      })
+      await Bus.publish(Event.Disposed, {}, { directory: "global" })
     }
 
     return next

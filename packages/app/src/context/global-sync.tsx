@@ -458,29 +458,46 @@ function createGlobalSync() {
       return
     }
 
-    const exact = children.children[directory]
-    const resolvedDirectory = exact
-      ? directory
-      : Object.keys(children.children).find((key) => normalizeDirectoryKey(key) === directory)
-    if (!resolvedDirectory) return
-
-    const existing = children.children[resolvedDirectory]
-    if (!existing) return
-    children.mark(resolvedDirectory)
-    const [store, setStore] = existing
-    applyDirectoryEvent({
-      event,
-      directory: resolvedDirectory,
-      store,
-      setStore,
-      push: queue.push,
-      vcsCache: children.vcsCache.get(resolvedDirectory),
-      loadLsp: () => {
-        sdkFor(resolvedDirectory)
-          .lsp.status()
-          .then((x) => setStore("lsp", x.data ?? []))
-      },
-    })
+    // Directory-matched dispatch: deliver only to the matching child store.
+    // Falls back to broadcast if no exact match (normalization edge cases).
+    const matched = children.children[directory]
+    if (matched) {
+      children.mark(directory)
+      const [store, setStore] = matched
+      applyDirectoryEvent({
+        event,
+        directory,
+        store,
+        setStore,
+        push: queue.push,
+        vcsCache: children.vcsCache.get(directory),
+        loadLsp: () => {
+          sdkFor(directory)
+            .lsp.status()
+            .then((x) => setStore("lsp", x.data ?? []))
+        },
+      })
+    } else {
+      // Fallback broadcast: normalization mismatch between SSE directory
+      // and child store key (symlinks, trailing slashes, encoding).
+      for (const [dir, child] of Object.entries(children.children)) {
+        children.mark(dir)
+        const [store, setStore] = child
+        applyDirectoryEvent({
+          event,
+          directory: dir,
+          store,
+          setStore,
+          push: queue.push,
+          vcsCache: children.vcsCache.get(dir),
+          loadLsp: () => {
+            sdkFor(dir)
+              .lsp.status()
+              .then((x) => setStore("lsp", x.data ?? []))
+          },
+        })
+      }
+    }
   })
 
   onCleanup(unsub)
