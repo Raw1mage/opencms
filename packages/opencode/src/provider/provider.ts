@@ -2138,7 +2138,7 @@ export namespace Provider {
         name: model.providerId,
         ...sdkOptions,
       })
-      s.sdk.set(key, loaded)
+      s.sdkSet(key, loaded)
       return loaded as SDK
     } catch (e) {
       log.error("getSDK failed", { providerId: model.providerId, modelID: model.id, error: e })
