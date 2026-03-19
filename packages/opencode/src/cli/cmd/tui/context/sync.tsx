@@ -2,6 +2,7 @@ import type {
   Message,
   Agent,
   Provider,
+  File,
   Session,
   Part,
   Config,
@@ -81,6 +82,9 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       session_diff: {
         [sessionID: string]: Snapshot.FileDiff[]
       }
+      workspace_diff: {
+        [sessionID: string]: File[]
+      }
       monitor: SessionMonitorInfo[]
       todo: {
         [sessionID: string]: Todo[]
@@ -121,6 +125,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       session: [],
       session_status: {},
       session_diff: {},
+      workspace_diff: {},
       monitor: [],
       todo: {},
       message: {},
@@ -823,11 +828,13 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         },
         async sync(sessionID: string, options?: { force?: boolean }) {
           if (!options?.force && fullSyncedSessions.has(sessionID)) return
-          const [session, messages, todo, diff] = await Promise.all([
-            sdk.client.session.get({ sessionID }, { throwOnError: true }),
+          const sessionPromise = sdk.client.session.get({ sessionID }, { throwOnError: true })
+          const [session, messages, todo, diff, workspaceDiff] = await Promise.all([
+            sessionPromise,
             sdk.client.session.messages({ sessionID, limit: 100 }),
             sdk.client.session.todo({ sessionID }),
             sdk.client.session.diff({ sessionID }),
+            sessionPromise.then((session) => sdk.client.file.status({ directory: session.data?.directory })),
           ])
           const nextMessages = messages.data ?? []
 
@@ -857,6 +864,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               setStore("part", message.info.id, reconcile(message.parts, { key: "id", merge: true }))
             }
             setStore("session_diff", sessionID, reconcile(diff.data ?? []))
+            setStore("workspace_diff", sessionID, reconcile(workspaceDiff.data ?? []))
           })
           fullSyncedSessions.add(sessionID)
         },

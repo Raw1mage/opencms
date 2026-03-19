@@ -44,7 +44,7 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
   const sync = useSync()
   const { theme } = useTheme()
   const session = createMemo(() => sync.session.get(props.sessionID)!)
-  const diff = createMemo(() => sync.data.session_diff[props.sessionID] ?? [])
+  const diff = createMemo(() => sync.data.workspace_diff[props.sessionID] ?? [])
   const todo = createMemo(() => sync.data.todo[props.sessionID] ?? [])
   const messages = createMemo(() => sync.data.message[props.sessionID] ?? [])
 
@@ -591,7 +591,7 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                 </text>
               </box>
               <Show when={diff().length === 0 && expanded.diff}>
-                <text fg={theme.textMuted}>No session-owned uncommitted files</text>
+                <text fg={theme.textMuted}>No uncommitted workdir files</text>
               </Show>
               <Show when={diff().length > 0 && expanded.diff}>
                 <For each={diff() || []}>
@@ -600,7 +600,7 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                       <box flexDirection="row" gap={1}>
                         <text fg={theme.textMuted}>•</text>
                         <text fg={theme.textMuted} wrapMode="word">
-                          {item.file}
+                          {item.path}
                         </text>
                       </box>
                     )
