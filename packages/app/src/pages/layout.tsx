@@ -203,17 +203,25 @@ export default function Layout(props: ParentProps) {
     setState("hoverProject", undefined)
   })
 
-  createEffect(() => {
-    if (!layout.sidebar.opened()) {
-      setState("openProject", undefined)
-      return
-    }
-    // Only default to currentProject when openProject hasn't been
-    // explicitly set (e.g. by clicking a different project tile).
-    if (state.openProject) return
-    const project = currentProject()
-    if (project?.worktree) setState("openProject", project.worktree)
-  })
+  createEffect(
+    on(
+      () => layout.sidebar.opened(),
+      (opened) => {
+        if (!opened) {
+          setState("openProject", undefined)
+          return
+        }
+        // Only default to currentProject when openProject hasn't been
+        // explicitly set (e.g. by clicking a different project tile).
+        // Using on() ensures state.openProject is NOT tracked, so writing
+        // it from openSidebar() won't re-trigger this effect and get
+        // cleared by the !opened branch.
+        if (state.openProject) return
+        const project = currentProject()
+        if (project?.worktree) setState("openProject", project.worktree)
+      },
+    ),
+  )
 
   createEffect(() => {
     if (state.hoverProject !== undefined) return
