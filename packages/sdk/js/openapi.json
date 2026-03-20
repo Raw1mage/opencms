@@ -280,6 +280,15 @@
                       "type": "string",
                       "const": "controlled_restart"
                     },
+                    "runtimeMode": {
+                      "type": "string",
+                      "enum": [
+                        "dev-source",
+                        "dev-standalone",
+                        "service",
+                        "unknown"
+                      ]
+                    },
                     "probePath": {
                       "type": "string",
                       "const": "/api/v2/global/health"
@@ -289,15 +298,20 @@
                     },
                     "fallbackReloadAfterMs": {
                       "type": "number"
+                    },
+                    "recoveryDeadlineMs": {
+                      "type": "number"
                     }
                   },
                   "required": [
                     "ok",
                     "accepted",
                     "mode",
+                    "runtimeMode",
                     "probePath",
                     "recommendedInitialDelayMs",
-                    "fallbackReloadAfterMs"
+                    "fallbackReloadAfterMs",
+                    "recoveryDeadlineMs"
                   ]
                 }
               }
@@ -319,6 +333,85 @@
                 "schema": {
                   "type": "boolean"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/global/log-level": {
+      "get": {
+        "operationId": "global.logLevel.get",
+        "summary": "Get log level",
+        "description": "Get the current Bus log level.",
+        "responses": {
+          "200": {
+            "description": "Current log level",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "level": {
+                      "type": "number"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "level",
+                    "name"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "global.logLevel.set",
+        "summary": "Set log level",
+        "description": "Set the Bus log level dynamically. Takes effect immediately in-process.",
+        "responses": {
+          "200": {
+            "description": "Updated log level",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "level": {
+                      "type": "number"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "level",
+                    "name"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "level": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 3
+                  }
+                },
+                "required": [
+                  "level"
+                ]
               }
             }
           }
@@ -11912,6 +12005,15 @@
                       "type": "string",
                       "const": "controlled_restart"
                     },
+                    "runtimeMode": {
+                      "type": "string",
+                      "enum": [
+                        "dev-source",
+                        "dev-standalone",
+                        "service",
+                        "unknown"
+                      ]
+                    },
                     "probePath": {
                       "type": "string",
                       "const": "/api/v2/global/health"
@@ -11921,15 +12023,20 @@
                     },
                     "fallbackReloadAfterMs": {
                       "type": "number"
+                    },
+                    "recoveryDeadlineMs": {
+                      "type": "number"
                     }
                   },
                   "required": [
                     "ok",
                     "accepted",
                     "mode",
+                    "runtimeMode",
                     "probePath",
                     "recommendedInitialDelayMs",
-                    "fallbackReloadAfterMs"
+                    "fallbackReloadAfterMs",
+                    "recoveryDeadlineMs"
                   ]
                 }
               }
@@ -11951,6 +12058,85 @@
                 "schema": {
                   "type": "boolean"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/global/log-level": {
+      "get": {
+        "operationId": "global.logLevel.get",
+        "summary": "Get log level",
+        "description": "Get the current Bus log level.",
+        "responses": {
+          "200": {
+            "description": "Current log level",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "level": {
+                      "type": "number"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "level",
+                    "name"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "global.logLevel.set",
+        "summary": "Set log level",
+        "description": "Set the Bus log level dynamically. Takes effect immediately in-process.",
+        "responses": {
+          "200": {
+            "description": "Updated log level",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "level": {
+                      "type": "number"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "level",
+                    "name"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "level": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 3
+                  }
+                },
+                "required": [
+                  "level"
+                ]
               }
             }
           }
@@ -23384,6 +23570,117 @@
           "properties"
         ]
       },
+      "Event.account.added": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "account.added"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "providerKey": {
+                "type": "string"
+              },
+              "accountId": {
+                "type": "string"
+              },
+              "info": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "api",
+                      "subscription"
+                    ]
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "addedAt": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "type",
+                  "name",
+                  "addedAt"
+                ]
+              }
+            },
+            "required": [
+              "providerKey",
+              "accountId",
+              "info"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.account.removed": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "account.removed"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "providerKey": {
+                "type": "string"
+              },
+              "accountId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "providerKey",
+              "accountId"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
+      "Event.account.activated": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "account.activated"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "providerKey": {
+                "type": "string"
+              },
+              "accountId": {
+                "type": "string"
+              },
+              "previousAccountId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "providerKey",
+              "accountId"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
       "Event.installation.updated": {
         "type": "object",
         "properties": {
@@ -28527,6 +28824,23 @@
           "properties"
         ]
       },
+      "Event.sync.required": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "sync.required"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {}
+          }
+        },
+        "required": [
+          "type",
+          "properties"
+        ]
+      },
       "Event": {
         "anyOf": [
           {
@@ -28534,6 +28848,15 @@
           },
           {
             "$ref": "#/components/schemas/Event.server.instance.disposed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.account.added"
+          },
+          {
+            "$ref": "#/components/schemas/Event.account.removed"
+          },
+          {
+            "$ref": "#/components/schemas/Event.account.activated"
           },
           {
             "$ref": "#/components/schemas/Event.installation.updated"
@@ -28705,6 +29028,9 @@
           },
           {
             "$ref": "#/components/schemas/Event.pty.deleted"
+          },
+          {
+            "$ref": "#/components/schemas/Event.sync.required"
           }
         ]
       },

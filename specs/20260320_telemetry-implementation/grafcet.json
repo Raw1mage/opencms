@@ -1,0 +1,50 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Capture Telemetry Intent",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["start"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Plan Prompt Block Telemetry (A111 with telemetry.ts ownership clarity)",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["prompt blocks inventoried"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A12",
+    "StepType": "normal",
+    "StepAction": "Plan Round/Session Telemetry (A112)",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["round boundaries mapped"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A13",
+    "StepType": "normal",
+    "StepAction": "Validate, Handoff & Sidebar Consumption",
+    "LinkInputType": [],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["execution-ready"],
+    "SubGrafcet": []
+  }
+]

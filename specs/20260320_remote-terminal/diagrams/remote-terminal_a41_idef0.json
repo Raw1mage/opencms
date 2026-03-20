@@ -1,0 +1,49 @@
+{
+  "diagram_title": "Bootstrap Remote Agent — A41 Decomposition",
+  "node_reference": "A41",
+  "activities": [
+    {
+      "id": "A411",
+      "title": "Detect Target Platform",
+      "description": "SSH into remote host, run uname to determine OS and CPU architecture",
+      "decomposition": null
+    },
+    {
+      "id": "A412",
+      "title": "Select Agent Binary",
+      "description": "Match detected platform (linux-amd64, linux-arm64, darwin-arm64) to prebuilt Go binary",
+      "decomposition": null
+    },
+    {
+      "id": "A413",
+      "title": "Transfer Binary via SCP",
+      "description": "Upload selected agent binary to remote host at configured agent path",
+      "decomposition": null
+    },
+    {
+      "id": "A414",
+      "title": "Set Execute Permission",
+      "description": "Run chmod +x on uploaded binary via SSH",
+      "decomposition": null
+    },
+    {
+      "id": "A415",
+      "title": "Verify Agent Startup",
+      "description": "Launch agent with --version flag, confirm it runs and reports correct protocol version",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A411:input", "label": "Resolved Target Parameters", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A411:mechanism", "label": "System SSH Binary", "type": "mechanism" },
+    { "id": "AR3", "source": "A411:output", "target": "A412:input", "label": "Detected OS and Architecture", "type": "input" },
+    { "id": "AR4", "source": "EXTERNAL", "target": "A412:control", "label": "Agent Binary Release Manifest", "type": "control" },
+    { "id": "AR5", "source": "A412:output", "target": "A413:input", "label": "Selected Binary Path", "type": "input" },
+    { "id": "AR6", "source": "EXTERNAL", "target": "A413:mechanism", "label": "SCP and Remote Shell", "type": "mechanism" },
+    { "id": "AR7", "source": "EXTERNAL", "target": "A413:control", "label": "Remote Agent Install Path", "type": "control" },
+    { "id": "AR8", "source": "A413:output", "target": "A414:input", "label": "Uploaded Binary Remote Path", "type": "input" },
+    { "id": "AR9", "source": "A414:output", "target": "A415:input", "label": "Executable Binary Ready", "type": "input" },
+    { "id": "AR10", "source": "A415:output", "target": "EXTERNAL", "label": "Installed Agent Binary Path", "type": "output" },
+    { "id": "AR11", "source": "A415:output", "target": "EXTERNAL", "label": "Bootstrap Verification Report", "type": "output" }
+  ]
+}

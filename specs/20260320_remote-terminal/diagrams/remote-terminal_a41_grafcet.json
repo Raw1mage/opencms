@@ -1,0 +1,98 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A411",
+    "StepType": "initial",
+    "StepAction": "Await bootstrap command (opencode remote setup user@host)",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["setup_command_received"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A411",
+    "StepType": "normal",
+    "StepAction": "SSH to remote and run uname -s -m to detect OS and arch",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 7],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["platform_detected", "ssh_connection_failed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A412",
+    "StepType": "normal",
+    "StepAction": "Match platform to prebuilt binary (linux-amd64, linux-arm64, darwin-arm64)",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 7],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["binary_matched", "unsupported_platform"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A413",
+    "StepType": "normal",
+    "StepAction": "SCP binary to remote host at ~/.opencode/bin/opencode-agent",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4, 7],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["transfer_complete", "transfer_failed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A414",
+    "StepType": "normal",
+    "StepAction": "Set execute permission via SSH chmod +x",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["permission_set"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A415",
+    "StepType": "normal",
+    "StepAction": "Run agent --version on remote and verify protocol version match",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6, 7],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["version_ok", "version_mismatch"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A415",
+    "StepType": "normal",
+    "StepAction": "Bootstrap complete — report success with agent path and version",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["report_delivered"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A411",
+    "StepType": "normal",
+    "StepAction": "Report bootstrap failure with step-specific diagnostic",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [1, 2, 3, 5],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["failure_reported"],
+    "SubGrafcet": []
+  }
+]

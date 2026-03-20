@@ -1,0 +1,81 @@
+{
+  "diagram_title": "Telemetry Planning Workflow",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Define Telemetry Requirements",
+      "description": "Map user intent for prompt-block (A111) and round/session (A112) telemetry to runtime files and data fields.",
+      "decomposition": "A11,A12,A13"
+    },
+    {
+      "id": "A11",
+      "title": "Plan Prompt Block Telemetry (A111)",
+      "description": "Document block source, names, inject policy, estimated tokens/length, correlation IDs, and dedicated telemetry entry points that feed `session/telemetry.ts` (the authoritative sink) while keeping `session/monitor.ts` downstream.",
+      "decomposition": null
+    },
+    {
+      "id": "A12",
+      "title": "Plan Round/Session Usage Telemetry (A112)",
+      "description": "Define instrumentation around processor.ts/compaction.ts with sessionId, roundIndex, requestId, provider/account metadata, token breakdowns, and compaction states.",
+      "decomposition": null
+    },
+    {
+      "id": "A13",
+      "title": "Validation, Handoff & Sidebar Consumption",
+      "description": "Align diagrams, tasks, validation plans, and sidebar consumption so telemetry instrumentation (via `session/telemetry.ts`) can be executed with baseline/after evidence, fail-fast controls, and a UI card taxonomy that consumes `session/monitor.ts` outputs.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "Telemetry Request (A111/A112 intent)",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Fail-fast / behavior-preservation constraints",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "A1:output",
+      "target": "EXTERNAL",
+      "label": "Telemetry plan with traceability to A111/A112",
+      "type": "output"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "Planning artifacts, baseline data, diagram tools",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR5",
+      "source": "A11:output",
+      "target": "A12:input",
+      "label": "Prompt block data definitions feed round/session telemetry assumptions",
+      "type": "input"
+    },
+    {
+      "id": "AR6",
+      "source": "A12:output",
+      "target": "A13:input",
+      "label": "Telemetry fields and validation checkpoints",
+      "type": "input"
+    },
+    {
+      "id": "AR7",
+      "source": "A13:output",
+      "target": "EXTERNAL",
+      "label": "Execution-ready plans / diagrams / tasks",
+      "type": "output"
+    }
+  ]
+}

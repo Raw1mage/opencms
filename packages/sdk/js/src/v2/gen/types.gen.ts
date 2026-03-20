@@ -40,6 +40,36 @@ export type EventServerInstanceDisposed = {
   }
 }
 
+export type EventAccountAdded = {
+  type: "account.added"
+  properties: {
+    providerKey: string
+    accountId: string
+    info: {
+      type: "api" | "subscription"
+      name: string
+      addedAt: number
+    }
+  }
+}
+
+export type EventAccountRemoved = {
+  type: "account.removed"
+  properties: {
+    providerKey: string
+    accountId: string
+  }
+}
+
+export type EventAccountActivated = {
+  type: "account.activated"
+  properties: {
+    providerKey: string
+    accountId: string
+    previousAccountId?: string
+  }
+}
+
 export type EventInstallationUpdated = {
   type: "installation.updated"
   properties: {
@@ -1413,9 +1443,19 @@ export type EventPtyDeleted = {
   }
 }
 
+export type EventSyncRequired = {
+  type: "sync.required"
+  properties: {
+    [key: string]: unknown
+  }
+}
+
 export type Event =
   | EventProjectUpdated
   | EventServerInstanceDisposed
+  | EventAccountAdded
+  | EventAccountRemoved
+  | EventAccountActivated
   | EventInstallationUpdated
   | EventInstallationUpdateAvailable
   | EventServerConnected
@@ -1473,6 +1513,7 @@ export type Event =
   | EventPtyUpdated
   | EventPtyExited
   | EventPtyDeleted
+  | EventSyncRequired
 
 export type GlobalEvent = {
   directory: string
@@ -3124,9 +3165,11 @@ export type GlobalWebRestartResponses = {
     ok: true
     accepted: true
     mode: "controlled_restart"
+    runtimeMode: "dev-source" | "dev-standalone" | "service" | "unknown"
     probePath: "/api/v2/global/health"
     recommendedInitialDelayMs: number
     fallbackReloadAfterMs: number
+    recoveryDeadlineMs: number
   }
 }
 
@@ -3147,6 +3190,46 @@ export type GlobalDisposeResponses = {
 }
 
 export type GlobalDisposeResponse = GlobalDisposeResponses[keyof GlobalDisposeResponses]
+
+export type GlobalLogLevelGetData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v2/global/log-level"
+}
+
+export type GlobalLogLevelGetResponses = {
+  /**
+   * Current log level
+   */
+  200: {
+    level: number
+    name: string
+  }
+}
+
+export type GlobalLogLevelGetResponse = GlobalLogLevelGetResponses[keyof GlobalLogLevelGetResponses]
+
+export type GlobalLogLevelSetData = {
+  body?: {
+    level: number
+  }
+  path?: never
+  query?: never
+  url: "/api/v2/global/log-level"
+}
+
+export type GlobalLogLevelSetResponses = {
+  /**
+   * Updated log level
+   */
+  200: {
+    level: number
+    name: string
+  }
+}
+
+export type GlobalLogLevelSetResponse = GlobalLogLevelSetResponses[keyof GlobalLogLevelSetResponses]
 
 export type AuthRemoveData = {
   body?: never
@@ -8153,9 +8236,11 @@ export type GlobalWebRestart2Responses = {
     ok: true
     accepted: true
     mode: "controlled_restart"
+    runtimeMode: "dev-source" | "dev-standalone" | "service" | "unknown"
     probePath: "/api/v2/global/health"
     recommendedInitialDelayMs: number
     fallbackReloadAfterMs: number
+    recoveryDeadlineMs: number
   }
 }
 
@@ -8176,6 +8261,46 @@ export type GlobalDispose2Responses = {
 }
 
 export type GlobalDispose2Response = GlobalDispose2Responses[keyof GlobalDispose2Responses]
+
+export type GlobalLogLevelGet2Data = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/log-level"
+}
+
+export type GlobalLogLevelGet2Responses = {
+  /**
+   * Current log level
+   */
+  200: {
+    level: number
+    name: string
+  }
+}
+
+export type GlobalLogLevelGet2Response = GlobalLogLevelGet2Responses[keyof GlobalLogLevelGet2Responses]
+
+export type GlobalLogLevelSet2Data = {
+  body?: {
+    level: number
+  }
+  path?: never
+  query?: never
+  url: "/global/log-level"
+}
+
+export type GlobalLogLevelSet2Responses = {
+  /**
+   * Updated log level
+   */
+  200: {
+    level: number
+    name: string
+  }
+}
+
+export type GlobalLogLevelSet2Response = GlobalLogLevelSet2Responses[keyof GlobalLogLevelSet2Responses]
 
 export type AuthRemove2Data = {
   body?: never

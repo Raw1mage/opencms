@@ -1,0 +1,49 @@
+{
+  "diagram_title": "Dispatch Tool Execution — A3 Decomposition",
+  "node_reference": "A3",
+  "activities": [
+    {
+      "id": "A31",
+      "title": "Route Tool Call to Backend",
+      "description": "Evaluate session remote target config, select LocalToolBackend or RemoteToolBackend",
+      "decomposition": "A31"
+    },
+    {
+      "id": "A32",
+      "title": "Serialize Tool Request",
+      "description": "Convert tool call parameters to agent JSON protocol message (exec/read/write/glob/git)",
+      "decomposition": null
+    },
+    {
+      "id": "A33",
+      "title": "Transmit Request via Tunnel",
+      "description": "Write serialized JSON to SSH tunnel stdin, await response on stdout",
+      "decomposition": null
+    },
+    {
+      "id": "A34",
+      "title": "Deserialize Tool Response",
+      "description": "Parse agent JSON response, extract result/error/metadata, normalize to local format",
+      "decomposition": null
+    },
+    {
+      "id": "A35",
+      "title": "Deliver Result to Session",
+      "description": "Return normalized tool result to LLM session, indistinguishable from local execution",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A31:input", "label": "LLM Tool Call Request", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A31:input", "label": "Remote Target Config", "type": "input" },
+    { "id": "AR3", "source": "EXTERNAL", "target": "A31:control", "label": "Session Remote Target Flag", "type": "control" },
+    { "id": "AR4", "source": "A31:output", "target": "A32:input", "label": "Routed Tool Call with Backend Selection", "type": "input" },
+    { "id": "AR5", "source": "EXTERNAL", "target": "A32:control", "label": "Agent Protocol Schema", "type": "control" },
+    { "id": "AR6", "source": "A32:output", "target": "A33:input", "label": "Serialized JSON Message", "type": "input" },
+    { "id": "AR7", "source": "EXTERNAL", "target": "A33:input", "label": "Active Tunnel Handle", "type": "input" },
+    { "id": "AR8", "source": "EXTERNAL", "target": "A33:mechanism", "label": "Tool Dispatch Runtime", "type": "mechanism" },
+    { "id": "AR9", "source": "A33:output", "target": "A34:input", "label": "Raw JSON Response from Agent", "type": "input" },
+    { "id": "AR10", "source": "A34:output", "target": "A35:input", "label": "Normalized Tool Result", "type": "input" },
+    { "id": "AR11", "source": "A35:output", "target": "EXTERNAL", "label": "Tool Execution Result", "type": "output" }
+  ]
+}

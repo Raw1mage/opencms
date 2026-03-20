@@ -1,0 +1,56 @@
+{
+  "diagram_title": "Remote Terminal Execution — A0 Context",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Configure Remote Target",
+      "description": "Manage project-level remote target settings (host, user, port, identity file, agent path)",
+      "decomposition": "A1"
+    },
+    {
+      "id": "A2",
+      "title": "Establish SSH Tunnel",
+      "description": "Create, maintain, and reconnect SSH tunnel to remote host on demand (lazy strategy)",
+      "decomposition": "A2"
+    },
+    {
+      "id": "A3",
+      "title": "Dispatch Tool Execution",
+      "description": "Route tool calls to local or remote backend based on session/project config",
+      "decomposition": "A3"
+    },
+    {
+      "id": "A4",
+      "title": "Operate Remote Agent",
+      "description": "Bootstrap, run, extend, and teardown the minimal Go agent binary on the remote host",
+      "decomposition": "A4"
+    },
+    {
+      "id": "A5",
+      "title": "Monitor Connection Health",
+      "description": "Track tunnel liveness, agent heartbeat, latency, and surface status to UI",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "User Remote Target Spec", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A3:input", "label": "LLM Tool Call Request", "type": "input" },
+    { "id": "AR3", "source": "EXTERNAL", "target": "A1:control", "label": "Project Configuration Schema", "type": "control" },
+    { "id": "AR4", "source": "EXTERNAL", "target": "A2:control", "label": "SSH Config and Keys", "type": "control" },
+    { "id": "AR5", "source": "EXTERNAL", "target": "A3:control", "label": "Session Remote Target Flag", "type": "control" },
+    { "id": "AR6", "source": "EXTERNAL", "target": "A4:control", "label": "Agent Binary Release Manifest", "type": "control" },
+    { "id": "AR7", "source": "A1:output", "target": "A2:input", "label": "Resolved Target Parameters", "type": "input" },
+    { "id": "AR8", "source": "A1:output", "target": "A3:input", "label": "Remote Target Config", "type": "input" },
+    { "id": "AR9", "source": "A2:output", "target": "A3:input", "label": "Active Tunnel Handle", "type": "input" },
+    { "id": "AR10", "source": "A3:output", "target": "EXTERNAL", "label": "Tool Execution Result", "type": "output" },
+    { "id": "AR11", "source": "A4:output", "target": "A2:input", "label": "Agent Ready Signal", "type": "input" },
+    { "id": "AR12", "source": "A2:output", "target": "A5:input", "label": "Tunnel State Events", "type": "input" },
+    { "id": "AR13", "source": "A4:output", "target": "A5:input", "label": "Agent Heartbeat Responses", "type": "input" },
+    { "id": "AR14", "source": "A5:output", "target": "EXTERNAL", "label": "Connection Health Status", "type": "output" },
+    { "id": "AR15", "source": "A5:output", "target": "A2:input", "label": "Reconnect Trigger", "type": "input" },
+    { "id": "AR16", "source": "EXTERNAL", "target": "A2:mechanism", "label": "System SSH Binary", "type": "mechanism" },
+    { "id": "AR17", "source": "EXTERNAL", "target": "A3:mechanism", "label": "Tool Dispatch Runtime", "type": "mechanism" },
+    { "id": "AR18", "source": "EXTERNAL", "target": "A4:mechanism", "label": "SCP and Remote Shell", "type": "mechanism" }
+  ]
+}

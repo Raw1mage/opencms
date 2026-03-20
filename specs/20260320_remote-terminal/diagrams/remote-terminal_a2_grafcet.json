@@ -1,0 +1,98 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A21",
+    "StepType": "initial",
+    "StepAction": "Await tunnel establishment trigger (lazy: first tool call)",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["tool_call_requires_remote AND no_active_tunnel"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A21",
+    "StepType": "normal",
+    "StepAction": "Build SSH command arguments from target config",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["ssh_args_ready"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A22",
+    "StepType": "normal",
+    "StepAction": "Fork SSH process with stdio pipes",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 7],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["ssh_process_spawned", "ssh_spawn_failed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A23",
+    "StepType": "normal",
+    "StepAction": "Send protocol handshake to remote agent",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4, 7],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["handshake_ack_received", "handshake_timeout"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A24",
+    "StepType": "normal",
+    "StepAction": "Tunnel active — heartbeat loop running",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5, 6],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["idle_timeout_reached OR session_closed", "heartbeat_failed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A25",
+    "StepType": "normal",
+    "StepAction": "Graceful tunnel teardown — send exit, close SSH process",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["tunnel_closed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A24",
+    "StepType": "normal",
+    "StepAction": "Tunnel stale — kill SSH process and attempt reconnect",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["reconnect_triggered"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A22",
+    "StepType": "normal",
+    "StepAction": "Report tunnel establishment failure",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [2, 3],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["failure_reported"],
+    "SubGrafcet": []
+  }
+]

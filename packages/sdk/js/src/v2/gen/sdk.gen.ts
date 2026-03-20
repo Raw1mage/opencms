@@ -123,6 +123,10 @@ import type {
   GlobalEventResponses,
   GlobalHealth2Responses,
   GlobalHealthResponses,
+  GlobalLogLevelGet2Responses,
+  GlobalLogLevelGetResponses,
+  GlobalLogLevelSet2Responses,
+  GlobalLogLevelSetResponses,
   GlobalWebRestart2Responses,
   GlobalWebRestartResponses,
   InstanceDispose2Responses,
@@ -737,6 +741,80 @@ export class Web extends HeyApiClient {
   }
 }
 
+export class LogLevel extends HeyApiClient {
+  /**
+   * Get log level
+   *
+   * Get the current Bus log level.
+   */
+  public get<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<GlobalLogLevelGetResponses, unknown, ThrowOnError>({
+      url: "/api/v2/global/log-level",
+      ...options,
+    })
+  }
+
+  /**
+   * Set log level
+   *
+   * Set the Bus log level dynamically. Takes effect immediately in-process.
+   */
+  public set<ThrowOnError extends boolean = false>(
+    parameters?: {
+      level?: number
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "body", key: "level" }] }])
+    return (options?.client ?? this.client).post<GlobalLogLevelSetResponses, unknown, ThrowOnError>({
+      url: "/api/v2/global/log-level",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Get log level
+   *
+   * Get the current Bus log level.
+   */
+  public get2<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<GlobalLogLevelGet2Responses, unknown, ThrowOnError>({
+      url: "/global/log-level",
+      ...options,
+    })
+  }
+
+  /**
+   * Set log level
+   *
+   * Set the Bus log level dynamically. Takes effect immediately in-process.
+   */
+  public set2<ThrowOnError extends boolean = false>(
+    parameters?: {
+      level?: number
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "body", key: "level" }] }])
+    return (options?.client ?? this.client).post<GlobalLogLevelSet2Responses, unknown, ThrowOnError>({
+      url: "/global/log-level",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Global extends HeyApiClient {
   /**
    * Get health
@@ -823,6 +901,11 @@ export class Global extends HeyApiClient {
   private _web?: Web
   get web(): Web {
     return (this._web ??= new Web({ client: this.client }))
+  }
+
+  private _logLevel?: LogLevel
+  get logLevel(): LogLevel {
+    return (this._logLevel ??= new LogLevel({ client: this.client }))
   }
 }
 

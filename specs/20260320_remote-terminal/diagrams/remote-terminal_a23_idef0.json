@@ -1,0 +1,40 @@
+{
+  "diagram_title": "Negotiate Agent Handshake — A23 Decomposition",
+  "node_reference": "A23",
+  "activities": [
+    {
+      "id": "A231",
+      "title": "Send Protocol Version Announcement",
+      "description": "Write local protocol version and supported capabilities to tunnel stdin",
+      "decomposition": null
+    },
+    {
+      "id": "A232",
+      "title": "Receive Agent Capability Response",
+      "description": "Read agent's protocol version and supported command set from tunnel stdout",
+      "decomposition": null
+    },
+    {
+      "id": "A233",
+      "title": "Negotiate Capability Intersection",
+      "description": "Compute common capability set between local and remote, flag unsupported commands",
+      "decomposition": null
+    },
+    {
+      "id": "A234",
+      "title": "Confirm Handshake Completion",
+      "description": "Send final ACK with negotiated capability set, transition tunnel to active state",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A231:input", "label": "SSH Process Handle with Stdio Pipes", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A231:control", "label": "Agent Protocol Version", "type": "control" },
+    { "id": "AR3", "source": "A231:output", "target": "A232:input", "label": "Version Announcement Sent", "type": "input" },
+    { "id": "AR4", "source": "A232:output", "target": "A233:input", "label": "Agent Declared Capabilities", "type": "input" },
+    { "id": "AR5", "source": "EXTERNAL", "target": "A233:control", "label": "Required Minimum Capabilities", "type": "control" },
+    { "id": "AR6", "source": "A233:output", "target": "A234:input", "label": "Negotiated Capability Set", "type": "input" },
+    { "id": "AR7", "source": "A234:output", "target": "EXTERNAL", "label": "Established Tunnel Session", "type": "output" },
+    { "id": "AR8", "source": "A233:output", "target": "EXTERNAL", "label": "Capability Mismatch Warnings", "type": "output" }
+  ]
+}

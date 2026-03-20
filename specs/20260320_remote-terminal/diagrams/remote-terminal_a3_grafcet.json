@@ -1,0 +1,98 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A31",
+    "StepType": "initial",
+    "StepAction": "Await tool call from LLM session",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["tool_call_received"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A31",
+    "StepType": "normal",
+    "StepAction": "Evaluate session config — select local or remote backend",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 8],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["remote_target_active", "no_remote_target"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A32",
+    "StepType": "normal",
+    "StepAction": "Serialize tool call to agent JSON protocol",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["message_serialized"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A33",
+    "StepType": "normal",
+    "StepAction": "Write JSON to tunnel stdin, await response on stdout",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4, 6],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["response_received", "tunnel_error OR timeout"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A34",
+    "StepType": "normal",
+    "StepAction": "Parse agent response JSON and normalize to local result format",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["result_normalized"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A35",
+    "StepType": "normal",
+    "StepAction": "Deliver tool result to LLM session",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["result_delivered"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A33",
+    "StepType": "normal",
+    "StepAction": "Construct error result with tunnel diagnostic",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["error_constructed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A31",
+    "StepType": "normal",
+    "StepAction": "Forward tool call to LocalToolBackend (existing path)",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["local_execution_completed"],
+    "SubGrafcet": []
+  }
+]

@@ -1,0 +1,41 @@
+{
+  "diagram_title": "Configure Remote Target — A1 Decomposition",
+  "node_reference": "A1",
+  "activities": [
+    {
+      "id": "A11",
+      "title": "Parse Remote Target Specification",
+      "description": "Extract host, user, port, identity file from user input or project config file",
+      "decomposition": null
+    },
+    {
+      "id": "A12",
+      "title": "Resolve SSH Connection Parameters",
+      "description": "Merge user spec with ~/.ssh/config defaults, resolve host aliases and proxy jumps",
+      "decomposition": null
+    },
+    {
+      "id": "A13",
+      "title": "Validate Remote Reachability",
+      "description": "Test SSH connectivity to resolved target, report latency and auth status",
+      "decomposition": null
+    },
+    {
+      "id": "A14",
+      "title": "Persist Remote Target Config",
+      "description": "Save validated remote target to project config (opencode.json or session override)",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A11:input", "label": "User Remote Target Spec", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A12:control", "label": "SSH Config File", "type": "control" },
+    { "id": "AR3", "source": "EXTERNAL", "target": "A11:control", "label": "Project Configuration Schema", "type": "control" },
+    { "id": "AR4", "source": "A11:output", "target": "A12:input", "label": "Parsed Target Fields", "type": "input" },
+    { "id": "AR5", "source": "A12:output", "target": "A13:input", "label": "Resolved SSH Parameters", "type": "input" },
+    { "id": "AR6", "source": "EXTERNAL", "target": "A13:mechanism", "label": "System SSH Binary", "type": "mechanism" },
+    { "id": "AR7", "source": "A13:output", "target": "A14:input", "label": "Validated Target with Latency", "type": "input" },
+    { "id": "AR8", "source": "A14:output", "target": "EXTERNAL", "label": "Resolved Target Parameters", "type": "output" },
+    { "id": "AR9", "source": "A13:output", "target": "EXTERNAL", "label": "Reachability Report", "type": "output" }
+  ]
+}
