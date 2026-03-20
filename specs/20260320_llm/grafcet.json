@@ -1,0 +1,122 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Establish Planning Baseline",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["plan scope locked and repo evidence available"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Trace Current Context Flow",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["prompt assembly compaction and prune paths identified"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Classify Prompt Governance",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["prompt blocks doc governance and context classes defined"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Define Validation Telemetry",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4, 5],
+    "LinkOutputType": "divergence_and",
+    "Condition": ["kpis baseline method and telemetry plan approved"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Prioritize Low Risk Optimization Slice",
+    "LinkInputType": [],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["low risk candidates and validation gates selected"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Design Context Inspector Sidebar",
+    "LinkInputType": [],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["accordion cards and telemetry ui contract defined"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Choose First Implementation Entry",
+    "LinkInputType": ["convergence_and"],
+    "LinkInputNumber": [4, 5],
+    "LinkOutputNumber": [7, 8],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["start telemetry implementation", "pause for further planning decision"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 7,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Enter Telemetry Implementation Slice",
+    "LinkInputType": [],
+    "LinkInputNumber": [6],
+    "LinkOutputNumber": [9],
+    "LinkOutputType": "track",
+    "Condition": ["telemetry slice approved and execution begins"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 8,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Maintain Planning Contract",
+    "LinkInputType": [],
+    "LinkInputNumber": [6],
+    "LinkOutputNumber": [9],
+    "LinkOutputType": "track",
+    "Condition": ["implementation deferred and plan artifacts synchronized"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 9,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Publish Updated Planning Artifacts",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [7, 8],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["event tasks and diagrams synchronized"],
+    "SubGrafcet": []
+  }
+]

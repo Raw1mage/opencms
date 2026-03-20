@@ -1,0 +1,41 @@
+{
+  "diagram_title": "System Components",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "Target System",
+      "description": "The system being designed or refactored",
+      "external": false
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "Primary Container",
+      "description": "Main runtime container",
+      "technology": "TypeScript",
+      "systemRef": "SYS1"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "Core Component",
+      "description": "Primary component derived from requirement",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": null
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL1",
+      "source": "C1",
+      "target": "SYS1",
+      "description": "Primary interaction",
+      "technology": "function call"
+    }
+  ]
+}

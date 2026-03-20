@@ -1,0 +1,74 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A111",
+    "StepType": "initial",
+    "StepAction": "Start Prompt Token Estimation",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["telemetry instrumentation design begins"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A111",
+    "StepType": "normal",
+    "StepAction": "Estimate Prompt Tokens",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["block level metrics available"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A112",
+    "StepType": "normal",
+    "StepAction": "Record Round Usage",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 4],
+    "LinkOutputType": "divergence_and",
+    "Condition": ["round usage metrics available"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A113",
+    "StepType": "normal",
+    "StepAction": "Compare Benchmark Sessions",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["baseline after comparison complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A114",
+    "StepType": "normal",
+    "StepAction": "Check Validation Gates",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["validation gate decision recorded"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A114",
+    "StepType": "normal",
+    "StepAction": "Publish Validated Telemetry",
+    "LinkInputType": ["convergence_and"],
+    "LinkInputNumber": [3, 4],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["telemetry backbone validated and ready for builder use"],
+    "SubGrafcet": []
+  }
+]

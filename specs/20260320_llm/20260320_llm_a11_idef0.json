@@ -1,0 +1,130 @@
+{
+  "diagram_title": "Measure Telemetry Effects",
+  "node_reference": "A11",
+  "activities": [
+    {
+      "id": "A111",
+      "title": "Estimate Prompt Tokens",
+      "description": "Instrument block-level prompt composition, token estimates, and inject-state visibility.",
+      "decomposition": null
+    },
+    {
+      "id": "A112",
+      "title": "Record Round Usage",
+      "description": "Capture round-level input, output, cache, compaction, and headroom telemetry.",
+      "decomposition": null
+    },
+    {
+      "id": "A113",
+      "title": "Compare Benchmark Sessions",
+      "description": "Replay representative session patterns and compare baseline versus after metrics.",
+      "decomposition": null
+    },
+    {
+      "id": "A114",
+      "title": "Check Validation Gates",
+      "description": "Check token reduction evidence, continuity safety, and no-fallback compliance before execution slices advance.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A111:input",
+      "label": "System Prompt Assembly",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A111:control",
+      "label": "Token Measurement Requirement",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "A111:output",
+      "target": "A112:input",
+      "label": "Prompt Block Metrics",
+      "type": "output"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A112:control",
+      "label": "Compaction And Headroom Metrics Requirement",
+      "type": "control"
+    },
+    {
+      "id": "AR5",
+      "source": "A111:output",
+      "target": "A113:input",
+      "label": "Block Baseline Metrics",
+      "type": "output"
+    },
+    {
+      "id": "AR6",
+      "source": "A112:output",
+      "target": "A113:input",
+      "label": "Round Usage Metrics",
+      "type": "output"
+    },
+    {
+      "id": "AR7",
+      "source": "EXTERNAL",
+      "target": "A113:control",
+      "label": "Representative Session Set",
+      "type": "control"
+    },
+    {
+      "id": "AR8",
+      "source": "A113:output",
+      "target": "A114:input",
+      "label": "Baseline Versus After Evidence",
+      "type": "output"
+    },
+    {
+      "id": "AR9",
+      "source": "EXTERNAL",
+      "target": "A114:control",
+      "label": "Validation Gates No Fallback And Continuity Requirements",
+      "type": "control"
+    },
+    {
+      "id": "AR10",
+      "source": "A114:output",
+      "target": "EXTERNAL",
+      "label": "Validated Telemetry Backbone",
+      "type": "output"
+    },
+    {
+      "id": "AR11",
+      "source": "EXTERNAL",
+      "target": "A111:mechanism",
+      "label": "Telemetry Instrumentation Token Estimator",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR12",
+      "source": "EXTERNAL",
+      "target": "A112:mechanism",
+      "label": "Session Usage Stream Compaction Hooks",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR13",
+      "source": "EXTERNAL",
+      "target": "A113:mechanism",
+      "label": "Benchmark Sessions Comparison Procedure",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR14",
+      "source": "EXTERNAL",
+      "target": "A114:mechanism",
+      "label": "Validation Checklist Planner Contracts",
+      "type": "mechanism"
+    }
+  ]
+}
