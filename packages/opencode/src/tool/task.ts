@@ -818,6 +818,13 @@ export const TaskTool = Tool.define("task", async (ctx) => {
                       action: "deny" as const,
                     },
                   ]),
+              // Subagents trust main agent's delegation — no interactive
+              // external_directory prompts that they cannot answer.
+              {
+                permission: "external_directory" as const,
+                pattern: "*" as const,
+                action: "allow" as const,
+              },
               ...(config.experimental?.primary_tools?.map((t) => ({
                 pattern: "*",
                 action: "allow" as const,
