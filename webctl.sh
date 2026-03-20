@@ -1312,8 +1312,12 @@ do_stop() {
         handled=1
     fi
 
+    # Also kill daemons and flush orphan processes
+    do_daemon_killall
+    do_flush
+
     if [ "${handled}" -eq 0 ]; then
-        log_warn "No active dev or production server found"
+        log_warn "No active dev or production server found (daemons/orphans still cleaned)"
     fi
 }
 
