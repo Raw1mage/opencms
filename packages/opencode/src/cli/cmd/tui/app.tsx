@@ -33,6 +33,7 @@ import { DialogAgent } from "@tui/component/dialog-agent"
 import { DialogSessionList } from "@tui/component/dialog-session-list"
 import { DialogAccount } from "@tui/component/dialog-account"
 import { DialogAdmin } from "@tui/component/dialog-admin"
+import { DialogWorkspace } from "@tui/component/dialog-workspace"
 import { KeybindProvider } from "@tui/context/keybind"
 import { ThemeProvider, useTheme } from "@tui/context/theme"
 import { Home } from "@tui/routes/home"
@@ -646,6 +647,16 @@ function App() {
         dialog.replace(() => <DialogAccount />)
       },
       category: "System",
+    },
+    {
+      title: "Switch workspace",
+      value: "workspace.switch",
+      keybind: "workspace_switch" as const,
+      category: "System",
+      slash: { name: "workspace" },
+      onSelect: () => {
+        dialog.replace(() => <DialogWorkspace />)
+      },
     },
     {
       title: "Admin Panel",

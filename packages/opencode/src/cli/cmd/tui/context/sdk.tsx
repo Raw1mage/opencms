@@ -1,7 +1,7 @@
 import { createOpencodeClient, type Event } from "@opencode-ai/sdk/v2"
 import { createSimpleContext } from "./helper"
 import { createGlobalEmitter } from "@solid-primitives/event-bus"
-import { batch, onCleanup, onMount } from "solid-js"
+import { batch, createSignal, onCleanup, onMount } from "solid-js"
 
 export type EventSource = {
   on: (handler: (event: Event) => void) => () => void
@@ -10,13 +10,19 @@ export type EventSource = {
 export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
   name: "SDK",
   init: (props: { url: string; directory?: string; fetch?: typeof fetch; events?: EventSource }) => {
-    const abort = new AbortController()
-    const sdk = createOpencodeClient({
-      baseUrl: props.url,
-      signal: abort.signal,
-      directory: props.directory,
-      fetch: props.fetch,
-    })
+    const [activeDirectory, setActiveDirectory] = createSignal(props.directory)
+
+    let currentAbort = new AbortController()
+
+    const buildClient = (dir?: string) =>
+      createOpencodeClient({
+        baseUrl: props.url,
+        signal: currentAbort.signal,
+        directory: dir,
+        fetch: props.fetch,
+      })
+
+    const [currentClient, setCurrentClient] = createSignal(buildClient(props.directory))
 
     const emitter = createGlobalEmitter<{
       [key in Event["type"]]: Extract<Event, { type: key }>
@@ -58,24 +64,12 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
       flush()
     }
 
-    onMount(async () => {
-      // If an event source is provided, use it instead of SSE
-      if (props.events) {
-        const unsub = props.events.on(handleEvent)
-        onCleanup(unsub)
-        return
-      }
-
-      // Fall back to SSE
+    // SSE loop — can be (re-)invoked after directory switch
+    const runSSE = async (client: ReturnType<typeof buildClient>, signal: AbortSignal) => {
       while (true) {
-        if (abort.signal.aborted) break
+        if (signal.aborted) break
         try {
-          const events = await sdk.event.subscribe(
-            {},
-            {
-              signal: abort.signal,
-            },
-          )
+          const events = await client.event.subscribe({}, { signal })
 
           for await (const event of events.stream) {
             handleEvent(event)
@@ -88,20 +82,56 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
           }
         } catch (e) {
           // If aborted, just break
-          if (abort.signal.aborted) break
+          if (signal.aborted) break
 
           // Log specific error but don't crash
-          // console.warn("SDK connection error, retrying...", e)
           await new Promise((r) => setTimeout(r, 2000))
         }
       }
+    }
+
+    onMount(async () => {
+      // If an event source is provided, use it instead of SSE
+      if (props.events) {
+        const unsub = props.events.on(handleEvent)
+        onCleanup(unsub)
+        return
+      }
+
+      runSSE(currentClient(), currentAbort.signal)
     })
 
     onCleanup(() => {
-      abort.abort()
+      currentAbort.abort()
       if (timer) clearTimeout(timer)
     })
 
-    return { client: sdk, event: emitter, url: props.url, ready: true }
+    const switchDirectory = (newDir: string) => {
+      // Tear down old connection
+      currentAbort.abort()
+      currentAbort = new AbortController()
+
+      setActiveDirectory(newDir)
+      const next = buildClient(newDir)
+      setCurrentClient(next)
+
+      // Re-establish SSE unless using external event source
+      if (!props.events) {
+        runSSE(next, currentAbort.signal)
+      }
+    }
+
+    return {
+      get client() {
+        return currentClient()
+      },
+      event: emitter,
+      url: props.url,
+      get directory() {
+        return activeDirectory()
+      },
+      switchDirectory,
+      ready: true,
+    }
   },
 })

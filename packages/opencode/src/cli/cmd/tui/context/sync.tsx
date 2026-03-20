@@ -430,15 +430,19 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           break
         }
         case "session.updated": {
-          const result = Binary.search(store.session, event.properties.info.id, (s) => s.id)
+          const info = event.properties.info
+          const dir = sdk.directory
+          const result = Binary.search(store.session, info.id, (s) => s.id)
           if (result.found) {
-            setStore("session", result.index, reconcile(event.properties.info))
+            setStore("session", result.index, reconcile(info))
             break
           }
+          // Only add new sessions that belong to the active directory
+          if (dir && info.directory && info.directory !== dir) break
           setStore(
             "session",
             produce((draft) => {
-              draft.splice(result.index, 0, event.properties.info)
+              draft.splice(result.index, 0, info)
             }),
           )
           break
@@ -674,8 +678,9 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
 
     async function bootstrap() {
       const start = Date.now() - 30 * 24 * 60 * 60 * 1000
+      const directory = sdk.directory
       const sessionListPromise = sdk.client.session
-        .list({ start: start })
+        .list({ start, ...(directory ? { directory } : {}) })
         .then((x) => (x.data ?? []).toSorted((a, b) => a.id.localeCompare(b.id)))
 
       // blocking - include session.list when continuing a session
@@ -779,6 +784,19 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
     onMount(() => {
       bootstrap()
     })
+
+    // Re-bootstrap when SDK directory changes (workspace switch)
+    createEffect(
+      on(
+        () => sdk.directory,
+        (_dir, prevDir) => {
+          // Skip the initial run (handled by onMount bootstrap)
+          if (prevDir === undefined) return
+          fullSyncedSessions.clear()
+          bootstrap()
+        },
+      ),
+    )
 
     createEffect(
       on(
