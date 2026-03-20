@@ -57,6 +57,18 @@ and cascading 504 errors on the web server.
    - Status line now shows how long the subagent has been running (e.g. `Working · 3m · openai/gpt-5.4 · 12 reqs`)
    - Helps users identify stale/stuck subagents
 
+5. **TUI: Session list project prefix** (`dialog-session-list.tsx`)
+   - Root sessions now show `[project] title` prefix
+   - Project name derived from `session.project?.name` → fallback `path.basename(session.directory)`
+   - Only root sessions get the prefix; child sessions inherit parent's category
+
+6. **TUI: Collapsible sub-session trees** (`dialog-session-list.tsx`)
+   - Sub-sessions default to collapsed state
+   - Root sessions with children show ▸/▾ arrow indicator + child count `[N]`
+   - Space key toggles expand/collapse (works on both root and child selection)
+   - Tree lines: `├─` for intermediate, `└─` for last child
+   - Children sorted by creation time (oldest first)
+
 ## Out of Scope
 
 - Project context isolation (workers inherit web server CWD)
@@ -69,6 +81,7 @@ and cascading 504 errors on the web server.
 - Frontend: `vite build` succeeds (12.88s)
 - Code review: all `busy = false` paths have `scheduleIdleReap()`, `assignWorker` has `cancelIdleReap()`
 - Kill button: guarded by `canAbort()` — only for sub-session/sub-agent with non-idle status
+- TUI session list: `bun build --no-bundle` passes; project prefix uses directory basename fallback (SDK Session type has no `project` field)
 
 ## Architecture Sync
 
