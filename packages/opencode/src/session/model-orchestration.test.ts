@@ -68,208 +68,122 @@ describe("session model orchestration", () => {
     ).toBe(false)
   })
 
-  it("preserves explicit and agent model precedence before scored fallback", async () => {
+  it("always inherits parent model (no scoring, no downgrade)", async () => {
+    const result = await selectOrchestratedModel({
+      agentName: "coding",
+      fallbackModel: { providerId: "anthropic", modelID: "claude-opus-4-5", accountId: "acct-1" },
+      selectModel: async () => ({
+        providerId: "anthropic",
+        modelID: "claude-sonnet-4-5",
+        accountId: "acct-1",
+      }),
+    })
+    expect(result).toEqual({
+      providerId: "anthropic",
+      modelID: "claude-opus-4-5",
+      accountId: "acct-1",
+    })
+  })
+
+  it("allows explicit model override only if same provider+account", async () => {
+    // Same provider — allowed
     await expect(
       selectOrchestratedModel({
         agentName: "coding",
         explicitModel: { providerId: "openai", modelID: "gpt-5" },
-        agentModel: { providerId: "google", modelID: "gemini-2.5-pro" },
-        fallbackModel: { providerId: "anthropic", modelID: "claude-sonnet-4-5" },
-        selectModel: async () => ({
-          providerId: "google",
-          modelID: "gemini-2.5-pro",
-          accountId: "public",
-        }),
+        fallbackModel: { providerId: "openai", modelID: "gpt-5.4", accountId: "acct-session" },
       }),
-    ).resolves.toEqual({ providerId: "openai", modelID: "gpt-5" })
+    ).resolves.toEqual({ providerId: "openai", modelID: "gpt-5", accountId: "acct-session" })
 
+    // Different provider — rejected, falls back to parent
     await expect(
       selectOrchestratedModel({
         agentName: "coding",
-        agentModel: { providerId: "google", modelID: "gemini-2.5-pro" },
-        fallbackModel: { providerId: "anthropic", modelID: "claude-sonnet-4-5" },
-        selectModel: async () => ({
-          providerId: "openai",
-          modelID: "gpt-5",
-          accountId: "public",
-        }),
+        explicitModel: { providerId: "github-copilot", modelID: "gpt-5" },
+        fallbackModel: { providerId: "openai", modelID: "gpt-5.4", accountId: "acct-session" },
       }),
-    ).resolves.toEqual({ providerId: "google", modelID: "gemini-2.5-pro" })
+    ).resolves.toEqual({ providerId: "openai", modelID: "gpt-5.4", accountId: "acct-session" })
   })
 
-  it("uses scored fallback when no explicit or agent model is pinned", async () => {
+  it("allows agent pinned model only if same provider+account", async () => {
+    // Same provider — allowed
+    await expect(
+      selectOrchestratedModel({
+        agentName: "coding",
+        agentModel: { providerId: "openai", modelID: "gpt-5" },
+        fallbackModel: { providerId: "openai", modelID: "gpt-5.4", accountId: "acct-session" },
+      }),
+    ).resolves.toEqual({ providerId: "openai", modelID: "gpt-5", accountId: "acct-session" })
+
+    // Different provider — rejected
     await expect(
       selectOrchestratedModel({
         agentName: "docs",
-        fallbackModel: { providerId: "openai", modelID: "gpt-5" },
-        selectModel: async () => ({
-          providerId: "anthropic",
-          modelID: "claude-opus-4-5",
-          accountId: "team-a",
-        }),
+        agentModel: { providerId: "anthropic", modelID: "claude-opus-4-5" },
+        fallbackModel: { providerId: "openai", modelID: "gpt-5", accountId: "acct-session" },
       }),
-    ).resolves.toEqual({
-      providerId: "anthropic",
-      modelID: "claude-opus-4-5",
-      accountId: "team-a",
-    })
+    ).resolves.toEqual({ providerId: "openai", modelID: "gpt-5", accountId: "acct-session" })
   })
 
-  it("falls back to the caller model when the scored candidate is not operational", async () => {
+  it("rejects cross-account explicit model", async () => {
     await expect(
       selectOrchestratedModel({
-        agentName: "coding",
-        fallbackModel: { providerId: "openai", modelID: "gpt-5" },
-        selectModel: async () => ({
-          providerId: "anthropic",
-          modelID: "claude-opus-4-5",
-          accountId: "team-a",
-        }),
-        isOperationalModel: async (model) => model.providerId === "openai",
-        findOperationalFallback: async () => null,
-      }),
-    ).resolves.toEqual({
-      providerId: "openai",
-      modelID: "gpt-5",
-    })
-  })
-
-  it("uses rotation fallback rescue when both scored and current models are unhealthy", async () => {
-    await expect(
-      selectOrchestratedModel({
-        agentName: "review",
-        fallbackModel: { providerId: "openai", modelID: "gpt-5" },
-        selectModel: async () => ({
-          providerId: "anthropic",
-          modelID: "claude-opus-4-5",
-          accountId: "team-a",
-        }),
-        isOperationalModel: async () => false,
-        findOperationalFallback: async () => ({
-          providerId: "google",
-          modelID: "gemini-2.5-pro",
-          accountId: "team-b",
-        }),
-      }),
-    ).resolves.toEqual({
-      providerId: "google",
-      modelID: "gemini-2.5-pro",
-      accountId: "team-b",
-    })
-  })
-
-  it("preserves accountId in explicit arbitration traces when provider/account stay pinned", async () => {
-    await expect(
-      orchestrateModelSelection({
-        agentName: "coding",
-        explicitModel: { providerId: "openai", modelID: "gpt-5", accountId: "acct-explicit" },
-        fallbackModel: { providerId: "openai", modelID: "gpt-5.4", accountId: "acct-session" },
-      }),
-    ).resolves.toEqual({
-      model: { providerId: "openai", modelID: "gpt-5", accountId: "acct-session" },
-      trace: {
-        agentName: "coding",
-        domain: "coding",
-        selected: { providerId: "openai", modelID: "gpt-5", accountId: "acct-session", source: "explicit" },
-        candidates: [{ providerId: "openai", modelID: "gpt-5", accountId: "acct-session", source: "explicit" }],
-      },
-    })
-  })
-
-  it("forces fallback accountId for same-provider explicit models", async () => {
-    await expect(
-      orchestrateModelSelection({
         agentName: "coding",
         explicitModel: { providerId: "openai", modelID: "gpt-5", accountId: "acct-other" },
         fallbackModel: { providerId: "openai", modelID: "gpt-5.4", accountId: "acct-session" },
       }),
-    ).resolves.toEqual({
-      model: { providerId: "openai", modelID: "gpt-5", accountId: "acct-session" },
-      trace: {
-        agentName: "coding",
-        domain: "coding",
-        selected: { providerId: "openai", modelID: "gpt-5", accountId: "acct-session", source: "explicit" },
-        candidates: [{ providerId: "openai", modelID: "gpt-5", accountId: "acct-session", source: "explicit" }],
-      },
-    })
+    ).resolves.toEqual({ providerId: "openai", modelID: "gpt-5.4", accountId: "acct-session" })
   })
 
-  it("does not inherit fallback accountId across different providerIds", async () => {
-    await expect(
-      orchestrateModelSelection({
-        agentName: "coding",
-        explicitModel: { providerId: "github-copilot", modelID: "gpt-5" },
-        fallbackModel: { providerId: "openai", modelID: "gpt-5.4", accountId: "acct-session" },
-        isOperationalModel: async () => true,
-      }),
-    ).resolves.toEqual({
-      model: { providerId: "openai", modelID: "gpt-5.4", accountId: "acct-session" },
-      trace: {
-        agentName: "coding",
-        domain: "coding",
-        selected: { providerId: "openai", modelID: "gpt-5.4", accountId: "acct-session", source: "fallback" },
-        candidates: [
-          {
-            providerId: "openai",
-            modelID: "gpt-5.4",
-            accountId: "acct-session",
-            source: "fallback",
-            operational: true,
-          },
-        ],
-      },
+  it("forces parent accountId on same-provider explicit models", async () => {
+    const result = await orchestrateModelSelection({
+      agentName: "coding",
+      explicitModel: { providerId: "openai", modelID: "gpt-5" },
+      fallbackModel: { providerId: "openai", modelID: "gpt-5.4", accountId: "acct-session" },
     })
+    expect(result.model.accountId).toBe("acct-session")
+    expect(result.trace.selected.source).toBe("explicit")
   })
 
-  it("refuses cross-provider scored candidates when session account is pinned", async () => {
-    await expect(
-      selectOrchestratedModel({
-        agentName: "docs",
-        fallbackModel: { providerId: "openai", modelID: "gpt-5", accountId: "acct-session" },
-        selectModel: async () => ({
-          providerId: "anthropic",
-          modelID: "claude-opus-4-5",
-          accountId: "team-a",
-        }),
-        isOperationalModel: async () => true,
-      }),
-    ).resolves.toEqual({
-      providerId: "openai",
-      modelID: "gpt-5",
-      accountId: "acct-session",
+  it("produces parent_inherit trace when no overrides", async () => {
+    const result = await orchestrateModelSelection({
+      agentName: "docs",
+      fallbackModel: { providerId: "openai", modelID: "gpt-5", accountId: "acct-1" },
     })
-  })
-
-  it("produces a readable arbitration trace for downstream UI", async () => {
-    await expect(
-      orchestrateModelSelection({
-        agentName: "docs",
-        fallbackModel: { providerId: "openai", modelID: "gpt-5" },
-        selectModel: async () => ({
-          providerId: "anthropic",
-          modelID: "claude-opus-4-5",
-          accountId: "team-a",
-        }),
-        isOperationalModel: async (model) => model.providerId === "openai",
-        findOperationalFallback: async () => ({ providerId: "google", modelID: "gemini-2.5-pro", accountId: "team-b" }),
-      }),
-    ).resolves.toEqual({
-      model: { providerId: "openai", modelID: "gpt-5" },
+    expect(result).toEqual({
+      model: { providerId: "openai", modelID: "gpt-5", accountId: "acct-1" },
       trace: {
         agentName: "docs",
         domain: "docs",
-        selected: { providerId: "openai", modelID: "gpt-5", source: "fallback" },
+        selected: { providerId: "openai", modelID: "gpt-5", accountId: "acct-1", source: "parent_inherit" },
         candidates: [
-          {
-            providerId: "anthropic",
-            modelID: "claude-opus-4-5",
-            accountId: "team-a",
-            source: "scored",
-            operational: false,
-          },
-          { providerId: "openai", modelID: "gpt-5", source: "fallback", operational: true },
+          { providerId: "openai", modelID: "gpt-5", accountId: "acct-1", source: "parent_inherit", operational: true },
         ],
       },
+    })
+  })
+
+  it("ignores scoring and rotation entirely", async () => {
+    // Even with a scoring function that returns a different model, parent wins
+    const result = await selectOrchestratedModel({
+      agentName: "review",
+      fallbackModel: { providerId: "openai", modelID: "gpt-5", accountId: "acct-1" },
+      selectModel: async () => ({
+        providerId: "openai",
+        modelID: "gpt-3.5-turbo",
+        accountId: "acct-1",
+      }),
+      isOperationalModel: async () => true,
+      findOperationalFallback: async () => ({
+        providerId: "google",
+        modelID: "gemini-2.5-pro",
+        accountId: "team-b",
+      }),
+    })
+    expect(result).toEqual({
+      providerId: "openai",
+      modelID: "gpt-5",
+      accountId: "acct-1",
     })
   })
 })

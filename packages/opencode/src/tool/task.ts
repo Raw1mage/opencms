@@ -22,7 +22,9 @@ import { Todo } from "@/session/todo"
 import { ActivityBeacon } from "@/util/activity-beacon"
 import { BusEvent } from "@/bus/bus-event"
 import { Lock } from "@/util/lock"
-import { orchestrateModelSelection } from "@/session/model-orchestration"
+import { Global } from "@/global"
+import path from "path"
+// Note: orchestrateModelSelection no longer used — subagent validates model against registry directly
 
 // NOTE: @event_task_tool_complex_input
 // Updated schema to support both simple string and complex structured input.
@@ -51,7 +53,7 @@ const parameters = z.object({
   subagent_type: z.string().describe("The type of specialized agent to use for this task"),
   session_id: z.string().describe("Existing Task session to continue").optional(),
   command: z.string().describe("The command that triggered this task").optional(),
-  model: z.string().describe("Optional model ID to use for this task (e.g. 'openai/gpt-5.1-codex-mini')").optional(),
+  model: z.string().describe("Optional model override (must exist in user's available model list). Omit to inherit parent session model.").optional(),
   account_id: z.string().describe("Optional account ID to pin for this task model").optional(),
 })
 
@@ -755,8 +757,8 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         debugCheckpoint("task", "Task tool execute started", {
           description: params.description,
           subagent_type: params.subagent_type,
-          model_param: params.model,
           session_id: params.session_id,
+          model_param: params.model,
         })
 
         const config = await Config.get()
@@ -843,42 +845,59 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         const parentSession = await Session.get(ctx.sessionID).catch(() => undefined)
         const pinnedExecution = parentSession?.execution
 
-        const modelArg = params.model
-          ? {
-              ...Provider.parseModel(params.model),
-              accountId: params.account_id,
+        // Parent model = session identity baseline
+        const parentModel = pinnedExecution
+          ? { modelID: pinnedExecution.modelID, providerId: pinnedExecution.providerId, accountId: pinnedExecution.accountId }
+          : { modelID: msg.info.modelID, providerId: msg.info.providerId, accountId: "accountId" in msg.info ? (msg.info as any).accountId : undefined }
+
+        // Validate LLM-specified model against user's visible model list (favorites).
+        // Only models the user has explicitly enabled are allowed.
+        let model = parentModel
+        let modelSource = pinnedExecution ? "pinned_execution" : "message_model"
+        if (params.model) {
+          const parsed = Provider.parseModel(params.model)
+          const modelKey = `${parsed.providerId}/${parsed.modelID}`
+          // Load user's favorite/visible model list
+          let allowed: Set<string> | undefined
+          try {
+            const modelFile = Bun.file(path.join(Global.Path.state, "model.json"))
+            if (await modelFile.exists()) {
+              const modelData = await modelFile.json()
+              const favorites: Array<{ providerId: string; modelID: string }> = modelData.favorite ?? []
+              if (favorites.length > 0) {
+                allowed = new Set(favorites.map((f) => `${f.providerId}/${f.modelID}`))
+              }
             }
-          : undefined
-        const fallbackModel = {
-          modelID: pinnedExecution?.modelID ?? msg.info.modelID,
-          providerId: pinnedExecution?.providerId ?? msg.info.providerId,
-          accountId: pinnedExecution?.accountId ?? ("accountId" in msg.info ? msg.info.accountId : undefined),
+          } catch { /* ignore read errors */ }
+
+          if (allowed && !allowed.has(modelKey)) {
+            // LLM specified a model not in user's visible list — reject
+            debugCheckpoint("syslog.subagent", "task: explicit model rejected (not in user's visible list)", {
+              requested: modelKey,
+              allowedCount: allowed.size,
+              fallback: parentModel,
+            })
+          } else if (parsed.providerId !== parentModel.providerId) {
+            // Cross-provider — reject
+            debugCheckpoint("syslog.subagent", "task: explicit model rejected (cross-provider)", {
+              requested: modelKey,
+              parentProvider: parentModel.providerId,
+            })
+          } else {
+            model = { ...parsed, accountId: parentModel.accountId }
+            modelSource = "explicit_validated"
+          }
         }
 
-        // SYSLOG: Log subagent account inheritance chain (Bug #1 & #3)
-        debugCheckpoint("syslog.subagent", "task: subagent account inheritance", {
+        debugCheckpoint("syslog.subagent", "task: subagent model resolved", {
           parentSessionID: ctx.sessionID,
           childSessionID: session.id,
           agentName: agent.name,
-          parentPinnedExecution: pinnedExecution,
-          parentMessageModel: {
-            modelID: msg.info.modelID,
-            providerId: msg.info.providerId,
-            accountId: "accountId" in msg.info ? msg.info.accountId : undefined,
-          },
-          resolvedFallbackModel: fallbackModel,
-          explicitModelArg: modelArg,
-          agentModel: agent.model,
-          note: "check if child inherits correct accountId from parent or gets unexpected account",
+          parentModel,
+          resolvedModel: model,
+          source: modelSource,
+          llmRequested: params.model ?? "none",
         })
-
-        const arbitration = await orchestrateModelSelection({
-          agentName: agent.name,
-          explicitModel: modelArg,
-          agentModel: agent.model,
-          fallbackModel,
-        })
-        const model = arbitration.model
 
         // FIX: Pin execution identity on child session immediately so the
         // worker process inherits the correct provider/account and does not
@@ -898,10 +917,10 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           childSessionID: session.id,
           agentName: agent.name,
           selectedModel: model,
-          selectedSource: arbitration.trace.selected.source,
-          parentAccountId: fallbackModel.accountId,
+          selectedSource: modelSource,
+          parentAccountId: parentModel.accountId,
           childAccountId: model.accountId,
-          accountMismatch: fallbackModel.accountId !== model.accountId,
+          accountMismatch: parentModel.accountId !== model.accountId,
           pinnedToChild: true,
         })
         linkedTodo =
@@ -909,11 +928,10 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           (await Todo.get(ctx.sessionID)).find((todo) => todo.status === "pending")
 
         debugCheckpoint("task", "Model resolved for subagent", {
-          modelArg,
-          agentModel: agent.model,
-          parentModel: { modelID: msg.info.modelID, providerId: msg.info.providerId },
-          pinnedExecution,
+          llmRequested: params.model,
+          parentModel,
           finalModel: model,
+          source: modelSource,
         })
         mark("model_resolved", { providerId: model.providerId, modelID: model.modelID })
 
@@ -922,7 +940,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           metadata: {
             sessionId: session.id,
             model,
-            modelArbitration: arbitration.trace,
+            modelSource,
             todo: linkedTodo
               ? {
                   id: linkedTodo.id,
@@ -1038,9 +1056,11 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         }
         ctx.abort.addEventListener("abort", cleanup)
 
-        // Default timeout: 10 minutes per subagent execution
-        // This prevents zombie processes that hang indefinitely
-        const SUBAGENT_TIMEOUT_MS = config.experimental?.task_timeout ?? 10 * 60 * 1000
+        // Activity-based timeout: subagent stays alive as long as it's working.
+        // Only times out after INACTIVITY_TIMEOUT_MS of no heartbeat/events.
+        // Hard cap (MAX_EXECUTION_MS) prevents truly runaway processes.
+        const INACTIVITY_TIMEOUT_MS = config.experimental?.task_timeout ?? 3 * 60 * 1000 // 3 min no activity = dead
+        const MAX_EXECUTION_MS = 60 * 60 * 1000 // 1 hour hard cap
 
         // Activity tracking strategy (v2): heartbeat/event-first with low-frequency storage fallback.
         // Keep orphan/zombie safety by preserving stale detection + supervisor stall markers.
@@ -1111,9 +1131,17 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         }, HEARTBEAT_INTERVAL_MS)
 
         try {
-          // Race between process exit and timeout
+          // Activity-based timeout: polls inactivity instead of absolute deadline.
+          // Worker stays alive as long as heartbeats/events keep flowing.
           const timeoutPromise = new Promise<"timeout">((resolve) => {
-            setTimeout(() => resolve("timeout"), SUBAGENT_TIMEOUT_MS)
+            const checkInterval = setInterval(() => {
+              const inactiveMs = Date.now() - lastActivityTime
+              const totalMs = Date.now() - startedAt
+              if (inactiveMs > INACTIVITY_TIMEOUT_MS || totalMs > MAX_EXECUTION_MS) {
+                clearInterval(checkInterval)
+                resolve("timeout")
+              }
+            }, 5_000) // Check every 5s
           })
 
           const result = await Promise.race([
@@ -1132,11 +1160,18 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           ])
 
           if (result === "timeout") {
-            mark("timed_out", { stage: stageOnTimeout(), timeoutMs: SUBAGENT_TIMEOUT_MS })
-            Log.create({ service: "task" }).error("Subagent execution timed out, killing process", {
+            const inactiveMs = Date.now() - lastActivityTime
+            const totalMs = Date.now() - startedAt
+            const reason = totalMs > MAX_EXECUTION_MS ? "hard_cap" : "inactivity"
+            mark("timed_out", { stage: stageOnTimeout(), reason, inactiveMs, totalMs })
+            Log.create({ service: "task" }).error("Subagent execution timed out", {
               callID: ctx.callID,
               sessionID: session.id,
-              timeoutMs: SUBAGENT_TIMEOUT_MS,
+              reason,
+              inactiveMs,
+              totalMs,
+              inactivityThresholdMs: INACTIVITY_TIMEOUT_MS,
+              hardCapMs: MAX_EXECUTION_MS,
               timeoutStage: stageOnTimeout(),
               elapsedMs: elapsedFromStart(),
               workerID: assignedWorkerID,
@@ -1148,7 +1183,11 @@ export const TaskTool = Tool.define("task", async (ctx) => {
               })(),
             })
             SessionPrompt.cancel(session.id)
-            throw new Error(`Subagent execution timed out after ${SUBAGENT_TIMEOUT_MS / 1000} seconds`)
+            throw new Error(
+              reason === "hard_cap"
+                ? `Subagent execution hit hard cap after ${Math.round(totalMs / 1000)}s`
+                : `Subagent execution timed out after ${Math.round(inactiveMs / 1000)}s of inactivity`,
+            )
           }
           if (result.type === "done" && result.run.firstEventAt) {
             marks.set("first_bridge_event", result.run.firstEventAt)

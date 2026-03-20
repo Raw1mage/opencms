@@ -39,104 +39,6 @@ function purposeForAgent(agentName: string): RotationPurpose {
   return "coding"
 }
 
-function inheritAccountId<T extends { providerId: string; modelID: string; accountId?: string }>(
-  model: T,
-  fallbackModel: { providerId: string; modelID: string; accountId?: string },
-): T {
-  if (!fallbackModel.accountId) return model
-  if (model.providerId !== fallbackModel.providerId) return model
-  return {
-    ...model,
-    accountId: fallbackModel.accountId,
-  }
-}
-
-function constrainToSessionIdentity<T extends { providerId: string; modelID: string; accountId?: string }>(
-  model: T,
-  fallbackModel: { providerId: string; modelID: string; accountId?: string },
-): T | undefined {
-  const inherited = inheritAccountId(model, fallbackModel)
-  if (!fallbackModel.accountId) return inherited
-  if (inherited.providerId !== fallbackModel.providerId) {
-    // SYSLOG: Subagent cross-provider blocked
-    debugCheckpoint("syslog.subagent", "constrainToSessionIdentity: blocked cross-provider", {
-      candidateProviderId: model.providerId,
-      candidateModelID: model.modelID,
-      candidateAccountId: model.accountId,
-      parentProviderId: fallbackModel.providerId,
-      parentAccountId: fallbackModel.accountId,
-      note: "subagent tried different provider than parent — blocked by session identity constraint",
-    })
-    return undefined
-  }
-  if (inherited.accountId && inherited.accountId !== fallbackModel.accountId) {
-    // SYSLOG: Subagent cross-account blocked
-    debugCheckpoint("syslog.subagent", "constrainToSessionIdentity: blocked cross-account", {
-      candidateProviderId: model.providerId,
-      candidateModelID: model.modelID,
-      candidateAccountId: inherited.accountId,
-      parentProviderId: fallbackModel.providerId,
-      parentAccountId: fallbackModel.accountId,
-      note: "subagent tried different account than parent — blocked by session identity constraint",
-    })
-    return undefined
-  }
-  return {
-    ...inherited,
-    accountId: fallbackModel.accountId,
-  }
-}
-
-async function activeAccountIdForProvider(providerId: string) {
-  const resolveProviderKey = (Account as any).resolveProvider ?? (Account as any).resolveFamily
-  const providerKey = await resolveProviderKey(providerId)
-  if (!providerKey) return undefined
-  return (await Account.getActive(providerKey)) ?? undefined
-}
-
-async function isOperationalModel(model: { providerId: string; modelID: string; accountId?: string }) {
-  const accountId = model.accountId ?? (await activeAccountIdForProvider(model.providerId))
-  if (!accountId) return false
-  const rateLimitTracker = getRateLimitTracker()
-  if (rateLimitTracker.isRateLimited(accountId, model.providerId, model.modelID)) return false
-
-  const healthTracker = getHealthTracker()
-  if (!healthTracker.isUsable(accountId, model.providerId, model.modelID)) return false
-
-  const healthStatus = ProviderHealth.getStatus(model.providerId, model.modelID)
-  return healthStatus === "AVAILABLE"
-}
-
-async function findOperationalFallback(input: {
-  sourceModel: { providerId: string; modelID: string; accountId?: string }
-  agentName: string
-}) {
-  const accountId = input.sourceModel.accountId ?? (await activeAccountIdForProvider(input.sourceModel.providerId))
-  if (!accountId) return null
-  const candidate = await findFallback(
-    {
-      providerId: input.sourceModel.providerId,
-      modelID: input.sourceModel.modelID,
-      accountId,
-    },
-    {
-      purpose: purposeForAgent(input.agentName),
-      strategy: "model-first",
-    },
-  ).catch(() => null)
-
-  if (!candidate) return null
-  if (input.sourceModel.accountId) {
-    if (candidate.providerId !== input.sourceModel.providerId) return null
-    if (candidate.accountId !== input.sourceModel.accountId) return null
-  }
-  return {
-    providerId: candidate.providerId,
-    modelID: candidate.modelID,
-    accountId: candidate.accountId,
-  }
-}
-
 export function shouldAutoSwitchMainModel(input: {
   session: Pick<Session.Info, "workflow">
   lastUserParts: MessageV2.Part[]
@@ -145,6 +47,15 @@ export function shouldAutoSwitchMainModel(input: {
   return input.lastUserParts.some((part) => part.type === "text" && part.synthetic)
 }
 
+/**
+ * Subagent model selection: session identity is law.
+ *
+ * Subagents MUST use the parent session's exact account/provider/model.
+ * No scoring, no rotation, no rescue, no downgrade.
+ * The fallbackModel (parent's pinned execution identity) is returned unconditionally.
+ *
+ * Only exception: explicitModel or agentModel override (both must match parent's provider+account).
+ */
 export async function orchestrateModelSelection(input: {
   agentName: string
   explicitModel?: { providerId: string; modelID: string; accountId?: string }
@@ -163,86 +74,55 @@ export async function orchestrateModelSelection(input: {
     selected: {
       providerId: input.fallbackModel.providerId,
       modelID: input.fallbackModel.modelID,
-      source: "fallback",
+      source: "parent_inherit",
     },
     candidates: [],
   }
 
-  // SYSLOG: Log orchestration input for subagent diagnosis (Bug #3)
-  debugCheckpoint("syslog.subagent", "orchestrateModelSelection: input", {
+  debugCheckpoint("syslog.subagent", "orchestrateModelSelection: session identity enforced", {
     agentName: input.agentName,
+    parentModel: input.fallbackModel,
     explicitModel: input.explicitModel,
     agentModel: input.agentModel,
-    fallbackModel: input.fallbackModel,
   })
 
+  // Explicit override — must match parent's provider; account must match or be unset (inherit parent's)
   if (input.explicitModel) {
-    const explicitModel = constrainToSessionIdentity(input.explicitModel, input.fallbackModel)
-    if (explicitModel) {
-      trace.candidates.push({ ...explicitModel, source: "explicit" })
-      trace.selected = { ...explicitModel, source: "explicit" }
-      return { model: explicitModel, trace }
+    const sameProvider = input.explicitModel.providerId === input.fallbackModel.providerId
+    const accountOk = !input.explicitModel.accountId || !input.fallbackModel.accountId ||
+      input.explicitModel.accountId === input.fallbackModel.accountId
+    if (sameProvider && accountOk) {
+      const model = { ...input.explicitModel, accountId: input.fallbackModel.accountId }
+      trace.candidates.push({ ...model, source: "explicit" })
+      trace.selected = { ...model, source: "explicit" }
+      return { model, trace }
     }
+    debugCheckpoint("syslog.subagent", "orchestrateModelSelection: explicit model rejected (identity mismatch)", {
+      explicit: input.explicitModel,
+      parent: input.fallbackModel,
+    })
   }
+
+  // Agent pinned model — must match parent's provider; account must match or be unset
   if (input.agentModel) {
-    const agentModel = constrainToSessionIdentity(input.agentModel, input.fallbackModel)
-    if (agentModel) {
-      trace.candidates.push({ ...agentModel, source: "agent_pinned" })
-      trace.selected = { ...agentModel, source: "agent_pinned" }
-      return { model: agentModel, trace }
+    const sameProvider = input.agentModel.providerId === input.fallbackModel.providerId
+    const accountOk = !input.agentModel.accountId || !input.fallbackModel.accountId ||
+      input.agentModel.accountId === input.fallbackModel.accountId
+    if (sameProvider && accountOk) {
+      const model = { ...input.agentModel, accountId: input.fallbackModel.accountId }
+      trace.candidates.push({ ...model, source: "agent_pinned" })
+      trace.selected = { ...model, source: "agent_pinned" }
+      return { model, trace }
     }
+    debugCheckpoint("syslog.subagent", "orchestrateModelSelection: agent model rejected (identity mismatch)", {
+      agentModel: input.agentModel,
+      parent: input.fallbackModel,
+    })
   }
 
-  const selectModel = input.selectModel ?? ModelScoring.select
-  const isOperational = input.isOperationalModel ?? isOperationalModel
-  const resolveFallback = input.findOperationalFallback ?? findOperationalFallback
-  const selected = await selectModel(domainForAgent(input.agentName)).catch(() => null)
-  const scoredModel = selected
-    ? constrainToSessionIdentity(
-        {
-          providerId: selected.providerId,
-          modelID: selected.modelID,
-          accountId: selected.accountId,
-        },
-        input.fallbackModel,
-      )
-    : null
-
-  if (scoredModel) {
-    const operational = await isOperational(scoredModel)
-    trace.candidates.push({ ...scoredModel, source: "scored", operational })
-    if (operational) {
-      trace.selected = { ...scoredModel, source: "scored" }
-      return { model: scoredModel, trace }
-    }
-  }
-
-  const fallbackOperational = await isOperational(input.fallbackModel)
-  trace.candidates.push({ ...input.fallbackModel, source: "fallback", operational: fallbackOperational })
-  if (fallbackOperational) {
-    trace.selected = { ...input.fallbackModel, source: "fallback" }
-    return { model: input.fallbackModel, trace }
-  }
-
-  const rescued = await resolveFallback({
-    sourceModel: scoredModel ?? input.fallbackModel,
-    agentName: input.agentName,
-  })
-  if (rescued) {
-    trace.candidates.push({ ...rescued, source: "rotation_rescue", operational: true })
-    trace.selected = { ...rescued, source: "rotation_rescue" }
-    return { model: rescued, trace }
-  }
-
-  trace.selected = { ...input.fallbackModel, source: "fallback_forced" }
-  // SYSLOG: All candidates exhausted, forced fallback
-  debugCheckpoint("syslog.subagent", "orchestrateModelSelection: forced fallback (all candidates failed)", {
-    agentName: input.agentName,
-    selected: trace.selected,
-    candidates: trace.candidates,
-    fallbackModel: input.fallbackModel,
-    note: "no operational model found — forced to use fallback regardless of health/ratelimit",
-  })
+  // Default: use parent's exact model. No scoring, no rotation, no downgrade.
+  trace.candidates.push({ ...input.fallbackModel, source: "parent_inherit", operational: true })
+  trace.selected = { ...input.fallbackModel, source: "parent_inherit" }
   return { model: input.fallbackModel, trace }
 }
 
