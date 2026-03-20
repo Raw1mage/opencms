@@ -58,8 +58,8 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
 	const sync = useGlobalSync();
 	const language = useLanguage();
 
-	const startDirectory = createMemo(() => "/");
 	const home = createMemo(() => trimTrailing(sync.data.path.home || "/"));
+	const startDirectory = createMemo(() => home());
 
 	const [currentDir, setCurrentDir] = createSignal(startDirectory());
 	const [pathInput, setPathInput] = createSignal(startDirectory());

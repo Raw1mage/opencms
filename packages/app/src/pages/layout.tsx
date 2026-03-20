@@ -1719,7 +1719,10 @@ export default function Layout(props: ParentProps) {
     onProjectFocus: (worktree) => aim.activate(worktree),
     navigateToProject,
     openSidebar: (directory?: string) => {
-      if (directory) setState("openProject", directory)
+      if (directory) {
+        setState("openProject", directory)
+        navigateToProject(directory)
+      }
       layout.sidebar.open()
     },
     closeProject,
