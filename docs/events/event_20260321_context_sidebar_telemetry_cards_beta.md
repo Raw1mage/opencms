@@ -54,6 +54,7 @@
 - 已確認 beta repo 與 plan root 存在且對應本次需求。
 - 已建立本次 beta implementation event 檔作為後續實作留痕。
 - 已完成 `SessionContextTab` 卡片化：legacy context info 改為 `Summary / Breakdown / Prompt` 三卡。
+- 已將 `Summary` 卡片 stats 改為單行 `Key: Value` 呈現，並保留寬度足夠時的 2-column 緊湊排版。
 - 已將 telemetry cards 納入同一 context card 排序流，讓整個 context sidebar 維持統一卡片式布局。
 - 已在 `layout.tsx` 新增 `contextSidebar.order` persisted state，並以 status sidebar 的 sortable pattern 作為基線完成拖曳排序。
 - 已同步更新 `specs/20260321_telemetry-optimization/tasks.md` 的 1.x / 2.x / 3.x checkbox。

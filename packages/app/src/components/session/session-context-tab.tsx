@@ -45,9 +45,9 @@ const BREAKDOWN_COLOR: Record<SessionContextBreakdownKey, string> = {
 
 function Stat(props: { label: string; value: JSX.Element }) {
   return (
-    <div class="flex flex-col gap-1">
-      <div class="text-12-regular text-text-weak">{props.label}</div>
-      <div class="text-12-medium text-text-strong">{props.value}</div>
+    <div class="flex items-baseline gap-1.5 min-w-0 text-12-medium">
+      <div class="text-12-regular text-text-weak shrink-0">{props.label}:</div>
+      <div class="text-12-medium text-text-strong min-w-0 break-words">{props.value}</div>
     </div>
   )
 }
@@ -226,7 +226,7 @@ export function SessionContextTab(props: SessionContextTabProps) {
         key: "summary",
         content: (
           <ContextCard title="Summary" marker="[S]">
-            <div class="grid grid-cols-1 @[32rem]:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 @[32rem]:grid-cols-2 gap-x-4 gap-y-2">
               <For each={stats}>
                 {(stat) => (
                   <Stat label={language.t(stat.label as Parameters<typeof language.t>[0])} value={stat.value()} />
