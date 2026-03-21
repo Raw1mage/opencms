@@ -2,21 +2,21 @@
 
 ## 1. Freeze card layout contract
 
-- [ ] 1.1 Confirm the target three-card grouping for legacy context information (`Summary / Breakdown / Prompt`)
-- [ ] 1.2 Re-read the approved implementation spec, scope, and stop gates
-- [ ] 1.3 Confirm the ordering persistence boundary for context cards
+- [x] 1.1 Confirm the target three-card grouping for legacy context information (`Summary / Breakdown / Prompt`)
+- [x] 1.2 Re-read the approved implementation spec, scope, and stop gates
+- [x] 1.3 Confirm the ordering persistence boundary for context cards
 
 ## 2. Rebuild context sidebar as cards
 
-- [ ] 2.1 Refactor `SessionContextTab` legacy content into `Summary / Breakdown / Prompt` card sections
-- [ ] 2.2 Keep telemetry cards visually aligned with the new legacy context cards
-- [ ] 2.3 Add draggable ordering for context sidebar cards
+- [x] 2.1 Refactor `SessionContextTab` legacy content into `Summary / Breakdown / Prompt` card sections
+- [x] 2.2 Keep telemetry cards visually aligned with the new legacy context cards
+- [x] 2.3 Add draggable ordering for context sidebar cards
 
 ## 3. Validate optimized sidebar behavior
 
-- [ ] 3.1 Run targeted context sidebar render/order validation
-- [ ] 3.2 Run `bun --filter @opencode-ai/app typecheck`
-- [ ] 3.3 Record validation evidence for context card grouping and ordering
+- [x] 3.1 Run targeted context sidebar render/order validation
+- [x] 3.2 Run `bun --filter @opencode-ai/app typecheck`
+- [x] 3.3 Record validation evidence for context card grouping and ordering
 
 ## 4. Documentation / retrospective sync
 

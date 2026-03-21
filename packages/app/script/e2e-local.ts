@@ -52,7 +52,8 @@ const extraArgs = (() => {
   return args
 })()
 
-const [serverPort, webPort] = await Promise.all([freePort(), freePort()])
+const serverPort = Number(process.env.PLAYWRIGHT_SERVER_PORT ?? process.env.VITE_OPENCODE_SERVER_PORT ?? "2026")
+const webPort = await freePort()
 
 const sandbox = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-e2e-"))
 const keepSandbox = process.env.OPENCODE_E2E_KEEP_SANDBOX === "1"

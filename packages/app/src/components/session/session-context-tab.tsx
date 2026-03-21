@@ -1,5 +1,13 @@
 import { createMemo, createEffect, on, onCleanup, For, Show } from "solid-js"
 import type { JSX } from "solid-js"
+import {
+  DragDropProvider,
+  DragDropSensors,
+  SortableProvider,
+  closestCenter,
+  createSortable,
+  type DragEvent,
+} from "@thisbeyond/solid-dnd"
 import { useParams } from "@solidjs/router"
 import { useSync } from "@/context/sync"
 import { useLayout } from "@/context/layout"
@@ -11,7 +19,11 @@ import { getSessionContextMetrics } from "./session-context-metrics"
 import { estimateSessionContextBreakdown, type SessionContextBreakdownKey } from "./session-context-breakdown"
 import { createSessionContextFormatter } from "./session-context-format"
 import type { SessionTelemetry } from "@/context/global-sync/types"
-import { AccountQuotaReuseCard } from "@/pages/session/session-telemetry-cards"
+import {
+  AccountQuotaReuseCard,
+  PromptTelemetryCard,
+  RoundSessionTelemetryCard,
+} from "@/pages/session/session-telemetry-cards"
 import { useGlobalSync } from "@/context/global-sync"
 import { resolveTelemetryAccountLabel } from "@/pages/session/session-telemetry-ui"
 
@@ -40,11 +52,28 @@ function Stat(props: { label: string; value: JSX.Element }) {
   )
 }
 
+type ContextCardKey = "summary" | "breakdown" | "prompt" | "promptTelemetry" | "roundTelemetry" | "quota"
+
+function ContextCard(props: { title: string; marker: string; children: JSX.Element }) {
+  return (
+    <section class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-2">
+      <div class="flex items-start gap-2 min-w-0">
+        <span class="text-11-medium text-text-weak shrink-0">{props.marker}</span>
+        <div class="min-w-0 flex-1">
+          <div class="text-12-medium text-text-strong break-words">{props.title}</div>
+        </div>
+      </div>
+      {props.children}
+    </section>
+  )
+}
+
 export function SessionContextTab(props: SessionContextTabProps) {
   const params = useParams()
   const sync = useSync()
   const globalSync = useGlobalSync()
   const language = useLanguage()
+  const layout = useLayout()
 
   const usd = createMemo(
     () =>
@@ -143,23 +172,6 @@ export function SessionContextTab(props: SessionContextTabProps) {
   const telemetry = createMemo(() => props.telemetry?.())
   const resolveAccountLabel = (accountId?: string, providerId?: string) =>
     resolveTelemetryAccountLabel(globalSync, accountId, providerId)
-  const formatTelemetryNumber = (value?: number) =>
-    typeof value === "number" && Number.isFinite(value) ? value.toLocaleString(language.intl()) : "—"
-  const formatTelemetryDuration = (value?: number) => {
-    if (typeof value !== "number" || !Number.isFinite(value)) return "—"
-    if (value < 1000) return `${Math.round(value)} ms`
-    if (value < 60_000) return `${(value / 1000).toFixed(1)} s`
-    return `${(value / 60_000).toFixed(1)} min`
-  }
-  const roundIdentityLabel = createMemo(() => {
-    const data = telemetry()
-    if (!data) return "No provider metadata yet"
-    const account = resolveAccountLabel(data.round.accountId, data.round.providerId)
-    return (
-      [data.round.providerId, account, data.round.modelId].filter((value): value is string => !!value).join(" / ") ||
-      "No provider metadata yet"
-    )
-  })
 
   let scroll: HTMLDivElement | undefined
   let frame: number | undefined
@@ -208,6 +220,111 @@ export function SessionContextTab(props: SessionContextTabProps) {
     cancelAnimationFrame(frame)
   })
 
+  const cards = createMemo(() => {
+    const result: Array<{ key: ContextCardKey; content: JSX.Element }> = [
+      {
+        key: "summary",
+        content: (
+          <ContextCard title="Summary" marker="[S]">
+            <div class="grid grid-cols-1 @[32rem]:grid-cols-2 gap-4">
+              <For each={stats}>
+                {(stat) => (
+                  <Stat label={language.t(stat.label as Parameters<typeof language.t>[0])} value={stat.value()} />
+                )}
+              </For>
+            </div>
+          </ContextCard>
+        ),
+      },
+      {
+        key: "breakdown",
+        content: (
+          <ContextCard title="Breakdown" marker="[B]">
+            <Show
+              when={breakdown().length > 0}
+              fallback={<div class="text-12-regular text-text-weak">No context breakdown yet.</div>}
+            >
+              <div class="flex flex-col gap-2">
+                <div class="h-2 w-full rounded-full bg-surface-base overflow-hidden flex">
+                  <For each={breakdown()}>
+                    {(segment) => (
+                      <div
+                        class="h-full"
+                        style={{
+                          width: `${segment.width}%`,
+                          "background-color": BREAKDOWN_COLOR[segment.key],
+                        }}
+                      />
+                    )}
+                  </For>
+                </div>
+                <div class="flex flex-wrap gap-x-3 gap-y-1">
+                  <For each={breakdown()}>
+                    {(segment) => (
+                      <div class="flex items-center gap-1 text-11-regular text-text-weak">
+                        <div class="size-2 rounded-sm" style={{ "background-color": BREAKDOWN_COLOR[segment.key] }} />
+                        <div>{breakdownLabel(segment.key)}</div>
+                        <div class="text-text-weaker">{segment.percent.toLocaleString(language.intl())}%</div>
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </div>
+            </Show>
+          </ContextCard>
+        ),
+      },
+      {
+        key: "prompt",
+        content: (
+          <ContextCard title="Prompt" marker="[P]">
+            <Show
+              when={systemPrompt()}
+              fallback={<div class="text-12-regular text-text-weak">No system prompt for this session.</div>}
+            >
+              {(prompt) => (
+                <div class="rounded-md border border-border-weak-base bg-surface-panel px-2.5 py-2">
+                  <Markdown text={prompt()} class="text-12-regular" />
+                </div>
+              )}
+            </Show>
+          </ContextCard>
+        ),
+      },
+    ]
+
+    if (telemetry()) {
+      result.push({
+        key: "promptTelemetry",
+        content: <PromptTelemetryCard telemetry={telemetry()} />,
+      })
+      result.push({
+        key: "roundTelemetry",
+        content: <RoundSessionTelemetryCard telemetry={telemetry()} accountLabel={resolveAccountLabel} />,
+      })
+      result.push({
+        key: "quota",
+        content: <AccountQuotaReuseCard telemetry={telemetry()} accountLabel={resolveAccountLabel} />,
+      })
+    }
+
+    const order = layout.contextSidebar.order()
+    const orderIndex = new Map(order.map((key, index) => [key, index]))
+    return result.sort((a, b) => (orderIndex.get(a.key) ?? 99) - (orderIndex.get(b.key) ?? 99))
+  })
+
+  const handleDragEnd = (event: DragEvent) => {
+    const from = event.draggable?.id as ContextCardKey | undefined
+    const to = event.droppable?.id as ContextCardKey | undefined
+    if (!from || !to || from === to) return
+    const current = [...layout.contextSidebar.order()]
+    const fromIndex = current.indexOf(from)
+    const toIndex = current.indexOf(to)
+    if (fromIndex === -1 || toIndex === -1) return
+    current.splice(toIndex, 0, current.splice(fromIndex, 1)[0]!)
+    layout.contextSidebar.setOrder(current)
+  }
+
   return (
     <div
       class="@container h-full overflow-y-auto no-scrollbar pb-10"
@@ -217,150 +334,25 @@ export function SessionContextTab(props: SessionContextTabProps) {
       }}
       onScroll={handleScroll}
     >
-      <div class="px-6 pt-4 flex flex-col gap-10">
-        <div class="grid grid-cols-1 @[32rem]:grid-cols-2 gap-4">
-          <For each={stats}>
-            {(stat) => <Stat label={language.t(stat.label as Parameters<typeof language.t>[0])} value={stat.value()} />}
-          </For>
-        </div>
-
-        <Show when={breakdown().length > 0}>
-          <div class="flex flex-col gap-2">
-            <div class="text-12-regular text-text-weak">{language.t("context.breakdown.title")}</div>
-            <div class="h-2 w-full rounded-full bg-surface-base overflow-hidden flex">
-              <For each={breakdown()}>
-                {(segment) => (
-                  <div
-                    class="h-full"
-                    style={{
-                      width: `${segment.width}%`,
-                      "background-color": BREAKDOWN_COLOR[segment.key],
-                    }}
-                  />
-                )}
-              </For>
-            </div>
-            <div class="flex flex-wrap gap-x-3 gap-y-1">
-              <For each={breakdown()}>
-                {(segment) => (
-                  <div class="flex items-center gap-1 text-11-regular text-text-weak">
-                    <div class="size-2 rounded-sm" style={{ "background-color": BREAKDOWN_COLOR[segment.key] }} />
-                    <div>{breakdownLabel(segment.key)}</div>
-                    <div class="text-text-weaker">{segment.percent.toLocaleString(language.intl())}%</div>
-                  </div>
-                )}
-              </For>
-            </div>
-            <div class="hidden text-11-regular text-text-weaker">{language.t("context.breakdown.note")}</div>
-          </div>
-        </Show>
-
-        <Show when={systemPrompt()}>
-          {(prompt) => (
-            <div class="flex flex-col gap-2">
-              <div class="text-12-regular text-text-weak">{language.t("context.systemPrompt.title")}</div>
-              <div class="border border-border-base rounded-md bg-surface-base px-3 py-2">
-                <Markdown text={prompt()} class="text-12-regular" />
-              </div>
-            </div>
-          )}
-        </Show>
-
-        <Show when={telemetry()}>
-          {(data) => (
-            <div class="flex flex-col gap-3">
-              <div class="text-12-regular text-text-weak">Telemetry</div>
-              <AccountQuotaReuseCard telemetry={data()} accountLabel={resolveAccountLabel} />
-              <div class="grid grid-cols-1 @[32rem]:grid-cols-2 gap-4">
-                <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-3 flex flex-col gap-2">
-                  <div class="text-12-medium text-text-strong">Prompt telemetry</div>
-                  <div class="text-12-regular text-text-weak">
-                    {data().summary.injectedCount} injected
-                    {data().summary.skippedCount > 0 ? ` · ${data().summary.skippedCount} skipped` : ""}
-                    {data().summary.estimatedPromptTokens > 0
-                      ? ` · ~${formatTelemetryNumber(data().summary.estimatedPromptTokens)} tok`
-                      : ""}
-                  </div>
-                  <Show
-                    when={data().prompt.blocks.length > 0}
-                    fallback={<div class="text-12-regular text-text-weak">No prompt telemetry yet.</div>}
-                  >
-                    <div class="flex flex-col gap-2">
-                      <For each={data().prompt.blocks.slice(0, 6)}>
-                        {(block) => (
-                          <div class="rounded-md border border-border-weak-base bg-surface-panel px-2.5 py-2 flex flex-col gap-1">
-                            <div class="text-11-medium text-text-strong break-words">{block.name}</div>
-                            <div class="text-11-regular text-text-weak break-words">
-                              {[block.sourceFile, block.kind, block.injectionPolicy]
-                                .filter((value): value is string => !!value)
-                                .join(" · ")}
-                              {block.estimatedTokens ? ` · ~${formatTelemetryNumber(block.estimatedTokens)} tok` : ""}
-                            </div>
-                          </div>
-                        )}
-                      </For>
-                    </div>
-                  </Show>
-                </div>
-
-                <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-3 flex flex-col gap-2">
-                  <div class="text-12-medium text-text-strong">Round / session telemetry</div>
-                  <div class="text-12-regular text-text-weaker break-words">
-                    Current round fields are partially derived from session/message snapshots until authoritative A112
-                    telemetry is exposed by the backend.
-                  </div>
-                  <div class="text-12-regular text-text-weak break-words">
-                    Session {data().round.sessionId || "—"}
-                    {data().round.roundIndex ? ` · Round ${data().round.roundIndex}` : ""}
-                    {data().round.requestId ? ` · Req ${data().round.requestId}` : ""}
-                  </div>
-                  <div class="text-12-regular text-text-weak break-words">{roundIdentityLabel()}</div>
-                  <div class="text-12-regular text-text-weak break-words">
-                    Prompt {formatTelemetryNumber(data().round.promptTokens)} · Input{" "}
-                    {formatTelemetryNumber(data().round.inputTokens)} · Response{" "}
-                    {formatTelemetryNumber(data().round.responseTokens)}
-                  </div>
-                  <div class="text-12-regular text-text-weak break-words">
-                    Cumulative {formatTelemetryNumber(data().sessionSummary.cumulativeTokens)} tok · Requests{" "}
-                    {formatTelemetryNumber(data().sessionSummary.totalRequests)} · Duration{" "}
-                    {formatTelemetryDuration(data().sessionSummary.durationMs)}
-                  </div>
-                </div>
-
-                <Show when={data().quota.phase === "ready"}>
-                  <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-3 flex flex-col gap-2">
-                    <div class="text-12-medium text-text-strong">Account / quota</div>
-                    <div class="text-12-regular text-text-weaker break-words">
-                      Reused from existing issue/quota signals; remaining-token quota fields are not yet available on
-                      this surface.
-                    </div>
-                    <div class="text-12-regular text-text-weak break-words">
-                      Pressure {data().quota.pressure}
-                      {data().quota.providerId ? ` · ${data().quota.providerId}` : ""}
-                      {data().quota.accountId ? ` / ${data().quota.accountId}` : ""}
-                      {data().quota.modelId ? ` / ${data().quota.modelId}` : ""}
-                    </div>
-                    <Show
-                      when={data().quota.activeIssues.length > 0}
-                      fallback={<div class="text-12-regular text-text-weak">No active quota issues.</div>}
-                    >
-                      <div class="flex flex-col gap-2">
-                        <For each={data().quota.activeIssues.slice(0, 4)}>
-                          {(issue) => (
-                            <div class="text-12-regular text-warning break-words">
-                              {issue.type}: {issue.message}
-                            </div>
-                          )}
-                        </For>
-                      </div>
-                    </Show>
-                  </div>
-                </Show>
-              </div>
-            </div>
-          )}
-        </Show>
+      <div class="px-6 pt-4 flex flex-col gap-3">
+        <DragDropProvider onDragEnd={handleDragEnd} collisionDetector={closestCenter}>
+          <DragDropSensors />
+          <SortableProvider ids={cards().map((card) => card.key)}>
+            <For each={cards()}>
+              {(card) => <SortableContextCard id={card.key}>{card.content}</SortableContextCard>}
+            </For>
+          </SortableProvider>
+        </DragDropProvider>
       </div>
+    </div>
+  )
+}
+
+function SortableContextCard(props: { id: ContextCardKey; children: JSX.Element }) {
+  const sortable = createSortable(props.id)
+  return (
+    <div use:sortable classList={{ "opacity-40": sortable.isActiveDraggable }}>
+      {props.children}
     </div>
   )
 }

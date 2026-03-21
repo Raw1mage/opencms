@@ -3,7 +3,7 @@ import { base64Encode } from "@opencode-ai/util/encode"
 export { promptSelector, terminalSelector } from "./selectors"
 
 export const serverHost = process.env.PLAYWRIGHT_SERVER_HOST ?? "127.0.0.1"
-export const serverPort = process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"
+export const serverPort = process.env.PLAYWRIGHT_SERVER_PORT ?? "2026"
 
 export const serverUrl = `http://${serverHost}:${serverPort}`
 export const serverName = `${serverHost}:${serverPort}`

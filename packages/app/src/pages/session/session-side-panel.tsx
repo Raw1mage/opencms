@@ -379,7 +379,6 @@ export function SessionSidePanel(props: {
                               </Show>
                             </div>
                           </Show>
-                          <SessionTelemetryCards telemetry={telemetry()} accountLabel={resolveAccountLabel} />
                           {(() => {
                             const processCards = () =>
                               buildProcessCards((monitorEntries() ?? []) as EnrichedMonitorEntry[], activeSessionID())

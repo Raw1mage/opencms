@@ -86,6 +86,14 @@ OpenCode is a desktop/TUI/Webapp multi-interface platform for interacting with A
 - Projector aggregate must at minimum distinguish prompt summary, round summary, compaction summary, session cumulative summary, freshness metadata, and degraded/catch-up metadata.
 - App reducer slice must remain session-scoped and canonical, with enough structure for UI consumption but without reintroducing helper-side truth synthesis.
 
+### Context Sidebar Card Surface
+
+- `packages/app/src/components/session/session-context-tab.tsx` is the context-sidebar composition surface for session context metrics plus telemetry cards.
+- Legacy context information is grouped into three cards: `Summary`, `Breakdown`, and `Prompt`.
+- Context sidebar card order is persisted in app layout state via `packages/app/src/context/layout.tsx` under `contextSidebar.order`.
+- The sortable interaction pattern intentionally follows the same UI family as the status sidebar card ordering, but remains a separate persisted order key.
+- This is a presentation-layer layout contract only; it does not change telemetry authority boundaries or backend data ownership.
+
 ### Migration Warnings
 
 - Hydration-first steady-state is architecturally wrong and must be removed or demoted.

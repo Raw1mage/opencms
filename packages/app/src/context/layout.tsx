@@ -213,7 +213,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
       }
     }
 
-    const target = Persist.global("layout", ["layout.v8"])
+    const target = Persist.global("layout", ["layout.v9", "layout.v8"])
     const [store, setStore, _, ready] = persisted(
       { ...target, migrate },
       createStore({
@@ -246,6 +246,11 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
             servers: true,
             mcp: true,
           } as Record<"monitor" | "todo" | "servers" | "mcp" | "llm", boolean>,
+        },
+        contextSidebar: {
+          order: ["summary", "breakdown", "prompt", "promptTelemetry", "roundTelemetry", "quota"] as Array<
+            "summary" | "breakdown" | "prompt" | "promptTelemetry" | "roundTelemetry" | "quota"
+          >,
         },
         session: {
           width: DEFAULT_SESSION_WIDTH,
@@ -693,6 +698,22 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         },
         toggleExpanded(key: "monitor" | "todo" | "servers" | "mcp" | "llm") {
           setStore("statusSidebar", "expanded", key, (value) => !value)
+        },
+      },
+      contextSidebar: {
+        order: createMemo(
+          () =>
+            store.contextSidebar?.order ?? [
+              "summary",
+              "breakdown",
+              "prompt",
+              "promptTelemetry",
+              "roundTelemetry",
+              "quota",
+            ],
+        ),
+        setOrder(order: Array<"summary" | "breakdown" | "prompt" | "promptTelemetry" | "roundTelemetry" | "quota">) {
+          setStore("contextSidebar", "order", order)
         },
       },
       session: {
