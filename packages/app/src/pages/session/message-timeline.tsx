@@ -59,6 +59,7 @@ export function MessageTimeline(props: {
   isDesktop: boolean
   onScrollSpyScroll: () => void
   onAutoScrollInteraction: (event: MouseEvent) => void
+  userScrolled: () => boolean
   showHeader: boolean
   centered: boolean
   title?: string
@@ -188,6 +189,7 @@ export function MessageTimeline(props: {
           }}
           onClick={props.onAutoScrollInteraction}
           class="relative min-w-0 w-full h-full overflow-y-auto session-scroller"
+          data-user-scrolling={props.userScrolled() ? "" : undefined}
           style={{ "--session-title-height": props.showHeader ? "40px" : "0px" }}
         >
           <div ref={props.setContentRef} class="min-w-0 w-full">

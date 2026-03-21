@@ -15,6 +15,12 @@
   overflow-anchor: none;
 }
 
+/* Enable scroll-snap only when the user is actively reading (scrolled up).
+   Disabled during follow-bottom auto-scroll so new content flows freely. */
+.session-scroller[data-user-scrolling] {
+  scroll-snap-type: y proximity;
+}
+
 @utility session-scroller {
   &::-webkit-scrollbar {
     width: 10px;

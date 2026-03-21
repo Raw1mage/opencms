@@ -1,3 +1,10 @@
+/* Each turn snaps to the top of the viewport when scrolling up (proximity mode).
+   scroll-margin-top offsets the snap point below the sticky session title. */
+[data-message-id] {
+  scroll-snap-align: start;
+  scroll-margin-top: var(--session-title-height, 0px);
+}
+
 [data-component="session-turn"] {
   --session-turn-sticky-height: 0px;
   --sticky-header-height: calc(var(--session-title-height, 0px) + var(--session-turn-sticky-height, 0px) + 24px);

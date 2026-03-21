@@ -1701,6 +1701,7 @@ export default function Page() {
                     isDesktop={isDesktop()}
                     onScrollSpyScroll={scrollSpy.onScroll}
                     onAutoScrollInteraction={autoScroll.handleInteraction}
+                    userScrolled={autoScroll.userScrolled}
                     showHeader={!!(info()?.title || info()?.parentID)}
                     centered={centered()}
                     title={info()?.title}
