@@ -1,41 +1,96 @@
 {
-  "diagram_title": "System Components",
+  "diagram_title": "Continuous Orchestration — C4 Component Diagram",
   "diagram_level": "component",
   "systems": [
     {
       "id": "SYS1",
-      "name": "Target System",
-      "description": "The system being designed or refactored",
+      "name": "OpenCode Runtime",
+      "description": "Primary runtime that hosts sessions, tools, workers, and UI synchronization.",
       "external": false
     }
   ],
   "containers": [
     {
       "id": "CT1",
-      "name": "Primary Container",
-      "description": "Main runtime container",
-      "technology": "TypeScript",
+      "name": "Session Runtime",
+      "description": "Backend runtime that executes orchestrator sessions and task workers.",
+      "technology": "TypeScript/Bun",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT2",
+      "name": "Session UI",
+      "description": "Web/TUI surfaces that display parent and child session activity.",
+      "technology": "React/TUI",
       "systemRef": "SYS1"
     }
   ],
   "components": [
     {
       "id": "C1",
-      "name": "Core Component",
-      "description": "Primary component derived from requirement",
+      "name": "Task Tool Dispatcher",
+      "description": "Creates child sessions, launches workers, and returns immediate dispatch metadata.",
       "technology": "TypeScript module",
       "containerRef": "CT1",
       "moduleRef": "A1",
-      "filePath": null
+      "filePath": "packages/opencode/src/tool/task.ts"
+    },
+    {
+      "id": "C2",
+      "name": "Task Completion Subscriber",
+      "description": "Consumes worker completion events and converts them into parent-session continuation actions.",
+      "technology": "TypeScript subscriber",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/bus/subscribers/"
+    },
+    {
+      "id": "C3",
+      "name": "Session Continuation Queue",
+      "description": "Schedules resumed parent orchestrator execution after task completion messages are injected.",
+      "technology": "TypeScript queue",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/session/queue.ts"
+    },
+    {
+      "id": "C4",
+      "name": "Subagent Activity Surface",
+      "description": "Displays running/completed subagent activity to the user while the parent turn is no longer blocked.",
+      "technology": "React/TUI components",
+      "containerRef": "CT2",
+      "moduleRef": "A1",
+      "filePath": "packages/app/src/pages/session/"
     }
   ],
   "relationships": [
     {
       "id": "REL1",
       "source": "C1",
-      "target": "SYS1",
-      "description": "Primary interaction",
-      "technology": "function call"
+      "target": "C2",
+      "description": "Bridged worker lifecycle events become completion inputs.",
+      "technology": "bus events"
+    },
+    {
+      "id": "REL2",
+      "source": "C2",
+      "target": "C3",
+      "description": "Completion subscriber enqueues the parent session after synthetic message injection.",
+      "technology": "RunQueue API"
+    },
+    {
+      "id": "REL3",
+      "source": "C3",
+      "target": "C1",
+      "description": "Resumed orchestrator execution may dispatch the next task through the tool layer.",
+      "technology": "session execution loop"
+    },
+    {
+      "id": "REL4",
+      "source": "C1",
+      "target": "C4",
+      "description": "Dispatch metadata and bridged child-session activity are reflected in user-facing activity views.",
+      "technology": "sync store / session UI"
     }
   ]
 }

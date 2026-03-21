@@ -3,77 +3,60 @@
     "StepNumber": 0,
     "ModuleRef": "A1",
     "StepType": "initial",
-    "StepAction": "Initialize",
+    "StepAction": "Receive Task Dispatch Request",
     "LinkInputType": [],
-    "LinkInputNumber": [
-      2
-    ],
-    "LinkOutputNumber": [
-      1
-    ],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [1],
     "LinkOutputType": "track",
-    "Condition": [
-      "start"
-    ],
+    "Condition": ["orchestrator_calls_task"],
     "SubGrafcet": []
   },
   {
     "StepNumber": 1,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Execute Core Function",
+    "StepAction": "Dispatch Child Worker And Return Metadata",
     "LinkInputType": [],
-    "LinkInputNumber": [
-      0
-    ],
-    "LinkOutputNumber": [
-      2,
-      3
-    ],
-    "LinkOutputType": "divergence_or",
-    "Condition": [
-      "ok",
-      "error"
-    ],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["child_session_created_and_worker_spawned"],
     "SubGrafcet": []
   },
   {
     "StepNumber": 2,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Complete",
-    "LinkInputType": [
-      "convergence_or"
-    ],
-    "LinkInputNumber": [
-      1,
-      3
-    ],
-    "LinkOutputNumber": [
-      0
-    ],
-    "LinkOutputType": "track",
-    "Condition": [
-      "reset"
-    ],
+    "StepAction": "Await Completion Event In Background",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3,4],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["task_worker_done", "task_worker_failed"],
     "SubGrafcet": []
   },
   {
     "StepNumber": 3,
     "ModuleRef": "A1",
     "StepType": "normal",
-    "StepAction": "Recover",
+    "StepAction": "Resume Parent With Success Message",
     "LinkInputType": [],
-    "LinkInputNumber": [
-      1
-    ],
-    "LinkOutputNumber": [
-      2
-    ],
-    "LinkOutputType": "convergence_or",
-    "Condition": [
-      "retry"
-    ],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["parent_message_injected_and_enqueued"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Resume Parent With Failure Message",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["failure_message_injected_and_enqueued"],
     "SubGrafcet": []
   }
 ]

@@ -36,9 +36,11 @@ import { debugCheckpoint } from "./util/debug"
 import { ProcessSupervisor } from "./process/supervisor"
 import { registerDebugWriter } from "./bus/subscribers/debug-writer"
 import { registerTelemetryRuntimePersistence } from "./bus/subscribers/telemetry-runtime"
+import { registerTaskWorkerContinuationSubscriber } from "./bus/subscribers/task-worker-continuation"
 
 registerDebugWriter()
 registerTelemetryRuntimePersistence()
+registerTaskWorkerContinuationSubscriber()
 debugCheckpoint("app", "start", { args: process.argv.slice(2) })
 
 process.on("unhandledRejection", (e) => {

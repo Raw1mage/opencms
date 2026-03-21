@@ -53,7 +53,12 @@ const parameters = z.object({
   subagent_type: z.string().describe("The type of specialized agent to use for this task"),
   session_id: z.string().describe("Existing Task session to continue").optional(),
   command: z.string().describe("The command that triggered this task").optional(),
-  model: z.string().describe("Optional model override (must exist in user's available model list). Omit to inherit parent session model.").optional(),
+  model: z
+    .string()
+    .describe(
+      "Optional model override (must exist in user's available model list). Omit to inherit parent session model.",
+    )
+    .optional(),
   account_id: z.string().describe("Optional account ID to pin for this task model").optional(),
 })
 
@@ -122,6 +127,10 @@ export const TaskWorkerEvent = {
     z.object({
       workerID: z.string(),
       sessionID: Identifier.schema("session"),
+      parentSessionID: Identifier.schema("session"),
+      parentMessageID: Identifier.schema("message"),
+      toolCallID: z.string(),
+      linkedTodoID: z.string().optional(),
     }),
   ),
   Failed: BusEvent.define(
@@ -129,6 +138,11 @@ export const TaskWorkerEvent = {
     z.object({
       workerID: z.string(),
       sessionID: Identifier.schema("session"),
+      parentSessionID: Identifier.schema("session"),
+      parentMessageID: Identifier.schema("message"),
+      toolCallID: z.string(),
+      linkedTodoID: z.string().optional(),
+      error: z.string().optional(),
     }),
   ),
   Removed: BusEvent.define(
@@ -187,6 +201,10 @@ async function publishBridgedEvent(event: { type: string; properties: any }) {
 type WorkerRequest = {
   id: string
   sessionID: string
+  parentSessionID: string
+  parentMessageID: string
+  toolCallID: string
+  linkedTodoID?: string
   createdAt: number
   dispatchedAt?: number
   firstEventAt?: number
@@ -431,11 +449,20 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
             void Bus.publish(TaskWorkerEvent.Done, {
               workerID: worker.id,
               sessionID: req.sessionID,
+              parentSessionID: req.parentSessionID,
+              parentMessageID: req.parentMessageID,
+              toolCallID: req.toolCallID,
+              linkedTodoID: req.linkedTodoID,
             })
           } else {
             void Bus.publish(TaskWorkerEvent.Failed, {
               workerID: worker.id,
               sessionID: req.sessionID,
+              parentSessionID: req.parentSessionID,
+              parentMessageID: req.parentMessageID,
+              toolCallID: req.toolCallID,
+              linkedTodoID: req.linkedTodoID,
+              error: msg.error || "worker run failed",
             })
             req.reject(new Error(msg.error || "worker run failed"))
           }
@@ -454,6 +481,11 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
           void Bus.publish(TaskWorkerEvent.Failed, {
             workerID: worker.id,
             sessionID: req.sessionID,
+            parentSessionID: req.parentSessionID,
+            parentMessageID: req.parentMessageID,
+            toolCallID: req.toolCallID,
+            linkedTodoID: req.linkedTodoID,
+            error: "worker run canceled",
           })
           req.reject(new Error("worker run canceled"))
           void ensureStandbyWorker(config)
@@ -472,6 +504,11 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
             void Bus.publish(TaskWorkerEvent.Failed, {
               workerID: worker.id,
               sessionID: req.sessionID,
+              parentSessionID: req.parentSessionID,
+              parentMessageID: req.parentMessageID,
+              toolCallID: req.toolCallID,
+              linkedTodoID: req.linkedTodoID,
+              error: msg.error || "worker error",
             })
             req.reject(new Error(msg.error || "worker error"))
             void ensureStandbyWorker(config)
@@ -542,18 +579,30 @@ async function getReadyWorker(config: Awaited<ReturnType<typeof Config.get>>) {
   // Pool cap: if at max capacity, wait for any busy worker to finish rather than spawning
   if (workers.length >= WORKER_POOL_MAX) {
     beacon.hit("worker.pool_cap_wait")
-    log.info("Worker pool at capacity, waiting for a worker to become free", { current: workers.length, max: WORKER_POOL_MAX })
+    log.info("Worker pool at capacity, waiting for a worker to become free", {
+      current: workers.length,
+      max: WORKER_POOL_MAX,
+    })
     const busyWorkers = workers.filter((w) => w.busy && w.current)
     if (busyWorkers.length > 0) {
       // Wait for the first busy worker to finish its current request
-      await Promise.race(busyWorkers.map((w) =>
-        new Promise<void>((resolve) => {
-          const check = setInterval(() => {
-            if (!w.busy && w.ready) { clearInterval(check); resolve() }
-          }, 500)
-          setTimeout(() => { clearInterval(check); resolve() }, WORKER_READY_TIMEOUT_MS)
-        })
-      ))
+      await Promise.race(
+        busyWorkers.map(
+          (w) =>
+            new Promise<void>((resolve) => {
+              const check = setInterval(() => {
+                if (!w.busy && w.ready) {
+                  clearInterval(check)
+                  resolve()
+                }
+              }, 500)
+              setTimeout(() => {
+                clearInterval(check)
+                resolve()
+              }, WORKER_READY_TIMEOUT_MS)
+            }),
+        ),
+      )
       const freed = workers.find((w) => !w.busy && w.ready)
       if (freed) return freed
     }
@@ -606,6 +655,10 @@ async function assignWorker(input: { config: Awaited<ReturnType<typeof Config.ge
 
 async function dispatchToWorker(input: {
   sessionID: string
+  parentSessionID: string
+  parentMessageID: string
+  toolCallID: string
+  linkedTodoID?: string
   config: Awaited<ReturnType<typeof Config.get>>
   abort: AbortSignal
   onPhase?: (phase: string, data?: Record<string, unknown>) => void
@@ -646,6 +699,10 @@ async function dispatchToWorker(input: {
       worker!.current = {
         id: requestID!,
         sessionID: input.sessionID,
+        parentSessionID: input.parentSessionID,
+        parentMessageID: input.parentMessageID,
+        toolCallID: input.toolCallID,
+        linkedTodoID: input.linkedTodoID,
         createdAt: Date.now(),
         eventCount: 0,
         resolve,
@@ -670,15 +727,17 @@ async function dispatchToWorker(input: {
       sessionID: input.sessionID,
     })
 
-    const result = await done
-    beacon.hit("worker.result")
-    input.onPhase?.("worker_done", {
-      workerID: result.workerID,
-      requestID: result.requestID,
-      eventCount: result.eventCount,
-      hasFirstEvent: !!result.firstEventAt,
-    })
-    return result
+    const dispatchedAt = worker.current!.dispatchedAt
+    void done.catch(() => undefined)
+    return {
+      workerID: worker.id,
+      requestID,
+      sessionID: input.sessionID,
+      createdAt: worker.current!.createdAt,
+      dispatchedAt,
+      eventCount: worker.current!.eventCount,
+      doneAt: dispatchedAt ?? Date.now(),
+    }
   } catch (error) {
     if (worker && !requestID && !worker.current) {
       worker.busy = false
@@ -760,6 +819,11 @@ export const TaskTool = Tool.define("task", async (ctx) => {
 
         const config = await Config.get()
         mark("config_loaded")
+
+        const callerSession = await Session.get(ctx.sessionID)
+        if (callerSession.parentID) {
+          throw new Error(`nested_task_delegation_unsupported:${ctx.sessionID}`)
+        }
 
         // Skip permission check when user explicitly invoked via @ or command subtask
         if (!ctx.extra?.bypassAgentCheck) {
@@ -844,8 +908,16 @@ export const TaskTool = Tool.define("task", async (ctx) => {
 
         // Parent model = session identity baseline
         const parentModel = pinnedExecution
-          ? { modelID: pinnedExecution.modelID, providerId: pinnedExecution.providerId, accountId: pinnedExecution.accountId }
-          : { modelID: msg.info.modelID, providerId: msg.info.providerId, accountId: "accountId" in msg.info ? (msg.info as any).accountId : undefined }
+          ? {
+              modelID: pinnedExecution.modelID,
+              providerId: pinnedExecution.providerId,
+              accountId: pinnedExecution.accountId,
+            }
+          : {
+              modelID: msg.info.modelID,
+              providerId: msg.info.providerId,
+              accountId: "accountId" in msg.info ? (msg.info as any).accountId : undefined,
+            }
 
         // Validate LLM-specified model against user's visible model list (favorites).
         // Only models the user has explicitly enabled are allowed.
@@ -865,7 +937,9 @@ export const TaskTool = Tool.define("task", async (ctx) => {
                 allowed = new Set(favorites.map((f) => `${f.providerId}/${f.modelID}`))
               }
             }
-          } catch { /* ignore read errors */ }
+          } catch {
+            /* ignore read errors */
+          }
 
           if (allowed && !allowed.has(modelKey)) {
             // LLM specified a model not in user's visible list — reject
@@ -938,6 +1012,8 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             sessionId: session.id,
             model,
             modelSource,
+            dispatched: true,
+            status: "running",
             todo: linkedTodo
               ? {
                   id: linkedTodo.id,
@@ -969,6 +1045,9 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             metadata: {
               sessionId: session.id,
               model,
+              modelSource,
+              dispatched: true,
+              status: "running",
               todo: linkedTodo
                 ? {
                     id: linkedTodo.id,
@@ -1041,7 +1120,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           ProcessSupervisor.register({
             id: ctx.callID,
             kind: "task-subagent",
-            sessionID: session.id,
+            sessionID: ctx.sessionID,
             parentSessionID: ctx.sessionID,
           })
         }
@@ -1144,6 +1223,10 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           const result = await Promise.race([
             dispatchToWorker({
               sessionID: session.id,
+              parentSessionID: ctx.sessionID,
+              parentMessageID: ctx.messageID,
+              toolCallID: ctx.callID ?? session.id,
+              linkedTodoID: linkedTodo?.id,
               config,
               abort: ctx.abort,
               onPhase: (phase, data) => {
@@ -1186,61 +1269,31 @@ export const TaskTool = Tool.define("task", async (ctx) => {
                 : `Subagent execution timed out after ${Math.round(inactiveMs / 1000)}s of inactivity`,
             )
           }
-          if (result.type === "done" && result.run.firstEventAt) {
-            marks.set("first_bridge_event", result.run.firstEventAt)
-          }
-          mark("worker_completed", {
+          mark("worker_dispatched_return", {
             eventCount: result.type === "done" ? result.run.eventCount : 0,
-            firstEventMs:
-              result.type === "done" && result.run.firstEventAt ? result.run.firstEventAt - startedAt : undefined,
+            firstEventMs: undefined,
           })
-          if (linkedTodo?.id) {
-            await Todo.reconcileProgress({
-              sessionID: ctx.sessionID,
-              linkedTodoID: linkedTodo.id,
-              taskStatus: "completed",
-            }).catch(() => undefined)
-          }
         } finally {
           clearInterval(heartbeatTimer)
           ctx.abort.removeEventListener("abort", cleanup)
           unsub()
-          if (ctx.callID) ProcessSupervisor.kill(ctx.callID)
         }
 
-        // Read the result from the session logs
-        const messages = await Session.messages({ sessionID: session.id })
-        mark("result_loaded", { messageCount: messages.length })
-        const assistantMessages = messages.filter((x) => x.info.role === "assistant")
-        if (assistantMessages.length === 0) {
-          throw new Error("Subagent exited without assistant output")
-        }
-        const lastAssistant = assistantMessages.at(-1)!
-        const text = lastAssistant.parts.findLast((x) => x.type === "text")?.text ?? ""
-
-        // Check for error in message info if applicable (though V2 messages structure stores errors differently generally)
-        // We rely on the text output primarily for the "result"
-
-        const isToolPart = (part: MessageV2.Part): part is MessageV2.ToolPart => part.type === "tool"
-        const summary = messages
-          .filter((x) => x.info.role === "assistant")
-          .flatMap((msg) => msg.parts.filter(isToolPart))
-          .map((part) => ({
-            id: part.id,
-            tool: part.tool,
-            state: {
-              status: part.state.status,
-              title: part.state.status === "completed" ? part.state.title : undefined,
-            },
-          }))
-
-        const output = text + "\n\n" + ["<task_metadata>", `session_id: ${session.id}`, "</task_metadata>"].join("\n")
-        mark("finished", { outputChars: output.length, toolSummaryCount: summary.length })
+        const output = [
+          "Subagent dispatched in background.",
+          "",
+          "<task_metadata>",
+          `session_id: ${session.id}`,
+          "status: running",
+          "</task_metadata>",
+        ].join("\n")
+        mark("finished", { outputChars: output.length })
 
         return {
           title: params.description,
           metadata: {
-            summary,
+            dispatched: true,
+            status: "running",
             sessionId: session.id,
             model,
             todo: linkedTodo

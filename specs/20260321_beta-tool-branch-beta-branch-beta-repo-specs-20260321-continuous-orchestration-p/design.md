@@ -2,47 +2,58 @@
 
 ## Context
 
-- The Orchestrator currently blocks on `task()` completion, which prevents responsive user interaction and creates timeout pressure.
-- The desired future state is fire-and-dispatch with event-driven continuation, but this session is limited to planning.
-- Beta-tool branch creation is part of the execution path and is currently blocked by a dirty main worktree.
+- Today `packages/opencode/src/tool/task.ts` behaves as a synchronous tool call: the Orchestrator dispatches a worker and then waits for completion before the tool returns.
+- The repo already has most of the primitives needed for continuous orchestration: bus publication, bridged worker events, synthetic messages, and `RunQueue.enqueue()`.
+- The missing piece is a runtime composition that treats dispatch and completion as two separate phases owned by different components.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Define a clear non-blocking orchestration plan.
-- Preserve clean handoff boundaries for later implementation.
-- Record the beta-tool branch prerequisite.
+- Make `task()` dispatch non-blocking for the parent Orchestrator turn.
+- Resume parent sessions from event-backed completion evidence.
+- Keep the first implementation slice sequential and observable.
+- Minimize blast radius by reusing existing bus/session/run-queue primitives.
 
 **Non-Goals:**
-- No runtime code changes.
-- No test or build execution.
-- No automatic cleanup or fallback around the dirty-tree blocker.
+- Multi-subagent parallelism.
+- Replacing the existing worker bridge transport.
+- Adding hidden rescue paths that preserve the old blocking semantics.
 
 ## Decisions
 
-- Keep the workstream plan-only in this session.
-- Treat the dirty-tree refusal as a hard stop gate, not a recoverable warning.
-- Preserve the existing cms branch as the planning base until the repo is clean.
+- Split orchestration into dispatch-time responsibility (`tool/task.ts`) and completion-time responsibility (bus subscriber / session continuation path).
+- Treat task-completion events as authoritative continuation triggers; the tool itself must not await worker completion.
+- Preserve `RunQueue.enqueue()` as the only parent-session resume mechanism.
+- Use synthetic parent-session messages as the handoff boundary between background completion and resumed Orchestrator reasoning.
+- Keep UI changes minimal in phase 1: enough to verify running/completed visibility, not a full redesign.
 
 ## Data / State / Control Flow
 
-- User intent enters the plan root.
-- Planner artifacts define the future async task flow and resume path.
-- Beta-tool branch creation is a separate execution step that must observe repo cleanliness before mutating git state.
+- Orchestrator calls `task()` -> runtime creates child session / worker -> tool returns immediate dispatch metadata.
+- Worker progress continues through existing stdout bridge -> bus events remain visible to monitors/UI.
+- Worker completion or failure publishes an authoritative completion event.
+- Completion subscriber resolves parent-session identity -> writes a synthetic continuation message -> enqueues parent on `RunQueue`.
+- Resumed Orchestrator consumes the synthetic message and decides the next execution step.
 
 ## Risks / Trade-offs
 
-- Delaying beta-tool branch creation slows implementation start -> mitigated by capturing the blocker explicitly now.
-- Keeping plan-only scope may require a later follow-up session -> mitigated by making the handoff execution-ready.
-- Avoiding fallback means the workflow can stop on dirty tree -> chosen to preserve correctness and traceability.
+- Event payload is currently insufficient for parent continuation -> mitigation is to extend completion metadata and/or resolve parent linkage from session records before dispatch refactor lands.
+- Immediate return can expose race conditions in UI/monitor assumptions -> mitigate with targeted validation on status surfaces.
+- Prompt/docs may drift from runtime semantics -> mitigate by updating prompt contract in the same implementation wave.
+- Removing blocking semantics may reveal hidden callers depending on old timing -> mitigate with code search and explicit validation.
 
 ## Critical Files
 
-- `/home/pkcs12/projects/opencode/specs/20260321_beta-tool-branch-beta-branch-beta-repo-specs-20260321-continuous-orchestration-p/proposal.md`
-- `/home/pkcs12/projects/opencode/specs/20260321_beta-tool-branch-beta-branch-beta-repo-specs-20260321-continuous-orchestration-p/implementation-spec.md`
-- `/home/pkcs12/projects/opencode/specs/20260321_beta-tool-branch-beta-branch-beta-repo-specs-20260321-continuous-orchestration-p/tasks.md`
-- `/home/pkcs12/projects/opencode/specs/20260321_beta-tool-branch-beta-branch-beta-repo-specs-20260321-continuous-orchestration-p/handoff.md`
+- `/home/pkcs12/projects/.beta-worktrees/opencode/beta/continuous-orchestration/packages/opencode/src/tool/task.ts`
+- `/home/pkcs12/projects/.beta-worktrees/opencode/beta/continuous-orchestration/packages/opencode/src/bus/index.ts`
+- `/home/pkcs12/projects/.beta-worktrees/opencode/beta/continuous-orchestration/packages/opencode/src/bus/subscribers/`
+- `/home/pkcs12/projects/.beta-worktrees/opencode/beta/continuous-orchestration/packages/opencode/src/session/index.ts`
+- `/home/pkcs12/projects/.beta-worktrees/opencode/beta/continuous-orchestration/packages/opencode/src/session/queue.ts`
+- `/home/pkcs12/projects/.beta-worktrees/opencode/beta/continuous-orchestration/packages/opencode/src/session/prompt.ts`
+- `/home/pkcs12/projects/.beta-worktrees/opencode/beta/continuous-orchestration/templates/prompts/SYSTEM.md`
+- `/home/pkcs12/projects/.beta-worktrees/opencode/beta/continuous-orchestration/packages/app/src/pages/session/`
 
 ## Supporting Docs (Optional)
 
-- `/home/pkcs12/projects/opencode/docs/events/event_20260322_continuous_orchestration.md`
+- `/home/pkcs12/projects/.beta-worktrees/opencode/beta/continuous-orchestration/docs/events/event_20260322_continuous_orchestration.md`
+- `/home/pkcs12/projects/.beta-worktrees/opencode/beta/continuous-orchestration/specs/architecture.md`

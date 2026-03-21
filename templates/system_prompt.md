@@ -280,7 +280,9 @@ Task({
 
 ### 4.2 處理回調 (Handling Return)
 
-Orchestrator 收到 Subagent 回報後：
+`Task` 為 dispatch-first：Orchestrator 呼叫後會先取得已派發回執，Subagent 會在背景繼續執行。
+
+當 completion / failure continuation 事件把 Orchestrator 喚回後：
 
 1.  **評估**: 檢查代碼品質與測試結果。
 2.  **延續**: 若需補充指示，必須使用同一個 `session_id` 呼叫 `Task` 工具，以延續對話上下文。

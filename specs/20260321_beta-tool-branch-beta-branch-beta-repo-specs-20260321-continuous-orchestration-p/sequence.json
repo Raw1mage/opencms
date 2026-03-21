@@ -1,20 +1,38 @@
 [
   {
-    "diagram_title": "Primary Flow",
-    "scenario": "Main success scenario derived from requirement",
+    "diagram_title": "Dispatch And Resume Flow",
+    "scenario": "Orchestrator dispatches a subagent, returns immediately, and later resumes from completion evidence.",
     "moduleRef": "A1",
     "participants": [
       {
         "id": "P1",
-        "name": "Actor",
+        "name": "Orchestrator Session",
         "type": "actor",
         "componentRef": "C1"
       },
       {
         "id": "P2",
-        "name": "Component",
+        "name": "Task Tool Dispatcher",
         "type": "component",
         "componentRef": "C1"
+      },
+      {
+        "id": "P3",
+        "name": "Subagent Worker",
+        "type": "system",
+        "componentRef": "SYS1"
+      },
+      {
+        "id": "P4",
+        "name": "Task Completion Subscriber",
+        "type": "component",
+        "componentRef": "C2"
+      },
+      {
+        "id": "P5",
+        "name": "Session Continuation Queue",
+        "type": "component",
+        "componentRef": "C3"
       }
     ],
     "messages": [
@@ -22,19 +40,58 @@
         "id": "MSG1",
         "from": "P1",
         "to": "P2",
-        "label": "Request",
+        "label": "task(payload)",
         "type": "sync",
         "order": 1
       },
       {
         "id": "MSG2",
         "from": "P2",
-        "to": "P1",
-        "label": "Response",
-        "type": "return",
+        "to": "P3",
+        "label": "spawn worker + child session",
+        "type": "create",
         "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P2",
+        "to": "P1",
+        "label": "dispatch metadata returned immediately",
+        "type": "return",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P3",
+        "to": "P4",
+        "label": "task.worker.done / task.worker.failed",
+        "type": "async",
+        "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P4",
+        "to": "P5",
+        "label": "inject synthetic parent message + enqueue parent",
+        "type": "sync",
+        "order": 5
+      },
+      {
+        "id": "MSG6",
+        "from": "P5",
+        "to": "P1",
+        "label": "resume parent execution",
+        "type": "async",
+        "order": 6
       }
     ],
-    "fragments": []
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "alt",
+        "label": "success or failure completion path",
+        "messageRefs": ["MSG4", "MSG5", "MSG6"]
+      }
+    ]
   }
 ]
