@@ -23,6 +23,38 @@ export type MonitorDisplayCard = {
   headline?: string
 }
 
+/** Process-oriented card: one card per OS-visible process */
+export type ProcessCard = {
+  /** Unique key for dedup */
+  key: string
+  /** "main" = parent session, "subagent" = delegated child process */
+  kind: "main" | "subagent"
+  /** Display title (task description or session title) */
+  title: string
+  /** What the process is doing right now */
+  activity?: string
+  /** Aggregate status across all levels for this process */
+  status: "active" | "waiting" | "pending" | "error" | "idle"
+  /** Agent type (coding, explore, docs, etc.) */
+  agent?: string
+  /** Model in use */
+  model?: { providerId: string; modelID: string }
+  /** Elapsed seconds */
+  elapsed?: number
+  /** Request count */
+  requests: number
+  /** Total tokens */
+  totalTokens: number
+  /** Currently executing tool */
+  activeTool?: string
+  /** Task narration */
+  narration?: string
+  /** Session ID for abort */
+  sessionID: string
+  /** Can be aborted */
+  canAbort: boolean
+}
+
 export const MONITOR_STATUS_LABELS: Record<string, string> = {
   busy: "Running",
   working: "Working",
@@ -225,4 +257,107 @@ export function buildMonitorEntries(input: {
       latestNarration: inferred?.narration,
     } satisfies EnrichedMonitorEntry
   })
+}
+
+function statusRank(type: string): "active" | "waiting" | "pending" | "error" | "idle" {
+  if (type === "busy" || type === "working") return "active"
+  if (type === "retry" || type === "compacting") return "waiting"
+  if (type === "pending") return "pending"
+  if (type === "error") return "error"
+  return "idle"
+}
+
+/**
+ * Collapse multi-level monitor entries into process-oriented cards.
+ * One card per OS-visible process: main session + one per delegated subagent.
+ */
+export function buildProcessCards(entries: EnrichedMonitorEntry[], mainSessionID?: string): ProcessCard[] {
+  const now = Date.now()
+
+  // Group entries by sessionID — all levels for the same session collapse into one process
+  const bySession = new Map<string, EnrichedMonitorEntry[]>()
+  for (const entry of entries) {
+    const sid = entry.sessionID
+    if (!bySession.has(sid)) bySession.set(sid, [])
+    bySession.get(sid)!.push(entry)
+  }
+
+  const cards: ProcessCard[] = []
+
+  for (const [sessionID, group] of bySession) {
+    const isMain = sessionID === mainSessionID
+
+    // Pick the most informative entry for display:
+    // prefer sub-agent > agent > sub-session > session > tool
+    const levelPriority: Record<string, number> = {
+      "sub-agent": 5,
+      agent: 4,
+      "sub-session": 3,
+      session: 2,
+      tool: 1,
+    }
+    const sorted = group.slice().sort((a, b) => (levelPriority[b.level] ?? 0) - (levelPriority[a.level] ?? 0))
+    const primary = sorted[0]
+
+    // Aggregate stats across all levels for this process
+    let requests = 0
+    let totalTokens = 0
+    let model: { providerId: string; modelID: string } | undefined
+    let activeTool: string | undefined
+    let narration: string | undefined
+    let bestStatus: "active" | "waiting" | "pending" | "error" | "idle" = "idle"
+    let latestUpdate = 0
+
+    for (const entry of group) {
+      requests = Math.max(requests, entry.requests)
+      totalTokens = Math.max(totalTokens, entry.totalTokens)
+      if (!model && entry.model) model = entry.model
+      if (!activeTool && entry.activeTool) activeTool = entry.activeTool
+      if (!narration && entry.latestNarration) narration = entry.latestNarration
+      latestUpdate = Math.max(latestUpdate, entry.updated)
+
+      const rank = statusRank(entry.status.type)
+      // Pick highest-priority status
+      const order = { active: 4, waiting: 3, pending: 2, error: 5, idle: 0 }
+      if (order[rank] > order[bestStatus]) bestStatus = rank
+    }
+
+    const title = isMain
+      ? primary.title || "Main session"
+      : primary.latestNarration || primary.todo?.content || primary.title || primary.agent || "Subagent"
+
+    const activity = isMain
+      ? narration || activeTool || primary.todo?.content || undefined
+      : activeTool || undefined
+
+    cards.push({
+      key: sessionID,
+      kind: isMain ? "main" : "subagent",
+      title,
+      activity,
+      status: bestStatus,
+      agent: primary.agent,
+      model,
+      elapsed: latestUpdate ? Math.floor((now - latestUpdate) / 1000) : undefined,
+      requests,
+      totalTokens,
+      activeTool,
+      narration,
+      sessionID,
+      canAbort: !isMain && bestStatus !== "idle",
+    })
+  }
+
+  // Sort: main first, then active before waiting/pending, then by update recency
+  const statusOrder = { active: 0, error: 1, waiting: 2, pending: 3, idle: 4 }
+  cards.sort((a, b) => {
+    if (a.kind === "main" && b.kind !== "main") return -1
+    if (b.kind === "main" && a.kind !== "main") return 1
+    const sa = statusOrder[a.status] ?? 9
+    const sb = statusOrder[b.status] ?? 9
+    if (sa !== sb) return sa - sb
+    return (a.elapsed ?? 0) - (b.elapsed ?? 0)
+  })
+
+  return cards
 }

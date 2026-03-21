@@ -13,10 +13,9 @@ import type { Todo, UserMessage } from "@opencode-ai/sdk/v2/client"
 import { getSessionStatusSummary } from "./helpers"
 import {
   buildMonitorEntries,
-  monitorDisplayCard,
+  buildProcessCards,
   type EnrichedMonitorEntry,
-  MONITOR_STATUS_LABELS,
-  monitorToolStatus,
+  type ProcessCard,
 } from "./monitor-helper"
 import { SessionStatusSections } from "./session-status-sections"
 import { StatusTodoList } from "./status-todo-list"
@@ -229,81 +228,70 @@ export default function SessionToolPageRoute() {
                     fallback={<div class="text-12-regular text-text-danger">{monitor.error}</div>}
                   >
                     <div class="flex flex-col gap-3">
-                      <Show
-                        when={(monitorEntries() ?? []).length > 0}
-                        fallback={<div class="text-12-regular text-text-weak">No active tasks.</div>}
-                      >
-                        <For each={(monitorEntries() ?? []) as EnrichedMonitorEntry[]}>
-                          {(item) => (
-                            <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-1">
-                              <div class="flex items-start gap-2 min-w-0">
-                                <span class="text-11-medium text-text-weak shrink-0">
-                                  [{monitorDisplayCard(item).badge}]
-                                </span>
-                                <div class="min-w-0 flex-1">
-                                  <div class="text-12-medium text-text-strong break-words">
-                                    {monitorDisplayCard(item).title}
-                                    <Show when={monitorDisplayCard(item).headline}>
-                                      {(headline) => <span class="text-text-weak"> · {headline()}</span>}
-                                    </Show>
-                                  </div>
-                                </div>
-                              </div>
-                              <Show
-                                when={item.todo?.content && item.todo?.content !== monitorDisplayCard(item).headline}
-                              >
-                                <div class="text-11-regular text-info break-words">Todo: {item.todo?.content}</div>
-                              </Show>
-                              <Show when={item.todo?.status}>
-                                <div class="text-11-regular text-text-weak break-words">
-                                  Todo status: {item.todo?.status}
-                                </div>
-                              </Show>
-                              <div class="text-11-regular text-text-weak break-words">
-                                {MONITOR_STATUS_LABELS[item.status.type] ?? item.status.type}
-                                {item.model ? ` · ${item.model.providerId}/${item.model.modelID}` : ""}
-                                {` · ${item.requests} reqs · ${item.totalTokens.toLocaleString()} tok`}
-                              </div>
-                              <Show
-                                when={
-                                  item.todo?.action?.kind ||
-                                  item.todo?.action?.waitingOn ||
-                                  item.todo?.action?.needsApproval
+                      {(() => {
+                        const processCards = () =>
+                          buildProcessCards(
+                            (monitorEntries() ?? []) as EnrichedMonitorEntry[],
+                            params.id,
+                          )
+                        return (
+                          <Show
+                            when={processCards().length > 0}
+                            fallback={<div class="text-12-regular text-text-weak">No active tasks.</div>}
+                          >
+                            <For each={processCards()}>
+                              {(card) => {
+                                const borderColor = () => {
+                                  if (card.status === "active") return "var(--color-success)"
+                                  if (card.status === "error") return "var(--color-warning)"
+                                  if (card.status === "waiting") return "var(--color-info)"
+                                  return "var(--border-weak-base)"
                                 }
-                              >
-                                <div class="text-11-regular text-text-weak break-words">
-                                  Method: {item.todo?.action?.kind ?? "implement"}
-                                  {item.todo?.action?.waitingOn ? ` · waiting: ${item.todo.action.waitingOn}` : ""}
-                                  {item.todo?.action?.needsApproval ? " · needs approval" : ""}
-                                </div>
-                              </Show>
-                              <Show when={item.activeTool}>
-                                <div class="text-11-regular text-text-weak break-words">
-                                  Tool: {item.activeTool}
-                                  <Show
-                                    when={monitorToolStatus({
-                                      statusType: item.status.type,
-                                      activeToolStatus: item.activeToolStatus,
-                                    })}
+                                const statusLabel = () => {
+                                  if (card.status === "active") return "Running"
+                                  if (card.status === "error") return "Error"
+                                  if (card.status === "waiting") return "Waiting"
+                                  if (card.status === "pending") return "Pending"
+                                  return ""
+                                }
+                                const elapsed = () => {
+                                  if (card.elapsed == null) return ""
+                                  if (card.elapsed < 60) return `${card.elapsed}s`
+                                  const mins = Math.floor(card.elapsed / 60)
+                                  if (mins < 60) return `${mins}m`
+                                  return `${Math.floor(mins / 60)}h${mins % 60}m`
+                                }
+                                return (
+                                  <div
+                                    class="rounded-md border bg-background-base px-3 py-2 flex flex-col gap-1"
+                                    style={{
+                                      "border-left": `3px solid ${borderColor()}`,
+                                      "border-color": "var(--border-weak-base)",
+                                      "border-left-color": borderColor(),
+                                    }}
                                   >
-                                    {(toolStatus) => <> · {toolStatus()}</>}
-                                  </Show>
-                                </div>
-                              </Show>
-                              <Show when={item.latestResult}>
-                                <div class="text-11-regular text-text-weak break-words">
-                                  Result: {item.latestResult}
-                                </div>
-                              </Show>
-                              <Show when={item.latestNarration}>
-                                <div class="text-11-regular text-info break-words">
-                                  Narration: {item.latestNarration}
-                                </div>
-                              </Show>
-                            </div>
-                          )}
-                        </For>
-                      </Show>
+                                    <div class="text-12-medium text-text-strong break-words">
+                                      {card.title}
+                                      <Show when={card.agent && card.kind === "subagent"}>
+                                        <span class="text-text-weak"> @{card.agent}</span>
+                                      </Show>
+                                    </div>
+                                    <Show when={card.activity}>
+                                      <div class="text-11-regular text-info break-words">{card.activity}</div>
+                                    </Show>
+                                    <div class="text-11-regular text-text-weak break-words">
+                                      {statusLabel()}
+                                      {elapsed() ? ` · ${elapsed()}` : ""}
+                                      {card.model ? ` · ${card.model.modelID}` : ""}
+                                      {` · ${card.requests} reqs · ${card.totalTokens.toLocaleString()} tok`}
+                                    </div>
+                                  </div>
+                                )
+                              }}
+                            </For>
+                          </Show>
+                        )
+                      })()}
                     </div>
                   </Show>
                 </Show>
