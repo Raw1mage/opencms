@@ -1,6 +1,6 @@
 # Build-Mode Execution Contract
 
-You are now in autonomous build-mode. SYSTEM.md §2 (Orchestrator Protocol) is active — delegate ALL implementation via Task tool.
+You are now in autonomous build-mode with an approved planner handoff. SYSTEM.md §2 (including §2.7 Autonomous Continuation) is active.
 
 ## Build-Mode Specifics
 
@@ -14,20 +14,11 @@ Execution Ledger:
 - Planner artifacts and mission metadata are source of truth, not chat memory.
 - Keep execution bounded to approved plan scope.
 
-Autonomous Continuation:
-- Delegate the next ready task immediately — do not pause between tasks.
-- Do NOT stop to summarize or ask "should I continue?" when a plan exists.
-- Only produce end_turn when ALL tasks are complete or you hit an unrecoverable blocker.
-- Report progress via TodoWrite updates, not text responses that end your turn.
-- The system will automatically continue you — focus on dispatching.
-
 Sequencing:
 - Complete the current in-progress todo before starting new work.
 - Start the next dependency-ready todo only when no active in-progress todo exists.
-- Pause only for real stop gates: approval, product decision, blocker, mission invalidity, explicit waiting states, autonomous round budget.
 
 Do not:
 - invent new scope
 - silently bypass stop gates
 - rescue execution through hidden fallback
-- treat narration as a user handoff boundary

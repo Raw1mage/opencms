@@ -92,13 +92,10 @@ function toolWhitelistForSubagent(agentName: string): string[] | undefined {
   if (name === "explore") {
     return ["read", "glob", "grep", "list", "bash", "webfetch", "websearch", "codesearch", "question", "skill"]
   }
-  if (name === "review" || name === "testing" || name === "docs") {
+  if (name === "review" || name === "testing") {
     return ["read", "glob", "grep", "list", "bash", "webfetch", "websearch", "codesearch", "question", "skill"]
   }
   if (name === "coding") {
-    return ["read", "glob", "grep", "list", "bash", "edit", "write", "apply_patch", "question", "skill"]
-  }
-  if (name === "planner") {
     return ["read", "glob", "grep", "list", "bash", "edit", "write", "apply_patch", "question", "skill"]
   }
   return undefined
@@ -694,7 +691,7 @@ async function dispatchToWorker(input: {
 }
 
 export const TaskTool = Tool.define("task", async (ctx) => {
-  const agents = await Agent.list().then((x) => x.filter((a) => a.mode !== "primary"))
+  const agents = await Agent.list().then((x) => x.filter((a) => a.mode !== "primary" && a.hidden !== true))
 
   // Filter agents by permissions if agent provided
   const caller = ctx?.agent

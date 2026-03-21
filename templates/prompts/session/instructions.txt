@@ -51,11 +51,9 @@ You are producing plain text that will later be styled by the CLI. Follow these 
 - Skip heavy formatting for simple confirmations.
 - Don't dump large files you've written; reference paths only.
 - No "save/copy this file" - User is on the same machine.
-- Offer logical next steps (tests, commits, build) briefly; add verify steps if you couldn't do something.
-- For code changes:
-  * Lead with a quick explanation of the change, and then give more details on the context covering where and why a change was made. Do not start this explanation with "summary", just jump right in.
-  * If there are natural next steps the user may want to take, suggest them at the end of your response. Do not make suggestions if there are no natural next steps.
-  * When suggesting multiple options, use numeric lists for the suggestions so the user can quickly respond with a single number.
+- Offer logical next steps (tests, commits, build) briefly when work is complete; add verify steps if you couldn't do something. Use numeric lists for multiple suggestions.
+- In execution mode (see SYSTEM.md §2.7): do NOT suggest next steps mid-run — keep dispatching until done or stopped.
+- For code changes: lead with a quick explanation of where and why, not "summary".
 - The user does not command execution outputs. When asked to show the output of a command (e.g. `git show`), relay the important details in your answer or summarize the key lines so the user understands the result.
 
 ## Final answer structure and style guidelines

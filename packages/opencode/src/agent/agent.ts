@@ -73,13 +73,11 @@ export namespace Agent {
     sub: PermissionNext.Ruleset,
   ): Promise<Record<string, Info>> {
     // Load all agent prompts concurrently from XDG config (with built-in fallback)
-    const [coding, review, testing, docs, explore, planner, compaction, title, summary] = await Promise.all([
+    const [coding, review, testing, explore, compaction, title, summary] = await Promise.all([
       SystemPrompt.agentPrompt("coding"),
       SystemPrompt.agentPrompt("review"),
       SystemPrompt.agentPrompt("testing"),
-      SystemPrompt.agentPrompt("docs"),
       SystemPrompt.agentPrompt("explore"),
-      SystemPrompt.agentPrompt("planner"),
       SystemPrompt.agentPrompt("compaction"),
       SystemPrompt.agentPrompt("title"),
       SystemPrompt.agentPrompt("summary"),
@@ -156,15 +154,6 @@ export namespace Agent {
         mode: "subagent",
         native: true,
       },
-      docs: {
-        name: "docs",
-        description: "Worker agent that reads source code and updates documentation files. Use for docs sync, event logs, architecture docs, and changelog updates.",
-        permission: sub,
-        options: {},
-        prompt: docs,
-        mode: "subagent",
-        native: true,
-      },
       explore: {
         name: "explore",
         permission: PermissionNext.merge(
@@ -190,15 +179,6 @@ export namespace Agent {
         description: `Fast agent specialized for exploring codebases. Use this when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), or answer questions about the codebase (eg. "how do API endpoints work?"). When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions.`,
         prompt: explore,
         options: {},
-        mode: "subagent",
-        native: true,
-      },
-      planner: {
-        name: "planner",
-        description: "Worker agent that produces structured specification documents, IDEF0/Grafcet diagrams, and dependency-ordered task lists under /specs/. Use for all planning, requirement decomposition, and architecture design tasks.",
-        permission: sub,
-        options: {},
-        prompt: planner,
         mode: "subagent",
         native: true,
       },

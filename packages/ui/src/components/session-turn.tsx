@@ -834,27 +834,7 @@ export function SessionTurn(
                         <div data-slot="session-turn-summary-header">
                           <div data-slot="session-turn-summary-title-row">
                             <h2 data-slot="session-turn-summary-title">{i18n.t("ui.sessionTurn.summary.response")}</h2>
-                            <Show when={response()}>
-                              <div data-slot="session-turn-response-copy-wrapper">
-                                <Tooltip
-                                  value={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copy")}
-                                  placement="top"
-                                  gutter={8}
-                                >
-                                  <IconButton
-                                    icon={copied() ? "check" : "copy"}
-                                    size="small"
-                                    variant="secondary"
-                                    onMouseDown={(e) => e.preventDefault()}
-                                    onClick={(event) => {
-                                      event.stopPropagation()
-                                      handleCopy()
-                                    }}
-                                    aria-label={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copy")}
-                                  />
-                                </Tooltip>
-                              </div>
-                            </Show>
+                            {/* copy button removed — user prefers mouse selection */}
                           </div>
                           <div data-slot="session-turn-response">
                             <Markdown
