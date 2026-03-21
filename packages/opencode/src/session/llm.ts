@@ -210,7 +210,42 @@ export namespace LLM {
     })
     // Get account ID for rate limit tracking and provider options
     const sessionPinnedAccountId = input.accountId ?? input.user.model.accountId
-    const currentAccountId = sessionPinnedAccountId ?? (await getAccountIdForProvider(input.model.providerId))
+    let currentAccountId = sessionPinnedAccountId ?? (await getAccountIdForProvider(input.model.providerId))
+
+    // Pre-flight: if resolved account is rate-limited, proactively select a healthy one
+    if (currentAccountId && !sessionPinnedAccountId) {
+      const { getRateLimitTracker, getHealthTracker } = await import("@/account/rotation")
+      const rateLimitTracker = getRateLimitTracker()
+      if (rateLimitTracker.isRateLimited(currentAccountId, input.model.providerId, input.model.id)) {
+        const { Account } = await import("@/account")
+        const providerKey = input.model.providerId
+        const accounts = await Account.list(providerKey).catch(() => ({}))
+        const healthTracker = getHealthTracker()
+        // Find first healthy, non-rate-limited account for same provider
+        let bestAccountId: string | undefined
+        let bestScore = -1
+        for (const [accId] of Object.entries(accounts)) {
+          if (accId === currentAccountId) continue
+          if (rateLimitTracker.isRateLimited(accId, providerKey, input.model.id)) continue
+          const score = healthTracker.getScore(accId, providerKey)
+          if (score < 50) continue
+          if (score > bestScore) {
+            bestScore = score
+            bestAccountId = accId
+          }
+        }
+        if (bestAccountId) {
+          l.info("pre-flight: swapped rate-limited account", {
+            from: currentAccountId,
+            to: bestAccountId,
+            providerId: providerKey,
+            modelID: input.model.id,
+          })
+          currentAccountId = bestAccountId
+        }
+      }
+    }
+
     if (!input.accountId && currentAccountId) {
       input.accountId = currentAccountId
     }

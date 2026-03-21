@@ -2385,7 +2385,7 @@ export namespace Provider {
    * 3. API-key based accounts with best health score
    * 4. Fallback to any available provider
    */
-  export async function defaultModel(): Promise<{ providerId: string; modelID: string }> {
+  export async function defaultModel(): Promise<{ providerId: string; modelID: string; accountId?: string }> {
     const cfg = await Config.get()
     if (cfg.model) return parseModel(cfg.model)
 
@@ -2421,7 +2421,7 @@ export namespace Provider {
    */
   async function selectSubscriptionModel(
     cfg: Config.Info,
-  ): Promise<{ providerId: string; modelID: string } | undefined> {
+  ): Promise<{ providerId: string; modelID: string; accountId?: string } | undefined> {
     const { getHealthTracker, getRateLimitTracker } = await import("../account/rotation")
 
     // Priority order for subscription providers
@@ -2467,6 +2467,7 @@ export namespace Provider {
         return {
           providerId: family,
           modelID: model.id,
+          accountId,
         }
       }
     }
