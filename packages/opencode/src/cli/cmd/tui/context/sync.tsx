@@ -106,6 +106,8 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       vcs: VcsInfo | undefined
       path: Path
       llm_history: LlmHistoryEntry[]
+      /** Count of active background task workers (across all sessions) */
+      active_workers: number
     }>({
       provider_next: {
         all: [],
@@ -137,6 +139,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       vcs: undefined,
       path: { state: "", config: "", worktree: "", directory: "" },
       llm_history: [],
+      active_workers: 0,
     })
 
     const sdk = useSDK()
@@ -192,7 +195,8 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       if (!sessionID) return false
       const routeStatus = store.session_status?.[sessionID]
       const routeBusy = !!routeStatus && routeStatus.type !== "idle"
-      return routeBusy
+      // Keep monitor alive when background workers are active, even if main session is idle
+      return routeBusy || store.active_workers > 0
     }
 
     const stopMonitorTracking = () => {
@@ -280,6 +284,12 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         event?.properties?.sessionID === routeSessionID &&
         event.properties?.status?.type === "idle"
       ) {
+        // Don't stop monitor if background workers are still active
+        if (store.active_workers > 0) {
+          // Refresh to update monitor display with latest worker state
+          requestMonitorRefresh(monitorEventDebounceMs)
+          return
+        }
         stopMonitorTracking()
         return
       }
@@ -643,6 +653,33 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               message: props.message,
             }),
           )
+          break
+        }
+
+        case "task.worker.assigned": {
+          setStore("active_workers", (n) => n + 1)
+          // Kick monitor tracking — a background subagent just started
+          if (isSessionRoute() && !monitorPollingDisabled) {
+            requestMonitorRefresh(0, true)
+          }
+          break
+        }
+
+        case "task.worker.done":
+        case "task.worker.failed": {
+          setStore("active_workers", (n) => Math.max(0, n - 1))
+          // Refresh monitor to reflect completed worker
+          if (isSessionRoute() && !monitorPollingDisabled) {
+            requestMonitorRefresh(monitorEventDebounceMs)
+          }
+          break
+        }
+
+        case "task.worker.removed": {
+          // Worker removed from pool — refresh monitor to sync UI
+          if (isSessionRoute() && !monitorPollingDisabled) {
+            requestMonitorRefresh(monitorEventDebounceMs)
+          }
           break
         }
 

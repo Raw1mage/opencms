@@ -85,6 +85,8 @@ export function Prompt(props: PromptProps) {
   const dialog = useDialog()
   const toast = useToast()
   const status = createMemo(() => sync.data.session_status?.[props.sessionID ?? ""] ?? { type: "idle" })
+  const activeWorkers = createMemo(() => sync.data.active_workers ?? 0)
+  const hasActivity = createMemo(() => status().type !== "idle" || activeWorkers() > 0)
   const modelSelectionKey = (input?: { providerId?: string; modelID?: string; accountId?: string }) =>
     `${input?.providerId ?? ""}:${input?.modelID ?? ""}:${input?.accountId ?? ""}`
   const retryStatus = createMemo(() => {
@@ -1447,7 +1449,7 @@ export function Prompt(props: PromptProps) {
           />
         </box>
         <box flexDirection="row" justifyContent="space-between">
-          <Show when={status().type !== "idle"} fallback={<text />}>
+          <Show when={hasActivity()} fallback={<text />}>
             <box
               flexDirection="row"
               gap={1}
@@ -1456,11 +1458,15 @@ export function Prompt(props: PromptProps) {
             >
               <box flexShrink={0} flexDirection="row" gap={1}>
                 <box marginLeft={1}>
-                  <Show
-                    when={!perfProbeMode && kv.get("animations_enabled", defaultAnimationsEnabled)}
-                    fallback={<text fg={theme.textMuted}>[⋯]</text>}
-                  >
-                    <spinner color={spinnerDef().color} frames={spinnerDef().frames} interval={40} />
+                  <Show when={status().type !== "idle"} fallback={
+                    <text fg={theme.textMuted}>[{activeWorkers()} worker{activeWorkers() > 1 ? "s" : ""}]</text>
+                  }>
+                    <Show
+                      when={!perfProbeMode && kv.get("animations_enabled", defaultAnimationsEnabled)}
+                      fallback={<text fg={theme.textMuted}>[⋯]</text>}
+                    >
+                      <spinner color={spinnerDef().color} frames={spinnerDef().frames} interval={40} />
+                    </Show>
                   </Show>
                 </box>
                 <box flexDirection="row" gap={1} flexShrink={0}>
