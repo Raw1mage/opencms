@@ -1,5 +1,30 @@
-import { For, Show, type JSX } from "solid-js"
+import { For, Show, createSignal, type JSX } from "solid-js"
 import type { SessionTelemetry } from "@/context/global-sync/types"
+
+type CollapsibleCardProps = {
+  marker: string
+  title: string
+  expanded?: boolean
+  onToggle?: () => void
+  children: JSX.Element
+}
+
+function TelemetryCardShell(props: CollapsibleCardProps) {
+  return (
+    <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-2">
+      <button type="button" class="flex items-start gap-2 min-w-0 text-left" onClick={() => props.onToggle?.()}>
+        <span class="text-11-medium text-text-weak shrink-0">{props.marker}</span>
+        <div class="min-w-0 flex-1">
+          <div class="text-12-medium text-text-strong break-words">{props.title}</div>
+        </div>
+        <Show when={props.onToggle}>
+          <span class="text-12-medium text-text-base shrink-0">{(props.expanded ?? true) ? "▼" : "▶"}</span>
+        </Show>
+      </button>
+      <Show when={props.expanded ?? true}>{props.children}</Show>
+    </div>
+  )
+}
 
 const tokenLine = (label: string, value?: number) => {
   if (value === undefined || value <= 0) return undefined
@@ -42,15 +67,18 @@ function quotaPressureLabel(pressure: SessionTelemetry["quota"]["pressure"]) {
   return "Stable"
 }
 
-export function PromptTelemetryCard(props: { telemetry?: SessionTelemetry }) {
+export function PromptTelemetryCard(props: {
+  telemetry?: SessionTelemetry
+  expanded?: boolean
+  onToggle?: () => void
+}) {
+  const [showAllBlocks, setShowAllBlocks] = createSignal(false)
+  const visibleBlocks = () =>
+    showAllBlocks() ? (props.telemetry?.prompt.blocks ?? []) : (props.telemetry?.prompt.blocks.slice(0, 3) ?? [])
+  const hiddenCount = () => Math.max(0, (props.telemetry?.prompt.blocks.length ?? 0) - 3)
+
   return (
-    <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-2">
-      <div class="flex items-start gap-2 min-w-0">
-        <span class="text-11-medium text-text-weak shrink-0">[P]</span>
-        <div class="min-w-0 flex-1">
-          <div class="text-12-medium text-text-strong break-words">Prompt telemetry</div>
-        </div>
-      </div>
+    <TelemetryCardShell marker="[P]" title="Prompt blocks" expanded={props.expanded} onToggle={props.onToggle}>
       <Show
         when={props.telemetry?.promptPhase === "ready"}
         fallback={
@@ -79,7 +107,7 @@ export function PromptTelemetryCard(props: { telemetry?: SessionTelemetry }) {
               ? ` · ~${(props.telemetry?.summary.estimatedPromptTokens ?? 0).toLocaleString()} tok`
               : ""}
           </div>
-          <For each={props.telemetry?.prompt.blocks.slice(0, 3) ?? []}>
+          <For each={visibleBlocks()}>
             {(block) => (
               <div class="rounded-md border border-border-weak-base bg-surface-panel px-2.5 py-2 flex flex-col gap-1">
                 <div class="flex items-start justify-between gap-2">
@@ -106,20 +134,26 @@ export function PromptTelemetryCard(props: { telemetry?: SessionTelemetry }) {
               </div>
             )}
           </For>
-          <Show when={(props.telemetry?.prompt.blocks.length ?? 0) > 3}>
-            <div class="text-11-regular text-text-weak">
-              +{(props.telemetry?.prompt.blocks.length ?? 0) - 3} more blocks
-            </div>
+          <Show when={hiddenCount() > 0 || ((props.telemetry?.prompt.blocks.length ?? 0) > 3 && showAllBlocks())}>
+            <button
+              type="button"
+              class="w-fit text-11-regular text-text-weak hover:text-text-strong transition-colors"
+              onClick={() => setShowAllBlocks((value) => !value)}
+            >
+              {showAllBlocks() ? "Show fewer blocks" : `+${hiddenCount()} more blocks`}
+            </button>
           </Show>
         </>
       </Show>
-    </div>
+    </TelemetryCardShell>
   )
 }
 
 export function RoundSessionTelemetryCard(props: {
   telemetry?: SessionTelemetry
   accountLabel?: (accountId?: string, providerId?: string) => string | undefined
+  expanded?: boolean
+  onToggle?: () => void
 }) {
   const roundPairs = (): string[] => {
     const telemetry = props.telemetry
@@ -129,14 +163,6 @@ export function RoundSessionTelemetryCard(props: {
       telemetry.round.roundIndex ? `round ${telemetry.round.roundIndex}` : undefined,
       telemetry.round.requestId ? `request ${telemetry.round.requestId}` : undefined,
     ].filter((value): value is string => !!value)
-  }
-
-  const identityPairs = (): string[] => {
-    const telemetry = props.telemetry
-    if (!telemetry) return []
-    const account =
-      props.accountLabel?.(telemetry.round.accountId, telemetry.round.providerId) ?? telemetry.round.accountId
-    return [telemetry.round.providerId, account, telemetry.round.modelId].filter((value): value is string => !!value)
   }
 
   const roundLines = (): string[] => {
@@ -172,9 +198,6 @@ export function RoundSessionTelemetryCard(props: {
       telemetry.sessionSummary.durationMs !== undefined
         ? `Duration ${Math.max(0, Math.round(telemetry.sessionSummary.durationMs / 1000))}s`
         : undefined,
-      [telemetry.sessionSummary.providerId, account, telemetry.sessionSummary.modelId]
-        .filter((value): value is string => !!value)
-        .join(" / ") || undefined,
       telemetry.sessionSummary.compactionCount > 0
         ? `${telemetry.sessionSummary.compactionCount} compaction events`
         : undefined,
@@ -183,13 +206,12 @@ export function RoundSessionTelemetryCard(props: {
   }
 
   return (
-    <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-2">
-      <div class="flex items-start gap-2 min-w-0">
-        <span class="text-11-medium text-text-weak shrink-0">[S]</span>
-        <div class="min-w-0 flex-1">
-          <div class="text-12-medium text-text-strong break-words">Round / Session telemetry</div>
-        </div>
-      </div>
+    <TelemetryCardShell
+      marker="[S]"
+      title="Round / Session telemetry"
+      expanded={props.expanded}
+      onToggle={props.onToggle}
+    >
       <Show
         when={props.telemetry?.roundPhase === "ready"}
         fallback={
@@ -212,9 +234,6 @@ export function RoundSessionTelemetryCard(props: {
           <Show when={roundPairs().length > 0}>
             <div class="text-11-regular text-text-weak break-words">{roundPairs().join(" · ")}</div>
           </Show>
-          <Show when={identityPairs().length > 0}>
-            <div class="text-11-regular text-text-weak break-words">{identityPairs().join(" / ")}</div>
-          </Show>
           <For each={roundLines()}>
             {(line) => <div class="text-11-regular text-text-weak break-words">{line}</div>}
           </For>
@@ -228,13 +247,15 @@ export function RoundSessionTelemetryCard(props: {
           </Show>
         </>
       </Show>
-    </div>
+    </TelemetryCardShell>
   )
 }
 
 export type SessionTelemetryCardProps = {
   telemetry?: SessionTelemetry
   accountLabel?: (accountId?: string, providerId?: string) => string | undefined
+  expanded?: boolean
+  onToggle?: () => void
 }
 
 export function AccountQuotaReuseCard(props: SessionTelemetryCardProps) {
@@ -276,13 +297,7 @@ export function AccountQuotaReuseCard(props: SessionTelemetryCardProps) {
   }
 
   return (
-    <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-2">
-      <div class="flex items-start gap-2 min-w-0">
-        <span class="text-11-medium text-text-weak shrink-0">[Q]</span>
-        <div class="min-w-0 flex-1">
-          <div class="text-12-medium text-text-strong break-words">Account / quota reuse</div>
-        </div>
-      </div>
+    <TelemetryCardShell marker="[Q]" title="Account / quota reuse" expanded={props.expanded} onToggle={props.onToggle}>
       <Show
         when={props.telemetry?.quota.phase === "ready"}
         fallback={
@@ -350,7 +365,7 @@ export function AccountQuotaReuseCard(props: SessionTelemetryCardProps) {
           </Show>
         </>
       </Show>
-    </div>
+    </TelemetryCardShell>
   )
 }
 

@@ -15,6 +15,8 @@ const AVATAR_COLOR_KEYS = ["pink", "mint", "orange", "purple", "cyan", "lime"] a
 const DEFAULT_PANEL_WIDTH = 344
 const DEFAULT_SESSION_WIDTH = 600
 const DEFAULT_TERMINAL_HEIGHT = 280
+const CONTEXT_SIDEBAR_ORDER_DEFAULT = ["summary", "breakdown", "promptTelemetry", "roundTelemetry", "quota"] as const
+type ContextSidebarKey = (typeof CONTEXT_SIDEBAR_ORDER_DEFAULT)[number]
 export type AvatarColorKey = (typeof AVATAR_COLOR_KEYS)[number]
 
 export function getAvatarColors(key?: string) {
@@ -213,7 +215,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
       }
     }
 
-    const target = Persist.global("layout", ["layout.v8"])
+    const target = Persist.global("layout", ["layout.v9", "layout.v8"])
     const [store, setStore, _, ready] = persisted(
       { ...target, migrate },
       createStore({
@@ -246,6 +248,16 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
             servers: true,
             mcp: true,
           } as Record<"monitor" | "todo" | "servers" | "mcp" | "llm", boolean>,
+        },
+        contextSidebar: {
+          order: [...CONTEXT_SIDEBAR_ORDER_DEFAULT] as ContextSidebarKey[],
+          expanded: {
+            summary: true,
+            breakdown: true,
+            promptTelemetry: true,
+            roundTelemetry: true,
+            quota: true,
+          } as Record<ContextSidebarKey, boolean>,
         },
         session: {
           width: DEFAULT_SESSION_WIDTH,
@@ -693,6 +705,27 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         },
         toggleExpanded(key: "monitor" | "todo" | "servers" | "mcp" | "llm") {
           setStore("statusSidebar", "expanded", key, (value) => !value)
+        },
+      },
+      contextSidebar: {
+        order: createMemo(() =>
+          (
+            store.contextSidebar?.order?.filter((key): key is ContextSidebarKey =>
+              CONTEXT_SIDEBAR_ORDER_DEFAULT.includes(key as ContextSidebarKey),
+            ) ?? CONTEXT_SIDEBAR_ORDER_DEFAULT
+          ).concat(CONTEXT_SIDEBAR_ORDER_DEFAULT.filter((key) => !(store.contextSidebar?.order ?? []).includes(key))),
+        ),
+        setOrder(order: ContextSidebarKey[]) {
+          setStore("contextSidebar", "order", order)
+        },
+        expanded(key: ContextSidebarKey) {
+          return () => store.contextSidebar?.expanded?.[key] ?? true
+        },
+        setExpanded(key: ContextSidebarKey, value: boolean) {
+          setStore("contextSidebar", "expanded", key, value)
+        },
+        toggleExpanded(key: ContextSidebarKey) {
+          setStore("contextSidebar", "expanded", key, (value) => !value)
         },
       },
       session: {

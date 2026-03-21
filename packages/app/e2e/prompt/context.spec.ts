@@ -46,6 +46,10 @@ test("context panel can be opened from the prompt", async ({ page, sdk, gotoSess
 
     const tabs = page.locator('[data-component="tabs"][data-variant="normal"]')
     await expect(tabs.getByRole("tab", { name: "Context" })).toBeVisible()
+
+    await expect(page.getByText("Summary", { exact: true })).toBeVisible()
+    await expect(page.getByText("Breakdown", { exact: true })).toBeVisible()
+    await expect(page.getByText("Prompt", { exact: true })).toBeVisible()
   })
 })
 
