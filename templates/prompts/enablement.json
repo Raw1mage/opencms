@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "last_updated": "2026-03-14",
+  "last_updated": "2026-03-21",
   "purpose": "Single source of truth for tool/skill/MCP capability discovery and routing.",
   "usage_contract": {
     "prompt_injection": "Inject a concise snapshot from this registry into SYSTEM prompt context.",
@@ -84,7 +84,8 @@
       "memory_read_graph",
       "memory_search_nodes",
       "memory_open_nodes"
-    ]
+    ],
+    "beta_tool_mcp": ["newbeta", "syncback", "merge"]
   },
   "skills": {
     "bundled_templates": [
@@ -161,6 +162,16 @@
         "keywords": ["git", "commit", "diff", "branch", "rebase", "merge"],
         "prefer": ["bash", "system-manager_execute_command"],
         "fallback": ["bash"]
+      },
+      {
+        "intent": "repo/worktree beta loop orchestration",
+        "keywords": ["worktree", "beta", "syncback", "newbeta", "merge branch loop", "repo orchestration"],
+        "prefer": ["beta-tool MCP", "question"],
+        "fallback": ["bash", "question"],
+        "notes": [
+          "Prefer beta-tool for project-aware local repo/worktree orchestration.",
+          "Do not silently guess repo root, base branch, beta path, runtime policy, or merge target; use question when bounded clarification is needed."
+        ]
       },
       {
         "intent": "issue/pr/checks metadata",

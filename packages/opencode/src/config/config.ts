@@ -79,6 +79,7 @@ export namespace Config {
     "system-manager": "packages/mcp/system-manager/src/index.ts",
     "refacting-merger": "packages/mcp/refacting-merger/src/index.ts",
     "gcp-grounding": "packages/mcp/gcp-grounding/index.ts",
+    "beta-tool": "packages/mcp/branch-cicd/src/index.ts",
   } as const
 
   type InternalMcpName = keyof typeof INTERNAL_MCP_SOURCES

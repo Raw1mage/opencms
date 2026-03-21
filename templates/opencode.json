@@ -122,5 +122,12 @@
         }
       }
     }
+  },
+  "mcp": {
+    "beta-tool": {
+      "type": "local",
+      "command": ["bun", "packages/mcp/branch-cicd/src/index.ts"],
+      "enabled": false
+    }
   }
 }

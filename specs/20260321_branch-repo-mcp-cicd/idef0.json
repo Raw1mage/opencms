@@ -1,0 +1,95 @@
+{
+  "diagram_title": "Generic Branch Repo MCP CICD — Functional Context",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Resolve Project Context",
+      "description": "Infer or validate repo root, base branch, branch naming policy, beta worktree policy, and runtime launcher policy.",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Prepare Feature Loop",
+      "description": "Create or reuse a feature branch and attach the beta worktree from cms.",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Validate Feature Runtime",
+      "description": "Switch the main worktree to the feature branch and launch the web runtime for manual verification.",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Finalize Feature Branch",
+      "description": "Merge the verified feature branch back into cms and perform guarded cleanup.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "Repo And Task Context",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Git Worktree Policy",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "Resolved Project Policy",
+      "type": "output"
+    },
+    {
+      "id": "AR4",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "Prepared Worktree Mapping",
+      "type": "control"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "Project Runtime Rules",
+      "type": "control"
+    },
+    {
+      "id": "AR6",
+      "source": "A3:output",
+      "target": "A4:input",
+      "label": "Verification Result",
+      "type": "output"
+    },
+    {
+      "id": "AR7",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "Operator Approval",
+      "type": "control"
+    },
+    {
+      "id": "AR8",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "Git And MCP Runtime",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR9",
+      "source": "A4:output",
+      "target": "EXTERNAL",
+      "label": "Merged Base Branch And Cleanup Report",
+      "type": "output"
+    }
+  ]
+}

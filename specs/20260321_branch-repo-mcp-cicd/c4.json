@@ -1,0 +1,135 @@
+{
+  "diagram_title": "Generic Branch Repo MCP CICD — C4 Component Diagram",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "OpenCode Local Dev Environment",
+      "description": "Local operator environment hosting the project repo, beta worktree, MCP server, and project-specific dev runtime.",
+      "external": false
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "Branch CICD MCP Server",
+      "description": "Stdio MCP package orchestrating project-aware git worktree and runtime workflow.",
+      "technology": "TypeScript / MCP SDK",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT2",
+      "name": "Git Worktree Layer",
+      "description": "Canonical repo plus beta worktree managed through explicit git commands.",
+      "technology": "git worktree",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT3",
+      "name": "Web Runtime Launcher",
+      "description": "Project-policy runtime launcher for the main worktree.",
+      "technology": "shell script",
+      "systemRef": "SYS1"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "Project Context Resolver",
+      "description": "Resolves repo root, base branch, branch naming policy, beta root, and runtime policy.",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/mcp/branch-cicd/src/context.ts"
+    },
+    {
+      "id": "C2",
+      "name": "Feature Loop Orchestrator",
+      "description": "Implements prepare/sync/finalize MCP tools with fail-fast gating.",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A2",
+      "filePath": "packages/mcp/branch-cicd/src/index.ts"
+    },
+    {
+      "id": "C3",
+      "name": "Worktree Command Adapter",
+      "description": "Runs explicit git branch and worktree commands against main and beta paths.",
+      "technology": "child_process wrapper",
+      "containerRef": "CT2",
+      "moduleRef": "A2",
+      "filePath": "packages/mcp/branch-cicd/src/index.ts"
+    },
+    {
+      "id": "C4",
+      "name": "Runtime Command Adapter",
+      "description": "Runs the resolved project runtime command in the main worktree.",
+      "technology": "shell command wrapper",
+      "containerRef": "CT3",
+      "moduleRef": "A3",
+      "filePath": "packages/mcp/branch-cicd/src/project-policy.ts"
+    },
+    {
+      "id": "C5",
+      "name": "Loop Metadata Store",
+      "description": "Persists branch-to-worktree mapping for re-entry and inspection.",
+      "technology": "JSON file under XDG state/config",
+      "containerRef": "CT1",
+      "moduleRef": "A2",
+      "filePath": "packages/mcp/branch-cicd/src/index.ts"
+    },
+    {
+      "id": "C6",
+      "name": "Finalize Guard",
+      "description": "Checks approval flags, dirty state, and merge safety before destructive operations.",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A4",
+      "filePath": "packages/mcp/branch-cicd/src/index.ts"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL1",
+      "source": "C2",
+      "target": "C1",
+      "description": "resolves project context before acting",
+      "technology": "function call"
+    },
+    {
+      "id": "REL2",
+      "source": "C2",
+      "target": "C3",
+      "description": "executes git branch/worktree operations",
+      "technology": "child_process"
+    },
+    {
+      "id": "REL3",
+      "source": "C2",
+      "target": "C5",
+      "description": "persists and reads loop metadata",
+      "technology": "JSON read/write"
+    },
+    {
+      "id": "REL4",
+      "source": "C2",
+      "target": "C4",
+      "description": "launches or refreshes manual verification runtime via project policy",
+      "technology": "shell invocation"
+    },
+    {
+      "id": "REL5",
+      "source": "C6",
+      "target": "C3",
+      "description": "performs guarded merge, branch delete, and worktree remove operations",
+      "technology": "child_process"
+    },
+    {
+      "id": "REL6",
+      "source": "C2",
+      "target": "C6",
+      "description": "delegates finalization safety checks",
+      "technology": "function call"
+    }
+  ]
+}

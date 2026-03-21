@@ -1,0 +1,250 @@
+[
+  {
+    "diagram_title": "Resolve Context And Validate Feature Loop",
+    "scenario": "Operator resolves project context, creates a feature loop, syncs the main worktree, and starts the runtime for manual verification.",
+    "moduleRef": "A1",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "Operator",
+        "type": "actor",
+        "componentRef": "SYS1"
+      },
+      {
+        "id": "P2",
+        "name": "Feature Loop Orchestrator",
+        "type": "component",
+        "componentRef": "C2"
+      },
+      {
+        "id": "P3",
+        "name": "Project Context Resolver",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P4",
+        "name": "Worktree Command Adapter",
+        "type": "component",
+        "componentRef": "C3"
+      },
+      {
+        "id": "P5",
+        "name": "Runtime Command Adapter",
+        "type": "component",
+        "componentRef": "C4"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "resolve_project_context(input?)",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "resolvePolicyAndRepoContext()",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P2",
+        "label": "resolved context",
+        "type": "return",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P2",
+        "to": "P4",
+        "label": "prepare_feature_loop(branch?, paths?, policy)",
+        "type": "sync",
+        "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P4",
+        "to": "P2",
+        "label": "worktree ready",
+        "type": "return",
+        "order": 5
+      },
+      {
+        "id": "MSG6",
+        "from": "P1",
+        "to": "P2",
+        "label": "sync_feature_to_main(branch)",
+        "type": "sync",
+        "order": 6
+      },
+      {
+        "id": "MSG7",
+        "from": "P2",
+        "to": "P4",
+        "label": "checkoutMainWorktree(branch)",
+        "type": "sync",
+        "order": 7
+      },
+      {
+        "id": "MSG8",
+        "from": "P4",
+        "to": "P2",
+        "label": "checkout result",
+        "type": "return",
+        "order": 8
+      },
+      {
+        "id": "MSG9",
+        "from": "P1",
+        "to": "P2",
+        "label": "start_main_runtime(mode)",
+        "type": "sync",
+        "order": 9
+      },
+      {
+        "id": "MSG10",
+        "from": "P2",
+        "to": "P5",
+        "label": "run project runtime policy",
+        "type": "sync",
+        "order": 10
+      },
+      {
+        "id": "MSG11",
+        "from": "P5",
+        "to": "P2",
+        "label": "runtime result",
+        "type": "return",
+        "order": 11
+      },
+      {
+        "id": "MSG12",
+        "from": "P2",
+        "to": "P1",
+        "label": "loop status + runtime endpoint",
+        "type": "return",
+        "order": 12
+      }
+    ],
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "alt",
+        "label": "dirty tree or path collision blocks transition",
+        "messageRefs": ["MSG7", "MSG8"]
+      }
+    ]
+  },
+  {
+    "diagram_title": "Finalize Verified Feature Branch",
+    "scenario": "Operator confirms success and requests merge plus cleanup.",
+    "moduleRef": "A4",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "Operator",
+        "type": "actor",
+        "componentRef": "SYS1"
+      },
+      {
+        "id": "P2",
+        "name": "Feature Loop Orchestrator",
+        "type": "component",
+        "componentRef": "C2"
+      },
+      {
+        "id": "P3",
+        "name": "Finalize Guard",
+        "type": "component",
+        "componentRef": "C6"
+      },
+      {
+        "id": "P4",
+        "name": "Worktree Command Adapter",
+        "type": "component",
+        "componentRef": "C3"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "finalize_feature_loop(confirm=true)",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "validateFinalizePreconditions()",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P2",
+        "label": "approval + safety result",
+        "type": "return",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P2",
+        "to": "P4",
+        "label": "checkout base branch + merge feature branch",
+        "type": "sync",
+        "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P4",
+        "to": "P2",
+        "label": "merge result",
+        "type": "return",
+        "order": 5
+      },
+      {
+        "id": "MSG6",
+        "from": "P2",
+        "to": "P4",
+        "label": "delete branch + remove beta worktree",
+        "type": "sync",
+        "order": 6
+      },
+      {
+        "id": "MSG7",
+        "from": "P4",
+        "to": "P2",
+        "label": "cleanup result",
+        "type": "return",
+        "order": 7
+      },
+      {
+        "id": "MSG8",
+        "from": "P2",
+        "to": "P1",
+        "label": "finalization summary",
+        "type": "return",
+        "order": 8
+      }
+    ],
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "alt",
+        "label": "merge conflict or dirty tree blocks cleanup",
+        "messageRefs": ["MSG4", "MSG5", "MSG6", "MSG7"]
+      }
+    ]
+  }
+]

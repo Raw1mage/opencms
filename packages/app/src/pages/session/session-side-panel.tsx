@@ -12,6 +12,7 @@ import { StickyAddButton } from "@/pages/session/review-tab"
 import { DragDropProvider, DragDropSensors, DragOverlay, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd"
 import { ConstrainDragYAxis } from "@/utils/solid-dnd"
 import type { DragEvent } from "@thisbeyond/solid-dnd"
+import { useNavigate, useParams } from "@solidjs/router"
 import { useComments } from "@/context/comments"
 import { useCommand } from "@/context/command"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
@@ -78,6 +79,8 @@ export function SessionSidePanel(props: {
   const sync = useSync()
   const globalSync = useGlobalSync()
   const sdk = useSDK()
+  const navigate = useNavigate()
+  const params = useParams()
   const sideMode = createMemo(() => props.layout.fileTree.mode())
   const activeSessionID = createMemo(() => props.vm.info()?.id)
   const todos = createMemo(() => {
@@ -440,7 +443,16 @@ export function SessionSidePanel(props: {
                                             <div class="text-12-medium text-text-strong break-words">
                                               {card.title}
                                               <Show when={card.agent && card.kind === "subagent"}>
-                                                <span class="text-text-weak"> @{card.agent}</span>
+                                                <a
+                                                  class="text-info hover:underline cursor-pointer"
+                                                  onClick={(e) => {
+                                                    e.preventDefault()
+                                                    e.stopPropagation()
+                                                    navigate(`/${params.dir}/session/${card.sessionID}`)
+                                                  }}
+                                                >
+                                                  {" "}@{card.agent}
+                                                </a>
                                               </Show>
                                             </div>
                                           </div>

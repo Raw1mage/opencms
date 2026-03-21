@@ -1,0 +1,74 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Resolve Project Context",
+    "LinkInputType": [],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["project_context_available"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Attach Feature Worktree",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 5],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["worktree_ready", "bootstrap_blocked"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Checkout Main Runtime Branch",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 5],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["main_checkout_ready", "checkout_blocked"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Launch Main Runtime",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4, 1],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["manual_test_passed", "manual_test_failed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Merge And Cleanup Feature Branch",
+    "LinkInputType": [],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["finalize_approved"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Report Blocker",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [1, 2],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["operator_retries_after_fix"],
+    "SubGrafcet": []
+  }
+]

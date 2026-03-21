@@ -14,6 +14,13 @@
       "type": "remote",
       "url": "https://mcp.context7.com/mcp",
     },
+    // Enable beta-tool when this project wants local worktree orchestration.
+    // In a source checkout, opencode normalizes this internal MCP to the repo entrypoint.
+    "beta-tool": {
+      "type": "local",
+      "command": ["bun", "packages/mcp/branch-cicd/src/index.ts"],
+      "enabled": false,
+    },
   },
   "tools": {
     "github-triage": false,

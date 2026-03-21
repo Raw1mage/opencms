@@ -43,7 +43,17 @@ OpenCode is a desktop/TUI/Webapp multi-interface platform for interacting with A
 - **UI boundary**:
   - Web/TUI session review flows may consume `session.diff` when the UX is explicitly about session-owned changes.
   - TUI sidebar `Changes` and webapp changes sidebar use workspace-level git status (`file.status`) when the UX is explicitly about current workdir uncommitted files.
-  - These two sources must not be silently conflated; session attribution and workdir cleanliness are separate contracts.
+- These two sources must not be silently conflated; session attribution and workdir cleanliness are separate contracts.
+
+## beta-tool MCP Architecture
+
+- `packages/mcp/branch-cicd` adds a standalone stdio MCP server published as capability `beta-tool`.
+- Public tools are exactly `newbeta`, `syncback`, and `merge`.
+- The package resolves project context before mutating git state: canonical repo root, authoritative base branch, deterministic beta worktree root, and runtime policy.
+- The package is project-aware rather than `cms`-hard-coded: this repo resolves a `webctl.sh` runtime adapter, while non-matching repos must provide explicit runtime policy or complete a bounded clarification step.
+- Ambiguity and destructive confirmation are surfaced as structured orchestrator-question contracts rather than silent fallback: repo root, branch name, runtime policy, merge target, and merge confirmation all stop until explicit selection is supplied.
+- Loop metadata is persisted under XDG state so repeated beta edit → syncback → runtime validation cycles can reuse the same branch/worktree mapping across sessions.
+- `merge` remains approval-gated and re-checks dirty state before merge, worktree removal, or branch deletion.
 
 ## Session Monitor / Telemetry Architecture
 
