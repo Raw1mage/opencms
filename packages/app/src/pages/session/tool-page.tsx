@@ -1,4 +1,4 @@
-import { createEffect, createMemo, For, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
 import { useNavigate, useParams, useSearchParams } from "@solidjs/router"
 import { Button } from "@opencode-ai/ui/button"
 import FileTree from "@/components/file-tree"
@@ -65,6 +65,29 @@ export default function SessionToolPageRoute() {
     sdk,
     status: () => (params.id ? sync.data.session_status[params.id] : undefined),
   })
+
+  const [queueControlLoading, setQueueControlLoading] = createSignal<"resume_once" | "drop_pending" | null>(null)
+  const [queueControlError, setQueueControlError] = createSignal<string | undefined>()
+
+  const runQueueControl = async (action: "resume_once" | "drop_pending") => {
+    const sessionID = params.id
+    if (!sessionID || queueControlLoading()) return
+    setQueueControlLoading(action)
+    setQueueControlError(undefined)
+    try {
+      const response = await sdk.fetch(`${sdk.url}/api/v2/session/${sessionID}/autonomous/queue`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-opencode-directory": sdk.directory },
+        body: JSON.stringify({ action }),
+      })
+      if (!response.ok) throw new Error(`Queue control failed (${response.status})`)
+      await autonomousHealth.forceRefresh()
+    } catch (error) {
+      setQueueControlError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setQueueControlLoading(null)
+    }
+  }
 
   const monitorEntries = createMemo(() =>
     buildMonitorEntries({
@@ -249,6 +272,32 @@ export default function SessionToolPageRoute() {
                   >
                     <div class="flex flex-col gap-3">
                       <SessionTelemetryCards telemetry={telemetry()} accountLabel={resolveAccountLabel} />
+                      <Show when={autonomousHealth.data?.queue.hasPendingContinuation}>
+                        <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-2">
+                          <div class="text-11-medium uppercase tracking-wide text-text-weak">Queue control</div>
+                          <div class="flex flex-wrap gap-2">
+                            <Button
+                              size="small"
+                              variant="secondary"
+                              disabled={queueControlLoading() !== null}
+                              onClick={() => void runQueueControl("resume_once")}
+                            >
+                              {queueControlLoading() === "resume_once" ? "Resuming…" : "Resume once"}
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="ghost"
+                              disabled={queueControlLoading() !== null}
+                              onClick={() => void runQueueControl("drop_pending")}
+                            >
+                              {queueControlLoading() === "drop_pending" ? "Dropping…" : "Drop pending"}
+                            </Button>
+                          </div>
+                          <Show when={queueControlError()}>
+                            {(message) => <div class="text-11-regular text-warning">{message()}</div>}
+                          </Show>
+                        </div>
+                      </Show>
                       {(() => {
                         const processCards = () =>
                           buildProcessCards((monitorEntries() ?? []) as EnrichedMonitorEntry[], params.id)
@@ -259,6 +308,17 @@ export default function SessionToolPageRoute() {
                           >
                             <For each={processCards()}>
                               {(card) => {
+                                const [aborting, setAborting] = createSignal(false)
+                                const handleAbort = async () => {
+                                  if (!card.canAbort || aborting()) return
+                                  setAborting(true)
+                                  try {
+                                    await sdk.client.session.abort({ sessionID: card.sessionID })
+                                  } catch {
+                                  } finally {
+                                    setAborting(false)
+                                  }
+                                }
                                 const borderColor = () =>
                                   card.status === "active"
                                     ? "var(--color-success)"
@@ -294,10 +354,32 @@ export default function SessionToolPageRoute() {
                                       "border-left-color": borderColor(),
                                     }}
                                   >
-                                    <div class="text-12-medium text-text-strong break-words">
-                                      {card.title}
-                                      <Show when={card.agent && card.kind === "subagent"}>
-                                        <span class="text-text-weak"> @{card.agent}</span>
+                                    <div class="flex items-start gap-2 min-w-0">
+                                      <div class="min-w-0 flex-1">
+                                        <div class="text-12-medium text-text-strong break-words">
+                                          {card.title}
+                                          <Show when={card.agent && card.kind === "subagent"}>
+                                            <a
+                                              class="text-info hover:underline cursor-pointer"
+                                              onClick={(e) => {
+                                                e.preventDefault()
+                                                e.stopPropagation()
+                                                navigate(`/${params.dir}/session/${card.sessionID}`)
+                                              }}
+                                            >
+                                              {" "}@{card.agent}
+                                            </a>
+                                          </Show>
+                                        </div>
+                                      </div>
+                                      <Show when={card.canAbort}>
+                                        <button
+                                          class="shrink-0 text-11-medium text-text-weak hover:text-warning cursor-pointer bg-transparent border-none p-0 leading-none"
+                                          title="Stop this process"
+                                          onClick={handleAbort}
+                                        >
+                                          {aborting() ? "…" : "✕"}
+                                        </button>
                                       </Show>
                                     </div>
                                     <Show when={card.activity}>
