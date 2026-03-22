@@ -1,7 +1,7 @@
 # Event: Beta Tool Plan Exit Build Loop Integration Planning
 
 **Date**: 2026-03-21
-**Status**: In Progress
+**Status**: Completed
 
 ---
 
@@ -161,3 +161,9 @@ The requirement was later clarified with hard constraints:
 
 - Beta/dev MCP still remains as compatibility scaffolding and has not yet been physically removed; removing it would be a separate follow-up change rather than a missing builder-native capability.
 - If broader regression confidence is needed, the next step is to expand validation beyond the focused beta/planner suite to cover any surrounding builder workflows that may consume the new mission/routine-git metadata.
+
+## Promotion
+
+- This active dated plan package has been manually closed and promoted from `/plans/20260321_beta-tool/` into the formalized spec root `/specs/build_beta/` per user request.
+- Promotion is documentation lifecycle only; `specs/architecture.md` remains the architecture SSOT for cross-repo module/runtime boundaries.
+- Architecture Sync: Verified (No doc changes required for architecture beyond existing builder-beta workflow boundary updates already recorded in this event).
