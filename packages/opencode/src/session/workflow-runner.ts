@@ -892,6 +892,24 @@ export async function decideAutonomousContinuation(input: { sessionID: string; r
     pendingApprovals,
     pendingQuestions,
   })
+  // Race condition guard: if the gate says "stop" but a task completion
+  // continuation was enqueued while we were busy (e.g. answering a question),
+  // override the decision to continue so we don't miss the subagent's report.
+  // The synthetic completion message is already persisted in the session;
+  // we just need to keep the loop alive so the LLM processes it.
+  if (!decision.continue) {
+    const pendingEntry = await RunQueue.peek(input.sessionID)
+    if (pendingEntry && (pendingEntry.triggerType === "task_completion" || pendingEntry.triggerType === "task_failure")) {
+      // Consume the queue entry so the supervisor doesn't double-resume
+      await RunQueue.remove(input.sessionID)
+      return {
+        continue: true as const,
+        reason: "todo_pending" as const,
+        text: pendingEntry.text,
+        todo: todos.find((t) => t.status === "pending" || t.status === "in_progress"),
+      }
+    }
+  }
   if (decision.continue && session.mission) {
     const missionConsumption = await consumeMissionArtifacts(session.mission)
     if (!missionConsumption.ok) {
