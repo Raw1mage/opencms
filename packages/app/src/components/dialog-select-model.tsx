@@ -1201,24 +1201,10 @@ export const DialogSelectModel: Component<{
   })
 
   const accountRowDisplay = (row: { id: string; label: string }) => {
-    const record = accountRecordById().get(row.id)
-    const now = Date.now()
-    const isCooling = record?.coolingDownUntil && record.coolingDownUntil > now
-    if (isCooling) {
-      const minutes = Math.max(1, Math.ceil((record.coolingDownUntil! - now) / 60000))
-      return {
-        label: row.label,
-        quota: undefined,
-        cooldown: record.cooldownReason
-          ? `${record.cooldownReason} (${minutes}m)`
-          : language.t("settings.models.recommendations.cooldown", { minutes }),
-      }
-    }
     const quota = accountQuotaHints()[row.id]
     return {
       label: row.label,
       quota,
-      cooldown: undefined,
     }
   }
 
@@ -1611,14 +1597,7 @@ export const DialogSelectModel: Component<{
                             <Icon name="check-small" class="text-icon-success-base shrink-0" />
                           </Show>
                         </span>
-                        <Show when={!accountManagementMode() && accountRowDisplay(row).cooldown}>
-                          {(cd) => (
-                            <span class="shrink-0 w-[124px] text-right text-11-regular text-icon-warning-base tabular-nums whitespace-nowrap">
-                              {cd()}
-                            </span>
-                          )}
-                        </Show>
-                        <Show when={!accountManagementMode() && !accountRowDisplay(row).cooldown && accountRowDisplay(row).quota}>
+                        <Show when={!accountManagementMode() && accountRowDisplay(row).quota}>
                           {(quota) => (
                             <span class="shrink-0 w-[124px] text-right text-11-regular text-text-weak tabular-nums whitespace-nowrap">
                               {quota()}

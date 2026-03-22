@@ -7,7 +7,6 @@ import { errors } from "../error"
 import { Config } from "../../config/config"
 import { Plugin } from "../../plugin"
 import { getQuotaHint } from "../../account/quota"
-import { getRateLimitTracker } from "../../account/rotation"
 import { RequestUser } from "@/runtime/request-user"
 import { UserDaemonManager } from "../user-daemon"
 
@@ -147,32 +146,6 @@ export const AccountRoutes = lazy(() =>
           )
         }
         const families = await Account.listAll()
-
-        // Enrich accounts with live rate-limit cooldown from RateLimitTracker
-        const tracker = getRateLimitTracker()
-        const snapshot = tracker.getSnapshot3D()
-        if (snapshot.length > 0) {
-          // Build max resetTime per accountId (provider-level, not per-model)
-          const cooldowns = new Map<string, { until: number; reason: string }>()
-          const now = Date.now()
-          for (const entry of snapshot) {
-            const resetTime = now + entry.waitMs
-            const existing = cooldowns.get(entry.accountId)
-            if (!existing || resetTime > existing.until) {
-              cooldowns.set(entry.accountId, { until: resetTime, reason: entry.reason })
-            }
-          }
-          for (const providerData of Object.values(families)) {
-            if (!providerData?.accounts) continue
-            for (const [accountId, account] of Object.entries(providerData.accounts)) {
-              const cd = cooldowns.get(accountId)
-              if (cd) {
-                ;(account as Record<string, unknown>).coolingDownUntil = cd.until
-                ;(account as Record<string, unknown>).cooldownReason = cd.reason
-              }
-            }
-          }
-        }
 
         return c.json({
           providers: families,
