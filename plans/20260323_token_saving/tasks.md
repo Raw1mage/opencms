@@ -27,4 +27,4 @@
 - [~] 3.4 檢查 SYSTEM.md — 目前不動（10,653 bytes），因其為最高權威且結構已精簡
 - [x] 3.5 同步 `templates/AGENTS.md` 與精簡後的 Global AGENTS.md
 - [ ] 3.6 驗證：telemetry 確認 dynamic_system + core_system_prompt < 5,500 tokens
-- [ ] 3.7 驗證：逐條比對精簡前後的有效指令集，確認無遺漏
+- [x] 3.7 驗證：逐條比對精簡前後的有效指令集，確認無遺漏（26 項比對完成，2 項遺漏已補回：question tool 結構化選擇 + template sync 門檻）

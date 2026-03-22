@@ -168,6 +168,7 @@ The requirement was later clarified with hard constraints:
 
 - The previously observed builder enforcement gap has been closed in runtime behavior.
 - Beta-enabled build execution now treats authoritative main repo/base-branch implementation as illegal and requires a resolved beta execution surface before coding work continues.
+- The earlier enforcement attempt was discarded by user instruction and reimplemented from scratch on a fresh beta branch based on `cms`: `feature/builder-beta-enforcement-redo`.
 
 ### Implemented Enforcement Shape
 
@@ -179,12 +180,14 @@ The requirement was later clarified with hard constraints:
 3. Applied implementation routing before coding/delegation instead of leaving the decision to model interpretation.
 4. Added fail-fast behavior when beta-enabled coding would otherwise execute from the main repo/base branch.
 5. Added focused validation coverage proving that beta-enabled build execution no longer remains on main repo/base branch by default.
+6. Revalidated the authoritative redo implementation from the fresh beta worktree before accepting this enforcement as the new source of truth.
 
 ### Why This Matters
 
 - `plan_enter` and builder now both have meaningful enforcement layers, but at different boundaries:
   - `plan_enter` enforces planner-root integrity at a single tool boundary.
   - Builder now enforces implementation-surface routing at runtime across mission handoff, continuations, and delegation.
+- The accepted enforcement evidence comes from the fresh redo branch rather than the discarded first attempt, so the current conclusion is grounded in a clean reimplementation path.
 
 ## Promotion
 

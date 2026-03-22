@@ -1125,7 +1125,6 @@ export namespace SessionPrompt {
           "max_continuous_rounds",
           "approval_needed",
           "product_decision_needed",
-          "wait_subagent",
           "mission_not_approved",
         ] as const
         if ((completedReasons as readonly string[]).includes(decision.reason)) {
@@ -1133,6 +1132,16 @@ export namespace SessionPrompt {
             sessionID,
             state: "completed",
             stopReason: decision.reason,
+            lastRunAt: Date.now(),
+          })
+        } else if (decision.reason === "wait_subagent") {
+          // Subagent still running — set idle so supervisor auto-resumes
+          // when task-worker-continuation enqueues task_completion.
+          // Do NOT set waiting_user: that requires manual user push.
+          await Session.setWorkflowState({
+            sessionID,
+            state: "idle",
+            stopReason: "wait_subagent",
             lastRunAt: Date.now(),
           })
         } else if ((waitingReasons as readonly string[]).includes(decision.reason)) {

@@ -417,7 +417,8 @@ const NON_RESUMABLE_WAITING_REASONS = new Set([
   "max_continuous_rounds",
   "manual_interrupt",
   "risk_review_needed",
-  "wait_subagent",
+  // "wait_subagent" removed: subagent completion auto-resumes via
+  // task-worker-continuation → RunQueue, so supervisor should not block.
 ])
 
 function healthRankForResume(health: AutonomousWorkflowHealth["summary"]["health"]) {
