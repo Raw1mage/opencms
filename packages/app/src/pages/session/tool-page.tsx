@@ -271,7 +271,6 @@ export default function SessionToolPageRoute() {
                     fallback={<div class="text-12-regular text-text-danger">{monitor.error}</div>}
                   >
                     <div class="flex flex-col gap-3">
-                      <SessionTelemetryCards telemetry={telemetry()} accountLabel={resolveAccountLabel} />
                       <Show when={autonomousHealth.data?.queue.hasPendingContinuation}>
                         <div class="rounded-md border border-border-weak-base bg-background-base px-3 py-2 flex flex-col gap-2">
                           <div class="text-11-medium uppercase tracking-wide text-text-weak">Queue control</div>
