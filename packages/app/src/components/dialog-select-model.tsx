@@ -1144,6 +1144,49 @@ export const DialogSelectModel: Component<{
     })
   })
 
+  // Fetch live rate-limit cooldowns from rotation/status API (same data source as TUI admin panel)
+  const [rateLimitCooldowns, setRateLimitCooldowns] = createSignal<
+    Record<string, { waitMs: number; reason: string }>
+  >({})
+
+  createEffect(() => {
+    // Re-fetch when provider changes (dependency tracking)
+    selectedProviderId()
+    let dead = false
+
+    void (async () => {
+      try {
+        const res = await sdk.fetch(`${sdk.url}/api/v2/rotation/status`)
+        if (dead || !res.ok) return
+        const data = (await res.json()) as {
+          accounts?: Array<{
+            id: string
+            isRateLimited: boolean
+            rateLimitResetAt?: number
+          }>
+        }
+        if (dead || !data.accounts) return
+        const map: Record<string, { waitMs: number; reason: string }> = {}
+        const now = Date.now()
+        for (const acct of data.accounts) {
+          if (acct.isRateLimited && acct.rateLimitResetAt) {
+            const waitMs = Math.max(0, acct.rateLimitResetAt - now)
+            if (waitMs > 0) {
+              map[acct.id] = { waitMs, reason: "rate limited" }
+            }
+          }
+        }
+        if (!dead) setRateLimitCooldowns(map)
+      } catch {
+        // ignore fetch errors
+      }
+    })()
+
+    onCleanup(() => {
+      dead = true
+    })
+  })
+
   const [accountQuotaHints, setAccountQuotaHints] = createSignal<Record<string, string>>({})
   let accountQuotaRequestVersion = 0
 
@@ -1200,11 +1243,30 @@ export const DialogSelectModel: Component<{
     })()
   })
 
+  const formatWait = (waitMs: number): string => {
+    const totalSec = Math.ceil(waitMs / 1000)
+    const days = Math.floor(totalSec / (3600 * 24))
+    const hours = Math.floor((totalSec % (3600 * 24)) / 3600)
+    const minutes = Math.floor((totalSec % 3600) / 60)
+    const seconds = totalSec % 60
+    const pad = (n: number) => n.toString().padStart(2, "0")
+    return `${pad(days)}:${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
+  }
+
   const accountRowDisplay = (row: { id: string; label: string }) => {
+    const cd = rateLimitCooldowns()[row.id]
+    if (cd && cd.waitMs > 0) {
+      return {
+        label: row.label,
+        quota: undefined,
+        cooldown: `⏳ ${formatWait(cd.waitMs)}`,
+      }
+    }
     const quota = accountQuotaHints()[row.id]
     return {
       label: row.label,
       quota,
+      cooldown: undefined,
     }
   }
 
@@ -1597,7 +1659,14 @@ export const DialogSelectModel: Component<{
                             <Icon name="check-small" class="text-icon-success-base shrink-0" />
                           </Show>
                         </span>
-                        <Show when={!accountManagementMode() && accountRowDisplay(row).quota}>
+                        <Show when={!accountManagementMode() && accountRowDisplay(row).cooldown}>
+                          {(cd) => (
+                            <span class="shrink-0 w-[124px] text-right text-11-regular text-icon-warning-base tabular-nums whitespace-nowrap">
+                              {cd()}
+                            </span>
+                          )}
+                        </Show>
+                        <Show when={!accountManagementMode() && !accountRowDisplay(row).cooldown && accountRowDisplay(row).quota}>
                           {(quota) => (
                             <span class="shrink-0 w-[124px] text-right text-11-regular text-text-weak tabular-nums whitespace-nowrap">
                               {quota()}
