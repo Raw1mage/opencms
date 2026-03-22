@@ -48,6 +48,23 @@ export type LlmHistoryEntry = {
   toAccountId?: string
 }
 
+export type ActiveChildState = {
+  sessionID: string
+  parentMessageID: string
+  toolCallID: string
+  workerID: string
+  title: string
+  agent: string
+  status: "running" | "handoff"
+  todo?: {
+    id: string
+    content: string
+    status: string
+    priority?: string
+    action?: Record<string, unknown>
+  }
+}
+
 const LLM_HISTORY_CAP = 10
 
 function pushLlmHistory(history: LlmHistoryEntry[], entry: LlmHistoryEntry): LlmHistoryEntry[] {
@@ -106,6 +123,9 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       vcs: VcsInfo | undefined
       path: Path
       llm_history: LlmHistoryEntry[]
+      active_child: {
+        [sessionID: string]: ActiveChildState | undefined
+      }
       /** Count of active background task workers (across all sessions) */
       active_workers: number
     }>({
@@ -139,6 +159,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       vcs: undefined,
       path: { state: "", config: "", worktree: "", directory: "" },
       llm_history: [],
+      active_child: {},
       active_workers: 0,
     })
 
@@ -335,7 +356,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
     }
 
     sdk.event.listen((e) => {
-      const event = e.details
+      const event = e.details as { type: string; properties: any }
       onMonitorRelevantEvent(event.type, event)
       switch (event.type) {
         case "server.instance.disposed":
@@ -680,6 +701,16 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           if (isSessionRoute() && !monitorPollingDisabled) {
             requestMonitorRefresh(monitorEventDebounceMs)
           }
+          break
+        }
+
+        case "session.active-child.updated": {
+          const props = event.properties as {
+            parentSessionID: string
+            activeChild: ActiveChildState | null
+          }
+          if (props.activeChild) setStore("active_child", props.parentSessionID, props.activeChild)
+          else setStore("active_child", props.parentSessionID, undefined)
           break
         }
 

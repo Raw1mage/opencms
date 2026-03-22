@@ -141,3 +141,29 @@
   - `packages/app/src/context/global-sync/event-reducer.test.ts` passed (`13` pass / `0` fail)
   - full `bun x tsc --noEmit` remained blocked by OOM rather than a feature-specific type error
 - Operational lesson recorded: future beta-tool loops must commit beta-branch implementation slices before syncback/merge whenever the intent is to bring those changes back into main via branch state alone.
+
+## Incident Follow-up: Restart / Stale Active Child Recovery
+
+- A later incident exposed that `./webctl.sh dev-refresh` can interrupt backend/frontend/runtime processes while an active child is still recorded for the parent session.
+- Investigation confirmed `SessionActiveChild` is currently process-local in-memory state inside `packages/opencode/src/tool/task.ts`; it is not persisted, and its cleanup depends on continuation / handoff paths completing.
+- Investigation also confirmed `ProcessSupervisor` is process-local and does not reconstruct child occupancy after restart, so stale `active_child` state can survive long enough to block the next dispatch with `active_child_dispatch_blocked:<parent>:<child>:running`.
+- Minimal repair chosen for this slice:
+  - keep `handoff` conservative and still blocking;
+  - before dispatch blocking on a `running` child, validate live worker evidence (`worker`, `worker.current`, `sessionID`, `parentSessionID`, `toolCallID`);
+  - if worker evidence is missing / idle / mismatched, clear the stale active child and continue dispatch.
+- Implementation landed in:
+  - `packages/opencode/src/tool/task.ts`
+  - `packages/opencode/test/tool/task.test.ts`
+- Validation outcome for this repair:
+  - focused `task.test.ts` rerun still fails before reaching the new assertions because the current assistant-message fixtures are outdated relative to `MessageV2.Assistant` schema requirements (`parentID`, `mode`, `cost`, `tokens`);
+  - package typecheck still reports unrelated pre-existing errors in `task-worker-continuation.ts` and TUI prompt files;
+  - targeted grep-filtered typecheck showed no new `task.ts` / `task.test.ts` errors attributable to this fix.
+- Remaining gap:
+  - this stale-running-child self-heal path is implemented, but repo validation is not yet green enough to declare the repair fully verified end-to-end.
+- A subsequent Web UX refinement changed the pinned subagent status bar presentation to a compact single-line layout:
+  - left side now renders `@agent`, title, current step, and elapsed time on one line;
+  - long content truncates to fit available width;
+  - right side keeps only the open-session icon and removes the text label.
+- Web UI validation for this refinement:
+  - `bun x tsc -p /home/pkcs12/projects/opencode/packages/app/tsconfig.json --noEmit` passed after the compact-bar implementation and the `@agent` label normalization patch.
+- Architecture Sync: Verified (No doc changes). Existing `specs/architecture.md` already describes active-child state as a session-global, operator-visible control-plane concept and does not require a new boundary for this self-heal guard refinement or the compact Web presentation adjustment.

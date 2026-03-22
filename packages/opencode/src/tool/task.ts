@@ -865,10 +865,30 @@ export async function terminateActiveChild(parentSessionID: string) {
   return true
 }
 
-function assertNoAuthoritativeActiveChild(parentSessionID: string) {
+async function getAuthoritativeActiveChildForDispatch(parentSessionID: string) {
   const activeChild = SessionActiveChild.get(parentSessionID)
   if (!activeChild) return
-  if (activeChild.status !== "running" && activeChild.status !== "handoff") return
+  if (activeChild.status === "handoff") return activeChild
+  if (activeChild.status !== "running") return
+
+  const worker = workers.find((candidate) => candidate.id === activeChild.workerID)
+  const current = worker?.current
+  const isLive =
+    !!worker &&
+    !!current &&
+    current.sessionID === activeChild.sessionID &&
+    current.parentSessionID === parentSessionID &&
+    current.toolCallID === activeChild.toolCallID
+
+  if (isLive) return activeChild
+
+  await SessionActiveChild.set(parentSessionID, null)
+  return
+}
+
+async function assertNoAuthoritativeActiveChild(parentSessionID: string) {
+  const activeChild = await getAuthoritativeActiveChildForDispatch(parentSessionID)
+  if (!activeChild) return
   throw new Error(`active_child_dispatch_blocked:${parentSessionID}:${activeChild.sessionID}:${activeChild.status}`)
 }
 
@@ -947,7 +967,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         if (callerSession.parentID) {
           throw new Error(`nested_task_delegation_unsupported:${ctx.sessionID}`)
         }
-        assertNoAuthoritativeActiveChild(ctx.sessionID)
+        await assertNoAuthoritativeActiveChild(ctx.sessionID)
 
         // Skip permission check when user explicitly invoked via @ or command subtask
         if (!ctx.extra?.bypassAgentCheck) {

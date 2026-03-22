@@ -63,7 +63,7 @@ import { terminalTabLabel } from "@/pages/session/terminal-label"
 import { MessageTimeline } from "@/pages/session/message-timeline"
 import { useSessionCommands } from "@/pages/session/use-session-commands"
 import { SessionPromptDock } from "@/pages/session/session-prompt-dock"
-import { childSessionHref, deriveActiveChildStatus } from "@/pages/session/session-prompt-helpers"
+import { childSessionHref, deriveActiveChildStatus, formatActiveChildAgentLabel } from "@/pages/session/session-prompt-helpers"
 import { SessionSidePanel } from "@/pages/session/session-side-panel"
 import { useSessionHashScroll } from "@/pages/session/use-session-hash-scroll"
 import { sessionPermissionRequest, sessionQuestionRequest } from "@/pages/session/session-request-tree"
@@ -920,17 +920,19 @@ export default function Page() {
     const child = activeChild()
     if (!child) return undefined
     const childMessages = sync.data.message[child.sessionID] ?? []
+    const childSession = sync.session.get(child.sessionID)
     const derived = deriveActiveChildStatus({
       activeChild: child,
       messages: childMessages,
       partsByMessage: sync.data.part,
     })
     return {
-      agent: child.agent,
+      agent: formatActiveChildAgentLabel(child.agent),
       title: derived.title,
       step: derived.step,
       href: childSessionHref(sdk.directory, child.sessionID),
       sessionID: child.sessionID,
+      startedAt: childSession?.time.created,
     }
   })
 

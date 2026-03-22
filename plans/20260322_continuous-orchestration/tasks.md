@@ -14,14 +14,14 @@
 
 ## 3. Web And TUI Status Surfaces
 
-- [ ] 3.1 Extend the Web thinking/elapsed bottom-status surface into an active-subagent status bar with child-session route entry.
+- [x] 3.1 Extend the Web thinking/elapsed bottom-status surface into an active-subagent status bar with child-session route entry. (Current Web surface is now a single-line compact bar showing `@agent`, title, current step, and elapsed time with icon-only open entry.)
 - [ ] 3.2 Extend the TUI thinking/elapsed bottom-status surface with session-tree jump entry for the active child.
 - [ ] 3.3 Ensure both surfaces keep rendering until authoritative parent-takeover or child-clear evidence is observed.
 
 ## 4. Validation And Documentation
 
-- [ ] 4.1 Add or update targeted tests for stop escalation, active-child visibility, and second-subagent rejection.
-- [ ] 4.2 Run repo-appropriate validation and collect manual/runtime evidence for the handoff timing contract.
-- [ ] 4.3 Update `docs/events/event_20260322_continuous_orchestration.md` with the new regression scope, decisions, and validation.
-- [ ] 4.4 Sync `specs/architecture.md` with the active-subagent control-surface contract.
-- [ ] 4.5 Compare implementation results against the revised proposal and report any remaining gaps.
+- [~] 4.1 Add or update targeted tests for stop escalation, active-child visibility, and second-subagent rejection. (Focused stale-active-child tests added in `packages/opencode/test/tool/task.test.ts`, but current task test fixture schema is outdated and blocks green execution.)
+- [~] 4.2 Run repo-appropriate validation and collect manual/runtime evidence for the handoff timing contract. (Focused validation rerun completed; green status blocked by pre-existing task-test fixture/schema drift and unrelated package type errors.)
+- [x] 4.3 Update `docs/events/event_20260322_continuous_orchestration.md` with the new regression scope, decisions, and validation.
+- [x] 4.4 Sync `specs/architecture.md` with the active-subagent control-surface contract.
+- [x] 4.5 Compare implementation results against the revised proposal and report any remaining gaps.

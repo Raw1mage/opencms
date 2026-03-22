@@ -1554,17 +1554,21 @@ export function Prompt(props: PromptProps) {
                     </Show>
                   </Show>
                 </box>
-                <box flexDirection="row" gap={1} flexShrink={0}>
+                <box flexDirection="row" gap={1} flexShrink={1} flexGrow={1}>
                   <Show when={activeChildFooter()}>
                     {(childFooter) => (
                       <>
-                        <text fg={theme.textMuted}>
-                          {activeChild()?.agent} · {childFooter().title} · {childFooter().step}
+                        <text fg={theme.textMuted} flexShrink={1} flexGrow={1} overflow="hidden" wrapMode="none">
+                          <span style={{ fg: theme.text, bold: true }}>{childFooter().agentLabel}</span>{" "}
+                          <span style={{ fg: theme.text }}>{childFooter().title}</span>{" "}
+                          <span style={{ fg: theme.textMuted }}>{childFooter().step}</span>
+                          <Show when={footerElapsed()}>
+                            {(elapsed) => <span style={{ fg: theme.textMuted }}> · {elapsed()}</span>}
+                          </Show>
                         </text>
-                        <box onMouseUp={openActiveChildSession}>
+                        <box onMouseUp={openActiveChildSession} flexShrink={0}>
                           <text fg={theme.text}>
-                            {keybind.print("session_child_cycle")}{" "}
-                            <span style={{ fg: theme.textMuted }}>jump to child</span>
+                            {keybind.print("session_child_cycle")} <span style={{ fg: theme.textMuted }}>child</span>
                           </text>
                         </box>
                       </>
@@ -1621,7 +1625,9 @@ export function Prompt(props: PromptProps) {
                     <text fg={theme.text}>
                       {keybind.print("command_list")} <span style={{ fg: theme.textMuted }}>commands</span>
                     </text>
-                    <Show when={footerElapsed()}>{(elapsed) => <text fg={theme.textMuted}>· {elapsed()}</text>}</Show>
+                    <Show when={footerElapsed() && !activeChild()}>
+                      {(elapsed) => <text fg={theme.textMuted}>· {elapsed()}</text>}
+                    </Show>
                   </box>
                 </Match>
                 <Match when={store.mode === "shell"}>
