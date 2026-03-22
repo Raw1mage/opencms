@@ -847,6 +847,12 @@ export namespace SessionPrompt {
           sessionID,
           auto: task.auto,
         })
+        debugCheckpoint("prompt", "loop:compaction_done", {
+          sessionID,
+          step,
+          result,
+          auto: task.auto,
+        })
         if (result === "stop") break
         continue
       }
@@ -1093,7 +1099,14 @@ export namespace SessionPrompt {
             autonomousRounds,
           })
           autonomousRounds = continuationResult.nextRoundCount
-          if (continuationResult.halted) break
+          if (continuationResult.halted) {
+            debugCheckpoint("prompt", "loop:continuation_halted", {
+              sessionID,
+              step,
+              autonomousRounds,
+            })
+            break
+          }
           continue
         }
         // Stopped — emit narration and set workflow state
@@ -1152,6 +1165,12 @@ export namespace SessionPrompt {
             lastRunAt: Date.now(),
           })
         }
+        debugCheckpoint("prompt", "loop:continuation_stopped", {
+          sessionID,
+          step,
+          reason: decision.reason,
+          autonomousRounds,
+        })
         break
       }
       if (result === "compact") {

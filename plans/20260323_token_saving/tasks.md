@@ -19,12 +19,16 @@
 - [ ] 2.5 確保 `summary: true` 標記正確，後續 compaction 的 prune 和 break 邏輯不受影響
 - [ ] 2.6 驗證：compaction 後的第一個 round cacheReadTokens > 0
 
-## 3. System prompt 去冗餘（方案 D）
+## 3. System prompt 去冗餘（方案 D）— 已回滾
 
-- [x] 3.1 逐行分析三份文件（Global AGENTS.md / Project AGENTS.md / SYSTEM.md）重複內容，建立對照表
-- [x] 3.2 精簡 Global AGENTS.md — 從 13,252 bytes 降至 1,669 bytes（87% reduction）
-- [x] 3.3 精簡 Project AGENTS.md — 從 15,123 bytes 降至 4,197 bytes（72% reduction）
-- [~] 3.4 檢查 SYSTEM.md — 目前不動（10,653 bytes），因其為最高權威且結構已精簡
-- [x] 3.5 同步 `templates/AGENTS.md` 與精簡後的 Global AGENTS.md
-- [ ] 3.6 驗證：telemetry 確認 dynamic_system + core_system_prompt < 5,500 tokens
-- [x] 3.7 驗證：逐條比對精簡前後的有效指令集，確認無遺漏（26 項比對完成，2 項遺漏已補回：question tool 結構化選擇 + template sync 門檻）
+精簡版造成 LLM 行為品質下降（question tool 失靈、語言切換異常、continuation 停頓），全部回滾至原始版本。
+
+**教訓**：AGENTS.md 可以去除與 SYSTEM.md 真正重複的段落，但不可精簡、改寫或壓縮獨特指令。每條指令都經過長期調校，措辭本身就是行為錨點。
+
+- [x] 3.1 逐行分析三份文件重複內容，建立對照表
+- [~] 3.2 精簡 Global AGENTS.md — 已回滾（87% reduction 太激進，造成行為退化）
+- [~] 3.3 精簡 Project AGENTS.md — 已回滾（72% reduction 太激進，造成行為退化）
+- [~] 3.4 檢查 SYSTEM.md — 未動
+- [~] 3.5 同步 templates/AGENTS.md — 已隨回滾恢復原始版本
+- [~] 3.6 驗證 — 不適用（已回滾）
+- [~] 3.7 驗證 — 不適用（已回滾）

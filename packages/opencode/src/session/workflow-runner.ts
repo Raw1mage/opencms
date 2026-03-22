@@ -14,6 +14,7 @@ import { PermissionNext } from "@/permission/next"
 import { Question } from "@/question"
 import { RuntimeEventService } from "@/system/runtime-event-service"
 import { consumeMissionArtifacts } from "./mission-consumption"
+import { debugCheckpoint } from "@/util/debug"
 import RUNNER_CONTRACT from "./prompt/runner.txt"
 import {
   type RunTrigger,
@@ -892,6 +893,22 @@ export async function decideAutonomousContinuation(input: { sessionID: string; r
     activeSubtasks,
     pendingApprovals,
     pendingQuestions,
+  })
+  debugCheckpoint("workflow", "continuation_decision", {
+    sessionID: input.sessionID,
+    continue: decision.continue,
+    reason: decision.reason,
+    roundCount: input.roundCount,
+    todosTotal: todos.length,
+    todosPending: todos.filter((t) => t.status === "pending").length,
+    todosInProgress: todos.filter((t) => t.status === "in_progress").length,
+    todosCompleted: todos.filter((t) => t.status === "completed").length,
+    activeSubtasks,
+    pendingApprovals,
+    pendingQuestions,
+    workflowState: session.workflow?.state,
+    missionExists: !!session.mission,
+    missionReady: session.mission?.executionReady,
   })
   // Race condition guard: if the gate says "stop" but a task completion
   // continuation was enqueued while we were busy (e.g. answering a question),
