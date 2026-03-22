@@ -1,0 +1,89 @@
+{
+  "diagram_title": "Builder Native Beta Workflow Components",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "OpenCode Builder Runtime",
+      "description": "Existing planner/build runtime with beta workflow absorbed as native capability",
+      "external": false
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "Planner Build Container",
+      "description": "Current builder control plane surfaces and mission runtime",
+      "technology": "TypeScript/Bun",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT2",
+      "name": "Beta Workflow Container",
+      "description": "Builder-native deterministic beta primitives migrated from the old MCP logic",
+      "technology": "TypeScript/Bun",
+      "systemRef": "SYS1"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "Plan Exit Gate",
+      "description": "Validates plan artifacts and starts beta-aware build entry",
+      "technology": "Tool runtime",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/tool/plan.ts"
+    },
+    {
+      "id": "C2",
+      "name": "Mission Workflow Runner",
+      "description": "Controls continuation, validation, and approval pauses during build mode",
+      "technology": "Session workflow runtime",
+      "containerRef": "CT1",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/session/workflow-runner.ts"
+    },
+    {
+      "id": "C3",
+      "name": "Builder Beta Primitives",
+      "description": "Internalized branch/worktree/commit/push/pull/syncback/merge-preflight logic",
+      "technology": "Internal TypeScript module",
+      "containerRef": "CT2",
+      "moduleRef": "A2",
+      "filePath": "packages/mcp/branch-cicd/src"
+    },
+    {
+      "id": "C4",
+      "name": "Runner Contract Prompt",
+      "description": "Generic build-mode prompt contract that consumes beta-aware mission context",
+      "technology": "Prompt template",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/session/prompt/runner.txt"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL1",
+      "source": "C1",
+      "target": "C3",
+      "description": "starts beta bootstrap through native primitives",
+      "technology": "function call"
+    },
+    {
+      "id": "REL2",
+      "source": "C2",
+      "target": "C3",
+      "description": "uses native primitives for routine git flow validation and finalize preflight",
+      "technology": "function call"
+    },
+    {
+      "id": "REL3",
+      "source": "C4",
+      "target": "C2",
+      "description": "guides execution contract for mission-aware build continuation",
+      "technology": "prompt contract"
+    }
+  ]
+}

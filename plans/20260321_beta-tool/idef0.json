@@ -1,0 +1,89 @@
+{
+  "diagram_title": "Builder Native Beta Workflow",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Approve Build Entry",
+      "description": "Validate planner artifacts and approve beta-aware build entry through the existing builder control plane",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Execute Beta Branch Work",
+      "description": "Create or reuse the beta branch/worktree and perform routine implementation git flow inside builder",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Validate Mainline Integration",
+      "description": "Sync the feature branch back to the main repo, run runtime validation, and prepare merge preflight",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "Approved Planner Artifacts",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Build Approval And Stop Gates",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "Beta-Aware Mission Handoff",
+      "type": "output"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "Branch Naming Runtime Policy And Git Policy",
+      "type": "control"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "Builder Native Beta Primitives",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR6",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "Feature Branch And Validation Context",
+      "type": "output"
+    },
+    {
+      "id": "AR7",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "Validation And Merge Approval Policy",
+      "type": "control"
+    },
+    {
+      "id": "AR8",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "Main Repo Runtime Adapter",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR9",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "Validated Branch Ready For Merge Decision",
+      "type": "output"
+    }
+  ]
+}
