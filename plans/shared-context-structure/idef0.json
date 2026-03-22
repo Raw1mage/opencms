@@ -1,0 +1,239 @@
+{
+  "diagram_title": "Shared Context Structure — Functional Decomposition",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A0",
+      "title": "Manage Session Shared Context",
+      "description": "Maintain a structured, incrementally-updated knowledge surface per main session, serving subagent injection, compaction summary, and session recovery",
+      "decomposition": {
+        "activities": ["A1", "A2", "A3", "A4"]
+      }
+    },
+    {
+      "id": "A1",
+      "title": "Update Context From Turn",
+      "description": "Process completed assistant turn tool parts and text to incrementally append new knowledge into the shared context space",
+      "decomposition": {
+        "activities": ["A11", "A12", "A13", "A14"]
+      }
+    },
+    {
+      "id": "A11",
+      "title": "Extract Tool Knowledge",
+      "description": "Walk tool parts from the completed turn; map each tool type (read/edit/write/glob/grep/bash/task) to files[] and actions[] entries",
+      "decomposition": null
+    },
+    {
+      "id": "A12",
+      "title": "Extract Text Insights",
+      "description": "Apply heuristic regex patterns to assistant text to populate goal, discoveries, and currentState fields without LLM call",
+      "decomposition": null
+    },
+    {
+      "id": "A13",
+      "title": "Deduplicate File Entries",
+      "description": "Merge file entries sharing the same path; upgrade operation rank (read→edit→write) and preserve latest metadata",
+      "decomposition": null
+    },
+    {
+      "id": "A14",
+      "title": "Enforce Budget Limit",
+      "description": "Estimate token size of space; if exceeding budget, invoke consolidate to compress oldest entries",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Inject Context Into Subagent",
+      "description": "Synchronously snapshot the shared context space and prepend it to the subagent's first user message before dispatch",
+      "decomposition": {
+        "activities": ["A21", "A22"]
+      }
+    },
+    {
+      "id": "A21",
+      "title": "Generate Context Snapshot",
+      "description": "Serialize the shared context space into a formatted text block wrapped in <shared_context> tags",
+      "decomposition": null
+    },
+    {
+      "id": "A22",
+      "title": "Seed Subagent Message",
+      "description": "Create synthetic user message containing snapshot + task prompt text, insert into subagent session before dispatch",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Compact With Shared Context",
+      "description": "Use shared context snapshot as compaction summary, replacing LLM compaction agent call; serves both idle and overflow paths",
+      "decomposition": {
+        "activities": ["A31", "A32", "A33"]
+      }
+    },
+    {
+      "id": "A31",
+      "title": "Evaluate Compaction Eligibility",
+      "description": "Inspect budget utilization against configurable threshold; decide whether to compact or skip",
+      "decomposition": null
+    },
+    {
+      "id": "A32",
+      "title": "Write Compaction Summary",
+      "description": "Create summary message from snapshot, mark old messages as compacted, publish Compacted event",
+      "decomposition": null
+    },
+    {
+      "id": "A33",
+      "title": "Emit Continue Prompt",
+      "description": "In auto mode, append synthetic continue message so session resumes from shared context",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Consolidate Oversize Space",
+      "description": "Compress the shared context space when it exceeds its own token budget by merging old entries and trimming low-priority items",
+      "decomposition": {
+        "activities": ["A41", "A42", "A43"]
+      }
+    },
+    {
+      "id": "A41",
+      "title": "Trim Old Actions",
+      "description": "Keep only the most recent 20 action entries; discard older ones",
+      "decomposition": null
+    },
+    {
+      "id": "A42",
+      "title": "Collapse Directory Files",
+      "description": "When a directory has more than 5 file entries, merge them into a single summary entry",
+      "decomposition": null
+    },
+    {
+      "id": "A43",
+      "title": "Prune Oldest Discoveries",
+      "description": "Keep only the most recent 10 discovery entries; remove oldest if still over budget",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "Completed Assistant Turn (parts + text)",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A0:control",
+      "label": "Config (sharedContext, budget, threshold)",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A0:control",
+      "label": "Session Identity (main vs sub)",
+      "type": "control"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A0:mechanism",
+      "label": "Storage Layer (read/write JSON)",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A0:mechanism",
+      "label": "Token Estimator",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR6",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "Updated Space",
+      "type": "output"
+    },
+    {
+      "id": "AR7",
+      "source": "A2:output",
+      "target": "EXTERNAL",
+      "label": "Seeded Subagent Session",
+      "type": "output"
+    },
+    {
+      "id": "AR8",
+      "source": "A1:output",
+      "target": "A3:input",
+      "label": "Updated Space (for compaction)",
+      "type": "output"
+    },
+    {
+      "id": "AR9",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "Compacted Session (summary message + Compacted event)",
+      "type": "output"
+    },
+    {
+      "id": "AR10",
+      "source": "A1:output",
+      "target": "A4:input",
+      "label": "Oversize Space",
+      "type": "output"
+    },
+    {
+      "id": "AR11",
+      "source": "A4:output",
+      "target": "A1:input",
+      "label": "Consolidated Space (within budget)",
+      "type": "output"
+    },
+    {
+      "id": "AR12",
+      "source": "EXTERNAL",
+      "target": "A2:input",
+      "label": "Task Dispatch Request",
+      "type": "input"
+    },
+    {
+      "id": "AR13",
+      "source": "EXTERNAL",
+      "target": "A3:input",
+      "label": "Overflow Compaction Trigger",
+      "type": "input"
+    },
+    {
+      "id": "AR14",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "Utilization Threshold (opportunisticThreshold)",
+      "type": "control"
+    },
+    {
+      "id": "AR15",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Main Session Guard (!parentID)",
+      "type": "control"
+    },
+    {
+      "id": "AR16",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "Continuation Guard (!session_id)",
+      "type": "control"
+    },
+    {
+      "id": "AR17",
+      "source": "A0:output",
+      "target": "EXTERNAL",
+      "label": "Telemetry (tokens, version, injected flag)",
+      "type": "output"
+    }
+  ]
+}

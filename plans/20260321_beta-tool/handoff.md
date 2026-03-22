@@ -9,6 +9,7 @@
 - Add `plan_enter` overwrite protection first so active planner roots cannot be blindly reinitialized.
 - Optimize the existing builder control plane instead of replacing it with a new execution model.
 - Internalize beta workflow as builder-native deterministic behavior for routine git/worktree/commit/push/pull/runtime operations so AI remains focused on coding, debugging, and judgment-heavy work.
+- Treat common branch-drift remediation (for example, rebasing beta onto a newer mainline) as part of builder design scope, but keep remediation actions approval-gated.
 - Treat current beta/dev MCP surface only as temporary migration scaffolding; final user workflow must not depend on it.
 - Preserve explicit question / approval gates for branch naming, runtime policy, dirty trees, validation blockers, clean-head branch boundaries, and destructive finalize operations.
 
@@ -35,6 +36,7 @@
 - Stop if `plan_enter` integrity checks still allow existing curated planner roots to be blindly overwritten.
 - Stop if the proposed builder changes would regress or bypass legacy-compatible non-beta flow.
 - Stop before merge / cleanup / worktree deletion execution; builder may prepare preflight, but destructive finalize still requires explicit approval.
+- Stop before rebase/remediation execution when mainline drift is detected; prepare evidence and require explicit approval.
 - Stop before beta bootstrap if mainline is dirty or not anchored to a clean committed head.
 - Stop before syncback if beta work is dirty or not anchored to a clean committed head.
 - Stop before remote operations that policy marks as approval-required.

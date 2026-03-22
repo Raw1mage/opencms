@@ -1,0 +1,181 @@
+{
+  "diagram_title": "Shared Context Structure — C4 Component Diagram",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "OpenCode Runtime",
+      "description": "AI coding assistant with orchestrator/subagent architecture",
+      "external": false
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "Session Engine",
+      "description": "Manages session lifecycle, message history, prompt loop, and compaction",
+      "technology": "TypeScript / Bun",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT2",
+      "name": "Tool Execution",
+      "description": "Tool dispatch, subagent worker pool, task delegation",
+      "technology": "TypeScript / Bun subprocess",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT3",
+      "name": "Storage Layer",
+      "description": "Persistent key-value storage for session data",
+      "technology": "JSON on disk",
+      "systemRef": "SYS1"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "SharedContext",
+      "description": "Per-session structured knowledge space with incremental update, snapshot, and consolidation",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A0",
+      "filePath": "packages/opencode/src/session/shared-context.ts"
+    },
+    {
+      "id": "C2",
+      "name": "PromptLoop",
+      "description": "Main prompt processing loop; triggers SharedContext.updateFromTurn() after each assistant turn",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/session/prompt.ts"
+    },
+    {
+      "id": "C3",
+      "name": "SessionCompaction",
+      "description": "Compaction engine; overflow path now prioritizes SharedContext snapshot over LLM compaction agent",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/session/compaction.ts"
+    },
+    {
+      "id": "C4",
+      "name": "TaskTool",
+      "description": "Subagent dispatch; injects shared context snapshot (sync) before dispatch. No compaction logic.",
+      "technology": "TypeScript module",
+      "containerRef": "CT2",
+      "moduleRef": "A2",
+      "filePath": "packages/opencode/src/tool/task.ts"
+    },
+    {
+      "id": "C5",
+      "name": "Storage",
+      "description": "Generic key-value storage; shared context persisted at key [shared_context, sessionID]",
+      "technology": "TypeScript module",
+      "containerRef": "CT3",
+      "moduleRef": "A0",
+      "filePath": "packages/opencode/src/storage/storage.ts"
+    },
+    {
+      "id": "C6",
+      "name": "TokenEstimator",
+      "description": "Token count estimation for budget management",
+      "technology": "TypeScript utility",
+      "containerRef": "CT1",
+      "moduleRef": "A14",
+      "filePath": "packages/opencode/src/util/token.ts"
+    },
+    {
+      "id": "C7",
+      "name": "MessageV2",
+      "description": "Message and part data model; provides tool part state structure consumed by SharedContext",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/session/message-v2.ts"
+    },
+    {
+      "id": "C8",
+      "name": "Config",
+      "description": "Configuration provider; supplies sharedContext, sharedContextBudget, opportunisticThreshold settings",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A0",
+      "filePath": "packages/opencode/src/config/config.ts"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL1",
+      "source": "C2",
+      "target": "C1",
+      "description": "Calls updateFromTurn() after each assistant turn completes",
+      "technology": "async function call"
+    },
+    {
+      "id": "REL2",
+      "source": "C4",
+      "target": "C1",
+      "description": "Calls snapshot() before subagent dispatch to get injectable context",
+      "technology": "async function call"
+    },
+    {
+      "id": "REL3",
+      "source": "C2",
+      "target": "C3",
+      "description": "Calls idleCompaction() at turn boundary after detecting task dispatch (sync)",
+      "technology": "sync function call"
+    },
+    {
+      "id": "REL4",
+      "source": "C3",
+      "target": "C1",
+      "description": "Calls snapshot() during overflow compaction to get summary",
+      "technology": "async function call"
+    },
+    {
+      "id": "REL5",
+      "source": "C1",
+      "target": "C5",
+      "description": "Reads and writes shared context space as JSON",
+      "technology": "Storage.read() / Storage.write()"
+    },
+    {
+      "id": "REL6",
+      "source": "C1",
+      "target": "C6",
+      "description": "Estimates token count for budget enforcement",
+      "technology": "Token.estimate()"
+    },
+    {
+      "id": "REL7",
+      "source": "C1",
+      "target": "C7",
+      "description": "Reads MessageV2.Part tool state for knowledge extraction",
+      "technology": "type import + part iteration"
+    },
+    {
+      "id": "REL8",
+      "source": "C1",
+      "target": "C8",
+      "description": "Reads compaction config (sharedContext, budget, threshold)",
+      "technology": "Config.get()"
+    },
+    {
+      "id": "REL9",
+      "source": "C3",
+      "target": "C8",
+      "description": "Reads compaction config to decide overflow path",
+      "technology": "Config.get()"
+    },
+    {
+      "id": "REL10",
+      "source": "C2",
+      "target": "C8",
+      "description": "Reads config to check sharedContext guard",
+      "technology": "Config.get()"
+    }
+  ]
+}

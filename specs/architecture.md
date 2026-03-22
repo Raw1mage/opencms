@@ -62,6 +62,24 @@ The frontend is built with Solid.js and uses a bottom-up dependency model:
 - `packages/opencode/src/tool/plan.ts` owns `plan_enter` / `plan_exit`, planner template loading, artifact validation, and mission artifact path storage for active `/plans/` packages.
 - Planner templates are loaded from `/etc/opencode/plans` or `templates/plans` for active plan packages.
 - Mission artifact roots for active build execution must resolve under `/plans/`; non-`/plans/` active mission roots are treated as contract violations and fail fast.
+- `plan_enter` must inspect existing planner roots before writing templates: empty/template-only roots may be repaired, but partial or curated non-template roots are treated as integrity violations and must not be overwritten.
+- Planner document storage is mainline-only: `/plans/`, `/specs/`, and `docs/events/` must be created/updated in the authoritative main repo/worktree, even if planning is triggered while the current execution surface is a beta worktree.
+- `plan_exit` may attach beta mission context (`mission.beta`) derived from approved plan artifacts and, for beta-enabled plans, bootstrap the builder-owned beta branch/worktree/runtime context before entering build mode.
+- `mission.beta` is now the durable handoff boundary for builder beta execution state: branch name, base branch, repo/main worktree paths, beta worktree path, validation/finalize posture, and runtime policy all persist on the session mission contract.
+
+## Builder-Native Beta Workflow Surfaces
+
+- `packages/opencode/src/session/beta-bootstrap.ts` is the builder-native integration layer for beta bootstrap, validation syncback, routine git execution, drift remediation, and finalize behavior.
+- It reuses deterministic git/worktree/runtime primitives from `packages/mcp/branch-cicd/src/project-policy.ts` and project-context resolution from `packages/mcp/branch-cicd/src/context.ts` rather than duplicating branch-cicd logic inside the builder runtime.
+- `packages/opencode/src/tool/plan.ts` owns beta bootstrap during `plan_exit`; it resolves and persists the builder beta context only for plans that opt into the beta workflow.
+- `packages/opencode/src/session/workflow-runner.ts` owns validation-stage behavior during autonomous build execution: it prepares syncback metadata for testing continuations and, when runtime policy is non-manual, performs builder-owned syncback checkout plus runtime command execution before the validation slice continues.
+- The same workflow-runner owns finalize-stage behavior during autonomous build execution: it prepares merge target / branch / cleanup-default metadata for finalize-oriented continuations, surfaces branch-drift remediation preflight when the base branch advanced, and preserves explicit approval gates before destructive actions.
+- Builder routine git defaults are now builder-native across local and remote steps: checkout/commit/pull/push automation can run from approved mission/delegation metadata, but push still remains approval-gated where policy requires it and remote operations fail fast when origin/upstream state is not explicit.
+- Builder design treats branch drift as a first-class runtime state: when the stored base/main branch has advanced after beta bootstrap, the runtime prepares remediation/rebase preflight and stops for approval; once explicit destructive-gate remediation approval is present, builder-native remediation executes in the beta worktree and still returns control to finalize as a separate step.
+- Manual runtime policy remains an explicit operator boundary: builder may prepare syncback metadata, but it must not invent or auto-run runtime commands.
+- Destructive finalize execution now has a builder-native execute path, but it is still explicit-approval-only and cleanup remains conservative by default.
+- Drift remediation execute is implemented only for explicit approval-confirmed rebase flow and fails fast on dirty beta state or rebase conflicts; no silent history rewrite or implicit conflict recovery is allowed.
+- `packages/mcp/branch-cicd/src/beta-tool.ts` remains available only as migration/back-compat scaffolding: its prompts now explicitly defer to builder-native workflow when available, and its continued existence is a compatibility choice rather than an architectural dependency of the target builder UX.
 
 ## Account Management (3-Tier Architecture)
 

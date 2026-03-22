@@ -1,0 +1,89 @@
+[
+  {
+    "diagram_title": "Turn Completion — Incremental Context Update",
+    "scenario": "After an assistant turn completes with tool calls, the prompt loop triggers SharedContext.updateFromTurn() to extract and persist new knowledge",
+    "moduleRef": "A1",
+    "participants": [
+      { "id": "P1", "name": "PromptLoop", "type": "component", "componentRef": "C2" },
+      { "id": "P2", "name": "SharedContext", "type": "component", "componentRef": "C1" },
+      { "id": "P3", "name": "Storage", "type": "component", "componentRef": "C5" },
+      { "id": "P4", "name": "TokenEstimator", "type": "component", "componentRef": "C6" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "updateFromTurn(sessionID, parts, assistantText, turnNumber)", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "Storage.read([shared_context, sessionID])", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P3", "to": "P2", "label": "Space | undefined", "type": "return", "order": 3 },
+      { "id": "MSG4", "from": "P2", "to": "P2", "label": "processToolPart() for each completed tool part", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P2", "to": "P2", "label": "updateFromAssistantText() — heuristic extraction", "type": "sync", "order": 5 },
+      { "id": "MSG6", "from": "P2", "to": "P2", "label": "deduplicateFiles()", "type": "sync", "order": 6 },
+      { "id": "MSG7", "from": "P2", "to": "P4", "label": "Token.estimate(serializedSpace)", "type": "sync", "order": 7 },
+      { "id": "MSG8", "from": "P4", "to": "P2", "label": "tokenCount", "type": "return", "order": 8 },
+      { "id": "MSG9", "from": "P2", "to": "P2", "label": "consolidate() if tokenCount > budget", "type": "sync", "order": 9 },
+      { "id": "MSG10", "from": "P2", "to": "P3", "label": "Storage.write([shared_context, sessionID], space)", "type": "sync", "order": 10 },
+      { "id": "MSG11", "from": "P2", "to": "P1", "label": "void (update complete)", "type": "return", "order": 11 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "opt", "label": "tokenCount > budget", "messageRefs": ["MSG9"] }
+    ]
+  },
+  {
+    "diagram_title": "Subagent Dispatch — Sync Injection (in task tool) + Idle Compaction (at turn boundary)",
+    "scenario": "Task tool injects shared context into subagent before dispatch. After the turn completes (task tool returns), idle compaction is evaluated synchronously at the turn boundary in prompt.ts",
+    "moduleRef": "A2",
+    "participants": [
+      { "id": "P1", "name": "PromptLoop", "type": "component", "componentRef": "C2" },
+      { "id": "P2", "name": "TaskTool", "type": "component", "componentRef": "C4" },
+      { "id": "P3", "name": "SharedContext", "type": "component", "componentRef": "C1" },
+      { "id": "P4", "name": "Session", "type": "component", "componentRef": "C2" },
+      { "id": "P5", "name": "Worker", "type": "system", "componentRef": "SYS1" },
+      { "id": "P6", "name": "SessionCompaction", "type": "component", "componentRef": "C3" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "execute task tool (within turn N)", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "snapshot(parentSessionID)", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P3", "to": "P2", "label": "snapshotText | undefined", "type": "return", "order": 3 },
+      { "id": "MSG4", "from": "P2", "to": "P4", "label": "Session.updateMessage() + updatePart(snapshot + taskPrompt)", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P2", "to": "P5", "label": "dispatchToWorker(subagentSessionID)", "type": "sync", "order": 5 },
+      { "id": "MSG6", "from": "P5", "to": "P2", "label": "dispatch metadata (immediate return)", "type": "return", "order": 6 },
+      { "id": "MSG7", "from": "P2", "to": "P2", "label": "await worker completion (activity-based timeout)", "type": "sync", "order": 7 },
+      { "id": "MSG8", "from": "P2", "to": "P1", "label": "task tool result", "type": "return", "order": 8 },
+      { "id": "MSG9", "from": "P1", "to": "P3", "label": "updateFromTurn() [turn boundary]", "type": "sync", "order": 9 },
+      { "id": "MSG10", "from": "P1", "to": "P6", "label": "idleCompaction(sessionID, model, config) [turn boundary, sync]", "type": "sync", "order": 10 },
+      { "id": "MSG11", "from": "P6", "to": "P6", "label": "inspectBudget() → evaluate utilization vs threshold", "type": "sync", "order": 11 },
+      { "id": "MSG12", "from": "P6", "to": "P3", "label": "snapshot(sessionID)", "type": "sync", "order": 12 },
+      { "id": "MSG13", "from": "P6", "to": "P6", "label": "compactWithSharedContext() — rewrite message chain", "type": "sync", "order": 13 },
+      { "id": "MSG14", "from": "P6", "to": "P1", "label": "compaction complete", "type": "return", "order": 14 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "opt", "label": "snapshot non-empty AND !params.session_id", "messageRefs": ["MSG4"] },
+      { "id": "FRAG2", "type": "opt", "label": "turn contains completed task dispatch", "messageRefs": ["MSG10", "MSG11", "MSG12", "MSG13", "MSG14"] },
+      { "id": "FRAG3", "type": "alt", "label": "utilization >= threshold → compact (MSG12-13); else → skip", "messageRefs": ["MSG12", "MSG13"] }
+    ]
+  },
+  {
+    "diagram_title": "Overflow Compaction — Shared Context Priority Path",
+    "scenario": "When context overflows usable budget, compaction.process() checks for shared context snapshot before falling back to LLM compaction agent",
+    "moduleRef": "A3",
+    "participants": [
+      { "id": "P1", "name": "PromptLoop", "type": "component", "componentRef": "C2" },
+      { "id": "P2", "name": "SessionCompaction", "type": "component", "componentRef": "C3" },
+      { "id": "P3", "name": "SharedContext", "type": "component", "componentRef": "C1" },
+      { "id": "P4", "name": "CompactionAgent", "type": "system", "componentRef": "SYS1" },
+      { "id": "P5", "name": "Bus", "type": "component", "componentRef": "SYS1" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "process(sessionID, messages, auto) [turn boundary]", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "snapshot(sessionID)", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P3", "to": "P2", "label": "snapshotText | undefined", "type": "return", "order": 3 },
+      { "id": "MSG4", "from": "P2", "to": "P2", "label": "compactWithSharedContext(snapshot)", "type": "sync", "order": 4 },
+      { "id": "MSG5", "from": "P2", "to": "P5", "label": "Bus.publish(Event.Compacted)", "type": "async", "order": 5 },
+      { "id": "MSG6", "from": "P2", "to": "P1", "label": "return 'continue'", "type": "return", "order": 6 },
+      { "id": "MSG7", "from": "P2", "to": "P4", "label": "LLM compaction agent call (fallback)", "type": "sync", "order": 7 },
+      { "id": "MSG8", "from": "P4", "to": "P2", "label": "free-form summary", "type": "return", "order": 8 },
+      { "id": "MSG9", "from": "P2", "to": "P1", "label": "return 'continue'", "type": "return", "order": 9 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "alt", "label": "snapshot non-empty → use shared context (MSG4-6); snapshot empty → fallback to LLM agent (MSG7-9)", "messageRefs": ["MSG4", "MSG5", "MSG6", "MSG7", "MSG8", "MSG9"] }
+    ]
+  }
+]
