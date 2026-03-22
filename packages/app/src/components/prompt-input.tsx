@@ -359,8 +359,9 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       accountFamilies: globalSync.data.account_families,
       formatCooldown: (minutes) => language.t("settings.models.recommendations.cooldown", { minutes }),
     })
-    const executionAccountId = params.id ? sync.session.get(params.id)?.execution?.accountId : undefined
-    const selected = executionAccountId ?? local.model.selection(params.id)?.accountID
+    const selected = params.id
+      ? sync.session.get(params.id)?.execution?.accountId
+      : local.model.selection(params.id)?.accountID
     return (
       rows.find((row) => row.id === selected)?.label ?? rows.find((row) => row.active)?.label ?? rows[0]?.label ?? "--"
     )
