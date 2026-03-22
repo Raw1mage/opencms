@@ -2,6 +2,7 @@ import { For, Show } from "solid-js"
 import type { QuestionRequest } from "@opencode-ai/sdk/v2"
 import { Button } from "@opencode-ai/ui/button"
 import { BasicTool } from "@opencode-ai/ui/basic-tool"
+import { Icon } from "@opencode-ai/ui/icon"
 import { PromptInput } from "@/components/prompt-input"
 import { QuestionDock } from "@/components/question-dock"
 import { questionSubtitle } from "@/pages/session/session-prompt-helpers"
@@ -21,6 +22,13 @@ export function SessionPromptDock(props: {
   onNewSessionWorktreeReset: () => void
   onSubmit: () => void
   setPromptDockRef: (el: HTMLDivElement) => void
+  activeChild?: {
+    agent: string
+    title: string
+    step: string
+    href: string
+  }
+  onOpenChildSession: () => void
 }) {
   return (
     <div
@@ -33,6 +41,43 @@ export function SessionPromptDock(props: {
           "max-w-[1000px] mx-auto": props.centered,
         }}
       >
+        <Show when={props.activeChild}>
+          {(child) => (
+            <div class="mb-3 pointer-events-auto">
+              <BasicTool
+                icon="task"
+                locked
+                defaultOpen
+                trigger={{
+                  title: `${child().agent} agent`,
+                  subtitle: child().title,
+                  action: (
+                    <a
+                      href={child().href}
+                      class="inline-flex items-center gap-1 text-11-regular text-text-weak hover:text-text-strong"
+                      onClick={(event) => {
+                        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                          return
+                        }
+                        event.preventDefault()
+                        event.stopPropagation()
+                        props.onOpenChildSession()
+                      }}
+                    >
+                      <span>Open session</span>
+                      <Icon name="square-arrow-top-right" size="small" />
+                    </a>
+                  ),
+                }}
+              >
+                <div class="px-3 py-2 text-12-regular text-text-strong border-t border-border-base/60">
+                  {child().step}
+                </div>
+              </BasicTool>
+            </div>
+          )}
+        </Show>
+
         <Show when={props.questionRequest()} keyed>
           {(req) => {
             const subtitle = questionSubtitle(req.questions.length, (key) => props.t(key))
@@ -127,6 +172,7 @@ export function SessionPromptDock(props: {
               newSessionWorktree={props.newSessionWorktree}
               onNewSessionWorktreeReset={props.onNewSessionWorktreeReset}
               onSubmit={props.onSubmit}
+              forceWorking={!!props.activeChild}
             />
           </Show>
         </Show>

@@ -1,11 +1,12 @@
 import { Bus } from "../index"
-import { TaskWorkerEvent } from "@/tool/task"
+import { SessionActiveChild, TaskWorkerEvent } from "@/tool/task"
 import { Session } from "@/session"
 import { MessageV2 } from "@/session/message-v2"
 import { Identifier } from "@/id/id"
 import { Todo } from "@/session/todo"
 import { ProcessSupervisor } from "@/process/supervisor"
 import { enqueuePendingContinuation, resumePendingContinuations } from "@/session/workflow-runner"
+import { SessionStatus } from "@/session/status"
 
 async function enqueueParentContinuation(input: {
   parentSessionID: string
@@ -16,6 +17,38 @@ async function enqueueParentContinuation(input: {
   ok: boolean
   error?: string
 }) {
+  const markActiveChildHandoff = async () => {
+    const parentAssistant = await MessageV2.get({
+      sessionID: input.parentSessionID,
+      messageID: input.parentMessageID,
+    }).catch(() => undefined)
+    const taskPart = parentAssistant?.parts.find(
+      (part): part is MessageV2.ToolPart =>
+        part.type === "tool" && part.callID === input.toolCallID && part.tool === "task",
+    )
+    const metadata = taskPart?.metadata as
+      | {
+          sessionId?: string
+          todo?: { id: string; content: string; status: string; action?: unknown }
+          agent?: string
+        }
+      | undefined
+    await SessionActiveChild.set(input.parentSessionID, {
+      sessionID: input.childSessionID,
+      parentMessageID: input.parentMessageID,
+      toolCallID: input.toolCallID,
+      workerID: "handoff",
+      title: taskPart?.state.input?.description ?? taskPart?.state.title ?? metadata?.todo?.content ?? "Subtask",
+      agent: metadata?.agent ?? "task",
+      status: "handoff",
+      todo: metadata?.todo,
+    })
+  }
+
+  const clearActiveChild = async () => {
+    await SessionActiveChild.set(input.parentSessionID, null)
+  }
+
   const clearLogicalTask = () => {
     ProcessSupervisor.kill(input.toolCallID)
   }
@@ -49,6 +82,7 @@ async function enqueueParentContinuation(input: {
   }
 
   try {
+    await markActiveChildHandoff().catch(() => undefined)
     if (input.linkedTodoID) {
       await Todo.reconcileProgress({
         sessionID: input.parentSessionID,
@@ -131,6 +165,9 @@ async function enqueueParentContinuation(input: {
     }
     throw error
   } finally {
+    if (SessionActiveChild.get(input.parentSessionID)?.status !== "handoff") {
+      await clearActiveChild().catch(() => undefined)
+    }
     clearLogicalTask()
   }
 }
@@ -140,6 +177,13 @@ let registered = false
 export function registerTaskWorkerContinuationSubscriber() {
   if (registered) return
   registered = true
+
+  Bus.subscribeGlobal(SessionStatus.Event.Status.type, 0, async (event) => {
+    if (event.properties.status.type !== "busy") return
+    const activeChild = SessionActiveChild.get(event.properties.sessionID)
+    if (!activeChild || activeChild.status !== "handoff") return
+    await SessionActiveChild.set(event.properties.sessionID, null)
+  })
 
   Bus.subscribeGlobal(TaskWorkerEvent.Done.type, 0, async (event) => {
     await enqueueParentContinuation({

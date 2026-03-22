@@ -24,6 +24,7 @@ import { BusEvent } from "@/bus/bus-event"
 import { Lock } from "@/util/lock"
 import { Global } from "@/global"
 import path from "path"
+import { Instance } from "@/project/instance"
 // Note: orchestrateModelSelection no longer used — subagent validates model against registry directly
 
 // NOTE: @event_task_tool_complex_input
@@ -153,6 +154,53 @@ export const TaskWorkerEvent = {
   ),
 }
 
+const TaskActiveChildTodoSchema = z.object({
+  id: z.string(),
+  content: z.string(),
+  status: z.string(),
+  action: Todo.Info.shape.action.optional(),
+})
+
+const SessionActiveChildPayloadSchema = z.object({
+  parentSessionID: Identifier.schema("session"),
+  activeChild: z
+    .object({
+      sessionID: Identifier.schema("session"),
+      parentMessageID: Identifier.schema("message"),
+      toolCallID: z.string(),
+      workerID: z.string(),
+      title: z.string(),
+      agent: z.string(),
+      status: z.enum(["running", "handoff"]),
+      todo: TaskActiveChildTodoSchema.optional(),
+    })
+    .nullable(),
+})
+
+export const SessionActiveChildEvent = BusEvent.define("session.active-child.updated", SessionActiveChildPayloadSchema)
+
+export type SessionActiveChildState = NonNullable<z.infer<typeof SessionActiveChildPayloadSchema>["activeChild"]>
+
+const activeChildState = Instance.state(() => {
+  const data: Record<string, SessionActiveChildState | undefined> = {}
+  return data
+})
+
+export namespace SessionActiveChild {
+  export function get(parentSessionID: string) {
+    return activeChildState()[parentSessionID]
+  }
+
+  export async function set(parentSessionID: string, activeChild: SessionActiveChildState | null) {
+    if (activeChild === null) delete activeChildState()[parentSessionID]
+    else activeChildState()[parentSessionID] = activeChild
+    await Bus.publish(SessionActiveChildEvent, {
+      parentSessionID,
+      activeChild,
+    })
+  }
+}
+
 async function publishBridgedEvent(event: { type: string; properties: any }) {
   beacon.hit("bridge.publish")
   switch (event.type) {
@@ -239,6 +287,27 @@ type WorkerRunResult = {
   lastEventAt?: number
   eventCount: number
   doneAt: number
+}
+
+type TaskActiveChildTodo = z.infer<typeof TaskActiveChildTodoSchema>
+
+function toActiveChildTodo(
+  linkedTodo:
+    | {
+        id: string
+        content: string
+        status: string
+        action?: (typeof Todo.Info.shape.action)["_output"]
+      }
+    | undefined,
+): TaskActiveChildTodo | undefined {
+  if (!linkedTodo) return
+  return {
+    id: linkedTodo.id,
+    content: linkedTodo.content,
+    status: linkedTodo.status,
+    action: linkedTodo.action,
+  }
 }
 
 function extractEventSessionID(event: any): string | undefined {
@@ -540,6 +609,15 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
     }
     debugCheckpoint("task.worker", "worker_exit_unexpected", diagnostics)
     if (req) {
+      void Bus.publish(TaskWorkerEvent.Failed, {
+        workerID: worker.id,
+        sessionID: req.sessionID,
+        parentSessionID: req.parentSessionID,
+        parentMessageID: req.parentMessageID,
+        toolCallID: req.toolCallID,
+        linkedTodoID: req.linkedTodoID,
+        error: `worker process exited unexpectedly (exitCode=${exitCode})`,
+      })
       const detail = [
         `exitCode=${exitCode}`,
         worker.lastPhase ? `lastPhase=${worker.lastPhase}` : undefined,
@@ -749,6 +827,51 @@ async function dispatchToWorker(input: {
   }
 }
 
+export async function terminateActiveChild(parentSessionID: string) {
+  const activeChild = SessionActiveChild.get(parentSessionID)
+  if (!activeChild) return false
+  if (activeChild.status !== "running") {
+    throw new Error(`active_child_not_terminable:${parentSessionID}:${activeChild.status}`)
+  }
+  if (!activeChild.workerID || activeChild.workerID === "handoff") {
+    throw new Error(`active_child_worker_missing:${parentSessionID}:${activeChild.sessionID}`)
+  }
+  const worker = workers.find((candidate) => candidate.id === activeChild.workerID)
+  if (!worker) {
+    throw new Error(`active_child_worker_missing:${parentSessionID}:${activeChild.workerID}`)
+  }
+  const current = worker.current
+  if (!current) {
+    throw new Error(`active_child_worker_idle:${parentSessionID}:${activeChild.workerID}`)
+  }
+  if (
+    current.sessionID !== activeChild.sessionID ||
+    current.parentSessionID !== parentSessionID ||
+    current.toolCallID !== activeChild.toolCallID
+  ) {
+    throw new Error(`active_child_worker_mismatch:${parentSessionID}:${activeChild.workerID}`)
+  }
+  const stdin = worker.proc.stdin
+  if (typeof stdin === "number") {
+    throw new Error(`active_child_worker_stdin_unavailable:${parentSessionID}:${activeChild.workerID}`)
+  }
+  stdin?.write(
+    JSON.stringify({
+      type: "cancel",
+      id: current.id,
+      sessionID: activeChild.sessionID,
+    }) + "\n",
+  )
+  return true
+}
+
+function assertNoAuthoritativeActiveChild(parentSessionID: string) {
+  const activeChild = SessionActiveChild.get(parentSessionID)
+  if (!activeChild) return
+  if (activeChild.status !== "running" && activeChild.status !== "handoff") return
+  throw new Error(`active_child_dispatch_blocked:${parentSessionID}:${activeChild.sessionID}:${activeChild.status}`)
+}
+
 export const TaskTool = Tool.define("task", async (ctx) => {
   const agents = await Agent.list().then((x) => x.filter((a) => a.mode !== "primary" && a.hidden !== true))
 
@@ -824,6 +947,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         if (callerSession.parentID) {
           throw new Error(`nested_task_delegation_unsupported:${ctx.sessionID}`)
         }
+        assertNoAuthoritativeActiveChild(ctx.sessionID)
 
         // Skip permission check when user explicitly invoked via @ or command subtask
         if (!ctx.extra?.bypassAgentCheck) {
@@ -1006,22 +1130,18 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         })
         mark("model_resolved", { providerId: model.providerId, modelID: model.modelID })
 
+        const activeChildTodo = toActiveChildTodo(linkedTodo)
+
         ctx.metadata({
           title: params.description,
           metadata: {
             sessionId: session.id,
             model,
             modelSource,
+            agent: agent.name,
             dispatched: true,
             status: "running",
-            todo: linkedTodo
-              ? {
-                  id: linkedTodo.id,
-                  content: linkedTodo.content,
-                  status: linkedTodo.status,
-                  action: linkedTodo.action,
-                }
-              : undefined,
+            todo: activeChildTodo,
           },
         })
 
@@ -1046,16 +1166,10 @@ export const TaskTool = Tool.define("task", async (ctx) => {
               sessionId: session.id,
               model,
               modelSource,
+              agent: agent.name,
               dispatched: true,
               status: "running",
-              todo: linkedTodo
-                ? {
-                    id: linkedTodo.id,
-                    content: linkedTodo.content,
-                    status: linkedTodo.status,
-                    action: linkedTodo.action,
-                  }
-                : undefined,
+              todo: activeChildTodo,
             },
           })
         })
@@ -1232,6 +1346,16 @@ export const TaskTool = Tool.define("task", async (ctx) => {
               onPhase: (phase, data) => {
                 if (phase === "worker_assigned" && typeof data?.workerID === "string") {
                   assignedWorkerID = data.workerID
+                  void SessionActiveChild.set(ctx.sessionID, {
+                    sessionID: session.id,
+                    parentMessageID: ctx.messageID,
+                    toolCallID: ctx.callID ?? session.id,
+                    workerID: data.workerID,
+                    title: params.description,
+                    agent: agent.name,
+                    status: "running",
+                    todo: activeChildTodo,
+                  })
                 }
                 mark(phase, data)
               },
@@ -1295,15 +1419,9 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             dispatched: true,
             status: "running",
             sessionId: session.id,
+            agent: agent.name,
             model,
-            todo: linkedTodo
-              ? {
-                  id: linkedTodo.id,
-                  content: linkedTodo.content,
-                  status: linkedTodo.status,
-                  action: linkedTodo.action,
-                }
-              : undefined,
+            todo: activeChildTodo,
           },
           output,
         }

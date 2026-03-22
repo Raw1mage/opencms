@@ -16,6 +16,7 @@ The requirement was later clarified with hard constraints:
 3. Final UX target: once the user enters build mode, they should no longer need to keep prompting for routine branch checkout, commit, push, pull, and related orchestration details; builder should manage those defaults on a safe beta branch/worktree and return a testable branch to the main repo before merge approval.
 4. Final steady state: users should no longer need `mcp dev-tool / beta-tool` in normal workflow because the capability is built into the hardcoded builder.
 5. `plan_enter` must not blindly overwrite existing plan roots; overwrite protection is now an explicit requirement in this same change set.
+6. Branch transitions must use clean committed heads: builder must not open beta from dirty mainline and must not syncback dirty uncommitted beta work.
 
 ## Scope
 
@@ -74,6 +75,7 @@ The requirement was later clarified with hard constraints:
 - Workflow runner currently controls continuation, blockers, approvals, and pending questions for build mode.
 - Existing beta-tool logic already contains deterministic branch/worktree/runtime flow semantics suitable for internalization into builder-owned behavior.
 - `PlanEnterTool` currently checks only whether `implementation-spec.md` exists before writing all templates, so a partial or damaged root can be overwritten too aggressively.
+- User clarified an additional workflow invariant: both beta bootstrap and syncback must operate on clean committed heads, not dirty worktrees.
 
 ### Root Decision
 
@@ -83,6 +85,7 @@ The requirement was later clarified with hard constraints:
 - Include routine remote operations (push/pull) in the builder-owned flow where policy allows, so users do not need to keep prompting for them.
 - Treat beta/dev MCP as migration scaffolding only, then deprecate/remove it once builder-native workflow is validated.
 - Add `plan_enter` planner-root integrity checks so existing curated artifacts are reused or blocked instead of silently overwritten.
+- Enforce clean-head branch invariants so mainline dirtiness blocks bootstrap and uncommitted beta work blocks syncback.
 
 ## Key Decisions
 
@@ -93,6 +96,7 @@ The requirement was later clarified with hard constraints:
 5. Merge/cleanup remain explicit approval-gated operations.
 6. Routine commit/push/pull/checkout should become builder-owned defaults where policy permits.
 7. `mcp dev-tool / beta-tool` is not the target end state and should be deprecated/removed after migration.
+8. Bootstrap/syncback boundaries must be commit-head based, not dirty-tree based.
 
 ## Validation
 

@@ -1,24 +1,7 @@
-import type { Message, Part } from "@opencode-ai/sdk/v2/client"
-import { base64Encode } from "@opencode-ai/util/encode"
+import type { Message, Part } from "@opencode-ai/sdk/v2"
+import type { ActiveChildState } from "@tui/context/sync"
 
-export const questionSubtitle = (count: number, t: (key: string) => string) => {
-  if (count === 0) return ""
-  return `${count} ${t(count > 1 ? "ui.common.question.other" : "ui.common.question.one")}`
-}
-
-type ActiveChildTodo = {
-  content?: string
-}
-
-type ActiveChildState = {
-  sessionID: string
-  title: string
-  agent: string
-  status: "running" | "handoff"
-  todo?: ActiveChildTodo
-}
-
-type DerivedActiveChildStatus = {
+export type DerivedActiveChildFooter = {
   title: string
   step: string
 }
@@ -28,7 +11,7 @@ const FALLBACK_STEP = {
   handoff: "Handing off...",
 } as const
 
-const compact = (value: string | undefined, max = 160) => {
+const compact = (value: string | undefined, max = 120) => {
   const trimmed = value?.replace(/\s+/g, " ").trim()
   if (!trimmed) return undefined
   return trimmed.length > max ? `${trimmed.slice(0, max - 1)}…` : trimmed
@@ -54,11 +37,11 @@ const partStep = (part: Part) => {
   return undefined
 }
 
-export const deriveActiveChildStatus = (input: {
+export function deriveActiveChildFooter(input: {
   activeChild: ActiveChildState
   messages: Message[]
   partsByMessage: Record<string, Part[] | undefined>
-}): DerivedActiveChildStatus => {
+}): DerivedActiveChildFooter {
   const title = compact(input.activeChild.title, 120) ?? "Subagent"
   const seeded = compact(input.activeChild.todo?.content)
   if (seeded) return { title, step: seeded }
@@ -75,6 +58,3 @@ export const deriveActiveChildStatus = (input: {
 
   return { title, step: FALLBACK_STEP[input.activeChild.status] }
 }
-
-export const childSessionHref = (directory: string, sessionID: string) =>
-  `/${base64Encode(directory)}/session/${sessionID}`

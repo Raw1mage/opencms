@@ -63,6 +63,7 @@ import { terminalTabLabel } from "@/pages/session/terminal-label"
 import { MessageTimeline } from "@/pages/session/message-timeline"
 import { useSessionCommands } from "@/pages/session/use-session-commands"
 import { SessionPromptDock } from "@/pages/session/session-prompt-dock"
+import { childSessionHref, deriveActiveChildStatus } from "@/pages/session/session-prompt-helpers"
 import { SessionSidePanel } from "@/pages/session/session-side-panel"
 import { useSessionHashScroll } from "@/pages/session/use-session-hash-scroll"
 import { sessionPermissionRequest, sessionQuestionRequest } from "@/pages/session/session-request-tree"
@@ -908,6 +909,40 @@ export default function Page() {
   )
 
   const status = createMemo(() => sync.data.session_status[params.id ?? ""] ?? idle)
+  const activeChild = createMemo(() => {
+    const sessionID = params.id
+    if (!sessionID) return undefined
+    return sync.data.active_child[sessionID]
+  })
+  const hasActiveChild = createMemo(() => !!activeChild())
+  const sessionBusy = createMemo(() => status().type !== "idle" || hasActiveChild())
+  const activeChildDock = createMemo(() => {
+    const child = activeChild()
+    if (!child) return undefined
+    const childMessages = sync.data.message[child.sessionID] ?? []
+    const derived = deriveActiveChildStatus({
+      activeChild: child,
+      messages: childMessages,
+      partsByMessage: sync.data.part,
+    })
+    return {
+      agent: child.agent,
+      title: derived.title,
+      step: derived.step,
+      href: childSessionHref(sdk.directory, child.sessionID),
+      sessionID: child.sessionID,
+    }
+  })
+
+  createEffect(() => {
+    const child = activeChild()
+    if (!child) return
+    void sync.session.sync(child.sessionID)
+    const timer = setInterval(() => {
+      void sync.session.sync(child.sessionID, { force: true })
+    }, 3000)
+    onCleanup(() => clearInterval(timer))
+  })
 
   // mobilePromptHeightLock effect removed: overflow-anchor: none on contentRef
   // eliminates browser anchoring, so prompt-dock height locking is no longer needed.
@@ -915,7 +950,7 @@ export default function Page() {
     on(
       () => status().type !== "idle",
       (active) => {
-        if (active) return
+        if (active || hasActiveChild()) return
         // When session goes idle, re-measure prompt dock in case it changed
         const measured = promptDock ? Math.ceil(promptDock.getBoundingClientRect().height) : undefined
         if (measured && measured !== store.promptHeight) setStore("promptHeight", measured)
@@ -950,7 +985,7 @@ export default function Page() {
   createEffect(() => {
     const id = lastUserMessage()?.id
     if (!id) return
-    setStore("expanded", id, status().type !== "idle")
+    setStore("expanded", id, sessionBusy())
   })
 
   const selectionPreview = (path: string, selection: FileSelection) => {
@@ -1573,7 +1608,7 @@ export default function Page() {
     sessionKey,
     sessionID: () => params.id,
     messagesReady,
-    working: () => status().type !== "idle",
+    working: () => sessionBusy(),
     visibleUserMessages,
     turnStart: () => store.turnStart,
     currentMessageId: () => store.messageId,
@@ -1801,6 +1836,12 @@ export default function Page() {
               resumeScroll()
             }}
             setPromptDockRef={(el: HTMLDivElement) => (promptDock = el)}
+            activeChild={activeChildDock()}
+            onOpenChildSession={() => {
+              const child = activeChildDock()
+              if (!child) return
+              navigate(child.href)
+            }}
           />
 
           <Show when={desktopFilePaneOpen()}>
