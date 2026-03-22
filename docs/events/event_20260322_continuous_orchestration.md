@@ -116,3 +116,28 @@
   - preferred UI implementation is **reuse-first**: extend the old bottom "thinking" / elapsed status surface rather than invent a new unrelated bar.
 - Active planner root updated to `/plans/20260322_continuous-orchestration/` with fully rewritten proposal/spec/design/implementation-spec/tasks/handoff and non-placeholder diagram artifacts for this revised operator-control contract.
 - Architecture Sync: Updated — `specs/architecture.md` now needs to describe the session-global active-subagent control state and the Web/TUI pinned-status behavior as part of the continuous orchestration contract.
+
+## Implementation / Merge Addendum
+
+- Continuous-orchestration control-surface implementation was completed in the beta worktree, but a later verification pass showed the main worktree still lacked the effective observability chain.
+- Root cause: `beta-tool syncback` synchronizes **committed branch state**, not uncommitted dirty worktree state. Some observability changes had existed in beta worktree edits but were not yet fully committed when syncback/merge was first attempted.
+- A direct main-vs-beta comparison confirmed the missing restore set in main:
+  - `packages/opencode/src/tool/task.ts`
+  - `packages/opencode/src/bus/subscribers/task-worker-continuation.ts`
+  - `packages/app/src/pages/session.tsx`
+  - `packages/app/src/pages/session/session-prompt-dock.tsx`
+  - `packages/app/src/pages/session/session-prompt-helpers.ts`
+  - `packages/app/src/components/prompt-input.tsx`
+  - `packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx`
+  - `packages/opencode/src/cli/cmd/tui/component/prompt/active-child-footer.ts`
+- Additional Web drift also had to be repaired so `session.active-child.updated` actually reached the UI store:
+  - `packages/app/src/context/global-sync/types.ts`
+  - `packages/app/src/context/sync.tsx`
+  - `packages/app/src/context/global-sync/child-store.ts`
+  - `packages/app/src/context/global-sync/event-reducer.ts`
+  - `packages/app/src/context/global-sync/event-reducer.test.ts`
+- Post-restore verification:
+  - `git diff --check` passed
+  - `packages/app/src/context/global-sync/event-reducer.test.ts` passed (`13` pass / `0` fail)
+  - full `bun x tsc --noEmit` remained blocked by OOM rather than a feature-specific type error
+- Operational lesson recorded: future beta-tool loops must commit beta-branch implementation slices before syncback/merge whenever the intent is to bring those changes back into main via branch state alone.

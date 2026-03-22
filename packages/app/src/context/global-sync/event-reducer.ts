@@ -61,6 +61,7 @@ function cleanupSessionCaches(store: Store<State>, setStore: SetStoreFunction<St
     store.permission[sessionID] !== undefined ||
     store.question[sessionID] !== undefined ||
     store.session_status[sessionID] !== undefined ||
+    store.active_child[sessionID] !== undefined ||
     store.session_telemetry[sessionID] !== undefined
   if (!hasAny) return
   setStore(
@@ -80,6 +81,7 @@ function cleanupSessionCaches(store: Store<State>, setStore: SetStoreFunction<St
       delete draft.permission[sessionID]
       delete draft.question[sessionID]
       delete draft.session_status[sessionID]
+      delete draft.active_child[sessionID]
       delete draft.session_telemetry[sessionID]
     }),
   )
@@ -183,6 +185,19 @@ export function applyDirectoryEvent(input: {
     case "session.status": {
       const props = event.properties as { sessionID: string; status: SessionStatus }
       input.setStore("session_status", props.sessionID, reconcile(props.status))
+      break
+    }
+    case "session.active-child.updated": {
+      const props = event.properties as {
+        parentSessionID: string
+        activeChild: State["active_child"][string] | null
+      }
+      input.setStore(
+        produce((draft) => {
+          if (props.activeChild) draft.active_child[props.parentSessionID] = props.activeChild
+          else delete draft.active_child[props.parentSessionID]
+        }),
+      )
       break
     }
     case "session.telemetry.updated": {

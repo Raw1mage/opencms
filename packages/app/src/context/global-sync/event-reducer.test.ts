@@ -96,6 +96,7 @@ const baseState = (input: Partial<State> = {}) =>
     session: [],
     sessionTotal: 0,
     session_status: {},
+    active_child: {},
     session_telemetry: {},
     session_diff: {},
     todo: {},

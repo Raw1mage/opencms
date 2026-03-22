@@ -14,7 +14,7 @@
 - Add builder handoff metadata and runtime state needed to carry beta workflow context safely through build mode.
 - Include remote push/pull in the builder-controlled lifecycle while preserving explicit approval gates where required by policy.
 - Define beta/dev MCP as a migration surface only, not the target steady-state control plane.
-- Preserve explicit stop gates for ambiguity, dirty trees, validation failures, destructive finalize approval, and planner-root overwrite risk.
+- Preserve explicit stop gates for ambiguity, dirty trees, validation failures, destructive finalize approval, planner-root overwrite risk, and branch cleanliness invariants around bootstrap/syncback.
 - Add a `plan_enter` anti-clobber guard so existing non-template plan content is never blindly replaced by templates.
 - Update active planning artifacts and long-lived docs affected by the workflow change.
 
@@ -40,6 +40,8 @@
 - Stop if the approved plan does not explicitly declare beta-loop execution intent, validation posture, and finalize posture.
 - Stop if beta bootstrap cannot resolve repo root, base branch, branch name, beta root, or runtime policy without an explicit bounded decision.
 - Stop if either main worktree or target beta path is dirty, conflicting, or already mapped incompatibly.
+- Stop before beta bootstrap unless mainline worktree state is anchored to a clean committed head.
+- Stop before syncback unless the beta branch has a clean committed head representing the changes to validate.
 - Stop if the proposed builder integration would remove, bypass, or regress existing builder capabilities instead of only layering beta workflow guidance on top.
 - Stop if build execution discovers a new workflow slice not represented in planner artifacts.
 - Stop before destructive finalize actions (`merge`, worktree removal, branch deletion); builder may prepare merge preflight but actual finalize still requires explicit approval.
@@ -64,6 +66,7 @@
 
 - Map the existing builder control plane and preserve its current responsibilities while identifying the narrowest safe beta-flow insertion points.
 - Extract and internalize deterministic beta orchestration primitives so routine git/worktree/commit/push/pull/runtime steps move out of ad hoc AI reasoning and into builder-owned execution.
+- Enforce clean-head branch invariants so bootstrap and syncback both operate only on committed, non-dirty branch heads.
 - Add `plan_enter` planner-root integrity checks so existing plan artifacts are reused or explicitly blocked instead of silently reinitialized.
 - Extend `plan_exit` and mission handoff so builder can enter beta bootstrap without replacing existing build entry behavior.
 - Extend build execution so validation uses syncback semantics and finalize uses merge preflight plus approval-gated merge, while keeping existing builder stop-gate semantics intact.
@@ -77,6 +80,7 @@
 - Run targeted tests for the absorbed/shared beta orchestration core to prove builder-native behavior matches intended branch/worktree semantics.
 - Verify existing non-beta build-mode behavior still passes unchanged or with compatible metadata additions.
 - Verify a representative approved beta-aware plan can produce: beta bootstrap metadata, build-mode handoff, commit/push/pull-aware routine execution, syncback-driven validation, and merge-preflight metadata while still pausing for explicit merge approval.
+- Verify bootstrap is rejected when mainline is dirty and syncback is rejected when beta changes are not committed.
 - Verify deterministic builder-owned tooling replaces routine AI-driven git/worktree orchestration rather than adding prompt-only steps.
 - Verify external beta/dev MCP is no longer required for the target end-to-end builder UX.
 - Record architecture sync and event evidence for the updated builder boundary.

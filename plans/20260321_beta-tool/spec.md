@@ -64,6 +64,18 @@ The system SHALL support validation-phase syncback from beta execution into the 
 - **WHEN** branch checkout, commit, push, or pull are required by the approved workflow and policy allows them
 - **THEN** the builder SHALL perform them through deterministic built-in flow instead of requiring repeated user prompts for those steps
 
+#### Scenario: bootstrap rejects dirty mainline state
+
+- **GIVEN** the main worktree contains uncommitted changes
+- **WHEN** builder attempts beta bootstrap from plan-approved build entry
+- **THEN** the system SHALL stop instead of opening a beta branch from a dirty mainline state
+
+#### Scenario: syncback rejects uncommitted beta work
+
+- **GIVEN** the beta branch contains uncommitted implementation changes
+- **WHEN** builder attempts syncback for validation
+- **THEN** the system SHALL stop instead of syncing back a dirty beta worktree; the validation boundary must use a committed beta branch head
+
 ### Requirement: Builder SHALL own finalize progression but stop at destructive approval
 
 The system SHALL allow builder to continue from successful validation into merge preflight, but SHALL not execute destructive finalize steps without explicit approval.

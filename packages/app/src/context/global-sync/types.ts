@@ -69,6 +69,23 @@ export type State = {
   session_status: {
     [sessionID: string]: SessionStatus
   }
+  active_child: {
+    [sessionID: string]: {
+      sessionID: string
+      parentMessageID: string
+      toolCallID: string
+      workerID: string
+      title: string
+      agent: string
+      status: "running" | "handoff"
+      todo?: {
+        id: string
+        content: string
+        status: string
+        action?: Todo["action"]
+      }
+    }
+  }
   session_telemetry: {
     [sessionID: string]: SessionTelemetry
   }

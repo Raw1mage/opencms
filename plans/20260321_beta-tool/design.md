@@ -33,6 +33,7 @@
 - Internalize the project-aware branch/worktree/runtime logic currently modeled in `packages/mcp/branch-cicd` as builder-owned deterministic behavior.
 - Extend planner artifacts and handoff metadata so beta-loop execution is explicit, not inferred from the mere existence of beta-tool.
 - Build-mode validation should use syncback-equivalent operations plus runtime policy execution; manual runtime policy remains a stop/report path instead of an implicit command fallback.
+- Branch transitions must use clean committed heads as boundaries: dirty mainline cannot seed beta bootstrap, and dirty beta work cannot seed syncback validation.
 - Successful build progression should enter builder-owned merge preflight, but destructive finalize actions still require an explicit approval stop gate.
 - Protect existing builder behavior by treating non-beta plans as a compatibility path that should continue to work without beta-specific churn.
 - Treat beta/dev MCP as migration scaffolding only, then deprecate/remove it once builder-native flow is stable.
@@ -41,6 +42,8 @@
 
 - Planner-root integrity checks run at `plan_enter` time before template materialization.
 - Planner artifacts define whether beta-loop execution is in scope and what validation/finalize posture is required.
+- Bootstrap checks mainline cleanliness before creating/reusing beta branch state.
+- Syncback checks beta branch cleanliness and committed-head presence before validation can proceed.
 - `plan_exit` validates artifacts, materializes tasks, resolves beta execution metadata, and runs builder-native beta bootstrap before persisting mission handoff when beta flow is enabled.
 - Mission/handoff metadata carries beta context (repo root, main worktree, beta path, branch name, base branch, runtime policy, validation posture, finalize posture) into build mode.
 - Workflow runner remains the continuation controller; when it reaches a beta-aware validation slice, builder uses built-in syncback-equivalent orchestration to update the main worktree and optionally run runtime commands.
@@ -52,6 +55,7 @@
 - Planner-root integrity checks can block some previously tolerated partial states -> mitigate by distinguishing empty/template roots from real-content roots and by adding focused tests.
 - Internalizing beta primitives touches both builder runtime and current MCP package boundaries -> mitigate by keeping behavior signatures close to current semantics and adding focused tests.
 - Adding beta awareness to builder can accidentally regress legacy build flow -> mitigate with explicit compatibility checks and by making beta metadata opt-in.
+- Dirty-tree stop gates may feel stricter than ad hoc manual workflows -> mitigate by making clean-head invariants explicit in builder behavior and validation docs.
 - Deterministic tooling reduces token use but adds runtime coupling -> mitigate by keeping the built-in primitive layer narrow and observable.
 - Finalize-loop automation can blur operator expectations -> mitigate by documenting clear stop gates and explicit merge approval.
 

@@ -75,6 +75,7 @@ interface PromptInputProps {
   newSessionWorktree?: string
   onNewSessionWorktreeReset?: () => void
   onSubmit?: () => void
+  forceWorking?: boolean
 }
 
 const EXAMPLES = [
@@ -224,7 +225,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         type: "idle",
       },
   )
-  const working = createMemo(() => status()?.type !== "idle")
+  const working = createMemo(() => props.forceWorking || status()?.type !== "idle")
   const [quotaRefresh, setQuotaRefresh] = createSignal(0)
   const [lastQuotaRefreshMarker, setLastQuotaRefreshMarker] = createSignal("")
   const [lastQuotaRefreshAt, setLastQuotaRefreshAt] = createSignal(0)
@@ -244,11 +245,12 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         if (disposed) return
         const next = result.data?.[sessionID] ?? { type: "idle" }
         const current = sync.data.session_status[sessionID]
-        if (false /* disabled */) console.debug("[session-reload-debug] prompt-input:status-poll", {
-          sessionID,
-          currentType: current?.type ?? "idle",
-          nextType: next.type,
-        })
+        if (false /* disabled */)
+          console.debug("[session-reload-debug] prompt-input:status-poll", {
+            sessionID,
+            currentType: current?.type ?? "idle",
+            nextType: next.type,
+          })
         sendSessionReloadDebugBeacon({
           sdk,
           event: "prompt-input:status-poll",

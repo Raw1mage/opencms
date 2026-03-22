@@ -23,7 +23,8 @@
 ## 5. Routine Git Flow Optimization
 
 - [ ] 5.1 Add builder-owned defaults for routine branch/checkout/commit/push/pull orchestration where policy allows
-- [ ] 5.2 Keep explicit approval boundaries for remote/destructive operations that still require operator consent
+- [ ] 5.2 Enforce clean committed-head checks before bootstrap and before syncback validation
+- [ ] 5.3 Keep explicit approval boundaries for remote/destructive operations that still require operator consent
 
 ## 6. Validation Flow Optimization
 
@@ -42,7 +43,7 @@
 
 ## 9. Regression + Token Validation
 
-- [ ] 9.1 Add or update targeted tests for builder compatibility, `plan_enter` overwrite protection, and beta-aware handoff
+- [ ] 9.1 Add or update targeted tests for builder compatibility, `plan_enter` overwrite protection, beta-aware handoff, and clean-head branch invariants
 - [ ] 9.2 Verify builder-native deterministic primitives reduce routine AI orchestration and do not break existing builder flow
 
 ## 10. Documentation / Retrospective

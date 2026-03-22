@@ -50,6 +50,7 @@ import { formatOpenAIQuotaDisplay, getOpenAIQuotaForDisplay, OPENAI_QUOTA_DISPLA
 import { createTimerCoordinator } from "../../util/timer-coordinator"
 import { buildVariantOptions, getEffectiveVariantValue, shouldShowVariantControl } from "../../util/model-variant"
 import { isNarrationAssistantMessage } from "@/session/narration"
+import { deriveActiveChildFooter } from "./active-child-footer"
 
 export type PromptProps = {
   sessionID?: string
@@ -85,8 +86,9 @@ export function Prompt(props: PromptProps) {
   const dialog = useDialog()
   const toast = useToast()
   const status = createMemo(() => sync.data.session_status?.[props.sessionID ?? ""] ?? { type: "idle" })
+  const activeChild = createMemo(() => (props.sessionID ? sync.data.active_child?.[props.sessionID] : undefined))
   const activeWorkers = createMemo(() => sync.data.active_workers ?? 0)
-  const hasActivity = createMemo(() => status().type !== "idle" || activeWorkers() > 0)
+  const hasActivity = createMemo(() => status().type !== "idle" || !!activeChild() || activeWorkers() > 0)
   /** Summary of the most active background subagent for display in prompt footer */
   const workerSummary = createMemo(() => {
     if (activeWorkers() === 0) return undefined
@@ -94,7 +96,11 @@ export function Prompt(props: PromptProps) {
     // Find the most recently updated sub-session or sub-agent entry
     const activeStatuses = new Set(["busy", "working", "retry", "pending"])
     const subEntries = monitor
-      .filter((x) => (x.level === "sub-session" || x.level === "agent" || x.level === "sub-agent") && activeStatuses.has(x.status.type))
+      .filter(
+        (x) =>
+          (x.level === "sub-session" || x.level === "agent" || x.level === "sub-agent") &&
+          activeStatuses.has(x.status.type),
+      )
       .sort((a, b) => b.updated - a.updated)
     const top = subEntries[0]
     if (!top) return undefined
@@ -346,8 +352,29 @@ export function Prompt(props: PromptProps) {
     if (!messages) return undefined
     return messages.findLast((m) => m.role === "assistant")
   })
+  const activeChildMessages = createMemo(() => {
+    const child = activeChild()
+    if (!child) return []
+    return sync.data.message[child.sessionID] ?? []
+  })
+  const activeChildFooter = createMemo(() => {
+    const child = activeChild()
+    if (!child) return undefined
+    return deriveActiveChildFooter({
+      activeChild: child,
+      messages: activeChildMessages(),
+      partsByMessage: sync.data.part,
+    })
+  })
   const footerElapsed = createMemo(() => {
     footerTick()
+    const child = activeChild()
+    if (child) {
+      const childSession = sync.session.get(child.sessionID)
+      const start = childSession?.time.created
+      const end = Date.now()
+      if (start && end > start) return Locale.duration(end - start)
+    }
     const msg = lastAssistantMessage()
     if (!msg) return undefined
     const start = msg.time?.created
@@ -1164,6 +1191,14 @@ export function Prompt(props: PromptProps) {
 
   // Autonomous is always-on
   const autonomousEnabled = () => true
+  const openActiveChildSession = () => {
+    const child = activeChild()
+    if (!child) return
+    route.navigate({
+      type: "session",
+      sessionID: child.sessionID,
+    })
+  }
 
   return (
     <>
@@ -1475,33 +1510,66 @@ export function Prompt(props: PromptProps) {
             >
               <box flexShrink={0} flexDirection="row" gap={1}>
                 <box marginLeft={1}>
-                  <Show when={status().type !== "idle"} fallback={
-                    <text fg={theme.textMuted}>
-                      <Show when={workerSummary()} fallback={`[${activeWorkers()} worker${activeWorkers() > 1 ? "s" : ""}]`}>
-                        {(ws) => {
-                          const label = () => {
-                            const s = ws()
-                            const parts: string[] = []
-                            if (s.agent) parts.push(s.agent)
-                            if (s.tool) parts.push(s.tool)
-                            if (s.reqs > 0) parts.push(`${s.reqs}r`)
-                            if (s.tok > 0) parts.push(`${(s.tok / 1000).toFixed(1)}k`)
-                            return parts.length > 0 ? parts.join(" · ") : `${s.count} worker${s.count > 1 ? "s" : ""}`
-                          }
-                          return <>{label()}</>
-                        }}
-                      </Show>
-                    </text>
-                  }>
+                  <Show
+                    when={status().type !== "idle" || activeChild()}
+                    fallback={
+                      <text fg={theme.textMuted}>
+                        <Show
+                          when={workerSummary()}
+                          fallback={`[${activeWorkers()} worker${activeWorkers() > 1 ? "s" : ""}]`}
+                        >
+                          {(ws) => {
+                            const label = () => {
+                              const s = ws()
+                              const parts: string[] = []
+                              if (s.agent) parts.push(s.agent)
+                              if (s.tool) parts.push(s.tool)
+                              if (s.reqs > 0) parts.push(`${s.reqs}r`)
+                              if (s.tok > 0) parts.push(`${(s.tok / 1000).toFixed(1)}k`)
+                              return parts.length > 0 ? parts.join(" · ") : `${s.count} worker${s.count > 1 ? "s" : ""}`
+                            }
+                            return <>{label()}</>
+                          }}
+                        </Show>
+                      </text>
+                    }
+                  >
                     <Show
-                      when={!perfProbeMode && kv.get("animations_enabled", defaultAnimationsEnabled)}
-                      fallback={<text fg={theme.textMuted}>[⋯]</text>}
+                      when={activeChild()}
+                      fallback={
+                        <Show
+                          when={!perfProbeMode && kv.get("animations_enabled", defaultAnimationsEnabled)}
+                          fallback={<text fg={theme.textMuted}>[⋯]</text>}
+                        >
+                          <spinner color={spinnerDef().color} frames={spinnerDef().frames} interval={40} />
+                        </Show>
+                      }
                     >
-                      <spinner color={spinnerDef().color} frames={spinnerDef().frames} interval={40} />
+                      <Show
+                        when={!perfProbeMode && kv.get("animations_enabled", defaultAnimationsEnabled)}
+                        fallback={<text fg={theme.textMuted}>[⋯]</text>}
+                      >
+                        <spinner color={spinnerDef().color} frames={spinnerDef().frames} interval={40} />
+                      </Show>
                     </Show>
                   </Show>
                 </box>
                 <box flexDirection="row" gap={1} flexShrink={0}>
+                  <Show when={activeChildFooter()}>
+                    {(childFooter) => (
+                      <>
+                        <text fg={theme.textMuted}>
+                          {activeChild()?.agent} · {childFooter().title} · {childFooter().step}
+                        </text>
+                        <box onMouseUp={openActiveChildSession}>
+                          <text fg={theme.text}>
+                            {keybind.print("session_child_cycle")}{" "}
+                            <span style={{ fg: theme.textMuted }}>jump to child</span>
+                          </text>
+                        </box>
+                      </>
+                    )}
+                  </Show>
                   <Show when={retryStatus()}>
                     {(retry) => {
                       const handleMessageClick = () => {
@@ -1532,7 +1600,15 @@ export function Prompt(props: PromptProps) {
               <text fg={store.interrupt > 0 ? theme.primary : theme.text}>
                 esc{" "}
                 <span style={{ fg: store.interrupt > 0 ? theme.primary : theme.textMuted }}>
-                  {store.interrupt >= 2 ? "again to stop all" : store.interrupt > 0 ? "again to interrupt" : "interrupt"}
+                  {store.interrupt >= 2
+                    ? "again to stop all"
+                    : activeChild()
+                      ? store.interrupt > 0
+                        ? "again to stop child"
+                        : "interrupt / stop child"
+                      : store.interrupt > 0
+                        ? "again to interrupt"
+                        : "interrupt"}
                 </span>
               </text>
             </box>
