@@ -15,6 +15,7 @@ import { Plugin } from "@/plugin"
 import { Config } from "@/config/config"
 import { ProviderTransform } from "@/provider/transform"
 import { SessionPrompt } from "./prompt"
+import { SharedContext } from "./shared-context"
 
 export namespace SessionCompaction {
   const log = Log.create({ service: "session.compaction" })
@@ -324,6 +325,142 @@ When constructing the summary, try to stick to this template:
     if (processor.message.error) return "stop"
     Bus.publish(Event.Compacted, { sessionID: input.sessionID })
     return "continue"
+  }
+
+  /**
+   * Idle compaction: triggered at turn boundary when a completed task dispatch
+   * is detected and context utilization exceeds the opportunistic threshold.
+   * Uses shared context snapshot as the summary instead of LLM compaction agent.
+   */
+  export async function idleCompaction(input: {
+    sessionID: string
+    model: Provider.Model
+    config: Config.Info
+  }) {
+    const tokens = await getLastAssistantTokens(input.sessionID)
+    if (!tokens) return
+    const budget = await inspectBudget({ tokens, model: input.model })
+    if (!budget.auto) return
+
+    const threshold = input.config.compaction?.opportunisticThreshold ?? 0.6
+    const utilization = budget.usable > 0 ? budget.count / budget.usable : 0
+    log.info("idle compaction evaluation", { utilization, threshold, count: budget.count, usable: budget.usable })
+
+    if (utilization < threshold) return
+
+    const snap = await SharedContext.snapshot(input.sessionID)
+    if (!snap) {
+      log.info("idle compaction skipped: empty snapshot")
+      return
+    }
+
+    await compactWithSharedContext({
+      sessionID: input.sessionID,
+      snapshot: snap,
+      model: input.model,
+      auto: true,
+    })
+  }
+
+  /**
+   * Shared context compaction: creates a synthetic summary message from the
+   * snapshot, replacing the LLM compaction agent call. Used by both idle
+   * compaction and overflow compaction paths.
+   */
+  export async function compactWithSharedContext(input: {
+    sessionID: string
+    snapshot: string
+    model: Provider.Model
+    auto: boolean
+  }) {
+    log.info("compacting with shared context", { sessionID: input.sessionID })
+
+    const msgs = await Session.messages({ sessionID: input.sessionID })
+    const parentID = msgs.at(-1)?.info.id
+    if (!parentID) return
+
+    const userMessage = msgs.findLast((m) => m.info.role === "user")?.info as MessageV2.User | undefined
+    if (!userMessage) return
+
+    // Create summary assistant message
+    const summaryMsg = (await Session.updateMessage({
+      id: Identifier.ascending("message"),
+      role: "assistant",
+      parentID,
+      sessionID: input.sessionID,
+      mode: "compaction",
+      agent: "compaction",
+      variant: userMessage.variant,
+      summary: true,
+      path: {
+        cwd: Instance.directory,
+        root: Instance.worktree,
+      },
+      cost: 0,
+      tokens: {
+        output: 0,
+        input: 0,
+        reasoning: 0,
+        cache: { read: 0, write: 0 },
+      },
+      modelID: input.model.id,
+      providerId: input.model.providerId,
+      accountId: userMessage.model.accountId,
+      time: {
+        created: Date.now(),
+      },
+    })) as MessageV2.Assistant
+
+    // Write the shared context snapshot as the summary text part
+    await Session.updatePart({
+      id: Identifier.ascending("part"),
+      messageID: summaryMsg.id,
+      sessionID: input.sessionID,
+      type: "text",
+      text: input.snapshot,
+      time: {
+        start: Date.now(),
+        end: Date.now(),
+      },
+    })
+
+    log.info("shared context compaction complete", { sessionID: input.sessionID })
+    Bus.publish(Event.Compacted, { sessionID: input.sessionID })
+
+    if (input.auto) {
+      // Create continue message for auto mode
+      const continueMsg = await Session.updateMessage({
+        id: Identifier.ascending("message"),
+        role: "user",
+        sessionID: input.sessionID,
+        time: { created: Date.now() },
+        agent: userMessage.agent,
+        model: userMessage.model,
+        format: userMessage.format,
+        variant: userMessage.variant,
+      })
+      await Session.updatePart({
+        id: Identifier.ascending("part"),
+        messageID: continueMsg.id,
+        sessionID: input.sessionID,
+        type: "text",
+        synthetic: true,
+        text: "Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.",
+        time: {
+          start: Date.now(),
+          end: Date.now(),
+        },
+      })
+    }
+  }
+
+  /** Helper: get token counts from the last assistant message in a session */
+  async function getLastAssistantTokens(sessionID: string): Promise<MessageV2.Assistant["tokens"] | undefined> {
+    const msgs = await Session.messages({ sessionID })
+    const last = msgs.findLast((m) => m.info.role === "assistant")
+    if (!last) return undefined
+    const info = last.info as MessageV2.Assistant
+    return info.tokens
   }
 
   export const create = fn(

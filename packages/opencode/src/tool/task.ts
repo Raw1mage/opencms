@@ -25,6 +25,7 @@ import { Lock } from "@/util/lock"
 import { Global } from "@/global"
 import path from "path"
 import { Instance } from "@/project/instance"
+import { SharedContext } from "@/session/shared-context"
 // Note: orchestrateModelSelection no longer used — subagent validates model against registry directly
 
 // NOTE: @event_task_tool_complex_input
@@ -1469,6 +1470,27 @@ export const TaskTool = Tool.define("task", async (ctx) => {
 
         const promptParts = await SessionPrompt.resolvePromptParts(normalizedPrompt)
         mark("prompt_parts_resolved", { partCount: promptParts.length })
+
+        // Inject shared context snapshot into subagent prompt if available
+        // Only for new subsessions (not continuation via session_id)
+        if (!params.session_id) {
+          try {
+            const snap = await SharedContext.snapshot(ctx.sessionID)
+            if (snap) {
+              // Prepend shared context as a synthetic text part before the task prompt
+              promptParts.unshift({
+                type: "text" as const,
+                synthetic: true,
+                text: `${snap}\n\n---\n\n`,
+                time: { start: Date.now(), end: Date.now() },
+              } as any)
+              mark("shared_context_injected", { snapshotLength: snap.length })
+            }
+          } catch (err) {
+            // Non-fatal: subagent proceeds without shared context
+            Log.create({ service: "task" }).warn("shared context injection failed", { error: err instanceof Error ? err.message : String(err) })
+          }
+        }
 
         // Add USER message to the session before spawning execution process
         // This mimics what SessionPrompt.prompt does but allows us to execute the loop in a separate process

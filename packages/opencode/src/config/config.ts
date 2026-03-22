@@ -1390,6 +1390,24 @@ export namespace Config {
             .describe(
               "Minimum user-visible rounds between compactions (default: 8). Prevents compaction oscillation that destroys LLM server-side cache.",
             ),
+          sharedContext: z
+            .boolean()
+            .optional()
+            .describe("Enable shared context space for structured knowledge tracking (default: true)"),
+          sharedContextBudget: z
+            .number()
+            .int()
+            .min(0)
+            .optional()
+            .describe("Token budget for the shared context space itself (default: 8192)"),
+          opportunisticThreshold: z
+            .number()
+            .min(0)
+            .max(1)
+            .optional()
+            .describe(
+              "Context utilization threshold for idle compaction after task dispatch (default: 0.6). Set to 1.0 to disable.",
+            ),
         })
         .optional(),
       experimental: z

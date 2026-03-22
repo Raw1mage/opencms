@@ -8,6 +8,7 @@ import { ProcessSupervisor } from "@/process/supervisor"
 import { enqueuePendingContinuation, resumePendingContinuations } from "@/session/workflow-runner"
 import { SessionStatus } from "@/session/status"
 import { Instance } from "@/project/instance"
+import { SharedContext } from "@/session/shared-context"
 import { Log } from "@/util/log"
 import z from "zod"
 
@@ -140,6 +141,18 @@ async function enqueueParentContinuation(input: {
           accountId: "accountId" in assistant.info ? assistant.info.accountId : undefined,
         }
 
+    // Collect child session's SharedContext snapshot to relay to parent
+    // This is the key feedback path: parent LLM needs actual content to follow through
+    let childContextSnap: string | undefined
+    if (input.ok) {
+      childContextSnap = await SharedContext.snapshot(input.childSessionID).catch(() => undefined)
+      // Merge child's knowledge into parent's SharedContext for future subagent dispatches
+      await SharedContext.mergeFrom({
+        targetSessionID: input.parentSessionID,
+        sourceSessionID: input.childSessionID,
+      }).catch(() => undefined)
+    }
+
     await Session.updateMessage({
       id: messageID,
       role: "user",
@@ -150,14 +163,20 @@ async function enqueueParentContinuation(input: {
       format: undefined,
       variant: assistant.info.variant,
     })
+
+    const continuationText = input.ok
+      ? [
+          childContextSnap ? `${childContextSnap}\n\n---\n\n` : "",
+          `Subagent ${input.childSessionID} completed. Continue immediately with the next step based on the evidence above.`,
+        ].join("")
+      : `Subagent ${input.childSessionID} failed. Continue immediately using the recorded task error and child session evidence: ${input.error ?? "unknown error"}`
+
     await Session.updatePart({
       id: Identifier.ascending("part"),
       messageID,
       sessionID: input.parentSessionID,
       type: "text",
-      text: input.ok
-        ? `Subagent ${input.childSessionID} completed. Continue immediately using the recorded task result and child session evidence.`
-        : `Subagent ${input.childSessionID} failed. Continue immediately using the recorded task error and child session evidence: ${input.error ?? "unknown error"}`,
+      text: continuationText,
       synthetic: true,
       time: { start: now, end: now },
       metadata: {

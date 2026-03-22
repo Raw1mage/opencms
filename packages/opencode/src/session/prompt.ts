@@ -9,6 +9,8 @@ import { Session } from "."
 import { Agent } from "../agent/agent"
 import { Provider } from "../provider/provider"
 import { SessionCompaction } from "./compaction"
+import { SharedContext } from "./shared-context"
+import { Config } from "@/config/config"
 import { Instance } from "../project/instance"
 import { Todo } from "./todo"
 import { Bus } from "../bus"
@@ -864,6 +866,23 @@ export namespace SessionPrompt {
         (await SessionCompaction.isOverflow({ tokens: lastFinished.tokens, model, sessionID, currentRound: step }))
       ) {
         SessionCompaction.recordCompaction(sessionID, step)
+        // Priority path: use shared context snapshot as summary (no LLM call)
+        if (!session.parentID) {
+          const overflowConfig = await Config.get()
+          if (overflowConfig.compaction?.sharedContext !== false) {
+            const snap = await SharedContext.snapshot(sessionID)
+            if (snap) {
+              await SessionCompaction.compactWithSharedContext({
+                sessionID,
+                snapshot: snap,
+                model,
+                auto: true,
+              })
+              continue
+            }
+          }
+        }
+        // Fallback: LLM compaction agent
         await SessionCompaction.create({
           sessionID,
           agent: lastUser.agent,
@@ -1184,6 +1203,58 @@ export namespace SessionPrompt {
       }
       continue
     }
+
+    // ── Shared Context: incremental update + idle compaction at turn boundary ──
+    if (!session.parentID) {
+      const config = await Config.get()
+      if (config.compaction?.sharedContext !== false) {
+        try {
+          // Find the last assistant message to extract parts
+          const finalMsgs = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
+          const lastAssistantMsg = finalMsgs.findLast((m) => m.info.role === "assistant")
+          if (lastAssistantMsg) {
+            const assistantText = lastAssistantMsg.parts
+              .filter((p): p is MessageV2.TextPart => p.type === "text")
+              .map((p) => p.text)
+              .join("\n")
+
+            // 1. Incremental update
+            await SharedContext.updateFromTurn({
+              sessionID,
+              parts: lastAssistantMsg.parts,
+              assistantText,
+              turnNumber: step,
+            })
+
+            // 2. Idle compaction: if this turn dispatched a subagent
+            // In daemon fire-and-forget mode, task parts are "running" at turn boundary
+            // (they complete asynchronously via continuation). Check for any non-pending status.
+            const hasTaskDispatch = lastAssistantMsg.parts.some(
+              (p) => p.type === "tool" && p.tool === "task" && p.state.status !== "pending",
+            )
+            if (hasTaskDispatch) {
+              const lastFinishedInfo = lastAssistantMsg.info as MessageV2.Assistant
+              if (lastFinishedInfo.tokens) {
+                const model = await Provider.getModel(
+                  lastFinishedInfo.providerId,
+                  lastFinishedInfo.modelID,
+                )
+                await SessionCompaction.idleCompaction({
+                  sessionID,
+                  model,
+                  config,
+                })
+              }
+            }
+          }
+        } catch (err) {
+          log.warn("shared context update failed (non-fatal)", {
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
+      }
+    }
+
     SessionCompaction.prune({ sessionID })
     for await (const item of MessageV2.stream(sessionID)) {
       if (item.info.role === "user") continue
