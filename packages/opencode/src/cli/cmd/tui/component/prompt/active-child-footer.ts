@@ -2,6 +2,7 @@ import type { Message, Part } from "@opencode-ai/sdk/v2"
 import type { ActiveChildState } from "@tui/context/sync"
 
 export type DerivedActiveChildFooter = {
+  agentLabel: string
   title: string
   step: string
 }
@@ -11,10 +12,19 @@ const FALLBACK_STEP = {
   handoff: "Handing off...",
 } as const
 
+const AGENT_LABELS = ["coding", "explore", "testing", "review", "build", "plan"] as const
+
 const compact = (value: string | undefined, max = 120) => {
   const trimmed = value?.replace(/\s+/g, " ").trim()
   if (!trimmed) return undefined
   return trimmed.length > max ? `${trimmed.slice(0, max - 1)}…` : trimmed
+}
+
+const agentLabel = (value: string | undefined) => {
+  const normalized = value?.trim().toLowerCase()
+  if (!normalized) return "@agent"
+  const matched = AGENT_LABELS.find((item) => normalized === item || normalized.startsWith(`${item}-`))
+  return `@${matched ?? "agent"}`
 }
 
 const toolStep = (part: Part) => {
@@ -42,9 +52,10 @@ export function deriveActiveChildFooter(input: {
   messages: Message[]
   partsByMessage: Record<string, Part[] | undefined>
 }): DerivedActiveChildFooter {
-  const title = compact(input.activeChild.title, 120) ?? "Subagent"
+  const title = compact(input.activeChild.title, 56) ?? "Subagent"
+  const label = agentLabel(input.activeChild.agent)
   const seeded = compact(input.activeChild.todo?.content)
-  if (seeded) return { title, step: seeded }
+  if (seeded) return { agentLabel: label, title, step: seeded }
 
   for (let i = input.messages.length - 1; i >= 0; i--) {
     const message = input.messages[i]
@@ -52,9 +63,9 @@ export function deriveActiveChildFooter(input: {
     const parts = input.partsByMessage[message.id] ?? []
     for (let j = parts.length - 1; j >= 0; j--) {
       const step = partStep(parts[j])
-      if (step) return { title, step }
+      if (step) return { agentLabel: label, title, step }
     }
   }
 
-  return { title, step: FALLBACK_STEP[input.activeChild.status] }
+  return { agentLabel: label, title, step: FALLBACK_STEP[input.activeChild.status] }
 }

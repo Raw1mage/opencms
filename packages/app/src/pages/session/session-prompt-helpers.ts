@@ -23,6 +23,18 @@ type DerivedActiveChildStatus = {
   step: string
 }
 
+export const formatElapsedSeconds = (seconds: number) => {
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m`
+  return `${Math.floor(minutes / 60)}h${minutes % 60}m`
+}
+
+export const formatActiveChildAgentLabel = (agent: string) => {
+  const normalized = agent.trim().replace(/^@+/, "")
+  return normalized ? `@${normalized}` : "@agent"
+}
+
 const FALLBACK_STEP = {
   running: "Working...",
   handoff: "Handing off...",

@@ -1,11 +1,11 @@
-import { For, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js"
 import type { QuestionRequest } from "@opencode-ai/sdk/v2"
 import { Button } from "@opencode-ai/ui/button"
 import { BasicTool } from "@opencode-ai/ui/basic-tool"
 import { Icon } from "@opencode-ai/ui/icon"
 import { PromptInput } from "@/components/prompt-input"
 import { QuestionDock } from "@/components/question-dock"
-import { questionSubtitle } from "@/pages/session/session-prompt-helpers"
+import { formatElapsedSeconds, questionSubtitle } from "@/pages/session/session-prompt-helpers"
 
 export function SessionPromptDock(props: {
   centered: boolean
@@ -27,9 +27,26 @@ export function SessionPromptDock(props: {
     title: string
     step: string
     href: string
+    startedAt?: number
   }
   onOpenChildSession: () => void
 }) {
+  const [tick, setTick] = createSignal(0)
+
+  createEffect(() => {
+    if (!props.activeChild?.startedAt) return
+    setTick(0)
+    const timer = window.setInterval(() => setTick((value) => value + 1), 1000)
+    onCleanup(() => window.clearInterval(timer))
+  })
+
+  const activeChildElapsed = createMemo(() => {
+    tick()
+    const startedAt = props.activeChild?.startedAt
+    if (!startedAt) return undefined
+    return formatElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)))
+  })
+
   return (
     <div
       ref={props.setPromptDockRef}
@@ -43,37 +60,35 @@ export function SessionPromptDock(props: {
       >
         <Show when={props.activeChild}>
           {(child) => (
-            <div class="mb-3 pointer-events-auto">
-              <BasicTool
-                icon="task"
-                locked
-                defaultOpen
-                trigger={{
-                  title: `${child().agent} agent`,
-                  subtitle: child().title,
-                  action: (
-                    <a
-                      href={child().href}
-                      class="inline-flex items-center gap-1 text-11-regular text-text-weak hover:text-text-strong"
-                      onClick={(event) => {
-                        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-                          return
-                        }
-                        event.preventDefault()
-                        event.stopPropagation()
-                        props.onOpenChildSession()
-                      }}
-                    >
-                      <span>Open session</span>
-                      <Icon name="square-arrow-top-right" size="small" />
-                    </a>
-                  ),
-                }}
-              >
-                <div class="px-3 py-2 text-12-regular text-text-strong border-t border-border-base/60">
-                  {child().step}
+            <div class="mb-3 pointer-events-auto rounded-md border border-border-base/60 bg-background-base/90 px-3 py-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <Icon name="task" size="small" class="shrink-0 text-text-weak" />
+                <div class="min-w-0 flex-1 overflow-hidden">
+                  <div class="flex items-center gap-2 min-w-0 overflow-hidden text-12-regular text-text-strong whitespace-nowrap">
+                    <span class="shrink-0">{child().agent}</span>
+                    <span class="truncate min-w-0">{child().title}</span>
+                    <span class="truncate min-w-0 text-text-weak">{child().step}</span>
+                    <Show when={activeChildElapsed()}>
+                      {(elapsed) => <span class="shrink-0 text-text-weak tabular-nums">{elapsed()}</span>}
+                    </Show>
+                  </div>
                 </div>
-              </BasicTool>
+                <a
+                  href={child().href}
+                  class="inline-flex shrink-0 items-center text-text-weak hover:text-text-strong"
+                  aria-label="Open session"
+                  onClick={(event) => {
+                    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                      return
+                    }
+                    event.preventDefault()
+                    event.stopPropagation()
+                    props.onOpenChildSession()
+                  }}
+                >
+                  <Icon name="square-arrow-top-right" size="small" />
+                </a>
+              </div>
             </div>
           )}
         </Show>

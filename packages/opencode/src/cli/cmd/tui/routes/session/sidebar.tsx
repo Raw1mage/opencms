@@ -141,20 +141,62 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
   const route = useRoute()
   const local = useLocal()
 
-  // LLM status card — deduplicated history
+  // LLM status card — deduplicated & chain-merged history
+  // Merges rapid rotation chains: rotated(A→B) + rotated(B→C) → rotated(A→C)
+  // Absorbs recovered(X) into preceding rotated(…→X) entry
   const llmHistory = createMemo(() => {
     const raw = sync.data.llm_history ?? []
     const deduped: LlmHistoryEntry[] = []
     for (const entry of raw) {
       const prev = deduped[deduped.length - 1]
+      if (!prev) {
+        deduped.push(entry)
+        continue
+      }
+      // Skip exact duplicates (same source + same state)
       if (
-        prev &&
         prev.providerId === entry.providerId &&
         prev.modelId === entry.modelId &&
         prev.accountId === entry.accountId &&
         prev.state === entry.state
       )
         continue
+      // Chain merge: if prev is rotated(A→B) and entry is rotated(B→C), update prev to A→C
+      if (
+        prev.state === "rotated" &&
+        entry.state === "rotated" &&
+        prev.toProviderId === entry.providerId &&
+        prev.toModelId === entry.modelId
+      ) {
+        prev.toProviderId = entry.toProviderId
+        prev.toModelId = entry.toModelId
+        prev.toAccountId = entry.toAccountId
+        prev.timestamp = entry.timestamp
+        continue
+      }
+      // Absorb recovered into preceding rotation: rotated(A→B) + recovered(B) → mark rotation as resolved
+      if (
+        prev.state === "rotated" &&
+        entry.state === "recovered" &&
+        prev.toProviderId === entry.providerId &&
+        prev.toModelId === entry.modelId
+      ) {
+        // Replace the rotated entry with a combined "rotated_ok" entry
+        prev.state = "rotated_ok"
+        prev.timestamp = entry.timestamp
+        continue
+      }
+      // Suppress standalone ratelimit if immediately followed by rotated from same source
+      if (
+        prev.state === "ratelimit" &&
+        entry.state === "rotated" &&
+        prev.providerId === entry.providerId &&
+        prev.modelId === entry.modelId
+      ) {
+        // Replace the ratelimit with the more informative rotated entry
+        deduped[deduped.length - 1] = entry
+        continue
+      }
       deduped.push(entry)
     }
     return deduped.slice(-5)
@@ -513,18 +555,24 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                                 ? local.resolveAccountLabel(currentModel.accountId, currentModel.providerId)
                                 : undefined)
                             const acctSuffix = acct ? ` (${acct})` : ""
-                            if (h.state === "rotated") {
+                            if (h.state === "rotated" || h.state === "rotated_ok") {
                               const toAcct = local.resolveAccountLabel(h.toAccountId, h.toProviderId)
+                              const resolved = h.state === "rotated_ok"
                               return (
                                 <box>
                                   <box flexDirection="row">
                                     <text fg={theme.text} flexGrow={1} flexShrink={1} overflow="hidden" wrapMode="none">
-                                      <span style={{ fg: theme.warning }}>•</span> {effectiveProvider}/{shortModel(h.modelId)}{acctSuffix}
+                                      <span style={{ fg: resolved ? theme.success : theme.warning }}>•</span>{" "}
+                                      {h.toProviderId}/{shortModel(h.toModelId ?? h.modelId)}
+                                      <Show when={toAcct}> ({toAcct})</Show>
                                     </text>
-                                    <text flexShrink={0}> <span style={{ fg: theme.warning }}>RATE</span> <span style={{ fg: theme.textMuted }}>{formatTime(h.timestamp)}</span></text>
+                                    <text flexShrink={0}>
+                                      {" "}<span style={{ fg: resolved ? theme.success : theme.warning }}>{resolved ? "OK" : "..."}</span>{" "}
+                                      <span style={{ fg: theme.textMuted }}>{formatTime(h.timestamp)}</span>
+                                    </text>
                                   </box>
                                   <text fg={theme.textMuted} overflow="hidden" wrapMode="none">
-                                    {"  "}→ {h.toProviderId}/{shortModel(h.toModelId ?? h.modelId)}<Show when={toAcct}> ({toAcct})</Show>
+                                    {"  "}← {effectiveProvider}/{shortModel(h.modelId)}{acctSuffix} rate limited
                                   </text>
                                 </box>
                               )
