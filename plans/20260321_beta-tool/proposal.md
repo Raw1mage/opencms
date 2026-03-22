@@ -23,6 +23,7 @@
 - 2026-03-21: user emphasized backward compatibility: preserve existing builder capabilities and only adjust flow so it knows the beta workflow and uses tools to reduce AI dependence.
 - 2026-03-21: user clarified the final UX target: entering build should automatically handle routine branch/checkout/commit/push/pull details on a safe beta branch/worktree and return a testable branch to the main repo before merge approval.
 - 2026-03-21: final steady state clarified: external `mcp dev-tool / beta-tool` should no longer be required once builder-native workflow is complete.
+- 2026-03-21: discovered `plan_enter` anti-clobber gap: current implementation can recreate template artifacts too aggressively when only `implementation-spec.md` is missing, so overwrite protection must be added in the same change set.
 
 ## Effective Requirement Description
 
@@ -44,6 +45,7 @@
 - Builder-owned merge preflight with explicit approval gate.
 - Migration/deprecation path for beta/dev MCP.
 - Regression protection for existing builder behavior.
+- `plan_enter` overwrite protection for existing planner roots.
 - Documentation and architecture sync for the workflow change.
 
 ### OUT
@@ -71,6 +73,7 @@
 ## What Changes
 
 - Builder gains awareness of beta lifecycle stages without losing its current execution-control responsibilities.
+- `plan_enter` gains planner-root integrity checks so existing non-template artifacts are reused or blocked from accidental overwrite.
 - Shared beta orchestration is absorbed into builder-owned deterministic behavior so routine orchestration shifts away from AI token-heavy reasoning and repeated prompt instructions.
 - Planner/build handoff metadata is extended so beta-aware execution can flow through existing builder runtime surfaces.
 - Build-mode validation and finalize stages become beta-aware while preserving current stop-gate discipline.

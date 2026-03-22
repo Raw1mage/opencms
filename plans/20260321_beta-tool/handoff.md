@@ -6,6 +6,7 @@
 - Build agent must read proposal.md / spec.md / design.md / tasks.md before coding.
 - Materialize tasks.md into runtime todos before coding.
 - Preserve planner task naming in user-visible progress and runtime todo.
+- Add `plan_enter` overwrite protection first so active planner roots cannot be blindly reinitialized.
 - Optimize the existing builder control plane instead of replacing it with a new execution model.
 - Internalize beta workflow as builder-native deterministic behavior for routine git/worktree/commit/push/pull/runtime operations so AI remains focused on coding, debugging, and judgment-heavy work.
 - Treat current beta/dev MCP surface only as temporary migration scaffolding; final user workflow must not depend on it.
@@ -24,12 +25,14 @@
 - Public beta-tool MCP exists and is validated as an independent worktree orchestration surface.
 - `plan_exit`, mission metadata, workflow-runner, and runner contract already form the builder control plane.
 - Current builder does not yet understand beta lifecycle stages end-to-end.
+- Current `plan_enter` overwrite guard is too weak because it checks only `implementation-spec.md` existence before writing templates.
 - User wants a conservative optimization: keep original builder capabilities intact, teach it beta workflow, reduce AI dependence for routine orchestration including commit/push/pull/checkout details, and eventually eliminate the need for beta/dev MCP in normal usage.
 
 ## Stop Gates In Force
 
 - Stop if planner artifacts do not explicitly represent beta-loop execution, validation posture, and finalize posture.
 - Stop if absorbed beta orchestration requires bounded clarification not yet captured in artifacts or user answers.
+- Stop if `plan_enter` integrity checks still allow existing curated planner roots to be blindly overwritten.
 - Stop if the proposed builder changes would regress or bypass legacy-compatible non-beta flow.
 - Stop before merge / cleanup / worktree deletion execution; builder may prepare preflight, but destructive finalize still requires explicit approval.
 - Stop before remote operations that policy marks as approval-required.

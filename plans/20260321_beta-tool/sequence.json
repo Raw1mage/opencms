@@ -1,7 +1,7 @@
 [
   {
-    "diagram_title": "Plan Exit Beta Build Entry",
-    "scenario": "Operator approves build mode and planner bootstraps beta execution before build handoff",
+    "diagram_title": "Approved Build Entry Starts Beta Workflow",
+    "scenario": "Operator approves build mode and the existing builder bootstraps beta workflow natively before execution continues",
     "moduleRef": "A1",
     "participants": [
       {
@@ -18,13 +18,13 @@
       },
       {
         "id": "P3",
-        "name": "Shared Beta Core",
+        "name": "Builder Beta Primitives",
         "type": "component",
         "componentRef": "C3"
       },
       {
         "id": "P4",
-        "name": "Build Workflow Runner",
+        "name": "Mission Workflow Runner",
         "type": "component",
         "componentRef": "C2"
       }
@@ -42,7 +42,7 @@
         "id": "MSG2",
         "from": "P2",
         "to": "P3",
-        "label": "bootstrapBetaLoop(plan metadata)",
+        "label": "bootstrapBetaWorkflow(mission metadata)",
         "type": "sync",
         "order": 2
       },
@@ -58,7 +58,7 @@
         "id": "MSG4",
         "from": "P2",
         "to": "P4",
-        "label": "emit build handoff with beta metadata",
+        "label": "emit beta-aware build handoff",
         "type": "sync",
         "order": 4
       }
@@ -73,25 +73,25 @@
     ]
   },
   {
-    "diagram_title": "Build Validation Syncback Loop",
-    "scenario": "Build mode reaches validation and syncs the feature branch into the main worktree with runtime policy",
+    "diagram_title": "Build Validation And Merge Preflight",
+    "scenario": "Builder runs routine git flow on beta branch, syncs back to the main repo for validation, and pauses at merge approval",
     "moduleRef": "A3",
     "participants": [
       {
         "id": "P1",
-        "name": "Build Workflow Runner",
+        "name": "Mission Workflow Runner",
         "type": "component",
         "componentRef": "C2"
       },
       {
         "id": "P2",
-        "name": "Shared Beta Core",
+        "name": "Builder Beta Primitives",
         "type": "component",
         "componentRef": "C3"
       },
       {
         "id": "P3",
-        "name": "Main Runtime Adapter",
+        "name": "Main Repo Runtime",
         "type": "system",
         "componentRef": "SYS1"
       }
@@ -101,41 +101,57 @@
         "id": "MSG1",
         "from": "P1",
         "to": "P2",
-        "label": "syncback(validationMode)",
+        "label": "runRoutineGitFlow()",
         "type": "sync",
         "order": 1
       },
       {
         "id": "MSG2",
-        "from": "P2",
-        "to": "P3",
-        "label": "run runtime start/refresh if policy permits",
+        "from": "P1",
+        "to": "P2",
+        "label": "syncbackAndValidate(runtimePolicy)",
         "type": "sync",
         "order": 2
       },
       {
         "id": "MSG3",
-        "from": "P3",
-        "to": "P2",
-        "label": "runtime result or manual validation state",
-        "type": "return",
+        "from": "P2",
+        "to": "P3",
+        "label": "refresh/start mainline validation runtime",
+        "type": "sync",
         "order": 3
       },
       {
         "id": "MSG4",
-        "from": "P2",
-        "to": "P1",
-        "label": "validation evidence",
+        "from": "P3",
+        "to": "P2",
+        "label": "validation result",
         "type": "return",
         "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P1",
+        "to": "P2",
+        "label": "prepareMergePreflight()",
+        "type": "sync",
+        "order": 5
+      },
+      {
+        "id": "MSG6",
+        "from": "P2",
+        "to": "P1",
+        "label": "pause for merge approval",
+        "type": "return",
+        "order": 6
       }
     ],
     "fragments": [
       {
         "id": "FRAG1",
         "type": "alt",
-        "label": "manual runtime policy pauses for operator validation",
-        "messageRefs": ["MSG2", "MSG3"]
+        "label": "validation fails and work returns to beta branch iteration",
+        "messageRefs": ["MSG2", "MSG3", "MSG4"]
       }
     ]
   }

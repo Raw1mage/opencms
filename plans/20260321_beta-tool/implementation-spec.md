@@ -14,7 +14,8 @@
 - Add builder handoff metadata and runtime state needed to carry beta workflow context safely through build mode.
 - Include remote push/pull in the builder-controlled lifecycle while preserving explicit approval gates where required by policy.
 - Define beta/dev MCP as a migration surface only, not the target steady-state control plane.
-- Preserve explicit stop gates for ambiguity, dirty trees, validation failures, and destructive finalize approval.
+- Preserve explicit stop gates for ambiguity, dirty trees, validation failures, destructive finalize approval, and planner-root overwrite risk.
+- Add a `plan_enter` anti-clobber guard so existing non-template plan content is never blindly replaced by templates.
 - Update active planning artifacts and long-lived docs affected by the workflow change.
 
 ### OUT
@@ -43,10 +44,12 @@
 - Stop if build execution discovers a new workflow slice not represented in planner artifacts.
 - Stop before destructive finalize actions (`merge`, worktree removal, branch deletion); builder may prepare merge preflight but actual finalize still requires explicit approval.
 - Stop before remote operations that project policy classifies as explicit approval-required, but otherwise allow builder-owned push/pull as part of routine execution.
+- Stop if `plan_enter` detects an existing planner root with partial or real non-template content that would be overwritten; require reuse or explicit recovery path instead of template rewrite.
 
 ## Critical Files
 
 - packages/opencode/src/tool/plan.ts
+- packages/opencode/src/session/planner-layout.ts
 - packages/opencode/src/session/index.ts
 - packages/opencode/src/session/workflow-runner.ts
 - packages/opencode/src/session/prompt/runner.txt
@@ -61,6 +64,7 @@
 
 - Map the existing builder control plane and preserve its current responsibilities while identifying the narrowest safe beta-flow insertion points.
 - Extract and internalize deterministic beta orchestration primitives so routine git/worktree/commit/push/pull/runtime steps move out of ad hoc AI reasoning and into builder-owned execution.
+- Add `plan_enter` planner-root integrity checks so existing plan artifacts are reused or explicitly blocked instead of silently reinitialized.
 - Extend `plan_exit` and mission handoff so builder can enter beta bootstrap without replacing existing build entry behavior.
 - Extend build execution so validation uses syncback semantics and finalize uses merge preflight plus approval-gated merge, while keeping existing builder stop-gate semantics intact.
 - Add migration and deprecation steps so external beta/dev MCP surface is no longer required once builder-native flow is stable.
@@ -69,7 +73,7 @@
 
 ## Validation
 
-- Run targeted unit tests for `plan_exit`, mission metadata, workflow-runner continuation, and any new beta-aware builder state.
+- Run targeted unit tests for `plan_enter`, `plan_exit`, mission metadata, workflow-runner continuation, and any new beta-aware builder state.
 - Run targeted tests for the absorbed/shared beta orchestration core to prove builder-native behavior matches intended branch/worktree semantics.
 - Verify existing non-beta build-mode behavior still passes unchanged or with compatible metadata additions.
 - Verify a representative approved beta-aware plan can produce: beta bootstrap metadata, build-mode handoff, commit/push/pull-aware routine execution, syncback-driven validation, and merge-preflight metadata while still pausing for explicit merge approval.

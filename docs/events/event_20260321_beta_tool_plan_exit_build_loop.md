@@ -15,6 +15,7 @@ The requirement was later clarified with hard constraints:
 2. Keep the change focused on process optimization so builder (a) understands beta development flow and (b) uses related deterministic tools/primitives to reduce AI dependence for routine work.
 3. Final UX target: once the user enters build mode, they should no longer need to keep prompting for routine branch checkout, commit, push, pull, and related orchestration details; builder should manage those defaults on a safe beta branch/worktree and return a testable branch to the main repo before merge approval.
 4. Final steady state: users should no longer need `mcp dev-tool / beta-tool` in normal workflow because the capability is built into the hardcoded builder.
+5. `plan_enter` must not blindly overwrite existing plan roots; overwrite protection is now an explicit requirement in this same change set.
 
 ## Scope
 
@@ -72,6 +73,7 @@ The requirement was later clarified with hard constraints:
 - Mission schema currently carries generic approved-plan metadata but no beta-aware lifecycle contract.
 - Workflow runner currently controls continuation, blockers, approvals, and pending questions for build mode.
 - Existing beta-tool logic already contains deterministic branch/worktree/runtime flow semantics suitable for internalization into builder-owned behavior.
+- `PlanEnterTool` currently checks only whether `implementation-spec.md` exists before writing all templates, so a partial or damaged root can be overwritten too aggressively.
 
 ### Root Decision
 
@@ -80,6 +82,7 @@ The requirement was later clarified with hard constraints:
 - Preserve non-beta builder compatibility and keep merge approval-gated.
 - Include routine remote operations (push/pull) in the builder-owned flow where policy allows, so users do not need to keep prompting for them.
 - Treat beta/dev MCP as migration scaffolding only, then deprecate/remove it once builder-native workflow is validated.
+- Add `plan_enter` planner-root integrity checks so existing curated artifacts are reused or blocked instead of silently overwritten.
 
 ## Key Decisions
 
@@ -93,17 +96,25 @@ The requirement was later clarified with hard constraints:
 
 ## Validation
 
-- Updated active planner artifacts under `/home/pkcs12/projects/opencode/plans/20260321_beta-tool/`:
+- Repaired active planner artifacts under `/home/pkcs12/projects/opencode/plans/20260321_beta-tool/` after template reset was detected.
+- Updated:
   - `implementation-spec.md`
   - `proposal.md`
+  - `spec.md`
+  - `design.md`
   - `tasks.md`
   - `handoff.md`
+  - `idef0.json`
+  - `grafcet.json`
+  - `c4.json`
+  - `sequence.json`
 - Architecture Sync: pending implementation; final builder/module boundary changes should be synced once code changes confirm the durable structure.
 
 ## Remaining
 
 - Internalize deterministic beta primitives/tool reuse into builder-native flow.
 - Extend `plan_exit`, mission metadata, and workflow-runner with beta-aware flow while preserving non-beta behavior.
+- Implement `plan_enter` overwrite protection and tests.
 - Decide exact approval boundaries for remote operations inside builder.
 - Validate regression safety and reduced routine AI orchestration.
 - Plan deprecation/removal of beta/dev MCP after builder-native path is proven.

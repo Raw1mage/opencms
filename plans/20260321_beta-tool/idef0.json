@@ -1,23 +1,23 @@
 {
-  "diagram_title": "Planner Build Beta Loop Integration",
+  "diagram_title": "Builder Native Beta Workflow",
   "node_reference": "A0",
   "activities": [
     {
       "id": "A1",
-      "title": "Approve Execution Contract",
-      "description": "Validate planner artifacts and decide whether the approved plan should enter beta-backed build mode",
+      "title": "Approve Build Entry",
+      "description": "Validate planner artifacts and approve beta-aware build entry through the existing builder control plane",
       "decomposition": null
     },
     {
       "id": "A2",
-      "title": "Bootstrap Beta Loop",
-      "description": "Resolve context and create or reuse the beta worktree through shared orchestration core before build mode starts",
+      "title": "Execute Beta Branch Work",
+      "description": "Create or reuse the beta branch/worktree and perform routine implementation git flow inside builder",
       "decomposition": null
     },
     {
       "id": "A3",
-      "title": "Validate Main Runtime",
-      "description": "Use syncback-equivalent behavior plus runtime policy to validate the implementation from the main worktree surface",
+      "title": "Validate Mainline Integration",
+      "description": "Sync the feature branch back to the main repo, run runtime validation, and prepare merge preflight",
       "decomposition": null
     }
   ],
@@ -33,56 +33,56 @@
       "id": "AR2",
       "source": "EXTERNAL",
       "target": "A1:control",
-      "label": "Plan Exit Approval Decision",
+      "label": "Build Approval And Stop Gates",
       "type": "control"
     },
     {
       "id": "AR3",
       "source": "A1:output",
       "target": "A2:input",
-      "label": "Execution-Ready Build Handoff",
+      "label": "Beta-Aware Mission Handoff",
       "type": "output"
     },
     {
       "id": "AR4",
       "source": "EXTERNAL",
       "target": "A2:control",
-      "label": "Branch Naming And Runtime Policy Gates",
+      "label": "Branch Naming Runtime Policy And Git Policy",
       "type": "control"
     },
     {
       "id": "AR5",
       "source": "EXTERNAL",
       "target": "A2:mechanism",
-      "label": "Shared Beta Core",
+      "label": "Builder Native Beta Primitives",
       "type": "mechanism"
     },
     {
       "id": "AR6",
       "source": "A2:output",
       "target": "A3:input",
-      "label": "Beta Execution Context",
+      "label": "Feature Branch And Validation Context",
       "type": "output"
     },
     {
       "id": "AR7",
       "source": "EXTERNAL",
       "target": "A3:control",
-      "label": "Validation Policy",
+      "label": "Validation And Merge Approval Policy",
       "type": "control"
     },
     {
       "id": "AR8",
       "source": "EXTERNAL",
       "target": "A3:mechanism",
-      "label": "Main Worktree Runtime Adapter",
+      "label": "Main Repo Runtime Adapter",
       "type": "mechanism"
     },
     {
       "id": "AR9",
       "source": "A3:output",
       "target": "EXTERNAL",
-      "label": "Validated Build Result",
+      "label": "Validated Branch Ready For Merge Decision",
       "type": "output"
     }
   ]

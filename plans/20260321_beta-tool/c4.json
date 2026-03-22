@@ -1,26 +1,26 @@
 {
-  "diagram_title": "Planner Beta Build Integration Components",
+  "diagram_title": "Builder Native Beta Workflow Components",
   "diagram_level": "component",
   "systems": [
     {
       "id": "SYS1",
-      "name": "OpenCode Planner Runtime",
-      "description": "Planner, build-mode, and mission handoff runtime inside opencode",
+      "name": "OpenCode Builder Runtime",
+      "description": "Existing planner/build runtime with beta workflow absorbed as native capability",
       "external": false
     }
   ],
   "containers": [
     {
       "id": "CT1",
-      "name": "Planner Runtime Container",
-      "description": "Internal plan/build orchestration logic",
+      "name": "Planner Build Container",
+      "description": "Current builder control plane surfaces and mission runtime",
       "technology": "TypeScript/Bun",
       "systemRef": "SYS1"
     },
     {
       "id": "CT2",
-      "name": "Beta Orchestration Container",
-      "description": "Shared git/worktree orchestration core and MCP facade",
+      "name": "Beta Workflow Container",
+      "description": "Builder-native deterministic beta primitives migrated from the old MCP logic",
       "technology": "TypeScript/Bun",
       "systemRef": "SYS1"
     }
@@ -29,7 +29,7 @@
     {
       "id": "C1",
       "name": "Plan Exit Gate",
-      "description": "Validates plan artifacts and initiates build handoff",
+      "description": "Validates plan artifacts and starts beta-aware build entry",
       "technology": "Tool runtime",
       "containerRef": "CT1",
       "moduleRef": "A1",
@@ -37,8 +37,8 @@
     },
     {
       "id": "C2",
-      "name": "Build Workflow Runner",
-      "description": "Consumes mission metadata and drives execution / validation loops",
+      "name": "Mission Workflow Runner",
+      "description": "Controls continuation, validation, and approval pauses during build mode",
       "technology": "Session workflow runtime",
       "containerRef": "CT1",
       "moduleRef": "A3",
@@ -46,8 +46,8 @@
     },
     {
       "id": "C3",
-      "name": "Shared Beta Core",
-      "description": "Reusable project-aware branch/worktree orchestration logic",
+      "name": "Builder Beta Primitives",
+      "description": "Internalized branch/worktree/commit/push/pull/syncback/merge-preflight logic",
       "technology": "Internal TypeScript module",
       "containerRef": "CT2",
       "moduleRef": "A2",
@@ -55,12 +55,12 @@
     },
     {
       "id": "C4",
-      "name": "Beta Tool MCP Facade",
-      "description": "Public MCP handlers that expose newbeta, syncback, and merge",
-      "technology": "MCP stdio server",
-      "containerRef": "CT2",
-      "moduleRef": "A2",
-      "filePath": "packages/mcp/branch-cicd/src/beta-tool.ts"
+      "name": "Runner Contract Prompt",
+      "description": "Generic build-mode prompt contract that consumes beta-aware mission context",
+      "technology": "Prompt template",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/session/prompt/runner.txt"
     }
   ],
   "relationships": [
@@ -68,22 +68,22 @@
       "id": "REL1",
       "source": "C1",
       "target": "C3",
-      "description": "uses shared beta bootstrap before build handoff",
+      "description": "starts beta bootstrap through native primitives",
       "technology": "function call"
     },
     {
       "id": "REL2",
       "source": "C2",
       "target": "C3",
-      "description": "uses syncback-equivalent validation operations",
+      "description": "uses native primitives for routine git flow validation and finalize preflight",
       "technology": "function call"
     },
     {
       "id": "REL3",
       "source": "C4",
-      "target": "C3",
-      "description": "delegates public MCP operations to shared beta core",
-      "technology": "function call"
+      "target": "C2",
+      "description": "guides execution contract for mission-aware build continuation",
+      "technology": "prompt contract"
     }
   ]
 }
