@@ -2,7 +2,7 @@
 
 ## Goal
 
-Rewrite telemetry as a bus-messaging-first contract so the next builder can move from the current snapshot/hydration baseline to a projector-owned, reducer-owned architecture without reinterpreting authority.
+Rewrite telemetry as a bus-messaging-first contract so the next builder can move from the current snapshot/hydration baseline to a projector-owned, reducer-owned architecture without reinterpreting authority, while keeping the context-sidebar optimization slice consolidated under the same semantic telemetry root.
 
 ## Scope
 
@@ -11,13 +11,13 @@ Rewrite telemetry as a bus-messaging-first contract so the next builder can move
 - Rewrite the telemetry spec package into a builder checklist.
 - Define current state, target state, and migration path separately.
 - Define the target authority chain: runtime events → server projector → app reducer → UI consumer.
-- Update `specs/architecture.md` and event documentation to match the rewrite contract.
+- Keep context-sidebar / telemetry-card optimization material under the consolidated telemetry root as a companion slice.
 
 ### OUT
 
 - Product code changes.
 - Quota/account/billing telemetry redesign.
-- UI redesign.
+- UI redesign unrelated to telemetry/context-sidebar workstream.
 - Preserving legacy telemetry glue that conflicts with target ownership.
 
 ## Assumptions
@@ -28,6 +28,7 @@ Rewrite telemetry as a bus-messaging-first contract so the next builder can move
 - App already has `global-sync` state with `session_telemetry`, but current steady-state hydration ownership is wrong.
 - Builder is authorized to remove, replace, or demote conflicting legacy telemetry glue.
 - The rewrite must preserve telemetry's original product purpose: A111 prompt composition evidence and A112 round/session/compaction evidence.
+- The context-sidebar optimization slice remains presentation-only and subordinate to the telemetry rewrite contract.
 
 ## Stop Gates
 
@@ -41,14 +42,22 @@ Rewrite telemetry as a bus-messaging-first contract so the next builder can move
 
 ## Critical Files
 
-- `specs/architecture.md`
 - `specs/telemetry/proposal.md`
 - `specs/telemetry/spec.md`
 - `specs/telemetry/design.md`
 - `specs/telemetry/implementation-spec.md`
 - `specs/telemetry/tasks.md`
 - `specs/telemetry/handoff.md`
+- `specs/telemetry/telemetry_rewrite_a0_idef0.json`
+- `specs/telemetry/telemetry_rewrite_a0_grafcet.json`
+- `specs/telemetry/context-sidebar-optimization/proposal.md`
+- `specs/telemetry/context-sidebar-optimization/spec.md`
+- `specs/telemetry/context-sidebar-optimization/design.md`
+- `specs/telemetry/context-sidebar-optimization/implementation-spec.md`
+- `specs/telemetry/context-sidebar-optimization/tasks.md`
+- `specs/telemetry/context-sidebar-optimization/handoff.md`
 - `docs/events/event_20260321_telemetry_builder_first_contract.md`
+- `docs/events/event_20260321_telemetry_context_sidebar_optimization_plan.md`
 - `packages/opencode/src/session/llm.ts`
 - `packages/opencode/src/session/processor.ts`
 - `packages/opencode/src/bus/subscribers/telemetry-runtime.ts`
@@ -59,6 +68,9 @@ Rewrite telemetry as a bus-messaging-first contract so the next builder can move
 - `packages/app/src/context/sync.tsx`
 - `packages/app/src/pages/session/use-status-monitor.ts`
 - `packages/app/src/pages/session/monitor-helper.ts`
+- `packages/app/src/components/session/session-context-tab.tsx`
+- `packages/app/src/pages/session/session-telemetry-cards.tsx`
+- `packages/app/src/context/layout.tsx`
 
 ## Structured Execution Phases
 
@@ -74,13 +86,6 @@ Rewrite telemetry as a bus-messaging-first contract so the next builder can move
 - Define identity, ordering, replay, and idempotency semantics.
 - Decide what projector-owned updates the app consumes.
 - Reject any contract that requires UI or page hooks to synthesize missing authority.
-- Freeze a minimum event matrix before moving forward:
-  - event classes
-  - producer boundaries
-  - required identity fields
-  - ordering / replay assumptions
-  - projector-consumed payload subset
-  - reducer-consumed downstream update subset
 
 ### Phase 3 — Projector
 
@@ -88,13 +93,6 @@ Rewrite telemetry as a bus-messaging-first contract so the next builder can move
 - Define projector aggregate shape and session-scoped lifecycle.
 - Route monitor and `session.top` to projector-owned state only.
 - Delete or demote monitor-derived authority heuristics.
-- Freeze a minimum projector aggregate matrix before reducer work:
-  - prompt telemetry summary
-  - round telemetry summary
-  - compaction telemetry summary
-  - session cumulative summary
-  - freshness metadata
-  - degraded/catch-up metadata
 
 ### Phase 4 — Reducer cutover
 
@@ -102,12 +100,6 @@ Rewrite telemetry as a bus-messaging-first contract so the next builder can move
 - Cut all steady-state telemetry writes over to reducer-owned updates.
 - Remove, replace, or degrade old page-level hydration writers.
 - Name the exact cutover condition after which legacy writers are forbidden.
-- Define an explicit forbidden-writer list after cutover, including at minimum:
-  - page-level hydration effects
-  - monitor helper authority synthesis
-  - snapshot refresh writers
-  - local fallback promotion paths
-- Cutover is not complete until the forbidden-writer list is attached to the implementation slice and validated as enforced.
 
 ### Phase 5 — Snapshot demotion
 
@@ -119,7 +111,8 @@ Rewrite telemetry as a bus-messaging-first contract so the next builder can move
 
 - Remove conflicting legacy glue after authority cutover.
 - Remove any fallback path that can recreate duplicate authority.
-- Align architecture doc, handoff doc, and event log to the final ownership model.
+- Align handoff docs and event logs to the final ownership model.
+- Keep the context-sidebar optimization slice aligned as a downstream-only companion artifact set.
 
 ### Phase 7 — Validation
 
@@ -140,7 +133,7 @@ Rewrite telemetry as a bus-messaging-first contract so the next builder can move
 - Projector validation: builder can point to a concrete minimum aggregate matrix before reducer work starts.
 - Cutover validation: builder can point to an explicit forbidden-writer list after reducer cutover.
 - Product validation: the plan explicitly preserves A111 prompt evidence and A112 round/session/compaction evidence goals.
-- Completion validation: builder can show a single evidence table mapping architecture proof, product proof, and migration proof to concrete commands, fixtures, or runtime traces.
+- Companion-slice validation: context-sidebar optimization artifacts remain discoverable under `specs/telemetry/context-sidebar-optimization/` and do not redefine telemetry authority.
 
 ## Handoff
 
@@ -151,3 +144,4 @@ Rewrite telemetry as a bus-messaging-first contract so the next builder can move
 - Next builder must not begin projector implementation until the event matrix is explicit.
 - Next builder must not begin reducer cutover until the projector aggregate matrix is explicit.
 - Next builder must not declare completion until forbidden legacy writers are removed, replaced, or degraded-only by explicit cutover rule.
+- Next builder doing context-sidebar work must also read `specs/telemetry/context-sidebar-optimization/` and keep that slice downstream of reducer-owned telemetry.

@@ -6,7 +6,7 @@
 
 ## 需求
 
-- 依 `specs/20260321_telemetry-optimization/` plan 實作 beta repo 的 context sidebar 優化。
+- 依 `specs/telemetry/context-sidebar-optimization/` plan 實作 beta repo 的 context sidebar 優化。
 - 移除無法顯示真實 orchestrator/system prompt 的 `Prompt` 卡片，避免誤導 fallback。
 - 讓每張 context sidebar 卡片支援比照 task status sidebar 的拖曳排序與折疊。
 
@@ -41,7 +41,7 @@
 
 - beta repo 的 `SessionContextTab` 目前仍是線性堆疊：stats grid → breakdown → system prompt → telemetry cards。
 - `layout.tsx` 與 `session-status-sections.tsx` 已存在 status sidebar 的順序持久化與拖曳模式，可作為 context cards 的參考基線。
-- 既有 `specs/20260321_telemetry-optimization/` 已對齊三卡 MVP，但 beta repo 尚未實作。
+- 既有 `specs/telemetry/context-sidebar-optimization/` 已對齊三卡 MVP，但 beta repo 尚未實作。
 
 ### Instrumentation Plan
 
@@ -57,7 +57,7 @@
 - 已將 `Summary` 卡片 stats 改為單行 `Key: Value` 呈現，並保留寬度足夠時的 2-column 緊湊排版。
 - 已將 telemetry cards 納入同一 context card 排序流，讓整個 context sidebar 維持統一卡片式布局。
 - 已在 `layout.tsx` 新增 `contextSidebar.expanded` persisted state，並以 status sidebar 的 pattern 套用到所有 context cards。
-- 已同步更新 `specs/20260321_telemetry-optimization/tasks.md` 的 1.x / 2.x / 3.x checkbox。
+- 已同步更新 `specs/telemetry/context-sidebar-optimization/tasks.md` 的 1.x / 2.x / 3.x checkbox。
 - 已套用最新 UX refine：`Prompt telemetry` 更名為 `Prompt blocks`、`+N more blocks` 改為可展開、context sidebar 移除 quota card。
 - 已在 `Summary` 卡加入程式化短項目判定，短 `Key: Value` 保持雙欄，長項目自動跨滿兩欄避免擠壓。
 - 已在 `Round / Session telemetry` 移除與 `Summary` 重複的 provider/account/model 身分列，但保留其餘 session summary 內容。
@@ -68,7 +68,7 @@
 
 ## Key Decisions
 
-- 沿用既有 plan root：`specs/20260321_telemetry-optimization/`。
+- 沿用既有 semantic telemetry root 下的 companion slice：`specs/telemetry/context-sidebar-optimization/`。
 - 初版分組調整為 `Summary / Breakdown + telemetry cards`，不再顯示 `Prompt` 卡片。
 - 拖曳排序與折疊狀態皆沿用 status sidebar 互動模式與 layout persistence。
 - telemetry cards 一併納入 context sidebar 排序集合，避免舊 context 卡與新 telemetry 卡出現兩套不同排序規則。

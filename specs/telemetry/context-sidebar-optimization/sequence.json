@@ -1,0 +1,134 @@
+[
+  {
+    "diagram_title": "Open Context Sidebar",
+    "scenario": "User opens the context sidebar and sees legacy context information rendered as cards beside telemetry cards.",
+    "moduleRef": "A2",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "User",
+        "type": "actor",
+        "componentRef": "SYS1"
+      },
+      {
+        "id": "P2",
+        "name": "Session Side Panel Route",
+        "type": "component",
+        "componentRef": "C4"
+      },
+      {
+        "id": "P3",
+        "name": "Session Context Tab",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P4",
+        "name": "Telemetry Cards",
+        "type": "component",
+        "componentRef": "C2"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "open context sidebar",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "render context tab with session data + telemetry",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P4",
+        "label": "render aligned telemetry card section",
+        "type": "sync",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P3",
+        "to": "P2",
+        "label": "display summary / breakdown / prompt cards",
+        "type": "return",
+        "order": 4
+      }
+    ],
+    "fragments": []
+  },
+  {
+    "diagram_title": "Reorder Context Cards",
+    "scenario": "User drags a context card and the new order is persisted for later sidebar views.",
+    "moduleRef": "A3",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "User",
+        "type": "actor",
+        "componentRef": "SYS1"
+      },
+      {
+        "id": "P2",
+        "name": "Session Context Tab",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P3",
+        "name": "Layout Store",
+        "type": "component",
+        "componentRef": "C3"
+      },
+      {
+        "id": "P4",
+        "name": "Status Sidebar Pattern",
+        "type": "component",
+        "componentRef": "C6"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "drag card to new position",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P4",
+        "label": "apply sortable interaction pattern",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P2",
+        "to": "P3",
+        "label": "persist updated context card order",
+        "type": "sync",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P3",
+        "to": "P2",
+        "label": "return saved order",
+        "type": "return",
+        "order": 4
+      }
+    ],
+    "fragments": []
+  }
+]

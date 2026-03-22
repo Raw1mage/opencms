@@ -1,0 +1,86 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Freeze current snapshot, hydration, monitor, and page-hook telemetry behavior as baseline-only inventory.",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["baseline paths are recorded and marked as non-target authority"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Define the runtime telemetry event contract, including fact shape, ordering, replay, and idempotency semantics.",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["authoritative bus-first event contract is approved for projector consumption"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Establish the server projector as sole telemetry read-model authority and route downstream state from projector ownership.",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["projector aggregate and downstream delivery contract are defined without duplicate authority"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Cut over canonical session telemetry ownership to the app reducer and require UI surfaces to stay pure consumers.",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["reducer canonical slice is defined and legacy steady-state writers are forbidden"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Demote session.top to bootstrap, reconnect, catch-up, buffer-miss, and degraded recovery transport only.",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["snapshot path is explicitly limited to recovery-only use"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A6",
+    "StepType": "normal",
+    "StepAction": "Remove hydration-first, monitor-first, page-hook-first, and fallback-based telemetry writers that conflict with single authority.",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["conflicting legacy writers are removed or degraded with no authority relapse"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A7",
+    "StepType": "normal",
+    "StepAction": "Validate that steady-state telemetry flows runtime event to projector to reducer to UI consumer, with session.top used only for recovery.",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [5],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["validation proves no duplicate authority fallback promotion or architecture drift remains"],
+    "SubGrafcet": []
+  }
+]

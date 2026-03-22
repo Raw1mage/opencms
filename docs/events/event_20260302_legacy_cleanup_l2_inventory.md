@@ -80,7 +80,7 @@ Post-L2B state:
 
 - Updated active governance/spec docs to canonical project instruction path:
   - `AGENTS.md` runtime-sync checklist now references `$XDG_CONFIG_HOME/opencode/skills/**` instead of `.opencode/skills/**`.
-  - `docs/specs/system-prompt-hooks.md` updated project AGENTS path to `<project-root>/AGENTS.md`.
+  - `specs/system-prompt/hooks.md` updated project AGENTS path to `<project-root>/AGENTS.md`.
 
 ## Guardrail
 

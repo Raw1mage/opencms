@@ -10,6 +10,44 @@ OpenCode is a desktop/TUI/Webapp multi-interface platform for interacting with A
 - **Unified Backend**: All interfaces communicate with a shared Node/Bun backend via the `@opencode-ai/sdk` or direct function calls.
 - **Provider Abstraction**: Model interactions are abstracted through the `Provider` module, supporting multiple families (e.g., `google-api`, `anthropic`).
 
+## Frontend Architecture
+
+### Layered Structure
+
+The frontend is built with Solid.js and uses a bottom-up dependency model:
+
+- **Infrastructure layer**: API transport, EventSource/WebSocket listeners, and platform adapters.
+- **Sync layer**: `GlobalSync` plus per-workspace stores act as the authoritative event-reduced state surface.
+- **Control layer**: layout, permission, and command coordination for global UI behavior.
+- **Feature layer**: prompt, file, and terminal domain logic.
+- **UI layer**: pages and components that subscribe to reactive state and render only the required slices.
+
+### Frontend Data Flow
+
+- Backend events stream into the SDK, then into `GlobalSync`, where reducers update Solid stores.
+- UI components consume fine-grained reactive state so updates stay localized.
+- User actions flow through feature/control contexts into the SDK, with optimistic UI where required, then reconcile against server-driven events.
+
+### Frontend State Rules
+
+- Prefer local reactive primitives for local UI state.
+- Use centralized stores only for shared or durable data.
+- Maintain per-workspace child stores to isolate data and reduce unnecessary redraws.
+- Use structured reconciliation for large collections so component identity and scroll position remain stable.
+
+### Frontend Performance Rules
+
+- Large file/message surfaces rely on virtual scrolling.
+- Expensive derived views must stay memoized.
+- Effects should use untracked access when reads are not meant to become dependencies.
+- Page-level code paths should remain lazily loaded when possible.
+
+### Frontend Source Map
+
+- `packages/app/src/context/`: domain state and coordination.
+- `packages/app/src/pages/session/`: session-page controller/hooks/components.
+- `packages/app/src/hooks/`: reusable frontend logic.
+
 ## Planner / Spec Repository Lifecycle
 
 - **Active plan/build workspace**: dated plan packages now live under `/plans/` inside the repo worktree.

@@ -91,3 +91,20 @@
 ## Remaining
 
 - Legacy dated package triage is documented and fail-fast by contract, but bulk migration of existing historical packages remains deferred and was explicitly out of scope.
+
+## Follow-up: Specs Root Cleanup
+
+- `specs/20260316_kill-switch-plan.md` moved to `plans/20260316_kill-switch-plan/implementation-spec.md`.
+- `specs/kill-switch-incident-runbook.md` moved to `docs/runbooks/kill-switch-incident-runbook.md`.
+- `specs/kill-switch-deployment-policy.md` moved to `docs/policies/deployment/kill-switch-deployment-policy.md`.
+- `specs/codex-protocol-whitepaper.md` moved to `specs/codex-protocol/whitepaper.md`.
+- `specs/system-prompt-hooks.md` moved to `specs/system-prompt/hooks.md`.
+- `specs/frontend-architecture.md` was merged into `specs/architecture.md` so the `specs/` root converges toward architecture-only.
+- Validation confirmed that `specs/` root now contains only `specs/architecture.md`, `plans/20260316_kill-switch-plan/implementation-spec.md` exists, and there are no remaining references to the old `plans/20260316_kill-switch-plan/plan.md` path.
+
+## Follow-up: Telemetry Plan Consolidation
+
+- `specs/telemetry/` is the authoritative telemetry rewrite package and records the bus-first runtime event -> projector -> reducer -> UI-consumer target architecture.
+- `specs/telemetry/context-sidebar-optimization/` is the colocated telemetry UI/context-sidebar companion slice under that same semantic root.
+- Consolidation target is a semantic formalized spec root: `specs/telemetry/`.
+- Consolidation work should preserve the rewrite contract as the primary authority, carry over context-sidebar/card-layout optimization content as a subordinate slice, and update obvious references still pointing at the old dated telemetry roots.

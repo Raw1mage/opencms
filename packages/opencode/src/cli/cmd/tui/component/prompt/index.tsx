@@ -87,6 +87,23 @@ export function Prompt(props: PromptProps) {
   const status = createMemo(() => sync.data.session_status?.[props.sessionID ?? ""] ?? { type: "idle" })
   const activeWorkers = createMemo(() => sync.data.active_workers ?? 0)
   const hasActivity = createMemo(() => status().type !== "idle" || activeWorkers() > 0)
+  /** Summary of the most active background subagent for display in prompt footer */
+  const workerSummary = createMemo(() => {
+    if (activeWorkers() === 0) return undefined
+    const monitor = sync.data.monitor ?? []
+    // Find the most recently updated sub-session or sub-agent entry
+    const activeStatuses = new Set(["busy", "working", "retry", "pending"])
+    const subEntries = monitor
+      .filter((x) => (x.level === "sub-session" || x.level === "agent" || x.level === "sub-agent") && activeStatuses.has(x.status.type))
+      .sort((a, b) => b.updated - a.updated)
+    const top = subEntries[0]
+    if (!top) return undefined
+    const agent = top.agent ?? ""
+    const tool = top.activeTool
+    const reqs = top.requests
+    const tok = top.totalTokens
+    return { agent, tool, reqs, tok, count: activeWorkers() }
+  })
   const modelSelectionKey = (input?: { providerId?: string; modelID?: string; accountId?: string }) =>
     `${input?.providerId ?? ""}:${input?.modelID ?? ""}:${input?.accountId ?? ""}`
   const retryStatus = createMemo(() => {
@@ -1459,7 +1476,22 @@ export function Prompt(props: PromptProps) {
               <box flexShrink={0} flexDirection="row" gap={1}>
                 <box marginLeft={1}>
                   <Show when={status().type !== "idle"} fallback={
-                    <text fg={theme.textMuted}>[{activeWorkers()} worker{activeWorkers() > 1 ? "s" : ""}]</text>
+                    <text fg={theme.textMuted}>
+                      <Show when={workerSummary()} fallback={`[${activeWorkers()} worker${activeWorkers() > 1 ? "s" : ""}]`}>
+                        {(ws) => {
+                          const label = () => {
+                            const s = ws()
+                            const parts: string[] = []
+                            if (s.agent) parts.push(s.agent)
+                            if (s.tool) parts.push(s.tool)
+                            if (s.reqs > 0) parts.push(`${s.reqs}r`)
+                            if (s.tok > 0) parts.push(`${(s.tok / 1000).toFixed(1)}k`)
+                            return parts.length > 0 ? parts.join(" · ") : `${s.count} worker${s.count > 1 ? "s" : ""}`
+                          }
+                          return <>{label()}</>
+                        }}
+                      </Show>
+                    </text>
                   }>
                     <Show
                       when={!perfProbeMode && kv.get("animations_enabled", defaultAnimationsEnabled)}

@@ -1,0 +1,407 @@
+{
+  "analysis_summary": "Telemetry rewrite A0 is now modeled as a builder-first execution contract: freeze the current snapshot/hydration baseline, define the bus-first event contract, establish the server projector, cut over reducer authority, demote snapshot transport, remove legacy writers, and validate runtime event to UI consumer traceability.",
+  "mvp_priority_order": ["A1", "A2", "A3", "A4", "A5", "A6", "A7"],
+  "idef0_descriptor": {
+    "diagram_title": "Telemetry Rewrite Builder Contract",
+    "node_reference": "A0",
+    "activities": [
+      {
+        "id": "A1",
+        "title": "Freeze Baseline Inventory",
+        "description": "Capture current snapshot, hydration, monitor, and page-hook telemetry behavior as baseline-only evidence before builder cutover.",
+        "decomposition": null
+      },
+      {
+        "id": "A2",
+        "title": "Define Event Contract",
+        "description": "Specify authoritative runtime telemetry event facts, ordering, replay, and downstream projector delivery rules.",
+        "decomposition": null
+      },
+      {
+        "id": "A3",
+        "title": "Establish Projector Authority",
+        "description": "Make the server-side telemetry projector the only authoritative read-model owner for session telemetry.",
+        "decomposition": null
+      },
+      {
+        "id": "A4",
+        "title": "Cut Over Reducer Authority",
+        "description": "Move canonical session_telemetry ownership to app global-sync reducer and force UI surfaces into pure-consumer mode.",
+        "decomposition": null
+      },
+      {
+        "id": "A5",
+        "title": "Demote Snapshot Transport",
+        "description": "Restrict session.top to bootstrap, catch-up, reconnect, buffer-miss, and degraded recovery transport only.",
+        "decomposition": null
+      },
+      {
+        "id": "A6",
+        "title": "Remove Legacy Telemetry Writers",
+        "description": "Delete or degrade hydration-first, monitor-first, page-hook-first, and fallback-based telemetry writers after authority cutover.",
+        "decomposition": null
+      },
+      {
+        "id": "A7",
+        "title": "Validate Canonical Telemetry Flow",
+        "description": "Prove steady-state propagation follows runtime event to projector to reducer to UI, with session.top limited to recovery paths.",
+        "decomposition": null
+      }
+    ],
+    "arrows": [
+      {
+        "id": "AR1",
+        "source": "EXTERNAL",
+        "target": "A1:input",
+        "label": "Current Snapshot Hydration Monitor Paths",
+        "type": "input"
+      },
+      {
+        "id": "AR2",
+        "source": "EXTERNAL",
+        "target": "A1:control",
+        "label": "Rewrite Scope And Tasks Sequence",
+        "type": "control"
+      },
+      {
+        "id": "AR3",
+        "source": "EXTERNAL",
+        "target": "A1:mechanism",
+        "label": "Planning Docs And Existing Telemetry Evidence",
+        "type": "mechanism"
+      },
+      {
+        "id": "AR4",
+        "source": "A1:output",
+        "target": "A2:input",
+        "label": "Baseline Freeze Inventory",
+        "type": "output"
+      },
+      {
+        "id": "AR5",
+        "source": "EXTERNAL",
+        "target": "A2:control",
+        "label": "Bus First Ownership Rules",
+        "type": "control"
+      },
+      {
+        "id": "AR6",
+        "source": "EXTERNAL",
+        "target": "A2:mechanism",
+        "label": "Runtime Event Builder And Contract Spec",
+        "type": "mechanism"
+      },
+      {
+        "id": "AR7",
+        "source": "A2:output",
+        "target": "A3:input",
+        "label": "Authoritative Telemetry Event Contract",
+        "type": "output"
+      },
+      {
+        "id": "AR8",
+        "source": "EXTERNAL",
+        "target": "A3:control",
+        "label": "Server Projector Sole Authority Rule",
+        "type": "control"
+      },
+      {
+        "id": "AR9",
+        "source": "EXTERNAL",
+        "target": "A3:mechanism",
+        "label": "Bus Subscriber SSE And Projector Storage",
+        "type": "mechanism"
+      },
+      {
+        "id": "AR10",
+        "source": "A3:output",
+        "target": "A4:input",
+        "label": "Projector Owned Telemetry Aggregate",
+        "type": "output"
+      },
+      {
+        "id": "AR11",
+        "source": "EXTERNAL",
+        "target": "A4:control",
+        "label": "Reducer Canonical Slice Contract",
+        "type": "control"
+      },
+      {
+        "id": "AR12",
+        "source": "EXTERNAL",
+        "target": "A4:mechanism",
+        "label": "Global Sync Reducer And UI Consumer Surfaces",
+        "type": "mechanism"
+      },
+      {
+        "id": "AR13",
+        "source": "A4:output",
+        "target": "A5:input",
+        "label": "Reducer Cutover Boundary",
+        "type": "output"
+      },
+      {
+        "id": "AR14",
+        "source": "EXTERNAL",
+        "target": "A5:control",
+        "label": "Bootstrap Catch Up Degraded Only Policy",
+        "type": "control"
+      },
+      {
+        "id": "AR15",
+        "source": "EXTERNAL",
+        "target": "A5:mechanism",
+        "label": "Session Top Bootstrap Transport",
+        "type": "mechanism"
+      },
+      {
+        "id": "AR16",
+        "source": "A5:output",
+        "target": "A6:input",
+        "label": "Demoted Snapshot Recovery Contract",
+        "type": "output"
+      },
+      {
+        "id": "AR17",
+        "source": "EXTERNAL",
+        "target": "A6:control",
+        "label": "Legacy Writer Removal Gate",
+        "type": "control"
+      },
+      {
+        "id": "AR18",
+        "source": "EXTERNAL",
+        "target": "A6:mechanism",
+        "label": "Cleanup Inventory And Removal Tasks",
+        "type": "mechanism"
+      },
+      {
+        "id": "AR19",
+        "source": "A6:output",
+        "target": "A7:input",
+        "label": "Single Authority Telemetry Path",
+        "type": "output"
+      },
+      {
+        "id": "AR20",
+        "source": "EXTERNAL",
+        "target": "A7:control",
+        "label": "Validation Proof Requirements",
+        "type": "control"
+      },
+      {
+        "id": "AR21",
+        "source": "EXTERNAL",
+        "target": "A7:mechanism",
+        "label": "Builder Verification And Traceability Checks",
+        "type": "mechanism"
+      },
+      {
+        "id": "AR22",
+        "source": "A7:output",
+        "target": "EXTERNAL",
+        "label": "Validated Runtime To UI Consumer Contract",
+        "type": "output"
+      }
+    ]
+  },
+  "grafcet_descriptor": [
+    {
+      "StepNumber": 0,
+      "ModuleRef": "A1",
+      "StepType": "initial",
+      "StepAction": "Freeze current snapshot, hydration, monitor, and page-hook telemetry behavior as baseline-only inventory.",
+      "LinkInputType": [],
+      "LinkInputNumber": [],
+      "LinkOutputNumber": [1],
+      "LinkOutputType": "track",
+      "Condition": ["baseline paths are recorded and marked as non-target authority"],
+      "SubGrafcet": []
+    },
+    {
+      "StepNumber": 1,
+      "ModuleRef": "A2",
+      "StepType": "normal",
+      "StepAction": "Define the runtime telemetry event contract, including fact shape, ordering, replay, and idempotency semantics.",
+      "LinkInputType": ["track"],
+      "LinkInputNumber": [0],
+      "LinkOutputNumber": [2],
+      "LinkOutputType": "track",
+      "Condition": ["authoritative bus-first event contract is approved for projector consumption"],
+      "SubGrafcet": []
+    },
+    {
+      "StepNumber": 2,
+      "ModuleRef": "A3",
+      "StepType": "normal",
+      "StepAction": "Establish the server projector as sole telemetry read-model authority and route downstream state from projector ownership.",
+      "LinkInputType": ["track"],
+      "LinkInputNumber": [1],
+      "LinkOutputNumber": [3],
+      "LinkOutputType": "track",
+      "Condition": ["projector aggregate and downstream delivery contract are defined without duplicate authority"],
+      "SubGrafcet": []
+    },
+    {
+      "StepNumber": 3,
+      "ModuleRef": "A4",
+      "StepType": "normal",
+      "StepAction": "Cut over canonical session telemetry ownership to the app reducer and require UI surfaces to stay pure consumers.",
+      "LinkInputType": ["track"],
+      "LinkInputNumber": [2],
+      "LinkOutputNumber": [4],
+      "LinkOutputType": "track",
+      "Condition": ["reducer canonical slice is defined and legacy steady-state writers are forbidden"],
+      "SubGrafcet": []
+    },
+    {
+      "StepNumber": 4,
+      "ModuleRef": "A5",
+      "StepType": "normal",
+      "StepAction": "Demote session.top to bootstrap, reconnect, catch-up, buffer-miss, and degraded recovery transport only.",
+      "LinkInputType": ["track"],
+      "LinkInputNumber": [3],
+      "LinkOutputNumber": [5],
+      "LinkOutputType": "track",
+      "Condition": ["snapshot path is explicitly limited to recovery-only use"],
+      "SubGrafcet": []
+    },
+    {
+      "StepNumber": 5,
+      "ModuleRef": "A6",
+      "StepType": "normal",
+      "StepAction": "Remove hydration-first, monitor-first, page-hook-first, and fallback-based telemetry writers that conflict with single authority.",
+      "LinkInputType": ["track"],
+      "LinkInputNumber": [4],
+      "LinkOutputNumber": [6],
+      "LinkOutputType": "track",
+      "Condition": ["conflicting legacy writers are removed or degraded with no authority relapse"],
+      "SubGrafcet": []
+    },
+    {
+      "StepNumber": 6,
+      "ModuleRef": "A7",
+      "StepType": "normal",
+      "StepAction": "Validate that steady-state telemetry flows runtime event to projector to reducer to UI consumer, with session.top used only for recovery.",
+      "LinkInputType": ["track"],
+      "LinkInputNumber": [5],
+      "LinkOutputNumber": [0],
+      "LinkOutputType": "track",
+      "Condition": ["validation proves no duplicate authority fallback promotion or architecture drift remains"],
+      "SubGrafcet": []
+    }
+  ],
+  "assumptions": [
+    "Current monitor and hydration behavior is preserved only as baseline evidence, not as target architecture.",
+    "Runtime telemetry facts remain the upstream source for prompt, round, compaction, and future telemetry event families.",
+    "Server-side projector output may feed session.top for recovery without allowing session.top to regain steady-state authority.",
+    "App global-sync remains the canonical telemetry slice owner for all web telemetry surfaces."
+  ],
+  "validation_notes": [
+    "A0 scope now mirrors tasks.md execution order exactly: baseline freeze, event contract, projector, reducer cutover, snapshot demotion, cleanup, validation.",
+    "session.top is modeled only as bootstrap/catch-up/degraded transport and never as steady-state authority.",
+    "UI authority is excluded from the model; UI appears only as reducer-consuming surface within the cutover and validation stages."
+  ],
+  "written_files": [
+    "specs/telemetry/telemetry_rewrite_a0_idef0.json",
+    "specs/telemetry/telemetry_rewrite_a0_grafcet.json"
+  ],
+  "decision_trace": [
+    "Current snapshot, hydration, monitor, and page-hook paths are treated as baseline inventory only.",
+    "Builder execution is organized around phased authority transfer instead of current-code convenience modules.",
+    "Server projector remains the only read-model authority, reducer remains the only app-state authority, and UI remains a pure consumer.",
+    "Snapshot transport is intentionally sequenced after reducer cutover so recovery cannot silently re-promote itself to steady-state authority."
+  ],
+  "source_inventory": [
+    "specs/architecture.md",
+    "specs/telemetry/*.md",
+    "packages/opencode/src/session/llm.ts",
+    "packages/opencode/src/session/processor.ts",
+    "packages/opencode/src/bus/subscribers/telemetry-runtime.ts",
+    "packages/opencode/src/session/monitor.ts",
+    "packages/opencode/src/server/routes/session.ts",
+    "packages/app/src/context/global-sync/event-reducer.ts",
+    "packages/app/src/context/sync.tsx",
+    "packages/app/src/pages/session/use-status-monitor.ts",
+    "packages/app/src/pages/session/monitor-helper.ts"
+  ],
+  "boundary_map": [
+    "Baseline boundary: current snapshot, hydration, monitor, and fallback paths recorded as inventory-only",
+    "Runtime boundary: telemetry fact emission and bus-first event contract",
+    "Server boundary: telemetry projector plus recovery-only snapshot transport",
+    "App boundary: global-sync canonical telemetry slice",
+    "UI boundary: read-only telemetry consumers"
+  ],
+  "evidence_trace": [
+    "tasks.md defines the required execution sequence from baseline freeze through validation.",
+    "architecture.md defines current-state snapshot/hydration authority drift and target bus-first ownership.",
+    "Runtime events already exist in llm.ts and processor.ts.",
+    "telemetry-runtime.ts persists supported telemetry events.",
+    "session.top currently serves monitor snapshot transport.",
+    "use-status-monitor.ts currently refreshes session.top and sync.tsx hydrates session_telemetry."
+  ],
+  "traceability_matrix": [
+    {
+      "module": "A1",
+      "evidence": [
+        "specs/telemetry/tasks.md",
+        "specs/architecture.md",
+        "packages/app/src/pages/session/use-status-monitor.ts",
+        "packages/app/src/context/sync.tsx"
+      ]
+    },
+    {
+      "module": "A2",
+      "evidence": [
+        "specs/telemetry/tasks.md",
+        "packages/opencode/src/session/llm.ts",
+        "packages/opencode/src/session/processor.ts"
+      ]
+    },
+    {
+      "module": "A3",
+      "evidence": [
+        "specs/architecture.md",
+        "packages/opencode/src/bus/subscribers/telemetry-runtime.ts",
+        "packages/opencode/src/server/routes/session.ts"
+      ]
+    },
+    {
+      "module": "A4",
+      "evidence": [
+        "specs/architecture.md",
+        "packages/app/src/context/global-sync/event-reducer.ts",
+        "packages/app/src/context/sync.tsx"
+      ]
+    },
+    {
+      "module": "A5",
+      "evidence": [
+        "specs/telemetry/tasks.md",
+        "packages/opencode/src/session/monitor.ts",
+        "packages/opencode/src/server/routes/session.ts"
+      ]
+    },
+    {
+      "module": "A6",
+      "evidence": [
+        "specs/telemetry/tasks.md",
+        "packages/app/src/pages/session/monitor-helper.ts",
+        "packages/app/src/pages/session/use-status-monitor.ts"
+      ]
+    },
+    {
+      "module": "A7",
+      "evidence": [
+        "specs/telemetry/tasks.md",
+        "specs/architecture.md",
+        "docs/events/event_20260321_telemetry_rewrite_dds_pivot.md"
+      ]
+    }
+  ],
+  "confidence_notes": [
+    "High confidence on current-state baseline evidence and target ownership rules because both are explicitly documented in architecture.md and tasks.md.",
+    "Medium confidence on final projector-to-reducer transport shape because the downstream event schema remains a planned contract rather than implemented code.",
+    "High confidence that the updated A0 artifacts now support builder execution traceability instead of describing current-code convenience paths."
+  ]
+}

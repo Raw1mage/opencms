@@ -39,12 +39,12 @@ The package also explicitly demotes hydration-first, monitor-first, and page-hoo
 
 ## Related Artifacts
 
-- `specs/20260320_telemetry-implementation/proposal.md`
-- `specs/20260320_telemetry-implementation/spec.md`
-- `specs/20260320_telemetry-implementation/design.md`
-- `specs/20260320_telemetry-implementation/implementation-spec.md`
-- `specs/20260320_telemetry-implementation/tasks.md`
-- `specs/20260320_telemetry-implementation/handoff.md`
+- `specs/telemetry/proposal.md`
+- `specs/telemetry/spec.md`
+- `specs/telemetry/design.md`
+- `specs/telemetry/implementation-spec.md`
+- `specs/telemetry/tasks.md`
+- `specs/telemetry/handoff.md`
 - `specs/architecture.md`
 
 ## Builder Entry Clarification
@@ -132,7 +132,7 @@ This is the builder-facing matrix for the first implementation slice. It is anch
 
 ## Materialized Minimum Projector Aggregate Matrix
 
-The minimum projector aggregate matrix now lives in `specs/20260320_telemetry-implementation/handoff.md` under `## Materialized Minimum Projector Aggregate Matrix`.
+The minimum projector aggregate matrix now lives in `specs/telemetry/handoff.md` under `## Materialized Minimum Projector Aggregate Matrix`.
 
 It fixes the previously implicit second builder output by grounding each required aggregate in the real baseline:
 
@@ -146,7 +146,7 @@ The matrix also makes the authority boundary explicit: projector owns the aggreg
 
 ## Materialized Forbidden-Writer List
 
-The forbidden-writer list now lives in `specs/20260320_telemetry-implementation/handoff.md` under `## Materialized Forbidden-Writer List For Reducer Cutover`.
+The forbidden-writer list now lives in `specs/telemetry/handoff.md` under `## Materialized Forbidden-Writer List For Reducer Cutover`.
 
 It names the real current writer/synthesis entrypoints that must be removed, rewritten, or degraded-only after reducer cutover:
 

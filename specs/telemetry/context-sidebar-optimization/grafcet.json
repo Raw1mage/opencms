@@ -1,0 +1,62 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Freeze Three Card Contract",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["summary_breakdown_prompt_scope_confirmed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Refactor Context Sidebar Cards",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["legacy_context_sections_grouped_into_cards"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Enable And Persist Card Reordering",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 4],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["ordering_contract_reused_safely", "ordering_boundary_requires_replan"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Run Validation And Prepare Handoff",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["typecheck_and_targeted_checks_pass"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Return To Plan Mode For Boundary Decision",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["shared_layout_change_exceeds_bounded_scope"],
+    "SubGrafcet": []
+  }
+]

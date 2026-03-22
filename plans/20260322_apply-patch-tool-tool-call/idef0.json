@@ -1,0 +1,95 @@
+{
+  "diagram_title": "Apply Patch Observability Planning",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Model Patch Execution State",
+      "description": "Define the execution-phase metadata contract for apply_patch and shared runtime boundaries.",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Render Running Patch Card",
+      "description": "Rewrite the TUI ApplyPatch renderer so the card remains expandable during running state.",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Stream Patch Progress Evidence",
+      "description": "Emit checkpoint metadata across parse, approval, apply, diagnostics, and failure boundaries.",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Validate Operator Visibility",
+      "description": "Verify running-state expandability, phase visibility, and final rendering compatibility.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "User report of opaque apply_patch card",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Fail-fast and no-fallback policy",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "Phased metadata contract",
+      "type": "output"
+    },
+    {
+      "id": "AR4",
+      "source": "A1:output",
+      "target": "A3:input",
+      "label": "Execution checkpoint model",
+      "type": "output"
+    },
+    {
+      "id": "AR5",
+      "source": "A2:output",
+      "target": "A4:input",
+      "label": "Expandable running-state card",
+      "type": "output"
+    },
+    {
+      "id": "AR6",
+      "source": "A3:output",
+      "target": "A4:input",
+      "label": "Running progress evidence",
+      "type": "output"
+    },
+    {
+      "id": "AR7",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "Session TUI renderer",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR8",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "apply_patch backend runtime",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR9",
+      "source": "A4:output",
+      "target": "EXTERNAL",
+      "label": "Observable apply_patch execution UX",
+      "type": "output"
+    }
+  ]
+}

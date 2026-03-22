@@ -1,0 +1,62 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Confirm metadata update capability and phase schema",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["planning approved"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Rewrite ApplyPatch renderer to use expandable running-state block UI",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["renderer change ready"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Emit parse apply diagnostics complete and failed metadata checkpoints",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 4],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["validation passes", "runtime boundary blocks implementation"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Record validation evidence and documentation sync",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["done"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Stop and replan if runtime metadata updates require wider refactor",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["stop gate triggered"],
+    "SubGrafcet": []
+  }
+]

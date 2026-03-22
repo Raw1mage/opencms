@@ -1613,7 +1613,7 @@ function InlineTool(props: {
         }
       }}
     >
-      <text paddingLeft={3} fg={fg()} attributes={denied() ? TextAttributes.STRIKETHROUGH : undefined}>
+      <text paddingLeft={3} fg={fg()} overflow="hidden" wrapMode="none" attributes={denied() ? TextAttributes.STRIKETHROUGH : undefined}>
         <Show
           fallback={
             <>

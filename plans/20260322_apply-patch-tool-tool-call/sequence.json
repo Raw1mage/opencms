@@ -1,0 +1,113 @@
+[
+  {
+    "diagram_title": "Running Apply Patch Visibility",
+    "scenario": "A multi-file apply_patch execution becomes observable before completion.",
+    "moduleRef": "A3",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "Operator",
+        "type": "actor",
+        "componentRef": "C5"
+      },
+      {
+        "id": "P2",
+        "name": "ApplyPatch Renderer",
+        "type": "component",
+        "componentRef": "C3"
+      },
+      {
+        "id": "P3",
+        "name": "Tool Metadata Adapter",
+        "type": "component",
+        "componentRef": "C4"
+      },
+      {
+        "id": "P4",
+        "name": "ApplyPatchTool",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P5",
+        "name": "Tool Runtime Metadata Bridge",
+        "type": "component",
+        "componentRef": "C2"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P4",
+        "label": "invoke apply_patch(patchText)",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P4",
+        "to": "P5",
+        "label": "emit phase=parsing/planning metadata",
+        "type": "async",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P5",
+        "to": "P3",
+        "label": "update tool part metadata",
+        "type": "async",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P3",
+        "to": "P2",
+        "label": "render running BlockTool with phase/progress",
+        "type": "sync",
+        "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P1",
+        "to": "P2",
+        "label": "expand apply_patch card before completion",
+        "type": "sync",
+        "order": 5
+      },
+      {
+        "id": "MSG6",
+        "from": "P4",
+        "to": "P5",
+        "label": "emit applying(currentFile, completedFiles)",
+        "type": "async",
+        "order": 6
+      },
+      {
+        "id": "MSG7",
+        "from": "P4",
+        "to": "P5",
+        "label": "emit diagnostics then completed(files, diagnostics)",
+        "type": "async",
+        "order": 7
+      },
+      {
+        "id": "MSG8",
+        "from": "P3",
+        "to": "P2",
+        "label": "render final diff/diagnostics state",
+        "type": "sync",
+        "order": 8
+      }
+    ],
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "alt",
+        "label": "approval or failure branches",
+        "messageRefs": ["MSG6", "MSG7"]
+      }
+    ]
+  }
+]

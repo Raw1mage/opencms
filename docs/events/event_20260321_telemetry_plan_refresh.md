@@ -1,7 +1,7 @@
 # Event: Telemetry Plan Refresh
 
 **Date**: 2026-03-21
-**Scope**: `specs/20260320_telemetry-implementation/`, `specs/architecture.md`
+**Scope**: `specs/telemetry/`, `specs/architecture.md`
 **Status**: Completed
 
 ## Change
@@ -36,5 +36,5 @@
 
 ## Follow-up
 
-- Future builders should execute from the new phase order in `specs/20260320_telemetry-implementation/tasks.md`.
+- Future builders should execute from the new phase order in `specs/telemetry/tasks.md`.
 - Product code remains unchanged by this event; this is a planning/architecture pivot only.

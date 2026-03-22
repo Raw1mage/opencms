@@ -39,14 +39,14 @@ runtime telemetry events
 
 ## Related Artifacts
 
-- `specs/20260320_telemetry-implementation/proposal.md`
-- `specs/20260320_telemetry-implementation/spec.md`
-- `specs/20260320_telemetry-implementation/design.md`
-- `specs/20260320_telemetry-implementation/implementation-spec.md`
-- `specs/20260320_telemetry-implementation/tasks.md`
-- `specs/20260320_telemetry-implementation/handoff.md`
-- `specs/20260320_telemetry-implementation/telemetry_rewrite_a0_idef0.json`
-- `specs/20260320_telemetry-implementation/telemetry_rewrite_a0_grafcet.json`
+- `specs/telemetry/proposal.md`
+- `specs/telemetry/spec.md`
+- `specs/telemetry/design.md`
+- `specs/telemetry/implementation-spec.md`
+- `specs/telemetry/tasks.md`
+- `specs/telemetry/handoff.md`
+- `specs/telemetry/telemetry_rewrite_a0_idef0.json`
+- `specs/telemetry/telemetry_rewrite_a0_grafcet.json`
 
 ## Validation
 

@@ -31,7 +31,7 @@
 - 探索 context sidebar 相關檔案與 telemetry data flow
 - 定義 legacy context info 的 3 卡分組（`摘要 / Breakdown / Prompt`）
 - 規劃 context sidebar 的拖曳排序契約
-- 更新 `specs/20260321_telemetry-optimization/*`
+- 更新 `specs/telemetry/context-sidebar-optimization/*`
 
 ## Debug Checkpoints
 

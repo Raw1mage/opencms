@@ -16,7 +16,7 @@ Status: Done
 - `/home/pkcs12/projects/opencode/config/data/`
 - `/home/pkcs12/projects/opencode/.gitignore`
 - `/home/pkcs12/projects/opencode/docs/DOCKER.md`
-- `/home/pkcs12/projects/opencode/docs/specs/system-prompt-hooks.md`
+- `/home/pkcs12/projects/opencode/specs/system-prompt/hooks.md`
 - 必要的 event/validation 記錄
 
 ### OUT
@@ -50,7 +50,7 @@ Status: Done
   - `.gitignore` 從單檔 ignore `config/data/accounts.json` 擴大為 `/config/data/*.json`，避免 `mcp-auth.json`、`ignored-models.json`、未來其他 runtime mirror 再回流。
 - 修正文檔：
   - `docs/DOCKER.md` 不再把 `accounts.json` / `mcp-auth.json` 描述成應同步進 repo `./config/data/` 的內容。
-  - `docs/specs/system-prompt-hooks.md` 將 `accounts.json` 執行期位置修正為 `~/.config/opencode/`。
+  - `specs/system-prompt/hooks.md` 將 `accounts.json` 執行期位置修正為 `~/.config/opencode/`。
 
 ### Validation
 

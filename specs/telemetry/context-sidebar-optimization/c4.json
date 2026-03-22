@@ -1,0 +1,114 @@
+{
+  "diagram_title": "Telemetry Context Sidebar Optimization — C4 Component Diagram",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "OpenCode Web App",
+      "description": "Browser UI for session, sidebar, and telemetry surfaces.",
+      "external": false
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "Session UI Container",
+      "description": "SolidJS session pages and sidebar components inside packages/app.",
+      "technology": "SolidJS + TypeScript",
+      "systemRef": "SYS1"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "Session Context Tab",
+      "description": "Renders legacy context metrics, breakdown, prompt, and telemetry sections for the context sidebar.",
+      "technology": "SolidJS component",
+      "containerRef": "CT1",
+      "moduleRef": "A2",
+      "filePath": "packages/app/src/components/session/session-context-tab.tsx"
+    },
+    {
+      "id": "C2",
+      "name": "Telemetry Cards",
+      "description": "Reusable card components for prompt, round/session, and quota telemetry surfaces.",
+      "technology": "SolidJS component",
+      "containerRef": "CT1",
+      "moduleRef": "A2",
+      "filePath": "packages/app/src/pages/session/session-telemetry-cards.tsx"
+    },
+    {
+      "id": "C3",
+      "name": "Layout Store",
+      "description": "Persists sidebar layout state and is the likely source for storing context card order.",
+      "technology": "SolidJS store",
+      "containerRef": "CT1",
+      "moduleRef": "A3",
+      "filePath": "packages/app/src/context/layout.tsx"
+    },
+    {
+      "id": "C4",
+      "name": "Session Side Panel Route",
+      "description": "Hosts the desktop context sidebar surface and passes session state into the context tab.",
+      "technology": "SolidJS route component",
+      "containerRef": "CT1",
+      "moduleRef": "A2",
+      "filePath": "packages/app/src/pages/session/session-side-panel.tsx"
+    },
+    {
+      "id": "C5",
+      "name": "Session Tool Page Route",
+      "description": "Hosts the mobile/tool-page context surface and mirrors context-tab usage.",
+      "technology": "SolidJS route component",
+      "containerRef": "CT1",
+      "moduleRef": "A2",
+      "filePath": "packages/app/src/pages/session/tool-page.tsx"
+    },
+    {
+      "id": "C6",
+      "name": "Status Sidebar Pattern",
+      "description": "Existing sortable status-sidebar card pattern used as the reference for context-card ordering.",
+      "technology": "SolidJS component",
+      "containerRef": "CT1",
+      "moduleRef": "A3",
+      "filePath": "packages/app/src/pages/session/session-status-sections.tsx"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL1",
+      "source": "C4",
+      "target": "C1",
+      "description": "renders context sidebar content",
+      "technology": "component composition"
+    },
+    {
+      "id": "REL2",
+      "source": "C5",
+      "target": "C1",
+      "description": "renders context tool-page content",
+      "technology": "component composition"
+    },
+    {
+      "id": "REL3",
+      "source": "C1",
+      "target": "C2",
+      "description": "aligns legacy cards with telemetry card styling",
+      "technology": "shared UI composition"
+    },
+    {
+      "id": "REL4",
+      "source": "C1",
+      "target": "C3",
+      "description": "reads and writes context card order",
+      "technology": "store access"
+    },
+    {
+      "id": "REL5",
+      "source": "C1",
+      "target": "C6",
+      "description": "reuses sortable interaction pattern",
+      "technology": "behavioral reference"
+    }
+  ]
+}
