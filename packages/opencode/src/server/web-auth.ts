@@ -25,6 +25,7 @@ const revoked = new Map<string, number>()
 const lockout = new Map<string, LockState>()
 
 const API_PREFIXES = [
+  "/api/v2",
   "/global",
   "/auth",
   "/project",

@@ -99,6 +99,23 @@ function sessionRouteDebug(event: string, data: Record<string, unknown>) {
 
 export const SessionRoutes = lazy(() =>
   new Hono()
+    .use(async (c, next) => {
+      // Daemon architecture: the web gateway requires an identified user so it
+      // can route to the correct per-user daemon.  Without a username it would
+      // fall back to the web-service user's own (stale) storage.
+      // Skip this guard inside per-user daemons — they already serve a single user.
+      const isDaemonProcess = process.env.OPENCODE_USER_DAEMON_MODE === "1"
+      if (!isDaemonProcess && UserDaemonManager.enabled() && !RequestUser.username()) {
+        return c.json(
+          {
+            code: "USER_IDENTITY_REQUIRED",
+            message: "Session routes require an authenticated user when per-user daemon routing is enabled",
+          },
+          401,
+        )
+      }
+      return next()
+    })
     .get(
       "/",
       describeRoute({

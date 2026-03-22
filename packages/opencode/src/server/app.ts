@@ -137,7 +137,20 @@ export function createApp(app: Hono): Hono {
 
     if (!WebAuth.enabled()) return proceed()
     if (WebAuth.routePublic(c)) return proceed()
-    if (WebAuth.isTrustedLoopbackRequest(c)) return proceed()
+    if (WebAuth.isTrustedLoopbackRequest(c)) {
+      // Daemon architecture: resolve the loopback user so session routes can
+      // route to the correct per-user daemon instead of falling back to the
+      // web-service user's stale storage.
+      if (UserDaemonManager.enabled()) {
+        const explicit = LinuxUserExec.sanitizeUsername(
+          process.env.OPENCODE_TRUSTED_LOOPBACK_USER,
+        )
+        if (explicit) return proceed(explicit)
+        const daemons = UserDaemonManager.list()
+        if (daemons.length === 1) return proceed(daemons[0].username)
+      }
+      return proceed()
+    }
 
     const basicUser = await WebAuth.verifyBasicAuthUser(c)
     if (basicUser) {
