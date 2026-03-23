@@ -48,7 +48,7 @@
 #define PIPE_BUF_SIZE         65536
 #define JWT_SECRET_LEN        32
 #define JWT_EXP_SECONDS       (8 * 3600)   /* 8 hours */
-#define DAEMON_WAIT_MS        5000          /* max wait for per-user daemon socket */
+#define DAEMON_WAIT_MS        15000         /* max wait for per-user daemon socket */
 #define MAX_USERS             64
 
 /* ─── Logging ────────────────────────────────────────────────────── */
@@ -327,10 +327,19 @@ static int pam_authenticate_user(const char *username, const char *password) {
     if (ret != PAM_SUCCESS) { LOGE("pam_start: %s", pam_strerror(pamh, ret)); return 0; }
 
     ret = pam_authenticate(pamh, PAM_SILENT);
-    if (ret != PAM_SUCCESS) { LOGW("pam_authenticate failed for %s", username); pam_end(pamh, ret); return 0; }
+    if (ret != PAM_SUCCESS) {
+        LOGW("pam_authenticate failed for %s: %s (code=%d)", username, pam_strerror(pamh, ret), ret);
+        pam_end(pamh, ret);
+        return 0;
+    }
+    LOGI("pam_authenticate succeeded for %s", username);
 
     ret = pam_acct_mgmt(pamh, PAM_SILENT);
-    if (ret != PAM_SUCCESS) { LOGW("pam_acct_mgmt failed for %s", username); pam_end(pamh, ret); return 0; }
+    if (ret != PAM_SUCCESS) {
+        LOGW("pam_acct_mgmt failed for %s: %s (code=%d)", username, pam_strerror(pamh, ret), ret);
+        pam_end(pamh, ret);
+        return 0;
+    }
 
     pam_end(pamh, PAM_SUCCESS);
     return 1;
@@ -392,14 +401,18 @@ static int wait_for_daemon_ready(DaemonInfo *d, pid_t pid, int timeout_ms) {
             reset_daemon_state(d);
             return 0;
         }
-        if (waited < 0 && errno != ECHILD) {
+        if (waited < 0 && errno == ECHILD) {
+            /* Child was reaped by SIGCHLD or reparented — check socket directly */
+            LOGW("waitpid ECHILD for %s pid %d — child may have been reaped, checking socket", d->username, pid);
+        } else if (waited < 0) {
             LOGE("waitpid readiness check failed for %s: %s", d->username, strerror(errno));
             reset_daemon_state(d);
             return 0;
         }
 
         struct stat st;
-        if (stat(d->socket_path, &st) == 0 && S_ISSOCK(st.st_mode)) {
+        int stat_rc = stat(d->socket_path, &st);
+        if (stat_rc == 0 && S_ISSOCK(st.st_mode)) {
             int probe_fd = connect_unix(d->socket_path);
             if (probe_fd >= 0) {
                 close(probe_fd);
@@ -519,11 +532,12 @@ static int ensure_daemon_running(DaemonInfo *d) {
     }
 
     if (d->state == DAEMON_DEAD || d->state == DAEMON_NONE) {
-        /* Before spawning, check if a daemon was started externally (e.g. TUI --attach) */
+        /* Always try to adopt an existing per-user daemon first.
+         * Per-user daemons are independent processes — never kill them. */
         if (try_adopt_from_discovery(d)) return 1;
 
-        /* Remove stale socket if any */
-        unlink(d->socket_path);
+        /* No existing daemon found — spawn a new one */
+        unlink(d->socket_path); /* remove stale socket only */
 
         LOGI("spawning daemon for %s (uid %u)", d->username, d->uid);
         d->state = DAEMON_STARTING;
@@ -537,20 +551,35 @@ static int ensure_daemon_running(DaemonInfo *d) {
             if (setgid(d->gid) < 0) { _exit(1); }
             if (setuid(d->uid) < 0) { _exit(1); }
 
-            /* Redirect stdin/stdout/stderr to /dev/null */
+            /* Redirect stdin to /dev/null, stdout/stderr to per-user log */
             int devnull = open("/dev/null", O_RDWR);
-            if (devnull >= 0) { dup2(devnull, 0); dup2(devnull, 1); dup2(devnull, 2); close(devnull); }
+            if (devnull >= 0) { dup2(devnull, 0); close(devnull); }
+            {
+                char daemon_log[512];
+                snprintf(daemon_log, sizeof(daemon_log), "/run/user/%u/opencode-per-user-daemon.log", d->uid);
+                int logfd = open(daemon_log, O_WRONLY | O_CREAT | O_APPEND, 0644);
+                if (logfd >= 0) { dup2(logfd, 1); dup2(logfd, 2); close(logfd); }
+            }
 
             char xdg_runtime[256];
-            snprintf(xdg_runtime, sizeof(xdg_runtime), "XDG_RUNTIME_DIR=/run/user/%u", d->uid);
-            char *env[] = { xdg_runtime, NULL };
+            snprintf(xdg_runtime, sizeof(xdg_runtime), "/run/user/%u", d->uid);
+            setenv("XDG_RUNTIME_DIR", xdg_runtime, 1);
+            setenv("OPENCODE_USER_DAEMON_MODE", "1", 1);
 
-            execle(g_opencode_bin, g_opencode_bin, "serve",
-                   "--unix-socket", d->socket_path, NULL, env);
+            if (strchr(g_opencode_bin, ' ') != NULL) {
+                char command[1024];
+                snprintf(command, sizeof(command), "%s serve --unix-socket '%s'",
+                         g_opencode_bin, d->socket_path);
+                execl("/bin/sh", "sh", "-c", command, (char *)NULL);
+            }
+
+            execl(g_opencode_bin, g_opencode_bin, "serve",
+                  "--unix-socket", d->socket_path, (char *)NULL);
             _exit(127);
         }
 
         d->pid = pid;
+        LOGI("forked daemon child for %s: pid=%d", d->username, pid);
 
         /* Wait for socket to appear */
         if (!wait_for_daemon_ready(d, pid, DAEMON_WAIT_MS)) {
@@ -605,7 +634,7 @@ static Connection *start_splice_proxy(int client_fd, DaemonInfo *d) {
     set_nonblock(c->pipe_d2c[0]); set_nonblock(c->pipe_d2c[1]);
 
     /* Register both fds with epoll for bidirectional splice */
-    struct epoll_event ev = { .events = EPOLLIN | EPOLLET };
+    struct epoll_event ev = { .events = EPOLLIN }; /* level-triggered for reliable splice */
     ev.data.ptr = c;
     epoll_ctl(g_epoll_fd, EPOLL_CTL_ADD, client_fd, &ev);
     epoll_ctl(g_epoll_fd, EPOLL_CTL_ADD, daemon_fd, &ev);
@@ -638,6 +667,17 @@ static void http_send(int fd, int status, const char *statusmsg,
         "%s"
         "Connection: close\r\n\r\n",
         status, statusmsg, ctype, bodylen, headers ? headers : "");
+    LOGI("http_send: status=%d hdrlen=%d bodylen=%zu", status, hdrlen, bodylen);
+    if (status == 303) {
+        /* Log raw response for debugging cookie issues */
+        char dbg[2048];
+        int dlen = hdrlen < 2000 ? hdrlen : 2000;
+        memcpy(dbg, hdr, (size_t)dlen);
+        dbg[dlen] = '\0';
+        /* Replace \r\n with | for single-line logging */
+        for (int i = 0; i < dlen; i++) { if (dbg[i] == '\r') dbg[i] = '|'; if (dbg[i] == '\n') dbg[i] = ' '; }
+        LOGI("http_send 303 raw: %s", dbg);
+    }
     send(fd, hdr, (size_t)hdrlen, MSG_NOSIGNAL);
     if (body && bodylen > 0) send(fd, body, bodylen, MSG_NOSIGNAL);
 }
@@ -647,11 +687,6 @@ static void serve_login_page(int fd) {
               g_login_html, g_login_html_len);
 }
 
-static void serve_401(int fd) {
-    const char *body = "{\"error\":\"Unauthorized\"}";
-    http_send(fd, 401, "Unauthorized", "application/json", NULL, body, strlen(body));
-}
-
 /* ─── Request handler ────────────────────────────────────────────── */
 typedef struct {
     char method[8];
@@ -659,6 +694,7 @@ typedef struct {
     char cookie[1024];
     char body[4096];
     int  body_len;
+    int  is_secure; /* 1 if X-Forwarded-Proto: https */
 } HttpRequest;
 
 static int parse_request(const char *buf, size_t len, HttpRequest *req) {
@@ -677,6 +713,15 @@ static int parse_request(const char *buf, size_t len, HttpRequest *req) {
         memcpy(req->cookie, p, clen);
     }
 
+    /* Check X-Forwarded-Proto for SSL termination behind reverse proxy */
+    const char *xfp = strstr(buf, "\r\nX-Forwarded-Proto:");
+    if (!xfp) xfp = strstr(buf, "\r\nx-forwarded-proto:");
+    if (xfp) {
+        xfp += 21; /* skip "\r\nX-Forwarded-Proto:" */
+        while (*xfp == ' ') xfp++;
+        req->is_secure = (strncasecmp(xfp, "https", 5) == 0);
+    }
+
     /* Find body (after \r\n\r\n) */
     const char *body = strstr(buf, "\r\n\r\n");
     if (body) {
@@ -690,7 +735,7 @@ static int parse_request(const char *buf, size_t len, HttpRequest *req) {
     return 1;
 }
 
-static void handle_auth_login(int client_fd, const char *body) {
+static void handle_auth_login(int client_fd, const char *body, int is_secure) {
     /* Parse application/x-www-form-urlencoded: username=...&password=... */
     char raw_user[256] = {}, raw_pass[256] = {};
     const char *p = body;
@@ -709,7 +754,12 @@ static void handle_auth_login(int client_fd, const char *body) {
         else if (strcmp(key, "password") == 0) url_decode(raw_pass, val, sizeof(raw_pass));
     }
 
-    if (!raw_user[0] || !raw_pass[0]) { serve_login_page(client_fd); return; }
+    if (!raw_user[0] || !raw_pass[0]) {
+        LOGW("auth_login: empty username or password (user=%d pass=%d)", (int)strlen(raw_user), (int)strlen(raw_pass));
+        serve_login_page(client_fd);
+        return;
+    }
+    LOGI("auth_login: attempting PAM for user='%s' pass_len=%d", raw_user, (int)strlen(raw_pass));
 
     if (!pam_authenticate_user(raw_user, raw_pass)) {
         /* Return login page with error indication */
@@ -719,20 +769,28 @@ static void handle_auth_login(int client_fd, const char *body) {
     }
 
     /* Auth success: sign JWT */
+    LOGI("auth_login: PAM success for '%s', signing JWT", raw_user);
     char payload[512];
     time_t exp = time(NULL) + JWT_EXP_SECONDS;
     snprintf(payload, sizeof(payload),
              "{\"sub\":\"%s\",\"exp\":%ld}", raw_user, (long)exp);
     char token[1024];
     jwt_sign(payload, token, sizeof(token));
+    LOGI("auth_login: JWT signed, token_len=%d", (int)strlen(token));
 
-    /* Issue cookie + redirect to / */
-    char hdrs[1200];
-    snprintf(hdrs, sizeof(hdrs),
-             "Set-Cookie: oc_jwt=%s; HttpOnly; Path=/; Max-Age=%d\r\n"
-             "Location: /\r\n",
-             token, JWT_EXP_SECONDS);
-    http_send(client_fd, 303, "See Other", "text/plain", hdrs, "", 0);
+    /* Issue cookie via 200 + meta-refresh (avoids browser 303 Set-Cookie race) */
+    LOGI("auth_login: is_secure=%d (X-Forwarded-Proto detection)", is_secure);
+    char cookie_hdr[1200];
+    snprintf(cookie_hdr, sizeof(cookie_hdr),
+             "Set-Cookie: oc_jwt=%s; HttpOnly;%s Path=/; SameSite=Lax; Max-Age=%d\r\n",
+             token, is_secure ? " Secure;" : "", JWT_EXP_SECONDS);
+    const char *redir_body =
+        "<!DOCTYPE html><html><head>"
+        "<meta http-equiv=\"refresh\" content=\"0;url=/\">"
+        "</head><body>Redirecting...</body></html>";
+    LOGI("auth_login: sending 200 + Set-Cookie + meta-refresh for '%s'", raw_user);
+    http_send(client_fd, 200, "OK", "text/html; charset=utf-8", cookie_hdr,
+              redir_body, strlen(redir_body));
 }
 
 static void handle_new_connection(int client_fd) {
@@ -743,7 +801,9 @@ static void handle_new_connection(int client_fd) {
     buf[n] = '\0';
 
     HttpRequest req;
-    if (!parse_request(buf, (size_t)n, &req)) { close(client_fd); return; }
+    if (!parse_request(buf, (size_t)n, &req)) { LOGW("conn: parse_request failed"); close(client_fd); return; }
+
+    LOGI("conn: %s %s cookie_len=%d has_jwt=%d", req.method, req.path, (int)strlen(req.cookie), strstr(req.cookie, "oc_jwt=") ? 1 : 0);
 
     /* Check for valid JWT cookie */
     char *jwt_val = strstr(req.cookie, "oc_jwt=");
@@ -755,27 +815,51 @@ static void handle_new_connection(int client_fd) {
         char username[64] = {};
         uid_t uid = 0;
         if (jwt_verify(jwt_val, username, &uid)) {
+            LOGI("conn: JWT valid for user='%s' uid=%d", username, (int)uid);
             DaemonInfo *d = find_or_create_daemon(username);
             if (d && d->uid == uid && ensure_daemon_running(d)) {
+                LOGI("conn: daemon ready for '%s', starting splice proxy", username);
                 Connection *conn = start_splice_proxy(client_fd, d);
                 if (conn) {
                     send(conn->daemon_fd, buf, (size_t)n, MSG_NOSIGNAL);
                     return;
                 }
+                LOGW("conn: start_splice_proxy failed for '%s'", username);
+            } else {
+                LOGW("conn: daemon not ready for '%s' (d=%p uid_match=%d)", username, (void*)d, d ? (d->uid == uid) : -1);
             }
-            serve_401(client_fd);
+            /* Daemon failed — clear cookie, redirect to login */
+            LOGW("conn: clearing stale JWT and redirecting to login");
+            const char *clear = "HTTP/1.1 303 See Other\r\n"
+                "Set-Cookie: oc_jwt=; HttpOnly; Path=/; Max-Age=0\r\n"
+                "Location: /\r\nConnection: close\r\n\r\n";
+            send(client_fd, clear, strlen(clear), MSG_NOSIGNAL);
             close(client_fd);
             return;
         }
 
-        serve_401(client_fd);
+        LOGW("conn: JWT verify failed, token_len=%d — clearing cookie", (int)strlen(jwt_val));
+        {
+            const char *clear = "HTTP/1.1 303 See Other\r\n"
+                "Set-Cookie: oc_jwt=; HttpOnly; Path=/; Max-Age=0\r\n"
+                "Location: /\r\nConnection: close\r\n\r\n";
+            send(client_fd, clear, strlen(clear), MSG_NOSIGNAL);
+        }
         close(client_fd);
         return;
     }
 
     /* No valid session: route based on path */
     if (strcmp(req.method, "POST") == 0 && strcmp(req.path, "/auth/login") == 0) {
-        handle_auth_login(client_fd, req.body);
+        handle_auth_login(client_fd, req.body, req.is_secure);
+        close(client_fd);
+    } else if (strcmp(req.path, "/auth/test-cookie") == 0) {
+        /* Debug: test Set-Cookie without PAM */
+        char thdrs[512];
+        snprintf(thdrs, sizeof(thdrs),
+                 "Set-Cookie: oc_test=hello; HttpOnly; Path=/; SameSite=Lax; Max-Age=60\r\n"
+                 "Location: /\r\n");
+        http_send(client_fd, 303, "See Other", "text/plain", thdrs, "", 0);
         close(client_fd);
     } else {
         serve_login_page(client_fd);
@@ -856,7 +940,7 @@ int main(int argc, char *argv[]) {
     /* epoll */
     g_epoll_fd = epoll_create1(0);
     if (g_epoll_fd < 0) { LOGE("epoll_create1: %s", strerror(errno)); return 1; }
-    struct epoll_event ev = { .events = EPOLLIN, .data.fd = g_listen_fd };
+    struct epoll_event ev = { .events = EPOLLIN, .data.ptr = NULL /* sentinel: NULL = listen fd */ };
     epoll_ctl(g_epoll_fd, EPOLL_CTL_ADD, g_listen_fd, &ev);
 
     LOGI("opencode-gateway listening on :%d", port);
@@ -871,10 +955,10 @@ int main(int argc, char *argv[]) {
         }
 
         for (int i = 0; i < n; i++) {
-            int fd = events[i].data.fd;
+            Connection *c = (Connection *)events[i].data.ptr;
 
-            if (fd == g_listen_fd) {
-                /* Accept new connections */
+            if (c == NULL) {
+                /* Listen socket — accept new connections */
                 while (1) {
                     int client = accept4(g_listen_fd, NULL, NULL, SOCK_CLOEXEC);
                     if (client < 0) {
@@ -885,15 +969,13 @@ int main(int argc, char *argv[]) {
                     handle_new_connection(client);
                 }
             } else {
-                /* Splice proxy event */
-                Connection *c = (Connection *)events[i].data.ptr;
-                if (!c) continue;
+                /* Splice proxy event — determine direction from epoll fd */
                 if (events[i].events & EPOLLIN) {
-                    if (fd == c->client_fd) {
-                        splice_between(c, c->client_fd, &c->pipe_c2d[1], &c->pipe_c2d[0], c->daemon_fd);
-                    } else if (fd == c->daemon_fd) {
-                        splice_between(c, c->daemon_fd, &c->pipe_d2c[1], &c->pipe_d2c[0], c->client_fd);
-                    }
+                    /* We need to figure out which fd triggered.
+                     * epoll doesn't tell us directly when using data.ptr,
+                     * so we try both directions — splice on empty fd is a no-op (EAGAIN). */
+                    splice_between(c, c->client_fd, &c->pipe_c2d[1], &c->pipe_c2d[0], c->daemon_fd);
+                    splice_between(c, c->daemon_fd, &c->pipe_d2c[1], &c->pipe_d2c[0], c->client_fd);
                 }
                 if (events[i].events & (EPOLLHUP | EPOLLERR)) {
                     close_conn(c);

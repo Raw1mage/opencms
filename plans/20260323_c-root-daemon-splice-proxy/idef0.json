@@ -4,105 +4,161 @@
   "activities": [
     {
       "id": "A1",
-      "title": "Validate Gateway Identity",
-      "description": "Decode and validate JWT claims before proxying authenticated requests.",
-      "decomposition": null
+      "title": "Accept and Buffer HTTP Request",
+      "description": "Non-blocking accept, per-connection read buffer, accumulate until complete HTTP header.",
+      "decomposition": [
+        {
+          "id": "A1.1",
+          "title": "Accept Connection",
+          "description": "accept4() with SOCK_CLOEXEC, set non-blocking, allocate PendingRequest, register to epoll."
+        },
+        {
+          "id": "A1.2",
+          "title": "Accumulate HTTP Data",
+          "description": "On EPOLLIN for pending fd, read available bytes into per-connection buffer until \\r\\n\\r\\n detected."
+        },
+        {
+          "id": "A1.3",
+          "title": "Enforce Request Limits",
+          "description": "Reject oversized (>8KB header) or timed-out (>30s) requests with 400/408 response."
+        }
+      ]
     },
     {
       "id": "A2",
-      "title": "Route User Daemon",
-      "description": "Resolve the correct per-user daemon using verified identity and discovery-first logic.",
-      "decomposition": null
+      "title": "Authenticate User",
+      "description": "PAM auth in dedicated thread, JWT signing, login rate limiting.",
+      "decomposition": [
+        {
+          "id": "A2.1",
+          "title": "Check Rate Limit",
+          "description": "Per-IP sliding window: >5 failures in 60s → 429 without entering PAM."
+        },
+        {
+          "id": "A2.2",
+          "title": "Spawn Auth Thread",
+          "description": "pthread for PAM authenticate + pam_acct_mgmt. Communicates result via eventfd/pipe."
+        },
+        {
+          "id": "A2.3",
+          "title": "Issue JWT Cookie",
+          "description": "On PAM success, sign JWT with file-backed secret (sub + exp), set HttpOnly cookie."
+        }
+      ]
     },
     {
       "id": "A3",
-      "title": "Harden Daemon Lifecycle",
-      "description": "Make adopt, spawn, timeout, stale cleanup, and child-exit behavior explicit and observable.",
-      "decomposition": null
+      "title": "Validate Identity and Route",
+      "description": "Decode JWT claims, verify sub + exp, resolve target daemon by identity.",
+      "decomposition": [
+        {
+          "id": "A3.1",
+          "title": "Decode and Verify JWT",
+          "description": "Base64url decode payload, validate sub + exp, HMAC signature check with file-backed secret."
+        },
+        {
+          "id": "A3.2",
+          "title": "Resolve User Identity",
+          "description": "sub → getpwnam() → uid. Reject if user not found."
+        },
+        {
+          "id": "A3.3",
+          "title": "Select Target Daemon",
+          "description": "find_or_create_daemon(username) → registry lookup by uid → adopt or spawn."
+        }
+      ]
     },
     {
       "id": "A4",
-      "title": "Verify Gateway Behavior",
-      "description": "Validate compile, runtime forwarding, multi-user isolation, and streaming behavior.",
-      "decomposition": null
+      "title": "Manage Daemon Lifecycle",
+      "description": "Discovery-first adopt, fork+setuid spawn, readiness wait, stale cleanup.",
+      "decomposition": [
+        {
+          "id": "A4.1",
+          "title": "Try Adopt from Discovery",
+          "description": "Read daemon.json, verify PID alive, probe socket connectable. Adopt or cleanup stale state."
+        },
+        {
+          "id": "A4.2",
+          "title": "Spawn Per-User Daemon",
+          "description": "fork → initgroups → setgid → setuid → execvp(opencode serve --unix-socket). No sh -c."
+        },
+        {
+          "id": "A4.3",
+          "title": "Wait for Readiness",
+          "description": "Poll socket existence + connectability within timeout. Handle child exit before readiness."
+        },
+        {
+          "id": "A4.4",
+          "title": "Detect Runtime Path",
+          "description": "Check /run/user/<uid>/ → $XDG_RUNTIME_DIR → /tmp/opencode-<uid>/. Log selected path."
+        }
+      ]
     },
     {
       "id": "A5",
-      "title": "Sync Daemon Documentation",
-      "description": "Update event and architecture documents to match the hardened contract.",
-      "decomposition": null
+      "title": "Establish and Run Splice Proxy",
+      "description": "Connect to daemon Unix socket, create pipe pairs, register to epoll with tagged context, splice bidirectionally.",
+      "decomposition": [
+        {
+          "id": "A5.1",
+          "title": "Connect and Allocate",
+          "description": "connect_unix(socket_path), alloc Connection slot, create pipe pairs, set non-blocking."
+        },
+        {
+          "id": "A5.2",
+          "title": "Register with Tagged Context",
+          "description": "Create EpollCtx for client_fd (SPLICE_CLIENT) and daemon_fd (SPLICE_DAEMON), register to epoll."
+        },
+        {
+          "id": "A5.3",
+          "title": "Forward Initial Request",
+          "description": "Send buffered HTTP request bytes to daemon_fd."
+        },
+        {
+          "id": "A5.4",
+          "title": "Run Directional Splice",
+          "description": "On EPOLLIN: check EpollCtx.type → splice only in triggered direction. On HUP/ERR: close."
+        }
+      ]
+    },
+    {
+      "id": "A6",
+      "title": "Manage Connection Lifecycle",
+      "description": "Proper cleanup: EPOLL_CTL_DEL, close fds, release slot, decrement counter, guard in-flight events.",
+      "decomposition": [
+        {
+          "id": "A6.1",
+          "title": "Deregister from epoll",
+          "description": "EPOLL_CTL_DEL for both client_fd and daemon_fd before closing."
+        },
+        {
+          "id": "A6.2",
+          "title": "Close and Release",
+          "description": "Close all fds (client, daemon, pipe pairs), release connection slot, decrement g_nconns."
+        },
+        {
+          "id": "A6.3",
+          "title": "Guard In-Flight Events",
+          "description": "Set closed flag on Connection. Same-round epoll events check flag and skip if set."
+        }
+      ]
     }
   ],
   "arrows": [
-    {
-      "id": "AR1",
-      "source": "EXTERNAL",
-      "target": "A1:input",
-      "label": "JWT Cookie",
-      "type": "input"
-    },
-    {
-      "id": "AR2",
-      "source": "EXTERNAL",
-      "target": "A1:control",
-      "label": "Authentication Contract",
-      "type": "control"
-    },
-    {
-      "id": "AR3",
-      "source": "A1:output",
-      "target": "A2:input",
-      "label": "Verified Identity",
-      "type": "output"
-    },
-    {
-      "id": "AR4",
-      "source": "EXTERNAL",
-      "target": "A2:mechanism",
-      "label": "Daemon Registry And Discovery File",
-      "type": "mechanism"
-    },
-    {
-      "id": "AR5",
-      "source": "A2:output",
-      "target": "A3:input",
-      "label": "Target Daemon Selection",
-      "type": "output"
-    },
-    {
-      "id": "AR6",
-      "source": "EXTERNAL",
-      "target": "A3:control",
-      "label": "Timeout And Fail Fast Rules",
-      "type": "control"
-    },
-    {
-      "id": "AR7",
-      "source": "A3:output",
-      "target": "A4:input",
-      "label": "Observable Lifecycle Outcomes",
-      "type": "output"
-    },
-    {
-      "id": "AR8",
-      "source": "EXTERNAL",
-      "target": "A4:control",
-      "label": "Validation Matrix",
-      "type": "control"
-    },
-    {
-      "id": "AR9",
-      "source": "A4:output",
-      "target": "A5:input",
-      "label": "Verification Evidence",
-      "type": "output"
-    },
-    {
-      "id": "AR10",
-      "source": "EXTERNAL",
-      "target": "A5:mechanism",
-      "label": "Event Log And Architecture Docs",
-      "type": "mechanism"
-    }
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "TCP Connection", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "Buffer Size and Timeout Limits", "type": "control" },
+    { "id": "AR3", "source": "A1:output", "target": "A2:input", "label": "Complete HTTP Login Request", "type": "output" },
+    { "id": "AR4", "source": "A1:output", "target": "A3:input", "label": "Complete HTTP Request with JWT Cookie", "type": "output" },
+    { "id": "AR5", "source": "EXTERNAL", "target": "A2:control", "label": "Rate Limit Policy", "type": "control" },
+    { "id": "AR6", "source": "EXTERNAL", "target": "A2:mechanism", "label": "PAM Service and JWT Secret File", "type": "mechanism" },
+    { "id": "AR7", "source": "A2:output", "target": "EXTERNAL", "label": "JWT Cookie Response", "type": "output" },
+    { "id": "AR8", "source": "A3:output", "target": "A4:input", "label": "Verified Identity needing Daemon", "type": "output" },
+    { "id": "AR9", "source": "EXTERNAL", "target": "A4:mechanism", "label": "Discovery File and Daemon Registry", "type": "mechanism" },
+    { "id": "AR10", "source": "EXTERNAL", "target": "A4:control", "label": "Timeout and Fail Fast Rules", "type": "control" },
+    { "id": "AR11", "source": "A4:output", "target": "A5:input", "label": "Ready Daemon Socket Path", "type": "output" },
+    { "id": "AR12", "source": "A3:output", "target": "A5:input", "label": "Buffered Request Bytes", "type": "output" },
+    { "id": "AR13", "source": "A5:output", "target": "A6:input", "label": "Connection Termination Signal", "type": "output" },
+    { "id": "AR14", "source": "EXTERNAL", "target": "A5:mechanism", "label": "epoll and splice Kernel APIs", "type": "mechanism" }
   ]
 }

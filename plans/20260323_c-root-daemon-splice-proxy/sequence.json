@@ -1,158 +1,99 @@
 [
   {
-    "diagram_title": "Authenticated Request Routing",
-    "scenario": "A browser request with a JWT cookie is validated and proxied to the correct per-user daemon.",
+    "diagram_title": "Non-Blocking Request Accept and HTTP Buffering",
+    "scenario": "A TCP connection arrives and is buffered incrementally until a complete HTTP header is assembled.",
     "moduleRef": "A1",
     "participants": [
-      {
-        "id": "P1",
-        "name": "Browser Client",
-        "type": "actor"
-      },
-      {
-        "id": "P2",
-        "name": "JWT Validator",
-        "type": "component",
-        "componentRef": "C1"
-      },
-      {
-        "id": "P3",
-        "name": "Daemon Router",
-        "type": "component",
-        "componentRef": "C2"
-      },
-      {
-        "id": "P4",
-        "name": "Lifecycle Controller",
-        "type": "component",
-        "componentRef": "C3"
-      },
-      {
-        "id": "P5",
-        "name": "Splice Proxy",
-        "type": "component",
-        "componentRef": "C4"
-      },
-      {
-        "id": "P6",
-        "name": "Per User Opencode Daemon",
-        "type": "component",
-        "componentRef": "C5"
-      }
+      { "id": "P1", "name": "Browser", "type": "actor" },
+      { "id": "P2", "name": "epoll Loop", "type": "component", "componentRef": "C1" },
+      { "id": "P3", "name": "HTTP Accumulator", "type": "component", "componentRef": "C2" }
     ],
     "messages": [
-      {
-        "id": "MSG1",
-        "from": "P1",
-        "to": "P2",
-        "label": "HTTP request with oc_jwt cookie",
-        "type": "sync",
-        "order": 1
-      },
-      {
-        "id": "MSG2",
-        "from": "P2",
-        "to": "P3",
-        "label": "verified identity from planner-locked claim contract",
-        "type": "sync",
-        "order": 2
-      },
-      {
-        "id": "MSG3",
-        "from": "P3",
-        "to": "P4",
-        "label": "resolve/adopt/spawn target daemon",
-        "type": "sync",
-        "order": 3
-      },
-      {
-        "id": "MSG4",
-        "from": "P4",
-        "to": "P3",
-        "label": "ready socket or explicit failure",
-        "type": "return",
-        "order": 4
-      },
-      {
-        "id": "MSG5",
-        "from": "P3",
-        "to": "P5",
-        "label": "start proxy with selected daemon",
-        "type": "sync",
-        "order": 5
-      },
-      {
-        "id": "MSG6",
-        "from": "P5",
-        "to": "P6",
-        "label": "splice byte stream to Unix socket",
-        "type": "sync",
-        "order": 6
-      }
+      { "id": "M1", "from": "P1", "to": "P2", "label": "TCP SYN → accept4(SOCK_CLOEXEC)", "type": "sync", "order": 1 },
+      { "id": "M2", "from": "P2", "to": "P3", "label": "allocate PendingRequest, register fd as EPOLL_PENDING", "type": "sync", "order": 2 },
+      { "id": "M3", "from": "P2", "to": "P2", "label": "return to epoll_wait (non-blocking)", "type": "sync", "order": 3 },
+      { "id": "M4", "from": "P1", "to": "P3", "label": "EPOLLIN: TCP segment 1 (partial header)", "type": "sync", "order": 4 },
+      { "id": "M5", "from": "P3", "to": "P3", "label": "append to buffer, check for \\r\\n\\r\\n → not found", "type": "sync", "order": 5 },
+      { "id": "M6", "from": "P1", "to": "P3", "label": "EPOLLIN: TCP segment 2 (header complete)", "type": "sync", "order": 6 },
+      { "id": "M7", "from": "P3", "to": "P2", "label": "header complete → route to auth/JWT/login handler", "type": "return", "order": 7 }
     ],
     "fragments": [
-      {
-        "id": "FRAG1",
-        "type": "alt",
-        "label": "JWT valid vs invalid",
-        "messageRefs": ["MSG2"]
-      },
-      {
-        "id": "FRAG2",
-        "type": "alt",
-        "label": "daemon adopted or spawned vs explicit error",
-        "messageRefs": ["MSG3", "MSG4"]
-      }
+      { "id": "F1", "type": "loop", "label": "accumulate until header complete or timeout/oversize", "messageRefs": ["M4", "M5", "M6"] }
     ]
   },
   {
-    "diagram_title": "Documentation Sync After Hardening",
-    "scenario": "Verification evidence is written back to the event log and architecture docs after build execution.",
-    "moduleRef": "A5",
+    "diagram_title": "Thread-Per-Auth PAM Login",
+    "scenario": "A login request is rate-checked, then PAM authentication runs in a separate thread without blocking the epoll loop.",
+    "moduleRef": "A2",
     "participants": [
-      {
-        "id": "P1",
-        "name": "Build Agent",
-        "type": "actor"
-      },
-      {
-        "id": "P2",
-        "name": "Splice Proxy",
-        "type": "component",
-        "componentRef": "C4"
-      },
-      {
-        "id": "P3",
-        "name": "Documentation Sync",
-        "type": "component",
-        "componentRef": "C6"
-      }
+      { "id": "P1", "name": "Browser", "type": "actor" },
+      { "id": "P2", "name": "epoll Loop", "type": "component", "componentRef": "C1" },
+      { "id": "P3", "name": "Rate Limiter", "type": "component", "componentRef": "C3" },
+      { "id": "P4", "name": "PAM Thread", "type": "component", "componentRef": "C3" },
+      { "id": "P5", "name": "JWT Engine", "type": "component", "componentRef": "C4" }
     ],
     "messages": [
-      {
-        "id": "MSG1",
-        "from": "P1",
-        "to": "P2",
-        "label": "collect validation evidence",
-        "type": "sync",
-        "order": 1
-      },
-      {
-        "id": "MSG2",
-        "from": "P2",
-        "to": "P3",
-        "label": "verification outcomes and deferred evidence",
-        "type": "sync",
-        "order": 2
-      },
-      {
-        "id": "MSG3",
-        "from": "P3",
-        "to": "P1",
-        "label": "event + architecture sync completed",
-        "type": "return",
-        "order": 3
-      }
+      { "id": "M1", "from": "P2", "to": "P3", "label": "check per-IP failure count", "type": "sync", "order": 1 },
+      { "id": "M2", "from": "P3", "to": "P2", "label": "under limit → proceed", "type": "return", "order": 2 },
+      { "id": "M3", "from": "P2", "to": "P4", "label": "spawn pthread(pam_authenticate)", "type": "async", "order": 3 },
+      { "id": "M4", "from": "P2", "to": "P2", "label": "return to epoll_wait (loop not blocked)", "type": "sync", "order": 4 },
+      { "id": "M5", "from": "P4", "to": "P2", "label": "eventfd signal: PAM result ready", "type": "async", "order": 5 },
+      { "id": "M6", "from": "P2", "to": "P5", "label": "PAM success → sign JWT with file-backed secret", "type": "sync", "order": 6 },
+      { "id": "M7", "from": "P5", "to": "P1", "label": "200 + Set-Cookie: oc_jwt=... + meta-refresh", "type": "sync", "order": 7 }
+    ],
+    "fragments": [
+      { "id": "F1", "type": "alt", "label": "rate limit pass vs reject (429)", "messageRefs": ["M1", "M2"] },
+      { "id": "F2", "type": "alt", "label": "PAM success (sign JWT) vs PAM fail (increment counter)", "messageRefs": ["M5", "M6"] }
+    ]
+  },
+  {
+    "diagram_title": "Authenticated Request → Splice Proxy",
+    "scenario": "A request with valid JWT is verified, daemon resolved, and splice proxy established with tagged epoll context.",
+    "moduleRef": "A3",
+    "participants": [
+      { "id": "P1", "name": "Browser", "type": "actor" },
+      { "id": "P2", "name": "JWT Engine", "type": "component", "componentRef": "C4" },
+      { "id": "P3", "name": "Identity Router", "type": "component", "componentRef": "C5" },
+      { "id": "P4", "name": "Lifecycle Manager", "type": "component", "componentRef": "C6" },
+      { "id": "P5", "name": "Splice Proxy", "type": "component", "componentRef": "C7" },
+      { "id": "P6", "name": "Per-User Daemon", "type": "component", "componentRef": "C9" }
+    ],
+    "messages": [
+      { "id": "M1", "from": "P1", "to": "P2", "label": "HTTP request with oc_jwt cookie", "type": "sync", "order": 1 },
+      { "id": "M2", "from": "P2", "to": "P3", "label": "verified identity: username + uid", "type": "sync", "order": 2 },
+      { "id": "M3", "from": "P3", "to": "P4", "label": "find_or_create_daemon(username) → ensure_daemon_running", "type": "sync", "order": 3 },
+      { "id": "M4", "from": "P4", "to": "P3", "label": "ready socket path (adopted or spawned)", "type": "return", "order": 4 },
+      { "id": "M5", "from": "P3", "to": "P5", "label": "start_splice_proxy(client_fd, daemon_socket)", "type": "sync", "order": 5 },
+      { "id": "M6", "from": "P5", "to": "P5", "label": "register EpollCtx: client_fd=SPLICE_CLIENT, daemon_fd=SPLICE_DAEMON", "type": "sync", "order": 6 },
+      { "id": "M7", "from": "P5", "to": "P6", "label": "forward buffered initial request to daemon Unix socket", "type": "sync", "order": 7 },
+      { "id": "M8", "from": "P6", "to": "P5", "label": "HTTP response via splice (daemon→pipe→client)", "type": "async", "order": 8 },
+      { "id": "M9", "from": "P5", "to": "P1", "label": "splice forwarded response to browser", "type": "async", "order": 9 }
+    ],
+    "fragments": [
+      { "id": "F1", "type": "alt", "label": "JWT valid vs invalid (401/redirect)", "messageRefs": ["M1", "M2"] },
+      { "id": "F2", "type": "alt", "label": "daemon ready vs unavailable (error)", "messageRefs": ["M3", "M4"] }
+    ]
+  },
+  {
+    "diagram_title": "Splice Proxy Directional Event Handling and Cleanup",
+    "scenario": "Epoll events on splice connections are dispatched by tagged EpollCtx type, and cleanup properly deregisters before closing.",
+    "moduleRef": "A5",
+    "participants": [
+      { "id": "P1", "name": "epoll Loop", "type": "component", "componentRef": "C1" },
+      { "id": "P2", "name": "Splice Proxy", "type": "component", "componentRef": "C7" },
+      { "id": "P3", "name": "Connection Lifecycle", "type": "component", "componentRef": "C8" }
+    ],
+    "messages": [
+      { "id": "M1", "from": "P1", "to": "P2", "label": "EPOLLIN on fd → check EpollCtx.type", "type": "sync", "order": 1 },
+      { "id": "M2", "from": "P2", "to": "P2", "label": "type=SPLICE_CLIENT → splice(client→pipe→daemon) only", "type": "sync", "order": 2 },
+      { "id": "M3", "from": "P2", "to": "P2", "label": "type=SPLICE_DAEMON → splice(daemon→pipe→client) only", "type": "sync", "order": 3 },
+      { "id": "M4", "from": "P1", "to": "P3", "label": "EPOLLHUP/EPOLLERR on splice fd", "type": "sync", "order": 4 },
+      { "id": "M5", "from": "P3", "to": "P3", "label": "check closed flag → if already closed, skip", "type": "sync", "order": 5 },
+      { "id": "M6", "from": "P3", "to": "P1", "label": "EPOLL_CTL_DEL(client_fd) + EPOLL_CTL_DEL(daemon_fd)", "type": "sync", "order": 6 },
+      { "id": "M7", "from": "P3", "to": "P3", "label": "close all fds + pipes, set closed flag, g_nconns--, release slot", "type": "sync", "order": 7 }
+    ],
+    "fragments": [
+      { "id": "F1", "type": "alt", "label": "SPLICE_CLIENT direction vs SPLICE_DAEMON direction", "messageRefs": ["M2", "M3"] }
     ]
   }
 ]

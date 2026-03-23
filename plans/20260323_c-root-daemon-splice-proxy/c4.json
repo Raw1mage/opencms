@@ -1,5 +1,5 @@
 {
-  "diagram_title": "C Root Daemon Splice Proxy Hardening — C4 Component Diagram",
+  "diagram_title": "C Root Daemon Splice Proxy — C4 Component Diagram (Post-Hardening Target)",
   "diagram_level": "component",
   "systems": [
     {
@@ -12,123 +12,128 @@
   "containers": [
     {
       "id": "CT1",
-      "name": "Gateway Runtime",
-      "description": "C root gateway handling auth, routing, and splice proxying.",
-      "technology": "C / PAM / epoll / splice",
+      "name": "C Root Gateway",
+      "description": "Root-privileged C daemon handling auth, routing, and splice proxying on TCP :1080.",
+      "technology": "C / epoll / splice / pthread / PAM / OpenSSL",
       "systemRef": "SYS1"
     },
     {
       "id": "CT2",
-      "name": "Per User Backend",
-      "description": "Per-user opencode daemon serving HTTP, SSE, and WebSocket over Unix socket.",
+      "name": "Per-User Daemon",
+      "description": "Per-user opencode backend serving HTTP, SSE, and WebSocket over Unix socket.",
       "technology": "Bun / TypeScript / Unix Socket",
       "systemRef": "SYS1"
     },
     {
       "id": "CT3",
-      "name": "Documentation Surface",
-      "description": "Plan artifacts, event logs, and architecture records.",
-      "technology": "Markdown / JSON",
+      "name": "Filesystem State",
+      "description": "Discovery files, PID files, JWT secret, runtime paths.",
+      "technology": "Filesystem",
       "systemRef": "SYS1"
     }
   ],
   "components": [
     {
       "id": "C1",
-      "name": "JWT Validator",
-      "description": "Parses and validates JWT claims before any authenticated proxying.",
-      "technology": "C",
+      "name": "Connection Acceptor",
+      "description": "Non-blocking accept, allocates PendingRequest, registers to epoll. Never blocks event loop.",
+      "technology": "accept4 / epoll",
       "containerRef": "CT1",
       "moduleRef": "A1",
       "filePath": "daemon/opencode-gateway.c"
     },
     {
       "id": "C2",
-      "name": "Daemon Router",
-      "description": "Maps verified identity to the correct daemon using registry and discovery data.",
-      "technology": "C",
+      "name": "HTTP Request Accumulator",
+      "description": "Per-connection read buffer state machine. Accumulates TCP segments until complete HTTP header.",
+      "technology": "C / epoll EPOLLIN",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "daemon/opencode-gateway.c"
+    },
+    {
+      "id": "C3",
+      "name": "Auth Handler",
+      "description": "Rate limiter + thread-per-auth PAM. Runs PAM in pthread, signals main loop via eventfd.",
+      "technology": "pthread / PAM / eventfd",
       "containerRef": "CT1",
       "moduleRef": "A2",
       "filePath": "daemon/opencode-gateway.c"
     },
     {
-      "id": "C3",
-      "name": "Lifecycle Controller",
-      "description": "Handles adopt, spawn, timeout, stale cleanup, and child exit handling.",
-      "technology": "C",
+      "id": "C4",
+      "name": "JWT Engine",
+      "description": "HMAC-SHA256 sign/verify with file-backed persistent secret. Validates sub + exp claims.",
+      "technology": "OpenSSL HMAC / base64url",
       "containerRef": "CT1",
       "moduleRef": "A3",
       "filePath": "daemon/opencode-gateway.c"
     },
     {
-      "id": "C4",
-      "name": "Splice Proxy",
-      "description": "Forwards byte streams between TCP clients and Unix socket daemons.",
-      "technology": "splice / epoll",
+      "id": "C5",
+      "name": "Identity Router",
+      "description": "Maps verified JWT sub → getpwnam → uid → find_or_create_daemon. No first-available fallback.",
+      "technology": "C / NSS",
+      "containerRef": "CT1",
+      "moduleRef": "A3",
+      "filePath": "daemon/opencode-gateway.c"
+    },
+    {
+      "id": "C6",
+      "name": "Daemon Lifecycle Manager",
+      "description": "Discovery-first adopt, fork+setuid+execvp spawn, readiness poll, stale cleanup, runtime path detection.",
+      "technology": "fork / setuid / execvp / Unix socket probe",
       "containerRef": "CT1",
       "moduleRef": "A4",
       "filePath": "daemon/opencode-gateway.c"
     },
     {
-      "id": "C5",
-      "name": "Per User Opencode Daemon",
-      "description": "The target daemon selected after authentication and identity routing.",
-      "technology": "Bun",
-      "containerRef": "CT2",
-      "moduleRef": "A2"
+      "id": "C7",
+      "name": "Splice Proxy",
+      "description": "Zero-copy bidirectional forwarding. Tagged EpollCtx per fd for directional splice. Proper lifecycle cleanup.",
+      "technology": "splice / epoll / pipe pairs",
+      "containerRef": "CT1",
+      "moduleRef": "A5",
+      "filePath": "daemon/opencode-gateway.c"
     },
     {
-      "id": "C6",
-      "name": "Documentation Sync",
-      "description": "Updates event and architecture docs after hardening work.",
-      "technology": "Markdown",
+      "id": "C8",
+      "name": "Connection Lifecycle Manager",
+      "description": "EPOLL_CTL_DEL before close, g_nconns tracking, closed flag for in-flight event guard.",
+      "technology": "epoll / C",
+      "containerRef": "CT1",
+      "moduleRef": "A6",
+      "filePath": "daemon/opencode-gateway.c"
+    },
+    {
+      "id": "C9",
+      "name": "Per-User Opencode Backend",
+      "description": "Full opencode server running as target user. Serves HTTP/SSE/WebSocket over Unix socket.",
+      "technology": "Bun / TypeScript",
+      "containerRef": "CT2",
+      "moduleRef": "A4"
+    },
+    {
+      "id": "C10",
+      "name": "Discovery and Runtime Files",
+      "description": "daemon.json (socket path, PID), daemon.pid (guard), jwt.key (persistent secret), runtime dir.",
+      "technology": "JSON / key file",
       "containerRef": "CT3",
-      "moduleRef": "A5",
-      "filePath": "docs/events/event_20260319_daemonization.md"
+      "moduleRef": "A4"
     }
   ],
   "relationships": [
-    {
-      "id": "REL1",
-      "source": "C1",
-      "target": "C2",
-      "description": "Provides verified identity claims for daemon selection.",
-      "technology": "in-process function calls"
-    },
-    {
-      "id": "REL2",
-      "source": "C2",
-      "target": "C3",
-      "description": "Invokes adopt or spawn lifecycle handling when daemon state is unresolved.",
-      "technology": "in-process function calls"
-    },
-    {
-      "id": "REL3",
-      "source": "C3",
-      "target": "C5",
-      "description": "Launches or adopts the per-user daemon and yields a ready Unix socket target.",
-      "technology": "fork/setuid/exec + unix socket"
-    },
-    {
-      "id": "REL4",
-      "source": "C2",
-      "target": "C4",
-      "description": "Supplies the selected daemon endpoint for byte-stream forwarding.",
-      "technology": "in-process function calls"
-    },
-    {
-      "id": "REL5",
-      "source": "C4",
-      "target": "C5",
-      "description": "Proxies HTTP/SSE/WebSocket traffic to the per-user backend.",
-      "technology": "TCP to Unix socket splice"
-    },
-    {
-      "id": "REL6",
-      "source": "C4",
-      "target": "C6",
-      "description": "Feeds verification outcomes into event and architecture documentation.",
-      "technology": "execution evidence"
-    }
+    { "id": "REL1", "source": "C1", "target": "C2", "description": "Hands off accepted fd with PendingRequest to accumulator.", "technology": "epoll registration" },
+    { "id": "REL2", "source": "C2", "target": "C3", "description": "Complete login request triggers auth handler.", "technology": "in-process routing" },
+    { "id": "REL3", "source": "C2", "target": "C4", "description": "Complete request with JWT cookie triggers verification.", "technology": "in-process routing" },
+    { "id": "REL4", "source": "C3", "target": "C4", "description": "Auth success → JWT Engine signs token with file-backed secret.", "technology": "function call" },
+    { "id": "REL5", "source": "C4", "target": "C5", "description": "Verified identity (username + uid) passed to router.", "technology": "function call" },
+    { "id": "REL6", "source": "C5", "target": "C6", "description": "Router invokes lifecycle manager to ensure daemon ready.", "technology": "function call" },
+    { "id": "REL7", "source": "C6", "target": "C10", "description": "Reads/writes discovery file, checks PID, detects runtime path.", "technology": "filesystem I/O" },
+    { "id": "REL8", "source": "C6", "target": "C9", "description": "Spawns or adopts per-user daemon process.", "technology": "fork/setuid/execvp + Unix socket" },
+    { "id": "REL9", "source": "C5", "target": "C7", "description": "Provides ready daemon socket for splice proxy setup.", "technology": "function call" },
+    { "id": "REL10", "source": "C7", "target": "C9", "description": "Proxies HTTP/SSE/WebSocket traffic to per-user backend.", "technology": "splice: TCP ↔ pipe ↔ Unix socket" },
+    { "id": "REL11", "source": "C7", "target": "C8", "description": "Termination events trigger connection lifecycle cleanup.", "technology": "EPOLLHUP / EPOLLERR" },
+    { "id": "REL12", "source": "C4", "target": "C10", "description": "Reads JWT secret file on startup.", "technology": "file read" }
   ]
 }
