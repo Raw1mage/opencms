@@ -951,12 +951,7 @@ export namespace SessionProcessor {
                     compactionCount: input.assistantMessage.summary ? 1 : undefined,
                     timestamp: Date.now(),
                   }).catch(() => {})
-                  if (
-                    input.assistantMessage.summary ||
-                    needsCompaction ||
-                    usage.tokens.total !== undefined ||
-                    value.finishReason
-                  ) {
+                  if (input.assistantMessage.summary || needsCompaction) {
                     const roundIndex = input.assistantMessage.summary
                       ? undefined
                       : (sessionInfo?.stats?.requestsTotal ?? undefined)
@@ -967,9 +962,7 @@ export namespace SessionProcessor {
                         : value.finishReason
                           ? "completed"
                           : "draft"
-                      : needsCompaction
-                        ? "pending"
-                        : "completed"
+                      : "pending"
                     const compactionDraftTokens = input.assistantMessage.summary
                       ? usage.tokens.total ||
                         usage.tokens.input +
