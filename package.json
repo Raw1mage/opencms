@@ -7,6 +7,8 @@
   "packageManager": "bun@1.3.9",
   "scripts": {
     "dev": "bun run sync:back && bash script/dev-sync-config.sh && bun run script/runtime-init-check.ts && bun --conditions=browser ./packages/opencode/src/index.ts",
+    "dev:web": "bun run sync:back && bash script/dev-sync-config.sh && bun run script/runtime-init-check.ts && OPENCODE_NO_GATEWAY=1 ./webctl.sh dev-start",
+    "dev:gateway": "bun run sync:back && bash script/dev-sync-config.sh && bun run script/runtime-init-check.ts && ./webctl.sh dev-start",
     "dev:debug": "OPENCODE_DEBUG_LOG=1 bun run sync:back && bash script/dev-sync-config.sh && bun run script/runtime-init-check.ts && OPENCODE_DEBUG_LOG=1 bun --conditions=browser ./packages/opencode/src/index.ts",
     "dev:full": "bun run sync:back && bash script/dev-sync-config.sh && bun run script/runtime-init-check.ts && bun --conditions=browser ./packages/opencode/src/index.ts",
     "dev:perfprobe": "bun run sync:back && bash script/dev-sync-config.sh && bun run script/runtime-init-check.ts && OPENCODE_TUI_PERF_PROBE=1 OPENCODE_TUI_DISABLE_FOOTER_META=1 OPENCODE_TUI_DISABLE_MONITOR_POLL=1 bun --conditions=browser ./packages/opencode/src/index.ts",
