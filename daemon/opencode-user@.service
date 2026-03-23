@@ -1,16 +1,20 @@
 [Unit]
-Description=OpenCode per-user daemon for %i
+Description=TheSmartAI per-user daemon for %i
 After=network.target
+
+# NOTE: This service is optional. The gateway normally spawns per-user
+# daemons on-demand via fork+setuid. This unit is provided for manual
+# pre-start or systemd-based lifecycle management if desired.
 
 [Service]
 Type=simple
 User=%i
+EnvironmentFile=/etc/opencode/opencode.cfg
 ExecStart=/usr/local/bin/opencode serve --unix-socket /run/user/%U/opencode/daemon.sock
 Restart=on-failure
 RestartSec=3
-RuntimeDirectory=opencode
-RuntimeDirectoryMode=0700
 Environment=XDG_RUNTIME_DIR=/run/user/%U
+Environment=OPENCODE_USER_DAEMON_MODE=1
 
 [Install]
 WantedBy=default.target

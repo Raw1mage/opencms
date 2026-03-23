@@ -86,7 +86,7 @@ SERVER_LOG_FILE="${RUNTIME_TMP_BASE}/opencode-web-${PROFILE_SAFE}.log"
 RESTART_LOCK_FILE="${RUNTIME_TMP_BASE}/opencode-web-restart-${PROFILE_SAFE}.lock"
 RESTART_EVENT_LOG="${RUNTIME_TMP_BASE}/opencode-web-restart-${PROFILE_SAFE}.jsonl"
 RESTART_ERROR_LOG_FILE="${RUNTIME_TMP_BASE}/opencode-web-restart-${PROFILE_SAFE}.error.log"
-SYSTEM_SERVICE_NAME="${OPENCODE_SYSTEM_SERVICE_NAME:-opencode-web}"
+SYSTEM_SERVICE_NAME="${OPENCODE_SYSTEM_SERVICE_NAME:-opencode-gateway}"
 
 load_server_cfg() {
     if [ ! -f "${OPENCODE_CFG}" ]; then
@@ -1116,52 +1116,26 @@ do_dev_start() {
         exit 1
     fi
 
-    kill_existing
-
     # Direct mode: skip gateway, run opencode web process directly
     if [ "${OPENCODE_NO_GATEWAY:-0}" = "1" ]; then
+        kill_existing
         _dev_start_direct
         return
     fi
 
-    compile_gateway
-    start_gateway dev
-
-    local pid
-    pid="$(cat "${GATEWAY_PID_FILE}" 2>/dev/null || true)"
-    if [ -z "${pid}" ]; then
-        log_error "Gateway PID file missing after start"
-        exit 1
-    fi
-    echo "${pid}" > "${PID_FILE}"
-    echo "${pid}" > "${BACKEND_PID_FILE}"
-
-    # Wait for health check
-    log_info "Waiting for server to be ready..."
-    local max_attempts=20
-
-    if ! wait_for_health "${max_attempts}"; then
-        log_warn "Server may not be ready yet. Check: ./webctl.sh status"
-    else
-        log_success "Gateway ingress started (pid ${pid})"
-    fi
+    # Gateway mode: switch to dev binary via systemd service
+    switch_gateway_mode dev
 
     echo ""
+    echo "  Mode:     dev (from source)"
     echo "  URL:      ${DISPLAY_URL}"
-    echo "  PID:      ${pid}"
-    echo "  Ingress:  C root gateway -> per-user daemon"
-    if [ "${IS_SOURCE_REPO:-0}" -eq 1 ]; then
-        echo "  Source:   ${PROJECT_ROOT}/packages/opencode/src/"
-    else
-        echo "  Source:   ${OPENCODE_BIN}"
-    fi
+    echo "  Ingress:  C root gateway → per-user daemon (bun)"
+    echo "  Source:   ${PROJECT_ROOT}/packages/opencode/src/"
     echo "  Frontend: ${FRONTEND_DIST}"
-    echo "  Gateway log: ${GATEWAY_LOG_FILE}"
+    echo "  Service:  ${SYSTEM_SERVICE_NAME}.service"
+    echo "  Logs:     journalctl -u ${SYSTEM_SERVICE_NAME} -f"
     print_runtime_context
     print_auth_mode
-    echo ""
-    echo "PTY debug log: ./webctl.sh logs"
-    echo "To stop:       ./webctl.sh stop"
     echo ""
 }
 
@@ -1284,14 +1258,21 @@ do_dev_stop() {
 # web-start / web-stop / web-restart (production systemd service)
 # ---------------------------------------------------------------------------
 do_web_start() {
-    if ! command -v systemctl >/dev/null 2>&1; then
-        log_error "systemctl not found on this system."
-        exit 1
-    fi
+    load_server_cfg
 
-    log_info "Starting production service: ${SYSTEM_SERVICE_NAME}.service"
-    run_systemctl start "${SYSTEM_SERVICE_NAME}.service"
-    run_systemctl --no-pager status "${SYSTEM_SERVICE_NAME}.service" || true
+    # Production mode: switch to installed binary via systemd service
+    switch_gateway_mode prod
+
+    echo ""
+    echo "  Mode:     prod (installed binary)"
+    echo "  URL:      ${DISPLAY_URL}"
+    echo "  Ingress:  C root gateway → per-user daemon (/usr/local/bin/opencode)"
+    echo "  Frontend: ${FRONTEND_DIST}"
+    echo "  Service:  ${SYSTEM_SERVICE_NAME}.service"
+    echo "  Logs:     journalctl -u ${SYSTEM_SERVICE_NAME} -f"
+    print_runtime_context
+    print_auth_mode
+    echo ""
 }
 
 do_web_stop() {
@@ -1997,7 +1978,25 @@ do_gateway_stop() {
 }
 
 do_gateway_status() {
-    if [ -f "${GATEWAY_PID_FILE}" ]; then
+    if command -v systemctl >/dev/null 2>&1; then
+        local status
+        status="$(systemctl is-active "${SYSTEM_SERVICE_NAME}.service" 2>/dev/null || true)"
+        if [ "${status}" = "active" ]; then
+            local main_pid
+            main_pid="$(systemctl show -p MainPID --value "${SYSTEM_SERVICE_NAME}.service" 2>/dev/null || true)"
+            log_success "Gateway running (pid ${main_pid}, systemd service)"
+            # Show current mode
+            local current_bin
+            current_bin="$(grep '^OPENCODE_BIN=' "${OPENCODE_CFG}" 2>/dev/null | cut -d= -f2- | tr -d '"')"
+            if echo "${current_bin}" | grep -q 'bun\|index\.ts'; then
+                echo "  Mode: dev (from source)"
+            else
+                echo "  Mode: prod (${current_bin})"
+            fi
+        else
+            log_warn "Gateway service: ${status:-unknown}"
+        fi
+    elif [ -f "${GATEWAY_PID_FILE}" ]; then
         local gw_pid
         gw_pid=$(cat "${GATEWAY_PID_FILE}")
         if kill -0 "${gw_pid}" 2>/dev/null; then
@@ -2006,7 +2005,102 @@ do_gateway_status() {
             log_warn "Gateway PID file exists but process ${gw_pid} not running"
         fi
     else
-        log_info "Gateway not running (no PID file)"
+        log_info "Gateway not running"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# switch_gateway_mode — unified dev/prod mode switching
+#
+# Updates OPENCODE_BIN in /etc/opencode/opencode.cfg, then restarts the
+# gateway systemd service. Existing per-user daemons are killed so they
+# respawn with the new binary on next request.
+#
+# Usage: switch_gateway_mode dev|prod
+# ---------------------------------------------------------------------------
+switch_gateway_mode() {
+    local mode="${1:?usage: switch_gateway_mode dev|prod}"
+    local new_bin=""
+
+    case "${mode}" in
+        dev)
+            if [ "${IS_SOURCE_REPO:-0}" -ne 1 ]; then
+                log_error "dev mode requires a source repo checkout"
+                exit 1
+            fi
+            local BUN_BIN
+            BUN_BIN="$(find_bun)"
+            new_bin="${BUN_BIN} --conditions=browser ${PROJECT_ROOT}/packages/opencode/src/index.ts"
+            ;;
+        prod)
+            new_bin="${OPENCODE_BIN:-/usr/local/bin/opencode}"
+            # If cfg already has a non-bun path, prefer it; otherwise use installed binary
+            if echo "${new_bin}" | grep -q 'bun\|index\.ts'; then
+                new_bin="/usr/local/bin/opencode"
+            fi
+            ;;
+        *)
+            log_error "Unknown mode: ${mode}. Use 'dev' or 'prod'."
+            exit 1
+            ;;
+    esac
+
+    log_info "Switching to ${mode} mode: OPENCODE_BIN=${new_bin}"
+
+    # Update OPENCODE_BIN in cfg (in-place)
+    if grep -q '^OPENCODE_BIN=' "${OPENCODE_CFG}" 2>/dev/null; then
+        sudo sed -i "s|^OPENCODE_BIN=.*|OPENCODE_BIN=\"${new_bin}\"|" "${OPENCODE_CFG}"
+    else
+        echo "OPENCODE_BIN=\"${new_bin}\"" | sudo tee -a "${OPENCODE_CFG}" >/dev/null
+    fi
+
+    # Ensure gateway binary is installed
+    if [ ! -x "${GATEWAY_INSTALL_BIN}" ]; then
+        compile_gateway
+        log_info "Installing gateway binary to ${GATEWAY_INSTALL_BIN}..."
+        sudo cp "${GATEWAY_BIN}" "${GATEWAY_INSTALL_BIN}"
+    fi
+
+    # Ensure systemd service is installed and enabled
+    local svc_file="/etc/systemd/system/${SYSTEM_SERVICE_NAME}.service"
+    local svc_src="${PROJECT_ROOT}/daemon/opencode-gateway.service"
+    if [ ! -f "${svc_file}" ] || ! diff -q "${svc_src}" "${svc_file}" >/dev/null 2>&1; then
+        log_info "Installing systemd service: ${svc_file}"
+        sudo cp "${svc_src}" "${svc_file}"
+        sudo systemctl daemon-reload
+        sudo systemctl enable "${SYSTEM_SERVICE_NAME}.service" 2>/dev/null || true
+    fi
+
+    # Restart gateway service
+    log_info "Restarting gateway service..."
+    sudo systemctl restart "${SYSTEM_SERVICE_NAME}.service"
+    sleep 1
+
+    if systemctl is-active --quiet "${SYSTEM_SERVICE_NAME}.service" 2>/dev/null; then
+        log_success "Gateway service running (${mode} mode)"
+    else
+        log_error "Gateway service failed to start. Check: journalctl -u ${SYSTEM_SERVICE_NAME}"
+        sudo systemctl status "${SYSTEM_SERVICE_NAME}.service" --no-pager || true
+        return 1
+    fi
+
+    # Kill existing per-user daemons so they respawn with new binary
+    local killed=0
+    for sock in /run/user/*/opencode/daemon.sock; do
+        [ -S "${sock}" ] || continue
+        local uid_dir
+        uid_dir="$(dirname "$(dirname "${sock}")")"
+        local target_uid="${uid_dir##*/}"
+        local daemon_pid
+        daemon_pid="$(sudo fuser "${sock}" 2>/dev/null | tr -d ' ' || true)"
+        if [ -n "${daemon_pid}" ]; then
+            log_info "Killing per-user daemon pid=${daemon_pid} (uid=${target_uid})"
+            sudo kill "${daemon_pid}" 2>/dev/null || true
+            killed=$((killed + 1))
+        fi
+    done
+    if [ "${killed}" -gt 0 ]; then
+        log_info "Killed ${killed} per-user daemon(s). They will respawn on next request."
     fi
 }
 
