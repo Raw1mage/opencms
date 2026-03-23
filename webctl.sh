@@ -1451,43 +1451,70 @@ do_dev_restart() {
 do_restart() {
     load_server_cfg
 
-    local dev_running=0
-    local prod_running=0
-
-    if dev_pid_is_running; then
-        dev_running=1
+    # Detect current mode from cfg
+    local current_bin
+    current_bin="$(grep '^OPENCODE_BIN=' "${OPENCODE_CFG}" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"' || true)"
+    local mode="prod"
+    if echo "${current_bin}" | grep -q 'bun\|index\.ts'; then
+        mode="dev"
     fi
 
+    log_info "Restarting in ${mode} mode..."
+
+    # 1. Rebuild frontend if source repo available
+    if [ "${IS_SOURCE_REPO:-0}" -eq 1 ]; then
+        log_info "Building frontend..."
+        do_build_frontend
+        sync_frontend_dist_if_needed
+    fi
+
+    # 2. Recompile gateway if source changed
+    local gateway_changed=0
+    if [ "${IS_SOURCE_REPO:-0}" -eq 1 ] && [ -f "${GATEWAY_SRC}" ]; then
+        if [ ! -f "${GATEWAY_INSTALL_BIN}" ] || [ "${GATEWAY_SRC}" -nt "${GATEWAY_INSTALL_BIN}" ]; then
+            compile_gateway
+            log_info "Installing gateway binary to ${GATEWAY_INSTALL_BIN}..."
+            sudo cp "${GATEWAY_BIN}" "${GATEWAY_INSTALL_BIN}"
+            gateway_changed=1
+        else
+            log_info "Gateway binary up-to-date, skipping recompile"
+        fi
+    fi
+
+    # 3. Prod mode: rebuild opencode binary if source changed
+    if [ "${mode}" = "prod" ] && [ "${IS_SOURCE_REPO:-0}" -eq 1 ]; then
+        if [ ! -x "/usr/local/bin/opencode" ] || \
+           [ "$(find packages/opencode/src -newer /usr/local/bin/opencode -print -quit 2>/dev/null)" ]; then
+            log_info "Source changed, rebuilding opencode binary..."
+            do_build_binary
+            sudo cp "$(ls -t packages/opencode/dist/opencode-* 2>/dev/null | head -1)" /usr/local/bin/opencode 2>/dev/null || \
+                log_warn "Binary build/install skipped (no dist output found)"
+        else
+            log_info "Opencode binary up-to-date, skipping rebuild"
+        fi
+    fi
+
+    # 4. Compile stale MCP servers
+    compile_internal_mcp_if_stale 2>/dev/null || true
+
+    # 5. Restart gateway service if binary changed
+    if [ "${gateway_changed}" -eq 1 ]; then
+        log_info "Gateway binary updated, restarting service..."
+        sudo systemctl restart "${SYSTEM_SERVICE_NAME}.service"
+        sleep 1
+    fi
+
+    # 6. Kill per-user daemons — they respawn with fresh code on next request
+    log_info "Killing per-user daemons..."
+    do_daemon_killall
+
+    # Verify gateway is healthy
     if system_service_is_active; then
-        prod_running=1
+        log_success "Restart complete (${mode} mode). Per-user daemons will respawn on next request."
+    else
+        log_warn "Gateway service not active. Starting..."
+        sudo systemctl start "${SYSTEM_SERVICE_NAME}.service"
     fi
-
-    if [ "${dev_running}" -eq 1 ] && [ "${prod_running}" -eq 0 ]; then
-        do_dev_refresh "$@"
-        return
-    fi
-
-    if [ "${prod_running}" -eq 1 ] && [ "${dev_running}" -eq 0 ]; then
-        if [ "$#" -gt 0 ]; then
-            log_warn "Dev restart options are ignored for production refresh"
-        fi
-        ensure_non_interactive_sudo web-refresh
-        do_web_refresh
-        return
-    fi
-
-    if [ "${dev_running}" -eq 1 ] && [ "${prod_running}" -eq 1 ]; then
-        if [ "$#" -gt 0 ]; then
-            log_warn "Restart options apply to dev refresh only; production path uses web-refresh semantics"
-        fi
-        ensure_non_interactive_sudo web-refresh
-        do_web_refresh
-        do_dev_refresh "$@"
-        return
-    fi
-
-    log_warn "No active server detected; defaulting to development refresh"
-    do_dev_refresh "$@"
 }
 
 # Internal command used by detached restart worker.
@@ -1567,28 +1594,8 @@ do_restart_worker() {
 # refresh helpers
 # ---------------------------------------------------------------------------
 do_dev_refresh() {
-    # Ensure FRONTEND_DIST uses server SSOT (/etc/opencode/opencode.cfg)
-    # so build output is synced to the actual runtime bundle path.
-    load_server_cfg
-
-    if [ "${IS_SOURCE_REPO:-0}" -ne 1 ]; then
-        log_warn "Source repo unavailable; skipping frontend build and performing controlled dev restart."
-        if [ "$#" -gt 0 ]; then
-            do_dev_restart "$@"
-        else
-            do_dev_restart --graceful
-        fi
-        return $?
-    fi
-
-    log_info "Refreshing dev webapp (build frontend + restart)..."
-    do_build_frontend
-    sync_frontend_dist_if_needed
-    if [ "$#" -gt 0 ]; then
-        do_dev_restart "$@"
-    else
-        do_dev_restart --graceful
-    fi
+    # Unified: delegate to do_restart which handles both modes
+    do_restart
 }
 
 sync_frontend_dist_if_needed() {
@@ -1628,9 +1635,8 @@ sync_frontend_dist_if_needed() {
 }
 
 do_web_refresh() {
-    log_info "Refreshing production web runtime..."
-    compile_internal_mcp_if_stale
-    do_web_restart
+    # Unified: delegate to do_restart which handles both modes
+    do_restart
 }
 
 # ---------------------------------------------------------------------------
