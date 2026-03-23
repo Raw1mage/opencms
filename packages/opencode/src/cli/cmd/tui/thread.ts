@@ -150,17 +150,12 @@ export const TuiThreadCommand = cmd({
 
     // @event_20260319_daemonization Phase γ.4a-c: --attach mode
     if (args.attach) {
-      let daemonInfo = await Daemon.readDiscovery()
+      const daemonInfo = await Daemon.readDiscovery()
       if (!daemonInfo) {
-        // No daemon running — auto-spawn one, then attach
-        UI.println("No running daemon found. Spawning per-user daemon...")
-        try {
-          daemonInfo = await Daemon.spawn()
-          UI.println(`Daemon ready (pid ${daemonInfo.pid})`)
-        } catch (e: any) {
-          UI.error(`Failed to spawn daemon: ${e.message}`)
-          process.exit(1)
-        }
+        UI.error("No running daemon found.")
+        UI.error("The per-user daemon is managed by the gateway service.")
+        UI.error("Access the web UI first to trigger daemon spawn, then retry --attach.")
+        process.exit(1)
       }
       const { socketPath } = daemonInfo
       const url = "http://opencode.daemon"

@@ -897,6 +897,17 @@ list_stale_interactive_candidates() {
     local service_main_pid
     service_main_pid="$(system_service_main_pid || true)"
 
+    # Collect PIDs of known per-user daemons (spawned by gateway via fork+setsid)
+    declare -A known_daemon_pids=()
+    local _dd
+    for _dd in /run/user/*/opencode /tmp/opencode-*; do
+        [ -d "${_dd}" ] || continue
+        local _di
+        _di="$(_daemon_read_discovery "${_dd}")" || continue
+        local _dp="${_di%% *}"
+        [ -n "${_dp}" ] && known_daemon_pids["${_dp}"]=1
+    done
+
     local raw
     raw="$(list_interactive_process_candidates || true)"
     [ -n "${raw}" ] || return 0
@@ -944,6 +955,11 @@ list_stale_interactive_candidates() {
         fi
 
         if [ -n "${service_main_pid}" ] && tree_contains_pid "${root}" "${service_main_pid}"; then
+            continue
+        fi
+
+        # Skip known per-user daemons (gateway fork+setsid, detached from gateway tree)
+        if [ -n "${known_daemon_pids[${root}]:-}" ]; then
             continue
         fi
 
@@ -1646,72 +1662,107 @@ do_status() {
     load_server_cfg
 
     echo ""
-    echo "=== Opencode Web Server Status ==="
+    echo "=== TheSmartAI Gateway Status ==="
     echo ""
 
-    echo "[Development (webctl PID)]"
-    local pid
-    local dev_running=0
-
-    if [ -f "${PID_FILE}" ]; then
-        pid=$(cat "${PID_FILE}" 2>/dev/null || true)
-        if [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null; then
-            dev_running=1
-            echo -e "  Status:   ${GREEN}running${NC} (pid ${pid})"
-            echo "  URL:      ${DISPLAY_URL}"
-            if [ "${IS_SOURCE_REPO:-0}" -eq 1 ]; then
-                echo "  Source:   ${PROJECT_ROOT}/packages/opencode/src/"
-            else
-                echo "  Source:   ${OPENCODE_BIN}"
-            fi
-            echo "  Frontend: ${FRONTEND_DIST}"
-            echo "  Server log: ${SERVER_LOG_FILE}"
-            print_runtime_context
-            local health
-            health=$(curl -s "http://localhost:${WEB_PORT}/api/v2/global/health" 2>/dev/null || echo "(unreachable)")
-            echo "  Health:   ${health}"
-        else
-            echo -e "  Status:   ${RED}stale PID (${pid:-missing} not running)${NC}"
-            rm -f "${PID_FILE}" "${BACKEND_PID_FILE}"
-        fi
-    fi
-
-    if [ $dev_running -eq 0 ]; then
-        echo -e "  Status:   ${RED}stopped${NC}"
-        echo "  Run: ./webctl.sh dev-start"
-    fi
-
-    local stale_count
-    stale_count="$(count_stale_interactive_candidates)"
-    if [ "${stale_count}" -gt 0 ]; then
-        echo -e "  Stale:    ${YELLOW}${stale_count}${NC} interactive runtime candidate(s)"
-        echo "  Flush:    ./webctl.sh flush --dry-run"
-    fi
-
-    echo ""
-    echo "[Production (systemd)]"
+    # --- Gateway service ---
+    echo "[Gateway (systemd)]"
     if command -v systemctl >/dev/null 2>&1; then
-        local prod_status
-        prod_status="$(systemctl is-active "${SYSTEM_SERVICE_NAME}.service" 2>/dev/null || true)"
-        case "${prod_status}" in
+        local gw_status
+        gw_status="$(systemctl is-active "${SYSTEM_SERVICE_NAME}.service" 2>/dev/null || true)"
+        case "${gw_status}" in
             active)
-                echo -e "  Status:   ${GREEN}running${NC} (${SYSTEM_SERVICE_NAME}.service)"
+                local gw_pid
+                gw_pid="$(systemctl show -p MainPID --value "${SYSTEM_SERVICE_NAME}.service" 2>/dev/null || true)"
+                echo -e "  Status:   ${GREEN}running${NC} (pid ${gw_pid})"
+                # Detect mode from OPENCODE_BIN in cfg
+                local current_bin
+                current_bin="$(grep '^OPENCODE_BIN=' "${OPENCODE_CFG}" 2>/dev/null | cut -d= -f2- | tr -d '"')"
+                if echo "${current_bin}" | grep -q 'bun\|index\.ts'; then
+                    echo -e "  Mode:     ${YELLOW}dev${NC} (from source)"
+                else
+                    echo -e "  Mode:     prod (${current_bin})"
+                fi
+                echo "  Service:  ${SYSTEM_SERVICE_NAME}.service"
                 ;;
             *)
-                echo -e "  Status:   ${RED}${prod_status:-unknown}${NC} (${SYSTEM_SERVICE_NAME}.service)"
-                echo "  Run: ./webctl.sh web-start"
+                echo -e "  Status:   ${RED}${gw_status:-unknown}${NC} (${SYSTEM_SERVICE_NAME}.service)"
+                echo "  Run: ./webctl.sh dev-start  or  ./webctl.sh web-start"
                 ;;
         esac
     else
         echo -e "  Status:   ${YELLOW}systemctl not available${NC}"
     fi
 
+    # --- Stale interactive runtimes (legacy) ---
+    local stale_count
+    stale_count="$(count_stale_interactive_candidates)"
+    if [ "${stale_count}" -gt 0 ]; then
+        echo ""
+        echo "[Stale Runtimes]"
+        echo -e "  Count:    ${YELLOW}${stale_count}${NC} interactive runtime candidate(s)"
+        echo "  Flush:    ./webctl.sh flush --dry-run"
+    fi
+
+    # --- HTTP Health ---
     echo ""
     local health
     health=$(curl -s "http://localhost:${WEB_PORT}/api/v2/global/health" 2>/dev/null || echo "(unreachable)")
     echo "[HTTP Health]"
     echo "  URL:      ${DISPLAY_URL}"
     echo "  Health:   ${health}"
+
+    # --- Per-User Daemons ---
+    echo ""
+    echo "[Per-User Daemons]"
+    local daemon_found=0
+    local daemon_header=0
+    for dir in /run/user/*/opencode /tmp/opencode-*; do
+        [ -d "${dir}" ] || continue
+        local json="${dir}/daemon.json"
+        [ -f "${json}" ] || continue
+        local info
+        info="$(_daemon_read_discovery "${dir}")" || continue
+        local pid sock
+        pid="${info%% *}"
+        sock="${info#* }"
+        if [ "${daemon_header}" -eq 0 ]; then
+            printf "  %-12s %-8s %-6s %-6s %s\n" "USER" "PID" "ALIVE" "MODE" "SOCKET"
+            printf "  %-12s %-8s %-6s %-6s %s\n" "----" "---" "-----" "----" "------"
+            daemon_header=1
+        fi
+        local alive="no"
+        kill -0 "${pid}" 2>/dev/null && alive="yes"
+        # Detect mode from /proc/<pid>/cmdline
+        local mode="?"
+        if [ -r "/proc/${pid}/cmdline" ]; then
+            local cmdline
+            cmdline="$(tr '\0' ' ' < "/proc/${pid}/cmdline" 2>/dev/null || true)"
+            if echo "${cmdline}" | grep -q 'bun\|index\.ts'; then
+                mode="dev"
+            else
+                mode="prod"
+            fi
+        fi
+        local username="?"
+        local uid_from_path=""
+        if [[ "${dir}" =~ /run/user/([0-9]+)/ ]]; then
+            uid_from_path="${BASH_REMATCH[1]}"
+        elif [[ "${dir}" =~ /tmp/opencode-([0-9]+) ]]; then
+            uid_from_path="${BASH_REMATCH[1]}"
+        fi
+        if [ -n "${uid_from_path}" ]; then
+            username="$(getent passwd "${uid_from_path}" 2>/dev/null | cut -d: -f1)" || username="uid:${uid_from_path}"
+            [ -z "${username}" ] && username="uid:${uid_from_path}"
+        fi
+        printf "  %-12s %-8s %-6s %-6s %s\n" "${username}" "${pid}" "${alive}" "${mode}" "${sock}"
+        daemon_found=$((daemon_found + 1))
+    done
+    if [ "${daemon_found}" -eq 0 ]; then
+        echo "  (none)"
+    else
+        echo "  ${daemon_found} daemon(s) total"
+    fi
     echo ""
 }
 

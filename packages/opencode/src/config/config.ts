@@ -176,7 +176,9 @@ export namespace Config {
     const memory = getLocalMemoryMcp(config)
     if (!memory) return config
 
-    const projectMemoryPath = path.join(Instance.worktree, ".opencode", "memory", "project.jsonl")
+    // Use XDG data path with project ID to avoid creating ~/.opencode/ in user home
+    // when the daemon's cwd is home (non-git directory).
+    const projectMemoryPath = path.join(Global.Path.data, "memory", Instance.project.id, "project.jsonl")
 
     return {
       ...config,
