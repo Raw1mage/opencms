@@ -1,0 +1,158 @@
+[
+  {
+    "diagram_title": "Authenticated Request Routing",
+    "scenario": "A browser request with a JWT cookie is validated and proxied to the correct per-user daemon.",
+    "moduleRef": "A1",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "Browser Client",
+        "type": "actor"
+      },
+      {
+        "id": "P2",
+        "name": "JWT Validator",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P3",
+        "name": "Daemon Router",
+        "type": "component",
+        "componentRef": "C2"
+      },
+      {
+        "id": "P4",
+        "name": "Lifecycle Controller",
+        "type": "component",
+        "componentRef": "C3"
+      },
+      {
+        "id": "P5",
+        "name": "Splice Proxy",
+        "type": "component",
+        "componentRef": "C4"
+      },
+      {
+        "id": "P6",
+        "name": "Per User Opencode Daemon",
+        "type": "component",
+        "componentRef": "C5"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "HTTP request with oc_jwt cookie",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "verified identity from planner-locked claim contract",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P4",
+        "label": "resolve/adopt/spawn target daemon",
+        "type": "sync",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P4",
+        "to": "P3",
+        "label": "ready socket or explicit failure",
+        "type": "return",
+        "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P3",
+        "to": "P5",
+        "label": "start proxy with selected daemon",
+        "type": "sync",
+        "order": 5
+      },
+      {
+        "id": "MSG6",
+        "from": "P5",
+        "to": "P6",
+        "label": "splice byte stream to Unix socket",
+        "type": "sync",
+        "order": 6
+      }
+    ],
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "alt",
+        "label": "JWT valid vs invalid",
+        "messageRefs": ["MSG2"]
+      },
+      {
+        "id": "FRAG2",
+        "type": "alt",
+        "label": "daemon adopted or spawned vs explicit error",
+        "messageRefs": ["MSG3", "MSG4"]
+      }
+    ]
+  },
+  {
+    "diagram_title": "Documentation Sync After Hardening",
+    "scenario": "Verification evidence is written back to the event log and architecture docs after build execution.",
+    "moduleRef": "A5",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "Build Agent",
+        "type": "actor"
+      },
+      {
+        "id": "P2",
+        "name": "Splice Proxy",
+        "type": "component",
+        "componentRef": "C4"
+      },
+      {
+        "id": "P3",
+        "name": "Documentation Sync",
+        "type": "component",
+        "componentRef": "C6"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "collect validation evidence",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "verification outcomes and deferred evidence",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P1",
+        "label": "event + architecture sync completed",
+        "type": "return",
+        "order": 3
+      }
+    ]
+  }
+]

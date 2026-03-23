@@ -1,0 +1,108 @@
+{
+  "diagram_title": "C Root Daemon Splice Proxy Hardening — IDEF0",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Validate Gateway Identity",
+      "description": "Decode and validate JWT claims before proxying authenticated requests.",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Route User Daemon",
+      "description": "Resolve the correct per-user daemon using verified identity and discovery-first logic.",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Harden Daemon Lifecycle",
+      "description": "Make adopt, spawn, timeout, stale cleanup, and child-exit behavior explicit and observable.",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Verify Gateway Behavior",
+      "description": "Validate compile, runtime forwarding, multi-user isolation, and streaming behavior.",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Sync Daemon Documentation",
+      "description": "Update event and architecture documents to match the hardened contract.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "JWT Cookie",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Authentication Contract",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "Verified Identity",
+      "type": "output"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "Daemon Registry And Discovery File",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR5",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "Target Daemon Selection",
+      "type": "output"
+    },
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "Timeout And Fail Fast Rules",
+      "type": "control"
+    },
+    {
+      "id": "AR7",
+      "source": "A3:output",
+      "target": "A4:input",
+      "label": "Observable Lifecycle Outcomes",
+      "type": "output"
+    },
+    {
+      "id": "AR8",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "Validation Matrix",
+      "type": "control"
+    },
+    {
+      "id": "AR9",
+      "source": "A4:output",
+      "target": "A5:input",
+      "label": "Verification Evidence",
+      "type": "output"
+    },
+    {
+      "id": "AR10",
+      "source": "EXTERNAL",
+      "target": "A5:mechanism",
+      "label": "Event Log And Architecture Docs",
+      "type": "mechanism"
+    }
+  ]
+}

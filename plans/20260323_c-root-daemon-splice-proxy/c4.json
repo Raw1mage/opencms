@@ -1,0 +1,134 @@
+{
+  "diagram_title": "C Root Daemon Splice Proxy Hardening — C4 Component Diagram",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "OpenCode Daemonization Runtime",
+      "description": "Privileged gateway plus per-user backend runtime for web and TUI access.",
+      "external": false
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "Gateway Runtime",
+      "description": "C root gateway handling auth, routing, and splice proxying.",
+      "technology": "C / PAM / epoll / splice",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT2",
+      "name": "Per User Backend",
+      "description": "Per-user opencode daemon serving HTTP, SSE, and WebSocket over Unix socket.",
+      "technology": "Bun / TypeScript / Unix Socket",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT3",
+      "name": "Documentation Surface",
+      "description": "Plan artifacts, event logs, and architecture records.",
+      "technology": "Markdown / JSON",
+      "systemRef": "SYS1"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "JWT Validator",
+      "description": "Parses and validates JWT claims before any authenticated proxying.",
+      "technology": "C",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "daemon/opencode-gateway.c"
+    },
+    {
+      "id": "C2",
+      "name": "Daemon Router",
+      "description": "Maps verified identity to the correct daemon using registry and discovery data.",
+      "technology": "C",
+      "containerRef": "CT1",
+      "moduleRef": "A2",
+      "filePath": "daemon/opencode-gateway.c"
+    },
+    {
+      "id": "C3",
+      "name": "Lifecycle Controller",
+      "description": "Handles adopt, spawn, timeout, stale cleanup, and child exit handling.",
+      "technology": "C",
+      "containerRef": "CT1",
+      "moduleRef": "A3",
+      "filePath": "daemon/opencode-gateway.c"
+    },
+    {
+      "id": "C4",
+      "name": "Splice Proxy",
+      "description": "Forwards byte streams between TCP clients and Unix socket daemons.",
+      "technology": "splice / epoll",
+      "containerRef": "CT1",
+      "moduleRef": "A4",
+      "filePath": "daemon/opencode-gateway.c"
+    },
+    {
+      "id": "C5",
+      "name": "Per User Opencode Daemon",
+      "description": "The target daemon selected after authentication and identity routing.",
+      "technology": "Bun",
+      "containerRef": "CT2",
+      "moduleRef": "A2"
+    },
+    {
+      "id": "C6",
+      "name": "Documentation Sync",
+      "description": "Updates event and architecture docs after hardening work.",
+      "technology": "Markdown",
+      "containerRef": "CT3",
+      "moduleRef": "A5",
+      "filePath": "docs/events/event_20260319_daemonization.md"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL1",
+      "source": "C1",
+      "target": "C2",
+      "description": "Provides verified identity claims for daemon selection.",
+      "technology": "in-process function calls"
+    },
+    {
+      "id": "REL2",
+      "source": "C2",
+      "target": "C3",
+      "description": "Invokes adopt or spawn lifecycle handling when daemon state is unresolved.",
+      "technology": "in-process function calls"
+    },
+    {
+      "id": "REL3",
+      "source": "C3",
+      "target": "C5",
+      "description": "Launches or adopts the per-user daemon and yields a ready Unix socket target.",
+      "technology": "fork/setuid/exec + unix socket"
+    },
+    {
+      "id": "REL4",
+      "source": "C2",
+      "target": "C4",
+      "description": "Supplies the selected daemon endpoint for byte-stream forwarding.",
+      "technology": "in-process function calls"
+    },
+    {
+      "id": "REL5",
+      "source": "C4",
+      "target": "C5",
+      "description": "Proxies HTTP/SSE/WebSocket traffic to the per-user backend.",
+      "technology": "TCP to Unix socket splice"
+    },
+    {
+      "id": "REL6",
+      "source": "C4",
+      "target": "C6",
+      "description": "Feeds verification outcomes into event and architecture documentation.",
+      "technology": "execution evidence"
+    }
+  ]
+}

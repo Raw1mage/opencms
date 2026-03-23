@@ -1,0 +1,86 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Receive authenticated request and begin JWT verification",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["authenticated request arrives"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Decode JWT and validate the planner-locked identity contract claims",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 3],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["claims validated", "claims invalid or expired"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Resolve target daemon by verified identity using adopt then spawn flow",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [4, 5],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["daemon ready", "adopt or spawn failed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Reject request without proxying and emit unauthorized response",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["response sent"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Run splice forwarding verification and record runtime evidence",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["verification complete"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Surface daemon startup or lifecycle failure for explicit handling",
+    "LinkInputType": ["divergence_or"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["failure recorded"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Sync event and architecture documentation with hardened contract",
+    "LinkInputType": ["track", "track"],
+    "LinkInputNumber": [4, 5],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["documentation synced"],
+    "SubGrafcet": []
+  }
+]
