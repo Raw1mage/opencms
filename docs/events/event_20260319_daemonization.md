@@ -150,8 +150,29 @@ _(N/A - new feature)_
 - [x] Phase ζ/η/θ 實作
 - [x] Phase ω 實作
 - [x] Runtime verification — single-user JWT → daemon spawn → splice proxy → frontend+API (Session 5)
-- [ ] Runtime verification — PAM browser login / SSE / WebSocket / multi-user
+- [x] Runtime verification — PAM browser login through reverse proxy (Session 6)
+- [x] Reverse proxy compatibility — cookie, auth routing, systemd integration (Session 6)
+- [x] Client-side hardening — --attach fail-fast, XDG memory path, flush exclusion (Session 7)
+- [x] Spec formalized to `specs/daemonization/` (Session 7)
+- [ ] Runtime verification — SSE / WebSocket / multi-user (deferred)
 - [ ] Webapp-side changes (ζ.6-8 Last-Event-ID reconnection, ε.8 account event subscription)
+
+**Session 6 (2026-03-23~24)** — Reverse Proxy & systemd Integration:
+- Case-insensitive cookie header parsing: nginx HTTP/2→HTTP/1.1 lowercases headers (`Cookie:` → `cookie:`). Fixed by searching both forms.
+- Auth route priority: POST `/auth/login` handled before JWT verification to prevent proxying to daemon (which returns 404).
+- JS client-side cookie: `document.cookie` + `window.location.replace('/')` instead of `Set-Cookie` header, bypassing nginx response header stripping.
+- systemd service file: `opencode-gateway.service` with `EnvironmentFile=/etc/opencode/opencode.cfg`.
+- Config template: added section 5 (OPENCODE_BIN, GATEWAY_PORT, LOGIN_HTML).
+- webctl.sh: `switch_gateway_mode()`, unified `do_restart()` with auto-rebuild, `do_status()` with gateway mode + per-user daemon list (USER/PID/ALIVE/MODE/SOCKET).
+- Branding: login page "TheSmartAI".
+- End-to-end verified: crm.sob.com.tw → nginx → gateway → PAM auth → JWT → daemon → frontend.
+
+**Session 7 (2026-03-24)** — Client-Side Hardening & Spec Formalization:
+- `--attach` fail-fast: removed `Daemon.spawn()` auto-fallback; TUI now errors if no gateway-spawned daemon found.
+- Memory MCP XDG path: changed from `<worktree>/.opencode/memory/` to `~/.local/share/opencode/memory/<project-id>/`. Root cause: gateway daemon cwd = home → worktree = home → mkdir creates `~/.opencode/`.
+- webctl flush daemon exclusion: `list_stale_interactive_candidates()` now scans daemon.json discovery files and excludes known per-user daemon PIDs (gateway fork+setsid detaches child from process tree).
+- `do_status()` refactored: removed obsolete `[Development (webctl PID)]` section, unified to gateway-centric layout.
+- Spec formalized from `plans/20260323_c-root-daemon-splice-proxy/` to `specs/daemonization/`.
 
 ## Architecture Sync
 
@@ -160,3 +181,5 @@ Architecture Sync: Updated — added Daemon Architecture section (gateway, per-u
 Architecture Sync (Session 4): Updated — `specs/architecture.md` C Root Gateway section now reflects non-blocking event loop, EpollCtx tagged dispatch, PendingRequest HTTP accumulation, thread-per-auth PAM, rate limiting, JWT file-backed persistence, execvp argv, splice directional proxy, connection lifecycle, runtime path detection (WSL2-safe), and PAM availability probe.
 
 Architecture Sync (Session 5): Verified (No doc changes) — runtime bug fixes (deadline overflow, env forwarding) and branding rename do not change architectural boundaries or flows.
+
+Architecture Sync (Session 6-7): Verified (No doc changes needed to architecture.md) — reverse proxy compat, systemd integration, --attach contract, XDG memory path, and flush exclusion are operational refinements within existing architectural boundaries. Spec formalized to `specs/daemonization/`.
