@@ -7,6 +7,10 @@ import { Todo } from "@/session/todo"
 import { ProcessSupervisor } from "@/process/supervisor"
 import { enqueuePendingContinuation, resumePendingContinuations } from "@/session/workflow-runner"
 import { SessionStatus } from "@/session/status"
+import { Log } from "@/util/log"
+import z from "zod"
+
+const log = Log.create({ service: "task-worker-continuation" })
 
 async function enqueueParentContinuation(input: {
   parentSessionID: string
@@ -81,6 +85,36 @@ async function enqueueParentContinuation(input: {
     throw new Error(`task_completion_tool_part_missing:${input.toolCallID}`)
   }
 
+  // Fix: update tool part state from "running" to "completed"/"error" so sidebar monitor clears
+  const partNow = Date.now()
+  const startTime = taskPart.state.status === "running" ? taskPart.state.time.start : partNow
+  log.info("updating task tool part state", {
+    parentSessionID: input.parentSessionID, toolCallID: input.toolCallID,
+    childSessionID: input.childSessionID, previousStatus: taskPart.state?.status,
+    newStatus: input.ok ? "completed" : "error",
+  })
+  const completedState: z.infer<typeof MessageV2.ToolState> = input.ok
+    ? {
+        status: "completed" as const,
+        input: taskPart.state.input,
+        output: `Subagent ${input.childSessionID} completed successfully.`,
+        title: taskPart.state.status === "running" ? (taskPart.state.title ?? "task") : "task",
+        metadata: taskPart.state.status === "running" ? (taskPart.state.metadata ?? {}) : {},
+        time: { start: startTime, end: partNow },
+      }
+    : {
+        status: "error" as const,
+        input: taskPart.state.input,
+        error: input.error ?? `Subagent ${input.childSessionID} failed.`,
+        time: { start: startTime, end: partNow },
+      }
+  await Session.updatePart({
+    ...taskPart,
+    state: completedState,
+  }).catch((err) => log.error("failed to update task tool part state", {
+    parentSessionID: input.parentSessionID, toolCallID: input.toolCallID, error: String(err),
+  }))
+
   try {
     await markActiveChildHandoff().catch(() => undefined)
     if (input.linkedTodoID) {
@@ -154,7 +188,10 @@ async function enqueueParentContinuation(input: {
       lastRunAt: now,
     }).catch(() => undefined)
 
-    await resumePendingContinuations({ maxCount: 1, preferredSessionID: input.parentSessionID }).catch(() => undefined)
+    log.info("triggering resumePendingContinuations", { parentSessionID: input.parentSessionID, childSessionID: input.childSessionID, ok: input.ok })
+    await resumePendingContinuations({ maxCount: 1, preferredSessionID: input.parentSessionID }).catch((err) => {
+      log.error("resumePendingContinuations failed", { parentSessionID: input.parentSessionID, childSessionID: input.childSessionID, error: String(err) })
+    })
   } catch (error) {
     if (input.linkedTodoID) {
       await Todo.reconcileProgress({
@@ -186,6 +223,7 @@ export function registerTaskWorkerContinuationSubscriber() {
   })
 
   Bus.subscribeGlobal(TaskWorkerEvent.Done.type, 0, async (event) => {
+    log.info("TaskWorkerEvent.Done received", { workerID: event.properties.workerID, sessionID: event.properties.sessionID, parentSessionID: event.properties.parentSessionID, toolCallID: event.properties.toolCallID })
     await enqueueParentContinuation({
       parentSessionID: event.properties.parentSessionID,
       parentMessageID: event.properties.parentMessageID,
@@ -193,10 +231,11 @@ export function registerTaskWorkerContinuationSubscriber() {
       childSessionID: event.properties.sessionID,
       linkedTodoID: event.properties.linkedTodoID,
       ok: true,
-    })
+    }).catch((err) => log.error("enqueueParentContinuation failed (Done)", { parentSessionID: event.properties.parentSessionID, error: String(err) }))
   })
 
   Bus.subscribeGlobal(TaskWorkerEvent.Failed.type, 0, async (event) => {
+    log.info("TaskWorkerEvent.Failed received", { workerID: event.properties.workerID, sessionID: event.properties.sessionID, parentSessionID: event.properties.parentSessionID, toolCallID: event.properties.toolCallID, error: event.properties.error })
     await enqueueParentContinuation({
       parentSessionID: event.properties.parentSessionID,
       parentMessageID: event.properties.parentMessageID,
@@ -205,6 +244,6 @@ export function registerTaskWorkerContinuationSubscriber() {
       linkedTodoID: event.properties.linkedTodoID,
       ok: false,
       error: event.properties.error,
-    })
+    }).catch((err) => log.error("enqueueParentContinuation failed (Failed)", { parentSessionID: event.properties.parentSessionID, error: String(err) }))
   })
 }

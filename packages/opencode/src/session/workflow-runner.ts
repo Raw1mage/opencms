@@ -20,6 +20,9 @@ import {
   resolveBetaAdmissionAuthority,
 } from "./mission-consumption"
 import { debugCheckpoint } from "@/util/debug"
+import { Log } from "@/util/log"
+
+const log = Log.create({ service: "workflow-runner" })
 import RUNNER_CONTRACT from "./prompt/runner.txt"
 import {
   type RunTrigger,
@@ -1232,16 +1235,25 @@ export async function enqueuePendingContinuation(
 export async function resumePendingContinuations(input?: { maxCount?: number; preferredSessionID?: string }) {
   using _lock = await Lock.write(RESUME_LOCK)
 
+  log.info("resumePendingContinuations: start", { maxCount: input?.maxCount, preferredSessionID: input?.preferredSessionID })
+
   // Kill-switch gate: if active, skip all resume attempts (Slice 3: kill-switch blocks dequeue)
   const { KillSwitchService } = await import("@/server/killswitch/service")
   const globalGate = await KillSwitchService.assertSchedulingAllowed()
-  if (!globalGate.ok) return
+  if (!globalGate.ok) {
+    log.info("resumePendingContinuations: blocked by kill-switch")
+    return
+  }
 
   const items = await listPendingContinuations()
+  log.info("resumePendingContinuations: pending items", { count: items.length, sessionIDs: items.map((i) => i.sessionID) })
   const resumable: ResumeCandidate[] = []
   for (const item of items) {
     const inFlight = resumeInFlight.has(item.sessionID)
-    if (inFlight) continue
+    if (inFlight) {
+      log.info("resumePendingContinuations: skipping in-flight", { sessionID: item.sessionID })
+      continue
+    }
     const session = await Session.get(item.sessionID).catch(() => undefined)
     if (!session) {
       await clearPendingContinuation(item.sessionID)
@@ -1270,11 +1282,13 @@ export async function resumePendingContinuations(input?: { maxCount?: number; pr
   }
 
   const maxCount = input?.maxCount ?? 1
+  log.info("resumePendingContinuations: resumable", { count: resumable.length, sessionIDs: resumable.map((r) => r.pending.sessionID) })
   const selected = pickPendingContinuationsForResume({
     items: resumable,
     maxCount,
     preferredSessionID: input?.preferredSessionID,
   })
+  log.info("resumePendingContinuations: selected", { count: selected.length, sessionIDs: selected.map((s) => s.pending.sessionID) })
 
   for (const item of selected) {
     const sessionID = item.pending.sessionID
