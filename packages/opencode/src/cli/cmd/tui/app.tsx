@@ -308,6 +308,9 @@ function App() {
     // Prefer renderer "auto" mode so it can go idle when nothing changes.
     // This is important for low CPU usage when the TUI is not being interacted with.
     renderer.auto()
+    // Activate the opentui console panel so Toggle Console has log content.
+    // This overrides console.log/warn/error/debug to feed into TerminalConsoleCache.
+    renderer.console.activate()
     debugCheckpoint("app", "mount")
   })
   onCleanup(() => {

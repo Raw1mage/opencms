@@ -830,9 +830,29 @@ export namespace Session {
   })
 
   export const remove = fn(Identifier.schema("session"), async (sessionID) => {
-    const project = Instance.project
     try {
-      const session = await get(sessionID)
+      // Resolve the session's actual projectID from storage rather than assuming
+      // Instance.project.  listGlobal() returns cross-project sessions, so the
+      // caller may be deleting a session that belongs to a different project.
+      let session: Info | undefined
+      let ownerProjectID = Instance.project.id
+      try {
+        session = await get(sessionID)
+      } catch {
+        // Session not in current project — scan all projects
+        for (const item of await Storage.list(["session"])) {
+          const sid = item.at(-1)
+          if (sid !== sessionID) continue
+          const projectID = item.length >= 3 ? item[1] : undefined
+          if (projectID) ownerProjectID = projectID
+          session = await Storage.read<Info>(item).catch(() => undefined)
+          break
+        }
+      }
+      if (!session) {
+        log.warn("session not found for removal", { sessionID })
+        return
+      }
       for (const child of await children(sessionID)) {
         await remove(child.id)
       }
@@ -843,7 +863,7 @@ export namespace Session {
         }
         await Storage.remove(msg)
       }
-      await Storage.remove(["session", project.id, sessionID])
+      await Storage.remove(["session", ownerProjectID, sessionID])
       Bus.publish(Event.Deleted, {
         info: session,
       })
