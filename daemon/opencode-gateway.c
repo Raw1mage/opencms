@@ -16,7 +16,6 @@
  * Requires: libpam-dev, libssl-dev
  */
 
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -127,6 +126,11 @@ static int set_nonblock(int fd) {
     return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
+static void reset_daemon_state(DaemonInfo *d) {
+    d->pid = -1;
+    d->state = DAEMON_NONE;
+}
+
 /* ─── Utility: simple URL-decode (in-place) ─────────────────────── */
 static void url_decode(char *dst, const char *src, size_t dstlen) {
     size_t i = 0;
@@ -169,6 +173,62 @@ static void b64url_encode(const uint8_t *in, size_t inlen, char *out, size_t *ou
     if (outlen) *outlen = o;
 }
 
+static int b64url_decode(const char *in, uint8_t *out, size_t outcap, size_t *outlen) {
+    char tmp[1024];
+    size_t len = strlen(in);
+    if (len >= sizeof(tmp) - 4) return 0;
+    memcpy(tmp, in, len + 1);
+    for (size_t i = 0; i < len; i++) {
+        if (tmp[i] == '-') tmp[i] = '+';
+        else if (tmp[i] == '_') tmp[i] = '/';
+    }
+    size_t pad = (4 - (len % 4)) % 4;
+    for (size_t i = 0; i < pad; i++) tmp[len + i] = '=';
+    tmp[len + pad] = '\0';
+
+    int decoded = EVP_DecodeBlock(out, (const unsigned char *)tmp, (int)(len + pad));
+    if (decoded < 0) return 0;
+    size_t actual = (size_t)decoded;
+    while (pad > 0 && actual > 0) {
+        actual--;
+        pad--;
+    }
+    if (actual >= outcap) return 0;
+    out[actual] = '\0';
+    if (outlen) *outlen = actual;
+    return 1;
+}
+
+static int json_extract_string(const char *json, const char *key, char *out, size_t outlen) {
+    char pattern[64];
+    snprintf(pattern, sizeof(pattern), "\"%s\":\"", key);
+    char *start = strstr(json, pattern);
+    if (!start) return 0;
+    start += strlen(pattern);
+    char *end = strchr(start, '"');
+    if (!end) return 0;
+    size_t len = (size_t)(end - start);
+    if (len == 0 || len >= outlen) return 0;
+    memcpy(out, start, len);
+    out[len] = '\0';
+    return 1;
+}
+
+static int json_extract_long(const char *json, const char *key, long *out) {
+    char pattern[64];
+    snprintf(pattern, sizeof(pattern), "\"%s\":", key);
+    char *start = strstr(json, pattern);
+    char *endptr = NULL;
+    long value;
+    if (!start) return 0;
+    start += strlen(pattern);
+    errno = 0;
+    value = strtol(start, &endptr, 10);
+    if (errno != 0 || endptr == start) return 0;
+    *out = value;
+    return 1;
+}
+
 static void jwt_sign(const char *payload, char *out_token, size_t toklen) {
     /* header.payload */
     const char *header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"; /* {"alg":"HS256","typ":"JWT"} */
@@ -192,38 +252,51 @@ static void jwt_sign(const char *payload, char *out_token, size_t toklen) {
 }
 
 static int jwt_verify(const char *token, char *out_username, uid_t *out_uid) {
-    /* Split into header.payload.sig */
     char buf[1024];
-    strncpy(buf, token, sizeof(buf)-1);
-    char *dot1 = strchr(buf, '.');
-    if (!dot1) return 0;
-    char *dot2 = strchr(dot1+1, '.');
-    if (!dot2) return 0;
-
-    /* Verify signature */
-    *dot2 = '\0';
+    char msg[1024];
+    char payload_json[512];
+    uint8_t payload_raw[512];
     uint8_t sig[32];
     unsigned int siglen = 32;
-    HMAC(EVP_sha256(), g_jwt_secret, JWT_SECRET_LEN,
-         (const uint8_t *)buf, strlen(buf), sig, &siglen);
     char sig64[64];
     size_t sig64len;
-    b64url_encode(sig, siglen, sig64, &sig64len);
-    if (strcmp(sig64, dot2+1) != 0) return 0;
+    size_t payload_len;
+    long exp;
+    char *dot1;
+    char *dot2;
+    struct passwd *pw;
 
-    /* Decode payload */
-    const char *pay64 = dot1+1;
-    /* minimal: look for "uid":NNN and "sub":"..." */
-    /* We store payload as plain JSON directly in base64url */
-    /* Simple pattern match */
-    if (sscanf(strstr(pay64, "uid") ? pay64 : "", "%*[^{]{%*[^\"]\"%*[^\"]\":\"%64[^\"]\"", out_username) > 0) {}
-    /* Actually re-decode */
-    /* For simplicity: payload IS the raw JSON we encoded */
-    /* Find "sub" and "uid" in the base64url-decoded payload */
-    /* Quick hack: the payload was b64url-encoded JSON */
-    (void)pay64; (void)out_username; (void)out_uid;
-    /* TODO: full base64url decode + JSON parse for production */
-    /* For now: accept any valid-signature token */
+    strncpy(buf, token, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+    dot1 = strchr(buf, '.');
+    if (!dot1) return 0;
+    dot2 = strchr(dot1 + 1, '.');
+    if (!dot2) return 0;
+
+    *dot1 = '\0';
+    *dot2 = '\0';
+    size_t header_len = strlen(buf);
+    size_t payload_b64_len = strlen(dot1 + 1);
+    if (header_len + 1 + payload_b64_len >= sizeof(msg)) return 0;
+    memcpy(msg, buf, header_len);
+    msg[header_len] = '.';
+    memcpy(msg + header_len + 1, dot1 + 1, payload_b64_len + 1);
+
+    HMAC(EVP_sha256(), g_jwt_secret, JWT_SECRET_LEN,
+         (const uint8_t *)msg, strlen(msg), sig, &siglen);
+    b64url_encode(sig, siglen, sig64, &sig64len);
+    if (strcmp(sig64, dot2 + 1) != 0) return 0;
+
+    if (!b64url_decode(dot1 + 1, payload_raw, sizeof(payload_raw), &payload_len)) return 0;
+    memcpy(payload_json, payload_raw, payload_len + 1);
+
+    if (!json_extract_string(payload_json, "sub", out_username, 64)) return 0;
+    if (!json_extract_long(payload_json, "exp", &exp)) return 0;
+    if (exp <= (long)time(NULL)) return 0;
+
+    pw = getpwnam(out_username);
+    if (!pw) return 0;
+    *out_uid = pw->pw_uid;
     return 1;
 }
 
@@ -278,7 +351,7 @@ static DaemonInfo *find_or_create_daemon(const char *username) {
     DaemonInfo *d = &g_daemons[g_ndaemons++];
     d->uid = pw->pw_uid;
     d->gid = pw->pw_gid;
-    strncpy(d->username, username, sizeof(d->username)-1);
+    snprintf(d->username, sizeof(d->username), "%s", username);
     snprintf(d->socket_path, sizeof(d->socket_path),
              "/run/user/%u/opencode/daemon.sock", pw->pw_uid);
     d->pid   = -1;
@@ -286,19 +359,65 @@ static DaemonInfo *find_or_create_daemon(const char *username) {
     return d;
 }
 
-static int wait_for_socket(const char *path, int timeout_ms) {
+static int connect_unix(const char *path) {
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0) return -1;
+    struct sockaddr_un addr = { .sun_family = AF_UNIX };
+    strncpy(addr.sun_path, path, sizeof(addr.sun_path)-1);
+    if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) { close(fd); return -1; }
+    return fd;
+}
+
+static void cleanup_stale_runtime(DaemonInfo *d, const char *discovery_path, const char *reason) {
+    LOGW("clearing stale daemon state for %s: %s", d->username, reason);
+    if (discovery_path && discovery_path[0]) unlink(discovery_path);
+    if (d->socket_path[0]) unlink(d->socket_path);
+    reset_daemon_state(d);
+}
+
+static int wait_for_daemon_ready(DaemonInfo *d, pid_t pid, int timeout_ms) {
     struct timespec deadline, now;
+    int last_connect_errno = 0;
+
     clock_gettime(CLOCK_MONOTONIC, &deadline);
     deadline.tv_nsec += (long)timeout_ms * 1000000L;
     if (deadline.tv_nsec >= 1000000000L) { deadline.tv_sec++; deadline.tv_nsec -= 1000000000L; }
 
     while (1) {
+        int status;
+        pid_t waited = waitpid(pid, &status, WNOHANG);
+        if (waited == pid) {
+            LOGE("daemon for %s exited before readiness (pid %d, status %d)",
+                 d->username, pid, status);
+            reset_daemon_state(d);
+            return 0;
+        }
+        if (waited < 0 && errno != ECHILD) {
+            LOGE("waitpid readiness check failed for %s: %s", d->username, strerror(errno));
+            reset_daemon_state(d);
+            return 0;
+        }
+
         struct stat st;
-        if (stat(path, &st) == 0 && S_ISSOCK(st.st_mode)) return 1;
+        if (stat(d->socket_path, &st) == 0 && S_ISSOCK(st.st_mode)) {
+            int probe_fd = connect_unix(d->socket_path);
+            if (probe_fd >= 0) {
+                close(probe_fd);
+                return 1;
+            }
+            last_connect_errno = errno;
+        }
+
         clock_gettime(CLOCK_MONOTONIC, &now);
         if (now.tv_sec > deadline.tv_sec ||
-            (now.tv_sec == deadline.tv_sec && now.tv_nsec >= deadline.tv_nsec)) return 0;
-        usleep(100000); /* 100ms */
+            (now.tv_sec == deadline.tv_sec && now.tv_nsec >= deadline.tv_nsec)) {
+            LOGE("daemon for %s did not become ready within %dms (last connect error: %s)",
+                 d->username, timeout_ms,
+                 last_connect_errno ? strerror(last_connect_errno) : "socket not present");
+            reset_daemon_state(d);
+            return 0;
+        }
+        usleep(100000);
     }
 }
 
@@ -313,14 +432,7 @@ static int try_adopt_from_discovery(DaemonInfo *d) {
              "/run/user/%u/opencode/daemon.json", d->uid);
 
     FILE *f = fopen(discovery_path, "r");
-    if (!f) {
-        /* Try fallback: /tmp/opencode-<uid>/daemon.json */
-        char fallback[256];
-        snprintf(fallback, sizeof(fallback),
-                 "/tmp/opencode-%u/daemon.json", d->uid);
-        f = fopen(fallback, "r");
-        if (!f) return 0;
-    }
+    if (!f) return 0;
 
     char buf[1024];
     size_t n = fread(buf, 1, sizeof(buf)-1, f);
@@ -330,27 +442,57 @@ static int try_adopt_from_discovery(DaemonInfo *d) {
     /* Minimal JSON parse: extract "socketPath" and "pid" */
     char *sp = strstr(buf, "\"socketPath\"");
     char *pp = strstr(buf, "\"pid\"");
-    if (!sp || !pp) return 0;
+    if (!sp || !pp) {
+        cleanup_stale_runtime(d, discovery_path, "discovery file missing socketPath/pid");
+        return 0;
+    }
 
     /* socketPath value */
     char *colon = strchr(sp + 12, '"');
-    if (!colon) return 0;
+    if (!colon) {
+        cleanup_stale_runtime(d, discovery_path, "discovery file has invalid socketPath");
+        return 0;
+    }
     colon++; /* skip opening quote */
     char *end = strchr(colon, '"');
-    if (!end) return 0;
+    if (!end) {
+        cleanup_stale_runtime(d, discovery_path, "discovery file has unterminated socketPath");
+        return 0;
+    }
     size_t pathlen = (size_t)(end - colon);
-    if (pathlen >= sizeof(d->socket_path)) return 0;
+    if (pathlen == 0 || pathlen >= sizeof(d->socket_path)) {
+        cleanup_stale_runtime(d, discovery_path, "discovery socketPath length invalid");
+        return 0;
+    }
     memcpy(d->socket_path, colon, pathlen);
     d->socket_path[pathlen] = '\0';
 
     /* pid value */
     char *pval = strchr(pp + 5, ':');
-    if (!pval) return 0;
+    if (!pval) {
+        cleanup_stale_runtime(d, discovery_path, "discovery file missing pid value");
+        return 0;
+    }
     pid_t pid = (pid_t)atoi(pval + 1);
-    if (pid <= 0) return 0;
+    if (pid <= 0) {
+        cleanup_stale_runtime(d, discovery_path, "discovery pid invalid");
+        return 0;
+    }
 
     /* Verify PID is alive */
-    if (kill(pid, 0) != 0) return 0;
+    if (kill(pid, 0) != 0) {
+        cleanup_stale_runtime(d, discovery_path, "discovery pid is not alive");
+        return 0;
+    }
+
+    int probe_fd = connect_unix(d->socket_path);
+    if (probe_fd < 0) {
+        char reason[256];
+        snprintf(reason, sizeof(reason), "discovery socket is not connectable: %s", strerror(errno));
+        cleanup_stale_runtime(d, discovery_path, reason);
+        return 0;
+    }
+    close(probe_fd);
 
     d->pid   = pid;
     d->state = DAEMON_READY;
@@ -362,7 +504,17 @@ static int try_adopt_from_discovery(DaemonInfo *d) {
 static int ensure_daemon_running(DaemonInfo *d) {
     if (d->state == DAEMON_READY) {
         /* Verify still alive */
-        if (kill(d->pid, 0) == 0) return 1;
+        if (d->pid > 0 && kill(d->pid, 0) == 0) {
+            int probe_fd = connect_unix(d->socket_path);
+            if (probe_fd >= 0) {
+                close(probe_fd);
+                return 1;
+            }
+            LOGW("daemon for %s marked stale: socket connect failed: %s",
+                 d->username, strerror(errno));
+        } else {
+            LOGW("daemon for %s marked stale: pid %d is not alive", d->username, d->pid);
+        }
         d->state = DAEMON_DEAD;
     }
 
@@ -401,10 +553,8 @@ static int ensure_daemon_running(DaemonInfo *d) {
         d->pid = pid;
 
         /* Wait for socket to appear */
-        if (!wait_for_socket(d->socket_path, DAEMON_WAIT_MS)) {
-            LOGE("daemon for %s did not start within %dms", d->username, DAEMON_WAIT_MS);
+        if (!wait_for_daemon_ready(d, pid, DAEMON_WAIT_MS)) {
             kill(pid, SIGTERM);
-            d->state = DAEMON_DEAD;
             return 0;
         }
 
@@ -416,15 +566,6 @@ static int ensure_daemon_running(DaemonInfo *d) {
 }
 
 /* ─── splice() proxy ─────────────────────────────────────────────── */
-static int connect_unix(const char *path) {
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (fd < 0) return -1;
-    struct sockaddr_un addr = { .sun_family = AF_UNIX };
-    strncpy(addr.sun_path, path, sizeof(addr.sun_path)-1);
-    if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) { close(fd); return -1; }
-    return fd;
-}
-
 static Connection *alloc_conn(void) {
     for (int i = 0; i < MAX_CONNS; i++) {
         if (g_conns[i].client_fd < 0) return &g_conns[i];
@@ -614,18 +755,22 @@ static void handle_new_connection(int client_fd) {
         char username[64] = {};
         uid_t uid = 0;
         if (jwt_verify(jwt_val, username, &uid)) {
-            /* Proxy to per-user daemon */
-            /* For now: use sub from token — in production parse properly */
-            /* Simplified: route to first available daemon for demo */
-            if (g_ndaemons > 0 && g_daemons[0].state == DAEMON_READY) {
-                Connection *conn = start_splice_proxy(client_fd, &g_daemons[0]);
+            DaemonInfo *d = find_or_create_daemon(username);
+            if (d && d->uid == uid && ensure_daemon_running(d)) {
+                Connection *conn = start_splice_proxy(client_fd, d);
                 if (conn) {
-                    /* Re-send the buffered request bytes to the daemon */
                     send(conn->daemon_fd, buf, (size_t)n, MSG_NOSIGNAL);
                     return;
                 }
             }
+            serve_401(client_fd);
+            close(client_fd);
+            return;
         }
+
+        serve_401(client_fd);
+        close(client_fd);
+        return;
     }
 
     /* No valid session: route based on path */
