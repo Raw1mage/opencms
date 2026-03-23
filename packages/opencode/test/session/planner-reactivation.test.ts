@@ -88,6 +88,110 @@ async function waitForPendingQuestion(sessionID: string, timeoutMs = 2000) {
   return []
 }
 
+async function answerNextQuestion(sessionID: string, answers: string[]) {
+  const pending = await waitForPendingQuestion(sessionID)
+  expect(pending.length).toBe(1)
+  await Question.reply({ requestID: pending[0].id, answers: answers.map((answer) => [answer]) })
+}
+
+async function writePlannerJsonArtifacts(planPath: string) {
+  await Bun.write(
+    planPath.replace("implementation-spec.md", "idef0.json"),
+    JSON.stringify(
+      {
+        diagram_title: "Planner Handoff",
+        node_reference: "A0",
+        activities: [{ id: "A1", title: "Emit Build Handoff", description: "handoff", decomposition: null }],
+        arrows: [{ id: "AR1", source: "EXTERNAL", target: "A1:input", label: "Plan", type: "input" }],
+      },
+      null,
+      2,
+    ),
+  )
+  await Bun.write(
+    planPath.replace("implementation-spec.md", "grafcet.json"),
+    JSON.stringify(
+      [
+        {
+          StepNumber: 0,
+          ModuleRef: "A1",
+          StepType: "initial",
+          StepAction: "Start",
+          LinkInputType: [],
+          LinkInputNumber: [1],
+          LinkOutputNumber: [1],
+          LinkOutputType: "track",
+          Condition: ["ready"],
+          SubGrafcet: [],
+        },
+        {
+          StepNumber: 1,
+          ModuleRef: "A1",
+          StepType: "normal",
+          StepAction: "Emit Handoff",
+          LinkInputType: [],
+          LinkInputNumber: [0],
+          LinkOutputNumber: [0],
+          LinkOutputType: "track",
+          Condition: ["reset"],
+          SubGrafcet: [],
+        },
+      ],
+      null,
+      2,
+    ),
+  )
+  await Bun.write(
+    planPath.replace("implementation-spec.md", "c4.json"),
+    JSON.stringify(
+      {
+        diagram_title: "Planner Components",
+        diagram_level: "component",
+        systems: [{ id: "SYS1", name: "Planner", description: "planner", external: false }],
+        containers: [
+          { id: "CT1", name: "Runtime", description: "runtime", technology: "TypeScript", systemRef: "SYS1" },
+        ],
+        components: [
+          {
+            id: "C1",
+            name: "PlanExitTool",
+            description: "handoff",
+            technology: "module",
+            containerRef: "CT1",
+            moduleRef: "A1",
+            filePath: "packages/opencode/src/tool/plan.ts",
+          },
+        ],
+        relationships: [
+          { id: "REL1", source: "C1", target: "SYS1", description: "emits handoff", technology: "function call" },
+        ],
+      },
+      null,
+      2,
+    ),
+  )
+  await Bun.write(
+    planPath.replace("implementation-spec.md", "sequence.json"),
+    JSON.stringify(
+      [
+        {
+          diagram_title: "Handoff Flow",
+          scenario: "plan exit",
+          moduleRef: "A1",
+          participants: [
+            { id: "P1", name: "Planner", type: "actor", componentRef: "SYS1" },
+            { id: "P2", name: "PlanExitTool", type: "component", componentRef: "C1" },
+          ],
+          messages: [{ id: "MSG1", from: "P1", to: "P2", label: "exit plan", type: "sync", order: 1 }],
+          fragments: [],
+        },
+      ],
+      null,
+      2,
+    ),
+  )
+}
+
 describe("planner reactivation", () => {
   test("plan_enter creates a structured spec template when missing", async () => {
     const originalClient = process.env.OPENCODE_CLIENT
@@ -938,6 +1042,7 @@ describe("planner reactivation", () => {
             planPath.replace("implementation-spec.md", "handoff.md"),
             "# Handoff\n\n## Execution Contract\n- Build agent reads implementation-spec.md first\n\n## Required Reads\n- implementation-spec.md\n- design.md\n- tasks.md\n\n## Stop Gates In Force\n- Preserve approval and decision gates\n\n## Execution-Ready Checklist\n- [ ] Implementation spec complete\n- [ ] Companion artifacts aligned\n- [ ] Validation plan explicit\n",
           )
+          await writePlannerJsonArtifacts(planPath)
 
           const { PlanExitTool } = await import("../../src/tool/plan")
           const tool = await PlanExitTool.init()
@@ -1015,6 +1120,292 @@ describe("planner reactivation", () => {
           expect(todos[0]?.status).toBe("in_progress")
           expect(todos[0]?.content).toContain("Task from tasks artifact A")
           await Session.remove(session.id)
+        },
+      })
+    } finally {
+      if (originalClient === undefined) delete process.env.OPENCODE_CLIENT
+      else process.env.OPENCODE_CLIENT = originalClient
+    }
+  })
+
+  test("plan_exit passes beta admission quiz and persists success", async () => {
+    const originalClient = process.env.OPENCODE_CLIENT
+    process.env.OPENCODE_CLIENT = "app"
+    try {
+      await using tmp = await tmpdir({ git: true })
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const session = await Session.create({})
+          await Session.setMission({
+            sessionID: session.id,
+            mission: {
+              source: "openspec_compiled_plan",
+              contract: "implementation_spec",
+              approvedAt: 1,
+              planPath: "plans/seed/implementation-spec.md",
+              executionReady: false,
+              artifactPaths: plannerArtifacts(session),
+              beta: {
+                branchName: "feature/test-beta",
+                baseBranch: "cms",
+                repoPath: "/repo",
+                mainWorktreePath: "/repo",
+                betaPath: "/repo-beta",
+              },
+            } as any,
+          })
+          const planPath = Session.plan(session)
+          await Bun.write(
+            planPath,
+            "# Plan\n\n## Goal\nTest planner handoff\n\n## Scope\n### IN\n- planner runtime\n\n### OUT\n- daemon rewrite\n\n## Assumptions\n- runtime state is available\n\n## Stop Gates\n- pause if approval is needed\n\n## Critical Files\n- packages/opencode/src/tool/plan.ts\n\n## Structured Execution Phases\n- Read the approved spec\n\n## Validation\n- Run targeted tests\n\n## Handoff\n- Build should execute from this spec\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "tasks.md"),
+            "# Tasks\n\n## 1. Workstream\n- [ ] 1.1 Task A\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "proposal.md"),
+            "# Proposal\n\n## Why\n- Need planning reliability\n\n## What Changes\n- Strengthen planner handoff contract\n\n## Capabilities\n### New Capabilities\n- planner-handoff: structured build handoff\n\n### Modified Capabilities\n- planner-runtime: stronger plan_exit checks\n\n## Impact\n- Affects plan/build workflow and runtime handoff metadata\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "spec.md"),
+            "# Spec\n\n## Purpose\n- Define planner handoff behavior\n\n## Requirements\n\n### Requirement: Planner SHALL provide execution-ready handoff\nThe system SHALL produce build-consumable handoff metadata from planner artifacts.\n\n#### Scenario: plan_exit after complete artifacts\n- **GIVEN** complete planner artifacts\n- **WHEN** plan_exit is invoked\n- **THEN** build handoff metadata is emitted\n\n## Acceptance Checks\n- Handoff metadata includes artifact paths and materialized todos\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "design.md"),
+            "# Design\n\n## Context\n- Planner artifacts are consumed by build mode\n\n## Goals / Non-Goals\n**Goals:**\n- Produce deterministic handoff contract\n\n**Non-Goals:**\n- Implement daemon runtime in this slice\n\n## Decisions\n- Use plan_exit gate and metadata envelope\n\n## Risks / Trade-offs\n- Stricter gates increase planning rigor but add upfront requirements\n\n## Critical Files\n- packages/opencode/src/tool/plan.ts\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "handoff.md"),
+            "# Handoff\n\n## Execution Contract\n- Build agent reads implementation-spec.md first\n\n## Required Reads\n- implementation-spec.md\n- design.md\n- tasks.md\n\n## Stop Gates In Force\n- Preserve approval and decision gates\n\n## Execution-Ready Checklist\n- [ ] Implementation spec complete\n",
+          )
+          await writePlannerJsonArtifacts(planPath)
+
+          const { PlanExitTool } = await import("../../src/tool/plan")
+          const tool = await PlanExitTool.init()
+          const execution = tool.execute({}, {
+            sessionID: session.id,
+            abort: new AbortController().signal,
+            messageID: "msg_test",
+            callID: "call_test",
+            agent: "plan",
+            messages: [],
+            metadata: async () => {},
+            ask: async () => [["Yes"]],
+            extra: {},
+          } as any)
+          await answerNextQuestion(session.id, ["Yes"])
+          await answerNextQuestion(session.id, [
+            "/repo",
+            "/repo",
+            "cms",
+            "/repo-beta",
+            "/repo-beta",
+            "feature/test-beta",
+            "/repo",
+          ])
+          await execution
+
+          const updated = await Session.get(session.id)
+          expect(updated.mission?.admission?.betaQuiz).toMatchObject({ status: "passed", reflectionUsed: false })
+        },
+      })
+    } finally {
+      if (originalClient === undefined) delete process.env.OPENCODE_CLIENT
+      else process.env.OPENCODE_CLIENT = originalClient
+    }
+  })
+
+  test("plan_exit allows one beta admission retry and then passes", async () => {
+    const originalClient = process.env.OPENCODE_CLIENT
+    process.env.OPENCODE_CLIENT = "app"
+    try {
+      await using tmp = await tmpdir({ git: true })
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const session = await Session.create({})
+          await Session.setMission({
+            sessionID: session.id,
+            mission: {
+              source: "openspec_compiled_plan",
+              contract: "implementation_spec",
+              approvedAt: 1,
+              planPath: "plans/seed/implementation-spec.md",
+              executionReady: false,
+              artifactPaths: plannerArtifacts(session),
+              beta: {
+                branchName: "feature/test-beta",
+                baseBranch: "cms",
+                repoPath: "/repo",
+                mainWorktreePath: "/repo",
+                betaPath: "/repo-beta",
+              },
+            } as any,
+          })
+          const planPath = Session.plan(session)
+          await Bun.write(
+            planPath,
+            "# Plan\n\n## Goal\nTest planner handoff\n\n## Scope\n### IN\n- planner runtime\n\n### OUT\n- daemon rewrite\n\n## Assumptions\n- runtime state is available\n\n## Stop Gates\n- pause if approval is needed\n\n## Critical Files\n- packages/opencode/src/tool/plan.ts\n\n## Structured Execution Phases\n- Read the approved spec\n\n## Validation\n- Run targeted tests\n\n## Handoff\n- Build should execute from this spec\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "tasks.md"),
+            "# Tasks\n\n## 1. Workstream\n- [ ] 1.1 Task A\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "proposal.md"),
+            "# Proposal\n\n## Why\n- Need planning reliability\n\n## What Changes\n- Strengthen planner handoff contract\n\n## Capabilities\n### New Capabilities\n- planner-handoff: structured build handoff\n\n### Modified Capabilities\n- planner-runtime: stronger plan_exit checks\n\n## Impact\n- Affects plan/build workflow and runtime handoff metadata\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "spec.md"),
+            "# Spec\n\n## Purpose\n- Define planner handoff behavior\n\n## Requirements\n\n### Requirement: Planner SHALL provide execution-ready handoff\nThe system SHALL produce build-consumable handoff metadata from planner artifacts.\n\n#### Scenario: plan_exit after complete artifacts\n- **GIVEN** complete planner artifacts\n- **WHEN** plan_exit is invoked\n- **THEN** build handoff metadata is emitted\n\n## Acceptance Checks\n- Handoff metadata includes artifact paths and materialized todos\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "design.md"),
+            "# Design\n\n## Context\n- Planner artifacts are consumed by build mode\n\n## Goals / Non-Goals\n**Goals:**\n- Produce deterministic handoff contract\n\n**Non-Goals:**\n- Implement daemon runtime in this slice\n\n## Decisions\n- Use plan_exit gate and metadata envelope\n\n## Risks / Trade-offs\n- Stricter gates increase planning rigor but add upfront requirements\n\n## Critical Files\n- packages/opencode/src/tool/plan.ts\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "handoff.md"),
+            "# Handoff\n\n## Execution Contract\n- Build agent reads implementation-spec.md first\n\n## Required Reads\n- implementation-spec.md\n- design.md\n- tasks.md\n\n## Stop Gates In Force\n- Preserve approval and decision gates\n\n## Execution-Ready Checklist\n- [ ] Implementation spec complete\n",
+          )
+          await writePlannerJsonArtifacts(planPath)
+
+          const { PlanExitTool } = await import("../../src/tool/plan")
+          const tool = await PlanExitTool.init()
+          const execution = tool.execute({}, {
+            sessionID: session.id,
+            abort: new AbortController().signal,
+            messageID: "msg_test",
+            callID: "call_test",
+            agent: "plan",
+            messages: [],
+            metadata: async () => {},
+            ask: async () => [["Yes"]],
+            extra: {},
+          } as any)
+          await answerNextQuestion(session.id, ["Yes"])
+          await answerNextQuestion(session.id, [
+            "/wrong",
+            "/repo",
+            "cms",
+            "/repo-beta",
+            "/repo-beta",
+            "feature/test-beta",
+            "/repo",
+          ])
+          await answerNextQuestion(session.id, [
+            "/repo",
+            "/repo",
+            "cms",
+            "/repo-beta",
+            "/repo-beta",
+            "feature/test-beta",
+            "/repo",
+          ])
+          await execution
+
+          const updated = await Session.get(session.id)
+          expect(updated.mission?.admission?.betaQuiz).toMatchObject({ status: "passed", reflectionUsed: true })
+        },
+      })
+    } finally {
+      if (originalClient === undefined) delete process.env.OPENCODE_CLIENT
+      else process.env.OPENCODE_CLIENT = originalClient
+    }
+  })
+
+  test("plan_exit stops after second beta admission mismatch", async () => {
+    const originalClient = process.env.OPENCODE_CLIENT
+    process.env.OPENCODE_CLIENT = "app"
+    try {
+      await using tmp = await tmpdir({ git: true })
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const session = await Session.create({})
+          await Session.setMission({
+            sessionID: session.id,
+            mission: {
+              source: "openspec_compiled_plan",
+              contract: "implementation_spec",
+              approvedAt: 1,
+              planPath: "plans/seed/implementation-spec.md",
+              executionReady: false,
+              artifactPaths: plannerArtifacts(session),
+              beta: {
+                branchName: "feature/test-beta",
+                baseBranch: "cms",
+                repoPath: "/repo",
+                mainWorktreePath: "/repo",
+                betaPath: "/repo-beta",
+              },
+            } as any,
+          })
+          const planPath = Session.plan(session)
+          await Bun.write(
+            planPath,
+            "# Plan\n\n## Goal\nTest planner handoff\n\n## Scope\n### IN\n- planner runtime\n\n### OUT\n- daemon rewrite\n\n## Assumptions\n- runtime state is available\n\n## Stop Gates\n- pause if approval is needed\n\n## Critical Files\n- packages/opencode/src/tool/plan.ts\n\n## Structured Execution Phases\n- Read the approved spec\n\n## Validation\n- Run targeted tests\n\n## Handoff\n- Build should execute from this spec\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "tasks.md"),
+            "# Tasks\n\n## 1. Workstream\n- [ ] 1.1 Task A\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "proposal.md"),
+            "# Proposal\n\n## Why\n- Need planning reliability\n\n## What Changes\n- Strengthen planner handoff contract\n\n## Capabilities\n### New Capabilities\n- planner-handoff: structured build handoff\n\n### Modified Capabilities\n- planner-runtime: stronger plan_exit checks\n\n## Impact\n- Affects plan/build workflow and runtime handoff metadata\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "spec.md"),
+            "# Spec\n\n## Purpose\n- Define planner handoff behavior\n\n## Requirements\n\n### Requirement: Planner SHALL provide execution-ready handoff\nThe system SHALL produce build-consumable handoff metadata from planner artifacts.\n\n#### Scenario: plan_exit after complete artifacts\n- **GIVEN** complete planner artifacts\n- **WHEN** plan_exit is invoked\n- **THEN** build handoff metadata is emitted\n\n## Acceptance Checks\n- Handoff metadata includes artifact paths and materialized todos\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "design.md"),
+            "# Design\n\n## Context\n- Planner artifacts are consumed by build mode\n\n## Goals / Non-Goals\n**Goals:**\n- Produce deterministic handoff contract\n\n**Non-Goals:**\n- Implement daemon runtime in this slice\n\n## Decisions\n- Use plan_exit gate and metadata envelope\n\n## Risks / Trade-offs\n- Stricter gates increase planning rigor but add upfront requirements\n\n## Critical Files\n- packages/opencode/src/tool/plan.ts\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "handoff.md"),
+            "# Handoff\n\n## Execution Contract\n- Build agent reads implementation-spec.md first\n\n## Required Reads\n- implementation-spec.md\n- design.md\n- tasks.md\n\n## Stop Gates In Force\n- Preserve approval and decision gates\n\n## Execution-Ready Checklist\n- [ ] Implementation spec complete\n",
+          )
+          await writePlannerJsonArtifacts(planPath)
+
+          const { PlanExitTool } = await import("../../src/tool/plan")
+          const tool = await PlanExitTool.init()
+          const execution = tool.execute({}, {
+            sessionID: session.id,
+            abort: new AbortController().signal,
+            messageID: "msg_test",
+            callID: "call_test",
+            agent: "plan",
+            messages: [],
+            metadata: async () => {},
+            ask: async () => [["Yes"]],
+            extra: {},
+          } as any)
+          await answerNextQuestion(session.id, ["Yes"])
+          await answerNextQuestion(session.id, [
+            "/wrong",
+            "/repo",
+            "wrong",
+            "/repo-beta",
+            "/repo-beta",
+            "wrong",
+            "/wrong",
+          ])
+          await answerNextQuestion(session.id, [
+            "/wrong",
+            "/repo",
+            "wrong",
+            "/repo-beta",
+            "/repo-beta",
+            "wrong",
+            "/wrong",
+          ])
+          await expect(execution).rejects.toThrow("product_decision_needed: beta admission mismatches after retry")
+
+          const updated = await Session.get(session.id)
+          expect(updated.mission?.admission?.betaQuiz).toMatchObject({ status: "failed", reflectionUsed: true })
+          expect(updated.mission?.admission?.betaQuiz?.lastMismatches?.length).toBeGreaterThan(0)
         },
       })
     } finally {

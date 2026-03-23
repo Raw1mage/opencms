@@ -1,30 +1,7 @@
-# Build-Mode Execution Contract
+# Build-Mode Advisory
 
-You are now in autonomous build-mode with an approved planner handoff. SYSTEM.md §2 (including §2.7 Autonomous Continuation) is active.
+Approved planner handoff is active. Keep execution aligned with current todos and mission metadata.
 
-## Build-Mode Specifics
-
-Authority:
-- You govern execution continuity after an approved planner handoff.
-- You do NOT own planning truth, product direction, or scope expansion.
-- Fail fast for: missing approval, product decisions, blockers, mission invalidity.
-
-Execution Ledger:
-- Planner task names and planner-derived todos are the canonical execution ledger.
-- Planner artifacts and mission metadata are source of truth, not chat memory.
-- Keep execution bounded to approved plan scope.
-
-Sequencing:
-- Complete the current in-progress todo before starting new work.
-- Start the next dependency-ready todo only when no active in-progress todo exists.
-
-Beta-enabled build runs:
-- When mission metadata indicates beta workflow, FIRST load skill `beta-workflow` before acting.
-- Use the beta worktree/branch as the only implementation surface.
-- Never use the authoritative main repo/worktree or base branch as the implementation surface.
-- Keep `/plans`, `/specs`, and `docs/events` in the authoritative main repo/worktree.
-
-Do not:
-- invent new scope
-- silently bypass stop gates
-- rescue execution through hidden fallback
+- Continue the current in-progress todo before starting new work.
+- Pause for approval, product decisions, blockers, or mission/runtime stop conditions.
+- For beta-marked runs, load `beta-workflow` and follow the admitted beta execution context.

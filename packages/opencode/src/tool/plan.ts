@@ -12,6 +12,8 @@ import { Instance } from "../project/instance"
 import { Todo } from "../session/todo"
 import { plannerArtifacts } from "../session/planner-layout"
 import { extractChecklistItems } from "../session/tasks-checklist"
+import { BETA_ADMISSION_FIELDS, resolveBetaAdmissionAuthority } from "../session/mission-consumption"
+import { recordBetaAdmissionResult } from "../session/workflow-runner"
 import EXIT_DESCRIPTION from "./plan-exit.txt"
 import ENTER_DESCRIPTION from "./plan-enter.txt"
 
@@ -1034,6 +1036,31 @@ function materializePlanTodos(input: { implementationSpec: string; tasks: string
   return todos
 }
 
+async function askBetaAdmissionQuiz(input: {
+  sessionID: string
+  tool?: { messageID: string; callID: string }
+  mission: Session.MissionContract
+  reflection: boolean
+}) {
+  const authority = resolveBetaAdmissionAuthority(input.mission)
+  const promptPrefix = input.reflection
+    ? "Beta admission mismatch detected. Reflect and answer again exactly from authoritative metadata."
+    : "Before beta-enabled build entry, answer the admission quiz exactly from authoritative metadata."
+  const answers = await Question.ask({
+    sessionID: input.sessionID,
+    questions: BETA_ADMISSION_FIELDS.map((field) => ({
+      question: `${promptPrefix}\n${field}?`,
+      header: "Beta Admission",
+      custom: true,
+      options: [{ label: authority[field], description: `Authoritative ${field}` }],
+    })),
+    tool: input.tool,
+  })
+  return Object.fromEntries(BETA_ADMISSION_FIELDS.map((field, index) => [field, answers[index]?.[0] ?? ""])) as Partial<
+    Record<(typeof BETA_ADMISSION_FIELDS)[number], string>
+  >
+}
+
 export const PlanExitTool = Tool.define("plan_exit", {
   description: EXIT_DESCRIPTION,
   parameters: z.object({}),
@@ -1119,34 +1146,73 @@ export const PlanExitTool = Tool.define("plan_exit", {
     }
     const planTodos = materializePlanTodos({ implementationSpec: planMarkdown, tasks: artifacts.tasks })
     await Todo.update({ sessionID: ctx.sessionID, todos: planTodos, mode: "plan_materialization" })
+    const mission: Session.MissionContract = {
+      source: "openspec_compiled_plan",
+      contract: "implementation_spec",
+      approvedAt: Date.now(),
+      planPath: plan,
+      executionReady: true,
+      artifactPaths: {
+        root: path.relative(Instance.worktree, planRoot),
+        implementationSpec: plan,
+        proposal: path.relative(Instance.worktree, artifactPaths.proposal),
+        spec: path.relative(Instance.worktree, artifactPaths.spec),
+        design: path.relative(Instance.worktree, artifactPaths.design),
+        tasks: path.relative(Instance.worktree, artifactPaths.tasks),
+        handoff: path.relative(Instance.worktree, artifactPaths.handoff),
+        idef0: path.relative(Instance.worktree, artifactPaths.idef0),
+        grafcet: path.relative(Instance.worktree, artifactPaths.grafcet),
+        c4: path.relative(Instance.worktree, artifactPaths.c4),
+        sequence: path.relative(Instance.worktree, artifactPaths.sequence),
+      },
+      artifactIntegrity: {
+        implementationSpec: digest(artifacts.implementationSpec),
+        tasks: digest(artifacts.tasks),
+        handoff: digest(artifacts.handoff),
+      },
+      beta: session.mission?.beta,
+      admission: session.mission?.beta
+        ? { betaQuiz: { status: "pending", reflectionUsed: false, mismatchCount: 0, lastMismatches: [] } }
+        : undefined,
+    }
+
     await Session.setMission({
       sessionID: ctx.sessionID,
-      mission: {
-        source: "openspec_compiled_plan",
-        contract: "implementation_spec",
-        approvedAt: Date.now(),
-        planPath: plan,
-        executionReady: true,
-        artifactPaths: {
-          root: path.relative(Instance.worktree, planRoot),
-          implementationSpec: plan,
-          proposal: path.relative(Instance.worktree, artifactPaths.proposal),
-          spec: path.relative(Instance.worktree, artifactPaths.spec),
-          design: path.relative(Instance.worktree, artifactPaths.design),
-          tasks: path.relative(Instance.worktree, artifactPaths.tasks),
-          handoff: path.relative(Instance.worktree, artifactPaths.handoff),
-          idef0: path.relative(Instance.worktree, artifactPaths.idef0),
-          grafcet: path.relative(Instance.worktree, artifactPaths.grafcet),
-          c4: path.relative(Instance.worktree, artifactPaths.c4),
-          sequence: path.relative(Instance.worktree, artifactPaths.sequence),
-        },
-        artifactIntegrity: {
-          implementationSpec: digest(artifacts.implementationSpec),
-          tasks: digest(artifacts.tasks),
-          handoff: digest(artifacts.handoff),
-        },
-      },
+      mission,
     })
+
+    if (mission.beta) {
+      const firstAnswers = await askBetaAdmissionQuiz({
+        sessionID: ctx.sessionID,
+        tool: ctx.callID ? { messageID: ctx.messageID, callID: ctx.callID } : undefined,
+        mission,
+        reflection: false,
+      })
+      const firstResult = await recordBetaAdmissionResult({ sessionID: ctx.sessionID, answers: firstAnswers })
+      if (!firstResult.ok) {
+        await Session.update(
+          ctx.sessionID,
+          (draft) => {
+            draft.mission?.admission?.betaQuiz && (draft.mission.admission.betaQuiz.reflectionUsed = true)
+          },
+          { touch: false },
+        )
+        const retryAnswers = await askBetaAdmissionQuiz({
+          sessionID: ctx.sessionID,
+          tool: ctx.callID ? { messageID: ctx.messageID, callID: ctx.callID } : undefined,
+          mission,
+          reflection: true,
+        })
+        const retryResult = await recordBetaAdmissionResult({ sessionID: ctx.sessionID, answers: retryAnswers })
+        if (!retryResult.ok) {
+          throw new Error(
+            `product_decision_needed: beta admission mismatches after retry: ${retryResult.mismatches
+              .map((item) => `${item.field} expected=${item.expected} actual=${item.actual}`)
+              .join("; ")}`,
+          )
+        }
+      }
+    }
 
     const userMsg: MessageV2.User = {
       id: Identifier.ascending("message"),
@@ -1165,11 +1231,9 @@ export const PlanExitTool = Tool.define("plan_exit", {
       sessionID: ctx.sessionID,
       type: "text",
       text:
-        `The plan set at ${path.relative(Instance.worktree, planRoot)} has been approved. You are now in build mode, which is execution-first. ` +
-        `Todo authority is now strict (execution ledger mode): todos must align with planner-derived tasks. Structure changes require plan_materialization or replan_adoption mode. ` +
-        `Use ${plan} as the implementation specification and execute it end-to-end from the active /plans root. ` +
-        `Treat the planner artifacts under ${path.relative(Instance.worktree, planRoot)} as the source of truth for goal, scope, assumptions, stop gates, validation, critical files, execution phases, and handoff instructions. ` +
-        `Before coding, read the implementation spec carefully, convert its execution phases into structured todos/action metadata, and then continue implementing from that plan set. Update the /plans artifacts when user intent or scope changes.`,
+        `The plan set at ${path.relative(Instance.worktree, planRoot)} has been approved. Build mode is now active. ` +
+        `Use ${plan} as the implementation specification, keep work aligned with the current planner-derived todos, and pause for approvals, decisions, blockers, or runtime stop conditions. ` +
+        `Read the approved plan artifacts under ${path.relative(Instance.worktree, planRoot)} before continuing implementation.`,
       synthetic: true,
       metadata: {
         handoff: {

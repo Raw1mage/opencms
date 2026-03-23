@@ -90,11 +90,13 @@ describe("Session workflow runner", () => {
       ),
       todo: { id: "a", content: "next", status: "pending", priority: "high" },
     })
-    expect(decision.text).toContain("You are now in autonomous build-mode with an approved planner handoff.")
-    expect(decision.text).toContain("Execution Ledger:")
+    expect(decision.text).toContain("Approved planner handoff is active.")
+    expect(decision.text).toContain(
+      "Pause for approval, product decisions, blockers, or mission/runtime stop conditions.",
+    )
   })
 
-  it("injects beta-workflow loading contract for beta-enabled missions", () => {
+  it("injects minimal beta-workflow advisory for beta-enabled missions", () => {
     const decision = evaluateAutonomousContinuation({
       session: {
         parentID: undefined,
@@ -107,6 +109,14 @@ describe("Session workflow runner", () => {
             mainWorktreePath: "/repo",
             betaPath: "/repo-beta",
             runtimePolicy: "manual",
+          },
+          admission: {
+            betaQuiz: {
+              status: "passed",
+              reflectionUsed: false,
+              mismatchCount: 0,
+              lastMismatches: [],
+            },
           },
         } as any,
         workflow: {
@@ -127,7 +137,7 @@ describe("Session workflow runner", () => {
     expect(decision).toMatchObject({ continue: true, reason: "todo_pending" })
     if (!decision.continue) throw new Error("expected continue decision")
     expect(decision.text).toContain('FIRST: Load skill "beta-workflow"')
-    expect(decision.text).toContain("do not implement on the authoritative main repo/worktree or base branch")
+    expect(decision.text).toContain("Use the admitted beta execution context for implementation work.")
   })
 
   it("uses planner contract to continue in-progress work before starting new todos", () => {
@@ -170,7 +180,7 @@ describe("Session workflow runner", () => {
     })
     expect(result.type).toBe("continue")
     if (result.type !== "continue") throw new Error("expected continue action")
-    expect(result.text).toContain("You are now in autonomous build-mode with an approved planner handoff.")
+    expect(result.text).toContain("Approved planner handoff is active.")
   })
 
   it("stops autonomous enqueue when subagent task work is still active", () => {
@@ -819,6 +829,7 @@ describe("Session workflow runner", () => {
             text: "Continue",
           },
           session: {
+            directory: "/tmp",
             workflow: {
               ...Session.defaultWorkflow(1),
               autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
@@ -839,6 +850,7 @@ describe("Session workflow runner", () => {
             text: "Continue",
           },
           session: {
+            directory: "/tmp",
             workflow: {
               ...Session.defaultWorkflow(1),
               autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
@@ -869,6 +881,7 @@ describe("Session workflow runner", () => {
             text: "Continue",
           },
           session: {
+            directory: "/tmp",
             workflow: {
               ...Session.defaultWorkflow(1),
               autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
@@ -890,6 +903,7 @@ describe("Session workflow runner", () => {
             text: "Continue",
           },
           session: {
+            directory: "/tmp",
             workflow: {
               ...Session.defaultWorkflow(1),
               autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
@@ -909,6 +923,7 @@ describe("Session workflow runner", () => {
             text: "Continue",
           },
           session: {
+            directory: "/tmp",
             workflow: {
               ...Session.defaultWorkflow(1),
               autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
@@ -938,6 +953,7 @@ describe("Session workflow runner", () => {
             text: "Continue",
           },
           session: {
+            directory: "/tmp",
             workflow: {
               ...Session.defaultWorkflow(1),
               autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
@@ -958,6 +974,7 @@ describe("Session workflow runner", () => {
             text: "Continue",
           },
           session: {
+            directory: "/tmp",
             workflow: {
               ...Session.defaultWorkflow(1),
               autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
@@ -988,6 +1005,7 @@ describe("Session workflow runner", () => {
             text: "Continue",
           },
           session: {
+            directory: "/tmp",
             workflow: {
               ...Session.defaultWorkflow(1),
               autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
@@ -1008,6 +1026,7 @@ describe("Session workflow runner", () => {
             text: "Continue",
           },
           session: {
+            directory: "/tmp",
             workflow: {
               ...Session.defaultWorkflow(1),
               autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
@@ -1028,6 +1047,7 @@ describe("Session workflow runner", () => {
             text: "Continue",
           },
           session: {
+            directory: "/tmp",
             workflow: {
               ...Session.defaultWorkflow(1),
               autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
@@ -1741,6 +1761,7 @@ describe("Session workflow runner", () => {
             text: "Continue",
           },
           session: {
+            directory: "/tmp",
             workflow: {
               ...Session.defaultWorkflow(1),
               autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
@@ -1762,6 +1783,7 @@ describe("Session workflow runner", () => {
             text: "Continue",
           },
           session: {
+            directory: "/tmp",
             workflow: {
               ...Session.defaultWorkflow(1),
               autonomous: { ...Session.defaultWorkflow(1).autonomous, enabled: true },
@@ -1911,6 +1933,7 @@ describe("plan-trusting mode: max_continuous_rounds bypass", () => {
 describe("RunTrigger and TriggerEvaluator (Phase 5B)", () => {
   const baseSession = (overrides?: Partial<Session.WorkflowInfo["autonomous"]>) => ({
     parentID: undefined as string | undefined,
+    directory: "/tmp",
     mission: approvedMission(),
     workflow: {
       ...Session.defaultWorkflow(1),
@@ -1919,7 +1942,7 @@ describe("RunTrigger and TriggerEvaluator (Phase 5B)", () => {
         enabled: true,
         ...overrides,
       },
-      state: "waiting_user" as const,
+      state: "waiting_user" as Session.WorkflowInfo["state"],
     },
     time: { created: 1, updated: 1 },
   })
@@ -2313,7 +2336,7 @@ describe("Lane policy (Phase 6)", () => {
 })
 
 describe("RunQueue (Phase 6)", () => {
-  const dir = tmpdir("runqueue")
+  const dir = tmpdir()
 
   it("enqueue creates entry with correct lane", async () => {
     const entry = await RunQueue.enqueue({

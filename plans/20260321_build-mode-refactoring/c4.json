@@ -1,0 +1,93 @@
+{
+  "diagram_title": "Build-Mode Quiz Guard Admission — C4 Component Diagram",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "OpenCode Builder Runtime",
+      "description": "Planner-approved build execution control plane.",
+      "external": false
+    },
+    {
+      "id": "SYS2",
+      "name": "LLM Session",
+      "description": "Model session that must answer the admission quiz before beta-sensitive execution continues.",
+      "external": true
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "Session Runtime",
+      "description": "Mission, continuation, and build-mode orchestration runtime.",
+      "technology": "TypeScript",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT2",
+      "name": "Planner Tooling",
+      "description": "Plan entry/exit orchestration and approved mission materialization.",
+      "technology": "TypeScript",
+      "systemRef": "SYS1"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "Plan Exit Admission Hook",
+      "description": "Injects quiz guard admission before beta-sensitive build mode begins.",
+      "technology": "plan tool",
+      "containerRef": "CT2",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/tool/plan.ts"
+    },
+    {
+      "id": "C2",
+      "name": "Quiz Guard Evaluator",
+      "description": "Builds the expected answer key and evaluates structured quiz responses.",
+      "technology": "workflow runner",
+      "containerRef": "CT1",
+      "moduleRef": "A2",
+      "filePath": "packages/opencode/src/session/workflow-runner.ts"
+    },
+    {
+      "id": "C3",
+      "name": "Build Admission Router",
+      "description": "Routes pass, retry, or ask-user outcomes after quiz evaluation.",
+      "technology": "continuation trigger logic",
+      "containerRef": "CT1",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/session/trigger.ts"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL1",
+      "source": "C1",
+      "target": "C2",
+      "description": "passes approved mission and build-entry context",
+      "technology": "function call"
+    },
+    {
+      "id": "REL2",
+      "source": "C2",
+      "target": "SYS2",
+      "description": "asks structured quiz and receives answers",
+      "technology": "LLM prompt/response"
+    },
+    {
+      "id": "REL3",
+      "source": "C2",
+      "target": "C3",
+      "description": "emits evaluated admission result",
+      "technology": "function call"
+    },
+    {
+      "id": "REL4",
+      "source": "C3",
+      "target": "SYS2",
+      "description": "either admits build, permits one retry, or asks the user after repeated mismatch",
+      "technology": "workflow state transition"
+    }
+  ]
+}

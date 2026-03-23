@@ -1,0 +1,83 @@
+[
+  {
+    "diagram_title": "Beta Build Admission Quiz",
+    "scenario": "plan_exit prepares beta-sensitive build entry and the model must pass the structured quiz before execution starts.",
+    "moduleRef": "A2",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "Plan Exit Admission Hook",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P2",
+        "name": "Quiz Guard Evaluator",
+        "type": "component",
+        "componentRef": "C2"
+      },
+      {
+        "id": "P3",
+        "name": "LLM Session",
+        "type": "system",
+        "componentRef": "SYS2"
+      },
+      {
+        "id": "P4",
+        "name": "Build Admission Router",
+        "type": "component",
+        "componentRef": "C3"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "buildAdmissionContext(mission, mainlineContext)",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "askQuiz(mainRepo, baseBranch, implementationRepo, implementationBranch, docsWriteRepo)",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P2",
+        "label": "quizAnswers",
+        "type": "return",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P2",
+        "to": "P4",
+        "label": "admissionResult(pass | mismatchWithRetry | mismatchAskUser)",
+        "type": "sync",
+        "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P4",
+        "to": "P3",
+        "label": "continueBuild() / requestReflectionRetry() / stopAndAskUser()",
+        "type": "sync",
+        "order": 5
+      }
+    ],
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "alt",
+        "label": "quiz evaluation outcome",
+        "messageRefs": ["MSG4", "MSG5"]
+      }
+    ]
+  }
+]

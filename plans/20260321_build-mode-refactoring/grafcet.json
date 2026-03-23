@@ -1,0 +1,74 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Load approved mission and derive expected quiz answer key",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["build_entry_requested"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Ask structured build admission quiz and evaluate first response",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 3],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["answers_match", "answers_mismatch"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Admit build and continue with minimal build-mode narration",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["admission_granted"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Return mismatch evidence and allow one reflection retry",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["retry_available"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Evaluate reflected retry answer",
+    "LinkInputType": [],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [2, 5],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["retry_answers_match", "retry_answers_still_mismatch"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Stop build admission and ask the user",
+    "LinkInputType": [],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["user_clarification_required"],
+    "SubGrafcet": []
+  }
+]

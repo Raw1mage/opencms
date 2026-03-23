@@ -96,6 +96,21 @@ describe("tool.registry", () => {
     })
   })
 
+  test("registers plan tools for web client", async () => {
+    process.env.OPENCODE_CLIENT = "web"
+
+    await using tmp = await tmpdir()
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const ids = await ToolRegistry.ids()
+        expect(ids).toContain("plan_enter")
+        expect(ids).toContain("plan_exit")
+      },
+    })
+  })
+
   test("loads tools with external dependencies without crashing", async () => {
     await using tmp = await tmpdir({
       init: async (dir) => {

@@ -236,6 +236,37 @@ export namespace Session {
     planPath: z.string(),
     artifactPaths: MissionArtifactPaths,
     artifactIntegrity: MissionArtifactIntegrity.optional(),
+    beta: z
+      .object({
+        branchName: z.string(),
+        baseBranch: z.string(),
+        repoPath: z.string().optional(),
+        mainWorktreePath: z.string().optional(),
+        betaPath: z.string(),
+        runtimePolicy: z.string().optional(),
+      })
+      .optional(),
+    admission: z
+      .object({
+        betaQuiz: z
+          .object({
+            status: z.enum(["pending", "passed", "failed"]),
+            reflectionUsed: z.boolean(),
+            passedAt: z.number().optional(),
+            mismatchCount: z.number().int().nonnegative().optional(),
+            lastMismatches: z
+              .array(
+                z.object({
+                  field: z.string(),
+                  expected: z.string(),
+                  actual: z.string(),
+                }),
+              )
+              .optional(),
+          })
+          .optional(),
+      })
+      .optional(),
     executionReady: z.boolean(),
   })
   export type MissionContract = z.output<typeof MissionContract>

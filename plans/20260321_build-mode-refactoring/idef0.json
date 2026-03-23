@@ -1,0 +1,89 @@
+{
+  "diagram_title": "Build-Mode Quiz Guard Admission — IDEF0 Context",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Prepare Admission Answer Key",
+      "description": "Read approved mission and mainline authority metadata to produce the expected quiz answers.",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Evaluate Quiz Admission",
+      "description": "Ask the model structured build-admission questions and compare answers against the expected key.",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Route Build Entry Outcome",
+      "description": "Admit build, allow one reflection retry, or stop and ask the user based on evaluation result.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "Approved Mission Metadata",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Authoritative Mainline Context",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "Expected Quiz Answer Key",
+      "type": "output"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "Quiz Schema And Retry Policy",
+      "type": "control"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "LLM Build Agent",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR6",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "Quiz Evaluation Result",
+      "type": "output"
+    },
+    {
+      "id": "AR7",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "Admission Outcome Policy",
+      "type": "control"
+    },
+    {
+      "id": "AR8",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "Build Admission Decision",
+      "type": "output"
+    },
+    {
+      "id": "AR9",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "Workflow Runner",
+      "type": "mechanism"
+    }
+  ]
+}

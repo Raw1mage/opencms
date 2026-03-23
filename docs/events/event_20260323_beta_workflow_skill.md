@@ -85,5 +85,7 @@ User requested that the beta build workflow stop depending on repeated ad-hoc pr
 
 ## Remaining
 
-- Decide whether to isolate the beta-workflow hunks for a precise commit or leave the changes uncommitted until unrelated worktree edits are separated.
-- Do not create a commit until that scope decision is explicitly approved.
+- Builder quiz guard implementation remains future build work under the active plan package.
+- Immediate blocker discovered during plan handoff: web runtime initially could not access `plan_exit` / `plan_enter` even though the tools existed in code, because tool registration was gated to `app|cli|desktop` while the actual product surface runs as per-user daemon + webapp.
+- The blocker has now been fixed directly on the main `cms` branch by registering plan tools for `web` client as well.
+- Validation: `bun test packages/opencode/test/tool/registry.test.ts` passed with the new web-client coverage, and `bun test packages/opencode/test/session/bootstrap-policy.test.ts` remained green.

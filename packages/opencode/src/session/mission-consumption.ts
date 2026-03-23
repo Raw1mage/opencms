@@ -5,6 +5,90 @@ import { Instance } from "@/project/instance"
 import { Session } from "./index"
 import { extractChecklistItems } from "./tasks-checklist"
 
+export const BETA_ADMISSION_FIELDS = [
+  "mainRepo",
+  "mainWorktree",
+  "baseBranch",
+  "implementationRepo",
+  "implementationWorktree",
+  "implementationBranch",
+  "docsWriteRepo",
+] as const
+
+export type BetaAdmissionField = (typeof BETA_ADMISSION_FIELDS)[number]
+
+export type BetaAdmissionMismatch = {
+  field: BetaAdmissionField
+  expected: string
+  actual: string
+}
+
+export type BetaAdmissionAuthority = {
+  mainRepo: string
+  mainWorktree: string
+  baseBranch: string
+  implementationRepo: string
+  implementationWorktree: string
+  implementationBranch: string
+  docsWriteRepo: string
+}
+
+function normalizeAdmissionValue(value: string) {
+  return path.normalize(value.trim())
+}
+
+export function resolveBetaAdmissionAuthority(mission: Session.Info["mission"]): BetaAdmissionAuthority {
+  const beta = mission?.beta
+  if (!mission || !beta) throw new Error("beta admission requires mission.beta metadata")
+  const mainRepo = normalizeAdmissionValue(beta.repoPath ?? Instance.worktree)
+  const mainWorktree = normalizeAdmissionValue(beta.mainWorktreePath ?? beta.repoPath ?? Instance.worktree)
+  const implementationRepo = normalizeAdmissionValue(beta.betaPath)
+  const implementationWorktree = normalizeAdmissionValue(beta.betaPath)
+  const docsWriteRepo = mainRepo
+  const baseBranch = beta.baseBranch?.trim()
+  const implementationBranch = beta.branchName?.trim()
+
+  if (!mainRepo) throw new Error("beta admission missing authoritative mainRepo")
+  if (!mainWorktree) throw new Error("beta admission missing authoritative mainWorktree")
+  if (!baseBranch) throw new Error("beta admission missing authoritative baseBranch")
+  if (!implementationRepo) throw new Error("beta admission missing authoritative implementationRepo")
+  if (!implementationWorktree) throw new Error("beta admission missing authoritative implementationWorktree")
+  if (!implementationBranch) throw new Error("beta admission missing authoritative implementationBranch")
+  if (!docsWriteRepo) throw new Error("beta admission missing authoritative docsWriteRepo")
+
+  return {
+    mainRepo,
+    mainWorktree,
+    baseBranch,
+    implementationRepo,
+    implementationWorktree,
+    implementationBranch,
+    docsWriteRepo,
+  }
+}
+
+export function evaluateBetaAdmissionAnswers(input: {
+  authority: BetaAdmissionAuthority
+  answers: Partial<Record<BetaAdmissionField, string>>
+}) {
+  const mismatches: BetaAdmissionMismatch[] = []
+  for (const field of BETA_ADMISSION_FIELDS) {
+    const expected = input.authority[field]
+    const actual = input.answers[field]?.trim() ?? ""
+    const normalizedExpected =
+      field.includes("Repo") || field.includes("Worktree") ? normalizeAdmissionValue(expected) : expected
+    const normalizedActual =
+      field.includes("Repo") || field.includes("Worktree") ? normalizeAdmissionValue(actual) : actual
+    if (normalizedExpected !== normalizedActual) {
+      mismatches.push({ field, expected, actual })
+    }
+  }
+  return {
+    ok: mismatches.length === 0,
+    mismatches,
+  }
+}
+
 function digest(text: string) {
   return createHash("sha1").update(text).digest("hex")
 }

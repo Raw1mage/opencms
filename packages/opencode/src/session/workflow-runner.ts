@@ -13,7 +13,12 @@ import { isAuthError, isRateLimitError } from "@/account/rate-limit-judge"
 import { PermissionNext } from "@/permission/next"
 import { Question } from "@/question"
 import { RuntimeEventService } from "@/system/runtime-event-service"
-import { consumeMissionArtifacts } from "./mission-consumption"
+import {
+  BETA_ADMISSION_FIELDS,
+  consumeMissionArtifacts,
+  evaluateBetaAdmissionAnswers,
+  resolveBetaAdmissionAuthority,
+} from "./mission-consumption"
 import { debugCheckpoint } from "@/util/debug"
 import RUNNER_CONTRACT from "./prompt/runner.txt"
 import {
@@ -39,13 +44,25 @@ function applyRunnerContract(text: string) {
   return `${RUNNER_CONTRACT.trim()}\n\n${text}`
 }
 
+function buildBetaAdmissionPrompt(session: Pick<Session.Info, "mission">) {
+  const authority = resolveBetaAdmissionAuthority(session.mission)
+  return applyRunnerContract(
+    [
+      "Beta build admission quiz: restate the authoritative execution metadata exactly before continuing.",
+      "Answer these fields exactly and machine-checkably:",
+      ...BETA_ADMISSION_FIELDS.map((field) => `- ${field}: ${authority[field]}`),
+    ].join("\n"),
+  )
+}
+
 function applyBetaWorkflowContract(input: { text: string; session: Pick<Session.Info, "mission"> }) {
   const mission = input.session.mission as (Session.Info["mission"] & { beta?: unknown }) | undefined
   if (!mission?.beta) return applyRunnerContract(input.text)
+  if (mission.admission?.betaQuiz?.status !== "passed") return buildBetaAdmissionPrompt(input.session)
   return applyRunnerContract(
     [
       'FIRST: Load skill "beta-workflow" before continuing beta-enabled build execution.',
-      "Use only the builder-approved beta worktree/branch as the implementation surface; do not implement on the authoritative main repo/worktree or base branch.",
+      "Use the admitted beta execution context for implementation work.",
       input.text,
     ].join("\n\n"),
   )
@@ -106,7 +123,35 @@ function buildMissionMetadata(session: Pick<Session.Info, "mission">) {
     executionReady: mission.executionReady,
     planPath: mission.planPath,
     artifactPaths: mission.artifactPaths,
+    beta: mission.beta,
+    admission: mission.admission,
   }
+}
+
+export async function recordBetaAdmissionResult(input: {
+  sessionID: string
+  answers: Partial<Record<(typeof BETA_ADMISSION_FIELDS)[number], string>>
+}) {
+  const session = await Session.get(input.sessionID)
+  if (!session.mission?.beta) return { ok: true as const, mismatches: [] }
+  const authority = resolveBetaAdmissionAuthority(session.mission)
+  const result = evaluateBetaAdmissionAnswers({ authority, answers: input.answers })
+  await Session.update(
+    input.sessionID,
+    (draft) => {
+      if (!draft.mission) return
+      draft.mission.admission ??= {}
+      draft.mission.admission.betaQuiz = {
+        status: result.ok ? "passed" : "failed",
+        reflectionUsed: draft.mission.admission.betaQuiz?.reflectionUsed ?? false,
+        passedAt: result.ok ? Date.now() : draft.mission.admission.betaQuiz?.passedAt,
+        mismatchCount: result.mismatches.length,
+        lastMismatches: result.mismatches,
+      }
+    },
+    { touch: false },
+  )
+  return result
 }
 
 export type ContinuationDecisionReason =
@@ -835,7 +880,10 @@ export function describeAutonomousNextAction(action: AutonomousNextAction): Auto
     case "approval_needed":
       return { kind: "pause", text: "Paused: approval is required before the next gated step." }
     case "product_decision_needed":
-      return { kind: "pause", text: "Paused: I need a product decision before continuing." }
+      return {
+        kind: "pause",
+        text: "Paused: I need a product decision or beta admission correction before continuing.",
+      }
     case "wait_subagent":
       return { kind: "pause", text: "Runner paused: a delegated subagent task is still running." }
     case "max_continuous_rounds":

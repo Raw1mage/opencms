@@ -4,7 +4,12 @@ import { mkdir, symlink } from "fs/promises"
 import { createHash } from "crypto"
 import { tmpdir } from "../../test/fixture/fixture"
 import { Instance } from "../project/instance"
-import { consumeMissionArtifacts, deriveDelegatedExecutionRole } from "./mission-consumption"
+import {
+  consumeMissionArtifacts,
+  deriveDelegatedExecutionRole,
+  evaluateBetaAdmissionAnswers,
+  resolveBetaAdmissionAuthority,
+} from "./mission-consumption"
 
 function approvedMission() {
   return {
@@ -298,6 +303,58 @@ describe("mission consumption", () => {
         if (result.ok) throw new Error("expected spec_dirty for implementationSpec")
         expect(result.issues.some((issue) => issue.includes("implementationSpec changed"))).toBe(true)
       },
+    })
+  })
+
+  it("evaluates beta admission answers deterministically", () => {
+    const mission = {
+      ...approvedMission(),
+      beta: {
+        branchName: "feature/test-beta",
+        baseBranch: "cms",
+        repoPath: "/repo",
+        mainWorktreePath: "/repo",
+        betaPath: "/repo-beta",
+      },
+    } as any
+    const authority = resolveBetaAdmissionAuthority(mission)
+
+    expect(
+      evaluateBetaAdmissionAnswers({
+        authority,
+        answers: {
+          mainRepo: "/repo",
+          mainWorktree: "/repo",
+          baseBranch: "cms",
+          implementationRepo: "/repo-beta",
+          implementationWorktree: "/repo-beta",
+          implementationBranch: "feature/test-beta",
+          docsWriteRepo: "/repo",
+        },
+      }),
+    ).toEqual({ ok: true, mismatches: [] })
+
+    expect(
+      evaluateBetaAdmissionAnswers({
+        authority,
+        answers: {
+          mainRepo: "/wrong",
+          mainWorktree: "/repo",
+          baseBranch: "main",
+          implementationRepo: "/repo-beta",
+          implementationWorktree: "/repo-beta",
+          implementationBranch: "wrong-branch",
+          docsWriteRepo: "/wrong",
+        },
+      }),
+    ).toMatchObject({
+      ok: false,
+      mismatches: [
+        { field: "mainRepo", expected: "/repo", actual: "/wrong" },
+        { field: "baseBranch", expected: "cms", actual: "main" },
+        { field: "implementationBranch", expected: "feature/test-beta", actual: "wrong-branch" },
+        { field: "docsWriteRepo", expected: "/repo", actual: "/wrong" },
+      ],
     })
   })
 })

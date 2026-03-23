@@ -11,10 +11,7 @@ import type { ApprovalGate, ContinuationDecisionReason } from "./workflow-runner
  *   - api: scaffold for external API-initiated triggers (Phase 5B.4)
  *   - cron: scheduled job execution triggers (Phase 8 / D.1)
  */
-export type RunTrigger =
-  | RunTrigger.Continuation
-  | RunTrigger.Api
-  | RunTrigger.Cron
+export type RunTrigger = RunTrigger.Continuation | RunTrigger.Api | RunTrigger.Cron
 
 export namespace RunTrigger {
   export type Continuation = {
@@ -61,6 +58,7 @@ export type TriggerGatePolicy = {
   respectMaxRounds: boolean
   checkApprovalGates: boolean
   checkStructuredStops: boolean
+  requireBetaAdmission: boolean
 }
 
 export const CONTINUATION_GATE_POLICY: TriggerGatePolicy = {
@@ -68,6 +66,7 @@ export const CONTINUATION_GATE_POLICY: TriggerGatePolicy = {
   respectMaxRounds: true,
   checkApprovalGates: true,
   checkStructuredStops: true,
+  requireBetaAdmission: true,
 }
 
 export const API_GATE_POLICY: TriggerGatePolicy = {
@@ -75,6 +74,7 @@ export const API_GATE_POLICY: TriggerGatePolicy = {
   respectMaxRounds: false,
   checkApprovalGates: true,
   checkStructuredStops: true,
+  requireBetaAdmission: true,
 }
 
 export const CRON_GATE_POLICY: TriggerGatePolicy = {
@@ -82,6 +82,7 @@ export const CRON_GATE_POLICY: TriggerGatePolicy = {
   respectMaxRounds: false,
   checkApprovalGates: false,
   checkStructuredStops: false,
+  requireBetaAdmission: false,
 }
 
 /**
@@ -127,6 +128,12 @@ export function evaluateGates(input: {
   if (policy.requireApprovedMission) {
     if (!input.session.mission || !input.session.mission.executionReady) {
       return { pass: false, reason: "mission_not_approved" }
+    }
+  }
+  if (policy.requireBetaAdmission && input.session.mission?.beta) {
+    const status = input.session.mission.admission?.betaQuiz?.status
+    if (status !== "passed") {
+      return { pass: false, reason: "product_decision_needed" }
     }
   }
 
