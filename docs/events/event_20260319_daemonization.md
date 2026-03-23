@@ -174,6 +174,13 @@ _(N/A - new feature)_
 - `do_status()` refactored: removed obsolete `[Development (webctl PID)]` section, unified to gateway-centric layout.
 - Spec formalized from `plans/20260323_c-root-daemon-splice-proxy/` to `specs/daemonization/`.
 
+**Session 8 (2026-03-24)** — Connection Table Leak Fix:
+- **Symptom**: After sustained usage, gateway logs `connection table full` in tight loop. All 1024 slots occupied. JWT validates, daemon alive, but `start_splice_proxy()` can't allocate. Causes web login infinite redirect (clear JWT → redirect → re-auth → table full → repeat).
+- **Root cause**: `close_conn()` sets `c->closed = 1` but never resets it. `alloc_conn()` requires `client_fd < 0 && !closed`. Every closed connection permanently consumes a slot — the table is write-once.
+- **Secondary bug**: If `pipe()` fails after `alloc_conn()`, the allocated slot leaks (no cleanup, no `close_conn()` call). Partial pipe FDs also leak if second `pipe()` fails.
+- **Fix**: (1) Reset `c->closed = 0` at end of `close_conn()` after all FDs closed and removed from epoll, making slots reclaimable. (2) Clean up partial pipes on `pipe()` failure in `start_splice_proxy()`.
+- **Validation**: Clean compile, gateway restarted, web login functional.
+
 ## Architecture Sync
 
 Architecture Sync: Updated — added Daemon Architecture section (gateway, per-user daemon, TUI attach, SSE catch-up, security migration, performance hardening, deployment) to `specs/architecture.md`.
@@ -183,3 +190,5 @@ Architecture Sync (Session 4): Updated — `specs/architecture.md` C Root Gatewa
 Architecture Sync (Session 5): Verified (No doc changes) — runtime bug fixes (deadline overflow, env forwarding) and branding rename do not change architectural boundaries or flows.
 
 Architecture Sync (Session 6-7): Verified (No doc changes needed to architecture.md) — reverse proxy compat, systemd integration, --attach contract, XDG memory path, and flush exclusion are operational refinements within existing architectural boundaries. Spec formalized to `specs/daemonization/`.
+
+Architecture Sync (Session 8): Verified (No doc changes) — connection table slot recycling is an implementation bug fix within existing `close_conn`/`alloc_conn` lifecycle documented in architecture.md. No boundary or flow changes.

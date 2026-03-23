@@ -917,6 +917,11 @@ static void close_conn(Connection *c) {
     if (c->pipe_d2c[1] >= 0) { close(c->pipe_d2c[1]); c->pipe_d2c[1] = -1; }
 
     if (g_nconns > 0) g_nconns--;
+
+    /* Reset closed flag so alloc_conn() can reclaim this slot.
+     * Safe: all FDs are closed and removed from epoll above,
+     * so no further events can reference this connection. */
+    c->closed = 0;
 }
 
 /* ─── splice() proxy (DD-3: directional splice) ──────────────────── */
@@ -929,7 +934,13 @@ static Connection *start_splice_proxy(int client_fd, DaemonInfo *d) {
 
     if (pipe(c->pipe_c2d) < 0 || pipe(c->pipe_d2c) < 0) {
         LOGE("pipe: %s", strerror(errno));
+        /* Clean up partially-created pipes from first pipe() call */
+        if (c->pipe_c2d[0] >= 0) { close(c->pipe_c2d[0]); c->pipe_c2d[0] = -1; }
+        if (c->pipe_c2d[1] >= 0) { close(c->pipe_c2d[1]); c->pipe_c2d[1] = -1; }
         close(daemon_fd);
+        /* Release the allocated slot (client_fd not yet assigned, slot is
+         * still in alloc'd-but-unused state with closed=0, client_fd=-1,
+         * so it's already reclaimable by alloc_conn). */
         return NULL;
     }
 
