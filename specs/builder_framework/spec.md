@@ -1,63 +1,67 @@
-# Spec: builder_framework
+# Spec
 
 ## Purpose
 
-- Define the canonical builder framework contract that combines planner lifecycle semantics, beta/worktree orchestration, and builder-native build execution.
+- Define build-mode behavior so beta-sensitive execution first passes a machine-checkable quiz guard, with prompt text serving only as advisory support and broad hard-guard expansion deferred.
 
 ## Requirements
 
-### Requirement: Canonical builder authority
+### Requirement: Builder must require quiz admission for beta-sensitive execution
 
-The repository SHALL treat `specs/builder_framework/` as the semantic entry root for builder workflow taxonomy.
+The system SHALL require a structured quiz guard before beta-sensitive build-mode execution is allowed to proceed.
 
-#### Scenario: reader needs builder workflow authority
+#### Scenario: allow build entry after correct calibration
 
-- **GIVEN** builder-related material exists across preserved source slices
-- **WHEN** a reader needs the canonical starting point
-- **THEN** they start at `specs/builder_framework/`
-- **AND** use `sources/` only for detailed supporting context
+- **GIVEN** an approved mission with `mission.beta`
+- **WHEN** the system asks the admission quiz and the LLM answers every required field correctly
+- **THEN** build-mode admission succeeds and execution may continue
 
-### Requirement: Source provenance remains preserved
+#### Scenario: retry once after incorrect calibration
 
-The framework SHALL preserve useful source roots without discarding their artifacts.
+- **GIVEN** an approved mission with `mission.beta`
+- **WHEN** the LLM answers any required admission field incorrectly on the first attempt
+- **THEN** runtime returns explicit mismatch evidence and allows one reflection-based retry
 
-#### Scenario: merged taxonomy is inspected
+#### Scenario: stop and ask the user after repeated incorrect calibration
 
-- **GIVEN** builder framework consolidation has completed
-- **WHEN** a reader inspects the canonical root
-- **THEN** the merged source roots remain available under `specs/builder_framework/sources/`
+- **GIVEN** an approved mission with `mission.beta`
+- **WHEN** the LLM still answers any required admission field incorrectly on the allowed retry
+- **THEN** runtime stops build admission and asks the user instead of continuing
 
-### Requirement: Planner lifecycle remains part of builder framework
+### Requirement: Quiz answers must be machine-checkable against mission authority
 
-The framework SHALL keep active planning under `/plans` and treat `/specs` as formalized semantic documentation.
+The system SHALL validate quiz answers against authoritative mission/runtime metadata rather than freeform human interpretation.
 
-#### Scenario: planner/build lifecycle behavior is referenced from builder framework
+#### Scenario: compare answer fields to mission metadata
 
-- **GIVEN** builder execution depends on planner artifacts
-- **WHEN** lifecycle rules are consulted
-- **THEN** active plan packages are understood to live under `/plans`
-- **AND** builder-native workflow guidance remains aligned with that lifecycle
+- **GIVEN** a structured quiz response containing main repo, base branch, implementation repo, implementation branch, and docs write repo
+- **WHEN** runtime evaluates the response
+- **THEN** each field is compared against the canonical expected value from mission metadata or authoritative mainline context
 
-### Requirement: Beta-enabled builder execution must enforce implementation surface
+### Requirement: Prompt text must not be the primary enforcement layer
 
-The framework SHALL treat beta-enabled build execution as an execution-surface routing problem, not only as metadata availability.
+The system SHALL keep any remaining build-mode wording minimal and non-authoritative once quiz guard exists.
 
-#### Scenario: beta-enabled mission enters build execution
+#### Scenario: narration remains but authority stays in quiz evaluation
 
-- **GIVEN** `mission.beta.enabled === true`
-- **WHEN** build continuations and delegated implementation work begin after `plan_exit`
-- **THEN** the system resolves a single authoritative implementation surface in the beta worktree
-- **AND** coding execution defaults to the beta branch/worktree rather than the main repo
-- **AND** docs/specs/events continue to write to the authoritative main repo/worktree
+- **GIVEN** a valid continuation path after quiz admission
+- **WHEN** build-mode text is generated for the model
+- **THEN** the text communicates current state and stop conditions, and admission authority remains handled by quiz validation rather than workflow prose
 
-#### Scenario: beta-enabled implementation tries to use main repo as coding surface
+### Requirement: Broad hard-guard expansion is deferred by default
 
-- **GIVEN** a beta-enabled builder run
-- **WHEN** implementation work is about to execute outside the resolved beta worktree
-- **THEN** the runtime fails fast instead of relying on model interpretation or prompt compliance
+The system SHALL treat additional rule-based hard guards as deferred follow-up unless quiz validation exposes a concrete remaining failure mode.
 
-#### Scenario: validating builder enforcement behavior
+#### Scenario: defer rule-engine expansion after successful quiz coverage
 
-- **GIVEN** builder-native beta workflow support exists
-- **WHEN** end-to-end behavior is validated
-- **THEN** validation must prove not only bootstrap/syncback/finalize helpers, but also that implementation work after `plan_exit` actually routes to the beta worktree by default
+- **GIVEN** quiz guard validation shows high-confidence behavior alignment
+- **WHEN** no concrete residual failure requires downstream rule-based enforcement
+- **THEN** the system does not expand into a broad hard-guard matrix in this slice
+
+## Acceptance Checks
+
+- Correct quiz answers admit beta-sensitive build-mode entry.
+- First incorrect quiz answers produce field-level mismatch evidence and one reflection-based retry.
+- Repeated incorrect quiz answers stop build admission and ask the user.
+- Remaining build-mode text is advisory/minimal rather than pseudo-enforcement.
+- The plan records hard-guard expansion as deferred rather than silently dropped.

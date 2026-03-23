@@ -85,7 +85,11 @@ User requested that the beta build workflow stop depending on repeated ad-hoc pr
 
 ## Remaining
 
-- Builder quiz guard implementation remains future build work under the active plan package.
+- Builder quiz guard implementation remains future build work under the promoted formal spec package.
 - Immediate blocker discovered during plan handoff: web runtime initially could not access `plan_exit` / `plan_enter` even though the tools existed in code, because tool registration was gated to `app|cli|desktop` while the actual product surface runs as per-user daemon + webapp.
 - The blocker has now been fixed directly on the main `cms` branch by registering plan tools for `web` client as well.
 - Validation: `bun test packages/opencode/test/tool/registry.test.ts` passed with the new web-client coverage, and `bun test packages/opencode/test/session/bootstrap-policy.test.ts` remained green.
+- Manual promotion requested by user: `/plans/20260321_build-mode-refactoring/` was first promoted to `/specs/build-mode-refactoring/`.
+- User then clarified that `build-mode-refactoring` and `builder_framework` are the same topic, and that the newer `build-mode-refactoring` content should win.
+- Result: canonical entry files under `/specs/builder_framework/` were updated to the newer quiz-guard-focused content, diagrams were added there, and the redundant `/specs/build-mode-refactoring/` root was removed.
+- Validation: `/specs/builder_framework/` now contains the updated canonical file set plus diagrams, `/specs/build-mode-refactoring/` no longer exists, and `/plans/20260321_build-mode-refactoring/` remains removed.
