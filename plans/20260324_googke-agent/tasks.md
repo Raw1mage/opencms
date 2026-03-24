@@ -35,4 +35,4 @@
 - [x] 5.8 Write registry schema + lifecycle + app structure tests (17 pass, 0 fail)
 - [x] 5.9 Verify type-check passes for all new files (0 new tsc errors)
 - [x] 5.10 Create event log and documentation sync
-- [ ] 5.11 Web/TUI app management UI surface (deferred — API-first MVP complete)
+- [x] 5.11 Web app market UI: sidebar entry (`app-market` icon) + Synology-style dialog with card grid, search, install/enable/disable/uninstall actions

@@ -21,7 +21,6 @@
 
 ### OUT
 
-- Web/TUI app management UI（API-first MVP，UI 延後）
 - Google Calendar OAuth connect flow UI
 - 遠端 marketplace backend
 - 第三方 app sandbox hardening
@@ -29,9 +28,8 @@
 
 ## Scope（引用 tasks.md）
 
-- 5.1–5.9 全部完成
-- 5.10 本 event log
-- 5.11 deferred
+- 5.1–5.10 全部完成
+- 5.11 Web app market UI 完成
 
 ## Key Decisions
 
@@ -81,9 +79,29 @@ available → installing → installed → (configured + authenticated + enabled
 
 - `~/.config/opencode/managed-apps.json` — App install/config state（version 1 schema）
 
+## 5.11 Web App Market UI Implementation
+
+### 新增/修改檔案
+
+- `packages/ui/src/components/icon.tsx` — 新增 `app-market` icon（4-square grid SVG）
+- `packages/app/src/components/dialog-app-market.tsx` — Synology 風格 app market dialog（card grid, search, lifecycle actions）
+- `packages/app/src/pages/layout/sidebar-shell.tsx` — sidebar 新增 market 按鈕（icon + tooltip）
+- `packages/app/src/pages/layout.tsx` — wire dialog via `useDialog().show()`
+
+### Key Decisions
+
+7. **Synology Package Center 風格 UI**：card grid layout，每張卡顯示 app icon、名稱、描述、capability tags、status badge，以及安裝/啟用/停用/卸載動作按鈕。
+8. **直接使用 `globalSDK.fetch`**：dialog 元件透過 SDK 的 fetch helper 呼叫 `/api/mcp/apps` REST endpoints，不另建 RPC 層。
+9. **`createResource` + `refetch`**：lifecycle action 完成後自動重新載入 app 列表。
+
+### Verification
+
+- TypeScript: 新增前端檔案零 type errors（`tsc --noEmit --project packages/app/tsconfig.json`）
+- Sidebar 按鈕位置：位於 open-project 下方、settings 上方
+
 ## Remaining
 
-- [ ] 5.10 Documentation sync to `specs/architecture.md`
-- [ ] 5.11 Web/TUI app management UI
+- [ ] Documentation sync to `specs/architecture.md`
 - [ ] Google Calendar OAuth connect flow integration
 - [ ] Smoke test with real Google account
+- [ ] External MCP marketplace 串接

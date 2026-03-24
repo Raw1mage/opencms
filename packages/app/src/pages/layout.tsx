@@ -48,6 +48,7 @@ import { useTheme, type ColorScheme } from "@opencode-ai/ui/theme"
 import { DialogSelectProvider } from "@/components/dialog-select-provider"
 import { DialogSelectServer } from "@/components/dialog-select-server"
 import { DialogSettings } from "@/components/dialog-settings"
+import { DialogAppMarket } from "@/components/dialog-app-market"
 import { useCommand, type CommandOption } from "@/context/command"
 import { ConstrainDragXAxis } from "@/utils/solid-dnd"
 import { navStart } from "@/utils/perf"
@@ -1056,6 +1057,10 @@ export default function Layout(props: ParentProps) {
     dialog.show(() => <DialogSettings />)
   }
 
+  function openMarket() {
+    dialog.show(() => <DialogAppMarket />)
+  }
+
   async function navigateToProject(directory: string | undefined) {
     if (!directory) return
     const project = layout.projects
@@ -1998,6 +2003,8 @@ export default function Layout(props: ParentProps) {
                       activeProject={() => store.activeProject}
                     />
                   )}
+                  marketLabel={() => "App Market"}
+                  onOpenMarket={openMarket}
                   settingsLabel={() => language.t("sidebar.settings")}
                   settingsKeybind={() => command.keybind("settings.open")}
                   onOpenSettings={openSettings}
@@ -2075,6 +2082,8 @@ export default function Layout(props: ParentProps) {
               renderProjectOverlay={() => (
                 <ProjectDragOverlay projects={() => layout.projects.list()} activeProject={() => store.activeProject} />
               )}
+              marketLabel={() => "App Market"}
+              onOpenMarket={openMarket}
               settingsLabel={() => language.t("sidebar.settings")}
               settingsKeybind={() => command.keybind("settings.open")}
               onOpenSettings={openSettings}
