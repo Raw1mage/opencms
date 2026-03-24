@@ -789,7 +789,12 @@ async function getReadyWorker(config: Awaited<ReturnType<typeof Config.get>>) {
   if (existing) {
     await Promise.race([existing.readyPromise, Bun.sleep(WORKER_READY_TIMEOUT_MS)])
     if (existing.ready) return existing
-    log.warn("existing worker not ready within timeout", { workerID: existing.id, timeoutMs: WORKER_READY_TIMEOUT_MS })
+    log.warn("existing worker not ready within timeout", {
+      workerID: existing.id,
+      timeoutMs: WORKER_READY_TIMEOUT_MS,
+      lastPhase: existing.lastPhase,
+      lastStderr: existing.lastStderr?.slice(-300),
+    })
   }
 
   // Pool cap: if at max capacity, wait for any busy worker to finish rather than spawning
@@ -828,7 +833,16 @@ async function getReadyWorker(config: Awaited<ReturnType<typeof Config.get>>) {
 
   const worker = spawnWorker(config)
   await Promise.race([worker.readyPromise, Bun.sleep(WORKER_READY_TIMEOUT_MS)])
-  if (!worker.ready) throw new Error("subagent worker failed to become ready")
+  if (!worker.ready) {
+    const stderrHint = worker.lastStderr ? ` | stderr: ${worker.lastStderr.slice(-500)}` : ""
+    log.error("worker failed to become ready", {
+      workerID: worker.id,
+      lastPhase: worker.lastPhase,
+      lastStderr: worker.lastStderr?.slice(-500),
+      timeoutMs: WORKER_READY_TIMEOUT_MS,
+    })
+    throw new Error(`subagent worker failed to become ready${stderrHint}`)
+  }
   return worker
 }
 

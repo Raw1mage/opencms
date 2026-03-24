@@ -138,7 +138,9 @@ export namespace Daemon {
 
     const child = Bun.spawn(spawnArgs, {
       stdio: ["ignore", "ignore", "ignore"],
-      env: { ...process.env },
+      // OPENCODE_SKIP_TUI=1: prevent daemon from loading TUI modules (app.tsx imports react)
+      // which would cause "Cannot find module 'react/jsx-dev-runtime'" crash
+      env: { ...process.env, OPENCODE_SKIP_TUI: "1" },
     })
     // Detach: unref so the TUI process can exit without waiting for daemon
     child.unref()
