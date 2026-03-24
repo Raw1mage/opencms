@@ -1195,12 +1195,6 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           })
         }
         const elapsedFromStart = () => Date.now() - startedAt
-        const stageOnTimeout = () => {
-          if (!marks.has("worker_assigned")) return "queue"
-          if (!marks.has("worker_dispatched")) return "dispatch"
-          if (!marks.has("first_bridge_event")) return "modeling"
-          return "finalize"
-        }
         using __telemetry = defer(() => {
           telemetryLog.info("task lifecycle timing", {
             callID: ctx.callID,
@@ -1525,159 +1519,65 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         }
         ctx.abort.addEventListener("abort", cleanup)
 
-        // Activity-based timeout: subagent stays alive as long as it's working.
-        // Only times out after INACTIVITY_TIMEOUT_MS of no heartbeat/events.
-        // Hard cap (MAX_EXECUTION_MS) prevents truly runaway processes.
-        const INACTIVITY_TIMEOUT_MS = config.experimental?.task_timeout ?? 10 * 60 * 1000 // 10 min no activity = dead
-        const MAX_EXECUTION_MS = 2 * 60 * 60 * 1000 // 2 hour hard cap
+        // Unconditional wait: never timeout a subagent.  Only give up when the
+        // worker subprocess is confirmed dead.  Periodic liveness checks log
+        // diagnostics but do NOT kill the worker.
+        const LIVENESS_CHECK_INTERVAL_MS = 30_000
 
-        // Activity tracking strategy (v2): heartbeat/event-first with low-frequency storage fallback.
-        // Keep orphan/zombie safety by preserving stale detection + supervisor stall markers.
-        let lastActivityTime = Date.now()
-        let lastSignature = ""
-        let lastFallbackPollAt = 0
-
-        const updateActivity = () => {
-          lastActivityTime = Date.now()
-          if (ctx.callID) ProcessSupervisor.touch(ctx.callID)
-        }
-
-        const FALLBACK_POLL_INTERVAL_MS = 60_000
-        const sampleChildActivity = async () => {
-          const messages = await Session.messages({ sessionID: session.id })
-          const last = messages.at(-1)?.info
-          const lastTime = last?.time as { created?: number; completed?: number } | undefined
-          const signature = `${messages.length}:${last?.id ?? ""}:${lastTime?.completed ?? lastTime?.created ?? 0}`
-          if (signature !== lastSignature) {
-            lastSignature = signature
-            updateActivity()
-            return true
-          }
-          return false
-        }
-
-        // Prime baseline once, then rely on worker heartbeat/events unless stale.
-        await sampleChildActivity().catch(() => false)
-
-        // Heartbeat check: if no activity for too long, process may be zombified
-        const HEARTBEAT_INTERVAL_MS = 10_000 // Check frequently with cheap in-memory signals
-        const HEARTBEAT_STALE_MS = 5 * 60_000 // Consider stale after 5 minutes of no activity
-
-        const heartbeatTimer = setInterval(() => {
+        const livenessTimer = setInterval(() => {
           const worker = assignedWorkerID ? workers.find((w) => w.id === assignedWorkerID) : undefined
-          const workerHeartbeatAge = worker?.lastHeartbeatAt ? Date.now() - worker.lastHeartbeatAt : undefined
-          const workerEventAge = worker?.current?.lastEventAt ? Date.now() - worker.current.lastEventAt : undefined
-
-          if (
-            (workerHeartbeatAge !== undefined && workerHeartbeatAge < HEARTBEAT_STALE_MS) ||
-            (workerEventAge !== undefined && workerEventAge < HEARTBEAT_STALE_MS)
-          ) {
-            updateActivity()
-          }
-
-          const staleDuration = Date.now() - lastActivityTime
-
-          // Emergency storage probe only when activity appears stale and not too frequently.
-          if (staleDuration > HEARTBEAT_INTERVAL_MS && Date.now() - lastFallbackPollAt > FALLBACK_POLL_INTERVAL_MS) {
-            lastFallbackPollAt = Date.now()
-            void sampleChildActivity().catch((error) => {
-              Log.create({ service: "task" }).debug("Failed to fallback-poll subagent activity", {
-                callID: ctx.callID,
-                sessionID: session.id,
-                error: error instanceof Error ? error.message : String(error),
-              })
-            })
-          }
-
-          if (staleDuration > HEARTBEAT_STALE_MS) {
-            if (ctx.callID) ProcessSupervisor.markStalled(ctx.callID)
-            Log.create({ service: "task" }).warn("Subagent appears stalled, no activity detected", {
+          if (!worker) return // not yet assigned
+          const proc = worker.proc
+          const exited = proc.exitCode !== null || proc.killed
+          if (exited) {
+            Log.create({ service: "task" }).warn("Subagent worker process is dead", {
               callID: ctx.callID,
               sessionID: session.id,
-              staleDurationMs: staleDuration,
+              workerID: assignedWorkerID,
+              exitCode: proc.exitCode,
+              elapsedMs: elapsedFromStart(),
             })
+            // The stdout reader will handle cleanup via the exit path;
+            // just mark it stalled for observability.
+            if (ctx.callID) ProcessSupervisor.markStalled(ctx.callID)
+          } else {
+            // Touch supervisor to signal we're still alive.
+            if (ctx.callID) ProcessSupervisor.touch(ctx.callID)
           }
-        }, HEARTBEAT_INTERVAL_MS)
+        }, LIVENESS_CHECK_INTERVAL_MS)
 
         try {
-          // Activity-based timeout: polls inactivity instead of absolute deadline.
-          // Worker stays alive as long as heartbeats/events keep flowing.
-          const timeoutPromise = new Promise<"timeout">((resolve) => {
-            const checkInterval = setInterval(() => {
-              const inactiveMs = Date.now() - lastActivityTime
-              const totalMs = Date.now() - startedAt
-              if (inactiveMs > INACTIVITY_TIMEOUT_MS || totalMs > MAX_EXECUTION_MS) {
-                clearInterval(checkInterval)
-                resolve("timeout")
+          const run = await dispatchToWorker({
+            sessionID: session.id,
+            parentSessionID: ctx.sessionID,
+            parentMessageID: ctx.messageID,
+            toolCallID: ctx.callID ?? session.id,
+            linkedTodoID: linkedTodo?.id,
+            config,
+            abort: ctx.abort,
+            onPhase: (phase, data) => {
+              if (phase === "worker_assigned" && typeof data?.workerID === "string") {
+                assignedWorkerID = data.workerID
+                void SessionActiveChild.set(ctx.sessionID, {
+                  sessionID: session.id,
+                  parentMessageID: ctx.messageID,
+                  toolCallID: ctx.callID ?? session.id,
+                  workerID: data.workerID,
+                  title: params.description,
+                  agent: agent.name,
+                  status: "running",
+                  todo: activeChildTodo,
+                })
               }
-            }, 5_000) // Check every 5s
+              mark(phase, data)
+            },
           })
-
-          const result = await Promise.race([
-            dispatchToWorker({
-              sessionID: session.id,
-              parentSessionID: ctx.sessionID,
-              parentMessageID: ctx.messageID,
-              toolCallID: ctx.callID ?? session.id,
-              linkedTodoID: linkedTodo?.id,
-              config,
-              abort: ctx.abort,
-              onPhase: (phase, data) => {
-                if (phase === "worker_assigned" && typeof data?.workerID === "string") {
-                  assignedWorkerID = data.workerID
-                  void SessionActiveChild.set(ctx.sessionID, {
-                    sessionID: session.id,
-                    parentMessageID: ctx.messageID,
-                    toolCallID: ctx.callID ?? session.id,
-                    workerID: data.workerID,
-                    title: params.description,
-                    agent: agent.name,
-                    status: "running",
-                    todo: activeChildTodo,
-                  })
-                }
-                mark(phase, data)
-              },
-            }).then((run) => ({ type: "done" as const, run })),
-            timeoutPromise,
-          ])
-
-          if (result === "timeout") {
-            const inactiveMs = Date.now() - lastActivityTime
-            const totalMs = Date.now() - startedAt
-            const reason = totalMs > MAX_EXECUTION_MS ? "hard_cap" : "inactivity"
-            mark("timed_out", { stage: stageOnTimeout(), reason, inactiveMs, totalMs })
-            Log.create({ service: "task" }).error("Subagent execution timed out", {
-              callID: ctx.callID,
-              sessionID: session.id,
-              reason,
-              inactiveMs,
-              totalMs,
-              inactivityThresholdMs: INACTIVITY_TIMEOUT_MS,
-              hardCapMs: MAX_EXECUTION_MS,
-              timeoutStage: stageOnTimeout(),
-              elapsedMs: elapsedFromStart(),
-              workerID: assignedWorkerID,
-              workerHeartbeatAgeMs: (() => {
-                if (!assignedWorkerID) return undefined
-                const worker = workers.find((w) => w.id === assignedWorkerID)
-                if (!worker?.lastHeartbeatAt) return undefined
-                return Date.now() - worker.lastHeartbeatAt
-              })(),
-            })
-            SessionPrompt.cancel(session.id)
-            throw new Error(
-              reason === "hard_cap"
-                ? `Subagent execution hit hard cap after ${Math.round(totalMs / 1000)}s`
-                : `Subagent execution timed out after ${Math.round(inactiveMs / 1000)}s of inactivity`,
-            )
-          }
           mark("worker_dispatched_return", {
-            eventCount: result.type === "done" ? result.run.eventCount : 0,
+            eventCount: run.eventCount,
             firstEventMs: undefined,
           })
         } finally {
-          clearInterval(heartbeatTimer)
+          clearInterval(livenessTimer)
           ctx.abort.removeEventListener("abort", cleanup)
           unsub()
         }
