@@ -28,6 +28,8 @@ export const SidebarContent = (props: {
   renderProjectOverlay: () => JSX.Element
   marketLabel: Accessor<string>
   onOpenMarket: () => void
+  tasksLabel: Accessor<string>
+  onOpenTasks: () => void
   settingsLabel: Accessor<string>
   settingsKeybind: Accessor<string | undefined>
   onOpenSettings: () => void
@@ -93,6 +95,15 @@ export const SidebarContent = (props: {
                     size="large"
                     onClick={props.onOpenMarket}
                     aria-label={props.marketLabel()}
+                  />
+                </Tooltip>
+                <Tooltip placement={placement()} value={props.tasksLabel()}>
+                  <IconButton
+                    icon="checklist"
+                    variant="ghost"
+                    size="large"
+                    onClick={props.onOpenTasks}
+                    aria-label={props.tasksLabel()}
                   />
                 </Tooltip>
                 <TooltipKeybind

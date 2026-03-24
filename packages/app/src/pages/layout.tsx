@@ -1061,6 +1061,13 @@ export default function Layout(props: ParentProps) {
     dialog.show(() => <DialogAppMarket />)
   }
 
+  function openTasks() {
+    const dir = currentDir()
+    if (dir) {
+      navigateWithSidebarReset(`/${base64Encode(dir)}/tasks`)
+    }
+  }
+
   async function navigateToProject(directory: string | undefined) {
     if (!directory) return
     const project = layout.projects
@@ -2005,6 +2012,8 @@ export default function Layout(props: ParentProps) {
                   )}
                   marketLabel={() => "App Market"}
                   onOpenMarket={openMarket}
+                  tasksLabel={() => "Tasks"}
+                  onOpenTasks={openTasks}
                   settingsLabel={() => language.t("sidebar.settings")}
                   settingsKeybind={() => command.keybind("settings.open")}
                   onOpenSettings={openSettings}
@@ -2084,6 +2093,8 @@ export default function Layout(props: ParentProps) {
               )}
               marketLabel={() => "App Market"}
               onOpenMarket={openMarket}
+              tasksLabel={() => "Tasks"}
+              onOpenTasks={openTasks}
               settingsLabel={() => language.t("sidebar.settings")}
               settingsKeybind={() => command.keybind("settings.open")}
               onOpenSettings={openSettings}

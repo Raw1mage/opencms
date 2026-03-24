@@ -35,6 +35,7 @@ const Session = lazy(() => import("@/pages/session"))
 const TerminalPopout = lazy(() => import("@/pages/session/terminal-popout"))
 const SessionToolPage = lazy(() => import("@/pages/session/tool-page"))
 const SessionRichContentProvider = lazy(() => import("@/pages/session/session-rich-content-provider"))
+const TaskList = lazy(() => import("@/pages/task-list"))
 const Loading = () => <div class="size-full" />
 
 const HomeRoute = () => (
@@ -74,6 +75,12 @@ const SessionToolRoute = () => (
 )
 
 const SessionIndexRoute = () => <Navigate href="session" />
+
+const TaskListRoute = () => (
+  <Suspense fallback={<Loading />}>
+    <TaskList />
+  </Suspense>
+)
 
 function UiI18nBridge(props: ParentProps) {
   const language = useLanguage()
@@ -261,6 +268,7 @@ export function AppInterface(props: { defaultUrl?: string; children?: JSX.Elemen
                     <Route path="/session/:id?" component={SessionRoute} />
                     <Route path="/session/:id?/tool/:tool" component={SessionToolRoute} />
                     <Route path="/session/:id?/terminal-popout" component={TerminalPopoutRoute} />
+                    <Route path="/tasks" component={TaskListRoute} />
                   </Route>
                 </Router>
               </GlobalSyncProvider>
