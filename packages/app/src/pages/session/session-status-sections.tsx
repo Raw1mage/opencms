@@ -418,45 +418,7 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
         </Show>
       ),
     })
-    result.push({
-      key: "mcp",
-      title: language.t("status.popover.tab.mcp"),
-      content: (
-        <Show
-          when={mcpNames().length > 0}
-          fallback={<div class="text-12-regular text-text-weak">{language.t("dialog.mcp.empty")}</div>}
-        >
-          <For each={mcpNames()}>
-            {(name) => {
-              const status = () => mcpStatus(name)
-              const enabled = () => status() === "connected"
-              return (
-                <button
-                  type="button"
-                  class="flex items-center gap-2 w-full min-h-8 pl-2 pr-2 py-1 rounded-md hover:bg-surface-raised-base-hover transition-colors text-left"
-                  onClick={() => mcp.toggle(name)}
-                  disabled={mcp.loading() === name}
-                >
-                  <div
-                    classList={{
-                      "size-1.5 rounded-full shrink-0": true,
-                      "bg-icon-success-base": status() === "connected",
-                      "bg-icon-critical-base": status() === "failed",
-                      "bg-border-weak-base": status() === "disabled",
-                      "bg-icon-warning-base": status() === "needs_auth" || status() === "needs_client_registration",
-                    }}
-                  />
-                  <span class="text-14-regular text-text-base truncate flex-1">{name}</span>
-                  <div onClick={(event) => event.stopPropagation()}>
-                    <Switch checked={enabled()} disabled={mcp.loading() === name} onChange={() => mcp.toggle(name)} />
-                  </div>
-                </button>
-              )
-            }}
-          </For>
-        </Show>
-      ),
-    })
+    // MCP list card hidden — management moved to App Market dialog
     const order = layout.statusSidebar.order()
     const orderIndex = new Map(order.map((key, index) => [key, index]))
     return result.sort((a, b) => (orderIndex.get(a.key) ?? 99) - (orderIndex.get(b.key) ?? 99))

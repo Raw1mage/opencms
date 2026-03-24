@@ -256,27 +256,128 @@ export namespace GmailClient {
     )?.value
   }
 
-  /** Decode the text/plain body from a message. */
-  export function decodeTextBody(message: Message): string | null {
-    if (!message.payload) return null
-
-    function findPlainPart(part: MessagePart): MessagePart | null {
-      if (part.mimeType === "text/plain" && part.body?.data) return part
-      if (part.parts) {
-        for (const sub of part.parts) {
-          const found = findPlainPart(sub)
-          if (found) return found
-        }
-      }
-      return null
-    }
-
-    const plain = findPlainPart(message.payload)
-    if (!plain?.body?.data) return null
-
-    const padded = plain.body.data.replace(/-/g, "+").replace(/_/g, "/")
+  /** Decode base64url data from a message part. */
+  function decodePartData(data: string): string {
+    const padded = data.replace(/-/g, "+").replace(/_/g, "/")
     return new TextDecoder().decode(
       Uint8Array.from(atob(padded), (c) => c.charCodeAt(0)),
     )
+  }
+
+  /** Decode common HTML entities. */
+  function decodeEntities(text: string): string {
+    return text
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+      .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+  }
+
+  /** Extract cell text from a <td> or <th> element string. */
+  function cellText(cell: string): string {
+    return decodeEntities(cell.replace(/<[^>]+>/g, "")).trim()
+  }
+
+  /** Convert HTML <table> blocks to markdown tables. */
+  function convertTables(html: string): string {
+    return html.replace(/<table[^>]*>([\s\S]*?)<\/table>/gi, (_, tableBody: string) => {
+      const rows: string[][] = []
+      const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi
+      let rowMatch: RegExpExecArray | null
+      while ((rowMatch = rowRegex.exec(tableBody)) !== null) {
+        const cells: string[] = []
+        const cellRegex = /<(?:td|th)[^>]*>([\s\S]*?)<\/(?:td|th)>/gi
+        let cellMatch: RegExpExecArray | null
+        while ((cellMatch = cellRegex.exec(rowMatch[1])) !== null) {
+          cells.push(cellText(cellMatch[1]))
+        }
+        if (cells.length > 0) rows.push(cells)
+      }
+      if (rows.length === 0) return ""
+
+      // Normalize column count
+      const colCount = Math.max(...rows.map((r) => r.length))
+      for (const row of rows) {
+        while (row.length < colCount) row.push("")
+      }
+
+      // Build markdown table
+      const colWidths = Array.from({ length: colCount }, (_, i) =>
+        Math.max(3, ...rows.map((r) => r[i].length)),
+      )
+      const pad = (s: string, w: number) => s + " ".repeat(Math.max(0, w - s.length))
+      const lines: string[] = []
+      for (let r = 0; r < rows.length; r++) {
+        lines.push("| " + rows[r].map((c, i) => pad(c, colWidths[i])).join(" | ") + " |")
+        if (r === 0) {
+          lines.push("| " + colWidths.map((w) => "-".repeat(w)).join(" | ") + " |")
+        }
+      }
+      return "\n" + lines.join("\n") + "\n"
+    })
+  }
+
+  /** Convert HTML to readable markdown-flavoured plain text. */
+  function stripHtml(html: string): string {
+    // Remove non-content blocks
+    let text = html
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+
+    // Convert tables to markdown before stripping tags
+    text = convertTables(text)
+
+    // Convert structural tags
+    text = text
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/?(p|div|li)[^>]*>/gi, "\n")
+      .replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi, (_, level, content) => {
+        const hashes = "#".repeat(Number(level))
+        return `\n${hashes} ${cellText(content)}\n`
+      })
+      .replace(/<a[^>]+href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (_, href, label) => {
+        const t = cellText(label)
+        return t === href ? t : `[${t}](${href})`
+      })
+      .replace(/<\/?(?:b|strong)[^>]*>/gi, "**")
+      .replace(/<\/?(?:i|em)[^>]*>/gi, "_")
+
+    // Strip remaining tags
+    text = text.replace(/<[^>]+>/g, "")
+
+    // Decode entities and clean up whitespace
+    text = decodeEntities(text)
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+
+    return text
+  }
+
+  /** Find a part by mime type recursively. */
+  function findPart(part: MessagePart, mimeType: string): MessagePart | null {
+    if (part.mimeType === mimeType && part.body?.data) return part
+    if (part.parts) {
+      for (const sub of part.parts) {
+        const found = findPart(sub, mimeType)
+        if (found) return found
+      }
+    }
+    return null
+  }
+
+  /** Decode the body from a message. Prefers text/plain, falls back to text/html (stripped). */
+  export function decodeTextBody(message: Message): string | null {
+    if (!message.payload) return null
+
+    const plain = findPart(message.payload, "text/plain")
+    if (plain?.body?.data) return decodePartData(plain.body.data)
+
+    const html = findPart(message.payload, "text/html")
+    if (html?.body?.data) return stripHtml(decodePartData(html.body.data))
+
+    return null
   }
 }

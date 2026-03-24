@@ -774,16 +774,20 @@ export namespace ManagedAppRegistry {
       }
     }
 
-    // For managed apps, check gauth.json directly instead of Account system
-    if (entry.id === "google-calendar") {
+    // For Google OAuth managed apps, check shared gauth.json directly
+    const GOOGLE_OAUTH_APP_IDS = ["google-calendar", "gmail"]
+    if (GOOGLE_OAUTH_APP_IDS.includes(entry.id)) {
       try {
-        const { GoogleCalendarApp } = await import("./apps/google-calendar")
-        const tokens = await GoogleCalendarApp.readGAuthTokens()
-        if (tokens && tokens.access_token) {
-          return {
-            providerKey: entry.auth.providerKey,
-            accountId: "gauth-google-calendar",
-            status: "authenticated",
+        const gauthPath = path.join(Global.Path.config, "gauth.json")
+        const file = Bun.file(gauthPath)
+        if (await file.exists()) {
+          const tokens = (await file.json()) as { access_token?: string }
+          if (tokens && tokens.access_token) {
+            return {
+              providerKey: entry.auth.providerKey,
+              accountId: `gauth-${entry.id}`,
+              status: "authenticated",
+            }
           }
         }
       } catch {

@@ -1,0 +1,77 @@
+{
+  "diagram_title": "Gmail MCP Managed App — A0 Context",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Authenticate Google Account",
+      "description": "OAuth connect flow: redirect to Google consent, exchange code for tokens, store to gauth.json, enable all installed Google apps",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Read Gmail Data",
+      "description": "List labels, search/list messages, get single message details, list drafts",
+      "decomposition": "A2"
+    },
+    {
+      "id": "A3",
+      "title": "Compose Gmail Messages",
+      "description": "Send new message, reply to thread, forward message, create draft — all via RFC 2822 + base64url encoding",
+      "decomposition": "A3"
+    },
+    {
+      "id": "A4",
+      "title": "Manage Gmail Labels",
+      "description": "Add/remove labels on messages, mark read/unread, star/unstar, move to trash",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Route Tool Execution",
+      "description": "MCP tool router dispatches AI tool calls to GmailApp executor, validates app readiness, formats Markdown output",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "User OAuth Initiation", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "GCP OAuth Client Config (CLIENT_ID, SECRET, SCOPES)", "type": "control" },
+    { "id": "AR3", "source": "EXTERNAL", "target": "A1:mechanism", "label": "Google OAuth 2.0 Server", "type": "mechanism" },
+    { "id": "AR4", "source": "A1", "target": "A5:input", "label": "OAuth Access Token (gauth.json)", "type": "output" },
+    { "id": "AR5", "source": "A1", "target": "EXTERNAL", "label": "App State Transition (ready)", "type": "output" },
+
+    { "id": "AR6", "source": "EXTERNAL", "target": "A5:input", "label": "AI Tool Call (toolId + args)", "type": "input" },
+    { "id": "AR7", "source": "EXTERNAL", "target": "A5:control", "label": "ManagedAppRegistry State (requireReady)", "type": "control" },
+    { "id": "AR8", "source": "EXTERNAL", "target": "A5:mechanism", "label": "MCP Tool Router + Vercel AI SDK", "type": "mechanism" },
+
+    { "id": "AR9", "source": "A5", "target": "A2:input", "label": "Read Tool Dispatch (list-labels, list-messages, get-message, list-drafts)", "type": "input" },
+    { "id": "AR10", "source": "A5", "target": "A3:input", "label": "Write Tool Dispatch (send-message, reply-message, forward-message, create-draft)", "type": "input" },
+    { "id": "AR11", "source": "A5", "target": "A4:input", "label": "Manage Tool Dispatch (modify-labels, trash-message)", "type": "input" },
+
+    { "id": "AR12", "source": "A4:input", "target": "A4:input", "label": "Access Token", "type": "input" },
+    { "id": "AR13", "source": "EXTERNAL", "target": "A2:mechanism", "label": "Gmail REST API v1", "type": "mechanism" },
+    { "id": "AR14", "source": "EXTERNAL", "target": "A3:mechanism", "label": "Gmail REST API v1", "type": "mechanism" },
+    { "id": "AR15", "source": "EXTERNAL", "target": "A4:mechanism", "label": "Gmail REST API v1", "type": "mechanism" },
+    { "id": "AR16", "source": "EXTERNAL", "target": "A4:control", "label": "Confirmation Gate (trash requires user approval)", "type": "control" },
+
+    { "id": "AR17", "source": "A2", "target": "EXTERNAL", "label": "Markdown Formatted Read Results", "type": "output" },
+    { "id": "AR18", "source": "A3", "target": "EXTERNAL", "label": "Markdown Formatted Write Results", "type": "output" },
+    { "id": "AR19", "source": "A4", "target": "EXTERNAL", "label": "Markdown Formatted Manage Results", "type": "output" },
+    { "id": "AR20", "source": "A5", "target": "EXTERNAL", "label": "Tool Result to AI Session", "type": "output" },
+
+    { "id": "AR21", "source": "EXTERNAL", "target": "A2:control", "label": "Gmail Query Syntax + Pagination", "type": "control" },
+    { "id": "AR22", "source": "EXTERNAL", "target": "A3:control", "label": "RFC 2822 Format + Threading Rules", "type": "control" }
+  ],
+  "analysis_summary": "Gmail MCP decomposes into 5 top-level functions: OAuth authentication, read operations, compose operations, label management, and tool routing. OAuth produces shared tokens consumed by all tool categories. Tool routing is the single entry point from AI sessions.",
+  "assumptions": [
+    "Same GCP project serves both Calendar and Gmail OAuth",
+    "gauth.json is the single token store for all Google apps",
+    "Text/plain body extraction with snippet fallback is sufficient (no HTML rendering)"
+  ],
+  "decision_trace": [
+    "DD-1: Full scope https://mail.google.com/ per user requirement",
+    "DD-2: Shared gauth.json per user requirement",
+    "DD-3: OAuth connect merges scopes from all installed Google apps"
+  ],
+  "validation_notes": []
+}

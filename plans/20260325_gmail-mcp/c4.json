@@ -1,0 +1,32 @@
+{
+  "diagram_title": "Gmail MCP Managed App — C4 Component Diagram",
+  "diagram_level": "component",
+  "systems": [
+    { "id": "SYS1", "name": "OpenCode Platform", "description": "AI coding agent platform with multi-interface support", "external": false },
+    { "id": "SYS2", "name": "Google APIs", "description": "Google Cloud Platform REST APIs", "external": true }
+  ],
+  "containers": [
+    { "id": "CT1", "name": "Backend Server", "description": "Hono-based HTTP server exposing API routes", "technology": "Bun + Hono", "systemRef": "SYS1" },
+    { "id": "CT2", "name": "MCP Runtime", "description": "Managed App lifecycle, tool conversion, and routing", "technology": "TypeScript", "systemRef": "SYS1" },
+    { "id": "CT3", "name": "Gmail REST API", "description": "Gmail v1 REST API", "technology": "HTTPS", "systemRef": "SYS2" },
+    { "id": "CT4", "name": "Google OAuth", "description": "Google OAuth 2.0 authorization server", "technology": "HTTPS", "systemRef": "SYS2" }
+  ],
+  "components": [
+    { "id": "C1", "name": "GmailClient", "description": "Raw fetch REST client for Gmail API v1", "technology": "TypeScript", "containerRef": "CT2", "moduleRef": "A1", "filePath": "packages/opencode/src/mcp/apps/gmail/client.ts" },
+    { "id": "C2", "name": "GmailApp", "description": "Tool executors, formatters, and access token resolution", "technology": "TypeScript", "containerRef": "CT2", "moduleRef": "A2", "filePath": "packages/opencode/src/mcp/apps/gmail/index.ts" },
+    { "id": "C3", "name": "ManagedAppRegistry", "description": "App lifecycle state machine, BUILTIN_CATALOG, persistence", "technology": "TypeScript", "containerRef": "CT2", "moduleRef": "A3", "filePath": "packages/opencode/src/mcp/app-registry.ts" },
+    { "id": "C4", "name": "MCP Tool Router", "description": "Tool conversion and executor routing for managed apps", "technology": "TypeScript", "containerRef": "CT2", "moduleRef": "A4", "filePath": "packages/opencode/src/mcp/index.ts" },
+    { "id": "C5", "name": "OAuth Routes", "description": "HTTP routes for OAuth connect/callback (generalized for Google apps)", "technology": "Hono", "containerRef": "CT1", "moduleRef": "A5", "filePath": "packages/opencode/src/server/routes/mcp.ts" },
+    { "id": "C6", "name": "gauth.json", "description": "Shared OAuth token storage for all Google apps", "technology": "JSON file", "containerRef": "CT2", "moduleRef": "A5", "filePath": "~/.config/opencode/gauth.json" }
+  ],
+  "relationships": [
+    { "id": "REL1", "source": "C4", "target": "C2", "description": "Routes tool execution to GmailApp.execute()", "technology": "Function call" },
+    { "id": "REL2", "source": "C2", "target": "C1", "description": "Calls Gmail REST API methods", "technology": "Function call" },
+    { "id": "REL3", "source": "C1", "target": "CT3", "description": "HTTP requests to Gmail API v1", "technology": "HTTPS + Bearer token" },
+    { "id": "REL4", "source": "C2", "target": "C6", "description": "Reads access_token from gauth.json", "technology": "File I/O" },
+    { "id": "REL5", "source": "C2", "target": "C3", "description": "requireReady() + markError()", "technology": "Function call" },
+    { "id": "REL6", "source": "C5", "target": "CT4", "description": "OAuth consent redirect + token exchange", "technology": "HTTPS" },
+    { "id": "REL7", "source": "C5", "target": "C6", "description": "Writes tokens after OAuth callback", "technology": "File I/O" },
+    { "id": "REL8", "source": "C5", "target": "C3", "description": "setConfigKeys + enable for all Google apps", "technology": "Function call" }
+  ]
+}

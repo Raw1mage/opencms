@@ -70,12 +70,11 @@ export namespace GmailApp {
     return lines.join("\n")
   }
 
-  function formatMessageSummary(msg: GmailClient.Message): string {
+  function formatMessageSummary(msg: GmailClient.Message, opts?: { maxBodyLen?: number }): string {
     const from = GmailClient.getHeader(msg, "From") ?? "?"
     const to = GmailClient.getHeader(msg, "To") ?? "?"
     const subject = GmailClient.getHeader(msg, "Subject") ?? "(no subject)"
     const date = GmailClient.getHeader(msg, "Date") ?? "?"
-    const labels = msg.labelIds?.join(", ") ?? "none"
 
     const lines = [
       `**${subject}**`,
@@ -83,12 +82,14 @@ export namespace GmailApp {
       `From: ${from}`,
       `To: ${to}`,
       `Date: ${date}`,
-      `Labels: ${labels}`,
     ]
 
     const body = GmailClient.decodeTextBody(msg)
     if (body) {
-      const trimmed = body.length > 2000 ? body.slice(0, 2000) + "\n...(truncated)" : body
+      const maxLen = opts?.maxBodyLen ?? 0 // 0 = no limit
+      const trimmed = maxLen > 0 && body.length > maxLen
+        ? body.slice(0, maxLen) + "\n...(truncated)"
+        : body
       lines.push(`\n${trimmed}`)
     } else if (msg.snippet) {
       lines.push(`\nSnippet: ${msg.snippet}`)
@@ -99,12 +100,29 @@ export namespace GmailApp {
 
   function formatMessageList(messages: GmailClient.Message[]): string {
     if (messages.length === 0) return "No messages found."
-    return `Found ${messages.length} message(s):\n\n${messages.map(formatMessageSummary).join("\n\n---\n\n")}`
+    // List view: truncate each message body to keep overview readable
+    return `Found ${messages.length} message(s):\n\n${messages.map((m) => formatMessageSummary(m, { maxBodyLen: 500 })).join("\n\n---\n\n")}`
   }
 
   function formatDraftList(drafts: GmailClient.Message[]): string {
     if (drafts.length === 0) return "No drafts found."
-    return `Found ${drafts.length} draft(s):\n\n${drafts.map(formatMessageSummary).join("\n\n---\n\n")}`
+    return `Found ${drafts.length} draft(s):\n\n${drafts.map((m) => formatMessageSummary(m, { maxBodyLen: 500 })).join("\n\n---\n\n")}`
+  }
+
+  // ---------- Helpers ----------
+
+  /** Run promises with limited concurrency to avoid Gmail API 429 errors. */
+  async function mapConcurrent<T, R>(items: T[], concurrency: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+    const results: R[] = new Array(items.length)
+    let idx = 0
+    async function worker() {
+      while (idx < items.length) {
+        const i = idx++
+        results[i] = await fn(items[i])
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()))
+    return results
   }
 
   // ---------- Tool Executors ----------
@@ -128,9 +146,9 @@ export namespace GmailApp {
 
       if (result.messages.length === 0) return "No messages found matching the query."
 
-      // Fetch full message details for each
-      const messages = await Promise.all(
-        result.messages.map((entry) => GmailClient.getMessage(token, entry.id, "full")),
+      // Fetch full message details with concurrency limit to avoid 429
+      const messages = await mapConcurrent(result.messages, 3, (entry) =>
+        GmailClient.getMessage(token, entry.id, "full"),
       )
 
       let out = formatMessageList(messages)
@@ -239,8 +257,8 @@ export namespace GmailApp {
 
       if (result.drafts.length === 0) return "No drafts found."
 
-      const messages = await Promise.all(
-        result.drafts.map((d) => GmailClient.getMessage(token, d.message.id, "full")),
+      const messages = await mapConcurrent(result.drafts, 3, (d) =>
+        GmailClient.getMessage(token, d.message.id, "full"),
       )
       return formatDraftList(messages)
     },

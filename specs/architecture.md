@@ -98,6 +98,41 @@ The frontend is built with Solid.js and uses a bottom-up dependency model:
 - **`src/auth`**: Identity resolution, OAuth token parsing, high-level API key addition, collision avoidance.
 - **`src/provider`**: Manages active connections to model providers and their runtime instances.
 
+## Managed App Registry (MCP Apps)
+
+### Overview
+
+The Managed App Registry (`packages/opencode/src/mcp/app-registry.ts`) provides a lifecycle state machine for built-in MCP apps that run under opencode runtime ownership. Apps are registered in `BUILTIN_CATALOG` and exposed as AI-callable tools through the MCP tool router.
+
+### State Machine
+
+```
+available → installed → pending_config → pending_auth → ready
+                     → disabled
+                     → error
+```
+
+### Registered Apps
+
+| App ID | Name | Scope | Tools |
+|--------|------|-------|-------|
+| `google-calendar` | Google Calendar | `calendar`, `calendar.events` | 7 (list-calendars, list-events, get-event, create-event, update-event, delete-event, freebusy) |
+| `gmail` | Gmail | `https://mail.google.com/` (full) | 10 (list-labels, list-messages, get-message, send-message, reply-message, forward-message, modify-labels, trash-message, list-drafts, create-draft) |
+
+### Shared Google OAuth
+
+Both Google apps share a single OAuth token stored at `~/.config/opencode/gauth.json`. The OAuth connect flow (`/api/v2/mcp/apps/:appId/oauth/connect`) merges scopes from all installed Google apps before redirecting to Google's consent screen. After successful callback, all installed Google apps are marked configured and enabled.
+
+### Key Files
+
+- `packages/opencode/src/mcp/app-registry.ts` — BUILTIN_CATALOG, state machine, persistence (`managed-apps.json`)
+- `packages/opencode/src/mcp/index.ts` — Tool conversion (`convertManagedAppTool`), executor routing (`managedAppExecutors`)
+- `packages/opencode/src/mcp/apps/google-calendar/` — Calendar client + executors
+- `packages/opencode/src/mcp/apps/gmail/` — Gmail client + executors
+- `packages/opencode/src/server/routes/mcp.ts` — OAuth connect/callback routes, app lifecycle API
+- `~/.config/opencode/gauth.json` — Shared Google OAuth token storage
+- `~/.config/opencode/managed-apps.json` — App install/config state persistence
+
 ## Account Bus Events
 
 - **Event Types**: `account.added`, `account.removed`, `account.activated` — defined in `src/bus/index.ts`.
