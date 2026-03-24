@@ -2,34 +2,35 @@
 
 ## Phase 1: Discovery Enhancement（Additive, 無破壞性）
 
-- [ ] 1.1 新增 `Daemon.isSocketConnectable(socketPath)` — fetch health endpoint over Unix socket with 2s timeout
-- [ ] 1.2 新增 `Daemon.spawnOrAdopt(opts)` — adopt-first + spawn-fallback 統一入口
-- [ ] 1.3 `readDiscovery()` 增加 socket connectivity probe（不只是 PID alive）
-- [ ] 1.4 `spawn()` 保留 bun flags（`--conditions=browser` 等）— 修正 spawnArgs 建構邏輯
-- [ ] 1.5 `daemon.json` schema 擴充：加入 `spawnedBy` 欄位
+- [x] 1.1 新增 `Daemon.isSocketConnectable(socketPath)` — fetch health endpoint over Unix socket with 2s timeout
+- [x] 1.2 新增 `Daemon.spawnOrAdopt(opts)` — adopt-first + spawn-fallback 統一入口
+- [~] 1.3 `readDiscovery()` 增加 socket connectivity probe — 改由 spawnOrAdopt() 層處理，readDiscovery() 保持輕量（PID check only）
+- [x] 1.4 `spawn()` 保留 bun flags（`--conditions=browser` 等）— 修正 spawnArgs 建構邏輯
+- [x] 1.5 `daemon.json` schema 擴充：加入 `spawnedBy` 欄位
 - [ ] 1.6 驗證：手動測試 spawnOrAdopt（先 spawn 再 adopt、先 adopt 已存在的 daemon）
 
 ## Phase 2: TUI Always-Attach（核心改動）
 
-- [ ] 2.1 `thread.ts` handler：非-attach 路徑改為呼叫 `Daemon.spawnOrAdopt()` + Unix socket attach
-- [ ] 2.2 `thread.ts`：directory 從 `process.cwd()` / `args.project` 解析後，傳入 `tui({ directory })` → SDK `x-opencode-directory` header
-- [ ] 2.3 `tui()` function signature：接受 `directory` 參數，傳給 SDK client
-- [ ] 2.4 `--attach` flag 保留但標記 deprecated（行為與預設相同）
-- [ ] 2.5 移除 Worker thread 建立邏輯（`new Worker(workerPath, ...)` 區塊）
-- [ ] 2.6 移除 `createWorkerFetch()` 和 RPC-based `createEventSource()`
-- [ ] 2.7 移除 Worker RPC 相關程式碼（`client.call("server")`, `client.call("shutdown")`, `client.call("reload")`）
-- [ ] 2.8 調整 TUI exit handler：不再 `worker.terminate()`，改為只 abort SSE + 不 kill daemon
-- [ ] 2.9 Debug attach empty-state：釐清現有 `--attach` mode 為何 accounts/sessions 為空（API 有資料但 TUI 未 hydrate）
+- [x] 2.1 `thread.ts` handler：非-attach 路徑改為呼叫 `Daemon.spawnOrAdopt()` + Unix socket attach
+- [x] 2.2 `thread.ts`：directory 從 `process.cwd()` / `args.project` 解析後，傳入 `tui({ directory })` → SDK `x-opencode-directory` header
+- [~] 2.3 `tui()` function signature — 已支援 `directory` 參數，無需改動
+- [x] 2.4 `--attach` flag 保留但標記 deprecated（行為與預設相同）
+- [x] 2.5 移除 Worker thread 建立邏輯（`new Worker(workerPath, ...)` 區塊）
+- [x] 2.6 移除 `createWorkerFetch()` 和 RPC-based `createEventSource()`
+- [x] 2.7 移除 Worker RPC 相關程式碼（`client.call("server")`, `client.call("shutdown")`, `client.call("reload")`）
+- [x] 2.8 調整 TUI exit handler：不再 `worker.terminate()`，改為只 abort SSE + 不 kill daemon
+- [x] 2.9 Debug attach empty-state：root cause = `local.tsx` 呼叫 in-process `Account.listAll()` 而非 SDK HTTP；fix = 改為 `sdk.client.account.listAll()`
 - [ ] 2.10 驗證：`bun run dev` 啟動後 daemon.json 存在、TUI 正常顯示 accounts/sessions
+- [ ] 2.11 (discovered) `dialog-admin.tsx` / `dialog-account.tsx` 仍有大量 in-process Account calls，attach mode 會壞 — 需後續遷移
 
 ## Phase 3: Worker Mode Cleanup
 
-- [ ] 3.1 移除 `packages/opencode/src/cli/cmd/tui/worker.ts`
-- [ ] 3.2 移除 `index.ts` 中 `OPENCODE_CLI_TOKEN` 生成邏輯（line 94-96）
-- [ ] 3.3 審查 `OPENCODE_CLI_TOKEN` 的所有引用，確認無殘留依賴
-- [ ] 3.4 審查 `Rpc` namespace 在 TUI context 的引用，確認不再需要
-- [ ] 3.5 移除 `OPENCODE_WORKER_PATH` 全域宣告和相關邏輯
-- [ ] 3.6 驗證：`tsc --noEmit` 無新錯誤
+- [x] 3.1 移除 `packages/opencode/src/cli/cmd/tui/worker.ts`
+- [~] 3.2 `OPENCODE_CLI_TOKEN` 保留 — killswitch.ts 仍需要透過 HTTP CLI token auth
+- [~] 3.3 `OPENCODE_CLI_TOKEN` 審查完成 — app.ts (server auth), killswitch.ts (CLI auth) 仍有用途
+- [x] 3.4 審查 `Rpc` namespace 在 TUI context 的引用 — 已無殘留
+- [x] 3.5 移除 `OPENCODE_WORKER_PATH` 全域宣告和 build.ts entrypoint
+- [ ] 3.6 驗證：`tsc --noEmit` 無新錯誤（tsc OOM，待環境驗證）
 
 ## Phase 4: Gateway Adopt Hardening
 
@@ -71,6 +72,6 @@ Phase 3 + Phase 5 → Phase 6
 
 ## Approval Gates
 
-- [ ] **Phase 2 開始前**：確認 always-attach 策略（消除 Worker mode）
+- [x] **Phase 2 開始前**：確認 always-attach 策略（消除 Worker mode）
 - [ ] **Phase 5.1**：決策 systemd per-user service 的處置方式
 - [ ] **Phase 6.8**：architecture.md 更新內容審查
