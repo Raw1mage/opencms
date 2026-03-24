@@ -262,7 +262,7 @@ ensure_repo_owner_identity() {
 
 requires_privileged_command() {
     case "${1:-}" in
-        install|web-start|web-stop|web-restart|web-refresh)
+        install|web-start|web-stop|web-restart|web-refresh|reload)
             return 0
             ;;
         *)
@@ -1849,6 +1849,72 @@ do_build_frontend() {
 }
 
 # ---------------------------------------------------------------------------
+# Smart build stamps — skip build/install when source unchanged
+# ---------------------------------------------------------------------------
+
+# Compute a fingerprint of source dirs relevant to the backend binary.
+# Uses git tree hashes + dirty-file list so uncommitted changes invalidate.
+_binary_source_fingerprint() {
+    cd "${PROJECT_ROOT}"
+    local parts=""
+    # Git tree hashes for source packages
+    for dir in packages/opencode packages/app; do
+        parts="${parts}$(git rev-parse HEAD:"${dir}" 2>/dev/null || echo dirty)"
+    done
+    # Append list of uncommitted changes in those dirs (catches dirty tree)
+    parts="${parts}$(git diff --name-only HEAD -- packages/opencode packages/app 2>/dev/null)"
+    # Also include untracked files
+    parts="${parts}$(git ls-files --others --exclude-standard -- packages/opencode packages/app 2>/dev/null)"
+    echo "${parts}" | sha256sum | cut -d' ' -f1
+}
+
+BINARY_STAMP_FILE="${PROJECT_ROOT}/dist/.binary-stamp"
+
+_binary_needs_build() {
+    local dist_bin="${PROJECT_ROOT}/dist/opencode-linux-x64/bin/opencode"
+    [ ! -f "${dist_bin}" ] && return 0
+    [ ! -f "${BINARY_STAMP_FILE}" ] && return 0
+    local current
+    current="$(_binary_source_fingerprint)"
+    local stamped
+    stamped="$(cat "${BINARY_STAMP_FILE}" 2>/dev/null)"
+    [ "${current}" != "${stamped}" ]
+}
+
+_write_binary_stamp() {
+    _binary_source_fingerprint > "${BINARY_STAMP_FILE}"
+}
+
+_binary_needs_install() {
+    local dist_bin="${PROJECT_ROOT}/dist/opencode-linux-x64/bin/opencode"
+    local install_bin="${1:-/usr/local/bin/opencode}"
+    [ ! -f "${dist_bin}" ] && return 1   # nothing to install
+    [ ! -f "${install_bin}" ] && return 0 # not installed yet
+    local dist_hash inst_hash
+    dist_hash="$(sha256sum "${dist_bin}" | cut -d' ' -f1)"
+    inst_hash="$(sha256sum "${install_bin}" | cut -d' ' -f1)"
+    [ "${dist_hash}" != "${inst_hash}" ]
+}
+
+_frontend_needs_deploy() {
+    local frontend_tar="${PROJECT_ROOT}/dist/opencode-frontend.tar.gz"
+    local deploy_dir="${FRONTEND_DIST:-/usr/local/share/opencode/frontend}"
+    local stamp_file="${deploy_dir}/.deploy-stamp"
+    [ ! -f "${frontend_tar}" ] && return 1    # nothing to deploy
+    [ ! -f "${stamp_file}" ] && return 0       # never deployed
+    local tar_hash stamped
+    tar_hash="$(sha256sum "${frontend_tar}" | cut -d' ' -f1)"
+    stamped="$(cat "${stamp_file}" 2>/dev/null)"
+    [ "${tar_hash}" != "${stamped}" ]
+}
+
+_write_frontend_deploy_stamp() {
+    local frontend_tar="${PROJECT_ROOT}/dist/opencode-frontend.tar.gz"
+    local deploy_dir="${FRONTEND_DIST:-/usr/local/share/opencode/frontend}"
+    sha256sum "${frontend_tar}" | cut -d' ' -f1 | sudo tee "${deploy_dir}/.deploy-stamp" >/dev/null
+}
+
+# ---------------------------------------------------------------------------
 # build-binary  (native standalone binary, for distribution)
 # ---------------------------------------------------------------------------
 do_build_binary() {
@@ -1856,6 +1922,12 @@ do_build_binary() {
         log_error "build-binary is only available when running from source repo."
         exit 1
     fi
+
+    if [ "${1:-}" != "--force" ] && ! _binary_needs_build; then
+        log_info "Binary source unchanged since last build — skipping. (Use build-binary --force to override)"
+        return 0
+    fi
+
     log_info "Building opencode binary (current platform)..."
 
     local BUN_BIN
@@ -1870,6 +1942,7 @@ do_build_binary() {
 
     "${BUN_BIN}" run build --single
 
+    _write_binary_stamp
     log_success "Binary built: ${PROJECT_ROOT}/dist/opencode-linux-x64/bin/opencode"
 }
 
@@ -2348,6 +2421,105 @@ do_daemon_killall() {
 }
 
 # ---------------------------------------------------------------------------
+# reload — build + atomic install + kill daemons (gateway untouched)
+# ---------------------------------------------------------------------------
+do_reload() {
+    load_server_cfg
+
+    if [ "${IS_SOURCE_REPO:-0}" -ne 1 ]; then
+        log_error "reload is only available when running from source repo."
+        exit 1
+    fi
+
+    local force=0
+    for arg in "$@"; do
+        case "${arg}" in
+            --force) force=1 ;;
+        esac
+    done
+
+    local BUN_BIN
+    BUN_BIN="$(find_bun)"
+    cd "${PROJECT_ROOT}"
+
+    local did_build_fe=0
+    local did_build_bin=0
+    local did_install_bin=0
+    local did_deploy_fe=0
+    local did_kill=0
+
+    # 1. Build frontend (smart: skip if source unchanged)
+    if [ "${force}" -eq 1 ] || _frontend_needs_build; then
+        log_info "Frontend source changed — building..."
+        do_build_frontend ${force:+--force}
+        did_build_fe=1
+    else
+        log_info "Frontend source unchanged — skip build"
+    fi
+
+    # 2. Build binary (smart: skip if source unchanged)
+    if [ "${force}" -eq 1 ] || _binary_needs_build; then
+        log_info "Binary source changed — building..."
+        "${BUN_BIN}" run build -- --single --skip-install
+        _write_binary_stamp
+        did_build_bin=1
+    else
+        log_info "Binary source unchanged — skip build"
+    fi
+
+    # 3. Install binary (smart: skip if checksum matches)
+    local install_bin="${OPENCODE_BIN:-/usr/local/bin/opencode}"
+    if echo "${install_bin}" | grep -q 'bun\|index\.ts'; then
+        install_bin="/usr/local/bin/opencode"
+    fi
+
+    if _binary_needs_install "${install_bin}"; then
+        log_info "Installing binary (atomic replace)..."
+        local dist_bin="${PROJECT_ROOT}/dist/opencode-linux-x64/bin/opencode"
+        sudo cp "${dist_bin}" "${install_bin}.new"
+        sudo mv "${install_bin}.new" "${install_bin}"
+        sudo chmod +x "${install_bin}"
+        did_install_bin=1
+    else
+        log_info "Installed binary already up-to-date — skip install"
+    fi
+
+    # 4. Deploy frontend (smart: skip if tar checksum matches)
+    if _frontend_needs_deploy; then
+        local frontend_tar="${PROJECT_ROOT}/dist/opencode-frontend.tar.gz"
+        log_info "Deploying frontend..."
+        sudo rm -rf "${FRONTEND_DIST}"
+        sudo mkdir -p "${FRONTEND_DIST}"
+        sudo tar -xzf "${frontend_tar}" -C "${FRONTEND_DIST}"
+        _write_frontend_deploy_stamp
+        did_deploy_fe=1
+    else
+        log_info "Deployed frontend already up-to-date — skip deploy"
+    fi
+
+    # 5. Kill daemons only if something actually changed
+    if [ "${did_install_bin}" -eq 1 ] || [ "${did_deploy_fe}" -eq 1 ] || [ "${force}" -eq 1 ]; then
+        log_info "Killing per-user daemons (new artifacts installed)..."
+        do_daemon_killall
+        did_kill=1
+    else
+        log_info "No artifacts changed — daemons untouched"
+    fi
+
+    # 6. Summary
+    local version=""
+    version="$(strings "${install_bin}" 2>/dev/null | grep -oP 'Installation\.VERSION = "\K[^"]+' | head -1)" || true
+    echo ""
+    log_success "Reload complete"
+    [ -n "${version}" ] && echo "  Version:   ${version}"
+    echo "  Binary:    ${install_bin} $([ "${did_install_bin}" -eq 1 ] && echo "(updated)" || echo "(unchanged)")"
+    echo "  Frontend:  ${FRONTEND_DIST} $([ "${did_deploy_fe}" -eq 1 ] && echo "(updated)" || echo "(unchanged)")"
+    echo "  Gateway:   untouched (pid $(systemctl show -p MainPID --value ${SYSTEM_SERVICE_NAME}.service 2>/dev/null || echo '?'))"
+    echo "  Daemons:   $([ "${did_kill}" -eq 1 ] && echo "killed — will respawn on next request" || echo "untouched")"
+    echo ""
+}
+
+# ---------------------------------------------------------------------------
 # help
 # ---------------------------------------------------------------------------
 do_help() {
@@ -2380,6 +2552,8 @@ do_help() {
     echo "  daemon-list       List all per-user daemons (alias: daemons)"
     echo "  daemon-kill <user> Stop a specific user's daemon"
     echo "  daemon-killall    Stop all per-user daemons"
+    echo "  reload            Smart build + install + reload daemons (skips unchanged)"
+    echo "                    Options: --force (rebuild everything)"
     echo "  help              Show this help message"
     echo ""
     echo "Environment Variables:"
@@ -2459,6 +2633,7 @@ case "${1:-}" in
     daemon-list|daemons) do_daemon_list ;;
     daemon-kill)    do_daemon_kill "${2:-}" ;;
     daemon-killall) do_daemon_killall ;;
+    reload)         do_reload "${@:2}" ;;
     help|--help|-h|"") do_help        ;;
     *)
         log_error "Unknown command: $1"
