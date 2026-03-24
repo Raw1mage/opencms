@@ -28,6 +28,7 @@ import { LspTool } from "./lsp"
 import { Truncate } from "./truncation"
 import { PlanExitTool, PlanEnterTool } from "./plan"
 import { ApplyPatchTool } from "./apply_patch"
+import { CronCreateTool, CronListTool, CronDeleteTool } from "./cron"
 import { pathToFileURL } from "url"
 
 export namespace ToolRegistry {
@@ -132,6 +133,9 @@ export namespace ToolRegistry {
       CodeSearchTool,
       SkillTool,
       ApplyPatchTool,
+      CronCreateTool,
+      CronListTool,
+      CronDeleteTool,
       ...(Flag.OPENCODE_EXPERIMENTAL_LSP_TOOL ? [LspTool] : []),
       ...(config.experimental?.batch_tool === true ? [BatchTool] : []),
       ...(["app", "cli", "desktop", "web"].includes(Flag.OPENCODE_CLIENT) ? [PlanExitTool, PlanEnterTool] : []),
