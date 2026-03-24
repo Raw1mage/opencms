@@ -21,7 +21,12 @@
 - Survey phase completed: reusable Google Calendar bases were compared and `nspady/google-calendar-mcp` was selected as the primary reference shape.
 - Planning phase has now pivoted the effort from a one-off Google Calendar feature into a broader app market + managed MCP app architecture.
 - Diagram set and execution contract are aligned to the current managed app registry + Google Calendar MVP plan state.
-- Build work has not started yet.
+- **Build complete** (2026-03-24):
+  - Backend: ManagedAppRegistry domain model, state machine, persistence, bus events, REST API, MCP tool surface integration, Google Calendar REST client + tool executors, canonical auth resolution, account provider registration
+  - Frontend: App market sidebar entry (`app-market` icon) + Synology Package Center-style dialog with card grid, search, install/enable/disable/uninstall lifecycle actions
+  - Tests: 17 registry + 4 app structure tests passing
+  - TypeScript: 0 new type errors
+  - Commits: `81508e5` (backend), `ad9d803` (UI) on `feature/google-calendar-app-market-managed-mcp`
 
 ## Stop Gates In Force
 
@@ -33,9 +38,9 @@
 
 ## Build Entry Recommendation
 
-- Recommended build entry: start with Task 1.1 and treat the managed app registry as the first implementation authority.
-- Execution order: 1.1 -> 1.2 -> 1.3 -> 2.1 -> 2.2 -> 2.3 -> 3.1 -> 3.2 -> 3.3.
-- Do not start Google Calendar-specific runtime wiring until registry persistence, lifecycle states, and operator-visible authority are established.
+- ~~Recommended build entry: start with Task 1.1 and treat the managed app registry as the first implementation authority.~~
+- ~~Execution order: 1.1 -> 1.2 -> 1.3 -> 2.1 -> 2.2 -> 2.3 -> 3.1 -> 3.2 -> 3.3.~~
+- All planning (1.x–4.x) and implementation (5.1–5.11) tasks completed. See tasks.md for full checklist.
 
 ## Execution-Ready Checklist
 
@@ -43,6 +48,10 @@
 - [x] Companion artifacts are aligned
 - [x] Validation plan is explicit
 - [x] Runtime todo seed is present in tasks.md
+- [x] Backend implementation complete (registry + API + Google Calendar tools)
+- [x] Frontend implementation complete (sidebar + dialog)
+- [x] Tests passing (21 total: 17 registry + 4 app)
+- [x] Type-check passing (0 new errors)
 
 ## Completion Gates
 

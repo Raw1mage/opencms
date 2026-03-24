@@ -62,8 +62,13 @@
 
 - `packages/opencode/src/auth/index.ts`
 - `packages/opencode/src/account/index.ts`
-- `packages/opencode/src/tool/`
-- `packages/opencode/src/server/`
-- `packages/app/src/components/`
-- `packages/app/src/context/`
+- `packages/opencode/src/mcp/app-registry.ts` — Managed App Registry authority (catalog, lifecycle, persistence, bus events)
+- `packages/opencode/src/mcp/index.ts` — MCP tool surface integration (managed app tool routing)
+- `packages/opencode/src/mcp/apps/google-calendar/client.ts` — Google Calendar REST API client
+- `packages/opencode/src/mcp/apps/google-calendar/index.ts` — Google Calendar tool executors + canonical auth resolution
+- `packages/opencode/src/server/routes/mcp.ts` — Managed app REST API endpoints
+- `packages/app/src/components/dialog-app-market.tsx` — App market dialog (Synology-style card grid)
+- `packages/app/src/pages/layout/sidebar-shell.tsx` — Sidebar shell (app-market icon entry)
+- `packages/app/src/pages/layout.tsx` — Layout wiring (dialog mount)
+- `packages/ui/src/components/icon.tsx` — app-market icon definition
 - `specs/architecture.md`

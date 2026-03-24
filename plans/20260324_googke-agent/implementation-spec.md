@@ -15,8 +15,8 @@
 
 ### OUT
 
-- 本 plan 不直接實作完整 app market。
-- 本 plan 不直接完成 Google Calendar OAuth / CRUD 產品代碼。
+- ~~本 plan 不直接實作完整 app market。~~ → **已實作 app market registry + UI**
+- ~~本 plan 不直接完成 Google Calendar OAuth / CRUD 產品代碼。~~ → **已實作 Google Calendar REST client + 7 tool executors**
 - 本 plan 不處理第三方付費、計費、上架審核、遠端下載 marketplace backend。
 
 ## Assumptions
@@ -45,10 +45,10 @@
 
 ## Structured Execution Phases
 
-- Phase 1: 建立 app market / MCP registry domain model、安裝狀態機、catalog 與 runtime ownership 邊界。
-- Phase 2: 建立 Google Calendar app integration contract，定義 auth、tool surface、config、observability 與 UI entrypoints。
-- Phase 3: 實作最小可用 market shell 與第一個 app 的 install/enable/configure flow。
-- Phase 4: 補齊 validation、docs sync、architecture sync 與後續多 app 擴充策略。
+- Phase 1: 建立 app market / MCP registry domain model、安裝狀態機、catalog 與 runtime ownership 邊界。 ✅
+- Phase 2: 建立 Google Calendar app integration contract，定義 auth、tool surface、config、observability 與 UI entrypoints。 ✅
+- Phase 3: 實作最小可用 market shell 與第一個 app 的 install/enable/configure flow。 ✅
+- Phase 4: 補齊 validation、docs sync、architecture sync 與後續多 app 擴充策略。 ✅ (architecture sync pending)
 
 ## Validation
 
@@ -65,11 +65,10 @@
 
 ### Validation Command Contract
 
-- **目前可執行的 repo guard**：`bun x tsc --noEmit`
-- **Planned command（task 3 build slice 落地後必須補上，現階段尚不可執行）**：`bun run test:managed-app-registry`
-- **Planned command（task 3 build slice 落地後必須補上，現階段尚不可執行）**：`bun run test:app-market-shell`
-- **Planned command（task 3 build slice 落地後必須補上，現階段尚不可執行）**：`bun run test:google-calendar-managed-app`
-- **Planned command（task 3 build slice 落地後必須補上，現階段尚不可執行）**：`bun run smoke:google-calendar-managed-app`
+- **Repo guard**：`bun x tsc --noEmit` ✅ (0 new errors)
+- **Registry tests**：`bun test --preload ./packages/opencode/test/preload.ts packages/opencode/test/mcp/app-registry.test.ts` ✅ (13 pass)
+- **App structure tests**：`bun test --preload ./packages/opencode/test/preload.ts packages/opencode/test/mcp/google-calendar-app.test.ts` ✅ (4 pass)
+- **Smoke test**：`bun run smoke:google-calendar-managed-app` — 尚需真實 Google OAuth token，暫未執行
 
 ### Operator-Visible Acceptance Checks
 

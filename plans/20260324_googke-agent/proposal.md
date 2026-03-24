@@ -24,9 +24,10 @@
 - Google Calendar app 的 domain contract、OAuth ownership、tool schema、UI entrypoints。
 
 ### OUT
-- 遠端 marketplace distribution backend。
+- 遠端 marketplace distribution backend（含外部 MCP market 串接）。
 - 第三方 app sandbox hardening 全量方案。
 - 非 Google Calendar 的第二批 app 實作。
+- Google Calendar OAuth connect flow UI。
 
 ## Non-Goals
 - 不把所有現有 tool 全部重新包成 market app。
