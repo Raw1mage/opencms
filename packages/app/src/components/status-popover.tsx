@@ -316,10 +316,6 @@ export function StatusPopover() {
               {sortedServers().length > 0 ? `${sortedServers().length} ` : ""}
               {language.t("status.popover.tab.servers")}
             </Tabs.Trigger>
-            <Tabs.Trigger value="mcp" data-slot="tab" class="text-12-regular">
-              {mcpConnected() > 0 ? `${mcpConnected()} ` : ""}
-              {language.t("status.popover.tab.mcp")}
-            </Tabs.Trigger>
             <Tabs.Trigger value="lsp" data-slot="tab" class="text-12-regular">
               {lspCount() > 0 ? `${lspCount()} ` : ""}
               {language.t("status.popover.tab.lsp")}
@@ -387,55 +383,6 @@ export function StatusPopover() {
                 >
                   {language.t("status.popover.action.manageServers")}
                 </Button>
-              </div>
-            </div>
-          </Tabs.Content>
-
-          <Tabs.Content value="mcp">
-            <div class="flex flex-col px-2 pb-2">
-              <div class="flex flex-col p-3 bg-background-base rounded-sm min-h-14">
-                <Show
-                  when={mcpNames().length > 0}
-                  fallback={
-                    <div class="text-14-regular text-text-base text-center my-auto">
-                      {language.t("dialog.mcp.empty")}
-                    </div>
-                  }
-                >
-                  <For each={mcpNames()}>
-                    {(name) => {
-                      const status = () => mcpStatus(name)
-                      const enabled = () => status() === "connected"
-                      return (
-                        <button
-                          type="button"
-                          class="flex items-center gap-2 w-full h-8 pl-3 pr-2 py-1 rounded-md hover:bg-surface-raised-base-hover transition-colors text-left"
-                          onClick={() => mcp.toggle(name)}
-                          disabled={mcp.loading() === name}
-                        >
-                          <div
-                            classList={{
-                              "size-1.5 rounded-full shrink-0": true,
-                              "bg-icon-success-base": status() === "connected",
-                              "bg-icon-critical-base": status() === "failed",
-                              "bg-border-weak-base": status() === "disabled",
-                              "bg-icon-warning-base":
-                                status() === "needs_auth" || status() === "needs_client_registration",
-                            }}
-                          />
-                          <span class="text-14-regular text-text-base truncate flex-1">{name}</span>
-                          <div onClick={(event) => event.stopPropagation()}>
-                            <Switch
-                              checked={enabled()}
-                              disabled={mcp.loading() === name}
-                              onChange={() => mcp.toggle(name)}
-                            />
-                          </div>
-                        </button>
-                      )
-                    }}
-                  </For>
-                </Show>
               </div>
             </div>
           </Tabs.Content>

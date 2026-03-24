@@ -1,0 +1,14 @@
+/* Allow container to grow when content is resized */
+[data-slot="dialog-container"]:has(.app-market-resizable) {
+  height: auto !important;
+  max-height: calc(100vh - 32px) !important;
+}
+
+/* Resizable app market dialog — applied to dialog-content via class prop */
+.app-market-resizable {
+  resize: both !important;
+  min-width: 480px !important;
+  min-height: 320px !important;
+  max-width: calc(100vw - 32px) !important;
+  max-height: calc(100vh - 32px) !important;
+}
