@@ -316,7 +316,7 @@ export const McpRoutes = lazy(() =>
       describeRoute({
         summary: "Start managed app OAuth connect flow",
         description:
-          "Redirect user to the OAuth provider consent screen for a managed app. Currently supports google-calendar.",
+          "Redirect user to the Google OAuth consent screen for a managed app. Supports google-calendar and gmail with shared token and merged scopes.",
         operationId: "mcp.apps.oauth.connect",
         responses: {
           302: { description: "Redirect to OAuth provider" },
@@ -326,34 +326,69 @@ export const McpRoutes = lazy(() =>
       validator("param", z.object({ appId: z.string() })),
       async (c) => {
         const { appId } = c.req.valid("param")
-        if (appId !== "google-calendar") {
+
+        // Google OAuth app whitelist — all apps sharing the same GCP project + gauth.json
+        const GOOGLE_OAUTH_APPS: Record<string, { scopeEnv: string; scopeDefault: string }> = {
+          "google-calendar": {
+            scopeEnv: "GOOGLE_CALENDAR_SCOPE",
+            scopeDefault: "https://www.googleapis.com/auth/calendar",
+          },
+          "gmail": {
+            scopeEnv: "GOOGLE_GMAIL_SCOPE",
+            scopeDefault: "https://mail.google.com/",
+          },
+        }
+
+        if (!GOOGLE_OAUTH_APPS[appId]) {
           return c.json({ error: `OAuth connect not supported for app: ${appId}` }, 400)
         }
+
         const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID
         if (!clientId) {
           return c.json({ error: "GOOGLE_CALENDAR_CLIENT_ID not configured" }, 400)
         }
-        const scope = process.env.GOOGLE_CALENDAR_SCOPE || "https://www.googleapis.com/auth/calendar"
         const authUri = process.env.GOOGLE_CALENDAR_AUTH_URI || "https://accounts.google.com/o/oauth2/auth"
+
+        // Merge scopes from all installed Google OAuth apps + the connecting app
+        const scopeSet = new Set<string>()
+        for (const [id, cfg] of Object.entries(GOOGLE_OAUTH_APPS)) {
+          // Always include the connecting app's scopes
+          if (id === appId) {
+            const envScope = process.env[cfg.scopeEnv]
+            for (const s of (envScope || cfg.scopeDefault).split(/\s+/)) {
+              if (s) scopeSet.add(s)
+            }
+            continue
+          }
+          // Include other installed apps' scopes
+          const snap = await ManagedAppRegistry.get(id).catch(() => null)
+          if (snap && snap.operator.install === "installed") {
+            const envScope = process.env[cfg.scopeEnv]
+            for (const s of (envScope || cfg.scopeDefault).split(/\s+/)) {
+              if (s) scopeSet.add(s)
+            }
+          }
+        }
+        const mergedScope = Array.from(scopeSet).join(" ")
 
         // Determine redirect URI from forwarded headers (proxy-safe)
         const proto = c.req.header("x-forwarded-proto") || "https"
         const host = c.req.header("x-forwarded-host") || c.req.header("host") || new URL(c.req.url).host
         const origin = `${proto}://${host}`
-        const redirectUri = `${origin}/api/v2/mcp/apps/google-calendar/oauth/callback`
+        const redirectUri = `${origin}/api/v2/mcp/apps/${appId}/oauth/callback`
 
         const state = crypto.randomUUID()
         const params = new URLSearchParams({
           client_id: clientId,
           redirect_uri: redirectUri,
           response_type: "code",
-          scope,
+          scope: mergedScope,
           access_type: "offline",
           prompt: "consent",
           state,
         })
 
-        oauthLog.info("starting OAuth connect", { appId, redirectUri })
+        oauthLog.info("starting OAuth connect", { appId, redirectUri, scope: mergedScope })
         return c.redirect(`${authUri}?${params.toString()}`)
       },
     )
@@ -362,7 +397,7 @@ export const McpRoutes = lazy(() =>
       describeRoute({
         summary: "Handle managed app OAuth callback",
         description:
-          "Exchange authorization code for tokens and create canonical account binding for the managed app.",
+          "Exchange authorization code for tokens and enable all installed Google OAuth apps sharing gauth.json.",
         operationId: "mcp.apps.oauth.callback",
         responses: {
           200: { description: "OAuth completed, shows success page" },
@@ -372,7 +407,8 @@ export const McpRoutes = lazy(() =>
       validator("param", z.object({ appId: z.string() })),
       async (c) => {
         const { appId } = c.req.valid("param")
-        if (appId !== "google-calendar") {
+        const GOOGLE_OAUTH_APP_IDS = ["google-calendar", "gmail"]
+        if (!GOOGLE_OAUTH_APP_IDS.includes(appId)) {
           return c.json({ error: `OAuth callback not supported for app: ${appId}` }, 400)
         }
 
@@ -398,7 +434,7 @@ export const McpRoutes = lazy(() =>
         const proto = c.req.header("x-forwarded-proto") || "https"
         const host = c.req.header("x-forwarded-host") || c.req.header("host") || new URL(c.req.url).host
         const origin = `${proto}://${host}`
-        const redirectUri = `${origin}/api/v2/mcp/apps/google-calendar/oauth/callback`
+        const redirectUri = `${origin}/api/v2/mcp/apps/${appId}/oauth/callback`
 
         // Exchange authorization code for tokens
         const tokenResponse = await fetch(tokenUri, {
@@ -428,7 +464,7 @@ export const McpRoutes = lazy(() =>
 
         oauthLog.info("token exchange succeeded", { hasRefresh: !!tokens.refresh_token })
 
-        // Store tokens directly to gauth.json — no Account system involvement
+        // Store tokens directly to gauth.json — shared across all Google OAuth apps
         const gauthPath = path.join(Global.Path.config, "gauth.json")
         const gauthData = {
           access_token: tokens.access_token,
@@ -441,23 +477,27 @@ export const McpRoutes = lazy(() =>
         await fs.chmod(gauthPath, 0o600)
         oauthLog.info("tokens written to gauth.json", { path: gauthPath })
 
-        // Mark config as complete — OAuth IS the config for this app
-        await ManagedAppRegistry.setConfigKeys(appId, ["googleOAuth"])
-        oauthLog.info("config marked complete after OAuth")
-
-        // Try to enable the app automatically if it was just waiting on config
-        try {
-          await ManagedAppRegistry.enable(appId)
-          oauthLog.info("app auto-enabled after OAuth")
-        } catch {
-          // If enable fails (e.g. already enabled), that's fine
+        // Mark config complete and enable ALL installed Google OAuth apps (shared token)
+        const appNames: string[] = []
+        for (const id of GOOGLE_OAUTH_APP_IDS) {
+          const snap = await ManagedAppRegistry.get(id).catch(() => null)
+          if (snap && snap.operator.install === "installed") {
+            try {
+              await ManagedAppRegistry.setConfigKeys(id, ["googleOAuth"])
+              await ManagedAppRegistry.enable(id)
+              appNames.push(snap.name)
+              oauthLog.info("app enabled after shared OAuth", { appId: id })
+            } catch {
+              oauthLog.info("app enable skipped (already enabled or not ready)", { appId: id })
+            }
+          }
         }
 
-        const snap = await ManagedAppRegistry.get(appId)
-        oauthLog.info("OAuth connect complete", { appId, runtimeStatus: snap.runtimeStatus })
+        const connectedLabel = appNames.length > 0 ? appNames.join(" & ") : "Google"
+        oauthLog.info("OAuth connect complete", { appId, enabledApps: appNames })
 
         return c.html(
-          `<html><body style="font-family:system-ui;text-align:center;padding:60px"><h2>Google Calendar connected</h2><p>You can close this window.</p><script>setTimeout(()=>window.close(),2000)</script></body></html>`,
+          `<html><body style="font-family:system-ui;text-align:center;padding:60px"><h2>${connectedLabel} connected</h2><p>You can close this window.</p><script>setTimeout(()=>window.close(),2000)</script></body></html>`,
         )
       },
     )

@@ -3,6 +3,7 @@ export * from "./app-registry"
 import { dynamicTool, type Tool, jsonSchema, type JSONSchema7 } from "ai"
 import { ManagedAppRegistry } from "./app-registry"
 import { GoogleCalendarApp } from "./apps/google-calendar"
+import { GmailApp } from "./apps/gmail"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js"
@@ -201,6 +202,7 @@ export namespace MCP {
 
   const managedAppExecutors: Record<string, (toolId: string, args: Record<string, unknown>) => Promise<string>> = {
     "google-calendar": GoogleCalendarApp.execute,
+    "gmail": GmailApp.execute,
   }
 
   function convertManagedAppTool(binding: ManagedAppRegistry.ReadyToolBinding): Tool {
