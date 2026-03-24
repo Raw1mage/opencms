@@ -352,11 +352,11 @@ export namespace ManagedAppRegistry {
             label: "List events",
             capabilityId: "google-calendar.events.read",
             description:
-              "Query events within a calendar and optional time window for planning, agenda extraction, or conflict checks.",
+              "Query events within a calendar and optional time window. Defaults to the user's primary calendar — no need to call list-calendars first for typical queries.",
             mutates: false,
             requiresConfirmation: false,
             arguments: [
-              { name: "calendarId", type: "string", description: "Target calendar identifier.", required: true },
+              { name: "calendarId", type: "string", description: "Target calendar identifier. Defaults to 'primary' if omitted.", required: false },
               {
                 name: "timeMin",
                 type: "datetime",
@@ -547,6 +547,28 @@ export namespace ManagedAppRegistry {
       }
     }
 
+    // For managed apps, check gauth.json directly instead of Account system
+    if (entry.id === "google-calendar") {
+      try {
+        const { GoogleCalendarApp } = await import("./apps/google-calendar")
+        const tokens = await GoogleCalendarApp.readGAuthTokens()
+        if (tokens && tokens.access_token) {
+          return {
+            providerKey: entry.auth.providerKey,
+            accountId: "gauth-google-calendar",
+            status: "authenticated",
+          }
+        }
+      } catch {
+        // fall through to required
+      }
+      return {
+        providerKey: entry.auth.providerKey,
+        status: "required",
+      }
+    }
+
+    // Fallback for other managed apps — use Account system
     const providerKey = await Account.resolveProviderOrSelf(entry.auth.providerKey)
     const providerAccounts = await Account.list(providerKey)
     const accountIds = Object.keys(providerAccounts)

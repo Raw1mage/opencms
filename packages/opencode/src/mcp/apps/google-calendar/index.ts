@@ -1,48 +1,48 @@
-import { Auth } from "@/auth"
+import path from "path"
 import { ManagedAppRegistry } from "@/mcp/app-registry"
+import { Global } from "@/global"
 import { GoogleCalendarClient } from "./client"
 import { Log } from "@/util/log"
 
 const log = Log.create({ service: "google-calendar-app" })
 
+interface GAuthTokens {
+  access_token: string
+  refresh_token: string
+  expires_at: number
+  token_type: string
+  updated_at: number
+}
+
 export namespace GoogleCalendarApp {
   const APP_ID = "google-calendar"
 
+  export async function readGAuthTokens(): Promise<GAuthTokens | null> {
+    try {
+      const gauthPath = path.join(Global.Path.config, "gauth.json")
+      const file = Bun.file(gauthPath)
+      if (!(await file.exists())) return null
+      return (await file.json()) as GAuthTokens
+    } catch {
+      return null
+    }
+  }
+
   async function resolveAccessToken(): Promise<string> {
-    const snap = await ManagedAppRegistry.requireReady(APP_ID)
-    const binding = snap.authBinding
-    if (binding.status !== "authenticated" || !binding.accountId) {
+    await ManagedAppRegistry.requireReady(APP_ID)
+
+    const tokens = await readGAuthTokens()
+    if (!tokens || !tokens.access_token) {
       throw new ManagedAppRegistry.UsageStateError({
         appId: APP_ID,
         status: "pending_auth",
         reason: "unauthenticated",
         code: "MANAGED_APP_AUTH_REQUIRED",
-        message: "Google Calendar app requires an authenticated account binding",
+        message: "Google Calendar OAuth tokens not found in gauth.json",
       })
     }
 
-    const auth = await Auth.get(binding.accountId)
-    if (!auth || auth.type !== "oauth") {
-      throw new ManagedAppRegistry.UsageStateError({
-        appId: APP_ID,
-        status: "pending_auth",
-        reason: "unauthenticated",
-        code: "MANAGED_APP_INVALID_AUTH",
-        message: "Google Calendar app account has no valid OAuth credentials",
-      })
-    }
-
-    if (!auth.access) {
-      throw new ManagedAppRegistry.UsageStateError({
-        appId: APP_ID,
-        status: "pending_auth",
-        reason: "unauthenticated",
-        code: "MANAGED_APP_AUTH_EXPIRED",
-        message: "Google Calendar app OAuth access token is missing or expired",
-      })
-    }
-
-    return auth.access
+    return tokens.access_token
   }
 
   function formatCalendarList(calendars: GoogleCalendarClient.CalendarListEntry[]): string {
@@ -109,7 +109,8 @@ export namespace GoogleCalendarApp {
 
     "list-events": async (args) => {
       const token = await resolveAccessToken()
-      const events = await GoogleCalendarClient.listEvents(token, args.calendarId as string, {
+      const calendarId = (args.calendarId as string) || "primary"
+      const events = await GoogleCalendarClient.listEvents(token, calendarId, {
         timeMin: args.timeMin as string | undefined,
         timeMax: args.timeMax as string | undefined,
         query: args.query as string | undefined,

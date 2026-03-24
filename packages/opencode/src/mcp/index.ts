@@ -213,7 +213,8 @@ export namespace MCP {
         if (!executor) {
           throw new Error(`No executor registered for managed app: ${binding.appId}`)
         }
-        return executor(binding.tool.id, args as Record<string, unknown>)
+        const text = await executor(binding.tool.id, args as Record<string, unknown>)
+        return { content: [{ type: "text" as const, text }] }
       },
     })
   }

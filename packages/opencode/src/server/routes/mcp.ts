@@ -1,10 +1,12 @@
 import { Hono } from "hono"
 import { describeRoute, validator, resolver } from "hono-openapi"
 import z from "zod"
+import path from "path"
+import fs from "fs/promises"
 import { MCP } from "../../mcp"
 import { ManagedAppRegistry } from "../../mcp"
 import { Config } from "../../config/config"
-import { Auth } from "../../auth"
+import { Global } from "../../global"
 import { Log } from "../../util/log"
 import { errors } from "../error"
 import { lazy } from "../../util/lazy"
@@ -305,9 +307,11 @@ export const McpRoutes = lazy(() =>
         const scope = process.env.GOOGLE_CALENDAR_SCOPE || "https://www.googleapis.com/auth/calendar"
         const authUri = process.env.GOOGLE_CALENDAR_AUTH_URI || "https://accounts.google.com/o/oauth2/auth"
 
-        // Determine redirect URI from request origin
-        const origin = new URL(c.req.url).origin
-        const redirectUri = `${origin}/api/mcp/apps/google-calendar/oauth/callback`
+        // Determine redirect URI from forwarded headers (proxy-safe)
+        const proto = c.req.header("x-forwarded-proto") || "https"
+        const host = c.req.header("x-forwarded-host") || c.req.header("host") || new URL(c.req.url).host
+        const origin = `${proto}://${host}`
+        const redirectUri = `${origin}/api/v2/mcp/apps/google-calendar/oauth/callback`
 
         const state = crypto.randomUUID()
         const params = new URLSearchParams({
@@ -362,8 +366,10 @@ export const McpRoutes = lazy(() =>
           return c.json({ error: "GOOGLE_CALENDAR_CLIENT_ID or CLIENT_SECRET not configured" }, 400)
         }
 
-        const origin = new URL(c.req.url).origin
-        const redirectUri = `${origin}/api/mcp/apps/google-calendar/oauth/callback`
+        const proto = c.req.header("x-forwarded-proto") || "https"
+        const host = c.req.header("x-forwarded-host") || c.req.header("host") || new URL(c.req.url).host
+        const origin = `${proto}://${host}`
+        const redirectUri = `${origin}/api/v2/mcp/apps/google-calendar/oauth/callback`
 
         // Exchange authorization code for tokens
         const tokenResponse = await fetch(tokenUri, {
@@ -393,17 +399,33 @@ export const McpRoutes = lazy(() =>
 
         oauthLog.info("token exchange succeeded", { hasRefresh: !!tokens.refresh_token })
 
-        // Store via canonical Auth.set — this creates the Account automatically
-        await Auth.set("google-calendar", {
-          type: "oauth",
-          access: tokens.access_token,
-          refresh: tokens.refresh_token || "",
-          expires: Date.now() + tokens.expires_in * 1000,
-        })
+        // Store tokens directly to gauth.json — no Account system involvement
+        const gauthPath = path.join(Global.Path.config, "gauth.json")
+        const gauthData = {
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token || "",
+          expires_at: Date.now() + tokens.expires_in * 1000,
+          token_type: tokens.token_type,
+          updated_at: Date.now(),
+        }
+        await Bun.write(gauthPath, JSON.stringify(gauthData, null, 2))
+        await fs.chmod(gauthPath, 0o600)
+        oauthLog.info("tokens written to gauth.json", { path: gauthPath })
 
-        // Publish registry update so UI refreshes
+        // Mark config as complete — OAuth IS the config for this app
+        await ManagedAppRegistry.setConfigKeys(appId, ["googleOAuth"])
+        oauthLog.info("config marked complete after OAuth")
+
+        // Try to enable the app automatically if it was just waiting on config
+        try {
+          await ManagedAppRegistry.enable(appId)
+          oauthLog.info("app auto-enabled after OAuth")
+        } catch {
+          // If enable fails (e.g. already enabled), that's fine
+        }
+
         const snap = await ManagedAppRegistry.get(appId)
-        oauthLog.info("OAuth connect complete", { appId, authStatus: snap.authBinding.status })
+        oauthLog.info("OAuth connect complete", { appId, runtimeStatus: snap.runtimeStatus })
 
         return c.html(
           `<html><body style="font-family:system-ui;text-align:center;padding:60px"><h2>Google Calendar connected</h2><p>You can close this window.</p><script>setTimeout(()=>window.close(),2000)</script></body></html>`,
