@@ -9,6 +9,7 @@
  *   - Thread-per-auth PAM (pthread + eventfd notification)
  *   - JWT with file-backed persistent secret
  *   - Per-IP login rate limiting
+ *   - Fail2ban-like persistent IP ban (consecutive failures → /etc/opencode/banlist.txt)
  *   - splice() proxy with proper lifecycle (EPOLL_CTL_DEL before close, closed flag)
  *
  * @event_20260319_daemonization Phase α hardening
@@ -64,6 +65,10 @@
 #define RATE_LIMIT_MAX        5            /* max failures per window */
 #define RATE_LIMIT_WINDOW     60           /* seconds */
 #define RATE_LIMIT_TABLE_SIZE 256
+#define BAN_FILE_PATH         "/etc/opencode/banlist.txt"
+#define BAN_TABLE_SIZE        4096         /* open-addressing hash set */
+#define BAN_CONSEC_MAX        5            /* consecutive failures before permanent ban */
+#define CONSEC_FAIL_TABLE_SIZE 256
 #define MAX_AUTH_QUEUE        32
 #define MAX_OPENCODE_ARGV     32
 
@@ -558,6 +563,124 @@ static void rate_limit_clear(uint32_t ip) {
     int idx = (int)(ip % RATE_LIMIT_TABLE_SIZE);
     if (g_rate_limit[idx].ip == ip) {
         g_rate_limit[idx].failures = 0;
+    }
+}
+
+/* ─── Fail2ban: persistent IP ban list ───────────────────────────── */
+
+/* Whitelist: loopback (127.0.0.0/8) and private LAN (192.168.0.0/16) are never banned */
+static int is_whitelisted(uint32_t ip) {
+    if ((ip >> 24) == 127) return 1;       /* 127.0.0.0/8  */
+    if ((ip >> 16) == 0xC0A8) return 1;    /* 192.168.0.0/16 */
+    return 0;
+}
+
+/* In-memory hash set of banned IPs (open addressing, linear probing) */
+typedef struct { uint32_t ip; int occupied; } BanSlot;
+static BanSlot g_ban_table[BAN_TABLE_SIZE];
+
+static int ban_check(uint32_t ip) {
+    if (is_whitelisted(ip)) return 0;
+    uint32_t idx = ip % BAN_TABLE_SIZE;
+    for (int i = 0; i < BAN_TABLE_SIZE; i++) {
+        uint32_t slot = (idx + (uint32_t)i) % BAN_TABLE_SIZE;
+        if (!g_ban_table[slot].occupied) return 0;
+        if (g_ban_table[slot].ip == ip) return 1;
+    }
+    return 0;
+}
+
+static void ban_insert_memory(uint32_t ip) {
+    uint32_t idx = ip % BAN_TABLE_SIZE;
+    for (int i = 0; i < BAN_TABLE_SIZE; i++) {
+        uint32_t slot = (idx + (uint32_t)i) % BAN_TABLE_SIZE;
+        if (!g_ban_table[slot].occupied) {
+            g_ban_table[slot].ip = ip;
+            g_ban_table[slot].occupied = 1;
+            return;
+        }
+        if (g_ban_table[slot].ip == ip) return; /* already present */
+    }
+    LOGW("ban table full (%d slots), cannot insert", BAN_TABLE_SIZE);
+}
+
+static void ban_add(uint32_t ip) {
+    if (is_whitelisted(ip)) return;
+    if (ban_check(ip)) return; /* already banned */
+    ban_insert_memory(ip);
+
+    char ipstr[20];
+    snprintf(ipstr, sizeof(ipstr), "%u.%u.%u.%u",
+             (ip >> 24) & 0xff, (ip >> 16) & 0xff,
+             (ip >> 8) & 0xff, ip & 0xff);
+
+    /* Ensure /etc/opencode/ exists (gateway runs as root) */
+    mkdir("/etc/opencode", 0755);
+
+    FILE *f = fopen(BAN_FILE_PATH, "a");
+    if (f) {
+        fprintf(f, "%s\n", ipstr);
+        fclose(f);
+        LOGI("BANNED IP %s → %s (consecutive auth failures)", ipstr, BAN_FILE_PATH);
+    } else {
+        LOGW("cannot write ban file %s: %s (ban active in memory only)", BAN_FILE_PATH, strerror(errno));
+    }
+}
+
+static void banlist_load(void) {
+    memset(g_ban_table, 0, sizeof(g_ban_table));
+    FILE *f = fopen(BAN_FILE_PATH, "r");
+    if (!f) {
+        LOGI("no ban list at %s (will create on first ban)", BAN_FILE_PATH);
+        return;
+    }
+    char line[64];
+    int count = 0;
+    while (fgets(line, sizeof(line), f)) {
+        char *nl = strchr(line, '\n');
+        if (nl) *nl = '\0';
+        if (!line[0] || line[0] == '#') continue;
+        unsigned a, b, c, d;
+        if (sscanf(line, "%u.%u.%u.%u", &a, &b, &c, &d) == 4) {
+            uint32_t ip = (a << 24) | (b << 16) | (c << 8) | d;
+            if (!is_whitelisted(ip)) {
+                ban_insert_memory(ip);
+                count++;
+            } else {
+                LOGW("ignoring whitelisted IP %s in ban list", line);
+            }
+        }
+    }
+    fclose(f);
+    LOGI("loaded %d banned IPs from %s", count, BAN_FILE_PATH);
+}
+
+/* Consecutive failure tracking (no time window — permanent until success or ban) */
+typedef struct { uint32_t ip; int failures; } ConsecFailEntry;
+static ConsecFailEntry g_consec_fail[CONSEC_FAIL_TABLE_SIZE];
+
+static void consec_fail_record(uint32_t ip) {
+    if (is_whitelisted(ip)) return;
+    int idx = (int)(ip % CONSEC_FAIL_TABLE_SIZE);
+    if (g_consec_fail[idx].ip != ip) {
+        g_consec_fail[idx].ip = ip;
+        g_consec_fail[idx].failures = 0;
+    }
+    g_consec_fail[idx].failures++;
+    LOGW("consecutive auth failure #%d for %u.%u.%u.%u",
+         g_consec_fail[idx].failures,
+         (ip >> 24) & 0xff, (ip >> 16) & 0xff,
+         (ip >> 8) & 0xff, ip & 0xff);
+    if (g_consec_fail[idx].failures >= BAN_CONSEC_MAX) {
+        ban_add(ip);
+        g_consec_fail[idx].failures = 0;
+    }
+}
+
+static void consec_fail_clear(uint32_t ip) {
+    int idx = (int)(ip % CONSEC_FAIL_TABLE_SIZE);
+    if (g_consec_fail[idx].ip == ip) {
+        g_consec_fail[idx].failures = 0;
     }
 }
 
@@ -1256,6 +1379,7 @@ static void drain_auth_completions(void) {
         if (local.result) {
             /* PAM success: sign JWT */
             rate_limit_clear(local.peer_ip);
+            consec_fail_clear(local.peer_ip);
             LOGI("auth complete: PAM success for '%s', signing JWT", local.username);
             char payload[512];
             time_t exp_time = time(NULL) + JWT_EXP_SECONDS;
@@ -1283,6 +1407,7 @@ static void drain_auth_completions(void) {
         } else {
             /* PAM failure */
             rate_limit_record_failure(local.peer_ip);
+            consec_fail_record(local.peer_ip);
             LOGW("auth complete: PAM failed for '%s'", local.username);
             const char *redir = "HTTP/1.1 303 See Other\r\nLocation: /?error=1\r\nConnection: close\r\n\r\n";
             send(local.client_fd, redir, strlen(redir), MSG_NOSIGNAL);
@@ -1321,6 +1446,10 @@ int main(int argc, char *argv[]) {
         g_pending[i].in_use = 0;
     }
     memset(g_rate_limit, 0, sizeof(g_rate_limit));
+    memset(g_consec_fail, 0, sizeof(g_consec_fail));
+
+    /* Ban list: load persistent bans from file */
+    banlist_load();
 
     /* JWT secret: file-backed persistence (DD-5) */
     if (!jwt_load_or_create_secret()) return 1;
@@ -1454,6 +1583,15 @@ int main(int argc, char *argv[]) {
                         break;
                     }
                     set_nonblock(client);
+
+                    /* Fail2ban: silently drop banned IPs at accept time */
+                    {
+                        uint32_t pip = ntohl(peer.sin_addr.s_addr);
+                        if (ban_check(pip)) {
+                            close(client);
+                            continue;
+                        }
+                    }
 
                     PendingRequest *pr = alloc_pending();
                     if (!pr) {
