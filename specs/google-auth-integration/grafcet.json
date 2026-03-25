@@ -1,0 +1,86 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A4",
+    "StepType": "initial",
+    "StepAction": "Start gateway login evaluation",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["start"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Inspect login mode and identity source",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 3],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["linux_pam_login", "google_login"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Authorize via Linux PAM and route to uid daemon",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["pam_success"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Query global binding registry under /etc/opencode/",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [4, 6],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["binding_found", "binding_missing"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Accept bound Google identity and continue",
+    "LinkInputType": [],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [5],
+    "LinkOutputType": "track",
+    "Condition": ["google_bound"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Route session to per-user daemon",
+    "LinkInputType": [],
+    "LinkInputNumber": [2, 4],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["daemon_ready"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Reject unbound Google identity with explicit denial",
+    "LinkInputType": [],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["binding_missing"],
+    "SubGrafcet": []
+  }
+]

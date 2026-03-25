@@ -1,0 +1,52 @@
+[
+  {
+    "diagram_title": "Linux Login Flow",
+    "scenario": "Existing Linux PAM path remains unchanged",
+    "moduleRef": "A1",
+    "participants": [
+      { "id": "P1", "name": "User", "type": "actor", "componentRef": "C1" },
+      { "id": "P2", "name": "Gateway", "type": "component", "componentRef": "C1" },
+      { "id": "P3", "name": "Per-User Daemon", "type": "component", "componentRef": "C5" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "PAM Login Request", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P3", "label": "Route By Uid", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P3", "to": "P1", "label": "Daemon Ready", "type": "return", "order": 3 }
+    ],
+    "fragments": []
+  },
+  {
+    "diagram_title": "Bound Google Login Flow",
+    "scenario": "Google login succeeds only when binding exists",
+    "moduleRef": "A3",
+    "participants": [
+      { "id": "P4", "name": "Google Identity", "type": "actor", "componentRef": "C2" },
+      { "id": "P5", "name": "Gateway", "type": "component", "componentRef": "C2" },
+      { "id": "P6", "name": "Binding Registry", "type": "component", "componentRef": "C3" },
+      { "id": "P7", "name": "Per-User Daemon", "type": "component", "componentRef": "C5" }
+    ],
+    "messages": [
+      { "id": "MSG4", "from": "P4", "to": "P5", "label": "Google Login", "type": "sync", "order": 1 },
+      { "id": "MSG5", "from": "P5", "to": "P6", "label": "Lookup Binding", "type": "sync", "order": 2 },
+      { "id": "MSG6", "from": "P6", "to": "P5", "label": "Resolved Linux User", "type": "return", "order": 3 },
+      { "id": "MSG7", "from": "P5", "to": "P7", "label": "Route Session", "type": "sync", "order": 4 }
+    ],
+    "fragments": []
+  },
+  {
+    "diagram_title": "Unbound Google Login Flow",
+    "scenario": "Google login is rejected when no binding exists",
+    "moduleRef": "A4",
+    "participants": [
+      { "id": "P8", "name": "Google Identity", "type": "actor", "componentRef": "C2" },
+      { "id": "P9", "name": "Gateway", "type": "component", "componentRef": "C2" },
+      { "id": "P10", "name": "Binding Registry", "type": "component", "componentRef": "C3" }
+    ],
+    "messages": [
+      { "id": "MSG8", "from": "P8", "to": "P9", "label": "Google Login", "type": "sync", "order": 1 },
+      { "id": "MSG9", "from": "P9", "to": "P10", "label": "Lookup Binding", "type": "sync", "order": 2 },
+      { "id": "MSG10", "from": "P9", "to": "P8", "label": "Explicit Denial", "type": "return", "order": 3 }
+    ],
+    "fragments": []
+  }
+]

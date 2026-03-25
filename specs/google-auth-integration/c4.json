@@ -1,0 +1,105 @@
+{
+  "diagram_title": "Gateway Google Login Binding Components",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "OpenCode Gateway And Per-User Daemon Runtime",
+      "description": "Per-user daemon platform with Google-compatible gateway login binding.",
+      "external": false
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "Gateway Runtime",
+      "description": "Root gateway that handles login mode selection and daemon routing.",
+      "technology": "C / Bun",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT2",
+      "name": "Identity Storage Surface",
+      "description": "Shared Google token storage plus global binding registry separation.",
+      "technology": "filesystem",
+      "systemRef": "SYS1"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "PAM Auth Handler",
+      "description": "Authenticates Linux logins and resolves uid ownership.",
+      "technology": "PAM / C",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "/home/pkcs12/projects/opencode/daemon/opencode-gateway.c"
+    },
+    {
+      "id": "C2",
+      "name": "Google Login Compatibility Handler",
+      "description": "Accepts Google login only when binding exists.",
+      "technology": "C / HTTP",
+      "containerRef": "CT1",
+      "moduleRef": "A2",
+      "filePath": "/home/pkcs12/projects/opencode/daemon/opencode-gateway.c"
+    },
+    {
+      "id": "C3",
+      "name": "Binding Registry Module",
+      "description": "Authoritative Linux↔Google binding lookup surface under /etc/opencode/.",
+      "technology": "filesystem module",
+      "containerRef": "CT2",
+      "moduleRef": "A3",
+      "filePath": "/etc/opencode/registry"
+    },
+    {
+      "id": "C4",
+      "name": "Shared Google OAuth Token Store",
+      "description": "Stores managed-app token material for Gmail and Calendar.",
+      "technology": "gauth.json",
+      "containerRef": "CT2",
+      "moduleRef": "A3",
+      "filePath": "~/.config/opencode/gauth.json"
+    },
+    {
+      "id": "C5",
+      "name": "Per-User Daemon",
+      "description": "Target runtime reached after successful auth and binding resolution.",
+      "technology": "Bun server",
+      "containerRef": "CT1",
+      "moduleRef": "A4",
+      "filePath": "$XDG_RUNTIME_DIR/opencode/daemon.sock"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL1",
+      "source": "C1",
+      "target": "C5",
+      "description": "Linux PAM success routes to the matching daemon",
+      "technology": "uid routing"
+    },
+    {
+      "id": "REL2",
+      "source": "C2",
+      "target": "C3",
+      "description": "Google login checks the binding registry before routing",
+      "technology": "lookup"
+    },
+    {
+      "id": "REL3",
+      "source": "C3",
+      "target": "C5",
+      "description": "Resolved binding yields the target daemon session",
+      "technology": "session selection"
+    },
+    {
+      "id": "REL4",
+      "source": "C4",
+      "target": "C3",
+      "description": "Token storage is separate and not authoritative for binding",
+      "technology": "separation of concerns"
+    }
+  ]
+}

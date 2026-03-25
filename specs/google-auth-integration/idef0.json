@@ -1,0 +1,81 @@
+{
+  "diagram_title": "Gateway Google Login Binding Context",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Preserve Linux PAM Authority",
+      "description": "Keep Linux PAM as the primary authority for per-user daemon access.",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Authenticate Google Identity",
+      "description": "Accept Google login only through the compatibility path.",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Resolve Binding Registry",
+      "description": "Look up Linux↔Google binding data from the global registry under /etc/opencode/.",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Route Or Reject Session",
+      "description": "Route bound identities to the matching per-user daemon or fail fast for unbound identities.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A2:input",
+      "label": "Google Login Request",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Linux PAM Policy",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "Binding Registry Schema",
+      "type": "control"
+    },
+    {
+      "id": "AR4",
+      "source": "A4:output",
+      "target": "EXTERNAL",
+      "label": "Per-User Daemon Session Or Denial",
+      "type": "output"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "/etc/opencode Registry Module",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "PAM Runtime",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR7",
+      "source": "A3:output",
+      "target": "A4:input",
+      "label": "Resolved Linux User Binding",
+      "type": "output"
+    }
+  ]
+}
