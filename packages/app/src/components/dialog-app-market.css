@@ -32,14 +32,13 @@
 }
 
 .app-market-description {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  display: block;
 }
 
 @media (max-width: 767px) {
   [data-slot="dialog-container"]:has(.app-market-resizable) {
-    margin-top: 40px;
+    margin-top: 56px;
+    margin-bottom: 12px;
   }
 
   .app-market-resizable {
@@ -47,7 +46,7 @@
     min-width: 0 !important;
     min-height: 0 !important;
     max-width: calc(100vw - 24px) !important;
-    max-height: calc(100vh - 64px) !important;
+    max-height: calc(100vh - 72px) !important;
     overflow-y: auto;
   }
 
@@ -64,6 +63,7 @@
   .app-market-card {
     min-height: 0;
     height: auto;
+    overflow: visible;
   }
 
   .app-market-card-title {
