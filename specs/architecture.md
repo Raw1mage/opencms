@@ -92,6 +92,16 @@ The frontend is built with Solid.js and uses a bottom-up dependency model:
 - **Tier 2 (Unified Identity Service)**: `packages/opencode/src/auth/index.ts`. The central gateway for deduplicating identities (OAuth/API), resolving collisions, generating unique IDs, and orchestrating async background disposal (`Provider.dispose()`).
 - **Tier 3 (Presentation)**: CLI (`accounts.tsx`), Admin TUI (`dialog-admin.tsx`), Webapp (`packages/app/src/components/settings-accounts.tsx`). Thin clients that _must_ route all account additions/deletions through Tier 2.
 
+## Gateway Google Login Binding Boundary
+
+- The per-user daemon gateway remains Linux-PAM-first: Linux authentication continues to resolve the target uid and daemon authority.
+- Google login may exist only as a compatibility path when a Google identity is already bound to a Linux user.
+- Shared Google OAuth token storage (`~/.config/opencode/gauth.json`) is for managed app token persistence (e.g. Gmail / Calendar) and is not the binding authority for Linux↔Google identity routing.
+- Unbound Google identities must fail fast at the gateway; no silent fallback, auto-match, or first-available-user rescue is allowed.
+- The gateway exposes a Google compatibility login endpoint at `POST /auth/login/google` that accepts `google_email` and resolves it through the binding registry.
+- Binding data, if added, must be separable from shared token storage and queryable by the gateway as an explicit lookup contract.
+- The binding registry is modeled as a global module deployed under `/etc/opencode/` (default path ` /etc/opencode/google-bindings.json ` with optional `OPENCODE_GOOGLE_BINDINGS_PATH` override); it is distinct from user-scoped OAuth token storage and is the gateway's authoritative lookup surface for Linux↔Google identity routing.
+
 ## Key Modules
 
 - **`src/account`**: Disk persistence (`accounts.json`), ID generation, basic CRUD.
@@ -310,6 +320,56 @@ Internet → [C Gateway :1080] → Unix Socket → [Per-User Daemon (uid=user)]
 - Body（collapsible）: tool call 列表（status icon + tool name + subtitle）+ text output
 - 狀態: running（spinner, auto-open）/ completed（final output）/ error（error banner + partial activity）
 
+### Shared Context Structure
+
+Per-session structured knowledge space that tracks files, actions, discoveries, and goals across turns. Serves three consumers: subagent injection, idle compaction, and overflow compaction.
+
+**Module**: `packages/opencode/src/session/shared-context.ts`
+
+**Data Model**:
+
+```typescript
+Space {
+  sessionID, version, updatedAt, budget,
+  goal: string,
+  files: FileEntry[],      // path, operation, lines, summary
+  discoveries: string[],   // key findings extracted from assistant text
+  actions: ActionEntry[],  // tool calls summarized per turn
+  currentState: string,    // last paragraph of assistant text
+}
+```
+
+**Storage**: `["shared_context", sessionID]` — per-session, separate namespace from messages. Both parent and child sessions persist their own Space.
+
+**Update Trigger**: After every assistant turn in `prompt.ts` turn boundary loop (both parent and child sessions). Heuristic extraction: tool parts → files/actions; assistant text → goal/discoveries/currentState.
+
+**Three Consumers**:
+
+1. **Subagent Injection** (`task.ts` dispatch):
+   - At `task()` call, snapshot parent's Space → format as `<shared_context>` XML → prepend to subagent's first user message
+   - Records `injectedSharedContextVersion` in task part metadata for differential relay
+   - Skipped for `session_id` continuation dispatches
+
+2. **Idle Compaction** (`prompt.ts` turn boundary, parent sessions only):
+   - After turn containing task dispatch, evaluate context utilization
+   - If utilization ≥ `opportunisticThreshold` (default 0.6): use Space snapshot as compaction summary (no LLM call)
+   - Falls back to LLM compaction agent if Space is empty
+
+3. **Overflow Compaction** (`prompt.ts` overflow path, parent sessions only):
+   - When context overflows: if Space has content, use as summary instead of calling LLM compaction agent
+   - Falls back to standard LLM compaction agent
+
+**Child→Parent Feedback** (`task-worker-continuation.ts` on subagent completion):
+
+1. `SharedContext.snapshotDiff(childSessionID, injectedSharedContextVersion)` — only new knowledge since dispatch, avoiding re-relay of what parent already knows. Falls back to full snapshot if version not recorded.
+2. Diff prepended to synthetic continuation message — parent LLM receives actual evidence to follow through with
+3. `SharedContext.mergeFrom(parent ← child)` — child's files/actions merged into parent Space for future subagent dispatches
+
+**Config** (`config.compaction`):
+- `sharedContext: boolean` (default true) — disable entirely
+- `sharedContextBudget: number` (default 8192 tokens) — Space size cap with consolidation
+- `opportunisticThreshold: number 0-1` (default 0.6) — idle compaction trigger
+
 ### Continuous Orchestration Control Surface
 
 - Dispatch-first continuous orchestration does **not** mean the session becomes globally idle once `task()` returns. If exactly one background subagent is still active, the parent session remains in an operator-controllable active-child state.
@@ -333,6 +393,15 @@ Internet → [C Gateway :1080] → Unix Socket → [Per-User Daemon (uid=user)]
 - SYSTEM.md §2.3: 一次只派出一個 subagent（sequential execution）
 - Prompt-level soft enforcement（無 runtime 強制阻擋）
 
+### Subagent Worker Lifecycle
+
+- **Spawn**: `Bun.spawn([bun, run, index.ts, session, worker])` — independent OS process, no shared memory with daemon
+- **IPC**: Bidirectional stdin/stdout JSON-line protocol: `{type:"run"|"ready"|"heartbeat"|"done"|"bridge_event"|"error"}`
+- **No timeout**: Workers are waited on unconditionally. The only termination trigger is subprocess death (process exit detected by stdout reader loop). No inactivity timeout exists; long-running LLM calls are expected.
+- **Liveness**: `worker.proc.exitCode` checked after unexpected stdout close to distinguish crash from clean exit
+- **Instance context**: `spawnWorker()` captures `Instance.directory` at spawn time and passes it as Bus event context to all `TaskWorkerEvent.Done/Failed` publishes, so the continuation subscriber can re-establish `Instance.provide()` scope after the originating HTTP request scope has ended.
+- **Bridge events**: Worker stdout `__OPENCODE_BRIDGE_EVENT__` lines forwarded to parent via `Bus.publish` for SSE/UI visibility
+
 ### Performance Hardening (Phase θ)
 
 - **SDK LRU Cache**: `sdkSet()` in `src/provider/provider.ts` — Map-based FIFO eviction (MAX_SIZE = 50)
@@ -343,8 +412,9 @@ Internet → [C Gateway :1080] → Unix Socket → [Per-User Daemon (uid=user)]
 - `compile-gateway`: Compiles `daemon/opencode-gateway.c` via gcc
 - `gateway-start`: Compiles + starts gateway daemon (nohup, PID file tracked)
 - `gateway-stop`: Graceful SIGTERM → wait → SIGKILL fallback
+- `reload`: Auto-detects dev/prod mode. Dev: kills per-user daemons (bun re-reads source on next request). Prod: builds binary + atomic install + kill daemons.
+- `restart`: Runs `reload` then recompiles and restarts gateway if source changed.
 - `install.sh --system-init`: Installs `opencode-gateway.service` + `opencode-user@.service` systemd units + gateway binary + login page
-- **Coexistence**: Existing `dev-start`/`web-start` commands preserved unchanged; gateway is an additive deployment option
 
 ### systemd Units
 
