@@ -1,14 +1,32 @@
 /* Allow container to grow when content is resized */
 [data-slot="dialog-container"]:has(.app-market-resizable) {
   height: auto !important;
-  max-height: calc(100vh - 32px) !important;
+  max-height: calc(100vh - 16px) !important;
 }
 
 /* Resizable app market dialog — applied to dialog-content via class prop */
 .app-market-resizable {
   resize: both !important;
-  min-width: 480px !important;
+  min-width: min(calc(100vw - 16px), 480px) !important;
   min-height: 320px !important;
   max-width: calc(100vw - 32px) !important;
   max-height: calc(100vh - 32px) !important;
+}
+
+.app-market-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, calc(100vw - 64px)), 1fr)) !important;
+}
+
+@media (max-width: 767px) {
+  .app-market-resizable {
+    resize: none !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100vh - 16px) !important;
+  }
+
+  .app-market-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(220px, calc(100vw - 32px)), 1fr)) !important;
+  }
 }

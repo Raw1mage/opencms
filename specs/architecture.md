@@ -100,7 +100,7 @@ The frontend is built with Solid.js and uses a bottom-up dependency model:
 - Unbound Google identities must fail fast at the gateway; no silent fallback, auto-match, or first-available-user rescue is allowed.
 - The gateway exposes a Google compatibility login endpoint at `POST /auth/login/google` that accepts `google_email` and resolves it through the binding registry.
 - Binding data, if added, must be separable from shared token storage and queryable by the gateway as an explicit lookup contract.
-- The binding registry is modeled as a global module deployed under `/etc/opencode/` (default path ` /etc/opencode/google-bindings.json ` with optional `OPENCODE_GOOGLE_BINDINGS_PATH` override); it is distinct from user-scoped OAuth token storage and is the gateway's authoritative lookup surface for Linux↔Google identity routing.
+- The binding registry is modeled as a global module deployed under `/etc/opencode/` (default path `/etc/opencode/google-bindings.json` with optional `OPENCODE_GOOGLE_BINDINGS_PATH` override); it is distinct from user-scoped OAuth token storage and is the gateway's authoritative lookup surface for Linux↔Google identity routing.
 
 ## Key Modules
 
@@ -124,10 +124,10 @@ available → installed → pending_config → pending_auth → ready
 
 ### Registered Apps
 
-| App ID | Name | Scope | Tools |
-|--------|------|-------|-------|
-| `google-calendar` | Google Calendar | `calendar`, `calendar.events` | 7 (list-calendars, list-events, get-event, create-event, update-event, delete-event, freebusy) |
-| `gmail` | Gmail | `https://mail.google.com/` (full) | 10 (list-labels, list-messages, get-message, send-message, reply-message, forward-message, modify-labels, trash-message, list-drafts, create-draft) |
+| App ID            | Name            | Scope                             | Tools                                                                                                                                               |
+| ----------------- | --------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `google-calendar` | Google Calendar | `calendar`, `calendar.events`     | 7 (list-calendars, list-events, get-event, create-event, update-event, delete-event, freebusy)                                                      |
+| `gmail`           | Gmail           | `https://mail.google.com/` (full) | 10 (list-labels, list-messages, get-message, send-message, reply-message, forward-message, modify-labels, trash-message, list-drafts, create-draft) |
 
 ### Shared Google OAuth
 
@@ -366,6 +366,7 @@ Space {
 3. `SharedContext.mergeFrom(parent ← child)` — child's files/actions merged into parent Space for future subagent dispatches
 
 **Config** (`config.compaction`):
+
 - `sharedContext: boolean` (default true) — disable entirely
 - `sharedContextBudget: number` (default 8192 tokens) — Space size cap with consolidation
 - `opportunisticThreshold: number 0-1` (default 0.6) — idle compaction trigger
@@ -387,6 +388,7 @@ Space {
   - the parent continuation has taken over and active-child state is cleared; or
   - the child failed / was terminated and active-child state is cleared.
 - The transcript-local `SubagentActivityCard` remains a detail surface, but it is no longer sufficient as the only operator-visible child-activity surface once continuous orchestration is active.
+- Continuation cleanup order is authoritative: when `TaskWorkerEvent.Done/Failed` arrives, the parent continuation path clears `active-child` before persistence / resume work proceeds, so the parent control plane does not keep advertising a stale wait state.
 
 **Dispatch 規則**:
 

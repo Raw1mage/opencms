@@ -83,9 +83,7 @@ export const DialogAppMarket: Component = () => {
     const q = filter().toLowerCase()
     const list = appList()
     if (!q) return list
-    return list.filter(
-      (a) => a.name.toLowerCase().includes(q) || a.description.toLowerCase().includes(q),
-    )
+    return list.filter((a) => a.name.toLowerCase().includes(q) || a.description.toLowerCase().includes(q))
   })
 
   const enabledCount = createMemo(() => appList().filter((a) => a.enabled).length)
@@ -217,12 +215,14 @@ export const DialogAppMarket: Component = () => {
   return (
     <Dialog
       title={
-        <div class="flex items-center gap-4 w-full">
-          <span>{language.t("app_market.title")}</span>
-          <span class="text-13-regular text-text-weak">
-            {language.t("app_market.description", { installed: String(enabledCount()), total: String(totalCount()) })}
-          </span>
-          <div class="relative w-44 ml-auto mr-8">
+        <div class="flex min-w-0 flex-1 flex-col gap-2 md:flex-row md:items-center md:gap-4">
+          <div class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+            <span>{language.t("app_market.title")}</span>
+            <span class="text-13-regular text-text-weak min-w-0">
+              {language.t("app_market.description", { installed: String(enabledCount()), total: String(totalCount()) })}
+            </span>
+          </div>
+          <div class="relative w-full md:w-44 md:ml-auto md:mr-8">
             <div class="absolute left-2.5 top-1/2 -translate-y-1/2 text-icon-base">
               <Icon name="magnifying-glass" size="small" />
             </div>
@@ -257,7 +257,7 @@ export const DialogAppMarket: Component = () => {
           }
         >
           <div
-            class="grid gap-3 px-4 pb-4 overflow-y-auto"
+            class="app-market-grid grid gap-3 px-4 pb-4 overflow-y-auto"
             style={{ "grid-template-columns": `repeat(auto-fill, minmax(${CARD_MIN_W}px, 1fr))` }}
           >
             <For each={filtered()}>
@@ -268,12 +268,14 @@ export const DialogAppMarket: Component = () => {
                 const isActive = () => live().enabled || live().status === "connected"
 
                 return (
-                  <div class="flex flex-col rounded-lg border border-border-base bg-[#1a1a2e] hover:border-border-hover transition-colors overflow-hidden h-[220px]">
+                  <div class="flex flex-col rounded-lg border border-border-base bg-[#1a1a2e] hover:border-border-hover transition-colors overflow-hidden h-[200px] md:h-[220px]">
                     {/* Title row: name + type + tools count + action buttons + status */}
                     <div class="flex items-center gap-1.5 px-3 pt-3 pb-1">
                       <span class="text-13-medium text-text-base truncate">{live().name}</span>
                       <Show when={live().type}>
-                        <span class="px-1 py-px rounded text-[10px] text-text-weaker bg-white/5 uppercase shrink-0">{live().type}</span>
+                        <span class="px-1 py-px rounded text-[10px] text-text-weaker bg-white/5 uppercase shrink-0">
+                          {live().type}
+                        </span>
                       </Show>
                       <Show when={live().tools.length > 0}>
                         <span class="text-[10px] text-text-weaker shrink-0">
@@ -294,7 +296,13 @@ export const DialogAppMarket: Component = () => {
                           <Icon name={actionIcon(live()) as any} size="small" />
                         </button>
                         {renderAppActions(live(), loading())}
-                        <Show when={live().kind === "managed-app" && live().status !== "pending_install" && live().status !== "available"}>
+                        <Show
+                          when={
+                            live().kind === "managed-app" &&
+                            live().status !== "pending_install" &&
+                            live().status !== "available"
+                          }
+                        >
                           <button
                             onClick={() => uninstallManaged(live())}
                             disabled={loading()}
@@ -304,14 +312,15 @@ export const DialogAppMarket: Component = () => {
                             <Icon name="trash" size="small" />
                           </button>
                         </Show>
-                        <span class={`text-11-regular ml-1 ${sd().color}`}>
-                          {language.t(sd().labelKey as any)}
-                        </span>
+                        <span class={`text-11-regular ml-1 ${sd().color}`}>{language.t(sd().labelKey as any)}</span>
                       </div>
                     </div>
 
                     {/* Description */}
-                    <p class="shrink-0 text-11-regular text-text-weak leading-snug px-3 pb-2 overflow-hidden" style={{ display: "-webkit-box", "-webkit-line-clamp": "3", "-webkit-box-orient": "vertical" }}>
+                    <p
+                      class="shrink-0 text-11-regular text-text-weak leading-snug px-3 pb-2 overflow-hidden"
+                      style={{ display: "-webkit-box", "-webkit-line-clamp": "3", "-webkit-box-orient": "vertical" }}
+                    >
                       {live().description}
                     </p>
 
@@ -321,7 +330,10 @@ export const DialogAppMarket: Component = () => {
                         <div class="flex flex-wrap gap-1 px-2 py-1.5 rounded bg-background-base/60 border border-border-base/30 overflow-y-auto h-full content-start">
                           <For each={live().tools}>
                             {(tool) => (
-                              <span class="px-1.5 py-0.5 rounded bg-white/5 text-[11px] text-text-weak h-fit" title={tool.description || tool.name}>
+                              <span
+                                class="px-1.5 py-0.5 rounded bg-white/5 text-[11px] text-text-weak h-fit"
+                                title={tool.description || tool.name}
+                              >
                                 {tool.name}
                               </span>
                             )}

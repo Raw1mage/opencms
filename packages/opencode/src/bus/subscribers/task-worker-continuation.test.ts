@@ -32,12 +32,16 @@ describe("task worker continuation subscriber", () => {
         await Session.updateMessage({
           id: parentMessageID,
           role: "assistant",
+          parentID: parent.id,
           sessionID: parent.id,
           time: { created: Date.now() },
           modelID: "gpt-5.4",
           providerId: "openai",
+          mode: "manual",
           agent: "orchestrator",
           path: { cwd: tmp.path, root: tmp.path },
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
         } as MessageV2.Assistant)
 
         const toolCallID = "call_missing_tool_part"
@@ -67,7 +71,7 @@ describe("task worker continuation subscriber", () => {
             content: "delegate API audit",
             status: "in_progress",
             priority: "high",
-            action: { kind: "delegate", canDelegate: true, waitingOn: "subagent" },
+            action: { kind: "delegate", canDelegate: true },
           },
         ])
         await expect(getPendingContinuation(parent.id)).resolves.toBeUndefined()
@@ -91,12 +95,16 @@ describe("task worker continuation subscriber", () => {
         await Session.updateMessage({
           id: parentMessageID,
           role: "assistant",
+          parentID: parent.id,
           sessionID: parent.id,
           time: { created: Date.now() },
           modelID: "gpt-5.4",
           providerId: "openai",
+          mode: "manual",
           agent: "orchestrator",
           path: { cwd: tmp.path, root: tmp.path },
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
         } as MessageV2.Assistant)
 
         const toolCallID = "call_success"

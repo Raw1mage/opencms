@@ -9,6 +9,7 @@ import { enqueuePendingContinuation, resumePendingContinuations } from "@/sessio
 import { Instance } from "@/project/instance"
 import { SharedContext } from "@/session/shared-context"
 import { Log } from "@/util/log"
+import type { SessionActiveChildState } from "@/tool/task"
 import z from "zod"
 
 const log = Log.create({ service: "task-worker-continuation" })
@@ -34,19 +35,24 @@ async function enqueueParentContinuation(input: {
     const metadata = taskPart?.metadata as
       | {
           sessionId?: string
-          todo?: { id: string; content: string; status: string; action?: unknown }
+          todo?: SessionActiveChildState["todo"]
           agent?: string
         }
       | undefined
+    const todo = metadata?.todo as SessionActiveChildState["todo"] | undefined
+    const title =
+      taskPart?.state.status === "running"
+        ? (taskPart.state.title ?? taskPart.state.input?.description ?? "task")
+        : "task"
     await SessionActiveChild.set(input.parentSessionID, {
       sessionID: input.childSessionID,
       parentMessageID: input.parentMessageID,
       toolCallID: input.toolCallID,
       workerID: "handoff",
-      title: taskPart?.state.input?.description ?? taskPart?.state.title ?? metadata?.todo?.content ?? "Subtask",
+      title: taskPart?.state.input?.description ?? title ?? todo?.content ?? "Subtask",
       agent: metadata?.agent ?? "task",
       status: "handoff",
-      todo: metadata?.todo,
+      todo,
     })
   }
 
@@ -90,8 +96,10 @@ async function enqueueParentContinuation(input: {
   const partNow = Date.now()
   const startTime = taskPart.state.status === "running" ? taskPart.state.time.start : partNow
   log.info("updating task tool part state", {
-    parentSessionID: input.parentSessionID, toolCallID: input.toolCallID,
-    childSessionID: input.childSessionID, previousStatus: taskPart.state?.status,
+    parentSessionID: input.parentSessionID,
+    toolCallID: input.toolCallID,
+    childSessionID: input.childSessionID,
+    previousStatus: taskPart.state?.status,
     newStatus: input.ok ? "completed" : "error",
   })
   const completedState: z.infer<typeof MessageV2.ToolState> = input.ok
@@ -112,12 +120,20 @@ async function enqueueParentContinuation(input: {
   await Session.updatePart({
     ...taskPart,
     state: completedState,
-  }).catch((err) => log.error("failed to update task tool part state", {
-    parentSessionID: input.parentSessionID, toolCallID: input.toolCallID, error: String(err),
-  }))
+  }).catch((err) =>
+    log.error("failed to update task tool part state", {
+      parentSessionID: input.parentSessionID,
+      toolCallID: input.toolCallID,
+      error: String(err),
+    }),
+  )
 
   try {
     await markActiveChildHandoff().catch(() => undefined)
+    // Clear the active-child state immediately after the completion signal is
+    // consumed so the parent stops waiting before any follow-up persistence or
+    // resume work runs.
+    await clearActiveChild().catch(() => undefined)
     if (input.linkedTodoID) {
       await Todo.reconcileProgress({
         sessionID: input.parentSessionID,
@@ -145,13 +161,15 @@ async function enqueueParentContinuation(input: {
     // to avoid re-sending knowledge parent already has.
     let childContextSnap: string | undefined
     if (input.ok) {
-      const taskMeta = taskPart.state.status === "running" || taskPart.state.status === "completed"
-        ? (taskPart.state.metadata as { injectedSharedContextVersion?: number } | undefined)
-        : undefined
+      const taskMeta =
+        taskPart.state.status === "running" || taskPart.state.status === "completed"
+          ? (taskPart.state.metadata as { injectedSharedContextVersion?: number } | undefined)
+          : undefined
       const sinceVersion = taskMeta?.injectedSharedContextVersion ?? -1
-      childContextSnap = sinceVersion >= 0
-        ? await SharedContext.snapshotDiff(input.childSessionID, sinceVersion).catch(() => undefined)
-        : await SharedContext.snapshot(input.childSessionID).catch(() => undefined)
+      childContextSnap =
+        sinceVersion >= 0
+          ? await SharedContext.snapshotDiff(input.childSessionID, sinceVersion).catch(() => undefined)
+          : await SharedContext.snapshot(input.childSessionID).catch(() => undefined)
       // Merge child's full knowledge into parent's Space for future subagent dispatches
       await SharedContext.mergeFrom({
         targetSessionID: input.parentSessionID,
@@ -207,11 +225,6 @@ async function enqueueParentContinuation(input: {
       triggerType: input.ok ? "task_completion" : "task_failure",
     })
 
-    // Clear active child now — continuation is fully enqueued, child is gone.
-    // Must happen before resumePendingContinuations so the parent session's
-    // first tool call (e.g. another task dispatch) sees no stale handoff state.
-    await clearActiveChild().catch(() => undefined)
-
     await Session.setWorkflowState({
       sessionID: input.parentSessionID,
       state: "idle",
@@ -219,9 +232,17 @@ async function enqueueParentContinuation(input: {
       lastRunAt: now,
     }).catch(() => undefined)
 
-    log.info("triggering resumePendingContinuations", { parentSessionID: input.parentSessionID, childSessionID: input.childSessionID, ok: input.ok })
+    log.info("triggering resumePendingContinuations", {
+      parentSessionID: input.parentSessionID,
+      childSessionID: input.childSessionID,
+      ok: input.ok,
+    })
     await resumePendingContinuations({ maxCount: 1, preferredSessionID: input.parentSessionID }).catch((err) => {
-      log.error("resumePendingContinuations failed", { parentSessionID: input.parentSessionID, childSessionID: input.childSessionID, error: String(err) })
+      log.error("resumePendingContinuations failed", {
+        parentSessionID: input.parentSessionID,
+        childSessionID: input.childSessionID,
+        error: String(err),
+      })
     })
   } catch (error) {
     if (input.linkedTodoID) {
@@ -244,40 +265,59 @@ export function registerTaskWorkerContinuationSubscriber() {
   registered = true
 
   Bus.subscribeGlobal(TaskWorkerEvent.Done.type, 0, async (event) => {
-    log.info("TaskWorkerEvent.Done received", { workerID: event.properties.workerID, sessionID: event.properties.sessionID, parentSessionID: event.properties.parentSessionID, toolCallID: event.properties.toolCallID })
+    log.info("TaskWorkerEvent.Done received", {
+      workerID: event.properties.workerID,
+      sessionID: event.properties.sessionID,
+      parentSessionID: event.properties.parentSessionID,
+      toolCallID: event.properties.toolCallID,
+    })
     // In daemon mode the Bus subscriber fires outside the original HTTP request's
     // Instance.provide() scope.  Re-establish the project context so Session.get(),
     // MessageV2.get(), etc. resolve to the correct storage.
     const directory = event.context?.directory
-    const run = () => enqueueParentContinuation({
-      parentSessionID: event.properties.parentSessionID,
-      parentMessageID: event.properties.parentMessageID,
-      toolCallID: event.properties.toolCallID,
-      childSessionID: event.properties.sessionID,
-      linkedTodoID: event.properties.linkedTodoID,
-      ok: true,
-    })
-    const result = directory
-      ? Instance.provide({ directory, fn: run })
-      : run()
-    await result.catch((err) => log.error("enqueueParentContinuation failed (Done)", { parentSessionID: event.properties.parentSessionID, error: String(err) }))
+    const run = () =>
+      enqueueParentContinuation({
+        parentSessionID: event.properties.parentSessionID,
+        parentMessageID: event.properties.parentMessageID,
+        toolCallID: event.properties.toolCallID,
+        childSessionID: event.properties.sessionID,
+        linkedTodoID: event.properties.linkedTodoID,
+        ok: true,
+      })
+    const result = directory ? Instance.provide({ directory, fn: run }) : run()
+    await result.catch((err) =>
+      log.error("enqueueParentContinuation failed (Done)", {
+        parentSessionID: event.properties.parentSessionID,
+        error: String(err),
+      }),
+    )
   })
 
   Bus.subscribeGlobal(TaskWorkerEvent.Failed.type, 0, async (event) => {
-    log.info("TaskWorkerEvent.Failed received", { workerID: event.properties.workerID, sessionID: event.properties.sessionID, parentSessionID: event.properties.parentSessionID, toolCallID: event.properties.toolCallID, error: event.properties.error })
-    const directory = event.context?.directory
-    const run = () => enqueueParentContinuation({
+    log.info("TaskWorkerEvent.Failed received", {
+      workerID: event.properties.workerID,
+      sessionID: event.properties.sessionID,
       parentSessionID: event.properties.parentSessionID,
-      parentMessageID: event.properties.parentMessageID,
       toolCallID: event.properties.toolCallID,
-      childSessionID: event.properties.sessionID,
-      linkedTodoID: event.properties.linkedTodoID,
-      ok: false,
       error: event.properties.error,
     })
-    const result = directory
-      ? Instance.provide({ directory, fn: run })
-      : run()
-    await result.catch((err) => log.error("enqueueParentContinuation failed (Failed)", { parentSessionID: event.properties.parentSessionID, error: String(err) }))
+    const directory = event.context?.directory
+    const run = () =>
+      enqueueParentContinuation({
+        parentSessionID: event.properties.parentSessionID,
+        parentMessageID: event.properties.parentMessageID,
+        toolCallID: event.properties.toolCallID,
+        childSessionID: event.properties.sessionID,
+        linkedTodoID: event.properties.linkedTodoID,
+        ok: false,
+        error: event.properties.error,
+      })
+    const result = directory ? Instance.provide({ directory, fn: run }) : run()
+    await result.catch((err) =>
+      log.error("enqueueParentContinuation failed (Failed)", {
+        parentSessionID: event.properties.parentSessionID,
+        error: String(err),
+      }),
+    )
   })
 }

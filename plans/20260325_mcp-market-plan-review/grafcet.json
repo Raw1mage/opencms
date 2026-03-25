@@ -1,0 +1,79 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Initialize",
+    "LinkInputType": [],
+    "LinkInputNumber": [
+      2
+    ],
+    "LinkOutputNumber": [
+      1
+    ],
+    "LinkOutputType": "track",
+    "Condition": [
+      "start"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Execute Core Function",
+    "LinkInputType": [],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2,
+      3
+    ],
+    "LinkOutputType": "divergence_or",
+    "Condition": [
+      "ok",
+      "error"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Complete",
+    "LinkInputType": [
+      "convergence_or"
+    ],
+    "LinkInputNumber": [
+      1,
+      3
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
+    "LinkOutputType": "track",
+    "Condition": [
+      "reset"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Recover",
+    "LinkInputType": [],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
+    "LinkOutputType": "convergence_or",
+    "Condition": [
+      "retry"
+    ],
+    "SubGrafcet": []
+  }
+]
