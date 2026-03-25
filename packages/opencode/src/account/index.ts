@@ -21,7 +21,6 @@ export namespace Account {
   // This list is for documentation and special case handling only.
   export const PROVIDERS = [
     "google-api",
-    "google-calendar",
     "openai",
     "claude-cli",
     "gemini-cli",
