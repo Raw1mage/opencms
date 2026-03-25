@@ -513,7 +513,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           type: "object",
           properties: {
             action: { type: "string", enum: ["set", "get"], description: "set: change level, get: read current level" },
-            level: { type: "number", enum: [0, 1, 2, 3], description: "Log level (required for 'set' action)" },
+            level: { type: "string", enum: ["0", "1", "2", "3"], description: "Log level: 0=off, 1=quiet, 2=normal, 3=verbose (required for 'set' action)" },
           },
           required: ["action"],
         },
@@ -1156,8 +1156,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       // action === "set"
-      const level = (args as any)?.level
-      if (level === undefined || level < 0 || level > 3) {
+      const level = Number((args as any)?.level)
+      if (isNaN(level) || level < 0 || level > 3) {
         return { content: [{ type: "text", text: "Error: level must be 0, 1, 2, or 3" }], isError: true }
       }
       try {

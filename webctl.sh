@@ -1468,41 +1468,87 @@ do_dev_restart() {
 }
 
 do_restart() {
+    local FORCE_GATEWAY_RESTART=0
+
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --force-gateway)
+                FORCE_GATEWAY_RESTART=1
+                ;;
+            *)
+                log_warn "Unknown restart option: $1"
+                ;;
+        esac
+        shift
+    done
+
     load_server_cfg
 
-    log_info "Restarting (reload + gateway)..."
+    log_info "Restarting (reload + gateway auto-detect)..."
 
     # 1. Reload daemons (build + kill — gateway untouched by reload)
     do_reload --force
 
-    # 2. Recompile + restart gateway
-    local gateway_changed=0
+    # 2. Detect whether gateway needs restart
+    #    Reasons: binary source changed, config changed, or explicit --force-gateway
+    local gateway_needs_restart=0
+    local gateway_reason=""
+
+    # 2a. Check if gateway binary needs recompile
     if [ "${IS_SOURCE_REPO:-0}" -eq 1 ] && [ -f "${GATEWAY_SRC}" ]; then
         if [ ! -f "${GATEWAY_INSTALL_BIN}" ] || [ "${GATEWAY_SRC}" -nt "${GATEWAY_INSTALL_BIN}" ]; then
             compile_gateway
+            # Stop gateway first to avoid "Text file busy" on cp
+            log_info "Stopping gateway service for binary update..."
+            sudo systemctl stop "${SYSTEM_SERVICE_NAME}.service" 2>/dev/null || true
+            sleep 1
             log_info "Installing gateway binary to ${GATEWAY_INSTALL_BIN}..."
             sudo cp "${GATEWAY_BIN}" "${GATEWAY_INSTALL_BIN}"
-            gateway_changed=1
-        else
-            log_info "Gateway binary up-to-date, skipping recompile"
+            gateway_needs_restart=1
+            gateway_reason="binary updated"
         fi
     fi
 
-    if [ "${gateway_changed}" -eq 1 ]; then
-        log_info "Gateway binary updated, restarting service..."
-        sudo systemctl restart "${SYSTEM_SERVICE_NAME}.service"
-        sleep 1
-    else
-        log_info "Restarting gateway service..."
-        sudo systemctl restart "${SYSTEM_SERVICE_NAME}.service"
-        sleep 1
+    # 2b. Check if gateway config changed since last service start
+    if [ "${gateway_needs_restart}" -eq 0 ] && [ -f "${OPENCODE_CFG}" ]; then
+        local svc_start_ts
+        svc_start_ts="$(systemctl show -p ActiveEnterTimestamp --value "${SYSTEM_SERVICE_NAME}.service" 2>/dev/null || true)"
+        if [ -n "${svc_start_ts}" ]; then
+            local svc_epoch cfg_epoch
+            svc_epoch="$(date -d "${svc_start_ts}" +%s 2>/dev/null || echo 0)"
+            cfg_epoch="$(stat -c %Y "${OPENCODE_CFG}" 2>/dev/null || echo 0)"
+            if [ "${cfg_epoch}" -gt "${svc_epoch}" ]; then
+                gateway_needs_restart=1
+                gateway_reason="config changed (${OPENCODE_CFG})"
+            fi
+        fi
     fi
 
-    # 3. Verify gateway is healthy
-    if system_service_is_active; then
-        log_success "Restart complete. Gateway + daemons refreshed."
+    # 2c. Explicit flag
+    if [ "${FORCE_GATEWAY_RESTART:-0}" -eq 1 ]; then
+        gateway_needs_restart=1
+        gateway_reason="forced via --force-gateway"
+    fi
+
+    # 3. Apply gateway restart decision
+    if [ "${gateway_needs_restart}" -eq 1 ]; then
+        log_info "Gateway restart needed: ${gateway_reason}"
+        sudo systemctl restart "${SYSTEM_SERVICE_NAME}.service" 2>/dev/null \
+            || sudo systemctl start "${SYSTEM_SERVICE_NAME}.service"
+        sleep 1
     else
-        log_warn "Gateway service not active after restart. Starting..."
+        log_info "Gateway unchanged, skipping restart (daemons already reloaded)"
+    fi
+
+    # 4. Verify gateway is healthy
+    if system_service_is_active; then
+        if [ "${gateway_needs_restart}" -eq 1 ]; then
+            log_success "Restart complete. Gateway (${gateway_reason}) + daemons refreshed."
+        else
+            log_success "Reload complete. Daemons refreshed, gateway untouched."
+        fi
+    else
+        log_warn "Gateway service not active. Starting..."
         sudo systemctl start "${SYSTEM_SERVICE_NAME}.service"
     fi
 }

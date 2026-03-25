@@ -939,16 +939,18 @@ export namespace ProviderTransform {
         for (const [key, value] of Object.entries(obj)) {
           if (key === "enum" && Array.isArray(value)) {
             // Convert all enum values to strings
-            result[key] = value.map((v) => String(v))
-            // If we have integer type with enum, change type to string
-            if (result.type === "integer" || result.type === "number") {
-              result.type = "string"
-            }
+            result[key] = value.map((v: unknown) => String(v))
           } else if (typeof value === "object" && value !== null) {
             result[key] = sanitizeGemini(value)
           } else {
             result[key] = value
           }
+        }
+
+        // Post-pass: if this node has enum with string values but integer/number type,
+        // change type to string (handles any property ordering in the source object)
+        if (Array.isArray(result.enum) && (result.type === "integer" || result.type === "number")) {
+          result.type = "string"
         }
 
         // Filter required array to only include fields that exist in properties

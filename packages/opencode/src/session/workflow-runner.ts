@@ -795,18 +795,15 @@ export function planAutonomousNextAction(input: {
     textForInProgress: applyBetaWorkflowContract({ text: AUTONOMOUS_PROGRESS_TEXT, session: input.session }),
   })
 
-  // If no actionable todo, we still need to run gates first (they may stop earlier)
-  // Use a placeholder trigger for gate evaluation when no todo exists
-  const triggerForGates: RunTrigger = trigger ?? {
-    type: "continuation",
-    source: "todo_pending",
-    payload: { text: "", todo: { id: "", content: "", status: "pending", priority: "low" } as Todo.Info },
-    priority: "normal",
-    gatePolicy: CONTINUATION_GATE_POLICY,
+  // No actionable todo → nothing to continue, skip gate evaluation entirely.
+  // Gates only matter when there IS work to gate; evaluating a placeholder trigger
+  // causes false "mission_not_approved" stops in normal conversation sessions.
+  if (!trigger) {
+    return { type: "stop", reason: "todo_complete" }
   }
 
   const gateResult = evaluateGates({
-    trigger: triggerForGates,
+    trigger,
     session: input.session,
     todos: input.todos,
     roundCount: input.roundCount,
@@ -824,11 +821,6 @@ export function planAutonomousNextAction(input: {
       type: "stop",
       reason: gateResult.reason as Exclude<ContinuationDecisionReason, "todo_pending" | "todo_in_progress">,
     }
-  }
-
-  // Gates passed — check if we have a real todo to continue with
-  if (!trigger) {
-    return { type: "stop", reason: "todo_complete" }
   }
 
   return {
