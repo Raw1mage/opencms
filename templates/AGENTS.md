@@ -197,3 +197,25 @@
   1.  是否能刪除
   2.  是否能改成 explicit decision gate
   3.  是否能縮到單一可觀測且經使用者批准的例外
+
+11. **善用系統既有 Infrastructure，禁止重複造輪子（使用者天條）**
+
+**所有 coding agent 開工前必須先閱讀 `specs/architecture.md`**，掌握現有 infrastructure 後再動手，嚴禁以下行為：
+
+- 自製非同步協調邏輯取代 **Bus messaging**（`packages/opencode/src/bus/`）
+- 用 `setTimeout` / polling 等待另一模組的狀態就緒（應改用 Bus event subscription）
+- 忽略 Bus subscriber 執行時機與 tool call 讀取時機之間的 race window
+- 在 daemon fire-and-forget 模式下丟失 `Instance` context（應捕獲 `Instance.directory` 再傳入事件 context）
+
+**必須掌握的既有 Infrastructure（不得重複實作）：**
+
+| Infrastructure | 位置 | 用途 |
+|---|---|---|
+| **Bus** | `packages/opencode/src/bus/` | 跨模組事件主幹，所有非同步協調的標準路徑 |
+| **rotation3d** | `packages/opencode/src/model/` | 多模型輪替、負載平衡、quota 管理 |
+| **SharedContext** | `packages/opencode/src/session/shared-context.ts` | Per-session 知識空間：subagent 注入、child→parent relay |
+| **SessionActiveChild** | `packages/opencode/src/tool/task.ts` | Subagent 生命週期狀態機 |
+| **ProcessSupervisor** | `packages/opencode/src/process/supervisor.ts` | Logical task process lifecycle |
+| **Instance / AsyncLocalStorage** | `packages/opencode/src/project/instance.ts` | Daemon 模式下 per-request context 傳遞 |
+
+Race condition 修復優先順序：**讓讀取方自清（自防禦）> 改寫事件順序 > 引入新旗標**。

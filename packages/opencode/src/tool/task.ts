@@ -1128,7 +1128,12 @@ export async function sendModelUpdateToActiveChild(
 async function getAuthoritativeActiveChildForDispatch(parentSessionID: string) {
   const activeChild = SessionActiveChild.get(parentSessionID)
   if (!activeChild) return
-  if (activeChild.status === "handoff") return activeChild
+  if (activeChild.status === "handoff") {
+    // Child already completed; parent is resuming and may dispatch next subagent.
+    // Clear the stale handoff state and allow dispatch.
+    await SessionActiveChild.set(parentSessionID, null)
+    return
+  }
   if (activeChild.status !== "running") return
 
   const worker = workers.find((candidate) => candidate.id === activeChild.workerID)

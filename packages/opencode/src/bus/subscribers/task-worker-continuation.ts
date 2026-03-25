@@ -6,7 +6,6 @@ import { Identifier } from "@/id/id"
 import { Todo } from "@/session/todo"
 import { ProcessSupervisor } from "@/process/supervisor"
 import { enqueuePendingContinuation, resumePendingContinuations } from "@/session/workflow-runner"
-import { SessionStatus } from "@/session/status"
 import { Instance } from "@/project/instance"
 import { SharedContext } from "@/session/shared-context"
 import { Log } from "@/util/log"
@@ -208,6 +207,11 @@ async function enqueueParentContinuation(input: {
       triggerType: input.ok ? "task_completion" : "task_failure",
     })
 
+    // Clear active child now — continuation is fully enqueued, child is gone.
+    // Must happen before resumePendingContinuations so the parent session's
+    // first tool call (e.g. another task dispatch) sees no stale handoff state.
+    await clearActiveChild().catch(() => undefined)
+
     await Session.setWorkflowState({
       sessionID: input.parentSessionID,
       state: "idle",
@@ -229,9 +233,6 @@ async function enqueueParentContinuation(input: {
     }
     throw error
   } finally {
-    if (SessionActiveChild.get(input.parentSessionID)?.status !== "handoff") {
-      await clearActiveChild().catch(() => undefined)
-    }
     clearLogicalTask()
   }
 }
@@ -241,13 +242,6 @@ let registered = false
 export function registerTaskWorkerContinuationSubscriber() {
   if (registered) return
   registered = true
-
-  Bus.subscribeGlobal(SessionStatus.Event.Status.type, 0, async (event) => {
-    if (event.properties.status.type !== "busy") return
-    const activeChild = SessionActiveChild.get(event.properties.sessionID)
-    if (!activeChild || activeChild.status !== "handoff") return
-    await SessionActiveChild.set(event.properties.sessionID, null)
-  })
 
   Bus.subscribeGlobal(TaskWorkerEvent.Done.type, 0, async (event) => {
     log.info("TaskWorkerEvent.Done received", { workerID: event.properties.workerID, sessionID: event.properties.sessionID, parentSessionID: event.properties.parentSessionID, toolCallID: event.properties.toolCallID })
