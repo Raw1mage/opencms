@@ -60,11 +60,12 @@ export default function TerminalPopoutRoute() {
   })
 
   return (
-    <div class="size-full flex flex-col bg-background-base">
+    <div class="min-h-screen w-full flex flex-col bg-background-base">
       <SessionHeader />
       <div class="flex-1 min-h-0 relative">
         <Show
           when={selectedPTY()}
+          keyed
           fallback={
             <div class="size-full flex items-center justify-center text-text-weak">
               {language.t("terminal.loading")}
@@ -74,13 +75,13 @@ export default function TerminalPopoutRoute() {
           {(pty) => (
             <div class="absolute inset-0">
               <Terminal
-                pty={pty()}
+                pty={pty}
                 class="!px-0 !py-0"
                 contextMenuCopiesSelection
                 ignoreStoredViewport
                 clearSelectionOnInput
                 onCleanup={terminal.update}
-                onConnectError={() => terminal.clone(pty().id)}
+                onConnectError={() => terminal.clone(pty.id)}
               />
             </div>
           )}

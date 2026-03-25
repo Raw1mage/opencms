@@ -96,6 +96,11 @@ static void jwt_sign(const char *payload, char *out_token, size_t toklen);
 static void http_send(int fd, int status, const char *statusmsg,
                       const char *ctype, const char *headers,
                       const char *body, size_t bodylen);
+static void send_login_success_ex(int fd, const char *username,
+                                  int is_secure, int is_json_api);
+static int submit_auth_job_ex(int client_fd, const char *username,
+                              const char *password, int is_secure,
+                              uint32_t peer_ip, int is_json_api);
 
 /* ─── EpollCtx: tagged context for every epoll-monitored fd ─────── */
 typedef enum {
@@ -177,6 +182,7 @@ typedef struct {
     uint32_t  peer_ip;
     int       result;          /* 0=fail, 1=success */
     int       done;
+    int       is_json_api;     /* 1=SPA fetch (JSON response), 0=form (HTML redirect) */
 } AuthJob;
 
 static AuthJob       g_auth_queue[MAX_AUTH_QUEUE];
@@ -444,6 +450,13 @@ static int google_binding_lookup(const char *google_email, char *out_username, s
 }
 
 static void send_login_success(int fd, const char *username, int is_secure) {
+    send_login_success_ex(fd, username, is_secure, 0);
+}
+
+/* is_json_api: when true, return JSON body + Set-Cookie header (for SPA fetch).
+ * when false, return HTML with JS cookie-set + redirect (for form submit). */
+static void send_login_success_ex(int fd, const char *username,
+                                  int is_secure, int is_json_api) {
     char payload[512];
     time_t exp_time = time(NULL) + JWT_EXP_SECONDS;
     snprintf(payload, sizeof(payload),
@@ -451,25 +464,43 @@ static void send_login_success(int fd, const char *username, int is_secure) {
     char token[1024];
     jwt_sign(payload, token, sizeof(token));
 
-    char js_body[2048];
-    snprintf(js_body, sizeof(js_body),
-        "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
-        "</head><body><script>"
-        "document.cookie='oc_jwt=%s; Path=/; Max-Age=%d';"
-        "window.location.replace('/');"
-        "</script></body></html>",
-        token, JWT_EXP_SECONDS);
-    http_send(fd, 200, "OK", "text/html; charset=utf-8",
-              "Cache-Control: no-store\r\n",
-              js_body, strlen(js_body));
-    LOGI("auth 200+js-cookie sent: is_secure=%d token_len=%zu",
-         is_secure, strlen(token));
+    char cookie_hdr[1200];
+    snprintf(cookie_hdr, sizeof(cookie_hdr),
+             "Cache-Control: no-store\r\n"
+             "Set-Cookie: oc_jwt=%s; Path=/; Max-Age=%d; SameSite=Lax%s\r\n",
+             token, JWT_EXP_SECONDS, is_secure ? "; Secure" : "");
+
+    if (is_json_api) {
+        /* SPA fetch mode: JSON response + Set-Cookie header */
+        char json_body[256];
+        snprintf(json_body, sizeof(json_body),
+                 "{\"enabled\":true,\"authenticated\":true,\"username\":\"%s\"}",
+                 username);
+        http_send(fd, 200, "OK", "application/json", cookie_hdr,
+                  json_body, strlen(json_body));
+        LOGI("auth 200+json+cookie sent: user='%s' is_secure=%d", username, is_secure);
+    } else {
+        /* Form submit mode: HTML with JS cookie-set + redirect */
+        char js_body[2048];
+        snprintf(js_body, sizeof(js_body),
+            "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
+            "</head><body><script>"
+            "document.cookie='oc_jwt=%s; Path=/; Max-Age=%d';"
+            "window.location.replace('/');"
+            "</script></body></html>",
+            token, JWT_EXP_SECONDS);
+        http_send(fd, 200, "OK", "text/html; charset=utf-8",
+                  "Cache-Control: no-store\r\n",
+                  js_body, strlen(js_body));
+        LOGI("auth 200+js-cookie sent: is_secure=%d token_len=%zu",
+             is_secure, strlen(token));
+    }
 }
 
 /* ─── JWT secret persistence (DD-5) ─────────────────────────────── */
 static int jwt_load_or_create_secret(void) {
     const char *key_path = getenv("OPENCODE_JWT_KEY_PATH");
-    if (!key_path) key_path = "/run/opencode-gateway/jwt.key";
+    if (!key_path) key_path = "/var/lib/opencode-gateway/jwt.key";
 
     /* Try to read existing key */
     int fd = open(key_path, O_RDONLY);
@@ -797,8 +828,8 @@ static void *auth_thread_fn(void *arg) {
     return NULL;
 }
 
-static int submit_auth_job(int client_fd, const char *username, const char *password,
-                           int is_secure, uint32_t peer_ip) {
+static int submit_auth_job_ex(int client_fd, const char *username, const char *password,
+                              int is_secure, uint32_t peer_ip, int is_json_api) {
     pthread_mutex_lock(&g_auth_mutex);
     int next = (g_auth_queue_tail + 1) % MAX_AUTH_QUEUE;
     if (next == g_auth_queue_head) {
@@ -813,6 +844,7 @@ static int submit_auth_job(int client_fd, const char *username, const char *pass
     snprintf(job->password, sizeof(job->password), "%s", password);
     job->is_secure = is_secure;
     job->peer_ip = peer_ip;
+    job->is_json_api = is_json_api;
     job->done = 0;
     g_auth_queue_tail = next;
     pthread_mutex_unlock(&g_auth_mutex);
@@ -831,6 +863,11 @@ static int submit_auth_job(int client_fd, const char *username, const char *pass
     }
     pthread_attr_destroy(&attr);
     return 1;
+}
+
+static int submit_auth_job(int client_fd, const char *username, const char *password,
+                           int is_secure, uint32_t peer_ip) {
+    return submit_auth_job_ex(client_fd, username, password, is_secure, peer_ip, 0);
 }
 
 /* ─── Per-user daemon management ─────────────────────────────────── */
@@ -1017,6 +1054,16 @@ static int ensure_daemon_running(DaemonInfo *d) {
             /* Child: new session so it won't get parent's signals */
             setsid();
 
+            /* Close gateway-owned fds so the child (bun daemon) does NOT
+             * inherit the listening socket.  Without this, both gateway and
+             * bun accept() on the same port, causing random connection
+             * routing and WebSocket failures.  g_auth_eventfd already has
+             * EFD_CLOEXEC so it auto-closes on exec, but we close it
+             * explicitly as defense-in-depth. */
+            if (g_listen_fd >= 0) close(g_listen_fd);
+            if (g_epoll_fd  >= 0) close(g_epoll_fd);
+            if (g_auth_eventfd >= 0) close(g_auth_eventfd);
+
             /* Child: drop privileges and exec opencode */
             if (initgroups(d->username, d->gid) < 0) { _exit(1); }
             if (setgid(d->gid) < 0) { _exit(1); }
@@ -1149,7 +1196,6 @@ static Connection *alloc_conn(void) {
 static void close_conn(Connection *c) {
     if (c->closed) return;
     c->closed = 1;
-
     /* EPOLL_CTL_DEL before close (DD-4) */
     if (c->client_fd >= 0) {
         epoll_ctl(g_epoll_fd, EPOLL_CTL_DEL, c->client_fd, NULL);
@@ -1397,6 +1443,59 @@ static void route_complete_request(PendingRequest *pr) {
         goto handle_login;
     }
 
+    /* Gateway-mode auth session: tell the SPA that auth is NOT SPA-managed.
+     * The SPA will not show its own login form.  If a cached SPA tries to
+     * make API calls without JWT, authorizedFetch gets 401 and redirects
+     * the browser to "/" → gateway's own PAM login page. */
+    if (strcmp(req.path, "/global/auth/session") == 0 ||
+        strcmp(req.path, "/api/v2/global/auth/session") == 0) {
+        const char *body = "{\"enabled\":false,\"authenticated\":true}";
+        http_send(fd, 200, "OK", "application/json",
+                  "Cache-Control: no-store\r\n", body, strlen(body));
+        close(fd);
+        return;
+    }
+
+    /* Gateway-mode auth login (SPA JSON API): handle via PAM, same as form */
+    if ((strcmp(req.path, "/global/auth/login") == 0 ||
+         strcmp(req.path, "/api/v2/global/auth/login") == 0) &&
+        strcmp(req.method, "POST") == 0) {
+        char spa_user[256] = {}, spa_pass[256] = {};
+        /* Try JSON body first, then form-encoded */
+        int got_creds = 0;
+        if (req.body[0] && strstr(req.body, "\"username\"")) {
+            got_creds = json_extract_string(req.body, "username", spa_user, sizeof(spa_user)) &&
+                        json_extract_string(req.body, "password", spa_pass, sizeof(spa_pass));
+        }
+        if (!got_creds) {
+            got_creds = form_extract_value(req.body, "username", spa_user, sizeof(spa_user)) &&
+                        form_extract_value(req.body, "password", spa_pass, sizeof(spa_pass));
+        }
+        if (!got_creds || !spa_user[0]) {
+            const char *err = "{\"error\":\"Missing username or password\"}";
+            http_send(fd, 400, "Bad Request", "application/json", NULL, err, strlen(err));
+            close(fd);
+            return;
+        }
+        LOGI("SPA JSON login attempt for '%s'", spa_user);
+        submit_auth_job_ex(fd, spa_user, spa_pass, req.is_secure, peer_ip, 1);
+        return;
+    }
+
+    /* Gateway-mode logout: clear JWT cookie and redirect to login page.
+     * MUST be intercepted here — if passed through splice proxy, daemon
+     * might clear its own session cookie, leaving the browser without JWT. */
+    if (strcmp(req.path, "/global/auth/logout") == 0 ||
+        strcmp(req.path, "/api/v2/global/auth/logout") == 0) {
+        LOGI("logout: clearing JWT cookie");
+        const char *body = "{\"ok\":true}";
+        http_send(fd, 200, "OK", "application/json",
+                  "Cache-Control: no-store\r\nSet-Cookie: oc_jwt=; Path=/; Max-Age=0\r\n",
+                  body, strlen(body));
+        close(fd);
+        return;
+    }
+
     /* Check for valid JWT cookie */
     char *jwt_val = strstr(req.cookie, "oc_jwt=");
     if (jwt_val) {
@@ -1445,7 +1544,7 @@ static void route_complete_request(PendingRequest *pr) {
                     d->state = DAEMON_DEAD;
                 }
             }
-            /* Daemon failed — clear cookie via JS and redirect to login */
+            /* Daemon failed — clear cookie via HTTP header + JS and redirect to login */
             LOGW("daemon unavailable for '%s', clearing JWT and redirecting to login", username);
             const char *clear_body =
                 "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
@@ -1453,22 +1552,22 @@ static void route_complete_request(PendingRequest *pr) {
                 "document.cookie=\"oc_jwt=; Path=/; Max-Age=0\";"
                 "window.location.replace(\"/\");"
                 "</script></head><body></body></html>";
-            http_send(fd, 200, "OK", "text/html; charset=utf-8",
-                      "Cache-Control: no-store\r\n",
+            http_send(fd, 401, "Unauthorized", "text/html; charset=utf-8",
+                      "Cache-Control: no-store\r\nSet-Cookie: oc_jwt=; Path=/; Max-Age=0\r\n",
                       clear_body, strlen(clear_body));
             close(fd);
             return;
         }
 
-        LOGW("JWT verify failed — clearing cookie via JS");
+        LOGW("JWT verify failed — clearing cookie via HTTP header + JS");
         const char *clear_body =
             "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
             "<script>"
             "document.cookie=\"oc_jwt=; Path=/; Max-Age=0\";"
             "window.location.replace(\"/\");"
             "</script></head><body></body></html>";
-        http_send(fd, 200, "OK", "text/html; charset=utf-8",
-                  "Cache-Control: no-store\r\n",
+        http_send(fd, 401, "Unauthorized", "text/html; charset=utf-8",
+                  "Cache-Control: no-store\r\nSet-Cookie: oc_jwt=; Path=/; Max-Age=0\r\n",
                   clear_body, strlen(clear_body));
         close(fd);
         return;
@@ -1511,6 +1610,20 @@ handle_login:
         return;
     }
 
+    /* API and WebSocket requests without JWT must get 401 JSON, not HTML.
+     * The SPA needs a machine-readable signal to detect auth loss and
+     * redirect to the login page.  Serving HTML to XHR/fetch breaks JSON
+     * parsing; serving HTML to WebSocket upgrade breaks the handshake. */
+    if (strncmp(req.path, "/api/", 5) == 0 ||
+        strncmp(req.path, "/pty/", 5) == 0) {
+        const char *json_body = "{\"error\":\"unauthorized\",\"message\":\"Authentication required\"}";
+        http_send(fd, 401, "Unauthorized", "application/json",
+                  "Cache-Control: no-store\r\n",
+                  json_body, strlen(json_body));
+        close(fd);
+        return;
+    }
+
     serve_login_page(fd);
     close(fd);
 }
@@ -1543,15 +1656,24 @@ static void drain_auth_completions(void) {
             /* PAM success: sign JWT */
             rate_limit_clear(local.peer_ip);
             consec_fail_clear(local.peer_ip);
-            LOGI("auth complete: PAM success for '%s', signing JWT", local.username);
-            send_login_success(local.client_fd, local.username, local.is_secure);
+            LOGI("auth complete: PAM success for '%s' (json_api=%d), signing JWT",
+                 local.username, local.is_json_api);
+            send_login_success_ex(local.client_fd, local.username,
+                                  local.is_secure, local.is_json_api);
         } else {
             /* PAM failure */
             rate_limit_record_failure(local.peer_ip);
             consec_fail_record(local.peer_ip);
-            LOGW("auth complete: PAM failed for '%s'", local.username);
-            const char *redir = "HTTP/1.1 303 See Other\r\nLocation: /?error=1\r\nConnection: close\r\n\r\n";
-            send(local.client_fd, redir, strlen(redir), MSG_NOSIGNAL);
+            LOGW("auth complete: PAM failed for '%s' (json_api=%d)",
+                 local.username, local.is_json_api);
+            if (local.is_json_api) {
+                const char *body = "{\"error\":\"Invalid username or password\"}";
+                http_send(local.client_fd, 401, "Unauthorized", "application/json",
+                          NULL, body, strlen(body));
+            } else {
+                const char *redir = "HTTP/1.1 303 See Other\r\nLocation: /?error=1\r\nConnection: close\r\n\r\n";
+                send(local.client_fd, redir, strlen(redir), MSG_NOSIGNAL);
+            }
         }
         close(local.client_fd);
     }
@@ -1660,7 +1782,7 @@ int main(int argc, char *argv[]) {
     const char *port_env = getenv("OPENCODE_GATEWAY_PORT");
     if (port_env) port = atoi(port_env);
 
-    g_listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    g_listen_fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (g_listen_fd < 0) { LOGE("socket: %s", strerror(errno)); return 1; }
     int opt = 1;
     setsockopt(g_listen_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
@@ -1679,7 +1801,7 @@ int main(int argc, char *argv[]) {
     set_nonblock(g_listen_fd);
 
     /* epoll setup */
-    g_epoll_fd = epoll_create1(0);
+    g_epoll_fd = epoll_create1(EPOLL_CLOEXEC);
     if (g_epoll_fd < 0) { LOGE("epoll_create1: %s", strerror(errno)); return 1; }
 
     /* Register listen fd */

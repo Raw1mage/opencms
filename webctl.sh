@@ -1095,20 +1095,22 @@ kill_existing() {
         rm -f "${FRONTEND_PID_FILE}"
     fi
 
-    # Fallback: kill by ports
-    local backend_port_pid
-    backend_port_pid=$(ss -tlnp 2>/dev/null | grep ":${WEB_PORT} " | grep -oP '(?<=pid=)[0-9]+' | head -1)
-    if [ -n "${backend_port_pid}" ]; then
-        log_warn "Backend port ${WEB_PORT} still occupied by pid ${backend_port_pid}, killing..."
-        kill "${backend_port_pid}" 2>/dev/null || true
+    # Fallback: kill ALL processes holding the port (not just the first).
+    # After gateway fork(), child bun daemons may inherit the listen fd,
+    # so multiple PIDs can own the same port.  Kill them all.
+    local port_pids
+    port_pids=$(ss -tlnp 2>/dev/null | grep ":${WEB_PORT} " | grep -oP '(?<=pid=)[0-9]+' | sort -u)
+    if [ -n "${port_pids}" ]; then
+        log_warn "Backend port ${WEB_PORT} still occupied by pid(s): ${port_pids//$'\n'/ }. Killing..."
+        echo "${port_pids}" | xargs -r kill 2>/dev/null || true
         sleep 1
     fi
 
-    local frontend_port_pid
-    frontend_port_pid=$(ss -tlnp 2>/dev/null | grep ":${FRONTEND_PORT} " | grep -oP '(?<=pid=)[0-9]+' | head -1)
-    if [ -n "${frontend_port_pid}" ]; then
-        log_warn "Frontend port ${FRONTEND_PORT} still occupied by pid ${frontend_port_pid}, killing..."
-        kill "${frontend_port_pid}" 2>/dev/null || true
+    local frontend_port_pids
+    frontend_port_pids=$(ss -tlnp 2>/dev/null | grep ":${FRONTEND_PORT} " | grep -oP '(?<=pid=)[0-9]+' | sort -u)
+    if [ -n "${frontend_port_pids}" ]; then
+        log_warn "Frontend port ${FRONTEND_PORT} still occupied by pid(s): ${frontend_port_pids//$'\n'/ }. Killing..."
+        echo "${frontend_port_pids}" | xargs -r kill 2>/dev/null || true
         sleep 1
     fi
 }
@@ -1989,6 +1991,16 @@ start_gateway() {
             sleep 1
         fi
         rm -f "${GATEWAY_PID_FILE}"
+    fi
+
+    # Kill any stale processes occupying the gateway port (e.g. orphaned bun
+    # daemons that inherited the listen fd from a previous gateway instance).
+    local stale_pids
+    stale_pids=$(ss -tlnp 2>/dev/null | grep ":${gw_port} " | grep -oP '(?<=pid=)[0-9]+' | sort -u)
+    if [ -n "${stale_pids}" ]; then
+        log_warn "Gateway port ${gw_port} occupied by pid(s): ${stale_pids//$'\n'/ }. Clearing..."
+        echo "${stale_pids}" | xargs -r sudo -n kill 2>/dev/null || true
+        sleep 1
     fi
 
     local -a gateway_env

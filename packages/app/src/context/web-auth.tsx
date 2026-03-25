@@ -76,6 +76,14 @@ export const { use: useWebAuth, provider: WebAuthProvider } = createSimpleContex
       })
       const response = await fetch(next)
       if (response.status === 401 || response.status === 403) {
+        if (!enabled()) {
+          // Gateway mode: auth is handled by the gateway (PAM), not the SPA.
+          // If we get 401 here, the gateway JWT is still valid (otherwise
+          // gateway itself would have returned a redirect/clear-cookie).
+          // This likely means the daemon is temporarily unavailable.
+          // Do NOT redirect — just propagate the error to the caller.
+          throw new Error("__OPENCODE_SILENT_UNAUTHORIZED__")
+        }
         setForcedUnauthenticated(true)
         void sessionActions.refetch()
         throw new Error("__OPENCODE_SILENT_UNAUTHORIZED__")

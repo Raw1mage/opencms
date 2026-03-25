@@ -14,14 +14,18 @@ TimeoutStopSec=10
 # All config from single source of truth
 EnvironmentFile=/etc/opencode/opencode.cfg
 
-# Runtime directory for JWT secret, PID tracking
+# Runtime directory for ephemeral files (PID tracking, etc.)
 RuntimeDirectory=opencode-gateway
 RuntimeDirectoryMode=0755
+
+# Persistent state directory for JWT secret (survives service restarts)
+StateDirectory=opencode-gateway
+StateDirectoryMode=0700
 
 # Security hardening (gateway needs root for PAM + setuid, but limit the rest)
 NoNewPrivileges=no
 ProtectSystem=strict
-ReadWritePaths=/run/opencode-gateway /run/user /tmp
+ReadWritePaths=/run/opencode-gateway /var/lib/opencode-gateway /run/user /tmp
 ProtectHome=no
 
 [Install]

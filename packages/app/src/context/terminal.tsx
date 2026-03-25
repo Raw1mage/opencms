@@ -126,7 +126,7 @@ function createWorkspaceTerminalSession(sdk: ReturnType<typeof useSDK>, dir: str
   })
   onCleanup(unsub)
 
-  const meta = { migrated: false, hydrated: false }
+  const meta = { migrated: false, hydrated: false, lastCloneAt: 0 }
 
   createEffect(() => {
     if (!ready()) return
@@ -217,6 +217,14 @@ function createWorkspaceTerminalSession(sdk: ReturnType<typeof useSDK>, dir: str
         })
     },
     async clone(id: string) {
+      // Rate-limit cloning to prevent death spiral: onConnectError → clone → WS fail → repeat
+      const now = Date.now()
+      if (now - meta.lastCloneAt < 3000) {
+        console.warn("[terminal] clone rate-limited, skipping (last clone was", now - meta.lastCloneAt, "ms ago)")
+        return
+      }
+      meta.lastCloneAt = now
+
       const index = store.all.findIndex((x) => x.id === id)
       const pty = store.all[index]
       if (!pty) return

@@ -452,7 +452,13 @@ export const Terminal = (props: TerminalProps) => {
 
   onMount(() => {
     const run = async () => {
-      const loaded = await loadGhostty()
+      let loaded: Awaited<ReturnType<typeof loadGhostty>>
+      try {
+        loaded = await loadGhostty()
+      } catch (err) {
+        local.onConnectError?.(err)
+        return
+      }
       if (disposed) return
 
       const mod = loaded.mod
@@ -548,7 +554,6 @@ export const Terminal = (props: TerminalProps) => {
       })
       cleanups.push(() => disposeIfDisposable(onResize))
       const onData = t.onData((data) => {
-        console.warn("[PTY CLIENT] Sending input length:", data.length, "content:", JSON.stringify(data))
         if (ws?.readyState === WebSocket.OPEN) ws.send(data)
       })
       cleanups.push(() => disposeIfDisposable(onData))
@@ -624,7 +629,6 @@ export const Terminal = (props: TerminalProps) => {
 
       const writeIncoming = (chunk: string) => {
         if (!chunk) return
-        console.warn("[PTY CLIENT] Received output length:", chunk.length, "content:", JSON.stringify(chunk))
         t.write(chunk)
         cursor += chunk.length
       }
@@ -685,7 +689,6 @@ export const Terminal = (props: TerminalProps) => {
         if (disposed) return
         if (once.value) return
         once.value = true
-        console.error("WebSocket error:", error)
         local.onConnectError?.(error)
       }
       socket.addEventListener("error", handleError)
