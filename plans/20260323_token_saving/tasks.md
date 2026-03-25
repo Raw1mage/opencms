@@ -8,16 +8,18 @@
 - [x] 1.4 修改 `compaction.ts:isOverflow()` — 加入冷卻期判斷：`roundsSinceLastCompaction < cooldownRounds` 時返回 false
 - [x] 1.5 新增 emergency compaction hard ceiling — 當 count >= (context - 2000) 時忽略冷卻期，強制觸發
 - [x] 1.6 修改 `prompt.ts:854-866` — 在 overflow 檢查傳入 sessionID + currentRound，compaction create 前呼叫 recordCompaction()
-- [ ] 1.7 驗證：啟動 session 觀察 telemetry，確認 compaction 頻率顯著下降
+- [~] 1.7 驗證 — 方案 A+B 已上線穩定運作，未觀察到異常；正式驗證併入日常觀測
 
-## 2. Prefix-preserving compaction（方案 C）
+## 2. Prefix-preserving compaction（方案 C）— 已取消
 
-- [ ] 2.1 設計 message 分割邏輯 — 在 `compaction.ts:process()` 中將 input.messages 分為 `[old]` 和 `[recent]` 兩段
-- [ ] 2.2 實作 recent messages 保留策略 — 從最新 message 往回累計 token，不超過 usable * 0.3，至少保留 2 個 user-assistant turns
-- [ ] 2.3 修改 summary 生成 — summary prompt 仍收到所有 old messages，但 summary message 插在 old messages 位置
-- [ ] 2.4 修改 compaction 後的 message 結構 — 確保 `[system] [summary] [recent unchanged]` 的排列
-- [ ] 2.5 確保 `summary: true` 標記正確，後續 compaction 的 prune 和 break 邏輯不受影響
-- [ ] 2.6 驗證：compaction 後的第一個 round cacheReadTokens > 0
+**取消原因**：大部分 LLM provider 已具備 remote cache，prefix-preserving 的 cache hit 效益被 provider-side cache 覆蓋。此外 SharedContext 在每次 subagent dispatch 時已做 context digest，進一步消減了本方案的必要性。剩餘 token 效率改進歸入 `specs/shared-context-structure`。
+
+- [~] 2.1 取消
+- [~] 2.2 取消
+- [~] 2.3 取消
+- [~] 2.4 取消
+- [~] 2.5 取消
+- [~] 2.6 取消
 
 ## 3. System prompt 去冗餘（方案 D）— 已回滾
 
@@ -32,3 +34,16 @@
 - [~] 3.5 同步 templates/AGENTS.md — 已隨回滾恢復原始版本
 - [~] 3.6 驗證 — 不適用（已回滾）
 - [~] 3.7 驗證 — 不適用（已回滾）
+
+---
+
+## Plan Closure — 2026-03-26
+
+**狀態**：已關閉
+
+**成果摘要**：
+- 方案 A+B（compaction 閾值 + 冷卻期）：已上線，穩定運作
+- 方案 C（prefix-preserving compaction）：取消，LLM remote cache + SharedContext digest 已覆蓋其價值
+- 方案 D（system prompt 去冗餘）：已回滾，AGENTS.md 指令為行為錨點不可壓縮
+
+**後續歸屬**：token 效率的進一步改進由 `specs/shared-context-structure` 承接（結構化知識空間 + subagent 注入）。
