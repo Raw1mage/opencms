@@ -141,12 +141,19 @@ async function enqueueParentContinuation(input: {
           accountId: "accountId" in assistant.info ? assistant.info.accountId : undefined,
         }
 
-    // Collect child session's SharedContext snapshot to relay to parent
-    // This is the key feedback path: parent LLM needs actual content to follow through
+    // Relay child's SharedContext back to parent.
+    // Use differential snapshot (only what child learned beyond what parent injected)
+    // to avoid re-sending knowledge parent already has.
     let childContextSnap: string | undefined
     if (input.ok) {
-      childContextSnap = await SharedContext.snapshot(input.childSessionID).catch(() => undefined)
-      // Merge child's knowledge into parent's SharedContext for future subagent dispatches
+      const taskMeta = taskPart.state.status === "running" || taskPart.state.status === "completed"
+        ? (taskPart.state.metadata as { injectedSharedContextVersion?: number } | undefined)
+        : undefined
+      const sinceVersion = taskMeta?.injectedSharedContextVersion ?? -1
+      childContextSnap = sinceVersion >= 0
+        ? await SharedContext.snapshotDiff(input.childSessionID, sinceVersion).catch(() => undefined)
+        : await SharedContext.snapshot(input.childSessionID).catch(() => undefined)
+      // Merge child's full knowledge into parent's Space for future subagent dispatches
       await SharedContext.mergeFrom({
         targetSessionID: input.parentSessionID,
         sourceSessionID: input.childSessionID,

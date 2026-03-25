@@ -442,6 +442,50 @@ export namespace SharedContext {
     return formatSnapshot(space)
   }
 
+  /**
+   * Returns only the knowledge added after `sinceVersion`.
+   * Used by continuation handler to relay only what child learned beyond
+   * what parent already injected at dispatch time — avoids re-sending known info.
+   */
+  export async function snapshotDiff(sid: string, sinceVersion: number): Promise<string | undefined> {
+    const space = await get(sid)
+    if (!space || space.version <= sinceVersion) return undefined
+
+    // Filter to entries added after the injected snapshot
+    // Actions are append-only with addedAt timestamp; files use updatedAt
+    const cutoff = sinceVersion // version is incremented per turn, not per entry
+    // We don't store per-entry version, so use a proportion heuristic:
+    // keep entries whose addedAt is after the space's updatedAt at injection time.
+    // Since we don't store injection timestamp, fall back to slicing by index:
+    // actions are ordered chronologically, keep the last (total - sinceVersion) items.
+    const totalTurns = space.version
+    const newTurns = totalTurns - sinceVersion
+    if (newTurns <= 0) return undefined
+
+    const fraction = newTurns / Math.max(totalTurns, 1)
+    const newActions = space.actions.slice(Math.floor(space.actions.length * (1 - fraction)))
+    const newFiles = space.files.filter((f) => {
+      // Files edited/written during child execution (not just read before dispatch)
+      return f.operation === "edit" || f.operation === "write"
+    })
+
+    if (newActions.length === 0 && newFiles.length === 0 && !space.currentState) return undefined
+
+    const diffSpace: Space = {
+      ...space,
+      files: newFiles,
+      actions: newActions,
+      discoveries: space.discoveries.slice(Math.floor(space.discoveries.length * (1 - fraction))),
+    }
+    return formatSnapshot(diffSpace)
+  }
+
+  /** Public alias used by task.ts to format a Space for injection into subagent prompt. */
+  export function formatForInjection(space: Space): string | undefined {
+    if (space.files.length === 0 && space.actions.length === 0) return undefined
+    return formatSnapshot(space)
+  }
+
   function formatSnapshot(space: Space): string {
     const lines: string[] = []
     lines.push(`<shared_context session="${space.sessionID}" version="${space.version}">`)

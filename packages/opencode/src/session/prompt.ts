@@ -1205,7 +1205,7 @@ export namespace SessionPrompt {
     }
 
     // ── Shared Context: incremental update + idle compaction at turn boundary ──
-    if (!session.parentID) {
+    {
       const config = await Config.get()
       if (config.compaction?.sharedContext !== false) {
         try {
@@ -1218,7 +1218,7 @@ export namespace SessionPrompt {
               .map((p) => p.text)
               .join("\n")
 
-            // 1. Incremental update
+            // 1. Incremental update — runs for all sessions (parent + child)
             await SharedContext.updateFromTurn({
               sessionID,
               parts: lastAssistantMsg.parts,
@@ -1226,24 +1226,25 @@ export namespace SessionPrompt {
               turnNumber: step,
             })
 
-            // 2. Idle compaction: if this turn dispatched a subagent
+            // 2. Idle compaction: only for parent sessions, only when task dispatched
             // In daemon fire-and-forget mode, task parts are "running" at turn boundary
-            // (they complete asynchronously via continuation). Check for any non-pending status.
-            const hasTaskDispatch = lastAssistantMsg.parts.some(
-              (p) => p.type === "tool" && p.tool === "task" && p.state.status !== "pending",
-            )
-            if (hasTaskDispatch) {
-              const lastFinishedInfo = lastAssistantMsg.info as MessageV2.Assistant
-              if (lastFinishedInfo.tokens) {
-                const model = await Provider.getModel(
-                  lastFinishedInfo.providerId,
-                  lastFinishedInfo.modelID,
-                )
-                await SessionCompaction.idleCompaction({
-                  sessionID,
-                  model,
-                  config,
-                })
+            if (!session.parentID) {
+              const hasTaskDispatch = lastAssistantMsg.parts.some(
+                (p) => p.type === "tool" && p.tool === "task" && p.state.status !== "pending",
+              )
+              if (hasTaskDispatch) {
+                const lastFinishedInfo = lastAssistantMsg.info as MessageV2.Assistant
+                if (lastFinishedInfo.tokens) {
+                  const model = await Provider.getModel(
+                    lastFinishedInfo.providerId,
+                    lastFinishedInfo.modelID,
+                  )
+                  await SessionCompaction.idleCompaction({
+                    sessionID,
+                    model,
+                    config,
+                  })
+                }
               }
             }
           }

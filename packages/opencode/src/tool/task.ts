@@ -1405,6 +1405,8 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         mark("model_resolved", { providerId: model.providerId, modelID: model.modelID })
 
         const activeChildTodo = toActiveChildTodo(linkedTodo)
+        // Will be populated after shared context injection below; undefined until then
+        let injectedSharedContextVersion: number | undefined
 
         ctx.metadata({
           title: params.description,
@@ -1416,6 +1418,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             dispatched: true,
             status: "running",
             todo: activeChildTodo,
+            injectedSharedContextVersion,
           },
         })
 
@@ -1475,8 +1478,10 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         // Only for new subsessions (not continuation via session_id)
         if (!params.session_id) {
           try {
-            const snap = await SharedContext.snapshot(ctx.sessionID)
-            if (snap) {
+            const parentSpace = await SharedContext.get(ctx.sessionID)
+            const snap = parentSpace ? SharedContext.formatForInjection(parentSpace) : undefined
+            if (snap && parentSpace) {
+              injectedSharedContextVersion = parentSpace.version
               // Prepend shared context as a synthetic text part before the task prompt
               promptParts.unshift({
                 type: "text" as const,
@@ -1484,7 +1489,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
                 text: `${snap}\n\n---\n\n`,
                 time: { start: Date.now(), end: Date.now() },
               } as any)
-              mark("shared_context_injected", { snapshotLength: snap.length })
+              mark("shared_context_injected", { snapshotLength: snap.length, version: parentSpace.version })
             }
           } catch (err) {
             // Non-fatal: subagent proceeds without shared context
