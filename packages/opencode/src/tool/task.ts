@@ -1490,6 +1490,21 @@ export const TaskTool = Tool.define("task", async (ctx) => {
                 time: { start: Date.now(), end: Date.now() },
               } as any)
               mark("shared_context_injected", { snapshotLength: snap.length, version: parentSpace.version })
+              // Update metadata with actual injected version so continuation handler
+              // can compute a differential snapshot instead of relaying the full Space.
+              ctx.metadata({
+                title: params.description,
+                metadata: {
+                  sessionId: session.id,
+                  model,
+                  modelSource,
+                  agent: agent.name,
+                  dispatched: true,
+                  status: "running",
+                  todo: activeChildTodo,
+                  injectedSharedContextVersion,
+                },
+              })
             }
           } catch (err) {
             // Non-fatal: subagent proceeds without shared context
