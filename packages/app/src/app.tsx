@@ -263,12 +263,12 @@ export function AppInterface(props: { defaultUrl?: string; children?: JSX.Elemen
                   root={(routerProps) => <RouterRoot appChildren={props.children}>{routerProps.children}</RouterRoot>}
                 >
                   <Route path="/" component={HomeRoute} />
+                  <Route path="/system/tasks/:jobId?" component={TaskListRoute} />
                   <Route path="/:dir" component={DirectoryLayout}>
                     <Route path="/" component={SessionIndexRoute} />
                     <Route path="/session/:id?" component={SessionRoute} />
                     <Route path="/session/:id?/tool/:tool" component={SessionToolRoute} />
                     <Route path="/session/:id?/terminal-popout" component={TerminalPopoutRoute} />
-                    <Route path="/tasks" component={TaskListRoute} />
                   </Route>
                 </Router>
               </GlobalSyncProvider>
