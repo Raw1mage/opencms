@@ -80,8 +80,33 @@ export type CronJobPatchInput = {
   wakeMode?: "next-heartbeat" | "now"
 }
 
+export type SessionMessage = {
+  id: string
+  sessionID: string
+  role: "user" | "assistant"
+  time: { created: number; completed?: number }
+  modelID?: string
+  providerId?: string
+  parentID?: string
+  cost?: number
+  tokens?: { input: number; output: number; reasoning: number }
+}
+
+export type SessionTextPart = {
+  id: string
+  sessionID: string
+  messageID: string
+  type: "text"
+  text: string
+}
+
+export type SessionMessageWithParts = SessionMessage & {
+  parts: SessionTextPart[]
+}
+
 export function createCronApi(baseUrl: string, fetchFn: typeof fetch) {
   const base = `${baseUrl}/api/v2/cron`
+  const sessionBase = `${baseUrl}/api/v2/session`
 
   async function json<T>(res: Response): Promise<T> {
     if (!res.ok) {
@@ -143,6 +168,16 @@ export function createCronApi(baseUrl: string, fetchFn: typeof fetch) {
         const text = await res.text().catch(() => res.statusText)
         throw new Error(`Cron API ${res.status}: ${text}`)
       }
+    },
+
+    async getSessionMessages(sessionId: string): Promise<SessionMessage[]> {
+      const res = await fetchFn(`${sessionBase}/${encodeURIComponent(sessionId)}/message`)
+      return json<SessionMessage[]>(res)
+    },
+
+    async getSessionMessage(sessionId: string, messageId: string): Promise<SessionMessageWithParts> {
+      const res = await fetchFn(`${sessionBase}/${encodeURIComponent(sessionId)}/message/${encodeURIComponent(messageId)}`)
+      return json<SessionMessageWithParts>(res)
     },
   }
 }

@@ -1,6 +1,6 @@
 # Tasks — Scheduled Tasks UI (R2: Project-Session Reuse)
 
-> Updated 2026-03-26 (implementation pass): Phases 1-6 coded, Phase 7 in progress.
+> Updated 2026-03-26 (session 2): Phases 1-7 coded, virtual project isolation + session conversation rendering added.
 
 ## Phase 1: 後端修復（Trigger → Session 管線）
 
@@ -9,8 +9,13 @@
 - [x] 1.2 修復 `heartbeat.ts` — 改用 SessionPrompt.prompt() 直接執行 AI turn
   - 原 RunQueue 方案不可行，改為同步 prompt() 呼叫
 - [x] 1.3 修復 `heartbeat.ts` — 捕獲 sessionId 並回填至 logEntry
-- [~] 1.4 驗證 `POST /jobs/:id/run` 端點實際建立 session 並執行 AI — 需 runtime 測試
-- [~] 1.5 驗證 run log entry 包含 sessionId — 需 runtime 測試
+- [x] 1.4 建立 `virtual-project.ts` — `TASKS_VIRTUAL_DIR` 常數定義
+- [x] 1.5 `heartbeat.ts` — `evaluateJob()` 內 `executeJobRun` 包裹 `Instance.provide({ directory: TASKS_VIRTUAL_DIR })`
+- [x] 1.6 `heartbeat.ts` — `register()` 內 `fs.mkdir(TASKS_VIRTUAL_DIR)` 確保目錄存在
+- [x] 1.7 `cron.ts` routes — `POST /jobs/:id/run` 手動觸發包裹 `Instance.provide()`
+- [x] 1.8 `cron.ts` routes — 新增 `GET /project` 端點回傳虛擬目錄路徑
+- [~] 1.9 驗證 `POST /jobs/:id/run` 端點實際建立 session 並執行 AI — 需 runtime 測試
+- [~] 1.10 驗證 run log entry 包含 sessionId — 需 runtime 測試
 
 ## Phase 2: 路由 + 虛擬 Project 入口
 
@@ -50,6 +55,12 @@
 - [x] 6.1 index.tsx 改為 split layout（TaskSidebar + TaskDetail）
 - [x] 6.2 移除舊 `/:dir/tasks` 路由，統一為 `/system/tasks`
 - [~] 6.3 GlobalSync / dedicated store — 目前用 component-level createSignal + effect 管理，待需求再升級
+
+## Phase 6b: Session 對話渲染
+
+- [x] 6b.1 `api.ts` — 新增 `SessionMessage`, `SessionMessageWithParts` 類型 + `getSessionMessages()`, `getSessionMessage()` 方法
+- [x] 6b.2 `run-history.tsx` — 展開 run 時若有 sessionId，fetch messages+parts 並渲染 user prompt + AI response
+- [x] 6b.3 `task-card.tsx` — 更新 local CronApi type 包含 session message methods
 
 ## Phase 7: Validation
 

@@ -1,5 +1,7 @@
+import fs from "fs/promises"
 import { Log } from "../util/log"
 import { Scheduler } from "../scheduler"
+import { Instance } from "../project/instance"
 import { CronStore } from "./store"
 import { CronSession } from "./session"
 import { ActiveHours } from "./active-hours"
@@ -10,6 +12,7 @@ import { RunLog } from "./run-log"
 import { CronDeliveryRouter } from "./delivery"
 import { getCronPreloadedContext } from "./light-context"
 import { SessionPrompt } from "../session/prompt"
+import { TASKS_VIRTUAL_DIR } from "./virtual-project"
 import type { CronJob, CronRunLogEntry, CronRunOutcome } from "./types"
 
 /**
@@ -59,6 +62,11 @@ export namespace Heartbeat {
       log.info("heartbeat disabled")
       return
     }
+
+    // Ensure virtual tasks directory exists before first cron execution
+    fs.mkdir(TASKS_VIRTUAL_DIR, { recursive: true }).catch((e) =>
+      log.error("failed to create tasks virtual dir", { error: e }),
+    )
 
     Scheduler.register({
       id: "cron:heartbeat",
@@ -252,7 +260,11 @@ export namespace Heartbeat {
     const runId = crypto.randomUUID()
 
     // Execute heartbeat / agent turn (GRAFCET step S5)
-    const result = await executeJobRun(job, events, nowMs, runId)
+    // Wrap in Instance.provide() so sessions are scoped to the virtual tasks project
+    const result = await Instance.provide({
+      directory: TASKS_VIRTUAL_DIR,
+      fn: () => executeJobRun(job, events, nowMs, runId),
+    })
 
     // HEARTBEAT_OK suppression (D.2.5, GRAFCET step S7)
     if (config?.suppressOnOk !== false && !result.hasActionableContent) {

@@ -1,13 +1,15 @@
 import { createSignal, Show } from "solid-js"
 import { Icon } from "@opencode-ai/ui/icon"
 import { Button } from "@opencode-ai/ui/button"
-import type { CronJob, CronJobPatchInput, CronRunLogEntry } from "./api"
+import type { CronJob, CronJobPatchInput, CronRunLogEntry, SessionMessage, SessionMessageWithParts } from "./api"
 import { CronScheduleDisplay, formatRelativeTime } from "./cron-utils"
 import { RunHistoryPanel } from "./run-history"
 
 type CronApi = {
   getRuns(id: string, limit?: number): Promise<CronRunLogEntry[]>
   triggerJob(id: string): Promise<void>
+  getSessionMessages(sessionId: string): Promise<SessionMessage[]>
+  getSessionMessage(sessionId: string, messageId: string): Promise<SessionMessageWithParts>
 }
 
 export function TaskCard(props: {

@@ -10,9 +10,12 @@ Full implementation of Phases 1–6 from the scheduled-tasks-ui plan. The goal i
 
 ### IN
 - Phase 1: Backend pipeline fix — `heartbeat.ts` executeJobRun() now calls CronSession.resolve() + SessionPrompt.prompt()
+- Phase 1b: Virtual project isolation — `Instance.provide({ directory: TASKS_VIRTUAL_DIR })` wraps all cron execution
+- Phase 1c: REST endpoint `GET /api/v2/cron/project` returns virtual tasks directory path
 - Phase 2: `/system/tasks/:jobId?` route + ScheduledTasksTile in sidebar project rail
 - Phase 3: task-sidebar.tsx — session-list style cron job browser
 - Phase 4: task-detail.tsx — three-zone detail view (prompt editor, cron config, execution log)
+- Phase 4b: Session conversation rendering in RunHistoryPanel — fetch messages via session API when run has sessionId
 - Phase 5: task-tool-panel.tsx — right-side actions (test, edit, refresh, start/stop, delete)
 - Phase 6: Integration — index.tsx rewritten to split layout, stale route refs removed
 
@@ -31,19 +34,27 @@ Full implementation of Phases 1–6 from the scheduled-tasks-ui plan. The goal i
 
 4. **Split layout over card list**: Replaced the original single-page card layout with sidebar + detail pane, matching the existing session browsing UX pattern.
 
+5. **Virtual project isolation via Instance.provide()**: All cron execution wrapped in `Instance.provide({ directory: TASKS_VIRTUAL_DIR })` so sessions are scoped to a virtual project (`SHA1("nogit:" + path)`), isolated from user projects. `CronSession.resolve()` automatically inherits the virtual directory via `Instance.directory`.
+
+6. **Session conversation in run history**: RunHistoryPanel fetches full message+parts from session API when expanding a run with `sessionId`, rendering user prompts and AI responses inline.
+
 ## Files Changed
 
 ### Backend (packages/opencode)
-- `src/cron/heartbeat.ts` — Rewrote executeJobRun() to call CronSession.resolve() → SessionPrompt.prompt(), capture sessionId in logEntry
+- `src/cron/virtual-project.ts` — **NEW**: Defines `TASKS_VIRTUAL_DIR` constant (`Global.Path.state + "/__tasks__"`)
+- `src/cron/heartbeat.ts` — Rewrote executeJobRun() with CronSession.resolve() → SessionPrompt.prompt(); wrapped in `Instance.provide({ directory: TASKS_VIRTUAL_DIR })`; added `fs.mkdir()` at register time
+- `src/server/routes/cron.ts` — Manual trigger wrapped in `Instance.provide()`; added `GET /project` endpoint
 
 ### Frontend (packages/app)
 - `src/app.tsx` — Added `/system/tasks/:jobId?` route before `/:dir`
 - `src/pages/layout.tsx` — Changed openTasks() to navigate to `/system/tasks`
 - `src/pages/layout/sidebar-shell.tsx` — Added ScheduledTasksTile component, removed Tasks from utility bar
+- `src/pages/task-list/api.ts` — Added `SessionMessage`, `SessionMessageWithParts` types; added `getSessionMessages()`, `getSessionMessage()` methods
+- `src/pages/task-list/run-history.tsx` — Enhanced to fetch and render session conversation (user prompt + AI response) when expanding a run with sessionId
+- `src/pages/task-list/task-card.tsx` — Updated local CronApi type to include session message methods
 - `src/pages/task-list/index.tsx` — Rewritten: split layout composing TaskSidebar + TaskDetail
 - `src/pages/task-list/task-sidebar.tsx` — **NEW**: Session-list style job browser
 - `src/pages/task-list/task-detail.tsx` — **NEW**: Three-zone detail + tool panel integration
-- `src/pages/task-list/task-tool-panel.tsx` — **NEW**: Right-side tool panel
 
 ## Verification
 
