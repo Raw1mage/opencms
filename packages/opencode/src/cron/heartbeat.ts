@@ -1,3 +1,4 @@
+import fs from "fs/promises"
 import { Log } from "../util/log"
 import { Scheduler } from "../scheduler"
 import { CronStore } from "./store"
@@ -8,7 +9,10 @@ import { Schedule } from "./schedule"
 import { RetryPolicy } from "./retry"
 import { RunLog } from "./run-log"
 import { CronDeliveryRouter } from "./delivery"
-import { buildCronTrigger } from "../session/trigger"
+import { getCronPreloadedContext } from "./light-context"
+import { Instance } from "../project/instance"
+import { SessionPrompt } from "../session/prompt"
+import { TASKS_VIRTUAL_DIR } from "./virtual-project"
 import type { CronJob, CronRunLogEntry, CronRunOutcome } from "./types"
 
 /**
@@ -50,7 +54,7 @@ export namespace Heartbeat {
    * Register the heartbeat scheduler.
    * Should be called once during daemon initialization.
    */
-  export function register(config?: Partial<HeartbeatConfig>) {
+  export async function register(config?: Partial<HeartbeatConfig>) {
     const intervalMs = config?.intervalMs ?? DEFAULT_INTERVAL_MS
     const enabled = config?.enabled ?? true
 
@@ -58,6 +62,9 @@ export namespace Heartbeat {
       log.info("heartbeat disabled")
       return
     }
+
+    // Ensure virtual tasks directory exists
+    await fs.mkdir(TASKS_VIRTUAL_DIR, { recursive: true })
 
     Scheduler.register({
       id: "cron:heartbeat",
@@ -247,8 +254,14 @@ export namespace Heartbeat {
       return { status: "skipped", hasActionableContent: false, eventsProcessed: 0 }
     }
 
-    // Execute heartbeat / agent turn (GRAFCET step S5)
-    const result = await executeJobRun(job, events, nowMs)
+    // Generate runId before execution for consistent tracking
+    const runId = crypto.randomUUID()
+
+    // Execute heartbeat / agent turn under virtual tasks project context (GRAFCET step S5)
+    const result = await Instance.provide({
+      directory: TASKS_VIRTUAL_DIR,
+      fn: () => executeJobRun(job, events, nowMs, runId),
+    })
 
     // HEARTBEAT_OK suppression (D.2.5, GRAFCET step S7)
     if (config?.suppressOnOk !== false && !result.hasActionableContent) {
@@ -272,7 +285,6 @@ export namespace Heartbeat {
     }
 
     // Deliver result (GRAFCET step S6)
-    const runId = crypto.randomUUID()
     const outcome: CronRunOutcome = {
       status: result.hasActionableContent ? "ok" : "skipped",
       summary: result.summary,
@@ -287,7 +299,7 @@ export namespace Heartbeat {
       runId,
     })
 
-    // Log run
+    // Log run (include sessionId for UI to read full AI response)
     const logEntry: CronRunLogEntry = {
       jobId: job.id,
       runId,
@@ -296,6 +308,7 @@ export namespace Heartbeat {
       status: outcome.status,
       summary: outcome.summary,
       durationMs: outcome.durationMs,
+      sessionId: result.sessionId,
     }
     await RunLog.append(logEntry)
 
@@ -325,47 +338,95 @@ export namespace Heartbeat {
   type JobRunResult = {
     hasActionableContent: boolean
     summary?: string
+    sessionId?: string
   }
 
   /**
-   * Execute a job's payload. For now, builds a cron trigger.
-   * The actual agent turn execution is delegated to the trigger/queue system.
+   * Execute a job's payload.
+   *
+   * For agentTurn payloads:
+   *   1. Resolve an isolated cron session via CronSession.resolve()
+   *   2. Execute the AI turn via SessionPrompt.prompt()
+   *   3. Return sessionId for run-log linkage (UI reads session messages for full AI response)
+   *
+   * Must be called inside Instance.provide({ directory: TASKS_VIRTUAL_DIR })
+   * so sessions are scoped to the virtual tasks project.
    */
   async function executeJobRun(
     job: CronJob,
     events: SystemEvents.SystemEvent[],
     nowMs: number,
+    runId: string,
   ): Promise<JobRunResult> {
-    const runId = crypto.randomUUID()
-
     if (job.payload.kind === "systemEvent") {
-      // System event payloads: enqueue the text and check for actionable content
       const text = job.payload.text
       const hasContent = text.trim().length > 0 && text.trim() !== HEARTBEAT_OK_TOKEN
       return { hasActionableContent: hasContent, summary: text }
     }
 
     if (job.payload.kind === "agentTurn") {
-      // Build a cron trigger for the queue system to pick up
       const eventContext = events.length > 0
         ? `\n\nSystem events since last run:\n${events.map((e) => `- ${e.text}`).join("\n")}`
         : ""
+      const text = job.payload.message + eventContext
 
-      const trigger = buildCronTrigger({
-        source: job.wakeMode === "now" ? "scheduled" : "heartbeat",
-        text: job.payload.message + eventContext,
-        jobId: job.id,
-        runId,
-        lightContext: job.payload.lightContext,
-        priority: "background",
-      })
+      if (!text.trim()) {
+        return { hasActionableContent: false, summary: "Empty cron prompt" }
+      }
 
-      // The trigger is built — in a full system this would be enqueued.
-      // For now, return that we have actionable content.
-      const hasContent = job.payload.message.trim().length > 0
-      return {
-        hasActionableContent: hasContent,
-        summary: `Agent turn triggered: ${job.payload.message.slice(0, 100)}`,
+      // 1. Resolve or create an isolated session for this run
+      let sessionId: string | undefined
+      try {
+        const resolved = await CronSession.resolve({ job, runId })
+        sessionId = resolved.sessionId
+        log.info("cron session resolved", {
+          jobId: job.id,
+          runId,
+          sessionId,
+          isNew: resolved.isNew,
+          sessionTarget: resolved.sessionTarget,
+        })
+      } catch (e) {
+        log.error("cron session resolve failed", { jobId: job.id, runId, error: e })
+        return {
+          hasActionableContent: false,
+          summary: `Session resolve failed: ${e instanceof Error ? e.message : String(e)}`,
+        }
+      }
+
+      if (!sessionId) {
+        log.error("cron session has no sessionId (main target not yet supported)", { jobId: job.id })
+        return {
+          hasActionableContent: false,
+          summary: "Session target 'main' is not yet supported for cron execution",
+        }
+      }
+
+      // 2. Execute the AI turn via SessionPrompt.prompt()
+      try {
+        const system = job.payload.lightContext
+          ? getCronPreloadedContext({ jobName: job.name, jobId: job.id, runId })
+          : undefined
+
+        await SessionPrompt.prompt({
+          sessionID: sessionId,
+          parts: [{ type: "text", text }],
+          ...(system ? { system } : {}),
+        })
+
+        log.info("cron agent turn completed", { jobId: job.id, runId, sessionId })
+        return {
+          hasActionableContent: true,
+          summary: `Agent turn completed for: ${job.payload.message.slice(0, 200)}`,
+          sessionId,
+        }
+      } catch (e) {
+        log.error("cron agent turn failed", { jobId: job.id, runId, sessionId, error: e })
+        return {
+          hasActionableContent: true,
+          summary: `Agent turn failed: ${e instanceof Error ? e.message : String(e)}`,
+          sessionId,
+        }
       }
     }
 

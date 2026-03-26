@@ -1062,10 +1062,7 @@ export default function Layout(props: ParentProps) {
   }
 
   function openTasks() {
-    const dir = currentDir()
-    if (dir) {
-      navigateWithSidebarReset(`/${base64Encode(dir)}/tasks`)
-    }
+    navigateWithSidebarReset("/system/tasks")
   }
 
   async function navigateToProject(directory: string | undefined) {

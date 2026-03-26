@@ -6,6 +6,8 @@ import { CronStore } from "../../cron/store"
 import { RunLog } from "../../cron/run-log"
 import { Heartbeat } from "../../cron/heartbeat"
 import { CronScheduleSchema, CronPayloadSchema, CronDeliverySchema, CronJobSchema, CronRunLogEntrySchema } from "../../cron/types"
+import { TASKS_VIRTUAL_DIR } from "../../cron/virtual-project"
+import { Instance } from "../../project/instance"
 import { errors } from "../error"
 import { Log } from "../../util/log"
 
@@ -188,14 +190,33 @@ export const CronRoutes = lazy(() =>
 
         log.info("manual trigger via REST", { id, name: job.name })
 
-        // Trigger by evaluating the job immediately via heartbeat
+        // Trigger under virtual tasks project context
         try {
-          await Heartbeat.tick()
+          await Instance.provide({
+            directory: TASKS_VIRTUAL_DIR,
+            fn: () => Heartbeat.tick(),
+          })
         } catch (e) {
           log.error("manual trigger failed", { id, error: e })
         }
 
         return c.json({ ok: true, jobId: id })
+      },
+    )
+    .get(
+      "/project",
+      describeRoute({
+        summary: "Get virtual tasks project directory",
+        operationId: "cron.project",
+        responses: {
+          200: {
+            description: "Virtual project directory path",
+            content: { "application/json": { schema: resolver(z.object({ directory: z.string() })) } },
+          },
+        },
+      }),
+      async (c) => {
+        return c.json({ directory: TASKS_VIRTUAL_DIR })
       },
     ),
 )
