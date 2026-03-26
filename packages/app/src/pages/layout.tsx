@@ -12,7 +12,7 @@ import {
   untrack,
   type JSX,
 } from "solid-js"
-import { A, useNavigate, useParams } from "@solidjs/router"
+import { A, useLocation, useNavigate, useParams } from "@solidjs/router"
 import { useLayout, LocalProject } from "@/context/layout"
 import { useGlobalSync } from "@/context/global-sync"
 import { Persist, persisted } from "@/utils/persist"
@@ -77,6 +77,7 @@ import {
   type WorkspaceSidebarContext,
 } from "./layout/sidebar-workspace"
 import { workspaceOpenState } from "./layout/sidebar-workspace-helpers"
+import { TaskSidebar } from "./task-list/task-sidebar"
 import { ProjectDragOverlay, SortableProject, type ProjectSidebarContext } from "./layout/sidebar-project"
 import { SidebarContent } from "./layout/sidebar-shell"
 
@@ -124,7 +125,9 @@ export default function Layout(props: ParentProps) {
     dark: "theme.scheme.dark",
   }
   const colorSchemeLabel = (scheme: ColorScheme) => language.t(colorSchemeKey[scheme])
+  const location = useLocation()
   const currentDir = createMemo(() => decode64(params.dir) ?? "")
+  const isTasksRoute = createMemo(() => location.pathname.startsWith("/system/tasks"))
 
   const [state, setState] = createStore({
     autoselect: !initialDirectory,
@@ -1062,7 +1065,13 @@ export default function Layout(props: ParentProps) {
   }
 
   function openTasks() {
-    navigateWithSidebarReset("/system/tasks")
+    if (isTasksRoute()) {
+      layout.sidebar.toggle()
+    } else {
+      navigate("/system/tasks")
+      layout.sidebar.open()
+    }
+    layout.mobileSidebar.hide()
   }
 
   async function navigateToProject(directory: string | undefined) {
@@ -2017,34 +2026,44 @@ export default function Layout(props: ParentProps) {
                   logoutLabel={() => "Logout"}
                   onLogout={logout}
                   renderPanel={() => (
-                    <Show when={currentProject()} keyed>
-                      {(project) => <SidebarPanel project={project} />}
+                    <Show when={isTasksRoute()} fallback={
+                      <Show when={currentProject()} keyed>
+                        {(project) => <SidebarPanel project={project} />}
+                      </Show>
+                    }>
+                      <div class="flex-1 min-w-0 bg-background-stronger border border-b-0 border-border-weak-base flex flex-col">
+                        <TaskSidebar />
+                      </div>
                     </Show>
                   )}
                 />
               </div>
             </nav>
-            <Show when={layout.sidebar.opened() && desktopOverlayProject()} keyed>
-              {(project) => (
-                <>
-                  <div class="absolute inset-y-0 left-16 right-0 z-[1]" onClick={() => layout.sidebar.close()} />
-                  <div class="absolute inset-y-0 left-16 z-[5] flex" style={{ width: `${layout.sidebar.width()}px` }}>
-                    <SidebarPanel project={project} />
-                    <ResizeHandle
-                      class="z-30"
-                      direction="horizontal"
-                      style={{ right: "0", width: "12px", transform: "none" }}
-                      size={layout.sidebar.width()}
-                      min={244}
-                      max={typeof window === "undefined" ? 1000 : Math.max(560, window.innerWidth - 24)}
-                      collapseThreshold={244}
-                      onResize={layout.sidebar.resize}
-                      onCollapse={layout.sidebar.close}
-                      onDblClick={() => layout.sidebar.close()}
-                    />
+            {/* Push sidebar — project session list OR task list (inline flex, pushes main content) */}
+            <Show when={layout.sidebar.opened() && (desktopOverlayProject() || isTasksRoute())}>
+              <div class="shrink-0 h-full flex relative" style={{ width: `${layout.sidebar.width()}px` }}>
+                <Show when={isTasksRoute()} fallback={
+                  <Show when={desktopOverlayProject()} keyed>
+                    {(project) => <SidebarPanel project={project} />}
+                  </Show>
+                }>
+                  <div class="flex-1 min-w-0 bg-background-stronger border border-b-0 border-border-weak-base flex flex-col">
+                    <TaskSidebar />
                   </div>
-                </>
-              )}
+                </Show>
+                <ResizeHandle
+                  class="z-30"
+                  direction="horizontal"
+                  style={{ right: "0", width: "12px", transform: "none" }}
+                  size={layout.sidebar.width()}
+                  min={244}
+                  max={typeof window === "undefined" ? 1000 : Math.max(560, window.innerWidth - 24)}
+                  collapseThreshold={244}
+                  onResize={layout.sidebar.resize}
+                  onCollapse={layout.sidebar.close}
+                  onDblClick={() => layout.sidebar.close()}
+                />
+              </div>
             </Show>
           </>
         </Show>
@@ -2097,15 +2116,18 @@ export default function Layout(props: ParentProps) {
               onOpenSettings={openSettings}
               logoutLabel={() => "Logout"}
               onLogout={logout}
-              renderPanel={() => <SidebarPanel project={currentProject()} mobile />}
+              renderPanel={() => isTasksRoute()
+                ? <div class="flex-1 min-w-0 bg-background-stronger flex flex-col"><TaskSidebar /></div>
+                : <SidebarPanel project={currentProject()} mobile />
+              }
             />
           </nav>
         </Show>
 
         <main
           classList={{
-            "size-full overflow-x-hidden flex flex-col items-start contain-strict border-t border-border-weak-base": true,
-            "xl:border-l xl:rounded-tl-sm": !layout.sidebar.opened(),
+            "flex-1 min-w-0 h-full overflow-x-hidden flex flex-col items-start contain-strict border-t border-border-weak-base": true,
+            "xl:border-l xl:rounded-tl-sm": true,
           }}
           onClick={() => {
             if (layout.sidebar.opened()) layout.sidebar.close()

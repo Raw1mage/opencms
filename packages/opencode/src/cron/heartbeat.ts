@@ -397,16 +397,27 @@ export namespace Heartbeat {
           ? getCronPreloadedContext({ jobName: job.name, jobId: job.id, runId })
           : undefined
 
-        await SessionPrompt.prompt({
+        const result = await SessionPrompt.prompt({
           sessionID: sessionId,
           parts: [{ type: "text", text }],
           ...(system ? { system } : {}),
         })
 
+        // Extract AI response text from the returned message parts
+        let responseText = ""
+        if (result?.parts) {
+          for (const part of result.parts) {
+            if (part.type === "text" && part.text) {
+              responseText += part.text
+            }
+          }
+        }
+        const summary = responseText.trim().slice(0, 4000) || `Agent turn completed (no text output)`
+
         log.info("cron agent turn completed", { jobId: job.id, runId, sessionId })
         return {
           hasActionableContent: true,
-          summary: `Agent turn completed: ${job.payload.message.slice(0, 100)}`,
+          summary,
           sessionId,
         }
       } catch (e) {

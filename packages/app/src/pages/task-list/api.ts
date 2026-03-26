@@ -10,7 +10,7 @@ export type CronSchedule =
 
 export type CronPayload =
   | { kind: "systemEvent"; text: string }
-  | { kind: "agentTurn"; message: string; model?: string; timeoutSeconds?: number; lightContext?: boolean }
+  | { kind: "agentTurn"; message: string; model?: string; accountId?: string; timeoutSeconds?: number; lightContext?: boolean }
 
 export type CronDelivery = {
   mode: "none" | "announce" | "webhook"
