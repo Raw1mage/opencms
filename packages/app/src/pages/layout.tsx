@@ -2110,6 +2110,9 @@ export default function Layout(props: ParentProps) {
             "size-full overflow-x-hidden flex flex-col items-start contain-strict border-t border-border-weak-base": true,
             "xl:border-l xl:rounded-tl-sm": !layout.sidebar.opened(),
           }}
+          onClick={() => {
+            if (layout.sidebar.opened()) layout.sidebar.close()
+          }}
         >
           <Show when={!autoselecting()} fallback={<div class="size-full" />}>
             {props.children}
