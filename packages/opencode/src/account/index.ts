@@ -201,8 +201,21 @@ export namespace Account {
 
       let shouldSave = false
 
-      // @event_20260314: removed account ID prefix fix (B3) — generateId() is fixed,
-      // all existing accounts already corrected. See commit 3bf52500a for history.
+      // @event_20260326: strip managed app provider keys from accounts.json.
+      // Managed apps (google-calendar, gmail) use gauth.json for OAuth tokens,
+      // NOT accounts.json. Residual empty families cause them to appear as
+      // LLM providers in the Model Manager.
+      {
+        const { ManagedAppRegistry } = await import("../mcp/app-registry")
+        const managedKeys = ManagedAppRegistry.catalog().map((entry) => entry.auth.providerKey)
+        for (const key of managedKeys) {
+          if (storage.families[key]) {
+            log.info("Removing managed app residual from accounts.json", { key })
+            delete storage.families[key]
+            shouldSave = true
+          }
+        }
+      }
 
       // Normalize family keys that were created from provider instance IDs
       // (e.g. "nvidia-work" should resolve back to canonical family "nvidia").
