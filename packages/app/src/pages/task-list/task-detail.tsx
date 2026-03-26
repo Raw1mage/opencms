@@ -1,6 +1,7 @@
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js"
 import { useNavigate, useParams } from "@solidjs/router"
 import { Icon } from "@opencode-ai/ui/icon"
+import { ProviderIcon } from "@opencode-ai/ui/provider-icon"
 import { Button } from "@opencode-ai/ui/button"
 import { useGlobalSDK } from "@/context/global-sdk"
 import { useGlobalSync } from "@/context/global-sync"
@@ -324,6 +325,7 @@ export function TaskDetail() {
                 <TaskModelButton
                   selection={modelSelection()}
                   providers={globalSync.data.provider.all ?? []}
+                  accountFamilies={globalSync.data.account_families}
                   onOpen={() => {
                     const sel = modelSelection()
                     dialog.show(() => (
@@ -432,7 +434,21 @@ export function TaskDetail() {
             {(j) => (
               <div class="shrink-0 flex items-center gap-4 px-4 py-1.5 border-t border-border-weak-base text-11-medium text-color-dimmed">
                 <Show when={modelSelection()}>
-                  {(sel) => <span>Model: {sel().providerID}/{sel().modelID}{sel().accountID ? ` (${sel().accountID})` : ""}</span>}
+                  {(sel) => {
+                    const p = () => (globalSync.data.provider.all ?? []).find((p: any) => p.id === sel().providerID)
+                    const mName = () => {
+                      const m = p()?.models[sel().modelID]
+                      return m ? m.name.replace("(latest)", "").trim() : sel().modelID
+                    }
+                    const aName = () => {
+                      const aid = sel().accountID
+                      if (!aid) return undefined
+                      const family = globalSync.data.account_families?.[sel().providerID]
+                      const acc = family?.accounts?.[aid] as Record<string, unknown> | undefined
+                      return (typeof acc?.name === "string" && acc.name) || (typeof acc?.email === "string" && acc.email) || aid
+                    }
+                    return <span>{PROVIDER_LABELS[sel().providerID] ?? p()?.name ?? sel().providerID} · {mName()}{aName() ? ` · ${aName()}` : ""}</span>
+                  }}
                 </Show>
                 <span>Target: {j().sessionTarget}</span>
                 <Show when={j().state.consecutiveErrors && j().state.consecutiveErrors! > 0}>
@@ -448,32 +464,95 @@ export function TaskDetail() {
   )
 }
 
+const PROVIDER_LABELS: Record<string, string> = {
+  openai: "OpenAI",
+  "claude-cli": "Claude CLI",
+  "google-api": "Google-API",
+  "gemini-cli": "Gemini CLI",
+  "github-copilot": "GitHub Copilot",
+  gmicloud: "GMICloud",
+  openrouter: "OpenRouter",
+  vercel: "Vercel",
+  gitlab: "GitLab",
+  opencode: "OpenCode",
+}
+
 /**
- * Model selection button — shows current selection and opens the full model manager dialog.
+ * Model selection button — replicates session footer bar style:
+ * [Provider Badge] [ProviderIcon ModelName ▾] [AccountName]
  */
 function TaskModelButton(props: {
   selection: ModelSelectResult | undefined
   providers: Array<{ id: string; name?: string; models: Record<string, { id: string; name: string }> }>
+  accountFamilies?: Record<string, { activeAccount?: string; accounts?: Record<string, { name?: string; email?: string }> }>
   onOpen: () => void
 }) {
-  const displayLabel = createMemo(() => {
+  const provider = createMemo(() => {
     const sel = props.selection
-    if (!sel) return "Default (system)"
-    const provider = props.providers.find((p) => p.id === sel.providerID)
-    const providerName = provider?.name ?? sel.providerID
-    const model = provider?.models[sel.modelID]
-    const modelName = model ? model.name.replace("(latest)", "").trim() : sel.modelID
-    const accountSuffix = sel.accountID ? ` · ${sel.accountID}` : ""
-    return `${providerName} / ${modelName}${accountSuffix}`
+    if (!sel) return undefined
+    return props.providers.find((p) => p.id === sel.providerID)
+  })
+
+  const providerLabel = createMemo(() => {
+    const sel = props.selection
+    if (!sel) return undefined
+    const id = sel.providerID
+    return PROVIDER_LABELS[id] ?? provider()?.name ?? id
+  })
+
+  const modelName = createMemo(() => {
+    const sel = props.selection
+    if (!sel) return undefined
+    const p = provider()
+    const m = p?.models[sel.modelID]
+    return m ? m.name.replace("(latest)", "").trim() : sel.modelID
+  })
+
+  const accountLabel = createMemo(() => {
+    const sel = props.selection
+    if (!sel?.accountID || !props.accountFamilies) return undefined
+    const family = props.accountFamilies[sel.providerID]
+    if (!family?.accounts) return sel.accountID
+    const acc = family.accounts[sel.accountID] as Record<string, unknown> | undefined
+    return (typeof acc?.name === "string" && acc.name) || (typeof acc?.email === "string" && acc.email) || sel.accountID
   })
 
   return (
     <button
       onClick={props.onOpen}
-      class="w-full flex items-center justify-between bg-background-input rounded border border-border-base px-3 py-2 text-13-medium text-color-primary hover:border-accent-base transition-colors cursor-pointer"
+      class="w-full flex items-center gap-2 rounded border border-border-base px-3 py-2 hover:border-accent-base transition-colors cursor-pointer bg-background-input"
     >
-      <span class="truncate">{displayLabel()}</span>
-      <Icon name="chevron-right" size="small" class="text-color-dimmed shrink-0 ml-2" />
+      <Show when={props.selection} fallback={
+        <span class="text-13-medium text-color-dimmed flex-1 text-left">Default (system rotation)</span>
+      }>
+        {/* Provider badge */}
+        <Show when={providerLabel()}>
+          <span
+            class="shrink-0 text-12-medium px-1.5 py-0.5 rounded"
+            style={{
+              color: "var(--icon-success-base)",
+              "font-weight": "600",
+              "background-color": "var(--surface-success-base)",
+            }}
+          >
+            {providerLabel()}
+          </span>
+        </Show>
+
+        {/* Provider icon + model name */}
+        <span class="flex items-center gap-1.5 min-w-0 flex-1">
+          <Show when={props.selection?.providerID}>
+            <ProviderIcon id={props.selection!.providerID} class="size-4 shrink-0" />
+          </Show>
+          <span class="text-13-medium text-color-primary truncate">{modelName()}</span>
+          <Icon name="chevron-down" size="small" class="shrink-0 text-color-dimmed" />
+        </span>
+
+        {/* Account name */}
+        <Show when={accountLabel()}>
+          <span class="shrink-0 text-12-medium text-color-dimmed">{accountLabel()}</span>
+        </Show>
+      </Show>
     </button>
   )
 }

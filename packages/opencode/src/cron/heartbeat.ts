@@ -409,10 +409,25 @@ export namespace Heartbeat {
           ? getCronPreloadedContext({ jobName: job.name, jobId: job.id, runId })
           : undefined
 
+        // Parse model identity from payload: "providerId/modelID" format
+        const modelSpec = (() => {
+          if (!job.payload.model) return undefined
+          const [providerId, ...rest] = job.payload.model.split("/")
+          const modelID = rest.join("/")
+          if (!providerId || !modelID) return undefined
+          return {
+            providerId,
+            modelID,
+            accountId: job.payload.accountId,
+          }
+        })()
+
         const result = await SessionPrompt.prompt({
           sessionID: sessionId,
+          agent: "cron",
           parts: [{ type: "text", text }],
           ...(system ? { system } : {}),
+          ...(modelSpec ? { model: modelSpec } : {}),
         })
 
         // Extract AI response text from the returned message parts
