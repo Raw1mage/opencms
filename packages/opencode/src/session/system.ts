@@ -27,6 +27,7 @@ import PROMPT_AGENT_EXPLORE from "../agent/prompt/explore.txt"
 import PROMPT_AGENT_COMPACTION from "../agent/prompt/compaction.txt"
 import PROMPT_AGENT_SUMMARY from "../agent/prompt/summary.txt"
 import PROMPT_AGENT_TITLE from "../agent/prompt/title.txt"
+import PROMPT_AGENT_CRON from "../agent/prompt/cron.txt"
 
 import type { Provider } from "@/provider/provider"
 
@@ -51,6 +52,7 @@ const AGENT_PROMPTS: Record<string, string> = {
   compaction: PROMPT_AGENT_COMPACTION,
   summary: PROMPT_AGENT_SUMMARY,
   title: PROMPT_AGENT_TITLE,
+  cron: PROMPT_AGENT_CRON,
 }
 
 export namespace SystemPrompt {

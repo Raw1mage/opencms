@@ -16,6 +16,7 @@ import { createMediaQuery } from "@solid-primitives/media"
 import { createStore } from "solid-js/store"
 import { useLocal } from "@/context/local"
 import { useGlobalSync } from "@/context/global-sync"
+import { useGlobalSDK } from "@/context/global-sdk"
 import { useSDK } from "@/context/sdk"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { popularProviders } from "@/hooks/use-providers"
@@ -661,6 +662,8 @@ const ModelItem: Component<{
   )
 }
 
+export type ModelSelectResult = { providerID: string; modelID: string; accountID?: string }
+
 export const DialogSelectModel: Component<{
   provider?: string
   initialProviderId?: string
@@ -668,16 +671,36 @@ export const DialogSelectModel: Component<{
   initialMode?: "favorites" | "all"
   initialMobileSection?: "provider" | "account" | "model"
   initialAccountManagementMode?: boolean
+  /** When provided, dialog operates in standalone mode (no LocalProvider needed).
+   *  Calls back with the selected model key instead of using local.model.set(). */
+  onModelSelect?: (key: ModelSelectResult) => void
 }> = (props) => {
   const dialog = useDialog()
   const language = useLanguage()
-  const local = useLocal()
+  const local = props.onModelSelect ? undefined : useLocal()
+  const models = useModels()
   const params = useParams()
   const globalSync = useGlobalSync()
-  const sdk = useSDK()
+  const globalSDK = useGlobalSDK()
+  const sdk = props.onModelSelect ? undefined : useSDK()
+
+  // In standalone mode (onModelSelect provided), shim local.model with global models context
+  const modelApi = props.onModelSelect
+    ? {
+        list: models.list,
+        visible: (key: { modelID: string; providerID: string }) => models.visible(key),
+        current: (_id?: string) => models.find(props.initialProviderId && props.initialAccountId
+          ? { providerID: props.initialProviderId, modelID: "" }
+          : { providerID: "", modelID: "" }) ?? undefined,
+        selection: (_id?: string) => undefined as ModelSelectResult | undefined,
+        set: async () => {},
+        setVisibility: (key: { modelID: string; providerID: string }, v: boolean) => models.setVisibility(key, v),
+      }
+    : local!.model
 
   const [accountInfo, { refetch: refetchAccountInfo }] = createResource(async () => {
-    return sdk.client.account.listAll().then((x) => x.data)
+    const client = sdk?.client ?? globalSDK.client
+    return client.account.listAll().then((x) => x.data)
   })
 
   const [selectedProviderId, setSelectedProviderId] = createSignal<string>(props.initialProviderId ?? "")
@@ -1062,8 +1085,8 @@ export const DialogSelectModel: Component<{
     return map
   })
 
-  const currentModel = createMemo(() => local.model.current(params.id))
-  const currentSelection = createMemo(() => local.model.selection(params.id))
+  const currentModel = createMemo(() => modelApi.current(params.id))
+  const currentSelection = createMemo(() => modelApi.selection(params.id))
   const committedSelection = createMemo(() => {
     const selection = currentSelection()
     if (!selection) return undefined
@@ -1156,7 +1179,9 @@ export const DialogSelectModel: Component<{
 
     void (async () => {
       try {
-        const res = await sdk.fetch(`${sdk.url}/api/v2/rotation/status`)
+        const fetchFn = sdk?.fetch ?? globalSDK.fetch
+        const baseUrl = sdk?.url ?? globalSDK.url
+        const res = await fetchFn(`${baseUrl}/api/v2/rotation/status`)
         if (dead || !res.ok) return
         const data = (await res.json()) as {
           accounts?: Array<{
@@ -1194,6 +1219,8 @@ export const DialogSelectModel: Component<{
     const providerId = selectedProviderId()
     const rows = accountsForSelectedProvider()
     const requestVersion = ++accountQuotaRequestVersion
+    const sdkUrl = sdk?.url ?? globalSDK.url
+    const sdkFetch = sdk?.fetch ?? globalSDK.fetch
 
     if (!providerId || rows.length === 0) {
       setAccountQuotaHints({})
@@ -1202,7 +1229,7 @@ export const DialogSelectModel: Component<{
 
     const immediateEntries = rows.map((row) => {
       const cached = peekQuotaHint({
-        baseURL: sdk.url,
+        baseURL: sdkUrl,
         providerId,
         accountId: row.id,
         format: "admin",
@@ -1214,7 +1241,7 @@ export const DialogSelectModel: Component<{
     const staleRows = rows.filter(
       (row) =>
         peekQuotaHint({
-          baseURL: sdk.url,
+          baseURL: sdkUrl,
           providerId,
           accountId: row.id,
           format: "admin",
@@ -1226,8 +1253,8 @@ export const DialogSelectModel: Component<{
       const entries = await Promise.all(
         staleRows.map(async (row) => {
           const hint =
-            (await loadQuotaHint((input) => sdk.fetch(input), {
-              baseURL: sdk.url,
+            (await loadQuotaHint((input) => sdkFetch(input), {
+              baseURL: sdkUrl,
               providerId,
               accountId: row.id,
               format: "admin",
@@ -1282,11 +1309,11 @@ export const DialogSelectModel: Component<{
 
   const filteredModels = createMemo(() => {
     return getFilteredModelsForSelection({
-      models: local.model.list(),
+      models: modelApi.list(),
       selectedProviderKey: selectedProviderId(),
-      currentProviderID: local.model.current(params.id)?.provider?.id,
+      currentProviderID: modelApi.current(params.id)?.provider?.id,
       mode: mode(),
-      isVisible: (key) => local.model.visible(key),
+      isVisible: (key) => modelApi.visible(key),
     })
   })
 
@@ -1306,7 +1333,8 @@ export const DialogSelectModel: Component<{
   })
 
   const refreshAccountState = async () => {
-    await sdk.client.global.dispose().catch(() => undefined)
+    const client = sdk?.client ?? globalSDK.client
+    await client.global.dispose().catch(() => undefined)
     await refetchAccountInfo()
   }
 
@@ -1319,6 +1347,7 @@ export const DialogSelectModel: Component<{
         initialMode={mode()}
         initialMobileSection={mobileSection()}
         initialAccountManagementMode={accountManagementMode()}
+        onModelSelect={props.onModelSelect}
       />
     ))
   }
@@ -1419,7 +1448,7 @@ export const DialogSelectModel: Component<{
     }
 
     const providerKey = providerKeyForSelection(model.provider.id)
-    const providerCandidates = local.model
+    const providerCandidates = modelApi
       .list()
       .filter((item) => item.id === model.id && providerKeyForSelection(item.provider.id) === providerKey)
     const providerIDForSelection =
@@ -1427,9 +1456,25 @@ export const DialogSelectModel: Component<{
       providerCandidates.find((item) => !isAccountLikeProviderId(item.provider.id))?.provider.id ??
       model.provider.id
 
+    // Standalone mode: call back with selection and close dialog
+    if (props.onModelSelect) {
+      props.onModelSelect({ modelID: model.id, providerID: providerIDForSelection, accountID: accountId })
+      showToast({
+        variant: "success",
+        title: language.t("dialog.model.submit.toast.title"),
+        description: language.t("dialog.model.submit.toast.description", {
+          provider: providerKey,
+          account: selectedAccountId() || "--",
+          model: model.name,
+        }),
+      })
+      dialog.close()
+      return
+    }
+
     setSubmitting(true)
     try {
-      await local.model.set(
+      await local!.model.set(
         { modelID: model.id, providerID: providerIDForSelection, accountID: accountId },
         {
           recent: true,
@@ -1770,17 +1815,17 @@ export const DialogSelectModel: Component<{
                 <ModelItem
                   item={item}
                   selected={false}
-                  enabled={local.model.visible({ modelID: item.id, providerID: item.provider.id })}
+                  enabled={modelApi.visible({ modelID: item.id, providerID: item.provider.id })}
                   unavailableReason={modelUnavailableReason(item.provider.id, selectedAccountId())}
                   showUnavailableTag={mode() !== "all"}
                   onToggleEnabled={(e: MouseEvent) => {
                     e.stopPropagation()
                     e.preventDefault()
                     const key = { modelID: item.id, providerID: item.provider.id }
-                    const nextVisible = !local.model.visible(key)
+                    const nextVisible = !modelApi.visible(key)
                     preserveScrollPosition(
                       () => modelPanelEl?.querySelector('[data-slot="list-scroll"]') as HTMLElement | undefined,
-                      () => local.model.setVisibility(key, nextVisible),
+                      () => modelApi.setVisibility(key, nextVisible),
                     )
                   }}
                 />

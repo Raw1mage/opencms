@@ -1,4 +1,5 @@
 import { createMemo, For, Show, type Accessor, type JSX } from "solid-js"
+import { useLocation } from "@solidjs/router"
 import {
   DragDropProvider,
   DragDropSensors,
@@ -8,6 +9,7 @@ import {
   type DragEvent,
 } from "@thisbeyond/solid-dnd"
 import { ConstrainDragXAxis } from "@/utils/solid-dnd"
+import { Icon } from "@opencode-ai/ui/icon"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { type LocalProject } from "@/context/layout"
@@ -65,6 +67,12 @@ export const SidebarContent = (props: {
             <DragDropSensors />
             <ConstrainDragXAxis />
             <div class={projectListClass()}>
+              <ScheduledTasksTile
+                mobile={props.mobile}
+                placement={placement}
+                onClick={props.onOpenTasks}
+                label={props.tasksLabel}
+              />
               <SortableProvider ids={props.projects().map((p) => p.worktree)}>
                 <For each={props.projects()}>{(project) => props.renderProject(project)}</For>
               </SortableProvider>
@@ -95,15 +103,6 @@ export const SidebarContent = (props: {
                     size="large"
                     onClick={props.onOpenMarket}
                     aria-label={props.marketLabel()}
-                  />
-                </Tooltip>
-                <Tooltip placement={placement()} value={props.tasksLabel()}>
-                  <IconButton
-                    icon="checklist"
-                    variant="ghost"
-                    size="large"
-                    onClick={props.onOpenTasks}
-                    aria-label={props.tasksLabel()}
                   />
                 </Tooltip>
                 <TooltipKeybind
@@ -137,5 +136,33 @@ export const SidebarContent = (props: {
 
       <Show when={expanded()}>{props.renderPanel()}</Show>
     </div>
+  )
+}
+
+function ScheduledTasksTile(props: {
+  mobile?: boolean
+  placement: () => "bottom" | "right"
+  onClick: () => void
+  label: Accessor<string>
+}) {
+  const location = useLocation()
+  const isActive = createMemo(() => location.pathname.startsWith("/system/tasks"))
+
+  return (
+    <Tooltip placement={props.placement()} value={props.label()}>
+      <button
+        onClick={props.onClick}
+        aria-label={props.label()}
+        classList={{
+          "flex items-center justify-center rounded-lg transition-colors cursor-pointer": true,
+          "size-10": !props.mobile,
+          "size-8": !!props.mobile,
+          "bg-background-brand-dimmed text-icon-brand": isActive(),
+          "text-icon-dimmed hover:text-icon-base hover:bg-background-hover": !isActive(),
+        }}
+      >
+        <Icon name="checklist" size={props.mobile ? "small" : "medium"} />
+      </button>
+    </Tooltip>
   )
 }

@@ -1,6 +1,7 @@
 import fs from "fs/promises"
 import { Log } from "../util/log"
 import { Scheduler } from "../scheduler"
+import { Instance } from "../project/instance"
 import { CronStore } from "./store"
 import { CronSession } from "./session"
 import { ActiveHours } from "./active-hours"
@@ -10,7 +11,6 @@ import { RetryPolicy } from "./retry"
 import { RunLog } from "./run-log"
 import { CronDeliveryRouter } from "./delivery"
 import { getCronPreloadedContext } from "./light-context"
-import { Instance } from "../project/instance"
 import { SessionPrompt } from "../session/prompt"
 import { TASKS_VIRTUAL_DIR } from "./virtual-project"
 import type { CronJob, CronRunLogEntry, CronRunOutcome } from "./types"
@@ -54,7 +54,7 @@ export namespace Heartbeat {
    * Register the heartbeat scheduler.
    * Should be called once during daemon initialization.
    */
-  export async function register(config?: Partial<HeartbeatConfig>) {
+  export function register(config?: Partial<HeartbeatConfig>) {
     const intervalMs = config?.intervalMs ?? DEFAULT_INTERVAL_MS
     const enabled = config?.enabled ?? true
 
@@ -63,8 +63,10 @@ export namespace Heartbeat {
       return
     }
 
-    // Ensure virtual tasks directory exists
-    await fs.mkdir(TASKS_VIRTUAL_DIR, { recursive: true })
+    // Ensure virtual tasks directory exists before first cron execution
+    fs.mkdir(TASKS_VIRTUAL_DIR, { recursive: true }).catch((e) =>
+      log.error("failed to create tasks virtual dir", { error: e }),
+    )
 
     Scheduler.register({
       id: "cron:heartbeat",
@@ -254,10 +256,11 @@ export namespace Heartbeat {
       return { status: "skipped", hasActionableContent: false, eventsProcessed: 0 }
     }
 
-    // Generate runId before execution for consistent tracking
+    // Generate runId before execution so it's consistent across session, trigger, delivery, and log
     const runId = crypto.randomUUID()
 
-    // Execute heartbeat / agent turn under virtual tasks project context (GRAFCET step S5)
+    // Execute heartbeat / agent turn (GRAFCET step S5)
+    // Wrap in Instance.provide() so sessions are scoped to the virtual tasks project
     const result = await Instance.provide({
       directory: TASKS_VIRTUAL_DIR,
       fn: () => executeJobRun(job, events, nowMs, runId),
@@ -348,9 +351,6 @@ export namespace Heartbeat {
    *   1. Resolve an isolated cron session via CronSession.resolve()
    *   2. Execute the AI turn via SessionPrompt.prompt()
    *   3. Return sessionId for run-log linkage (UI reads session messages for full AI response)
-   *
-   * Must be called inside Instance.provide({ directory: TASKS_VIRTUAL_DIR })
-   * so sessions are scoped to the virtual tasks project.
    */
   async function executeJobRun(
     job: CronJob,
@@ -359,6 +359,7 @@ export namespace Heartbeat {
     runId: string,
   ): Promise<JobRunResult> {
     if (job.payload.kind === "systemEvent") {
+      // System event payloads: enqueue the text and check for actionable content
       const text = job.payload.text
       const hasContent = text.trim().length > 0 && text.trim() !== HEARTBEAT_OK_TOKEN
       return { hasActionableContent: hasContent, summary: text }
@@ -408,16 +409,42 @@ export namespace Heartbeat {
           ? getCronPreloadedContext({ jobName: job.name, jobId: job.id, runId })
           : undefined
 
-        await SessionPrompt.prompt({
+        // Parse model identity from payload: "providerId/modelID" format
+        const modelSpec = (() => {
+          if (!job.payload.model) return undefined
+          const [providerId, ...rest] = job.payload.model.split("/")
+          const modelID = rest.join("/")
+          if (!providerId || !modelID) return undefined
+          return {
+            providerId,
+            modelID,
+            accountId: job.payload.accountId,
+          }
+        })()
+
+        const result = await SessionPrompt.prompt({
           sessionID: sessionId,
+          agent: "cron",
           parts: [{ type: "text", text }],
           ...(system ? { system } : {}),
+          ...(modelSpec ? { model: modelSpec } : {}),
         })
+
+        // Extract AI response text from the returned message parts
+        let responseText = ""
+        if (result?.parts) {
+          for (const part of result.parts) {
+            if (part.type === "text" && part.text) {
+              responseText += part.text
+            }
+          }
+        }
+        const summary = responseText.trim().slice(0, 4000) || `Agent turn completed (no text output)`
 
         log.info("cron agent turn completed", { jobId: job.id, runId, sessionId })
         return {
           hasActionableContent: true,
-          summary: `Agent turn completed for: ${job.payload.message.slice(0, 200)}`,
+          summary,
           sessionId,
         }
       } catch (e) {

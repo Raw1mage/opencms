@@ -2,12 +2,12 @@ import { Hono } from "hono"
 import { describeRoute, validator, resolver } from "hono-openapi"
 import z from "zod"
 import { lazy } from "../../util/lazy"
+import { Instance } from "../../project/instance"
 import { CronStore } from "../../cron/store"
 import { RunLog } from "../../cron/run-log"
 import { Heartbeat } from "../../cron/heartbeat"
-import { CronScheduleSchema, CronPayloadSchema, CronDeliverySchema, CronJobSchema, CronRunLogEntrySchema } from "../../cron/types"
 import { TASKS_VIRTUAL_DIR } from "../../cron/virtual-project"
-import { Instance } from "../../project/instance"
+import { CronScheduleSchema, CronPayloadSchema, CronDeliverySchema, CronJobSchema, CronRunLogEntrySchema } from "../../cron/types"
 import { errors } from "../error"
 import { Log } from "../../util/log"
 
@@ -190,7 +190,8 @@ export const CronRoutes = lazy(() =>
 
         log.info("manual trigger via REST", { id, name: job.name })
 
-        // Trigger under virtual tasks project context
+        // Trigger by evaluating the job immediately via heartbeat
+        // Wrap in Instance.provide() so sessions are scoped to the virtual tasks project
         try {
           await Instance.provide({
             directory: TASKS_VIRTUAL_DIR,
@@ -206,11 +207,11 @@ export const CronRoutes = lazy(() =>
     .get(
       "/project",
       describeRoute({
-        summary: "Get virtual tasks project directory",
+        summary: "Get the virtual tasks project directory",
         operationId: "cron.project",
         responses: {
           200: {
-            description: "Virtual project directory path",
+            description: "Virtual tasks project directory path",
             content: { "application/json": { schema: resolver(z.object({ directory: z.string() })) } },
           },
         },

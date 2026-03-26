@@ -73,7 +73,7 @@ export namespace Agent {
     sub: PermissionNext.Ruleset,
   ): Promise<Record<string, Info>> {
     // Load all agent prompts concurrently from XDG config (with built-in fallback)
-    const [coding, review, testing, explore, compaction, title, summary] = await Promise.all([
+    const [coding, review, testing, explore, compaction, title, summary, cron] = await Promise.all([
       SystemPrompt.agentPrompt("coding"),
       SystemPrompt.agentPrompt("review"),
       SystemPrompt.agentPrompt("testing"),
@@ -81,6 +81,7 @@ export namespace Agent {
       SystemPrompt.agentPrompt("compaction"),
       SystemPrompt.agentPrompt("title"),
       SystemPrompt.agentPrompt("summary"),
+      SystemPrompt.agentPrompt("cron"),
     ])
 
     return {
@@ -209,6 +210,26 @@ export namespace Agent {
         hidden: true,
         permission: PermissionNext.merge(defaults, PermissionNext.fromConfig({ "*": "deny" }), user),
         prompt: summary,
+      },
+      cron: {
+        name: "cron",
+        mode: "primary",
+        options: {},
+        native: true,
+        hidden: true,
+        prompt: cron,
+        permission: PermissionNext.merge(
+          defaults,
+          PermissionNext.fromConfig({
+            question: "deny",
+            task: "deny",
+            todowrite: "deny",
+            todoread: "deny",
+            plan_enter: "deny",
+            plan_exit: "deny",
+          }),
+          user,
+        ),
       },
     }
   }

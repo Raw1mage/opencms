@@ -86,6 +86,7 @@ export const CronPayloadSchema = z.discriminatedUnion("kind", [
     kind: z.literal("agentTurn"),
     message: z.string(),
     model: z.string().optional(),
+    accountId: z.string().optional(),
     timeoutSeconds: z.number().int().positive().optional(),
     lightContext: z.boolean().optional(),
   }),

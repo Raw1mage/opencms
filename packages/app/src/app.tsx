@@ -36,9 +36,6 @@ const TerminalPopout = lazy(() => import("@/pages/session/terminal-popout"))
 const SessionToolPage = lazy(() => import("@/pages/session/tool-page"))
 const SessionRichContentProvider = lazy(() => import("@/pages/session/session-rich-content-provider"))
 const TaskList = lazy(() => import("@/pages/task-list"))
-const TasksLayoutComponent = lazy(() => import("@/pages/tasks/layout"))
-const TasksIndex = lazy(() => import("@/pages/tasks"))
-const TasksDetail = lazy(() => import("@/pages/tasks/detail"))
 const Loading = () => <div class="size-full" />
 
 const HomeRoute = () => (
@@ -82,24 +79,6 @@ const SessionIndexRoute = () => <Navigate href="session" />
 const TaskListRoute = () => (
   <Suspense fallback={<Loading />}>
     <TaskList />
-  </Suspense>
-)
-
-const TasksLayoutRoute = () => (
-  <Suspense fallback={<Loading />}>
-    <TasksLayoutComponent />
-  </Suspense>
-)
-
-const TasksIndexRoute = () => (
-  <Suspense fallback={<Loading />}>
-    <TasksIndex />
-  </Suspense>
-)
-
-const TasksDetailRoute = () => (
-  <Suspense fallback={<Loading />}>
-    <TasksDetail />
   </Suspense>
 )
 
@@ -284,16 +263,12 @@ export function AppInterface(props: { defaultUrl?: string; children?: JSX.Elemen
                   root={(routerProps) => <RouterRoot appChildren={props.children}>{routerProps.children}</RouterRoot>}
                 >
                   <Route path="/" component={HomeRoute} />
-                  <Route path="/system/tasks" component={TasksLayoutRoute}>
-                    <Route path="/" component={TasksIndexRoute} />
-                    <Route path="/:jobId" component={TasksDetailRoute} />
-                  </Route>
+                  <Route path="/system/tasks/:jobId?" component={TaskListRoute} />
                   <Route path="/:dir" component={DirectoryLayout}>
                     <Route path="/" component={SessionIndexRoute} />
                     <Route path="/session/:id?" component={SessionRoute} />
                     <Route path="/session/:id?/tool/:tool" component={SessionToolRoute} />
                     <Route path="/session/:id?/terminal-popout" component={TerminalPopoutRoute} />
-                    <Route path="/tasks" component={TaskListRoute} />
                   </Route>
                 </Router>
               </GlobalSyncProvider>
