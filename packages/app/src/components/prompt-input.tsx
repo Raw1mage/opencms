@@ -66,7 +66,7 @@ import { promptPlaceholder } from "./prompt-input/placeholder"
 import { shouldRefreshProviderQuota } from "./prompt-input/quota-refresh"
 import { ImagePreview } from "@opencode-ai/ui/image-preview"
 import { buildAccountRows, providerKeyOf } from "./model-selector-state"
-import { loadQuotaHint, peekQuotaHint } from "@/utils/quota-hint-cache"
+import { invalidateQuotaHint, loadQuotaHint, peekQuotaHint } from "@/utils/quota-hint-cache"
 import { getSupportedProviderLabel } from "@/utils/provider-registry"
 import { sendSessionReloadDebugBeacon } from "@/utils/debug-beacon"
 
@@ -379,6 +379,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   })
   const [quotaHint, setQuotaHint] = createSignal<string | undefined>()
   let quotaHintRequestVersion = 0
+  let prevQuotaAccountId: string | undefined
 
   createEffect(() => {
     const model = currentModel()
@@ -392,25 +393,25 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     const providerId = effectiveProviderKey() ?? model.provider.id
     const modelID = model.id
     const accountId = local.model.selection(params.id)?.accountID
-    const requestVersion = ++quotaHintRequestVersion
-    const cached = peekQuotaHint({
-      baseURL: globalSDK.url,
-      providerId,
-      accountId,
-      modelID,
-      format: "footer",
-    })
 
+    // Detect account switch → invalidate cache & force fresh from backend
+    const accountSwitched = accountId !== prevQuotaAccountId
+    prevQuotaAccountId = accountId
+
+    const cacheInput = { baseURL: globalSDK.url, providerId, accountId, modelID, format: "footer" as const }
+    const requestVersion = ++quotaHintRequestVersion
+
+    if (accountSwitched) {
+      invalidateQuotaHint(cacheInput)
+    }
+
+    const cached = peekQuotaHint(cacheInput)
     setQuotaHint(cached.hint)
-    if (!cached.stale) return
+    if (!cached.stale && !accountSwitched) return
 
     void (async () => {
-      const hint = await loadQuotaHint((input) => globalSDK.fetch(input), {
-        baseURL: globalSDK.url,
-        providerId,
-        accountId,
-        modelID,
-        format: "footer",
+      const hint = await loadQuotaHint((input) => globalSDK.fetch(input), cacheInput, {
+        fresh: accountSwitched,
       })
       if (requestVersion !== quotaHintRequestVersion) return
       setQuotaHint(hint)

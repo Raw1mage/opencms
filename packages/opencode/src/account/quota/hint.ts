@@ -1,13 +1,14 @@
 import { Account } from "../index"
 import { RequestMonitor } from "../monitor"
 import { formatOpenAIQuotaDisplay, formatRequestMonitorQuotaDisplay, type QuotaDisplayFormat } from "./display"
-import { getOpenAIQuotaForDisplay } from "./openai"
+import { getOpenAIQuotaForDisplay, getOpenAIQuota } from "./openai"
 
 export async function getQuotaHint(input: {
   providerId: string
   accountId?: string
   modelID?: string
   format?: QuotaDisplayFormat
+  fresh?: boolean
 }) {
   const family = Account.parseFamily(input.providerId) ?? input.providerId
   const format = input.format ?? "footer"
@@ -21,7 +22,9 @@ export async function getQuotaHint(input: {
   }
 
   if (family === "openai") {
-    const quota = await getOpenAIQuotaForDisplay(input.accountId)
+    const quota = input.fresh
+      ? await getOpenAIQuota(input.accountId, { waitFresh: true })
+      : await getOpenAIQuotaForDisplay(input.accountId)
     return {
       family,
       accountId: input.accountId,

@@ -26,12 +26,17 @@ export function peekQuotaHint(input: QuotaHintCacheKeyInput) {
   }
 }
 
-export async function loadQuotaHint(fetcher: QuotaHintFetcher, input: QuotaHintCacheKeyInput) {
+export async function loadQuotaHint(
+  fetcher: QuotaHintFetcher,
+  input: QuotaHintCacheKeyInput,
+  options?: { fresh?: boolean },
+) {
   const cacheKey = getQuotaHintCacheKey(input)
   const cached = quotaHintCache.get(cacheKey)
   const params = new URLSearchParams({ providerId: input.providerId, format: input.format })
   if (input.accountId) params.set("accountId", input.accountId)
   if (input.modelID) params.set("modelID", input.modelID)
+  if (options?.fresh) params.set("fresh", "1")
 
   const response = await fetcher(`${input.baseURL}/api/v2/account/quota?${params.toString()}`)
   if (!response.ok) return cached?.hint
@@ -39,4 +44,8 @@ export async function loadQuotaHint(fetcher: QuotaHintFetcher, input: QuotaHintC
   const hint = data.hint ?? ""
   quotaHintCache.set(cacheKey, { hint, timestamp: Date.now() })
   return hint
+}
+
+export function invalidateQuotaHint(input: QuotaHintCacheKeyInput) {
+  quotaHintCache.delete(getQuotaHintCacheKey(input))
 }

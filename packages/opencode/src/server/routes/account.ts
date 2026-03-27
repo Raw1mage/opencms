@@ -48,10 +48,11 @@ export const AccountRoutes = lazy(() =>
           modelID: z.string().optional(),
           accountId: z.string().optional(),
           format: z.enum(["footer", "admin"]).optional(),
+          fresh: z.string().optional(),
         }),
       ),
       async (c) => {
-        const { providerId, modelID, accountId: requestedAccountId, format = "footer" } = c.req.valid("query")
+        const { providerId, modelID, accountId: requestedAccountId, format = "footer", fresh } = c.req.valid("query")
         const providerKey = Account.parseProvider(providerId) ?? Account.parseFamily(providerId) ?? providerId
         const family = providerKey
         const families = await Account.listAll()
@@ -66,7 +67,7 @@ export const AccountRoutes = lazy(() =>
           })
         }
 
-        const quota = await getQuotaHint({ providerId, accountId, modelID, format })
+        const quota = await getQuotaHint({ providerId, accountId, modelID, format, fresh: fresh === "1" })
 
         return c.json({
           providerId,
