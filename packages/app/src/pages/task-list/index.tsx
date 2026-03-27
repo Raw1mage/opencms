@@ -1,4 +1,4 @@
-import { createSignal, createEffect, onMount, Show, type ParentProps } from "solid-js"
+import { createSignal, createEffect, Show, type ParentProps } from "solid-js"
 import { SDKProvider, useSDK } from "@/context/sdk"
 import { SyncProvider, useSync } from "@/context/sync"
 import { DataProvider } from "@opencode-ai/ui/context"
@@ -9,7 +9,6 @@ import { Diff } from "@opencode-ai/ui/diff"
 import { Code } from "@opencode-ai/ui/code"
 import { usePlatform } from "@/context/platform"
 import { useGlobalSDK } from "@/context/global-sdk"
-import { useLayout } from "@/context/layout"
 import { TaskDetail } from "./task-detail"
 
 /**
@@ -48,13 +47,7 @@ function TaskRichContentProviders(props: ParentProps) {
 
 export default function TaskListPage() {
   const globalSDK = useGlobalSDK()
-  const layout = useLayout()
   const [virtualDir, setVirtualDir] = createSignal("")
-
-  onMount(() => {
-    layout.sidebar.open()
-    layout.mobileSidebar.show()
-  })
 
   createEffect(() => {
     void globalSDK
