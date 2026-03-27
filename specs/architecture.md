@@ -332,7 +332,7 @@ Internet → [C Gateway :1080] → Unix Socket → [Per-User Daemon (uid=user)]
 
 ### Shared Context Structure
 
-Per-session structured knowledge space that tracks files, actions, discoveries, and goals across turns. Serves three consumers: subagent injection, idle compaction, and overflow compaction.
+Per-session structured knowledge space that tracks files, actions, discoveries, and goals across turns. Under context sharing v2 it no longer serves as the primary parent→child bridge; it is now a compaction / observability surface plus parent-side knowledge merge target.
 
 **Module**: `packages/opencode/src/session/shared-context.ts`
 
@@ -353,34 +353,44 @@ Space {
 
 **Update Trigger**: After every assistant turn in `prompt.ts` turn boundary loop (both parent and child sessions). Heuristic extraction: tool parts → files/actions; assistant text → goal/discoveries/currentState.
 
-**Three Consumers**:
+**V2 Context Sharing Contract**:
 
-1. **Subagent Injection** (`task.ts` dispatch):
-   - At `task()` call, snapshot parent's Space → format as `<shared_context>` XML → prepend to subagent's first user message
-   - Records `injectedSharedContextVersion` in task part metadata for differential relay
-   - Skipped for `session_id` continuation dispatches
+1. **Forward Path** (`prompt.ts` child prompt loop):
+   - When `session.parentID` exists, child prompt-loop startup loads the parent's visible message history once via `MessageV2.filterCompacted(MessageV2.stream(session.parentID))`.
+   - Each child model call prepends that parent message prefix, then inserts a delegated-subagent separator message, then appends the child session's own message history.
+   - This path replaces dispatch-time SharedContext snapshot injection as the authoritative context bridge.
 
-2. **Idle Compaction** (`prompt.ts` turn boundary, parent sessions only):
-   - After turn containing task dispatch, evaluate context utilization
-   - If utilization ≥ `opportunisticThreshold` (default 0.6): use Space snapshot as compaction summary (no LLM call)
-   - Falls back to LLM compaction agent if Space is empty
+2. **Task Dispatch** (`task.ts`):
+   - Child prompt seeding now contains only the task prompt / execution prompt parts.
+   - `SharedContext.formatForInjection()` and `injectedSharedContextVersion` are no longer part of the dispatch contract for V2 child context sharing.
 
-3. **Overflow Compaction** (`prompt.ts` overflow path, parent sessions only):
-   - When context overflows: if Space has content, use as summary instead of calling LLM compaction agent
-   - Falls back to standard LLM compaction agent
+3. **Idle Compaction** (`prompt.ts` turn boundary, parent sessions only):
+   - After turn containing task dispatch, evaluate context utilization.
+   - If utilization ≥ `opportunisticThreshold` (default 0.6): use Space snapshot as compaction summary (no LLM call).
+   - Falls back to LLM compaction agent if Space is empty.
+
+4. **Overflow Compaction** (`prompt.ts` overflow path, parent sessions only):
+   - When context overflows: if Space has content, use as summary instead of calling LLM compaction agent.
+   - Falls back to standard LLM compaction agent.
 
 **Child→Parent Feedback** (`task-worker-continuation.ts` on subagent completion):
 
-1. `SharedContext.snapshotDiff(childSessionID, injectedSharedContextVersion)` — only new knowledge since dispatch, avoiding re-relay of what parent already knows. Falls back to full snapshot if version not recorded.
-2. Diff prepended to synthetic continuation message — parent LLM receives actual evidence to follow through with
-3. `SharedContext.mergeFrom(parent ← child)` — child's files/actions merged into parent Space for future subagent dispatches
+1. Parent continuation must receive child completion evidence derived from child transcript output; `SharedContext` is no longer the sole return channel.
+2. `SharedContext.mergeFrom(parent ← child)` remains in place so child files/actions/discoveries become available for later parent compaction and observability.
+3. The V1 `snapshotDiff(childSessionID, injectedSharedContextVersion)` differential relay path is no longer the authority for V2 completion handoff.
+
+**Validation Evidence (2026-03-27)**:
+
+- `packages/opencode/src/session/compaction.test.ts` verifies cooldown suppression and emergency-ceiling override for high-prefix sessions.
+- `packages/opencode/src/session/prompt-context-sharing.test.ts` verifies model-message assembly order: full parent history → separator → child prompt.
+- `packages/opencode/src/session/usage-cache-reuse.test.ts` verifies by-token cached usage is preserved as `tokens.cache.read` for telemetry/accounting.
+- `packages/opencode/src/session/usage-by-request.test.ts` verifies by-request provider models with zero token rates remain cost-insensitive in local accounting even with very large input token counts.
 
 **Config** (`config.compaction`):
 
 - `sharedContext: boolean` (default true) — disable entirely
 - `sharedContextBudget: number` (default 8192 tokens) — Space size cap with consolidation
 - `opportunisticThreshold: number 0-1` (default 0.6) — idle compaction trigger
-
 ### Continuous Orchestration Control Surface
 
 - Dispatch-first continuous orchestration does **not** mean the session becomes globally idle once `task()` returns. If exactly one background subagent is still active, the parent session remains in an operator-controllable active-child state.

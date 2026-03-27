@@ -1327,6 +1327,43 @@ export namespace Account {
   }
 
   /**
+   * Clear cooldown for a specific account under a provider.
+   * Resets rate limit tracker state, daily failure counters, and health score.
+   */
+  export async function clearAccountCooldown(provider: string, accountId: string): Promise<void> {
+    const rotation = await import("./rotation")
+    const rateLimitTracker = rotation.getRateLimitTracker()
+    const healthTracker = rotation.getHealthTracker()
+
+    // Clear all rate limits for this account (both provider-level and model-level)
+    rateLimitTracker.clear(accountId, provider)
+
+    // Also clear model-specific entries by reading snapshot
+    const snapshot = rateLimitTracker.getSnapshot3D()
+    for (const entry of snapshot) {
+      if (entry.accountId === accountId && entry.providerId === provider && entry.modelID) {
+        rateLimitTracker.clear(accountId, provider, entry.modelID)
+      }
+    }
+
+    // Reset health score
+    healthTracker.recordSuccess(accountId, provider)
+
+    // Clear daily failure counters from unified state
+    const { readUnifiedState, writeUnifiedState } = await import("./rotation/state")
+    const unified = readUnifiedState()
+    const keysToRemove = Object.keys(unified.dailyRateLimitCounts).filter(
+      (k) => k.includes(accountId) && k.includes(provider),
+    )
+    for (const key of keysToRemove) {
+      delete unified.dailyRateLimitCounts[key]
+    }
+    writeUnifiedState(unified)
+
+    log.info("Cleared account cooldown", { provider, accountId })
+  }
+
+  /**
    * Get health and rate limit status for all accounts in a provider.
    * Useful for debugging and admin UI.
    */

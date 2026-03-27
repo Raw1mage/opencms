@@ -192,11 +192,42 @@ const AccountActionButton: Component<{
 
 const AccountViewDialog: Component<{ account: AccountRecord }> = (props) => {
   const dialog = useDialog()
+  const sdk = useSDK()
+  const [resetting, setResetting] = createSignal(false)
+  const [cooldownCleared, setCooldownCleared] = createSignal(false)
   const cooldown = createMemo(() => {
+    if (cooldownCleared()) return undefined
     if (!props.account.coolingDownUntil || props.account.coolingDownUntil <= Date.now()) return undefined
     const minutes = Math.max(1, Math.ceil((props.account.coolingDownUntil - Date.now()) / 60000))
     return props.account.cooldownReason ? `${props.account.cooldownReason} (${minutes}m)` : `Cooling down (${minutes}m)`
   })
+
+  const resetCooldown = async () => {
+    setResetting(true)
+    try {
+      const response = await sdk.fetch(
+        `${sdk.url}/api/v2/account/${encodeURIComponent(props.account.providerKey)}/${encodeURIComponent(props.account.id)}/reset-cooldown`,
+        { method: "POST" },
+      )
+      if (!response.ok) {
+        throw new Error(await readResponseMessage(response))
+      }
+      setCooldownCleared(true)
+      showToast({
+        variant: "success",
+        title: "Cooldown reset",
+        description: `${props.account.name} is now available`,
+      })
+    } catch (err) {
+      showToast({
+        variant: "error",
+        title: "Failed to reset cooldown",
+        description: err instanceof Error ? err.message : String(err),
+      })
+    } finally {
+      setResetting(false)
+    }
+  }
 
   const details = createMemo(() =>
     [
@@ -234,7 +265,10 @@ const AccountViewDialog: Component<{ account: AccountRecord }> = (props) => {
             </div>
           </Show>
         </div>
-        <div class="flex justify-end">
+        <div class="flex justify-between">
+          <Button size="small" variant="secondary" onClick={resetCooldown} loading={resetting()}>
+            Reset Cooldown
+          </Button>
           <Button size="small" variant="secondary" onClick={() => dialog.close()}>
             Close
           </Button>

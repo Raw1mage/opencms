@@ -1,0 +1,106 @@
+[
+  {
+    "diagram_title": "Child Delegation With Parent Prefix",
+    "scenario": "A new child session starts with parent messages forwarded as a stable prefix.",
+    "moduleRef": "A1",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "Task Dispatch",
+        "type": "component",
+        "componentRef": "C2"
+      },
+      {
+        "id": "P2",
+        "name": "Child Prompt Loop",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P3",
+        "name": "Shared Context Store",
+        "type": "component",
+        "componentRef": "C4"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "start child session(task prompt)",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P2",
+        "label": "load parent message prefix once",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P2",
+        "to": "P3",
+        "label": "updateFromTurn(child evidence)",
+        "type": "sync",
+        "order": 3
+      }
+    ],
+    "fragments": []
+  },
+  {
+    "diagram_title": "Child Completion Continuation Relay",
+    "scenario": "When child work finishes, parent continuation receives sufficient child evidence.",
+    "moduleRef": "A2",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "Child Prompt Loop",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P2",
+        "name": "Task Worker Continuation",
+        "type": "component",
+        "componentRef": "C3"
+      },
+      {
+        "id": "P3",
+        "name": "Shared Context Store",
+        "type": "component",
+        "componentRef": "C4"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "publish completion transcript evidence",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "mergeFrom(parent ← child)",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P2",
+        "to": "P2",
+        "label": "build synthetic continuation message",
+        "type": "return",
+        "order": 3
+      }
+    ],
+    "fragments": []
+  }
+]

@@ -265,6 +265,49 @@ export const AccountRoutes = lazy(() =>
         return c.json(result)
       },
     )
+    .post(
+      "/:family/:accountId/reset-cooldown",
+      describeRoute({
+        summary: "Reset account cooldown",
+        description: "Clear all rate limit cooldowns, daily failure counters, and health score for a specific account.",
+        operationId: "account.resetCooldown",
+        responses: {
+          200: {
+            description: "Cooldown reset successfully",
+            content: {
+              "application/json": {
+                schema: resolver(z.boolean()),
+              },
+            },
+          },
+          ...errors(404),
+        },
+      }),
+      validator(
+        "param",
+        z.object({
+          family: z.string(),
+          accountId: z.string(),
+        }),
+      ),
+      async (c) => {
+        const { family: providerKey, accountId } = c.req.valid("param")
+
+        const account = await Account.get(providerKey, accountId)
+        if (!account) {
+          return c.json(
+            {
+              code: "ACCOUNT_NOT_FOUND",
+              message: `Account not found: ${providerKey}/${accountId}`,
+            },
+            404,
+          )
+        }
+
+        await Account.clearAccountCooldown(providerKey, accountId)
+        return c.json(true)
+      },
+    )
     .delete(
       "/:family/:accountId",
       describeRoute({

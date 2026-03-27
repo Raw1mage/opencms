@@ -36,7 +36,7 @@
 
 - Parent prefix 過大可能讓 child 更頻繁接近 compaction ceiling -> 以 cooldown 與明確 T9 壓測驗證，目前不提前新增 fallback guard。
 - Summary-style return evidence 比 full transcript replay 保守，但可控制 parent context 壓力 -> 先以最低可接受 evidence contract 收斂。
-- 保留 skip AGENTS.md 可節省 system prompt token，但 child 的規範一致性需實測確認 -> 保留為後續決策點。
+- 保留 skip AGENTS.md 可節省 system prompt token，但 child 的規範一致性需實測確認 -> 保留為 decision gate D2/D3 類後續觀察點。
 
 ## Critical Files
 
