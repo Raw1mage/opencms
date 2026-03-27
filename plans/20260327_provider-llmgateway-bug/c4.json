@@ -1,0 +1,20 @@
+{
+  "diagram_title": "Provider SSOT Registry — C4 Component Diagram",
+  "diagram_level": "component",
+  "systems": [
+    { "id": "SYS1", "name": "OpenCode CMS", "description": "Canonical provider control plane", "external": false }
+  ],
+  "containers": [
+    { "id": "CT1", "name": "Backend Runtime", "description": "Provider registry and API assembly", "technology": "Bun/TypeScript", "systemRef": "SYS1" },
+    { "id": "CT2", "name": "Web/TUI UI", "description": "Provider-consuming presentation surfaces", "technology": "Solid.js / Ink", "systemRef": "SYS1" }
+  ],
+  "components": [
+    { "id": "C1", "name": "Supported Provider Registry", "description": "Repo-owned canonical provider list and labels", "technology": "TypeScript module", "containerRef": "CT1", "moduleRef": "A1", "filePath": "packages/opencode/src/provider/*" },
+    { "id": "C2", "name": "Provider List Route", "description": "Builds canonical provider response from registry plus overlays", "technology": "Hono route", "containerRef": "CT1", "moduleRef": "A2", "filePath": "packages/opencode/src/server/routes/provider.ts" },
+    { "id": "C3", "name": "Provider UI Consumers", "description": "Web/TUI hooks and components rendering provider lists", "technology": "Solid.js / Ink", "containerRef": "CT2", "moduleRef": "A3", "filePath": "packages/app/src/hooks/use-providers.ts" }
+  ],
+  "relationships": [
+    { "id": "REL1", "source": "C1", "target": "C2", "description": "defines canonical provider universe", "technology": "module import" },
+    { "id": "REL2", "source": "C2", "target": "C3", "description": "serves canonical provider rows", "technology": "HTTP / SDK" }
+  ]
+}

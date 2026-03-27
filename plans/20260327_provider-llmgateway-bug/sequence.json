@@ -1,0 +1,22 @@
+[
+  {
+    "diagram_title": "Canonical Provider List Assembly",
+    "scenario": "Backend builds provider list from registry and overlays runtime state without admitting unsupported providers.",
+    "moduleRef": "A2",
+    "participants": [
+      { "id": "P1", "name": "Provider Route", "type": "component", "componentRef": "C2" },
+      { "id": "P2", "name": "Supported Provider Registry", "type": "component", "componentRef": "C1" },
+      { "id": "P3", "name": "Models Runtime Sources", "type": "system", "componentRef": "SYS1" },
+      { "id": "P4", "name": "Provider UI Consumers", "type": "component", "componentRef": "C3" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "loadSupportedProviders()", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P1", "to": "P3", "label": "collect overlays(models, connected, accounts)", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P1", "to": "P1", "label": "project only supported provider rows", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P1", "to": "P4", "label": "return /provider payload", "type": "return", "order": 4 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "alt", "label": "unsupported provider present in overlays", "messageRefs": ["MSG3"] }
+    ]
+  }
+]
