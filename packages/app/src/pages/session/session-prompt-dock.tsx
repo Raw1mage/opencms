@@ -9,6 +9,7 @@ import { formatElapsedSeconds, questionSubtitle } from "@/pages/session/session-
 
 export function SessionPromptDock(props: {
   centered: boolean
+  isChildSession: boolean
   questionRequest: () => QuestionRequest | undefined
   permissionRequest: () => { patterns: string[]; permission: string } | undefined
   blocked: boolean
@@ -23,6 +24,7 @@ export function SessionPromptDock(props: {
   onSubmit: () => void
   setPromptDockRef: (el: HTMLDivElement) => void
   activeChild?: {
+    sessionID: string
     agent: string
     title: string
     step: string
@@ -30,8 +32,10 @@ export function SessionPromptDock(props: {
     startedAt?: number
   }
   onOpenChildSession: (href: string) => void
+  onAbortActiveChild: () => Promise<void>
 }) {
   const [tick, setTick] = createSignal(0)
+  const [aborting, setAborting] = createSignal(false)
 
   createEffect(() => {
     if (!props.activeChild?.startedAt) return
@@ -88,6 +92,18 @@ export function SessionPromptDock(props: {
                 >
                   <Icon name="square-arrow-top-right" size="small" />
                 </a>
+                <Button
+                  variant="ghost"
+                  size="small"
+                  disabled={aborting()}
+                  onClick={() => {
+                    if (aborting()) return
+                    setAborting(true)
+                    void props.onAbortActiveChild().finally(() => setAborting(false))
+                  }}
+                >
+                  {aborting() ? "Stopping…" : "Stop"}
+                </Button>
               </div>
             </div>
           )}
@@ -182,13 +198,25 @@ export function SessionPromptDock(props: {
               </div>
             }
           >
-            <PromptInput
-              ref={props.inputRef}
-              newSessionWorktree={props.newSessionWorktree}
-              onNewSessionWorktreeReset={props.onNewSessionWorktreeReset}
-              onSubmit={props.onSubmit}
-              forceWorking={!!props.activeChild}
-            />
+            <Show
+              when={!props.isChildSession}
+              fallback={
+                <div class="w-full min-h-32 md:min-h-40 rounded-md border border-border-weak-base bg-background-base/50 px-4 py-3 text-text-weak whitespace-pre-wrap pointer-events-none">
+                  This subagent session is observation-only.
+                  {"\n\n"}
+                  Child sessions cannot accept conversational input. Return to the parent session to continue the
+                  workflow.
+                </div>
+              }
+            >
+              <PromptInput
+                ref={props.inputRef}
+                newSessionWorktree={props.newSessionWorktree}
+                onNewSessionWorktreeReset={props.onNewSessionWorktreeReset}
+                onSubmit={props.onSubmit}
+                forceWorking={!!props.activeChild}
+              />
+            </Show>
           </Show>
         </Show>
       </div>

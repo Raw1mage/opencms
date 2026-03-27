@@ -63,7 +63,11 @@ import { terminalTabLabel } from "@/pages/session/terminal-label"
 import { MessageTimeline } from "@/pages/session/message-timeline"
 import { useSessionCommands } from "@/pages/session/use-session-commands"
 import { SessionPromptDock } from "@/pages/session/session-prompt-dock"
-import { childSessionHref, deriveActiveChildStatus, formatActiveChildAgentLabel } from "@/pages/session/session-prompt-helpers"
+import {
+  childSessionHref,
+  deriveActiveChildStatus,
+  formatActiveChildAgentLabel,
+} from "@/pages/session/session-prompt-helpers"
 import { SessionSidePanel } from "@/pages/session/session-side-panel"
 import { useSessionHashScroll } from "@/pages/session/use-session-hash-scroll"
 import { sessionPermissionRequest, sessionQuestionRequest } from "@/pages/session/session-request-tree"
@@ -909,8 +913,9 @@ export default function Page() {
   )
 
   const status = createMemo(() => sync.data.session_status[params.id ?? ""] ?? idle)
+  const authoritativeParentSessionID = createMemo(() => info()?.parentID ?? params.id)
   const activeChild = createMemo(() => {
-    const sessionID = params.id
+    const sessionID = authoritativeParentSessionID()
     if (!sessionID) return undefined
     return sync.data.active_child[sessionID]
   })
@@ -934,6 +939,12 @@ export default function Page() {
       sessionID: child.sessionID,
       startedAt: child.dispatchedAt ?? childSession?.time.created,
     }
+  })
+  const visibleChildDock = createMemo(() => {
+    const dock = activeChildDock()
+    const currentSessionID = params.id
+    if (!dock || !currentSessionID) return undefined
+    return dock.sessionID === currentSessionID ? dock : undefined
   })
 
   createEffect(() => {
@@ -1820,6 +1831,7 @@ export default function Page() {
 
           <SessionPromptDock
             centered={centered()}
+            isChildSession={!!info()?.parentID}
             questionRequest={questionRequest}
             permissionRequest={permRequest}
             blocked={blocked()}
@@ -1838,8 +1850,13 @@ export default function Page() {
               resumeScroll()
             }}
             setPromptDockRef={(el: HTMLDivElement) => (promptDock = el)}
-            activeChild={activeChildDock()}
+            activeChild={visibleChildDock()}
             onOpenChildSession={(href) => navigate(href)}
+            onAbortActiveChild={async () => {
+              const parentSessionID = info()?.parentID
+              if (!parentSessionID) return
+              await sdk.client.session.abort({ sessionID: parentSessionID })
+            }}
           />
 
           <Show when={desktopFilePaneOpen()}>
