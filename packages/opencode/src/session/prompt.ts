@@ -580,6 +580,19 @@ export namespace SessionPrompt {
     const session = await Session.get(sessionID)
     const cachedInstructionPrompts = await InstructionPrompt.system()
     const environmentCache = new Map<string, string[]>()
+
+    // Context Sharing v2: load parent messages once for child sessions.
+    // These form a stable prefix in every LLM call → automatic cache hit.
+    let parentMessagePrefix: MessageV2.WithParts[] | undefined
+    if (session.parentID) {
+      parentMessagePrefix = await MessageV2.filterCompacted(MessageV2.stream(session.parentID))
+      log.info("context sharing: loaded parent messages", {
+        sessionID,
+        parentID: session.parentID,
+        parentMessageCount: parentMessagePrefix.length,
+      })
+    }
+
     debugCheckpoint("prompt", "loop:session_loaded", {
       sessionID,
       parentID: session.parentID,
@@ -1053,6 +1066,23 @@ export namespace SessionPrompt {
           ...(format.type === "json_schema" ? [STRUCTURED_OUTPUT_SYSTEM_PROMPT] : []),
         ],
         messages: [
+          // Context Sharing v2: prepend parent messages as stable prefix for child sessions.
+          // This gives the child full visibility into parent's context (plan, discoveries, etc.)
+          // at near-zero cost due to automatic prompt caching on the stable prefix.
+          ...(parentMessagePrefix
+            ? [
+                ...MessageV2.toModelMessages(parentMessagePrefix, activeModel),
+                {
+                  role: "user" as const,
+                  content: [
+                    {
+                      type: "text" as const,
+                      text: "--- You are now operating as a delegated subagent. Above is the parent session's full context. Your assigned task follows below. ---",
+                    },
+                  ],
+                },
+              ]
+            : []),
           ...MessageV2.toModelMessages(sessionMessages, activeModel),
           ...(isLastStep
             ? [

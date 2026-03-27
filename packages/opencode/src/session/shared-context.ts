@@ -480,7 +480,12 @@ export namespace SharedContext {
     return formatSnapshot(diffSpace)
   }
 
-  /** Public alias used by task.ts to format a Space for injection into subagent prompt. */
+  /**
+   * Format a Space as a readable snapshot string.
+   * Context Sharing v2: no longer used for subagent dispatch injection
+   * (child sessions now receive parent's full message history as prefix).
+   * Retained for compaction summaries and observability.
+   */
   export function formatForInjection(space: Space): string | undefined {
     if (space.files.length === 0 && space.actions.length === 0) return undefined
     return formatSnapshot(space)

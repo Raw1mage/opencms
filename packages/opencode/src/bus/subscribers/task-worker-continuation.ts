@@ -119,21 +119,32 @@ async function enqueueParentContinuation(input: {
           accountId: "accountId" in assistant.info ? assistant.info.accountId : undefined,
         }
 
-    // Relay child's SharedContext back to parent.
-    // Use differential snapshot (only what child learned beyond what parent injected)
-    // to avoid re-sending knowledge parent already has.
-    let childContextSnap: string | undefined
+    // Context Sharing v2: child's full message history is already visible to parent
+    // via prompt.ts parent message prefix. We extract a concise summary of child's
+    // key outputs for the continuation message, so parent LLM has immediate awareness.
+    let childSummary: string | undefined
     if (input.ok) {
-      const taskMeta =
-        taskPart.state.status === "running" || taskPart.state.status === "completed"
-          ? (taskPart.state.metadata as { injectedSharedContextVersion?: number } | undefined)
-          : undefined
-      const sinceVersion = taskMeta?.injectedSharedContextVersion ?? -1
-      childContextSnap =
-        sinceVersion >= 0
-          ? await SharedContext.snapshotDiff(input.childSessionID, sinceVersion).catch(() => undefined)
-          : await SharedContext.snapshot(input.childSessionID).catch(() => undefined)
-      // Merge child's full knowledge into parent's Space for future subagent dispatches
+      try {
+        const childMsgs = await MessageV2.filterCompacted(MessageV2.stream(input.childSessionID))
+        const assistantTexts: string[] = []
+        for (const msg of childMsgs) {
+          if (msg.info.role !== "assistant") continue
+          for (const part of msg.parts) {
+            if (part.type === "text" && part.text?.trim()) {
+              assistantTexts.push(part.text.trim())
+            }
+          }
+        }
+        if (assistantTexts.length > 0) {
+          // Take last few assistant outputs (most relevant) — keep within ~4K tokens
+          const recent = assistantTexts.slice(-3)
+          childSummary = `<child_session_output session="${input.childSessionID}">\n${recent.join("\n\n---\n\n")}\n</child_session_output>`
+        }
+      } catch {
+        // Non-fatal: parent continues without child summary
+      }
+
+      // Merge child's SharedContext into parent's Space (retained for compaction/observability)
       await SharedContext.mergeFrom({
         targetSessionID: input.parentSessionID,
         sourceSessionID: input.childSessionID,
@@ -153,7 +164,7 @@ async function enqueueParentContinuation(input: {
 
     const continuationText = input.ok
       ? [
-          childContextSnap ? `${childContextSnap}\n\n---\n\n` : "",
+          childSummary ? `${childSummary}\n\n---\n\n` : "",
           `Subagent ${input.childSessionID} completed. Continue immediately with the next step based on the evidence above.`,
         ].join("")
       : `Subagent ${input.childSessionID} failed. Continue immediately using the recorded task error and child session evidence: ${input.error ?? "unknown error"}`
