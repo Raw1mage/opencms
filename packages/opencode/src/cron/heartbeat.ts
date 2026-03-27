@@ -34,7 +34,8 @@ export namespace Heartbeat {
   const log = Log.create({ service: "cron.heartbeat" })
 
   const HEARTBEAT_OK_TOKEN = "HEARTBEAT_OK"
-  const DEFAULT_INTERVAL_MS = 30 * 60 * 1000 // 30 minutes (DD-9)
+  const DEFAULT_INTERVAL_MS = 60 * 1000 // 1 minute cadence so minute-level cron can run near schedule
+  const STALE_THRESHOLD_MS = 5 * 60 * 1000 // 5 minutes — if nextRunAtMs is older than this, skip-to-next (DD-13)
 
   export type HeartbeatConfig = {
     enabled: boolean
@@ -106,11 +107,17 @@ export namespace Heartbeat {
       return result
     }
 
+    log.info("recovery: starting", { total: jobs.length })
     for (const job of jobs) {
       try {
         await recoverJob(job, now, result)
       } catch (e) {
-        log.error("recovery: job failed", { jobId: job.id, error: e })
+        log.error("recovery: job failed", {
+          jobId: job.id,
+          jobName: job.name,
+          nextRunAtMs: job.state.nextRunAtMs,
+          error: e instanceof Error ? e.message : String(e),
+        })
       }
     }
 
@@ -126,11 +133,7 @@ export namespace Heartbeat {
     backoffApplied: number
   }
 
-  async function recoverJob(
-    job: CronJob,
-    nowMs: number,
-    result: RecoveryResult,
-  ): Promise<void> {
+  async function recoverJob(job: CronJob, nowMs: number, result: RecoveryResult): Promise<void> {
     const nextRun = job.state.nextRunAtMs
 
     // Clean boot: nextRunAtMs is in the future (or not set yet)
@@ -210,6 +213,17 @@ export namespace Heartbeat {
         await evaluateJob(job, now, config)
       } catch (e) {
         log.error("job evaluation failed", { jobId: job.id, error: e })
+        // Safety net: advance nextRunAtMs on uncaught error to prevent stuck-in-past loop
+        try {
+          const nextFireMs = Schedule.computeNextRunAtMs(job.schedule, now)
+          if (nextFireMs) {
+            const stagger = Schedule.computeStaggerMs(job.schedule, job.id)
+            await CronStore.updateState(job.id, { nextRunAtMs: nextFireMs + stagger })
+            log.info("advanced stale schedule after error", { jobId: job.id, nextRunAtMs: nextFireMs + stagger })
+          }
+        } catch {
+          // best-effort
+        }
       }
     }
   }
@@ -217,14 +231,27 @@ export namespace Heartbeat {
   /**
    * Evaluate a single job: check schedule, active hours, fire if due.
    */
-  async function evaluateJob(
-    job: CronJob,
-    nowMs: number,
-    config?: Partial<HeartbeatConfig>,
-  ): Promise<HeartbeatResult> {
+  async function evaluateJob(job: CronJob, nowMs: number, config?: Partial<HeartbeatConfig>): Promise<HeartbeatResult> {
     // Check if job is due to fire
     const nextRun = job.state.nextRunAtMs
     if (nextRun && nextRun > nowMs) {
+      return { status: "skipped", hasActionableContent: false, eventsProcessed: 0 }
+    }
+
+    // Staleness guard (DD-13: skip-to-next, no catchup)
+    // If nextRunAtMs is significantly in the past, the daemon missed the window.
+    // Advance to the next fire time instead of retroactively executing.
+    if (nextRun && nowMs - nextRun > STALE_THRESHOLD_MS) {
+      const nextFireMs = Schedule.computeNextRunAtMs(job.schedule, nowMs)
+      if (nextFireMs) {
+        const stagger = Schedule.computeStaggerMs(job.schedule, job.id)
+        await CronStore.updateState(job.id, { nextRunAtMs: nextFireMs + stagger })
+        log.info("skipped stale schedule", {
+          jobId: job.id,
+          staleBy: nowMs - nextRun,
+          nextRunAtMs: nextFireMs + stagger,
+        })
+      }
       return { status: "skipped", hasActionableContent: false, eventsProcessed: 0 }
     }
 
@@ -366,9 +393,8 @@ export namespace Heartbeat {
     }
 
     if (job.payload.kind === "agentTurn") {
-      const eventContext = events.length > 0
-        ? `\n\nSystem events since last run:\n${events.map((e) => `- ${e.text}`).join("\n")}`
-        : ""
+      const eventContext =
+        events.length > 0 ? `\n\nSystem events since last run:\n${events.map((e) => `- ${e.text}`).join("\n")}` : ""
       const text = job.payload.message + eventContext
 
       if (!text.trim()) {

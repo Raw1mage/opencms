@@ -5,7 +5,8 @@ import { lazy } from "../util/lazy"
 import { websocket } from "hono/bun"
 import { MDNS } from "./mdns"
 import { createApp } from "./app"
-import { Daemon } from "./daemon"
+import { Daemon as RuntimeDaemon } from "../daemon"
+import { Daemon as DiscoveryDaemon } from "./daemon"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
 
@@ -95,9 +96,14 @@ export namespace Server {
     log.info("starting unix socket daemon", { socketPath })
 
     // Check single-instance guard
-    const existingPid = await Daemon.checkSingleInstance()
+    const existingPid = await DiscoveryDaemon.checkSingleInstance()
     if (existingPid !== null) {
       throw new Error(`opencode daemon already running (pid ${existingPid}). Use --attach to connect.`)
+    }
+
+    const lifecycleStarted = await RuntimeDaemon.start()
+    if (!lifecycleStarted) {
+      throw new Error("failed to start daemon lifecycle")
     }
 
     // Bun's TypeScript overloads for unix vs TCP are separate union types that
@@ -112,7 +118,7 @@ export namespace Server {
     _url = new URL(`http://localhost`)
 
     // Write discovery file so TUI and other clients can find us
-    await Daemon.writeDiscovery({
+    await DiscoveryDaemon.writeDiscovery({
       socketPath,
       pid: process.pid,
       startedAt: Date.now(),
@@ -121,14 +127,24 @@ export namespace Server {
 
     log.info("daemon ready", { socketPath, pid: process.pid })
 
-    // Register cleanup handlers (β.4)
+    let stopping = false
     const cleanup = async () => {
+      if (stopping) return
+      stopping = true
       log.info("daemon shutting down, removing discovery files")
-      await Daemon.removeDiscovery().catch(() => {})
+      await RuntimeDaemon.shutdown().catch(() => {})
+      await DiscoveryDaemon.removeDiscovery().catch(() => {})
     }
-    process.once("exit", () => { Daemon.removeDiscovery().catch(() => {}) })
-    process.once("SIGTERM", async () => { await cleanup(); process.exit(0) })
-    process.once("SIGINT", async () => { await cleanup(); process.exit(0) })
+
+    const originalStop = server.stop.bind(server)
+    server.stop = async (closeActiveConnections?: boolean) => {
+      await cleanup()
+      return originalStop(closeActiveConnections)
+    }
+
+    process.once("exit", () => {
+      DiscoveryDaemon.removeDiscovery().catch(() => {})
+    })
 
     return server
   }

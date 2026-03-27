@@ -36,6 +36,7 @@ describe("CronStore", () => {
     expect(job.name).toBe("test-job")
     expect(job.enabled).toBe(true)
     expect(job.state.consecutiveErrors).toBe(0)
+    expect(job.state.nextRunAtMs).toBeGreaterThan(Date.now() - 5_000)
 
     const retrieved = await CronStore.get(job.id)
     expect(retrieved).toBeDefined()
@@ -56,6 +57,40 @@ describe("CronStore", () => {
     expect(updated).toBeDefined()
     expect(updated!.enabled).toBe(false)
     expect(updated!.name).toBe("update-test")
+    expect(updated!.state.nextRunAtMs).toBeUndefined()
+  })
+
+  it("seeds immediate nextRunAtMs for wakeMode now", async () => {
+    const before = Date.now()
+    const job = await CronStore.create({
+      name: "immediate-job",
+      enabled: true,
+      schedule: { kind: "every", everyMs: 60000 },
+      sessionTarget: "isolated",
+      wakeMode: "now",
+      payload: { kind: "agentTurn", message: "hello" },
+    })
+
+    expect(job.state.nextRunAtMs).toBeDefined()
+    expect(job.state.nextRunAtMs!).toBeLessThanOrEqual(before)
+  })
+
+  it("recomputes nextRunAtMs when schedule changes", async () => {
+    const job = await CronStore.create({
+      name: "reschedule-job",
+      enabled: true,
+      schedule: { kind: "every", everyMs: 60_000 },
+      sessionTarget: "isolated",
+      wakeMode: "next-heartbeat",
+      payload: { kind: "systemEvent", text: "a" },
+    })
+
+    const updated = await CronStore.update(job.id, {
+      schedule: { kind: "every", everyMs: 5 * 60_000 },
+    })
+
+    expect(updated).toBeDefined()
+    expect(updated!.state.nextRunAtMs).toBeGreaterThan(Date.now())
   })
 
   it("updates job state", async () => {

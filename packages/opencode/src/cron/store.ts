@@ -3,13 +3,8 @@ import fs from "fs/promises"
 import { Global } from "../global"
 import { Lock } from "../util/lock"
 import { Log } from "../util/log"
-import {
-  CronStoreFileSchema,
-  type CronJob,
-  type CronJobCreate,
-  type CronJobPatch,
-  type CronStoreFile,
-} from "./types"
+import { CronStoreFileSchema, type CronJob, type CronJobCreate, type CronJobPatch, type CronStoreFile } from "./types"
+import { Schedule } from "./schedule"
 
 /**
  * Cron job store — persists jobs at ~/.config/opencode/cron/jobs.json
@@ -20,6 +15,12 @@ import {
 export namespace CronStore {
   const log = Log.create({ service: "cron.store" })
   const LOCK_KEY = "cron:store"
+
+  function seededNextRunAtMs(job: Pick<CronJob, "enabled" | "schedule" | "wakeMode" | "state">, nowMs: number) {
+    if (!job.enabled) return undefined
+    if (job.wakeMode === "now") return nowMs - 1
+    return Schedule.computeNextRunAtMs(job.schedule, nowMs)
+  }
 
   function storeDir(): string {
     return path.join(Global.Path.config, "cron")
@@ -74,6 +75,9 @@ export namespace CronStore {
             consecutiveErrors: 0,
           },
     }
+    if (job.state.nextRunAtMs === undefined) {
+      job.state.nextRunAtMs = seededNextRunAtMs(job, now)
+    }
     store.jobs.push(job)
     await writeFile(store)
     log.info("created", { id: job.id, name: job.name })
@@ -97,6 +101,13 @@ export namespace CronStore {
         ...existing.state,
         ...patch.state,
       },
+    }
+    const scheduleChanged = patch.schedule !== undefined
+    const enabledChanged = patch.enabled !== undefined
+    const wakeModeChanged = patch.wakeMode !== undefined
+    const nextRunPatched = patch.state && Object.prototype.hasOwnProperty.call(patch.state, "nextRunAtMs")
+    if ((scheduleChanged || enabledChanged || wakeModeChanged) && !nextRunPatched) {
+      updated.state.nextRunAtMs = seededNextRunAtMs(updated, Date.now())
     }
     store.jobs[idx] = updated
     await writeFile(store)

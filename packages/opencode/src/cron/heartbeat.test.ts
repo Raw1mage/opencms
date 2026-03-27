@@ -3,11 +3,24 @@ import { Heartbeat } from "./heartbeat"
 import { CronStore } from "./store"
 import { ActiveHours } from "./active-hours"
 import { SystemEvents } from "./system-events"
+import { Scheduler } from "../scheduler"
 import type { CronJob } from "./types"
 
 // --- Pure helper tests ---
 
 describe("Heartbeat helpers", () => {
+  it("registers minute-level default cadence", () => {
+    const originalRegister = Scheduler.register
+    const calls: any[] = []
+    ;(Scheduler as any).register = mock((task: any) => calls.push(task))
+
+    Heartbeat.register()
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0].interval).toBe(60_000)
+    ;(Scheduler as any).register = originalRegister
+  })
+
   describe("isHeartbeatOk", () => {
     it("detects HEARTBEAT_OK token", () => {
       expect(Heartbeat.isHeartbeatOk("HEARTBEAT_OK")).toBe(true)
@@ -76,7 +89,6 @@ describe("Heartbeat.tick integration", () => {
     await Heartbeat.tick()
     // Job was not due — no state update expected
     expect(updateCalls.length).toBe(0)
-
     ;(CronStore as any).listEnabled = originalListEnabled
     ;(CronStore as any).updateState = originalUpdateState
     ;(SystemEvents as any).drain = originalDrain
@@ -96,7 +108,6 @@ describe("Heartbeat.tick integration", () => {
     // Due job should trigger evaluation — at least one state update
     expect(updateCalls.length).toBeGreaterThanOrEqual(1)
     expect(updateCalls[0][0]).toBe("job-hb-test")
-
     ;(CronStore as any).listEnabled = originalListEnabled
     ;(CronStore as any).updateState = originalUpdateState
     ;(SystemEvents as any).drain = originalDrain
@@ -114,7 +125,7 @@ describe("Heartbeat.tick integration", () => {
 
     // Force outside_hours by providing an activeHours config that excludes current time
     await Heartbeat.tick({
-      activeHours: { startHour: 99, endHour: 99, tz: "UTC" },
+      activeHours: { start: "99:00", end: "99:00", tz: "UTC" },
     })
 
     // Should have updated nextRunAtMs but not executed
