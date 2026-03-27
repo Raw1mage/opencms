@@ -255,6 +255,21 @@ export namespace Auth {
         const tokenHash = createHash("sha256").update(baseToken).digest("hex").slice(0, 8)
         const slug = email || username || `${providerId}-${tokenHash}`
         const accountId = Account.generateId(providerKey, "subscription", slug)
+
+        // Re-auth with new refresh token: accountId matches by email but baseToken differs
+        if (existingAccounts[accountId]) {
+          await Account.update(providerKey, accountId, {
+            email: email,
+            refreshToken: baseToken,
+            accessToken: info.access,
+            expiresAt: info.expires,
+            projectId,
+            managedProjectId,
+            metadata: info.orgID ? { orgID: info.orgID } : undefined,
+          })
+          return accountId
+        }
+
         await Account.add(providerKey, accountId, {
           type: "subscription",
           name: email || username || providerId,
