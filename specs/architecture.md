@@ -8,7 +8,7 @@ OpenCode is a desktop/TUI/Webapp multi-interface platform for interacting with A
 
 - **Multi-Interface**: TUI (`cli/cmd/tui`), Desktop App, Webapp (`packages/app`), and CLI.
 - **Unified Backend**: All interfaces communicate with a shared Node/Bun backend via the `@opencode-ai/sdk` or direct function calls.
-- **Provider Abstraction**: Model interactions are abstracted through the `Provider` module, supporting multiple families (e.g., `google-api`, `anthropic`).
+- **Provider Abstraction**: Model interactions are abstracted through the `Provider` module. Product-visible provider universe is now registry-first: a repo-owned supported provider registry defines which canonical providers cms officially supports and may show in `/provider` or UI lists, while runtime/config/accounts/models sources only enrich those supported providers with state and model metadata.
 
 ## Frontend Architecture
 
@@ -107,6 +107,16 @@ The frontend is built with Solid.js and uses a bottom-up dependency model:
 - **`src/account`**: Disk persistence (`accounts.json`), ID generation, basic CRUD.
 - **`src/auth`**: Identity resolution, OAuth token parsing, high-level API key addition, collision avoidance.
 - **`src/provider`**: Manages active connections to model providers and their runtime instances.
+- **`src/provider/supported-provider-registry.ts`**: Repo-owned canonical supported provider registry; the single source of truth for the cms official provider universe and product labels.
+- **`src/provider/canonical-family-source.ts`**: Canonical provider row builder and runtime-provider resolver. Canonical rows are registry-first; accounts, connected providers, disabled state, and models.dev only overlay state onto supported providers.
+- **`src/server/routes/provider.ts`**: `/provider` API assembly surface. Returns canonical provider rows keyed by supported provider registry, not raw observed provider IDs.
+
+## Provider Universe Authority
+
+- The cms official provider universe is defined by the repo-owned supported provider registry, not by observed runtime/config/models/account provider IDs.
+- Initial supported provider set is: `openai`, `claude-cli`, `google-api`, `gemini-cli`, `github-copilot`, `gmicloud`, `openrouter`, `vercel`, `gitlab`, `opencode`.
+- `models.dev` is an enrichment source only: it may update models and metadata for supported providers, but it must not introduce new product-visible providers by itself.
+- Runtime custom providers and config-injected providers may still exist for execution, but unsupported keys must fail closed at the provider-list boundary and must not appear in `/provider` or primary UI provider lists unless explicitly added to the registry.
 
 ## Managed App Registry (MCP Apps)
 

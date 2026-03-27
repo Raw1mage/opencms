@@ -67,6 +67,7 @@ import { shouldRefreshProviderQuota } from "./prompt-input/quota-refresh"
 import { ImagePreview } from "@opencode-ai/ui/image-preview"
 import { buildAccountRows, providerKeyOf } from "./model-selector-state"
 import { loadQuotaHint, peekQuotaHint } from "@/utils/quota-hint-cache"
+import { getSupportedProviderLabel } from "@/utils/provider-registry"
 import { sendSessionReloadDebugBeacon } from "@/utils/debug-beacon"
 
 interface PromptInputProps {
@@ -372,16 +373,8 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     const model = currentModel()
     if (!model) return "--"
     const providerKey = effectiveProviderKey()
-    if (providerKey === "openai") return "OpenAI"
-    if (providerKey === "claude-cli") return "Claude CLI"
-    if (providerKey === "google-api") return "Google-API"
-    if (providerKey === "gemini-cli") return "Gemini CLI"
-    if (providerKey === "github-copilot") return "GitHub Copilot"
-    if (providerKey === "gmicloud") return "GMICloud"
-    if (providerKey === "openrouter") return "OpenRouter"
-    if (providerKey === "vercel") return "Vercel"
-    if (providerKey === "gitlab") return "GitLab"
-    if (providerKey === "opencode") return "OpenCode"
+    const supportedLabel = getSupportedProviderLabel(providerKey)
+    if (supportedLabel) return supportedLabel
     return model.provider.name ?? providerKey ?? model.provider.id
   })
   const [quotaHint, setQuotaHint] = createSignal<string | undefined>()

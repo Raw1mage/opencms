@@ -1,5 +1,6 @@
 import { useGlobalSync } from "@/context/global-sync"
 import { decode64 } from "@/utils/base64"
+import { isSupportedProviderKey } from "@/utils/provider-registry"
 import { useParams } from "@solidjs/router"
 import { createMemo } from "solid-js"
 
@@ -27,7 +28,7 @@ export function useProviders() {
     return globalSync.data.provider
   })
   const connectedIDs = createMemo(() => new Set(providers().connected))
-  const all = createMemo(() => providers().all.filter((p) => p.id !== "google"))
+  const all = createMemo(() => providers().all.filter((p) => isSupportedProviderKey(p.id)))
   const connected = createMemo(() => all().filter((p) => connectedIDs().has(p.id)))
   const paid = createMemo(() =>
     connected().filter((p) => p.id !== "opencode" || Object.values(p.models).find((m) => m.cost?.input)),

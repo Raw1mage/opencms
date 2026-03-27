@@ -116,10 +116,14 @@ export const ProviderRoutes = lazy(() =>
           providers[family] = info
         }
 
+        const connectedCanonical = canonicalProviders
+          .filter((row) => row.inConnectedProviders)
+          .map((row) => row.providerKey)
+
         return c.json({
           all: Object.values(providers),
           default: mapValues(providers, (item) => Provider.sort(Object.values(item.models))[0].id),
-          connected: Object.keys(connected),
+          connected: connectedCanonical,
         })
       },
     )

@@ -9,6 +9,7 @@ import { useGlobalSDK } from "@/context/global-sdk"
 import { useGlobalSync } from "@/context/global-sync"
 import { useSync } from "@/context/sync"
 import { useSettings } from "@/context/settings"
+import { getSupportedProviderLabel } from "@/utils/provider-registry"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { DialogSelectModel, type ModelSelectResult } from "@/components/dialog-select-model"
 import { createCronApi, type CronJob, type CronRunLogEntry } from "./api"
@@ -73,7 +74,9 @@ export function TaskDetail() {
       setJob(data)
       populateForm(data)
       // Load latest run's session for output display
-      const runs = await api().getRuns(id, 1).catch(() => [] as CronRunLogEntry[])
+      const runs = await api()
+        .getRuns(id, 1)
+        .catch(() => [] as CronRunLogEntry[])
       if (runs[0]?.sessionId) {
         setActiveSessionId(runs[0].sessionId)
       }
@@ -102,11 +105,22 @@ export function TaskDetail() {
     setDirty(false)
   }
 
-  createEffect(on(() => params.jobId, () => { void loadJob() }))
+  createEffect(
+    on(
+      () => params.jobId,
+      () => {
+        void loadJob()
+      },
+    ),
+  )
 
   // --- mark dirty on any field change ---
   function fieldChange<T>(setter: (v: T) => void) {
-    return (v: T) => { setter(v); setDirty(true); setError(undefined) }
+    return (v: T) => {
+      setter(v)
+      setDirty(true)
+      setError(undefined)
+    }
   }
 
   // --- resolve model identity for save ---
@@ -184,7 +198,9 @@ export function TaskDetail() {
     setOutputError(undefined)
     try {
       // Snapshot existing run IDs so we can detect the new one
-      const existingRuns = await api().getRuns(j.id, 5).catch(() => [] as CronRunLogEntry[])
+      const existingRuns = await api()
+        .getRuns(j.id, 5)
+        .catch(() => [] as CronRunLogEntry[])
       const knownRunIds = new Set(existingRuns.map((r) => r.runId))
 
       await api().triggerJob(j.id)
@@ -246,268 +262,293 @@ export function TaskDetail() {
   // =========== RENDER ===========
 
   return (
-    <Show when={params.jobId} fallback={
-      <div class="flex-1 flex items-center justify-center h-full">
-        <div class="text-center">
-          <Icon name="checklist" size="large" class="text-color-dimmed mx-auto mb-3" />
-          <p class="text-14-medium text-color-dimmed">Select a task to view details</p>
-          <p class="text-12-medium text-color-dimmed mt-1">or create a new one</p>
+    <Show
+      when={params.jobId}
+      fallback={
+        <div class="flex-1 flex items-center justify-center h-full">
+          <div class="text-center">
+            <Icon name="checklist" size="large" class="text-color-dimmed mx-auto mb-3" />
+            <p class="text-14-medium text-color-dimmed">Select a task to view details</p>
+            <p class="text-12-medium text-color-dimmed mt-1">or create a new one</p>
+          </div>
         </div>
-      </div>
-    }>
-    <Show when={!loading()} fallback={
-      <div class="flex-1 flex items-center justify-center h-full text-13-medium text-color-dimmed">Loading...</div>
-    }>
-      <Show when={hasJob() ? job() : true} fallback={
-        <div class="flex-1 flex items-center justify-center h-full text-13-medium text-color-dimmed">Task not found</div>
-      }>
-        <div class="flex flex-col h-full overflow-hidden">
-
-          {/* ═══ Header ═══ */}
-          <div class="shrink-0 flex items-center justify-between px-4 py-2 border-b border-border-base bg-background-base">
-            <div class="flex items-center gap-2">
-              <Show when={hasJob()}>
-                <div classList={{
-                  "w-2 h-2 rounded-full": true,
-                  "bg-green-400": job()?.enabled,
-                  "bg-neutral-500": !job()?.enabled,
-                }} />
-                <span classList={{
-                  "text-11-medium px-1.5 py-0.5 rounded": true,
-                  "bg-green-500/15 text-green-400": job()?.enabled,
-                  "bg-neutral-500/15 text-neutral-400": !job()?.enabled,
-                }}>
-                  {job()?.enabled ? "Active" : "Disabled"}
-                </span>
-              </Show>
-              <Show when={isNew()}>
-                <span class="text-13-semibold text-accent-base">New Task</span>
-              </Show>
-              <Show when={dirty()}>
-                <span class="text-11-medium text-yellow-400 px-1.5 py-0.5 rounded bg-yellow-500/10">Unsaved</span>
-              </Show>
+      }
+    >
+      <Show
+        when={!loading()}
+        fallback={
+          <div class="flex-1 flex items-center justify-center h-full text-13-medium text-color-dimmed">Loading...</div>
+        }
+      >
+        <Show
+          when={hasJob() ? job() : true}
+          fallback={
+            <div class="flex-1 flex items-center justify-center h-full text-13-medium text-color-dimmed">
+              Task not found
             </div>
-            <div class="flex items-center gap-1.5">
-              <Show when={hasJob()}>
-                <Button size="small" variant="ghost" onClick={handleTest} disabled={testing()}>
-                  <Icon name="arrow-right" size="small" />
-                  <span class="ml-1">{testing() ? "Running..." : "Test"}</span>
-                </Button>
-              </Show>
-              <Button size="small" onClick={handleSave} disabled={saving() || (!dirty() && !isNew())}>
-                <Icon name="check" size="small" />
-                <span class="ml-1">{saving() ? "Saving..." : isNew() ? "Create" : "Save"}</span>
-              </Button>
-              <Show when={hasJob()}>
-                <Button size="small" variant="ghost" onClick={handleToggle}>
-                  {job()?.enabled ? "Disable" : "Enable"}
-                </Button>
-                <Button size="small" variant="ghost" onClick={handleDelete}>
-                  <Icon name="trash" size="small" class="text-red-400" />
-                </Button>
-              </Show>
-            </div>
-          </div>
-
-          {/* ═══ Scrollable cards ═══ */}
-          <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-
-            {/* ── Prompt card ── */}
-            <div class="rounded-lg border border-border-base bg-background-base">
-              <div class="flex items-center gap-2 px-3 py-2 border-b border-border-weak-base">
-                <label class="text-11-semibold text-color-dimmed uppercase tracking-wider">Name</label>
-                <input
-                  class="flex-1 bg-transparent text-13-medium text-color-primary focus:outline-none"
-                  placeholder="e.g. Check stock alerts"
-                  value={name()}
-                  onInput={(e) => fieldChange(setName)(e.currentTarget.value)}
-                />
-              </div>
-              <textarea
-                class="w-full min-h-[100px] max-h-[300px] resize-y bg-transparent px-3 py-2 text-13-medium text-color-primary placeholder:text-color-dimmed focus:outline-none"
-                placeholder="What should the AI do on each run?"
-                value={prompt()}
-                onInput={(e) => fieldChange(setPrompt)(e.currentTarget.value)}
-              />
-            </div>
-
-            {/* ── Schedule card ── */}
-            <div class="rounded-lg border border-border-base bg-background-base px-3 py-2 space-y-2">
+          }
+        >
+          <div class="flex flex-col h-full overflow-hidden">
+            {/* ═══ Header ═══ */}
+            <div class="shrink-0 flex items-center justify-between px-4 py-2 border-b border-border-base bg-background-base">
               <div class="flex items-center gap-2">
-                <label class="shrink-0 text-11-semibold text-color-dimmed uppercase tracking-wider">Schedule</label>
-                <input
-                  class="w-40 bg-background-input rounded border border-border-base px-2 py-1.5 text-13-medium text-color-primary font-mono focus:outline-none focus:border-accent-base"
-                  placeholder="*/30 * * * *"
-                  value={cronExpr()}
-                  onInput={(e) => fieldChange(setCronExpr)(e.currentTarget.value)}
-                />
-                <Select
-                  options={TIMEZONE_OPTIONS}
-                  current={TIMEZONE_OPTIONS.find((tz) => tz.value === timezone())}
-                  value={(tz) => tz.value}
-                  label={(tz) => tz.label}
-                  onSelect={(tz) => { if (tz) fieldChange(setTimezone)(tz.value) }}
-                  variant="ghost"
-                  class="max-w-[200px]"
-                  valueClass="truncate"
-                />
-                <span class="text-11-medium text-color-dimmed">{describeCronExpr(cronExpr())}</span>
-                <Show when={hasJob() && job()?.state.nextRunAtMs}>
-                  <span class="text-11-medium text-color-dimmed">· Next: {formatRelativeTime(job()!.state.nextRunAtMs!)}</span>
-                </Show>
-              </div>
-              <div class="flex flex-wrap gap-1.5">
-                <For each={CRON_PRESETS}>
-                  {(preset) => (
-                    <button
-                      classList={{
-                        "text-11-medium rounded px-2 py-1 border transition-colors cursor-pointer": true,
-                        "border-accent-base text-accent-base bg-accent-base/10": cronExpr() === preset.expr,
-                        "border-border-base text-color-dimmed hover:text-color-secondary hover:border-border-base": cronExpr() !== preset.expr,
-                      }}
-                      onClick={() => fieldChange(setCronExpr)(preset.expr)}
-                    >
-                      {preset.label}
-                    </button>
-                  )}
-                </For>
-              </div>
-            </div>
-
-            {/* ── Error banner ── */}
-            <Show when={error()}>
-              <div class="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-12-medium text-red-400">
-                {error()}
-              </div>
-            </Show>
-
-            {/* ── Output card (session conversation via SessionTurn) ── */}
-            <div class="rounded-lg border border-border-base bg-background-base overflow-hidden">
-              <div class="flex items-center justify-between px-3 py-2 border-b border-border-weak-base">
-                <span class="text-11-semibold text-color-dimmed uppercase tracking-wider">Output</span>
-                <Show when={activeSessionId() || outputError()}>
-                  <button
-                    class="text-11-medium text-color-dimmed hover:text-color-secondary cursor-pointer"
-                    onClick={() => { setActiveSessionId(undefined); setOutputError(undefined) }}
-                  >
-                    Clear
-                  </button>
-                </Show>
-              </div>
-              <div
-                class="overflow-y-auto resize-y"
-                style={{ "min-height": "80px", height: "240px", "max-height": "600px" }}
-              >
-                <Show when={testing() && !activeSessionId()}>
-                  <div class="px-3 py-4 text-color-dimmed text-center italic text-12-medium">
-                    Starting test run...
-                  </div>
-                </Show>
-                <Show when={!testing() && !activeSessionId() && !outputError()}>
-                  <div class="px-3 py-4 text-color-dimmed text-center italic text-12-medium">
-                    {hasJob() ? "Click Test to run this task" : "Create the task first, then test it"}
-                  </div>
-                </Show>
-                <Show when={outputError()}>
-                  <div class="px-3 py-2 text-red-400 text-12-medium whitespace-pre-wrap">{outputError()}</div>
-                </Show>
-                <Show when={activeSessionId()}>
-                  {(sid) => <TaskSessionOutput sessionId={sid()} />}
-                </Show>
-              </div>
-            </div>
-
-            {/* ── Execution Log card (collapsed by default) ── */}
-            <Show when={hasJob() && job()}>
-              {(j) => (
-                <div class="rounded-lg border border-border-base bg-background-base overflow-hidden">
+                <Show when={hasJob()}>
                   <div
-                    class="w-full flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-background-input/50 transition-colors"
-                    onClick={() => setExecLogOpen((v) => !v)}
-                  >
-                    <span class="text-11-semibold text-color-dimmed uppercase tracking-wider">Execution Log</span>
-                    <div class="flex items-center gap-2">
-                      <button
-                        class="text-11-medium text-color-dimmed hover:text-color-secondary cursor-pointer"
-                        onClick={(e) => { e.stopPropagation(); setRunHistoryKey((k) => k + 1) }}
-                      >
-                        Refresh
-                      </button>
-                      <Icon
-                        name="chevron-down"
-                        size="small"
-                        class="text-color-dimmed transition-transform"
-                        style={{ transform: execLogOpen() ? "rotate(180deg)" : "rotate(0deg)" }}
-                      />
-                    </div>
-                  </div>
-                  <Show when={execLogOpen()}>
-                    <div
-                      class="border-t border-border-weak-base px-3 py-2 overflow-y-auto resize-y"
-                      style={{ "min-height": "60px", height: "160px", "max-height": "500px" }}
-                      data-key={runHistoryKey()}
-                    >
-                      <RunHistoryPanel jobId={j().id} api={api()} />
-                    </div>
-                  </Show>
-                </div>
-              )}
-            </Show>
-          </div>
-
-          {/* ═══ Footer ═══ */}
-          <div class="shrink-0 flex items-center gap-2 px-4 py-1.5 border-t border-border-weak-base">
-            <TaskModelButton
-              selection={modelSelection()}
-              providers={globalSync.data.provider.all ?? []}
-              accountFamilies={globalSync.data.account_families}
-              onOpen={() => {
-                const sel = modelSelection()
-                dialog.show(() => (
-                  <DialogSelectModel
-                    initialProviderId={sel?.providerID}
-                    initialAccountId={sel?.accountID}
-                    onModelSelect={(key) => {
-                      setModelSelection(key)
-                      const j = job()
-                      if (j) {
-                        const modelStr = `${key.providerID}/${key.modelID}`
-                        const existing = j.payload.kind === "agentTurn" ? j.payload : undefined
-                        api().updateJob(j.id, {
-                          payload: {
-                            kind: "agentTurn",
-                            message: existing?.message ?? "",
-                            lightContext: existing?.lightContext,
-                            model: modelStr,
-                            accountId: key.accountID,
-                          },
-                        }).then(() => {
-                          void loadJob()
-                        }).catch(() => {
-                          // model save failed — will show stale selection on next load
-                        })
-                      } else {
-                        setDirty(true)
-                      }
+                    classList={{
+                      "w-2 h-2 rounded-full": true,
+                      "bg-green-400": job()?.enabled,
+                      "bg-neutral-500": !job()?.enabled,
                     }}
                   />
-                ))
-              }}
-            />
-            <Show when={hasJob() && job()}>
-              {(j) => (
-                <>
-                  <span class="text-11-medium text-color-dimmed">Target: {j().sessionTarget}</span>
-                  <Show when={j().state.consecutiveErrors && j().state.consecutiveErrors! > 0}>
-                    <span class="text-11-medium text-red-400">{j().state.consecutiveErrors} error(s)</span>
+                  <span
+                    classList={{
+                      "text-11-medium px-1.5 py-0.5 rounded": true,
+                      "bg-green-500/15 text-green-400": job()?.enabled,
+                      "bg-neutral-500/15 text-neutral-400": !job()?.enabled,
+                    }}
+                  >
+                    {job()?.enabled ? "Active" : "Disabled"}
+                  </span>
+                </Show>
+                <Show when={isNew()}>
+                  <span class="text-13-semibold text-accent-base">New Task</span>
+                </Show>
+                <Show when={dirty()}>
+                  <span class="text-11-medium text-yellow-400 px-1.5 py-0.5 rounded bg-yellow-500/10">Unsaved</span>
+                </Show>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <Show when={hasJob()}>
+                  <Button size="small" variant="ghost" onClick={handleTest} disabled={testing()}>
+                    <Icon name="arrow-right" size="small" />
+                    <span class="ml-1">{testing() ? "Running..." : "Test"}</span>
+                  </Button>
+                </Show>
+                <Button size="small" onClick={handleSave} disabled={saving() || (!dirty() && !isNew())}>
+                  <Icon name="check" size="small" />
+                  <span class="ml-1">{saving() ? "Saving..." : isNew() ? "Create" : "Save"}</span>
+                </Button>
+                <Show when={hasJob()}>
+                  <Button size="small" variant="ghost" onClick={handleToggle}>
+                    {job()?.enabled ? "Disable" : "Enable"}
+                  </Button>
+                  <Button size="small" variant="ghost" onClick={handleDelete}>
+                    <Icon name="trash" size="small" class="text-red-400" />
+                  </Button>
+                </Show>
+              </div>
+            </div>
+
+            {/* ═══ Scrollable cards ═══ */}
+            <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+              {/* ── Prompt card ── */}
+              <div class="rounded-lg border border-border-base bg-background-base">
+                <div class="flex items-center gap-2 px-3 py-2 border-b border-border-weak-base">
+                  <label class="text-11-semibold text-color-dimmed uppercase tracking-wider">Name</label>
+                  <input
+                    class="flex-1 bg-transparent text-13-medium text-color-primary focus:outline-none"
+                    placeholder="e.g. Check stock alerts"
+                    value={name()}
+                    onInput={(e) => fieldChange(setName)(e.currentTarget.value)}
+                  />
+                </div>
+                <textarea
+                  class="w-full min-h-[100px] max-h-[300px] resize-y bg-transparent px-3 py-2 text-13-medium text-color-primary placeholder:text-color-dimmed focus:outline-none"
+                  placeholder="What should the AI do on each run?"
+                  value={prompt()}
+                  onInput={(e) => fieldChange(setPrompt)(e.currentTarget.value)}
+                />
+              </div>
+
+              {/* ── Schedule card ── */}
+              <div class="rounded-lg border border-border-base bg-background-base px-3 py-2 space-y-2">
+                <div class="flex items-center gap-2">
+                  <label class="shrink-0 text-11-semibold text-color-dimmed uppercase tracking-wider">Schedule</label>
+                  <input
+                    class="w-40 bg-background-input rounded border border-border-base px-2 py-1.5 text-13-medium text-color-primary font-mono focus:outline-none focus:border-accent-base"
+                    placeholder="*/30 * * * *"
+                    value={cronExpr()}
+                    onInput={(e) => fieldChange(setCronExpr)(e.currentTarget.value)}
+                  />
+                  <Select
+                    options={TIMEZONE_OPTIONS}
+                    current={TIMEZONE_OPTIONS.find((tz) => tz.value === timezone())}
+                    value={(tz) => tz.value}
+                    label={(tz) => tz.label}
+                    onSelect={(tz) => {
+                      if (tz) fieldChange(setTimezone)(tz.value)
+                    }}
+                    variant="ghost"
+                    class="max-w-[200px]"
+                    valueClass="truncate"
+                  />
+                  <span class="text-11-medium text-color-dimmed">{describeCronExpr(cronExpr())}</span>
+                  <Show when={hasJob() && job()?.state.nextRunAtMs}>
+                    <span class="text-11-medium text-color-dimmed">
+                      · Next: {formatRelativeTime(job()!.state.nextRunAtMs!)}
+                    </span>
                   </Show>
-                </>
-              )}
-            </Show>
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                  <For each={CRON_PRESETS}>
+                    {(preset) => (
+                      <button
+                        classList={{
+                          "text-11-medium rounded px-2 py-1 border transition-colors cursor-pointer": true,
+                          "border-accent-base text-accent-base bg-accent-base/10": cronExpr() === preset.expr,
+                          "border-border-base text-color-dimmed hover:text-color-secondary hover:border-border-base":
+                            cronExpr() !== preset.expr,
+                        }}
+                        onClick={() => fieldChange(setCronExpr)(preset.expr)}
+                      >
+                        {preset.label}
+                      </button>
+                    )}
+                  </For>
+                </div>
+              </div>
+
+              {/* ── Error banner ── */}
+              <Show when={error()}>
+                <div class="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-12-medium text-red-400">
+                  {error()}
+                </div>
+              </Show>
+
+              {/* ── Output card (session conversation via SessionTurn) ── */}
+              <div class="rounded-lg border border-border-base bg-background-base overflow-hidden">
+                <div class="flex items-center justify-between px-3 py-2 border-b border-border-weak-base">
+                  <span class="text-11-semibold text-color-dimmed uppercase tracking-wider">Output</span>
+                  <Show when={activeSessionId() || outputError()}>
+                    <button
+                      class="text-11-medium text-color-dimmed hover:text-color-secondary cursor-pointer"
+                      onClick={() => {
+                        setActiveSessionId(undefined)
+                        setOutputError(undefined)
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </Show>
+                </div>
+                <div
+                  class="overflow-y-auto resize-y"
+                  style={{ "min-height": "80px", height: "240px", "max-height": "600px" }}
+                >
+                  <Show when={testing() && !activeSessionId()}>
+                    <div class="px-3 py-4 text-color-dimmed text-center italic text-12-medium">
+                      Starting test run...
+                    </div>
+                  </Show>
+                  <Show when={!testing() && !activeSessionId() && !outputError()}>
+                    <div class="px-3 py-4 text-color-dimmed text-center italic text-12-medium">
+                      {hasJob() ? "Click Test to run this task" : "Create the task first, then test it"}
+                    </div>
+                  </Show>
+                  <Show when={outputError()}>
+                    <div class="px-3 py-2 text-red-400 text-12-medium whitespace-pre-wrap">{outputError()}</div>
+                  </Show>
+                  <Show when={activeSessionId()}>{(sid) => <TaskSessionOutput sessionId={sid()} />}</Show>
+                </div>
+              </div>
+
+              {/* ── Execution Log card (collapsed by default) ── */}
+              <Show when={hasJob() && job()}>
+                {(j) => (
+                  <div class="rounded-lg border border-border-base bg-background-base overflow-hidden">
+                    <div
+                      class="w-full flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-background-input/50 transition-colors"
+                      onClick={() => setExecLogOpen((v) => !v)}
+                    >
+                      <span class="text-11-semibold text-color-dimmed uppercase tracking-wider">Execution Log</span>
+                      <div class="flex items-center gap-2">
+                        <button
+                          class="text-11-medium text-color-dimmed hover:text-color-secondary cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setRunHistoryKey((k) => k + 1)
+                          }}
+                        >
+                          Refresh
+                        </button>
+                        <Icon
+                          name="chevron-down"
+                          size="small"
+                          class="text-color-dimmed transition-transform"
+                          style={{ transform: execLogOpen() ? "rotate(180deg)" : "rotate(0deg)" }}
+                        />
+                      </div>
+                    </div>
+                    <Show when={execLogOpen()}>
+                      <div
+                        class="border-t border-border-weak-base px-3 py-2 overflow-y-auto resize-y"
+                        style={{ "min-height": "60px", height: "160px", "max-height": "500px" }}
+                        data-key={runHistoryKey()}
+                      >
+                        <RunHistoryPanel jobId={j().id} api={api()} />
+                      </div>
+                    </Show>
+                  </div>
+                )}
+              </Show>
+            </div>
+
+            {/* ═══ Footer ═══ */}
+            <div class="shrink-0 flex items-center gap-2 px-4 py-1.5 border-t border-border-weak-base">
+              <TaskModelButton
+                selection={modelSelection()}
+                providers={globalSync.data.provider.all ?? []}
+                accountFamilies={globalSync.data.account_families}
+                onOpen={() => {
+                  const sel = modelSelection()
+                  dialog.show(() => (
+                    <DialogSelectModel
+                      initialProviderId={sel?.providerID}
+                      initialAccountId={sel?.accountID}
+                      onModelSelect={(key) => {
+                        setModelSelection(key)
+                        const j = job()
+                        if (j) {
+                          const modelStr = `${key.providerID}/${key.modelID}`
+                          const existing = j.payload.kind === "agentTurn" ? j.payload : undefined
+                          api()
+                            .updateJob(j.id, {
+                              payload: {
+                                kind: "agentTurn",
+                                message: existing?.message ?? "",
+                                lightContext: existing?.lightContext,
+                                model: modelStr,
+                                accountId: key.accountID,
+                              },
+                            })
+                            .then(() => {
+                              void loadJob()
+                            })
+                            .catch(() => {
+                              // model save failed — will show stale selection on next load
+                            })
+                        } else {
+                          setDirty(true)
+                        }
+                      }}
+                    />
+                  ))
+                }}
+              />
+              <Show when={hasJob() && job()}>
+                {(j) => (
+                  <>
+                    <span class="text-11-medium text-color-dimmed">Target: {j().sessionTarget}</span>
+                    <Show when={j().state.consecutiveErrors && j().state.consecutiveErrors! > 0}>
+                      <span class="text-11-medium text-red-400">{j().state.consecutiveErrors} error(s)</span>
+                    </Show>
+                  </>
+                )}
+              </Show>
+            </div>
           </div>
-        </div>
+        </Show>
       </Show>
-    </Show>
     </Show>
   )
 }
@@ -530,19 +571,6 @@ const TIMEZONE_OPTIONS = [
 
 const DEFAULT_TIMEZONE = "Asia/Taipei"
 
-const PROVIDER_LABELS: Record<string, string> = {
-  openai: "OpenAI",
-  "claude-cli": "Claude CLI",
-  "google-api": "Google-API",
-  "gemini-cli": "Gemini CLI",
-  "github-copilot": "GitHub Copilot",
-  gmicloud: "GMICloud",
-  openrouter: "OpenRouter",
-  vercel: "Vercel",
-  gitlab: "GitLab",
-  opencode: "OpenCode",
-}
-
 /**
  * Model selection button — replicates session footer bar style:
  * [Provider Badge] [ProviderIcon ModelName ▾] [AccountName]
@@ -550,7 +578,10 @@ const PROVIDER_LABELS: Record<string, string> = {
 function TaskModelButton(props: {
   selection: ModelSelectResult | undefined
   providers: Array<{ id: string; name?: string; models: Record<string, { id: string; name: string }> }>
-  accountFamilies?: Record<string, { activeAccount?: string; accounts?: Record<string, { name?: string; email?: string }> }>
+  accountFamilies?: Record<
+    string,
+    { activeAccount?: string; accounts?: Record<string, { name?: string; email?: string }> }
+  >
   onOpen: () => void
 }) {
   const provider = createMemo(() => {
@@ -563,7 +594,7 @@ function TaskModelButton(props: {
     const sel = props.selection
     if (!sel) return undefined
     const id = sel.providerID
-    return PROVIDER_LABELS[id] ?? provider()?.name ?? id
+    return getSupportedProviderLabel(id) ?? provider()?.name ?? id
   })
 
   const modelName = createMemo(() => {
@@ -588,9 +619,10 @@ function TaskModelButton(props: {
       onClick={props.onOpen}
       class="inline-flex items-center gap-2 rounded border border-border-base px-3 py-2 hover:border-accent-base transition-colors cursor-pointer bg-background-input"
     >
-      <Show when={props.selection} fallback={
-        <span class="text-13-medium text-color-dimmed flex-1 text-left">Default (system rotation)</span>
-      }>
+      <Show
+        when={props.selection}
+        fallback={<span class="text-13-medium text-color-dimmed flex-1 text-left">Default (system rotation)</span>}
+      >
         {/* Provider badge */}
         <Show when={providerLabel()}>
           <span
@@ -651,11 +683,7 @@ function TaskSessionOutput(props: { sessionId: string }) {
   return (
     <Show
       when={userMessages().length > 0}
-      fallback={
-        <div class="px-3 py-4 text-color-dimmed text-center italic text-12-medium">
-          Loading session...
-        </div>
-      }
+      fallback={<div class="px-3 py-4 text-color-dimmed text-center italic text-12-medium">Loading session...</div>}
     >
       <For each={userMessages()}>
         {(msg) => (

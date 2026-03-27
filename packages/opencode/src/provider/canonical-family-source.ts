@@ -1,4 +1,9 @@
 import { Account } from "../account"
+import {
+  getSupportedProviderLabel,
+  isSupportedProviderKey,
+  SUPPORTED_PROVIDER_KEYS,
+} from "./supported-provider-registry"
 
 export type CanonicalProviderKeyRow = {
   providerKey: string
@@ -61,16 +66,15 @@ export function buildCanonicalProviderKeyRows(input: BuildCanonicalProviderKeyRo
   const connectedByProviderKey = new Map<string, string[]>()
   const providerKeyUniverse = new Set<string>()
 
-  for (const providerKey of Object.keys(input.accountFamilies ?? {})) {
+  for (const providerKey of SUPPORTED_PROVIDER_KEYS) {
     const normalized = normalizeCanonicalProviderKey(providerKey)
-    if (!normalized || excludedProviderKeys.has(normalized)) continue
+    if (!normalized || !isSupportedProviderKey(normalized) || excludedProviderKeys.has(normalized)) continue
     providerKeyUniverse.add(normalized)
   }
 
   for (const providerId of input.connectedProviderIds ?? []) {
     const normalized = normalizeCanonicalProviderKey(providerId)
-    if (!normalized || excludedProviderKeys.has(normalized)) continue
-    providerKeyUniverse.add(normalized)
+    if (!normalized || !isSupportedProviderKey(normalized) || excludedProviderKeys.has(normalized)) continue
     const existing = connectedByProviderKey.get(normalized) ?? []
     existing.push(providerId)
     connectedByProviderKey.set(normalized, existing)
@@ -78,14 +82,7 @@ export function buildCanonicalProviderKeyRows(input: BuildCanonicalProviderKeyRo
 
   for (const providerId of input.modelsDevProviderIds ?? []) {
     const normalized = normalizeCanonicalProviderKey(providerId)
-    if (!normalized || excludedProviderKeys.has(normalized)) continue
-    providerKeyUniverse.add(normalized)
-  }
-
-  for (const providerId of input.disabledProviderIds ?? []) {
-    const normalized = normalizeCanonicalProviderKey(providerId)
-    if (!normalized || excludedProviderKeys.has(normalized)) continue
-    providerKeyUniverse.add(normalized)
+    if (!normalized || !isSupportedProviderKey(normalized) || excludedProviderKeys.has(normalized)) continue
   }
 
   return Array.from(providerKeyUniverse)
@@ -103,7 +100,7 @@ export function buildCanonicalProviderKeyRows(input: BuildCanonicalProviderKeyRo
       return {
         providerKey,
         family: providerKey,
-        label: Account.getProviderLabel(providerKey),
+        label: getSupportedProviderLabel(providerKey) ?? Account.getProviderLabel(providerKey),
         accountCount,
         activeCount,
         enabled: !disabledProviderKeys.has(providerKey),
@@ -123,6 +120,7 @@ export const buildCanonicalProviderRows = buildCanonicalProviderKeyRows
 export const normalizeCanonicalProviderFamily = normalizeCanonicalProviderKey
 export const resolveCanonicalRuntimeProviderKey = resolveCanonicalRuntimeProviderId
 export const resolveCanonicalRuntimeProviderByKey = resolveCanonicalRuntimeProviderId
+export { isSupportedProviderKey }
 
 export function resolveCanonicalRuntimeProviderId(input: {
   family: string
