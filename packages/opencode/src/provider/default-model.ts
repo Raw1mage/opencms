@@ -1,6 +1,8 @@
 import type { Config } from "@/config/config"
 import { Account } from "@/account"
 import type { Provider } from "./provider"
+import { Global } from "@/global"
+import path from "path"
 
 type ProviderLike = { id: string; models: Record<string, Provider.Model> }
 
@@ -10,6 +12,48 @@ type DefaultModelDeps = {
   sort: (models: Provider.Model[]) => Provider.Model[]
   parseModel: (model: string) => { providerId: string; modelID: string }
   onSubscriptionSelected?: (input: { provider: string; accountId: string; model: string; healthScore: number }) => void
+}
+
+/**
+ * Load user-enabled model set from model.json (favorites + recent).
+ * Returns a Set of "providerId/modelID" keys, or undefined if file is missing/unreadable.
+ */
+async function loadEnabledModels(): Promise<Set<string> | undefined> {
+  try {
+    const modelFile = Bun.file(path.join(Global.Path.state, "model.json"))
+    if (!(await modelFile.exists())) return undefined
+    const data = await modelFile.json()
+    const keys = new Set<string>()
+    for (const entry of data.favorite ?? []) {
+      if (entry.providerId && entry.modelID) keys.add(`${entry.providerId}/${entry.modelID}`)
+    }
+    for (const entry of data.recent ?? []) {
+      if (entry.providerId && entry.modelID) keys.add(`${entry.providerId}/${entry.modelID}`)
+    }
+    const hidden = new Set<string>()
+    for (const entry of data.hidden ?? []) {
+      if (entry.providerId && entry.modelID) hidden.add(`${entry.providerId}/${entry.modelID}`)
+    }
+    // Remove hidden models from enabled set
+    for (const key of hidden) keys.delete(key)
+    return keys.size > 0 ? keys : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Filter provider models to only those the user has enabled (favorites/recent, minus hidden).
+ * Falls back to all models if no enabled set is available.
+ */
+function filterToEnabled(
+  providerId: string,
+  models: Provider.Model[],
+  enabled: Set<string> | undefined,
+): Provider.Model[] {
+  if (!enabled) return models
+  const filtered = models.filter((m) => enabled.has(`${providerId}/${m.id}`))
+  return filtered.length > 0 ? filtered : models
 }
 
 /**
@@ -23,12 +67,13 @@ export async function resolveDefaultModel(deps: DefaultModelDeps): Promise<{ pro
   const subscriptionResult = await selectSubscriptionModel(deps)
   if (subscriptionResult) return subscriptionResult
 
+  const enabled = await loadEnabledModels()
   const provider = await list()
     .then((val) => Object.values(val))
     .then((x) => x.find((p) => !cfg.provider || Object.keys(cfg.provider).includes(p.id)))
 
   if (!provider) throw new Error("no providers found")
-  const [model] = sort(Object.values(provider.models))
+  const [model] = sort(filterToEnabled(provider.id, Object.values(provider.models), enabled))
   if (!model) throw new Error("no models found")
 
   return {
@@ -48,6 +93,7 @@ async function selectSubscriptionModel(
   const healthTracker = getHealthTracker()
   const rateLimitTracker = getRateLimitTracker()
   const providers = await list()
+  const enabled = await loadEnabledModels()
 
   for (const family of subscriptionPriority) {
     if (cfg.disabled_providers?.includes(family)) continue
@@ -65,7 +111,7 @@ async function selectSubscriptionModel(
       const provider = providers[family]
       if (!provider?.models) continue
 
-      const [model] = sort(Object.values(provider.models))
+      const [model] = sort(filterToEnabled(family, Object.values(provider.models), enabled))
       if (!model) continue
 
       onSubscriptionSelected?.({

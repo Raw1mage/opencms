@@ -41,6 +41,8 @@ import { z } from "zod"
 import { LoadAPIKeyError } from "ai"
 import type { Event, OpencodeClient, SessionMessageResponse } from "@opencode-ai/sdk/v2"
 import { applyPatch } from "diff"
+import { Global } from "@/global"
+import path from "path"
 
 type ModeOption = { id: string; name: string; description?: string }
 type ModelOption = { modelId: string; name: string }
@@ -698,9 +700,15 @@ export namespace ACP {
       if (message.info.role === "user") {
         const nextModeId = message.info.agent
         if (nextModeId) {
-          const availableModes = await this.loadAvailableModes(this.sessionManager.get(sessionId).cwd)
+          const session = this.sessionManager.get(sessionId)
+          const availableModes = await this.loadAvailableModes(session.cwd)
           if (availableModes.some((mode) => mode.id === nextModeId)) {
             this.sessionManager.setMode(sessionId, nextModeId)
+            await this.pushAvailableCommandsUpdate({
+              sessionId,
+              directory: session.cwd,
+              currentModeId: nextModeId,
+            })
           }
         }
       }
@@ -998,6 +1006,45 @@ export namespace ACP {
         }))
     }
 
+    private async pushAvailableCommandsUpdate(params: {
+      sessionId: string
+      directory: string
+      currentModeId?: string
+    }) {
+      const commands = await this.config.sdk.command
+        .list(
+          {
+            directory: params.directory,
+          },
+          { throwOnError: true },
+        )
+        .then((resp) => resp.data!)
+
+      const availableCommands = commands.map((command) => ({
+        name: command.name,
+        description: command.description ?? "",
+      }))
+      const names = new Set(availableCommands.map((c) => c.name))
+      if (!names.has("compact"))
+        availableCommands.push({
+          name: "compact",
+          description: "compact the session",
+        })
+
+      await this.connection
+        .sessionUpdate({
+          sessionId: params.sessionId,
+          update: {
+            sessionUpdate: "available_commands_update",
+            availableCommands,
+            ...(params.currentModeId ? { currentModeId: params.currentModeId } : {}),
+          },
+        })
+        .catch((error) => {
+          log.error("failed to send available commands update to ACP", { error })
+        })
+    }
+
     private async resolveModeState(
       directory: string,
       sessionId: string,
@@ -1038,26 +1085,6 @@ export namespace ACP {
             currentModeId,
           }
         : undefined
-
-      const commands = await this.config.sdk.command
-        .list(
-          {
-            directory,
-          },
-          { throwOnError: true },
-        )
-        .then((resp) => resp.data!)
-
-      const availableCommands = commands.map((command) => ({
-        name: command.name,
-        description: command.description ?? "",
-      }))
-      const names = new Set(availableCommands.map((c) => c.name))
-      if (!names.has("compact"))
-        availableCommands.push({
-          name: "compact",
-          description: "compact the session",
-        })
 
       const mcpServers: Record<string, Config.Mcp> = {}
       for (const server of params.mcpServers) {
@@ -1100,12 +1127,10 @@ export namespace ACP {
       )
 
       setTimeout(() => {
-        this.connection.sessionUpdate({
+        void this.pushAvailableCommandsUpdate({
           sessionId,
-          update: {
-            sessionUpdate: "available_commands_update",
-            availableCommands,
-          },
+          directory,
+          currentModeId,
         })
       }, 0)
 
@@ -1153,6 +1178,11 @@ export namespace ACP {
         throw new Error(`Agent not found: ${params.modeId}`)
       }
       this.sessionManager.setMode(params.sessionId, params.modeId)
+      await this.pushAvailableCommandsUpdate({
+        sessionId: params.sessionId,
+        directory: session.cwd,
+        currentModeId: params.modeId,
+      })
     }
 
     async prompt(params: PromptRequest) {
@@ -1367,6 +1397,43 @@ export namespace ACP {
     }
   }
 
+  /**
+   * Load user-enabled model set from model.json (favorites + recent, minus hidden).
+   * Mirrors the logic in provider/default-model.ts for the non-ACP path.
+   */
+  async function loadACPEnabledModels(): Promise<Set<string> | undefined> {
+    try {
+      const modelFile = Bun.file(path.join(Global.Path.state, "model.json"))
+      if (!(await modelFile.exists())) return undefined
+      const data = await modelFile.json()
+      const keys = new Set<string>()
+      for (const entry of data.favorite ?? []) {
+        if (entry.providerId && entry.modelID) keys.add(`${entry.providerId}/${entry.modelID}`)
+      }
+      for (const entry of data.recent ?? []) {
+        if (entry.providerId && entry.modelID) keys.add(`${entry.providerId}/${entry.modelID}`)
+      }
+      const hidden = new Set<string>()
+      for (const entry of data.hidden ?? []) {
+        if (entry.providerId && entry.modelID) hidden.add(`${entry.providerId}/${entry.modelID}`)
+      }
+      for (const key of hidden) keys.delete(key)
+      return keys.size > 0 ? keys : undefined
+    } catch {
+      return undefined
+    }
+  }
+
+  function filterModelsToEnabled(
+    providerId: string,
+    models: Provider.Model[],
+    enabled: Set<string> | undefined,
+  ): Provider.Model[] {
+    if (!enabled) return models
+    const filtered = models.filter((m) => enabled.has(`${providerId}/${m.id}`))
+    return filtered.length > 0 ? filtered : models
+  }
+
   async function defaultModel(config: ACPConfig, cwd?: string) {
     const sdk = config.sdk
     const configured = config.defaultModel
@@ -1411,12 +1478,14 @@ export namespace ACP {
 
     if (specified && !providers.length) return specified
 
+    const enabled = await loadACPEnabledModels()
+
     const opencodeProvider = providers.find((p) => p.id === "opencode")
     if (opencodeProvider) {
       if (opencodeProvider.models["big-pickle"]) {
         return { providerId: "opencode", modelID: "big-pickle" }
       }
-      const [best] = Provider.sort(Object.values(opencodeProvider.models))
+      const [best] = Provider.sort(filterModelsToEnabled("opencode", Object.values(opencodeProvider.models), enabled))
       if (best) {
         return {
           providerId: best.providerId,
@@ -1425,7 +1494,9 @@ export namespace ACP {
       }
     }
 
-    const models = providers.flatMap((p) => Object.values(p.models))
+    const models = providers.flatMap((p) =>
+      filterModelsToEnabled(p.id, Object.values(p.models), enabled),
+    )
     const [best] = Provider.sort(models)
     if (best) {
       return {
