@@ -1414,8 +1414,6 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         mark("model_resolved", { providerId: model.providerId, modelID: model.modelID })
 
         const activeChildTodo = toActiveChildTodo(linkedTodo)
-        // Will be populated after shared context injection below; undefined until then
-        let injectedSharedContextVersion: number | undefined
 
         ctx.metadata({
           title: params.description,
@@ -1427,7 +1425,6 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             dispatched: true,
             status: "running",
             todo: activeChildTodo,
-            injectedSharedContextVersion,
           },
         })
 
@@ -1483,43 +1480,11 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         const promptParts = await SessionPrompt.resolvePromptParts(normalizedPrompt)
         mark("prompt_parts_resolved", { partCount: promptParts.length })
 
-        // Inject shared context snapshot into subagent prompt if available
-        // Only for new subsessions (not continuation via session_id)
-        if (!params.session_id) {
-          try {
-            const parentSpace = await SharedContext.get(ctx.sessionID)
-            const snap = parentSpace ? SharedContext.formatForInjection(parentSpace) : undefined
-            if (snap && parentSpace) {
-              injectedSharedContextVersion = parentSpace.version
-              // Prepend shared context as a synthetic text part before the task prompt
-              promptParts.unshift({
-                type: "text" as const,
-                synthetic: true,
-                text: `${snap}\n\n---\n\n`,
-                time: { start: Date.now(), end: Date.now() },
-              } as any)
-              mark("shared_context_injected", { snapshotLength: snap.length, version: parentSpace.version })
-              // Update metadata with actual injected version so continuation handler
-              // can compute a differential snapshot instead of relaying the full Space.
-              ctx.metadata({
-                title: params.description,
-                metadata: {
-                  sessionId: session.id,
-                  model,
-                  modelSource,
-                  agent: agent.name,
-                  dispatched: true,
-                  status: "running",
-                  todo: activeChildTodo,
-                  injectedSharedContextVersion,
-                },
-              })
-            }
-          } catch (err) {
-            // Non-fatal: subagent proceeds without shared context
-            Log.create({ service: "task" }).warn("shared context injection failed", { error: err instanceof Error ? err.message : String(err) })
-          }
-        }
+        // Context Sharing v2: SharedContext snapshot injection removed.
+        // Child sessions now receive parent's full message history as a stable prefix
+        // in prompt.ts (via parentMessagePrefix), which provides complete context
+        // with near-zero cost due to automatic prompt caching.
+        // SharedContext is retained for compaction/observability purposes only.
 
         // Add USER message to the session before spawning execution process
         // This mimics what SessionPrompt.prompt does but allows us to execute the loop in a separate process

@@ -34,6 +34,18 @@ export namespace SessionCompaction {
   const DEFAULT_COOLDOWN_ROUNDS = 8
   const EMERGENCY_CEILING = 2_000
 
+  // Billing-aware compaction: by-token providers benefit from aggressive
+  // compaction (smaller context = lower cost per round), while by-request
+  // providers should preserve context (no per-token cost, compaction only
+  // loses information). models.dev marks by-request providers with cost=0.
+  const BY_TOKEN_HEADROOM = 80_000
+  const BY_TOKEN_COOLDOWN_ROUNDS = 4
+  const BY_REQUEST_OPPORTUNISTIC_THRESHOLD = 1.0 // effectively disabled
+
+  function isByTokenBilling(model: Provider.Model): boolean {
+    return model.cost.input > 0
+  }
+
   // Per-session cooldown tracking to prevent compaction oscillation
   const cooldownState = new Map<string, { lastCompactionRound: number }>()
 
@@ -52,7 +64,8 @@ export namespace SessionCompaction {
       input.tokens.total ||
       input.tokens.input + input.tokens.output + input.tokens.cache.read + input.tokens.cache.write
 
-    const headroom = config.compaction?.headroom ?? DEFAULT_HEADROOM
+    const byToken = isByTokenBilling(input.model)
+    const headroom = config.compaction?.headroom ?? (byToken ? BY_TOKEN_HEADROOM : DEFAULT_HEADROOM)
     const reserved =
       config.compaction?.reserved ??
       Math.max(
@@ -92,7 +105,8 @@ export namespace SessionCompaction {
       count,
       overflow: config.compaction?.auto !== false && context !== 0 && count >= usable,
       emergency: config.compaction?.auto !== false && context !== 0 && count >= emergencyCeiling,
-      cooldownRounds: config.compaction?.cooldownRounds ?? DEFAULT_COOLDOWN_ROUNDS,
+      cooldownRounds: config.compaction?.cooldownRounds ?? (byToken ? BY_TOKEN_COOLDOWN_ROUNDS : DEFAULT_COOLDOWN_ROUNDS),
+      byToken,
     }
   }
 
@@ -342,7 +356,9 @@ When constructing the summary, try to stick to this template:
     const budget = await inspectBudget({ tokens, model: input.model })
     if (!budget.auto) return
 
-    const threshold = input.config.compaction?.opportunisticThreshold ?? 0.6
+    const byToken = isByTokenBilling(input.model)
+    const defaultThreshold = byToken ? 0.6 : BY_REQUEST_OPPORTUNISTIC_THRESHOLD
+    const threshold = input.config.compaction?.opportunisticThreshold ?? defaultThreshold
     const utilization = budget.usable > 0 ? budget.count / budget.usable : 0
     log.info("idle compaction evaluation", { utilization, threshold, count: budget.count, usable: budget.usable })
 
