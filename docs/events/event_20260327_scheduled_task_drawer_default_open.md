@@ -41,27 +41,27 @@
 ### Execution
 - 讀取 `packages/app/src/pages/task-list/index.tsx`、`task-sidebar.tsx`、`packages/app/src/pages/layout.tsx` 與 `packages/app/src/context/layout.tsx`
 - 先前誤判 `/system/tasks` 的 drawer authority 為 `layout.mobileSidebar`；復查後確認桌面 web task route 的 `TaskSidebar` 是由 `packages/app/src/pages/layout.tsx` 中的 `layout.sidebar.opened()` 控制
-- 在 `TaskListPage` 掛載時以最小 patch 呼叫 `layout.sidebar.open()`，使進入 `/system/tasks` 時預設展開 task list drawer
+- 在 `TaskListPage` 掛載時以最小 patch 呼叫 `layout.sidebar.open()` 與 `layout.mobileSidebar.show()`，使進入 `/system/tasks` 時桌面與手機版都會預設展開 task list drawer
 
 ### Root Cause
-- `/system/tasks` page 進入時缺少 page-entry 開啟訊號，導致桌面 web 的 task list push sidebar 維持關閉。
-- 真正的 drawer authority 是 `layout.sidebar`，因為 `TaskSidebar` 在 task route 下的渲染條件為 `layout.sidebar.opened() && isTasksRoute()`；先前使用 `layout.mobileSidebar.show()` 只影響 mobile drawer，無法改變桌面 web 顯示結果。
+- `/system/tasks` page 進入時缺少 page-entry 開啟訊號，導致 task list drawer 在不同 surface 上維持關閉。
+- task route 的 drawer authority 依 surface 分開：桌面 web 使用 `layout.sidebar`，手機版使用 `layout.mobileSidebar`。先前只補桌面 `layout.sidebar.open()` 後，PC 正常但手機版仍不會自動展開；補上 `layout.mobileSidebar.show()` 後，route-entry 行為才與手機版 drawer authority 對齊。
 
 ## Changes
 
 - `packages/app/src/pages/task-list/index.tsx`
   - 新增 `useLayout` 與 `onMount`
-  - 在 `TaskListPage` 掛載時呼叫 `layout.sidebar.open()`，讓 scheduled task page 進入時打開正確的 task list sidebar drawer authority
+  - 在 `TaskListPage` 掛載時呼叫 `layout.sidebar.open()` 與 `layout.mobileSidebar.show()`，讓 scheduled task page 進入時同時打開桌面與手機版對應的 task list drawer authority
 
 ## Verification
 
 - `git diff -- packages/app/src/pages/task-list/index.tsx`
-  - diff 僅顯示 `index.tsx` 新增 `useLayout` / `onMount` 與 `layout.sidebar.open()` 的最小變更
+  - diff 僅顯示 `index.tsx` 新增 `useLayout` / `onMount`，以及 `layout.sidebar.open()` + `layout.mobileSidebar.show()` 的最小變更
 - `bun x tsc -p packages/app/tsconfig.json --noEmit`
   - 指令完成且無輸出，未見此 patch 新增 typecheck failure evidence
 - Static authority evidence
   - `packages/app/src/pages/layout.tsx` 顯示 task route 的 desktop sidebar 渲染條件為 `layout.sidebar.opened() && isTasksRoute()`
-  - `packages/app/src/pages/layout.tsx` 中 `layout.mobileSidebar.opened()` 僅控制 mobile drawer surface
+  - `packages/app/src/pages/layout.tsx` 中 `layout.mobileSidebar.opened()` 控制 mobile drawer surface；手機版進頁需顯式 `show()` 才會展開
 - Runtime/UI limitation
   - 本回合未執行 live browser 驗證；UI 可見性結論依據既有 layout API 與靜態程式路徑證據
 
@@ -70,7 +70,7 @@
 Architecture Sync: Verified (No doc changes)
 
 Basis:
-- 此修補僅補上既有 page-entry 對 `layout.sidebar` 控制面的呼叫。
+- 此修補僅補上既有 page-entry 對 `layout.sidebar` 與 `layout.mobileSidebar` 控制面的呼叫。
 - 無新增模組邊界、資料流、狀態機或 observability surface。
 
 ## Remaining

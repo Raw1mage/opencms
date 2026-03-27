@@ -53,6 +53,7 @@ export default function TaskListPage() {
 
   onMount(() => {
     layout.sidebar.open()
+    layout.mobileSidebar.show()
   })
 
   createEffect(() => {
