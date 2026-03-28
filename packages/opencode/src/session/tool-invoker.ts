@@ -4,6 +4,8 @@ import { Plugin } from "../plugin"
 import { Tool } from "../tool/tool"
 import { ulid } from "ulid"
 import { debugCheckpoint } from "@/util/debug"
+import { SessionPrompt } from "./prompt"
+import type { PlannerIntent } from "./dialog-trigger"
 
 const log = Log.create({ service: "tool-invoker" })
 
@@ -17,8 +19,24 @@ type InitializedTool<TResult = ToolExecutionResult> = {
 
 type InvokableTool<TResult = ToolExecutionResult> = Tool.Info | InitializedTool<TResult>
 
+const OPPOSITE_PLANNER_TOOL_BY_INTENT = {
+  plan_exit: "plan_enter",
+  plan_enter: "plan_exit",
+} as const satisfies Record<PlannerIntent, string>
+
 function hasInit<TResult>(tool: InvokableTool<TResult>): tool is Tool.Info {
   return typeof (tool as Tool.Info).init === "function"
+}
+
+async function assertPlannerIntentConsistency(options: ToolInvoker.InvokeOptions) {
+  if (!options.toolID.startsWith("plan_")) return
+  const committedPlannerIntent = await SessionPrompt.getCommittedPlannerIntent(options.sessionID)
+  if (!committedPlannerIntent) return
+  const forbiddenTool = OPPOSITE_PLANNER_TOOL_BY_INTENT[committedPlannerIntent]
+  if (options.toolID !== forbiddenTool) return
+  throw new Error(
+    `planner_intent_mismatch: committed ${committedPlannerIntent} intent forbids opposite-direction ${options.toolID} invocation`,
+  )
 }
 
 export namespace ToolInvoker {
@@ -71,6 +89,8 @@ export namespace ToolInvoker {
       callID,
       agent,
     })
+
+    await assertPlannerIntentConsistency(options)
 
     await Plugin.trigger(
       "tool.execute.before",

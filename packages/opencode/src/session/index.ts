@@ -271,6 +271,12 @@ export namespace Session {
   })
   export type MissionContract = z.output<typeof MissionContract>
 
+  export const PlannerState = z.object({
+    committedIntent: z.enum(["plan_enter", "plan_exit"]).optional(),
+    updatedAt: z.number().optional(),
+  })
+  export type PlannerState = z.output<typeof PlannerState>
+
   export const ExecutionIdentity = z.object({
     providerId: z.string(),
     modelID: z.string(),
@@ -318,6 +324,7 @@ export namespace Session {
         })
         .optional(),
       stats: Stats.optional(),
+      planner: PlannerState.optional(),
       execution: ExecutionIdentity.optional(),
       workflow: WorkflowInfo.optional(),
       mission: MissionContract.optional(),
@@ -718,6 +725,20 @@ export namespace Session {
       input.sessionID,
       (draft) => {
         draft.mission = input.mission
+      },
+      { touch: false },
+    )
+  }
+
+  export async function setPlannerIntent(input: { sessionID: string; intent: "plan_enter" | "plan_exit" }) {
+    return update(
+      input.sessionID,
+      (draft) => {
+        draft.planner = {
+          ...(draft.planner ?? {}),
+          committedIntent: input.intent,
+          updatedAt: Date.now(),
+        }
       },
       { touch: false },
     )

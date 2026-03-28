@@ -71,7 +71,7 @@ import {
   shouldInterruptAutonomousRun,
 } from "./workflow-runner"
 import { consumeMissionArtifacts, deriveDelegatedExecutionRole } from "./mission-consumption"
-import { type PlannerIntent, resolveDialogTrigger } from "./dialog-trigger"
+import { type PlannerIntent, resolveDialogTriggerPolicy } from "./dialog-trigger"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
 
@@ -1206,15 +1206,40 @@ export namespace SessionPrompt {
 
   export const loop = fn(Identifier.schema("session"), async (sessionID) => runLoop(sessionID))
 
-  async function createUserMessage(input: PromptInput, session: Session.Info) {
+  async function createUserMessage(
+    input: PromptInput,
+    session: Session.Info,
+  ): Promise<{ info: MessageV2.User; parts: MessageV2.WithParts["parts"] }> {
     const committedPlannerIntent = await getCommittedPlannerIntent(input.sessionID)
-    const triggerDecision = resolveDialogTrigger({
+    const triggerPolicy = await resolveDialogTriggerPolicy({
       agent: input.agent,
       client: Flag.OPENCODE_CLIENT,
       parts: input.parts,
       session,
       committedPlannerIntent,
     })
+    const triggerDecision = triggerPolicy.decision
+
+    if (triggerPolicy.autoPlanExitHandoff) {
+      const { PlanExitTool } = await import("../tool/plan")
+      await ToolInvoker.execute(PlanExitTool, {
+        sessionID: input.sessionID,
+        messageID: input.messageID ?? Identifier.ascending("message"),
+        toolID: "plan_exit",
+        args: {},
+        agent: "build",
+        abort: AbortSignal.timeout(30_000),
+        messages: [],
+      })
+      const sessionMessages = await Session.messages({ sessionID: input.sessionID })
+      const latestUser = sessionMessages.findLast((message) => message.info.role === "user")
+      if (!latestUser) throw new Error("plan_exit handoff did not produce a synthetic user message")
+      return {
+        info: latestUser.info as MessageV2.User,
+        parts: latestUser.parts,
+      }
+    }
+
     const effectiveAgent = triggerDecision.routeAgent ?? input.agent
     const { agent, partsInput, info } = await prepareUserMessageContext({
       sessionID: input.sessionID,
@@ -1254,7 +1279,11 @@ export namespace SessionPrompt {
     }
   }
 
-  async function getCommittedPlannerIntent(sessionID: string): Promise<PlannerIntent | undefined> {
+  export async function getCommittedPlannerIntent(sessionID: string): Promise<PlannerIntent | undefined> {
+    const session = await Session.get(sessionID)
+    const metadataIntent = session.planner?.committedIntent
+    if (metadataIntent) return metadataIntent
+
     for await (const message of MessageV2.stream(sessionID)) {
       if (message.info.role !== "assistant") continue
       if (!isNarrationAssistantMessage(message.info, message.parts)) continue

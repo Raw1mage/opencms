@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { Instance } from "../../src/project/instance"
 import { Session } from "../../src/session"
 import { SessionPrompt } from "../../src/session/prompt"
+import { ToolInvoker } from "../../src/session/tool-invoker"
 import { plannerArtifacts } from "../../src/session/planner-layout"
 import { MessageV2 } from "../../src/session/message-v2"
 import { Question } from "../../src/question"
@@ -300,6 +301,8 @@ describe("planner reactivation", () => {
         directory: tmp.path,
         fn: async () => {
           const session = await Session.create({})
+          await mkdir(`${tmp.path}-beta`, { recursive: true })
+          await Bun.write(path.join(`${tmp.path}-beta`, ".keep"), "")
           const planPath = Session.plan(session)
           const { PlanEnterTool } = await import("../../src/tool/plan")
           const tool = await PlanEnterTool.init()
@@ -346,7 +349,7 @@ describe("planner reactivation", () => {
     }
   })
 
-  test("plan_enter announces beta workflow as the default planner contract", async () => {
+  test("plan_enter uses product-language planning copy and safe build handoff wording", async () => {
     const originalClient = process.env.OPENCODE_CLIENT
     process.env.OPENCODE_CLIENT = "app"
 
@@ -374,7 +377,11 @@ describe("planner reactivation", () => {
           expect(pending.length).toBe(1)
           await Question.reply({ requestID: pending[0].id, answers: [["Yes"]] })
           const result = await execute
-          expect(result.output).toContain("Beta workflow is the default planner contract")
+          expect(result.title).toBe("Switching to planning mode")
+          expect(result.output).toContain("planning mode")
+          expect(result.output).toContain("safe beta workflow")
+          expect(result.output).not.toContain("plan_enter")
+          expect(result.output).not.toContain("plan_exit")
           await Session.remove(session.id)
         },
       })
@@ -782,6 +789,232 @@ describe("planner reactivation", () => {
     }
   })
 
+  test("committed plan_exit narration blocks opposite-direction direct plan_enter invocation", async () => {
+    await using tmp = await tmpdir({ git: true })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const session = await Session.create({})
+        const fallbackModel = { providerId: "openai", modelID: "gpt-5.4" }
+
+        const seed = await SessionPrompt.prompt({
+          sessionID: session.id,
+          noReply: true,
+          parts: [{ type: "text", text: "What did we do so far?" }],
+        })
+
+        await emitSessionNarration({
+          sessionID: session.id,
+          parentID: seed.info.id,
+          agent: "build",
+          model: fallbackModel,
+          text: "Now directly executing plan_exit.",
+          kind: "continue",
+        })
+
+        const { PlanEnterTool } = await import("../../src/tool/plan")
+        await expect(
+          ToolInvoker.execute(PlanEnterTool, {
+            sessionID: session.id,
+            messageID: "msg_direct_tool",
+            toolID: "plan_enter",
+            args: {},
+            agent: "build",
+            abort: new AbortController().signal,
+            messages: [],
+          }),
+        ).rejects.toThrow(
+          "planner_intent_mismatch: committed plan_exit intent forbids opposite-direction plan_enter invocation",
+        )
+
+        await Session.remove(session.id)
+      },
+    })
+  })
+
+  test("committed plan_exit metadata blocks opposite-direction plan_enter auto-route without narration", async () => {
+    const originalClient = process.env.OPENCODE_CLIENT
+    process.env.OPENCODE_CLIENT = "app"
+
+    try {
+      await using tmp = await tmpdir({ git: true })
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const session = await Session.create({})
+          await Session.setPlannerIntent({ sessionID: session.id, intent: "plan_exit" })
+
+          const message = await SessionPrompt.prompt({
+            sessionID: session.id,
+            noReply: true,
+            parts: [
+              {
+                type: "text",
+                text: "請幫我規劃並實作一個 autonomous runner daemon 架構，包含 planner、workflow、subagent 與驗證流程。",
+              },
+            ],
+          })
+          if (message.info.role !== "user") throw new Error("expected user message")
+          expect(message.info.agent).toBe("build")
+
+          await Session.remove(session.id)
+        },
+      })
+    } finally {
+      if (originalClient === undefined) delete process.env.OPENCODE_CLIENT
+      else process.env.OPENCODE_CLIENT = originalClient
+    }
+  })
+
+  test("committed planner metadata overrides conflicting narration intent", async () => {
+    await using tmp = await tmpdir({ git: true })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const session = await Session.create({})
+        const fallbackModel = { providerId: "openai", modelID: "gpt-5.4" }
+
+        const seed = await SessionPrompt.prompt({
+          sessionID: session.id,
+          noReply: true,
+          parts: [{ type: "text", text: "What did we do so far?" }],
+        })
+
+        await emitSessionNarration({
+          sessionID: session.id,
+          parentID: seed.info.id,
+          agent: "plan",
+          model: fallbackModel,
+          text: "Now entering plan_enter and staying in plan mode.",
+          kind: "continue",
+        })
+        await Session.setPlannerIntent({ sessionID: session.id, intent: "plan_exit" })
+
+        await expect(
+          ToolInvoker.execute((await import("../../src/tool/plan")).PlanEnterTool, {
+            sessionID: session.id,
+            messageID: "msg_direct_tool",
+            toolID: "plan_enter",
+            args: {},
+            agent: "build",
+            abort: new AbortController().signal,
+            messages: [],
+          }),
+        ).rejects.toThrow(
+          "planner_intent_mismatch: committed plan_exit intent forbids opposite-direction plan_enter invocation",
+        )
+
+        await Session.remove(session.id)
+      },
+    })
+  })
+
+  test("build-start prompt enters formal plan_exit handoff and seeds beta admission", async () => {
+    const originalClient = process.env.OPENCODE_CLIENT
+    process.env.OPENCODE_CLIENT = "app"
+
+    try {
+      await using tmp = await tmpdir({ git: true })
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const session = await Session.create({})
+          await mkdir(`${tmp.path}-beta`, { recursive: true })
+          await Bun.write(path.join(`${tmp.path}-beta`, ".keep"), "")
+
+          const planPath = Session.plan(session)
+          await Bun.write(
+            planPath,
+            "# Plan\n\n## Goal\nTest planner handoff\n\n## Scope\n### IN\n- planner runtime\n\n### OUT\n- daemon rewrite\n\n## Assumptions\n- runtime state is available\n\n## Stop Gates\n- pause if approval is needed\n\n## Critical Files\n- packages/opencode/src/tool/plan.ts\n\n## Structured Execution Phases\n- Read the approved spec\n\n## Validation\n- Run targeted tests\n\n## Handoff\n- Build should execute from this spec\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "tasks.md"),
+            "# Tasks\n\n## 1. Workstream\n- [ ] 1.1 Task A\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "proposal.md"),
+            "# Proposal\n\n## Why\n- Need planning reliability\n\n## What Changes\n- Strengthen planner handoff contract\n\n## Capabilities\n### New Capabilities\n- planner-handoff: structured build handoff\n\n### Modified Capabilities\n- planner-runtime: stronger plan_exit checks\n\n## Impact\n- Affects plan/build workflow and runtime handoff metadata\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "spec.md"),
+            "# Spec\n\n## Purpose\n- Define planner handoff behavior\n\n## Requirements\n\n### Requirement: Planner SHALL provide execution-ready handoff\nThe system SHALL produce build-consumable handoff metadata from planner artifacts.\n\n#### Scenario: plan_exit after complete artifacts\n- **GIVEN** complete planner artifacts\n- **WHEN** plan_exit is invoked\n- **THEN** build handoff metadata is emitted\n\n## Acceptance Checks\n- Handoff metadata includes artifact paths and materialized todos\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "design.md"),
+            "# Design\n\n## Context\n- Planner artifacts are consumed by build mode\n\n## Goals / Non-Goals\n**Goals:**\n- Produce deterministic handoff contract\n\n**Non-Goals:**\n- Implement daemon runtime in this slice\n\n## Decisions\n- Use plan_exit gate and metadata envelope\n\n## Risks / Trade-offs\n- Stricter gates increase planning rigor but add upfront requirements\n\n## Critical Files\n- packages/opencode/src/tool/plan.ts\n",
+          )
+          await Bun.write(
+            planPath.replace("implementation-spec.md", "handoff.md"),
+            "# Handoff\n\n## Execution Contract\n- Build agent reads implementation-spec.md first\n\n## Required Reads\n- implementation-spec.md\n- design.md\n- tasks.md\n\n## Stop Gates In Force\n- Preserve approval and decision gates\n\n## Execution-Ready Checklist\n- [ ] Implementation spec complete\n",
+          )
+          await writePlannerJsonArtifacts(planPath)
+
+          const execution = SessionPrompt.prompt({
+            sessionID: session.id,
+            parts: [{ type: "text", text: "開始 build" }],
+            noReply: true,
+          })
+
+          await answerNextQuestion(session.id, ["Yes"])
+          const message = await execution
+          if (message.info.role !== "user") throw new Error("expected user message")
+          expect(message.info.agent).toBe("build")
+          expect(
+            message.parts.some(
+              (part) =>
+                part.type === "text" && part.text.includes("Beta workflow is now the default execution contract"),
+            ),
+          ).toBe(true)
+
+          const updated = await Session.get(session.id)
+          expect(updated.mission?.executionReady).toBe(true)
+          expect(updated.mission?.beta?.betaPath).toBe(`${tmp.path}-beta`)
+          expect(updated.mission?.admission?.betaQuiz).toMatchObject({ status: "pending", reflectionUsed: false })
+          expect(updated.planner?.committedIntent).toBe("plan_exit")
+
+          await Session.remove(session.id)
+        },
+      })
+    } finally {
+      if (originalClient === undefined) delete process.env.OPENCODE_CLIENT
+      else process.env.OPENCODE_CLIENT = originalClient
+    }
+  })
+
+  test("build-start prompt without active plan evidence stays on generic build routing", async () => {
+    const originalClient = process.env.OPENCODE_CLIENT
+    process.env.OPENCODE_CLIENT = "app"
+
+    try {
+      await using tmp = await tmpdir({ git: true })
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const session = await Session.create({})
+
+          const message = await SessionPrompt.prompt({
+            sessionID: session.id,
+            parts: [{ type: "text", text: "開始 build" }],
+            noReply: true,
+          })
+
+          if (message.info.role !== "user") throw new Error("expected user message")
+          expect(message.info.agent).toBe("build")
+          expect(message.parts.some((part) => part.type === "text" && part.synthetic)).toBe(false)
+
+          const updated = await Session.get(session.id)
+          expect(updated.mission).toBeUndefined()
+          expect(updated.planner?.committedIntent).toBeUndefined()
+
+          await Session.remove(session.id)
+        },
+      })
+    } finally {
+      if (originalClient === undefined) delete process.env.OPENCODE_CLIENT
+      else process.env.OPENCODE_CLIENT = originalClient
+    }
+  })
+
   test("plan mode reminder requires choice-based MCP question for bounded planning decisions", async () => {
     const originalClient = process.env.OPENCODE_CLIENT
     process.env.OPENCODE_CLIENT = "app"
@@ -954,20 +1187,13 @@ describe("planner reactivation", () => {
         directory: tmp.path,
         fn: async () => {
           const session = await Session.create({})
+          await mkdir(`${tmp.path}-beta`, { recursive: true })
+          await Bun.write(path.join(`${tmp.path}-beta`, ".keep"), "")
           const planPath = Session.plan(session)
           await Bun.write(planPath, "# Plan\n\n## Goal\nIncomplete spec\n")
 
           const { PlanExitTool } = await import("../../src/tool/plan")
           const tool = await PlanExitTool.init()
-          const expectedBetaAnswers = [
-            tmp.path,
-            tmp.path,
-            "cms",
-            `${tmp.path}-beta`,
-            `${tmp.path}-beta`,
-            `feature/${session.slug}-beta`,
-            tmp.path,
-          ]
           const execute = tool.execute({}, {
             sessionID: session.id,
             abort: new AbortController().signal,
@@ -1003,6 +1229,8 @@ describe("planner reactivation", () => {
         directory: tmp.path,
         fn: async () => {
           const session = await Session.create({})
+          await mkdir(`${tmp.path}-beta`, { recursive: true })
+          await Bun.write(path.join(`${tmp.path}-beta`, ".keep"), "")
           const planPath = Session.plan(session)
           await Bun.write(
             planPath,
@@ -1050,6 +1278,8 @@ describe("planner reactivation", () => {
         directory: tmp.path,
         fn: async () => {
           const session = await Session.create({})
+          await mkdir(`${tmp.path}-beta`, { recursive: true })
+          await Bun.write(path.join(`${tmp.path}-beta`, ".keep"), "")
           const planPath = Session.plan(session)
           await Bun.write(
             planPath,
@@ -1094,6 +1324,8 @@ describe("planner reactivation", () => {
         directory: tmp.path,
         fn: async () => {
           const session = await Session.create({})
+          await mkdir(`${tmp.path}-beta`, { recursive: true })
+          await Bun.write(path.join(`${tmp.path}-beta`, ".keep"), "")
           const planPath = Session.plan(session)
           await Bun.write(
             planPath,
@@ -1141,6 +1373,8 @@ describe("planner reactivation", () => {
         directory: tmp.path,
         fn: async () => {
           const session = await Session.create({})
+          await mkdir(`${tmp.path}-beta`, { recursive: true })
+          await Bun.write(path.join(`${tmp.path}-beta`, ".keep"), "")
           const planPath = Session.plan(session)
           await Bun.write(
             planPath,
@@ -1204,6 +1438,8 @@ describe("planner reactivation", () => {
         directory: tmp.path,
         fn: async () => {
           const session = await Session.create({})
+          await mkdir(`${tmp.path}-beta`, { recursive: true })
+          await Bun.write(path.join(`${tmp.path}-beta`, ".keep"), "")
           const planPath = Session.plan(session)
           await Bun.write(
             planPath,
@@ -1261,6 +1497,8 @@ describe("planner reactivation", () => {
         directory: tmp.path,
         fn: async () => {
           const session = await Session.create({})
+          await mkdir(`${tmp.path}-beta`, { recursive: true })
+          await Bun.write(path.join(`${tmp.path}-beta`, ".keep"), "")
           const planPath = Session.plan(session)
           await Bun.write(
             planPath,
@@ -1315,7 +1553,6 @@ describe("planner reactivation", () => {
           const pending = await Question.list()
           expect(pending.length).toBe(1)
           await Question.reply({ requestID: pending[0].id, answers: [["Yes"]] })
-          await answerNextQuestion(session.id, expectedBetaAnswers)
           await execute
 
           let latestUser: MessageV2.WithParts | undefined

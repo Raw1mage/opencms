@@ -1328,6 +1328,10 @@ export const PlanExitTool = Tool.define("plan_exit", {
       sessionID: ctx.sessionID,
       mission,
     })
+    await Session.setPlannerIntent({
+      sessionID: ctx.sessionID,
+      intent: "plan_exit",
+    })
 
     const userMsg: MessageV2.User = {
       id: Identifier.ascending("message"),
@@ -1483,13 +1487,18 @@ export const PlanEnterTool = Tool.define("plan_enter", {
       messageID: userMsg.id,
       sessionID: ctx.sessionID,
       type: "text",
-      text: "User has requested to enter plan mode. Switch to plan mode and begin planner-first discussion, spec maintenance, and plan refinement. Beta workflow is the default planner contract for any later approved plan_exit. Todo authority is now relaxed: you may use todowrite() freely as a working ledger for exploration, debugging, small fixes, and temporary tracking without requiring planner artifacts first.",
+      text: "The user wants to work in planning mode. Continue with planner-first discussion, spec maintenance, and plan refinement. If this plan is later approved for implementation, the planner contract will hand build work to a safe beta workflow. Todo authority is now relaxed: you may use todowrite() freely as a working ledger for exploration, debugging, small fixes, and temporary tracking without requiring planner artifacts first.",
       synthetic: true,
     } satisfies MessageV2.TextPart)
 
+    await Session.setPlannerIntent({
+      sessionID: ctx.sessionID,
+      intent: "plan_enter",
+    })
+
     return {
-      title: "Switching to plan agent",
-      output: `User confirmed to switch to plan mode. A new message has been created to switch you to plan mode. The implementation spec will be at ${plan} and companion artifacts are available under the active planner root ${path.relative(Instance.worktree, planRoot)}. Beta workflow is the default planner contract for the eventual approved build handoff. Begin planner-first discussion and keep the /plans artifacts aligned. Todo authority is now relaxed (working ledger mode).`,
+      title: "Switching to planning mode",
+      output: `User confirmed the switch to planning mode. A new message has been created so planning can continue from the active plan package. The implementation spec will be at ${plan} and companion artifacts are available under the active planner root ${path.relative(Instance.worktree, planRoot)}. If this plan is later approved for implementation, build work will hand off through the safe beta workflow. Begin planner-first discussion and keep the /plans artifacts aligned. Todo authority is now relaxed (working ledger mode).`,
       metadata: {},
     }
   },

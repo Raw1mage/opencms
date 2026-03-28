@@ -10,6 +10,7 @@
 ## Scope
 
 ### IN
+
 - 分析 `plan_exit` 的正常控制路徑
 - 分析問題卡片（Yes/No）與 dismiss 對 session/agent 的影響
 - 分析為什麼 agent 會誤觸 `plan_enter`
@@ -17,6 +18,7 @@
 - 產出 root cause、causal chain、修復方向
 
 ### OUT
+
 - 本 event 不直接修 code
 - 本 event 不直接宣告 planner workflow 已修好
 
@@ -106,10 +108,37 @@
 - 已完成第二優先修復：在 `plan_exit` 的 build-mode確認問答外層 catch `Question.RejectedError`，轉成明確 workflow-level stop reason，而不是 raw error。
 - 已確認目前 `plan_exit` 進一步具有 beta admission contract：build-mode 確認題仍是 user-facing，但 beta admission 本身已改為 AI self-verification。`plan_exit` 只 seed `mission.admission.betaQuiz = pending`，後續由 runtime/continuation 以 authority fields（如 mainRepo/mainWorktree/baseBranch/implementationRepo/implementationWorktree/implementationBranch/docsWriteRepo）挑戰 AI 的 beta execution 認知；首次失敗可反思一次，第二次仍不符則以 `product_decision_needed: beta admission mismatches after retry` 失敗。
 - 已完成第三項控制面修復：加入最小的 committed planner intent guard。當最近的 assistant narration 已明確承諾 `plan_exit` 時，`createUserMessage()` 後續不得再反向 auto-route 成 `plan_enter`。
-- 目前 committed intent 仍是從最近的 assistant narration 推導，而不是獨立持久化欄位；若未來需要更強契約，可再提升為 session/runtime metadata。 
+- 已完成後續強化：committed planner intent 不再只靠 narration regex 推導，而是提升為 session/runtime metadata。`packages/opencode/src/session/index.ts` 新增 `planner.committedIntent` 與 `Session.setPlannerIntent(...)`；`plan.ts` 在 planning mode commit 與 build-handoff commit 時寫入 metadata；`prompt.ts` 改為 metadata-first、narration-fallback。
+- 已完成第四項控制面修復：`packages/opencode/src/session/tool-invoker.ts` 的 pre-exec planner intent validator 現在優先依賴 persisted metadata。若 direct tool invocation 嘗試在 committed `plan_exit` intent 下呼叫相反方向的 `plan_enter`，會以 `planner_intent_mismatch` fail-fast，而不再繞過前面的 routing guard，也不會被後續 narration wording 漂移影響。
+- 已完成第五項控制面修復：產品語言 build-start（如 `開始 build` / `start build`）不再只是 route 到 build agent，而是透過 `packages/opencode/src/session/prompt.ts` 的 async evidence gate，在「有 active plan artifact evidence 且 mission 尚未 executionReady」時自動進入正式 `plan_exit` handoff。這會真正建立 build handoff / beta admission 入口，而不是只做一般 build continuation。
+- 這條 bridge 保持 fail-fast：若沒有 active plan artifact evidence，系統不得偽造 handoff 或 beta mission；若 handoff 已 execution-ready，也不得重複再跑一次 `plan_exit`。
+- 已完成第五項控制面修復：產品語言 build-start（如 `開始 build` / `start build`）不再只是 route 到 build agent，而是透過 `packages/opencode/src/session/prompt.ts` 的 async evidence gate，在「有 active plan artifact evidence 且 mission 尚未 executionReady」時自動進入正式 `plan_exit` handoff。這會真正建立 build handoff / beta admission 入口，而不是只做一般 build continuation。
+- 這條 bridge 保持 fail-fast：若沒有 active plan artifact evidence，系統不得偽造 handoff 或 beta mission；若 handoff 已 execution-ready，也不得重複再跑一次 `plan_exit`。
+
+### Follow-up Validation
+
+- Focused metadata guard tests 已通過：
+  - `bun test /home/pkcs12/projects/opencode/packages/opencode/test/session/planner-reactivation.test.ts --test-name-pattern "committed|metadata blocks|metadata overrides"`
+  - 驗證 metadata-only `plan_exit` 仍可阻止 opposite-direction auto-route
+  - 驗證 metadata 優先權高於衝突 narration
+- `bun test /home/pkcs12/projects/opencode/packages/opencode/test/session/dialog-trigger.test.ts` 通過，確認 dialog-trigger 在這次 metadata hardening 後仍維持預期 routing。
+- 已知仍有 4 個 `planner-reactivation` 全檔既有失敗，屬本變更切片外的既存問題；本次不在 scope 內處理。
+- 新增 build-entry focused validation 已通過：
+  - `bun test "/home/pkcs12/projects/opencode/packages/opencode/test/session/dialog-trigger.test.ts"`
+  - `bun test "/home/pkcs12/projects/opencode/packages/opencode/test/session/planner-reactivation.test.ts" --test-name-pattern "build-start|committed|metadata|build-mode switch|structured handoff"`
+  - 驗證 `開始 build` 在有 active plan evidence 時會真正進 formal `plan_exit` / build handoff
+  - 驗證沒有 active plan evidence 時，不會偽造 mission/handoff path
+- 新增 build-entry focused validation 已通過：
+  - `bun test "/home/pkcs12/projects/opencode/packages/opencode/test/session/dialog-trigger.test.ts"`
+  - `bun test "/home/pkcs12/projects/opencode/packages/opencode/test/session/planner-reactivation.test.ts" --test-name-pattern "build-start|committed|metadata|build-mode switch|structured handoff"`
+  - 驗證 `開始 build` 在有 active plan evidence 時會真正進 formal `plan_exit` / build handoff
+  - 驗證沒有 active plan evidence 時，不會偽造 mission/handoff path
 
 ## Architecture Sync
 
 - Updated: 需要在 architecture 同時補充兩件事：
   1. agent/tool selection 對明確 `plan_exit` 指令的方向性約束
   2. `plan_exit` question gate 的 dismiss normalization contract
+  3. committed planner intent 已升級為 session/runtime metadata，而不是只靠 narration regex
+  4. build-start 產品語言的正式 beta workflow entry bridge 由 `prompt.ts` evidence gate 負責，而非 sync trigger layer
+  5. build-start 產品語言的正式 beta workflow entry bridge 由 `prompt.ts` evidence gate 負責，而非 sync trigger layer
