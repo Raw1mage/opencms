@@ -442,11 +442,13 @@ Space {
 - **Presentation strategy**: first implementation should prefer extending the existing thinking / elapsed bottom-status UI family, so active-child state appears as the same class of runtime activity indicator rather than a separate widget system.
 - **Child-session entry differs by surface**:
   - Web may expose a route URL / clickable child-session link.
+  - When the operator is already inside a child/subsession view, the same pinned status-surface affordance should pivot to an explicit return-to-parent-session navigation target instead of reopening the child route.
   - TUI must use its own session-tree jump/navigation mechanism instead of URL rendering.
 - The pinned status surface must remain mounted until authoritative runtime evidence shows either:
   - the parent continuation has taken over and active-child state is cleared; or
   - the child failed / was terminated and active-child state is cleared.
 - The transcript-local `SubagentActivityCard` remains a detail surface, but it is no longer sufficient as the only operator-visible child-activity surface once continuous orchestration is active.
+- Child/subsession views must not render a large observation-only prompt fallback block at the bottom dock; observation-only is expressed by the absence of conversational input plus explicit navigation back to the parent control surface.
 - Continuation cleanup order is authoritative: when `TaskWorkerEvent.Done/Failed` arrives, the parent continuation path clears `active-child` before persistence / resume work proceeds, so the parent control plane does not keep advertising a stale wait state.
 
 **Dispatch 規則**:
