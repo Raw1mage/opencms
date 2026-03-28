@@ -87,6 +87,19 @@ const DEFAULT_CAPABILITIES: ProviderCapabilities = {
 export function getCapabilities(provider: Provider.Info, auth?: Auth.Info): ProviderCapabilities {
   const id = provider.id.toLowerCase()
 
+  // Codex Provider (independent C plugin)
+  if (id === "codex") {
+    return {
+      useInstructionsOption: true,
+      systemMessageRole: "developer",
+      skipDefaultSystemPrompt: true,
+      skipMaxOutputTokens: true,
+      requiresDummyToolForHistory: false,
+      authType: "subscription",
+      family: "openai",
+    }
+  }
+
   // Gemini CLI: Google AI via Gemini CLI OAuth
   if (id.includes("gemini-cli")) {
     return {

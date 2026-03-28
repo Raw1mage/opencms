@@ -9,6 +9,7 @@ export type SupportedProviderKey =
   | "vercel"
   | "gitlab"
   | "opencode"
+  | "codex"
 
 export type SupportedProviderMeta = {
   key: SupportedProviderKey
@@ -56,6 +57,10 @@ export const SUPPORTED_PROVIDER_REGISTRY: Record<SupportedProviderKey, Supported
   opencode: {
     key: "opencode",
     label: "OpenCode",
+  },
+  codex: {
+    key: "codex",
+    label: "Codex",
   },
 }
 
