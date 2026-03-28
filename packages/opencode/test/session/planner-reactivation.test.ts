@@ -9,6 +9,31 @@ import { Todo } from "../../src/session/todo"
 import { tmpdir } from "../fixture/fixture"
 import path from "path"
 
+describe("planner root naming", () => {
+  test("uses explicit topic title instead of session id fallback", async () => {
+    const { plannerRootName } = await import("../../src/session/planner-layout")
+    const rootName = plannerRootName({
+      slug: "ses-abc123xyz",
+      title: "Dialog Trigger Framework",
+      time: { created: Date.UTC(2026, 2, 28) },
+    })
+
+    expect(rootName).toBe("20260328_dialog-trigger-framework")
+  })
+
+  test("fails fast when only generic title and session-id slug are available", async () => {
+    const { plannerRootName } = await import("../../src/session/planner-layout")
+
+    expect(() =>
+      plannerRootName({
+        slug: "ses-abc123xyz",
+        title: "New session - 2026-03-28T12:00:00.000Z",
+        time: { created: Date.UTC(2026, 2, 28) },
+      }),
+    ).toThrow("planner root slug derivation requires a topic-aligned title before plan_enter")
+  })
+})
+
 describe("plan mode enforcement classifier", () => {
   test("flags plain-text bounded decision question as violation", async () => {
     const { SessionPrompt } = await import("../../src/session/prompt")
@@ -192,6 +217,34 @@ async function writePlannerJsonArtifacts(planPath: string) {
   )
 }
 
+async function writeValidPlanArtifacts(planPath: string) {
+  await Bun.write(
+    planPath,
+    "# Implementation Spec\n\n## Goal\n- Test planner handoff\n\n## Scope\n### IN\n- planner runtime\n\n### OUT\n- daemon rewrite\n\n## Assumptions\n- runtime state is available\n\n## Stop Gates\n- pause if approval is needed\n\n## Critical Files\n- packages/opencode/src/tool/plan.ts\n\n## Structured Execution Phases\n- Read the approved spec\n- Implement planner restoration\n- Run validation checks\n\n## Validation\n- Run targeted tests\n\n## Handoff\n- Build should execute from this spec\n",
+  )
+  await Bun.write(
+    planPath.replace("implementation-spec.md", "tasks.md"),
+    "# Tasks\n\n## 1. Workstream\n- [ ] 1.1 Task from tasks artifact A\n- [ ] 1.2 Task from tasks artifact B\n",
+  )
+  await Bun.write(
+    planPath.replace("implementation-spec.md", "proposal.md"),
+    "# Proposal\n\n## Why\n- Need planning reliability\n\n## What Changes\n- Strengthen planner handoff contract\n\n## Capabilities\n### New Capabilities\n- planner-handoff: structured build handoff\n\n### Modified Capabilities\n- planner-runtime: stronger plan_exit checks\n\n## Impact\n- Affects plan/build workflow and runtime handoff metadata\n",
+  )
+  await Bun.write(
+    planPath.replace("implementation-spec.md", "spec.md"),
+    "# Spec\n\n## Purpose\n- Define planner handoff behavior\n\n## Requirements\n\n### Requirement: Planner SHALL provide execution-ready handoff\nThe system SHALL produce build-consumable handoff metadata from planner artifacts.\n\n#### Scenario: plan_exit after complete artifacts\n- **GIVEN** complete planner artifacts\n- **WHEN** plan_exit is invoked\n- **THEN** build handoff metadata is emitted\n\n## Acceptance Checks\n- Handoff metadata includes artifact paths and materialized todos\n",
+  )
+  await Bun.write(
+    planPath.replace("implementation-spec.md", "design.md"),
+    "# Design\n\n## Context\n- Planner artifacts are consumed by build mode\n\n## Goals / Non-Goals\n**Goals:**\n- Produce deterministic handoff contract\n\n**Non-Goals:**\n- Implement daemon runtime in this slice\n\n## Decisions\n- Use plan_exit gate and metadata envelope\n\n## Risks / Trade-offs\n- Stricter gates increase planning rigor but add upfront requirements\n\n## Critical Files\n- packages/opencode/src/tool/plan.ts\n",
+  )
+  await Bun.write(
+    planPath.replace("implementation-spec.md", "handoff.md"),
+    "# Handoff\n\n## Execution Contract\n- Build agent reads implementation-spec.md first\n\n## Required Reads\n- implementation-spec.md\n- design.md\n- tasks.md\n\n## Stop Gates In Force\n- Preserve approval and decision gates\n\n## Execution-Ready Checklist\n- [ ] Implementation spec complete\n- [ ] Companion artifacts aligned\n- [ ] Validation plan explicit\n",
+  )
+  await writePlannerJsonArtifacts(planPath)
+}
+
 describe("planner reactivation", () => {
   test("plan_enter creates a structured spec template when missing", async () => {
     const originalClient = process.env.OPENCODE_CLIENT
@@ -240,6 +293,44 @@ describe("planner reactivation", () => {
           expect(await Bun.file(artifacts.design).text()).toContain("## Data / State / Control Flow")
           expect(await Bun.file(artifacts.tasks).text()).toContain("## 2. Delegated Execution Slices")
           expect(await Bun.file(artifacts.handoff).text()).toContain("Prefer delegation-first execution")
+          await Session.remove(session.id)
+        },
+      })
+    } finally {
+      if (originalClient === undefined) delete process.env.OPENCODE_CLIENT
+      else process.env.OPENCODE_CLIENT = originalClient
+    }
+  })
+
+  test("plan_enter announces beta workflow as the default planner contract", async () => {
+    const originalClient = process.env.OPENCODE_CLIENT
+    process.env.OPENCODE_CLIENT = "app"
+
+    try {
+      await using tmp = await tmpdir({ git: true })
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const session = await Session.create({})
+          const { PlanEnterTool } = await import("../../src/tool/plan")
+          const tool = await PlanEnterTool.init()
+          const execute = tool.execute({}, {
+            sessionID: session.id,
+            abort: new AbortController().signal,
+            messageID: "msg_test_beta_default",
+            callID: "call_test_beta_default",
+            agent: "build",
+            messages: [],
+            metadata: async () => {},
+            ask: async () => [["Yes"]],
+            extra: {},
+          } as any)
+
+          const pending = await waitForPendingQuestion(session.id)
+          expect(pending.length).toBe(1)
+          await Question.reply({ requestID: pending[0].id, answers: [["Yes"]] })
+          const result = await execute
+          expect(result.output).toContain("Beta workflow is the default planner contract")
           await Session.remove(session.id)
         },
       })
@@ -535,6 +626,58 @@ describe("planner reactivation", () => {
                 text: "What did we do so far? Give me a short summary.",
               },
             ],
+          })
+          if (message.info.role !== "user") throw new Error("expected user message")
+          expect(message.info.agent).toBe("build")
+          await Session.remove(session.id)
+        },
+      })
+    } finally {
+      if (originalClient === undefined) delete process.env.OPENCODE_CLIENT
+      else process.env.OPENCODE_CLIENT = originalClient
+    }
+  })
+
+  test("does not auto-route explicit plan_exit requests into plan mode", async () => {
+    const originalClient = process.env.OPENCODE_CLIENT
+    process.env.OPENCODE_CLIENT = "app"
+
+    try {
+      await using tmp = await tmpdir({ git: true })
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const session = await Session.create({})
+          const message = await SessionPrompt.prompt({
+            sessionID: session.id,
+            noReply: true,
+            parts: [{ type: "text", text: "go on plan_exit" }],
+          })
+          if (message.info.role !== "user") throw new Error("expected user message")
+          expect(message.info.agent).toBe("build")
+          await Session.remove(session.id)
+        },
+      })
+    } finally {
+      if (originalClient === undefined) delete process.env.OPENCODE_CLIENT
+      else process.env.OPENCODE_CLIENT = originalClient
+    }
+  })
+
+  test("does not auto-route build-mode switch requests into plan mode", async () => {
+    const originalClient = process.env.OPENCODE_CLIENT
+    process.env.OPENCODE_CLIENT = "app"
+
+    try {
+      await using tmp = await tmpdir({ git: true })
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const session = await Session.create({})
+          const message = await SessionPrompt.prompt({
+            sessionID: session.id,
+            noReply: true,
+            parts: [{ type: "text", text: "Switch to build mode and start executing the plan." }],
           })
           if (message.info.role !== "user") throw new Error("expected user message")
           expect(message.info.agent).toBe("build")
@@ -1096,6 +1239,8 @@ describe("planner reactivation", () => {
           if (!handoffPart || handoffPart.type !== "text") throw new Error("expected synthetic handoff part")
           expect(handoffPart.metadata?.handoff?.contract).toBe("implementation_spec")
           expect(handoffPart.text).toContain("Build mode is now active.")
+          expect(handoffPart.text).toContain("Beta workflow is now the default execution contract")
+          expect(handoffPart.metadata?.handoff?.betaWorkflowDefault).toBe(true)
           expect(handoffPart.metadata?.handoff?.materializedTodos?.length).toBeGreaterThanOrEqual(3)
           expect(handoffPart.metadata?.handoff?.todoMaterializationPolicy).toMatchObject({
             source: "tasks.md unchecked checklist items",
@@ -1138,6 +1283,88 @@ describe("planner reactivation", () => {
           expect(todos.length).toBeGreaterThanOrEqual(3)
           expect(todos[0]?.status).toBe("in_progress")
           expect(todos[0]?.content).toContain("Task from tasks artifact A")
+          await Session.remove(session.id)
+        },
+      })
+    } finally {
+      if (originalClient === undefined) delete process.env.OPENCODE_CLIENT
+      else process.env.OPENCODE_CLIENT = originalClient
+    }
+  })
+
+  test("plan_exit normalizes explicit No into a workflow decision stop", async () => {
+    const originalClient = process.env.OPENCODE_CLIENT
+    process.env.OPENCODE_CLIENT = "app"
+
+    try {
+      await using tmp = await tmpdir({ git: true })
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const session = await Session.create({})
+          const planPath = Session.plan(session)
+          await writeValidPlanArtifacts(planPath)
+
+          const { PlanExitTool } = await import("../../src/tool/plan")
+          const tool = await PlanExitTool.init()
+          const execute = tool.execute({}, {
+            sessionID: session.id,
+            abort: new AbortController().signal,
+            messageID: "msg_test_no",
+            callID: "call_test_no",
+            agent: "plan",
+            messages: [],
+            metadata: async () => {},
+            ask: async () => [["Yes"]],
+            extra: {},
+          } as any)
+
+          const pending = await waitForPendingQuestion(session.id)
+          expect(pending.length).toBe(1)
+          await Question.reply({ requestID: pending[0].id, answers: [["No"]] })
+          await expect(execute).rejects.toThrow("product_decision_needed: plan_exit remained in plan mode")
+          await Session.remove(session.id)
+        },
+      })
+    } finally {
+      if (originalClient === undefined) delete process.env.OPENCODE_CLIENT
+      else process.env.OPENCODE_CLIENT = originalClient
+    }
+  })
+
+  test("plan_exit normalizes dismissed confirmation into a workflow decision stop", async () => {
+    const originalClient = process.env.OPENCODE_CLIENT
+    process.env.OPENCODE_CLIENT = "app"
+
+    try {
+      await using tmp = await tmpdir({ git: true })
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const session = await Session.create({})
+          const planPath = Session.plan(session)
+          await writeValidPlanArtifacts(planPath)
+
+          const { PlanExitTool } = await import("../../src/tool/plan")
+          const tool = await PlanExitTool.init()
+          const execute = tool.execute({}, {
+            sessionID: session.id,
+            abort: new AbortController().signal,
+            messageID: "msg_test_dismiss",
+            callID: "call_test_dismiss",
+            agent: "plan",
+            messages: [],
+            metadata: async () => {},
+            ask: async () => [["Yes"]],
+            extra: {},
+          } as any)
+
+          const pending = await waitForPendingQuestion(session.id)
+          expect(pending.length).toBe(1)
+          await Question.reject(pending[0].id)
+          await expect(execute).rejects.toThrow(
+            "product_decision_needed: plan_exit build-mode confirmation was dismissed",
+          )
           await Session.remove(session.id)
         },
       })

@@ -12,6 +12,11 @@ import { Instance } from "../project/instance"
 import { Todo } from "../session/todo"
 import { plannerArtifacts } from "../session/planner-layout"
 import { extractChecklistItems } from "../session/tasks-checklist"
+import {
+  BETA_ADMISSION_FIELDS,
+  evaluateBetaAdmissionAnswers,
+  resolveBetaAdmissionAuthority,
+} from "../session/mission-consumption"
 import EXIT_DESCRIPTION from "./plan-exit.txt"
 import ENTER_DESCRIPTION from "./plan-enter.txt"
 
@@ -1036,6 +1041,8 @@ function materializePlanTodos(input: { implementationSpec: string; tasks: string
 
 // Beta admission quiz is now handled as AI self-verification in the continuation flow.
 // See workflow-runner.ts validatePendingBetaAdmission().
+// Planner contract: all plan_enter / plan_exit flows are beta-default unless an explicit
+// future contract introduces a narrower hard exception. There is no non-beta planner path.
 
 function buildDefaultBetaMission(session: Session.Info): NonNullable<Session.MissionContract["beta"]> {
   return {
@@ -1060,11 +1067,11 @@ export function resolvePlanExitBetaMission(input: {
   const existing = input.existing
   const defaults = input.defaults
   return {
-    branchName: existing?.branchName?.trim() || defaults.branchName,
-    baseBranch: existing?.baseBranch?.trim() || defaults.baseBranch,
-    repoPath: existing?.repoPath?.trim() || defaults.repoPath,
-    mainWorktreePath: existing?.mainWorktreePath?.trim() || existing?.repoPath?.trim() || defaults.mainWorktreePath,
-    betaPath: existing?.betaPath?.trim() || defaults.betaPath,
+    branchName: defaults.branchName,
+    baseBranch: defaults.baseBranch,
+    repoPath: defaults.repoPath,
+    mainWorktreePath: defaults.mainWorktreePath,
+    betaPath: defaults.betaPath,
     runtimePolicy: existing?.runtimePolicy?.trim() || defaults.runtimePolicy,
   }
 }
@@ -1135,6 +1142,93 @@ export async function collectMissingBetaMissionFields(input: {
   }
 }
 
+async function runBetaAdmissionQuiz(input: {
+  sessionID: string
+  tool?: { messageID: string; callID: string }
+  mission: Session.MissionContract
+}) {
+  const authority = resolveBetaAdmissionAuthority(input.mission)
+
+  const askQuiz = async (reflection: boolean) => {
+    const prompt = reflection
+      ? "Beta admission mismatch detected. Reflect and restate the exact beta execution authority before build mode may continue."
+      : "Beta build admission quiz: restate the exact beta execution authority before build mode may continue."
+
+    const answers = await Question.ask({
+      sessionID: input.sessionID,
+      questions: BETA_ADMISSION_FIELDS.map((field, index) => ({
+        header: reflection ? "Beta Admission Reflection" : "Beta Admission",
+        question: index === 0 ? `${prompt}\n\n${field}: ${authority[field]}` : `${field}: ${authority[field]}`,
+        custom: true,
+        options: [
+          {
+            label: authority[field],
+            description: `${field}`,
+          },
+        ],
+      })),
+      tool: input.tool,
+    })
+
+    const normalized = Object.fromEntries(
+      BETA_ADMISSION_FIELDS.map((field, index) => [field, answers[index]?.[0]?.trim() ?? ""]),
+    ) as Record<(typeof BETA_ADMISSION_FIELDS)[number], string>
+
+    return evaluateBetaAdmissionAnswers({ authority, answers: normalized })
+  }
+
+  const first = await askQuiz(false).catch((error) => {
+    if (error instanceof Question.RejectedError) {
+      throw new Error("product_decision_needed: beta admission was dismissed before build entry")
+    }
+    throw error
+  })
+
+  if (first.ok) {
+    return {
+      status: "passed" as const,
+      reflectionUsed: false,
+      mismatchCount: 0,
+      lastMismatches: [],
+      passedAt: Date.now(),
+    }
+  }
+
+  const second = await askQuiz(true).catch((error) => {
+    if (error instanceof Question.RejectedError) {
+      throw new Error("product_decision_needed: beta admission reflection was dismissed before build entry")
+    }
+    throw error
+  })
+
+  if (second.ok) {
+    return {
+      status: "passed" as const,
+      reflectionUsed: true,
+      mismatchCount: 0,
+      lastMismatches: [],
+      passedAt: Date.now(),
+    }
+  }
+
+  await Session.update(
+    input.sessionID,
+    (draft) => {
+      if (!draft.mission) return
+      draft.mission.admission ??= {}
+      draft.mission.admission.betaQuiz = {
+        status: "failed",
+        reflectionUsed: true,
+        mismatchCount: second.mismatches.length,
+        lastMismatches: second.mismatches,
+      }
+    },
+    { touch: false },
+  )
+
+  throw new Error("product_decision_needed: beta admission mismatches after retry")
+}
+
 export const PlanExitTool = Tool.define("plan_exit", {
   description: EXIT_DESCRIPTION,
   parameters: z.object({}),
@@ -1144,24 +1238,34 @@ export const PlanExitTool = Tool.define("plan_exit", {
     const planFile = artifactPaths.implementationSpec
     const planRoot = artifactPaths.root
     const plan = path.relative(Instance.worktree, planFile)
-    const answers = await Question.ask({
-      sessionID: ctx.sessionID,
-      questions: [
-        {
-          question: `Plan at ${plan} is execution-ready. Would you like to switch to build mode and start executing it?`,
-          header: "Build Agent",
-          custom: false,
-          options: [
-            { label: "Yes", description: "Switch to build mode and start executing the plan" },
-            { label: "No", description: "Stay in plan mode and continue refining the plan" },
-          ],
-        },
-      ],
-      tool: ctx.callID ? { messageID: ctx.messageID, callID: ctx.callID } : undefined,
-    })
+    let answers: Awaited<ReturnType<typeof Question.ask>>
+    try {
+      answers = await Question.ask({
+        sessionID: ctx.sessionID,
+        questions: [
+          {
+            question: `Plan at ${plan} is execution-ready. Would you like to switch to build mode and start executing it?`,
+            header: "Build Agent",
+            custom: false,
+            options: [
+              { label: "Yes", description: "Switch to build mode and start executing the plan" },
+              { label: "No", description: "Stay in plan mode and continue refining the plan" },
+            ],
+          },
+        ],
+        tool: ctx.callID ? { messageID: ctx.messageID, callID: ctx.callID } : undefined,
+      })
+    } catch (error) {
+      if (error instanceof Question.RejectedError) {
+        throw new Error("product_decision_needed: plan_exit build-mode confirmation was dismissed")
+      }
+      throw error
+    }
 
     const answer = answers[0]?.[0]
-    if (answer === "No") throw new Question.RejectedError()
+    if (answer === "No") {
+      throw new Error("product_decision_needed: plan_exit remained in plan mode")
+    }
 
     const model = await getLastModel(ctx.sessionID)
     const artifacts = await readPlannerArtifacts(session)
@@ -1276,14 +1380,16 @@ export const PlanExitTool = Tool.define("plan_exit", {
       admission: { betaQuiz: { status: "pending", reflectionUsed: false, mismatchCount: 0, lastMismatches: [] } },
     }
 
+    mission.admission!.betaQuiz = await runBetaAdmissionQuiz({
+      sessionID: ctx.sessionID,
+      tool: ctx.callID ? { messageID: ctx.messageID, callID: ctx.callID } : undefined,
+      mission,
+    })
+
     await Session.setMission({
       sessionID: ctx.sessionID,
       mission,
     })
-
-    // Beta admission quiz is deferred to the continuation flow:
-    // betaQuiz.status = "pending" → applyBetaWorkflowContract() injects quiz prompt →
-    // AI responds with answers → validatePendingBetaAdmission() validates on next tick.
 
     const userMsg: MessageV2.User = {
       id: Identifier.ascending("message"),
@@ -1303,6 +1409,7 @@ export const PlanExitTool = Tool.define("plan_exit", {
       type: "text",
       text:
         `The plan set at ${path.relative(Instance.worktree, planRoot)} has been approved. Build mode is now active. ` +
+        `Beta workflow is now the default execution contract for this approved plan. ` +
         `Use ${plan} as the implementation specification, keep work aligned with the current planner-derived todos, and pause for approvals, decisions, blockers, or runtime stop conditions. ` +
         `Read the approved plan artifacts under ${path.relative(Instance.worktree, planRoot)} before continuing implementation.`,
       synthetic: true,
@@ -1350,6 +1457,7 @@ export const PlanExitTool = Tool.define("plan_exit", {
             remainingPriority: "medium",
           },
           executionReady: true,
+          betaWorkflowDefault: true,
           artifactPaths: {
             root: path.relative(Instance.worktree, planRoot),
             implementationSpec: plan,
@@ -1437,13 +1545,13 @@ export const PlanEnterTool = Tool.define("plan_enter", {
       messageID: userMsg.id,
       sessionID: ctx.sessionID,
       type: "text",
-      text: "User has requested to enter plan mode. Switch to plan mode and begin planner-first discussion, spec maintenance, and plan refinement. Todo authority is now relaxed: you may use todowrite() freely as a working ledger for exploration, debugging, small fixes, and temporary tracking without requiring planner artifacts first.",
+      text: "User has requested to enter plan mode. Switch to plan mode and begin planner-first discussion, spec maintenance, and plan refinement. Beta workflow is the default planner contract for any later approved plan_exit. Todo authority is now relaxed: you may use todowrite() freely as a working ledger for exploration, debugging, small fixes, and temporary tracking without requiring planner artifacts first.",
       synthetic: true,
     } satisfies MessageV2.TextPart)
 
     return {
       title: "Switching to plan agent",
-      output: `User confirmed to switch to plan mode. A new message has been created to switch you to plan mode. The implementation spec will be at ${plan} and companion artifacts are available under the active planner root ${path.relative(Instance.worktree, planRoot)}. Begin planner-first discussion and keep the /plans artifacts aligned. Todo authority is now relaxed (working ledger mode).`,
+      output: `User confirmed to switch to plan mode. A new message has been created to switch you to plan mode. The implementation spec will be at ${plan} and companion artifacts are available under the active planner root ${path.relative(Instance.worktree, planRoot)}. Beta workflow is the default planner contract for the eventual approved build handoff. Begin planner-first discussion and keep the /plans artifacts aligned. Todo authority is now relaxed (working ledger mode).`,
       metadata: {},
     }
   },

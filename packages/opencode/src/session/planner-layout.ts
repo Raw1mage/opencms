@@ -2,6 +2,9 @@ import path from "path"
 import { Global } from "@/global"
 import { Instance } from "@/project/instance"
 
+const DEFAULT_PARENT_TITLE_PREFIX = "new-session-"
+const DEFAULT_CHILD_TITLE_PREFIX = "child-session-"
+
 type PlannerInput = {
   slug: string
   title?: string
@@ -25,10 +28,26 @@ function slugify(input: string) {
     .replace(/-+$/, "")
 }
 
+function isGenericSessionTitle(input: string) {
+  const normalized = slugify(input)
+  return normalized.startsWith(DEFAULT_PARENT_TITLE_PREFIX) || normalized.startsWith(DEFAULT_CHILD_TITLE_PREFIX)
+}
+
 function titleSegment(input: PlannerInput) {
   const fromTitle = input.title ? slugify(input.title) : ""
-  if (fromTitle && !fromTitle.startsWith("new-session")) return fromTitle.slice(0, 80)
-  return input.slug
+  if (fromTitle && !isGenericSessionTitle(fromTitle)) return fromTitle.slice(0, 80)
+
+  const fromSlug = slugify(input.slug)
+  if (!fromSlug) {
+    throw new Error("planner root slug derivation requires a non-empty session slug")
+  }
+
+  const sessionSlugPattern = /^ses-[a-z0-9]+$/
+  if (sessionSlugPattern.test(fromSlug)) {
+    throw new Error("planner root slug derivation requires a topic-aligned title before plan_enter")
+  }
+
+  return fromSlug.slice(0, 80)
 }
 
 export function plannerRootName(input: PlannerInput) {

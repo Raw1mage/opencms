@@ -1,0 +1,75 @@
+{
+  "diagram_title": "Dialog Trigger Framework Functional Decomposition",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Detect Dialog Triggers",
+      "description": "Inspect turn context and runtime state for plan, replan, approval, beta, and tool-surface triggers.",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Apply Trigger Policies",
+      "description": "Decide whether a detected trigger should continue, stop for user input, or mark runtime surfaces dirty.",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Execute Framework Actions",
+      "description": "Perform plan entry, question gating, dirty-flag rebuild scheduling, and documentation/beta handoff actions.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "User Message And Session Context",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Workflow Rules And Project Constraints",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "Detected Trigger Candidates",
+      "type": "output"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "Approval And Architecture Gates",
+      "type": "control"
+    },
+    {
+      "id": "AR5",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "Approved Trigger Decisions",
+      "type": "output"
+    },
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "Prompt Runtime Planner And Tool Resolver",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR7",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "Mode Switches Questions And Dirty Rebuild Signals",
+      "type": "output"
+    }
+  ]
+}

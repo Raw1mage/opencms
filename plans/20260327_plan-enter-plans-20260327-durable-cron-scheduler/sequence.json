@@ -1,0 +1,164 @@
+[
+  {
+    "diagram_title": "Rule-First Trigger Evaluation",
+    "scenario": "A user sends a message that may require planning, approval, or tool-surface updates.",
+    "moduleRef": "A1",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "User",
+        "type": "actor",
+        "componentRef": "SYS1"
+      },
+      {
+        "id": "P2",
+        "name": "Prompt Loop Controller",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P3",
+        "name": "Planner Lifecycle Tool",
+        "type": "component",
+        "componentRef": "C3"
+      },
+      {
+        "id": "P4",
+        "name": "Runtime Session Guard",
+        "type": "component",
+        "componentRef": "C5"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "Send multi-step or planning-sensitive request",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "Check planner trigger and root naming contract",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P2",
+        "label": "Return plan-mode / naming decision",
+        "type": "return",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P2",
+        "to": "P4",
+        "label": "Start or replace runtime if trigger outcome changes mode",
+        "type": "sync",
+        "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P4",
+        "to": "P2",
+        "label": "Return active runtime state",
+        "type": "return",
+        "order": 5
+      }
+    ],
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "alt",
+        "label": "Approval or architecture gate detected",
+        "messageRefs": ["MSG3", "MSG4"]
+      }
+    ]
+  },
+  {
+    "diagram_title": "Dirty Flag Next-Round Rebuild",
+    "scenario": "Tool visibility changes after MCP or policy state changes and the framework rebuilds on the next round.",
+    "moduleRef": "A3",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "Prompt Loop Controller",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P2",
+        "name": "MCP Capability Cache",
+        "type": "component",
+        "componentRef": "C4"
+      },
+      {
+        "id": "P3",
+        "name": "Tool Surface Resolver",
+        "type": "component",
+        "componentRef": "C2"
+      },
+      {
+        "id": "P4",
+        "name": "Round Processor",
+        "type": "component",
+        "componentRef": "C6"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P2",
+        "to": "P1",
+        "label": "Publish tools changed / dirty signal",
+        "type": "async",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P1",
+        "to": "P3",
+        "label": "Resolve fresh tool surface on next round",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P2",
+        "label": "Read connected tools and invalidation state",
+        "type": "sync",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P2",
+        "to": "P3",
+        "label": "Return rebuilt capability set",
+        "type": "return",
+        "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P3",
+        "to": "P4",
+        "label": "Execute round with rebuilt tools",
+        "type": "sync",
+        "order": 5
+      }
+    ],
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "opt",
+        "label": "No dirty signal means cached tools may be reused",
+        "messageRefs": ["MSG2", "MSG5"]
+      }
+    ]
+  }
+]

@@ -60,16 +60,28 @@ The frontend is built with Solid.js and uses a bottom-up dependency model:
 ## Planner Runtime Surfaces
 
 - `packages/opencode/src/session/planner-layout.ts` is the canonical planner-root constructor and now resolves active dated plan roots under `/plans/`.
-- `packages/opencode/src/tool/plan.ts` owns `plan_enter` / `plan_exit`, planner template loading, artifact validation, and mission artifact path storage for active `/plans/` packages.
+- `packages/opencode/src/tool/plan.ts` owns `plan_enter` / `plan_exit`, planner template loading, artifact validation, mission artifact path storage for active `/plans/` packages, and the build-mode confirmation question gate emitted at `plan_exit`.
 - Planner templates are loaded from `/etc/opencode/plans` or `templates/plans` for active plan packages.
 - Mission artifact roots for active build execution must resolve under `/plans/`; non-`/plans/` active mission roots are treated as contract violations and fail fast.
 - `plan_enter` must inspect existing planner roots before writing templates: empty/template-only roots may be repaired, but partial or curated non-template roots are treated as integrity violations and must not be overwritten.
 - Planner document storage is mainline-only: `/plans/`, `/specs/`, and `docs/events/` must be created/updated in the authoritative main repo/worktree, even if planning is triggered while the current execution surface is a beta worktree.
 - `plan_exit` may attach beta mission context (`mission.beta`) derived from approved plan artifacts and, for beta-enabled plans, bootstrap the builder-owned beta branch/worktree/runtime context before entering build mode.
+- `plan_exit` currently asks a human confirmation question before switching from plan mode to build mode; dismissing that question must be normalized as a workflow-level decision/stop outcome rather than leaking as a raw tool error.
+- Agent/tool directionality is also part of the contract: when the user explicitly asks for `plan_exit`, the orchestrator must not first trigger `plan_enter` or any opposite-direction planner tool, because that creates the wrong blocking question and corrupts the planner control flow.
 - `mission.beta` is now the durable handoff boundary for builder beta execution state: branch name, base branch, repo/main worktree paths, beta worktree path, validation/finalize posture, and runtime policy all persist on the session mission contract.
-- `plan_exit` now owns the authoritative beta admission gate for beta-enabled build entry: before build execution starts, it asks a structured quiz against mission-backed authority fields (`mainRepo`, `mainWorktree`, `baseBranch`, `implementationRepo`, `implementationWorktree`, `implementationBranch`, `docsWriteRepo`), allows exactly one reflection retry, persists `mission.admission.betaQuiz`, and fails fast with `product_decision_needed` when the second attempt still mismatches.
+- `plan_exit` now owns the authoritative beta admission gate for build entry: before build execution starts, it asks a structured quiz against mission-backed authority fields (`mainRepo`, `mainWorktree`, `baseBranch`, `implementationRepo`, `implementationWorktree`, `implementationBranch`, `docsWriteRepo`), allows exactly one reflection retry, persists `mission.admission.betaQuiz`, and fails fast with `product_decision_needed` when the second attempt still mismatches.
+- This beta admission quiz is the hard contract that prevents silent drift back to main repo/main branch development: if the AI/tool response implies the wrong execution surface, build entry must fail instead of continuing.
 - `plan_exit` must preserve previously approved `mission.beta` authority instead of regenerating `implementationBranch` on every run; branch-name collection is a real pre-admission mutation path, and stale slug-derived defaults from older failed admissions may reopen correction flow before the quiz runs.
 - `packages/opencode/src/session/mission-consumption.ts` is the deterministic authority/evaluator surface for beta admission: it resolves mission-backed expected values and returns machine-checkable mismatch evidence `{ field, expected, actual }` without fallback sources.
+- Current planner naming risk: `plan_enter` root derivation can still drift from the actual task topic; planned remediation is to make slug derivation deterministic and topic-aligned before considering broader planner-root reuse/rename flows.
+
+## Dialog Trigger / Tool Surface Runtime
+
+- Current runtime already behaves as **per-round tool resolve/inject**, not in-flight tool hot swap.
+- `packages/opencode/src/session/prompt.ts` resolves tools inside the run loop before each `processor.process(...)` call.
+- `packages/opencode/src/session/resolve-tools.ts` is the aggregation boundary for registry tools, MCP tools, managed-app tools, and session/agent/model-aware permission filtering.
+- `packages/opencode/src/mcp/index.ts` maintains a dirty-capable tools cache and emits `mcp.tools.changed`, but the new capability surface becomes effective on the next tools resolution cycle rather than through same-round mutation.
+- Planned `dialog_trigger_framework` v1 builds on this runtime truth: rule-first detectors + centralized trigger registry/policy + dirty-flag/next-round rebuild. It explicitly does **not** assume background AI governance or in-flight hot reload.
 
 ## Builder-Native Beta Workflow Surfaces
 
@@ -400,6 +412,7 @@ Space {
 - `sharedContext: boolean` (default true) — disable entirely
 - `sharedContextBudget: number` (default 8192 tokens) — Space size cap with consolidation
 - `opportunisticThreshold: number 0-1` (default 0.6) — idle compaction trigger
+
 ### Continuous Orchestration Control Surface
 
 - Dispatch-first continuous orchestration does **not** mean the session becomes globally idle once `task()` returns. If exactly one background subagent is still active, the parent session remains in an operator-controllable active-child state.

@@ -1,0 +1,128 @@
+{
+  "diagram_title": "Dialog Trigger Framework C4 Component Diagram",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "OpenCode Session Runtime",
+      "description": "The session orchestration runtime that owns prompts, tools, planner transitions, and MCP integration.",
+      "external": false
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "Session Orchestration Container",
+      "description": "Prompt loop and round-boundary orchestration surfaces.",
+      "technology": "TypeScript/Bun",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT2",
+      "name": "Planner And Capability Container",
+      "description": "Planner lifecycle and tool/MCP capability resolution surfaces.",
+      "technology": "TypeScript/Bun",
+      "systemRef": "SYS1"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "Prompt Loop Controller",
+      "description": "Owns turn execution, plan-mode enforcement, and continuation boundaries.",
+      "technology": "packages/opencode/src/session/prompt.ts",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/session/prompt.ts"
+    },
+    {
+      "id": "C2",
+      "name": "Tool Surface Resolver",
+      "description": "Builds the per-round tool surface from registry, MCP, and managed app sources.",
+      "technology": "packages/opencode/src/session/resolve-tools.ts",
+      "containerRef": "CT2",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/session/resolve-tools.ts"
+    },
+    {
+      "id": "C3",
+      "name": "Planner Lifecycle Tool",
+      "description": "Owns plan_enter, plan_exit, planner artifact validation, and root derivation.",
+      "technology": "packages/opencode/src/tool/plan.ts",
+      "containerRef": "CT2",
+      "moduleRef": "A2",
+      "filePath": "packages/opencode/src/tool/plan.ts"
+    },
+    {
+      "id": "C4",
+      "name": "MCP Capability Cache",
+      "description": "Tracks MCP tool availability, dirty state, and cache invalidation for next-round rebuild.",
+      "technology": "packages/opencode/src/mcp/index.ts",
+      "containerRef": "CT2",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/mcp/index.ts"
+    },
+    {
+      "id": "C5",
+      "name": "Runtime Session Guard",
+      "description": "Provides session runtime state and interruption/replace boundaries.",
+      "technology": "packages/opencode/src/session/prompt-runtime.ts",
+      "containerRef": "CT1",
+      "moduleRef": "A2",
+      "filePath": "packages/opencode/src/session/prompt-runtime.ts"
+    },
+    {
+      "id": "C6",
+      "name": "Round Processor",
+      "description": "Executes the model round and tool-call lifecycle after tools are resolved.",
+      "technology": "packages/opencode/src/session/processor.ts",
+      "containerRef": "CT1",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/session/processor.ts"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL1",
+      "source": "C1",
+      "target": "C2",
+      "description": "Requests a fresh tool surface at round boundaries",
+      "technology": "function call"
+    },
+    {
+      "id": "REL2",
+      "source": "C2",
+      "target": "C4",
+      "description": "Reads MCP capability state and dirty cache signals",
+      "technology": "function call"
+    },
+    {
+      "id": "REL3",
+      "source": "C1",
+      "target": "C5",
+      "description": "Starts or replaces active runtime execution",
+      "technology": "function call"
+    },
+    {
+      "id": "REL4",
+      "source": "C1",
+      "target": "C6",
+      "description": "Hands resolved tools and messages into the round processor",
+      "technology": "function call"
+    },
+    {
+      "id": "REL5",
+      "source": "C3",
+      "target": "C1",
+      "description": "Influences planner mode transitions and execution handoff",
+      "technology": "shared session contract"
+    },
+    {
+      "id": "REL6",
+      "source": "C3",
+      "target": "C5",
+      "description": "Defines when plan/build transitions may replace runtime state",
+      "technology": "shared runtime contract"
+    }
+  ]
+}

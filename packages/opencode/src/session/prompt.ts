@@ -71,6 +71,7 @@ import {
   shouldInterruptAutonomousRun,
 } from "./workflow-runner"
 import { consumeMissionArtifacts, deriveDelegatedExecutionRole } from "./mission-consumption"
+import { resolveDialogTrigger } from "./dialog-trigger"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
 
@@ -259,95 +260,6 @@ export namespace SessionPrompt {
   })
   export type PromptInput = z.infer<typeof PromptInput>
 
-  function shouldAutoEnterPlanMode(input: PromptInput) {
-    if (input.agent) return false
-    if (!["app", "cli", "desktop"].includes(Flag.OPENCODE_CLIENT)) return false
-    const text = input.parts
-      .filter((part) => part.type === "text")
-      .map((part) => ("text" in part && typeof part.text === "string" ? part.text : ""))
-      .join("\n")
-      .trim()
-      .toLowerCase()
-    if (!text) return false
-
-    const hardNegativePatterns = [
-      /\bwhat did we do so far\b/,
-      /\bstatus update\b/,
-      /\bsummarize\b/,
-      /\bsummary\b/,
-      /\bexplain\b/,
-      /\bjust answer\b/,
-      /目前進度/,
-      /做了什麼/,
-      /總結一下/,
-      /只要說明/,
-    ]
-    if (hardNegativePatterns.some((pattern) => pattern.test(text))) return false
-
-    const intentKeywords = [
-      "implement",
-      "build",
-      "refactor",
-      "debug",
-      "fix",
-      "investigate",
-      "design",
-      "architecture",
-      "autonomous",
-      "automation",
-      "daemon",
-      "spec",
-      "multi-step",
-      "continue work",
-      "continue working",
-      "subagent",
-      "planner",
-      "workflow",
-      "需求",
-      "規劃",
-      "計畫",
-      "實作",
-      "重構",
-      "除錯",
-      "修復",
-      "架構",
-      "自治",
-      "自動",
-      "持續工作",
-    ]
-    const complexityKeywords = [
-      "scope",
-      "validation",
-      "phases",
-      "checkpoints",
-      "handoff",
-      "todo",
-      "requirements",
-      "constraints",
-      "risk",
-      "驗證",
-      "階段",
-      "檢查點",
-      "交接",
-      "任務",
-      "限制",
-      "風險",
-    ]
-
-    const hasIntentKeyword = intentKeywords.some((keyword) => text.includes(keyword))
-    const hasComplexityKeyword = complexityKeywords.some((keyword) => text.includes(keyword))
-    const lineCount = text.split(/\n+/).filter(Boolean).length
-    const longEnough = text.length >= 80 || lineCount >= 3
-
-    let score = 0
-    if (hasIntentKeyword) score += 2
-    if (hasComplexityKeyword) score += 2
-    if (longEnough) score += 1
-    if (/\b(plan|planner|planning)\b|規劃|計畫/.test(text)) score += 1
-
-    return score >= 4
-  }
-
   export const prompt = fn(PromptInput, async (input) => {
     const session = await Session.get(input.sessionID)
     await SessionRevert.cleanup(session)
@@ -370,7 +282,7 @@ export namespace SessionPrompt {
       { touch: false },
     )
 
-    const message = await createUserMessage(input)
+    const message = await createUserMessage(input, session)
     await Session.touch(input.sessionID)
 
     // this is backwards compatibility for allowing `tools` to be specified when
@@ -478,8 +390,6 @@ export namespace SessionPrompt {
     })
   }
 
-
-
   export async function handleContinuationSideEffects(input: {
     sessionID: string
     user: MessageV2.User
@@ -559,8 +469,6 @@ export namespace SessionPrompt {
       narration,
     }
   }
-
-
 
   async function runLoop(sessionID: string, options?: { replaceRuntime?: boolean }) {
     const runtime = start(sessionID, { replace: options?.replaceRuntime })
@@ -1265,10 +1173,7 @@ export namespace SessionPrompt {
               if (hasTaskDispatch) {
                 const lastFinishedInfo = lastAssistantMsg.info as MessageV2.Assistant
                 if (lastFinishedInfo.tokens) {
-                  const model = await Provider.getModel(
-                    lastFinishedInfo.providerId,
-                    lastFinishedInfo.modelID,
-                  )
+                  const model = await Provider.getModel(lastFinishedInfo.providerId, lastFinishedInfo.modelID)
                   await SessionCompaction.idleCompaction({
                     sessionID,
                     model,
@@ -1300,8 +1205,14 @@ export namespace SessionPrompt {
 
   export const loop = fn(Identifier.schema("session"), async (sessionID) => runLoop(sessionID))
 
-  async function createUserMessage(input: PromptInput) {
-    const effectiveAgent = shouldAutoEnterPlanMode(input) ? "plan" : input.agent
+  async function createUserMessage(input: PromptInput, session: Session.Info) {
+    const triggerDecision = resolveDialogTrigger({
+      agent: input.agent,
+      client: Flag.OPENCODE_CLIENT,
+      parts: input.parts,
+      session,
+    })
+    const effectiveAgent = triggerDecision.routeAgent ?? input.agent
     const { agent, partsInput, info } = await prepareUserMessageContext({
       sessionID: input.sessionID,
       messageID: input.messageID,
