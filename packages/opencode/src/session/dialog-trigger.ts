@@ -10,6 +10,11 @@ export type DialogTriggerDecision = {
   stopReason?: "approval_needed" | "product_decision_needed"
 }
 
+export type DialogTriggerPolicy = {
+  decision: DialogTriggerDecision
+  autoPlanExitHandoff: boolean
+}
+
 export type PlannerIntent = "plan_enter" | "plan_exit"
 
 const SUPPORTED_CLIENTS = ["app", "cli", "desktop"] as const
@@ -102,6 +107,16 @@ const REPLAN_PATTERNS = [
   /需求變更/,
 ] as const
 
+const REPLAN_DIRECTION_CHANGE_PATTERNS = [
+  /\bchange direction\b/,
+  /\bchanged requirements\b/,
+  /\brework the plan\b/,
+  /\bchange (the )?plan\b/,
+  /改方向/,
+  /需求變更/,
+  /改計畫/,
+] as const
+
 const APPROVAL_PATTERNS = [
   /\bapprove\b/,
   /\bapproved\b/,
@@ -146,7 +161,9 @@ function detectReplan(text: string, session: Pick<Session.Info, "mission" | "wor
   if (!session.mission?.executionReady) return false
   const workflow = session.workflow ?? Session.defaultWorkflow(session.time.updated)
   if (!["idle", "running", "waiting_user"].includes(workflow.state)) return false
-  return REPLAN_PATTERNS.some((pattern) => pattern.test(text))
+  const hasReplanWording = REPLAN_PATTERNS.some((pattern) => pattern.test(text))
+  if (!hasReplanWording) return false
+  return REPLAN_DIRECTION_CHANGE_PATTERNS.some((pattern) => pattern.test(text))
 }
 
 function detectApproval(text: string, session: Pick<Session.Info, "workflow" | "time">) {
@@ -222,5 +239,18 @@ export function resolveDialogTrigger(input: {
   return {
     trigger: "none",
     suppressAutoEnterPlan: true,
+  }
+}
+
+export async function resolveDialogTriggerPolicy(input: {
+  agent?: string
+  client: string
+  parts: Array<{ type: string; text?: string }>
+  session: Pick<Session.Info, "mission" | "workflow" | "time">
+  committedPlannerIntent?: PlannerIntent
+}): Promise<DialogTriggerPolicy> {
+  return {
+    decision: resolveDialogTrigger(input),
+    autoPlanExitHandoff: false,
   }
 }
