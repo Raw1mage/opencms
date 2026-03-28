@@ -1833,6 +1833,7 @@ export default function Page() {
           <SessionPromptDock
             centered={centered()}
             isChildSession={!!info()?.parentID}
+            parentSessionHref={info()?.parentID ? `/${params.dir}/session/${info()?.parentID}` : undefined}
             questionRequest={questionRequest}
             permissionRequest={permRequest}
             blocked={blocked()}

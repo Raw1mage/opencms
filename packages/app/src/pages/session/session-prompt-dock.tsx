@@ -10,6 +10,7 @@ import { formatElapsedSeconds, questionSubtitle } from "@/pages/session/session-
 export function SessionPromptDock(props: {
   centered: boolean
   isChildSession: boolean
+  parentSessionHref?: string
   questionRequest: () => QuestionRequest | undefined
   permissionRequest: () => { patterns: string[]; permission: string } | undefined
   blocked: boolean
@@ -78,16 +79,18 @@ export function SessionPromptDock(props: {
                   </div>
                 </div>
                 <a
-                  href={child().href}
+                  href={props.isChildSession ? (props.parentSessionHref ?? child().href) : child().href}
                   class="inline-flex shrink-0 items-center text-text-weak hover:text-text-strong"
-                  aria-label="Open session"
+                  aria-label={props.isChildSession ? "Return to parent session" : "Open session"}
                   onClick={(event) => {
                     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
                       return
                     }
                     event.preventDefault()
                     event.stopPropagation()
-                    props.onOpenChildSession(child().href)
+                    props.onOpenChildSession(
+                      props.isChildSession ? (props.parentSessionHref ?? child().href) : child().href,
+                    )
                   }}
                 >
                   <Icon name="square-arrow-top-right" size="small" />
@@ -198,17 +201,7 @@ export function SessionPromptDock(props: {
               </div>
             }
           >
-            <Show
-              when={!props.isChildSession}
-              fallback={
-                <div class="w-full min-h-32 md:min-h-40 rounded-md border border-border-weak-base bg-background-base/50 px-4 py-3 text-text-weak whitespace-pre-wrap pointer-events-none">
-                  This subagent session is observation-only.
-                  {"\n\n"}
-                  Child sessions cannot accept conversational input. Return to the parent session to continue the
-                  workflow.
-                </div>
-              }
-            >
+            <Show when={!props.isChildSession}>
               <PromptInput
                 ref={props.inputRef}
                 newSessionWorktree={props.newSessionWorktree}
