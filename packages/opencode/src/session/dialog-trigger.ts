@@ -10,6 +10,11 @@ export type DialogTriggerDecision = {
   stopReason?: "approval_needed" | "product_decision_needed"
 }
 
+export type DialogTriggerPolicy = {
+  decision: DialogTriggerDecision
+  autoPlanExitHandoff: boolean
+}
+
 export type PlannerIntent = "plan_enter" | "plan_exit"
 
 const SUPPORTED_CLIENTS = ["app", "cli", "desktop"] as const
@@ -222,5 +227,18 @@ export function resolveDialogTrigger(input: {
   return {
     trigger: "none",
     suppressAutoEnterPlan: true,
+  }
+}
+
+export async function resolveDialogTriggerPolicy(input: {
+  agent?: string
+  client: string
+  parts: Array<{ type: string; text?: string }>
+  session: Pick<Session.Info, "mission" | "workflow" | "time">
+  committedPlannerIntent?: PlannerIntent
+}): Promise<DialogTriggerPolicy> {
+  return {
+    decision: resolveDialogTrigger(input),
+    autoPlanExitHandoff: false,
   }
 }
