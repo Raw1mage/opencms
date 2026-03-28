@@ -10,7 +10,7 @@ import { ProviderIcon } from "@opencode-ai/ui/provider-icon"
 import { Spinner } from "@opencode-ai/ui/spinner"
 import { TextField } from "@opencode-ai/ui/text-field"
 import { showToast } from "@opencode-ai/ui/toast"
-import { createMemo, Match, onCleanup, onMount, Switch } from "solid-js"
+import { createMemo, Match, onCleanup, onMount, Show, Switch } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { Link } from "@/components/link"
 import { useLanguage } from "@/context/language"
@@ -331,49 +331,122 @@ export function DialogConnectProvider(props: { provider: string; onBack?: () => 
     const [formStore, setFormStore] = createStore({
       value: "",
       error: undefined as string | undefined,
+      autoDetecting: true,
     })
 
-    async function handleSubmit(e: SubmitEvent) {
-      e.preventDefault()
-
-      const form = e.currentTarget as HTMLFormElement
-      const formData = new FormData(form)
-      const code = formData.get("code") as string
-
-      if (!code?.trim()) {
-        setFormStore("error", language.t("provider.connect.oauth.code.required"))
-        return
-      }
-
-      setFormStore("error", undefined)
+    async function submitCode(code: string) {
+      if (!code?.trim()) return false
       const result = await globalSDK.client.provider.oauth
         .callback({
           providerId: props.provider,
           method: store.methodIndex,
-          code,
+          code: code.trim(),
         })
         .then((value) => (value.error ? { ok: false as const, error: value.error } : { ok: true as const }))
         .catch((error) => ({ ok: false as const, error }))
       if (result.ok) {
         await complete()
-        return
+        return true
       }
       setFormStore("error", formatError(result.error, language.t("provider.connect.oauth.code.invalid")))
+      return false
     }
+
+    async function handleSubmit(e: SubmitEvent) {
+      e.preventDefault()
+      const form = e.currentTarget as HTMLFormElement
+      const formData = new FormData(form)
+      let code = (formData.get("code") as string)?.trim() ?? ""
+
+      if (!code) {
+        setFormStore("error", language.t("provider.connect.oauth.code.required"))
+        return
+      }
+
+      // Extract code from full callback URL if pasted
+      try {
+        const url = new URL(code)
+        const extracted = url.searchParams.get("code")
+        if (extracted) code = extracted
+      } catch {
+        // Not a URL, use as-is (raw code)
+      }
+
+      setFormStore("error", undefined)
+      await submitCode(code)
+    }
+
+    // Auto-detect: open popup, monitor URL for callback code
+    onMount(() => {
+      const authUrl = store.authorization?.url
+      if (!authUrl) return
+
+      const popup = window.open(authUrl, "codex_oauth", "width=600,height=700")
+      if (!popup) {
+        // Popup blocked — fall back to manual paste
+        setFormStore("autoDetecting", false)
+        return
+      }
+
+      const timer = setInterval(() => {
+        try {
+          if (popup.closed) {
+            clearInterval(timer)
+            setFormStore("autoDetecting", false)
+            return
+          }
+          // Try to read popup URL — works when popup navigates to localhost
+          // (ERR_CONNECTION_REFUSED page is same-origin-accessible in most browsers)
+          const href = popup.location.href
+          if (href && href.includes("/auth/callback") && href.includes("code=")) {
+            clearInterval(timer)
+            popup.close()
+            // Extract code from URL
+            try {
+              const url = new URL(href)
+              const code = url.searchParams.get("code")
+              if (code) {
+                setFormStore("autoDetecting", false)
+                submitCode(code)
+                return
+              }
+            } catch {}
+            setFormStore("autoDetecting", false)
+          }
+        } catch {
+          // Cross-origin (still on auth.openai.com) — expected, keep polling
+        }
+      }, 500)
+
+      // Timeout after 5 minutes
+      setTimeout(() => {
+        clearInterval(timer)
+        if (!popup.closed) popup.close()
+        setFormStore("autoDetecting", false)
+      }, 5 * 60 * 1000)
+
+      onCleanup(() => {
+        clearInterval(timer)
+        if (!popup.closed) popup.close()
+      })
+    })
 
     return (
       <div class="flex flex-col gap-6">
-        <div class="text-14-regular text-text-base">
-          {language.t("provider.connect.oauth.code.visit.prefix")}
-          <Link href={store.authorization!.url}>{language.t("provider.connect.oauth.code.visit.link")}</Link>
-          {language.t("provider.connect.oauth.code.visit.suffix", { provider: provider().name })}
+        <Show when={formStore.autoDetecting}>
+          <div class="text-14-regular text-text-base flex items-center gap-4">
+            <Spinner />
+            <span>{language.t("provider.connect.status.waiting")}</span>
+          </div>
+        </Show>
+        <div class="text-14-regular text-text-dimmed">
+          Login complete? Paste the callback URL from the popup's address bar:
         </div>
         <form onSubmit={handleSubmit} class="flex flex-col items-start gap-4">
           <TextField
             autofocus
             type="text"
-            label={language.t("provider.connect.oauth.code.label", { method: method()?.label ?? "" })}
-            placeholder={language.t("provider.connect.oauth.code.placeholder")}
+            placeholder="http://localhost:1455/auth/callback?code=..."
             name="code"
             value={formStore.value}
             onChange={(v) => setFormStore("value", v)}

@@ -7,7 +7,7 @@ import { Server } from "../server/server"
 import { BunProc } from "../bun"
 import { Instance } from "../project/instance"
 import { Flag } from "../flag/flag"
-import { CodexAuthPlugin } from "./codex"
+import { CodexAuthPlugin, CodexNativeAuthPlugin } from "./codex"
 import { Session } from "../session"
 import { NamedError } from "@opencode-ai/util/error"
 import { CopilotAuthPlugin } from "./copilot"
@@ -24,6 +24,7 @@ export namespace Plugin {
     // AnthropicAuthPlugin is internal to use correct Claude Code headers for OAuth
     const internalPlugins: { name: string; plugin: PluginInstance }[] = [
       { name: "codex", plugin: CodexAuthPlugin },
+      { name: "codex-native", plugin: CodexNativeAuthPlugin },
       { name: "copilot", plugin: CopilotAuthPlugin },
       { name: "gitlab", plugin: GitlabAuthPlugin },
       { name: "gemini-cli", plugin: GeminiCLIOAuthPlugin as PluginInstance },

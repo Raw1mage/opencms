@@ -247,8 +247,10 @@ async function startOAuthServer(): Promise<{ port: number; redirectUri: string }
     return { port: OAUTH_PORT, redirectUri: `http://localhost:${OAUTH_PORT}/auth/callback` }
   }
 
+  try {
   oauthServer = Bun.serve({
     port: OAUTH_PORT,
+    reusePort: true,
     fetch(req) {
       const url = new URL(req.url)
 
@@ -308,17 +310,22 @@ async function startOAuthServer(): Promise<{ port: number; redirectUri: string }
       return new Response("Not found", { status: 404 })
     },
   })
+  } catch (e) {
+    // Port already bound (e.g. from previous daemon) — check if it's our server
+    log.warn("oauth server port in use, attempting reuse", { port: OAUTH_PORT, error: String(e) })
+    // If we get here, another process holds the port. Not recoverable.
+    throw e
+  }
 
   log.info("codex oauth server started", { port: OAUTH_PORT })
   return { port: OAUTH_PORT, redirectUri: `http://localhost:${OAUTH_PORT}/auth/callback` }
 }
 
 function stopOAuthServer() {
-  if (oauthServer) {
-    oauthServer.stop()
-    oauthServer = undefined
-    log.info("codex oauth server stopped")
-  }
+  // Keep the server running — it's shared between openai and codex providers.
+  // Stopping it causes EADDRINUSE when the other provider tries to start it.
+  // The server is lightweight and idempotent (pendingOAuth gates callback handling).
+  pendingOAuth = undefined
 }
 
 function waitForOAuthCallback(pkce: PkceCodes, state: string): Promise<TokenResponse> {
@@ -624,6 +631,273 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
       output.headers.originator = "opencode"
       output.headers["User-Agent"] = `opencode/${Installation.VERSION} (${os.platform()} ${os.release()}; ${os.arch()})`
       output.headers.session_id = input.sessionID
+    },
+  }
+}
+
+/**
+ * CodexNativeAuthPlugin — OAuth auth for the independent "codex" provider.
+ *
+ * Reuses the same OAuth PKCE / device code flows as CodexAuthPlugin,
+ * but targets provider: "codex" instead of "openai".
+ * The loader passes auth tokens to CodexLanguageModel (C transport handles HTTP).
+ */
+export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> {
+  return {
+    auth: {
+      provider: "codex",
+      async loader(getAuth, provider) {
+        const auth = await getAuth()
+        if (auth.type !== "oauth") return {}
+
+        // Zero out costs (ChatGPT subscription)
+        for (const model of Object.values(provider.models)) {
+          model.cost = { input: 0, output: 0, cache: { read: 0, write: 0 } }
+        }
+
+        return {
+          apiKey: OAUTH_DUMMY_KEY,
+          async fetch(requestInput: RequestInfo | URL, init?: RequestInit) {
+            if (init?.headers) {
+              if (init.headers instanceof Headers) {
+                init.headers.delete("authorization")
+                init.headers.delete("Authorization")
+              } else if (Array.isArray(init.headers)) {
+                init.headers = init.headers.filter(([key]) => key.toLowerCase() !== "authorization")
+              } else {
+                delete init.headers["authorization"]
+                delete init.headers["Authorization"]
+              }
+            }
+
+            const currentAuth = await getAuth()
+            if (currentAuth.type !== "oauth") return fetch(requestInput, init)
+
+            const authWithAccount = currentAuth as typeof currentAuth & { accountId?: string }
+
+            if (!currentAuth.access || currentAuth.expires < Date.now()) {
+              log.info("refreshing codex access token")
+              const tokens = await refreshAccessToken(currentAuth.refresh)
+              const newAccountId = extractAccountId(tokens) || authWithAccount.accountId
+              await input.client.auth.set({
+                path: { id: "codex" },
+                body: {
+                  type: "oauth",
+                  refresh: tokens.refresh_token,
+                  access: tokens.access_token,
+                  expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
+                  ...(newAccountId && { accountId: newAccountId }),
+                },
+              })
+              currentAuth.access = tokens.access_token
+              authWithAccount.accountId = newAccountId
+            }
+
+            const headers = new Headers()
+            if (init?.headers) {
+              if (init.headers instanceof Headers) {
+                init.headers.forEach((value, key) => headers.set(key, value))
+              } else if (Array.isArray(init.headers)) {
+                for (const [key, value] of init.headers) {
+                  if (value !== undefined) headers.set(key, String(value))
+                }
+              } else {
+                for (const [key, value] of Object.entries(init.headers)) {
+                  if (value !== undefined) headers.set(key, String(value))
+                }
+              }
+            }
+
+            headers.set("authorization", `Bearer ${currentAuth.access}`)
+            if (authWithAccount.accountId) {
+              headers.set("ChatGPT-Account-Id", authWithAccount.accountId)
+            }
+
+            const parsed =
+              requestInput instanceof URL
+                ? requestInput
+                : new URL(typeof requestInput === "string" ? requestInput : requestInput.url)
+
+            const isCodexEndpoint =
+              parsed.pathname.includes("/v1/responses") || parsed.pathname.includes("/chat/completions")
+            const url = isCodexEndpoint ? new URL(CODEX_API_ENDPOINT) : parsed
+
+            if (isCodexEndpoint) {
+              let bodyString: string | undefined
+              if (init?.body) {
+                bodyString = typeof init.body === "string" ? init.body : undefined
+              } else if (requestInput instanceof Request) {
+                try { bodyString = await requestInput.clone().text() } catch {}
+              }
+
+              if (bodyString) {
+                try {
+                  const body = JSON.parse(bodyString)
+                  const messages = body.messages || []
+                  const systemMsg = messages.find((m: any) => m.role === "system" || m.role === "developer")
+                  body.instructions = systemMsg ? systemMsg.content : "You are a helpful assistant."
+                  delete body.max_output_tokens
+                  delete body.max_tokens
+                  if (!init) init = {}
+                  init.body = JSON.stringify(body)
+                  if (!init.method && requestInput instanceof Request) init.method = requestInput.method
+                } catch {}
+              }
+            }
+
+            return fetch(url, { ...init, headers })
+          },
+        }
+      },
+      methods: [
+        {
+          label: "ChatGPT Pro/Plus (browser)",
+          type: "oauth",
+          authorize: async () => {
+            const { redirectUri } = await startOAuthServer()
+            const pkce = await generatePKCE()
+            const state = generateState()
+            const authUrl = buildAuthorizeUrl(redirectUri, pkce, state)
+            const callbackPromise = waitForOAuthCallback(pkce, state)
+
+            return {
+              url: authUrl,
+              instructions: "Complete authorization in your browser. This window will close automatically.",
+              method: "auto" as const,
+              callback: async () => {
+                const tokens = await callbackPromise
+                stopOAuthServer()
+                const accountId = extractAccountId(tokens)
+                return {
+                  type: "success" as const,
+                  refresh: tokens.refresh_token,
+                  access: tokens.access_token,
+                  expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
+                  accountId,
+                }
+              },
+            }
+          },
+        },
+        {
+          label: "ChatGPT Pro/Plus (headless)",
+          type: "oauth",
+          authorize: async () => {
+            const deviceResponse = await fetch(`${ISSUER}/api/accounts/deviceauth/usercode`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "User-Agent": `opencode/${Installation.VERSION}`,
+              },
+              body: JSON.stringify({ client_id: CLIENT_ID }),
+            })
+            if (!deviceResponse.ok) throw new Error("Failed to initiate device authorization")
+
+            const deviceData = (await deviceResponse.json()) as {
+              device_auth_id: string
+              user_code: string
+              interval: string
+            }
+            const interval = Math.max(parseInt(deviceData.interval) || 5, 1) * 1000
+
+            return {
+              url: `${ISSUER}/codex/device`,
+              instructions: `Enter code: ${deviceData.user_code}`,
+              method: "auto" as const,
+              async callback() {
+                while (true) {
+                  const response = await fetch(`${ISSUER}/api/accounts/deviceauth/token`, {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "User-Agent": `opencode/${Installation.VERSION}`,
+                    },
+                    body: JSON.stringify({
+                      device_auth_id: deviceData.device_auth_id,
+                      user_code: deviceData.user_code,
+                    }),
+                  })
+
+                  if (response.ok) {
+                    const data = (await response.json()) as {
+                      authorization_code: string
+                      code_verifier: string
+                    }
+                    const tokenResponse = await fetch(`${ISSUER}/oauth/token`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                      body: new URLSearchParams({
+                        grant_type: "authorization_code",
+                        code: data.authorization_code,
+                        redirect_uri: `${ISSUER}/deviceauth/callback`,
+                        client_id: CLIENT_ID,
+                        code_verifier: data.code_verifier,
+                      }).toString(),
+                    })
+                    if (!tokenResponse.ok) throw new Error(`Token exchange failed: ${tokenResponse.status}`)
+                    const tokens: TokenResponse = await tokenResponse.json()
+                    return {
+                      type: "success" as const,
+                      refresh: tokens.refresh_token,
+                      access: tokens.access_token,
+                      expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
+                      accountId: extractAccountId(tokens),
+                    }
+                  }
+
+                  if (response.status !== 403 && response.status !== 404) {
+                    return { type: "failed" as const }
+                  }
+                  await Bun.sleep(interval + OAUTH_POLLING_SAFETY_MARGIN_MS)
+                }
+              },
+            }
+          },
+        },
+        {
+          label: "ChatGPT Pro/Plus (paste callback URL)",
+          type: "oauth",
+          authorize: async () => {
+            const pkce = await generatePKCE()
+            const state = generateState()
+            const redirectUri = `http://localhost:${OAUTH_PORT}/auth/callback`
+            const authUrl = buildAuthorizeUrl(redirectUri, pkce, state)
+
+            return {
+              url: authUrl,
+              instructions: "Login, then paste the full callback URL from your browser address bar",
+              method: "code" as const,
+              async callback(pastedUrl: string) {
+                try {
+                  // Extract code from pasted URL or raw code
+                  let code = pastedUrl.trim()
+                  try {
+                    const parsed = new URL(code)
+                    code = parsed.searchParams.get("code") ?? code
+                  } catch {}
+
+                  const tokens = await exchangeCodeForTokens(code, redirectUri, pkce)
+                  const accountId = extractAccountId(tokens)
+                  return {
+                    type: "success" as const,
+                    refresh: tokens.refresh_token,
+                    access: tokens.access_token,
+                    expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
+                    accountId,
+                  }
+                } catch (e) {
+                  log.error("codex paste-URL token exchange failed", { error: String(e) })
+                  return { type: "failed" as const }
+                }
+              },
+            }
+          },
+        },
+        {
+          label: "Manually enter API Key",
+          type: "api",
+        },
+      ],
     },
   }
 }

@@ -330,7 +330,7 @@ export namespace Provider {
     codex: async () => {
       const { CodexLanguageModel } = await import("./codex-language-model")
       return {
-        autoload: false,
+        autoload: true,
         async getModel(_sdk: any, modelID: string, options?: Record<string, any>) {
           // Bypass AI SDK entirely — use native C transport
           const auth = {
