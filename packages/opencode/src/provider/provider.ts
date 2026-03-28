@@ -328,11 +328,26 @@ export namespace Provider {
       }
     },
     codex: async () => {
-      // Use standard AI SDK openai provider with Responses API.
-      // Auth plugin (CodexNativeAuthPlugin) injects custom fetch that handles:
-      //   - Bearer token + ChatGPT-Account-Id headers
-      //   - URL rewrite to chatgpt.com/backend-api/codex/responses
-      //   - Body transform (instructions, strip params)
+      const { isCodexNativeAvailable, CodexLanguageModel } = await import("./codex-language-model")
+      const useNative = isCodexNativeAvailable()
+      log.info("codex provider transport", { native: useNative })
+
+      if (useNative) {
+        // Native C transport: 100% codex-rs wire format via stdio bridge
+        return {
+          autoload: true,
+          async getModel(_sdk: any, modelID: string, options?: Record<string, any>) {
+            const auth = {
+              accessToken: options?.["accessToken"] as string | undefined,
+              accountId: options?.["accountId"] as string | undefined,
+            }
+            return new CodexLanguageModel(modelID, auth) as any
+          },
+          options: {},
+        }
+      }
+
+      // Fallback: AI SDK with custom fetch (auth plugin handles headers/URL/body)
       return {
         autoload: true,
         async getModel(sdk: any, modelID: string, _options?: Record<string, any>) {

@@ -26,7 +26,6 @@ import type {
   LanguageModelV2FunctionTool,
 } from "@ai-sdk/provider"
 import { Log } from "../util/log"
-import { Subprocess } from "bun"
 import path from "path"
 import fs from "fs"
 
@@ -69,13 +68,14 @@ function getBinaryPath(): string | null {
 }
 
 // --------------------------------------------------------------------------
-// Convert AI SDK prompt → Responses API format
+// Convert AI SDK prompt → Responses API format for C process stdin
 // --------------------------------------------------------------------------
 
 function promptToRequestBody(
   modelId: string,
   options: LanguageModelV2CallOptions,
   auth: { accessToken?: string; accountId?: string },
+  extra?: { conversationId?: string; turnState?: string; betaFeatures?: string },
 ): Record<string, unknown> {
   let instructions = ""
   const input: unknown[] = []
@@ -93,7 +93,10 @@ function promptToRequestBody(
         if (part.type === "text") {
           contentItems.push({ type: "input_text", text: part.text })
         } else if (part.type === "file" && part.mediaType?.startsWith("image/")) {
-          contentItems.push({ type: "input_image", image_url: part.data })
+          contentItems.push({
+            type: "input_image",
+            image_url: typeof part.data === "string" ? part.data : undefined,
+          })
         }
       }
       input.push({ type: "message", role: "user", content: contentItems })
@@ -139,7 +142,6 @@ function promptToRequestBody(
     }
   }
 
-  // Build tools array
   const tools = (options.tools ?? [])
     .filter((t): t is LanguageModelV2FunctionTool => t.type === "function")
     .map((t) => ({
@@ -162,13 +164,13 @@ function promptToRequestBody(
     parallel_tool_calls: true,
     stream: true,
     include: ["reasoning.encrypted_content"],
-    ...(options.providerOptions?.openai?.service_tier && {
-      service_tier: options.providerOptions.openai.service_tier,
-    }),
 
     // Host fields — consumed by C process, stripped before API call
     access_token: auth.accessToken ?? "",
     account_id: auth.accountId ?? "",
+    conversation_id: extra?.conversationId ?? "",
+    turn_state: extra?.turnState ?? null,
+    beta_features: extra?.betaFeatures ?? null,
   }
 }
 
@@ -202,6 +204,10 @@ function* parseJsonlEvent(line: string): Generator<LanguageModelV2StreamPart> {
       }
       break
 
+    case "reasoning_part_added":
+      yield { type: "reasoning-start", id: `reasoning-${event.index ?? 0}` }
+      break
+
     case "item_done": {
       const item = event.item
       if (!item) break
@@ -215,6 +221,24 @@ function* parseJsonlEvent(line: string): Generator<LanguageModelV2StreamPart> {
           args: item.arguments ?? "{}",
         }
       }
+
+      if (item.type === "message" && item.end_turn) {
+        // Message completed with end_turn — will be followed by "completed"
+      }
+      break
+    }
+
+    case "item_added": {
+      const item = event.item
+      if (!item) break
+
+      if (item.type === "function_call") {
+        yield {
+          type: "tool-input-start",
+          id: item.call_id ?? `tool-${Date.now()}`,
+          toolName: item.name ?? "",
+        }
+      }
       break
     }
 
@@ -224,16 +248,21 @@ function* parseJsonlEvent(line: string): Generator<LanguageModelV2StreamPart> {
         inputTokens: u.input ?? 0,
         outputTokens: u.output ?? 0,
       }
-      yield {
-        type: "response-metadata",
-        id: event.response_id ?? undefined,
-        modelId: undefined,
-        timestamp: undefined,
-      } as LanguageModelV2StreamPart
+      if (event.response_id) {
+        yield {
+          type: "response-metadata",
+          id: event.response_id,
+          modelId: undefined,
+          timestamp: undefined,
+        } as LanguageModelV2StreamPart
+      }
       yield {
         type: "finish",
         usage,
         finishReason: "stop" as LanguageModelV2FinishReason,
+        providerMetadata: u.reasoning
+          ? { openai: { reasoningTokens: u.reasoning } }
+          : undefined,
       }
       break
     }
@@ -250,6 +279,18 @@ function* parseJsonlEvent(line: string): Generator<LanguageModelV2StreamPart> {
       }
       break
     }
+
+    case "rate_limits":
+      // Rate limit info — not mapped to stream parts (handled by quota system)
+      break
+
+    case "incomplete":
+      yield {
+        type: "finish",
+        usage: { inputTokens: 0, outputTokens: 0 },
+        finishReason: "length" as LanguageModelV2FinishReason,
+      }
+      break
   }
 }
 
@@ -270,7 +311,6 @@ export class CodexLanguageModel implements LanguageModelV2 {
     this.auth = auth ?? {}
   }
 
-  /** Update auth tokens (called by auth hook before each request) */
   setAuth(auth: { accessToken?: string; accountId?: string }) {
     this.auth = auth
   }
@@ -312,60 +352,60 @@ export class CodexLanguageModel implements LanguageModelV2 {
     const binaryPath = getBinaryPath()
     if (!binaryPath) {
       throw new Error(
-        "codex-provider binary not found. Build it with: " +
-        "cd packages/opencode-codex-provider && mkdir build && cd build && cmake .. && cmake --build ."
+        "codex-provider binary not found. Build with: " +
+        "cd packages/opencode-codex-provider/build && cmake .. && cmake --build ."
       )
     }
 
     const body = promptToRequestBody(this.modelId, options, this.auth)
     const bodyJson = JSON.stringify(body)
 
-    log.info("spawning codex-provider", {
+    log.info("codex-provider spawn", {
       model: this.modelId,
       bodyBytes: bodyJson.length,
+      hasAuth: !!(this.auth.accessToken),
     })
 
-    // Spawn the C process
+    // Spawn C process: stdin JSON → stdout JSONL
     const proc = Bun.spawn([binaryPath], {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
       env: {
         ...process.env,
-        // C process reads these for URL resolution and headers
         CODEX_PROVIDER_VERSION: "0.1.0",
       },
     })
 
-    // Write request to stdin, then close
-    proc.stdin.write(bodyJson)
+    // Write request to stdin, close to signal EOF
+    const encoder = new TextEncoder()
+    proc.stdin.write(encoder.encode(bodyJson))
     proc.stdin.end()
 
-    // Read stderr for diagnostics (non-blocking, fire-and-forget)
+    // Log stderr (non-blocking)
     ;(async () => {
       try {
-        const stderrText = await new Response(proc.stderr).text()
-        if (stderrText.trim()) {
-          log.warn("codex-provider stderr", { output: stderrText.trim() })
+        const text = await new Response(proc.stderr).text()
+        if (text.trim()) {
+          log.warn("codex-provider stderr", { output: text.trim().slice(0, 500) })
         }
-      } catch { /* ignore */ }
+      } catch {}
     })()
 
-    // Create ReadableStream from stdout JSONL
+    // Build ReadableStream from stdout JSONL
     const stdout = proc.stdout
+    const reader = stdout.getReader()
     const decoder = new TextDecoder()
     let lineBuf = ""
 
     const stream = new ReadableStream<LanguageModelV2StreamPart>({
       async pull(controller) {
-        const reader = stdout.getReader()
-
         try {
           while (true) {
             const { done, value } = await reader.read()
 
             if (done) {
-              // Process any remaining data in buffer
+              // Flush remaining buffer
               if (lineBuf.trim()) {
                 for (const part of parseJsonlEvent(lineBuf.trim())) {
                   controller.enqueue(part)
@@ -377,11 +417,11 @@ export class CodexLanguageModel implements LanguageModelV2 {
 
             lineBuf += decoder.decode(value, { stream: true })
 
-            // Process complete lines
-            let newlineIdx: number
-            while ((newlineIdx = lineBuf.indexOf("\n")) !== -1) {
-              const line = lineBuf.slice(0, newlineIdx).trim()
-              lineBuf = lineBuf.slice(newlineIdx + 1)
+            // Emit complete lines
+            let idx: number
+            while ((idx = lineBuf.indexOf("\n")) !== -1) {
+              const line = lineBuf.slice(0, idx).trim()
+              lineBuf = lineBuf.slice(idx + 1)
 
               if (line) {
                 for (const part of parseJsonlEvent(line)) {
@@ -392,9 +432,12 @@ export class CodexLanguageModel implements LanguageModelV2 {
           }
         } catch (err) {
           controller.error(err)
-        } finally {
-          reader.releaseLock()
         }
+      },
+
+      cancel() {
+        reader.releaseLock()
+        proc.kill()
       },
     })
 
@@ -403,4 +446,11 @@ export class CodexLanguageModel implements LanguageModelV2 {
       request: { body },
     }
   }
+}
+
+/**
+ * Check if the native codex-provider binary is available.
+ */
+export function isCodexNativeAvailable(): boolean {
+  return getBinaryPath() !== null
 }
