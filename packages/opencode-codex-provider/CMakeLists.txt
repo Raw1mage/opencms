@@ -75,12 +75,39 @@ set_target_properties(codex_provider PROPERTIES
 )
 
 # --------------------------------------------------------------------------
+# CLI executable target (stdio bridge: stdin JSON → stdout JSONL)
+# --------------------------------------------------------------------------
+
+# The executable links the same object files as the library (minus provider.c
+# lifecycle which main.c replaces for the standalone case). For simplicity,
+# we link the shared library + main.c — the library exports what main needs.
+set(CLI_SOURCES
+    src/main.c
+    src/originator.c
+    src/transform.c
+    src/stream.c
+)
+
+add_executable(codex-provider ${CLI_SOURCES})
+
+target_include_directories(codex-provider
+    PRIVATE include
+    PRIVATE ${CJSON_INCLUDE_DIRS}
+)
+
+target_link_libraries(codex-provider
+    PRIVATE
+        CURL::libcurl
+        ${CJSON_LIBRARIES}
+)
+
+# --------------------------------------------------------------------------
 # Install
 # --------------------------------------------------------------------------
 
 include(GNUInstallDirs)
 
-install(TARGETS codex_provider
+install(TARGETS codex_provider codex-provider
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
