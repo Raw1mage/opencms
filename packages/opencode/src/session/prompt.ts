@@ -486,6 +486,7 @@ export namespace SessionPrompt {
 
     let step = 0
     let autonomousRounds = 0
+    let emptyRoundCount = 0
     const session = await Session.get(sessionID)
     const cachedInstructionPrompts = await InstructionPrompt.system()
     const environmentCache = new Map<string, string[]>()
@@ -548,6 +549,31 @@ export namespace SessionPrompt {
 
       if (!lastUser) throw new Error("No user message found in stream. This should never happen.")
       const format = lastUser.format ?? { type: "text" }
+
+      // Guard: detect empty-response loop (finish=unknown, 0 tokens).
+      // The model returned nothing — retrying won't help. Break after 3 consecutive empty rounds.
+      if (
+        lastAssistant?.finish === "unknown" &&
+        lastAssistant.tokens.input === 0 &&
+        lastAssistant.tokens.output === 0 &&
+        lastUser.id < lastAssistant.id
+      ) {
+        emptyRoundCount = (emptyRoundCount ?? 0) + 1
+        if (emptyRoundCount >= 3) {
+          log.warn("breaking empty-response loop", { sessionID, emptyRounds: emptyRoundCount, step })
+          // Surface error to user instead of silent stop
+          lastAssistant.error = {
+            name: "EmptyResponseError",
+            message: `Model returned empty responses ${emptyRoundCount} times consecutively. This may indicate an issue with the provider, account, or session context. Try sending a different message or starting a new session.`,
+          }
+          lastAssistant.finish = "error"
+          await Session.updateMessage(lastAssistant)
+          break
+        }
+      } else {
+        emptyRoundCount = 0
+      }
+
       if (
         lastAssistant?.finish &&
         !["tool-calls", "unknown"].includes(lastAssistant.finish) &&
