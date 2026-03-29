@@ -98,6 +98,8 @@ export class CodexWebSocket {
   private ws: WebSocket | null = null
   private connected = false
   private connectedAt = 0
+  /** Track which content streams have been started (text-start/reasoning-start sent) */
+  private startedStreams = new Set<string>()
   private handler: WsEventHandler | null = null
   private lastResponseId: string | undefined
   private disabled = false
@@ -396,6 +398,10 @@ export class CodexWebSocket {
 
       case "response.output_text.delta": {
         if (event.delta) {
+          if (!this.startedStreams.has("text-0")) {
+            this.startedStreams.add("text-0")
+            this.handler.onPart({ type: "text-start", id: "text-0" })
+          }
           this.handler.onPart({ type: "text-delta", delta: event.delta, id: "text-0" })
         }
         break
@@ -404,6 +410,10 @@ export class CodexWebSocket {
       case "response.reasoning_summary_text.delta":
       case "response.reasoning_text.delta": {
         if (event.delta) {
+          if (!this.startedStreams.has("reasoning-0")) {
+            this.startedStreams.add("reasoning-0")
+            this.handler.onPart({ type: "reasoning-start", id: "reasoning-0" })
+          }
           this.handler.onPart({ type: "reasoning-delta", delta: event.delta, id: "reasoning-0" })
         }
         break
@@ -469,6 +479,15 @@ export class CodexWebSocket {
         const id = resp?.id
         const usage = resp?.usage
         if (id) this.handler.onMeta({ responseId: id })
+
+        // Close any open content streams before finish
+        if (this.startedStreams.has("text-0")) {
+          this.handler.onPart({ type: "text-end", id: "text-0" })
+        }
+        if (this.startedStreams.has("reasoning-0")) {
+          this.handler.onPart({ type: "reasoning-end", id: "reasoning-0" })
+        }
+        this.startedStreams.clear()
 
         // Capture turn state from headers if present
         // (WebSocket frames don't have HTTP headers, but the completed event may have metadata)
