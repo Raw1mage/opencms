@@ -2273,11 +2273,17 @@ export namespace Provider {
     const sdk = await getSDK(model)
 
     try {
-      const language = s.modelLoaders[model.providerId]
-        ? await s.modelLoaders[model.providerId](sdk, model.api.id, provider.options)
+      // Resolve model loader by base provider ID.
+      // Account-specific providerId (e.g. "codex-subscription-...") must resolve
+      // to the canonical provider ("codex") that registered the CUSTOM_LOADER.
+      const canonicalProviderId = Account.parseProvider(model.providerId) ?? model.providerId
+      const loader = s.modelLoaders[canonicalProviderId]
+      const language = loader
+        ? await loader(sdk, model.api.id, provider.options)
         : sdk.languageModel(model.api.id)
       // Codex provider: set inline compaction threshold from model context limit
-      if (model.providerId === "codex" && model.limit.context > 0 && typeof (language as any).setCompactThreshold === "function") {
+      const isCodex = canonicalProviderId === "codex"
+      if (isCodex && model.limit.context > 0 && typeof (language as any).setCompactThreshold === "function") {
         (language as any).setCompactThreshold(Math.floor(model.limit.context * 0.8))
       }
       s.models.set(key, language)

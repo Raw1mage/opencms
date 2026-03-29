@@ -1420,13 +1420,24 @@ static void http_send(int fd, int status, const char *statusmsg,
                       const char *ctype, const char *headers,
                       const char *body, size_t bodylen) {
     char hdr[2048];
-    int hdrlen = snprintf(hdr, sizeof(hdr),
-        "HTTP/1.1 %d %s\r\n"
-        "Content-Type: %s\r\n"
-        "Content-Length: %zu\r\n"
-        "%s"
-        "Connection: close\r\n\r\n",
-        status, statusmsg, ctype, bodylen, headers ? headers : "");
+    int hdrlen;
+    if (ctype) {
+        hdrlen = snprintf(hdr, sizeof(hdr),
+            "HTTP/1.1 %d %s\r\n"
+            "Content-Type: %s\r\n"
+            "Content-Length: %zu\r\n"
+            "%s"
+            "Connection: close\r\n\r\n",
+            status, statusmsg, ctype, bodylen, headers ? headers : "");
+    } else {
+        /* No Content-Type (e.g. 204 No Content) */
+        hdrlen = snprintf(hdr, sizeof(hdr),
+            "HTTP/1.1 %d %s\r\n"
+            "Content-Length: %zu\r\n"
+            "%s"
+            "Connection: close\r\n\r\n",
+            status, statusmsg, bodylen, headers ? headers : "");
+    }
     send(fd, hdr, (size_t)hdrlen, MSG_NOSIGNAL);
     if (body && bodylen > 0) send(fd, body, bodylen, MSG_NOSIGNAL);
 }

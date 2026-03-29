@@ -758,6 +758,12 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
                     body.prompt_cache_key = requestId || `codex-${authWithAccount.accountId || "default"}`
                   }
 
+                  log.info("codex fetch body transform", {
+                    hasCacheKey: !!body.prompt_cache_key,
+                    hasTurnState: !!codexTurnState.turnState,
+                    inputItems: Array.isArray(body.input) ? body.input.length : 0,
+                  })
+
                   if (!init) init = {}
                   init.body = JSON.stringify(body)
                   if (!init.method && requestInput instanceof Request) init.method = requestInput.method
@@ -770,6 +776,7 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
             const newTurnState = response.headers.get("x-codex-turn-state")
             if (newTurnState) {
               codexTurnState.turnState = newTurnState
+              log.info("codex turn state captured", { turnState: newTurnState.slice(0, 20) + "..." })
             }
             return response
           },

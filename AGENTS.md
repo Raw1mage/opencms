@@ -4,6 +4,17 @@
 
 ---
 
+## 第一條：禁止靜默 Fallback
+
+寫程式時**嚴禁靜默 fallback**。當查找、解析、載入失敗時，必須明確報錯（log.warn / throw），不可悄悄退回備用路徑讓呼叫方以為成功。
+
+- **禁止**：查不到 loader → 靜默走 default path → 新功能變 dead code 而不自知
+- **禁止**：fetch 失敗 → 靜默回傳空值 → 上游以為功能不存在
+- **正確做法**：查不到 → log.warn 明確記錄「為什麼查不到、用了什麼替代」→ 讓開發者能從 log 立即發現問題
+- **唯一例外**：graceful degradation 是設計需求時（如 WebSocket → HTTP fallback），必須在 log 中記錄 fallback 原因
+
+---
+
 ## 專案背景
 
 本專案源自 `origin/dev` 分支，現已衍生為 `cms` 分支作為主要產品線。
