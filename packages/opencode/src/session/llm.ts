@@ -298,11 +298,13 @@ export namespace LLM {
       Auth.get(executionModel.providerId),
     ])
 
-    // Set execution account ID on CodexLanguageModel before each request.
-    // This ensures Auth.get() inside doStream() resolves the correct
-    // session-pinned account, including for subagent sessions.
-    if (typeof (language as any).setExecutionAccountId === "function") {
-      (language as any).setExecutionAccountId(executionModel.providerId)
+    // Pass resolved auth to CodexLanguageModel before each request.
+    // Provider doesn't manage auth — llm.ts owns auth resolution.
+    if (typeof (language as any).setAuth === "function" && auth) {
+      (language as any).setAuth({
+        accessToken: (auth as any).access,
+        accountId: (auth as any).accountId,
+      })
     }
 
     debugCheckpoint("llm", "Provider and auth loaded", {
