@@ -858,6 +858,11 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
                     inputItems: Array.isArray(body.input) ? body.input.length : 0,
                     fullInputItems: fullInputLength,
                   })
+                  // Diagnostic: dump request shape to stderr for empty-response debugging
+                  if (sessionId?.includes("Q0J5P1")) {
+                    const inputSummary = Array.isArray(body.input) ? body.input.map((item: any) => ({ type: item.type, role: item.role, len: JSON.stringify(item).length })) : "not-array"
+                    process.stderr.write(`[DIAG:codex-request] session=${sessionId} model=${body.model} deltaMode=${deltaMode} prevResponseId=${body.previous_response_id ?? "null"} inputItems=${fullInputLength} trimmedItems=${Array.isArray(body.input) ? body.input.length : "?"} contextMgmt=${JSON.stringify(body.context_management)} tools=${body.tools?.length ?? 0} inputSummary=${JSON.stringify(inputSummary).slice(0, 500)}\n`)
+                  }
 
                   if (!init) init = {}
                   init.body = JSON.stringify(body)

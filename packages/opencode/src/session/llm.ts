@@ -624,6 +624,10 @@ export namespace LLM {
         const totalTokens = usage
           ? (usage.promptTokens || usage.inputTokens || 0) + (usage.completionTokens || usage.outputTokens || 0)
           : 0
+        // Diagnostic: trace empty finishes
+        if (totalTokens === 0 && event.finishReason === "unknown") {
+          process.stderr.write(`[DIAG:llm-empty-finish] session=${input.sessionID} model=${input.model.id} provider=${input.model.providerId} account=${accountId} finishReason=${event.finishReason} text=${JSON.stringify((event.text ?? "").slice(0, 100))} toolCalls=${JSON.stringify(event.toolCalls?.length ?? 0)} responseMessages=${JSON.stringify(event.response?.messages?.length ?? 0)} rawHeaders=${JSON.stringify((event.response as any)?.headers ?? {}).slice(0, 200)}\n`)
+        }
         RequestMonitor.get().recordRequest(input.model.providerId, accountId || "unknown", input.model.id, totalTokens)
 
         // Capture codex response_id for incremental delta on next turn

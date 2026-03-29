@@ -585,6 +585,18 @@ export namespace MessageV2 {
         ) {
           continue
         }
+
+        // Skip empty responses (finish=unknown, 0 tokens) — these are failed API calls
+        // that produced no content. Sending them as empty assistant messages confuses the model.
+        const info = msg.info as Assistant
+        if (
+          info.finish === "unknown" &&
+          info.tokens?.input === 0 &&
+          info.tokens?.output === 0 &&
+          !msg.parts.some((p) => p.type === "text" || p.type === "tool" || p.type === "reasoning")
+        ) {
+          continue
+        }
         const assistantMessage: UIMessage = {
           id: msg.info.id,
           role: "assistant",
