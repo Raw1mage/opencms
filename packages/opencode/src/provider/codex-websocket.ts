@@ -383,7 +383,8 @@ export class CodexWebSocket {
       return
     }
 
-    log.info("codex ws event", { type, preview: data.slice(0, 500) })
+    // Verbose event log — only for debugging, disable in production
+    // log.info("codex ws event", { type, preview: data.slice(0, 500) })
 
     switch (type) {
       case "response.created": {
@@ -418,6 +419,22 @@ export class CodexWebSocket {
             toolName: item.name ?? "",
           })
         }
+        break
+      }
+
+      case "response.function_call_arguments.delta": {
+        if (event.delta && event.item_id) {
+          this.handler.onPart({
+            type: "tool-input-delta",
+            id: event.item_id,
+            delta: event.delta,
+          })
+        }
+        break
+      }
+
+      case "response.function_call_arguments.done": {
+        // Handled by response.output_item.done which has the full item
         break
       }
 
@@ -498,6 +515,16 @@ export class CodexWebSocket {
           finishReason: "length" as LanguageModelV2FinishReason,
         })
         this.handler.onDone()
+        break
+      }
+
+      case "codex.rate_limits": {
+        // Rate limit info from server — log for observability, not a stream part
+        log.info("codex ws rate limits", {
+          planType: event.plan_type,
+          primaryUsed: event.rate_limits?.primary?.used_percent,
+          secondaryUsed: event.rate_limits?.secondary?.used_percent,
+        })
         break
       }
 
