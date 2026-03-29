@@ -1,0 +1,118 @@
+{
+  "diagram_title": "Markdown And Chat Rich Content Rendering - C4 Component Diagram",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "OpenCode Webapp",
+      "description": "Browser-based session and file management interface.",
+      "external": false
+    },
+    {
+      "id": "SYS2",
+      "name": "Workspace File API",
+      "description": "Backend file read/list service surfaced through the SDK.",
+      "external": true
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "Session UI Container",
+      "description": "Session page components and rich content providers.",
+      "technology": "Solid.js / TypeScript",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT2",
+      "name": "File Workspace Container",
+      "description": "File state, tab state, and file viewer integration.",
+      "technology": "Solid.js Context / TypeScript",
+      "systemRef": "SYS1"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "Markdown File Tab Renderer",
+      "description": "Renders markdown files inside the existing file tab surface.",
+      "technology": "Solid component",
+      "containerRef": "CT2",
+      "moduleRef": "A1",
+      "filePath": "packages/app/src/pages/session/file-tabs.tsx"
+    },
+    {
+      "id": "C2",
+      "name": "Session Rich Content Provider",
+      "description": "Provides markdown, diff, and code rendering dependencies that can be shared by chat and markdown file views.",
+      "technology": "Solid context wrapper",
+      "containerRef": "CT1",
+      "moduleRef": "A3",
+      "filePath": "packages/app/src/pages/session/session-rich-content-provider.tsx"
+    },
+    {
+      "id": "C3",
+      "name": "Message Content Renderer",
+      "description": "Renders assistant text parts through markdown and future interactive rich-content hooks.",
+      "technology": "Solid component",
+      "containerRef": "CT1",
+      "moduleRef": "A2",
+      "filePath": "packages/app/src/pages/session/components/message-content.tsx"
+    },
+    {
+      "id": "C4",
+      "name": "File Context Store",
+      "description": "Normalizes paths, loads files, and stores selected-line state.",
+      "technology": "Solid context store",
+      "containerRef": "CT2",
+      "moduleRef": "A2",
+      "filePath": "packages/app/src/context/file.tsx"
+    },
+    {
+      "id": "C5",
+      "name": "File Tab Viewer",
+      "description": "Displays opened files and existing SVG preview behavior.",
+      "technology": "Solid component",
+      "containerRef": "CT2",
+      "moduleRef": "A4",
+      "filePath": "packages/app/src/pages/session/file-tabs.tsx"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL1",
+      "source": "C1",
+      "target": "C2",
+      "description": "Uses shared markdown and rich content providers to render markdown file content.",
+      "technology": "component composition"
+    },
+    {
+      "id": "REL2",
+      "source": "C3",
+      "target": "C2",
+      "description": "Uses the shared rich content provider to render interactive assistant output.",
+      "technology": "component composition"
+    },
+    {
+      "id": "REL3",
+      "source": "C3",
+      "target": "C4",
+      "description": "Triggers file open and selected-line updates from file-reference interactions.",
+      "technology": "context calls"
+    },
+    {
+      "id": "REL4",
+      "source": "C4",
+      "target": "C5",
+      "description": "Supplies file content and line-selection state to the active file tabs.",
+      "technology": "state subscription"
+    },
+    {
+      "id": "REL5",
+      "source": "C4",
+      "target": "SYS2",
+      "description": "Reads and refreshes workspace file content through the SDK-backed file API.",
+      "technology": "SDK client"
+    }
+  ]
+}

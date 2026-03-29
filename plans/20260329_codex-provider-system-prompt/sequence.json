@@ -1,0 +1,193 @@
+[
+  {
+    "diagram_title": "Markdown File View Rendering",
+    "scenario": "User opens a markdown file in the file tab and receives rendered markdown instead of generic code display.",
+    "moduleRef": "A1",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "User",
+        "type": "actor",
+        "componentRef": "SYS1"
+      },
+      {
+        "id": "P2",
+        "name": "File Context Store",
+        "type": "component",
+        "componentRef": "C4"
+      },
+      {
+        "id": "P3",
+        "name": "Markdown File Tab Renderer",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P4",
+        "name": "Session Rich Content Provider",
+        "type": "component",
+        "componentRef": "C2"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "open markdown file",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "provide loaded markdown content",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P4",
+        "label": "render markdown via shared rich-content stack",
+        "type": "sync",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P4",
+        "to": "P1",
+        "label": "display rendered markdown with safe diagram fallback",
+        "type": "return",
+        "order": 4
+      }
+    ],
+    "fragments": []
+  },
+  {
+    "diagram_title": "File Reference Click Navigation",
+    "scenario": "User clicks a file reference rendered inside an assistant message and the existing file tab opens at the requested line.",
+    "moduleRef": "A2",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "User",
+        "type": "actor",
+        "componentRef": "SYS1"
+      },
+      {
+        "id": "P2",
+        "name": "Message Content Renderer",
+        "type": "component",
+        "componentRef": "C3"
+      },
+      {
+        "id": "P3",
+        "name": "File Context Store",
+        "type": "component",
+        "componentRef": "C4"
+      },
+      {
+        "id": "P4",
+        "name": "File Tab Viewer",
+        "type": "component",
+        "componentRef": "C5"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "click file reference",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "normalize path + load file + setSelectedLines(range)",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P4",
+        "label": "publish active tab and line selection state",
+        "type": "sync",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P4",
+        "to": "P1",
+        "label": "display file tab focused on requested line",
+        "type": "return",
+        "order": 4
+      }
+    ],
+    "fragments": []
+  },
+  {
+    "diagram_title": "Mermaid Render With Safe Fallback",
+    "scenario": "Renderer handles a Mermaid fenced block through a controlled component path and falls back to code if validation fails.",
+    "moduleRef": "A4",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "Assistant Message",
+        "type": "actor",
+        "componentRef": "SYS1"
+      },
+      {
+        "id": "P2",
+        "name": "Message Content Renderer",
+        "type": "component",
+        "componentRef": "C3"
+      },
+      {
+        "id": "P3",
+        "name": "Session Rich Content Provider",
+        "type": "component",
+        "componentRef": "C2"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "deliver fenced mermaid block",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "resolve custom renderer for supported diagram block",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P2",
+        "label": "return diagram component or safe code fallback",
+        "type": "return",
+        "order": 3
+      }
+    ],
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "alt",
+        "label": "diagram valid vs invalid",
+        "messageRefs": ["MSG2", "MSG3"]
+      }
+    ]
+  }
+]

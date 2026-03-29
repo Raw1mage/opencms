@@ -1,0 +1,86 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Inspect Existing Markdown Viewer And Chat Renderer Surfaces",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["plan approved"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Implement Markdown File Viewing MVP",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2, 5],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["markdown file mvp stable", "markdown renderer blocked"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Implement Chat File Reference Navigation MVP",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3, 5],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["chat link mvp stable", "chat integration blocked"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Unify Shared Rich Renderer For File Tabs And Chat",
+    "LinkInputType": [],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4, 5],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["shared renderer ready", "shared renderer blocked"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Add Mermaid And SVG Safe Rendering Paths",
+    "LinkInputType": [],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [6],
+    "LinkOutputType": "track",
+    "Condition": ["diagram rendering validated"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 5,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Pause For Replan On Renderer Or Architecture Blocker",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [1, 2, 3],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["new plan approved"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 6,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Validate Regressions And Sync Documentation",
+    "LinkInputType": [],
+    "LinkInputNumber": [4],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["follow-up iteration required"],
+    "SubGrafcet": []
+  }
+]

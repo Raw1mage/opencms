@@ -1,0 +1,95 @@
+{
+  "diagram_title": "Markdown And Chat Rich Content Rendering Plan",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Render Markdown Files",
+      "description": "Render markdown files in existing file tabs with richer viewing behavior.",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Link File References",
+      "description": "Detect assistant file references and route them into the existing file tab workflow.",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Share Rich Renderer",
+      "description": "Expose shared markdown component hooks that support both file tabs and chat.",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Render Safe Diagrams",
+      "description": "Add Mermaid and SVG-related markdown/chat affordances without breaking rendering safety boundaries.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "Markdown File Content",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Frontend Architecture And Safety Constraints",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "Rendered Markdown File Surface",
+      "type": "output"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "Markdown Provider And File Context",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A2:input",
+      "label": "Assistant Markdown Output",
+      "type": "input"
+    },
+    {
+      "id": "AR6",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "Interactive File Link Nodes",
+      "type": "output"
+    },
+    {
+      "id": "AR7",
+      "source": "A3:output",
+      "target": "A4:input",
+      "label": "Extensible Shared Rich Renderer",
+      "type": "output"
+    },
+    {
+      "id": "AR8",
+      "source": "EXTERNAL",
+      "target": "A4:control",
+      "label": "Sanitization And Fallback Rules",
+      "type": "control"
+    },
+    {
+      "id": "AR9",
+      "source": "A4:output",
+      "target": "EXTERNAL",
+      "label": "Interactive Markdown And Chat Rendering Experience",
+      "type": "output"
+    }
+  ]
+}
