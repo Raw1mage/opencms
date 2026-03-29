@@ -431,7 +431,8 @@ export class CodexLanguageModel implements LanguageModelV2 {
    * Returns true if prewarm succeeded.
    */
   async prewarm(options: LanguageModelV2CallOptions): Promise<boolean> {
-    const liveAuth = await Auth.get("codex")
+    const executionAccountId = (options.headers as Record<string, string>)?.["x-opencode-account-id"] ?? ""
+    const liveAuth = await Auth.get(executionAccountId || "codex")
     const auth = {
       accessToken: (liveAuth as any)?.access ?? this.auth.accessToken ?? "",
       accountId: (liveAuth as any)?.accountId ?? this.auth.accountId ?? "",
@@ -557,11 +558,19 @@ export class CodexLanguageModel implements LanguageModelV2 {
     request?: { body?: unknown }
     response?: { headers?: Record<string, string> }
   }> {
-    // Get fresh auth tokens on every request (tokens expire and rotate)
-    const liveAuth = await Auth.get("codex")
+    // Get fresh auth tokens using the session's execution account ID.
+    // llm.ts passes the resolved accountId via x-opencode-account-id header.
+    // We must use this — NOT Auth.get("codex") which resolves to global active
+    // and may pick the wrong account (e.g. free plan instead of subscription).
+    const executionAccountId = (options.headers as Record<string, string>)?.["x-opencode-account-id"] ?? ""
+    const authProviderId = executionAccountId || "codex"
+    const liveAuth = await Auth.get(authProviderId)
     const auth = {
       accessToken: (liveAuth as any)?.access ?? this.auth.accessToken ?? "",
       accountId: (liveAuth as any)?.accountId ?? this.auth.accountId ?? "",
+    }
+    if (!liveAuth) {
+      log.warn("codex auth not found", { authProviderId, executionAccountId })
     }
 
     // Consume compacted output (one-shot: cleared after use)

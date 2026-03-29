@@ -373,11 +373,17 @@ export class CodexWebSocket {
     try {
       event = JSON.parse(data)
     } catch {
+      log.warn("codex ws unparseable message", { preview: data.slice(0, 200) })
       return
     }
 
     const type = event.type as string
-    if (!type) return
+    if (!type) {
+      log.warn("codex ws event missing type", { keys: Object.keys(event).join(","), preview: data.slice(0, 200) })
+      return
+    }
+
+    log.info("codex ws event", { type, preview: data.slice(0, 500) })
 
     switch (type) {
       case "response.created": {
@@ -492,6 +498,28 @@ export class CodexWebSocket {
           finishReason: "length" as LanguageModelV2FinishReason,
         })
         this.handler.onDone()
+        break
+      }
+
+      case "error": {
+        // Top-level error (not response.failed) — server rejected the request
+        const msg = event.message ?? event.error?.message ?? JSON.stringify(event)
+        log.warn("codex ws server error", { message: msg, code: event.code, preview: data.slice(0, 500) })
+        this.handler.onPart({
+          type: "error",
+          error: new Error(msg),
+        })
+        this.handler.onPart({
+          type: "finish",
+          usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+          finishReason: "error" as LanguageModelV2FinishReason,
+        })
+        this.handler.onDone()
+        break
+      }
+
+      default: {
+        log.info("codex ws unhandled event type", { type })
         break
       }
     }
