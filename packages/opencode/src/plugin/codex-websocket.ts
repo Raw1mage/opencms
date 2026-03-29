@@ -118,7 +118,7 @@ export function buildWsHeaders(input: {
 // ── WS Connection (Task 1.3) ──
 
 export function connectWs(url: string, headers: Record<string, string>): Promise<WebSocket | null> {
-  log.info("[WS] connectWs url=${url}\n`)
+  log.info("ws connecting", { url })
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
       log.warn("ws connect timeout", { url })

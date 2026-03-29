@@ -722,7 +722,7 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
 
             // Transport decision: WebSocket (if available) or HTTP
             // WS is a transport adapter per specs/codex_provider_runtime/ DD-4
-            log.info("[WS] interceptor=codex sessionId=${sessionId ?? "null"} isCodexEndpoint=${isCodexEndpoint}\n`)
+            log.info("ws transport check", { sessionId, isCodexEndpoint })
             if (isCodexEndpoint && sessionId) {
               try {
                 const wsUrl = CODEX_API_ENDPOINT.replace("https://", "wss://")
@@ -742,7 +742,7 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
             }
 
             // HTTP path (default or WS fallback)
-            log.info("[WS] using HTTP path sessionId=${sessionId ?? "null"}\n`)
+            log.info("ws fallback to HTTP", { sessionId })
             const response = await fetch(url, { ...init, headers })
 
             // Guard: Codex returns JSON error bodies (e.g. usage_limit_reached)
