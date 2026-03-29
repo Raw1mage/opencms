@@ -110,6 +110,12 @@ export namespace LLM {
   let lastRateLimitToastAt = 0
   let lastRotationToastAt = 0
 
+  /** Per-session codex state for incremental delta (response_id + hash tracking). */
+  const codexSessionState = new Map<string, {
+    responseId?: string
+    optionsHash?: string
+  }>()
+
   export type StreamInput = {
     user: MessageV2.User
     sessionID: string
@@ -560,6 +566,18 @@ export namespace LLM {
     const accountId = currentAccountId
     const requestProviderOptions = ProviderTransform.providerOptions(input.model, params.options)
 
+    // Codex incremental delta: inject previousResponseId when eligible
+    if (input.model.providerId === "codex") {
+      const prev = codexSessionState.get(input.sessionID)
+      const currentHash = JSON.stringify({ system: systemMessages.map(m => typeof m === "string" ? m : ""), tools: Object.keys(tools).sort() })
+      if (prev?.responseId && prev.optionsHash === currentHash) {
+        const key = Object.keys(requestProviderOptions)[0]
+        if (key) (requestProviderOptions as any)[key].previousResponseId = prev.responseId
+      }
+      // Update hash for next comparison (responseId captured in onFinish)
+      codexSessionState.set(input.sessionID, { ...prev, optionsHash: currentHash })
+    }
+
     const serializeError = (err: unknown): unknown => {
       if (!(err instanceof Error)) return err
       const base: Record<string, unknown> = {
@@ -603,6 +621,15 @@ export namespace LLM {
           ? (usage.promptTokens || usage.inputTokens || 0) + (usage.completionTokens || usage.outputTokens || 0)
           : 0
         RequestMonitor.get().recordRequest(input.model.providerId, accountId || "unknown", input.model.id, totalTokens)
+
+        // Capture codex response_id for incremental delta on next turn
+        if (input.model.providerId === "codex") {
+          const responseId = (event.providerMetadata as any)?.openai?.responseId
+          if (responseId) {
+            const prev = codexSessionState.get(input.sessionID)
+            codexSessionState.set(input.sessionID, { ...prev, responseId })
+          }
+        }
       },
       async onError(error) {
         l.error("stream error", { error: serializeError(error) })

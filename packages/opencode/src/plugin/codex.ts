@@ -538,8 +538,8 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
   }
 }
 
-/** Per-session turn state for sticky routing. Keyed by sessionID. */
-const codexTurnStates = new Map<string, { turnState?: string }>()
+/** Per-session turn state for sticky routing + delta tracking. Keyed by sessionID. */
+const codexTurnStates = new Map<string, { turnState?: string; lastInputLength?: number }>()
 
 // ── Shared helpers for CodexAuthPlugin / CodexNativeAuthPlugin ──
 
@@ -678,11 +678,28 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
                     body.context_management = [{ type: "compaction", compact_threshold: 100000 }]
                   }
 
+                  // Incremental delta: trim input to only new items when previous_response_id is set
+                  const fullInputLength = Array.isArray(body.input) ? body.input.length : 0
+                  let deltaMode = false
+                  if (body.previous_response_id && Array.isArray(body.input) && sessionId) {
+                    const lastLen = turnState?.lastInputLength ?? 0
+                    if (lastLen > 0 && body.input.length > lastLen) {
+                      body.input = body.input.slice(lastLen)
+                      deltaMode = true
+                    }
+                  }
+                  // Track input length for next delta (use full length, not trimmed)
+                  if (sessionId) {
+                    codexTurnStates.set(sessionId, { ...turnState, lastInputLength: fullInputLength })
+                  }
+
                   log.info("codex fetch body transform", {
                     hasCacheKey: !!body.prompt_cache_key,
                     hasTurnState: !!turnState?.turnState,
                     hasContextMgmt: !!body.context_management,
+                    deltaMode,
                     inputItems: Array.isArray(body.input) ? body.input.length : 0,
+                    fullInputItems: fullInputLength,
                   })
 
                   if (!init) init = {}
