@@ -37,7 +37,8 @@ export function encodeFileLink(path: string, line?: number) {
 export function decodeFileLink(href: string) {
   if (!href.startsWith(FILE_LINK_SCHEME)) return
   const url = new URL(href)
-  const path = decodeURIComponent(url.pathname)
+  const encodedPath = `${url.host}${url.pathname}`
+  const path = decodeURIComponent(encodedPath)
   const line = url.searchParams.get("line")
   return {
     path,
