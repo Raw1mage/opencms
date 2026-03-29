@@ -26,8 +26,8 @@ import type {
   LanguageModelV2FunctionTool,
 } from "@ai-sdk/provider"
 import { Log } from "../util/log"
+import { Auth } from "../auth"
 import { CodexWebSocket, type CodexWsRequest } from "./codex-websocket"
-import { codexResolvedAuth } from "../plugin/codex"
 import path from "path"
 import fs from "fs"
 
@@ -386,6 +386,8 @@ export class CodexLanguageModel implements LanguageModelV2 {
   private wsClient: CodexWebSocket | null = null
   /** Inline compaction threshold (tokens). When set, server auto-compacts. */
   private compactThreshold: number | undefined
+  /** Execution account ID — set by llm.ts before each doStream() call */
+  private executionAccountId: string | undefined
   /**
    * Opaque compacted output from /responses/compact.
    * When set, these items replace conversation history as the input prefix
@@ -421,6 +423,14 @@ export class CodexLanguageModel implements LanguageModelV2 {
     this.compactThreshold = tokens
   }
 
+  /**
+   * Set execution account ID for auth. Called by llm.ts before each request.
+   * This ensures Auth.get() resolves the session-pinned account, not global active.
+   */
+  setExecutionAccountId(accountId: string) {
+    this.executionAccountId = accountId
+  }
+
 
   /**
    * Store opaque compacted output from /responses/compact.
@@ -437,9 +447,10 @@ export class CodexLanguageModel implements LanguageModelV2 {
    * Returns true if prewarm succeeded.
    */
   async prewarm(options: LanguageModelV2CallOptions): Promise<boolean> {
+    const liveAuth = await Auth.get(this.executionAccountId || "codex")
     const auth = {
-      accessToken: codexResolvedAuth.accessToken ?? this.auth.accessToken ?? "",
-      accountId: codexResolvedAuth.accountId ?? this.auth.accountId ?? "",
+      accessToken: (liveAuth as any)?.access ?? this.auth.accessToken ?? "",
+      accountId: (liveAuth as any)?.accountId ?? this.auth.accountId ?? "",
     }
 
     if (!this.wsClient) {
@@ -562,15 +573,16 @@ export class CodexLanguageModel implements LanguageModelV2 {
     request?: { body?: unknown }
     response?: { headers?: Record<string, string> }
   }> {
-    // Auth comes from plugin fetch interceptor's shared state.
-    // Plugin resolves the correct account (per-session pinned) and writes
-    // to codexResolvedAuth. We read from there — never call Auth.get() directly.
+    // Auth: use execution account ID (set by llm.ts per request) to resolve
+    // the session-pinned account. Falls back to constructor auth if not set.
+    const authId = this.executionAccountId || "codex"
+    const liveAuth = await Auth.get(authId)
     const auth = {
-      accessToken: codexResolvedAuth.accessToken ?? this.auth.accessToken ?? "",
-      accountId: codexResolvedAuth.accountId ?? this.auth.accountId ?? "",
+      accessToken: (liveAuth as any)?.access ?? this.auth.accessToken ?? "",
+      accountId: (liveAuth as any)?.accountId ?? this.auth.accountId ?? "",
     }
     if (!auth.accessToken) {
-      log.warn("codex auth: no access token available from plugin resolved auth")
+      log.warn("codex auth: no access token", { authId })
     }
 
     // Consume compacted output (one-shot: cleared after use)
@@ -783,9 +795,10 @@ export async function codexPreconnectWebSocket(languageModel: unknown): Promise<
   const model = languageModel as CodexLanguageModel
 
   try {
+    const liveAuth = await Auth.get("codex")
     const auth = {
-      accessToken: codexResolvedAuth.accessToken ?? "",
-      accountId: codexResolvedAuth.accountId ?? "",
+      accessToken: (liveAuth as any)?.access ?? "",
+      accountId: (liveAuth as any)?.accountId ?? "",
     }
     if (!auth.accessToken) return
 

@@ -18,8 +18,8 @@
  * next context window.
  */
 
+import { Auth } from "../auth"
 import { Log } from "../util/log"
-import { codexResolvedAuth } from "../plugin/codex"
 
 const log = Log.create({ service: "codex-compaction" })
 
@@ -54,11 +54,12 @@ export interface CompactResult {
  */
 export async function codexServerCompact(request: CompactRequest): Promise<CompactResult> {
   try {
-    const accessToken = codexResolvedAuth.accessToken
-    const accountId = codexResolvedAuth.accountId
+    const liveAuth = await Auth.get("codex")
+    const accessToken = (liveAuth as any)?.access
+    const accountId = (liveAuth as any)?.accountId
 
     if (!accessToken) {
-      log.warn("codex compact: no auth token from plugin resolved auth")
+      log.warn("codex compact: no auth token")
       return { success: false }
     }
 
