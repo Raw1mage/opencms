@@ -2,85 +2,61 @@
 
 ## Purpose
 
-- Provide a persistent WebSocket transport for Codex API requests that reduces latency via connection reuse, lowers cost via incremental delta (sending only new items), and gracefully falls back to HTTP when WS is unavailable.
+- Provide a WebSocket transport adapter for Codex API requests that reduces latency via persistent connection reuse, properly surfaces errors, and gracefully falls back to HTTP — all beneath the AI SDK contract.
+
+## Parent Spec
+
+`specs/codex_provider_runtime/` — Requirement: Transport extension boundary (spec.md line 60-63).
 
 ## Requirements
 
-### Requirement: WS Connection Establishment
+### Requirement: WS Connection As Transport Adapter
 
-The system SHALL establish a WebSocket connection to `wss://chatgpt.com/backend-api/codex/responses` with TLS, permessage-deflate compression, and proper authentication headers.
+The system SHALL establish WebSocket connections to the Codex endpoint as a transport adapter, producing a synthetic Response object that AI SDK consumes identically to HTTP SSE.
 
-#### Scenario: Successful Handshake
+#### Scenario: Successful WS Request
 
-- **GIVEN** a valid OAuth access token and chatgpt-account-id
-- **WHEN** the system initiates a WebSocket connection
-- **THEN** the handshake completes within the connect timeout, response headers (x-reasoning-included, x-models-etag, openai-model, x-codex-turn-state) are captured, and the connection is ready for requests
+- **GIVEN** a valid account with WS-compatible auth
+- **WHEN** the fetch interceptor routes a request through WS
+- **THEN** AI SDK receives a Response with content-type text/event-stream containing the same event sequence as HTTP SSE
 
-#### Scenario: Connect Timeout
+#### Scenario: WS Unavailable
 
-- **GIVEN** the server does not respond within the connect timeout
-- **WHEN** the timeout expires
-- **THEN** the connection attempt fails with a timeout error and the system can retry or fall back to HTTP
+- **GIVEN** WS handshake fails or is not supported
+- **WHEN** the interceptor detects failure
+- **THEN** the request falls through to HTTP with zero user-visible impact
 
 ### Requirement: Error Event Classification
 
 The system SHALL parse WrappedWebsocketErrorEvent frames and classify them into typed errors matching codex-rs behavior.
 
-#### Scenario: Usage Limit With Status
+#### Scenario: Usage Limit With Status Code
 
-- **GIVEN** the server sends `{type:"error", status:429, error:{type:"usage_limit_reached",...}, headers:{...}}`
+- **GIVEN** server sends `{type:"error", status:429, error:{type:"usage_limit_reached",...}}`
 - **WHEN** the system parses this frame
-- **THEN** it produces a Transport(Http{status:429, headers, body}) error that rotation can handle
+- **THEN** it throws a transport error that rotation can handle (switch account)
 
-#### Scenario: Usage Limit Without Status
+#### Scenario: Usage Limit Without Status Code
 
-- **GIVEN** the server sends `{type:"error", error:{type:"usage_limit_reached",...}}` with no status field
+- **GIVEN** server sends `{type:"error", error:{type:"usage_limit_reached",...}}` with no status
 - **WHEN** the system parses this frame
-- **THEN** it returns None (the error is NOT mapped) — matching codex-rs test behavior
+- **THEN** it is NOT mapped to an error (matches codex-rs test case line 780-798)
 
 #### Scenario: Connection Limit Reached
 
-- **GIVEN** the server sends an error with code `websocket_connection_limit_reached`
+- **GIVEN** server sends error with code `websocket_connection_limit_reached`
 - **WHEN** the system parses this frame
-- **THEN** it produces a Retryable error that triggers reconnection
+- **THEN** it produces a retryable error that triggers reconnection
 
-### Requirement: Stream Response Handling
+### Requirement: Session-Scoped Fallback
 
-The system SHALL receive and parse streaming response events over WebSocket, emitting them as ResponseEvent values through a channel.
+The system SHALL fall back to HTTP on WS failure, with the fallback being sticky for the session's lifetime.
 
-#### Scenario: Normal Text Response
+#### Scenario: Fallback Activation
 
-- **GIVEN** a request is sent over WS
-- **WHEN** the server streams response.created → output_item.added → output_text.delta → output_item.done → response.completed events
-- **THEN** each event is parsed and emitted in order, with token usage extracted from the Completed event
-
-#### Scenario: Idle Timeout
-
-- **GIVEN** a request is being streamed
-- **WHEN** no frame arrives within the idle timeout duration
-- **THEN** the stream terminates with an idle timeout error
-
-#### Scenario: Server Close Before Completed
-
-- **GIVEN** a request is being streamed
-- **WHEN** the server sends a Close frame before response.completed
-- **THEN** the stream terminates with "stream closed before response.completed" error
-
-### Requirement: Session-Scoped Transport Selection
-
-The system SHALL try WebSocket first and fall back to HTTP on failure, with the fallback being sticky for the session's lifetime.
-
-#### Scenario: WS Success
-
-- **GIVEN** WS is enabled and the connection succeeds
-- **WHEN** a request is made
-- **THEN** it is sent over WS and the response is streamed back
-
-#### Scenario: WS Failure Fallback
-
-- **GIVEN** WS connection fails after retry budget exhaustion
-- **WHEN** the system detects exhaustion
-- **THEN** it activates HTTP fallback, the current request succeeds via HTTP, and all subsequent requests in this session use HTTP
+- **GIVEN** WS fails after retry budget exhaustion
+- **WHEN** the system activates fallback
+- **THEN** the current request succeeds via HTTP and all subsequent requests in this session use HTTP
 
 #### Scenario: Fallback Stickiness
 
@@ -90,48 +66,37 @@ The system SHALL try WebSocket first and fall back to HTTP on failure, with the 
 
 ### Requirement: Account-Aware Connection Lifecycle
 
-The system SHALL detect when account rotation changes the active account and reconnect the WebSocket with the new account's credentials.
+The system SHALL detect account rotation and reconnect with the new account's credentials.
 
 #### Scenario: Account Rotation
 
 - **GIVEN** a WS connection is open with account A
 - **WHEN** rotation switches to account B
-- **THEN** the system closes the old connection and opens a new one with account B's auth token
+- **THEN** the old connection is closed and a new one opened with account B's auth
 
-### Requirement: Incremental Delta Requests
+### Requirement: Incremental Delta (Phase 3)
 
-The system SHALL detect when consecutive requests share a common input prefix and send only the new items with previous_response_id.
+The system SHALL detect consecutive requests with common input prefix and send only new items with previous_response_id.
 
-#### Scenario: Second Turn Incremental
+#### Scenario: Delta Request
 
-- **GIVEN** turn 1 completed with response_id=R1 and the system captured the output items
-- **WHEN** turn 2's input starts with (turn 1's input + R1's output items) + new items
-- **THEN** the system sends only the new items with previous_response_id=R1
+- **GIVEN** turn 1 completed with response_id R1
+- **WHEN** turn 2's input extends turn 1's context
+- **THEN** only new items are sent with previous_response_id=R1
 
-#### Scenario: Cache Eviction On Error
+#### Scenario: Cache Eviction
 
 - **GIVEN** a request fails with 4xx/5xx
 - **WHEN** the error is detected
-- **THEN** the previous_response_id cache is cleared and the next request sends full context
-
-### Requirement: V2 Prewarm
-
-The system SHALL support sending a prewarm request (generate=false) to prepare server-side context without generating output.
-
-#### Scenario: Prewarm Then Request
-
-- **GIVEN** a new turn begins
-- **WHEN** the system sends a prewarm request
-- **THEN** the server prepares context, returns Completed with response_id, and the subsequent real request uses this response_id for incremental input
+- **THEN** previous_response_id cache is cleared
 
 ## Acceptance Checks
 
-- WS handshake succeeds against chatgpt.com with at least one valid account
-- Error parsing: 5 test cases ported from codex-rs all pass
-- Streaming: "Say hello" returns text deltas and Completed event with token usage
-- Fallback: simulated WS failure → HTTP takes over within same session
-- Stickiness: second turn after fallback goes directly to HTTP (no WS attempt)
-- Account rotation: new connection established with correct auth
-- Incremental: second turn input items < first turn input items
-- Prewarm: generate=false request returns Completed, next request uses response_id
-- Idle timeout: no-frame scenario terminates stream within timeout duration
+- WS handshake succeeds against chatgpt.com (Phase 1 gate)
+- "Say hello" → text output appears in UI via WS transport
+- Error parsing: 5 codex-rs test cases pass
+- WS failure → HTTP fallback → session continues
+- Fallback stickiness: second turn after fallback skips WS
+- Account rotation → new connection with correct auth
+- (Phase 3) Second turn input items < first turn
+- (Phase 3) Cache eviction on 4xx/5xx confirmed

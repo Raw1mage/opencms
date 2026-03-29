@@ -3,9 +3,9 @@
 ## Why
 
 - Codex WebSocket transport is disabled — it never successfully connected to the chatgpt.com endpoint
-- HTTP fallback works but lacks the latency and cost benefits of persistent WS connections
-- The current broken WS implementation silently swallowed errors (usage_limit_reached via wrong account), causing infinite empty-response loops
-- codex-rs has a production-grade WS implementation (~6,600 lines Rust) that we should faithfully reproduce
+- HTTP fallback works but lacks the latency benefits of persistent WS connections (codex-rs reports ~40% faster end-to-end for 20+ tool calls)
+- The previous WS attempt silently swallowed errors due to incomplete protocol implementation
+- `specs/codex_provider_runtime/` DD-4 explicitly designates WebSocket as an **extension surface under the AI SDK contract** — this plan fulfills that extension
 
 ## Original Requirement Wording (Baseline)
 
@@ -13,69 +13,77 @@
 
 ## Requirement Revision History
 
-- 2026-03-30: Initial requirement. User confirmed codex-rs as the authoritative reference, not the official OpenAI public API docs (which target a different endpoint)
+- 2026-03-30 (v1): Initial plan — faithful codex-rs reproduction, 8 phases, 46 tasks
+- 2026-03-30 (v2): Post-review revision — align with `specs/codex_provider_runtime/`, MVP-first phasing, prewarm shelved, scope narrowed to transport adapter only
 
 ## Effective Requirement Description
 
-1. Complete rewrite of Codex WebSocket transport in opencode TypeScript
-2. Faithful reproduction of codex-rs behavior: connection management, error parsing, incremental delta, prewarm, retry/fallback
-3. Target endpoint is `chatgpt.com/backend-api/codex/responses` (same as codex-rs), NOT `api.openai.com/v1/responses`
+1. Implement Codex WebSocket as a **transport adapter** beneath the AI SDK request/stream contract (per `specs/codex_provider_runtime/` DD-1, DD-4)
+2. Use codex-rs as behavioral reference for protocol correctness, but do NOT replicate its architecture or introduce parallel orchestration
+3. MVP-first: prove WS handshake works before adding incremental features
+4. Prewarm (`generate=false`) is shelved — not in MVP scope
+
+## Parent Spec
+
+This plan is a sub-plan of **`specs/codex_provider_runtime/`**. All decisions must conform to:
+- DD-1: AI SDK Responses path is the authority
+- DD-2: Responsibility split = providerOptions first, interceptor second
+- DD-4: WebSocket / delta / compaction remain extension surfaces under the same contract
 
 ## Scope
 
 ### IN
 
-- WS connection layer with permessage-deflate, TLS, custom CA support
-- WrappedWebsocketErrorEvent parsing with full error classification
-- Stream handler with idle timeout, Ping/Pong, Close detection
-- Session-scoped transport selection with sticky HTTP fallback
-- V2 prewarm (generate=false) for next-turn latency optimization
-- Incremental delta (previous_response_id + input trimming)
+- WS connection to `chatgpt.com/backend-api/codex/responses` (same endpoint as codex-rs)
+- WrappedWebsocketErrorEvent parsing (error classification matching codex-rs test suite)
+- Synthetic SSE bridge (WS frames → ReadableStream → AI SDK consumes as HTTP SSE)
+- Session-scoped connection caching with sticky HTTP fallback
 - Account-aware connection lifecycle (close/reconnect on rotation)
-- Retry budget with WS→HTTP fallback on exhaustion
+- Incremental delta (previous_response_id + input trimming) — Phase 3, after MVP
 
 ### OUT
 
-- Realtime API / audio WebSocket (different protocol)
+- Prewarm (`generate=false`) — shelved per prior decision
+- Realtime API / audio WebSocket
 - `/responses/compact` over WS (use HTTP)
-- Multi-connection multiplexing (spec says sequential only)
-- Rate limit header extraction (already handled by existing rotation3d)
+- Parallel orchestration stack or custom model runtime
+- Modifying AI SDK chunk parsing internals
+- Telemetry model/etag tracking (nice-to-have, not MVP)
 
 ## Non-Goals
 
-- Changing the existing HTTP transport path
-- Modifying AI SDK internals
+- Replacing AI SDK's stream processing with custom WS-native processing
 - Supporting non-Codex providers over WebSocket
+- Multi-connection multiplexing
 
 ## Constraints
 
-- Bun's WebSocket implementation may not support permessage-deflate natively — needs investigation
-- chatgpt.com WS endpoint may have undocumented requirements beyond codex-rs
-- Must maintain backward compatibility: if WS fails, HTTP fallback must work exactly as today
+- Must remain a transport adapter: AI SDK sees a `Response` object, unaware of WS
+- Bun's WebSocket may not support permessage-deflate — Phase 1 gate investigates this
+- chatgpt.com is an internal endpoint; behavior may differ from public API docs
+- Must maintain zero-regression: if WS fails at any point, HTTP fallback must work exactly as today
 
 ## What Changes
 
-- `packages/opencode/src/plugin/codex.ts` — replace disabled WS section (~lines 625-770) with full implementation
-- Potentially new file: `packages/opencode/src/plugin/codex-websocket.ts` for WS-specific code
+- `packages/opencode/src/plugin/codex.ts` — transport selection in fetch interceptor
+- `packages/opencode/src/plugin/codex-websocket.ts` — new file: WS connection, error parsing, stream handler
 
 ## Capabilities
 
 ### New Capabilities
 
 - Persistent WS connections with connection reuse across turns
-- Incremental delta requests (send only new items, server caches context)
-- V2 prewarm for reduced first-token latency
-- Structured error parsing for all Codex WS error types
+- Structured error parsing for Codex WS error types
 - Session-scoped WS→HTTP fallback with sticky behavior
+- (Phase 3) Incremental delta requests over WS
 
 ### Modified Capabilities
 
-- Transport selection: currently always HTTP, will try WS first
-- Error handling: currently swallows WS errors, will surface them properly
+- Transport selection: currently always HTTP, will try WS first with HTTP fallback
 
 ## Impact
 
-- `packages/opencode/src/plugin/codex.ts` — major changes to fetch interceptor
-- `packages/opencode/src/session/llm.ts` — may need adjustments for WS-specific provider metadata
-- Token consumption: expected ~40% reduction in end-to-end latency per OpenAI's claims
-- Cost: improved cache hit rate from persistent connection + incremental delta
+- `packages/opencode/src/plugin/codex.ts` — fetch interceptor transport decision
+- `packages/opencode/src/plugin/codex-websocket.ts` — new ~400-600 line file
+- Latency: expected improvement on multi-tool-call turns
+- Correctness: WS errors now surfaced properly instead of silent empty streams
