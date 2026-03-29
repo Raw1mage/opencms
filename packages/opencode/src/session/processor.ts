@@ -1260,7 +1260,9 @@ export namespace SessionProcessor {
                     note: "temporary error triggered fallback switch",
                   })
                   attempt = 0
-                  await new Promise((resolve) => setTimeout(resolve, 100))
+                  // Exponential backoff: 500ms → 1s → 2s → 4s → 8s (cap) to prevent retry storms
+                  const backoffMs = Math.min(500 * Math.pow(2, Math.max(0, fallbackAttempts - 1)), 8000)
+                  await new Promise((resolve) => setTimeout(resolve, backoffMs))
                   continue
                 } else {
                   // No fallback available — all accounts exhausted.
@@ -1371,7 +1373,9 @@ export namespace SessionProcessor {
                     note: "permanent error triggered fallback switch",
                   })
                   attempt = 0
-                  await new Promise((resolve) => setTimeout(resolve, 100))
+                  // Exponential backoff: 500ms → 1s → 2s → 4s → 8s (cap) to prevent retry storms
+                  const backoffMs = Math.min(500 * Math.pow(2, Math.max(0, fallbackAttempts - 1)), 8000)
+                  await new Promise((resolve) => setTimeout(resolve, backoffMs))
                   continue
                 } else {
                   // No fallback for permanent error — break immediately
@@ -1474,7 +1478,9 @@ export namespace SessionProcessor {
                     note: "rate limit retry redirected to rotation",
                   })
                   attempt = 0
-                  await new Promise((resolve) => setTimeout(resolve, 100))
+                  // Exponential backoff: 500ms → 1s → 2s → 4s → 8s (cap) to prevent retry storms
+                  const backoffMs = Math.min(500 * Math.pow(2, Math.max(0, fallbackAttempts - 1)), 8000)
+                  await new Promise((resolve) => setTimeout(resolve, backoffMs))
                   continue
                 } else {
                   // No fallback — surface error immediately, don't retry
