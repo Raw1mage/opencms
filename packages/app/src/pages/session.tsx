@@ -270,6 +270,7 @@ export default function Page() {
   const openTab = (value: string) => {
     const next = normalizeTab(value)
     tabs().open(next)
+    tabs().setActive(next)
 
     const path = file.pathFromTab(next)
     if (!path) return

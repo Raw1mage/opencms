@@ -99,6 +99,8 @@
 
 - Beta branch used: `feature/chat-rich-file-rendering`
 - Beta worktree used: `/home/pkcs12/projects/.beta-worktrees/opencode/feature/chat-rich-file-rendering`
+- Post-launch bugfix on the feature branch: opening another file from the file list could append a tab without switching the active file view; fixed by explicitly activating the newly opened tab in `packages/app/src/pages/session.tsx`.
+- Planner artifacts were updated again after implementation so `/plans/20260329_codex-provider-system-prompt/` reflects the shipped MVP, the post-launch focus fix, and the remaining renderer backlog.
 - Re-ran the minimal feature tests directly in the beta worktree:
   - `bun test packages/app/src/pages/session/message-file-links.test.ts packages/app/src/pages/session/markdown-file-viewer.test.ts`
   - Result: **13 pass / 0 fail**
@@ -146,4 +148,4 @@
 
 ## Architecture Sync
 
-- Verified (No doc changes): `specs/architecture.md` already reflects the shared rich-markdown surface between chat and markdown file preview, and already documents that markdown file tabs diverge from the generic `renderCode(...)` path.
+- Verified (No doc changes): `specs/architecture.md` already reflects the shared rich-markdown surface between chat and markdown file preview, and the post-launch file-tab focus change stayed within the existing session file-tab authority boundary, so no additional architecture update was required in this pass.

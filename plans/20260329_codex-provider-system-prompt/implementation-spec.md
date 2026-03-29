@@ -2,7 +2,7 @@
 
 ## Goal
 
-- Add a production-ready rich-content enhancement plan that upgrades both markdown file viewing in file tabs and assistant chat file-reference navigation, while enabling SVG and Mermaid rendering through safe staged rollout.
+- Upgrade file and chat rich-content rendering so markdown files are readable in file tabs, chat file references open the correct file view, Mermaid diagrams render in the shared markdown surface, and remaining follow-up work is clearly scoped.
 
 ## Scope
 
@@ -13,71 +13,58 @@
 - Support embedded SVG references and Mermaid content in markdown file viewing.
 - Wire assistant message file references to the existing webapp file tab system.
 - Support line-aware navigation from chat output into the existing file viewer.
-- Preserve the current `Markdown`-based message rendering path while adding component hooks for richer interactive content.
-- Plan a phased rollout for Mermaid and chat-embedded SVG handling on top of the existing renderer and SVG viewer capabilities.
-- Define validation coverage for parser behavior, renderer behavior, and file-navigation integration.
+- Keep file list opening behavior aligned with user expectation by activating the newly opened file tab immediately.
+- Define follow-up scope for Mermaid coverage/UI verification, broader SVG support, and richer file-link formats.
 
 ### OUT
 
 - Replacing the existing file tab implementation.
 - Rewriting the markdown renderer from scratch.
 - Introducing arbitrary raw HTML rendering in chat messages or markdown files.
-- Supporting inline raw SVG markup in markdown for the first delivery.
-- Changing non-web surfaces unless required to keep shared rendering contracts coherent.
+- Supporting inline raw SVG markup in markdown in the current shipped implementation.
+- Broadening file-link parsing beyond conservative unambiguous formats without additional review.
 
 ## Assumptions
 
 - The existing webapp file tab and file context remain the authority for file opening, selection, and line-focus state.
-- Assistant text content will continue to enter the UI through `MessageContent` and `Markdown` rather than a separate bespoke message renderer.
-- Markdown file viewing can reuse part of the same markdown/rich-content stack already used by session messages instead of inventing a separate renderer.
-- SVG behavior in markdown files will be limited to `.svg` references or image-style embeds rather than inline raw SVG fragments.
-- Chat file-link parsing in the first delivery is limited to absolute paths, repo-relative paths, and optional `:line` suffixes.
+- Assistant text content continues to enter the UI through `MessageContent` and the shared rich markdown surface rather than a bespoke renderer.
+- SVG behavior in markdown files remains limited to `.svg` references or image-style embeds rather than inline raw SVG fragments.
+- Current Mermaid render is acceptable as a first-pass implementation, but additional syntax coverage and UI-level validation are still needed.
+- Chat file-link parsing remains limited to absolute paths, repo-relative paths, and optional `:line` suffixes until the follow-up format work is scheduled.
 
 ## Stop Gates
 
-- Stop if current `Markdown` / `MarkedProvider` integration cannot expose custom rendering hooks without replacing shared UI primitives.
-- Stop if markdown file rendering in file tabs cannot reuse the existing rich-content stack without a larger shared UI contract rewrite.
-- Stop if Mermaid support across multiple markdown variants requires a library or parser contract broader than the planned slice assumes.
-- Stop if file-tab opening and line selection are not callable from the session message surface without unsafe cross-context state mutation.
-- Stop if Mermaid or SVG rendering would require unsanitized HTML injection.
-- Stop and re-plan if shared UI package ownership (`@opencode-ai/ui`) forces a repo-wide renderer contract change larger than this phased slice assumes.
+- Stop if broader SVG support would require unsanitized raw SVG/HTML injection.
+- Stop if richer file-link formats create parsing ambiguity that breaks conservative linking behavior.
+- Stop if Mermaid coverage expansion requires a larger shared UI renderer contract change than the current plan assumes.
+- Stop and re-plan if follow-up work crosses into a broader artifact/embed platform instead of incremental renderer improvements.
 
 ## Critical Files
 
 - `/home/pkcs12/projects/opencode/packages/app/src/pages/session/components/message-content.tsx`
-- `/home/pkcs12/projects/opencode/packages/app/src/pages/session/components/session-turn.tsx`
-- `/home/pkcs12/projects/opencode/packages/app/src/pages/session/session-rich-content-provider.tsx`
 - `/home/pkcs12/projects/opencode/packages/app/src/pages/session/file-tabs.tsx`
-- `/home/pkcs12/projects/opencode/packages/app/src/context/file.tsx`
-- `/home/pkcs12/projects/opencode/packages/app/src/context/layout.tsx`
-- `/home/pkcs12/projects/opencode/packages/app/src/context/platform.tsx`
+- `/home/pkcs12/projects/opencode/packages/app/src/pages/session/markdown-file-viewer.ts`
+- `/home/pkcs12/projects/opencode/packages/app/src/pages/session/message-file-links.ts`
+- `/home/pkcs12/projects/opencode/packages/app/src/pages/session/rich-markdown-surface.tsx`
 - `/home/pkcs12/projects/opencode/packages/app/src/pages/session.tsx`
-- `/home/pkcs12/projects/opencode/packages/app/src/pages/session/use-session-commands.tsx`
-- `/home/pkcs12/projects/opencode/packages/app/src/pages/session/session-prompt-helpers.ts`
+- `/home/pkcs12/projects/opencode/packages/app/package.json`
 
 ## Structured Execution Phases
 
-- Phase 1: Add markdown-aware file-tab rendering for `.md` content, including a `Preview / Source` toggle and a defined behavior for `.svg` references and Mermaid content.
-- Phase 2: Add file-reference detection and click-through bindings from assistant chat output into the existing file-tab and selected-line infrastructure.
-- Phase 3: Refactor the rich-content surface so file tabs and chat can share controlled markdown component mapping without regressing current behavior.
-- Phase 4: Add Mermaid rendering support for multiple markdown variants and chat-safe SVG handling on top of the shared renderer, reusing the existing SVG viewer where possible and enforcing sanitization boundaries.
-- Phase 5: Validate interaction, rendering, and regression behavior; sync event and architecture documentation as needed.
+- Phase 1: Ship the markdown file viewer, chat file links, shared rich markdown surface, and first-pass Mermaid render.
+- Phase 2: Fix post-launch UX issues in file opening/focus behavior.
+- Phase 3: Follow up with Mermaid syntax coverage and UI/component-level verification.
+- Phase 4: Review whether SVG support should expand beyond `.svg` references and whether richer file-link formats should be added.
 
 ## Validation
 
-- Add UI coverage confirming markdown files open in a rendered markdown view rather than raw code-only presentation.
-- Add UI coverage for `Preview / Source` toggle behavior on `.md` files.
-- Validate markdown file rendering for headings, lists, code fences, links, and embedded diagrams.
-- Validate `.svg` references inside markdown through a safe preview path rather than inline raw SVG injection.
-- Add parser-level tests for absolute path, repo-relative path, and `path:line` detection.
-- Add UI tests covering click-to-open-tab and jump-to-line behavior from assistant messages.
-- Verify that existing markdown text, code blocks, and diff/code rendering continue to work unchanged.
-- Validate Mermaid rendering against supported markdown variants, with explicit non-render fallback for unsupported or invalid diagrams.
-- Validate SVG handling by reusing existing SVG file-tab viewer behavior rather than injecting raw SVG directly into the chat DOM.
+- Focused tests pass for file-link parsing and markdown file-viewer helpers.
+- `packages/app` package-level typecheck runs clean on the implemented branch.
+- Mermaid first-pass validation covers helper extraction and package-level type safety, but still needs UI/component-level render verification.
+- File-open UX must ensure that opening a new file from the file list activates the new file tab immediately.
 
 ## Handoff
 
 - Build agent must read this spec first.
 - Build agent must read proposal.md, spec.md, design.md, tasks.md, and handoff.md before coding.
-- Build agent must materialize runtime todo from tasks.md and preserve planner task naming.
-- Build agent must treat markdown file viewing and chat file-link navigation as parallel top-level tracks, but still land them in small dependency-safe slices.
+- The original core MVP is now implemented; remaining work should stay confined to the explicit follow-up gaps unless the user expands scope again.

@@ -20,7 +20,7 @@
 
 ## 4. Diagram Rendering Expansion
 
-- [x] 4.1 Add Mermaid fenced-block rendering through a controlled renderer component with safe fallback.
+- [x] 4.1 Add Mermaid rendering in the shared rich markdown surface, with explicit fallback on invalid diagrams.
 - [x] 4.2 Define and implement chat-safe SVG behavior by routing users toward the existing SVG file-tab viewer rather than raw inline injection.
 
 ## 5. Validation And Regression Guardrails
@@ -33,3 +33,13 @@
 
 - [x] 6.1 Record implementation evidence and decisions in `docs/events/event_20260329_chat-rich-render-plan.md`.
 - [x] 6.2 Update `specs/architecture.md` only if implementation changes renderer/file-navigation module boundaries.
+
+## 7. Post-Launch UX Fixes
+
+- [x] 7.1 Fix file-list open behavior so newly opened files become the active file-view tab immediately.
+
+## 8. Remaining Follow-up Gaps
+
+- [ ] 8.1 Expand Mermaid syntax coverage and UI/component-level validation.
+- [ ] 8.2 Extend SVG support beyond the current `.svg` reference safety path.
+- [ ] 8.3 Extend chat file-link formats (for example `#L123` and `line:column`).
