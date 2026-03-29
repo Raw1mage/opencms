@@ -897,13 +897,11 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
               }
             }
 
-            // WebSocket transport DISABLED — auth identity mismatch causes
-            // silent usage_limit_reached errors when rotation switches accounts
-            // but WS connection still carries the old account's token.
-            // TODO: rewrite WS handler per codex-rs reference (refs/codex/codex-rs/
-            // codex-api/src/endpoint/responses_websocket.rs) with proper error
-            // parsing, account-aware reconnection, idle timeout, and permessage-deflate.
-            // Until then, HTTP path is correct and verified working.
+            // WebSocket transport DISABLED — current implementation cannot connect
+            // to chatgpt.com WS endpoint (missing protocol details vs codex-rs).
+            // Needs full rewrite based on refs/codex/codex-rs/codex-api/src/endpoint/
+            // responses_websocket.rs (permessage-deflate, structured error parsing,
+            // idle timeout, proper handshake). HTTP path works correctly.
 
             // HTTP path (default or WS fallback)
             const response = await fetch(url, { ...init, headers })
