@@ -578,7 +578,14 @@ export namespace SessionPrompt {
           history: msgs,
         })
 
-      const model = await Provider.getModel(lastUser.model.providerId, lastUser.model.modelID).catch((e) => {
+      // Respect session's pinned execution identity (set by rotation3d after rate-limit fallback).
+      // Without this, each tool-loop iteration re-resolves to the original (rate-limited) model,
+      // causing a retry storm as rotation fires on every iteration.
+      const sessionExec = step > 1 ? (await Session.get(sessionID).catch(() => undefined))?.execution : undefined
+      const effectiveProviderId = sessionExec?.providerId ?? lastUser.model.providerId
+      const effectiveModelID = sessionExec?.modelID ?? lastUser.model.modelID
+      const effectiveAccountId = sessionExec?.accountId ?? lastUser.model.accountId
+      const model = await Provider.getModel(effectiveProviderId, effectiveModelID).catch((e) => {
         if (Provider.ModelNotFoundError.isInstance(e)) {
           const hint = e.data.suggestions?.length ? ` Did you mean: ${e.data.suggestions.join(", ")}?` : ""
           Bus.publish(Session.Event.Error, {
@@ -965,7 +972,7 @@ export namespace SessionPrompt {
         agent,
         abort,
         sessionID,
-        accountId: lastUser.model.accountId,
+        accountId: effectiveAccountId,
         system: [
           await getPreloadedContext(sessionID),
           ...environmentPrompts,
