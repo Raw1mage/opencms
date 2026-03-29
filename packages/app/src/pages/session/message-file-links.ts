@@ -2,19 +2,21 @@ import { createPathHelpers } from "@/context/file/path"
 
 const FILE_LINK_SCHEME = "opencode-file://"
 const FILE_REF_PATTERN =
-  /(?:\/[A-Za-z0-9._\-/]+\.[A-Za-z0-9_-]+|(?:[A-Za-z0-9._-]+\/)+[A-Za-z0-9._-]+\.[A-Za-z0-9_-]+|[A-Za-z0-9._-]+\.[A-Za-z0-9_-]+)(?::\d+)?/g
+  /(?:\/[A-Za-z0-9._\-/]+\.[A-Za-z0-9_-]+|(?:[A-Za-z0-9._-]+\/)+[A-Za-z0-9._-]+\.[A-Za-z0-9_-]+|[A-Za-z0-9._-]+\.[A-Za-z0-9_-]+)(?::\d+){0,2}/g
 
 type FileRef = {
   original: string
   path: string
   line?: number
+  column?: number
 }
 
 function splitLineSuffix(input: string) {
-  const match = input.match(/^(.*?)(?::(\d+))?$/)
+  const match = input.match(/^(.*?)(?::(\d+))?(?::(\d+))?$/)
   if (!match) return { path: input }
   const line = match[2] ? Number(match[2]) : undefined
-  return { path: match[1] ?? input, line }
+  const column = match[3] ? Number(match[3]) : undefined
+  return { path: match[1] ?? input, line, column }
 }
 
 function isInsideWorkspaceAbsolute(path: string, workspaceRoot: string) {
@@ -29,8 +31,11 @@ function isValidRelativePath(path: string) {
   return /\.[A-Za-z0-9_-]+$/.test(path)
 }
 
-export function encodeFileLink(path: string, line?: number) {
-  const query = line ? `?line=${line}` : ""
+export function encodeFileLink(path: string, line?: number, column?: number) {
+  const params = new URLSearchParams()
+  if (line) params.set("line", String(line))
+  if (column) params.set("column", String(column))
+  const query = params.size > 0 ? `?${params.toString()}` : ""
   return `${FILE_LINK_SCHEME}${encodeURIComponent(path)}${query}`
 }
 
@@ -40,24 +45,26 @@ export function decodeFileLink(href: string) {
   const encodedPath = `${url.host}${url.pathname}`
   const path = decodeURIComponent(encodedPath)
   const line = url.searchParams.get("line")
+  const column = url.searchParams.get("column")
   return {
     path,
     line: line ? Number(line) : undefined,
+    column: column ? Number(column) : undefined,
   }
 }
 
 export function detectFileReference(candidate: string, workspaceRoot: string): FileRef | undefined {
   const trimmed = candidate.replace(/[),.;]+$/, "")
-  const { path, line } = splitLineSuffix(trimmed)
+  const { path, line, column } = splitLineSuffix(trimmed)
   if (!path) return
 
   if (path.startsWith("/")) {
     if (!isInsideWorkspaceAbsolute(path, workspaceRoot)) return
-    return { original: trimmed, path, line }
+    return { original: trimmed, path, line, column }
   }
 
   if (!isValidRelativePath(path)) return
-  return { original: trimmed, path, line }
+  return { original: trimmed, path, line, column }
 }
 
 function linkifySegment(text: string, workspaceRoot: string) {
@@ -66,7 +73,7 @@ function linkifySegment(text: string, workspaceRoot: string) {
     if (prev === "(" || prev === "[" || prev === "`") return match
     const ref = detectFileReference(match, workspaceRoot)
     if (!ref) return match
-    return `[${ref.original}](${encodeFileLink(ref.path, ref.line)})`
+    return `[${ref.original}](${encodeFileLink(ref.path, ref.line, ref.column)})`
   })
 }
 
