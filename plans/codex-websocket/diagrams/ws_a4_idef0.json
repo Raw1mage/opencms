@@ -1,0 +1,61 @@
+{
+  "diagram_title": "Parse WS Events — Decomposition",
+  "node_reference": "A4",
+  "activities": [
+    {
+      "id": "A41",
+      "title": "Parse Wrapped Websocket Error Event",
+      "description": "Deserialize {type:'error', status:u16, error:{type,code,message,plan_type,resets_at}, headers:{...}}. Return None if type != 'error'",
+      "decomposition": null
+    },
+    {
+      "id": "A42",
+      "title": "Map Error To Api Error",
+      "description": "connection_limit_reached→Retryable(reconnect), usage_limit+status→Transport(Http{status,headers,body}), usage_limit_no_status→None(ignore), other+status→Transport",
+      "decomposition": null
+    },
+    {
+      "id": "A43",
+      "title": "Parse Responses Stream Event",
+      "description": "Deserialize JSON to ResponsesStreamEvent{kind,headers,response,item,delta,summary_index,content_index}. Shared format with SSE. On parse error: debug log, continue",
+      "decomposition": null
+    },
+    {
+      "id": "A44",
+      "title": "Handle Codex Rate Limits Event",
+      "description": "WS-specific: kind='codex.rate_limits'. Parse rate limit snapshot (plan_type, primary/secondary windows, credits). Emit RateLimits ResponseEvent",
+      "decomposition": null
+    },
+    {
+      "id": "A45",
+      "title": "Track Server Model Changes",
+      "description": "Extract model from response.headers or top-level headers (openai-model, x-openai-model). Compare with last_server_model. Emit ServerModel event on change",
+      "decomposition": null
+    },
+    {
+      "id": "A46",
+      "title": "Detect Stream End",
+      "description": "response.completed→Completed (normal end). response.incomplete→Stream error with reason. response.failed→error classification. All three terminate the stream loop",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {"id": "AR1", "source": "EXTERNAL", "target": "A41:input", "label": "Raw JSON Text Frame", "type": "input"},
+    {"id": "AR2", "source": "EXTERNAL", "target": "A41:control", "label": "Error Event Schema", "type": "control"},
+    {"id": "AR3", "source": "A41:output", "target": "A42:input", "label": "Parsed Error Event", "type": "output"},
+    {"id": "AR4", "source": "EXTERNAL", "target": "A42:control", "label": "Error Classification Rules", "type": "control"},
+    {"id": "AR5", "source": "A42:output", "target": "EXTERNAL", "label": "Typed ApiError", "type": "output"},
+    {"id": "AR6", "source": "EXTERNAL", "target": "A43:input", "label": "Non-Error JSON Frame", "type": "input"},
+    {"id": "AR7", "source": "EXTERNAL", "target": "A43:control", "label": "Event Schema", "type": "control"},
+    {"id": "AR8", "source": "A43:output", "target": "A44:input", "label": "Rate Limit Event", "type": "output"},
+    {"id": "AR9", "source": "A43:output", "target": "A45:input", "label": "Any Event With Model", "type": "output"},
+    {"id": "AR10", "source": "A43:output", "target": "A46:input", "label": "Terminal Event", "type": "output"},
+    {"id": "AR11", "source": "A43:output", "target": "EXTERNAL", "label": "Typed Stream Event", "type": "output"},
+    {"id": "AR12", "source": "A44:output", "target": "EXTERNAL", "label": "Rate Limit Snapshot", "type": "output"},
+    {"id": "AR13", "source": "EXTERNAL", "target": "A44:control", "label": "Rate Limit Schema", "type": "control"},
+    {"id": "AR14", "source": "A45:output", "target": "EXTERNAL", "label": "Server Model Event", "type": "output"},
+    {"id": "AR15", "source": "EXTERNAL", "target": "A45:control", "label": "Last Known Model", "type": "control"},
+    {"id": "AR16", "source": "A46:output", "target": "EXTERNAL", "label": "Stream End Signal", "type": "output"},
+    {"id": "AR17", "source": "EXTERNAL", "target": "A46:control", "label": "Completion Rules", "type": "control"}
+  ]
+}

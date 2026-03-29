@@ -1,0 +1,43 @@
+{
+  "diagram_title": "Handle Prewarm — Decomposition",
+  "node_reference": "A7",
+  "activities": [
+    {
+      "id": "A71",
+      "title": "Send Prewarm Request",
+      "description": "stream_responses_websocket(warmup=true): build ResponseCreateWsRequest with generate:false. Sends via WS connection. Prewarm treated as first WS attempt for retry budget",
+      "decomposition": null
+    },
+    {
+      "id": "A72",
+      "title": "Drain Prewarm Stream",
+      "description": "Consume response events until Completed. Discard all output items. Only purpose is to establish server-side context and get response_id",
+      "decomposition": null
+    },
+    {
+      "id": "A73",
+      "title": "Capture Prewarm Response ID",
+      "description": "Extract response_id from Completed event. Store in WebsocketSession.last_response for subsequent incremental request. Also captures items_added for prefix matching",
+      "decomposition": null
+    },
+    {
+      "id": "A74",
+      "title": "Handle Prewarm Failure",
+      "description": "Non-blocking: on error or FallbackToHttp, call try_switch_fallback_transport(). Prewarm failure does not block the actual request — falls through to normal WS or HTTP",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {"id": "AR1", "source": "EXTERNAL", "target": "A71:input", "label": "Full Request Payload", "type": "input"},
+    {"id": "AR2", "source": "EXTERNAL", "target": "A71:input", "label": "WS Connection", "type": "input"},
+    {"id": "AR3", "source": "EXTERNAL", "target": "A71:control", "label": "Generate False Flag", "type": "control"},
+    {"id": "AR4", "source": "A71:output", "target": "A72:input", "label": "Prewarm Stream", "type": "output"},
+    {"id": "AR5", "source": "EXTERNAL", "target": "A72:control", "label": "Drain Until Completed", "type": "control"},
+    {"id": "AR6", "source": "A72:output", "target": "A73:input", "label": "Completed Event", "type": "output"},
+    {"id": "AR7", "source": "A73:output", "target": "EXTERNAL", "label": "Prewarm Response ID", "type": "output"},
+    {"id": "AR8", "source": "EXTERNAL", "target": "A73:control", "label": "Response ID Extraction", "type": "control"},
+    {"id": "AR9", "source": "A71:output", "target": "A74:input", "label": "Prewarm Error", "type": "output"},
+    {"id": "AR10", "source": "EXTERNAL", "target": "A74:control", "label": "Non-Blocking Policy", "type": "control"},
+    {"id": "AR11", "source": "A74:output", "target": "EXTERNAL", "label": "Fallback Trigger", "type": "output"}
+  ]
+}
