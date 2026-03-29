@@ -327,20 +327,11 @@ export namespace Provider {
         options: hasKey ? {} : { apiKey: "public" },
       }
     },
-    codex: async () => {
-      // CodexLanguageModel (WS/C-binary transport) is disabled pending
-      // AI SDK streamText tool-loop compatibility fix. Using AI SDK path
-      // with custom fetch interceptor (plugin handles auth/URL/body).
-      log.info("codex provider transport", { native: false })
-
-      return {
-        autoload: true,
-        async getModel(sdk: any, modelID: string, _options?: Record<string, any>) {
-          return sdk.responses(modelID)
-        },
-        options: {},
-      }
-    },
+    codex: async () => ({
+      autoload: true,
+      getModel: (sdk: any, modelID: string) => sdk.responses(modelID),
+      options: {},
+    }),
     openai: async () => {
       return {
         autoload: false,
@@ -2266,11 +2257,6 @@ export namespace Provider {
       const language = loader
         ? await loader(sdk, model.api.id, provider.options)
         : sdk.languageModel(model.api.id)
-      // Codex provider: set inline compaction threshold from model context limit
-      const isCodex = canonicalProviderId === "codex"
-      if (isCodex && model.limit.context > 0 && typeof (language as any).setCompactThreshold === "function") {
-        (language as any).setCompactThreshold(Math.floor(model.limit.context * 0.8))
-      }
       s.models.set(key, language)
       return language
     } catch (e) {

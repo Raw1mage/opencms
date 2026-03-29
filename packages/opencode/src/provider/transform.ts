@@ -715,8 +715,13 @@ export namespace ProviderTransform {
       }
     }
 
-    if (input.model.providerId === "openai" || input.providerOptions?.setCacheKey) {
+    if (input.model.providerId === "openai" || input.model.providerId === "codex" || input.providerOptions?.setCacheKey) {
       result["promptCacheKey"] = input.sessionID
+    }
+
+    // Codex (ChatGPT subscription) — priority service tier
+    if (input.model.providerId === "codex") {
+      result["serviceTier"] = "priority"
     }
 
     if (input.model.api.npm === "@ai-sdk/google" || input.model.api.npm === "@ai-sdk/google-vertex") {
