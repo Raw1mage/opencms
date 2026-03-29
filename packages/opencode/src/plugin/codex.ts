@@ -984,6 +984,12 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
         },
       ],
     },
+    "chat.headers": async (input, output) => {
+      if (input.model.providerId !== "codex") return
+      output.headers.originator = "opencode"
+      output.headers["User-Agent"] = `opencode/${Installation.VERSION} (${os.platform()} ${os.release()}; ${os.arch()})`
+      output.headers.session_id = input.sessionID
+    },
     // Reset turn state on new user message (fresh routing for new turn)
     "chat.message": async (input) => {
       if (input.model?.providerId === "codex") {
