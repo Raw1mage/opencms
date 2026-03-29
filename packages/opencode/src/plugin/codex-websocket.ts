@@ -1,7 +1,7 @@
 /**
  * Codex WebSocket Transport Adapter
  *
- * Transport adapter beneath the AI SDK contract (per specs/codex_provider_runtime/ DD-1, DD-4).
+ * Transport adapter beneath the AI SDK contract (per specs/codex/provider_runtime/ DD-1, DD-4).
  * Produces a synthetic SSE Response that AI SDK consumes identically to HTTP.
  *
  * Reference: refs/codex/codex-rs/codex-api/src/endpoint/responses_websocket.rs
@@ -14,7 +14,7 @@ const log = Log.create({ service: "codex-websocket" })
 // ── Constants ──
 
 const WS_CONNECT_TIMEOUT_MS = 15_000
-const WS_IDLE_TIMEOUT_MS = 120_000
+const WS_IDLE_TIMEOUT_MS = 30_000
 const WS_MAX_CONNECT_RETRIES = 1 // retry once, then HTTP fallback
 
 // ── Types ──
