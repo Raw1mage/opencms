@@ -897,13 +897,15 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
       if (input.model?.providerId === "codex") {
         codexTurnState.turnState = undefined
 
-        // Fire-and-forget preconnect: overlap WS handshake with prompt build
+        // Fire-and-forget preconnect: overlap WS handshake with prompt build.
+        // Only preconnect if the CodexLanguageModel is already cached —
+        // calling getLanguage() on a miss would create a second instance,
+        // defeating the purpose. Use peekCachedLanguage() instead.
         import("../provider/codex-language-model").then(async ({ codexPreconnectWebSocket }) => {
           try {
             const { Provider } = await import("../provider/provider")
-            const model = await Provider.getModel(input.model!.providerId, input.model!.modelID)
-            const language = await Provider.getLanguage(model)
-            codexPreconnectWebSocket(language)
+            const cached = await Provider.peekCachedLanguage(input.model!.providerId, input.model!.modelID)
+            if (cached) codexPreconnectWebSocket(cached)
           } catch {}
         })
       }

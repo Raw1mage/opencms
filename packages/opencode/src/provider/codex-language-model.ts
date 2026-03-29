@@ -157,6 +157,19 @@ function promptToRequestBody(
       parameters: t.inputSchema,
     }))
 
+  // Extract provider options (reasoningEffort, serviceTier, store, etc.)
+  // These come through AI SDK's providerOptions under the "openai" key
+  const po = (options.providerOptions?.["openai"] ?? {}) as Record<string, unknown>
+
+  // Build reasoning field (codex-rs: Reasoning { effort, summary })
+  const reasoning: Record<string, unknown> | undefined =
+    po["reasoningEffort"] || po["reasoningSummary"]
+      ? {
+          ...(po["reasoningEffort"] ? { effort: po["reasoningEffort"] } : {}),
+          ...(po["reasoningSummary"] ? { summary: po["reasoningSummary"] } : {}),
+        }
+      : undefined
+
   return {
     model: modelId,
     instructions,
@@ -170,6 +183,12 @@ function promptToRequestBody(
     parallel_tool_calls: true,
     stream: true,
     include: ["reasoning.encrypted_content"],
+    store: false,
+
+    // Reasoning controls (effort level + summary mode)
+    ...(reasoning ? { reasoning } : {}),
+    // Service tier (priority, default, etc.)
+    ...(po["serviceTier"] ? { service_tier: po["serviceTier"] } : {}),
 
     // Prompt cache key for server-side prefix caching
     prompt_cache_key: extra?.promptCacheKey ?? "",
@@ -401,18 +420,60 @@ export class CodexLanguageModel implements LanguageModelV2 {
     let finishReason: LanguageModelV2FinishReason = "stop"
     let usage: LanguageModelV2Usage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 }
     let textAccum = ""
+    let reasoningAccum = ""
+    // Collect tool call inputs by id (tool-input-start → tool-input-delta → tool-input-end)
+    const toolInputs = new Map<string, { toolName: string; input: string }>()
+    let activeToolId: string | undefined
 
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
-      if (value.type === "text-delta") textAccum += value.delta
-      else if (value.type === "finish") {
-        finishReason = value.finishReason
-        usage = value.usage
+
+      switch (value.type) {
+        case "text-delta":
+          textAccum += value.delta
+          break
+        case "reasoning-delta":
+          reasoningAccum += value.delta
+          break
+        case "tool-call":
+          content.push({
+            type: "tool-call",
+            toolCallId: value.toolCallId,
+            toolName: value.toolName,
+            input: value.input,
+          })
+          break
+        case "tool-input-start":
+          activeToolId = value.id
+          toolInputs.set(value.id, { toolName: value.toolName, input: "" })
+          break
+        case "tool-input-delta":
+          if (toolInputs.has(value.id)) {
+            toolInputs.get(value.id)!.input += value.delta
+          }
+          break
+        case "tool-input-end":
+          if (toolInputs.has(value.id)) {
+            const t = toolInputs.get(value.id)!
+            content.push({
+              type: "tool-call",
+              toolCallId: value.id,
+              toolName: t.toolName,
+              input: t.input,
+            })
+            toolInputs.delete(value.id)
+          }
+          break
+        case "finish":
+          finishReason = value.finishReason
+          usage = value.usage
+          break
       }
     }
 
     if (textAccum) content.push({ type: "text", text: textAccum })
+    if (reasoningAccum) content.push({ type: "reasoning", text: reasoningAccum } as LanguageModelV2Content)
 
     return {
       content,

@@ -71,14 +71,22 @@ function extractSignature(req: CodexWsRequest): RequestSignature {
   }
 }
 
+/** Sort tools by name for order-independent comparison */
+function normalizeTools(tools: unknown[]): string {
+  const sorted = [...tools].sort((a: any, b: any) =>
+    (a?.name ?? "").localeCompare(b?.name ?? ""),
+  )
+  return JSON.stringify(sorted)
+}
+
 function signaturesEqual(a: RequestSignature, b: RequestSignature): boolean {
   return (
     a.model === b.model &&
     a.instructions === b.instructions &&
     a.tool_choice === b.tool_choice &&
     a.parallel_tool_calls === b.parallel_tool_calls &&
-    JSON.stringify(a.tools) === JSON.stringify(b.tools) &&
-    JSON.stringify(a.include) === JSON.stringify(b.include)
+    normalizeTools(a.tools) === normalizeTools(b.tools) &&
+    JSON.stringify([...a.include].sort()) === JSON.stringify([...b.include].sort())
   )
 }
 
@@ -391,6 +399,27 @@ export class CodexWebSocket {
         if (event.delta) {
           this.handler.onPart({ type: "reasoning-delta", delta: event.delta, id: "reasoning-0" })
         }
+        break
+      }
+
+      case "response.output_item.added": {
+        const item = event.item
+        if (!item) break
+        if (item.type === "function_call") {
+          this.handler.onPart({
+            type: "tool-input-start",
+            id: item.call_id ?? `tool-${Date.now()}`,
+            toolName: item.name ?? "",
+          })
+        }
+        break
+      }
+
+      case "response.reasoning_summary_part.added": {
+        this.handler.onPart({
+          type: "reasoning-start",
+          id: `reasoning-${event.part_index ?? 0}`,
+        })
         break
       }
 

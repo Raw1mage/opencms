@@ -2291,6 +2291,16 @@ export namespace Provider {
     }
   }
 
+  /**
+   * Peek at a cached LanguageModelV2 without creating a new instance.
+   * Returns undefined if the model hasn't been instantiated yet.
+   * Used by preconnect to avoid creating duplicate instances.
+   */
+  export async function peekCachedLanguage(providerId: string, modelID: string): Promise<LanguageModelV2 | undefined> {
+    const s = await state()
+    return s.models.get(`${providerId}/${modelID}`)
+  }
+
   export async function closest(providerId: string, query: string[]) {
     const s = await state()
     const provider = s.providers[providerId]
