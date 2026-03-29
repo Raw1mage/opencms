@@ -1,0 +1,287 @@
+{
+  "meta": {
+    "title": "AI SDK Extension Refactoring — Codex Provider Architecture",
+    "version": "1.0.0",
+    "date": "2026-03-29",
+    "standard": "IEEE 1320.1 IDEF0",
+    "scope": "AI SDK 擴充重構 + codex 進階效能 + 遺留清理"
+  },
+  "A-0": {
+    "id": "A-0",
+    "name": "Refactor Codex Provider Architecture",
+    "inputs": [
+      "I1: AI SDK @ai-sdk/openai v2.0.89 (10K + 4.7K lines)",
+      "I2: Codex fetch interceptor (codex.ts, 920 lines)",
+      "I3: Dead CUSTOM_LOADER code (codex-language-model.ts 816L + codex-websocket.ts 574L)",
+      "I4: Codex protocol whitepaper (specs/codex-protocol/whitepaper.md)"
+    ],
+    "controls": [
+      "C1: AGENTS.md Rule 1 — No silent fallback",
+      "C2: AI SDK pipeline must remain intact (25K lines)",
+      "C3: Existing functionality must not regress",
+      "C4: Graceful degradation — server unsupported features must not break"
+    ],
+    "outputs": [
+      "O1: Codex provider with 5 Responses API optimizations active",
+      "O2: WebSocket transport adapter (fetch interceptor level)",
+      "O3: Cleaned codebase (dead code removed, duplication resolved)",
+      "O4: Updated plan documents (design.md, tasks.md, idef0.json, grafcet.json)"
+    ],
+    "mechanisms": [
+      "M1: AI SDK streamText pipeline (7 transform stages)",
+      "M2: @ai-sdk/openai responses adapter (providerOptions.openai.*)",
+      "M3: Bun native WebSocket client",
+      "M4: OpenAI Responses API server-side features"
+    ]
+  },
+  "A0": {
+    "id": "A0",
+    "name": "Refactor Codex Provider Architecture",
+    "children": ["A1", "A2", "A3", "A4", "A5"],
+    "layout": "diagonal staircase"
+  },
+  "A1": {
+    "id": "A1",
+    "name": "Inject Provider Options Into AI SDK Path",
+    "inputs": [
+      "I1: AI SDK providerOptions schema (17+ fields verified)",
+      "I2: Current llm.ts streamText() call site"
+    ],
+    "controls": [
+      "C1: OPENAI_REQUEST_OPTION_KEYS whitelist in transform.ts",
+      "C2: AI SDK adapter auto-compose logic (store=false → include encrypted_content)"
+    ],
+    "outputs": [
+      "O1: providerOptions.openai.store = false active",
+      "O2: providerOptions.openai.serviceTier = 'priority' active",
+      "O3: providerOptions.openai.promptCacheKey injectable from session",
+      "O4: providerOptions.openai.previousResponseId injectable from session"
+    ],
+    "mechanisms": [
+      "M1: transform.ts providerOptions() [line 834]",
+      "M2: llm.ts streamText() call [line 608-711]"
+    ],
+    "children": ["A11", "A12", "A13"]
+  },
+  "A11": {
+    "id": "A11",
+    "name": "Activate Store And Service Tier",
+    "inputs": ["I1: Codex provider detection (model.providerId)"],
+    "controls": ["C1: Only for codex/codex-subscription-* providers"],
+    "outputs": [
+      "O1: store=false → encrypted reasoning auto-included",
+      "O2: serviceTier=priority → Pro queue routing"
+    ],
+    "mechanisms": ["M1: transform.ts providerOptions()"]
+  },
+  "A12": {
+    "id": "A12",
+    "name": "Migrate Cache Key To Provider Options",
+    "inputs": [
+      "I1: Session-stable cache key (currently in fetch interceptor)",
+      "I2: providerOptions.openai.promptCacheKey field"
+    ],
+    "controls": ["C1: Fetch interceptor fallback retained for safety"],
+    "outputs": ["O1: Cache key set via providerOptions (AI SDK constructs body)"],
+    "mechanisms": ["M1: llm.ts per-session state"]
+  },
+  "A13": {
+    "id": "A13",
+    "name": "Track Response Identity For Delta",
+    "inputs": ["I1: AI SDK providerMetadata.responseId from finish event"],
+    "controls": ["C1: Only capture when codex provider active"],
+    "outputs": [
+      "O1: previousResponseId available for next turn",
+      "O2: Delta eligibility flag (instructions+tools unchanged)"
+    ],
+    "mechanisms": ["M1: llm.ts per-session state", "M2: eventProcessor finish-step"]
+  },
+  "A2": {
+    "id": "A2",
+    "name": "Extend Fetch Interceptor Body Transform",
+    "inputs": [
+      "I1: AI SDK constructed request body (from @ai-sdk/openai adapter)",
+      "I2: Codex-specific fields not in AI SDK (context_management)"
+    ],
+    "controls": [
+      "C1: Additive transform only — never overwrite AI SDK fields",
+      "C2: Body transform runs AFTER AI SDK constructs body"
+    ],
+    "outputs": [
+      "O1: context_management field injected",
+      "O2: Fetch interceptor duplication cleaned (instructions, prompt_cache_key)"
+    ],
+    "mechanisms": [
+      "M1: codex.ts CodexNativeAuthPlugin.fetch()"
+    ],
+    "children": ["A21", "A22"]
+  },
+  "A21": {
+    "id": "A21",
+    "name": "Add Context Management Injection",
+    "inputs": ["I1: Model context window size", "I2: Config threshold (80% default)"],
+    "controls": ["C1: Only inject for codex endpoint requests"],
+    "outputs": ["O1: body.context_management = [{type:'compaction', compact_threshold: N}]"],
+    "mechanisms": ["M1: codex.ts body transform section"]
+  },
+  "A22": {
+    "id": "A22",
+    "name": "Deduplicate Fetch Interceptor Logic",
+    "inputs": [
+      "I1: CodexAuthPlugin (openai provider, lines 358-628)",
+      "I2: CodexNativeAuthPlugin (codex provider, lines 654-919)",
+      "I3: Identified duplications (instructions, headers, token refresh, body transform)"
+    ],
+    "controls": ["C1: CodexNativeAuthPlugin is strict superset of CodexAuthPlugin"],
+    "outputs": [
+      "O1: Single consolidated auth+fetch logic",
+      "O2: instructions extraction removed (AI SDK adapter handles via providerOptions)",
+      "O3: prompt_cache_key fallback simplified"
+    ],
+    "mechanisms": ["M1: codex.ts refactor"]
+  },
+  "A3": {
+    "id": "A3",
+    "name": "Build WebSocket Transport Adapter",
+    "inputs": [
+      "I1: AI SDK fetch(url, {body, headers}) call",
+      "I2: Codex WebSocket protocol (whitepaper Section 7)",
+      "I3: Old codex-websocket.ts (reference: delta detection, handshake)"
+    ],
+    "controls": [
+      "C1: AI SDK must not know transport is WebSocket (transparent adapter)",
+      "C2: HTTP fallback mandatory on WS failure",
+      "C3: One WS connection = one active request (no multiplexing)"
+    ],
+    "outputs": [
+      "O1: Synthetic SSE Response wrapping WS events",
+      "O2: Incremental delta (previous_response_id + delta input)",
+      "O3: Persistent WS connection (per-session reuse)"
+    ],
+    "mechanisms": [
+      "M1: Bun native WebSocket client",
+      "M2: codex.ts fetch interceptor (transport switch point)"
+    ],
+    "children": ["A31", "A32", "A33", "A34"]
+  },
+  "A31": {
+    "id": "A31",
+    "name": "Manage WebSocket Connection",
+    "inputs": ["I1: First codex request in session"],
+    "controls": [
+      "C1: Connection state machine: idle → connecting → open → failed",
+      "C2: Per-session isolation (no shared WS across sessions)"
+    ],
+    "outputs": [
+      "O1: Open WS connection with proper handshake headers",
+      "O2: Connection state for transport decision"
+    ],
+    "mechanisms": ["M1: Bun WebSocket client", "M2: codex.ts WS manager"]
+  },
+  "A32": {
+    "id": "A32",
+    "name": "Transform WebSocket Events To SSE Stream",
+    "inputs": ["I1: WS text frames (JSONL events from codex server)"],
+    "controls": [
+      "C1: AI SDK SSE parser expects 'data: {json}\\n\\n' format",
+      "C2: Stream must close on response.completed/failed/error"
+    ],
+    "outputs": ["O1: ReadableStream of SSE-formatted text"],
+    "mechanisms": ["M1: TransformStream (WS event → SSE line)"]
+  },
+  "A33": {
+    "id": "A33",
+    "name": "Construct Synthetic HTTP Response",
+    "inputs": ["I1: SSE ReadableStream from A32", "I2: Response headers (turn-state capture)"],
+    "controls": ["C1: Response must pass AI SDK's response validation"],
+    "outputs": ["O1: Response object with SSE body that AI SDK consumes transparently"],
+    "mechanisms": ["M1: new Response(stream, {headers})"]
+  },
+  "A34": {
+    "id": "A34",
+    "name": "Compute Incremental Delta",
+    "inputs": [
+      "I1: Current request body (full input array)",
+      "I2: Previous response_id (from last turn)"
+    ],
+    "controls": [
+      "C1: Delta only when instructions+tools unchanged",
+      "C2: Full history when any non-input field changed"
+    ],
+    "outputs": [
+      "O1: Delta request (previous_response_id + new input items only — trimmed by fetch interceptor)",
+      "O2: Full request (when delta not applicable)"
+    ],
+    "mechanisms": ["M1: Fetch interceptor input slice (AI SDK adapter does NOT auto-delta)"]
+  },
+  "A4": {
+    "id": "A4",
+    "name": "Integrate Server Side Compaction",
+    "inputs": [
+      "I1: Conversation history approaching context limit",
+      "I2: /responses/compact endpoint"
+    ],
+    "controls": [
+      "C1: Only for codex provider",
+      "C2: Fallback to client-side compaction on server failure"
+    ],
+    "outputs": [
+      "O1: Compacted conversation history (>50% token reduction)",
+      "O2: Compaction event logged"
+    ],
+    "mechanisms": [
+      "M1: session/compaction.ts trigger",
+      "M2: codex-compaction.ts API call"
+    ]
+  },
+  "A5": {
+    "id": "A5",
+    "name": "Remove Dead Code And Resolve Conflicts",
+    "inputs": [
+      "I1: Dead CUSTOM_LOADER infrastructure (1,390 lines)",
+      "I2: Unsafe type casts (llm.ts, provider.ts, compaction.ts)",
+      "I3: Duplicated auth plugins (CodexAuthPlugin vs CodexNativeAuthPlugin)",
+      "I4: Module-level shared state (codexTurnState)"
+    ],
+    "controls": [
+      "C1: No regression — all existing tests must pass",
+      "C2: Type safety — remove all (as any) casts for dead methods"
+    ],
+    "outputs": [
+      "O1: codex-language-model.ts removed or gutted (816 lines)",
+      "O2: codex-websocket.ts removed (574 lines)",
+      "O3: CUSTOM_LOADER branch in provider.ts removed",
+      "O4: setAuth/setCompactThreshold/setCompactedOutput calls removed",
+      "O5: Turn state moved from module-level to per-session storage"
+    ],
+    "mechanisms": [
+      "M1: provider.ts CUSTOM_LOADER branch",
+      "M2: llm.ts unsafe type cast sites"
+    ],
+    "children": ["A51", "A52", "A53"]
+  },
+  "A51": {
+    "id": "A51",
+    "name": "Remove CUSTOM LOADER Infrastructure",
+    "inputs": ["I1: codex-language-model.ts, codex-websocket.ts, provider.ts CUSTOM_LOADER"],
+    "controls": ["C1: Verify no runtime imports remain"],
+    "outputs": ["O1: 1,390+ lines of dead code removed"],
+    "mechanisms": ["M1: grep for all import/require references"]
+  },
+  "A52": {
+    "id": "A52",
+    "name": "Remove Unsafe Type Casts",
+    "inputs": ["I1: setAuth/setCompactThreshold/setCompactedOutput call sites"],
+    "controls": ["C1: TypeScript strict mode compliance"],
+    "outputs": ["O1: Clean type-safe LLM call path"],
+    "mechanisms": ["M1: llm.ts, provider.ts, compaction.ts"]
+  },
+  "A53": {
+    "id": "A53",
+    "name": "Isolate Turn State Per Session",
+    "inputs": ["I1: Module-level codexTurnState object"],
+    "controls": ["C1: Session isolation — no cross-session state leakage"],
+    "outputs": ["O1: Per-session turn state storage"],
+    "mechanisms": ["M1: Session storage or WeakMap keyed by session ID"]
+  }
+}

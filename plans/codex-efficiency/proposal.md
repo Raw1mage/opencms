@@ -15,12 +15,14 @@
 ## Requirement Revision History
 
 - 2026-03-29: Initial requirement — implement all 6 Responses API efficiency features for codex provider
+- 2026-03-29: Prewarm 擱置；WebSocket transport 確認為必做項（不隨 CUSTOM_LOADER 廢棄）
+- 2026-03-29: AI SDK 架構分析完成 → WebSocket 改為 fetch interceptor transport adapter 架構
 
 ## Effective Requirement Description
 
 1. 為 codex provider 啟用 OpenAI Responses API 的全部 server-side 效能優化
 2. 降低長對話的 token 消耗至少 50%（目標 90%）
-3. 降低首 token 延遲（cache hit + prewarm）
+3. 降低首 token 延遲（cache hit）
 4. 先在 codex provider 實作，驗證後可推廣到 openai provider
 
 ## Scope
@@ -31,7 +33,7 @@
 - sticky routing（capture/replay x-codex-turn-state header）
 - encrypted reasoning content 回傳重用（上一次的 reasoning 下次原封送回）
 - zstd request body compression
-- WebSocket transport（incremental delta + prewarm）
+- WebSocket transport + incremental delta（persistent connection，只送新增 input）
 - server-side compaction（/responses/compact endpoint）
 
 ### OUT
@@ -40,6 +42,7 @@
 - client-side compaction 改進（已有，不在此 scope）
 - UI/admin panel 的 cache 狀態顯示（可後續加）
 - C library 的 WebSocket 實作（用 TS/Bun 原生 WebSocket）
+- Prewarm（generate: false 預熱）— 擱置，非瓶頸
 
 ## Non-Goals
 
@@ -73,7 +76,6 @@
 - **Reasoning Reuse**: reasoning tokens 加密回傳，下次 request 免重算
 - **Request Compression**: zstd 壓縮長 request body
 - **Incremental Delta**: WebSocket 只送新增 input，不重送整個 history
-- **Prewarm**: 在 user 輸入前預熱 server cache
 - **Server Compaction**: server 端做 history 摘要
 
 ### Modified Capabilities

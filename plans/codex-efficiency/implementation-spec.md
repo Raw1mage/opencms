@@ -2,111 +2,111 @@
 
 ## Goal
 
-- 為 codex provider 啟用 OpenAI Responses API 的 6 項 server-side 效能優化，將長對話 token 消耗降低 50-90%
+- 為 codex provider 啟用 OpenAI Responses API 的 5 項 server-side 效能優化（prewarm 除外），將長對話 token 消耗降低 50-90%
 
 ## Scope
 
 ### IN
 
-- Phase 1: prompt_cache_key + sticky routing（HTTP, 立即可用）
-- Phase 2: encrypted reasoning reuse + zstd compression（HTTP, 中等難度）
-- Phase 3: WebSocket transport + incremental delta + prewarm（高價值高難度）
-- Phase 4: server-side compaction（/responses/compact）
+- Phase 1: prompt_cache_key + sticky routing（✅ 已完成）
+- Phase 2: encrypted reasoning reuse + zstd compression + providerOptions 注入
+- Phase 3: WebSocket transport + incremental delta（fetch interceptor transport adapter 架構）
+- Phase 4: server-side compaction + context_management
 
 ### OUT
 
 - 其他 provider 的效能優化
 - C library WebSocket（用 Bun 原生 WebSocket）
+- CUSTOM_LOADER path（已廢棄）
+- Prewarm（generate: false）— 擱置
 - client-side compaction 改進
 
 ## Assumptions
 
-- OpenAI Responses API 接受 `prompt_cache_key` 欄位（codex-rs 已使用）
-- `x-codex-turn-state` header 會由 server 回傳且接受 replay（codex-rs 已使用）
+- OpenAI Responses API 接受 `prompt_cache_key` 欄位（codex-rs 已使用）✅ 已驗證
+- `x-codex-turn-state` header 會由 server 回傳且接受 replay ✅ 已驗證
+- AI SDK `@ai-sdk/openai` adapter 支援 `previousResponseId`、`store`、`serviceTier` 等 providerOptions ✅ 已驗證（見 aisdk-refactor design.md）
 - WebSocket endpoint 支援 `previous_response_id` 做 incremental delta（codex-rs 已使用）
 - Bun 原生 WebSocket client 能連接 OpenAI WebSocket endpoint
+- AI SDK SSE parser 能消費 synthetic Response（WS events → SSE format 轉換）
 
 ## Stop Gates
 
 - **SG-1**: 如果 `prompt_cache_key` 被 server 忽略（quota 沒有下降），暫停並分析 packet
 - **SG-2**: 如果 WebSocket handshake 被 server 拒絕，停留在 HTTP SSE 路徑
 - **SG-3**: 如果 encrypted reasoning 造成 request body 過大（超過 context window），需要 truncation 策略
+- **SG-4**: 如果 AI SDK SSE parser 無法消費 synthetic Response（WS→SSE 格式不相容），需深入分析 parser 預期格式
 
 ## Critical Files
 
-- `packages/opencode/src/session/llm.ts` — LLM call orchestration, turn state
-- `packages/opencode/src/plugin/codex.ts` — custom fetch, header injection
-- `packages/opencode/src/provider/provider.ts` — codex CUSTOM_LOADER
-- `packages/opencode/src/provider/codex-language-model.ts` — C transport bridge
-- `packages/opencode-codex-provider/src/main.c` — C binary request handling
-- `packages/opencode-codex-provider/src/transport.c` — HTTP transport
+- `packages/opencode/src/session/llm.ts` — LLM call orchestration, providerOptions injection, response_id tracking
+- `packages/opencode/src/plugin/codex.ts` — custom fetch, header injection, **WebSocket transport adapter**
 - `packages/opencode/src/session/compaction.ts` — compaction integration point
+- `packages/opencode/src/provider/codex-websocket.ts` — 舊 WebSocket（參考用）
+- `node_modules/@ai-sdk/openai/dist/index.js` — 參考：SSE parser 預期格式
 
 ## Structured Execution Phases
 
-### Phase 1: Prompt Cache + Sticky Routing（低風險高回報）
+### Phase 1: Prompt Cache + Sticky Routing ✅ DONE
 
-HTTP-only，只加 request field 和 header。不改 transport 層。
+HTTP-only，只加 request field 和 header。
 
-1. 在 codex provider 的 request body 注入 `prompt_cache_key: session_id`
-2. Capture `x-codex-turn-state` from response headers
-3. Replay `x-codex-turn-state` in subsequent requests within same turn
-4. Per-session state 管理（turn_state lifecycle）
-5. 驗證：比較加 cache key 前後的 `cached_input_tokens` 數值
+### Phase 2: Reasoning Reuse + Compression + providerOptions
 
-### Phase 2: Reasoning Reuse + Compression（中等難度）
+1. 在 llm.ts 注入 `providerOptions.openai.store = false` 給 codex provider
+2. 在 llm.ts 注入 `providerOptions.openai.serviceTier = "priority"` 給 codex provider
+3. 驗證 encrypted_content 在 session history replay 中完整保留
+4. 清理 fetch interceptor 重複邏輯（prompt_cache_key 已可透過 providerOptions 處理）
+5. 驗證：比較 reasoning token 消耗 + 壓縮率
 
-1. 從 response 的 reasoning items 中提取 `encrypted_content`
-2. 在下一次 request 的 input 中回傳 reasoning item（含 encrypted_content）
-3. 接收 `x-reasoning-included: true` header 確認 server 已處理
-4. 實作 zstd request body compression（ChatGPT 模式）
-5. 驗證：比較 reasoning_output_tokens 是否下降
+### Phase 3: WebSocket Transport + Incremental Delta
 
-### Phase 3: WebSocket Transport（最大效能提升）
+> 新架構：fetch interceptor transport adapter，不離開 AI SDK pipeline。
 
-1. 建立 Bun WebSocket client 連接 codex endpoint
-2. 實作 WebSocket handshake（OpenAI-Beta header）
-3. 實作 prewarm（generate: false）
-4. 實作 incremental delta（previous_response_id + delta input）
-5. 實作 transport fallback（WebSocket 失敗 → HTTP SSE）
-6. 整合到 CodexLanguageModel.doStream()
-7. 驗證：比較 incremental vs 全量的 input_tokens
+1. 建立 WebSocket connection manager（per-session persistent connection）
+2. 實作 WS ↔ SSE transport adapter（WS events → SSE format → synthetic Response）
+3. 在 llm.ts 追蹤 response_id，注入 `providerOptions.openai.previousResponseId`
+4. 實作 incremental delta detection（只有 input append 才走 delta）
+5. 實作 transport fallback（WS 失敗 → HTTP SSE）
+6. 驗證：WS 連線、delta token 節省、fallback
 
-### Phase 4: Server-side Compaction
+### Phase 4: Server-side Compaction + context_management
 
-1. 呼叫 `/responses/compact` endpoint 做 server 端摘要
-2. 整合到 opencode 的 compaction trigger（context overflow 時）
-3. 驗證：compaction 後 context 大小顯著縮減
+1. 實作 `/responses/compact` API call
+2. 整合到 compaction trigger（codex 優先 server compact）
+3. 在 fetch interceptor 加入 `context_management` body field
+4. 驗證：compact 後 context 縮減 > 50%
 
 ## Validation
 
-### Phase 1
-- [ ] Request 帶 `prompt_cache_key` 欄位（packet capture 驗證）
-- [ ] `cached_input_tokens` > 0 在第二次 turn（log 驗證）
-- [ ] `x-codex-turn-state` 被 capture 並 replay（log 驗證）
-- [ ] 無 regression：codex provider 正常對話
+### Phase 1 ✅
+- [x] Request 帶 `prompt_cache_key` 欄位
+- [ ] `cached_input_tokens` > 0 在第二次 turn
+- [ ] `x-codex-turn-state` 被 capture 並 replay
+- [x] 無 regression：codex provider 正常對話
 
 ### Phase 2
-- [ ] Reasoning encrypted_content 在下次 request 中出現（packet capture）
-- [ ] Response header `x-reasoning-included: true`（log 驗證）
-- [ ] Request body 有 `Content-Encoding: zstd`（packet capture）
-- [ ] 壓縮率 > 2x（log size before/after）
+- [ ] `providerOptions.openai.store = false` 生效 → `include` 自動含 `reasoning.encrypted_content`
+- [ ] `providerOptions.openai.serviceTier = "priority"` 生效
+- [ ] Reasoning encrypted_content 在 session history replay 中完整保留
+- [ ] 壓縮率 > 2x
 
 ### Phase 3
-- [ ] WebSocket connection 建立成功（log）
-- [ ] Prewarm request 不消耗 output tokens（usage 驗證）
-- [ ] Incremental delta 只送新增 items（packet capture）
-- [ ] `input_tokens` 顯著低於全量（比較 log）
+- [ ] WebSocket connection 建立成功
+- [ ] AI SDK SSE parser 正確消費 synthetic Response（格式驗證）
+- [ ] Incremental delta 的 `input_tokens` < 全量的 50%
 - [ ] WebSocket 失敗時自動 fallback 到 HTTP SSE
+- [ ] Mid-request WS 斷線時自動 HTTP retry
 
 ### Phase 4
-- [ ] `/responses/compact` 呼叫成功（log）
-- [ ] Compaction 後 conversation history 縮減（token count 比較）
+- [ ] `/responses/compact` 呼叫成功
+- [ ] Compaction 後 conversation history token count 降低 > 50%
+- [ ] `context_management` 欄位出現在 request body
 
 ## Handoff
 
 - Build agent must read this spec first.
-- Build agent must read companion artifacts before coding.
-- Build agent must materialize runtime todo from tasks.md.
-- Wire protocol reference: `plans/codex-auth-plugin/diagrams/codex_a4_protocol_ref.json`
-- 重要：每個 Phase 獨立可交付，Phase 1 完成即有價值。
+- Build agent must read companion artifacts (design.md, tasks.md) before coding.
+- **重要**: Phase 3 的舊 code（codex-websocket.ts、codex-language-model.ts）僅供參考，不可直接使用。新 WebSocket 必須在 fetch interceptor 架構內實作。
+- Wire protocol reference: `specs/codex-protocol/whitepaper.md`
+- AI SDK 架構分析: `plans/aisdk-refactor/design.md`

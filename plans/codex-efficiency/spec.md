@@ -84,13 +84,13 @@ The system SHALL compress request bodies with zstd when using ChatGPT subscripti
 
 ### Requirement: WebSocket Transport with Incremental Delta
 
-The system SHALL use WebSocket transport with incremental delta when available.
+The system SHALL use WebSocket transport with incremental delta when available. WebSocket is implemented as a fetch interceptor transport adapter — AI SDK pipeline remains unchanged.
 
 #### Scenario: WebSocket connection
 
 - **GIVEN** codex provider initializes a turn
-- **WHEN** WebSocket is not disabled
-- **THEN** WebSocket connection is established with `OpenAI-Beta: responses_websockets=2026-02-06` header
+- **WHEN** WebSocket is not disabled and connection is healthy
+- **THEN** WebSocket connection is reused (or established) with proper handshake headers
 
 #### Scenario: Incremental delta
 
@@ -98,17 +98,23 @@ The system SHALL use WebSocket transport with incremental delta when available.
 - **WHEN** a follow-up request has only appended items (no instruction/tool changes)
 - **THEN** request sends only delta items with `previous_response_id` (not full history)
 
-#### Scenario: Prewarm
+#### Scenario: Synthetic SSE Response
 
-- **GIVEN** user is typing and session context is loaded
-- **WHEN** prewarm is triggered
-- **THEN** request is sent with `generate: false` to warm server cache without output tokens
+- **GIVEN** WebSocket transport is active
+- **WHEN** WS events are received
+- **THEN** events are transformed to SSE format and returned as a synthetic Response that AI SDK SSE parser can consume
 
 #### Scenario: Fallback to HTTP
 
-- **GIVEN** WebSocket connection fails or returns 426
+- **GIVEN** WebSocket connection fails, returns 426, or errors mid-stream
 - **WHEN** transport fallback is triggered
 - **THEN** request falls back to HTTP SSE (current path) transparently
+
+#### ~~Scenario: Prewarm~~ (SHELVED)
+
+~~- **GIVEN** user is typing and session context is loaded~~
+~~- **WHEN** prewarm is triggered~~
+~~- **THEN** request is sent with `generate: false` to warm server cache without output tokens~~
 
 ### Requirement: Server-side Compaction
 
@@ -126,15 +132,44 @@ The system SHALL use server-side compaction when context approaches limits.
 - **WHEN** summary is received
 - **THEN** conversation history is replaced with compacted version and next request uses reduced context
 
+### Requirement: context_management (Inline Compaction)
+
+The system SHALL include `context_management` in codex Responses API requests to enable server-side inline compaction.
+
+#### Scenario: Inline compaction threshold
+
+- **GIVEN** codex provider is active
+- **WHEN** an LLM request is sent
+- **THEN** request body contains `"context_management": [{"type": "compaction", "compact_threshold": N}]` where N is derived from model context window
+
+### Requirement: providerOptions Injection
+
+The system SHALL set codex-specific providerOptions for store and service_tier.
+
+#### Scenario: store=false for privacy and encrypted reasoning
+
+- **GIVEN** codex provider is active
+- **WHEN** an LLM request is constructed
+- **THEN** `providerOptions.openai.store = false` is set, triggering AI SDK to auto-include `reasoning.encrypted_content`
+
+#### Scenario: priority service tier for Pro users
+
+- **GIVEN** codex provider is active with ChatGPT Pro subscription
+- **WHEN** an LLM request is constructed
+- **THEN** `providerOptions.openai.serviceTier = "priority"` is set
+
 ## Acceptance Checks
 
-- [ ] prompt_cache_key present in all codex requests (Phase 1)
+- [x] prompt_cache_key present in all codex requests (Phase 1)
 - [ ] cached_input_tokens > 0 on second turn of a session (Phase 1)
-- [ ] x-codex-turn-state captured and replayed within tool-call turns (Phase 1)
+- [x] x-codex-turn-state captured and replayed within tool-call turns (Phase 1)
+- [ ] providerOptions.openai.store = false 生效 (Phase 2)
+- [ ] providerOptions.openai.serviceTier = "priority" 生效 (Phase 2)
 - [ ] encrypted_content preserved across turns in reasoning items (Phase 2)
-- [ ] zstd Content-Encoding header on ChatGPT mode requests (Phase 2)
-- [ ] WebSocket connection established to codex endpoint (Phase 3)
+- [x] zstd Content-Encoding header on ChatGPT mode requests (Phase 2)
+- [ ] WebSocket connection established via fetch interceptor transport adapter (Phase 3)
+- [ ] AI SDK SSE parser correctly consumes synthetic Response from WS (Phase 3)
 - [ ] Incremental delta: input_tokens < 50% of full-context baseline (Phase 3)
-- [ ] Prewarm: output_tokens = 0 on prewarm request (Phase 3)
 - [ ] Server compaction reduces context by > 50% (Phase 4)
+- [ ] context_management field present in request body (Phase 4)
 - [ ] All phases gracefully degrade: no errors when server doesn't support a feature

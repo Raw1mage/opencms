@@ -1,0 +1,371 @@
+{
+  "meta": {
+    "title": "AI SDK Extension Refactoring — Execution State Machine",
+    "version": "1.0.0",
+    "date": "2026-03-29",
+    "standard": "IEC 60848 Grafcet",
+    "scope": "Phase execution sequencing + WebSocket transport state + per-request transport decision"
+  },
+  "grafcets": [
+    {
+      "id": "G1",
+      "name": "Phase Execution Sequence",
+      "description": "Top-level execution order with dependencies and stop gates",
+      "steps": [
+        {
+          "id": "S0",
+          "name": "Analysis Complete",
+          "initial": true,
+          "actions": [
+            "Phase 1 analysis done (aisdk-refactor design.md)",
+            "Dead code inventory complete",
+            "Call path traced"
+          ]
+        },
+        {
+          "id": "S1",
+          "name": "Provider Options Active",
+          "actions": [
+            "A11: store=false + serviceTier=priority injected in transform.ts",
+            "A12: promptCacheKey migrated to providerOptions (interceptor fallback retained)",
+            "Verify: AI SDK adapter auto-includes reasoning.encrypted_content"
+          ]
+        },
+        {
+          "id": "S2",
+          "name": "Encrypted Reasoning Verified",
+          "actions": [
+            "A13: Verify session history preserves encrypted_content",
+            "Verify: reasoning items replayed in next turn input",
+            "Fix if needed: history serialization path"
+          ]
+        },
+        {
+          "id": "S3",
+          "name": "Fetch Interceptor Extended",
+          "actions": [
+            "A21: context_management body field injected",
+            "A22: Deduplicate CodexAuthPlugin vs CodexNativeAuthPlugin",
+            "A22: Remove redundant instructions extraction",
+            "A22: Simplify prompt_cache_key to fallback-only"
+          ]
+        },
+        {
+          "id": "S4",
+          "name": "Dead Code Removed",
+          "actions": [
+            "A51: Remove codex-language-model.ts (816 lines)",
+            "A51: Remove codex-websocket.ts (574 lines)",
+            "A51: Remove CUSTOM_LOADER branch in provider.ts",
+            "A52: Remove setAuth/setCompactThreshold/setCompactedOutput casts",
+            "A53: Move codexTurnState to per-session storage"
+          ]
+        },
+        {
+          "id": "S5",
+          "name": "WebSocket Manager Ready",
+          "actions": [
+            "A31: WS connection manager built (per-session lifecycle)",
+            "A31: Handshake headers configured",
+            "A31: Connection state machine operational"
+          ]
+        },
+        {
+          "id": "S6",
+          "name": "WebSocket Transport Adapter Active",
+          "actions": [
+            "A32: WS events → SSE stream transform operational",
+            "A33: Synthetic Response construction verified",
+            "A34: Incremental delta logic implemented",
+            "Verify: AI SDK SSE parser consumes synthetic Response"
+          ]
+        },
+        {
+          "id": "S7",
+          "name": "Server Compaction Integrated",
+          "actions": [
+            "A4: /responses/compact API call implemented",
+            "A4: Compaction trigger integration done",
+            "A4: Fallback to client-side compaction verified"
+          ]
+        },
+        {
+          "id": "S8",
+          "name": "Refactoring Complete",
+          "actions": [
+            "All 5 Responses API optimizations active",
+            "Dead code removed (1,390+ lines)",
+            "Duplication resolved",
+            "All tests passing"
+          ]
+        }
+      ],
+      "transitions": [
+        {
+          "id": "T01",
+          "from": ["S0"],
+          "to": ["S1"],
+          "condition": "Plan approved AND llm.ts call path understood"
+        },
+        {
+          "id": "T12",
+          "from": ["S1"],
+          "to": ["S2"],
+          "condition": "store=false active AND AI SDK auto-include verified in request"
+        },
+        {
+          "id": "T23",
+          "from": ["S2"],
+          "to": ["S3"],
+          "condition": "encrypted_content round-trip verified (request → response → history → next request)"
+        },
+        {
+          "id": "T34",
+          "from": ["S3"],
+          "to": ["S4"],
+          "condition": "Fetch interceptor tests pass AND no duplication remains"
+        },
+        {
+          "id": "T45",
+          "from": ["S4"],
+          "to": ["S5"],
+          "condition": "Dead code removed AND typecheck clean AND all tests pass",
+          "note": "SG-4 gate: if removing dead code breaks anything, fix before proceeding"
+        },
+        {
+          "id": "T56",
+          "from": ["S5"],
+          "to": ["S6"],
+          "condition": "WS connection established to codex endpoint AND handshake accepted",
+          "stop_gate": "SG-2: If WS handshake rejected → stay at S4 (HTTP-only mode), skip to S7"
+        },
+        {
+          "id": "T67",
+          "from": ["S6"],
+          "to": ["S7"],
+          "condition": "WS transport adapter verified: AI SDK parses synthetic Response AND delta saves >50% tokens"
+        },
+        {
+          "id": "T4_7_bypass",
+          "from": ["S4"],
+          "to": ["S7"],
+          "condition": "SG-2 triggered: WS handshake rejected → skip WS phases"
+        },
+        {
+          "id": "T78",
+          "from": ["S7"],
+          "to": ["S8"],
+          "condition": "Server compaction reduces context >50% OR gracefully degrades (404 fallback)"
+        }
+      ]
+    },
+    {
+      "id": "G2",
+      "name": "WebSocket Connection State Machine",
+      "description": "Per-session WebSocket lifecycle within fetch interceptor",
+      "steps": [
+        {
+          "id": "WS0",
+          "name": "Idle",
+          "initial": true,
+          "actions": ["ws = null, wsEnabled = true"]
+        },
+        {
+          "id": "WS1",
+          "name": "Connecting",
+          "actions": [
+            "ws = new WebSocket(endpoint, {headers})",
+            "Start handshake timeout (5s)"
+          ]
+        },
+        {
+          "id": "WS2",
+          "name": "Open",
+          "actions": [
+            "WS ready for request dispatch",
+            "Cancel handshake timeout"
+          ]
+        },
+        {
+          "id": "WS3",
+          "name": "Streaming",
+          "actions": [
+            "Active request in flight",
+            "WS events → SSE ReadableStream",
+            "One request at a time (no multiplexing)"
+          ]
+        },
+        {
+          "id": "WS4",
+          "name": "Failed",
+          "actions": [
+            "wsEnabled = false",
+            "ws.close() if open",
+            "All subsequent requests use HTTP",
+            "Log failure reason"
+          ]
+        }
+      ],
+      "transitions": [
+        {
+          "id": "TW01",
+          "from": ["WS0"],
+          "to": ["WS1"],
+          "condition": "First codex fetch intercepted AND wsEnabled = true"
+        },
+        {
+          "id": "TW12",
+          "from": ["WS1"],
+          "to": ["WS2"],
+          "condition": "WebSocket 'open' event received"
+        },
+        {
+          "id": "TW1F",
+          "from": ["WS1"],
+          "to": ["WS4"],
+          "condition": "Handshake timeout OR 'error' event OR HTTP 426 upgrade rejected"
+        },
+        {
+          "id": "TW23",
+          "from": ["WS2"],
+          "to": ["WS3"],
+          "condition": "fetch() called AND request body dispatched via WS"
+        },
+        {
+          "id": "TW32",
+          "from": ["WS3"],
+          "to": ["WS2"],
+          "condition": "response.completed received → stream closed → WS ready for next request"
+        },
+        {
+          "id": "TW3F",
+          "from": ["WS3"],
+          "to": ["WS4"],
+          "condition": "WS error during streaming OR unexpected close"
+        },
+        {
+          "id": "TW2F",
+          "from": ["WS2"],
+          "to": ["WS4"],
+          "condition": "WS unexpected close while idle"
+        }
+      ]
+    },
+    {
+      "id": "G3",
+      "name": "Per-Request Transport Decision",
+      "description": "How each fetch interceptor call decides HTTP vs WebSocket + full vs delta",
+      "steps": [
+        {
+          "id": "R0",
+          "name": "Request Intercepted",
+          "initial": true,
+          "actions": [
+            "Parse URL, detect codex endpoint",
+            "Read wsEnabled flag, WS connection state"
+          ]
+        },
+        {
+          "id": "R1",
+          "name": "WebSocket Path Selected",
+          "actions": [
+            "Parse request body JSON",
+            "Check previous_response_id availability"
+          ]
+        },
+        {
+          "id": "R2",
+          "name": "Delta Request Dispatched",
+          "actions": [
+            "Send {type: 'response.create', previous_response_id, input: [delta_items]}",
+            "Create SSE ReadableStream from WS events",
+            "Return synthetic Response"
+          ]
+        },
+        {
+          "id": "R3",
+          "name": "Full Request Via WebSocket",
+          "actions": [
+            "Send {type: 'response.create', ...fullBody}",
+            "Create SSE ReadableStream from WS events",
+            "Return synthetic Response"
+          ]
+        },
+        {
+          "id": "R4",
+          "name": "HTTP Path Selected",
+          "actions": [
+            "Apply existing body transforms (auth, URL rewrite, headers)",
+            "fetch(codex_url, {body, headers})",
+            "Return native SSE Response"
+          ]
+        },
+        {
+          "id": "R5",
+          "name": "Response Delivered",
+          "actions": [
+            "Capture turn state from response headers",
+            "Capture response_id for next delta",
+            "Return Response to AI SDK"
+          ]
+        }
+      ],
+      "transitions": [
+        {
+          "id": "TR01",
+          "from": ["R0"],
+          "to": ["R1"],
+          "condition": "isCodexEndpoint AND wsEnabled AND ws.readyState === OPEN"
+        },
+        {
+          "id": "TR04",
+          "from": ["R0"],
+          "to": ["R4"],
+          "condition": "NOT isCodexEndpoint OR NOT wsEnabled OR ws not OPEN"
+        },
+        {
+          "id": "TR12",
+          "from": ["R1"],
+          "to": ["R2"],
+          "condition": "body.previous_response_id present AND instructions+tools unchanged"
+        },
+        {
+          "id": "TR13",
+          "from": ["R1"],
+          "to": ["R3"],
+          "condition": "No previous_response_id OR instructions/tools changed"
+        },
+        {
+          "id": "TR25",
+          "from": ["R2"],
+          "to": ["R5"],
+          "condition": "SSE stream completed successfully"
+        },
+        {
+          "id": "TR35",
+          "from": ["R3"],
+          "to": ["R5"],
+          "condition": "SSE stream completed successfully"
+        },
+        {
+          "id": "TR45",
+          "from": ["R4"],
+          "to": ["R5"],
+          "condition": "HTTP response received"
+        },
+        {
+          "id": "TR24_fallback",
+          "from": ["R2"],
+          "to": ["R4"],
+          "condition": "WS error during delta streaming → retry same request via HTTP"
+        },
+        {
+          "id": "TR34_fallback",
+          "from": ["R3"],
+          "to": ["R4"],
+          "condition": "WS error during full streaming → retry same request via HTTP"
+        }
+      ]
+    }
+  ]
+}
