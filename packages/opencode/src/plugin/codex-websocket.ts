@@ -15,6 +15,7 @@ const log = Log.create({ service: "codex-websocket" })
 
 const WS_CONNECT_TIMEOUT_MS = 15_000
 const WS_IDLE_TIMEOUT_MS = 30_000
+const WS_FIRST_FRAME_TIMEOUT_MS = 10_000 // must receive first frame within 10s or fallback
 const WS_MAX_CONNECT_RETRIES = 1 // retry once, then HTTP fallback
 
 // ── Types ──
@@ -318,6 +319,61 @@ export function wsRequest(input: {
   })
 }
 
+// ── First-Frame Probe ──
+// Wait for the first SSE chunk from the WS response before committing.
+// If no data within WS_FIRST_FRAME_TIMEOUT_MS, return null → HTTP fallback.
+
+async function probeFirstFrame(response: Response, sessionId: string, state: WsSessionState): Promise<Response | null> {
+  const reader = response.body!.getReader()
+
+  const result = await Promise.race([
+    reader.read(),
+    new Promise<{ timeout: true }>((resolve) =>
+      setTimeout(() => resolve({ timeout: true }), WS_FIRST_FRAME_TIMEOUT_MS)
+    ),
+  ]) as any
+
+  if (result.timeout) {
+    log.warn("ws first-frame timeout, falling back to HTTP", { sessionId })
+    reader.cancel()
+    state.disableWebsockets = true
+    try { state.ws?.close() } catch {}
+    state.ws = null
+    state.status = "failed"
+    return null
+  }
+
+  if (result.done) {
+    // Stream ended immediately (error or empty)
+    log.warn("ws stream ended before first frame", { sessionId })
+    state.disableWebsockets = true
+    return null
+  }
+
+  // Got first chunk — WS is working. Reconstruct stream with the first chunk prepended.
+  const firstChunk = result.value as Uint8Array
+  const remaining = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      controller.enqueue(firstChunk)
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          controller.enqueue(value)
+        }
+        controller.close()
+      } catch (e) {
+        controller.error(e)
+      }
+    },
+  })
+
+  return new Response(remaining, {
+    status: 200,
+    headers: { "content-type": "text/event-stream; charset=utf-8" },
+  })
+}
+
 // ── Transport Decision (Task 1.7, Phase 2B) ──
 
 export async function tryWsTransport(input: {
@@ -342,22 +398,28 @@ export async function tryWsTransport(input: {
     state.status = "idle"
   }
 
+  // Helper: attempt WS request with first-frame probe
+  async function attemptWs(ws: WebSocket, reqBody: Record<string, unknown>): Promise<Response | null> {
+    const rawResponse = wsRequest({ ws, body: reqBody, sessionId, state })
+    return probeFirstFrame(rawResponse, sessionId, state)
+  }
+
   // Reuse existing open connection
   if (state.ws && state.status === "open") {
-    // Phase 3: Inject previous_response_id if available
     const reqBody = { ...body }
     if (state.lastResponseId && !reqBody.previous_response_id) {
       reqBody.previous_response_id = state.lastResponseId
     }
 
     try {
-      return wsRequest({ ws: state.ws, body: reqBody, sessionId, state })
+      const probed = await attemptWs(state.ws, reqBody)
+      if (probed) return probed
+      // First-frame timeout → fall through to reconnect or HTTP
     } catch (e) {
       log.warn("ws request failed on cached connection", { sessionId, error: String(e) })
-      state.ws = null
-      state.status = "failed"
-      // Fall through to reconnect
     }
+    state.ws = null
+    state.status = "failed"
   }
 
   // Connect (with retry)
@@ -372,20 +434,20 @@ export async function tryWsTransport(input: {
       state.status = "open"
       state.accountId = accountId
 
-      // Phase 3: Inject previous_response_id
       const reqBody = { ...body }
       if (state.lastResponseId && !reqBody.previous_response_id) {
         reqBody.previous_response_id = state.lastResponseId
       }
 
       try {
-        return wsRequest({ ws, body: reqBody, sessionId, state })
+        const probed = await attemptWs(ws, reqBody)
+        if (probed) return probed
       } catch (e) {
         log.warn("ws request failed on new connection", { sessionId, error: String(e) })
-        state.ws = null
-        state.status = "failed"
-        continue
       }
+      state.ws = null
+      state.status = "failed"
+      continue
     }
   }
 
