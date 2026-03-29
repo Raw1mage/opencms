@@ -77,11 +77,21 @@ export const { use: useWebAuth, provider: WebAuthProvider } = createSimpleContex
       const response = await fetch(next)
       if (response.status === 401 || response.status === 403) {
         if (!enabled()) {
-          // Gateway mode: the gateway JWT has expired or been invalidated.
-          // Full-page redirect lets the gateway intercept and show the login page.
-          // Clear the expired JWT cookie client-side before redirecting.
-          document.cookie = "oc_jwt=; Path=/; Max-Age=0"
-          window.location.replace("/")
+          // Gateway mode: 401 may mean (a) JWT expired, or (b) daemon temporarily
+          // unavailable during reload. Probe gateway health before nuking the cookie.
+          // If gateway itself is healthy, the JWT is the problem → redirect to login.
+          // If gateway is also down, the daemon is restarting → just propagate error.
+          try {
+            const probe = await fetch(`${server.url}/global/health`, { credentials: "include" })
+            if (probe.ok) {
+              // Gateway is healthy but rejected our request → JWT is bad
+              document.cookie = "oc_jwt=; Path=/; Max-Age=0"
+              window.location.replace("/")
+            }
+            // else: gateway also unhealthy → transient, don't clear cookie
+          } catch {
+            // Network error → transient, don't clear cookie
+          }
           throw new Error("__OPENCODE_SILENT_UNAUTHORIZED__")
         }
         setForcedUnauthenticated(true)
