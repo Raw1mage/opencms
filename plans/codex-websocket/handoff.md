@@ -36,11 +36,12 @@
 
 ## Build Entry Recommendation
 
-- Start with task 1.1: investigate Bun WebSocket capabilities (TLS, deflate)
-- Then task 1.2: minimal `connectWs()` — just establish handshake, log result
-- If handshake succeeds: proceed through Phase 1 sequentially (1.3 → 1.8)
+- Start with task 1.1: prove Bun WebSocket TLS connectivity to chatgpt.com; treat deflate as non-blocking investigation
+- Then task 1.2: implement the header builder
+- Then task 1.3: minimal `connectWs()` — just establish handshake, log result
+- If handshake succeeds: proceed through Phase 1 sequentially (1.4 → 1.8)
 - If handshake fails: investigate headers, auth format, TLS config before proceeding
-- Phase 2 error parsing (tasks 2.1-2.3) can be developed in parallel since it's pure logic
+- In Phase 2, do 2A (`2.1` → `2.4`) before 2B runtime hardening so silent-error regression is eliminated first
 
 ## Execution-Ready Checklist
 

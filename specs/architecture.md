@@ -63,6 +63,7 @@ The frontend is built with Solid.js and uses a bottom-up dependency model:
 - **Formalized specs**: post-implementation, post-commit, post-merge formalized feature specs belong under semantic per-feature roots in `/specs/`.
 - **Promotion rule**: `/plans/` artifacts do not automatically move into `/specs/`; promotion is manual and only happens after explicit user instruction.
 - **Current promoted package**: the completed builder quiz-guard / build-mode refactoring package was promoted from `/plans/20260321_build-mode-refactoring/`, then merged into the existing canonical semantic root `/specs/builder_framework/` because both roots describe the same builder framework topic; future work should use `/specs/builder_framework/` as the formal reference package.
+- **Promoted codex runtime package**: the completed `plans/codex-efficiency/` and `plans/aisdk-refactor/` tracks were later promoted and merged into `/specs/codex_provider_runtime/`, which is now the semantic reference root for codex provider runtime behavior, AI SDK-path alignment, continuity features, and related cleanup boundaries.
 - **Legacy dated packages under `/specs/`**: these require explicit status-based triage; implemented packages belong in formalized spec roots, non-implemented packages belong in `/plans/`. Silent dual-root fallback is prohibited.
 
 ## Planner Runtime Surfaces
@@ -107,6 +108,7 @@ The frontend is built with Solid.js and uses a bottom-up dependency model:
 - `packages/opencode/src/session/resolve-tools.ts` is the aggregation boundary for registry tools, MCP tools, managed-app tools, and session/agent/model-aware permission filtering.
 - `packages/opencode/src/mcp/index.ts` maintains a dirty-capable tools cache and emits `mcp.tools.changed`, but the new capability surface becomes effective on the next tools resolution cycle rather than through same-round mutation.
 - Planned `dialog_trigger_framework` v1 builds on this runtime truth: rule-first detectors + centralized trigger registry/policy + dirty-flag/next-round rebuild. It explicitly does **not** assume background AI governance or in-flight hot reload.
+- The formal semantic reference root for this topic is now `/specs/dialog_trigger_framework/`, promoted from the completed dated planning package `plans/20260327_plan-enter-plans-20260327-durable-cron-scheduler/` after the user approved spec promotion.
 
 ## Builder-Native Beta Workflow Surfaces
 

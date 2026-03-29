@@ -2,9 +2,9 @@
 
 ## 1. Phase 1 — MVP: Prove WS Works
 
-- [ ] 1.1 Investigate Bun WebSocket TLS + permessage-deflate support; document findings
-- [ ] 1.2 Implement minimal `connectWs(url, headers)`: establish WS to chatgpt.com, log handshake result
-- [ ] 1.3 Implement header builder: Authorization, originator, chatgpt-account-id, OpenAI-Beta (responses_websockets=2026-02-06)
+- [ ] 1.1 Prove Bun WebSocket TLS connectivity to chatgpt.com; document whether permessage-deflate is supported, but do not block Phase 1 on deflate
+- [ ] 1.2 Implement header builder: Authorization, originator, chatgpt-account-id, OpenAI-Beta (responses_websockets=2026-02-06)
+- [ ] 1.3 Implement minimal `connectWs(url, headers)`: establish WS to chatgpt.com, log handshake result
 - [ ] 1.4 Implement `sendWsRequest(ws, body)`: serialize response.create payload, strip stream/background, send as Text frame
 - [ ] 1.5 Implement minimal receive loop: collect Text frames until response.completed or error, log each event type
 - [ ] 1.6 Implement synthetic SSE bridge: wrap received events as `data: {json}\n\n` ReadableStream, return as Response
@@ -13,13 +13,18 @@
 
 ## 2. Phase 2 — Production Hardening
 
+### 2A. Error Correctness First
+
 - [ ] 2.1 Implement `parseWrappedWebsocketErrorEvent()`: deserialize {type:"error"} with status, error, headers
 - [ ] 2.2 Implement `mapWrappedWebsocketErrorEvent()`: connection_limit→retryable, status→transport, no-status→ignore
 - [ ] 2.3 Port 5 error parsing test cases from codex-rs responses_websocket.rs
 - [ ] 2.4 Implement error-first frame parsing: check WrappedErrorEvent BEFORE ResponsesStreamEvent
+
+### 2B. Runtime Hardening
+
 - [ ] 2.5 Implement idle timeout: configurable duration, error on timeout
-- [ ] 2.6 Implement Ping/Pong auto-reply
-- [ ] 2.7 Implement Close frame detection → "stream closed before response.completed" error
+- [ ] 2.6 Implement Close frame detection → "stream closed before response.completed" error
+- [ ] 2.7 Implement Ping/Pong auto-reply
 - [ ] 2.8 Implement session-scoped connection caching: Map<sessionId, WsState>
 - [ ] 2.9 Implement account-aware lifecycle: detect accountId mismatch → close + reconnect
 - [ ] 2.10 Implement `forceHttpFallback()`: sticky disable_websockets per session
