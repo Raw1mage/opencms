@@ -320,8 +320,11 @@ export namespace LLM {
     const systemPartEntries = [
       {
         key: "provider_prompt",
-        policy: usesInstructions ? "conditional" : "always_on",
-        text: usesInstructions ? "" : (await SystemPrompt.provider(input.model)).join("\n"),
+        // Always load provider prompt regardless of wire format.
+        // useInstructionsOption only controls HOW the prompt is sent
+        // (instructions field vs system messages), not WHETHER to load it.
+        policy: "always_on",
+        text: (await SystemPrompt.provider(input.model)).join("\n"),
       },
       {
         key: "agent_prompt",
