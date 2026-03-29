@@ -394,14 +394,18 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
               if (init?.body) {
                 bodyString = typeof init.body === "string" ? init.body : undefined
               } else if (requestInput instanceof Request) {
-                try { bodyString = await requestInput.clone().text() } catch {}
+                try { bodyString = await requestInput.clone().text() } catch (e) {
+                  log.warn("codex failed to read request body (openai provider)", { error: String(e) })
+                }
               }
               if (bodyString) {
                 try {
                   if (!init) init = {}
                   init.body = transformCodexBody(bodyString)
                   if (!init.method && requestInput instanceof Request) init.method = requestInput.method
-                } catch {}
+                } catch (e) {
+                  log.warn("codex body transform failed (openai provider)", { error: String(e) })
+                }
               }
             }
 
@@ -700,6 +704,21 @@ function wsRequest(wsState: CodexWsState, bodyJson: any): Response {
   const ws = wsState.ws!
   wsState.status = "streaming"
 
+  /** Restore idle-state handlers so disconnects after streaming are detected. */
+  function installIdleHandlers() {
+    ws.onmessage = null
+    ws.onerror = () => {
+      wsState.status = "failed"
+      log.warn("codex ws error (idle)", { sessionId: wsState.sessionId })
+    }
+    ws.onclose = () => {
+      if (wsState.status !== "failed") {
+        wsState.status = "failed"
+        log.info("codex ws closed (idle)", { sessionId: wsState.sessionId })
+      }
+    }
+  }
+
   const encoder = new TextEncoder()
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -716,6 +735,7 @@ function wsRequest(wsState: CodexWsState, bodyJson: any): Response {
             controller.enqueue(encoder.encode("data: [DONE]\n\n"))
             controller.close()
             wsState.status = "open" // ready for next request
+            installIdleHandlers()
           }
         } catch {}
       }
@@ -795,7 +815,9 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
               if (init?.body) {
                 bodyString = typeof init.body === "string" ? init.body : undefined
               } else if (requestInput instanceof Request) {
-                try { bodyString = await requestInput.clone().text() } catch {}
+                try { bodyString = await requestInput.clone().text() } catch (e) {
+                  log.warn("codex failed to read request body", { error: String(e) })
+                }
               }
               if (bodyString) {
                 try {
@@ -838,7 +860,9 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
                   if (!init) init = {}
                   init.body = JSON.stringify(body)
                   if (!init.method && requestInput instanceof Request) init.method = requestInput.method
-                } catch {}
+                } catch (e) {
+                  log.warn("codex body transform failed", { error: String(e) })
+                }
               }
             }
 
@@ -990,10 +1014,13 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
       output.headers["User-Agent"] = `opencode/${Installation.VERSION} (${os.platform()} ${os.release()}; ${os.arch()})`
       output.headers.session_id = input.sessionID
     },
-    // Reset turn state on new user message (fresh routing for new turn)
+    // Reset sticky routing on new user message, but preserve lastInputLength for delta tracking
     "chat.message": async (input) => {
       if (input.model?.providerId === "codex") {
-        codexTurnStates.delete(input.sessionID)
+        const existing = codexTurnStates.get(input.sessionID)
+        if (existing) {
+          existing.turnState = undefined
+        }
       }
     },
   }
