@@ -574,7 +574,7 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
 }
 
 /** Per-session turn state for sticky routing + delta tracking. Keyed by sessionID. */
-const codexTurnStates = new Map<string, { turnState?: string; lastInputLength?: number }>()
+const codexTurnStates = new Map<string, { turnState?: string }>()
 
 // ── Shared helpers for CodexAuthPlugin / CodexNativeAuthPlugin ──
 
@@ -755,30 +755,15 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
                     body.context_management = [{ type: "compaction", compact_threshold: 100000 }]
                   }
 
-                  // Incremental delta: trim input to only new items when previous_response_id is set
-                  const fullInputLength = Array.isArray(body.input) ? body.input.length : 0
-                  let deltaMode = false
-                  if (body.previous_response_id && Array.isArray(body.input) && sessionId) {
-                    const lastLen = turnState?.lastInputLength ?? 0
-                    if (lastLen > 0 && body.input.length > lastLen) {
-                      body.input = body.input.slice(lastLen)
-                      deltaMode = true
-                    }
-                  }
-                  // Track input length for next delta (use full length, not trimmed)
-                  if (sessionId) {
-                    codexTurnStates.set(sessionId, { ...turnState, lastInputLength: fullInputLength })
-                  }
+                  // Note: request-side delta (previous_response_id + input trim) is
+                  // handled by the WS transport layer in codex-websocket.ts, not here.
+                  // The HTTP path always sends full input — delta only works over WS.
 
-                  const inputItems = Array.isArray(body.input) ? body.input.length : 0
-                  console.error(`[DELTA-HTTP] session=${sessionId} delta=${deltaMode} inputItems=${inputItems} fullItems=${fullInputLength} hasPrevResp=${!!body.previous_response_id} lastLen=${turnState?.lastInputLength ?? 0}`)
                   log.info("codex fetch body transform", {
                     hasCacheKey: !!body.prompt_cache_key,
                     hasTurnState: !!turnState?.turnState,
                     hasContextMgmt: !!body.context_management,
-                    deltaMode,
-                    inputItems,
-                    fullInputItems: fullInputLength,
+                    inputItems: Array.isArray(body.input) ? body.input.length : 0,
                   })
 
                   if (!init) init = {}
@@ -978,7 +963,7 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
       output.headers["User-Agent"] = `opencode/${Installation.VERSION} (${os.platform()} ${os.release()}; ${os.arch()})`
       output.headers.session_id = input.sessionID
     },
-    // Reset sticky routing on new user message, but preserve lastInputLength for delta tracking
+    // Reset sticky routing on new user message
     "chat.message": async (input) => {
       if (input.model?.providerId === "codex") {
         const existing = codexTurnStates.get(input.sessionID)
