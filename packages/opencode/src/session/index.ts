@@ -967,14 +967,49 @@ export namespace Session {
     }),
   ])
 
+  // Instrumentation: track cumulative part sizes for delta effectiveness measurement
+  const _deltaMetrics = { updates: 0, totalPartBytes: 0, totalDeltaBytes: 0 }
+
   export const updatePart = fn(UpdatePartInput, async (input) => {
     const part = "delta" in input ? input.part : input
     const delta = "delta" in input ? input.delta : undefined
     await Storage.write(["part", part.messageID, part.id], part)
-    Bus.publish(MessageV2.Event.PartUpdated, {
-      part,
-      delta,
-    })
+
+    // [DELTA-PART] instrumentation: measure full-part vs delta cost per chunk
+    if ("text" in part && typeof part.text === "string") {
+      _deltaMetrics.updates++
+      _deltaMetrics.totalPartBytes += part.text.length
+      _deltaMetrics.totalDeltaBytes += delta?.length ?? part.text.length
+      if (_deltaMetrics.updates % 50 === 0) {
+        const ratio = _deltaMetrics.totalPartBytes > 0
+          ? (_deltaMetrics.totalDeltaBytes / _deltaMetrics.totalPartBytes * 100).toFixed(1)
+          : "N/A"
+        console.error(`[DELTA-PART] updates=${_deltaMetrics.updates} totalPartChars=${_deltaMetrics.totalPartBytes} totalDeltaChars=${_deltaMetrics.totalDeltaBytes} ratio=${ratio}% partId=${part.id}`)
+      }
+    }
+
+    // Delta-aware transport: when streaming text/reasoning deltas, strip
+    // part.text from the event to avoid O(n²) amplification over Bus → SSE.
+    // Consumers accumulate text from deltas; textLength enables desync detection.
+    // Non-delta updates (tool parts, completion) carry the full part as before.
+    //
+    // IMPORTANT: The first delta for a new part must carry full text so consumers
+    // can insert the part with its initial content. We detect "first" by checking
+    // if part.text === delta (text accumulated so far equals just this chunk).
+    if (delta && "text" in part && typeof part.text === "string" && part.text !== delta) {
+      const textLength = part.text.length
+      const { text: _stripped, ...lightPart } = part as Record<string, unknown>
+      Bus.publish(MessageV2.Event.PartUpdated, {
+        part: lightPart as typeof part,
+        delta,
+        textLength,
+      })
+    } else {
+      Bus.publish(MessageV2.Event.PartUpdated, {
+        part,
+        delta,
+      })
+    }
     return part
   })
 

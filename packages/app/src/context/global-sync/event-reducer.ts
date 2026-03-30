@@ -262,8 +262,35 @@ export function applyDirectoryEvent(input: {
       break
     }
     case "message.part.updated": {
-      const part = (event.properties as { part: Part }).part
+      const props = event.properties as { part: Part; delta?: string; textLength?: number }
+      const part = props.part
+      const delta = props.delta
       const parts = input.store.part[part.messageID]
+
+      // Delta-aware streaming: when delta is present and part.text is stripped,
+      // append delta to the existing stored part instead of replacing it wholesale.
+      if (delta && parts && ("type" in part) && (part.type === "text" || part.type === "reasoning")) {
+        const result = Binary.search(parts, part.id, (p) => p.id)
+        if (result.found) {
+          const existing = parts[result.index]
+          if ("text" in existing) {
+            // Fast path: append delta to existing text without replacing the whole part
+            const hasText = "text" in part && typeof (part as any).text === "string"
+            const newText = hasText ? (part as any).text : existing.text + delta
+            input.setStore("part", part.messageID, result.index, "text" as any, newText)
+            // Update metadata if present
+            if ("metadata" in part && part.metadata) {
+              input.setStore("part", part.messageID, result.index, "metadata" as any, part.metadata)
+            }
+            break
+          }
+        }
+        // Part not found yet — fall through to insertion with reconstructed text
+        if (!("text" in part) || typeof (part as any).text !== "string") {
+          (part as any).text = delta
+        }
+      }
+
       if (!parts) {
         input.setStore("part", part.messageID, [part])
         if (part.type === "file") {

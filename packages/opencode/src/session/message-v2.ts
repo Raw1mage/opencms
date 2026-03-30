@@ -482,6 +482,10 @@ export namespace MessageV2 {
       z.object({
         part: Part,
         delta: z.string().optional(),
+        // When delta is provided, part.text is stripped from the event to avoid
+        // O(n²) amplification. Consumers must accumulate text from deltas.
+        // textLength lets consumers detect desync without needing the full text.
+        textLength: z.number().optional(),
       }),
     ),
     PartRemoved: BusEvent.define(

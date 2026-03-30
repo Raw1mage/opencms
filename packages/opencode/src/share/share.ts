@@ -2,6 +2,7 @@ import { Bus } from "../bus"
 import { Installation } from "../installation"
 import { Session } from "../session"
 import { MessageV2 } from "../session/message-v2"
+import { Storage } from "@/storage/storage"
 import { Log } from "../util/log"
 import { Env } from "@/env"
 
@@ -55,14 +56,20 @@ export namespace Share {
       await sync("session/message/" + evt.properties.info.sessionID + "/" + evt.properties.info.id, evt.properties.info)
     })
     Bus.subscribe(MessageV2.Event.PartUpdated, async (evt) => {
+      // Delta-aware: if text was stripped, read full part from Storage
+      let partData = evt.properties.part
+      if (evt.properties.delta && "type" in partData && (partData.type === "text" || partData.type === "reasoning") && !("text" in partData && (partData as any).text)) {
+        const full = await Storage.read(["part", partData.messageID, partData.id])
+        if (full) partData = full as typeof partData
+      }
       await sync(
         "session/part/" +
-          evt.properties.part.sessionID +
+          partData.sessionID +
           "/" +
-          evt.properties.part.messageID +
+          partData.messageID +
           "/" +
-          evt.properties.part.id,
-        evt.properties.part,
+          partData.id,
+        partData,
       )
     })
   }

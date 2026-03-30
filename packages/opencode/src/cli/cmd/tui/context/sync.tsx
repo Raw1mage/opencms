@@ -542,21 +542,45 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           break
         }
         case "message.part.updated": {
-          const parts = store.part[event.properties.part.messageID]
+          const updPart = event.properties.part
+          const updDelta = (event.properties as any).delta as string | undefined
+          const parts = store.part[updPart.messageID]
+
+          // Delta-aware streaming: append delta to existing text part
+          if (updDelta && parts && (updPart.type === "text" || updPart.type === "reasoning")) {
+            const result = Binary.search(parts, updPart.id, (p) => p.id)
+            if (result.found) {
+              const existing = parts[result.index]
+              if ("text" in existing) {
+                const hasText = "text" in updPart && typeof (updPart as any).text === "string"
+                const newText = hasText ? (updPart as any).text : existing.text + updDelta
+                setStore("part", updPart.messageID, result.index, "text" as any, newText)
+                if ("metadata" in updPart && (updPart as any).metadata) {
+                  setStore("part", updPart.messageID, result.index, "metadata" as any, (updPart as any).metadata)
+                }
+                break
+              }
+            }
+            // Not found yet — ensure text is populated for insertion
+            if (!("text" in updPart) || typeof (updPart as any).text !== "string") {
+              (updPart as any).text = updDelta
+            }
+          }
+
           if (!parts) {
-            setStore("part", event.properties.part.messageID, [event.properties.part])
+            setStore("part", updPart.messageID, [updPart])
             break
           }
-          const result = Binary.search(parts, event.properties.part.id, (p) => p.id)
+          const result = Binary.search(parts, updPart.id, (p) => p.id)
           if (result.found) {
-            setStore("part", event.properties.part.messageID, result.index, reconcile(event.properties.part))
+            setStore("part", updPart.messageID, result.index, reconcile(updPart))
             break
           }
           setStore(
             "part",
-            event.properties.part.messageID,
+            updPart.messageID,
             produce((draft) => {
-              draft.splice(result.index, 0, event.properties.part)
+              draft.splice(result.index, 0, updPart)
             }),
           )
           break

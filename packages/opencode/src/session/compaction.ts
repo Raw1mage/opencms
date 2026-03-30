@@ -17,9 +17,29 @@ import { ProviderTransform } from "@/provider/transform"
 import { SessionPrompt } from "./prompt"
 import { SharedContext } from "./shared-context"
 import { codexServerCompact } from "../provider/codex-compaction"
+import { ContinuationInvalidatedEvent } from "../plugin/codex"
+
+// Subscribe to continuation invalidation: schedule compaction for next round
+Bus.subscribe(ContinuationInvalidatedEvent, (evt) => {
+  SessionCompaction.markRebindCompaction(evt.properties.sessionId)
+})
 
 export namespace SessionCompaction {
   const log = Log.create({ service: "session.compaction" })
+
+  // Per-session flag: set when server rejects previous_response_id.
+  // Next round's pre-flight check should force compaction to minimize
+  // full-context rebind cost.
+  const _pendingRebindCompaction = new Set<string>()
+
+  export function markRebindCompaction(sessionID: string) {
+    _pendingRebindCompaction.add(sessionID)
+    log.warn("continuation invalidated, compaction scheduled for next round", { sessionID })
+  }
+
+  export function consumeRebindCompaction(sessionID: string): boolean {
+    return _pendingRebindCompaction.delete(sessionID)
+  }
 
   export const Event = {
     Compacted: BusEvent.define(

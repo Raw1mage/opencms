@@ -49,10 +49,16 @@ export namespace ShareNext {
       }
     })
     Bus.subscribe(MessageV2.Event.PartUpdated, async (evt) => {
-      await sync(evt.properties.part.sessionID, [
+      // Delta-aware: if text was stripped from the event, read full part from Storage
+      let partData = evt.properties.part
+      if (evt.properties.delta && "type" in partData && (partData.type === "text" || partData.type === "reasoning") && !("text" in partData && (partData as any).text)) {
+        const full = await Storage.read(["part", partData.messageID, partData.id])
+        if (full) partData = full as typeof partData
+      }
+      await sync(partData.sessionID, [
         {
           type: "part",
-          data: evt.properties.part,
+          data: partData,
         },
       ])
     })

@@ -8,6 +8,9 @@
  */
 
 import { Log } from "../util/log"
+import { Global } from "../global"
+import path from "path"
+import { existsSync, readFileSync, writeFileSync } from "fs"
 
 const log = Log.create({ service: "codex-websocket" })
 
@@ -26,7 +29,11 @@ export interface WsSessionState {
   accountId?: string
   lastResponseId?: string
   lastInputLength?: number
+  lastToolsHash?: string
   disableWebsockets: boolean
+  /** Set when server rejects previous_response_id — signals that the next
+   *  request was a full-context rebind and local compaction should be scheduled. */
+  continuationInvalidated?: boolean
 }
 
 interface WrappedWebsocketError {
@@ -44,17 +51,88 @@ interface WrappedWebsocketErrorEvent {
   headers?: Record<string, unknown>
 }
 
-// ── Session State ──
+// ── Session State (with file-backed continuation persistence) ──
 
 const sessions = new Map<string, WsSessionState>()
+
+// Persisted continuation state survives daemon restarts.
+// Only lastResponseId and lastInputLength are persisted — WS connection
+// and transient flags (status, disableWebsockets) reset on restart.
+interface PersistedContinuation {
+  [sessionId: string]: { lastResponseId?: string; lastInputLength?: number; lastToolsHash?: string; accountId?: string }
+}
+
+const CONTINUATION_FILE = path.join(Global.Path.state, "ws-continuation.json")
+let _continuationCache: PersistedContinuation | null = null
+let _continuationDirty = false
+let _continuationFlushTimer: ReturnType<typeof setTimeout> | null = null
+
+function loadContinuation(): PersistedContinuation {
+  if (_continuationCache) return _continuationCache
+  try {
+    if (existsSync(CONTINUATION_FILE)) {
+      _continuationCache = JSON.parse(readFileSync(CONTINUATION_FILE, "utf-8"))
+      return _continuationCache!
+    }
+  } catch {
+    log.warn("failed to load ws-continuation.json, starting fresh")
+  }
+  _continuationCache = {}
+  return _continuationCache
+}
+
+function saveContinuation() {
+  _continuationDirty = true
+  if (_continuationFlushTimer) return
+  // Debounce writes to avoid thrashing disk on every streaming chunk
+  _continuationFlushTimer = setTimeout(() => {
+    _continuationFlushTimer = null
+    if (!_continuationDirty || !_continuationCache) return
+    _continuationDirty = false
+    try {
+      writeFileSync(CONTINUATION_FILE, JSON.stringify(_continuationCache, null, 2))
+    } catch (e) {
+      log.warn("failed to save ws-continuation.json", { error: String(e) })
+    }
+  }, 2000)
+}
 
 export function getWsSession(sessionId: string): WsSessionState {
   let state = sessions.get(sessionId)
   if (!state) {
-    state = { ws: null, status: "idle", disableWebsockets: false }
+    // Restore continuation state from disk
+    const persisted = loadContinuation()[sessionId]
+    state = {
+      ws: null,
+      status: "idle",
+      disableWebsockets: false,
+      lastResponseId: persisted?.lastResponseId,
+      lastInputLength: persisted?.lastInputLength,
+      lastToolsHash: persisted?.lastToolsHash,
+      accountId: persisted?.accountId,
+    }
+    if (persisted?.lastResponseId) {
+      log.info("ws continuation restored from disk", {
+        sessionId,
+        responseId: persisted.lastResponseId.slice(0, 16) + "...",
+        lastInputLength: persisted.lastInputLength,
+      })
+    }
     sessions.set(sessionId, state)
   }
   return state
+}
+
+/** Persist continuation-relevant fields to disk (debounced). */
+export function persistWsSession(sessionId: string, state: WsSessionState) {
+  const cont = loadContinuation()
+  cont[sessionId] = {
+    lastResponseId: state.lastResponseId,
+    lastInputLength: state.lastInputLength,
+    lastToolsHash: state.lastToolsHash,
+    accountId: state.accountId,
+  }
+  saveContinuation()
 }
 
 export function closeWsSession(sessionId: string) {
@@ -184,6 +262,26 @@ export function wsRequest(input: {
   // Track full input length for next delta
   state.lastInputLength = fullInputLength
 
+  // Tools dedup: when continuing a conversation, strip tools if unchanged.
+  // The server inherits tools from previous_response_id. Only resend when
+  // the tool set changes (e.g. MCP reconnect, agent switch).
+  let toolsStripped = false
+  if (wsBody.previous_response_id && Array.isArray(wsBody.tools) && wsBody.tools.length > 0) {
+    // Fast hash: length + first/last tool names (avoids hashing 100KB on every request)
+    const toolNames = wsBody.tools.map((t: any) => t.name || t.function?.name || "").join(",")
+    const toolsHash = `${wsBody.tools.length}:${toolNames.length}:${toolNames.slice(0, 200)}`
+    if (state.lastToolsHash && state.lastToolsHash === toolsHash) {
+      delete wsBody.tools
+      delete wsBody.tool_choice
+      toolsStripped = true
+    }
+    state.lastToolsHash = toolsHash
+  } else if (Array.isArray(wsBody.tools)) {
+    // First request or no continuation — record hash for next comparison
+    const toolNames = wsBody.tools.map((t: any) => t.name || t.function?.name || "").join(",")
+    state.lastToolsHash = `${wsBody.tools.length}:${toolNames.length}:${toolNames.slice(0, 200)}`
+  }
+
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       let frameCount = 0
@@ -192,8 +290,10 @@ export function wsRequest(input: {
       function resetIdleTimer() {
         if (idleTimer) clearTimeout(idleTimer)
         idleTimer = setTimeout(() => {
-          log.warn("ws idle timeout", { sessionId, frameCount })
-          controller.error(new Error("Codex WS: idle timeout waiting for response"))
+          const reason = frameCount === 0 ? "first_frame_timeout" : "mid_stream_stall"
+          log.warn(`ws ${reason}`, { sessionId, frameCount })
+          invalidateContinuation(reason as InvalidationReason)
+          controller.error(new Error(`Codex WS: ${reason} (frames=${frameCount})`))
           state.status = "failed"
           cleanup()
         }, WS_IDLE_TIMEOUT_MS)
@@ -221,6 +321,20 @@ export function wsRequest(input: {
         try { controller.error(err) } catch {}
       }
 
+      /** Invalidate continuation state with a typed reason and persist. */
+      type InvalidationReason = "first_frame_timeout" | "mid_stream_stall" | "close_before_completion"
+        | "response_failed" | "ws_error" | "previous_response_not_found"
+
+      function invalidateContinuation(reason: InvalidationReason) {
+        const had = !!state.lastResponseId
+        state.lastResponseId = undefined
+        state.lastInputLength = undefined
+        persistWsSession(sessionId, state)
+        if (had) {
+          console.error(`[CONTINUATION] ${reason} session=${sessionId} (cleared)`)
+        }
+      }
+
       // ── Message handler ──
       ws.onmessage = (event: MessageEvent) => {
         const data = typeof event.data === "string" ? event.data : ""
@@ -233,10 +347,14 @@ export function wsRequest(input: {
           const parsed = JSON.parse(data)
           const t = parsed.type
           if (t === "codex.rate_limits") {
+            // Metadata-only frame: log but do NOT forward to SSE stream.
+            // Consistent with codex-rs (responses_websocket.rs:608-613).
+            // If forwarded, it would pass first-frame probe as "content",
+            // preventing error events from being caught before commit.
             console.error(`[WS-RATE-LIMITS] session=${sessionId} ${data}`)
-          } else {
-            console.error(`[WS-FRAME] #${frameCount} type=${t} session=${sessionId} len=${data.length}`)
+            return
           }
+          console.error(`[WS-FRAME] #${frameCount} type=${t} session=${sessionId} len=${data.length}`)
         } catch {
           console.error(`[WS-FRAME] #${frameCount} raw session=${sessionId} len=${data.length}`)
         }
@@ -244,15 +362,27 @@ export function wsRequest(input: {
         // Phase 2A: Error-first parsing (check WrappedWebsocketErrorEvent BEFORE ResponsesStreamEvent)
         const errorEvent = parseWrappedWebsocketErrorEvent(data)
         if (errorEvent) {
-          // Always surface error events — even without status code.
-          // codex-rs ignores no-status errors when followed by normal frames,
-          // but in practice the error is often the ONLY frame (rate limit),
-          // and ignoring it causes AI SDK to see an empty/broken stream.
           const mapped = mapWrappedWebsocketErrorEvent(errorEvent, data)
           const errorMsg = mapped?.message || errorEvent.error?.message || errorEvent.error?.type || "Unknown WS error"
+          const errorCode = errorEvent.error?.code || errorEvent.error?.type || ""
+          const isPrevRespNotFound = errorCode.includes("previous_response") ||
+            errorMsg.includes("Previous response") || errorMsg.includes("not found")
+
+          if (isPrevRespNotFound) {
+            log.warn("ws continuation invalidated: previous_response_not_found", { sessionId })
+            invalidateContinuation("previous_response_not_found")
+            state.continuationInvalidated = true
+            // End the stream with an error that tryWsTransport / probeFirstFrame
+            // will catch, causing WS to return null → HTTP fallback with full context.
+            // This error is caught BEFORE reaching AI SDK, so it won't leak as text.
+            cleanup()
+            state.status = "failed"
+            try { controller.error(new Error("CONTINUATION_INVALIDATED")) } catch {}
+            return
+          }
+
           log.warn("ws error event", { sessionId, error: errorMsg, hasStatus: !!errorEvent.status })
-          state.lastResponseId = undefined
-          state.lastInputLength = undefined
+          invalidateContinuation("ws_error")
           endWithError(mapped || new Error(`Codex WS: ${errorMsg}`))
           return
         }
@@ -270,24 +400,26 @@ export function wsRequest(input: {
             const responseId = parsed.response?.id
             if (responseId) {
               state.lastResponseId = responseId
-              log.info("ws captured responseId", { sessionId, responseId: responseId.slice(0, 16) + "..." })
+              persistWsSession(sessionId, state)
+              console.error(`[CONTINUATION] bound session=${sessionId} responseId=${responseId.slice(0, 20)}...`)
             }
             endStream()
             return
           }
 
-          // response.incomplete is also a terminal event
+          // response.incomplete — turn did not finish; continuation pointer is unreliable
           if (eventType === "response.incomplete") {
             log.warn("ws response incomplete", { sessionId, reason: parsed.response?.incomplete_details?.reason })
+            invalidateContinuation("close_before_completion")
             endStream()
             return
           }
 
-          // response.failed → extract error info and terminate
+          // response.failed → extract error info, invalidate continuation, terminate
           if (eventType === "response.failed") {
             const errMsg = parsed.response?.error?.message || "Response failed"
             log.warn("ws response failed", { sessionId, error: errMsg })
-            state.lastResponseId = undefined
+            invalidateContinuation("response_failed")
             endWithError(new Error(`Codex: ${errMsg}`))
             return
           }
@@ -299,13 +431,14 @@ export function wsRequest(input: {
       // ── Error/Close handlers ──
       ws.onerror = () => {
         log.warn("ws error during stream", { sessionId, frameCount })
-        state.status = "failed"
+        invalidateContinuation("ws_error")
         endWithError(new Error("WebSocket error during streaming"))
       }
 
       ws.onclose = (event: CloseEvent) => {
         if (state.status === "streaming") {
           log.warn("ws closed during stream", { sessionId, frameCount, code: event?.code, reason: event?.reason })
+          invalidateContinuation("close_before_completion")
           state.status = "failed"
           if (frameCount === 0) {
             endWithError(new Error("Codex WS: connection closed before any response"))
@@ -322,8 +455,15 @@ export function wsRequest(input: {
       resetIdleTimer()
 
       const payload = JSON.stringify({ type: "response.create", ...wsBody })
-      console.error(`[WS-SEND] session=${sessionId} payloadLen=${payload.length}`)
-      log.info("ws request sent", { sessionId, deltaMode, inputItems: Array.isArray(wsBody.input) ? wsBody.input.length : 0, fullItems: fullInputLength })
+      const inputItems = Array.isArray(wsBody.input) ? wsBody.input.length : 0
+      // Payload breakdown: measure each top-level field's contribution
+      const breakdown: Record<string, number> = {}
+      for (const [k, v] of Object.entries(wsBody)) {
+        breakdown[k] = JSON.stringify(v).length
+      }
+      console.error(`[DELTA-REQ] session=${sessionId} delta=${deltaMode} toolsStripped=${toolsStripped} inputItems=${inputItems} fullItems=${fullInputLength} payloadBytes=${payload.length} hasPrevResp=${!!wsBody.previous_response_id}`)
+      console.error(`[DELTA-BREAKDOWN] ${Object.entries(breakdown).sort((a,b) => b[1]-a[1]).map(([k,v]) => `${k}=${v}`).join(' ')}`)
+      log.info("ws request sent", { sessionId, deltaMode, inputItems, fullItems: fullInputLength, payloadBytes: payload.length, hasPrevResp: !!wsBody.previous_response_id })
       ws.send(payload)
     },
   })
@@ -351,6 +491,11 @@ async function probeFirstFrame(response: Response, sessionId: string, state: WsS
   if (result.timeout) {
     log.warn("ws first-frame timeout, falling back to HTTP", { sessionId })
     reader.cancel()
+    // Invalidate continuation — request outcome is ambiguous
+    state.lastResponseId = undefined
+    state.lastInputLength = undefined
+    persistWsSession(sessionId, state)
+    console.error(`[CONTINUATION] first_frame_timeout session=${sessionId} (cleared)`)
     state.disableWebsockets = true
     try { state.ws?.close() } catch {}
     state.ws = null
@@ -403,9 +548,9 @@ export async function tryWsTransport(input: {
 
   const state = getWsSession(sessionId)
 
-  // Account-aware lifecycle: reset WS state when account changes.
-  // Each account switch gets a fresh WS-first attempt; sticky HTTP
-  // fallback only persists until the next account rotation.
+  // Account-aware lifecycle: when account changes, close the WS connection
+  // (tokens differ) but preserve continuation state per-account so switching
+  // back restores delta mode without a full-context re-send.
   if (state.accountId !== undefined && state.accountId !== accountId) {
     log.info("ws account changed, resetting to WS-first", {
       sessionId,
@@ -413,14 +558,27 @@ export async function tryWsTransport(input: {
       new: accountId,
       wasDisabled: state.disableWebsockets,
     })
+    // Save outgoing account's continuation state
+    persistWsSession(sessionId + ":" + state.accountId, state)
+
     if (state.ws) {
       try { state.ws.close() } catch {}
     }
     state.ws = null
     state.status = "idle"
     state.disableWebsockets = false
-    state.lastResponseId = undefined
-    state.lastInputLength = undefined
+
+    // Restore incoming account's continuation state (if previously saved)
+    const restored = loadContinuation()[sessionId + ":" + accountId]
+    state.lastResponseId = restored?.lastResponseId
+    state.lastInputLength = restored?.lastInputLength
+    if (restored?.lastResponseId) {
+      log.info("ws continuation restored for returning account", {
+        sessionId,
+        accountId,
+        responseId: restored.lastResponseId.slice(0, 16) + "...",
+      })
+    }
   }
 
   // Sticky fallback: once disabled, stay on HTTP until next account switch
@@ -442,9 +600,32 @@ export async function tryWsTransport(input: {
     try {
       const probed = await attemptWs(state.ws, reqBody)
       if (probed) return probed
-      // First-frame timeout → fall through to reconnect or HTTP
+      // First-frame timeout or continuation invalidated — check flag
+      if (state.continuationInvalidated && state.ws && state.status === "open") {
+        state.continuationInvalidated = false
+        log.info("continuation invalidated, retrying on same WS without previous_response_id", { sessionId })
+        const retryBody = { ...body }
+        delete retryBody.previous_response_id
+        const retried = await attemptWs(state.ws, retryBody)
+        if (retried) return retried
+      }
     } catch (e) {
-      log.warn("ws request failed on cached connection", { sessionId, error: String(e) })
+      // Continuation invalidated during streaming — retry on same WS
+      if (String(e).includes("CONTINUATION_INVALIDATED") && state.ws) {
+        state.continuationInvalidated = false
+        state.status = "open"
+        log.info("continuation invalidated, retrying on same WS without previous_response_id", { sessionId })
+        try {
+          const retryBody = { ...body }
+          delete retryBody.previous_response_id
+          const retried = await attemptWs(state.ws, retryBody)
+          if (retried) return retried
+        } catch (retryErr) {
+          log.warn("ws retry after invalidation also failed", { sessionId, error: String(retryErr).slice(0, 100) })
+        }
+      } else {
+        log.warn("ws request failed on cached connection", { sessionId, error: String(e) })
+      }
     }
     state.ws = null
     state.status = "failed"
@@ -470,8 +651,31 @@ export async function tryWsTransport(input: {
       try {
         const probed = await attemptWs(ws, reqBody)
         if (probed) return probed
+        // Check invalidation flag — retry without previous_response_id
+        if (state.continuationInvalidated && state.ws && state.status === "open") {
+          state.continuationInvalidated = false
+          log.info("continuation invalidated on new WS, retrying without previous_response_id", { sessionId })
+          const retryBody = { ...body }
+          delete retryBody.previous_response_id
+          const retried = await attemptWs(state.ws, retryBody)
+          if (retried) return retried
+        }
       } catch (e) {
-        log.warn("ws request failed on new connection", { sessionId, error: String(e) })
+        if (String(e).includes("CONTINUATION_INVALIDATED") && ws) {
+          state.continuationInvalidated = false
+          state.status = "open"
+          log.info("continuation invalidated on new WS, retrying without previous_response_id", { sessionId })
+          try {
+            const retryBody = { ...body }
+            delete retryBody.previous_response_id
+            const retried = await attemptWs(ws, retryBody)
+            if (retried) return retried
+          } catch (retryErr) {
+            log.warn("ws retry after invalidation failed on new connection", { sessionId, error: String(retryErr).slice(0, 100) })
+          }
+        } else {
+          log.warn("ws request failed on new connection", { sessionId, error: String(e) })
+        }
       }
       state.ws = null
       state.status = "failed"

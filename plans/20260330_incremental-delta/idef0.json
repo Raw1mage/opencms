@@ -1,0 +1,96 @@
+{
+  "diagram_title": "Codex Incremental Delta Fix Plan",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Measure Delta Loss Points",
+      "description": "Instrument request, runtime, SSE, and consumer boundaries to prove where delta savings are lost.",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Rewrite Runtime Delta Transport",
+      "description": "Replace full-part streamed transport with delta-aware event flow while preserving durable correctness.",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Migrate Stream Consumers",
+      "description": "Update Web, TUI, and subagent bridge consumers to apply delta-aware streamed updates.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "Codex Delta RCA Evidence",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "No Silent Fallback Policy",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "Baseline Metrics And Hot Path Proof",
+      "type": "input"
+    },
+    {
+      "id": "AR4",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "Codex Continuation Contract",
+      "type": "control"
+    },
+    {
+      "id": "AR5",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "Delta Aware Event Contract",
+      "type": "input"
+    },
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A3:control",
+      "label": "UI Correctness Requirements",
+      "type": "control"
+    },
+    {
+      "id": "AR7",
+      "source": "A3:output",
+      "target": "EXTERNAL",
+      "label": "Validated Delta Fix Implementation Plan",
+      "type": "output"
+    },
+    {
+      "id": "AR8",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "Session SSE Web TUI Tool Modules",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR9",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "Session Event Storage Server Modules",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR10",
+      "source": "EXTERNAL",
+      "target": "A3:mechanism",
+      "label": "App TUI Subagent Consumers",
+      "type": "mechanism"
+    }
+  ]
+}
