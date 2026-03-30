@@ -230,8 +230,13 @@ export function wsRequest(input: {
 
         // Trace every frame for debugging
         try {
-          const t = JSON.parse(data).type
-          console.error(`[WS-FRAME] #${frameCount} type=${t} session=${sessionId} len=${data.length}`)
+          const parsed = JSON.parse(data)
+          const t = parsed.type
+          if (t === "codex.rate_limits") {
+            console.error(`[WS-RATE-LIMITS] session=${sessionId} ${data}`)
+          } else {
+            console.error(`[WS-FRAME] #${frameCount} type=${t} session=${sessionId} len=${data.length}`)
+          }
         } catch {
           console.error(`[WS-FRAME] #${frameCount} raw session=${sessionId} len=${data.length}`)
         }
