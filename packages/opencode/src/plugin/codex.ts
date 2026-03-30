@@ -20,6 +20,15 @@ export const CodexTransportEvent = BusEvent.define(
   }),
 )
 
+/** Fired when server rejects previous_response_id. Session layer subscribes
+ *  to trigger compaction so the next request sends smaller context. */
+export const ContinuationInvalidatedEvent = BusEvent.define(
+  "codex.continuation.invalidated",
+  z.object({
+    sessionId: z.string(),
+  }),
+)
+
 const CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 const ISSUER = "https://auth.openai.com"
 const CODEX_API_ENDPOINT = "https://chatgpt.com/backend-api/codex/responses"
@@ -800,7 +809,23 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
                   return wsResponse
                 }
               } catch (e) {
-                log.warn("ws transport error, falling back to HTTP", { sessionId, error: String(e).slice(0, 100) })
+                const errMsg = String(e)
+                if (errMsg.includes("CONTINUATION_INVALIDATED")) {
+                  // Server rejected previous_response_id. Rebuild request body
+                  // without continuation handle and fall through to HTTP.
+                  // Signal session layer to schedule compaction for next idle.
+                  log.warn("continuation invalidated, rebuilding full-context request", { sessionId })
+                  if (init?.body) {
+                    try {
+                      const rebuildBody = JSON.parse(typeof init.body === "string" ? init.body : "")
+                      delete rebuildBody.previous_response_id
+                      init.body = JSON.stringify(rebuildBody)
+                    } catch {}
+                  }
+                  Bus.publish(ContinuationInvalidatedEvent, { sessionId }).catch(() => {})
+                } else {
+                  log.warn("ws transport error, falling back to HTTP", { sessionId, error: errMsg.slice(0, 100) })
+                }
               }
             }
 

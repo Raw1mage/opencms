@@ -814,6 +814,32 @@ export namespace SessionPrompt {
         continue
       }
 
+      // Continuation rebind compaction: server rejected previous_response_id,
+      // compact now so the full-context re-send is as small as possible.
+      if (
+        lastFinished &&
+        lastFinished.summary !== true &&
+        SessionCompaction.consumeRebindCompaction(sessionID)
+      ) {
+        log.info("rebind compaction triggered after continuation invalidation", { sessionID })
+        SessionCompaction.recordCompaction(sessionID, step)
+        if (!session.parentID) {
+          const rebindConfig = await Config.get()
+          if (rebindConfig.compaction?.sharedContext !== false) {
+            const snap = await SharedContext.snapshot(sessionID)
+            if (snap) {
+              await SessionCompaction.compactWithSharedContext({
+                sessionID,
+                snapshot: snap,
+                model,
+                auto: true,
+              })
+              continue
+            }
+          }
+        }
+      }
+
       // context overflow OR cache-aware compaction
       if (
         lastFinished &&

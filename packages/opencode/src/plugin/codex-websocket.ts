@@ -30,6 +30,9 @@ export interface WsSessionState {
   lastResponseId?: string
   lastInputLength?: number
   disableWebsockets: boolean
+  /** Set when server rejects previous_response_id — signals that the next
+   *  request was a full-context rebind and local compaction should be scheduled. */
+  continuationInvalidated?: boolean
 }
 
 interface WrappedWebsocketError {
@@ -316,12 +319,25 @@ export function wsRequest(input: {
         // Phase 2A: Error-first parsing (check WrappedWebsocketErrorEvent BEFORE ResponsesStreamEvent)
         const errorEvent = parseWrappedWebsocketErrorEvent(data)
         if (errorEvent) {
-          // Always surface error events — even without status code.
-          // codex-rs ignores no-status errors when followed by normal frames,
-          // but in practice the error is often the ONLY frame (rate limit),
-          // and ignoring it causes AI SDK to see an empty/broken stream.
           const mapped = mapWrappedWebsocketErrorEvent(errorEvent, data)
           const errorMsg = mapped?.message || errorEvent.error?.message || errorEvent.error?.type || "Unknown WS error"
+          const errorCode = errorEvent.error?.code || errorEvent.error?.type || ""
+          const isPrevRespNotFound = errorCode.includes("previous_response") ||
+            errorMsg.includes("Previous response") || errorMsg.includes("not found")
+
+          if (isPrevRespNotFound) {
+            // Continuation invalidated: server no longer has the response we're
+            // trying to continue from. Mark for compaction-on-rebind.
+            log.warn("ws continuation invalidated: previous_response_not_found", { sessionId })
+            state.lastResponseId = undefined
+            state.lastInputLength = undefined
+            state.continuationInvalidated = true
+            persistWsSession(sessionId, state)
+            // Signal with a specific error so codex.ts can retry with full context
+            endWithError(new Error("CONTINUATION_INVALIDATED"))
+            return
+          }
+
           log.warn("ws error event", { sessionId, error: errorMsg, hasStatus: !!errorEvent.status })
           state.lastResponseId = undefined
           state.lastInputLength = undefined
