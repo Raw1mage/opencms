@@ -840,6 +840,28 @@ export namespace SessionPrompt {
         }
       }
 
+      // Rebind-budget compaction: keep context small so daemon restart
+      // doesn't trigger 850KB full-context rebind. Uses SharedContext
+      // snapshot (no LLM cost). Independent of overflow threshold.
+      if (
+        lastFinished &&
+        lastFinished.summary !== true &&
+        !session.parentID &&
+        SessionCompaction.shouldRebindBudgetCompact({ tokens: lastFinished.tokens, sessionID, currentRound: step })
+      ) {
+        const rebindSnap = await SharedContext.snapshot(sessionID)
+        if (rebindSnap) {
+          SessionCompaction.recordCompaction(sessionID, step)
+          await SessionCompaction.compactWithSharedContext({
+            sessionID,
+            snapshot: rebindSnap,
+            model,
+            auto: true,
+          })
+          continue
+        }
+      }
+
       // context overflow OR cache-aware compaction
       if (
         lastFinished &&

@@ -41,6 +41,36 @@ export namespace SessionCompaction {
     return _pendingRebindCompaction.delete(sessionID)
   }
 
+  // Rebind-budget compaction: keep context small enough that a full-context
+  // rebind (after daemon restart) doesn't send 850KB+ to the server.
+  // Triggered every round when token count exceeds the threshold.
+  const REBIND_BUDGET_TOKEN_THRESHOLD = 80_000
+
+  export function shouldRebindBudgetCompact(input: {
+    tokens: MessageV2.Assistant["tokens"]
+    sessionID: string
+    currentRound: number
+  }): boolean {
+    const count =
+      input.tokens.total ||
+      input.tokens.input + input.tokens.output + input.tokens.cache.read + input.tokens.cache.write
+    if (count < REBIND_BUDGET_TOKEN_THRESHOLD) return false
+
+    // Respect cooldown to avoid compaction oscillation
+    const state = cooldownState.get(input.sessionID)
+    if (state) {
+      const roundsSince = input.currentRound - state.lastCompactionRound
+      if (roundsSince < 4) return false
+    }
+
+    log.info("rebind-budget compaction triggered", {
+      sessionID: input.sessionID,
+      tokens: count,
+      threshold: REBIND_BUDGET_TOKEN_THRESHOLD,
+    })
+    return true
+  }
+
   export const Event = {
     Compacted: BusEvent.define(
       "session.compacted",
