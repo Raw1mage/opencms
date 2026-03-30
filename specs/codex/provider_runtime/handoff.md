@@ -10,9 +10,9 @@
 
 ## Read Order For Future Maintenance
 
-1. `specs/codex_provider_runtime/design.md`
-2. `specs/codex_provider_runtime/spec.md`
-3. `specs/codex-protocol/whitepaper.md`
+1. `specs/codex/provider_runtime/design.md`
+2. `specs/codex/provider_runtime/spec.md`
+3. `specs/codex/protocol/whitepaper.md`
 4. Historical plan artifacts only when implementation archaeology is needed:
    - `plans/aisdk-refactor/design.md`
    - `plans/aisdk-refactor/tasks.md`
@@ -29,7 +29,7 @@
 ## Maintenance Rules
 
 - Extend codex provider under the AI SDK Responses contract; do not resurrect a second authoritative loader/runtime path.
-- Keep protocol observation (`specs/codex-protocol/whitepaper.md`) separate from opencode-local normative implementation rules.
+- Keep protocol observation (`specs/codex/protocol/whitepaper.md`) separate from opencode-local normative implementation rules.
 - Preserve explicit failure / degrade semantics for unsupported codex features.
 - Treat per-session continuity isolation and removal of unsafe integration seams as architecture constraints, not optional cleanup.
 

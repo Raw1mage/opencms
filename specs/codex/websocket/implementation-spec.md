@@ -6,7 +6,7 @@
 
 ## Parent Spec
 
-`specs/codex_provider_runtime/` — DD-1 (AI SDK is authority), DD-2 (providerOptions + interceptor split), DD-4 (WS is extension surface, not parallel stack).
+`specs/codex/provider_runtime/` — DD-1 (AI SDK is authority), DD-2 (providerOptions + interceptor split), DD-4 (WS is extension surface, not parallel stack).
 
 ## Scope
 
@@ -45,7 +45,7 @@
 - `packages/opencode/src/plugin/codex.ts` — transport selection in fetch interceptor
 - `refs/codex/codex-rs/codex-api/src/endpoint/responses_websocket.rs` — protocol reference
 - `refs/codex/codex-rs/core/src/client.rs` — transport selection reference
-- `specs/codex_provider_runtime/design.md` — architectural constraints
+- `specs/codex/provider_runtime/design.md` — architectural constraints
 
 ## Structured Execution Phases
 
@@ -64,7 +64,7 @@
 ## Handoff
 
 - Build agent must read this spec first.
-- Build agent must read `specs/codex_provider_runtime/design.md` to understand architectural constraints (DD-1 through DD-5).
+- Build agent must read `specs/codex/provider_runtime/design.md` to understand architectural constraints (DD-1 through DD-5).
 - Build agent must read `refs/codex/codex-rs/codex-api/src/endpoint/responses_websocket.rs` for protocol behavior.
 - Build agent must materialize runtime todo from tasks.md.
 - Build agent MUST verify Phase 1 gate (WS handshake succeeds) before proceeding to any other phase.

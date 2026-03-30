@@ -25,21 +25,21 @@
 
 ## Decision
 
-- 新增 formalized spec root：`specs/codex_provider_runtime/`
+- 新增 formalized spec root：`specs/codex/provider_runtime/`
 - 用途：作為 codex provider runtime 的正式參考包，承接 merged intent、architecture decisions、runtime requirements 與 maintenance handoff。
 - 原 `plans/codex-efficiency/` 與 `plans/aisdk-refactor/` 暫時保留為 historical execution packages；是否刪除/封存，留待後續明確指示。
 
 ## Files Added
 
-- `specs/codex_provider_runtime/proposal.md`
-- `specs/codex_provider_runtime/spec.md`
-- `specs/codex_provider_runtime/design.md`
-- `specs/codex_provider_runtime/handoff.md`
+- `specs/codex/provider_runtime/proposal.md`
+- `specs/codex/provider_runtime/spec.md`
+- `specs/codex/provider_runtime/design.md`
+- `specs/codex/provider_runtime/handoff.md`
 
 ## Validation
 
 - 已確認兩個來源 plan 的 proposal/design/implementation/handoff 內容可合理合併為單一 codex runtime 主題。
-- 已確認 `specs/codex-protocol/whitepaper.md` 可作為此新 root 的 protocol-observation companion reference。
+- 已確認 `specs/codex/protocol/whitepaper.md` 可作為此新 root 的 protocol-observation companion reference。
 - Architecture Sync: updated `specs/architecture.md` planner lifecycle section to record the new promoted codex runtime spec root.
 
 ## Notes

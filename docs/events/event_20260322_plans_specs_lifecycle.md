@@ -97,7 +97,7 @@
 - `specs/20260316_kill-switch-plan.md` moved to `plans/20260316_kill-switch-plan/implementation-spec.md`.
 - `specs/kill-switch-incident-runbook.md` moved to `docs/runbooks/kill-switch-incident-runbook.md`.
 - `specs/kill-switch-deployment-policy.md` moved to `docs/policies/deployment/kill-switch-deployment-policy.md`.
-- `specs/codex-protocol-whitepaper.md` moved to `specs/codex-protocol/whitepaper.md`.
+- `specs/codex-protocol-whitepaper.md` moved to `specs/codex/protocol/whitepaper.md`.
 - `specs/system-prompt-hooks.md` moved to `specs/system-prompt/hooks.md`.
 - `specs/frontend-architecture.md` was merged into `specs/architecture.md` so the `specs/` root converges toward architecture-only.
 - Validation confirmed that `specs/` root now contains only `specs/architecture.md`, `plans/20260316_kill-switch-plan/implementation-spec.md` exists, and there are no remaining references to the old `plans/20260316_kill-switch-plan/plan.md` path.

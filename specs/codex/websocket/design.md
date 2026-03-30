@@ -2,7 +2,7 @@
 
 ## Context
 
-- `specs/codex_provider_runtime/` establishes AI SDK Responses path as authority (DD-1)
+- `specs/codex/provider_runtime/` establishes AI SDK Responses path as authority (DD-1)
 - DD-4 explicitly designates WebSocket as an extension surface under the same contract
 - codex-rs has a production WS implementation (~6,600 lines Rust) that serves as behavioral reference
 - The WS endpoint is `chatgpt.com/backend-api/codex/responses` (internal, not `api.openai.com`)
@@ -26,7 +26,7 @@
 
 ## Decisions
 
-- DD-WS-1: **Transport adapter pattern** — WS handler produces a synthetic `Response(ReadableStream)` that AI SDK consumes as if HTTP SSE. This is the same pattern used by the previous (broken) attempt, and it avoids modifying AI SDK internals. Conforms to `specs/codex_provider_runtime/` DD-1.
+- DD-WS-1: **Transport adapter pattern** — WS handler produces a synthetic `Response(ReadableStream)` that AI SDK consumes as if HTTP SSE. This is the same pattern used by the previous (broken) attempt, and it avoids modifying AI SDK internals. Conforms to `specs/codex/provider_runtime/` DD-1.
 - DD-WS-2: **Single new file** — Extract WS code into `codex-websocket.ts`. The fetch interceptor in codex.ts delegates WS transport decisions to this module. Conforms to DD-2 (interceptor layer responsibility).
 - DD-WS-3: **codex-rs as behavioral reference, not architectural blueprint** — We reproduce the protocol behavior (error event format, connection lifecycle, incremental delta) but use TypeScript idioms, not Rust patterns. No tokio, no MPSC channels, no Arc<Mutex>.
 - DD-WS-4: **MVP-first phasing** — Phase 1 is the smallest possible proof: connect + send + receive + SSE bridge. No caching, no delta, no retry. If Phase 1 fails, we stop and keep HTTP.
@@ -77,6 +77,6 @@ Connection caching:
 
 - `packages/opencode/src/plugin/codex-websocket.ts` — new file
 - `packages/opencode/src/plugin/codex.ts` — fetch interceptor transport selection
-- `specs/codex_provider_runtime/design.md` — architectural constraints (DD-1, DD-2, DD-4)
+- `specs/codex/provider_runtime/design.md` — architectural constraints (DD-1, DD-2, DD-4)
 - `refs/codex/codex-rs/codex-api/src/endpoint/responses_websocket.rs` — protocol reference
 - `refs/codex/codex-rs/core/src/client.rs` — transport selection / fallback reference

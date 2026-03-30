@@ -41,12 +41,12 @@
 
 ## What Changes
 
-- 將 `plans/codex-efficiency/` 與 `plans/aisdk-refactor/` 提升並合併為單一語意化 spec root：`specs/codex_provider_runtime/`
+- 將 `plans/codex-efficiency/` 與 `plans/aisdk-refactor/` 提升並合併為單一語意化 spec root：`specs/codex/provider_runtime/`
 - 保留行為需求、架構決策、handoff 與完成狀態，作為後續 codex provider 維護的正式參考包
 - 將 `/plans/` 視為歷史執行包；未經使用者進一步指示，不在本步驟自動刪除原 plan 目錄
 
 ## Impact
 
 - 後續 codex provider 維護不必再同時閱讀兩個已完成 plan 才能理解 merged behavior
-- `/specs/` 擁有一個正式的 codex provider runtime 參考包，可與 `specs/codex-protocol/whitepaper.md` 形成「協定觀察 + 本地實作策略」的雙文件結構
+- `/specs/` 擁有一個正式的 codex provider runtime 參考包，可與 `specs/codex/protocol/whitepaper.md` 形成「協定觀察 + 本地實作策略」的雙文件結構
 - 降低 `/plans/` 目錄的語意混亂：active plan 與 completed formal spec 分工更清楚

@@ -79,8 +79,8 @@ User message
 ## Boundaries That Must Stay Explicit
 
 ### 1. Protocol observation vs local implementation
-- `specs/codex-protocol/whitepaper.md` 是 source-derived interoperability note。
-- `specs/codex_provider_runtime/` 是 opencode 自己的正式實作策略。
+- `specs/codex/protocol/whitepaper.md` 是 source-derived interoperability note。
+- `specs/codex/provider_runtime/` 是 opencode 自己的正式實作策略。
 - 不應把 observed official behavior 直接當作本地 normative contract；需要經過本地 fail-fast / safety / architecture 邊界轉譯。
 
 ### 2. No silent fallback

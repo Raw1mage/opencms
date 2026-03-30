@@ -6,7 +6,7 @@
 
 ## Parent Spec
 
-`specs/codex_provider_runtime/` — Requirement: Transport extension boundary (spec.md line 60-63).
+`specs/codex/provider_runtime/` — Requirement: Transport extension boundary (spec.md line 60-63).
 
 ## Requirements
 

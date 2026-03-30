@@ -131,7 +131,7 @@
   - `specs/account-management/`
   - `specs/continuous-orchestration/`
   - `specs/beta-tool/`
-  - `specs/codex-protocol/`
+  - `specs/codex/protocol/`
 
 ## Third-pass Validation
 

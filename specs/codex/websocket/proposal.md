@@ -5,7 +5,7 @@
 - Codex WebSocket transport is disabled — it never successfully connected to the chatgpt.com endpoint
 - HTTP fallback works but lacks the latency benefits of persistent WS connections (codex-rs reports ~40% faster end-to-end for 20+ tool calls)
 - The previous WS attempt silently swallowed errors due to incomplete protocol implementation
-- `specs/codex_provider_runtime/` DD-4 explicitly designates WebSocket as an **extension surface under the AI SDK contract** — this plan fulfills that extension
+- `specs/codex/provider_runtime/` DD-4 explicitly designates WebSocket as an **extension surface under the AI SDK contract** — this plan fulfills that extension
 
 ## Original Requirement Wording (Baseline)
 
@@ -14,18 +14,18 @@
 ## Requirement Revision History
 
 - 2026-03-30 (v1): Initial plan — faithful codex-rs reproduction, 8 phases, 46 tasks
-- 2026-03-30 (v2): Post-review revision — align with `specs/codex_provider_runtime/`, MVP-first phasing, prewarm shelved, scope narrowed to transport adapter only
+- 2026-03-30 (v2): Post-review revision — align with `specs/codex/provider_runtime/`, MVP-first phasing, prewarm shelved, scope narrowed to transport adapter only
 
 ## Effective Requirement Description
 
-1. Implement Codex WebSocket as a **transport adapter** beneath the AI SDK request/stream contract (per `specs/codex_provider_runtime/` DD-1, DD-4)
+1. Implement Codex WebSocket as a **transport adapter** beneath the AI SDK request/stream contract (per `specs/codex/provider_runtime/` DD-1, DD-4)
 2. Use codex-rs as behavioral reference for protocol correctness, but do NOT replicate its architecture or introduce parallel orchestration
 3. MVP-first: prove WS handshake works before adding incremental features
 4. Prewarm (`generate=false`) is shelved — not in MVP scope
 
 ## Parent Spec
 
-This plan is a sub-plan of **`specs/codex_provider_runtime/`**. All decisions must conform to:
+This plan is a sub-plan of **`specs/codex/provider_runtime/`**. All decisions must conform to:
 - DD-1: AI SDK Responses path is the authority
 - DD-2: Responsibility split = providerOptions first, interceptor second
 - DD-4: WebSocket / delta / compaction remain extension surfaces under the same contract

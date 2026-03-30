@@ -92,9 +92,9 @@ The system SHALL preserve the cleanup intent from the merged refactor.
 
 ## Canonical References
 
-- `specs/codex_provider_runtime/design.md`
-- `specs/codex_provider_runtime/handoff.md`
-- `specs/codex-protocol/whitepaper.md`
+- `specs/codex/provider_runtime/design.md`
+- `specs/codex/provider_runtime/handoff.md`
+- `specs/codex/protocol/whitepaper.md`
 - Historical execution packages:
   - `plans/codex-efficiency/`
   - `plans/aisdk-refactor/`
