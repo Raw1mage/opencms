@@ -322,8 +322,9 @@ export function wsRequest(input: {
       resetIdleTimer()
 
       const payload = JSON.stringify({ type: "response.create", ...wsBody })
-      console.error(`[WS-SEND] session=${sessionId} payloadLen=${payload.length}`)
-      log.info("ws request sent", { sessionId, deltaMode, inputItems: Array.isArray(wsBody.input) ? wsBody.input.length : 0, fullItems: fullInputLength })
+      const inputItems = Array.isArray(wsBody.input) ? wsBody.input.length : 0
+      console.error(`[DELTA-REQ] session=${sessionId} delta=${deltaMode} inputItems=${inputItems} fullItems=${fullInputLength} payloadBytes=${payload.length} hasPrevResp=${!!wsBody.previous_response_id}`)
+      log.info("ws request sent", { sessionId, deltaMode, inputItems, fullItems: fullInputLength, payloadBytes: payload.length, hasPrevResp: !!wsBody.previous_response_id })
       ws.send(payload)
     },
   })

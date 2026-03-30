@@ -967,10 +967,27 @@ export namespace Session {
     }),
   ])
 
+  // Instrumentation: track cumulative part sizes for delta effectiveness measurement
+  const _deltaMetrics = { updates: 0, totalPartBytes: 0, totalDeltaBytes: 0 }
+
   export const updatePart = fn(UpdatePartInput, async (input) => {
     const part = "delta" in input ? input.part : input
     const delta = "delta" in input ? input.delta : undefined
     await Storage.write(["part", part.messageID, part.id], part)
+
+    // [DELTA-PART] instrumentation: measure full-part vs delta cost per chunk
+    if ("text" in part && typeof part.text === "string") {
+      _deltaMetrics.updates++
+      _deltaMetrics.totalPartBytes += part.text.length
+      _deltaMetrics.totalDeltaBytes += delta?.length ?? part.text.length
+      if (_deltaMetrics.updates % 50 === 0) {
+        const ratio = _deltaMetrics.totalPartBytes > 0
+          ? (_deltaMetrics.totalDeltaBytes / _deltaMetrics.totalPartBytes * 100).toFixed(1)
+          : "N/A"
+        console.error(`[DELTA-PART] updates=${_deltaMetrics.updates} totalPartChars=${_deltaMetrics.totalPartBytes} totalDeltaChars=${_deltaMetrics.totalDeltaBytes} ratio=${ratio}% partId=${part.id}`)
+      }
+    }
+
     Bus.publish(MessageV2.Event.PartUpdated, {
       part,
       delta,

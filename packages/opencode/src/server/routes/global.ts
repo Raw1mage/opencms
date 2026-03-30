@@ -346,11 +346,27 @@ export const GlobalRoutes = lazy(() =>
             })
           }
 
+          // Instrumentation: track SSE payload sizes for delta effectiveness
+          const _sseMetrics = { partUpdates: 0, totalBytes: 0 }
+
           async function handler(event: unknown) {
             const id = ssePush(event)
+            const data = JSON.stringify(event)
+
+            // [DELTA-SSE] instrumentation: measure message.part.updated event sizes
+            const payload = (event as any)?.payload
+            if (payload?.type === "message.part.updated") {
+              _sseMetrics.partUpdates++
+              _sseMetrics.totalBytes += data.length
+              if (_sseMetrics.partUpdates % 50 === 0) {
+                const avgBytes = Math.round(_sseMetrics.totalBytes / _sseMetrics.partUpdates)
+                console.error(`[DELTA-SSE] partUpdates=${_sseMetrics.partUpdates} totalBytes=${_sseMetrics.totalBytes} avgBytes=${avgBytes} thisBytes=${data.length}`)
+              }
+            }
+
             await stream.writeSSE({
               id: String(id),
-              data: JSON.stringify(event),
+              data,
             })
           }
           GlobalBus.on("event", handler)

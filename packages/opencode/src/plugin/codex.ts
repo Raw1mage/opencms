@@ -761,12 +761,14 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
                     codexTurnStates.set(sessionId, { ...turnState, lastInputLength: fullInputLength })
                   }
 
+                  const inputItems = Array.isArray(body.input) ? body.input.length : 0
+                  console.error(`[DELTA-HTTP] session=${sessionId} delta=${deltaMode} inputItems=${inputItems} fullItems=${fullInputLength} hasPrevResp=${!!body.previous_response_id} lastLen=${turnState?.lastInputLength ?? 0}`)
                   log.info("codex fetch body transform", {
                     hasCacheKey: !!body.prompt_cache_key,
                     hasTurnState: !!turnState?.turnState,
                     hasContextMgmt: !!body.context_management,
                     deltaMode,
-                    inputItems: Array.isArray(body.input) ? body.input.length : 0,
+                    inputItems,
                     fullInputItems: fullInputLength,
                   })
 
