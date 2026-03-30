@@ -61,6 +61,23 @@ export class SameProviderRotationGuard {
     return Math.max(0, entry.until - Date.now())
   }
 
+  /**
+   * Check if ANY account in this provider has an active rotation cooldown.
+   * Prevents cascade: A→B→C→D in seconds when all rotations fail (e.g. stale token).
+   */
+  getProviderWaitTime(providerId: string): number {
+    const state = this.clearExpired(readUnifiedState())
+    const prefix = `${providerId}:`
+    const now = Date.now()
+    let maxWait = 0
+    for (const [key, entry] of Object.entries(state.sameProviderRotationCooldowns ?? {})) {
+      if (!key.startsWith(prefix) || !entry) continue
+      const wait = entry.until - now
+      if (wait > maxWait) maxWait = wait
+    }
+    return Math.max(0, maxWait)
+  }
+
   isCoolingDown(providerId: string, accountId: string): boolean {
     return this.getWaitTime(providerId, accountId) > 0
   }

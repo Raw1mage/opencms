@@ -123,6 +123,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       vcs: VcsInfo | undefined
       path: Path
       llm_history: LlmHistoryEntry[]
+      codex_transport: Record<string, "ws" | "http">
       active_child: {
         [sessionID: string]: ActiveChildState | undefined
       }
@@ -159,6 +160,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       vcs: undefined,
       path: { state: "", config: "", worktree: "", directory: "" },
       llm_history: [],
+      codex_transport: {},
       active_child: {},
       active_workers: 0,
     })
@@ -711,6 +713,15 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           }
           if (props.activeChild) setStore("active_child", props.parentSessionID, props.activeChild)
           else setStore("active_child", props.parentSessionID, undefined)
+          break
+        }
+
+        case "codex.transport": {
+          const props = event.properties as {
+            sessionId: string
+            transport: "ws" | "http"
+          }
+          setStore("codex_transport", props.sessionId, props.transport)
           break
         }
 

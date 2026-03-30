@@ -42,8 +42,9 @@ export function shouldPromoteToProviderCooldown(reason: RateLimitReason, backoff
     case "TOKEN_REFRESH_FAILED":
       return true
     case "RATE_LIMIT_EXCEEDED":
-    case "UNKNOWN":
       return backoffMs >= PROVIDER_COOLDOWN_MIN_MS
+    // UNKNOWN must NOT promote: unrecognised errors (e.g. stale token 429)
+    // would wrongly lock the entire provider and cascade across all accounts.
     default:
       return false
   }
@@ -464,7 +465,16 @@ export namespace RateLimitJudge {
     rateLimitTracker.markRateLimited(accountId, providerId, reason, backoffMs, modelId)
 
     if (shouldPromoteToProviderCooldown(reason, backoffMs)) {
-      rateLimitTracker.markRateLimited(accountId, providerId, reason, Math.max(backoffMs, PROVIDER_COOLDOWN_MIN_MS))
+      const providerCooldownMs = Math.max(backoffMs, PROVIDER_COOLDOWN_MIN_MS)
+      log.warn("Promoting to provider-level cooldown", {
+        providerId,
+        accountId,
+        modelId,
+        reason,
+        providerCooldownMs,
+      })
+      // Intentionally omit modelId — provider cooldown blocks ALL models for this account/provider.
+      rateLimitTracker.markRateLimited(accountId, providerId, reason, providerCooldownMs)
     }
 
     log.info("Marked current vector as rate-limited", {

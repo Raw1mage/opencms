@@ -343,7 +343,11 @@ export function selectBestFallback(
   purpose: RotationPurpose = "generic",
 ): FallbackCandidate | null {
   const sameProviderRotationGuard = getSameProviderRotationGuard()
-  const sameProviderRotateWaitMs = sameProviderRotationGuard.getWaitTime(current.providerId, current.accountId)
+  // Check provider-level cooldown: if ANY account in this provider had a recent
+  // rotation, block all same-provider candidates. This prevents cascade burns
+  // (A→B→C→D in seconds) when a shared issue (e.g. stale token) causes every
+  // rotation attempt to fail immediately.
+  const sameProviderRotateWaitMs = sameProviderRotationGuard.getProviderWaitTime(current.providerId)
   let blockedBySameProviderGuard = 0
 
   // Filter to available candidates

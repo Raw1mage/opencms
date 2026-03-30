@@ -4,9 +4,21 @@ import { tryWsTransport } from "./codex-websocket"
 import { Installation } from "../installation"
 import { Auth, OAUTH_DUMMY_KEY } from "../auth"
 import { applyProviderModelCorrections } from "../provider/model-curation"
+import { Bus } from "../bus"
+import { BusEvent } from "../bus/bus-event"
+import z from "zod"
 import os from "os"
 
 const log = Log.create({ service: "plugin.codex" })
+
+export const CodexTransportEvent = BusEvent.define(
+  "codex.transport",
+  z.object({
+    sessionId: z.string(),
+    transport: z.enum(["ws", "http"]),
+    accountId: z.string().optional(),
+  }),
+)
 
 const CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 const ISSUER = "https://auth.openai.com"
@@ -379,9 +391,18 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
           apiKey: OAUTH_DUMMY_KEY,
           async fetch(requestInput: RequestInfo | URL, init?: RequestInit) {
             stripDummyAuthHeader(init)
-            const currentAuth = await getAuth()
+
+            // Rotation-aware auth: if x-opencode-account-id header is set by
+            // rotation, resolve that account's token instead of the closure default.
+            const rotationAccountId = extractHeader(init, "x-opencode-account-id")
+            const currentAuth = rotationAccountId
+              ? (await Auth.get(rotationAccountId)) ?? (await getAuth())
+              : await getAuth()
             if (currentAuth.type !== "oauth") return fetch(requestInput, init)
             const authWithAccount = currentAuth as typeof currentAuth & { accountId?: string }
+            if (rotationAccountId && !authWithAccount.accountId) {
+              log.warn("rotation account auth resolved but missing accountId", { rotationAccountId })
+            }
             await refreshIfNeeded(currentAuth, authWithAccount, "openai", input.client)
 
             const headers = buildCodexHeaders(init, currentAuth.access, authWithAccount.accountId)
@@ -548,6 +569,35 @@ const codexTurnStates = new Map<string, { turnState?: string; lastInputLength?: 
 
 // ── Shared helpers for CodexAuthPlugin / CodexNativeAuthPlugin ──
 
+/**
+ * Extract a header value from RequestInit, handling all header representations.
+ * Removes the header after extraction so it doesn't leak to the upstream API.
+ */
+function extractHeader(init: RequestInit | undefined, name: string): string | undefined {
+  if (!init?.headers) return undefined
+  const lowerName = name.toLowerCase()
+  let value: string | undefined
+  if (init.headers instanceof Headers) {
+    value = init.headers.get(lowerName) ?? undefined
+    if (value) init.headers.delete(lowerName)
+  } else if (Array.isArray(init.headers)) {
+    const idx = init.headers.findIndex(([k]) => k.toLowerCase() === lowerName)
+    if (idx >= 0) {
+      value = String(init.headers[idx][1])
+      init.headers.splice(idx, 1)
+    }
+  } else {
+    for (const key of Object.keys(init.headers)) {
+      if (key.toLowerCase() === lowerName) {
+        value = String(init.headers[key])
+        delete init.headers[key]
+        break
+      }
+    }
+  }
+  return value
+}
+
 function stripDummyAuthHeader(init?: RequestInit) {
   if (!init?.headers) return
   if (init.headers instanceof Headers) {
@@ -645,9 +695,18 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
           apiKey: OAUTH_DUMMY_KEY,
           async fetch(requestInput: RequestInfo | URL, init?: RequestInit) {
             stripDummyAuthHeader(init)
-            const currentAuth = await getAuth()
+
+            // Rotation-aware auth: if x-opencode-account-id header is set by
+            // rotation, resolve that account's token instead of the closure default.
+            const rotationAccountId = extractHeader(init, "x-opencode-account-id")
+            const currentAuth = rotationAccountId
+              ? (await Auth.get(rotationAccountId)) ?? (await getAuth())
+              : await getAuth()
             if (currentAuth.type !== "oauth") return fetch(requestInput, init)
             const authWithAccount = currentAuth as typeof currentAuth & { accountId?: string }
+            if (rotationAccountId && !authWithAccount.accountId) {
+              log.warn("rotation account auth resolved but missing accountId", { rotationAccountId })
+            }
             await refreshIfNeeded(currentAuth, authWithAccount, "codex", input.client)
 
             const headers = buildCodexHeaders(init, currentAuth.access, authWithAccount.accountId)
@@ -735,17 +794,18 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
                   wsUrl,
                 })
                 if (wsResponse) {
-                  console.error(`[WS-TRANSPORT] using WS session=${sessionId}`)
+                  Bus.publish(CodexTransportEvent, { sessionId, transport: "ws", accountId: authWithAccount.accountId }).catch(() => {})
                   return wsResponse
                 }
-                console.error(`[WS-TRANSPORT] WS returned null, falling back to HTTP session=${sessionId}`)
               } catch (e) {
-                console.error(`[WS-TRANSPORT] WS error, falling back to HTTP session=${sessionId} error=${String(e).slice(0, 100)}`)
+                log.warn("ws transport error, falling back to HTTP", { sessionId, error: String(e).slice(0, 100) })
               }
             }
 
             // HTTP path (default or WS fallback)
-            console.error(`[WS-TRANSPORT] using HTTP session=${sessionId ?? "null"}`)
+            if (sessionId) {
+              Bus.publish(CodexTransportEvent, { sessionId, transport: "http", accountId: authWithAccount.accountId }).catch(() => {})
+            }
             const response = await fetch(url, { ...init, headers })
 
             // Guard: Codex returns JSON error bodies (e.g. usage_limit_reached)

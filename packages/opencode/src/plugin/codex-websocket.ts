@@ -398,16 +398,28 @@ export async function tryWsTransport(input: {
 
   const state = getWsSession(sessionId)
 
-  // Sticky fallback: once disabled, stay disabled for session lifetime
-  if (state.disableWebsockets) return null
-
-  // Account-aware lifecycle: reconnect if account changed
-  if (state.ws && state.status === "open" && state.accountId !== accountId) {
-    log.info("ws account changed, reconnecting", { sessionId, old: state.accountId, new: accountId })
-    try { state.ws.close() } catch {}
+  // Account-aware lifecycle: reset WS state when account changes.
+  // Each account switch gets a fresh WS-first attempt; sticky HTTP
+  // fallback only persists until the next account rotation.
+  if (state.accountId !== undefined && state.accountId !== accountId) {
+    log.info("ws account changed, resetting to WS-first", {
+      sessionId,
+      old: state.accountId,
+      new: accountId,
+      wasDisabled: state.disableWebsockets,
+    })
+    if (state.ws) {
+      try { state.ws.close() } catch {}
+    }
     state.ws = null
     state.status = "idle"
+    state.disableWebsockets = false
+    state.lastResponseId = undefined
+    state.lastInputLength = undefined
   }
+
+  // Sticky fallback: once disabled, stay on HTTP until next account switch
+  if (state.disableWebsockets) return null
 
   // Helper: attempt WS request with first-frame probe
   async function attemptWs(ws: WebSocket, reqBody: Record<string, unknown>): Promise<Response | null> {

@@ -527,10 +527,15 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                     {(() => {
                       const m = local.model.current(props.sessionID)
                       if (!m) return <span style={{ fg: theme.textMuted }}> (No model)</span>
+                      const transport = sync.data.codex_transport[props.sessionID]
                       return (
                         <span style={{ fg: theme.textMuted }}>
                           {" "}
-                          ({shortModel(m.modelID)} <span style={{ fg: theme.success }}>OK</span>)
+                          ({shortModel(m.modelID)}
+                          <Show when={transport}>
+                            {" "}<span style={{ fg: transport === "ws" ? theme.success : theme.warning }}>{transport!.toUpperCase()}</span>
+                          </Show>
+                          {" "}<span style={{ fg: theme.success }}>OK</span>)
                         </span>
                       )
                     })()}
