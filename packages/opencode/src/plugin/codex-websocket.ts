@@ -478,9 +478,9 @@ export async function tryWsTransport(input: {
 
   const state = getWsSession(sessionId)
 
-  // Account-aware lifecycle: reset WS state when account changes.
-  // Each account switch gets a fresh WS-first attempt; sticky HTTP
-  // fallback only persists until the next account rotation.
+  // Account-aware lifecycle: when account changes, close the WS connection
+  // (tokens differ) but preserve continuation state per-account so switching
+  // back restores delta mode without a full-context re-send.
   if (state.accountId !== undefined && state.accountId !== accountId) {
     log.info("ws account changed, resetting to WS-first", {
       sessionId,
@@ -488,14 +488,27 @@ export async function tryWsTransport(input: {
       new: accountId,
       wasDisabled: state.disableWebsockets,
     })
+    // Save outgoing account's continuation state
+    persistWsSession(sessionId + ":" + state.accountId, state)
+
     if (state.ws) {
       try { state.ws.close() } catch {}
     }
     state.ws = null
     state.status = "idle"
     state.disableWebsockets = false
-    state.lastResponseId = undefined
-    state.lastInputLength = undefined
+
+    // Restore incoming account's continuation state (if previously saved)
+    const restored = loadContinuation()[sessionId + ":" + accountId]
+    state.lastResponseId = restored?.lastResponseId
+    state.lastInputLength = restored?.lastInputLength
+    if (restored?.lastResponseId) {
+      log.info("ws continuation restored for returning account", {
+        sessionId,
+        accountId,
+        responseId: restored.lastResponseId.slice(0, 16) + "...",
+      })
+    }
   }
 
   // Sticky fallback: once disabled, stay on HTTP until next account switch
