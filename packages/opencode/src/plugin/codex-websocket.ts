@@ -324,10 +324,14 @@ export function wsRequest(input: {
           const parsed = JSON.parse(data)
           const t = parsed.type
           if (t === "codex.rate_limits") {
+            // Metadata-only frame: log but do NOT forward to SSE stream.
+            // Consistent with codex-rs (responses_websocket.rs:608-613).
+            // If forwarded, it would pass first-frame probe as "content",
+            // preventing error events from being caught before commit.
             console.error(`[WS-RATE-LIMITS] session=${sessionId} ${data}`)
-          } else {
-            console.error(`[WS-FRAME] #${frameCount} type=${t} session=${sessionId} len=${data.length}`)
+            return
           }
+          console.error(`[WS-FRAME] #${frameCount} type=${t} session=${sessionId} len=${data.length}`)
         } catch {
           console.error(`[WS-FRAME] #${frameCount} raw session=${sessionId} len=${data.length}`)
         }
@@ -345,11 +349,12 @@ export function wsRequest(input: {
             log.warn("ws continuation invalidated: previous_response_not_found", { sessionId })
             invalidateContinuation("previous_response_not_found")
             state.continuationInvalidated = true
-            // Close stream gracefully instead of endWithError — the error
-            // message would leak into AI SDK as streamed text if the
-            // first-frame probe already passed. The empty stream triggers
-            // processor's empty-response retry path.
-            endStream()
+            // End the stream with an error that tryWsTransport / probeFirstFrame
+            // will catch, causing WS to return null → HTTP fallback with full context.
+            // This error is caught BEFORE reaching AI SDK, so it won't leak as text.
+            cleanup()
+            state.status = "failed"
+            try { controller.error(new Error("CONTINUATION_INVALIDATED")) } catch {}
             return
           }
 
