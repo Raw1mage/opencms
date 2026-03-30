@@ -523,23 +523,20 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                 <text fg={theme.text}>{expanded.llm ? "▼" : "▶"}</text>
                 <text fg={theme.text}>
                   <b>LLM</b>
-                  <Show when={!expanded.llm}>
-                    {(() => {
-                      const m = local.model.current(props.sessionID)
-                      if (!m) return <span style={{ fg: theme.textMuted }}> (No model)</span>
-                      const transport = sync.data.codex_transport[props.sessionID]
-                      return (
-                        <span style={{ fg: theme.textMuted }}>
-                          {" "}
-                          ({shortModel(m.modelID)}
-                          <Show when={transport}>
-                            {" "}<span style={{ fg: transport === "ws" ? theme.success : theme.warning }}>{transport!.toUpperCase()}</span>
-                          </Show>
-                          {" "}<span style={{ fg: theme.success }}>OK</span>)
-                        </span>
-                      )
-                    })()}
-                  </Show>
+                  {(() => {
+                    const m = local.model.current(props.sessionID)
+                    const transport = sync.data.codex_transport[props.sessionID]
+                    if (!m) return expanded.llm ? null : <span style={{ fg: theme.textMuted }}> (No model)</span>
+                    const transportLabel = transport
+                      ? <span style={{ fg: transport === "ws" ? theme.success : theme.warning }}> {transport.toUpperCase()}</span>
+                      : null
+                    if (expanded.llm) return transportLabel
+                    return (
+                      <span style={{ fg: theme.textMuted }}>
+                        {" "}({shortModel(m.modelID)}{transportLabel} <span style={{ fg: theme.success }}>OK</span>)
+                      </span>
+                    )
+                  })()}
                 </text>
               </box>
               <Show when={expanded.llm}>
