@@ -548,10 +548,15 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
 
           // Delta-aware streaming: append delta to existing text part
           if (updDelta && parts && (updPart.type === "text" || updPart.type === "reasoning")) {
+            const updTextLength = (event.properties as any).textLength as number | undefined
             const result = Binary.search(parts, updPart.id, (p) => p.id)
             if (result.found) {
               const existing = parts[result.index]
               if ("text" in existing) {
+                // Guard: skip duplicate delta from multiple SSE connections
+                if (updTextLength !== undefined && existing.text.length >= updTextLength) {
+                  break
+                }
                 const hasText = "text" in updPart && typeof (updPart as any).text === "string"
                 const newText = hasText ? (updPart as any).text : existing.text + updDelta
                 setStore("part", updPart.messageID, result.index, "text" as any, newText)

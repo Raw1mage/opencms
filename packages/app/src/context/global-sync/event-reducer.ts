@@ -274,6 +274,12 @@ export function applyDirectoryEvent(input: {
         if (result.found) {
           const existing = parts[result.index]
           if ("text" in existing) {
+            // Guard: if multiple SSE connections deliver the same delta event,
+            // textLength tells us the expected accumulated length. Skip if
+            // we've already reached or passed that length (duplicate apply).
+            if (props.textLength !== undefined && existing.text.length >= props.textLength) {
+              break
+            }
             // Fast path: append delta to existing text without replacing the whole part
             const hasText = "text" in part && typeof (part as any).text === "string"
             const newText = hasText ? (part as any).text : existing.text + delta
