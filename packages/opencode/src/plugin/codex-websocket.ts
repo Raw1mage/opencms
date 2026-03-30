@@ -571,9 +571,32 @@ export async function tryWsTransport(input: {
     try {
       const probed = await attemptWs(state.ws, reqBody)
       if (probed) return probed
-      // First-frame timeout → fall through to reconnect or HTTP
+      // First-frame timeout or continuation invalidated — check flag
+      if (state.continuationInvalidated && state.ws && state.status === "open") {
+        state.continuationInvalidated = false
+        log.info("continuation invalidated, retrying on same WS without previous_response_id", { sessionId })
+        const retryBody = { ...body }
+        delete retryBody.previous_response_id
+        const retried = await attemptWs(state.ws, retryBody)
+        if (retried) return retried
+      }
     } catch (e) {
-      log.warn("ws request failed on cached connection", { sessionId, error: String(e) })
+      // Continuation invalidated during streaming — retry on same WS
+      if (String(e).includes("CONTINUATION_INVALIDATED") && state.ws) {
+        state.continuationInvalidated = false
+        state.status = "open"
+        log.info("continuation invalidated, retrying on same WS without previous_response_id", { sessionId })
+        try {
+          const retryBody = { ...body }
+          delete retryBody.previous_response_id
+          const retried = await attemptWs(state.ws, retryBody)
+          if (retried) return retried
+        } catch (retryErr) {
+          log.warn("ws retry after invalidation also failed", { sessionId, error: String(retryErr).slice(0, 100) })
+        }
+      } else {
+        log.warn("ws request failed on cached connection", { sessionId, error: String(e) })
+      }
     }
     state.ws = null
     state.status = "failed"
@@ -599,8 +622,31 @@ export async function tryWsTransport(input: {
       try {
         const probed = await attemptWs(ws, reqBody)
         if (probed) return probed
+        // Check invalidation flag — retry without previous_response_id
+        if (state.continuationInvalidated && state.ws && state.status === "open") {
+          state.continuationInvalidated = false
+          log.info("continuation invalidated on new WS, retrying without previous_response_id", { sessionId })
+          const retryBody = { ...body }
+          delete retryBody.previous_response_id
+          const retried = await attemptWs(state.ws, retryBody)
+          if (retried) return retried
+        }
       } catch (e) {
-        log.warn("ws request failed on new connection", { sessionId, error: String(e) })
+        if (String(e).includes("CONTINUATION_INVALIDATED") && ws) {
+          state.continuationInvalidated = false
+          state.status = "open"
+          log.info("continuation invalidated on new WS, retrying without previous_response_id", { sessionId })
+          try {
+            const retryBody = { ...body }
+            delete retryBody.previous_response_id
+            const retried = await attemptWs(ws, retryBody)
+            if (retried) return retried
+          } catch (retryErr) {
+            log.warn("ws retry after invalidation failed on new connection", { sessionId, error: String(retryErr).slice(0, 100) })
+          }
+        } else {
+          log.warn("ws request failed on new connection", { sessionId, error: String(e) })
+        }
       }
       state.ws = null
       state.status = "failed"

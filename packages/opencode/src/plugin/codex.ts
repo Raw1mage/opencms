@@ -793,22 +793,6 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
                   Bus.publish(CodexTransportEvent, { sessionId, transport: "ws", accountId: authWithAccount.accountId }).catch(() => {})
                   return wsResponse
                 }
-                // WS returned null (connect fail, probe timeout, or continuation invalidated).
-                // Check invalidation flag → schedule compaction, then fall through to HTTP.
-                const wsState = (await import("./codex-websocket")).getWsSession(sessionId)
-                if (wsState.continuationInvalidated) {
-                  wsState.continuationInvalidated = false
-                  log.warn("continuation invalidated, falling back to HTTP with full context", { sessionId })
-                  Bus.publish(ContinuationInvalidatedEvent, { sessionId }).catch(() => {})
-                  // Strip previous_response_id from body so HTTP sends full context
-                  if (init?.body) {
-                    try {
-                      const rebuildBody = JSON.parse(typeof init.body === "string" ? init.body : "")
-                      delete rebuildBody.previous_response_id
-                      init.body = JSON.stringify(rebuildBody)
-                    } catch {}
-                  }
-                }
               } catch (e) {
                 log.warn("ws transport error, falling back to HTTP", { sessionId, error: String(e).slice(0, 100) })
               }
