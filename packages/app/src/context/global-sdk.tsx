@@ -95,6 +95,10 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
       if (payload.type === "session.status") return `session.status:${directory}:${payload.properties.sessionID}`
       if (payload.type === "lsp.updated") return `lsp.updated:${directory}`
       if (payload.type === "message.part.updated") {
+        // Delta-aware: when the event carries a delta (text stripped), each event
+        // is append-only and must NOT be coalesced — dropping intermediate deltas
+        // loses text. Only coalesce full-part updates (no delta field).
+        if ((payload.properties as any).delta) return undefined
         const part = payload.properties.part
         return `message.part.updated:${directory}:${part.messageID}:${part.id}`
       }

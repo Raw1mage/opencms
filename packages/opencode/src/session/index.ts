@@ -992,7 +992,11 @@ export namespace Session {
     // part.text from the event to avoid O(n²) amplification over Bus → SSE.
     // Consumers accumulate text from deltas; textLength enables desync detection.
     // Non-delta updates (tool parts, completion) carry the full part as before.
-    if (delta && "text" in part && typeof part.text === "string") {
+    //
+    // IMPORTANT: The first delta for a new part must carry full text so consumers
+    // can insert the part with its initial content. We detect "first" by checking
+    // if part.text === delta (text accumulated so far equals just this chunk).
+    if (delta && "text" in part && typeof part.text === "string" && part.text !== delta) {
       const textLength = part.text.length
       const { text: _stripped, ...lightPart } = part as Record<string, unknown>
       Bus.publish(MessageV2.Event.PartUpdated, {
