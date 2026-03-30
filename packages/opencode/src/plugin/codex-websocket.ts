@@ -29,7 +29,6 @@ export interface WsSessionState {
   accountId?: string
   lastResponseId?: string
   lastInputLength?: number
-  lastToolsHash?: string
   disableWebsockets: boolean
   /** Set when server rejects previous_response_id — signals that the next
    *  request was a full-context rebind and local compaction should be scheduled. */
@@ -59,7 +58,7 @@ const sessions = new Map<string, WsSessionState>()
 // Only lastResponseId and lastInputLength are persisted — WS connection
 // and transient flags (status, disableWebsockets) reset on restart.
 interface PersistedContinuation {
-  [sessionId: string]: { lastResponseId?: string; lastInputLength?: number; lastToolsHash?: string; accountId?: string }
+  [sessionId: string]: { lastResponseId?: string; lastInputLength?: number; accountId?: string }
 }
 
 const CONTINUATION_FILE = path.join(Global.Path.state, "ws-continuation.json")
@@ -108,7 +107,6 @@ export function getWsSession(sessionId: string): WsSessionState {
       disableWebsockets: false,
       lastResponseId: persisted?.lastResponseId,
       lastInputLength: persisted?.lastInputLength,
-      lastToolsHash: persisted?.lastToolsHash,
       accountId: persisted?.accountId,
     }
     if (persisted?.lastResponseId) {
@@ -129,7 +127,6 @@ export function persistWsSession(sessionId: string, state: WsSessionState) {
   cont[sessionId] = {
     lastResponseId: state.lastResponseId,
     lastInputLength: state.lastInputLength,
-    lastToolsHash: state.lastToolsHash,
     accountId: state.accountId,
   }
   saveContinuation()
@@ -261,26 +258,6 @@ export function wsRequest(input: {
   }
   // Track full input length for next delta
   state.lastInputLength = fullInputLength
-
-  // Tools dedup: when continuing a conversation, strip tools if unchanged.
-  // The server inherits tools from previous_response_id. Only resend when
-  // the tool set changes (e.g. MCP reconnect, agent switch).
-  let toolsStripped = false
-  if (wsBody.previous_response_id && Array.isArray(wsBody.tools) && wsBody.tools.length > 0) {
-    // Fast hash: length + first/last tool names (avoids hashing 100KB on every request)
-    const toolNames = wsBody.tools.map((t: any) => t.name || t.function?.name || "").join(",")
-    const toolsHash = `${wsBody.tools.length}:${toolNames.length}:${toolNames.slice(0, 200)}`
-    if (state.lastToolsHash && state.lastToolsHash === toolsHash) {
-      delete wsBody.tools
-      delete wsBody.tool_choice
-      toolsStripped = true
-    }
-    state.lastToolsHash = toolsHash
-  } else if (Array.isArray(wsBody.tools)) {
-    // First request or no continuation — record hash for next comparison
-    const toolNames = wsBody.tools.map((t: any) => t.name || t.function?.name || "").join(",")
-    state.lastToolsHash = `${wsBody.tools.length}:${toolNames.length}:${toolNames.slice(0, 200)}`
-  }
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -473,7 +450,7 @@ export function wsRequest(input: {
       for (const [k, v] of Object.entries(wsBody)) {
         breakdown[k] = JSON.stringify(v).length
       }
-      console.error(`[DELTA-REQ] session=${sessionId} delta=${deltaMode} toolsStripped=${toolsStripped} inputItems=${inputItems} fullItems=${fullInputLength} payloadBytes=${payload.length} hasPrevResp=${!!wsBody.previous_response_id}`)
+      console.error(`[DELTA-REQ] session=${sessionId} delta=${deltaMode} inputItems=${inputItems} fullItems=${fullInputLength} payloadBytes=${payload.length} hasPrevResp=${!!wsBody.previous_response_id}`)
       console.error(`[DELTA-BREAKDOWN] ${Object.entries(breakdown).sort((a,b) => b[1]-a[1]).map(([k,v]) => `${k}=${v}`).join(' ')}`)
       log.info("ws request sent", { sessionId, deltaMode, inputItems, fullItems: fullInputLength, payloadBytes: payload.length, hasPrevResp: !!wsBody.previous_response_id })
       ws.send(payload)
