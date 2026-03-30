@@ -293,9 +293,16 @@ export function wsRequest(input: {
           const reason = frameCount === 0 ? "first_frame_timeout" : "mid_stream_stall"
           log.warn(`ws ${reason}`, { sessionId, frameCount })
           invalidateContinuation(reason as InvalidationReason)
-          controller.error(new Error(`Codex WS: ${reason} (frames=${frameCount})`))
-          state.status = "failed"
-          cleanup()
+          if (frameCount === 0) {
+            // No frames yet — error won't leak (probe hasn't passed)
+            controller.error(new Error(`Codex WS: ${reason}`))
+            state.status = "failed"
+            cleanup()
+          } else {
+            // Frames already received — probe passed, controller.error() would
+            // leak into AI SDK as visible text. Close gracefully instead.
+            endStream()
+          }
         }, WS_IDLE_TIMEOUT_MS)
       }
 
@@ -432,7 +439,12 @@ export function wsRequest(input: {
       ws.onerror = () => {
         log.warn("ws error during stream", { sessionId, frameCount })
         invalidateContinuation("ws_error")
-        endWithError(new Error("WebSocket error during streaming"))
+        if (frameCount === 0) {
+          endWithError(new Error("WebSocket error during streaming"))
+        } else {
+          // Frames already received — graceful close to avoid error text leaking
+          endStream()
+        }
       }
 
       ws.onclose = (event: CloseEvent) => {
