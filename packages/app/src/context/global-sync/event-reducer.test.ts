@@ -106,6 +106,7 @@ const baseState = (input: Partial<State> = {}) =>
     killswitch_status: undefined,
     llm_errors: [],
     llm_history: [],
+    codex_transport: {},
     lsp: [],
     vcs: undefined,
     limit: 10,

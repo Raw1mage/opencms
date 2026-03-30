@@ -24,6 +24,7 @@ import { Switch } from "@opencode-ai/ui/switch"
 import { Icon } from "@opencode-ai/ui/icon"
 import { showToast } from "@opencode-ai/ui/toast"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { useParams } from "@solidjs/router"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { useSDK } from "@/context/sdk"
@@ -182,6 +183,7 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
   const language = useLanguage()
   const navigate = useNavigate()
   const local = useLocal()
+  const params = useParams()
   const globalSync = useGlobalSync()
 
   const fetcher = platform.fetch ?? globalThis.fetch
@@ -200,7 +202,7 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
   const mcpStatus = (name: string) => sync.data.mcp?.[name]?.status
   type StatusCardKey = "monitor" | "todo" | "servers" | "mcp" | "llm"
 
-  const renderSection = (key: StatusCardKey, title: string, children: JSX.Element, options?: { hidden?: boolean }) => {
+  const renderSection = (key: StatusCardKey, title: JSX.Element | string, children: JSX.Element, options?: { hidden?: boolean }) => {
     if (options?.hidden) return null
     return (
       <section class="flex flex-col gap-2 rounded-md border border-border-weak-base bg-surface-panel px-3 py-3">
@@ -257,7 +259,7 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
   }
 
   const cards = createMemo(() => {
-    const result: Array<{ key: StatusCardKey; title: string; content: JSX.Element }> = []
+    const result: Array<{ key: StatusCardKey; title: JSX.Element | string; content: JSX.Element }> = []
 
     // LLM status card — current model + recent 5 status log (deduplicated)
     const currentModel = local.model.current()
@@ -267,9 +269,12 @@ export function SessionStatusSections(props: { todoContent?: JSX.Element; monito
       : undefined
     const history = llmHistory()
 
+    const sessionId = params.id
+    const transport = sessionId ? (sync.data as any).codex_transport?.[sessionId] as "ws" | "http" | undefined : undefined
+
     result.push({
       key: "llm",
-      title: "LLM 狀態",
+      title: (<>LLM 狀態{transport && (<span class={transport === "ws" ? "text-emerald-400" : "text-amber-400"}>{" "}{transport.toUpperCase()}</span>)}</>) as JSX.Element,
       content: (
         <div class="flex flex-col gap-1">
           {/* Recent status log — last 5 deduplicated entries */}

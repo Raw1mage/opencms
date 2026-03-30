@@ -130,6 +130,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       killswitch_status: undefined,
       llm_errors: [],
       llm_history: [],
+      codex_transport: {},
       lsp: [],
       vcs: undefined,
       limit: 5,

@@ -120,6 +120,7 @@ export type State = {
     | undefined
   llm_errors: LlmErrorEntry[]
   llm_history: LlmHistoryEntry[]
+  codex_transport: Record<string, "ws" | "http">
   lsp: LspStatus[]
   vcs: VcsInfo | undefined
   limit: number

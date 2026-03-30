@@ -590,6 +590,19 @@ export function applyDirectoryEvent(input: {
       )
       break
     }
+    case "codex.transport": {
+      const props = event.properties as {
+        sessionId: string
+        transport: "ws" | "http"
+      }
+      input.setStore(
+        produce((draft) => {
+          if (!draft.codex_transport) draft.codex_transport = {}
+          draft.codex_transport[props.sessionId] = props.transport
+        }),
+      )
+      break
+    }
     case "rotation.executed": {
       const props = event.properties as {
         fromProviderId: string

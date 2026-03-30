@@ -214,6 +214,7 @@ export function createChildStoreManager(input: {
             killswitch_status: undefined,
             llm_errors: [],
             llm_history: [],
+            codex_transport: {},
             lsp: [],
             vcs: vcsStore.value,
             limit: 25,
