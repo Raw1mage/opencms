@@ -1,0 +1,180 @@
+{
+  "diagram_title": "Codex Incremental Delta Fix Components",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "OpenCode Runtime",
+      "description": "Main runtime that constructs requests, processes streamed output, and fans updates to clients.",
+      "external": false
+    },
+    {
+      "id": "SYS2",
+      "name": "Codex Provider",
+      "description": "Upstream continuation-capable Codex transport.",
+      "external": true
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "Session Runtime",
+      "description": "Request assembly, provider streaming, and message state updates.",
+      "technology": "TypeScript/Bun",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT2",
+      "name": "Server Event Layer",
+      "description": "Bus and SSE fanout layer for streamed runtime events.",
+      "technology": "TypeScript/Bun SSE",
+      "systemRef": "SYS1"
+    },
+    {
+      "id": "CT3",
+      "name": "Client Consumers",
+      "description": "Web, TUI, and subagent activity consumers.",
+      "technology": "SolidJS and Ink/CLI state sync",
+      "systemRef": "SYS1"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "Codex Request Builder",
+      "description": "Builds local messages and attaches continuation handles for Codex requests.",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/session/llm.ts"
+    },
+    {
+      "id": "C2",
+      "name": "Provider Delta Trimmer",
+      "description": "Trims upstream request input when continuation identifiers are available.",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/opencode/src/plugin/codex.ts"
+    },
+    {
+      "id": "C3",
+      "name": "Session Stream Processor",
+      "description": "Transforms provider chunks into session part updates.",
+      "technology": "TypeScript module",
+      "containerRef": "CT1",
+      "moduleRef": "A2",
+      "filePath": "packages/opencode/src/session/processor.ts"
+    },
+    {
+      "id": "C4",
+      "name": "Message Event Publisher",
+      "description": "Persists part state and publishes streamed message events.",
+      "technology": "TypeScript module",
+      "containerRef": "CT2",
+      "moduleRef": "A2",
+      "filePath": "packages/opencode/src/session/index.ts"
+    },
+    {
+      "id": "C5",
+      "name": "SSE Fanout",
+      "description": "Broadcasts runtime events to connected clients.",
+      "technology": "TypeScript/Bun SSE",
+      "containerRef": "CT2",
+      "moduleRef": "A2",
+      "filePath": "packages/opencode/src/server/routes/global.ts"
+    },
+    {
+      "id": "C6",
+      "name": "Web Delta Reducer",
+      "description": "Applies streamed updates in the Web global sync path.",
+      "technology": "SolidJS store reducer",
+      "containerRef": "CT3",
+      "moduleRef": "A3",
+      "filePath": "packages/app/src/context/global-sync/event-reducer.ts"
+    },
+    {
+      "id": "C7",
+      "name": "TUI Delta Sync",
+      "description": "Applies streamed updates in the TUI sync path.",
+      "technology": "Ink/TUI state sync",
+      "containerRef": "CT3",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/cli/cmd/tui/context/sync.tsx"
+    },
+    {
+      "id": "C8",
+      "name": "Subagent Bridge",
+      "description": "Republishes child-session streamed updates into the parent runtime.",
+      "technology": "TypeScript module",
+      "containerRef": "CT3",
+      "moduleRef": "A3",
+      "filePath": "packages/opencode/src/tool/task.ts"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL1",
+      "source": "C1",
+      "target": "C2",
+      "description": "passes local message payload to provider-specific Codex trimming logic",
+      "technology": "function call"
+    },
+    {
+      "id": "REL2",
+      "source": "C2",
+      "target": "SYS2",
+      "description": "sends continuation-capable Codex request",
+      "technology": "HTTP/WebSocket"
+    },
+    {
+      "id": "REL3",
+      "source": "SYS2",
+      "target": "C3",
+      "description": "streams assistant text deltas back into session processing",
+      "technology": "streaming response"
+    },
+    {
+      "id": "REL4",
+      "source": "C3",
+      "target": "C4",
+      "description": "emits session part updates",
+      "technology": "function call"
+    },
+    {
+      "id": "REL5",
+      "source": "C4",
+      "target": "C5",
+      "description": "publishes message events for client fanout",
+      "technology": "bus event"
+    },
+    {
+      "id": "REL6",
+      "source": "C5",
+      "target": "C6",
+      "description": "delivers streamed events to Web global sync",
+      "technology": "SSE"
+    },
+    {
+      "id": "REL7",
+      "source": "C5",
+      "target": "C7",
+      "description": "delivers streamed events to TUI sync",
+      "technology": "SSE / local event stream"
+    },
+    {
+      "id": "REL8",
+      "source": "C4",
+      "target": "C8",
+      "description": "reuses message events for child-session bridge fanout",
+      "technology": "bus event"
+    },
+    {
+      "id": "REL9",
+      "source": "C8",
+      "target": "C5",
+      "description": "republishes child streamed updates into parent-visible event flow",
+      "technology": "bus publish"
+    }
+  ]
+}

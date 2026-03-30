@@ -1,0 +1,162 @@
+[
+  {
+    "diagram_title": "Request Continuation And Runtime Expansion",
+    "scenario": "A Codex follow-up turn uses a continuation handle upstream but still risks local runtime expansion unless the hot path is rewritten.",
+    "moduleRef": "A1",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "User Turn",
+        "type": "actor",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P2",
+        "name": "Codex Request Builder",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P3",
+        "name": "Provider Delta Trimmer",
+        "type": "component",
+        "componentRef": "C2"
+      },
+      {
+        "id": "P4",
+        "name": "Codex Provider",
+        "type": "system",
+        "componentRef": "SYS2"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "submit new user message",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "build local messages and attach previousResponseId",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P4",
+        "label": "send trimmed input with continuation handle",
+        "type": "sync",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P4",
+        "to": "P2",
+        "label": "return streamed response id and chunks",
+        "type": "return",
+        "order": 4
+      }
+    ],
+    "fragments": []
+  },
+  {
+    "diagram_title": "Delta Aware Streaming Consumption",
+    "scenario": "After the fix, streamed assistant chunks should travel as delta-aware updates through runtime fanout and consumers.",
+    "moduleRef": "A3",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "Session Stream Processor",
+        "type": "component",
+        "componentRef": "C3"
+      },
+      {
+        "id": "P2",
+        "name": "Message Event Publisher",
+        "type": "component",
+        "componentRef": "C4"
+      },
+      {
+        "id": "P3",
+        "name": "SSE Fanout",
+        "type": "component",
+        "componentRef": "C5"
+      },
+      {
+        "id": "P4",
+        "name": "Web Delta Reducer",
+        "type": "component",
+        "componentRef": "C6"
+      },
+      {
+        "id": "P5",
+        "name": "TUI Delta Sync",
+        "type": "component",
+        "componentRef": "C7"
+      },
+      {
+        "id": "P6",
+        "name": "Subagent Bridge",
+        "type": "component",
+        "componentRef": "C8"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "emit append-only delta update",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "fan out compact delta-aware event",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P4",
+        "label": "append delta in Web state",
+        "type": "sync",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P3",
+        "to": "P5",
+        "label": "append delta in TUI state",
+        "type": "sync",
+        "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P2",
+        "to": "P6",
+        "label": "bridge child delta without full payload amplification",
+        "type": "sync",
+        "order": 5
+      },
+      {
+        "id": "MSG6",
+        "from": "P6",
+        "to": "P3",
+        "label": "republish compact child delta event",
+        "type": "sync",
+        "order": 6
+      }
+    ],
+    "fragments": []
+  }
+]
