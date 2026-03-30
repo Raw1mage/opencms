@@ -790,27 +790,20 @@ export async function CodexNativeAuthPlugin(input: PluginInput): Promise<Hooks> 
                   wsUrl,
                 })
                 if (wsResponse) {
+                  // Check if WS flagged continuation invalidation during streaming.
+                  // The stream closes gracefully (empty response) so AI SDK retries,
+                  // but we need to schedule compaction for the rebind.
+                  const wsState = (await import("./codex-websocket")).getWsSession(sessionId)
+                  if (wsState.continuationInvalidated) {
+                    wsState.continuationInvalidated = false
+                    log.warn("continuation invalidated during WS stream, scheduling compaction", { sessionId })
+                    Bus.publish(ContinuationInvalidatedEvent, { sessionId }).catch(() => {})
+                  }
                   Bus.publish(CodexTransportEvent, { sessionId, transport: "ws", accountId: authWithAccount.accountId }).catch(() => {})
                   return wsResponse
                 }
               } catch (e) {
-                const errMsg = String(e)
-                if (errMsg.includes("CONTINUATION_INVALIDATED")) {
-                  // Server rejected previous_response_id. Rebuild request body
-                  // without continuation handle and fall through to HTTP.
-                  // Signal session layer to schedule compaction for next idle.
-                  log.warn("continuation invalidated, rebuilding full-context request", { sessionId })
-                  if (init?.body) {
-                    try {
-                      const rebuildBody = JSON.parse(typeof init.body === "string" ? init.body : "")
-                      delete rebuildBody.previous_response_id
-                      init.body = JSON.stringify(rebuildBody)
-                    } catch {}
-                  }
-                  Bus.publish(ContinuationInvalidatedEvent, { sessionId }).catch(() => {})
-                } else {
-                  log.warn("ws transport error, falling back to HTTP", { sessionId, error: errMsg.slice(0, 100) })
-                }
+                log.warn("ws transport error, falling back to HTTP", { sessionId, error: String(e).slice(0, 100) })
               }
             }
 

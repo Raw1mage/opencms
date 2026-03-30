@@ -345,7 +345,11 @@ export function wsRequest(input: {
             log.warn("ws continuation invalidated: previous_response_not_found", { sessionId })
             invalidateContinuation("previous_response_not_found")
             state.continuationInvalidated = true
-            endWithError(new Error("CONTINUATION_INVALIDATED"))
+            // Close stream gracefully instead of endWithError — the error
+            // message would leak into AI SDK as streamed text if the
+            // first-frame probe already passed. The empty stream triggers
+            // processor's empty-response retry path.
+            endStream()
             return
           }
 
