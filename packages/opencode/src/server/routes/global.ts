@@ -364,7 +364,9 @@ export const GlobalRoutes = lazy(() =>
               _sseMetrics.totalBytes += data.length
               if (_sseMetrics.partUpdates % 50 === 0) {
                 const avgBytes = Math.round(_sseMetrics.totalBytes / _sseMetrics.partUpdates)
-                console.error(`[DELTA-SSE] partUpdates=${_sseMetrics.partUpdates} totalBytes=${_sseMetrics.totalBytes} avgBytes=${avgBytes} thisBytes=${data.length}`)
+                console.error(
+                  `[DELTA-SSE] partUpdates=${_sseMetrics.partUpdates} totalBytes=${_sseMetrics.totalBytes} avgBytes=${avgBytes} thisBytes=${data.length}`,
+                )
               }
             }
 
@@ -440,6 +442,36 @@ export const GlobalRoutes = lazy(() =>
       async (c) => {
         const config = c.req.valid("json")
         const next = await Config.updateGlobal(config)
+        return c.json(next)
+      },
+    )
+    .delete(
+      "/config/provider/:providerId",
+      describeRoute({
+        summary: "Delete custom provider from global configuration",
+        description: "Remove a custom provider entry from the global OpenCode configuration.",
+        operationId: "global.config.provider.delete",
+        responses: {
+          200: {
+            description: "Successfully removed provider from global config",
+            content: {
+              "application/json": {
+                schema: resolver(Config.Info),
+              },
+            },
+          },
+          ...errors(400),
+        },
+      }),
+      validator(
+        "param",
+        z.object({
+          providerId: z.string().meta({ description: "Provider ID" }),
+        }),
+      ),
+      async (c) => {
+        const { providerId } = c.req.valid("param")
+        const next = await Config.removeGlobalProvider(providerId)
         return c.json(next)
       },
     )
@@ -632,10 +664,7 @@ export const GlobalRoutes = lazy(() =>
           },
         },
       }),
-      validator(
-        "json",
-        z.object({ level: z.number().int().min(0).max(3) }),
-      ),
+      validator("json", z.object({ level: z.number().int().min(0).max(3) })),
       async (c) => {
         const { level } = c.req.valid("json")
         setLogLevel(level as LogLevel)

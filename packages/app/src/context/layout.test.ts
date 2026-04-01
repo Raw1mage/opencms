@@ -4,6 +4,7 @@ import {
   buildProjectRootMap,
   createSessionKeyReader,
   ensureSessionKey,
+  migrateLayoutState,
   pruneSessionKeys,
   resolveProjectRoot,
 } from "./layout"
@@ -112,5 +113,22 @@ describe("layout project root helpers", () => {
     ])
 
     expect(resolveProjectRoot("/repo/a", roots)).toBe("/repo/a")
+  })
+})
+
+describe("layout migration defaults", () => {
+  test("closes file pane and tool sidebar during persisted layout migration", () => {
+    const migrated = migrateLayoutState({
+      review: { diffStyle: "split", panelOpened: true },
+      fileTree: { opened: true, width: 344, tab: "changes", mode: "changes" },
+    }) as {
+      review: { panelOpened: boolean }
+      fileTree: { opened: boolean; tab: string; mode: string }
+    }
+
+    expect(migrated.review.panelOpened).toBe(false)
+    expect(migrated.fileTree.opened).toBe(false)
+    expect(migrated.fileTree.tab).toBe("changes")
+    expect(migrated.fileTree.mode).toBe("changes")
   })
 })

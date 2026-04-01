@@ -1734,6 +1734,18 @@ export namespace Config {
     }, input)
   }
 
+  async function finalizeGlobalConfigMutation() {
+    global.reset()
+
+    try {
+      await Instance.disposeAll()
+    } catch {
+      // Best-effort disposal; still emit disposed event to trigger downstream refresh.
+    } finally {
+      await Bus.publish(Event.Disposed, {}, { directory: "global" })
+    }
+  }
+
   function parseConfig(text: string, filepath: string): Info {
     const errors: JsoncParseError[] = []
     const data = parseJsonc(text, errors, { allowTrailingComma: true })
@@ -1792,17 +1804,55 @@ export namespace Config {
       return merged
     })()
 
-    global.reset()
+    await finalizeGlobalConfigMutation()
 
-    try {
-      // Must wait for instance disposal so subsequent config.get/bootstraps don't read stale cached state.
-      await Instance.disposeAll()
-    } catch {
-      // Best-effort disposal; still emit disposed event to trigger downstream refresh.
-    } finally {
-      await Bus.publish(Event.Disposed, {}, { directory: "global" })
+    return next
+  }
+
+  export async function removeGlobalProvider(providerId: string) {
+    const filepath = globalConfigFile()
+    await fs.mkdir(path.dirname(filepath), { recursive: true })
+    const before = await Bun.file(filepath)
+      .text()
+      .catch((err) => {
+        if (err.code === "ENOENT") return "{}"
+        throw new JsonError({ path: filepath }, { cause: err })
+      })
+
+    const existing = parseConfig(before, filepath)
+    const next = { ...existing }
+
+    if (next.provider) {
+      const provider = { ...next.provider }
+      delete provider[providerId]
+      next.provider = Object.keys(provider).length > 0 ? provider : undefined
     }
 
+    if (Array.isArray(next.disabled_providers)) {
+      const filtered = next.disabled_providers.filter((id) => id !== providerId)
+      next.disabled_providers = filtered.length > 0 ? filtered : undefined
+    }
+
+    if (!filepath.endsWith(".jsonc")) {
+      await Bun.write(filepath, JSON.stringify(next, null, 2))
+    } else {
+      let updated = before
+      updated = applyEdits(
+        updated,
+        modify(updated, ["provider", providerId], undefined, {
+          formattingOptions: { insertSpaces: true, tabSize: 2 },
+        }),
+      )
+      updated = applyEdits(
+        updated,
+        modify(updated, ["disabled_providers"], next.disabled_providers, {
+          formattingOptions: { insertSpaces: true, tabSize: 2 },
+        }),
+      )
+      await Bun.write(filepath, updated)
+    }
+
+    await finalizeGlobalConfigMutation()
     return next
   }
 

@@ -15,12 +15,14 @@ import { DialogSelectProvider } from "./dialog-select-provider"
 
 const PROVIDER_ID = /^[a-z0-9][a-z0-9-_]*$/
 const OPENAI_COMPATIBLE = "@ai-sdk/openai-compatible"
+const DEFAULT_MODEL_OUTPUT_LIMIT = 8192
 
 type Translator = ReturnType<typeof useLanguage>["t"]
 
 type ModelRow = {
   id: string
   name: string
+  contextSize: string
 }
 
 type HeaderRow = {
@@ -32,7 +34,6 @@ type FormState = {
   providerID: string
   name: string
   baseURL: string
-  apiKey: string
   models: ModelRow[]
   headers: HeaderRow[]
   saving: boolean
@@ -42,7 +43,7 @@ type FormErrors = {
   providerID: string | undefined
   name: string | undefined
   baseURL: string | undefined
-  models: Array<{ id?: string; name?: string }>
+  models: Array<{ id?: string; name?: string; contextSize?: string }>
   headers: Array<{ key?: string; value?: string }>
 }
 
@@ -57,10 +58,6 @@ function validateCustomProvider(input: ValidateArgs) {
   const providerID = input.form.providerID.trim()
   const name = input.form.name.trim()
   const baseURL = input.form.baseURL.trim()
-  const apiKey = input.form.apiKey.trim()
-
-  const env = apiKey.match(/^\{env:([^}]+)\}$/)?.[1]?.trim()
-  const key = apiKey && !env ? apiKey : undefined
 
   const idError = !providerID
     ? input.t("provider.custom.error.providerID.required")
@@ -85,6 +82,9 @@ function validateCustomProvider(input: ValidateArgs) {
   const seenModels = new Set<string>()
   const modelErrors = input.form.models.map((m) => {
     const id = m.id.trim()
+    const contextSizeRaw = m.contextSize.trim()
+    const hasContextSize = contextSizeRaw.length > 0
+    const contextSizeValue = hasContextSize ? Number.parseInt(contextSizeRaw, 10) : Number.NaN
     const modelIdError = !id
       ? input.t("provider.custom.error.required")
       : seenModels.has(id)
@@ -94,10 +94,34 @@ function validateCustomProvider(input: ValidateArgs) {
             return undefined
           })()
     const modelNameError = !m.name.trim() ? input.t("provider.custom.error.required") : undefined
-    return { id: modelIdError, name: modelNameError }
+    const modelContextSizeError =
+      hasContextSize && (!Number.isInteger(contextSizeValue) || contextSizeValue <= 0)
+        ? input.t("provider.custom.error.contextSize.format")
+        : undefined
+    return { id: modelIdError, name: modelNameError, contextSize: modelContextSizeError }
   })
-  const modelsValid = modelErrors.every((m) => !m.id && !m.name)
-  const models = Object.fromEntries(input.form.models.map((m) => [m.id.trim(), { name: m.name.trim() }]))
+  const modelsValid = modelErrors.every((m) => !m.id && !m.name && !m.contextSize)
+  const models = Object.fromEntries(
+    input.form.models.map((m) => {
+      const contextSizeRaw = m.contextSize.trim()
+      const hasContextSize = contextSizeRaw.length > 0
+      const parsedContext = hasContextSize ? Number.parseInt(contextSizeRaw, 10) : Number.NaN
+      return [
+        m.id.trim(),
+        {
+          name: m.name.trim(),
+          ...(hasContextSize && Number.isInteger(parsedContext) && parsedContext > 0
+            ? {
+                limit: {
+                  context: parsedContext,
+                  output: DEFAULT_MODEL_OUTPUT_LIMIT,
+                },
+              }
+            : {}),
+        },
+      ]
+    }),
+  )
 
   const seenHeaders = new Set<string>()
   const headerErrors = input.form.headers.map((h) => {
@@ -145,11 +169,9 @@ function validateCustomProvider(input: ValidateArgs) {
     result: {
       providerID,
       name,
-      key,
       config: {
         npm: OPENAI_COMPATIBLE,
         name,
-        ...(env ? { env: [env] } : {}),
         options,
         models,
       },
@@ -175,16 +197,41 @@ export function DialogCustomProvider(props: Props) {
 
   const editConfig = () => {
     if (!props.editProviderId) return undefined
-    const config = globalSync.data.config as any
+    const config = globalSync.data.config as {
+      provider?: Record<
+        string,
+        {
+          name?: string
+          options?: { baseURL?: string; headers?: Record<string, string> }
+          models?: Record<string, { name?: string; limit?: { context?: number } }>
+        }
+      >
+    }
     return config?.provider?.[props.editProviderId]
   }
 
   const initModels = (): ModelRow[] => {
+    const configuredModels = editConfig()?.models
+    if (configuredModels && typeof configuredModels === "object" && Object.keys(configuredModels).length > 0) {
+      return Object.entries(configuredModels).map(([id, model]) => ({
+        id,
+        name: typeof (model as any)?.name === "string" && (model as any).name.trim() ? (model as any).name : id,
+        contextSize: (() => {
+          const value = (model as any)?.limit?.context
+          return typeof value === "number" && value > 0 ? String(value) : ""
+        })(),
+      }))
+    }
+
     const provider = editProvider()
-    if (!provider) return [{ id: "", name: "" }]
+    if (!provider) return [{ id: "", name: "", contextSize: "" }]
     return Object.entries(provider.models).map(([id, model]) => ({
       id,
       name: (model as any).name || id,
+      contextSize: (() => {
+        const value = (model as any)?.limit?.context
+        return typeof value === "number" && value > 0 ? String(value) : ""
+      })(),
     }))
   }
 
@@ -200,9 +247,8 @@ export function DialogCustomProvider(props: Props) {
 
   const [form, setForm] = createStore<FormState>({
     providerID: props.editProviderId ?? "",
-    name: editProvider()?.name ?? "",
+    name: editConfig()?.name ?? editProvider()?.name ?? "",
     baseURL: editConfig()?.options?.baseURL ?? "",
-    apiKey: "",
     models: initModels(),
     headers: initHeaders(),
     saving: false,
@@ -225,7 +271,7 @@ export function DialogCustomProvider(props: Props) {
   }
 
   const addModel = () => {
-    setForm("models", (v) => [...v, { id: "", name: "" }])
+    setForm("models", (v) => [...v, { id: "", name: "", contextSize: "" }])
     setErrors("models", (v) => [...v, {}])
   }
 
@@ -247,7 +293,8 @@ export function DialogCustomProvider(props: Props) {
   }
 
   const validate = () => {
-    const existingProviderIDs = new Set(globalSync.data.provider.all.map((p) => p.id))
+    const configuredProviders = Object.keys((globalSync.data.config as any)?.provider ?? {})
+    const existingProviderIDs = new Set([...globalSync.data.provider.all.map((p) => p.id), ...configuredProviders])
     if (isEdit()) existingProviderIDs.delete(props.editProviderId!)
 
     const output = validateCustomProvider({
@@ -272,21 +319,8 @@ export function DialogCustomProvider(props: Props) {
     const disabledProviders = globalSync.configActions.disabledProviders()
     const nextDisabled = disabledProviders.filter((id) => id !== result.providerID)
 
-    const auth = result.key
-      ? globalSDK.client.auth.set({
-          providerId: result.providerID,
-          auth: {
-            type: "api",
-            key: result.key,
-            name: result.name,
-          },
-        })
-      : Promise.resolve()
-
-    auth
-      .then(() =>
-        globalSync.updateConfig({ provider: { [result.providerID]: result.config }, disabled_providers: nextDisabled }),
-      )
+    globalSync
+      .updateConfig({ provider: { [result.providerID]: result.config }, disabled_providers: nextDisabled })
       .then(() => {
         dialog.close()
         showToast({
@@ -303,6 +337,31 @@ export function DialogCustomProvider(props: Props) {
       .finally(() => {
         setForm("saving", false)
       })
+  }
+
+  const remove = async () => {
+    if (!props.editProviderId || form.saving) return
+    setForm("saving", true)
+
+    try {
+      const response = await globalSDK.fetch(
+        `${globalSDK.url}/api/v2/global/config/provider/${encodeURIComponent(props.editProviderId)}`,
+        { method: "DELETE" },
+      )
+      if (!response.ok) throw new Error(await response.text())
+      dialog.close()
+      showToast({
+        variant: "success",
+        icon: "circle-check",
+        title: language.t("common.delete"),
+        description: props.editProviderId,
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      showToast({ title: language.t("common.requestFailed"), description: message })
+    } finally {
+      setForm("saving", false)
+    }
   }
 
   return (
@@ -363,13 +422,6 @@ export function DialogCustomProvider(props: Props) {
               validationState={errors.baseURL ? "invalid" : undefined}
               error={errors.baseURL}
             />
-            <TextField
-              label={language.t("provider.custom.field.apiKey.label")}
-              placeholder={language.t("provider.custom.field.apiKey.placeholder")}
-              description={language.t("provider.custom.field.apiKey.description")}
-              value={form.apiKey}
-              onChange={(v) => setForm("apiKey", v)}
-            />
           </div>
 
           <div class="flex flex-col gap-3">
@@ -397,6 +449,17 @@ export function DialogCustomProvider(props: Props) {
                       onChange={(v) => setForm("models", i(), "name", v)}
                       validationState={errors.models[i()]?.name ? "invalid" : undefined}
                       error={errors.models[i()]?.name}
+                    />
+                  </div>
+                  <div class="w-36 shrink-0">
+                    <TextField
+                      label={language.t("provider.custom.models.contextSize.label")}
+                      hideLabel
+                      placeholder={language.t("provider.custom.models.contextSize.placeholder")}
+                      value={m.contextSize}
+                      onChange={(v) => setForm("models", i(), "contextSize", v)}
+                      validationState={errors.models[i()]?.contextSize ? "invalid" : undefined}
+                      error={errors.models[i()]?.contextSize}
                     />
                   </div>
                   <IconButton
@@ -460,9 +523,25 @@ export function DialogCustomProvider(props: Props) {
             </Button>
           </div>
 
-          <Button class="w-auto self-start" type="submit" size="large" variant="primary" disabled={form.saving}>
-            {form.saving ? language.t("common.saving") : language.t("common.submit")}
-          </Button>
+          <div class="flex items-center gap-2">
+            <Button class="w-auto self-start" type="submit" size="large" variant="primary" disabled={form.saving}>
+              {form.saving ? language.t("common.saving") : language.t("common.submit")}
+            </Button>
+            <For each={isEdit() ? [props.editProviderId] : []}>
+              {() => (
+                <Button
+                  class="w-auto self-start"
+                  type="button"
+                  size="large"
+                  variant="ghost"
+                  onClick={remove}
+                  disabled={form.saving}
+                >
+                  {language.t("common.delete")}
+                </Button>
+              )}
+            </For>
+          </div>
         </form>
       </div>
     </Dialog>

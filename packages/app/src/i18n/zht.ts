@@ -189,6 +189,8 @@ export const dict = {
   "provider.custom.models.id.placeholder": "model-id",
   "provider.custom.models.name.label": "名稱",
   "provider.custom.models.name.placeholder": "顯示名稱",
+  "provider.custom.models.contextSize.label": "Context 大小",
+  "provider.custom.models.contextSize.placeholder": "200000",
   "provider.custom.models.remove": "移除模型",
   "provider.custom.models.add": "新增模型",
   "provider.custom.headers.label": "標頭（選填）",
@@ -206,6 +208,7 @@ export const dict = {
   "provider.custom.error.baseURL.format": "必須以 http:// 或 https:// 開頭",
   "provider.custom.error.required": "必填",
   "provider.custom.error.duplicate": "重複",
+  "provider.custom.error.contextSize.format": "請輸入正整數",
 
   "provider.disconnect.toast.disconnected.title": "{{provider}} 已中斷連線",
   "provider.disconnect.toast.disconnected.description": "{{provider}} 模型已不再可用。",

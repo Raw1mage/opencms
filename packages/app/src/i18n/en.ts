@@ -188,6 +188,8 @@ export const dict = {
   "provider.custom.models.id.placeholder": "model-id",
   "provider.custom.models.name.label": "Name",
   "provider.custom.models.name.placeholder": "Display Name",
+  "provider.custom.models.contextSize.label": "Context size",
+  "provider.custom.models.contextSize.placeholder": "200000",
   "provider.custom.models.remove": "Remove model",
   "provider.custom.models.add": "Add model",
   "provider.custom.headers.label": "Headers (optional)",
@@ -205,6 +207,7 @@ export const dict = {
   "provider.custom.error.baseURL.format": "Must start with http:// or https://",
   "provider.custom.error.required": "Required",
   "provider.custom.error.duplicate": "Duplicate",
+  "provider.custom.error.contextSize.format": "Enter a positive integer",
 
   "provider.disconnect.toast.disconnected.title": "{{provider}} disconnected",
   "provider.disconnect.toast.disconnected.description": "{{provider}} models are no longer available.",

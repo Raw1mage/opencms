@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
   buildAccountRows,
+  buildCustomProviderEntries,
   buildProviderRows,
   filterModelsForMode,
   loadHiddenProvidersFromStorage,
@@ -18,24 +19,56 @@ describe("model selector state", () => {
         { id: "openai-api-primary", name: "OpenAI Primary" },
         { id: "google-api", name: "Google API" },
       ],
+      favoriteProviders: ["openai", "google-api"],
       accountFamilies: {
         "claude-cli": { accounts: { a1: {} } },
       },
-      disabledProviders: ["google-api"],
     })
 
     expect(rows.some((row) => row.providerKey === "openai")).toBe(true)
     expect(rows.some((row) => row.providerKey === "claude-cli")).toBe(true)
-    expect(rows.find((row) => row.providerKey === "google-api")?.enabled).toBe(false)
+    expect(rows.find((row) => row.providerKey === "google-api")?.enabled).toBe(true)
   })
 
-  test("legacy anthropic disabled provider does not disable claude-cli row", () => {
+  test("claude-cli row remains enabled", () => {
     const rows = buildProviderRows({
       providers: [{ id: "claude-cli", name: "Claude CLI" }],
-      disabledProviders: ["anthropic"],
+      favoriteProviders: ["claude-cli"],
     })
 
     expect(rows.find((row) => row.providerKey === "claude-cli")?.enabled).toBe(true)
+  })
+
+  test("provider rows respect user-controlled favorite providers", () => {
+    const rows = buildProviderRows({
+      providers: [
+        { id: "claude-cli", name: "Claude CLI" },
+        { id: "openai", name: "OpenAI" },
+      ],
+      favoriteProviders: ["anthropic"],
+    })
+
+    expect(rows.find((row) => row.providerKey === "claude-cli")?.enabled).toBe(true)
+    expect(rows.find((row) => row.providerKey === "openai")?.enabled).toBe(false)
+  })
+
+  test("custom provider entries normalize config models for model manager", () => {
+    const rows = buildCustomProviderEntries({
+      miat: {
+        npm: "@ai-sdk/openai-compatible",
+        name: "MIAT",
+        models: {
+          "qwen3.5:9b-128k": {
+            name: "Qwen 3.5 9B 128K",
+            limit: { context: 128000, output: 8192 },
+          },
+        },
+      },
+    })
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.id).toBe("miat")
+    expect((rows[0]?.models as Record<string, { id?: string }>)?.["qwen3.5:9b-128k"]?.id).toBe("qwen3.5:9b-128k")
   })
 
   test("account rows keep stable label ordering and include cooldown reason", () => {

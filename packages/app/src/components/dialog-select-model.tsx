@@ -46,7 +46,7 @@ import {
   getFilteredModelsForSelection,
   getModelUnavailableReason,
   isAccountLikeProviderId,
-  loadHiddenProvidersFromStorage,
+  parseHiddenProvidersStorageValue,
   pickSelectedAccount,
   pickSelectedModel,
   pickSelectedProvider,
@@ -64,15 +64,25 @@ const isFree = (provider: string, cost: { input: number } | undefined) =>
   provider === "opencode" && (!cost || cost.input === 0)
 
 const MODEL_MANAGER_LAYOUT_STORAGE_KEY = "opencode.web.modelManager.layout.v1"
-const MODEL_MANAGER_HIDDEN_PROVIDERS_STORAGE_KEY = "opencode.web.modelManager.hiddenProviders.v1"
+const MODEL_MANAGER_FAVORITE_PROVIDERS_STORAGE_KEY = "opencode.web.modelManager.favoriteProviders.v1"
 const MODEL_MANAGER_PROVIDER_MIN_PX = 160
 const MODEL_MANAGER_ACCOUNT_MIN_PX = 200
 const MODEL_MANAGER_MODEL_MIN_PX = 160
 const MODEL_MANAGER_DEFAULT_COLUMN_LAYOUT = { providerRatio: 0.31, accountRatio: 0.35 }
 
-function loadHiddenProvidersFromLocalStorage() {
-  if (typeof window === "undefined") return [] as string[]
-  return loadHiddenProvidersFromStorage(window.localStorage, MODEL_MANAGER_HIDDEN_PROVIDERS_STORAGE_KEY)
+function loadFavoriteProvidersFromLocalStorage() {
+  if (typeof window === "undefined") return [...popularProviders]
+  const raw = window.localStorage.getItem(MODEL_MANAGER_FAVORITE_PROVIDERS_STORAGE_KEY)
+  return raw === null ? [...popularProviders] : parseHiddenProvidersStorageValue(raw)
+}
+
+function saveFavoriteProvidersToLocalStorage(favoriteProviders: string[]) {
+  if (typeof window === "undefined") return
+  try {
+    window.localStorage.setItem(MODEL_MANAGER_FAVORITE_PROVIDERS_STORAGE_KEY, JSON.stringify(favoriteProviders))
+  } catch {
+    // ignore storage quota/security errors
+  }
 }
 
 type AccountRecord = {
@@ -775,10 +785,12 @@ export const DialogSelectModel: Component<{
     }
   }
   const [dialogSize, setDialogSize] = createSignal(initialDialogSize())
+  const [favoriteProviders, setFavoriteProviders] = createSignal<string[]>(loadFavoriteProvidersFromLocalStorage())
   const [columnLayout, setColumnLayout] = createSignal(MODEL_MANAGER_DEFAULT_COLUMN_LAYOUT)
   const [layoutHydrated, setLayoutHydrated] = createSignal(false)
   const [columnsWidth, setColumnsWidth] = createSignal(0)
   let dialogContainerEl: HTMLElement | undefined
+  let dialogHeaderEl: HTMLElement | undefined
   let columnsEl: HTMLDivElement | undefined
   let providerScrollEl: HTMLDivElement | undefined
   let modelPanelEl: HTMLDivElement | undefined
@@ -793,6 +805,14 @@ export const DialogSelectModel: Component<{
     return dialogContainerEl
   }
 
+  const resolveDialogHeader = () => {
+    if (dialogHeaderEl && document.body.contains(dialogHeaderEl)) return dialogHeaderEl
+    const content = document.querySelector(".model-manager-dialog") as HTMLElement | null
+    const header = content?.querySelector('[data-slot="dialog-header"]') as HTMLElement | null
+    dialogHeaderEl = header ?? undefined
+    return dialogHeaderEl
+  }
+
   const clampDialogState = (nextSize = dialogSize(), nextOffset = dialogOffset()) => {
     if (typeof window !== "undefined" && window.innerWidth < 768) {
       return {
@@ -803,8 +823,6 @@ export const DialogSelectModel: Component<{
         offset: { x: 0, y: 0 },
       }
     }
-    // Keep a minimum size, but avoid strict viewport max-clamping.
-    // Hard max + offset clamping caused reverse-motion feeling while resizing.
     const width = Math.max(560, nextSize.width)
     const height = Math.max(320, nextSize.height)
     const x = nextOffset.x
@@ -982,6 +1000,13 @@ export const DialogSelectModel: Component<{
     onCleanup(() => window.removeEventListener("resize", onResize))
   })
 
+  createEffect(() => {
+    const header = resolveDialogHeader()
+    if (!header) return
+    header.addEventListener("mousedown", startDrag)
+    onCleanup(() => header.removeEventListener("mousedown", startDrag))
+  })
+
   const startDrag = (event: MouseEvent) => {
     if (isMobileViewport()) return
     const target = event.target as HTMLElement | null
@@ -1086,17 +1111,17 @@ export const DialogSelectModel: Component<{
     window.addEventListener("mouseup", onUp)
   }
 
-  createEffect(() => {
-    const header = document.querySelector(".model-manager-dialog [data-slot='dialog-header']") as HTMLElement | null
-    if (!header) return
-    header.style.cursor = isMobileViewport() ? "default" : "move"
-    const onMouseDown = (event: globalThis.MouseEvent) => startDrag(event as unknown as MouseEvent)
-    header.addEventListener("mousedown", onMouseDown)
-    onCleanup(() => header.removeEventListener("mousedown", onMouseDown))
-  })
-
-  const [hiddenProviders] = createSignal<string[]>(loadHiddenProvidersFromLocalStorage())
-  const effectiveDisabledProviders = createMemo(() => hiddenProviders())
+  const toggleProviderFavorite = (providerId: string, enabled: boolean) => {
+    const providerKey = providerKeyOf(providerId)
+    setFavoriteProviders((current) => {
+      const normalized = new Set(current.map((item) => providerKeyOf(item)))
+      if (enabled) normalized.delete(providerKey)
+      else normalized.add(providerKey)
+      const next = Array.from(normalized)
+      saveFavoriteProvidersToLocalStorage(next)
+      return next
+    })
+  }
 
   const accountProviders = createMemo(() => {
     const payload = accountInfo.latest as
@@ -1148,14 +1173,13 @@ export const DialogSelectModel: Component<{
     return buildProviderRows({
       providers: allProviders,
       accountFamilies: accountProviders(),
-      disabledProviders: effectiveDisabledProviders(),
+      favoriteProviders: favoriteProviders(),
     })
   })
 
   const providersForMode = createMemo(() => {
-    const visibleProviders = providers().filter((provider) => provider.enabled)
-    if (mode() === "all") return visibleProviders
-    return visibleProviders.filter((provider) => provider.accounts > 0)
+    if (mode() === "all") return providers()
+    return providers().filter((provider) => provider.enabled)
   })
 
   createEffect(() => {
@@ -1530,7 +1554,7 @@ export const DialogSelectModel: Component<{
   return (
     <Dialog
       title={language.t("dialog.model.select.title")}
-      class="model-manager-dialog relative w-full h-full min-w-0 md:min-w-[560px] min-h-[320px] flex flex-col p-0 overflow-hidden [&_[data-slot=dialog-header]]:px-3 [&_[data-slot=dialog-header]]:py-2 [&_[data-slot=dialog-title]]:text-14-medium"
+      class="model-manager-dialog relative w-full h-full min-w-0 md:min-w-[560px] min-h-[320px] flex flex-col p-0 overflow-hidden [&_[data-slot=dialog-header]]:px-3 [&_[data-slot=dialog-header]]:py-2 [&_[data-slot=dialog-header]]:cursor-move [&_[data-slot=dialog-header]]:select-none [&_[data-slot=dialog-title]]:text-14-medium"
     >
       <div
         class="px-3 py-2 border-b border-border-base bg-surface-base flex items-center justify-between gap-2 cursor-move select-none"
@@ -1663,7 +1687,16 @@ export const DialogSelectModel: Component<{
                   name={provider.accounts > 0 ? `${provider.name} (${provider.accounts})` : provider.name}
                   providerIcon={iconNames.includes(provider.id as IconName) ? provider.id : "synthetic"}
                   selected={selectedProviderId() === provider.id}
+                  enabled={provider.enabled}
                   onClick={() => setSelectedProviderId(provider.id)}
+                  onToggleEnabled={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    preserveScrollPosition(
+                      () => providerScrollEl,
+                      () => toggleProviderFavorite(provider.id, provider.enabled),
+                    )
+                  }}
                 />
               )}
             </For>

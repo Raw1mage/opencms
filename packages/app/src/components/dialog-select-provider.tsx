@@ -13,22 +13,6 @@ import { DialogCustomProvider } from "./dialog-custom-provider"
 import { isSupportedProviderKey } from "@/utils/provider-registry"
 
 const CUSTOM_ID = "_custom"
-const SIZE_KEY = "oc:dialog-provider-size"
-
-function loadSize(): { w: number; h: number } | null {
-  try {
-    const raw = localStorage.getItem(SIZE_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
-  }
-}
-
-function saveSize(w: number, h: number) {
-  try {
-    localStorage.setItem(SIZE_KEY, JSON.stringify({ w, h }))
-  } catch {}
-}
 
 function icon(id: string): IconName {
   if (iconNames.includes(id as IconName)) return id as IconName
@@ -50,39 +34,48 @@ export const DialogSelectProvider: Component = () => {
     if (id.startsWith("github-copilot")) return language.t("dialog.provider.copilot.note")
   }
 
-  function setupContainer(el: HTMLElement) {
-    const container = el.closest("[data-slot='dialog-container']") as HTMLElement
-    if (!container) return
-    container.style.resize = "both"
-    container.style.overflow = "auto"
+  const customProviders = () => {
+    const config = globalSync.data.config as { provider?: Record<string, unknown> } | undefined
+    const providerConfig = config?.provider ?? {}
+    return Object.entries(providerConfig)
+      .filter(([id, raw]) => {
+        if (isSupportedProviderKey(id)) return false
+        if (!raw || typeof raw !== "object") return false
+        const row = raw as { npm?: unknown; models?: unknown }
+        if (row.npm !== "@ai-sdk/openai-compatible") return false
+        if (!row.models || typeof row.models !== "object") return false
+        return Object.keys(row.models as Record<string, unknown>).length > 0
+      })
+      .map(([id, raw]) => {
+        const row = raw as { name?: unknown }
+        return {
+          id,
+          name: typeof row.name === "string" && row.name.trim() ? row.name : id,
+        }
+      })
+  }
 
-    const saved = loadSize()
-    if (saved) {
-      container.style.width = `${Math.min(saved.w, window.innerWidth - 32)}px`
-      container.style.height = `${Math.min(saved.h, window.innerHeight - 32)}px`
+  const providerItems = () => {
+    language.locale()
+    const merged = new Map<string, { id: string; name: string }>()
+    merged.set(CUSTOM_ID, { id: CUSTOM_ID, name: customLabel() })
+    for (const item of providers.all()) {
+      merged.set(item.id, { id: item.id, name: item.name })
     }
-
-    const ro = new ResizeObserver(() => {
-      const rect = container.getBoundingClientRect()
-      saveSize(rect.width, rect.height)
-    })
-    ro.observe(container)
+    for (const item of customProviders()) {
+      if (!merged.has(item.id)) merged.set(item.id, item)
+    }
+    return Array.from(merged.values())
   }
 
   return (
-    <Dialog
-      title={<span ref={(el) => setTimeout(() => setupContainer(el))}>{language.t("command.provider.connect")}</span>}
-      transition
-    >
+    <Dialog title={language.t("command.provider.connect")} transition>
       <List
         search={{ placeholder: language.t("dialog.provider.search.placeholder"), autofocus: true }}
         emptyMessage={language.t("dialog.provider.empty")}
         activeIcon="plus-small"
         key={(x) => x?.id}
-        items={() => {
-          language.locale()
-          return [{ id: CUSTOM_ID, name: customLabel() }, ...providers.all()]
-        }}
+        items={providerItems}
         filterKeys={["id", "name"]}
         groupBy={(x) => (popularProviders.includes(x.id) ? popularGroup() : otherGroup())}
         sortBy={(a, b) => {

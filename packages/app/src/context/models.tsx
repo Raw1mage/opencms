@@ -5,6 +5,7 @@ import { createSimpleContext } from "@opencode-ai/ui/context"
 import { useProviders } from "@/hooks/use-providers"
 import { Persist, persisted } from "@/utils/persist"
 import { useGlobalSDK } from "./global-sdk"
+import { useGlobalSync } from "./global-sync"
 import {
   buildUsersFromRemotePreferences,
   normalizePreferenceModel,
@@ -46,6 +47,7 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
   init: () => {
     const providers = useProviders()
     const globalSDK = useGlobalSDK()
+    const globalSync = useGlobalSync()
 
     const [store, setStore, _, ready] = persisted(
       Persist.global("model", ["model.v1"]),
@@ -67,16 +69,60 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
     }
     const [remoteRetryTick, setRemoteRetryTick] = createSignal(0)
 
-    const available = createMemo(() =>
-      providers.all().flatMap((p) =>
-        Object.values(p.models).map((m) => ({
+    const modelProviders = createMemo(() => {
+      const merged = new Map<string, any>()
+
+      for (const provider of providers.all()) {
+        merged.set(provider.id, provider)
+      }
+
+      for (const [providerId, provider] of Object.entries(globalSync.data.config.provider ?? {})) {
+        if (merged.has(providerId)) continue
+        if (provider?.npm !== "@ai-sdk/openai-compatible") continue
+        if (!provider.models || typeof provider.models !== "object") continue
+
+        merged.set(providerId, {
+          id: providerId,
+          name: provider.name ?? providerId,
+          source: "custom",
+          models: Object.fromEntries(
+            Object.entries(provider.models).map(([modelId, model]) => [
+              modelId,
+              {
+                id: modelId,
+                name: model.name ?? modelId,
+                limit: {
+                  context: model.limit?.context ?? 0,
+                  output: model.limit?.output ?? 0,
+                },
+                cost: { input: 0, output: 0 },
+                capabilities: {
+                  reasoning: false,
+                  input: { text: true, image: false, audio: false, video: false, pdf: false },
+                  output: { text: true, image: false, audio: false, video: false, pdf: false },
+                  temperature: false,
+                  toolcall: true,
+                  interleaved: false,
+                },
+              },
+            ]),
+          ),
+        })
+      }
+
+      return Array.from(merged.values())
+    })
+
+    const available = createMemo<any[]>(() =>
+      modelProviders().flatMap((p) =>
+        Object.values(p.models as Record<string, Record<string, unknown>>).map((m) => ({
           ...m,
           provider: p,
         })),
       ),
     )
 
-    const list = createMemo(() =>
+    const list = createMemo<any[]>(() =>
       available().map((m) => ({
         ...m,
         name: m.name.replace("(latest)", "").trim(),

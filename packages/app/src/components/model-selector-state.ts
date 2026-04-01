@@ -37,6 +37,40 @@ const DEFAULT_POPULAR_PROVIDER_ORDER = [
   "vercel",
 ]
 
+export function buildCustomProviderEntries(providerConfig?: Record<string, unknown>) {
+  if (!providerConfig) return [] as Array<{ id: string; name: string; models: Record<string, unknown> }>
+  return Object.entries(providerConfig)
+    .filter(([id, raw]) => {
+      if (KNOWN_PROVIDER_FAMILIES.includes(id as (typeof KNOWN_PROVIDER_FAMILIES)[number])) return false
+      if (!raw || typeof raw !== "object") return false
+      const row = raw as { npm?: unknown; models?: unknown }
+      if (row.npm !== "@ai-sdk/openai-compatible") return false
+      if (!row.models || typeof row.models !== "object") return false
+      return Object.keys(row.models as Record<string, unknown>).length > 0
+    })
+    .map(([id, raw]) => {
+      const row = raw as { name?: unknown; models?: Record<string, unknown> }
+      const models = Object.fromEntries(
+        Object.entries(row.models ?? {}).map(([modelID, model]) => [
+          modelID,
+          {
+            ...(model && typeof model === "object" ? model : {}),
+            id: modelID,
+            name:
+              model && typeof model === "object" && typeof (model as { name?: unknown }).name === "string"
+                ? (model as { name: string }).name
+                : modelID,
+          },
+        ]),
+      )
+      return {
+        id,
+        name: typeof row.name === "string" && row.name.trim() ? row.name : id,
+        models,
+      }
+    })
+}
+
 export type ProviderListItem = {
   id: string
   name: string
@@ -118,42 +152,19 @@ export function normalizeProviderKey(id: string): string | undefined {
   return undefined
 }
 
-function normalizeDisabledProviderKey(id: string): string | undefined {
-  if (!id) return undefined
-  const raw = id.trim().toLowerCase()
-  if (!raw) return undefined
-
-  if (raw.includes(":")) return normalizeDisabledProviderKey(raw.split(":")[0]!)
-  if (EXCLUDED_PROVIDER_FAMILIES.has(raw)) return undefined
-
-  for (const provider of KNOWN_PROVIDER_FAMILIES) {
-    if (raw === provider || raw.startsWith(`${provider}-`)) return provider
-  }
-
-  const apiMatch = raw.match(/^(.+)-api-/)
-  if (apiMatch) return apiMatch[1]
-
-  const subscriptionMatch = raw.match(/^(.+)-subscription-/)
-  if (subscriptionMatch) return subscriptionMatch[1]
-
-  if (!raw.includes("-")) return EXCLUDED_PROVIDER_FAMILIES.has(raw) ? undefined : raw
-  if (!raw.includes("-api-") && !raw.includes("-subscription-"))
-    return EXCLUDED_PROVIDER_FAMILIES.has(raw) ? undefined : raw
-  return undefined
-}
-
 /** @deprecated Use normalizeProviderKey instead */
 export const normalizeProviderFamily = normalizeProviderKey
 
 export function buildProviderRows(input: {
   providers: ProviderListItem[]
   accountFamilies?: AccountFamilyMap
-  disabledProviders?: string[]
   popularProviderOrder?: string[]
+  favoriteProviders?: string[]
 }): ProviderRow[] {
   const popularProviderOrder = input.popularProviderOrder ?? DEFAULT_POPULAR_PROVIDER_ORDER
   const out = new Map<string, ProviderRow>()
   const providerUniverse = new Set<string>()
+  const favoriteProviders = new Set((input.favoriteProviders ?? []).map((provider) => providerKeyOf(provider)))
 
   for (const provider of input.providers) {
     const normalized = normalizeProviderKey(provider.id)
@@ -169,21 +180,11 @@ export function buildProviderRows(input: {
     }
   }
 
-  for (const id of input.disabledProviders ?? []) {
-    const normalized = normalizeProviderKey(id)
-    if (!normalized) continue
-    providerUniverse.add(normalized)
-  }
-
   for (const id of popularProviderOrder) {
     const normalized = normalizeProviderKey(id)
     if (!normalized) continue
     providerUniverse.add(normalized)
   }
-
-  const disabledFamilies = new Set(
-    (input.disabledProviders ?? []).map((id) => normalizeDisabledProviderKey(id)).filter((id): id is string => !!id),
-  )
 
   for (const providerKey of providerUniverse) {
     const providerAccounts = input.accountFamilies?.[providerKey]
@@ -198,7 +199,7 @@ export function buildProviderRows(input: {
       providerKey,
       name: canonicalProvider?.name ?? PROVIDER_LABEL_MAP[providerKey] ?? providerKey,
       accounts: accountsCount,
-      enabled: !disabledFamilies.has(providerKey),
+      enabled: favoriteProviders.has(providerKey),
     })
   }
 
