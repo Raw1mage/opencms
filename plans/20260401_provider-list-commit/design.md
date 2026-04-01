@@ -42,6 +42,7 @@
 - Runtime/context hardening is itself a multi-slice area -> split lazy tool loading, compaction truncation, and toolcall guidance into separate bounded slices to avoid cross-subsystem blast radius.
 - Session hardening is narrower than first expected -> current evidence says the real missing gap is rebind checkpoint durability/injection, while other continuation protections largely already exist in the current tree; keep the first session slice scoped to that bounded gap.
 - Provider-manager recovery is also narrower than first expected -> the main remaining gap is webapp model-manager semantics in `dialog-select-model.tsx` (local visibility state, favorites by connected accounts, no provider-level disabled toggle), while reopen-geometry cleanup should stay separate.
+- Provider-manager closure evidence may still be weaker than desired even after semantic validation -> allow one bounded remediation slice for target readiness/type issues and direct hidden-provider execution coverage before finalize.
 - Slice-by-slice recovery is slower than bulk merge -> accepted because correctness, traceability, and authority safety are more important than speed.
 - Some original SHAs will remain absent from ancestry even when functionality is restored -> accepted because functional recovery is the real goal.
 

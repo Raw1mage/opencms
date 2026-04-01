@@ -106,6 +106,17 @@ The system SHALL treat fetch-back, finalize, and disposable beta cleanup as a po
 - **WHEN** the assistant reaches the finalize boundary
 - **THEN** it must first prepare a recommendation, stop for user approval, and only after approval execute fetch-back/finalize/cleanup
 
+### Requirement: Insufficient closure evidence triggers remediation before finalize
+
+The system SHALL add a bounded remediation slice when focused validation proves the target behavior but still leaves ship-readiness evidence insufficient.
+
+#### Scenario: provider-manager closure evidence is incomplete
+
+- **GIVEN** focused validation confirms the intended `8.2a` semantics
+- **AND** app/type readiness or direct execution coverage remains insufficient
+- **WHEN** the user chooses remediation instead of finalize
+- **THEN** the planner must extend the same plan root with a bounded remediation slice and re-run focused validation before retrospective closure resumes
+
 ## Acceptance Checks
 
 - Planner artifacts explicitly list the recovery slice order and stop gates.
@@ -114,3 +125,4 @@ The system SHALL treat fetch-back, finalize, and disposable beta cleanup as a po
 - The plan treats the `模型提供者` UI patch as recovered and does not re-open it as an untriaged gap.
 - The handoff instructs build execution to recover by refactor, not branch merge.
 - The plan makes `8.3` a near-final validation slice, but still requires retrospective closure and user-approved finalize/cleanup afterward.
+- The plan can extend itself with a bounded remediation slice when validation is semantically positive but ship-readiness evidence is still incomplete.

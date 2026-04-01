@@ -36,16 +36,17 @@
 - `6.2c` toolcall schema / error-recovery guidance is now complete on `beta/provider-list-commit`; together with `6.2a` and `6.2b`, the `6.x` runtime/context optimization hardening group is functionally complete.
 - `7.1` reconstruction shows the first still-missing session-hardening gap is not the whole continuation stack but the narrower rebind checkpoint durability + safe checkpoint injection path (`compaction.ts` + `prompt.ts`).
 - `7.2a` rebind checkpoint durability + safe checkpoint injection is now complete on `beta/provider-list-commit`, with focused checkpoint metadata/injection/prune tests passing; `7.2b` currently has no remaining proven gap and stays deferred unless new evidence appears.
-- Remaining high-value backlog is now prioritized as: provider-manager completion validation (`8.3`) and retrospective closure (`9.2`/`9.3`).
+- Remaining high-value backlog is now prioritized as: provider-manager closure remediation (`8.4*`), re-validation (`8.5`), and retrospective closure (`9.2`/`9.3`).
 - `8.1` provider-manager reconstruction identified model-manager visibility/favorites semantics as the first remaining webapp gap, and `8.2a` is now completed on `beta/provider-list-commit`.
 - `8.2b` dialog reopen geometry cleanup is intentionally deferred by default and should resume only when new reopen-geometry defect evidence appears.
-- Plan closure is not complete after `8.3` alone; execution must still finish `9.2`, `9.3`, and the approval-gated finalize recommendation path in `10.x`.
+- `8.3` focused validation completed, but closure evidence was insufficient for finalize: app typecheck failed, and direct execution coverage for the hidden-provider localStorage path is still missing.
+- User approved remediation instead of finalize, so plan closure now requires `8.4a`/`8.4b`/`8.5` before `9.2`, `9.3`, and the approval-gated finalize recommendation path in `10.x`.
 - Deferred Claude Native backlog is explicit: native refresh/login/logout lifecycle, native ↔ `accounts.json` two-way sync, and DD-9/full native transport revival.
 
 ## Build Entry Recommendation
 
-- If resuming build work instead of finalize, start at `8.3` in `tasks.md`: run focused provider/webapp validation for `8.2a` and record evidence.
-- After `8.3`, continue directly into `9.2` and `9.3`; only then prepare the `10.1` finalize recommendation.
+- If resuming build work instead of finalize, start at `8.4a` in `tasks.md`: remediate target `dialog-select-model.tsx` readiness/type issues.
+- Then run `8.4b` to add direct hidden-provider execution coverage, and `8.5` to re-run focused provider/webapp validation before returning to `9.2` / `9.3` / `10.1`.
 - Reuse the existing admitted beta surface (`beta/provider-list-commit`) only if authority is re-verified and the user explicitly wants to continue on the same beta branch; otherwise stop for a new beta decision.
 - Treat Claude Native as functionally restored for the narrow auth-init path; do not reopen deferred native lifecycle/full-transport backlog unless the user explicitly reprioritizes it.
 

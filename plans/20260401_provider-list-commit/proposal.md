@@ -19,6 +19,7 @@
 - 2026-04-01: Claude Native scaffold / auth bridge / minimum activation slice was recovered on `beta/provider-list-commit` and committed as `2a293ce5e`; remaining native lifecycle and full-transport work was explicitly deferred so the next active recovery target becomes runtime/context hardening.
 - 2026-04-02: Rebind / continuation / session hardening was refined so the first session slice becomes `7.2a` rebind checkpoint durability + safe checkpoint injection; broader continuation/session leftovers stay deferred until a still-proven gap remains after that slice.
 - 2026-04-02: Provider-manager recovery was refined so the next webapp slice becomes model-manager provider visibility/favorites semantics in `dialog-select-model.tsx`; dialog reopen geometry cleanup remains a separate later slice only if still needed.
+- 2026-04-02: `8.3` focused validation confirmed the intended 8.2a semantics but left ship-readiness evidence incomplete (app typecheck failure + missing direct hidden-provider execution coverage), so the user chose a bounded remediation slice before finalize.
 
 ## Effective Requirement Description
 
@@ -28,6 +29,7 @@
 4. Avoid direct merge-based restoration from stale `cms`, `beta/*`, or `test/*` branches.
 5. Preserve evidence, validation, and workflow safety contracts while restoring functionality.
 6. Re-plan oversized recovery slices into smaller executable stages before resuming build execution.
+7. When focused validation proves semantics but not ship readiness, add a bounded remediation slice before finalize.
 
 ## Scope
 
@@ -67,6 +69,7 @@
 - The Claude Native minimum recovery slice is now complete, so the active remaining work narrows to runtime/context hardening, rebind/continuation/session hardening, and the later provider-manager completion slice.
 - Session hardening is now split so the next bounded build slice targets rebind checkpoint durability + safe injection instead of a broad mixed session patch.
 - Provider-manager recovery is now split so the next bounded build slice targets webapp visibility/favorites semantics without mixing in separate dialog-reopen cleanup.
+- Provider-manager closure now includes a post-validation remediation step when target readiness evidence is still insufficient for finalize.
 - Planner artifacts, event logs, and validation evidence will be updated as each slice lands.
 
 ## Capabilities

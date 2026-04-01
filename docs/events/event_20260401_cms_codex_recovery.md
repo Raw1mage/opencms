@@ -1241,3 +1241,210 @@ OUT:
   - 已新增 finalize approval-gate requirement 與 acceptance check
 - Architecture Sync:
   - Verified: `specs/architecture.md`（No doc changes；本次為 planner closure path 明文化）
+
+## 2026-04-02 provider-manager 8.3 validation + closure review
+
+### 需求
+
+- 依 beta workflow 完成 `8.3` focused validation，並基於結果完成 `9.2`、`9.3`、`10.1` 的 closure review。
+
+### 範圍
+
+IN:
+
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/app/src/components/dialog-select-model.tsx`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/app/src/components/model-selector-state.test.ts`
+- `/home/pkcs12/projects/opencode/plans/20260401_provider-list-commit/tasks.md`
+- `/home/pkcs12/projects/opencode/plans/20260401_provider-list-commit/proposal.md`
+- `/home/pkcs12/projects/opencode/docs/events/event_20260401_cms_codex_recovery.md`
+
+OUT:
+
+- 不啟動 fetch-back/finalize/cleanup
+- 不在本輪新增 8.2b geometry cleanup 或其他 code fix
+
+### Debug Checkpoints
+
+#### Baseline
+
+- `8.2a` 已完成實作；本輪只做 focused evidence collection，不再混入新功能修改。
+- `8.2b` 仍維持 evidence-driven deferred，除非 validation 顯示 reopen geometry 缺陷。
+
+#### Execution
+
+- beta authority tuple 已再次確認：
+  - `mainRepo`: `/home/pkcs12/projects/opencode`
+  - `mainWorktree`: `/home/pkcs12/projects/opencode`
+  - `baseBranch`: `recovery/cms-codex-20260401-183212`
+  - `implementationRepo`: `/home/pkcs12/projects/opencode`
+  - `implementationWorktree`: `/home/pkcs12/projects/opencode-worktrees/provider-list-commit`
+  - `implementationBranch`: `beta/provider-list-commit`
+  - `docsWriteRepo`: `/home/pkcs12/projects/opencode`
+- admission 檢查顯示 beta branch 相對當前 base branch 落後，但差異僅限 docs/plans：
+  - `docs/events/event_20260401_cms_codex_recovery.md`
+  - `plans/20260401_provider-list-commit/{design,handoff,implementation-spec,proposal,spec,tasks}.md`
+- 執行 focused validation：
+  - `bun test /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/app/src/components/model-selector-state.test.ts`
+  - `bun x tsc -p /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/app/tsconfig.json --noEmit`
+  - 補以 target diff/source evidence 檢查 `dialog-select-model.tsx`
+
+#### Validation
+
+- Focused test:
+  - `13 pass, 0 fail`
+- Focused source evidence:
+  - hidden-provider state 為 localStorage-backed：
+    - `packages/app/src/components/dialog-select-model.tsx:66`
+    - `packages/app/src/components/dialog-select-model.tsx:72-80`
+    - `packages/app/src/components/dialog-select-model.tsx:1101-1102`
+  - favorites filtering 採 `provider.accounts > 0`：
+    - `packages/app/src/components/dialog-select-model.tsx:1158-1162`
+  - provider-level global disable toggle 已不在 target diff：
+    - 移除 `toggleProviderEnabled(...)`
+    - 移除 `globalSync.configActions.setDisabledProviders(...)`
+  - `8.2b` 未被意外混入：目前 diff 侷限在 hidden-state/filtering/既有排版附近，未新增 reopen geometry logic
+- App typecheck:
+  - `bun x tsc -p /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/app/tsconfig.json --noEmit` ❌
+  - 原因包含 repo/beta baseline 缺依賴，以及 target file 現有 TS errors（含 import-resolution 與 `dialog-select-model.tsx` 型別錯誤）
+- Coverage gap:
+  - `model-selector-state.test.ts` 通過，但未直接執行 localStorage hidden-provider path；該部分目前由 source evidence 補強
+- Requirement coverage (`9.2`):
+  - Effective requirement #1/#2/#3/#4/#5/#6 均已被本 recovery plan 與已完成 slices 實質覆蓋
+  - 但 `8.2a` 的最終 ship/readiness 證據仍不完整，因 app typecheck 未綠且 hidden-provider path 缺少直接執行型測試
+- Validation checklist (`9.3`):
+  - Restored: provider visibility localStorage semantics, favorites by connected accounts, no provider-level disabled toggle path
+  - Deferred: `8.2b` dialog reopen geometry cleanup, Claude Native lifecycle/full transport backlog, `7.2b` continuation leftovers
+  - Evidence: focused test pass, source-line proof, beta admission proof, app typecheck failure evidence
+- Finalize recommendation (`10.1`):
+  - **Do not fetch-back/finalize yet**
+  - 先處理 decision gate：是否接受目前 focused evidence 作為 sufficient closure，或新增 remediation slice 解 target TS errors / direct hidden-provider execution coverage
+- Architecture Sync:
+  - Verified: `specs/architecture.md`（No doc changes；本次為 validation/closure review，未改變長期架構邊界）
+
+## 2026-04-02 provider-manager remediation replan
+
+### 需求
+
+- 使用者在 `10.2` decision gate 選擇 remediation，而不是接受目前證據直接進 finalize。
+
+### 範圍
+
+IN:
+
+- `/home/pkcs12/projects/opencode/plans/20260401_provider-list-commit/{tasks,implementation-spec,handoff,spec,proposal,design}.md`
+- `/home/pkcs12/projects/opencode/docs/events/event_20260401_cms_codex_recovery.md`
+
+OUT:
+
+- 不直接 fetch-back/finalize/cleanup
+- 不重開 `8.2b` dialog geometry cleanup
+
+### 決策
+
+- 在同一個 `provider-list-commit` plan root 新增 bounded remediation slice：
+  - `8.4a` target `dialog-select-model.tsx` readiness/type issues
+  - `8.4b` direct hidden-provider execution coverage
+  - `8.5` focused re-validation
+- `9.2` / `9.3` / `10.1` 重新回到 pending，等待 remediation 後的新證據。
+
+### Validation
+
+- Planner artifacts updated:
+  - `tasks.md` 已新增 `8.4a` / `8.4b` / `8.5`
+  - `implementation-spec.md` 已新增 remediation phase 並把 build entry 改到 `8.4a`
+  - `handoff.md` 已明示 `8.3` 證據不足與 remediation-approved state
+  - `spec.md` 已新增 insufficient-evidence -> remediation requirement
+  - `proposal.md` / `design.md` 已同步這次 decision 與風險收斂
+- Architecture Sync:
+  - Verified: `specs/architecture.md`（No doc changes；本次為 remediation replan，未改變長期架構邊界）
+
+## 2026-04-02 provider-manager remediation — 8.4b direct hidden-provider coverage
+
+### 需求
+
+- 補上 hidden-provider localStorage path 的直接執行覆蓋，避免 `8.3` 只剩 source evidence 而沒有直接測試證據。
+
+### 範圍
+
+IN:
+
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/app/src/components/model-selector-state.ts`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/app/src/components/dialog-select-model.tsx`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/app/src/components/model-selector-state.test.ts`
+
+OUT:
+
+- 不處理 `8.2b` geometry cleanup
+- 不擴大到 unrelated app baseline dependency failures
+
+### Execution
+
+- 在 `model-selector-state.ts` 抽出共用 helper：
+  - `parseHiddenProvidersStorageValue(...)`
+  - `loadHiddenProvidersFromStorage(...)`
+- `dialog-select-model.tsx` 改為沿用該 helper，維持原本 localStorage 語義。
+- `model-selector-state.test.ts` 新增：
+  - localStorage-backed hidden-provider 讀取測試
+  - malformed persisted value 容錯測試
+
+### Validation
+
+- Focused test:
+  - `bun test /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/app/src/components/model-selector-state.test.ts`
+  - `15 pass, 0 fail`
+- Direct coverage:
+  - hidden-provider localStorage path 現在透過 `loadHiddenProvidersFromStorage(...)` 被直接執行
+- Hygiene:
+  - `git diff --check -- packages/app/src/components/dialog-select-model.tsx packages/app/src/components/model-selector-state.ts packages/app/src/components/model-selector-state.test.ts` ✅
+- Issues retained:
+  - app baseline import-resolution diagnostics 仍存在，但本次未擴大處理
+- Architecture Sync:
+  - Verified: `specs/architecture.md`（No doc changes；本次為 direct test coverage 補強，未改變長期架構邊界）
+
+## 2026-04-02 provider-manager remediation — 8.5 focused re-validation + closure review
+
+### 需求
+
+- 在 `8.4a` / `8.4b` 後重跑 focused validation，並完成 `9.2`、`9.3`、`10.1` 的 closure 判讀。
+
+### 範圍
+
+IN:
+
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/app/src/components/dialog-select-model.tsx`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/app/src/components/model-selector-state.ts`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/app/src/components/model-selector-state.test.ts`
+- `/home/pkcs12/projects/opencode/plans/20260401_provider-list-commit/proposal.md`
+
+OUT:
+
+- 不 reopen `8.2b` geometry cleanup
+- 不處理 baseline app dependency resolution 問題
+- 不直接 fetch-back/finalize/cleanup
+
+### Validation
+
+- Focused tests:
+  - `bun test /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/app/src/components/model-selector-state.test.ts`
+  - `15 pass, 0 fail`
+- TypeScript:
+  - app-wide `tsc --noEmit` 仍失敗
+  - 針對 `dialog-select-model.tsx` / `model-selector-state` 的 filtered diagnostics 只剩 baseline TS2307 import-resolution failures
+  - 先前 target-file TS2339 / TS7006 errors 未再出現
+- Focused evidence:
+  - hidden-provider localStorage path 仍為 localStorage-backed：`dialog-select-model.tsx:73-76`
+  - direct helper coverage：`model-selector-state.ts:81-94`
+  - direct test coverage：`model-selector-state.test.ts:182-199`
+  - favorites semantics 仍依 `provider.accounts > 0`：`dialog-select-model.tsx:1153-1157`
+  - `8.2b` 未被擴大：diff 僅涉及 storage helper usage、typing、focused test support
+- Requirement coverage (`9.2`):
+  - Proposal effective requirement #1-#7 均已符合：本 recovery slice 已完成 inventory-based, evidence-backed, slice-by-slice restoration，並在 validation 證據不足時完成 bounded remediation
+- Validation checklist (`9.3`):
+  - Restored/validated: hidden-provider localStorage semantics, direct execution coverage, favorites-by-accounts semantics, no provider-level disabled toggle path
+  - Deferred: `8.2b` geometry cleanup, `7.2b`, Claude Native lifecycle/full transport backlog
+  - Remaining blocker: app-wide ship gate 若要求整體 app typecheck green，仍被 baseline dependency resolution failures 阻擋
+- Finalize recommendation (`10.1`):
+  - **可以 finalize 這個 recovery slice，前提是你接受 baseline app dependency failures 不屬於本 slice 收尾範圍**
+  - **若你的 finalize 標準要求 app-wide typecheck green，則不應 finalize，應另開 baseline remediation workstream**
+- Architecture Sync:
+  - Verified: `specs/architecture.md`（No doc changes；本次為 focused re-validation 與 closure review，未改變長期架構邊界）

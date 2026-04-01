@@ -50,17 +50,20 @@
 - [x] 8.1 Isolate the still-missing provider-manager behavior beyond the restored `模型提供者` UI slice
 - [x] 8.2a Refactor webapp model-manager provider visibility/favorites semantics into the beta implementation surface
 - [~] 8.2b Revisit dialog reopen geometry cleanup only if still needed after `8.2a` — default deferred; resume only with new reopen-geometry defect evidence
-- [ ] 8.3 Run targeted provider/webapp validation for the selected `8.2*` slice and record evidence
+- [x] 8.3 Run targeted provider/webapp validation for the selected `8.2*` slice and record evidence
+- [x] 8.4a Remediate target `dialog-select-model.tsx` type/readiness issues that block confident closure
+- [x] 8.4b Add direct execution coverage for the hidden-provider localStorage path
+- [x] 8.5 Re-run focused provider/webapp validation after `8.4*` and record updated evidence
 
 ## 9. Documentation / Retrospective
 
 - [x] 9.1 Sync relevant architecture / event docs after each slice or record `Architecture Sync: Verified (No doc changes)`
-- [ ] 9.2 Compare implementation results against the proposal's effective requirement description and restate requirement coverage
-- [ ] 9.3 Produce a validation checklist covering restored behavior, partial fulfillment, deferred items, and evidence
+- [x] 9.2 Compare implementation results against the proposal's effective requirement description and restate requirement coverage
+- [x] 9.3 Produce a validation checklist covering restored behavior, partial fulfillment, deferred items, and evidence
 
 ## 10. Finalize Gate (approval required)
 
-- [ ] 10.1 Prepare fetch-back / finalize recommendation from `8.3` + `9.2` + `9.3` evidence
+- [x] 10.1 Prepare fetch-back / finalize recommendation from `8.5` + `9.2` + `9.3` evidence
 - [ ] 10.2 Stop for user approval before fetch-back / finalize / cleanup
 - [ ] 10.3 After approval, delete disposable `beta/*` branch and worktree as completion gate
 

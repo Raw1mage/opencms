@@ -63,8 +63,9 @@
 - Phase 6 — Recover rebind / continuation / session hardening slices, starting with rebind checkpoint durability + safe checkpoint injection before revisiting any remaining continuation/session leftovers.
 - Phase 7 — Recover the remaining provider manager product slice, starting with webapp model-manager provider visibility/favorites semantics before any later dialog reopen cleanup.
 - Phase 8 — Run focused provider/webapp validation for the completed `8.2a` slice, keep `8.2b` deferred unless new reopen-geometry evidence appears, and record evidence.
-- Phase 9 — Produce retrospective closure artifacts: compare implementation against the effective requirement description, summarize restored vs deferred behavior, and assemble the validation checklist.
-- Phase 10 — Enter the approval-gated finalize path: prepare the fetch-back/finalize recommendation, stop for user approval, and only then clean up disposable `beta/*` surfaces.
+- Phase 9 — If `8.3` evidence is insufficient for confident closure, run a bounded remediation slice for target type/readiness issues and direct hidden-provider execution coverage, then re-run focused validation.
+- Phase 10 — Produce retrospective closure artifacts: compare implementation against the effective requirement description, summarize restored vs deferred behavior, and assemble the validation checklist.
+- Phase 11 — Enter the approval-gated finalize path: prepare the fetch-back/finalize recommendation, stop for user approval, and only then clean up disposable `beta/*` surfaces.
 
 ## Validation
 
@@ -73,8 +74,8 @@
 - Use git evidence to confirm the intended capability is functionally restored even when the original commit SHA is not reintroduced into ancestry.
 - Record per-slice evidence in `docs/events/event_20260401_cms_codex_recovery.md`.
 - Verify `specs/architecture.md` changed only when boundaries/data-flow/state-machine truths changed; otherwise record `Architecture Sync: Verified (No doc changes)`.
-- Current build entry is `8.3` focused provider/webapp validation for the completed `8.2a` slice; `8.2b` dialog reopen geometry cleanup stays deferred by default and should resume only with new reopen-defect evidence.
-- Plan completion requires `8.3`, `9.2`, and `9.3` evidence before the finalize recommendation is considered ready for user approval.
+- Current build entry is remediation for the provider-manager closure path: `8.4a` target readiness/type issues, then `8.4b` direct hidden-provider execution coverage, then `8.5` focused re-validation.
+- Plan completion requires updated `8.5`, `9.2`, and `9.3` evidence before the finalize recommendation is considered ready for user approval.
 
 ## Handoff
 
