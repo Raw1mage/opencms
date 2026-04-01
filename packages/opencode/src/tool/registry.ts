@@ -29,6 +29,7 @@ import { Truncate } from "./truncation"
 import { PlanExitTool, PlanEnterTool } from "./plan"
 import { ApplyPatchTool } from "./apply_patch"
 import { CronCreateTool, CronListTool, CronDeleteTool } from "./cron"
+import { ToolLoaderTool } from "./tool-loader"
 import { pathToFileURL } from "url"
 
 export namespace ToolRegistry {
@@ -145,6 +146,7 @@ export namespace ToolRegistry {
       WebSearchTool,
       CodeSearchTool,
       SkillTool,
+      ToolLoaderTool,
       ApplyPatchTool,
       CronCreateTool,
       CronListTool,

@@ -27,6 +27,14 @@ Bus.subscribe(ContinuationInvalidatedEvent, (evt) => {
   SessionCompaction.markRebindCompaction(evt.properties.sessionId)
 })
 
+Bus.subscribe(Session.Event.Deleted, (evt) => {
+  void SessionCompaction.deleteRebindCheckpoint(evt.properties.info.id)
+})
+
+setTimeout(() => {
+  void SessionCompaction.pruneStaleCheckpoints()
+}, 5000)
+
 export namespace SessionCompaction {
   const log = Log.create({ service: "session.compaction" })
 
@@ -51,7 +59,19 @@ export namespace SessionCompaction {
   // is used as the input base instead of rebuilding from all messages.
 
   const REBIND_BUDGET_TOKEN_THRESHOLD = 80_000
+  const REBIND_CHECKPOINT_MAX_AGE_MS = 24 * 60 * 60 * 1000
   const _lastCheckpointRound = new Map<string, number>()
+
+  export interface RebindCheckpoint {
+    sessionID: string
+    timestamp: number
+    snapshot: string
+    lastMessageId: string
+  }
+
+  function getRebindCheckpointPath(sessionID: string) {
+    return path.join(Global.Path.state, `rebind-checkpoint-${sessionID}.json`)
+  }
 
   export function shouldRebindBudgetCompact(input: {
     tokens: MessageV2.Assistant["tokens"]
@@ -70,34 +90,125 @@ export namespace SessionCompaction {
     return true
   }
 
-  export async function saveRebindCheckpoint(sessionID: string) {
+  export async function saveRebindCheckpoint(input: {
+    sessionID: string
+    lastMessageId?: string
+    currentRound: number
+  }) {
     try {
-      const snap = await SharedContext.snapshot(sessionID)
-      if (!snap) return
+      const snap = await SharedContext.snapshot(input.sessionID)
+      if (!snap || !input.lastMessageId) return
 
-      const checkpointPath = path.join(Global.Path.state, `rebind-checkpoint-${sessionID}.json`)
-      const checkpoint = {
-        sessionID,
+      _lastCheckpointRound.set(input.sessionID, input.currentRound)
+
+      const checkpointPath = getRebindCheckpointPath(input.sessionID)
+      const checkpoint: RebindCheckpoint = {
+        sessionID: input.sessionID,
         timestamp: Date.now(),
         snapshot: snap,
+        lastMessageId: input.lastMessageId,
       }
-      await fs.writeFile(checkpointPath, JSON.stringify(checkpoint))
-      log.info("rebind checkpoint saved", { sessionID, bytes: snap.length })
+      await fs.mkdir(path.dirname(checkpointPath), { recursive: true })
+      const tmpPath = `${checkpointPath}.tmp`
+      await fs.writeFile(tmpPath, JSON.stringify(checkpoint))
+      await fs.rename(tmpPath, checkpointPath)
+      log.info("rebind checkpoint saved", {
+        sessionID: input.sessionID,
+        bytes: snap.length,
+        lastMessageId: input.lastMessageId,
+      })
     } catch (e) {
-      log.warn("rebind checkpoint save failed", { sessionID, error: String(e) })
+      log.warn("rebind checkpoint save failed", { sessionID: input.sessionID, error: String(e) })
     }
   }
 
-  export async function loadRebindCheckpoint(sessionID: string): Promise<string | null> {
+  export async function loadRebindCheckpoint(sessionID: string): Promise<RebindCheckpoint | null> {
     try {
-      const checkpointPath = path.join(Global.Path.state, `rebind-checkpoint-${sessionID}.json`)
+      const checkpointPath = getRebindCheckpointPath(sessionID)
       const content = await fs.readFile(checkpointPath, "utf-8")
-      const checkpoint = JSON.parse(content) as { snapshot: string; timestamp: number }
+      const checkpoint = JSON.parse(content) as RebindCheckpoint
       log.info("rebind checkpoint loaded", { sessionID, age: Date.now() - checkpoint.timestamp })
-      return checkpoint.snapshot
+      return checkpoint
     } catch {
       return null
     }
+  }
+
+  export async function deleteRebindCheckpoint(sessionID: string) {
+    try {
+      await fs.unlink(getRebindCheckpointPath(sessionID))
+      log.info("rebind checkpoint deleted", { sessionID })
+    } catch {}
+  }
+
+  export async function pruneStaleCheckpoints(now = Date.now()) {
+    try {
+      const files = await fs.readdir(Global.Path.state)
+      for (const file of files) {
+        if (!file.startsWith("rebind-checkpoint-") || !file.endsWith(".json")) continue
+        const filePath = path.join(Global.Path.state, file)
+        const stat = await fs.stat(filePath)
+        if (now - stat.mtimeMs <= REBIND_CHECKPOINT_MAX_AGE_MS) continue
+        await fs.unlink(filePath)
+        log.info("pruned stale rebind checkpoint", { file, age: now - stat.mtimeMs })
+      }
+    } catch (e) {
+      log.warn("failed to prune stale checkpoints", { error: String(e) })
+    }
+  }
+
+  export function applyRebindCheckpoint(input: {
+    sessionID: string
+    checkpoint: RebindCheckpoint
+    messages: MessageV2.WithParts[]
+    model: Provider.Model
+  }):
+    | { applied: false; reason: "boundary_missing" | "unsafe_boundary" | "no_post_boundary" }
+    | { applied: true; messages: MessageV2.WithParts[] } {
+    const boundaryIndex = input.messages.findIndex((message) => message.info.id === input.checkpoint.lastMessageId)
+    if (boundaryIndex === -1) return { applied: false, reason: "boundary_missing" }
+
+    const postBoundary = input.messages.slice(boundaryIndex + 1)
+    if (postBoundary.length === 0) return { applied: false, reason: "no_post_boundary" }
+
+    const firstPost = postBoundary[0]
+    const unsafeBoundary =
+      firstPost.info.role === "assistant" &&
+      firstPost.parts.some((part) => part.type === "tool" && part.state.status !== "pending")
+    if (unsafeBoundary) return { applied: false, reason: "unsafe_boundary" }
+
+    const summaryMessageID = Identifier.ascending("message")
+    const syntheticSummary: MessageV2.WithParts = {
+      info: {
+        id: summaryMessageID,
+        sessionID: input.sessionID,
+        role: "assistant",
+        parentID: input.checkpoint.lastMessageId,
+        mode: "rebind",
+        agent: "rebind-checkpoint",
+        modelID: input.model.id,
+        providerId: input.model.providerId,
+        accountId: undefined,
+        path: { cwd: Instance.directory, root: Instance.worktree },
+        summary: true,
+        cost: 0,
+        tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+        finish: "stop",
+        time: { created: input.checkpoint.timestamp, completed: input.checkpoint.timestamp },
+      },
+      parts: [
+        {
+          id: Identifier.ascending("part"),
+          messageID: summaryMessageID,
+          sessionID: input.sessionID,
+          type: "text",
+          text: input.checkpoint.snapshot,
+          synthetic: true,
+        },
+      ],
+    }
+
+    return { applied: true, messages: [syntheticSummary, ...postBoundary] }
   }
 
   export const Event = {
@@ -113,6 +224,9 @@ export namespace SessionCompaction {
   const DEFAULT_HEADROOM = 8_000
   const DEFAULT_COOLDOWN_ROUNDS = 8
   const EMERGENCY_CEILING = 2_000
+  const SMALL_CONTEXT_MAX = 128_000
+  const SMALL_CONTEXT_RESERVED_TOKENS = 5_000
+  const CHARS_PER_TOKEN = 4
 
   // Billing-aware compaction: by-token providers benefit from aggressive
   // compaction (smaller context = lower cost per round), while by-request
@@ -185,7 +299,8 @@ export namespace SessionCompaction {
       count,
       overflow: config.compaction?.auto !== false && context !== 0 && count >= usable,
       emergency: config.compaction?.auto !== false && context !== 0 && count >= emergencyCeiling,
-      cooldownRounds: config.compaction?.cooldownRounds ?? (byToken ? BY_TOKEN_COOLDOWN_ROUNDS : DEFAULT_COOLDOWN_ROUNDS),
+      cooldownRounds:
+        config.compaction?.cooldownRounds ?? (byToken ? BY_TOKEN_COOLDOWN_ROUNDS : DEFAULT_COOLDOWN_ROUNDS),
       byToken,
     }
   }
@@ -404,6 +519,11 @@ export namespace SessionCompaction {
       { sessionID: input.sessionID },
       { context: [], prompt: undefined },
     )
+    const history = truncateModelMessagesForSmallContext({
+      messages: input.messages,
+      model,
+      sessionID: input.sessionID,
+    })
     const defaultPrompt = `Provide a detailed prompt for continuing our conversation above.
 Focus on information that would be helpful for continuing the conversation, including what we did, what we're doing, which files we're working on, and what we're going to do next.
 The summary that you construct will be used so that another agent can read it and continue the work.
@@ -441,7 +561,7 @@ When constructing the summary, try to stick to this template:
       tools: {},
       system: [],
       messages: [
-        ...MessageV2.toModelMessages(input.messages, model),
+        ...history.messages,
         {
           role: "user",
           content: [
@@ -491,11 +611,7 @@ When constructing the summary, try to stick to this template:
    * is detected and context utilization exceeds the opportunistic threshold.
    * Uses shared context snapshot as the summary instead of LLM compaction agent.
    */
-  export async function idleCompaction(input: {
-    sessionID: string
-    model: Provider.Model
-    config: Config.Info
-  }) {
+  export async function idleCompaction(input: { sessionID: string; model: Provider.Model; config: Config.Info }) {
     const tokens = await getLastAssistantTokens(input.sessionID)
     if (!tokens) return
     const budget = await inspectBudget({ tokens, model: input.model })
@@ -624,6 +740,60 @@ When constructing the summary, try to stick to this template:
     return info.tokens
   }
 
+  export function truncateModelMessagesForSmallContext(input: {
+    messages: MessageV2.WithParts[]
+    model: Provider.Model
+    sessionID?: string
+  }) {
+    const modelMessages = MessageV2.toModelMessages(input.messages, input.model)
+    const contextLimit = input.model.limit.context || 0
+    const smallContextLimit = Math.min(contextLimit, SMALL_CONTEXT_MAX)
+    const safeTokenBudget = smallContextLimit - SMALL_CONTEXT_RESERVED_TOKENS
+    const safeCharBudget = safeTokenBudget * CHARS_PER_TOKEN
+
+    if (smallContextLimit === 0 || safeCharBudget <= 0) {
+      return { messages: modelMessages, truncated: false, safeCharBudget: 0 }
+    }
+
+    const currentSize = JSON.stringify(modelMessages).length
+    if (currentSize <= safeCharBudget) {
+      return { messages: modelMessages, truncated: false, safeCharBudget }
+    }
+
+    const truncated = [] as typeof modelMessages
+    let size = 2
+    for (let index = modelMessages.length - 1; index >= 0; index--) {
+      const message = modelMessages[index]
+      const messageSize = JSON.stringify(message).length + 1
+      if (truncated.length > 0 && size + messageSize > safeCharBudget) break
+      truncated.unshift(message)
+      size += messageSize
+    }
+
+    if (truncated.length === 1 && JSON.stringify(truncated).length > safeCharBudget) {
+      const only = structuredClone(truncated[0]) as any
+      while (JSON.stringify([only]).length > safeCharBudget) {
+        const parts = Array.isArray(only.parts) ? only.parts : []
+        const textIndex = parts.findIndex(
+          (part: any) => part?.type === "text" && typeof part.text === "string" && part.text.length > 0,
+        )
+        if (textIndex === -1) break
+        const text = parts[textIndex].text as string
+        parts[textIndex].text = text.length <= 512 ? "" : text.slice(-Math.floor(text.length / 2))
+      }
+      truncated[0] = only
+    }
+
+    log.warn("compaction history truncated to fit small model context", {
+      sessionID: input.sessionID,
+      originalChars: currentSize,
+      truncatedChars: JSON.stringify(truncated).length,
+      safeCharBudget,
+    })
+
+    return { messages: truncated, truncated: true, safeCharBudget }
+  }
+
   /**
    * Try server-side compaction via Codex /responses/compact endpoint.
    *
@@ -678,7 +848,8 @@ When constructing the summary, try to stick to this template:
                 type: "function_call",
                 call_id: (p as any).toolCallId ?? p.id,
                 name: p.tool,
-                arguments: typeof (p as any).input === "string" ? (p as any).input : JSON.stringify((p as any).input ?? {}),
+                arguments:
+                  typeof (p as any).input === "string" ? (p as any).input : JSON.stringify((p as any).input ?? {}),
               })
               conversationInput.push({
                 type: "function_call_output",
@@ -712,11 +883,11 @@ When constructing the summary, try to stick to this template:
       // Per API spec: "Do not prune /responses/compact output. The returned
       // window is the canonical next context window."
       // Extract readable text for the summary marker (best-effort, not authoritative)
-      const summaryText = result.output
-        .filter((item: any) => item.type === "message")
-        .flatMap((item: any) => (item.content ?? []).map((c: any) => c.text ?? ""))
-        .join("\n")
-        || "[Server-compacted conversation history]"
+      const summaryText =
+        result.output
+          .filter((item: any) => item.type === "message")
+          .flatMap((item: any) => (item.content ?? []).map((c: any) => c.text ?? ""))
+          .join("\n") || "[Server-compacted conversation history]"
 
       await compactWithSharedContext({
         sessionID: input.sessionID,

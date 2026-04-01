@@ -78,6 +78,21 @@ export type ModelListItemLike = {
   provider: { id: string }
 }
 
+export function parseHiddenProvidersStorageValue(value: string | null | undefined) {
+  if (!value) return [] as string[]
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : []
+  } catch {
+    return [] as string[]
+  }
+}
+
+export function loadHiddenProvidersFromStorage(storage: Pick<Storage, "getItem"> | undefined, key: string) {
+  if (!storage) return [] as string[]
+  return parseHiddenProvidersStorageValue(storage.getItem(key))
+}
+
 export function normalizeProviderKey(id: string): string | undefined {
   if (!id) return undefined
   const raw = id.trim().toLowerCase()

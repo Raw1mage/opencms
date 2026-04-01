@@ -27,7 +27,11 @@ Example patch:
 *** End Patch
 ```
 
-It is important to remember:
+# Best Practices & Error Recovery
 
 - You must include a header with your intended action (Add/Delete/Update)
 - You must prefix new lines with `+` even when creating a new file
+- Context Lines (`@@`): The string after `@@ ` is used to find the exact location in the file. It MUST be unique and it MUST exactly match the source code snippet (including indentation, but excluding the line number prefix printed by the `read` tool).
+- Exact Matches (`-`): Lines starting with `-` must precisely match the file's current whitespace and text.
+- Indentation (`+`): Lines starting with `+` will be inserted exactly as written (minus the `+` character). Ensure their indentation aligns with the surrounding code.
+- Handling Failures: If you receive `verification failed: Error: Failed to find expected lines` or `Cannot apply patch`, it means your `@@` context or `-` lines did not match the file. Do not guess or retry blindly. Immediately call the `read` tool to view the file's current exact content, then create a new patch using the exact spacing you just read.
