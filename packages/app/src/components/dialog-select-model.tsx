@@ -46,6 +46,7 @@ import {
   getFilteredModelsForSelection,
   getModelUnavailableReason,
   isAccountLikeProviderId,
+  loadHiddenProvidersFromStorage,
   pickSelectedAccount,
   pickSelectedModel,
   pickSelectedProvider,
@@ -63,10 +64,16 @@ const isFree = (provider: string, cost: { input: number } | undefined) =>
   provider === "opencode" && (!cost || cost.input === 0)
 
 const MODEL_MANAGER_LAYOUT_STORAGE_KEY = "opencode.web.modelManager.layout.v1"
+const MODEL_MANAGER_HIDDEN_PROVIDERS_STORAGE_KEY = "opencode.web.modelManager.hiddenProviders.v1"
 const MODEL_MANAGER_PROVIDER_MIN_PX = 160
 const MODEL_MANAGER_ACCOUNT_MIN_PX = 200
 const MODEL_MANAGER_MODEL_MIN_PX = 160
 const MODEL_MANAGER_DEFAULT_COLUMN_LAYOUT = { providerRatio: 0.31, accountRatio: 0.35 }
+
+function loadHiddenProvidersFromLocalStorage() {
+  if (typeof window === "undefined") return [] as string[]
+  return loadHiddenProvidersFromStorage(window.localStorage, MODEL_MANAGER_HIDDEN_PROVIDERS_STORAGE_KEY)
+}
 
 type AccountRecord = {
   id: string
@@ -80,6 +87,9 @@ type AccountRecord = {
   cooldownReason?: string
   metadata?: Record<string, unknown>
 }
+
+type ModelListEntry = ReturnType<ReturnType<typeof useModels>["list"]>[number]
+type ModelListGroup = { items: ModelListEntry[] }
 
 function preserveScrollPosition(getElement: () => HTMLElement | undefined, action: () => void | Promise<unknown>) {
   const previous = getElement()
@@ -449,28 +459,28 @@ const ModelList: Component<{
   const models = createMemo(() =>
     local.model
       .list()
-      .filter((m) => local.model.visible({ modelID: m.id, providerID: m.provider.id }))
-      .filter((m) => (props.provider ? m.provider.id === props.provider : true)),
+      .filter((m: ModelListEntry) => local.model.visible({ modelID: m.id, providerID: m.provider.id }))
+      .filter((m: ModelListEntry) => (props.provider ? m.provider.id === props.provider : true)),
   )
 
   return (
     <List
       class={`flex-1 min-h-0 [&_[data-slot=list-scroll]]:flex-1 [&_[data-slot=list-scroll]]:min-h-0 ${props.class ?? ""}`}
       emptyMessage={language.t("dialog.model.empty")}
-      key={(x) => `${x.provider.id}:${x.id}`}
+      key={(x: ModelListEntry) => `${x.provider.id}:${x.id}`}
       items={models}
       current={local.model.current(params.id)}
       filterKeys={["provider.name", "name", "id"]}
-      sortBy={(a, b) => a.name.localeCompare(b.name)}
-      groupBy={(x) => x.provider.name}
-      sortGroupsBy={(a, b) => {
+      sortBy={(a: ModelListEntry, b: ModelListEntry) => a.name.localeCompare(b.name)}
+      groupBy={(x: ModelListEntry) => x.provider.name}
+      sortGroupsBy={(a: ModelListGroup, b: ModelListGroup) => {
         const aProvider = a.items[0].provider.id
         const bProvider = b.items[0].provider.id
         if (popularProviders.includes(aProvider) && !popularProviders.includes(bProvider)) return -1
         if (!popularProviders.includes(aProvider) && popularProviders.includes(bProvider)) return 1
         return popularProviders.indexOf(aProvider) - popularProviders.indexOf(bProvider)
       }}
-      itemWrapper={(item, node) => (
+      itemWrapper={(item: ModelListEntry, node: JSX.Element) => (
         <Tooltip
           class="w-full"
           placement="right-start"
@@ -480,7 +490,7 @@ const ModelList: Component<{
           {node}
         </Tooltip>
       )}
-      onSelect={(x) => {
+      onSelect={(x: ModelListEntry | undefined) => {
         local.model.set(
           x
             ? {
@@ -499,7 +509,7 @@ const ModelList: Component<{
         props.onSelect()
       }}
     >
-      {(i) => (
+      {(i: ModelListEntry) => (
         <div class="w-full flex items-center gap-x-2 text-13-regular">
           <span class="truncate">{i.name}</span>
           <Show when={isFree(i.provider.id, i.cost)}>
@@ -545,7 +555,7 @@ export function ModelSelectorPopover(props: {
   return (
     <Kobalte
       open={store.open}
-      onOpenChange={(next) => {
+      onOpenChange={(next: boolean) => {
         if (next) setStore("dismiss", null)
         setStore("open", next)
       }}
@@ -559,7 +569,7 @@ export function ModelSelectorPopover(props: {
       <Kobalte.Portal>
         <Kobalte.Content
           class="w-72 h-80 flex flex-col p-2 rounded-md border border-border-base bg-surface-raised-stronger-non-alpha shadow-md z-50 outline-none overflow-hidden"
-          onEscapeKeyDown={(event) => {
+          onEscapeKeyDown={(event: KeyboardEvent) => {
             setStore("dismiss", "escape")
             setStore("open", false)
             event.preventDefault()
@@ -573,7 +583,7 @@ export function ModelSelectorPopover(props: {
             setStore("dismiss", "outside")
             setStore("open", false)
           }}
-          onCloseAutoFocus={(event) => {
+          onCloseAutoFocus={(event: Event) => {
             if (store.dismiss === "outside") event.preventDefault()
             setStore("dismiss", null)
           }}
@@ -723,9 +733,12 @@ export const DialogSelectModel: Component<{
     ? {
         list: models.list,
         visible: (key: { modelID: string; providerID: string }) => models.visible(key),
-        current: (_id?: string) => models.find(props.initialProviderId && props.initialAccountId
-          ? { providerID: props.initialProviderId, modelID: "" }
-          : { providerID: "", modelID: "" }) ?? undefined,
+        current: (_id?: string) =>
+          models.find(
+            props.initialProviderId && props.initialAccountId
+              ? { providerID: props.initialProviderId, modelID: "" }
+              : { providerID: "", modelID: "" },
+          ) ?? undefined,
         selection: (_id?: string) => undefined as ModelSelectResult | undefined,
         set: async () => {},
         setVisibility: (key: { modelID: string; providerID: string }, v: boolean) => models.setVisibility(key, v),
@@ -734,7 +747,7 @@ export const DialogSelectModel: Component<{
 
   const [accountInfo, { refetch: refetchAccountInfo }] = createResource(async () => {
     const client = sdk?.client ?? globalSDK.client
-    return client.account.listAll().then((x) => x.data)
+    return client.account.listAll().then((x: { data: unknown }) => x.data)
   })
 
   const [selectedProviderId, setSelectedProviderId] = createSignal<string>(props.initialProviderId ?? "")
@@ -1082,7 +1095,8 @@ export const DialogSelectModel: Component<{
     onCleanup(() => header.removeEventListener("mousedown", onMouseDown))
   })
 
-  const effectiveDisabledProviders = createMemo(() => globalSync.configActions.disabledProviders())
+  const [hiddenProviders] = createSignal<string[]>(loadHiddenProvidersFromLocalStorage())
+  const effectiveDisabledProviders = createMemo(() => hiddenProviders())
 
   const accountProviders = createMemo(() => {
     const payload = accountInfo.latest as
@@ -1096,9 +1110,6 @@ export const DialogSelectModel: Component<{
 
   const providerStatus = createMemo(() => {
     const map = new Map<string, string>()
-    const disabled = new Set<string>(effectiveDisabledProviders())
-    for (const id of disabled) map.set(id, language.t("dialog.model.activity.providerDisabled"))
-
     const providerMap = accountProviders()
 
     for (const [providerKey, value] of Object.entries(providerMap)) {
@@ -1142,8 +1153,9 @@ export const DialogSelectModel: Component<{
   })
 
   const providersForMode = createMemo(() => {
-    if (mode() === "all") return providers()
-    return providers().filter((provider) => provider.enabled)
+    const visibleProviders = providers().filter((provider) => provider.enabled)
+    if (mode() === "all") return visibleProviders
+    return visibleProviders.filter((provider) => provider.accounts > 0)
   })
 
   createEffect(() => {
@@ -1202,9 +1214,9 @@ export const DialogSelectModel: Component<{
   })
 
   // Fetch live rate-limit cooldowns from rotation/status API (same data source as TUI admin panel)
-  const [rateLimitCooldowns, setRateLimitCooldowns] = createSignal<
-    Record<string, { waitMs: number; reason: string }>
-  >({})
+  const [rateLimitCooldowns, setRateLimitCooldowns] = createSignal<Record<string, { waitMs: number; reason: string }>>(
+    {},
+  )
 
   createEffect(() => {
     // Re-fetch when provider changes (dependency tracking)
@@ -1352,7 +1364,7 @@ export const DialogSelectModel: Component<{
   })
 
   createEffect(() => {
-    const selected = pickSelectedModel({
+    const selected = pickSelectedModel<ModelListEntry>({
       selected: (() => {
         const key = selectedModelKey()
         if (!key) return undefined
@@ -1428,31 +1440,6 @@ export const DialogSelectModel: Component<{
 
   const hasPendingChanges = createMemo(() => !sameModelSelectorSelection(draftSelection(), committedSelection()))
 
-  const toggleProviderEnabled = (e: MouseEvent, providerId: string) => {
-    e.stopPropagation()
-    e.preventDefault()
-    const current = new Set(effectiveDisabledProviders())
-    const normalized = providerKeyOf(providerId)
-    if (!normalized) return
-    if (current.has(normalized)) {
-      current.delete(normalized)
-    } else {
-      current.add(normalized)
-    }
-    const next = [...current]
-    preserveScrollPosition(
-      () => providerScrollEl,
-      () =>
-        globalSync.configActions.setDisabledProviders(next).catch((err) => {
-          showToast({
-            variant: "error",
-            title: language.t("common.requestFailed"),
-            description: err instanceof Error ? err.message : String(err),
-          })
-        }),
-    )
-  }
-
   const switchDraftAccount = (row: { id: string; label: string; unavailable?: string }) => {
     if (row.unavailable) {
       showToast({
@@ -1484,10 +1471,13 @@ export const DialogSelectModel: Component<{
     const providerKey = providerKeyForSelection(model.provider.id)
     const providerCandidates = modelApi
       .list()
-      .filter((item) => item.id === model.id && providerKeyForSelection(item.provider.id) === providerKey)
+      .filter(
+        (item: ModelListEntry) => item.id === model.id && providerKeyForSelection(item.provider.id) === providerKey,
+      )
     const providerIDForSelection =
-      providerCandidates.find((item) => providerKeyForSelection(item.provider.id) === providerKey)?.provider.id ??
-      providerCandidates.find((item) => !isAccountLikeProviderId(item.provider.id))?.provider.id ??
+      providerCandidates.find((item: ModelListEntry) => providerKeyForSelection(item.provider.id) === providerKey)
+        ?.provider.id ??
+      providerCandidates.find((item: ModelListEntry) => !isAccountLikeProviderId(item.provider.id))?.provider.id ??
       model.provider.id
 
     // Standalone mode: call back with selection and close dialog
@@ -1499,7 +1489,7 @@ export const DialogSelectModel: Component<{
         description: language.t("dialog.model.submit.toast.description", {
           provider: providerKey,
           account: selectedAccountId() || "--",
-          model: model.name,
+          model: (model as ModelListEntry).name,
         }),
       })
       dialog.close()
@@ -1523,7 +1513,7 @@ export const DialogSelectModel: Component<{
         description: language.t("dialog.model.submit.toast.description", {
           provider: providerKey,
           account: selectedAccountId() || "--",
-          model: model.name,
+          model: (model as ModelListEntry).name,
         }),
       })
     } catch (err) {
@@ -1673,8 +1663,6 @@ export const DialogSelectModel: Component<{
                   name={provider.accounts > 0 ? `${provider.name} (${provider.accounts})` : provider.name}
                   providerIcon={iconNames.includes(provider.id as IconName) ? provider.id : "synthetic"}
                   selected={selectedProviderId() === provider.id}
-                  enabled={provider.enabled}
-                  onToggleEnabled={(e) => toggleProviderEnabled(e, provider.id)}
                   onClick={() => setSelectedProviderId(provider.id)}
                 />
               )}
@@ -1745,7 +1733,11 @@ export const DialogSelectModel: Component<{
                             </span>
                           )}
                         </Show>
-                        <Show when={!accountManagementMode() && !accountRowDisplay(row).cooldown && accountRowDisplay(row).quota}>
+                        <Show
+                          when={
+                            !accountManagementMode() && !accountRowDisplay(row).cooldown && accountRowDisplay(row).quota
+                          }
+                        >
                           {(quota) => (
                             <span class="shrink-0 w-[124px] text-right text-11-regular text-text-weak tabular-nums whitespace-nowrap">
                               {quota()}
@@ -1818,13 +1810,13 @@ export const DialogSelectModel: Component<{
             <List
               class="h-full [&_[data-slot=list-scroll]]:h-full [&_[data-slot=list-scroll]]:p-2"
               items={filteredModels()}
-              key={(x) => `${x.provider.id}:${x.id}`}
+              key={(x: ModelListEntry) => `${x.provider.id}:${x.id}`}
               current={selectedFilteredModel()}
               filterKeys={["provider.name", "name", "id"]}
-              sortBy={(a, b) => {
+              sortBy={(a: ModelListEntry, b: ModelListEntry) => {
                 return a.name.localeCompare(b.name)
               }}
-              itemWrapper={(item, node) => (
+              itemWrapper={(item: ModelListEntry, node: JSX.Element) => (
                 <Tooltip
                   class="w-full"
                   placement="right"
@@ -1840,12 +1832,12 @@ export const DialogSelectModel: Component<{
                   {node}
                 </Tooltip>
               )}
-              onSelect={(x) => {
+              onSelect={(x: ModelListEntry | undefined) => {
                 if (!x) return
                 setSelectedModelKey(`${x.provider.id}:${x.id}`)
               }}
             >
-              {(item) => (
+              {(item: ModelListEntry) => (
                 <ModelItem
                   item={item}
                   selected={false}

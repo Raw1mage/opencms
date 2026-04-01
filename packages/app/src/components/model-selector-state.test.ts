@@ -3,7 +3,9 @@ import {
   buildAccountRows,
   buildProviderRows,
   filterModelsForMode,
+  loadHiddenProvidersFromStorage,
   normalizeProviderKey,
+  parseHiddenProvidersStorageValue,
   pickSelectedAccount,
   pickSelectedModel,
   sameModelSelectorSelection,
@@ -175,6 +177,25 @@ describe("model selector state", () => {
     })
 
     expect(rows.map((row) => row.id)).toEqual(["m1", "m2"])
+  })
+
+  test("hidden-provider storage loader reads localStorage-backed provider ids", () => {
+    const storage = {
+      getItem: (key: string) =>
+        key === "opencode.web.modelManager.hiddenProviders.v1"
+          ? JSON.stringify(["openai", "claude-cli", 123, null])
+          : null,
+    }
+
+    expect(loadHiddenProvidersFromStorage(storage, "opencode.web.modelManager.hiddenProviders.v1")).toEqual([
+      "openai",
+      "claude-cli",
+    ])
+  })
+
+  test("hidden-provider storage parser tolerates malformed persisted values", () => {
+    expect(parseHiddenProvidersStorageValue("{bad json")).toEqual([])
+    expect(parseHiddenProvidersStorageValue(JSON.stringify({ provider: "openai" }))).toEqual([])
   })
 
   test("pickSelectedModel preserves explicit draft selection when still visible", () => {

@@ -16,6 +16,9 @@ import { Agent } from "../agent/agent"
 import { Provider } from "../provider/provider"
 import { Config } from "../config/config"
 import ENABLEMENT from "./prompt/enablement.json"
+import { UnlockedTools } from "./unlocked-tools"
+import { ToolFrequency } from "../tool/frequency"
+import { ALWAYS_PRESENT_TOOLS, buildCatalog, formatCatalogDescription } from "../tool/tool-loader"
 
 const log = Log.create({ service: "session.resolve-tools" })
 
@@ -293,6 +296,45 @@ export async function resolveTools(input: ResolveToolsInput) {
     }
 
     tools[key] = item
+  }
+
+  const config = await Config.get()
+  const lazyConfig = config.experimental?.lazy_tools
+  const lazyEnabled = lazyConfig?.enabled !== false
+
+  if (lazyEnabled && input.agent.mode !== "subagent") {
+    const alwaysPresent = new Set(ALWAYS_PRESENT_TOOLS)
+    for (const id of lazyConfig?.always_present ?? []) alwaysPresent.add(id)
+
+    const threshold = lazyConfig?.promotion_threshold ?? 50
+    const promotedTools = await ToolFrequency.promoted(threshold)
+    for (const id of promotedTools) alwaysPresent.add(id)
+
+    const unlocked = UnlockedTools.get(input.session.id)
+    const allToolEntries = Object.entries(tools).map(([id, tool]) => ({
+      id,
+      description: ((tool as any).description ?? "") as string,
+    }))
+    const frequencyScores = await ToolFrequency.scores()
+    const catalog = buildCatalog(allToolEntries, frequencyScores)
+    const lazyToolCount = allToolEntries.filter((tool) => !alwaysPresent.has(tool.id)).length
+
+    if (tools["tool_loader"]) {
+      ;(tools["tool_loader"] as any).description = formatCatalogDescription(catalog, lazyToolCount)
+    }
+
+    for (const id of Object.keys(tools)) {
+      if (!alwaysPresent.has(id) && !unlocked.has(id)) delete tools[id]
+    }
+
+    debugCheckpoint("tool.resolve", "lazy-filter", {
+      alwaysPresent: [...alwaysPresent],
+      promoted: promotedTools,
+      unlocked: [...unlocked],
+      catalogSize: catalog.length,
+      removedCount: allToolEntries.length - Object.keys(tools).length,
+      trace: input.session.id,
+    })
   }
 
   const ids = Object.keys(tools)

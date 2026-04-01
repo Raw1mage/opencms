@@ -1493,6 +1493,19 @@ export namespace Config {
             .positive()
             .optional()
             .describe("Timeout in milliseconds for subagent task execution. Default is 600000 (10 minutes)."),
+          lazy_tools: z
+            .object({
+              enabled: z.boolean().optional().describe("Enable lazy tool loading for primary agents (default: true)"),
+              promotion_threshold: z
+                .number()
+                .optional()
+                .describe("Heat score threshold for auto-promoting tools to always-present (default: 50)"),
+              always_present: z
+                .array(z.string())
+                .optional()
+                .describe("Additional tool IDs to always include without needing tool_loader"),
+            })
+            .optional(),
         })
         .optional(),
     })

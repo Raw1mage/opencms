@@ -985,6 +985,38 @@ export namespace SessionPrompt {
         }
         throw e
       })
+
+      if (step === 1 && !session.parentID) {
+        try {
+          const checkpoint = await SessionCompaction.loadRebindCheckpoint(sessionID)
+          if (checkpoint) {
+            const applied = SessionCompaction.applyRebindCheckpoint({
+              sessionID,
+              checkpoint,
+              messages: msgs,
+              model,
+            })
+            const skipReason = "reason" in applied ? applied.reason : undefined
+            if (!applied.applied) {
+              log.warn("rebind checkpoint skipped", {
+                sessionID,
+                reason: skipReason,
+                boundaryId: checkpoint.lastMessageId,
+              })
+            } else {
+              msgs = applied.messages
+              await SessionCompaction.deleteRebindCheckpoint(sessionID)
+              log.info("rebind checkpoint applied", {
+                sessionID,
+                boundaryId: checkpoint.lastMessageId,
+                messageCount: msgs.length,
+              })
+            }
+          }
+        } catch (error) {
+          log.warn("failed to apply rebind checkpoint", { sessionID, error: String(error) })
+        }
+      }
       const task = tasks.pop()
       // pending subtask (invocation routed via ToolInvoker)
       if (task?.type === "subtask") {
@@ -1184,7 +1216,7 @@ export namespace SessionPrompt {
         if (!session.parentID) {
           // Priority: use pre-built checkpoint (saved during normal operation)
           const checkpoint = await SessionCompaction.loadRebindCheckpoint(sessionID)
-          const snap = checkpoint || (await SharedContext.snapshot(sessionID))
+          const snap = checkpoint?.snapshot || (await SharedContext.snapshot(sessionID))
           if (snap) {
             await SessionCompaction.compactWithSharedContext({
               sessionID,
@@ -1207,7 +1239,11 @@ export namespace SessionPrompt {
         SessionCompaction.shouldRebindBudgetCompact({ tokens: lastFinished.tokens, sessionID, currentRound: step })
       ) {
         // Fire-and-forget: snapshot in background, don't block the conversation
-        SessionCompaction.saveRebindCheckpoint(sessionID).catch(() => {})
+        SessionCompaction.saveRebindCheckpoint({
+          sessionID,
+          lastMessageId: msgs.at(-1)?.info.id,
+          currentRound: step,
+        }).catch(() => {})
       }
 
       // context overflow OR cache-aware compaction
