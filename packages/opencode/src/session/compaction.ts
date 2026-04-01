@@ -22,12 +22,21 @@ import { SharedContext } from "./shared-context"
 import { codexServerCompact } from "../provider/codex-compaction"
 import { ContinuationInvalidatedEvent } from "../plugin/codex"
 
+const SessionDeletedEvent = BusEvent.define(
+  "session.deleted",
+  z.object({
+    info: z.object({
+      id: Identifier.schema("session"),
+    }),
+  }),
+)
+
 // Subscribe to continuation invalidation: schedule compaction for next round
 Bus.subscribe(ContinuationInvalidatedEvent, (evt) => {
   SessionCompaction.markRebindCompaction(evt.properties.sessionId)
 })
 
-Bus.subscribe(Session.Event.Deleted, (evt) => {
+Bus.subscribe(SessionDeletedEvent, (evt) => {
   void SessionCompaction.deleteRebindCheckpoint(evt.properties.info.id)
 })
 

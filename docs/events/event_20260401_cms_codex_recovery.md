@@ -1448,3 +1448,58 @@ OUT:
   - **若你的 finalize 標準要求 app-wide typecheck green，則不應 finalize，應另開 baseline remediation workstream**
 - Architecture Sync:
   - Verified: `specs/architecture.md`（No doc changes；本次為 focused re-validation 與 closure review，未改變長期架構邊界）
+
+## 2026-04-02 test branch boot blocker — Session.Event undefined
+
+### 需求
+
+- 使用者在 `test/provider-list-commit` 實機啟動時，系統於 bootstrap 直接 crash，需先修到可進系統。
+
+### 範圍
+
+IN:
+
+- `/home/pkcs12/projects/opencode/packages/opencode/src/session/compaction.ts`
+- `/home/pkcs12/projects/opencode/packages/opencode/src/session/index.ts`
+- `/home/pkcs12/projects/opencode/packages/opencode/src/session/monitor.ts`
+- `/home/pkcs12/projects/opencode/packages/opencode/src/project/workspace/service.ts`
+
+OUT:
+
+- 不擴大處理其他 runtime bug
+- 不重新做 provider-manager 功能修改
+
+### Baseline
+
+- `test/provider-list-commit` 啟動失敗：
+  - `TypeError: undefined is not an object (evaluating 'Session.Event')`
+  - `packages/opencode/src/session/compaction.ts:30`
+
+### Root Cause
+
+- `compaction.ts` 在 module top-level 直接執行 `Bus.subscribe(Session.Event.Deleted, ...)`。
+- 該檔同時 `import { Session } from "."`，而 `Session.Event` 定義位於 `session/index.ts` 內部。
+- 在當前 fetched-back 狀態下形成 init 時序/circular boundary：`compaction.ts` 被載入時，`Session` namespace 尚未完整初始化，因此 `Session.Event` 為 `undefined`。
+- 其他類似訂閱點（如 `session/monitor.ts`、`project/workspace/service.ts`）在較晚的 init path 內執行，因此未於 bootstrap 同步炸裂。
+
+### Fix Plan
+
+- 以最小修復為主：避免在 `compaction.ts` module top-level 直接觸發 `Session.Event` 訂閱。
+- 優先將該 subscription 延後到安全初始化時機，而不是擴大重構整個 session event surface。
+
+### Execution
+
+- 最終採用更小且更穩定的修法：
+  - 在 `compaction.ts` 內定義本地 `SessionDeletedEvent`（type = `session.deleted`，只含 `info.id` 所需 shape）
+  - 讓 top-level subscription 直接訂閱這個本地 event definition，避免在 module init 時觸碰尚未完成初始化的 `Session` namespace
+- 放棄 `queueMicrotask(...)` 方案，因其仍在同一個 module graph 完成前觸發，無法避開 `Session.Event` 為 `undefined` 的時序問題。
+
+### Validation
+
+- `bun run dev`
+  - `Session.Event undefined` boot crash 已消失
+  - 啟動流程前進到正常 TUI guard：
+    - `OpenCode TUI requires an interactive terminal (TTY).`
+- 結論：bootstrap blocker 已解除；剩餘錯誤屬於目前非互動 shell 執行 `bun run dev` 的預期限制，而非本次 recovery slice 回歸。
+- Architecture Sync:
+  - Verified: `specs/architecture.md`（No doc changes；本次為 boot-time circular init 修補，未改變長期架構邊界）
