@@ -5,6 +5,7 @@ import type { JSONValue } from "ai"
 import type { Provider } from "./provider"
 import type { ModelsDev } from "./models"
 import { iife } from "@/util/iife"
+import { debugCheckpoint } from "@/util/debug"
 
 type Modality = NonNullable<ModelsDev.Model["modalities"]>["input"][number]
 
@@ -258,6 +259,16 @@ export namespace ProviderTransform {
 
       msg.providerOptions = mergeDeep(msg.providerOptions ?? {}, providerOptions)
     }
+
+    debugCheckpoint("provider.transform", "Caching applied to outbound message envelope", {
+      providerId,
+      systemCount: system.length,
+      finalCount: final.length,
+      messageRoles: unique([...system, ...final]).map((msg) => msg.role),
+      useMessageLevelOptions: providerId === "claude-cli" || providerId.includes("bedrock"),
+      providerOptionKeys: Object.keys(providerOptions).sort(),
+      cacheKeywords: JSON.stringify(providerOptions).includes("cache") ? ["cache"] : [],
+    })
 
     return msgs
   }
@@ -715,7 +726,11 @@ export namespace ProviderTransform {
       }
     }
 
-    if (input.model.providerId === "openai" || input.model.providerId === "codex" || input.providerOptions?.setCacheKey) {
+    if (
+      input.model.providerId === "openai" ||
+      input.model.providerId === "codex" ||
+      input.providerOptions?.setCacheKey
+    ) {
       result["promptCacheKey"] = input.sessionID
     }
 

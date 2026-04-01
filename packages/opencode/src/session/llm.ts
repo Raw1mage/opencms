@@ -111,10 +111,13 @@ export namespace LLM {
   let lastRotationToastAt = 0
 
   /** Per-session codex state for incremental delta (response_id + hash tracking). */
-  const codexSessionState = new Map<string, {
-    responseId?: string
-    optionsHash?: string
-  }>()
+  const codexSessionState = new Map<
+    string,
+    {
+      responseId?: string
+      optionsHash?: string
+    }
+  >()
 
   export type StreamInput = {
     user: MessageV2.User
@@ -168,6 +171,43 @@ export namespace LLM {
   function shouldInjectEnablementSnapshot(messages: ModelMessage[]) {
     if (messages.length <= 1) return true
     return getMatchedIntents(messages).length > 0
+  }
+
+  function getMessageShapeSummary(message: ModelMessage) {
+    const content = message.content
+    const isArray = Array.isArray(content)
+    const parts = isArray ? content : []
+    const partTypes = isArray ? parts.map((part: any) => part?.type ?? typeof part) : []
+    const hasCacheControl =
+      typeof message.providerOptions === "object" && message.providerOptions !== null
+        ? JSON.stringify(message.providerOptions).includes("cache")
+        : false
+    return {
+      role: message.role,
+      contentType: typeof content,
+      partCount: isArray ? parts.length : 0,
+      partTypes: partTypes.slice(0, 6),
+      hasCacheControl,
+      providerOptionKeys:
+        message.providerOptions && typeof message.providerOptions === "object"
+          ? Object.keys(message.providerOptions)
+          : [],
+    }
+  }
+
+  function collectCacheKeywords(value: unknown, hits = new Set<string>(), path = "root") {
+    if (!value || typeof value !== "object") return hits
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => collectCacheKeywords(item, hits, `${path}[${index}]`))
+      return hits
+    }
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      const currentPath = `${path}.${key}`
+      if (/cache/i.test(key)) hits.add(currentPath)
+      if (typeof child === "string" && /cache/i.test(child)) hits.add(currentPath)
+      collectCacheKeywords(child, hits, currentPath)
+    }
+    return hits
   }
 
   function buildEnablementSnapshot(messages: ModelMessage[]): string {
@@ -565,18 +605,56 @@ export namespace LLM {
     // Get account ID for rate limit tracking
     const accountId = currentAccountId
     const requestProviderOptions = ProviderTransform.providerOptions(input.model, params.options)
+    const outboundFingerprint = Bun.hash(
+      JSON.stringify({
+        sessionID: input.sessionID,
+        providerId: input.model.providerId,
+        modelId: input.model.id,
+        accountId,
+        systemCount: systemMessages.length,
+        messageCount: finalMessages.length,
+        toolCount: Object.keys(tools).length,
+        providerOptionKeys: Object.keys(requestProviderOptions ?? {}).sort(),
+        messages: finalMessages.slice(0, 6).map(getMessageShapeSummary),
+      }),
+    ).toString(36)
+
+    debugCheckpoint("llm.packet", "LLM outbound packet prepared", {
+      sessionID: input.sessionID,
+      providerId: input.model.providerId,
+      modelID: input.model.id,
+      accountId,
+      promptId,
+      outboundFingerprint,
+      systemCount: systemMessages.length,
+      messageCount: finalMessages.length,
+      toolCount: Object.keys(tools).length,
+      providerOptionKeys: Object.keys(requestProviderOptions ?? {}).sort(),
+      requestProviderOptions: Array.from(collectCacheKeywords(requestProviderOptions)),
+      messageShapes: finalMessages.slice(0, 6).map(getMessageShapeSummary),
+      trace: input.sessionID,
+    })
 
     // Codex incremental delta: inject previousResponseId when eligible
     if (input.model.providerId === "codex") {
       const prev = codexSessionState.get(input.sessionID)
-      const currentHash = JSON.stringify({ system: systemMessages.map(m => typeof m === "string" ? m : ""), tools: Object.keys(tools).sort() })
+      const currentHash = JSON.stringify({
+        system: systemMessages.map((m) => (typeof m === "string" ? m : "")),
+        tools: Object.keys(tools).sort(),
+      })
       const hashMatch = prev?.optionsHash === currentHash
       if (prev?.responseId && hashMatch) {
         const key = Object.keys(requestProviderOptions)[0]
         if (key) (requestProviderOptions as any)[key].previousResponseId = prev.responseId
-        l.info("codex delta: injecting previousResponseId", { sessionID: input.sessionID, responseId: prev.responseId.slice(0, 16) + "..." })
+        l.info("codex delta: injecting previousResponseId", {
+          sessionID: input.sessionID,
+          responseId: prev.responseId.slice(0, 16) + "...",
+        })
       } else if (prev?.responseId && !hashMatch) {
-        l.info("codex delta: hash mismatch, skipping previousResponseId", { sessionID: input.sessionID, hasResponseId: true })
+        l.info("codex delta: hash mismatch, skipping previousResponseId", {
+          sessionID: input.sessionID,
+          hasResponseId: true,
+        })
       }
       // Update hash for next comparison (responseId captured in onFinish)
       codexSessionState.set(input.sessionID, { ...prev, optionsHash: currentHash })
@@ -624,9 +702,41 @@ export namespace LLM {
         const totalTokens = usage
           ? (usage.promptTokens || usage.inputTokens || 0) + (usage.completionTokens || usage.outputTokens || 0)
           : 0
+        const cacheReadTokens = usage?.cacheReadTokens ?? usage?.cache?.read ?? 0
+        const cacheWriteTokens = usage?.cacheWriteTokens ?? usage?.cache?.write ?? 0
+        debugCheckpoint("llm.packet", "LLM inbound packet observed", {
+          sessionID: input.sessionID,
+          providerId: input.model.providerId,
+          modelID: input.model.id,
+          accountId,
+          finishReason: event.finishReason,
+          totalTokens,
+          cacheReadTokens,
+          cacheWriteTokens,
+          usageKeys: usage ? Object.keys(usage).sort() : [],
+          responseMessageCount: event.response?.messages?.length ?? 0,
+          responseKeywords: Array.from(
+            collectCacheKeywords({
+              usage,
+              providerMetadata: event.providerMetadata,
+              response: event.response,
+            }),
+          ),
+          responseShape: {
+            hasProviderMetadata: !!event.providerMetadata,
+            providerMetadataKeys:
+              event.providerMetadata && typeof event.providerMetadata === "object"
+                ? Object.keys(event.providerMetadata as Record<string, unknown>).sort()
+                : [],
+            hasResponse: !!event.response,
+          },
+          trace: input.sessionID,
+        })
         // Diagnostic: trace empty finishes
         if (totalTokens === 0 && event.finishReason === "unknown") {
-          process.stderr.write(`[DIAG:llm-empty-finish] session=${input.sessionID} model=${input.model.id} provider=${input.model.providerId} account=${accountId} finishReason=${event.finishReason} text=${JSON.stringify((event.text ?? "").slice(0, 100))} toolCalls=${JSON.stringify(event.toolCalls?.length ?? 0)} responseMessages=${JSON.stringify(event.response?.messages?.length ?? 0)} rawHeaders=${JSON.stringify((event.response as any)?.headers ?? {}).slice(0, 200)}\n`)
+          process.stderr.write(
+            `[DIAG:llm-empty-finish] session=${input.sessionID} model=${input.model.id} provider=${input.model.providerId} account=${accountId} finishReason=${event.finishReason} text=${JSON.stringify((event.text ?? "").slice(0, 100))} toolCalls=${JSON.stringify(event.toolCalls?.length ?? 0)} responseMessages=${JSON.stringify(event.response?.messages?.length ?? 0)} rawHeaders=${JSON.stringify((event.response as any)?.headers ?? {}).slice(0, 200)}\n`,
+          )
         }
         RequestMonitor.get().recordRequest(input.model.providerId, accountId || "unknown", input.model.id, totalTokens)
 
@@ -636,9 +746,15 @@ export namespace LLM {
           if (responseId) {
             const prev = codexSessionState.get(input.sessionID)
             codexSessionState.set(input.sessionID, { ...prev, responseId })
-            l.info("codex delta: captured responseId", { sessionID: input.sessionID, responseId: responseId.slice(0, 16) + "..." })
+            l.info("codex delta: captured responseId", {
+              sessionID: input.sessionID,
+              responseId: responseId.slice(0, 16) + "...",
+            })
           } else {
-            l.info("codex delta: no responseId in providerMetadata", { sessionID: input.sessionID, hasMetadata: !!event.providerMetadata })
+            l.info("codex delta: no responseId in providerMetadata", {
+              sessionID: input.sessionID,
+              hasMetadata: !!event.providerMetadata,
+            })
           }
         }
       },
@@ -1103,7 +1219,15 @@ export namespace LLM {
       })
       // If fallback model info can't be found, add it to tried and search again
       triedVectors.add(fallbackKey)
-      return handleRateLimitFallback(currentModel, strategy, triedVectors, error, currentAccountId, sessionIdentity, options)
+      return handleRateLimitFallback(
+        currentModel,
+        strategy,
+        triedVectors,
+        error,
+        currentAccountId,
+        sessionIdentity,
+        options,
+      )
     }
 
     // Notify user of model/provider rotation (debounced; suppressed for background sessions)
