@@ -1,0 +1,101 @@
+{
+  "diagram_title": "Recovery Refactor After 2026-04-01 Drift",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Recover Claude Provider Chain",
+      "description": "Refactor the missing Claude Native and claude-provider capability chain back into the active recovery branch",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Recover Runtime Hardening",
+      "description": "Restore runtime/context optimization hardening that improves loader stability, compaction correctness, and toolcall recovery",
+      "decomposition": null
+    },
+    {
+      "id": "A3",
+      "title": "Recover Session Hardening",
+      "description": "Restore rebind, continuation, and session lifecycle hardening into the active recovery branch",
+      "decomposition": null
+    },
+    {
+      "id": "A4",
+      "title": "Recover Provider Manager Completion",
+      "description": "Restore the remaining provider-manager product behavior beyond the already recovered 模型提供者 dialog slice",
+      "decomposition": null
+    },
+    {
+      "id": "A5",
+      "title": "Validate Recovery Slices",
+      "description": "Run slice-scoped validation, update event evidence, and verify architecture synchronization before completion",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "Recovery Inventory And Historical Evidence",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Value Order And Beta Workflow Authority Contract",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "Recovered Claude Provider Capability",
+      "type": "output"
+    },
+    {
+      "id": "AR4",
+      "source": "A2:output",
+      "target": "A3:input",
+      "label": "Recovered Runtime Hardening",
+      "type": "output"
+    },
+    {
+      "id": "AR5",
+      "source": "A3:output",
+      "target": "A4:input",
+      "label": "Recovered Session Hardening",
+      "type": "output"
+    },
+    {
+      "id": "AR6",
+      "source": "A4:output",
+      "target": "A5:input",
+      "label": "Recovered Provider Manager Behavior",
+      "type": "output"
+    },
+    {
+      "id": "AR7",
+      "source": "A5:output",
+      "target": "EXTERNAL",
+      "label": "Validated Recovery Branch And Evidence",
+      "type": "output"
+    },
+    {
+      "id": "AR8",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "Current Recovery Codebase And Surviving Refs",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR9",
+      "source": "EXTERNAL",
+      "target": "A5:mechanism",
+      "label": "Tests Typecheck Event Log Architecture Doc",
+      "type": "mechanism"
+    }
+  ]
+}

@@ -1341,6 +1341,11 @@ export namespace Provider {
       })
     }
 
+    // Ensure claude-cli provider is available with bundled models
+    if (database["claude-cli"]) {
+      mergeProvider("claude-cli", { source: "custom" })
+    }
+
     // Ensure GitHub Copilot providers are available with bundled models
     if (database["github-copilot"]) {
       mergeProvider("github-copilot", { source: "custom" })
@@ -2254,9 +2259,7 @@ export namespace Provider {
       // to the canonical provider ("codex") that registered the CUSTOM_LOADER.
       const canonicalProviderId = Account.parseProvider(model.providerId) ?? model.providerId
       const loader = s.modelLoaders[canonicalProviderId]
-      const language = loader
-        ? await loader(sdk, model.api.id, provider.options)
-        : sdk.languageModel(model.api.id)
+      const language = loader ? await loader(sdk, model.api.id, provider.options) : sdk.languageModel(model.api.id)
       s.models.set(key, language)
       return language
     } catch (e) {

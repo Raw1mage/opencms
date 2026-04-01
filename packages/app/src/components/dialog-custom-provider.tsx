@@ -159,6 +159,7 @@ function validateCustomProvider(input: ValidateArgs) {
 
 type Props = {
   back?: "providers" | "close"
+  editProviderId?: string
 }
 
 export function DialogCustomProvider(props: Props) {
@@ -167,13 +168,43 @@ export function DialogCustomProvider(props: Props) {
   const globalSDK = useGlobalSDK()
   const language = useLanguage()
 
+  const editProvider = () => {
+    if (!props.editProviderId) return undefined
+    return globalSync.data.provider.all.find((p) => p.id === props.editProviderId)
+  }
+
+  const editConfig = () => {
+    if (!props.editProviderId) return undefined
+    const config = globalSync.data.config as any
+    return config?.provider?.[props.editProviderId]
+  }
+
+  const initModels = (): ModelRow[] => {
+    const provider = editProvider()
+    if (!provider) return [{ id: "", name: "" }]
+    return Object.entries(provider.models).map(([id, model]) => ({
+      id,
+      name: (model as any).name || id,
+    }))
+  }
+
+  const initHeaders = (): HeaderRow[] => {
+    const cfg = editConfig()
+    const headers = cfg?.options?.headers
+    if (!headers || typeof headers !== "object") return [{ key: "", value: "" }]
+    const rows = Object.entries(headers).map(([key, value]) => ({ key, value: String(value) }))
+    return rows.length > 0 ? rows : [{ key: "", value: "" }]
+  }
+
+  const isEdit = () => !!props.editProviderId
+
   const [form, setForm] = createStore<FormState>({
-    providerID: "",
-    name: "",
-    baseURL: "",
+    providerID: props.editProviderId ?? "",
+    name: editProvider()?.name ?? "",
+    baseURL: editConfig()?.options?.baseURL ?? "",
     apiKey: "",
-    models: [{ id: "", name: "" }],
-    headers: [{ key: "", value: "" }],
+    models: initModels(),
+    headers: initHeaders(),
     saving: false,
   })
 
@@ -216,11 +247,14 @@ export function DialogCustomProvider(props: Props) {
   }
 
   const validate = () => {
+    const existingProviderIDs = new Set(globalSync.data.provider.all.map((p) => p.id))
+    if (isEdit()) existingProviderIDs.delete(props.editProviderId!)
+
     const output = validateCustomProvider({
       form,
       t: language.t,
       disabledProviders: globalSync.configActions.disabledProviders(),
-      existingProviderIDs: new Set(globalSync.data.provider.all.map((p) => p.id)),
+      existingProviderIDs,
     })
     setErrors(output.errors)
     return output.result
@@ -287,7 +321,9 @@ export function DialogCustomProvider(props: Props) {
       <div class="flex flex-col gap-6 px-2.5 pb-3 overflow-y-auto max-h-[60vh]">
         <div class="px-2.5 flex gap-4 items-center">
           <ProviderIcon id="synthetic" class="size-5 shrink-0 icon-strong-base" />
-          <div class="text-16-medium text-text-strong">{language.t("provider.custom.title")}</div>
+          <div class="text-16-medium text-text-strong">
+            {isEdit() ? form.name || props.editProviderId : language.t("provider.custom.title")}
+          </div>
         </div>
 
         <form onSubmit={save} class="px-2.5 pb-6 flex flex-col gap-6">
@@ -301,10 +337,11 @@ export function DialogCustomProvider(props: Props) {
 
           <div class="flex flex-col gap-4">
             <TextField
-              autofocus
+              autofocus={!isEdit()}
+              readOnly={isEdit()}
               label={language.t("provider.custom.field.providerID.label")}
               placeholder={language.t("provider.custom.field.providerID.placeholder")}
-              description={language.t("provider.custom.field.providerID.description")}
+              description={isEdit() ? undefined : language.t("provider.custom.field.providerID.description")}
               value={form.providerID}
               onChange={(v) => setForm("providerID", v)}
               validationState={errors.providerID ? "invalid" : undefined}

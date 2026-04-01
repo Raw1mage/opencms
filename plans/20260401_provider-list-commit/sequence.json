@@ -1,0 +1,142 @@
+[
+  {
+    "diagram_title": "Recover Claude Provider Slice",
+    "scenario": "Planner-guided recovery of the highest-value missing Claude Native / claude-provider chain into the active recovery branch",
+    "moduleRef": "A1",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "Planner Orchestrator",
+        "type": "actor",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P2",
+        "name": "Historical Evidence Graph",
+        "type": "system",
+        "componentRef": "SYS2"
+      },
+      {
+        "id": "P3",
+        "name": "Claude Provider Recovery Slice",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P4",
+        "name": "Recovery Evidence Recorder",
+        "type": "component",
+        "componentRef": "C5"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "Read historical Claude provider evidence",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P1",
+        "label": "Return surviving refs, commits, and behavior clues",
+        "type": "return",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P1",
+        "to": "P3",
+        "label": "Refactor Claude provider slice into recovery branch",
+        "type": "sync",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P3",
+        "to": "P4",
+        "label": "Record validation evidence and recovery result",
+        "type": "sync",
+        "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P4",
+        "to": "P1",
+        "label": "Return slice status and evidence",
+        "type": "return",
+        "order": 5
+      }
+    ],
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "alt",
+        "label": "Slice validated vs blocker discovered",
+        "messageRefs": ["MSG4", "MSG5"]
+      }
+    ]
+  },
+  {
+    "diagram_title": "Advance To Next Recovery Slice",
+    "scenario": "After one slice is restored, the planner either advances to the next slice or returns to plan mode on a blocker",
+    "moduleRef": "A5",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "Planner Orchestrator",
+        "type": "actor",
+        "componentRef": "C5"
+      },
+      {
+        "id": "P2",
+        "name": "Recovery Evidence Recorder",
+        "type": "component",
+        "componentRef": "C5"
+      },
+      {
+        "id": "P3",
+        "name": "Next Recovery Slice",
+        "type": "component",
+        "componentRef": "C2"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "Review completed slice evidence",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P1",
+        "label": "Return validated / blocked outcome",
+        "type": "return",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P1",
+        "to": "P3",
+        "label": "Start next recovery slice when prior slice validated",
+        "type": "sync",
+        "order": 3
+      }
+    ],
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "alt",
+        "label": "Advance on validation or stop on blocker",
+        "messageRefs": ["MSG2", "MSG3"]
+      }
+    ]
+  }
+]
