@@ -16,6 +16,9 @@
 - 2026-04-01: Initial focus narrowed from generic provider-list recovery to the correct `模型提供者` dialog UI slice, then expanded into a whole-recovery inventory once the branch drift pattern was confirmed.
 - 2026-04-01: User decided that the remaining recovery work must proceed by value-prioritized refactor slices, not by direct merge of historical branches.
 - 2026-04-01: The first Claude Native slice hit a stop gate because the current tree lacks the `packages/opencode-claude-provider` source scaffold and a live `claude-native` integration surface, so the plan was revised to decompose Claude Native into smaller executable sub-stages.
+- 2026-04-01: Claude Native scaffold / auth bridge / minimum activation slice was recovered on `beta/provider-list-commit` and committed as `2a293ce5e`; remaining native lifecycle and full-transport work was explicitly deferred so the next active recovery target becomes runtime/context hardening.
+- 2026-04-02: Rebind / continuation / session hardening was refined so the first session slice becomes `7.2a` rebind checkpoint durability + safe checkpoint injection; broader continuation/session leftovers stay deferred until a still-proven gap remains after that slice.
+- 2026-04-02: Provider-manager recovery was refined so the next webapp slice becomes model-manager provider visibility/favorites semantics in `dialog-select-model.tsx`; dialog reopen geometry cleanup remains a separate later slice only if still needed.
 
 ## Effective Requirement Description
 
@@ -61,6 +64,9 @@
 - A new active recovery plan will drive the remaining restoration work in value order.
 - The current `recovery` branch will receive targeted refactors for the remaining missing capability chains.
 - The oversized Claude Native first slice is now decomposed into smaller buildable stages instead of being treated as a single patch-sized recovery item.
+- The Claude Native minimum recovery slice is now complete, so the active remaining work narrows to runtime/context hardening, rebind/continuation/session hardening, and the later provider-manager completion slice.
+- Session hardening is now split so the next bounded build slice targets rebind checkpoint durability + safe injection instead of a broad mixed session patch.
+- Provider-manager recovery is now split so the next bounded build slice targets webapp visibility/favorites semantics without mixing in separate dialog-reopen cleanup.
 - Planner artifacts, event logs, and validation evidence will be updated as each slice lands.
 
 ## Capabilities
@@ -73,6 +79,7 @@
 
 - Recovery workflow: restoration now happens through planner-backed refactor slices instead of merge-based history replay.
 - Provider manager recovery tracking: the `模型提供者` UI slice is now treated as functionally restored, while the remaining provider-management work is tracked separately.
+- Claude Native recovery tracking: the minimum viable native auth-init path is now treated as functionally restored, while native lifecycle/full-transport work is tracked as deferred backlog rather than the next build target.
 
 ## Impact
 

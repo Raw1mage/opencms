@@ -29,6 +29,7 @@
 - Some original commits cannot be replayed verbatim because they depend on stale execution surfaces or intermediate ref states; functional refactor is the correct recovery strategy.
 - Build execution for all remaining recovery slices must run through the beta workflow, with mainline authority and implementation surface explicitly separated.
 - The Claude Native chain is too large for a single first-pass recovery slice and must be decomposed into scaffold/bridge/wiring/activation sub-stages before coding resumes.
+- The minimum Claude Native auth-init path has now been restored and committed on `beta/provider-list-commit` as `2a293ce5e`; remaining native lifecycle/full-transport work is deferred rather than blocking the next slice.
 
 ## Stop Gates
 
@@ -58,10 +59,12 @@
 - Phase 2 — Recover the Claude Native source scaffold and bounded package surface without enabling the full native path yet.
 - Phase 3 — Recover the Claude Native auth/account bridge and loader wiring as explicit intermediate slices.
 - Phase 4 — Activate and validate the minimum viable Claude Native / `claude-provider` path only after scaffold and bridge slices are in place.
-- Phase 5 — Recover runtime/context optimization hardening slices that improve loader stability, compaction correctness, and toolcall recovery.
-- Phase 6 — Recover rebind / continuation / session hardening slices that reduce lifecycle and context-loss regressions.
-- Phase 7 — Recover the remaining provider manager product slice beyond the already-restored `模型提供者` dialog UI.
-- Phase 8 — Run cross-slice validation, update planner artifacts and event log, and decide whether any medium/low-value backlog should remain deferred.
+- Phase 5 — Recover runtime/context optimization hardening slices, starting with lazy tool loading / adaptive auto-load, then small-context compaction truncation, then toolcall schema/error-recovery guidance.
+- Phase 6 — Recover rebind / continuation / session hardening slices, starting with rebind checkpoint durability + safe checkpoint injection before revisiting any remaining continuation/session leftovers.
+- Phase 7 — Recover the remaining provider manager product slice, starting with webapp model-manager provider visibility/favorites semantics before any later dialog reopen cleanup.
+- Phase 8 — Run focused provider/webapp validation for the completed `8.2a` slice, keep `8.2b` deferred unless new reopen-geometry evidence appears, and record evidence.
+- Phase 9 — Produce retrospective closure artifacts: compare implementation against the effective requirement description, summarize restored vs deferred behavior, and assemble the validation checklist.
+- Phase 10 — Enter the approval-gated finalize path: prepare the fetch-back/finalize recommendation, stop for user approval, and only then clean up disposable `beta/*` surfaces.
 
 ## Validation
 
@@ -70,6 +73,8 @@
 - Use git evidence to confirm the intended capability is functionally restored even when the original commit SHA is not reintroduced into ancestry.
 - Record per-slice evidence in `docs/events/event_20260401_cms_codex_recovery.md`.
 - Verify `specs/architecture.md` changed only when boundaries/data-flow/state-machine truths changed; otherwise record `Architecture Sync: Verified (No doc changes)`.
+- Current build entry is `8.3` focused provider/webapp validation for the completed `8.2a` slice; `8.2b` dialog reopen geometry cleanup stays deferred by default and should resume only with new reopen-defect evidence.
+- Plan completion requires `8.3`, `9.2`, and `9.3` evidence before the finalize recommendation is considered ready for user approval.
 
 ## Handoff
 

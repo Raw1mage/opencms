@@ -2,57 +2,67 @@
 
 ## 1. Planning Follow-through
 
-- [ ] 1.1 Read `implementation-spec.md`, `proposal.md`, `spec.md`, `design.md`, and this task list
-- [ ] 1.2 Confirm the recovery value order and stop gates
-- [ ] 1.3 Confirm build resumes through beta workflow bootstrap before any code-bearing slice
+- [x] 1.1 Read `implementation-spec.md`, `proposal.md`, `spec.md`, `design.md`, and this task list
+- [x] 1.2 Confirm the recovery value order and stop gates
+- [x] 1.3 Confirm build resumes through beta workflow bootstrap before any code-bearing slice
 
 ## 2. Bootstrap beta execution surface
 
-- [ ] 2.1 Restate and verify the beta authority tuple against `recovery/cms-codex-20260401-183212`
-- [ ] 2.2 Create a new disposable `beta/*` branch and worktree for the active recovery workstream
-- [ ] 2.3 Record beta bootstrap evidence and stop if authority/worktree state is inconsistent
+- [x] 2.1 Restate and verify the beta authority tuple against `recovery/cms-codex-20260401-183212`
+- [x] 2.2 Create a new disposable `beta/*` branch and worktree for the active recovery workstream
+- [x] 2.3 Record beta bootstrap evidence and stop if authority/worktree state is inconsistent
 
 ## 3. Recover Claude Native source scaffold
 
-- [~] 3.1 Reconstruct the surviving Claude Native / `claude-provider` behavior from historical evidence and current recovery code — blocked in prior attempt because current tree has no `packages/opencode-claude-provider` source scaffold and no live `claude-native` integration surface; use this as evidence for the narrower sub-stages below
-- [ ] 3.2 Recreate the minimum source scaffold for `packages/opencode-claude-provider` on the beta execution surface
-- [ ] 3.3 Run bounded validation proving the scaffold is live and correctly wired into the repo build surface
+- [~] 3.1 Reconstruct the surviving Claude Native / `claude-provider` behavior from historical evidence and current recovery code — original oversized slice was blocked by missing scaffold/live integration; practical recovery is now completed through `3.2`–`5.3`, so this item remains as historical evidence only
+- [x] 3.2 Recreate the minimum source scaffold for `packages/opencode-claude-provider` on the beta execution surface
+- [x] 3.3 Run bounded validation proving the scaffold is live and correctly wired into the repo build surface
 
 ## 4. Recover Claude Native auth bridge and loader wiring
 
-- [ ] 4.1 Reconstruct the native auth storage bridge between historical `claude-provider` auth state and current opencode account/runtime surfaces
-- [ ] 4.2 Refactor the minimum viable loader/plugin wiring for `claude-native` into the beta execution surface
-- [ ] 4.3 Run targeted validation for auth bridge and loader initialization
+- [x] 4.1 Reconstruct the native auth storage bridge between historical `claude-provider` auth state and current opencode account/runtime surfaces
+- [x] 4.2 Refactor the minimum viable loader/plugin wiring for `claude-native` into the beta execution surface
+- [x] 4.3 Run targeted validation for auth bridge and loader initialization
 
 ## 5. Activate the minimum viable Claude Native path
 
-- [ ] 5.1 Enable the minimum viable Claude Native execution path only after scaffold and bridge slices are in place
-- [ ] 5.2 Run targeted Claude Native / `claude-provider` validation and record evidence
-- [ ] 5.3 Decide whether any remaining Claude Native backlog stays deferred before moving to later slices
+- [x] 5.1 Enable the minimum viable Claude Native execution path only after scaffold and bridge slices are in place
+- [x] 5.2 Run targeted Claude Native / `claude-provider` validation and record evidence
+- [x] 5.3 Decide whether any remaining Claude Native backlog stays deferred before moving to later slices
 
 ## 6. Recover runtime/context optimization hardening
 
-- [ ] 6.1 Reconstruct the missing runtime/context hardening behavior from historical evidence
-- [ ] 6.2 Refactor the selected runtime/context hardening slice into the beta implementation surface
-- [ ] 6.3 Run targeted validation and record evidence
+- [x] 6.1 Reconstruct the missing runtime/context hardening behavior from historical evidence
+- [x] 6.2a Refactor lazy tool loading / adaptive auto-load and its follow-up correctness fixes into the beta implementation surface
+- [x] 6.2b Refactor small-context compaction truncation safeguards into the beta implementation surface
+- [x] 6.2c Refactor toolcall schema / error-recovery guidance hardening into the beta implementation surface
+- [x] 6.3 Run targeted validation for the selected `6.2*` slice and record evidence
 
 ## 7. Recover rebind / continuation / session hardening
 
-- [ ] 7.1 Reconstruct the missing rebind / continuation / session hardening behavior from historical evidence
-- [ ] 7.2 Refactor the selected session hardening slice into the beta implementation surface
-- [ ] 7.3 Run targeted validation and record evidence
+- [x] 7.1 Reconstruct the missing rebind / continuation / session hardening behavior from historical evidence
+- [x] 7.2a Refactor rebind checkpoint durability + safe checkpoint injection into the beta implementation surface
+- [~] 7.2b Revisit any still-proven continuation/session leftovers only after `7.2a` validation — no additional proven gap remains after `7.2a`; keep deferred unless new evidence appears
+- [x] 7.3 Run targeted validation for the selected `7.2*` slice and record evidence
 
 ## 8. Recover remaining provider-manager completion slice
 
-- [ ] 8.1 Isolate the still-missing provider-manager behavior beyond the restored `模型提供者` UI slice
-- [ ] 8.2 Refactor the remaining provider-manager slice into the beta implementation surface
-- [ ] 8.3 Run targeted provider/webapp validation and record evidence
+- [x] 8.1 Isolate the still-missing provider-manager behavior beyond the restored `模型提供者` UI slice
+- [x] 8.2a Refactor webapp model-manager provider visibility/favorites semantics into the beta implementation surface
+- [~] 8.2b Revisit dialog reopen geometry cleanup only if still needed after `8.2a` — default deferred; resume only with new reopen-geometry defect evidence
+- [ ] 8.3 Run targeted provider/webapp validation for the selected `8.2*` slice and record evidence
 
 ## 9. Documentation / Retrospective
 
-- [ ] 9.1 Sync relevant architecture / event docs after each slice or record `Architecture Sync: Verified (No doc changes)`
-- [ ] 9.2 Compare implementation results against the proposal's effective requirement description
+- [x] 9.1 Sync relevant architecture / event docs after each slice or record `Architecture Sync: Verified (No doc changes)`
+- [ ] 9.2 Compare implementation results against the proposal's effective requirement description and restate requirement coverage
 - [ ] 9.3 Produce a validation checklist covering restored behavior, partial fulfillment, deferred items, and evidence
+
+## 10. Finalize Gate (approval required)
+
+- [ ] 10.1 Prepare fetch-back / finalize recommendation from `8.3` + `9.2` + `9.3` evidence
+- [ ] 10.2 Stop for user approval before fetch-back / finalize / cleanup
+- [ ] 10.3 After approval, delete disposable `beta/*` branch and worktree as completion gate
 
 <!--
 Unchecked checklist items are the planner handoff seed for runtime todo materialization.

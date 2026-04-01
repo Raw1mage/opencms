@@ -702,3 +702,542 @@ OUT:
   - build entry 已改成先做 beta authority / worktree bootstrap
 - Architecture Sync:
   - Verified: `specs/architecture.md`（No doc changes；本次為 execution-plan refinement）
+
+## 2026-04-01 Claude Native beta bootstrap + source scaffold
+
+### 需求
+
+- 依 `plans/20260401_provider-list-commit` 的新順序，先完成 beta bootstrap，再只做 `packages/opencode-claude-provider` 的最小 source scaffold slice。
+- 不跳過 disposable beta surface，不直接在 authoritative `recovery` worktree 寫 Claude Native code。
+
+### 範圍
+
+IN:
+
+- `/home/pkcs12/projects/opencode`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit`
+- `plans/20260401_provider-list-commit/tasks.md`
+- `packages/opencode-claude-provider/**`
+- `docs/events/event_20260401_cms_codex_recovery.md`
+
+OUT:
+
+- 不處理 `4.x` auth bridge / loader wiring
+- 不處理 `5.x` Claude Native activation
+- 不 commit / push / finalize / cleanup beta surface
+
+### 任務清單
+
+- [x] Restate and verify beta authority tuple
+- [x] 建立新的 disposable `beta/provider-list-commit` branch 與 worktree
+- [x] 在 beta surface 重建最小 `packages/opencode-claude-provider` source scaffold
+- [x] 執行 bounded scaffold validation
+- [x] 同步 event / architecture sync 記錄
+
+### Debug Checkpoints
+
+#### Baseline
+
+- `plans/20260401_provider-list-commit` 已把 Claude Native 第一個過大 slice 改寫為 beta bootstrap -> scaffold -> bridge/wiring -> activation。
+- admission 檢查先前確認 mainline authority 已明確，但 implementation surface 尚未建立，不能直接進入 code-bearing slice。
+
+#### Execution
+
+- authority tuple 已明確落地為：
+  - `mainRepo`: `/home/pkcs12/projects/opencode`
+  - `mainWorktree`: `/home/pkcs12/projects/opencode`
+  - `baseBranch`: `recovery/cms-codex-20260401-183212`
+  - `implementationRepo`: `/home/pkcs12/projects/opencode`
+  - `implementationWorktree`: `/home/pkcs12/projects/opencode-worktrees/provider-list-commit`
+  - `implementationBranch`: `beta/provider-list-commit`
+  - `docsWriteRepo`: `/home/pkcs12/projects/opencode`
+- 已建立新的 disposable beta surface：
+  - `git worktree add -b "beta/provider-list-commit" "/home/pkcs12/projects/opencode-worktrees/provider-list-commit" "recovery/cms-codex-20260401-183212"`
+- 已確認 beta branch 從正確 base 開出，未重用既有 stale `beta/*` / `test/*` / `feature/*` surfaces。
+- 在 beta worktree 新增最小 `packages/opencode-claude-provider` scaffold，包含：
+  - `CMakeLists.txt`
+  - `include/claude_provider.h`
+  - `src/{provider,main,originator,auth,storage,stream,transform,transport}.c`
+  - `.gitignore`
+
+#### Root Cause
+
+- 本 slice 的真正 blocker 不是單一缺檔，而是先前缺少 admitted implementation surface，導致 beta-workflow 無法合法進入 code-bearing 狀態。
+- 一旦先完成 authority restatement + disposable beta bootstrap，最小 scaffold 可在不碰 authoritative recovery worktree 的前提下獨立回補並驗證。
+
+#### Validation
+
+- Bootstrap:
+  - `git -C /home/pkcs12/projects/opencode-worktrees/provider-list-commit status --short --branch` -> `beta/provider-list-commit`
+  - `git -C /home/pkcs12/projects/opencode-worktrees/provider-list-commit merge-base --is-ancestor recovery/cms-codex-20260401-183212 HEAD` ✅
+- Scaffold build:
+  - `cmake -S /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode-claude-provider -B /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode-claude-provider/build` ✅
+  - `cmake --build /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode-claude-provider/build` ✅
+  - `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode-claude-provider/build/claude-provider --version` -> `0.1.0`
+  - `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode-claude-provider/build/claude-provider` -> `{"type":"ready","abi":1,"originator":"claude-provider/0.1.0"}`
+- Remaining gap:
+  - auth bridge / loader wiring / activation 仍待 `4.x`、`5.x`
+- Architecture Sync:
+  - Verified: `specs/architecture.md`（No doc changes；本次新增的是 beta execution evidence 與最小 scaffold，未改變長期模組邊界或資料流）
+
+## 2026-04-01 Claude Native auth bridge + loader wiring
+
+### 需求
+
+- 在已建立的 `beta/provider-list-commit` surface 上補回最小 `claude-native` auth bridge 與 loader init 路徑。
+- 保持目前 `AnthropicAuthPlugin` request/fetch path，不重啟 DD-9 full native transport。
+
+### 範圍
+
+IN:
+
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode-claude-provider/include/claude_provider.h`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode-claude-provider/src/{auth,storage,provider}.c`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/plugin/claude-native.ts`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/plugin/index.ts`
+- `/home/pkcs12/projects/opencode/docs/events/event_20260401_cms_codex_recovery.md`
+
+OUT:
+
+- 不重啟 DD-9 `provider.ts` native transport 切換
+- 不實作 native login/refresh/logout 完整生命週期
+- 不進入 `5.x` activation
+
+### 任務清單
+
+- [x] 重建 historical auth/storage bridge 證據
+- [x] 補回最小 native auth setter/status ABI
+- [x] 補回 `claude-native` plugin wrapper 並掛回 plugin registry
+- [x] 執行 targeted build / smoke validation
+- [x] 同步 event / architecture sync 記錄
+
+### Debug Checkpoints
+
+#### Baseline
+
+- `197fc2bd7` 的 `claude-provider` 使用獨立 `~/.claude-provider/auth.json` 儲存 auth state，而非直接共用 `accounts.json`。
+- `9321ca7b1` 的 `claude-native` plugin 採 native-auth-only bridge，實際 request path 仍沿用 `AnthropicAuthPlugin`。
+- `4a4c69488` 明確指出 DD-9 被擱置的主因之一就是缺少 `accounts.json` ↔ native auth 的 bridge/setter API。
+
+#### Execution
+
+- 已在 native scaffold 補上 bridge-capable ABI：
+  - `claude_set_oauth_tokens(...)`
+  - `claude_set_api_key(...)`
+  - `claude_get_auth_status(...)`
+- native bridge 寫入 `~/.claude-provider/auth.json`，並支援 `CLAUDE_PROVIDER_HOME` override。
+- 已新增 `packages/opencode/src/plugin/claude-native.ts`：
+  - 以既有 `AnthropicAuthPlugin` 為 base
+  - loader 階段先做 native init + auth seed + status readback
+  - request transport 仍維持既有 fetch path
+- `packages/opencode/src/plugin/index.ts` 已將 `claude-cli` internal plugin 接回 `ClaudeNativeAuthPlugin`。
+- 本 slice 未修改 `packages/opencode/src/provider/provider.ts`。
+
+#### Root Cause
+
+- 先前 Claude Native 無法安全恢復，不是因為 native binary 不存在，而是缺少一條最小可觀測的 auth bridge，使 TS/runtime 無法把現有 `accounts.json` auth 狀態 seed 進 native sidecar。
+- 只要把 scope 限縮為「native auth seed + loader init」，就能在不重啟高風險 transport 改寫的前提下恢復最小 Claude Native path。
+
+#### Validation
+
+- Native build:
+  - `cmake -S /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode-claude-provider -B /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode-claude-provider/build` ✅
+  - `cmake --build /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode-claude-provider/build` ✅
+  - `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode-claude-provider/build/claude-provider` -> `{"type":"ready","abi":1,"originator":"claude-provider/0.1.0"}` ✅
+- Loader/auth bridge smoke:
+  - 以 mock OAuth auth 執行 `bun -e 'import(.../plugin/claude-native.ts)...'` -> `{"hasFetch":true,"hasApiKey":true,"isClaudeCode":true}` ✅
+  - bridge output file `/tmp/claude-provider-smoke/auth.json` 已驗證為 oauth shape ✅
+- Hygiene:
+  - `git diff --check` ✅
+- TypeScript:
+  - `bun x tsc -p /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/tsconfig.json --noEmit` ❌
+  - 阻塞來自 beta worktree dependency/tsconfig baseline（`@tsconfig/bun/tsconfig.json` 缺失與既有解析錯誤），非本 slice 單點回歸
+- Remaining gap:
+  - native refresh/login/logout API 與完整 activation/runtime path 仍待 `5.x`
+- Architecture Sync:
+  - Verified: `specs/architecture.md`（No doc changes；本次為最小 auth bridge / loader wiring 回補，未改變長期模組邊界或資料流）
+
+## 2026-04-01 Claude Native minimum activation validation
+
+### 需求
+
+- 驗證目前 beta surface 上的 `claude-native` wiring 是否已構成最小可行 activation。
+- 判定剩餘 Claude Native backlog 是否可明確 deferred，而不再阻擋後續 runtime/provider slices。
+
+### 範圍
+
+IN:
+
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/plugin/{index.ts,claude-native.ts,anthropic.ts}`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/provider/provider.ts`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode-claude-provider/build/*`
+- `/home/pkcs12/projects/opencode/docs/events/event_20260401_cms_codex_recovery.md`
+
+OUT:
+
+- 不重啟 full native transport
+- 不擴大到 native refresh/login/logout lifecycle
+- 不做 fetch-back/finalize/cleanup
+
+### 任務清單
+
+- [x] 驗證 `claude-cli` 選到 `ClaudeNativeAuthPlugin`
+- [x] 驗證 loader 會 seed native auth 並保留 `hasFetch` / `isClaudeCode`
+- [x] 驗證 request path 仍維持 `AnthropicAuthPlugin` fetch path
+- [x] 判定剩餘 Claude Native backlog 可 deferred
+- [x] 同步 event / architecture sync 記錄
+
+### Debug Checkpoints
+
+#### Baseline
+
+- `5.1` analysis 已確認目前窄定義 activation 不需要重新打開 DD-9 `provider.ts` native transport。
+- 既有 `4.x` wiring 已經把最小 activation 所需的 native init/auth bridge 接上，因此本輪重點是 focused validation，而不是再做大改。
+
+#### Execution
+
+- `claude-cli` 目前由 `packages/opencode/src/plugin/index.ts` 映射到 `ClaudeNativeAuthPlugin`。
+- `packages/opencode/src/plugin/claude-native.ts` 以 `AnthropicAuthPlugin` 為 base，loader 階段負責 native init、auth seed、status readback，實際 fetch 路徑仍交還 TS plugin。
+- focused smoke 保留 `/tmp/claude-provider-smoke-final/auth.json` 作為 native auth shape 證據。
+
+#### Root Cause
+
+- 先前 Claude Native 是否「已啟用」不清楚，核心不是缺少更多程式碼，而是缺少對目前窄 activation 定義的直接證據。
+- 一旦證明 provider/plugin selection、native auth seed、以及 fetch-path 保留都成立，就可把剩餘未恢復部分明確降級為 deferred backlog，而不是持續阻塞整體 recovery。
+
+#### Validation
+
+- Admission:
+  - `git status --short --branch` in `/home/pkcs12/projects/opencode-worktrees/provider-list-commit` -> `## beta/provider-list-commit`
+  - `git merge-base --is-ancestor recovery/cms-codex-20260401-183212 HEAD && git rev-parse --abbrev-ref HEAD` -> `beta/provider-list-commit`
+- Plugin/provider selection proof:
+  - `rg -n "claude-cli|ClaudeNativeAuthPlugin|AnthropicAuthPlugin" /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/plugin/index.ts /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/plugin/claude-native.ts /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/plugin/anthropic.ts /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/provider/provider.ts`
+  - 證明：
+    - `plugin/index.ts:31` -> `{ name: "claude-cli", plugin: ClaudeNativeAuthPlugin }`
+    - `claude-native.ts:169` -> `const baseHooks = await AnthropicAuthPlugin(input)`
+    - `provider.ts:1570-1665` 存在 plugin auth loader 對 family/account providers 的套用路徑
+- Loader/fetch smoke:
+  - `CLAUDE_PROVIDER_HOME="/tmp/claude-provider-smoke-final" bun -e 'import(".../claude-native.ts") ... await hooks.auth.loader(...)'` -> `{"hasFetch":true,"isClaudeCode":true}`
+  - 讀 `/tmp/claude-provider-smoke-final/auth.json` -> oauth shape：`type/refresh/access/expires/email/orgID`
+  - `tmpdir="/tmp/claude-provider-smoke-$$" ... await options.fetch("/v1/messages", ...)` ->
+    - `hasFetch: true`
+    - `hasApiKey: true`
+    - `isClaudeCode: true`
+    - request URL `https://api.anthropic.com/v1/messages?beta=true`
+    - headers 帶 `authorization: Bearer access-token`、`user-agent: claude-code/2.1.39`
+    - body 含 Claude Code system prompt
+  - 上述證明實際 request path 仍由 `packages/opencode/src/plugin/anthropic.ts` 處理
+- Hygiene:
+  - `git diff --check` ✅
+- Backlog decision:
+  - 可安全 deferred：native refresh/login/logout lifecycle、native↔`accounts.json` two-way sync、DD-9/full native transport revival
+- Architecture Sync:
+  - Verified: `specs/architecture.md`（No doc changes；本次為 focused activation evidence 與 backlog defer decision，未改變長期架構邊界或資料流）
+
+## 2026-04-01 runtime/context hardening — lazy tool loading / adaptive auto-load
+
+### 需求
+
+- 先從 `6.x` 中最集中的子系統切片開始，恢復 lazy tool loading / adaptive auto-load 與其 correctness fixes。
+- 不混入 `6.2b` small-context compaction truncation 與 `6.2c` toolcall schema/error-recovery guidance。
+
+### 範圍
+
+IN:
+
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/session/resolve-tools.ts`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/session/tool-invoker.ts`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/config/config.ts`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/tool/registry.ts`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/tool/tool-loader.ts`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/session/unlocked-tools.ts`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/tool/frequency.ts`
+
+OUT:
+
+- 不修改 `compaction.ts`
+- 不修改 `apply_patch.txt` / `edit.txt`
+- 不擴大成 broader runtime sweep
+
+### 任務清單
+
+- [x] 恢復 lazy tool loading / adaptive auto-load 最小路徑
+- [x] 補回 follow-up correctness fixes
+- [x] 執行 focused smoke validation
+- [x] 同步 event / plan state
+
+### Debug Checkpoints
+
+#### Baseline
+
+- `6.1` reconstruction 顯示目前 `beta/provider-list-commit` 還缺 `tool_loader`、unlocked-tools、frequency heat-score 與 `resolveTools(...)` 的 lazy filter/unlock 路徑。
+- follow-up commits `43d2ca35c` / `a34d8027a` 直接修正初版 loader correctness，因此此輪必須一起帶回。
+
+#### Execution
+
+- 已新增 session-scoped unlock state、tool frequency storage、`tool_loader`，並更新 `resolveTools(...)` / `registry.ts` / `config.ts`。
+- `tool-invoker.ts` 也一併更新，以便 adaptive auto-load 真正記錄 `ToolFrequency.record(...)`。
+- correctness fixes 已包含：
+  - always-present IDs 使用 `todowrite` / `todoread`
+  - `tool_loader` description 採 in-place mutation，不重建 execute/schema
+
+#### Validation
+
+- Focused Bun smoke:
+  - `round1` -> `["question","read","todoread","todowrite","tool_loader"]`
+  - `round2` -> `["bash","question","read","todoread","todowrite","tool_loader"]`
+  - `hasCatalogBash: true`
+  - `hasCatalogEdit: true`
+  - `hasInputSchema: true`
+  - `hasBashAfterUnlock: true`
+  - `hasEditAfterUnlock: false`
+- 上述證明：
+  - always-present tools 先被保留
+  - lazy tools 初輪被過濾
+  - `tool_loader` 暴露 catalog description
+  - unlock 影響下一輪 resolution
+  - schema/execute surface 未被 description mutation 破壞
+- Hygiene:
+  - `git diff --check` ✅
+- Architecture Sync:
+  - Verified: `specs/architecture.md`（No doc changes；本次為 lazy tool loading/runtime resolution hardening 回補，未改變長期架構邊界）
+
+## 2026-04-01 runtime/context hardening — small-context compaction truncation
+
+### 需求
+
+- 恢復 small-context model 的 compaction truncation safeguards，避免 compaction history 在小上下文模型上先天溢出。
+- 不混入 lazy tool loading 或 toolcall schema/error-recovery guidance。
+
+### 範圍
+
+IN:
+
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/session/compaction.ts`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/session/compaction.test.ts`
+
+OUT:
+
+- 不修改 loader/tool registry 路徑
+- 不修改 `apply_patch.txt` / `edit.txt`
+- 不做 broader compaction redesign
+
+### 任務清單
+
+- [x] 恢復 small-context truncation safeguards
+- [x] 新增 focused test 驗證 safe budget 截斷
+- [x] 執行 focused validation
+- [x] 同步 event / plan state
+
+### Debug Checkpoints
+
+#### Baseline
+
+- 歷史證據 `4a6e10f99` 顯示小上下文模型需要先對 compaction history 做安全截斷，再送入 compaction prompt。
+- 目前 beta tree 的 `compaction.ts` 尚未包含這條 small-context 保護邏輯。
+
+#### Execution
+
+- `SessionCompaction.process(...)` 現在會先使用 small-context safe budget 截斷後的 history。
+- 新增 `truncateModelMessagesForSmallContext(...)` 與對應 small-context budget 常數。
+- `compaction.test.ts` 新增 focused truncation test。
+
+#### Validation
+
+- Historical evidence:
+  - `git show --stat --oneline 4a6e10f99`
+  - `git diff 4a6e10f99^ 4a6e10f99 -- packages/opencode/src/session/compaction.ts`
+- Focused test:
+  - `bun test /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/session/compaction.test.ts`
+  - 初次失敗因 beta worktree 無 `node_modules` 解析
+  - 以臨時 symlink 指向 authoritative repo `node_modules` 後重跑 -> `3 pass, 0 fail`
+- Hygiene:
+  - `git diff --check` ✅
+- Architecture Sync:
+  - Verified: `specs/architecture.md`（No doc changes；本次為 compaction small-context 保護邏輯回補，未改變長期架構邊界）
+
+## 2026-04-01 runtime/context hardening — toolcall schema / error-recovery guidance
+
+### 需求
+
+- 補回 `apply_patch` / `edit` tool prompt 中的 schema guidance 與 failure-recovery examples。
+- 保持與目前 repo 的 read-first 規則一致，不重寫其他 runtime 行為。
+
+### 範圍
+
+IN:
+
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/tool/apply_patch.txt`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/tool/edit.txt`
+
+OUT:
+
+- 不修改 lazy tool loading
+- 不修改 compaction
+- 不擴大到 broader prompt/runtime behavior
+
+### 任務清單
+
+- [x] 補回 `apply_patch.txt` 的 patch-context / exact-match / indentation / recovery guidance
+- [x] 補回 `edit.txt` 的 exact-spacing examples 與 not-found / multiple-matches recovery guidance
+- [x] 執行 focused validation
+- [x] 同步 event / plan state
+
+### Debug Checkpoints
+
+#### Baseline
+
+- 歷史證據 `eaced345d` 顯示這一輪是 prompt-guidance hardening，而不是 runtime logic 變更。
+- 目標是把 toolcall schema/error-recovery 指引補齊，同時不違反目前 repo 已加入的 read-first 規則。
+
+#### Execution
+
+- `apply_patch.txt` 補回 patch-context / exact-match / indentation / failure-recovery 指引。
+- `edit.txt` 補回 exact-spacing 範例與 `oldString` not found / multiple matches recovery 指引。
+- 內容保持與目前 repo 的 read-first 規則相容。
+
+#### Validation
+
+- Historical evidence:
+  - `git show --stat --oneline eaced345d`
+  - `git diff eaced345d^ eaced345d -- packages/opencode/src/tool/apply_patch.txt packages/opencode/src/tool/edit.txt`
+- Current result:
+  - `git diff -- packages/opencode/src/tool/apply_patch.txt packages/opencode/src/tool/edit.txt`
+  - 證明更新後文字包含目標 schema/error-recovery guidance
+- Hygiene:
+  - `git diff --check` ✅
+- Architecture Sync:
+  - Verified: `specs/architecture.md`（No doc changes；本次為 prompt-guidance hardening，未改變長期架構邊界）
+
+## 2026-04-02 session hardening — rebind checkpoint durability + safe injection
+
+### 需求
+
+- 補上 rebind checkpoint 的 durability metadata 與 safe checkpoint injection，避免 restart/rebind 從 dangling tool-result 邊界直接續跑。
+- 不擴大到 `llm.ts`、`codex-websocket.ts`、`workflow-runner.ts` 或 task-worker continuation。
+
+### 範圍
+
+IN:
+
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/session/compaction.ts`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/session/prompt.ts`
+- `/home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/session/compaction.test.ts`
+
+OUT:
+
+- 不修改 `llm.ts`
+- 不修改 `codex-websocket.ts`
+- 不修改 `workflow-runner.ts`
+- 不重寫 broader replay/continuation stack
+
+### 任務清單
+
+- [x] 讓 rebind checkpoint 持久化 `snapshot + lastMessageId + timestamp`
+- [x] 補上 `deleteRebindCheckpoint(...)` 與 `pruneStaleCheckpoints(...)`
+- [x] 補上 safe checkpoint injection / boundary validation
+- [x] 執行 focused validation 並判定 `7.2b` 是否還需要
+
+### Debug Checkpoints
+
+#### Baseline
+
+- `7.1` reconstruction 顯示目前真正還缺的 session-hardening 核心缺口，是 `compaction.ts` / `prompt.ts` 上的 checkpoint durability 與 boundary-safe injection，而不是整包 continuation stack。
+- 其餘候選像 `llm.ts`、`codex-websocket.ts`、`task-worker-continuation.ts` 的主要保護大多已存在於 current tree。
+
+#### Execution
+
+- rebind checkpoint 現在持久化 `snapshot + lastMessageId + timestamp`。
+- 已補上 `deleteRebindCheckpoint(...)` 與 `pruneStaleCheckpoints(...)`。
+- startup/rebind path 會先嘗試 safe checkpoint injection，避免從 dangling tool-result 邊界繼續。
+- continuation invalidation fallback 也改為讀 checkpoint 結構而非裸字串。
+
+#### Validation
+
+- Historical evidence:
+  - `git show --stat --oneline 3fd1ef9b8`
+  - `git diff 3fd1ef9b8^ 3fd1ef9b8 -- packages/opencode/src/session/compaction.ts packages/opencode/src/session/prompt.ts packages/opencode/src/session/message-v2.ts`
+- Focused tests:
+  - `bun test /home/pkcs12/projects/opencode-worktrees/provider-list-commit/packages/opencode/src/session/compaction.test.ts` -> `6 pass, 0 fail`
+  - 覆蓋：safe rebind checkpoint injection、persisted checkpoint metadata（含 `lastMessageId`）、stale checkpoint prune、既有 compaction guards
+  - beta worktree 仍需臨時 `node_modules` symlink 才能執行 focused test
+- Hygiene:
+  - `git diff --check` ✅
+- Decision:
+  - `7.2b` 目前無新增 proven gap，保持 evidence-driven deferred
+- Architecture Sync:
+  - Verified: `specs/architecture.md`（No doc changes；本次為 session checkpoint durability/injection hardening，未改變長期架構邊界）
+
+## 2026-04-02 plan refinement — provider-manager closure gate
+
+### 需求
+
+- 在 plan mode 對齊 `8.x` 收尾策略，避免 tasks/runtime 實際狀態與 planner artifacts 分裂。
+
+### 範圍
+
+IN:
+
+- `/home/pkcs12/projects/opencode/plans/20260401_provider-list-commit/tasks.md`
+- `/home/pkcs12/projects/opencode/plans/20260401_provider-list-commit/handoff.md`
+- `/home/pkcs12/projects/opencode/plans/20260401_provider-list-commit/implementation-spec.md`
+- `/home/pkcs12/projects/opencode/docs/events/event_20260401_cms_codex_recovery.md`
+
+OUT:
+
+- 不執行 build-mode 程式碼修改
+- 不啟動 fetch-back/finalize/cleanup
+
+### 決策
+
+- `8.2a` 視為已完成並在 `tasks.md` 勾選完成。
+- `8.2b` 預設改為 deferred（`[~]`），僅在出現新的 dialog reopen geometry 缺陷證據時重開。
+- `8.3` validation 先採 Focused 最小集（provider visibility/favorites + model-selector state 行為），不先擴大到 e2e。
+
+### Validation
+
+- Planner artifact sync:
+  - `tasks.md`：`8.2a -> [x]`、`8.2b -> [~] deferred`、`8.3` 保持待執行
+  - `handoff.md`：build entry 改為先執行 `8.3`
+  - `implementation-spec.md`：Validation 區段 build entry 已對齊 `8.3` + `8.2b deferred`
+- Architecture Sync:
+  - Verified: `specs/architecture.md`（No doc changes；本次為 planning artifact 對齊與決策收斂）
+
+## 2026-04-02 plan completion — post-8.3 closure path
+
+### 需求
+
+- 把 `8.3` 之後的收尾流程寫完整，避免誤把 `8.3` 當成整個 recovery workstream 的最後一步。
+
+### 範圍
+
+IN:
+
+- `/home/pkcs12/projects/opencode/plans/20260401_provider-list-commit/tasks.md`
+- `/home/pkcs12/projects/opencode/plans/20260401_provider-list-commit/implementation-spec.md`
+- `/home/pkcs12/projects/opencode/plans/20260401_provider-list-commit/handoff.md`
+- `/home/pkcs12/projects/opencode/plans/20260401_provider-list-commit/spec.md`
+
+OUT:
+
+- 不執行 build-mode 程式碼驗證
+- 不提前啟動 fetch-back/finalize/cleanup
+
+### 決策
+
+- `8.3` 定位為最後一個 provider-manager focused validation slice，但不是整體 workflow 終點。
+- `9.2` / `9.3` 明確保留為 retrospective closure 必做項。
+- 新增 `10.x Finalize Gate`，把 fetch-back / finalize / cleanup 改成 approval-required completion path。
+
+### Validation
+
+- `tasks.md`
+  - 已新增 `10.1` / `10.2` / `10.3` finalize gate tasks
+- `implementation-spec.md`
+  - Structured Execution Phases 已明確拆成 `Phase 8` validation、`Phase 9` retrospective、`Phase 10` approval-gated finalize
+- `handoff.md`
+  - 已明示 `8.3` 後仍須完成 `9.2` / `9.3`，再進 `10.1`
+- `spec.md`
+  - 已新增 finalize approval-gate requirement 與 acceptance check
+- Architecture Sync:
+  - Verified: `specs/architecture.md`（No doc changes；本次為 planner closure path 明文化）

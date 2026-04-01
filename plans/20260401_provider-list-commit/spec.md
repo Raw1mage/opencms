@@ -96,6 +96,16 @@ The system SHALL produce a post-implementation review that compares implementati
 - **WHEN** the assistant prepares completion reporting
 - **THEN** it must provide concise requirement coverage, remaining gaps, and validation evidence without exposing raw internal chain-of-thought
 
+### Requirement: Finalize remains approval-gated after validation
+
+The system SHALL treat fetch-back, finalize, and disposable beta cleanup as a post-validation approval gate rather than an automatic continuation of `8.3`.
+
+#### Scenario: provider-manager validation finishes
+
+- **GIVEN** `8.3` focused validation has completed and retrospective closure artifacts are available
+- **WHEN** the assistant reaches the finalize boundary
+- **THEN** it must first prepare a recommendation, stop for user approval, and only after approval execute fetch-back/finalize/cleanup
+
 ## Acceptance Checks
 
 - Planner artifacts explicitly list the recovery slice order and stop gates.
@@ -103,3 +113,4 @@ The system SHALL produce a post-implementation review that compares implementati
 - The first build action is beta bootstrap from the authoritative recovery branch.
 - The plan treats the `模型提供者` UI patch as recovered and does not re-open it as an untriaged gap.
 - The handoff instructs build execution to recover by refactor, not branch merge.
+- The plan makes `8.3` a near-final validation slice, but still requires retrospective closure and user-approved finalize/cleanup afterward.

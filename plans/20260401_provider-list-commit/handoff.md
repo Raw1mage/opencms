@@ -29,14 +29,25 @@
 
 - Recovery inventory is complete.
 - Restored already: codex websocket / WS-HTTP / llm packet main path, `模型提供者` provider-list UI slice, and `claude-cli` provider registration fix.
-- Remaining high-value backlog is still prioritized as: Claude Native / `claude-provider` -> runtime/context optimization hardening -> rebind/continuation/session hardening -> remaining provider-manager completion work.
-- The original Claude Native first slice was too large for a bounded patch and has now been decomposed into beta bootstrap -> source scaffold -> auth bridge/loader wiring -> minimum viable activation.
+- Claude Native / `claude-provider` minimum slice is now complete on `beta/provider-list-commit`, including beta bootstrap, source scaffold, auth bridge/loader wiring, minimum activation validation, and local commit `2a293ce5e` (`recovery(claude-native): restore native auth bridge scaffold`).
+- `6.1` runtime/context hardening reconstruction is now complete; the remaining work in this group is decomposed into `6.2a` lazy tool loading/adaptive auto-load, `6.2b` small-context compaction truncation, and `6.2c` toolcall schema/error-recovery guidance.
+- `6.2a` lazy tool loading / adaptive auto-load is now complete on `beta/provider-list-commit`, including the follow-up correctness fixes for always-present tool IDs and in-place `tool_loader` description mutation.
+- `6.2b` small-context compaction truncation safeguards are now complete on `beta/provider-list-commit`, with focused test coverage in `packages/opencode/src/session/compaction.test.ts`.
+- `6.2c` toolcall schema / error-recovery guidance is now complete on `beta/provider-list-commit`; together with `6.2a` and `6.2b`, the `6.x` runtime/context optimization hardening group is functionally complete.
+- `7.1` reconstruction shows the first still-missing session-hardening gap is not the whole continuation stack but the narrower rebind checkpoint durability + safe checkpoint injection path (`compaction.ts` + `prompt.ts`).
+- `7.2a` rebind checkpoint durability + safe checkpoint injection is now complete on `beta/provider-list-commit`, with focused checkpoint metadata/injection/prune tests passing; `7.2b` currently has no remaining proven gap and stays deferred unless new evidence appears.
+- Remaining high-value backlog is now prioritized as: provider-manager completion validation (`8.3`) and retrospective closure (`9.2`/`9.3`).
+- `8.1` provider-manager reconstruction identified model-manager visibility/favorites semantics as the first remaining webapp gap, and `8.2a` is now completed on `beta/provider-list-commit`.
+- `8.2b` dialog reopen geometry cleanup is intentionally deferred by default and should resume only when new reopen-geometry defect evidence appears.
+- Plan closure is not complete after `8.3` alone; execution must still finish `9.2`, `9.3`, and the approval-gated finalize recommendation path in `10.x`.
+- Deferred Claude Native backlog is explicit: native refresh/login/logout lifecycle, native ↔ `accounts.json` two-way sync, and DD-9/full native transport revival.
 
 ## Build Entry Recommendation
 
-- Start at `2.1` in `tasks.md`: restate and verify the beta authority tuple, then create the disposable beta branch/worktree before any code-bearing work.
-- After beta bootstrap, continue with the narrower Claude Native sub-stages in Sections 3–5.
-- Do not touch later runtime/session/provider-manager slices until the Claude Native sub-plan is either restored or returned to plan mode with a concrete blocker.
+- If resuming build work instead of finalize, start at `8.3` in `tasks.md`: run focused provider/webapp validation for `8.2a` and record evidence.
+- After `8.3`, continue directly into `9.2` and `9.3`; only then prepare the `10.1` finalize recommendation.
+- Reuse the existing admitted beta surface (`beta/provider-list-commit`) only if authority is re-verified and the user explicitly wants to continue on the same beta branch; otherwise stop for a new beta decision.
+- Treat Claude Native as functionally restored for the narrow auth-init path; do not reopen deferred native lifecycle/full-transport backlog unless the user explicitly reprioritizes it.
 
 ## Execution-Ready Checklist
 
