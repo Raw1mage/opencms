@@ -46,7 +46,7 @@ import {
   getFilteredModelsForSelection,
   getModelUnavailableReason,
   isAccountLikeProviderId,
-  parseHiddenProvidersStorageValue,
+  loadFavoriteProvidersFromStorage,
   pickSelectedAccount,
   pickSelectedModel,
   pickSelectedProvider,
@@ -72,8 +72,11 @@ const MODEL_MANAGER_DEFAULT_COLUMN_LAYOUT = { providerRatio: 0.31, accountRatio:
 
 function loadFavoriteProvidersFromLocalStorage() {
   if (typeof window === "undefined") return [...popularProviders]
-  const raw = window.localStorage.getItem(MODEL_MANAGER_FAVORITE_PROVIDERS_STORAGE_KEY)
-  return raw === null ? [...popularProviders] : parseHiddenProvidersStorageValue(raw)
+  return loadFavoriteProvidersFromStorage(
+    window.localStorage,
+    MODEL_MANAGER_FAVORITE_PROVIDERS_STORAGE_KEY,
+    popularProviders,
+  )
 }
 
 function saveFavoriteProvidersToLocalStorage(favoriteProviders: string[]) {
@@ -785,7 +788,8 @@ export const DialogSelectModel: Component<{
     }
   }
   const [dialogSize, setDialogSize] = createSignal(initialDialogSize())
-  const [favoriteProviders, setFavoriteProviders] = createSignal<string[]>(loadFavoriteProvidersFromLocalStorage())
+  const [favoriteProviders, setFavoriteProviders] = createSignal<string[]>([...popularProviders])
+  const [favoritesHydrated, setFavoritesHydrated] = createSignal(false)
   const [columnLayout, setColumnLayout] = createSignal(MODEL_MANAGER_DEFAULT_COLUMN_LAYOUT)
   const [layoutHydrated, setLayoutHydrated] = createSignal(false)
   const [columnsWidth, setColumnsWidth] = createSignal(0)
@@ -951,6 +955,12 @@ export const DialogSelectModel: Component<{
 
   createEffect(() => {
     applyDialogFrame()
+  })
+
+  createEffect(() => {
+    if (favoritesHydrated()) return
+    setFavoriteProviders(loadFavoriteProvidersFromLocalStorage())
+    setFavoritesHydrated(true)
   })
 
   createEffect(() => {

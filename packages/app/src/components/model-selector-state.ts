@@ -127,6 +127,16 @@ export function loadHiddenProvidersFromStorage(storage: Pick<Storage, "getItem">
   return parseHiddenProvidersStorageValue(storage.getItem(key))
 }
 
+export function loadFavoriteProvidersFromStorage(
+  storage: Pick<Storage, "getItem"> | undefined,
+  key: string,
+  fallbackProviders: string[],
+) {
+  if (!storage) return [...fallbackProviders]
+  const raw = storage.getItem(key)
+  return raw === null ? [...fallbackProviders] : parseHiddenProvidersStorageValue(raw)
+}
+
 export function normalizeProviderKey(id: string): string | undefined {
   if (!id) return undefined
   const raw = id.trim().toLowerCase()

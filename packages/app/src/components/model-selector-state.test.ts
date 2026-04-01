@@ -4,6 +4,7 @@ import {
   buildCustomProviderEntries,
   buildProviderRows,
   filterModelsForMode,
+  loadFavoriteProvidersFromStorage,
   loadHiddenProvidersFromStorage,
   normalizeProviderKey,
   parseHiddenProvidersStorageValue,
@@ -229,6 +230,18 @@ describe("model selector state", () => {
   test("hidden-provider storage parser tolerates malformed persisted values", () => {
     expect(parseHiddenProvidersStorageValue("{bad json")).toEqual([])
     expect(parseHiddenProvidersStorageValue(JSON.stringify({ provider: "openai" }))).toEqual([])
+  })
+
+  test("favorite-provider storage loader falls back to popular providers only when missing", () => {
+    const storage = {
+      getItem: (key: string) =>
+        key === "opencode.web.modelManager.favoriteProviders.v1" ? JSON.stringify(["miat", "openai"]) : null,
+    }
+
+    expect(
+      loadFavoriteProvidersFromStorage(storage, "opencode.web.modelManager.favoriteProviders.v1", ["claude-cli"]),
+    ).toEqual(["miat", "openai"])
+    expect(loadFavoriteProvidersFromStorage(storage, "missing", ["claude-cli"])).toEqual(["claude-cli"])
   })
 
   test("pickSelectedModel preserves explicit draft selection when still visible", () => {
