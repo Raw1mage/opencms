@@ -18,6 +18,11 @@ function sanitizeResponsesId(id: unknown): string | undefined {
   return id
 }
 
+function getReplayItemId(store: boolean, id: unknown): string | undefined {
+  if (!store) return undefined
+  return sanitizeResponsesId(id)
+}
+
 /**
  * Check if a string is a file ID based on the given prefixes
  * Returns false if prefixes is undefined (disables file ID detection)
@@ -128,12 +133,13 @@ export async function convertToOpenAIResponsesInput({
       case "assistant": {
         const reasoningMessages: Record<string, OpenAIResponsesReasoning> = {}
         const toolCallParts: Record<string, LanguageModelV2ToolCallPart> = {}
+        let statelessReasoningIndex = 0
 
         for (const part of content) {
           switch (part.type) {
             case "text": {
-              const itemId = sanitizeResponsesId(part.providerOptions?.openai?.itemId)
-              if (!itemId && part.providerOptions?.openai?.itemId) {
+              const itemId = getReplayItemId(store, part.providerOptions?.openai?.itemId)
+              if (store && !itemId && part.providerOptions?.openai?.itemId) {
                 warnings.push({
                   type: "other",
                   message: `Skipping assistant item id longer than ${OPENAI_RESPONSES_MAX_ID_LENGTH} characters.`,
@@ -155,8 +161,8 @@ export async function convertToOpenAIResponsesInput({
 
               if (hasLocalShellTool && part.toolName === "local_shell") {
                 const parsedInput = localShellInputSchema.parse(part.input)
-                const itemId = sanitizeResponsesId(part.providerOptions?.openai?.itemId)
-                if (!itemId) {
+                const itemId = getReplayItemId(store, part.providerOptions?.openai?.itemId)
+                if (store && !itemId) {
                   warnings.push({
                     type: "other",
                     message: `Skipping local shell call item id longer than ${OPENAI_RESPONSES_MAX_ID_LENGTH} characters.`,
@@ -180,7 +186,7 @@ export async function convertToOpenAIResponsesInput({
                 break
               }
 
-              const itemId = sanitizeResponsesId(part.providerOptions?.openai?.itemId)
+              const itemId = getReplayItemId(store, part.providerOptions?.openai?.itemId)
               input.push({
                 type: "function_call",
                 call_id: part.toolCallId,
@@ -239,6 +245,8 @@ export async function convertToOpenAIResponsesInput({
                     }
                   }
                 } else {
+                  const reasoningKey = providerOptions?.itemId || `stateless-reasoning-${statelessReasoningIndex++}`
+                  const statelessReasoningMessage = reasoningMessages[reasoningKey]
                   const summaryParts: Array<{
                     type: "summary_text"
                     text: string
@@ -249,30 +257,22 @@ export async function convertToOpenAIResponsesInput({
                       type: "summary_text",
                       text: part.text,
                     })
-                  } else if (reasoningMessage !== undefined) {
+                  } else if (statelessReasoningMessage !== undefined) {
                     warnings.push({
                       type: "other",
                       message: `Cannot append empty reasoning part to existing reasoning sequence. Skipping reasoning part: ${JSON.stringify(part)}.`,
                     })
                   }
 
-                  if (reasoningMessage === undefined) {
-                    if (!reasoningId) {
-                      warnings.push({
-                        type: "other",
-                        message: `Skipping reasoning item id longer than ${OPENAI_RESPONSES_MAX_ID_LENGTH} characters.`,
-                      })
-                      break
-                    }
-                    reasoningMessages[reasoningId] = {
+                  if (statelessReasoningMessage === undefined) {
+                    reasoningMessages[reasoningKey] = {
                       type: "reasoning",
-                      id: reasoningId,
                       encrypted_content: providerOptions?.reasoningEncryptedContent,
                       summary: summaryParts,
                     }
-                    input.push(reasoningMessages[reasoningId])
+                    input.push(reasoningMessages[reasoningKey])
                   } else {
-                    reasoningMessage.summary.push(...summaryParts)
+                    statelessReasoningMessage.summary.push(...summaryParts)
                   }
                 }
               } else {

@@ -70,7 +70,7 @@ export type OpenAIResponsesComputerCall = {
 
 export type OpenAIResponsesLocalShellCall = {
   type: "local_shell_call"
-  id: string
+  id?: string
   call_id: string
   action: {
     type: "exec"
@@ -198,7 +198,7 @@ export type OpenAIResponsesTool =
 
 export type OpenAIResponsesReasoning = {
   type: "reasoning"
-  id: string
+  id?: string
   encrypted_content?: string | null
   summary: Array<{
     type: "summary_text"
