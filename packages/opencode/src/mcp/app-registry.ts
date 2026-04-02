@@ -356,7 +356,12 @@ export namespace ManagedAppRegistry {
             mutates: false,
             requiresConfirmation: false,
             arguments: [
-              { name: "calendarId", type: "string", description: "Target calendar identifier. Defaults to 'primary' if omitted.", required: false },
+              {
+                name: "calendarId",
+                type: "string",
+                description: "Target calendar identifier. Defaults to 'primary' if omitted.",
+                required: false,
+              },
               {
                 name: "timeMin",
                 type: "datetime",
@@ -498,7 +503,7 @@ export namespace ManagedAppRegistry {
         ],
       },
     },
-    "gmail": {
+    gmail: {
       id: "gmail",
       name: "Gmail",
       description: "Managed MCP app for Gmail operations under opencode runtime ownership.",
@@ -595,7 +600,8 @@ export namespace ManagedAppRegistry {
               {
                 name: "query",
                 type: "string",
-                description: "Gmail search query (same syntax as Gmail search bar). Examples: 'from:user@example.com', 'is:unread', 'subject:invoice after:2026/01/01'.",
+                description:
+                  "Gmail search query (same syntax as Gmail search bar). Examples: 'from:user@example.com', 'is:unread', 'subject:invoice after:2026/01/01'.",
                 required: false,
               },
               {
@@ -637,7 +643,12 @@ export namespace ManagedAppRegistry {
             mutates: true,
             requiresConfirmation: false,
             arguments: [
-              { name: "to", type: "string", description: "Recipient email address(es), comma-separated.", required: true },
+              {
+                name: "to",
+                type: "string",
+                description: "Recipient email address(es), comma-separated.",
+                required: true,
+              },
               { name: "subject", type: "string", description: "Email subject line.", required: true },
               { name: "body", type: "string", description: "Plain text email body.", required: true },
               { name: "cc", type: "string", description: "CC recipients, comma-separated.", required: false },
@@ -648,13 +659,19 @@ export namespace ManagedAppRegistry {
             id: "reply-message",
             label: "Reply to message",
             capabilityId: "gmail.messages.write",
-            description: "Reply to an existing email thread. Automatically sets In-Reply-To, References, and threadId for correct threading.",
+            description:
+              "Reply to an existing email thread. Automatically sets In-Reply-To, References, and threadId for correct threading.",
             mutates: true,
             requiresConfirmation: false,
             arguments: [
               { name: "messageId", type: "string", description: "ID of the message to reply to.", required: true },
               { name: "body", type: "string", description: "Plain text reply body.", required: true },
-              { name: "to", type: "string", description: "Override reply recipient (defaults to original sender).", required: false },
+              {
+                name: "to",
+                type: "string",
+                description: "Override reply recipient (defaults to original sender).",
+                required: false,
+              },
               { name: "cc", type: "string", description: "CC recipients, comma-separated.", required: false },
             ],
           },
@@ -668,7 +685,12 @@ export namespace ManagedAppRegistry {
             arguments: [
               { name: "messageId", type: "string", description: "ID of the message to forward.", required: true },
               { name: "to", type: "string", description: "Forward recipient email address(es).", required: true },
-              { name: "body", type: "string", description: "Optional message to prepend before the forwarded content.", required: false },
+              {
+                name: "body",
+                type: "string",
+                description: "Optional message to prepend before the forwarded content.",
+                required: false,
+              },
               { name: "cc", type: "string", description: "CC recipients, comma-separated.", required: false },
             ],
           },
@@ -676,13 +698,24 @@ export namespace ManagedAppRegistry {
             id: "modify-labels",
             label: "Modify labels",
             capabilityId: "gmail.messages.manage",
-            description: "Add or remove labels on a message. Use to mark read (remove UNREAD), star (add STARRED), archive (remove INBOX), etc.",
+            description:
+              "Add or remove labels on a message. Use to mark read (remove UNREAD), star (add STARRED), archive (remove INBOX), etc.",
             mutates: true,
             requiresConfirmation: false,
             arguments: [
               { name: "messageId", type: "string", description: "Gmail message identifier.", required: true },
-              { name: "addLabelIds", type: "string[]", description: "Label IDs to add (e.g. STARRED, IMPORTANT).", required: false },
-              { name: "removeLabelIds", type: "string[]", description: "Label IDs to remove (e.g. UNREAD, INBOX).", required: false },
+              {
+                name: "addLabelIds",
+                type: "string[]",
+                description: "Label IDs to add (e.g. STARRED, IMPORTANT).",
+                required: false,
+              },
+              {
+                name: "removeLabelIds",
+                type: "string[]",
+                description: "Label IDs to remove (e.g. UNREAD, INBOX).",
+                required: false,
+              },
             ],
           },
           {
@@ -704,7 +737,12 @@ export namespace ManagedAppRegistry {
             mutates: false,
             requiresConfirmation: false,
             arguments: [
-              { name: "maxResults", type: "number", description: "Maximum number of drafts to return. Defaults to 10.", required: false },
+              {
+                name: "maxResults",
+                type: "number",
+                description: "Maximum number of drafts to return. Defaults to 10.",
+                required: false,
+              },
             ],
           },
           {
@@ -715,7 +753,12 @@ export namespace ManagedAppRegistry {
             mutates: true,
             requiresConfirmation: false,
             arguments: [
-              { name: "to", type: "string", description: "Recipient email address(es), comma-separated.", required: true },
+              {
+                name: "to",
+                type: "string",
+                description: "Recipient email address(es), comma-separated.",
+                required: true,
+              },
               { name: "subject", type: "string", description: "Email subject line.", required: true },
               { name: "body", type: "string", description: "Plain text email body.", required: true },
               { name: "cc", type: "string", description: "CC recipients, comma-separated.", required: false },
@@ -726,6 +769,8 @@ export namespace ManagedAppRegistry {
       },
     },
   }
+
+  const GOOGLE_MANAGED_APP_IDS = ["gmail", "google-calendar"] as const
 
   let cache: Storage | undefined
   let mtime: number | undefined
@@ -1028,6 +1073,18 @@ export namespace ManagedAppRegistry {
 
   export async function usage(appId: string): Promise<UsageError | null> {
     return usageErrorOf(await snapshot(appId)) ?? null
+  }
+
+  export async function publishUpdate(appId: string): Promise<void> {
+    await Bus.publish(Event.Updated, { app: await get(appId) }).catch(() => {})
+  }
+
+  export async function activeGoogleAppIds(): Promise<string[]> {
+    const current = await state()
+    return GOOGLE_MANAGED_APP_IDS.filter((appId) => {
+      const app = current.apps[appId]
+      return app?.installState === "installed" && app.enableState === "enabled"
+    })
   }
 
   export async function readyTools(): Promise<ReadyToolBinding[]> {

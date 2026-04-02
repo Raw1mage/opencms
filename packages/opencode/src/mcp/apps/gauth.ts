@@ -9,7 +9,6 @@ import { ManagedAppRegistry } from "@/mcp/app-registry"
 import { Log } from "@/util/log"
 
 const log = Log.create({ service: "gauth" })
-
 export interface GAuthTokens {
   access_token: string
   refresh_token: string
@@ -20,6 +19,7 @@ export interface GAuthTokens {
 
 /** Refresh 5 minutes before actual expiry to avoid edge-case failures */
 const EXPIRY_MARGIN_MS = 5 * 60 * 1000
+let refreshInFlight: Promise<GAuthTokens> | undefined
 
 function gauthPath() {
   return path.join(Global.Path.config, "gauth.json")
@@ -41,11 +41,34 @@ async function writeGAuthTokens(tokens: GAuthTokens): Promise<void> {
   await fs.chmod(p, 0o600)
 }
 
+function shouldRefreshToken(tokens: GAuthTokens, now = Date.now()) {
+  return Boolean(tokens.expires_at && now >= tokens.expires_at - EXPIRY_MARGIN_MS)
+}
+
+async function requireStoredTokens(appId: string): Promise<GAuthTokens> {
+  const tokens = await readGAuthTokens()
+  if (!tokens || !tokens.access_token) {
+    throw new ManagedAppRegistry.UsageStateError({
+      appId,
+      status: "pending_auth",
+      reason: "unauthenticated",
+      code: "MANAGED_APP_AUTH_REQUIRED",
+      message: "Google OAuth tokens not found in gauth.json",
+    })
+  }
+  return tokens
+}
+
+async function publishSharedGoogleAuthUpdate() {
+  const activeAppIds = await ManagedAppRegistry.activeGoogleAppIds()
+  await Promise.all(activeAppIds.map((appId) => ManagedAppRegistry.publishUpdate(appId)))
+}
+
 /**
  * Refresh access_token using the stored refresh_token.
  * Persists updated tokens back to gauth.json.
  */
-async function refreshAccessToken(appId: string, tokens: GAuthTokens): Promise<string> {
+async function refreshAccessToken(appId: string, tokens: GAuthTokens): Promise<GAuthTokens> {
   const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID
   const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET
   const tokenUri = process.env.GOOGLE_CALENDAR_TOKEN_URI || "https://oauth2.googleapis.com/token"
@@ -105,7 +128,32 @@ async function refreshAccessToken(appId: string, tokens: GAuthTokens): Promise<s
 
   await writeGAuthTokens(updated)
   log.info("access token refreshed", { appId, expiresIn: data.expires_in })
-  return updated.access_token
+  await publishSharedGoogleAuthUpdate()
+  return updated
+}
+
+export async function refreshSharedGoogleAccessToken(appId: string): Promise<GAuthTokens> {
+  if (refreshInFlight) return refreshInFlight
+
+  const pending = (async () => {
+    const latest = await requireStoredTokens(appId)
+    if (!shouldRefreshToken(latest)) return latest
+    return refreshAccessToken(appId, latest)
+  })()
+
+  const guarded = pending.finally(() => {
+    if (refreshInFlight === guarded) refreshInFlight = undefined
+  })
+  refreshInFlight = guarded
+  return guarded
+}
+
+export async function sweepSharedGoogleAccessToken(): Promise<GAuthTokens | null> {
+  const activeAppIds = await ManagedAppRegistry.activeGoogleAppIds()
+  if (activeAppIds.length === 0) return null
+  const tokens = await readGAuthTokens()
+  if (!tokens?.access_token) return null
+  return refreshSharedGoogleAccessToken(activeAppIds[0])
 }
 
 /**
@@ -115,20 +163,11 @@ async function refreshAccessToken(appId: string, tokens: GAuthTokens): Promise<s
 export async function resolveGoogleAccessToken(appId: string): Promise<string> {
   await ManagedAppRegistry.requireReady(appId)
 
-  const tokens = await readGAuthTokens()
-  if (!tokens || !tokens.access_token) {
-    throw new ManagedAppRegistry.UsageStateError({
-      appId,
-      status: "pending_auth",
-      reason: "unauthenticated",
-      code: "MANAGED_APP_AUTH_REQUIRED",
-      message: "Google OAuth tokens not found in gauth.json",
-    })
-  }
+  const tokens = await requireStoredTokens(appId)
 
   // Auto-refresh if token is expired or about to expire
-  if (tokens.expires_at && Date.now() >= tokens.expires_at - EXPIRY_MARGIN_MS) {
-    return refreshAccessToken(appId, tokens)
+  if (shouldRefreshToken(tokens)) {
+    return (await refreshSharedGoogleAccessToken(appId)).access_token
   }
 
   return tokens.access_token
