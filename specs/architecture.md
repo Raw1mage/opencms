@@ -499,6 +499,7 @@ Space {
 - **IPC**: Bidirectional stdin/stdout JSON-line protocol: `{type:"run"|"ready"|"heartbeat"|"done"|"bridge_event"|"error"}`
 - **No timeout**: Workers are waited on unconditionally. The only termination trigger is subprocess death (process exit detected by stdout reader loop). No inactivity timeout exists; long-running LLM calls are expected.
 - **Liveness**: `worker.proc.exitCode` checked after unexpected stdout close to distinguish crash from clean exit
+- **Continuation & Decoupling**: Subagent lifecycle is decoupled from the parent Orchestrator's wait loop via `Bus.publish(TaskWorkerEvent.Done/Failed)`. The parent continuation path is the authoritative clearing point for `active-child` state, ensuring the Orchestrator does not remain in a stale wait state even if the initial request stream was interrupted.
 - **Instance context**: `spawnWorker()` captures `Instance.directory` at spawn time and passes it as Bus event context to all `TaskWorkerEvent.Done/Failed` publishes, so the continuation subscriber can re-establish `Instance.provide()` scope after the originating HTTP request scope has ended.
 - **Bridge events**: Worker stdout `__OPENCODE_BRIDGE_EVENT__` lines forwarded to parent via `Bus.publish` for SSE/UI visibility
 

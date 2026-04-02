@@ -1,0 +1,62 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Observe next execution identity and compare with previous continuation identity.",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["identity_change_detected OR same_identity_confirmed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "If identity changed, flush provider-specific remote refs and sticky continuation state; otherwise keep valid continuity.",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2],
+    "LinkOutputType": "track",
+    "Condition": ["flush_completed OR flush_not_required"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Prepare checkpoint/synthetic summary and safe local context for warm start.",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["warm_start_context_ready"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "Build replay payload without stale remote refs and send request under the new identity.",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [2],
+    "LinkOutputNumber": [4],
+    "LinkOutputType": "track",
+    "Condition": ["request_dispatched"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Accept provider response and record fresh remote continuity for subsequent turns.",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [3],
+    "LinkOutputNumber": [],
+    "LinkOutputType": "track",
+    "Condition": ["response_completed"],
+    "SubGrafcet": []
+  }
+]

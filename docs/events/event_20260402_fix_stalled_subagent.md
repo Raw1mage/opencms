@@ -9,9 +9,8 @@
 
 ## 任務清單 (Task List)
 - [x] 檢查 `src/tool/task.ts` 內 `TaskWorker` 或 sub-agent 的執行邏輯。
-- [x] 定位為何修正後的同步機制會造成 Promise leak 或 Deadlock。
-- [x] 修復邏輯，確保 Subagent 真正結束時 Main session 可以接到完成訊號。
-- [x] 確認修復不會引發原本的 Premature notification 問題。
+- [x] **beta5**: 建立 `Bus.publish(TaskWorkerEvent.Done/Failed)` 補償機制，確保 Subagent 結束時 Orchestrator 能解除等待。
+- [ ] **beta6**: 同步 event log 記錄並執行 Architecture Sync。
 
 ## Debug Checkpoints 三段式
 1. **Baseline** (修改前)

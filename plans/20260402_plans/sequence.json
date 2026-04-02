@@ -1,0 +1,27 @@
+[
+  {
+    "diagram_title": "Account Switch Continuation Reset",
+    "scenario": "A session switches account under the same provider/model and must drop old remote refs while preserving local semantic context.",
+    "moduleRef": "A1",
+    "participants": [
+      {"id": "P1", "name": "User", "type": "actor"},
+      {"id": "P2", "name": "Session Runtime", "type": "component", "componentRef": "C1"},
+      {"id": "P3", "name": "Checkpoint Warm Start Builder", "type": "component", "componentRef": "C2"},
+      {"id": "P4", "name": "Provider Cleanup Hook", "type": "component", "componentRef": "C4"},
+      {"id": "P5", "name": "Replay Serializer", "type": "component", "componentRef": "C3"},
+      {"id": "P6", "name": "Provider Responses API", "type": "system", "componentRef": "SYS2"}
+    ],
+    "messages": [
+      {"id": "MSG1", "from": "P1", "to": "P2", "label": "switch account + send next turn", "type": "sync", "order": 1},
+      {"id": "MSG2", "from": "P2", "to": "P4", "label": "flush provider-specific remote continuity", "type": "sync", "order": 2},
+      {"id": "MSG3", "from": "P2", "to": "P3", "label": "build checkpoint-based warm start", "type": "sync", "order": 3},
+      {"id": "MSG4", "from": "P3", "to": "P5", "label": "safe local context only", "type": "sync", "order": 4},
+      {"id": "MSG5", "from": "P5", "to": "P6", "label": "responses request without stale old-account refs", "type": "sync", "order": 5},
+      {"id": "MSG6", "from": "P6", "to": "P5", "label": "fresh response items / new remote ids", "type": "return", "order": 6},
+      {"id": "MSG7", "from": "P5", "to": "P2", "label": "record fresh continuity metadata", "type": "sync", "order": 7}
+    ],
+    "fragments": [
+      {"id": "FRAG1", "type": "alt", "label": "identity changed vs same identity", "messageRefs": ["MSG2", "MSG3", "MSG4", "MSG5"]}
+    ]
+  }
+]

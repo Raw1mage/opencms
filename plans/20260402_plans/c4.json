@@ -1,0 +1,27 @@
+{
+  "diagram_title": "Dialog Continuation Identity Change — C4 Component Diagram",
+  "diagram_level": "component",
+  "systems": [
+    {"id": "SYS1", "name": "OpenCode Runtime", "description": "Session/runtime system coordinating provider-backed dialog continuation.", "external": false},
+    {"id": "SYS2", "name": "Provider Responses API", "description": "Remote provider API that owns provider-issued continuity handles.", "external": true}
+  ],
+  "containers": [
+    {"id": "CT1", "name": "Session Runtime", "description": "Session orchestration, replay, compaction, checkpoint handling.", "technology": "TypeScript/Bun", "systemRef": "SYS1"},
+    {"id": "CT2", "name": "Provider Adapter", "description": "Provider-specific serializer, streaming adapter, and sticky state surfaces.", "technology": "TypeScript/Bun", "systemRef": "SYS1"}
+  ],
+  "components": [
+    {"id": "C1", "name": "Identity Boundary Gate", "description": "Detects provider/account/model identity changes before continuation replay.", "technology": "session runtime", "containerRef": "CT1", "moduleRef": "A1", "filePath": "packages/opencode/src/session/message-v2.ts"},
+    {"id": "C2", "name": "Checkpoint Warm Start Builder", "description": "Builds safe semantic context from checkpoint/summary for the new identity.", "technology": "session runtime", "containerRef": "CT1", "moduleRef": "A3", "filePath": "packages/opencode/src/session/prompt.ts"},
+    {"id": "C3", "name": "Responses Replay Serializer", "description": "Transforms local replay parts into OpenAI/Codex-style Responses payloads.", "technology": "provider adapter", "containerRef": "CT2", "moduleRef": "A4", "filePath": "packages/opencode/src/provider/sdk/copilot/responses/convert-to-openai-responses-input.ts"},
+    {"id": "C4", "name": "Provider Continuity Cleanup Hook", "description": "Drops provider-specific remote refs and sticky turn state when identity changes.", "technology": "provider adapter", "containerRef": "CT2", "moduleRef": "A2", "filePath": "packages/opencode/src/plugin/codex.ts"},
+    {"id": "C5", "name": "Responses Stream Adapter", "description": "Consumes remote stream events and stores provider-issued item ids as local metadata.", "technology": "provider adapter", "containerRef": "CT2", "moduleRef": "A5", "filePath": "packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts"}
+  ],
+  "relationships": [
+    {"id": "REL1", "source": "C1", "target": "C4", "description": "identity change triggers provider-specific continuity cleanup", "technology": "in-process call"},
+    {"id": "REL2", "source": "C1", "target": "C2", "description": "identity gate selects safe warm-start source", "technology": "in-process call"},
+    {"id": "REL3", "source": "C2", "target": "C3", "description": "safe local context is serialized into next payload", "technology": "in-process call"},
+    {"id": "REL4", "source": "C3", "target": "SYS2", "description": "dispatch next request without stale remote refs", "technology": "HTTP/Responses API"},
+    {"id": "REL5", "source": "SYS2", "target": "C5", "description": "remote response emits fresh continuity ids", "technology": "stream events"},
+    {"id": "REL6", "source": "C5", "target": "C1", "description": "stored metadata participates in future identity checks", "technology": "message metadata"}
+  ]
+}

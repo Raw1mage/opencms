@@ -68,27 +68,32 @@
 
 ### Current Root-Cause Hypothesis
 
-- 目前最強假設不是單一點，而是同一條鏈上的不同段：
-  1. 大量讀檔後發生 checkpoint/compaction 相關決策（不一定是 restart rebind）
-  2. 純對話 replay 仍保留某些 text/reasoning 的 remote metadata
-  3. serializer / provider request 邊界仍帶出不該存活的 reference
-  4. 遠端 responses API 回 `text part msg_... not found`
-- restart rebind 已因「沒有重啟」而降權；toolcall replay 已因「純對話」而降權。
+- 新證據已將 root cause 收斂為 **account-scoped remote refs 被同 provider 不同 account 重用**。
+- 關鍵 causal chain：
+  1. `message-v2` replay gate 保留 provider metadata 時只比較 `providerId/modelID`，沒有把 `accountId` 納入 identity boundary。
+  2. 同 provider + 同 model 換 account 時，舊 assistant/reasoning parts 的 remote `itemId` metadata 仍會保留。
+  3. serializer 再把這些 metadata 轉成 outbound `id` / `item_reference`。
+  4. 新 account 對應的遠端狀態不認得舊 account 的 `msg_*` / related refs，因而回 `text part msg_... not found`。
+- restart rebind 已因「沒有重啟」降權；toolcall replay 已因「純對話」降權；checkpoint/compaction 現在更像放大 replay stale-ref 風險的背景條件，而非首因。
 
 ### Validation
 
-- `bun test /home/pkcs12/projects/opencode/packages/opencode/src/provider/sdk/copilot/responses/convert-to-openai-responses-input.test.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/compaction.test.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/prompt-context-sharing.test.ts` ✅ (`11 pass / 0 fail`)
+- Instrumentation / diagnosis validation:
+  - `bun test /home/pkcs12/projects/opencode/packages/opencode/src/provider/sdk/copilot/responses/convert-to-openai-responses-input.test.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/compaction.test.ts /home/pkcs12/projects/opencode/packages/opencode/src/session/prompt-context-sharing.test.ts` ✅ (`11 pass / 0 fail`)
+- Replay-gate fix validation:
+  - `bun test "/home/pkcs12/projects/opencode/packages/opencode/src/session/message-v2.test.ts" "/home/pkcs12/projects/opencode/packages/opencode/src/provider/sdk/copilot/responses/convert-to-openai-responses-input.test.ts"` ✅ (`6 pass / 0 fail`)
 - `bun x tsc -p /home/pkcs12/projects/opencode/tsconfig.json --noEmit` ⚠️ 失敗，但失敗源自既有 generated build artifacts：`packages/opencode-codex-provider/build/CMakeFiles/.../compiler_depend.ts`，非本次修改檔案。
 - Architecture Sync: Verified (No doc changes)
-  - 依據：本次新增的是 debug instrumentation 與觀測點，未改變長期模組邊界、核心資料流或狀態機定義。
+  - 依據：本次新增 instrumentation 並修正既有 replay identity gate 對 account boundary 的判定，未改變長期模組邊界、核心資料流主幹或狀態機定義。
 
 ## Key Decisions
 
-- 本次先補 instrumentation，不先憑猜測更改 replay 行為。
+- 先補 instrumentation，再用使用者提供的「同 provider 換 account 即炸」新證據收斂 root cause。
 - `msg_*` 視為 provider-specific responses/item reference 字面，不視為跨 provider 通用協議。
-- 優先觀察純對話 replay 與 `item_reference`/`id` 計數，而不是 UI 或 tool output 暫存層。
+- replay identity boundary 必須與 session execution identity 對齊；`accountId` 不能被忽略。
+- 最小修補點放在 `message-v2` replay gate：同 provider + 同 model 但 account 改變時，不保留舊 remote metadata。
 
 ## Remaining
 
-- 需要使用新 instrumentation 再重現一次錯誤，才能確認 stale reference 究竟是以 top-level `id` 還是 `item_reference` 形式漏出。
-- 若重現時 `idCount > 0`，優先回頭查 serializer/scrub 漏網；若 `idCount == 0` 但 `itemReferenceCount > 0`，焦點轉到 reasoning reference 存活路徑。
+- 需要使用新修補 + instrumentation 再重現一次，確認 `text part msg_* not found` 在 account switch 情境下已消失。
+- 若仍有殘餘案例，下一個檢查點是 `codex.ts` 的 HTTP sticky turn state 是否需要改成 `sessionID + accountId` 分桶。

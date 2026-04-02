@@ -17,9 +17,9 @@
 
 ## 專案背景
 
-本專案源自 `origin/dev` 分支，現已衍生為 `cms` 分支作為主要產品線。
+本專案源自 `origin/dev` 分支，現已衍生為 `main` 分支作為主要產品線。
 
-### cms 分支主要特色
+### main 分支主要特色
 
 - **全域多帳號管理系統** - 支援多個 provider 帳號的統一管理
 - **rotation3d 多模型輪替系統** - 動態模型切換與負載平衡
@@ -32,11 +32,11 @@
 
 ### 從 origin/dev 引進更新
 
-任何從 GitHub pull 的 `origin/dev` 新 commits，都必須經過分析後再到 `cms` 中重構，**不可直接 merge**。
+任何從 GitHub pull 的 `origin/dev` 新 commits，都必須經過分析後再到 `main` 中重構，**不可直接 merge**。
 
 ### 外部 Plugin 管理
 
-引進的外部 plugin 都集中放在 `/refs` 目錄。若有更新，也必須逐一分析後再到 `cms` 中重構，**不可直接 merge**。
+引進的外部 plugin 都集中放在 `/refs` 目錄。若有更新，也必須逐一分析後再到 `main` 中重構，**不可直接 merge**。
 
 ### Pull Request 預設策略
 
@@ -79,7 +79,7 @@
 2. **避免僅改 Global**：`~/.config/opencode/*` 屬本機環境，不作為 repo 交付依據。
 3. **變更留痕**：記錄於 `docs/events/`。
 4. **Session 啟動必讀 Architecture**：`specs/architecture.md`。
-5. **Beta/Test 分支用後即刪**：`beta/*`、`test/*` 分支與其 worktree 僅作一次性實作/驗證面。測試完成且 merge/fetch-back 回 `cms` 後，必須立即刪除；禁止長留已完成任務的 beta/test 分支，避免 stale branch 在後續被誤認為主線或被 branch-pointer 操作拉回。
+5. **Beta/Test 分支用後即刪**：`beta/*`、`test/*` 分支與其 worktree 僅作一次性實作/驗證面。測試完成且 merge/fetch-back 回 `main` 後，必須立即刪除；禁止長留已完成任務的 beta/test 分支，避免 stale branch 在後續被誤認為主線或被 branch-pointer 操作拉回。
 
 ### Release 前檢查清單
 

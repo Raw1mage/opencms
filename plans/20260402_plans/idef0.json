@@ -1,0 +1,23 @@
+{
+  "diagram_title": "Dialog Continuation Identity Change — IDEF0",
+  "node_reference": "A0",
+  "activities": [
+    {"id": "A1", "title": "Detect Identity Change", "description": "Determine whether provider/account/model boundary changed before continuation replay.", "decomposition": null},
+    {"id": "A2", "title": "Flush Remote Continuity", "description": "Remove provider-specific remote refs and sticky continuation state that cannot cross identity boundaries.", "decomposition": null},
+    {"id": "A3", "title": "Reuse Checkpoint Summary", "description": "Carry forward local semantic context through checkpoint or synthetic summary warm-start.", "decomposition": null},
+    {"id": "A4", "title": "Build Safe Replay Payload", "description": "Compose the next request without stale remote refs while preserving safe local context.", "decomposition": null},
+    {"id": "A5", "title": "Establish New Continuity", "description": "Let the next provider response create fresh remote continuity for the new identity.", "decomposition": null}
+  ],
+  "arrows": [
+    {"id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "Session identity change request", "type": "input"},
+    {"id": "AR2", "source": "EXTERNAL", "target": "A1:control", "label": "Execution identity contract", "type": "control"},
+    {"id": "AR3", "source": "A1:output", "target": "A2:input", "label": "Identity delta", "type": "output"},
+    {"id": "AR4", "source": "EXTERNAL", "target": "A2:mechanism", "label": "Provider cleanup hooks", "type": "mechanism"},
+    {"id": "AR5", "source": "EXTERNAL", "target": "A3:input", "label": "Checkpoint and local history", "type": "input"},
+    {"id": "AR6", "source": "A2:output", "target": "A4:control", "label": "Flushed remote continuity", "type": "control"},
+    {"id": "AR7", "source": "A3:output", "target": "A4:input", "label": "Warm-start context", "type": "output"},
+    {"id": "AR8", "source": "A4:output", "target": "A5:input", "label": "Safe replay payload", "type": "output"},
+    {"id": "AR9", "source": "A5:output", "target": "EXTERNAL", "label": "Fresh provider continuity", "type": "output"},
+    {"id": "AR10", "source": "EXTERNAL", "target": "A4:control", "label": "Fail-fast no-fallback policy", "type": "control"}
+  ]
+}
