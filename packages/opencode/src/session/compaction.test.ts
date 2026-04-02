@@ -222,6 +222,95 @@ describe("SessionCompaction cooldown guard", () => {
     expect(applied.messages[1].info.id).toBe("msg_3")
   })
 
+  it("rebuilds replay as checkpoint prefix plus raw tail steps", () => {
+    const model = {
+      id: "gpt-5.4",
+      providerId: "openai",
+    } as any
+
+    const messages = [
+      {
+        info: {
+          id: "msg_1",
+          sessionID: "ses_rebind_tail",
+          role: "user",
+          agent: "default",
+          model: { providerId: "openai", modelID: "gpt-5.4" },
+          time: { created: 1 },
+        },
+        parts: [{ id: "part_1", messageID: "msg_1", sessionID: "ses_rebind_tail", type: "text", text: "hello" }],
+      },
+      {
+        info: {
+          id: "msg_2",
+          sessionID: "ses_rebind_tail",
+          role: "assistant",
+          parentID: "msg_1",
+          mode: "default",
+          agent: "default",
+          modelID: "gpt-5.4",
+          providerId: "openai",
+          path: { cwd: "/tmp", root: "/tmp" },
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          time: { created: 2, completed: 2 },
+        },
+        parts: [{ id: "part_2", messageID: "msg_2", sessionID: "ses_rebind_tail", type: "text", text: "answer" }],
+      },
+      {
+        info: {
+          id: "msg_3",
+          sessionID: "ses_rebind_tail",
+          role: "user",
+          agent: "default",
+          model: { providerId: "openai", modelID: "gpt-5.4" },
+          time: { created: 3 },
+        },
+        parts: [{ id: "part_3", messageID: "msg_3", sessionID: "ses_rebind_tail", type: "text", text: "tail user" }],
+      },
+      {
+        info: {
+          id: "msg_4",
+          sessionID: "ses_rebind_tail",
+          role: "assistant",
+          parentID: "msg_3",
+          mode: "default",
+          agent: "default",
+          modelID: "gpt-5.4",
+          providerId: "openai",
+          path: { cwd: "/tmp", root: "/tmp" },
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          time: { created: 4, completed: 4 },
+        },
+        parts: [
+          { id: "part_4", messageID: "msg_4", sessionID: "ses_rebind_tail", type: "text", text: "tail assistant" },
+        ],
+      },
+    ] as any
+
+    const applied = SessionCompaction.applyRebindCheckpoint({
+      sessionID: "ses_rebind_tail",
+      checkpoint: {
+        sessionID: "ses_rebind_tail",
+        timestamp: 10,
+        snapshot: "checkpoint summary",
+        lastMessageId: "msg_2",
+      },
+      messages,
+      model,
+    })
+
+    expect(applied.applied).toBe(true)
+    if (!applied.applied) throw new Error("expected checkpoint to apply")
+    expect(applied.messages).toHaveLength(3)
+    expect(applied.messages[0].info.role).toBe("assistant")
+    expect((applied.messages[0].info as any).summary).toBe(true)
+    expect((applied.messages[0].parts[0] as any).text).toContain("checkpoint summary")
+    expect(applied.messages[1].info.id).toBe("msg_3")
+    expect(applied.messages[2].info.id).toBe("msg_4")
+  })
+
   it("persists rebind checkpoint metadata including lastMessageId", async () => {
     const tmpdir = await fs.mkdtemp(path.join(os.tmpdir(), "rebind-checkpoint-test-"))
     Global.Path.state = tmpdir
