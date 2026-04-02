@@ -185,7 +185,7 @@ export const SessionWorkerCommand = cmd({
       process.on("SIGINT", cleanup)
 
       const send = (payload: Record<string, unknown>) => {
-        process.stdout.write(WORKER_PREFIX + JSON.stringify(payload) + "\n")
+        process.stdout.write("\n" + WORKER_PREFIX + JSON.stringify(payload) + "\n")
       }
 
       send({ type: "ready" })
@@ -234,7 +234,9 @@ export const SessionWorkerCommand = cmd({
           const teardownBridge = setupTaskEventBridge(runRef.sessionID)
           void (async () => {
             try {
+              console.error(`[WORKER] worker session loop starting for ${runRef.sessionID}`)
               await SessionPrompt.loop(runRef.sessionID)
+              console.error(`[WORKER] worker session loop finished for ${runRef.sessionID}`)
               if (runRef.cancelRequested) {
                 send({
                   type: "done",

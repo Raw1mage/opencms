@@ -637,9 +637,10 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
         const line = buffer.slice(0, newline)
         buffer = buffer.slice(newline + 1)
 
-        if (line.startsWith(BRIDGE_PREFIX)) {
+        const bpIdx = line.indexOf(BRIDGE_PREFIX)
+        if (bpIdx !== -1) {
           beacon.hit("worker.bridge_line")
-          const payload = line.slice(BRIDGE_PREFIX.length)
+          const payload = line.slice(bpIdx + BRIDGE_PREFIX.length)
           try {
             const event = JSON.parse(payload)
             bridgedEvents += 1
@@ -660,8 +661,9 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
           continue
         }
 
-        if (!line.startsWith(WORKER_PREFIX)) continue
-        const payload = line.slice(WORKER_PREFIX.length)
+        const wpIdx = line.indexOf(WORKER_PREFIX)
+        if (wpIdx === -1) continue
+        const payload = line.slice(wpIdx + WORKER_PREFIX.length)
         let msg: any
         try {
           msg = JSON.parse(payload)
