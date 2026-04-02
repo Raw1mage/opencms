@@ -23,43 +23,67 @@ async function enqueueParentContinuation(input: {
   ok: boolean
   error?: string
 }) {
+  log.info("[TRACE][ENQUEUE_START] enqueueParentContinuation called", {
+    parentSessionID: input.parentSessionID,
+    parentMessageID: input.parentMessageID,
+    toolCallID: input.toolCallID,
+    childSessionID: input.childSessionID,
+    ok: input.ok,
+    error: input.error,
+  })
+
   const clearActiveChild = async () => {
+    log.info("[TRACE][CLEAR_ACTIVE_CHILD] calling SessionActiveChild.set(null)", { parentSessionID: input.parentSessionID })
     await SessionActiveChild.set(input.parentSessionID, null)
+    log.info("[TRACE][CLEAR_ACTIVE_CHILD_DONE] SessionActiveChild.set(null) completed", { parentSessionID: input.parentSessionID })
   }
 
   const clearLogicalTask = () => {
+    log.info("[TRACE][CLEAR_LOGICAL_TASK] ProcessSupervisor.kill called", { toolCallID: input.toolCallID })
     ProcessSupervisor.kill(input.toolCallID)
   }
 
+  log.info("[TRACE][ENQUEUE_GET_PARENT] fetching parent session", { parentSessionID: input.parentSessionID })
   const parent = await Session.get(input.parentSessionID).catch(() => undefined)
   if (!parent) {
+    log.error("[TRACE][ENQUEUE_EARLY_EXIT_1] parent session NOT FOUND — aborting without clearActiveChild", { parentSessionID: input.parentSessionID })
     clearLogicalTask()
     throw new Error(`task_completion_parent_missing:${input.parentSessionID}`)
   }
+  log.info("[TRACE][ENQUEUE_PARENT_FOUND] parent session found", { parentSessionID: input.parentSessionID, hasParentID: !!parent.parentID })
   if (parent.parentID) {
+    log.error("[TRACE][ENQUEUE_EARLY_EXIT_2] parent has parentID (nested) — aborting without clearActiveChild", { parentSessionID: input.parentSessionID, parentID: parent.parentID })
     clearLogicalTask()
     throw new Error(`task_completion_parent_nested_unsupported:${input.parentSessionID}`)
   }
 
+  log.info("[TRACE][ENQUEUE_GET_MSG] fetching parent assistant message", { parentSessionID: input.parentSessionID, parentMessageID: input.parentMessageID })
   const assistant = await MessageV2.get({
     sessionID: input.parentSessionID,
     messageID: input.parentMessageID,
   }).catch(() => undefined)
   if (!assistant || assistant.info.role !== "assistant") {
+    log.error("[TRACE][ENQUEUE_EARLY_EXIT_3] parent assistant message NOT FOUND or wrong role — aborting without clearActiveChild", { parentSessionID: input.parentSessionID, parentMessageID: input.parentMessageID, found: !!assistant, role: assistant?.info?.role })
     clearLogicalTask()
     throw new Error(`task_completion_parent_message_missing:${input.parentMessageID}`)
   }
+  log.info("[TRACE][ENQUEUE_MSG_FOUND] parent message found", { parentMessageID: input.parentMessageID, role: assistant.info.role, parts: assistant.parts.length })
 
   const taskPart = assistant.parts.find(
     (part): part is MessageV2.ToolPart =>
       part.type === "tool" && part.callID === input.toolCallID && part.tool === "task",
   )
+  log.info("[TRACE][ENQUEUE_FIND_TOOL_PART] searching for task tool part", { parentSessionID: input.parentSessionID, toolCallID: input.toolCallID, totalParts: assistant.parts.length, foundPart: !!taskPart, partTypes: assistant.parts.map((p: any) => ({ type: p.type, callID: (p as any).callID, tool: (p as any).tool })).slice(0, 10) })
   if (!taskPart) {
+    log.error("[TRACE][ENQUEUE_EARLY_EXIT_4] task tool part NOT FOUND — aborting without clearActiveChild", { parentSessionID: input.parentSessionID, toolCallID: input.toolCallID, partCallIDs: assistant.parts.filter((p: any) => p.type === "tool").map((p: any) => (p as any).callID) })
     clearLogicalTask()
     throw new Error(`task_completion_tool_part_missing:${input.toolCallID}`)
   }
+  log.info("[TRACE][ENQUEUE_TOOL_PART_FOUND] task tool part found", { toolCallID: input.toolCallID, partStatus: taskPart.state?.status })
 
+  log.info("[TRACE][ENQUEUE_CLEAR_ACTIVE_CHILD] about to clear active child", { parentSessionID: input.parentSessionID })
   await clearActiveChild().catch(() => undefined)
+  log.info("[TRACE][ENQUEUE_ACTIVE_CHILD_CLEARED] active child cleared", { parentSessionID: input.parentSessionID })
 
   // Fix: update tool part state from "running" to "completed"/"error" so sidebar monitor clears
   const partNow = Date.now()
@@ -230,6 +254,12 @@ async function enqueueParentContinuation(input: {
       isOk: input.ok,
     })
 
+    log.info("[TRACE][ENQUEUE_BEFORE_ENQUEUE] calling enqueuePendingContinuation", {
+      parentSessionID: input.parentSessionID,
+      messageID,
+      isOk: input.ok,
+    })
+
     await enqueuePendingContinuation({
       sessionID: input.parentSessionID,
       messageID,
@@ -284,11 +314,14 @@ export function registerTaskWorkerContinuationSubscriber() {
   registered = true
 
   Bus.subscribeGlobal(TaskWorkerEvent.Done.type, 0, async (event) => {
-    log.info("TaskWorkerEvent.Done received", {
+    log.info("[TRACE][SUBSCRIBER_DONE_FIRED] TaskWorkerEvent.Done subscriber fired", {
       workerID: event.properties.workerID,
       sessionID: event.properties.sessionID,
       parentSessionID: event.properties.parentSessionID,
+      parentMessageID: event.properties.parentMessageID,
       toolCallID: event.properties.toolCallID,
+      hasDirectory: !!event.context?.directory,
+      directory: event.context?.directory,
     })
     // In daemon mode the Bus subscriber fires outside the original HTTP request's
     // Instance.provide() scope.  Re-establish the project context so Session.get(),

@@ -562,8 +562,9 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
         // Flush remaining buffer — worker may exit before final \n
         buffer += decoder.decode(undefined, { stream: false })
         const remaining = buffer.trim()
+        log.info("[TRACE][STDOUT_EOF] stdout EOF reached", { workerID, hasRemaining: remaining.length > 0, remainingLength: remaining.length, bufferPreview: remaining.slice(0, 200), hasCurrent: !!worker.current, currentId: worker.current?.id, workerPhase: worker.lastPhase })
         if (remaining) {
-          log.info("worker stdout flush remaining buffer", { workerID, length: remaining.length })
+          log.info("[TRACE][FLUSH_START] flushing remaining stdout buffer", { workerID, length: remaining.length })
           for (const leftover of remaining.split("\n")) {
             if (!leftover.startsWith(WORKER_PREFIX)) continue
             let fMsg: any
@@ -572,10 +573,13 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
             } catch {
               continue
             }
+            log.info("[TRACE][FLUSH_MSG_FOUND] msg found in flush buffer", { workerID, fMsgType: fMsg?.type, fMsgId: fMsg?.id, hasCurrent: !!worker.current, currentId: worker.current?.id, idMatch: worker.current?.id === fMsg?.id })
             if (fMsg?.type === "done" && worker.current?.id === fMsg.id) {
-              log.info("worker done recovered from unflushed buffer", {
+              log.info("[TRACE][FLUSH_DONE_RECOVERED] done msg recovered from unflushed buffer", {
                 workerID,
                 sessionID: worker.current?.sessionID,
+                parentSessionID: worker.current?.parentSessionID,
+                toolCallID: worker.current?.toolCallID,
               })
               beacon.hit("worker.done")
               worker.lastPhase = "done"
@@ -672,7 +676,7 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
           continue
         }
         
-        log.info("worker message parsed successfully", { workerID: worker?.id, requestedCurrentId: worker?.current?.id, msgType: msg?.type, msgId: msg?.id })
+        log.info("[TRACE] worker message parsed", { workerID: worker?.id, msgType: msg?.type, msgId: msg?.id, hasCurrent: !!worker?.current, currentId: worker?.current?.id, workerBusy: worker?.busy, workerPhase: worker?.lastPhase })
 
         if (msg?.type === "ready") {
           beacon.hit("worker.ready")
@@ -694,21 +698,42 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
         }
 
         if (msg?.type === "done") {
-          log.info("received done message from worker", { 
+          log.info("[TRACE][DONE_MSG_RECEIVED] done message arrived", { 
             workerID: worker.id, 
-            msgId: msg.id, 
+            msgId: msg.id,
+            msgOk: msg.ok,
+            msgError: msg.error,
             hasCurrent: !!worker.current, 
             currentId: worker.current?.id,
-            match: worker.current?.id === msg.id 
+            currentSessionID: worker.current?.sessionID,
+            currentParentSessionID: worker.current?.parentSessionID,
+            currentToolCallID: worker.current?.toolCallID,
+            idMatch: worker.current?.id === msg.id,
+            workerBusy: worker.busy,
+            workerPhase: worker.lastPhase,
           })
+          if (!worker.current) {
+            log.warn("[TRACE][DONE_MSG_NO_CURRENT] done msg received but worker.current is undefined — Done event will NOT be published!", {
+              workerID: worker.id,
+              msgId: msg.id,
+            })
+          } else if (worker.current.id !== msg.id) {
+            log.warn("[TRACE][DONE_MSG_ID_MISMATCH] done msg id does not match worker.current.id — Done event will NOT be published!", {
+              workerID: worker.id,
+              msgId: msg.id,
+              currentId: worker.current.id,
+            })
+          }
         }
 
         if (msg?.type === "done" && worker.current?.id === msg.id) {
+          log.info("[TRACE][DONE_BRANCH_ENTERED] done processing started", { workerID: worker.id, msgId: msg.id, sessionID: worker.current?.sessionID, parentSessionID: worker.current?.parentSessionID, toolCallID: worker.current?.toolCallID })
           beacon.hit("worker.done")
           worker.lastPhase = "done"
           worker.lastWorkerMessage = typeof msg.error === "string" ? `done:${msg.error}` : "done"
           const req = worker.current
           worker.current = undefined
+          log.info("[TRACE][DONE_CURRENT_CLEARED] worker.current set to undefined after done", { workerID: worker.id, reqId: req?.id })
           worker.busy = false
           scheduleIdleReap(worker)
           if (!req) continue
@@ -724,11 +749,12 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
               eventCount: req.eventCount,
               doneAt: Date.now(),
             })
-            log.info("publishing TaskWorkerEvent.Done", {
+            log.info("[TRACE][BEFORE_DONE_PUBLISH] about to publish TaskWorkerEvent.Done", {
               workerID: worker.id,
               sessionID: req.sessionID,
               parentSessionID: req.parentSessionID,
               toolCallID: req.toolCallID,
+              capturedDirectory,
             })
             Bus.publish(
               TaskWorkerEvent.Done,
@@ -741,8 +767,10 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
                 linkedTodoID: req.linkedTodoID,
               },
               { directory: capturedDirectory },
-            ).catch((err) =>
-              log.error("bus publish TaskWorkerEvent.Done failed", { workerID: worker.id, error: String(err) }),
+            ).then(() => {
+              log.info("[TRACE][DONE_PUBLISH_SUCCESS] TaskWorkerEvent.Done published successfully", { workerID: worker.id, sessionID: req.sessionID, parentSessionID: req.parentSessionID })
+            }).catch((err) =>
+              log.error("[TRACE][DONE_PUBLISH_FAILED] bus publish TaskWorkerEvent.Done FAILED", { workerID: worker.id, error: String(err) }),
             )
           } else {
             log.info("publishing TaskWorkerEvent.Failed", {
@@ -841,6 +869,7 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
 
     if (!worker.ready) worker.readyResolve()
     const req = worker.current
+    log.info("[TRACE][EXIT_HANDLER] stdout loop ended, entering exit handler", { workerID, hasReq: !!req, reqId: req?.id, reqSessionID: req?.sessionID, reqParentSessionID: req?.parentSessionID, reqToolCallID: req?.toolCallID, workerPhase: worker.lastPhase, workerBusy: worker.busy })
     worker.current = undefined
     worker.busy = false
     removeWorker(worker.id)
@@ -860,6 +889,7 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
       lastStderr: worker.lastStderr?.slice(-1000),
     }
     debugCheckpoint("task.worker", "worker_exit_unexpected", diagnostics)
+    log.info("[TRACE][EXIT_COMPENSATION] checking if compensation needed", { workerID, hasReq: !!req, exitCode })
     if (req) {
       log.info("worker exit with pending request, publishing TaskWorkerEvent.Failed", {
         workerID: worker.id,
