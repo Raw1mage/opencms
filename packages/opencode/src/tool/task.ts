@@ -103,7 +103,7 @@ function toolWhitelistForSubagent(agentName: string): string[] | undefined {
     return ["read", "glob", "grep", "list", "bash", "webfetch", "websearch", "codesearch", "question", "skill"]
   }
   if (name === "coding") {
-    return ["read", "glob", "grep", "list", "bash", "edit", "write", "apply_patch", "question", "skill"]
+    return ["read", "glob", "grep", "list", "bash", "edit", "write", "apply_patch", "question", "skill", "todowrite", "todoread"]
   }
   return undefined
 }
@@ -668,8 +668,11 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
         try {
           msg = JSON.parse(payload)
         } catch {
+          log.warn("worker message JSON parse failed", { workerID: worker?.id, payload: payload.slice(0, 100) })
           continue
         }
+        
+        log.info("worker message parsed successfully", { workerID: worker?.id, requestedCurrentId: worker?.current?.id, msgType: msg?.type, msgId: msg?.id })
 
         if (msg?.type === "ready") {
           beacon.hit("worker.ready")
@@ -688,6 +691,16 @@ function spawnWorker(config: Awaited<ReturnType<typeof Config.get>>) {
           worker.lastPhase = "heartbeat"
           worker.lastWorkerMessage = "heartbeat"
           continue
+        }
+
+        if (msg?.type === "done") {
+          log.info("received done message from worker", { 
+            workerID: worker.id, 
+            msgId: msg.id, 
+            hasCurrent: !!worker.current, 
+            currentId: worker.current?.id,
+            match: worker.current?.id === msg.id 
+          })
         }
 
         if (msg?.type === "done" && worker.current?.id === msg.id) {
@@ -1080,6 +1093,7 @@ async function dispatchToWorker(input: {
       dispatchedAt,
       eventCount: worker.current!.eventCount,
       doneAt: dispatchedAt ?? Date.now(),
+      metadata: { dispatched: true },
     }
   } catch (error) {
     if (worker && !requestID && !worker.current) {
@@ -1321,6 +1335,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         })
 
         mark("start", { subagentType: params.subagent_type, hasSessionID: !!params.session_id })
+        const log = Log.create({ service: "task.tool.execute" })
         debugCheckpoint("task", "Task tool execute started", {
           description: params.description,
           subagent_type: params.subagent_type,
@@ -1380,16 +1395,6 @@ export const TaskTool = Tool.define("task", async (ctx) => {
             title: createSubsessionTitle(params, agent.name),
             permission: [
               ...narrowedPermissions,
-              {
-                permission: "todowrite",
-                pattern: "*",
-                action: "deny",
-              },
-              {
-                permission: "todoread",
-                pattern: "*",
-                action: "deny",
-              },
               ...(hasTaskPermission
                 ? []
                 : [
@@ -1485,6 +1490,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           llmRequested: params.model ?? "none",
         })
 
+        log.info("DEBUG_RCA_STALL_SCAN: step 1: pinExecutionIdentity starting", { childSessionID: session.id })
         // FIX: Pin execution identity on child session immediately so the
         // worker process inherits the correct provider/account and does not
         // drift to the global active account during its prompt loop.
@@ -1521,6 +1527,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         })
         mark("model_resolved", { providerId: model.providerId, modelID: model.modelID })
 
+        log.info("DEBUG_RCA_STALL_SCAN: step 2: resolvePromptParts starting", { childSessionID: session.id })
         const activeChildTodo = toActiveChildTodo(linkedTodo)
 
         ctx.metadata({
@@ -1612,8 +1619,10 @@ export const TaskTool = Tool.define("task", async (ctx) => {
           variant: "normal", // Default variant
         }
 
+        log.info("DEBUG_RCA_STALL_SCAN: step 3: session message seed starting", { childSessionID: session.id })
         await Session.updateMessage(userMessageInfo)
 
+        log.info("DEBUG_RCA_STALL_SCAN: step 4: session parts seed starting", { childSessionID: session.id })
         for (const part of promptParts) {
           await Session.updatePart({
             ...part,
@@ -1624,6 +1633,7 @@ export const TaskTool = Tool.define("task", async (ctx) => {
         }
         mark("subsession_seeded")
 
+        log.info("DEBUG_RCA_STALL_SCAN: step 5: dispatchToWorker starting", { childSessionID: session.id })
         debugCheckpoint("task", "Dispatching subagent session to worker", { sessionID: session.id })
 
         // Register logical task run in supervisor for monitor visibility.
@@ -1719,15 +1729,12 @@ export const TaskTool = Tool.define("task", async (ctx) => {
 
         return {
           title: params.description,
+          output: `Subagent session dispatched: ${session.id}. Waiting for completion...`,
           metadata: {
             dispatched: true,
-            status: "running",
-            sessionId: session.id,
-            agent: agent.name,
-            model,
-            todo: activeChildTodo,
+            subSessionID: session.id,
+            linkedTodoID: linkedTodo?.id,
           },
-          output,
         }
       } catch (error: unknown) {
         if (linkedTodo?.id) {

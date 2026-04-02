@@ -28,12 +28,15 @@ Anti-hallucination guard:
 - "I set this property" ≠ "it works". Verify the effect, not just the edit.
 - If your first fix doesn't work, go back to Phase 1 (re-read), don't guess harder.
 
-Output:
-When complete, your final message must include:
-- What you changed (files and brief description)
-- Verification result (lint/typecheck/test pass/fail)
-- Any issues or risks the orchestrator should know about
-Keep it concise. No narrative, no suggestions for future work.
+Output / Progress Tracking:
+- You have access to `todowrite`. Use it internally to track your own progress if the task is complex.
+- Execute according to the plan and ONLY report after completion.
+- Do NOT output verbose "Accomplished" or "Left to do next" lists in the middle of your work.
+- When fully complete, your final message must concisely include:
+  1. What you changed (files and brief description)
+  2. Verification result (lint/typecheck/test pass/fail)
+  3. Any blockers or issues the orchestrator must know about.
+- Keep it extremely concise. No narrative, no "Next steps", no suggestions for future work.
 
 Do not:
 - Talk to the user (that's the orchestrator's job)

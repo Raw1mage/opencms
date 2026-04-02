@@ -9,6 +9,7 @@ import { enqueuePendingContinuation, resumePendingContinuations } from "@/sessio
 import { Instance } from "@/project/instance"
 import { SharedContext } from "@/session/shared-context"
 import { Log } from "@/util/log"
+import { describeTaskNarration, emitSessionNarration } from "@/session/narration"
 import z from "zod"
 
 const log = Log.create({ service: "task-worker-continuation" })
@@ -92,6 +93,42 @@ async function enqueueParentContinuation(input: {
     log.error("failed to update task tool part state", {
       parentSessionID: input.parentSessionID,
       toolCallID: input.toolCallID,
+      error: String(err),
+    }),
+  )
+
+  const resumedModel = parent.execution
+    ? {
+        providerId: parent.execution.providerId,
+        modelID: parent.execution.modelID,
+        accountId: parent.execution.accountId,
+      }
+    : {
+        providerId: assistant.info.providerId,
+        modelID: assistant.info.modelID,
+        accountId: "accountId" in assistant.info ? assistant.info.accountId : undefined,
+      }
+
+  await emitSessionNarration({
+    sessionID: input.parentSessionID,
+    parentID: assistant.info.parentID,
+    agent: assistant.info.agent,
+    variant: assistant.info.variant,
+    model: resumedModel,
+    text: describeTaskNarration(
+      input.ok
+        ? { phase: "complete", title: "title" in completedState ? completedState.title : "task", output: "output" in completedState ? completedState.output : "" }
+        : { phase: "error", error: "error" in completedState ? completedState.error : "Unknown error" }
+    ),
+    kind: "task",
+    metadata: {
+      taskNarration: true,
+      taskPhase: input.ok ? "complete" : "error",
+      toolCallId: input.toolCallID,
+    },
+  }).catch((err) =>
+    log.error("failed to emit session narration", {
+      parentSessionID: input.parentSessionID,
       error: String(err),
     }),
   )
@@ -187,6 +224,12 @@ async function enqueueParentContinuation(input: {
       },
     })
 
+    log.info("DEBUG_RCA_STALL_SCAN: step 6: enqueuing parent continuation", {
+      parentSessionID: input.parentSessionID,
+      messageID,
+      isOk: input.ok,
+    })
+
     await enqueuePendingContinuation({
       sessionID: input.parentSessionID,
       messageID,
@@ -198,6 +241,8 @@ async function enqueueParentContinuation(input: {
         : `Task failed for child session ${input.childSessionID}: ${input.error ?? "unknown error"}. Continue the parent orchestration from the failure evidence already stored in-session.`,
       triggerType: input.ok ? "task_completion" : "task_failure",
     })
+
+    log.info("DEBUG_RCA_STALL_SCAN: step 7: parent continuation enqueued", { parentSessionID: input.parentSessionID })
 
     await Session.setWorkflowState({
       sessionID: input.parentSessionID,

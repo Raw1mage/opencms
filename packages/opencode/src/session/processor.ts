@@ -764,28 +764,35 @@ export namespace SessionProcessor {
                     })
 
                     if (match.tool === "task") {
-                      await emitSessionNarration({
-                        sessionID: input.sessionID,
-                        parentID: input.assistantMessage.parentID,
-                        agent: input.assistantMessage.agent,
-                        variant: input.assistantMessage.variant,
-                        model: {
-                          providerId: input.assistantMessage.providerId,
-                          modelID: input.assistantMessage.modelID,
-                          accountId: input.assistantMessage.accountId,
-                        },
-                        text: describeTaskNarration({
-                          phase: "complete",
-                          title: value.output.title,
-                          output: value.output.output,
-                        }),
-                        kind: "task",
-                        metadata: {
-                          taskNarration: true,
-                          taskPhase: "complete",
+                      if (!value.output.metadata?.dispatched) {
+                        await emitSessionNarration({
+                          sessionID: input.sessionID,
+                          parentID: input.assistantMessage.parentID,
+                          agent: input.assistantMessage.agent,
+                          variant: input.assistantMessage.variant,
+                          model: {
+                            providerId: input.assistantMessage.providerId,
+                            modelID: input.assistantMessage.modelID,
+                            accountId: input.assistantMessage.accountId,
+                          },
+                          text: describeTaskNarration({
+                            phase: "complete",
+                            title: value.output.title,
+                            output: value.output.output,
+                          }),
+                          kind: "task",
+                          metadata: {
+                            taskNarration: true,
+                            taskPhase: "complete",
+                            toolCallId: value.toolCallId,
+                          },
+                        })
+                      } else {
+                        log.info("Suppressed premature subagent session 'complete' narration (dispatched flag detected)", {
+                          sessionID: input.sessionID,
                           toolCallId: value.toolCallId,
-                        },
-                      })
+                        })
+                      }
                     }
 
                     delete toolcalls[value.toolCallId]

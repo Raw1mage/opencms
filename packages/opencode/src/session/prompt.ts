@@ -1657,6 +1657,7 @@ export namespace SessionPrompt {
           reason: decision.reason,
           autonomousRounds,
         })
+        log.info("loop:continuation_stopped breaking out of while(true)", { sessionID, reason: decision.reason, state: decision.reason === "wait_subagent" ? "idle" : "waiting_user" })
         break
       }
       if (result === "compact") {
@@ -1720,10 +1721,12 @@ export namespace SessionPrompt {
       }
     }
 
+    log.info("loop:pruning_compacting_and_returning", { sessionID })
     SessionCompaction.prune({ sessionID })
     for await (const item of MessageV2.stream(sessionID)) {
       if (item.info.role === "user") continue
       const queued = consumeCallbacks(sessionID)
+      log.info("loop:found_assistant_message_returning", { sessionID, returnedMessageID: item.info.id, queuedCallbacks: queued.length })
       for (const q of queued) {
         q.resolve(item)
       }

@@ -10,6 +10,9 @@ import path from "path"
 import { Bus } from "@/bus"
 import { createInterface } from "node:readline"
 import { Project } from "@/project/project"
+import { Log } from "@/util/log"
+
+const log = Log.create({ service: "session-worker" })
 
 function pagerCmd(): string[] {
   const lessOptions = ["-R", "-S"]
@@ -235,17 +238,16 @@ export const SessionWorkerCommand = cmd({
           void (async () => {
             try {
               console.error(`[WORKER] worker session loop starting for ${runRef.sessionID}`)
+              log.info("worker session loop starting", { sessionID: runRef.sessionID, runID: runRef.id })
               await SessionPrompt.loop(runRef.sessionID)
               console.error(`[WORKER] worker session loop finished for ${runRef.sessionID}`)
+              log.info("worker session loop finished", { sessionID: runRef.sessionID, runID: runRef.id, cancelRequested: runRef.cancelRequested })
+              
               if (runRef.cancelRequested) {
-                send({
-                  type: "done",
-                  id: runRef.id,
-                  sessionID: runRef.sessionID,
-                  ok: false,
-                  error: "canceled",
-                })
+                log.info("worker sending canceled signal", { sessionID: runRef.sessionID, runID: runRef.id })
+                send({ type: "done", id: runRef.id, sessionID: runRef.sessionID, ok: false, error: "canceled" })
               } else {
+                log.info("worker sending done signal", { sessionID: runRef.sessionID, runID: runRef.id })
                 send({ type: "done", id: runRef.id, sessionID: runRef.sessionID, ok: true })
               }
             } catch (error) {

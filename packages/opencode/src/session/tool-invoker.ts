@@ -20,11 +20,6 @@ type InitializedTool<TResult = ToolExecutionResult> = {
 
 type InvokableTool<TResult = ToolExecutionResult> = Tool.Info | InitializedTool<TResult>
 
-const OPPOSITE_PLANNER_TOOL_BY_INTENT = {
-  plan_exit: "plan_enter",
-  plan_enter: "plan_exit",
-} as const satisfies Record<PlannerIntent, string>
-
 function hasInit<TResult>(tool: InvokableTool<TResult>): tool is Tool.Info {
   return typeof (tool as Tool.Info).init === "function"
 }
@@ -33,8 +28,10 @@ async function assertPlannerIntentConsistency(options: ToolInvoker.InvokeOptions
   if (!options.toolID.startsWith("plan_")) return
   const committedPlannerIntent = await SessionPrompt.getCommittedPlannerIntent(options.sessionID)
   if (!committedPlannerIntent) return
-  const forbiddenTool = OPPOSITE_PLANNER_TOOL_BY_INTENT[committedPlannerIntent]
-  if (options.toolID !== forbiddenTool) return
+  // One-way safety gate:
+  // Once build-direction intent is committed, block opposite plan_enter invocations.
+  // plan_exit must stay invocable from plan mode when user explicitly asks to switch.
+  if (!(committedPlannerIntent === "plan_exit" && options.toolID === "plan_enter")) return
   throw new Error(
     `planner_intent_mismatch: committed ${committedPlannerIntent} intent forbids opposite-direction ${options.toolID} invocation`,
   )
