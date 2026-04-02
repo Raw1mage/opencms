@@ -72,7 +72,10 @@ function assistantInfo(
   error?: MessageV2.Assistant["error"],
   meta?: { providerId: string; modelID: string; accountId?: string },
 ): MessageV2.Assistant {
-  const infoModel = meta ?? { providerId: model.providerId, modelID: model.api.id }
+  const infoModel: { providerId: string; modelID: string; accountId?: string } = meta ?? {
+    providerId: model.providerId,
+    modelID: model.api.id,
+  }
   return {
     id,
     sessionID,
@@ -452,6 +455,180 @@ describe("session.message-v2.toModelMessage", () => {
         role: "assistant",
         content: [
           { type: "text", text: "done" },
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "bash",
+            input: { cmd: "ls" },
+            providerExecuted: undefined,
+          },
+        ],
+      },
+      {
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "call-1",
+            toolName: "bash",
+            output: { type: "content", value: [{ type: "text", text: "ok" }] },
+          },
+        ],
+      },
+    ])
+  })
+
+  test("omits provider metadata when account differs under same provider/model", () => {
+    const userID = "m-user"
+    const assistantID = "m-assistant"
+    const nextModel = {
+      ...model,
+      accountId: "acct-next",
+    } as Provider.Model
+
+    const input: MessageV2.WithParts[] = [
+      {
+        info: userInfo(userID),
+        parts: [
+          {
+            ...basePart(userID, "u1"),
+            type: "text",
+            text: "run tool",
+          },
+        ] as MessageV2.Part[],
+      },
+      {
+        info: assistantInfo(assistantID, userID, undefined, {
+          providerId: model.providerId,
+          modelID: model.api.id,
+          accountId: "acct-prev",
+        }),
+        parts: [
+          {
+            ...basePart(assistantID, "a1"),
+            type: "text",
+            text: "done",
+            metadata: { openai: { assistant: "meta" } },
+          },
+          {
+            ...basePart(assistantID, "a2"),
+            type: "tool",
+            callID: "call-1",
+            tool: "bash",
+            state: {
+              status: "completed",
+              input: { cmd: "ls" },
+              output: "ok",
+              title: "Bash",
+              metadata: {},
+              time: { start: 0, end: 1 },
+            },
+            metadata: { openai: { tool: "meta" } },
+          },
+        ] as MessageV2.Part[],
+      },
+    ]
+
+    expect(MessageV2.toModelMessages(input, nextModel)).toStrictEqual([
+      {
+        role: "user",
+        content: [{ type: "text", text: "run tool" }],
+      },
+      {
+        role: "assistant",
+        content: [
+          { type: "text", text: "done" },
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "bash",
+            input: { cmd: "ls" },
+            providerExecuted: undefined,
+          },
+        ],
+      },
+      {
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "call-1",
+            toolName: "bash",
+            output: { type: "content", value: [{ type: "text", text: "ok" }] },
+          },
+        ],
+      },
+    ])
+  })
+
+  test("flush clears remote refs but keeps compaction/tail semantic content", () => {
+    const userID = "m-user"
+    const assistantID = "m-assistant"
+    const nextModel = {
+      ...model,
+      accountId: "acct-next",
+    } as Provider.Model
+
+    const input: MessageV2.WithParts[] = [
+      {
+        info: userInfo(userID),
+        parts: [
+          {
+            ...basePart(userID, "u1"),
+            type: "text",
+            text: "tail user",
+          },
+          {
+            ...basePart(userID, "u2"),
+            type: "compaction",
+            auto: true,
+          },
+        ] as MessageV2.Part[],
+      },
+      {
+        info: assistantInfo(assistantID, userID, undefined, {
+          providerId: model.providerId,
+          modelID: model.api.id,
+          accountId: "acct-prev",
+        }),
+        parts: [
+          {
+            ...basePart(assistantID, "a1"),
+            type: "text",
+            text: "tail assistant",
+            metadata: { openai: { assistant: "meta" } },
+          },
+          {
+            ...basePart(assistantID, "a2"),
+            type: "tool",
+            callID: "call-1",
+            tool: "bash",
+            state: {
+              status: "completed",
+              input: { cmd: "ls" },
+              output: "ok",
+              title: "Bash",
+              metadata: {},
+              time: { start: 0, end: 1 },
+            },
+            metadata: { openai: { tool: "meta" } },
+          },
+        ] as MessageV2.Part[],
+      },
+    ]
+
+    expect(MessageV2.toModelMessages(input, nextModel)).toStrictEqual([
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "tail user" },
+          { type: "text", text: "What did we do so far?" },
+        ],
+      },
+      {
+        role: "assistant",
+        content: [
+          { type: "text", text: "tail assistant" },
           {
             type: "tool-call",
             toolCallId: "call-1",
@@ -1051,15 +1228,22 @@ describe("session.message-v2.fromError", () => {
   })
 
   test("preserves debug payload for error instances with object-like causes", () => {
-    const error = new Error("[object Object]", {
-      cause: {
-        status: 429,
+    const error = new Error("[object Object]") as Error & {
+      cause?: {
+        status: number
         data: {
-          message: "Quota exceeded",
-          responseBody: '{"error":{"code":"insufficient_quota"}}',
-        },
+          message: string
+          responseBody: string
+        }
+      }
+    }
+    error.cause = {
+      status: 429,
+      data: {
+        message: "Quota exceeded",
+        responseBody: '{"error":{"code":"insufficient_quota"}}',
       },
-    })
+    }
 
     const result = MessageV2.fromError(error, { providerId: "test" })
 
@@ -1120,5 +1304,133 @@ describe("session.message-v2.fromError", () => {
         },
       },
     })
+  })
+})
+
+describe("session.message-v2.evaluateContinuationReset", () => {
+  test("flushes when execution identity changes", () => {
+    const result = MessageV2.evaluateContinuationReset({
+      current: { providerId: "openai", modelID: "gpt-5", accountId: "acct-a" },
+      next: { providerId: "openai", modelID: "gpt-5", accountId: "acct-b" },
+    })
+
+    expect(result).toStrictEqual({
+      flushRemoteRefs: true,
+      matchedTriggers: ["identity_changed"],
+    })
+  })
+
+  test("does not flush when no trigger matches", () => {
+    const result = MessageV2.evaluateContinuationReset({
+      current: { providerId: "openai", modelID: "gpt-5", accountId: "acct-a" },
+      next: { providerId: "openai", modelID: "gpt-5", accountId: "acct-a" },
+    })
+
+    expect(result).toStrictEqual({
+      flushRemoteRefs: false,
+      matchedTriggers: [],
+    })
+  })
+
+  test("flushes on non-identity provider invalidation trigger", () => {
+    const result = MessageV2.evaluateContinuationReset({
+      current: { providerId: "openai", modelID: "gpt-5", accountId: "acct-a" },
+      next: { providerId: "openai", modelID: "gpt-5", accountId: "acct-a" },
+      providerInvalidation: true,
+    })
+
+    expect(result).toStrictEqual({
+      flushRemoteRefs: true,
+      matchedTriggers: ["provider_invalidation"],
+    })
+  })
+})
+
+describe("session.message-v2.buildInvalidationDebugSnapshot", () => {
+  test("invalidation_log_contains_full_state_snapshot", () => {
+    const snapshot = MessageV2.buildInvalidationDebugSnapshot({
+      current: { providerId: "openai", modelID: "gpt-5", accountId: "acct-a" },
+      next: { providerId: "openai", modelID: "gpt-5", accountId: "acct-b" },
+      decision: {
+        flushRemoteRefs: true,
+        matchedTriggers: ["identity_changed", "provider_invalidation"],
+      },
+      replay: {
+        textParts: 2,
+        textItemIds: 1,
+        reasoningParts: 1,
+        reasoningItemIds: 1,
+        toolParts: 1,
+        toolItemIds: 1,
+      },
+      compactionParts: 3,
+      invalidationCode: "text_part_msg_not_found",
+      invalidationMessage: "text part msg_123 not found",
+    })
+
+    expect(snapshot).toMatchObject({
+      executionIdentity: {
+        current: { providerId: "openai", modelID: "gpt-5", accountId: "acct-a" },
+        next: { providerId: "openai", modelID: "gpt-5", accountId: "acct-b" },
+      },
+      triggerEvaluation: {
+        a1IdentityChanged: true,
+        a2ProviderInvalidation: true,
+        a3RestartResumeMismatch: false,
+        a4CheckpointRebuildUntrusted: false,
+        a5ExplicitReset: false,
+        matchedTriggers: ["identity_changed", "provider_invalidation"],
+        flushRemoteRefs: true,
+      },
+      checkpointTailBoundary: {
+        checkpointPartCount: 3,
+        tailPartCount: 4,
+      },
+      replayComposition: {
+        mode: "checkpoint_plus_tail",
+      },
+      invalidation: {
+        code: "text_part_msg_not_found",
+      },
+      flushResult: {
+        remoteRefsCleared: true,
+        clearedRemoteRefCount: 3,
+      },
+    })
+  })
+
+  test("invalidation_log_redacts_sensitive_fields", () => {
+    const snapshot = MessageV2.buildInvalidationDebugSnapshot({
+      current: { providerId: "openai", modelID: "gpt-5", accountId: "acct-a" },
+      next: { providerId: "openai", modelID: "gpt-5", accountId: "acct-b" },
+      decision: {
+        flushRemoteRefs: true,
+        matchedTriggers: ["provider_invalidation"],
+      },
+      replay: {
+        textParts: 1,
+        textItemIds: 1,
+        reasoningParts: 0,
+        reasoningItemIds: 0,
+        toolParts: 0,
+        toolItemIds: 0,
+      },
+      compactionParts: 1,
+      invalidationMessage:
+        "authorization=Bearer sk-secret api_key=abc123 token=t1 secret=s1 cookie=c1 keep=text part msg_123 not found",
+    })
+
+    expect(snapshot.invalidation.messageExcerpt).toContain("authorization=[REDACTED]")
+    expect(snapshot.invalidation.messageExcerpt).toContain("api_key=[REDACTED]")
+    expect(snapshot.invalidation.messageExcerpt).toContain("token=[REDACTED]")
+    expect(snapshot.invalidation.messageExcerpt).toContain("secret=[REDACTED]")
+    expect(snapshot.invalidation.messageExcerpt).toContain("cookie=[REDACTED]")
+    expect(snapshot.invalidation.messageExcerpt).toContain("text part msg_123 not found")
+
+    expect(snapshot.invalidation.messageExcerpt).not.toContain("sk-secret")
+    expect(snapshot.invalidation.messageExcerpt).not.toContain("abc123")
+    expect(snapshot.invalidation.messageExcerpt).not.toContain("t1")
+    expect(snapshot.invalidation.messageExcerpt).not.toContain("s1")
+    expect(snapshot.invalidation.messageExcerpt).not.toContain("c1")
   })
 })

@@ -25,6 +25,118 @@ import { Bus } from "@/bus"
 import { debugCheckpoint } from "@/util/debug"
 
 export namespace MessageV2 {
+  export type ContinuationResetTrigger =
+    | "identity_changed"
+    | "provider_invalidation"
+    | "restart_resume_mismatch"
+    | "checkpoint_rebuild_untrusted"
+    | "explicit_reset"
+
+  export interface ContinuationExecutionIdentity {
+    providerId: string
+    modelID: string
+    accountId?: string
+  }
+
+  export interface ContinuationResetDecisionInput {
+    current?: ContinuationExecutionIdentity
+    next?: ContinuationExecutionIdentity
+    providerInvalidation?: boolean
+    restartResumeMismatch?: boolean
+    checkpointRebuildUntrusted?: boolean
+    explicitReset?: boolean
+  }
+
+  export interface ContinuationResetDecision {
+    flushRemoteRefs: boolean
+    matchedTriggers: ContinuationResetTrigger[]
+  }
+
+  export interface ContinuationReplayDebug {
+    textParts: number
+    textItemIds: number
+    reasoningParts: number
+    reasoningItemIds: number
+    toolParts: number
+    toolItemIds: number
+  }
+
+  function redactSensitiveText(input: string | undefined) {
+    if (!input) return undefined
+    let value = input
+    value = value.replace(/(authorization\s*[:=]\s*)(bearer\s+)?[^\s,;]+/gi, "$1[REDACTED]")
+    value = value.replace(/(api[_-]?key\s*[:=]\s*)[^\s,;]+/gi, "$1[REDACTED]")
+    value = value.replace(/(token\s*[:=]\s*)[^\s,;]+/gi, "$1[REDACTED]")
+    value = value.replace(/(secret\s*[:=]\s*)[^\s,;]+/gi, "$1[REDACTED]")
+    value = value.replace(/(cookie\s*[:=]\s*)[^\s,;]+/gi, "$1[REDACTED]")
+    return value.slice(0, 240)
+  }
+
+  export function buildInvalidationDebugSnapshot(input: {
+    current: ContinuationExecutionIdentity
+    next: ContinuationExecutionIdentity
+    decision: ContinuationResetDecision
+    replay: ContinuationReplayDebug
+    compactionParts: number
+    invalidationCode?: string
+    invalidationMessage?: string
+  }) {
+    const matched = new Set(input.decision.matchedTriggers)
+    const totalRemoteItemIds = input.replay.textItemIds + input.replay.reasoningItemIds + input.replay.toolItemIds
+    return {
+      executionIdentity: {
+        current: input.current,
+        next: input.next,
+      },
+      triggerEvaluation: {
+        a1IdentityChanged: matched.has("identity_changed"),
+        a2ProviderInvalidation: matched.has("provider_invalidation"),
+        a3RestartResumeMismatch: matched.has("restart_resume_mismatch"),
+        a4CheckpointRebuildUntrusted: matched.has("checkpoint_rebuild_untrusted"),
+        a5ExplicitReset: matched.has("explicit_reset"),
+        matchedTriggers: input.decision.matchedTriggers,
+        flushRemoteRefs: input.decision.flushRemoteRefs,
+      },
+      checkpointTailBoundary: {
+        checkpointPartCount: input.compactionParts,
+        tailPartCount: Math.max(0, input.replay.textParts + input.replay.reasoningParts + input.replay.toolParts),
+      },
+      replayComposition: {
+        mode: "checkpoint_plus_tail",
+        replay: input.replay,
+      },
+      invalidation: {
+        code: input.invalidationCode ?? (matched.has("provider_invalidation") ? "provider_invalidation" : undefined),
+        messageExcerpt: redactSensitiveText(input.invalidationMessage),
+      },
+      flushResult: {
+        remoteRefsCleared: input.decision.flushRemoteRefs,
+        clearedRemoteRefCount: input.decision.flushRemoteRefs ? totalRemoteItemIds : 0,
+      },
+    }
+  }
+
+  export function evaluateContinuationReset(input: ContinuationResetDecisionInput): ContinuationResetDecision {
+    const matchedTriggers: ContinuationResetTrigger[] = []
+    if (
+      input.current &&
+      input.next &&
+      (input.current.providerId !== input.next.providerId ||
+        input.current.modelID !== input.next.modelID ||
+        input.current.accountId !== input.next.accountId)
+    ) {
+      matchedTriggers.push("identity_changed")
+    }
+    if (input.providerInvalidation) matchedTriggers.push("provider_invalidation")
+    if (input.restartResumeMismatch) matchedTriggers.push("restart_resume_mismatch")
+    if (input.checkpointRebuildUntrusted) matchedTriggers.push("checkpoint_rebuild_untrusted")
+    if (input.explicitReset) matchedTriggers.push("explicit_reset")
+    return {
+      flushRemoteRefs: matchedTriggers.length > 0,
+      matchedTriggers,
+    }
+  }
+
   function hasRemoteItemId(metadata: unknown) {
     if (!metadata || typeof metadata !== "object") return false
     for (const value of Object.values(metadata)) {
@@ -587,7 +699,19 @@ export namespace MessageV2 {
       }
 
       if (msg.info.role === "assistant") {
-        const differentModel = `${model.providerId}/${model.id}` !== `${msg.info.providerId}/${msg.info.modelID}`
+        const continuationResetDecision = evaluateContinuationReset({
+          current: {
+            providerId: msg.info.providerId,
+            modelID: msg.info.modelID,
+            accountId: msg.info.accountId,
+          },
+          next: {
+            providerId: model.providerId,
+            modelID: model.id,
+            accountId: (model as { accountId?: string }).accountId,
+          },
+        })
+        const flushRemoteRefs = continuationResetDecision.flushRemoteRefs
 
         if (
           msg.info.error &&
@@ -615,7 +739,7 @@ export namespace MessageV2 {
           role: "assistant",
           parts: [],
         }
-        const replayDebug = {
+        const replayDebug: ContinuationReplayDebug = {
           textParts: 0,
           textItemIds: 0,
           reasoningParts: 0,
@@ -632,7 +756,7 @@ export namespace MessageV2 {
                 assistantMessage.parts.push({
                   type: "text",
                   text: part.text,
-                  ...(differentModel ? {} : { providerMetadata: part.metadata }),
+                  ...(flushRemoteRefs ? {} : { providerMetadata: part.metadata }),
                 }))
           if (part.type === "tool") {
             replayDebug.toolParts++
@@ -655,7 +779,7 @@ export namespace MessageV2 {
                 toolCallId: part.callID,
                 input: part.state.input ?? {},
                 output,
-                ...(differentModel ? {} : { callProviderMetadata: part.metadata }),
+                ...(flushRemoteRefs ? {} : { callProviderMetadata: part.metadata }),
               })
             }
             if (part.state.status === "error")
@@ -665,7 +789,7 @@ export namespace MessageV2 {
                 toolCallId: part.callID,
                 input: part.state.input ?? {},
                 errorText: part.state.error ?? "[Unknown error]",
-                ...(differentModel ? {} : { callProviderMetadata: part.metadata }),
+                ...(flushRemoteRefs ? {} : { callProviderMetadata: part.metadata }),
               })
             // Handle pending/running tool calls to prevent dangling tool_use blocks
             // Anthropic/Claude APIs require every tool_use to have a corresponding tool_result
@@ -676,7 +800,7 @@ export namespace MessageV2 {
                 toolCallId: part.callID,
                 input: part.state.input ?? {},
                 errorText: "[Tool execution was interrupted]",
-                ...(differentModel ? {} : { callProviderMetadata: part.metadata }),
+                ...(flushRemoteRefs ? {} : { callProviderMetadata: part.metadata }),
               })
           }
           if (part.type === "reasoning") {
@@ -685,12 +809,12 @@ export namespace MessageV2 {
             assistantMessage.parts.push({
               type: "reasoning",
               text: part.text,
-              ...(differentModel ? {} : { providerMetadata: part.metadata }),
+              ...(flushRemoteRefs ? {} : { providerMetadata: part.metadata }),
             })
           }
         }
         if (
-          !differentModel &&
+          !flushRemoteRefs &&
           (replayDebug.textItemIds > 0 || replayDebug.reasoningItemIds > 0 || replayDebug.toolItemIds > 0)
         ) {
           debugCheckpoint("message-v2", "assistant replay metadata preserved", {
@@ -699,6 +823,32 @@ export namespace MessageV2 {
             providerId: msg.info.providerId,
             modelID: msg.info.modelID,
             replay: replayDebug,
+          })
+        }
+        if (
+          flushRemoteRefs &&
+          (replayDebug.textItemIds > 0 || replayDebug.reasoningItemIds > 0 || replayDebug.toolItemIds > 0)
+        ) {
+          debugCheckpoint("message-v2", "assistant replay metadata flushed", {
+            messageID: msg.info.id,
+            sessionID: msg.info.sessionID,
+            providerId: msg.info.providerId,
+            modelID: msg.info.modelID,
+            snapshot: buildInvalidationDebugSnapshot({
+              current: {
+                providerId: msg.info.providerId,
+                modelID: msg.info.modelID,
+                accountId: msg.info.accountId,
+              },
+              next: {
+                providerId: model.providerId,
+                modelID: model.id,
+                accountId: (model as { accountId?: string }).accountId,
+              },
+              decision: continuationResetDecision,
+              replay: replayDebug,
+              compactionParts: msg.parts.filter((part) => part.type === "compaction").length,
+            }),
           })
         }
         if (assistantMessage.parts.length > 0) {
