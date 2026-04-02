@@ -203,10 +203,14 @@ available → installed → pending_config → pending_auth → ready
 
 Both Google apps share a single OAuth token stored at `~/.config/opencode/gauth.json`. The OAuth connect flow (`/api/v2/mcp/apps/:appId/oauth/connect`) merges scopes from all installed Google apps before redirecting to Google's consent screen. After successful callback, all installed Google apps are marked configured and enabled.
 
+- Shared Google token freshness is maintained by the MCP runtime, which must perform a silent daemon-start background sweep for the Google app surface only when at least one Google managed app is actually installed and enabled, and keep refresh work serialized so background and on-demand refresh do not race each other.
+- Google managed-app observability remains derived from the shared token file, but refresh success must publish updates only for the active Google app set so observers re-read current state without receiving synthetic updates for inactive apps.
+
 ### Key Files
 
 - `packages/opencode/src/mcp/app-registry.ts` — BUILTIN_CATALOG, state machine, persistence (`managed-apps.json`)
 - `packages/opencode/src/mcp/index.ts` — Tool conversion (`convertManagedAppTool`), executor routing (`managedAppExecutors`)
+- `packages/opencode/src/mcp/index.ts` — MCP lifecycle/init surface; hosts the daemon-start sweep entrypoint for shared Google token refresh orchestration.
 - `packages/opencode/src/mcp/apps/google-calendar/` — Calendar client + executors
 - `packages/opencode/src/mcp/apps/gmail/` — Gmail client + executors
 - `packages/opencode/src/server/routes/mcp.ts` — OAuth connect/callback routes, app lifecycle API
