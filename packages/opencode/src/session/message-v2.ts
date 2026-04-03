@@ -906,13 +906,28 @@ export namespace MessageV2 {
     const completed = new Set<string>()
     for await (const msg of stream) {
       result.push(msg)
-      if (
-        msg.info.role === "user" &&
-        completed.has(msg.info.id) &&
-        msg.parts.some((part) => part.type === "compaction")
-      )
+      
+      // RCA Diagnostic Trace: Minimal disruption
+      const hasCompaction = msg.parts.some((p: any) => p.type === "compaction")
+      // @ts-ignore
+      const isSummary = msg.info.role === "assistant" && !!msg.info.summary
+      // @ts-ignore
+      const isFinish = msg.info.role === "assistant" && !!msg.info.finish
+      
+      const rcaLog = (m: string) => require("fs").appendFileSync("/tmp/opencode-loop.log", `${m}\n`)
+      rcaLog(`[RCA] Scanned ${msg.info.role}: id=${msg.info.id}, hasCompaction=${hasCompaction}, isSummary=${isSummary}, isFinish=${isFinish}`)
+
+      // SMART FIX: Consistent with Visual/TUI. If there's a compaction marker, STOP.
+      // Also stop if this is an explicit summary assistant message (recovering dirty data).
+      if (hasCompaction || isSummary) {
+        rcaLog(`[RCA] Filter hit truncation at: ${msg.info.id} (${msg.info.role}, isSummary=${isSummary})`)
         break
-      if (msg.info.role === "assistant" && msg.info.summary && msg.info.finish) completed.add(msg.info.parentID)
+      }
+
+      if (msg.info.role === "assistant" && (msg.info as any).summary && (msg.info as any).finish) {
+         completed.add((msg.info as any).parentID)
+         rcaLog(`[RCA] Added parent ${ (msg.info as any).parentID } to completed set`)
+      }
     }
     result.reverse()
     return result

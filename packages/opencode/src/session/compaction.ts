@@ -470,13 +470,16 @@ export namespace SessionCompaction {
     const userMessage = input.messages.findLast((m) => m.info.id === input.parentID)!.info as MessageV2.User
 
     // --- Server-side compaction for codex provider (Phase 4) ---
-    if (userMessage.model.providerId === "codex") {
+    const isCodex = userMessage.model.providerId === "codex" || userMessage.model.providerId === "openai"
+    if (isCodex) {
       const serverResult = await tryServerCompaction(input, userMessage)
       if (serverResult) return serverResult
       log.info("codex server compaction unavailable, falling back to LLM agent")
     }
 
+    // --- LEAGCY RESTORATION: Always trigger true Summary for others (like Gemini) ---
     const agent = await Agent.get("compaction")
+    log.info("triggering TRUE Summary Compaction (Legacy Agent)", { sessionID: input.sessionID })
     const model = agent.model
       ? await Provider.getModel(agent.model.providerId, agent.model.modelID)
       : await Provider.getModel(userMessage.model.providerId, userMessage.model.modelID)
@@ -697,7 +700,7 @@ When constructing the summary, try to stick to this template:
       },
     })) as MessageV2.Assistant
 
-    // Write the shared context snapshot as the summary text part
+    // 1. Write transcript summary as a text part
     await Session.updatePart({
       id: Identifier.ascending("part"),
       messageID: summaryMsg.id,
@@ -708,6 +711,15 @@ When constructing the summary, try to stick to this template:
         start: Date.now(),
         end: Date.now(),
       },
+    })
+
+    // 2. Write the CRITICAL compaction anchor point for history truncation
+    await Session.updatePart({
+      id: Identifier.ascending("part"),
+      messageID: summaryMsg.id,
+      sessionID: input.sessionID,
+      type: "compaction",
+      auto: input.auto,
     })
 
     log.info("shared context compaction complete", { sessionID: input.sessionID })

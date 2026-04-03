@@ -1,0 +1,38 @@
+[
+  {
+    "StepNumber": 10,
+    "ModuleRef": "A21",
+    "StepType": "normal",
+    "StepAction": "CALCULATING_TOKEN_BUDGET",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [11],
+    "LinkOutputType": "track",
+    "Condition": ["Tokens_Computed"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 11,
+    "ModuleRef": "A22",
+    "StepType": "normal",
+    "StepAction": "ASYNC_LLM_SUMMARIZATION",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [10],
+    "LinkOutputNumber": [12],
+    "LinkOutputType": "track",
+    "Condition": ["Summary_Received"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 12,
+    "ModuleRef": "A23",
+    "StepType": "normal",
+    "StepAction": "PERSIST_JSON_TO_DISK",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [11],
+    "LinkOutputNumber": [10],
+    "LinkOutputType": "track",
+    "Condition": ["IO_Success"],
+    "SubGrafcet": []
+  }
+]

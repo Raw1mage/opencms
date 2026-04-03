@@ -1,0 +1,15 @@
+{
+  "diagram_title": "Load Rebind Input — Level 3 Decomposition",
+  "node_reference": "A3",
+  "analysis_summary": "Subsystem responsible for assembling the prompt during rebind. Handles the gap between DB and JSON artifacts.",
+  "activities": [
+    { "id": "A31", "title": "Detect Checkpoint Artifact", "description": "Seek for physical JSON file on state path.", "decomposition": null },
+    { "id": "A32", "title": "Filter Post-Boundary Messages", "description": "Exclude messages consolidated in the shadow.", "decomposition": null },
+    { "id": "A33", "title": "Assemble Synthetic Prompt", "description": "Merge shadow context with new messages.", "decomposition": null }
+  ],
+  "arrows": [
+    { "id": "AR31", "source": "EXTERNAL", "target": "A31:control", "label": "Session ID", "type": "control" },
+    { "id": "AR32", "source": "A31:output", "target": "A32:control", "label": "LastMessageID", "type": "control" },
+    { "id": "AR33", "source": "A32:output", "target": "A33:input", "label": "Partial Message Set", "type": "input" }
+  ]
+}

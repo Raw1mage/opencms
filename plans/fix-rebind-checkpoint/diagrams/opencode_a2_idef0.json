@@ -1,0 +1,15 @@
+{
+  "diagram_title": "Generate Shadow Checkpoint — Level 2 Decomposition",
+  "node_reference": "A2",
+  "analysis_summary": "Subsystem responsible for creating the shadow JSON artifacts on disk. Triggers based on token context budget.",
+  "activities": [
+    { "id": "A21", "title": "Calculate Rebind Budget", "description": "Estimate tokens of full history.", "decomposition": null },
+    { "id": "A22", "title": "Request LLM Summarization", "description": "Invoke summarization agent non-blockingly.", "decomposition": null },
+    { "id": "A23", "title": "Persist Shadow Artifact", "description": "Atomically write checkpoint to state directory.", "decomposition": null }
+  ],
+  "arrows": [
+    { "id": "AR21", "source": "EXTERNAL", "target": "A21:input", "label": "Session Messages", "type": "input" },
+    { "id": "AR22", "source": "A21:output", "target": "A22:control", "label": "Trigger Event", "type": "control" },
+    { "id": "AR23", "source": "A22:output", "target": "A23:input", "label": "Summary Block", "type": "input" }
+  ]
+}

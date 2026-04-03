@@ -1,0 +1,16 @@
+{
+  "diagram_title": "Manage Rebind Checkpoint Lifecycle",
+  "node_reference": "A0",
+  "analysis_summary": "Top-level decomposition of the Shadow Checkpoint mechanism designed to solve the 440-message stall.",
+  "activities": [
+    { "id": "A1", "title": "Monitor Session State", "description": "Track message count and token usage.", "decomposition": null },
+    { "id": "A2", "title": "Generate Shadow Checkpoint", "description": "Perform background summarization and persistence.", "decomposition": "A2" },
+    { "id": "A3", "title": "Load Rebind Input", "description": "Assemble prompt using shadow artifacts during restart.", "decomposition": "A3" }
+  ],
+  "arrows": [
+    { "id": "AR1", "source": "EXTERNAL", "target": "A1:input", "label": "Raw Messages", "type": "input" },
+    { "id": "AR2", "source": "EXTERNAL", "target": "A2:control", "label": "Token Threshold (80K)", "type": "control" },
+    { "id": "AR3", "source": "A2", "target": "EXTERNAL", "label": "Shadow JSON", "type": "output" },
+    { "id": "AR4", "source": "A3", "target": "EXTERNAL", "label": "Compact Prompt", "type": "output" }
+  ]
+}

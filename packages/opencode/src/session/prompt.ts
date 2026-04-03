@@ -880,6 +880,7 @@ export namespace SessionPrompt {
       log.info("loop", { step, sessionID })
       if (abort.aborted) break
       let msgs = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
+      require("fs").appendFileSync("/tmp/opencode-loop.log", `[RCA] Round ${step}: msgs.length=${msgs.length}, sessionID=${sessionID}\n`)
 
       let lastUser: MessageV2.User | undefined
       let lastAssistant: MessageV2.Assistant | undefined

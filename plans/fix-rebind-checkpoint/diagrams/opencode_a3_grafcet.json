@@ -1,0 +1,50 @@
+[
+  {
+    "StepNumber": 20,
+    "ModuleRef": "A31",
+    "StepType": "normal",
+    "StepAction": "SEARCHING_FOR_SHADOW_JSON",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [21, 22],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["File_Exists"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 21,
+    "ModuleRef": "A32",
+    "StepType": "normal",
+    "StepAction": "TRUNCATE_HISTORY_BY_BOUNDARY",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [20],
+    "LinkOutputNumber": [23],
+    "LinkOutputType": "track",
+    "Condition": ["Boundary_Found"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 22,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "FULL_HISTORY_RECONSTRUCTION (FALLBACK)",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [20],
+    "LinkOutputNumber": [23],
+    "LinkOutputType": "track",
+    "Condition": ["File_Missing"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 23,
+    "ModuleRef": "A33",
+    "StepType": "normal",
+    "StepAction": "CONSTRUCTING_PROMPT_PAYLOAD",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [21, 22],
+    "LinkOutputNumber": [20],
+    "LinkOutputType": "track",
+    "Condition": ["Payload_Ready"],
+    "SubGrafcet": []
+  }
+]
