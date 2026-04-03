@@ -24,7 +24,7 @@ function createUnixEventSource(socketPath: string, baseUrl: string): EventSource
   return {
     on: (handler: (event: Event) => void) => {
       const abort = new AbortController()
-      const sseUrl = baseUrl.replace(/\/$/, "") + "/v2/event"
+      const sseUrl = baseUrl.replace(/\/$/, "") + "/api/v2/event"
       ;(async () => {
         while (!abort.signal.aborted) {
           try {
