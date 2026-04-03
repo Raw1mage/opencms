@@ -9,7 +9,7 @@ import { Session } from "."
 import { Agent } from "../agent/agent"
 import { Provider } from "../provider/provider"
 import { SessionCompaction } from "./compaction"
-import { SharedContext } from "./shared-context"
+import { SharedContext, SessionSnapshot } from "./shared-context"
 import { Config } from "@/config/config"
 import { Instance } from "../project/instance"
 import { Todo } from "./todo"
@@ -1253,7 +1253,7 @@ export namespace SessionPrompt {
         if (!session.parentID) {
           // Priority: use pre-built checkpoint (saved during normal operation)
           const checkpoint = await SessionCompaction.loadRebindCheckpoint(sessionID)
-          const snap = checkpoint?.snapshot || (await SharedContext.snapshot(sessionID))
+          const snap = checkpoint?.snapshot || (await SessionSnapshot.snapshot(sessionID))
           if (snap) {
             debugCheckpoint("prompt", "loop:rebind_compaction_snapshot_selected", {
               sessionID,
@@ -1321,12 +1321,12 @@ export namespace SessionPrompt {
         if (!session.parentID) {
           const overflowConfig = await Config.get()
           if (overflowConfig.compaction?.sharedContext !== false) {
-            const snap = await SharedContext.snapshot(sessionID)
+            const snap = await SessionSnapshot.snapshot(sessionID)
             if (snap) {
               debugCheckpoint("prompt", "loop:compaction_snapshot_selected", {
                 sessionID,
                 step,
-                source: "shared-context",
+                source: "session-snapshot",
                 snapshotChars: snap.length,
               })
               await SessionCompaction.compactWithSharedContext({
@@ -1733,7 +1733,7 @@ export namespace SessionPrompt {
       continue
     }
 
-    // ── Shared Context: incremental update + idle compaction at turn boundary ──
+    // ── Session Snapshot + Shared Context: incremental update + idle compaction at turn boundary ──
     {
       const config = await Config.get()
       if (config.compaction?.sharedContext !== false) {
@@ -1747,16 +1747,33 @@ export namespace SessionPrompt {
               .map((p) => p.text)
               .join("\n")
 
-            // 1. Incremental update — runs for all sessions (parent + child)
+            // 1. SessionSnapshot: parse #tags from assistant text, strip tags from stored parts
+            const { stripped } = await SessionSnapshot.updateFromTurn(sessionID, assistantText)
+            if (stripped !== assistantText) {
+              // Rewrite text parts in storage with stripped text (tags removed)
+              let strippedRemaining = stripped
+              for (const part of lastAssistantMsg.parts) {
+                if (part.type !== "text" || part.synthetic || part.ignored) continue
+                // Distribute stripped text across text parts proportionally (simple: put all in first non-empty)
+                if (strippedRemaining !== undefined) {
+                  await Session.updatePart({ ...part, text: strippedRemaining })
+                  strippedRemaining = ""
+                } else {
+                  await Session.updatePart({ ...part, text: "" })
+                }
+              }
+            }
+
+            // 2. SharedContext (deprecated): still run for backward compat (tools/actions tracking)
             await SharedContext.updateFromTurn({
               sessionID,
               parts: lastAssistantMsg.parts,
-              assistantText,
+              assistantText: stripped,
               turnNumber: step,
             })
 
             // T4.2: Persist snapshot for provider-agnostic session reload (fire-and-forget)
-            void SharedContext.persistSnapshot(sessionID)
+            void SessionSnapshot.persistSnapshot(sessionID)
 
             // 2. Idle compaction: only for parent sessions, only when task dispatched
             // In daemon fire-and-forget mode, task parts are "running" at turn boundary

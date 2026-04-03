@@ -18,7 +18,7 @@ import { Plugin } from "@/plugin"
 import { Config } from "@/config/config"
 import { ProviderTransform } from "@/provider/transform"
 import { SessionPrompt } from "./prompt"
-import { SharedContext } from "./shared-context"
+import { SharedContext, SessionSnapshot } from "./shared-context"
 import { codexServerCompact } from "../provider/codex-compaction"
 import { ContinuationInvalidatedEvent } from "../plugin/codex"
 
@@ -107,7 +107,7 @@ export namespace SessionCompaction {
     currentRound: number
   }) {
     try {
-      const snap = await SharedContext.snapshot(input.sessionID)
+      const snap = await SessionSnapshot.snapshot(input.sessionID)
       if (!snap || !input.lastMessageId) return
 
       _lastCheckpointRound.set(input.sessionID, input.currentRound)
@@ -765,7 +765,7 @@ When constructing the summary, try to stick to this template:
 
     if (utilization < threshold) return
 
-    const snap = await SharedContext.snapshot(input.sessionID)
+    const snap = await SessionSnapshot.snapshot(input.sessionID)
     if (!snap) {
       log.info("idle compaction skipped: empty snapshot")
       return

@@ -5,6 +5,196 @@ import { Log } from "@/util/log"
 import { debugCheckpoint } from "@/util/debug"
 import type { MessageV2 } from "./message-v2"
 
+// ── SessionSnapshot ──────────────────────────────────────────────────────────
+// Replaces SharedContext as the primary per-session knowledge store.
+// Tags are parsed from assistant responses (#fact, #summary, #decision, etc.)
+
+export interface SessionSnapshot {
+  sessionID: string
+  version: number
+  updatedAt: number
+  budget: number // default 4096, hard max 10240
+  facts: string[] // #fact #problem #issue #bug #symptom #observation
+  summaries: string[] // #summary #conclusion #finding #result #note
+  decisions: string[] // #decision #confirmed #resolved #agreed #rejected
+}
+
+export namespace SessionSnapshot {
+  const log = Log.create({ service: "session.session-snapshot" })
+
+  const BUDGET_DEFAULT = 4096
+  const BUDGET_MAX = 10240
+
+  const TAG_MAP: Record<string, keyof Pick<SessionSnapshot, "facts" | "summaries" | "decisions">> = {
+    fact: "facts",
+    problem: "facts",
+    issue: "facts",
+    bug: "facts",
+    symptom: "facts",
+    observation: "facts",
+    summary: "summaries",
+    conclusion: "summaries",
+    finding: "summaries",
+    result: "summaries",
+    note: "summaries",
+    decision: "decisions",
+    confirmed: "decisions",
+    resolved: "decisions",
+    agreed: "decisions",
+    rejected: "decisions",
+  }
+
+  // ── Storage ────────────────────────────────────────────────────
+
+  export async function get(sessionID: string): Promise<SessionSnapshot | undefined> {
+    try {
+      return await Storage.read<SessionSnapshot>(["session_snapshot", sessionID])
+    } catch {
+      return undefined
+    }
+  }
+
+  export async function save(sessionID: string, snapshot: SessionSnapshot): Promise<void> {
+    await Storage.write(["session_snapshot", sessionID], snapshot)
+  }
+
+  function createEmpty(sessionID: string): SessionSnapshot {
+    return {
+      sessionID,
+      version: 0,
+      updatedAt: Date.now(),
+      budget: BUDGET_DEFAULT,
+      facts: [],
+      summaries: [],
+      decisions: [],
+    }
+  }
+
+  // ── Tag Parsing ────────────────────────────────────────────────
+
+  export async function updateFromTurn(
+    sessionID: string,
+    assistantText: string,
+  ): Promise<{ stripped: string; changed: boolean }> {
+    const snap = (await get(sessionID)) ?? createEmpty(sessionID)
+    const budget = Math.min(snap.budget, BUDGET_MAX)
+
+    let changed = false
+    const keptLines: string[] = []
+
+    for (const line of assistantText.split("\n")) {
+      const match = line.match(/^#(\w+)\s+(.+)/)
+      if (match) {
+        const tag = match[1].toLowerCase()
+        const content = match[2].trim()
+        const field = TAG_MAP[tag]
+        if (field) {
+          if (!snap[field].includes(content)) {
+            snap[field].push(content)
+            changed = true
+          }
+          // tag line is consumed — do NOT add to keptLines
+          continue
+        }
+      }
+      keptLines.push(line)
+    }
+
+    // Trim trailing blank lines that may appear after tag block removal
+    while (keptLines.length > 0 && keptLines[keptLines.length - 1].trim() === "") {
+      keptLines.pop()
+    }
+    const stripped = keptLines.join("\n")
+
+    if (changed) {
+      const tokenEst = Token.estimate(serializeSnapshot(snap))
+      const consolidated = tokenEst > budget ? consolidate(snap) : snap
+      consolidated.version++
+      consolidated.updatedAt = Date.now()
+      await save(sessionID, consolidated)
+
+      debugCheckpoint("session-snapshot", "updateFromTurn", {
+        sessionID,
+        version: consolidated.version,
+        facts: consolidated.facts.length,
+        summaries: consolidated.summaries.length,
+        decisions: consolidated.decisions.length,
+        tokens: Token.estimate(serializeSnapshot(consolidated)),
+      })
+    }
+
+    return { stripped, changed }
+  }
+
+  // ── Consolidation ──────────────────────────────────────────────
+
+  export function consolidate(snap: SessionSnapshot): SessionSnapshot {
+    const budget = Math.min(snap.budget, BUDGET_MAX)
+
+    // Keep all decisions and summaries; trim oldest facts first
+    while (Token.estimate(serializeSnapshot(snap)) > budget && snap.facts.length > 0) {
+      snap.facts.shift()
+    }
+
+    // If still over budget, trim oldest summaries (never trim decisions)
+    while (Token.estimate(serializeSnapshot(snap)) > budget && snap.summaries.length > 0) {
+      snap.summaries.shift()
+    }
+
+    return snap
+  }
+
+  // ── Snapshot Formatting ────────────────────────────────────────
+
+  export async function snapshot(sessionID: string): Promise<string | undefined> {
+    const snap = await get(sessionID)
+    if (!snap || (snap.facts.length === 0 && snap.summaries.length === 0 && snap.decisions.length === 0)) {
+      return undefined
+    }
+    return formatSnapshot(snap)
+  }
+
+  export async function persistSnapshot(sessionID: string): Promise<void> {
+    try {
+      const snap = await snapshot(sessionID)
+      if (!snap) return
+      await Storage.write(["abstract_template", sessionID], { sessionID, snapshot: snap, updatedAt: Date.now() })
+    } catch (e) {
+      log.warn("SessionSnapshot.persistSnapshot failed", { sessionID, error: String(e) })
+    }
+  }
+
+  function serializeSnapshot(snap: SessionSnapshot): string {
+    return formatSnapshot(snap)
+  }
+
+  function formatSnapshot(snap: SessionSnapshot): string {
+    const lines: string[] = ["## Session Snapshot", ""]
+
+    if (snap.facts.length > 0) {
+      lines.push("### Facts & Problems")
+      for (const f of snap.facts) lines.push(`- ${f}`)
+      lines.push("")
+    }
+
+    if (snap.summaries.length > 0) {
+      lines.push("### Summaries & Conclusions")
+      for (const s of snap.summaries) lines.push(`- ${s}`)
+      lines.push("")
+    }
+
+    if (snap.decisions.length > 0) {
+      lines.push("### Decisions & Confirmed")
+      for (const d of snap.decisions) lines.push(`- ${d}`)
+      lines.push("")
+    }
+
+    return lines.join("\n").trimEnd()
+  }
+}
+
+// ── SharedContext (deprecated) ────────────────────────────────────────────────
+/** @deprecated Use SessionSnapshot instead. Kept for backward compatibility. */
 export namespace SharedContext {
   const log = Log.create({ service: "session.shared-context" })
 

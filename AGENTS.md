@@ -121,3 +121,21 @@
 - 涉及跨模組狀態讀寫時，**必須先審查 race window**。
 - 已知 race 模式：Bus subscriber vs tool call 時機不同步、daemon 遺失 Instance context、fire-and-forget 下 status 判斷錯誤。
 - 修復優先順序：**讀取方自清 > 改寫事件順序 > 引入新旗標**。
+
+---
+
+## SessionSnapshot Tags
+
+When a turn produces a clear fact, conclusion, or decision, append one or more tag lines at the END of your response:
+
+- `#fact <statement>` — a confirmed fact, observed problem, or symptom
+- `#problem <statement>` — a problem or issue identified
+- `#summary <statement>` — a conclusion or finding from discussion
+- `#decision <statement>` — a decision made or direction confirmed
+- `#rejected <statement>` — an option that was explicitly ruled out
+
+Rules:
+- Only emit tags when there is genuine new information (discovery, conclusion, decision)
+- Do NOT emit tags for routine Q&A or work-in-progress turns
+- One line per tag, at the end of the response
+- Keep each tag line concise (one sentence)
