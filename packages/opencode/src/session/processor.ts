@@ -121,6 +121,12 @@ export namespace SessionProcessor {
     const { status, parts } = extractErrorDetails(error)
     if (!parts) return false
 
+    // 401 with explicit "invalid api key" message is a permanent credential error —
+    // rotation cannot help since no other account has a different key for this provider.
+    if (status === 401 && (parts.includes("invalid api key") || parts.includes("incorrect api key"))) {
+      return false
+    }
+
     // Temporary errors: rate limit, quota, server errors, auth failures (try other accounts)
     if (
       isRateLimitError(error) ||

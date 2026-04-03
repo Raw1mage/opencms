@@ -287,7 +287,6 @@ export function DialogCustomProvider(props: Props) {
   }
 
   const removeHeader = (index: number) => {
-    if (form.headers.length <= 1) return
     setForm("headers", (v) => v.filter((_, i) => i !== index))
     setErrors("headers", (v) => v.filter((_, i) => i !== index))
   }
@@ -512,7 +511,7 @@ export function DialogCustomProvider(props: Props) {
                     variant="ghost"
                     class="mt-1.5"
                     onClick={() => removeHeader(i())}
-                    disabled={form.headers.length <= 1}
+                    disabled={false}
                     aria-label={language.t("provider.custom.headers.remove")}
                   />
                 </div>

@@ -2039,6 +2039,28 @@ export namespace Provider {
           ...options["headers"],
         }
 
+        // Normalize Authorization header casing: AI SDK auto-generates lowercase "authorization"
+        // from apiKey. Promote it to uppercase "Authorization" so config-supplied headers
+        // (which use uppercase) always win and servers never see duplicate Authorization entries.
+        const hdrs = opts.headers as Record<string, string>
+        if (hdrs["authorization"] && !hdrs["Authorization"]) {
+          hdrs["Authorization"] = hdrs["authorization"]
+          delete hdrs["authorization"]
+        } else if (hdrs["authorization"] && hdrs["Authorization"]) {
+          delete hdrs["authorization"]
+        }
+
+        debugCheckpoint("provider-fetch", "final request headers", {
+          providerId: wrappedProviderID,
+          modelID: wrappedModelID,
+          authorization: (opts.headers as Record<string, string>)?.["Authorization"]?.substring(0, 40) ?? "(none)",
+          authorizationLower: (opts.headers as Record<string, string>)?.["authorization"]?.substring(0, 40) ?? "(none)",
+          allHeaderKeys: Object.keys(opts.headers ?? {}),
+          configuredHeadersKeys: Object.keys(options["headers"] ?? {}),
+          hasXAccountId: !!(opts.headers as Record<string, string>)?.["x-opencode-account-id"],
+          url: inputUrl,
+        })
+
         if (options["timeout"] !== undefined && options["timeout"] !== null) {
           const signals: AbortSignal[] = []
           if (opts.signal) signals.push(opts.signal)
