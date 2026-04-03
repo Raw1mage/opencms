@@ -63,6 +63,16 @@ export const DialogAppMarket: Component = () => {
   const [filter, setFilter] = createSignal("")
   const [actionLoading, setActionLoading] = createSignal<string | null>(null)
   const [appMap, setAppMap] = createSignal<Map<string, MarketApp>>(new Map())
+  const [expandedTools, setExpandedTools] = createSignal<Set<string>>(new Set())
+
+  function toggleToolsExpand(id: string) {
+    setExpandedTools((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
   const [initialLoaded, setInitialLoaded] = createSignal(false)
   const isMobileViewport = createMediaQuery("(max-width: 767px)")
 
@@ -269,7 +279,7 @@ export const DialogAppMarket: Component = () => {
                 const isActive = () => live().enabled || live().status === "connected"
 
                 return (
-                  <div class="app-market-card flex flex-col rounded-lg border border-border-base bg-[#1a1a2e] hover:border-border-hover transition-colors overflow-hidden h-auto">
+                  <div class="app-market-card flex flex-col rounded-lg border border-border-base bg-[#1a1a2e] hover:border-border-hover transition-colors overflow-hidden">
                     <div class="px-2.5 pt-2.5 md:px-2 md:pt-2">
                       <span class="app-market-card-title block min-w-0 whitespace-normal break-words leading-tight text-[15px] font-semibold text-text-strong md:truncate md:text-13-medium md:font-medium md:text-text-base">
                         {live().name}
@@ -277,26 +287,8 @@ export const DialogAppMarket: Component = () => {
                     </div>
 
                     <div class="grid min-w-0 gap-1 px-2.5 pt-1 pb-1.5 md:flex md:items-center md:gap-1.5 md:px-2 md:pt-1 md:pb-1.5">
-                      <div class="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
-                        <Show when={live().tools.length > 0}>
-                          <span class="text-[10px] text-text-weaker shrink-0">
-                            {language.t("app_market.tools_count", { count: String(live().tools.length) })}
-                          </span>
-                        </Show>
-                      </div>
+                      <div class="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1" />
                       <div class="flex flex-wrap items-center justify-end gap-0.5 shrink-0 md:ml-auto">
-                        <button
-                          onClick={() => handleAction(live())}
-                          disabled={loading()}
-                          classList={{
-                            "p-1 rounded transition-colors disabled:opacity-50": true,
-                            "text-success-base hover:bg-white/5": !isActive(),
-                            "text-text-weak hover:text-text-base hover:bg-white/5": isActive(),
-                          }}
-                          title={actionLabel(live())}
-                        >
-                          <Icon name={actionIcon(live()) as any} size="small" />
-                        </button>
                         {renderAppActions(live(), loading())}
                         <Show
                           when={
@@ -314,9 +306,21 @@ export const DialogAppMarket: Component = () => {
                             <Icon name="trash" size="small" />
                           </button>
                         </Show>
-                        <span class={`text-11-regular ml-1 whitespace-nowrap ${sd().color}`}>
-                          {language.t(sd().labelKey as any)}
-                        </span>
+                        <button
+                          onClick={() => handleAction(live())}
+                          disabled={loading()}
+                          classList={{
+                            "flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors disabled:opacity-50": true,
+                            "hover:bg-white/5": true,
+                            [sd().color]: true,
+                          }}
+                          title={actionLabel(live())}
+                        >
+                          <Icon name={actionIcon(live()) as any} size="small" />
+                          <span class="text-11-regular whitespace-nowrap">
+                            {language.t(sd().labelKey as any)}
+                          </span>
+                        </button>
                       </div>
                     </div>
 
@@ -324,21 +328,33 @@ export const DialogAppMarket: Component = () => {
                       {language.t("app_market.card.description", { description: live().description })}
                     </p>
 
-                    {/* Tools list */}
-                    <Show when={!isMobileViewport() && live().tools.length > 0}>
+                    {/* Tools list — collapsed by default */}
+                    <Show when={live().tools.length > 0}>
                       <div class="app-market-tools mx-3 mb-3 md:mx-2 md:mb-2">
-                        <div class="flex flex-wrap gap-1 px-2 py-1.5 rounded bg-background-base/60 border border-border-base/30 content-start">
-                          <For each={live().tools}>
-                            {(tool) => (
-                              <span
-                                class="px-1.5 py-0.5 rounded bg-white/5 text-[11px] text-text-weak h-fit"
-                                title={tool.description || tool.name}
-                              >
-                                {tool.name}
-                              </span>
-                            )}
-                          </For>
-                        </div>
+                        <button
+                          onClick={() => toggleToolsExpand(live().id)}
+                          class="flex items-center gap-1 w-full px-2 py-1 rounded-t bg-background-base/60 border border-border-base/30 text-[11px] text-text-weaker hover:text-text-weak transition-colors"
+                        >
+                          <Icon
+                            name={expandedTools().has(live().id) ? "chevron-down" : "chevron-right"}
+                            size="small"
+                          />
+                          <span>{language.t("app_market.tools_count", { count: String(live().tools.length) })}</span>
+                        </button>
+                        <Show when={expandedTools().has(live().id)}>
+                          <div class="app-market-tools-list flex flex-wrap gap-1 px-2 py-1.5 rounded-b bg-background-base/60 border border-t-0 border-border-base/30 content-start overflow-y-auto">
+                            <For each={live().tools}>
+                              {(tool) => (
+                                <span
+                                  class="px-1.5 py-0.5 rounded bg-white/5 text-[11px] text-text-weak h-fit"
+                                  title={tool.description || tool.name}
+                                >
+                                  {tool.name}
+                                </span>
+                              )}
+                            </For>
+                          </div>
+                        </Show>
                       </div>
                     </Show>
                   </div>
