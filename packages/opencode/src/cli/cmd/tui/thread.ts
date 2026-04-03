@@ -1,13 +1,22 @@
 import { cmd } from "@/cli/cmd/cmd"
 import { tui } from "./app"
+import { Rpc } from "@/util/rpc"
+import { type rpc } from "./worker"
 import path from "path"
 import { UI } from "@/cli/ui"
 import { iife } from "@/util/iife"
 import { Log } from "@/util/log"
+import { withNetworkOptions, resolveNetworkOptions } from "@/cli/network"
 import type { Event } from "@opencode-ai/sdk/v2"
 import type { EventSource } from "./context/sdk"
 import { Env } from "@/env"
 import { Daemon } from "@/server/daemon"
+
+declare global {
+  const OPENCODE_WORKER_PATH: string
+}
+
+type RpcClient = ReturnType<typeof Rpc.client<typeof rpc>>
 
 // @event_20260319_daemonization Phase γ.3
 // Custom fetch that routes HTTP requests over a Unix domain socket.
@@ -69,11 +78,35 @@ function createUnixEventSource(socketPath: string, baseUrl: string): EventSource
   }
 }
 
+function createWorkerFetch(client: RpcClient): typeof fetch {
+  const fn = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const request = new Request(input, init)
+    const body = request.body ? await request.text() : undefined
+    const result = await client.call("fetch", {
+      url: request.url,
+      method: request.method,
+      headers: Object.fromEntries(request.headers.entries()),
+      body,
+    })
+    return new Response(result.body, {
+      status: result.status,
+      headers: result.headers,
+    })
+  }
+  return fn as typeof fetch
+}
+
+function createEventSource(client: RpcClient): EventSource {
+  return {
+    on: (handler) => client.on<Event>("event", handler),
+  }
+}
+
 export const TuiThreadCommand = cmd({
   command: "$0 [project]",
   describe: "start opencode tui",
   builder: (yargs) =>
-    yargs
+    withNetworkOptions(yargs)
       .positional("project", {
         type: "string",
         describe: "path to start opencode in",
@@ -107,7 +140,7 @@ export const TuiThreadCommand = cmd({
       })
       .option("attach", {
         type: "boolean",
-        describe: "(deprecated: now the default behavior) attach to a running opencode daemon",
+        describe: "attach to a running opencode daemon via Unix socket (discovered automatically)",
       }),
   handler: async (args) => {
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
@@ -121,23 +154,70 @@ export const TuiThreadCommand = cmd({
       process.exit(1)
     }
 
-    // Resolve project directory for the daemon's Instance.provide() context
+    // @event_20260319_daemonization Phase γ.4a-c: --attach mode
+    if (args.attach) {
+      const baseCwd = Env.get("PWD") ?? process.cwd()
+      const directory = args.project ? path.resolve(baseCwd, args.project) : process.cwd()
+
+      UI.println("Connecting to daemon...")
+      let daemonInfo = await Daemon.readDiscovery()
+      if (!daemonInfo) {
+        UI.println("No running daemon found — spawning one...")
+        daemonInfo = await Daemon.spawn()
+      }
+      const { socketPath } = daemonInfo
+      const url = "http://opencode.daemon"
+      const customFetch = createUnixFetch(socketPath)
+      const events = createUnixEventSource(socketPath, url)
+      await tui({
+        url,
+        fetch: customFetch,
+        events,
+        directory,
+        args: {
+          continue: args.continue,
+          sessionID: args.session,
+          agent: args.agent,
+          model: args.model,
+          prompt: undefined,
+          fork: args.fork,
+        },
+        onExit: async () => {
+          // TUI disconnect only — daemon keeps running
+        },
+      })
+      return
+    }
+
+    // Standalone mode: TUI owns its own Worker thread with an embedded server.
+    // Resolve relative paths against PWD to preserve behavior when using --cwd flag
     const baseCwd = Env.get("PWD") ?? process.cwd()
-    const directory = args.project ? path.resolve(baseCwd, args.project) : process.cwd()
+    const cwd = args.project ? path.resolve(baseCwd, args.project) : process.cwd()
+    const localWorker = new URL("./worker.ts", import.meta.url)
+    const distWorker = new URL("./cli/cmd/tui/worker.js", import.meta.url)
+    const workerPath = await iife(async () => {
+      if (typeof OPENCODE_WORKER_PATH !== "undefined") return OPENCODE_WORKER_PATH
+      if (await Bun.file(distWorker).exists()) return distWorker
+      return localWorker
+    })
+    try {
+      process.chdir(cwd)
+    } catch (e) {
+      UI.error("Failed to change directory to " + cwd)
+      return
+    }
 
-    // @event_20260324_daemonization-v2: always-attach mode
-    // Spawn a daemon if none exists, or adopt an existing one.
-    UI.println("Connecting to daemon...")
-    const daemonInfo = await Daemon.spawnOrAdopt({ spawnedBy: "tui" })
-    const { socketPath } = daemonInfo
-    const url = "http://opencode.daemon"
-    const customFetch = createUnixFetch(socketPath)
-    const events = createUnixEventSource(socketPath, url)
-
-    const prompt = await iife(async () => {
-      const piped = !process.stdin.isTTY ? await Bun.stdin.text() : undefined
-      if (!args.prompt) return piped
-      return piped ? piped + "\n" + args.prompt : args.prompt
+    const worker = new Worker(workerPath, {
+      env: Object.fromEntries(
+        Object.entries({ ...Env.all(), OPENCODE_CLI_TOKEN: process.env.OPENCODE_CLI_TOKEN }).filter((entry): entry is [string, string] => entry[1] !== undefined),
+      ),
+    })
+    worker.onerror = (e) => {
+      Log.Default.error(e)
+    }
+    const client = Rpc.client<typeof rpc>(worker)
+    process.on("SIGUSR2", async () => {
+      await client.call("reload", undefined)
     })
 
     // @event_2026-02-07_terminal-cleanup: Reset terminal state on unexpected exit
@@ -157,18 +237,35 @@ export const TuiThreadCommand = cmd({
     process.on("uncaughtException", (e) => {
       Log.Default.error(e)
       resetTerminal()
+      worker.terminate()
       process.exit(1)
     })
     process.on("unhandledRejection", (e) => {
       Log.Default.error(e)
       resetTerminal()
+      worker.terminate()
       process.exit(1)
     })
 
-    const handleTerminalExit = (_signal: string) => {
+    const handleTerminalExit = (signal: string) => {
       resetTerminal()
-      // TUI disconnect only — daemon keeps running
-      process.exit(_signal === "SIGINT" ? 130 : 143)
+
+      // Attempt clean shutdown with timeout to ensure subagents/LSPs are cleaned up
+      const exit = () => {
+        worker.terminate()
+        process.exit(signal === "SIGINT" ? 130 : 143)
+      }
+
+      // Hard timeout in case shutdown hangs
+      const timeout = setTimeout(exit, 1000)
+
+      client
+        .call("shutdown", undefined)
+        .catch(() => {})
+        .finally(() => {
+          clearTimeout(timeout)
+          exit()
+        })
     }
 
     process.on("SIGINT", () => handleTerminalExit("SIGINT"))
@@ -176,11 +273,41 @@ export const TuiThreadCommand = cmd({
     process.on("SIGHUP", () => handleTerminalExit("SIGHUP"))
     process.on("exit", resetTerminal)
 
+    const prompt = await iife(async () => {
+      const piped = !process.stdin.isTTY ? await Bun.stdin.text() : undefined
+      if (!args.prompt) return piped
+      return piped ? piped + "\n" + args.prompt : args.prompt
+    })
+
+    // Check if server should be started (port or hostname explicitly set in CLI or config)
+    const networkOpts = await resolveNetworkOptions(args)
+    const shouldStartServer =
+      process.argv.includes("--port") ||
+      process.argv.includes("--hostname") ||
+      process.argv.includes("--mdns") ||
+      networkOpts.mdns ||
+      networkOpts.port !== 0 ||
+      networkOpts.hostname !== "127.0.0.1"
+
+    let url: string
+    let customFetch: typeof fetch | undefined
+    let events: EventSource | undefined
+
+    if (shouldStartServer) {
+      // Start HTTP server for external access
+      const server = await client.call("server", networkOpts)
+      url = server.url
+    } else {
+      // Use direct RPC communication (no HTTP)
+      url = "http://opencode.internal"
+      customFetch = createWorkerFetch(client)
+      events = createEventSource(client)
+    }
+
     await tui({
       url,
       fetch: customFetch,
       events,
-      directory,
       args: {
         continue: args.continue,
         sessionID: args.session,
@@ -190,7 +317,7 @@ export const TuiThreadCommand = cmd({
         fork: args.fork,
       },
       onExit: async () => {
-        // TUI disconnect only — daemon keeps running
+        await client.call("shutdown", undefined)
       },
     })
   },
