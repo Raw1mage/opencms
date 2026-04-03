@@ -170,7 +170,7 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
     const visible = (model: ModelKey) => {
       const key = preferenceModelKey(model)
       const user = userStore.user.find((x) => preferenceModelKey(x) === key)
-      return user?.favorite ?? false
+      return user?.favorite ?? true
     }
 
     const setVisibility = (model: ModelKey, state: boolean) => {
@@ -185,7 +185,7 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
     const isFavorite = (model: ModelKey) => {
       const key = preferenceModelKey(model)
       const user = userStore.user.find((x) => preferenceModelKey(x) === key)
-      return user?.favorite ?? false
+      return user?.favorite ?? true
     }
 
     const favoriteList = createMemo(() =>
@@ -195,7 +195,7 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
     const isEnabled = (model: ModelKey) => {
       const key = preferenceModelKey(model)
       const user = userStore.user.find((x) => preferenceModelKey(x) === key)
-      return user?.visibility === "show"
+      return user ? user.visibility === "show" : true
     }
 
     const toggleFavorite = (model: ModelKey) => {
