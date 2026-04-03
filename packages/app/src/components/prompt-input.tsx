@@ -440,7 +440,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       values = values.filter((value) => value !== "none" && value !== "minimal")
     }
     const used = new Set<string>()
-    const result: VariantOption[] = []
+    const result: VariantOption[] = [{ value: "", label: "None" }]
     for (const value of values) {
       const label = formatVariantLabel(value, providerKey)
       if (used.has(label)) continue
@@ -451,7 +451,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   })
   const currentVariantOption = createMemo<VariantOption | undefined>(() => {
     const value = local.model.variant.current(params.id)
-    if (!value) return undefined
+    if (!value) return variantOptions().find((item) => item.value === "")
     const exact = variantOptions().find((item) => item.value === value)
     if (exact) return exact
     const providerKey = activeProviderKey()
@@ -1397,7 +1397,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                       current={currentVariantOption()}
                       value={(item) => item.value}
                       label={(item) => item.label}
-                      onSelect={(value) => local.model.variant.set(value?.value, params.id)}
+                      onSelect={(value) => local.model.variant.set(value?.value || undefined, params.id)}
                       class="max-w-[150px]"
                       valueClass="truncate"
                       variant="ghost"
