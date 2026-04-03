@@ -26,34 +26,42 @@ function createUnixEventSource(socketPath: string, baseUrl: string): EventSource
       const abort = new AbortController()
       const sseUrl = baseUrl.replace(/\/$/, "") + "/v2/event"
       ;(async () => {
-        try {
-          const res = await fetch(sseUrl, {
-            signal: abort.signal,
-            headers: { Accept: "text/event-stream" },
-            unix: socketPath,
-          } as RequestInit & { unix: string })
-          if (!res.ok || !res.body) return
-          const reader = res.body.getReader()
-          const decoder = new TextDecoder()
-          let buf = ""
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) break
-            buf += decoder.decode(value, { stream: true })
-            const lines = buf.split("\n")
-            buf = lines.pop() ?? ""
-            let data = ""
-            for (const line of lines) {
-              if (line.startsWith("data:")) {
-                data += line.slice(5).trimStart()
-              } else if (line === "" && data) {
-                try { handler(JSON.parse(data) as Event) } catch {}
-                data = ""
+        while (!abort.signal.aborted) {
+          try {
+            const res = await fetch(sseUrl, {
+              signal: abort.signal,
+              headers: { Accept: "text/event-stream" },
+              unix: socketPath,
+            } as RequestInit & { unix: string })
+            if (!res.ok || !res.body) {
+              await new Promise((r) => setTimeout(r, 2000))
+              continue
+            }
+            const reader = res.body.getReader()
+            const decoder = new TextDecoder()
+            let buf = ""
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              buf += decoder.decode(value, { stream: true })
+              const lines = buf.split("\n")
+              buf = lines.pop() ?? ""
+              let data = ""
+              for (const line of lines) {
+                if (line.startsWith("data:")) {
+                  data += line.slice(5).trimStart()
+                } else if (line === "" && data) {
+                  try { handler(JSON.parse(data) as Event) } catch {}
+                  data = ""
+                }
               }
             }
+          } catch {
+            // SSE disconnected — retry after backoff
           }
-        } catch {
-          // SSE disconnected — caller will handle reconnect
+          if (!abort.signal.aborted) {
+            await new Promise((r) => setTimeout(r, 2000))
+          }
         }
       })()
       return () => abort.abort()
