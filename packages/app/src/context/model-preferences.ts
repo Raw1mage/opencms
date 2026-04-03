@@ -1,8 +1,5 @@
 export type ModelKey = { providerID: string; modelID: string }
 
-type Visibility = "show" | "hide"
-export type UserPreference = ModelKey & { visibility?: Visibility; favorite?: boolean }
-
 const KNOWN_PROVIDER_FAMILIES = [
   "opencode",
   "claude-cli",
@@ -48,69 +45,9 @@ export function preferenceModelKey(model: ModelKey) {
   return `${normalizePreferenceProviderFamily(model.providerID)}:${model.modelID ?? ""}`
 }
 
-function normalizeUsers(input: UserPreference[]) {
-  return input.map((item) => {
-    if (item.favorite === true) {
-      if (item.visibility === "show") return item
-      return { ...item, visibility: "show" as const }
-    }
-    if (item.visibility === "hide" && item.favorite === false) return item
-    if (item.visibility === "show") {
-      return { ...item, favorite: true }
-    }
-    if (item.visibility === "hide") {
-      return { ...item, favorite: false }
-    }
-    return item
-  })
-}
-
-export function sameUserPreferences(a: UserPreference[], b: UserPreference[]) {
-  if (a.length !== b.length) return false
-  return a.every((item, index) => {
-    const other = b[index]
-    return (
-      item?.providerID === other?.providerID &&
-      item?.modelID === other?.modelID &&
-      item?.favorite === other?.favorite &&
-      item?.visibility === other?.visibility
-    )
-  })
-}
-
-export function buildUsersFromRemotePreferences(prefs: {
-  favorite: Array<{ providerId: string; modelID: string }>
-  hidden: Array<{ providerId: string; modelID: string }>
-}) {
-  const favoriteSet = new Set(
-    prefs.favorite.map((item) => `${normalizePreferenceProviderFamily(item.providerId)}:${item.modelID}`),
+/** Build the hidden set from server hidden[] array. */
+export function buildHiddenSetFromRemote(hidden: Array<{ providerId: string; modelID: string }>): Set<string> {
+  return new Set(
+    hidden.map((item) => `${normalizePreferenceProviderFamily(item.providerId)}:${item.modelID}`),
   )
-  const hiddenSet = new Set(
-    prefs.hidden.map((item) => `${normalizePreferenceProviderFamily(item.providerId)}:${item.modelID}`),
-  )
-  const merged = new Map<string, UserPreference>()
-
-  for (const key of hiddenSet) {
-    const [providerID, modelID] = key.split(":")
-    if (!providerID || !modelID) continue
-    merged.set(key, {
-      providerID,
-      modelID,
-      visibility: "hide",
-      favorite: false,
-    })
-  }
-
-  for (const key of favoriteSet) {
-    const [providerID, modelID] = key.split(":")
-    if (!providerID || !modelID) continue
-    merged.set(key, {
-      providerID,
-      modelID,
-      visibility: "show",
-      favorite: true,
-    })
-  }
-
-  return normalizeUsers(Array.from(merged.values()))
 }

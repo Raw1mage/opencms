@@ -294,20 +294,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         visible(model: ModelKey) {
           return models.visible(model)
         },
-        enabled(model: ModelKey) {
-          return models.isEnabled(model)
-        },
-        favorite(model: ModelKey) {
-          return models.isFavorite(model)
-        },
-        favoriteList() {
-          return models.favoriteList()
-        },
         setVisibility(model: ModelKey, visible: boolean) {
           models.setVisibility(model, visible)
-        },
-        toggleFavorite(model: ModelKey) {
-          models.toggleFavorite(model)
         },
         variant: {
           configured(sessionID?: string) {

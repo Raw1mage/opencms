@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { buildUsersFromRemotePreferences, normalizePreferenceProviderFamily } from "./model-preferences"
+import { buildHiddenSetFromRemote, normalizePreferenceProviderFamily } from "./model-preferences"
 
 describe("model preferences normalization", () => {
   test("keeps anthropic distinct from claude-cli", () => {
@@ -7,28 +7,22 @@ describe("model preferences normalization", () => {
     expect(normalizePreferenceProviderFamily("claude-cli")).toBe("claude-cli")
   })
 
-  test("does not merge anthropic favorites into claude-cli", () => {
-    const users = buildUsersFromRemotePreferences({
-      favorite: [
-        { providerId: "anthropic", modelID: "claude-sonnet-4" },
-        { providerId: "claude-cli", modelID: "claude-sonnet-4" },
-      ],
-      hidden: [],
-    })
-
-    expect(users).toEqual([
-      {
-        providerID: "anthropic",
-        modelID: "claude-sonnet-4",
-        visibility: "show",
-        favorite: true,
-      },
-      {
-        providerID: "claude-cli",
-        modelID: "claude-sonnet-4",
-        visibility: "show",
-        favorite: true,
-      },
+  test("buildHiddenSetFromRemote returns correct keys", () => {
+    const hidden = buildHiddenSetFromRemote([
+      { providerId: "claude-cli", modelID: "claude-sonnet-4-5" },
+      { providerId: "openai", modelID: "gpt-4o" },
     ])
+
+    expect(hidden.has("claude-cli:claude-sonnet-4-5")).toBe(true)
+    expect(hidden.has("openai:gpt-4o")).toBe(true)
+    expect(hidden.has("claude-cli:claude-opus-4-5")).toBe(false)
+  })
+
+  test("does not merge anthropic into claude-cli", () => {
+    const hidden = buildHiddenSetFromRemote([
+      { providerId: "anthropic", modelID: "claude-sonnet-4" },
+    ])
+    expect(hidden.has("anthropic:claude-sonnet-4")).toBe(true)
+    expect(hidden.has("claude-cli:claude-sonnet-4")).toBe(false)
   })
 })
