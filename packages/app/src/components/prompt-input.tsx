@@ -419,7 +419,8 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   })
   const formatVariantLabel = (value: string, providerKey?: string) => {
     const normalized = value.toLowerCase()
-    if (providerKey === "openai" && (normalized === "xhigh" || normalized === "extra")) return "extra"
+    if (normalized === "xhigh" || normalized === "extra") return "Extra"
+    if (providerKey === "openai" && normalized === "none") return "None"
     return value
       .replaceAll("_", " ")
       .replaceAll("-", " ")
