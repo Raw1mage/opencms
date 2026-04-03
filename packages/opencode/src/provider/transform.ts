@@ -458,8 +458,8 @@ export namespace ProviderTransform {
           }
         }
         const copilotEfforts = iife(() => {
-          if (id.includes("5.1-codex-max") || id.includes("5.2") || id.includes("5.3"))
-            return [...WIDELY_SUPPORTED_EFFORTS, "xhigh"]
+          // codex models support xhigh per official ReasoningEffort schema
+          if (id.includes("codex")) return [...WIDELY_SUPPORTED_EFFORTS, "xhigh"]
           return WIDELY_SUPPORTED_EFFORTS
         })
         return Object.fromEntries(
@@ -530,8 +530,8 @@ export namespace ProviderTransform {
         if (id === "gpt-5-pro") return {}
         const openaiEfforts = iife(() => {
           if (id.includes("codex")) {
-            if (id.includes("5.2") || id.includes("5.3")) return [...WIDELY_SUPPORTED_EFFORTS, "xhigh"]
-            return WIDELY_SUPPORTED_EFFORTS
+            // All codex models support xhigh per official ReasoningEffort schema
+            return [...WIDELY_SUPPORTED_EFFORTS, "xhigh"]
           }
           const arr = [...WIDELY_SUPPORTED_EFFORTS]
           if (id.includes("gpt-5-") || id === "gpt-5") {
