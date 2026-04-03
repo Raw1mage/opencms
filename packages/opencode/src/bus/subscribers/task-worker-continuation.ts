@@ -186,7 +186,7 @@ async function enqueueParentContinuation(input: {
     let childSummary: string | undefined
     if (input.ok) {
       try {
-        const childMsgs = await MessageV2.filterCompacted(MessageV2.stream(input.childSessionID))
+        const { messages: childMsgs } = await MessageV2.filterCompacted(MessageV2.stream(input.childSessionID))
         const assistantTexts: string[] = []
         for (const msg of childMsgs) {
           if (msg.info.role !== "assistant") continue

@@ -861,7 +861,8 @@ export namespace SessionPrompt {
     // These form a stable prefix in every LLM call → automatic cache hit.
     let parentMessagePrefix: MessageV2.WithParts[] | undefined
     if (session.parentID) {
-      parentMessagePrefix = await MessageV2.filterCompacted(MessageV2.stream(session.parentID))
+      const parentFiltered = await MessageV2.filterCompacted(MessageV2.stream(session.parentID))
+      parentMessagePrefix = parentFiltered.messages
       log.info("context sharing: loaded parent messages", {
         sessionID,
         parentID: session.parentID,
@@ -879,7 +880,11 @@ export namespace SessionPrompt {
       SessionStatus.set(sessionID, { type: "busy" })
       log.info("loop", { step, sessionID })
       if (abort.aborted) break
-      let msgs = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
+      const filteredResult = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
+      let msgs = filteredResult.messages
+      if (filteredResult.stoppedByBudget) {
+        log.warn("filterCompacted stopped by token budget guard", { sessionID, messageCount: msgs.length })
+      }
       require("fs").appendFileSync("/tmp/opencode-loop.log", `[RCA] Round ${step}: msgs.length=${msgs.length}, sessionID=${sessionID}\n`)
 
       let lastUser: MessageV2.User | undefined
@@ -1506,7 +1511,7 @@ export namespace SessionPrompt {
           ...(session.parentID ? [] : instructionPrompts),
           ...(format.type === "json_schema" ? [STRUCTURED_OUTPUT_SYSTEM_PROMPT] : []),
         ],
-        messages: [
+        messages: SessionCompaction.sanitizeOrphanedToolCalls([
           // Context Sharing v2: prepend parent messages as stable prefix for child sessions.
           // This gives the child full visibility into parent's context (plan, discoveries, etc.)
           // at near-zero cost due to automatic prompt caching on the stable prefix.
@@ -1533,7 +1538,7 @@ export namespace SessionPrompt {
                 },
               ]
             : []),
-        ],
+        ]),
         tools,
         model: activeModel,
         toolChoice: format.type === "json_schema" ? "required" : undefined,
@@ -1736,7 +1741,7 @@ export namespace SessionPrompt {
       if (config.compaction?.sharedContext !== false) {
         try {
           // Find the last assistant message to extract parts
-          const finalMsgs = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
+          const { messages: finalMsgs } = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
           const lastAssistantMsg = finalMsgs.findLast((m) => m.info.role === "assistant")
           if (lastAssistantMsg) {
             const assistantText = lastAssistantMsg.parts
@@ -1751,6 +1756,9 @@ export namespace SessionPrompt {
               assistantText,
               turnNumber: step,
             })
+
+            // T4.2: Persist snapshot for provider-agnostic session reload (fire-and-forget)
+            void SharedContext.persistSnapshot(sessionID)
 
             // 2. Idle compaction: only for parent sessions, only when task dispatched
             // In daemon fire-and-forget mode, task parts are "running" at turn boundary

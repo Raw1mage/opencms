@@ -74,8 +74,10 @@ export namespace SessionCompaction {
   export interface RebindCheckpoint {
     sessionID: string
     timestamp: number
+    source: "codex-server" | "llm"
     snapshot: string
     lastMessageId: string
+    opaqueItems?: unknown[]
   }
 
   function getRebindCheckpointPath(sessionID: string) {
@@ -110,24 +112,51 @@ export namespace SessionCompaction {
 
       _lastCheckpointRound.set(input.sessionID, input.currentRound)
 
+      await saveCheckpointAfterCompaction({
+        sessionID: input.sessionID,
+        source: "llm",
+        summary: snap,
+        lastMessageId: input.lastMessageId,
+      })
+    } catch (e) {
+      log.warn("rebind checkpoint save failed", { sessionID: input.sessionID, error: String(e) })
+    }
+  }
+
+  /**
+   * Unified checkpoint save — called by BOTH A (codex-server) and B (LLM) compaction paths.
+   * Non-blocking when called as fire-and-forget.
+   */
+  export async function saveCheckpointAfterCompaction(input: {
+    sessionID: string
+    source: "codex-server" | "llm"
+    summary: string
+    lastMessageId: string
+    opaqueItems?: unknown[]
+  }) {
+    try {
       const checkpointPath = getRebindCheckpointPath(input.sessionID)
       const checkpoint: RebindCheckpoint = {
         sessionID: input.sessionID,
         timestamp: Date.now(),
-        snapshot: snap,
+        source: input.source,
+        snapshot: input.summary,
         lastMessageId: input.lastMessageId,
+        opaqueItems: input.opaqueItems,
       }
       await fs.mkdir(path.dirname(checkpointPath), { recursive: true })
       const tmpPath = `${checkpointPath}.tmp`
       await fs.writeFile(tmpPath, JSON.stringify(checkpoint))
       await fs.rename(tmpPath, checkpointPath)
-      log.info("rebind checkpoint saved", {
+      log.info("checkpoint saved after compaction", {
         sessionID: input.sessionID,
-        bytes: snap.length,
+        source: input.source,
+        bytes: input.summary.length,
         lastMessageId: input.lastMessageId,
+        opaqueItemCount: input.opaqueItems?.length,
       })
     } catch (e) {
-      log.warn("rebind checkpoint save failed", { sessionID: input.sessionID, error: String(e) })
+      log.warn("checkpoint save after compaction failed", { sessionID: input.sessionID, error: String(e) })
     }
   }
 
@@ -220,6 +249,69 @@ export namespace SessionCompaction {
     return { applied: true, messages: [syntheticSummary, ...postBoundary] }
   }
 
+  /**
+   * Sanitize orphaned tool calls/results in a ModelMessage array.
+   * Replaces unmatched tool-call parts with a plain text placeholder and
+   * unmatched tool-result parts with a plain text placeholder.
+   * Returns a new array — original is NOT modified.
+   */
+  export function sanitizeOrphanedToolCalls(messages: import("ai").ModelMessage[]): any[] {
+    // Collect all call_ids from tool-call parts
+    const callIds = new Set<string>()
+    // Collect all toolCallIds from tool-result parts
+    const resultIds = new Set<string>()
+    for (const msg of messages) {
+      const content = (msg as any).content
+      if (!Array.isArray(content)) continue
+      for (const part of content) {
+        if (part?.type === "tool-call") callIds.add(part.toolCallId)
+        if (part?.type === "tool-result") resultIds.add(part.toolCallId)
+      }
+    }
+
+    const missingResults: string[] = []
+    const missingCalls: string[] = []
+
+    // First pass: identify which IDs are orphaned
+    for (const id of callIds) {
+      if (!resultIds.has(id)) missingResults.push(id)
+    }
+    for (const id of resultIds) {
+      if (!callIds.has(id)) missingCalls.push(id)
+    }
+
+    if (missingResults.length === 0 && missingCalls.length === 0) return messages
+
+    log.warn("sanitizeOrphanedToolCalls: found orphaned tool calls/results", {
+      missingResults,
+      missingCalls,
+    })
+
+    const missingResultSet = new Set(missingResults)
+    const missingCallSet = new Set(missingCalls)
+
+    return messages.map((msg) => {
+      const content = (msg as any).content
+      if (!Array.isArray(content)) return msg
+
+      let dirty = false
+      const newContent = content.map((part: any) => {
+        if (part?.type === "tool-call" && missingResultSet.has(part.toolCallId)) {
+          dirty = true
+          return { type: "text", text: `[tool result missing: ${part.toolCallId}]` }
+        }
+        if (part?.type === "tool-result" && missingCallSet.has(part.toolCallId)) {
+          dirty = true
+          return { type: "text", text: `[tool call invalidated: ${part.toolCallId}]` }
+        }
+        return part
+      })
+
+      if (!dirty) return msg
+      return { ...msg, content: newContent }
+    })
+  }
+
   export const Event = {
     Compacted: BusEvent.define(
       "session.compacted",
@@ -247,6 +339,15 @@ export namespace SessionCompaction {
 
   function isByTokenBilling(model: Provider.Model): boolean {
     return model.cost.input > 0
+  }
+
+  /**
+   * Returns true if the model has sufficient context to produce a meaningful summary.
+   * Models with context < 16k are unlikely to hold enough history for useful compaction.
+   */
+  export function canSummarize(model: Provider.Model): boolean {
+    const contextLimit = model.limit?.context ?? 0
+    return contextLimit >= 16000
   }
 
   // Per-session cooldown tracking to prevent compaction oscillation
@@ -483,6 +584,16 @@ export namespace SessionCompaction {
     const model = agent.model
       ? await Provider.getModel(agent.model.providerId, agent.model.modelID)
       : await Provider.getModel(userMessage.model.providerId, userMessage.model.modelID)
+
+    // T5.2: Skip B (LLM compaction) if model cannot meaningfully summarize
+    if (!canSummarize(model)) {
+      log.warn("skipping LLM compaction: model context too small for meaningful summary (D fallback)", {
+        sessionID: input.sessionID,
+        modelID: model.id,
+        contextLimit: model.limit?.context,
+      })
+      return "stop"
+    }
     const agentModel = agent.model as { accountId?: string } | undefined
     // Read session's pinned execution identity so compaction inherits the
     // account the user was actually using, not the global-active fallback.
@@ -615,6 +726,23 @@ When constructing the summary, try to stick to this template:
     }
     if (processor.message.error) return "stop"
     Bus.publish(Event.Compacted, { sessionID: input.sessionID })
+
+    // T3.3: Save checkpoint after B (LLM) compaction
+    const summaryMsg = (await Session.messages({ sessionID: input.sessionID }))
+      .findLast((m) => m.info.id === processor.message.id)
+    const summaryText = summaryMsg?.parts
+      .filter((p) => p.type === "text")
+      .map((p) => (p as any).text ?? "")
+      .join("\n")
+    if (summaryText) {
+      void saveCheckpointAfterCompaction({
+        sessionID: input.sessionID,
+        source: "llm",
+        summary: summaryText,
+        lastMessageId: input.parentID,
+      })
+    }
+
     return "continue"
   }
 
@@ -921,6 +1049,18 @@ When constructing the summary, try to stick to this template:
         sessionID: input.sessionID,
         outputItems: result.output.length,
       })
+
+      // T3.4: Save checkpoint after A (Codex server) compaction with opaqueItems
+      const lastMsgId = input.messages.at(-1)?.info.id
+      if (lastMsgId) {
+        void saveCheckpointAfterCompaction({
+          sessionID: input.sessionID,
+          source: "codex-server",
+          summary: summaryText,
+          lastMessageId: lastMsgId,
+          opaqueItems: result.output,
+        })
+      }
 
       return "continue"
     } catch (err) {

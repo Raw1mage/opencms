@@ -901,19 +901,25 @@ export namespace MessageV2 {
     },
   )
 
-  export async function filterCompacted(stream: AsyncIterable<MessageV2.WithParts>) {
+  export async function filterCompacted(
+    stream: AsyncIterable<MessageV2.WithParts>,
+    contextLimit?: number,
+  ): Promise<{ messages: MessageV2.WithParts[]; stoppedByBudget: boolean }> {
     const result = [] as MessageV2.WithParts[]
     const completed = new Set<string>()
+    let accumulatedTokens = 0
+    let stoppedByBudget = false
+    const tokenBudget = contextLimit != null ? contextLimit * 0.7 : undefined
     for await (const msg of stream) {
       result.push(msg)
-      
+
       // RCA Diagnostic Trace: Minimal disruption
       const hasCompaction = msg.parts.some((p: any) => p.type === "compaction")
       // @ts-ignore
       const isSummary = msg.info.role === "assistant" && !!msg.info.summary
       // @ts-ignore
       const isFinish = msg.info.role === "assistant" && !!msg.info.finish
-      
+
       const rcaLog = (m: string) => require("fs").appendFileSync("/tmp/opencode-loop.log", `${m}\n`)
       rcaLog(`[RCA] Scanned ${msg.info.role}: id=${msg.info.id}, hasCompaction=${hasCompaction}, isSummary=${isSummary}, isFinish=${isFinish}`)
 
@@ -928,9 +934,18 @@ export namespace MessageV2 {
          completed.add((msg.info as any).parentID)
          rcaLog(`[RCA] Added parent ${ (msg.info as any).parentID } to completed set`)
       }
+
+      // Token budget guard: stop scanning if we'd exceed 70% of context limit
+      if (tokenBudget != null) {
+        accumulatedTokens += JSON.stringify(msg).length / 4
+        if (accumulatedTokens > tokenBudget) {
+          stoppedByBudget = true
+          break
+        }
+      }
     }
     result.reverse()
-    return result
+    return { messages: result, stoppedByBudget }
   }
 
   const isOpenAiErrorRetryable = (e: APICallError) => {

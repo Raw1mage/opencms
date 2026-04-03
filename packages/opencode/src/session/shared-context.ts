@@ -443,6 +443,20 @@ export namespace SharedContext {
   }
 
   /**
+   * Persist current snapshot to storage as abstract-template for provider-agnostic session reload.
+   * Fire-and-forget: silently returns if snapshot is empty.
+   */
+  export async function persistSnapshot(sessionID: string): Promise<void> {
+    try {
+      const snap = await snapshot(sessionID)
+      if (!snap) return
+      await Storage.write(["abstract_template", sessionID], { sessionID, snapshot: snap, updatedAt: Date.now() })
+    } catch (e) {
+      log.warn("persistSnapshot failed", { sessionID, error: String(e) })
+    }
+  }
+
+  /**
    * Returns only the knowledge added after `sinceVersion`.
    * Used by continuation handler to relay only what child learned beyond
    * what parent already injected at dispatch time — avoids re-sending known info.
