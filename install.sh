@@ -79,18 +79,12 @@ ensure_command() {
 run_as_root() {
   if [[ "${EUID}" -eq 0 ]]; then
     "$@"
-    return
+    return $?
   fi
 
   if command -v sudo >/dev/null 2>&1; then
-    if sudo "$@"; then
-      return
-    fi
-
-    log_err "sudo failed while running: $*"
-    log_warn "If you are in a restricted shell (e.g. no_new_privileges), rerun with --skip-system"
-    log_warn "or execute install/deploy from a host shell that allows privilege escalation."
-    exit 1
+    sudo "$@"
+    return $?
   fi
 
   log_err "This operation requires root (or sudo): $*"
