@@ -1097,10 +1097,11 @@ export const DialogSelectModel: Component<{
     window.addEventListener("mouseup", onUp)
   }
 
-  const toggleProviderFavorite = (providerId: string, enabled: boolean) => {
+  const toggleProviderFavorite = (providerId: string, currentlyEnabled: boolean) => {
     const providerKey = providerKeyOf(providerId)
-    // enabled=true means visible (remove from hidden), enabled=false means hidden (add to hidden)
-    models.setProviderHidden(providerKey, !enabled)
+    // currentlyEnabled=true → user wants to hide it → hidden=true
+    // currentlyEnabled=false → user wants to show it → hidden=false
+    models.setProviderHidden(providerKey, currentlyEnabled)
   }
 
   const accountProviders = createMemo(() => {
