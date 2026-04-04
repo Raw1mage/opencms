@@ -118,7 +118,14 @@ const getTemplatesDir = () => {
   if (fsSync.existsSync(path.join(repoPath, "manifest.json"))) return repoPath
   if (fsSync.existsSync(path.join(systemPath, "manifest.json"))) return systemPath
   
-  return repoPath // Fallback to repo path even if missing, as legacy behavior
+  // In compiled binary mode, bunfs repo paths are invalid — prefer system path.
+  // In dev mode, repo path is valid even without manifest.json.
+  const isCompiledBinary = import.meta.url.includes("/$bunfs/")
+  if (isCompiledBinary) {
+    console.warn(`[templates] no manifest.json found at system path ${systemPath}, using it anyway (compiled binary mode)`)
+    return systemPath
+  }
+  return repoPath
 }
 
 const templatesDir = getTemplatesDir()

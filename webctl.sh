@@ -1662,12 +1662,20 @@ sync_frontend_dist_if_needed() {
     fi
 
     log_info "Syncing frontend dist: ${source_dist} -> ${FRONTEND_DIST}"
-    mkdir -p "${FRONTEND_DIST}" || {
+
+    # System paths (e.g. /usr/local/share/opencode/frontend) are root-owned;
+    # use sudo if the target directory is not writable by the current user.
+    local _sudo=""
+    if [ ! -w "${FRONTEND_DIST}" ] 2>/dev/null || [ ! -w "$(dirname "${FRONTEND_DIST}")" ] 2>/dev/null; then
+        _sudo="sudo"
+    fi
+
+    ${_sudo} mkdir -p "${FRONTEND_DIST}" || {
         log_error "Failed to prepare frontend target directory: ${FRONTEND_DIST}"
         return 1
     }
 
-    if ! rsync -a --delete "${source_dist}/" "${FRONTEND_DIST}/"; then
+    if ! ${_sudo} rsync -a --delete "${source_dist}/" "${FRONTEND_DIST}/"; then
         log_error "Frontend sync failed: ${source_dist} -> ${FRONTEND_DIST}"
         return 1
     fi

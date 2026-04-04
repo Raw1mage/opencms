@@ -444,9 +444,21 @@ let workerSeq = 0
 let standbySpawn: Promise<void> | undefined
 
 function buildWorkerCmd() {
+  // Detect compiled binary vs dev mode (bun + source).
+  // Bun compiled binaries embed the app in a virtual /$bunfs/ filesystem;
+  // import.meta.url will start with "file:///$bunfs/" in that case.
+  // We MUST NOT resolve relative .ts paths against bunfs — the layout
+  // differs from the source tree and causes "Module not found" errors.
+  const isCompiledBinary = import.meta.url.includes("/$bunfs/")
+
+  if (isCompiledBinary) {
+    // Compiled binary: just re-exec ourselves with the worker subcommand.
+    return [process.execPath, "session", "worker"]
+  }
+
+  // Dev mode: bun + source entry point
   const indexScript = fileURLToPath(new URL("../index.ts", import.meta.url))
-  const isBun = /(^|\/)bun(\.exe)?$/.test(process.argv[0])
-  return isBun ? [process.argv[0], "run", indexScript, "session", "worker"] : [process.argv[0], "session", "worker"]
+  return [process.argv[0], "run", indexScript, "session", "worker"]
 }
 
 function removeWorker(id: string) {
