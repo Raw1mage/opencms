@@ -169,12 +169,14 @@ export function buildProviderRows(input: {
   providers: ProviderListItem[]
   accountFamilies?: AccountFamilyMap
   popularProviderOrder?: string[]
+  /** @deprecated Use hiddenProviders instead. If both are provided, hiddenProviders takes precedence. */
   favoriteProviders?: string[]
+  /** Provider keys to hide. Visibility is computed from providerUniverse minus this set. */
+  hiddenProviders?: Set<string> | string[]
 }): ProviderRow[] {
   const popularProviderOrder = input.popularProviderOrder ?? DEFAULT_POPULAR_PROVIDER_ORDER
   const out = new Map<string, ProviderRow>()
   const providerUniverse = new Set<string>()
-  const favoriteProviders = new Set((input.favoriteProviders ?? []).map((provider) => providerKeyOf(provider)))
 
   for (const provider of input.providers) {
     const normalized = normalizeProviderKey(provider.id)
@@ -196,6 +198,15 @@ export function buildProviderRows(input: {
     providerUniverse.add(normalized)
   }
 
+  // Resolve visibility: hiddenProviders (blacklist) is the canonical API.
+  // favoriteProviders (whitelist) is kept for backward compatibility with tests.
+  const hiddenSet = input.hiddenProviders
+    ? new Set(input.hiddenProviders)
+    : undefined
+  const favoriteSet = !hiddenSet && input.favoriteProviders
+    ? new Set(input.favoriteProviders.map((p) => providerKeyOf(p)))
+    : undefined
+
   for (const providerKey of providerUniverse) {
     const providerAccounts = input.accountFamilies?.[providerKey]
     const accountsCount = providerAccounts?.accounts ? Object.keys(providerAccounts.accounts).length : 0
@@ -204,12 +215,20 @@ export function buildProviderRows(input: {
     )
     const canonicalProvider = providersInGroup.find((provider) => provider.id === providerKey) ?? providersInGroup[0]
 
+    // hiddenSet: enabled = NOT hidden (blacklist model, default visible)
+    // favoriteSet: enabled = IS favorite (whitelist model, default hidden) — legacy
+    const enabled = hiddenSet
+      ? !hiddenSet.has(providerKey)
+      : favoriteSet
+        ? favoriteSet.has(providerKey)
+        : true  // no filter → all visible
+
     out.set(providerKey, {
       id: providerKey,
       providerKey,
       name: canonicalProvider?.name ?? PROVIDER_LABEL_MAP[providerKey] ?? providerKey,
       accounts: accountsCount,
-      enabled: favoriteProviders.has(providerKey),
+      enabled,
     })
   }
 

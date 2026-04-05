@@ -1151,13 +1151,10 @@ export const DialogSelectModel: Component<{
 
   const providers = createMemo(() => {
     const allProviders = globalSync.data.provider.all ?? []
-    const hidden = new Set(models.hiddenProviders())
-    // favoriteProviders = all provider keys NOT in hiddenProviders (default visible)
-    const visibleProviders = allProviders.map((p) => p.id).filter((id) => !hidden.has(providerKeyOf(id)))
     return buildProviderRows({
       providers: allProviders,
       accountFamilies: accountProviders(),
-      favoriteProviders: visibleProviders,
+      hiddenProviders: new Set(models.hiddenProviders()),
     })
   })
 
