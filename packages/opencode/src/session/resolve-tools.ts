@@ -18,7 +18,7 @@ import { Config } from "../config/config"
 import ENABLEMENT from "./prompt/enablement.json"
 import { UnlockedTools } from "./unlocked-tools"
 import { ToolFrequency } from "../tool/frequency"
-import { ALWAYS_PRESENT_TOOLS, buildCatalog, formatCatalogDescription } from "../tool/tool-loader"
+import { ALWAYS_PRESENT_TOOLS, buildCatalog, formatCatalogDescription, formatLazyCatalogPrompt } from "../tool/tool-loader"
 
 const log = Log.create({ service: "session.resolve-tools" })
 
@@ -118,6 +118,7 @@ async function applyOnDemandMcpPolicy(sessionID: string, messages: MessageV2.Wit
 export interface ResolveToolsOutput {
   tools: Record<string, AITool>
   lazyTools?: Map<string, AITool>
+  lazyCatalogPrompt?: string
 }
 
 export interface ResolveToolsInput {
@@ -431,8 +432,11 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
     trace: input.session.id,
   })
 
+  const lazyCatalogPrompt = lazyTools ? formatLazyCatalogPrompt(lazyTools) : undefined
+
   return {
     tools,
     lazyTools,
+    lazyCatalogPrompt,
   }
 }

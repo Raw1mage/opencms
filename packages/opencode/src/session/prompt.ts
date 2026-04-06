@@ -1423,11 +1423,13 @@ export namespace SessionPrompt {
 
       const tools = resolvedToolsOutput.tools
       const lazyTools = resolvedToolsOutput.lazyTools
+      const lazyCatalogPrompt = resolvedToolsOutput.lazyCatalogPrompt
 
       // Active Loader: lazy tools are NOT injected into the tools dict.
       // They are passed separately via `lazyTools` to the processor/LLM,
       // which handles on-demand unlock via experimental_repairToolCall.
-      // This avoids bloating every request with full schemas for rarely-used tools.
+      // A compact catalog prompt is injected as a system message so the AI
+      // knows what deferred tools exist and can call them directly.
 
       if (format.type === "json_schema") {
         tools["StructuredOutput"] = createStructuredOutputTool({
@@ -1501,6 +1503,7 @@ export namespace SessionPrompt {
           // Only include heavy instruction prompts (AGENTS.md) for Main Agents (no parentID).
           // Subagents should rely on the task description and SYSTEM.md.
           ...(session.parentID ? [] : instructionPrompts),
+          ...(lazyCatalogPrompt ? [lazyCatalogPrompt] : []),
           ...(format.type === "json_schema" ? [STRUCTURED_OUTPUT_SYSTEM_PROMPT] : []),
         ],
         messages: SessionCompaction.sanitizeOrphanedToolCalls([
