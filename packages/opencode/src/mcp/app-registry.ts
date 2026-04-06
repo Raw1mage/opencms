@@ -8,8 +8,6 @@ import { Bus } from "@/bus"
 import { BusEvent } from "@/bus/bus-event"
 import { Global } from "@/global"
 import { Log } from "@/util/log"
-import { manifest as gmailManifest } from "./apps/gmail/manifest"
-import { manifest as googleCalendarManifest } from "./apps/google-calendar/manifest"
 
 export namespace ManagedAppRegistry {
   const log = Log.create({ service: "managed-app-registry" })
@@ -268,15 +266,12 @@ export namespace ManagedAppRegistry {
     ),
   }
 
-  // Catalog entries are now defined in each App's manifest.ts file,
-  // imported above and assembled here. This eliminates the 500-line
-  // hardcoded block that previously lived inline (mcp-separation Step 2).
-  const BUILTIN_CATALOG: Record<string, CatalogEntry> = {
-    "google-calendar": googleCalendarManifest,
-    gmail: gmailManifest,
-  }
+  // Gmail and Google Calendar have been migrated to standalone MCP servers
+  // in ~/projects/mcp-apps/. BUILTIN_CATALOG is now empty — all Apps are
+  // loaded dynamically via mcp-apps.json at runtime.
+  const BUILTIN_CATALOG: Record<string, CatalogEntry> = {}
 
-  const GOOGLE_MANAGED_APP_IDS = ["gmail", "google-calendar"] as const
+  const GOOGLE_MANAGED_APP_IDS: readonly string[] = []
 
   let cache: Storage | undefined
   let mtime: number | undefined

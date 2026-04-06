@@ -25,7 +25,6 @@ import { withTimeout } from "@/util/timeout"
 import { McpOAuthProvider } from "./oauth-provider"
 import { McpOAuthCallback } from "./oauth-callback"
 import { McpAuth } from "./auth"
-import { sweepSharedGoogleAccessToken } from "./apps/gauth"
 import { BusEvent } from "../bus/bus-event"
 import { Bus } from "@/bus"
 import { TuiEvent } from "@/cli/cmd/tui/event"
@@ -195,10 +194,6 @@ export namespace MCP {
     return typeof entry === "object" && entry !== null && "type" in entry
   }
 
-  export async function shouldRunSharedGoogleStartupSweep() {
-    return (await ManagedAppRegistry.activeGoogleAppIds()).length > 0
-  }
-
   async function createState() {
     const cfg = await Config.get()
     const config = cfg.mcp ?? {}
@@ -232,14 +227,8 @@ export namespace MCP {
       invalidateToolsCache(toolsCache)
     })
 
-    Promise.resolve().then(async () => {
-      try {
-        if (!(await shouldRunSharedGoogleStartupSweep())) return
-        await sweepSharedGoogleAccessToken()
-      } catch (error) {
-        log.error("shared Google token startup sweep failed", { error })
-      }
-    })
+    // NOTE: Google OAuth token startup sweep removed (mcp-separation).
+    // Gmail/Calendar now run as standalone servers; token injected via env.
 
     // Phase 2: Auto-connect enabled servers in background (progressive)
     if (pendingAutoConnect.length > 0) {
