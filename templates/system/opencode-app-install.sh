@@ -162,13 +162,9 @@ with open('${tmp_file}', 'w') as f:
     ok "Removed app '${id}' from ${MCP_APPS_JSON}"
   fi
 
-  # Remove app directory if it's under APPS_DIR
-  local target
-  target="$(safe_app_path "${id}")"
-  if [[ -d "${target}" ]]; then
-    rm -rf "${target}"
-    ok "Deleted app directory: ${target}"
-  fi
+  # NOTE: Do NOT delete app files from /opt/opencode-apps/.
+  # Unregister only removes the entry from mcp-apps.json.
+  # Physical deletion requires explicit `purge` command (not exposed to AI tools).
 }
 
 cmd_write_entry() {

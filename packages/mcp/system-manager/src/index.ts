@@ -547,7 +547,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "remove_mcp_app",
         description:
-          "Remove an installed MCP App. Disconnects the stdio transport, removes from mcp-apps.json, and optionally deletes the App directory from /opt/opencode-apps/.",
+          "Unregister an MCP App from mcp-apps.json. Only removes the registry entry — does NOT delete App files from disk. Use ONLY when the user explicitly asks to remove an App. Never call this proactively.",
         inputSchema: {
           type: "object",
           properties: {
