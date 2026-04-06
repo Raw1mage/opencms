@@ -3,7 +3,7 @@ import { describeRoute, validator, resolver } from "hono-openapi"
 import z from "zod"
 import path from "path"
 import fs from "fs/promises"
-import { MCP } from "../../mcp"
+import { MCP, McpAppStore, McpAppManifest } from "../../mcp"
 import { ManagedAppRegistry } from "../../mcp"
 import { Config } from "../../config/config"
 import { Global } from "../../global"
@@ -40,7 +40,11 @@ export const McpRoutes = lazy(() =>
         },
       }),
       async (c) => {
-        const [serverApps, managedApps] = await Promise.all([MCP.serverApps(), ManagedAppRegistry.list()])
+        const [serverApps, managedApps, storeApps] = await Promise.all([
+          MCP.serverApps(),
+          ManagedAppRegistry.list(),
+          McpAppStore.listApps().catch(() => []),
+        ])
 
         // Convert managed apps to unified format
         const managedCards: MCP.ServerApp[] = managedApps.map((app) => ({
@@ -54,7 +58,19 @@ export const McpRoutes = lazy(() =>
           enabled: app.operator.install === "installed" && app.runtimeStatus === "ready",
         }))
 
-        return c.json([...serverApps, ...managedCards])
+        // Convert store apps to unified format
+        const storeCards: MCP.ServerApp[] = storeApps.map((app) => ({
+          id: `store-${app.id}`,
+          name: app.manifest?.name ?? app.id,
+          description: app.manifest?.description ?? "",
+          icon: app.manifest?.icon ?? "📦",
+          kind: "mcp-app" as const,
+          status: app.entry.enabled ? "connected" : "disabled",
+          tools: [],  // tools discovered at runtime via tools/list
+          enabled: app.entry.enabled,
+        }))
+
+        return c.json([...serverApps, ...managedCards, ...storeCards])
       },
     )
     .get(
@@ -742,6 +758,125 @@ export const McpRoutes = lazy(() =>
         const { name } = c.req.valid("param")
         await MCP.disconnect(name)
         return c.json(true)
+      },
+    )
+
+    // ── MCP App Store CRUD (Layer 2) ─────────────────────────────────
+
+    .get(
+      "/store/apps",
+      describeRoute({
+        summary: "List installed MCP Apps from mcp-apps.json",
+        operationId: "mcp.store.list",
+        responses: { 200: { description: "App list with manifest metadata and tier" } },
+      }),
+      async (c) => {
+        const apps = await McpAppStore.listApps()
+        return c.json(apps)
+      },
+    )
+    .post(
+      "/store/apps",
+      describeRoute({
+        summary: "Register a new MCP App",
+        operationId: "mcp.store.add",
+        responses: {
+          200: { description: "Registered app manifest" },
+          400: { description: "Validation error" },
+        },
+      }),
+      validator(
+        "json",
+        z.object({
+          path: z.string().optional(),
+          githubUrl: z.string().optional(),
+          id: z.string().optional(),
+          target: z.enum(["system", "user"]).optional().default("system"),
+        }),
+      ),
+      async (c) => {
+        const body = c.req.valid("json")
+
+        if (body.githubUrl) {
+          const id = body.id ?? body.githubUrl.split("/").pop()?.replace(/\.git$/, "") ?? "unknown"
+          try {
+            const manifest = await McpAppStore.cloneAndRegister(body.githubUrl, id)
+            return c.json({ id, manifest, status: "installed" })
+          } catch (err) {
+            return c.json({ error: err instanceof Error ? err.message : String(err) }, 400)
+          }
+        }
+
+        if (body.path) {
+          const id = body.id ?? body.path.split("/").pop() ?? "unknown"
+          try {
+            const manifest = await McpAppStore.addApp(id, body.path, body.target)
+            return c.json({ id, manifest, status: "registered" })
+          } catch (err) {
+            return c.json({ error: err instanceof Error ? err.message : String(err) }, 400)
+          }
+        }
+
+        return c.json({ error: "Either 'path' or 'githubUrl' is required" }, 400)
+      },
+    )
+    .post(
+      "/store/apps/preview",
+      describeRoute({
+        summary: "Preview an MCP App manifest without registering",
+        operationId: "mcp.store.preview",
+        responses: {
+          200: { description: "Manifest preview" },
+          400: { description: "Manifest not found or invalid" },
+        },
+      }),
+      validator("json", z.object({ path: z.string() })),
+      async (c) => {
+        const { path: appPath } = c.req.valid("json")
+        try {
+          const manifest = await McpAppManifest.load(appPath)
+          return c.json({ manifest })
+        } catch (err) {
+          return c.json({ error: err instanceof Error ? err.message : String(err) }, 400)
+        }
+      },
+    )
+    .patch(
+      "/store/apps/:id",
+      describeRoute({
+        summary: "Update MCP App state (enable/disable)",
+        operationId: "mcp.store.update",
+        responses: { 200: { description: "Updated" } },
+      }),
+      validator("param", z.object({ id: z.string() })),
+      validator("json", z.object({ enabled: z.boolean() })),
+      async (c) => {
+        const { id } = c.req.valid("param")
+        const { enabled } = c.req.valid("json")
+        try {
+          await McpAppStore.setEnabled(id, enabled)
+          return c.json({ id, enabled })
+        } catch (err) {
+          return c.json({ error: err instanceof Error ? err.message : String(err) }, 400)
+        }
+      },
+    )
+    .delete(
+      "/store/apps/:id",
+      describeRoute({
+        summary: "Remove an MCP App",
+        operationId: "mcp.store.remove",
+        responses: { 200: { description: "Removed" } },
+      }),
+      validator("param", z.object({ id: z.string() })),
+      async (c) => {
+        const { id } = c.req.valid("param")
+        try {
+          await McpAppStore.removeApp(id)
+          return c.json({ id, status: "removed" })
+        } catch (err) {
+          return c.json({ error: err instanceof Error ? err.message : String(err) }, 400)
+        }
       },
     ),
 )
