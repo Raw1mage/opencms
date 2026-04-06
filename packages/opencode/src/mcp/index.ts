@@ -1,7 +1,10 @@
 export * from "./app-registry"
+export { McpAppStore } from "./app-store"
+export { McpAppManifest } from "./manifest"
 
 import { dynamicTool, type Tool, jsonSchema, type JSONSchema7 } from "ai"
 import { ManagedAppRegistry } from "./app-registry"
+import { McpAppStore } from "./app-store"
 import { GoogleCalendarApp } from "./apps/google-calendar"
 import { GmailApp } from "./apps/gmail"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
@@ -843,7 +846,72 @@ export namespace MCP {
     invalidateToolsCache(s.toolsCache)
   }
 
+  // ── mcp-apps.json integration (Layer 2) ────────────────────────────
+
+  let mcpAppsInitialized = false
+
+  /**
+   * Connect all enabled Apps from mcp-apps.json on first tools() call.
+   * Uses the existing MCP.add() path so they appear as regular MCP servers
+   * in the tool pool — no separate tool collection logic needed.
+   */
+  async function connectMcpApps(): Promise<void> {
+    if (mcpAppsInitialized) return
+    mcpAppsInitialized = true
+
+    try {
+      const config = await McpAppStore.loadConfig()
+      const enabledApps = Object.entries(config.apps).filter(([, entry]) => entry.enabled)
+
+      if (enabledApps.length === 0) return
+
+      log.info("loading mcp-apps.json apps", { count: enabledApps.length })
+
+      await Promise.allSettled(
+        enabledApps.map(async ([id, entry]) => {
+          // Skip if already connected (e.g. via opencode.json.mcp)
+          const s = await state()
+          if (s.status[`mcpapp-${id}`]?.status === "connected") return
+
+          try {
+            const { McpAppManifest } = await import("./manifest")
+            const manifest = await McpAppManifest.load(entry.path)
+
+            // Build environment: merge manifest env + auth token injection
+            const env: Record<string, string> = { ...manifest.env }
+            if (manifest.auth?.type === "oauth" || manifest.auth?.type === "api-key") {
+              // Token injection will be implemented when accounts.json
+              // integration is ready; for now just pass the env through
+              log.info("app has auth requirement", { id, authType: manifest.auth.type })
+            }
+
+            await add(`mcpapp-${id}`, {
+              type: "local",
+              command: manifest.command,
+              environment: env,
+              enabled: true,
+            })
+
+            log.info("mcp-apps.json app connected", { id, tools: "via tools/list" })
+          } catch (err) {
+            log.warn("mcp-apps.json app failed to connect", {
+              id,
+              path: entry.path,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          }
+        }),
+      )
+    } catch (err) {
+      log.warn("failed to load mcp-apps.json", {
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
   export async function tools() {
+    // Ensure mcp-apps.json apps are connected on first call
+    await connectMcpApps()
     const s = await state()
     const now = Date.now()
     if (!s.toolsCache.dirty && s.toolsCache.expiresAt > now) {
