@@ -1,0 +1,43 @@
+{
+  "diagram_title": "Prepare Runtime Environment — A1 Decomposition",
+  "node_reference": "A1",
+  "activities": [
+    {
+      "id": "A11",
+      "title": "Create System Service Account",
+      "description": "Create opencode nologin user for file ownership isolation on customer systems",
+      "decomposition": null
+    },
+    {
+      "id": "A12",
+      "title": "Establish Directory Hierarchy",
+      "description": "Create /opt/opencode-apps/, /var/log/opencode/ with opencode:opencode ownership",
+      "decomposition": null
+    },
+    {
+      "id": "A13",
+      "title": "Deploy Privileged Install Wrapper",
+      "description": "Install sudo wrapper script that allows per-user daemons to write to /opt/opencode-apps/ and /etc/opencode/ via sudoers NOPASSWD",
+      "decomposition": null
+    },
+    {
+      "id": "A14",
+      "title": "Initialize System Configuration",
+      "description": "Create /etc/opencode/mcp-apps.json with empty apps, chown opencode:opencode",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "EXTERNAL", "target": "A11:input", "label": "Installation Trigger", "type": "input" },
+    { "id": "C1", "source": "EXTERNAL", "target": "A11:control", "label": "Linux System User Policy", "type": "control" },
+    { "id": "C2", "source": "EXTERNAL", "target": "A13:control", "label": "Sudoers Security Policy", "type": "control" },
+    { "id": "F1", "source": "A11:output", "target": "A12:input", "label": "opencode UID/GID", "type": "input" },
+    { "id": "F2", "source": "A12:output", "target": "A14:input", "label": "Directory Hierarchy Ready", "type": "input" },
+    { "id": "F3", "source": "A12:output", "target": "A13:input", "label": "Target Directories Known", "type": "input" },
+    { "id": "O1", "source": "A13:output", "target": "EXTERNAL", "label": "Sudo Wrapper Installed", "type": "output" },
+    { "id": "O2", "source": "A14:output", "target": "EXTERNAL", "label": "Install Directory Ready", "type": "output" },
+    { "id": "M1", "source": "EXTERNAL", "target": "A11:mechanism", "label": "useradd", "type": "mechanism" },
+    { "id": "M2", "source": "EXTERNAL", "target": "A12:mechanism", "label": "mkdir and chown", "type": "mechanism" },
+    { "id": "M3", "source": "EXTERNAL", "target": "A13:mechanism", "label": "install.sh", "type": "mechanism" }
+  ]
+}

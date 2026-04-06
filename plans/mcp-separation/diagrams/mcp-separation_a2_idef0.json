@@ -1,0 +1,51 @@
+{
+  "diagram_title": "Acquire App Package — A2 Decomposition",
+  "node_reference": "A2",
+  "activities": [
+    {
+      "id": "A21",
+      "title": "Resolve Source Type",
+      "description": "Determine whether the source is a GitHub URL, local path, or requires the user to clarify",
+      "decomposition": null
+    },
+    {
+      "id": "A22",
+      "title": "Clone Remote Repository",
+      "description": "Git clone a GitHub repository into /opt/opencode-apps/<id>/",
+      "decomposition": null
+    },
+    {
+      "id": "A23",
+      "title": "Verify Local Path Exists",
+      "description": "Confirm the local directory exists and is accessible; reject path traversal attempts",
+      "decomposition": null
+    },
+    {
+      "id": "A24",
+      "title": "Install Runtime Dependencies",
+      "description": "Detect package.json/requirements.txt and install dependencies (bun install, pip install)",
+      "decomposition": null
+    },
+    {
+      "id": "A25",
+      "title": "Compile Builtin App Binary",
+      "description": "For internal Apps (Gmail/Calendar), use bun build --compile to produce zero-dependency executable",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "EXTERNAL", "target": "A21:input", "label": "App Source Reference (URL or Path)", "type": "input" },
+    { "id": "C1", "source": "EXTERNAL", "target": "A22:control", "label": "GitHub Access Policy", "type": "control" },
+    { "id": "C2", "source": "EXTERNAL", "target": "A23:control", "label": "Path Traversal Security Policy", "type": "control" },
+    { "id": "C3", "source": "EXTERNAL", "target": "A25:control", "label": "Existing CatalogEntry Type Contract", "type": "control" },
+    { "id": "F1", "source": "A21:output", "target": "A22:input", "label": "GitHub URL Parsed", "type": "input" },
+    { "id": "F2", "source": "A21:output", "target": "A23:input", "label": "Local Path Parsed", "type": "input" },
+    { "id": "F3", "source": "A22:output", "target": "A24:input", "label": "Cloned Directory", "type": "input" },
+    { "id": "F4", "source": "A23:output", "target": "A24:input", "label": "Verified Local Directory", "type": "input" },
+    { "id": "O1", "source": "A24:output", "target": "EXTERNAL", "label": "App Directory on Disk (deps ready)", "type": "output" },
+    { "id": "O2", "source": "A25:output", "target": "EXTERNAL", "label": "Compiled Binary in Install Dir", "type": "output" },
+    { "id": "M1", "source": "EXTERNAL", "target": "A22:mechanism", "label": "Git CLI", "type": "mechanism" },
+    { "id": "M2", "source": "EXTERNAL", "target": "A24:mechanism", "label": "bun install / pip install", "type": "mechanism" },
+    { "id": "M3", "source": "EXTERNAL", "target": "A25:mechanism", "label": "Bun Compile Toolchain", "type": "mechanism" }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "diagram_title": "Render App Management Interface — A55 Decomposition",
+  "node_reference": "A55",
+  "activities": [
+    {
+      "id": "A551",
+      "title": "Serve App List API",
+      "description": "GET endpoint returning all Apps with manifest metadata, status, and tool count",
+      "decomposition": null
+    },
+    {
+      "id": "A552",
+      "title": "Preview App Before Adding",
+      "description": "Read manifest from path without connecting, return card preview data",
+      "decomposition": null
+    },
+    {
+      "id": "A553",
+      "title": "Accept App Addition Request",
+      "description": "POST endpoint accepting path or GitHub URL, triggering acquire → validate → register pipeline",
+      "decomposition": null
+    },
+    {
+      "id": "A554",
+      "title": "Render App Card Components",
+      "description": "Frontend cards showing icon, name, description, status badge, tool count, source, enable/disable toggle, remove button",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "EXTERNAL", "target": "A551:input", "label": "Merged App Registry", "type": "input" },
+    { "id": "I2", "source": "EXTERNAL", "target": "A552:input", "label": "Preview Path Request", "type": "input" },
+    { "id": "I3", "source": "EXTERNAL", "target": "A553:input", "label": "Add App Request", "type": "input" },
+    { "id": "C1", "source": "EXTERNAL", "target": "A553:control", "label": "Path Traversal Security Policy", "type": "control" },
+    { "id": "O1", "source": "A551:output", "target": "A554:input", "label": "App List with Metadata", "type": "input" },
+    { "id": "O2", "source": "A552:output", "target": "A554:input", "label": "Preview Card Data", "type": "input" },
+    { "id": "O3", "source": "A554:output", "target": "EXTERNAL", "label": "App Card UI State", "type": "output" },
+    { "id": "O4", "source": "A553:output", "target": "EXTERNAL", "label": "Registration Trigger", "type": "output" }
+  ]
+}

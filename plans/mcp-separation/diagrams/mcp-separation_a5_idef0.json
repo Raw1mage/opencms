@@ -1,0 +1,57 @@
+{
+  "diagram_title": "Surface App Capabilities — A5 Decomposition",
+  "node_reference": "A5",
+  "activities": [
+    {
+      "id": "A51",
+      "title": "Launch Stdio Transport",
+      "description": "Spawn App command, establish MCP Client connection, discover tools via tools/list",
+      "decomposition": null
+    },
+    {
+      "id": "A52",
+      "title": "Inject Auth Credentials",
+      "description": "Resolve OAuth token from accounts.json, inject into App environment via tokenEnv",
+      "decomposition": null
+    },
+    {
+      "id": "A53",
+      "title": "Register Tools to Session Pool",
+      "description": "Convert discovered MCP tools to AI SDK tool format, add to session tool pool with namespaced keys",
+      "decomposition": null
+    },
+    {
+      "id": "A54",
+      "title": "Advertise Available Apps to AI",
+      "description": "Inject disabled App list (id, name, description) into system prompt so AI can decide on-demand activation",
+      "decomposition": null
+    },
+    {
+      "id": "A55",
+      "title": "Render App Management Interface",
+      "description": "Provide CRUD API endpoints and Admin UI cards showing App status, tools, source, and controls",
+      "decomposition": "A55"
+    },
+    {
+      "id": "A56",
+      "title": "Handle Conversational Provisioning",
+      "description": "Expose install_mcp_app / list_mcp_apps / remove_mcp_app as system-manager MCP tools for AI-driven management",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "EXTERNAL", "target": "A51:input", "label": "Registered App Entry with State", "type": "input" },
+    { "id": "I2", "source": "EXTERNAL", "target": "A55:input", "label": "Admin UI Interaction", "type": "input" },
+    { "id": "I3", "source": "EXTERNAL", "target": "A56:input", "label": "AI Tool Call Request", "type": "input" },
+    { "id": "C1", "source": "EXTERNAL", "target": "A55:control", "label": "Path Traversal Security Policy", "type": "control" },
+    { "id": "C2", "source": "EXTERNAL", "target": "A52:control", "label": "accounts.json Token Format", "type": "control" },
+    { "id": "F1", "source": "A51:output", "target": "A53:input", "label": "Connected MCP Client with Tool List", "type": "input" },
+    { "id": "F2", "source": "A52:output", "target": "A51:input", "label": "Environment with Injected Token", "type": "input" },
+    { "id": "F3", "source": "A56:output", "target": "A51:input", "label": "On-Demand Activation Request", "type": "input" },
+    { "id": "O1", "source": "A53:output", "target": "EXTERNAL", "label": "Session Tool Pool", "type": "output" },
+    { "id": "O2", "source": "A54:output", "target": "EXTERNAL", "label": "System Prompt App Catalog", "type": "output" },
+    { "id": "O3", "source": "A55:output", "target": "EXTERNAL", "label": "App Card UI State", "type": "output" },
+    { "id": "O4", "source": "A56:output", "target": "EXTERNAL", "label": "Installation Result Report", "type": "output" },
+    { "id": "M1", "source": "EXTERNAL", "target": "A51:mechanism", "label": "StdioClientTransport", "type": "mechanism" }
+  ]
+}

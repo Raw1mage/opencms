@@ -1,0 +1,62 @@
+{
+  "diagram_title": "Standardize MCP App Extensibility — A0 Context",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Prepare Runtime Environment",
+      "description": "Establish system-level infrastructure (user account, directories, permissions) required for App installation and execution",
+      "decomposition": "A1"
+    },
+    {
+      "id": "A2",
+      "title": "Acquire App Package",
+      "description": "Obtain an MCP App from an external source (GitHub, local path) and place it in the install directory",
+      "decomposition": "A2"
+    },
+    {
+      "id": "A3",
+      "title": "Validate App Package",
+      "description": "Verify that an App directory contains a valid manifest and can successfully start as an MCP server",
+      "decomposition": "A3"
+    },
+    {
+      "id": "A4",
+      "title": "Register App Lifecycle",
+      "description": "Persist App registration, manage enabled/disabled state, and provide activation/deactivation across sessions",
+      "decomposition": "A4"
+    },
+    {
+      "id": "A5",
+      "title": "Surface App Capabilities",
+      "description": "Make registered App tools available to AI sessions and render App status in management interfaces",
+      "decomposition": "A5"
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "EXTERNAL", "target": "A2:input", "label": "App Source Reference (URL or Path)", "type": "input" },
+    { "id": "I2", "source": "EXTERNAL", "target": "A1:input", "label": "Installation Trigger", "type": "input" },
+    { "id": "I3", "source": "EXTERNAL", "target": "A4:input", "label": "User Enable/Disable/Remove Command", "type": "input" },
+
+    { "id": "C1", "source": "EXTERNAL", "target": "A1:control", "label": "Linux System User Policy", "type": "control" },
+    { "id": "C2", "source": "EXTERNAL", "target": "A2:control", "label": "GitHub Access Policy", "type": "control" },
+    { "id": "C3", "source": "EXTERNAL", "target": "A3:control", "label": "No Silent Fallback Rule", "type": "control" },
+    { "id": "C4", "source": "EXTERNAL", "target": "A4:control", "label": "Two-Tier Config Priority (System over User)", "type": "control" },
+    { "id": "C5", "source": "EXTERNAL", "target": "A5:control", "label": "Path Traversal Security Policy", "type": "control" },
+
+    { "id": "F1", "source": "A1:output", "target": "A2:input", "label": "Install Directory Ready", "type": "input" },
+    { "id": "F2", "source": "A2:output", "target": "A3:input", "label": "App Directory on Disk", "type": "input" },
+    { "id": "F3", "source": "A3:output", "target": "A4:input", "label": "Validated Manifest and Probe Result", "type": "input" },
+    { "id": "F4", "source": "A4:output", "target": "A5:input", "label": "Registered App Entry with State", "type": "input" },
+
+    { "id": "O1", "source": "A1:output", "target": "EXTERNAL", "label": "Infrastructure Status Report", "type": "output" },
+    { "id": "O2", "source": "A3:output", "target": "EXTERNAL", "label": "Validation Error Report", "type": "output" },
+    { "id": "O3", "source": "A5:output", "target": "EXTERNAL", "label": "Session Tool Pool", "type": "output" },
+    { "id": "O4", "source": "A5:output", "target": "EXTERNAL", "label": "App Card UI State", "type": "output" },
+
+    { "id": "M1", "source": "EXTERNAL", "target": "A1:mechanism", "label": "Linux useradd and chmod", "type": "mechanism" },
+    { "id": "M2", "source": "EXTERNAL", "target": "A2:mechanism", "label": "Git CLI and Package Managers", "type": "mechanism" },
+    { "id": "M3", "source": "EXTERNAL", "target": "A3:mechanism", "label": "Zod Validation and StdioClientTransport", "type": "mechanism" },
+    { "id": "M4", "source": "EXTERNAL", "target": "A5:mechanism", "label": "Bun Compile Toolchain", "type": "mechanism" }
+  ]
+}

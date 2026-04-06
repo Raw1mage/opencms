@@ -1,0 +1,45 @@
+{
+  "diagram_title": "Validate App Package — A3 Decomposition",
+  "node_reference": "A3",
+  "activities": [
+    {
+      "id": "A31",
+      "title": "Read Manifest File",
+      "description": "Locate and read mcp.json from App directory",
+      "decomposition": null
+    },
+    {
+      "id": "A32",
+      "title": "Infer Manifest from Project Files",
+      "description": "When mcp.json is absent, detect runtime (package.json, pyproject.toml, requirements.txt) and generate manifest",
+      "decomposition": null
+    },
+    {
+      "id": "A33",
+      "title": "Validate Manifest Schema",
+      "description": "Parse manifest against Zod schema, reject with structured error on invalid fields",
+      "decomposition": null
+    },
+    {
+      "id": "A34",
+      "title": "Probe App via Stdio Handshake",
+      "description": "Spawn command, establish MCP client, call tools/list, confirm tools are discoverable, then dispose",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "EXTERNAL", "target": "A31:input", "label": "App Directory on Disk", "type": "input" },
+    { "id": "C1", "source": "EXTERNAL", "target": "A31:control", "label": "No Silent Fallback Rule", "type": "control" },
+    { "id": "C2", "source": "EXTERNAL", "target": "A33:control", "label": "McpAppManifest Zod Schema", "type": "control" },
+    { "id": "C3", "source": "EXTERNAL", "target": "A34:control", "label": "Probe Timeout (30s)", "type": "control" },
+    { "id": "F1", "source": "A31:output", "target": "A33:input", "label": "Raw mcp.json Content", "type": "input" },
+    { "id": "F2", "source": "A31:output", "target": "A32:input", "label": "Manifest Not Found Signal", "type": "input" },
+    { "id": "F3", "source": "A32:output", "target": "A33:input", "label": "Inferred Manifest", "type": "input" },
+    { "id": "F4", "source": "A33:output", "target": "A34:input", "label": "Valid McpAppManifest", "type": "input" },
+    { "id": "O1", "source": "A34:output", "target": "EXTERNAL", "label": "Validated Manifest and Probe Result", "type": "output" },
+    { "id": "O2", "source": "A33:output", "target": "EXTERNAL", "label": "Validation Error Report", "type": "output" },
+    { "id": "O3", "source": "A32:output", "target": "EXTERNAL", "label": "Inference Failure Report", "type": "output" },
+    { "id": "M1", "source": "EXTERNAL", "target": "A33:mechanism", "label": "Zod Validation Runtime", "type": "mechanism" },
+    { "id": "M2", "source": "EXTERNAL", "target": "A34:mechanism", "label": "StdioClientTransport", "type": "mechanism" }
+  ]
+}

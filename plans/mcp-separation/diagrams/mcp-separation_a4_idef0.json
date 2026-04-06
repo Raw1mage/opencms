@@ -1,0 +1,41 @@
+{
+  "diagram_title": "Register App Lifecycle — A4 Decomposition",
+  "node_reference": "A4",
+  "activities": [
+    {
+      "id": "A41",
+      "title": "Persist App Registration",
+      "description": "Write App entry (path, source, timestamp) into mcp-apps.json at appropriate tier",
+      "decomposition": null
+    },
+    {
+      "id": "A42",
+      "title": "Merge Two-Tier Configuration",
+      "description": "Read system-level and user-level mcp-apps.json, merge with system priority, resolve conflicts",
+      "decomposition": null
+    },
+    {
+      "id": "A43",
+      "title": "Manage App State Transitions",
+      "description": "Handle enable/disable/remove operations, persist state changes, emit Bus events",
+      "decomposition": null
+    },
+    {
+      "id": "A44",
+      "title": "Migrate Builtin App Registrations",
+      "description": "Move hardcoded BUILTIN_CATALOG entries to manifest.ts files, then to mcp-apps.json entries",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    { "id": "I1", "source": "EXTERNAL", "target": "A41:input", "label": "Validated Manifest and Probe Result", "type": "input" },
+    { "id": "I2", "source": "EXTERNAL", "target": "A43:input", "label": "User Enable/Disable/Remove Command", "type": "input" },
+    { "id": "C1", "source": "EXTERNAL", "target": "A42:control", "label": "Two-Tier Config Priority (System over User)", "type": "control" },
+    { "id": "C2", "source": "EXTERNAL", "target": "A44:control", "label": "Existing CatalogEntry Type Contract", "type": "control" },
+    { "id": "F1", "source": "A41:output", "target": "A42:input", "label": "Updated mcp-apps.json", "type": "input" },
+    { "id": "F2", "source": "A43:output", "target": "A42:input", "label": "State Change Persisted", "type": "input" },
+    { "id": "F3", "source": "A44:output", "target": "A41:input", "label": "Migrated Builtin Entries", "type": "input" },
+    { "id": "O1", "source": "A42:output", "target": "EXTERNAL", "label": "Merged App Registry (all tiers)", "type": "output" },
+    { "id": "O2", "source": "A43:output", "target": "EXTERNAL", "label": "Bus Event: App State Changed", "type": "output" }
+  ]
+}
