@@ -203,7 +203,7 @@ export namespace McpAppStore {
     return {
       path: appPath,
       command: resolvedCmd,
-      enabled: true,
+      enabled: false,
       installedAt: new Date().toISOString(),
       source: { type: "local" },
       tools,

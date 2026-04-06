@@ -124,7 +124,7 @@ with open('${MCP_APPS_JSON}') as f:
 data.setdefault('apps', {})['${id}'] = {
     'path': app_path,
     'command': command,
-    'enabled': True,
+    'enabled': False,
     'installedAt': datetime.now(timezone.utc).isoformat(),
     'source': {'type': 'local'}
 }

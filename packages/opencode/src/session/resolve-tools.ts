@@ -352,9 +352,12 @@ export async function resolveTools(input: ResolveToolsInput): Promise<ResolveToo
           const toolKey = `mcpapp-${appId}_${appTool.name.replace(/[^a-zA-Z0-9_-]/g, "_")}`
           if (tools[toolKey] || lazyTools.has(toolKey)) continue
 
+          // Use minimal inputSchema — only name+description matter for AI tool selection.
+          // Full schema is fetched on-demand when the App auto-connects via tools/list.
+          // This saves significant context tokens for disabled apps.
           const storeAppTool = dynamicTool({
             description: appTool.description ?? `[${appId}] ${appTool.name}`,
-            inputSchema: jsonSchema(appTool.inputSchema ?? { type: "object", properties: {} }),
+            inputSchema: jsonSchema({ type: "object", additionalProperties: true }),
             execute: async (args) => {
               // Auto-connect the App on first call
               log.info("auto-connecting store app for lazy tool", { appId, tool: appTool.name })
