@@ -5,8 +5,6 @@ export { McpAppManifest } from "./manifest"
 import { dynamicTool, type Tool, jsonSchema, type JSONSchema7 } from "ai"
 import { ManagedAppRegistry } from "./app-registry"
 import { McpAppStore } from "./app-store"
-import { GoogleCalendarApp } from "./apps/google-calendar"
-import { GmailApp } from "./apps/gmail"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js"
@@ -159,71 +157,10 @@ export namespace MCP {
     })
   }
 
-  function managedAppToolKey(namespace: string, toolId: string) {
-    const sanitizedNamespace = namespace.replace(/[^a-zA-Z0-9_-]/g, "_")
-    const sanitizedToolId = toolId.replace(/[^a-zA-Z0-9_-]/g, "_")
-    return `${sanitizedNamespace}_${sanitizedToolId}`
-  }
-
-  function managedAppArgumentSchema(argument: ManagedAppRegistry.ToolArgument): JSONSchema7 {
-    switch (argument.type) {
-      case "string":
-        return { type: "string", description: argument.description }
-      case "string[]":
-        return { type: "array", items: { type: "string" }, description: argument.description }
-      case "datetime":
-        return { type: "string", format: "date-time", description: argument.description }
-      case "datetime[]":
-        return {
-          type: "array",
-          items: { type: "string", format: "date-time" },
-          description: argument.description,
-        }
-      case "number":
-        return { type: "number", description: argument.description }
-      case "boolean":
-        return { type: "boolean", description: argument.description }
-      case "object":
-        return { type: "object", additionalProperties: true, description: argument.description }
-    }
-  }
-
-  function managedAppInputSchema(tool: ManagedAppRegistry.ToolDescriptor): JSONSchema7 {
-    return {
-      type: "object",
-      properties: Object.fromEntries(
-        tool.arguments.map((argument: ManagedAppRegistry.ToolArgument) => [
-          argument.name,
-          managedAppArgumentSchema(argument),
-        ]),
-      ),
-      required: tool.arguments
-        .filter((argument: ManagedAppRegistry.ToolArgument) => argument.required)
-        .map((argument: ManagedAppRegistry.ToolArgument) => argument.name),
-      additionalProperties: false,
-    }
-  }
-
-  const managedAppExecutors: Record<string, (toolId: string, args: Record<string, unknown>) => Promise<string>> = {
-    "google-calendar": GoogleCalendarApp.execute,
-    gmail: GmailApp.execute,
-  }
-
-  function convertManagedAppTool(binding: ManagedAppRegistry.ReadyToolBinding): Tool {
-    return dynamicTool({
-      description: binding.tool.description,
-      inputSchema: jsonSchema(managedAppInputSchema(binding.tool)),
-      execute: async (args) => {
-        await ManagedAppRegistry.requireReady(binding.appId)
-        const executor = managedAppExecutors[binding.appId]
-        if (!executor) {
-          throw new Error(`No executor registered for managed app: ${binding.appId}`)
-        }
-        const text = await executor(binding.tool.id, args as Record<string, unknown>)
-        return { content: [{ type: "text" as const, text }] }
-      },
-    })
-  }
+  // NOTE: managedAppExecutors, convertManagedAppTool, and related helper
+  // functions have been removed (mcp-separation Step 6c). Gmail and Calendar
+  // now run as standalone stdio MCP servers via mcp-apps.json, using the same
+  // convertMcpTool() path as all other MCP servers.
 
   // Store transports for OAuth servers to allow finishing auth
   type TransportWithAuth = StreamableHTTPClientTransport | SSEClientTransport
@@ -958,9 +895,10 @@ export namespace MCP {
       }
     }
 
-    for (const binding of await ManagedAppRegistry.readyTools()) {
-      result[managedAppToolKey(binding.namespace, binding.tool.id)] = convertManagedAppTool(binding)
-    }
+    // NOTE: Managed app tools (Gmail/Calendar) are no longer collected here
+    // via managedAppExecutors. They now run as standalone stdio MCP servers
+    // and their tools appear via the standard convertMcpTool() path above
+    // (registered through mcp-apps.json → connectMcpApps()).
 
     s.toolsCache.value = result
     s.toolsCache.expiresAt = now + cacheMs
