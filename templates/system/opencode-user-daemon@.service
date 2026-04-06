@@ -11,11 +11,13 @@ EnvironmentFile=-/etc/opencode/opencode.env
 ExecStart=/usr/local/libexec/opencode-user-daemon-launch %i
 Restart=on-failure
 RestartSec=1
-NoNewPrivileges=true
+# NoNewPrivileges=true  — disabled: per-user daemon needs sudo for
+# opencode-app-install (writes to /etc/opencode, /opt/opencode-apps).
+# Security boundary is maintained by sudoers policy limiting the wrapper.
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=false
-ReadWritePaths=/home /tmp
+ReadWritePaths=/home /tmp /etc/opencode /opt/opencode-apps /var/log/opencode
 LimitNOFILE=65535
 
 [Install]
