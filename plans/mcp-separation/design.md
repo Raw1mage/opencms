@@ -129,7 +129,44 @@ my-app/
 
 **最小必填**：`id`, `name`, `command`
 
-**工具清單不寫在 manifest 裡** — 由 runtime 透過 MCP 協議的 `tools/list` 動態取得。這是與現有 `BUILTIN_CATALOG.toolContract` 硬編碼方式的根本區別。Manifest 只負責「我是誰、怎麼啟動我」，不負責「我能做什麼」。
+**工具清單不寫在 manifest 裡** — 由 runtime 透過 MCP 協議的 `tools/list` 動態取得（probe 時存入 mcp-apps.json 的 `entry.tools`）。Manifest 只負責「我是誰、怎麼啟動我」，不負責「我能做什麼」。
+
+### settings schema（統一設定介面）
+
+每個 App 可以在 mcp.json 中宣告自己需要的設定欄位。系統在 App 卡片上顯示齒輪圖示，點開後根據 schema 自動渲染表單。
+
+```json
+{
+  "settings": {
+    "fields": [
+      {
+        "key": "maxResults",
+        "label": "Default max results",
+        "type": "number",
+        "default": 10,
+        "required": false,
+        "description": "Maximum items returned per query"
+      },
+      {
+        "key": "timeZone",
+        "label": "Time zone",
+        "type": "string",
+        "default": "Asia/Taipei",
+        "required": false
+      }
+    ]
+  }
+}
+```
+
+**type 支援**：`string`、`number`、`boolean`、`select`（含 `options`）
+
+**設定值儲存**：寫入 mcp-apps.json 的 `entry.config` 欄位，runtime 啟動 App 時以環境變數注入（key 大寫化，如 `maxResults` → `MCP_APP_MAX_RESULTS`）。
+
+**齒輪按鈕行為**：
+1. 卡片右上角永遠顯示齒輪圖示（只要 App 有 `auth` 或 `settings` 欄位）
+2. 點擊 → 開啟設定面板（Dialog）
+3. 面板分區：Auth 區（OAuth connect 按鈕 / API key 輸入）+ Config 區（schema 驅動表單）
 
 ### auth 類型
 
@@ -150,7 +187,24 @@ my-app/
 }
 ```
 
-Runtime 在啟動 App 時，從 `accounts.json` 取出對應 provider 的 token，注入到 `tokenEnv` 指定的環境變數。App server 從 env 讀取 token，不需要知道 token 從哪來。
+Runtime 在啟動 App 時，根據 auth.provider 找到對應的 token 來源，注入到 `tokenEnv` 指定的環境變數。App server 從 env 讀取 token，不需要知道 token 從哪來。
+
+### Auth 流程（以 Google OAuth 為藍本）
+
+**現有基礎**：系統已有完整的 Google OAuth connect/callback 實作（`/api/v2/mcp/apps/{appId}/oauth/connect` 和 `/callback`），token 存於 `~/.config/opencode/gauth.json`。此流程需適配到新的 store app 架構。
+
+**適配方向**：
+
+1. **OAuth connect endpoint 擴充**：現有 endpoint 硬編碼只支援 `google-calendar` 和 `gmail`。需改為讀取 mcp.json 的 `auth` 欄位來判斷 OAuth provider 和 scopes，支援任意 store app。
+2. **Token 儲存統一**：目前 Google token 存在 `gauth.json`（provider 專屬）。長期應遷移到 `accounts.json` 的統一結構，但短期先保持 `gauth.json` 相容。
+3. **Token refresh**：之前由 `gauth.ts` 在 daemon 內部處理 refresh。現在 App 是獨立行程，兩個選擇：
+   - **(A)** daemon 定期 refresh → 重啟 App 注入新 token（需要 App lifecycle 支援 graceful restart）
+   - **(B)** App 自己帶 refresh 邏輯（需要把 refresh_token 也注入 env）
+   - **建議先走 (B)**：mcp.json 新增 `auth.refreshTokenEnv` 欄位，runtime 同時注入 access_token 和 refresh_token。
+4. **UI 流程**：
+   - 卡片齒輪 → 設定面板 → Auth 區 → 「Connect Google」按鈕
+   - 點擊 → `window.open(oauth/connect)` → Google 授權 → callback → token 存檔 → polling 更新卡片狀態
+   - 已認證時顯示認證帳號 email + 「Disconnect」按鈕
 
 ### 檔案包偵測（無 mcp.json 時的 fallback 推斷）
 
@@ -267,18 +321,44 @@ App 預設 **disabled**（安裝後不自動連線）。啟動方式：
 
 ### Admin UI（應用市場）
 
-**App 卡片顯示：**
+**App 卡片元素：**
 - icon + name + description（從 mcp.json）
-- status badge（connected / disabled / error）
-- 工具數量（從 tools/list）
+- status badge（connected / disabled / error / pending_auth）
+- 工具數量（從 mcp-apps.json 的 `entry.tools`，probe 時存入）
 - 來源標示（GitHub repo / local path）
-- enable/disable toggle + remove 按鈕
+- enable/disable toggle 按鈕
+- 齒輪圖示（有 `auth` 或 `settings` 時顯示）→ 開啟設定面板
+- remove 按鈕
+
+**齒輪設定面板（Dialog）：**
+```
+┌─ App Settings: Gmail ──────────────────────┐
+│                                             │
+│ ── Authentication ──────────────────────── │
+│  Provider: Google OAuth                     │
+│  Status: ✅ Connected (ivon0829@gmail.com) │
+│  [Reconnect]  [Disconnect]                 │
+│                                             │
+│ ── Configuration ──────────────────────── │
+│  Max Results: [10___]                       │
+│  Time Zone:   [Asia/Taipei___]              │
+│                                             │
+│                          [Save]  [Cancel]  │
+└─────────────────────────────────────────────┘
+```
+- Auth 區：根據 mcp.json 的 `auth.type` 渲染
+  - `oauth`：顯示 Connect/Reconnect/Disconnect 按鈕 + 認證狀態
+  - `api-key`：顯示 API key 輸入框
+  - `none`：不顯示此區
+- Config 區：根據 mcp.json 的 `settings.fields` 自動渲染表單
+- Save：寫入 mcp-apps.json 的 `entry.config`
 
 **新增 App 流程：**
-1. 輸入 GitHub URL 或本機路徑
-2. Preview → 讀取 mcp.json → 顯示卡片預覽
-3. Confirm → 寫入 mcp-apps.json → 啟動連線
-4. 卡片出現在市場中
+1. 應用市場頂部「+ 新增 App」按鈕
+2. Dialog：輸入本機路徑 或 GitHub URL
+3. 點擊「Preview」→ POST `/api/v2/mcp/store/apps/preview` → 顯示卡片預覽
+4. 確認 → POST `/api/v2/mcp/store/apps` → probe → 寫入 mcp-apps.json
+5. 卡片出現在市場中，若有 auth 需求則顯示「需要設定」狀態
 
 ---
 
