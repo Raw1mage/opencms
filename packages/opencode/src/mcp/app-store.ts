@@ -284,14 +284,12 @@ export namespace McpAppStore {
    */
   export async function setEnabled(id: string, enabled: boolean, target: InstallTarget = "system"): Promise<void> {
     if (target === "system") {
-      // Read system config, update, write back via sudo register
-      // (register is idempotent — it updates if exists)
+      // Read current entry, flip enabled, write back via write-entry
       const config = await readConfigFile(SYSTEM_CONFIG_PATH)
       const entry = config.apps[id]
       if (!entry) throw new StoreError({ operation: "setEnabled", reason: `App not found: ${id}` })
-      // For system-level toggle, we use register with the existing path
-      // The wrapper's register command overwrites the entry
-      sudoWrapper(["register", id, entry.path])
+      entry.enabled = enabled
+      await writeSystemEntry(id, entry)
     } else {
       const config = await readConfigFile(userConfigPath())
       const entry = config.apps[id]
