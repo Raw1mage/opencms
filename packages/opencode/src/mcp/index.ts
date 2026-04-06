@@ -774,6 +774,44 @@ export namespace MCP {
 
   // ── mcp-apps.json integration (Layer 2) ────────────────────────────
 
+  /**
+   * Resolve auth token for an MCP App based on its manifest auth config.
+   * Reads from gauth.json (Google OAuth) or accounts.json (other providers).
+   * Returns env vars to inject into the App's spawn environment.
+   */
+  async function resolveAuthEnv(manifest: { auth?: { type: string; provider?: string; tokenEnv?: string } }): Promise<Record<string, string>> {
+    if (!manifest.auth || manifest.auth.type === "none") return {}
+
+    const auth = manifest.auth as { type: string; provider?: string; tokenEnv?: string }
+    if (!auth.tokenEnv) return {}
+
+    // Google OAuth: read from gauth.json (legacy) or accounts.json
+    if (auth.provider === "google") {
+      try {
+        const gauthPath = path.join(Global.Path.config, "gauth.json")
+        const content = await fs.readFile(gauthPath, "utf-8")
+        const tokens = JSON.parse(content) as { access_token?: string; refresh_token?: string; expires_at?: number }
+
+        if (tokens.access_token) {
+          // Check if token is expired
+          if (tokens.expires_at && Date.now() / 1000 > tokens.expires_at) {
+            log.warn("google oauth token expired, app may fail API calls", {
+              expiresAt: new Date((tokens.expires_at ?? 0) * 1000).toISOString(),
+            })
+          }
+          log.info("injecting google oauth token", { tokenEnv: auth.tokenEnv })
+          return { [auth.tokenEnv]: tokens.access_token }
+        }
+      } catch {
+        log.warn("failed to read gauth.json for token injection")
+      }
+    }
+
+    // TODO: other providers — read from accounts.json by auth.provider key
+
+    return {}
+  }
+
   let mcpAppsInitialized = false
 
   /**
@@ -807,17 +845,15 @@ export namespace MCP {
               return
             }
 
-            // Optionally load manifest for env/auth metadata
+            // Load manifest for env/auth, then resolve auth tokens
             let env: Record<string, string> = {}
             try {
               const { McpAppManifest } = await import("./manifest")
               const manifest = await McpAppManifest.load(entry.path)
               env = { ...manifest.env }
-              if (manifest.auth?.type === "oauth" || manifest.auth?.type === "api-key") {
-                log.info("app has auth requirement", { id, authType: manifest.auth.type })
-              }
+              const authEnv = await resolveAuthEnv(manifest)
+              Object.assign(env, authEnv)
             } catch {
-              // manifest read failure is non-fatal — command is in entry
               log.info("no mcp.json metadata, proceeding with entry.command only", { id })
             }
 
