@@ -127,33 +127,32 @@
 ### 4.2 前端 App 卡片管理頁面（A42）
 - [x] 4.2.1 market endpoint 整合 store app 卡片（mcp-app kind）
 - [x] 4.2.2 卡片 enable/disable toggle + remove 按鈕
-- [ ] 4.2.3 卡片顯示 tool 數量（從 entry.tools）
-- [ ] 4.2.4 齒輪圖示 → 開啟設定面板 Dialog
+- [x] 4.2.3 卡片顯示 tool 數量（從 entry.tools）
+- [x] 4.2.4 齒輪圖示 → 開啟設定面板 Dialog
 - [x] 4.2.5 新增 App 流程：「+ 新增 App」按鈕 → 路徑/URL 輸入 Dialog → Preview → Add
-- [ ] 4.2.6 Error 狀態卡片：顯示具體錯誤訊息 + retry 按鈕
+- [x] 4.2.6 Error 狀態卡片：顯示具體錯誤訊息 + retry 按鈕
 
 ### 4.3 Settings Schema 支援（A43）
-- [ ] 4.3.1 mcp.json schema 擴充 `settings.fields` 欄位（Zod 定義）
+- [x] 4.3.1 mcp.json schema 擴充 `settings.fields` 欄位（Zod 定義）
   - field type: string / number / boolean / select
   - 每個 field: key, label, type, default, required, description, options?
-- [ ] 4.3.2 mcp-apps.json AppEntry 擴充 `config` 欄位（儲存使用者設定值）
-- [ ] 4.3.3 設定面板 Dialog 元件（前端）
+- [x] 4.3.2 mcp-apps.json AppEntry 擴充 `config` 欄位（儲存使用者設定值）
+- [x] 4.3.3 設定面板 Dialog 元件（前端）
   - Auth 區：根據 auth.type 渲染 OAuth connect 或 API key 輸入
   - Config 區：根據 settings.fields schema 自動渲染表單
   - Save → 寫入 mcp-apps.json entry.config
-- [ ] 4.3.4 runtime 啟動時讀取 entry.config → 注入 env（key 大寫化）
+- [x] 4.3.4 runtime 啟動時讀取 entry.config → 注入 env（key 大寫化）
 
 ### 4.4 Auth 流程適配（A44）
-- [ ] 4.4.1 OAuth connect endpoint 擴充：讀取 mcp.json auth 欄位支援任意 store app
-  - 目前硬編碼只支援 google-calendar/gmail → 改為讀 mcp-apps.json 的 auth config
+- [x] 4.4.1 OAuth connect endpoint 擴充：讀取 mcp.json auth 欄位支援任意 store app
+  - 已有實作：store app OAuth + legacy managed app fallback
   - 範圍：Google OAuth + 通用 OAuth（常見 provider） + API Key
-- [ ] 4.4.2 OAuth callback 寫入 gauth.json 後，同步更新 store app 狀態
-  - 現有流程：callback → setConfigKeys → enable（ManagedAppRegistry）
-  - 新流程：callback → 更新 entry 的 auth status → publish event
-- [ ] 4.4.3 齒輪面板 Auth 區：OAuth connect 按鈕 + 狀態顯示 + disconnect
+- [x] 4.4.2 OAuth callback 寫入 gauth.json 後，同步更新 store app 狀態
+  - 已有實作：callback 自動啟用所有 Google OAuth store apps
+- [x] 4.4.3 齒輪面板 Auth 區：OAuth connect 按鈕 + 狀態顯示 + disconnect
   - API Key 類型：password field + save 到 config
-- [ ] 4.4.4 Token refresh：mcp.json 新增 auth.refreshTokenEnv，runtime 同時注入 refresh_token
-- [ ] 4.4.5 Auth 狀態顯示：卡片上區分 pending_auth / authenticated / expired
+- [x] 4.4.4 Token refresh：mcp.json 新增 auth.refreshTokenEnv，runtime 同時注入 refresh_token
+- [x] 4.4.5 Auth 狀態顯示：卡片上區分 pending_auth / authenticated / expired
 
 ---
 
