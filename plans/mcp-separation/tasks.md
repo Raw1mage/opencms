@@ -129,7 +129,7 @@
 - [x] 4.2.2 卡片 enable/disable toggle + remove 按鈕
 - [ ] 4.2.3 卡片顯示 tool 數量（從 entry.tools）
 - [ ] 4.2.4 齒輪圖示 → 開啟設定面板 Dialog
-- [ ] 4.2.5 新增 App 流程：「+ 新增 App」按鈕 → 路徑/URL 輸入 Dialog → Preview → Add
+- [x] 4.2.5 新增 App 流程：「+ 新增 App」按鈕 → 路徑/URL 輸入 Dialog → Preview → Add
 - [ ] 4.2.6 Error 狀態卡片：顯示具體錯誤訊息 + retry 按鈕
 
 ### 4.3 Settings Schema 支援（A43）
@@ -146,10 +146,12 @@
 ### 4.4 Auth 流程適配（A44）
 - [ ] 4.4.1 OAuth connect endpoint 擴充：讀取 mcp.json auth 欄位支援任意 store app
   - 目前硬編碼只支援 google-calendar/gmail → 改為讀 mcp-apps.json 的 auth config
+  - 範圍：Google OAuth + 通用 OAuth（常見 provider） + API Key
 - [ ] 4.4.2 OAuth callback 寫入 gauth.json 後，同步更新 store app 狀態
   - 現有流程：callback → setConfigKeys → enable（ManagedAppRegistry）
   - 新流程：callback → 更新 entry 的 auth status → publish event
 - [ ] 4.4.3 齒輪面板 Auth 區：OAuth connect 按鈕 + 狀態顯示 + disconnect
+  - API Key 類型：password field + save 到 config
 - [ ] 4.4.4 Token refresh：mcp.json 新增 auth.refreshTokenEnv，runtime 同時注入 refresh_token
 - [ ] 4.4.5 Auth 狀態顯示：卡片上區分 pending_auth / authenticated / expired
 
