@@ -806,19 +806,32 @@ export namespace MCP {
             // Build environment: merge manifest env + auth token injection
             const env: Record<string, string> = { ...manifest.env }
             if (manifest.auth?.type === "oauth" || manifest.auth?.type === "api-key") {
-              // Token injection will be implemented when accounts.json
-              // integration is ready; for now just pass the env through
               log.info("app has auth requirement", { id, authType: manifest.auth.type })
             }
 
-            await add(`mcpapp-${id}`, {
+            // Resolve command to absolute path relative to app install directory
+            // so spawn works regardless of daemon cwd
+            const resolvedCommand = [...manifest.command]
+            if (resolvedCommand[0] && !resolvedCommand[0].startsWith("/")) {
+              resolvedCommand[0] = path.resolve(entry.path, resolvedCommand[0])
+            }
+
+            const result = await add(`mcpapp-${id}`, {
               type: "local",
-              command: manifest.command,
+              command: resolvedCommand,
               environment: env,
               enabled: true,
             })
 
-            log.info("mcp-apps.json app connected", { id, tools: "via tools/list" })
+            // Check if connection actually succeeded
+            const statusMap = result?.status as Record<string, Status> | undefined
+            const addedStatus = statusMap?.[`mcpapp-${id}`]
+            if (addedStatus?.status === "failed") {
+              const errorMsg = "error" in addedStatus ? addedStatus.error : "unknown"
+              log.warn("mcp-apps.json app failed to start", { id, error: errorMsg })
+            } else {
+              log.info("mcp-apps.json app connected", { id, tools: "via tools/list" })
+            }
           } catch (err) {
             log.warn("mcp-apps.json app failed to connect", {
               id,
