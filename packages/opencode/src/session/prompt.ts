@@ -36,7 +36,6 @@ import { resolveTools } from "./resolve-tools"
 import { resolveImageRequest, stripImageParts } from "./image-router"
 import { TaskTool } from "@/tool/task"
 import { ToolInvoker } from "./tool-invoker"
-import { UnlockedTools } from "./unlocked-tools"
 import { PermissionNext } from "@/permission/next"
 import { Question } from "@/question"
 import { SessionStatus } from "./status"
@@ -1425,30 +1424,10 @@ export namespace SessionPrompt {
       const tools = resolvedToolsOutput.tools
       const lazyTools = resolvedToolsOutput.lazyTools
 
-      // Active Loader: expose lazy tools with auto-unlock wrapper
-      // When AI calls a tool that's in lazyTools, it gets auto-unlocked
-      if (lazyTools && lazyTools.size > 0) {
-        for (const [toolID, lazyToolDef] of lazyTools) {
-          // Wrap the lazy tool with auto-unlock functionality
-          const wrappedTool = tool({
-            id: toolID as `${string}.${string}`,
-            description: (lazyToolDef as any).description,
-            inputSchema: (lazyToolDef as any).inputSchema,
-            async execute(args: unknown, options: any) {
-              // Auto-unlock before execution
-              UnlockedTools.unlock(sessionID, [toolID])
-              log.info("auto-unlocked lazy tool on demand", {
-                sessionID,
-                toolID,
-              })
-
-              // Execute the original tool
-              return await (lazyToolDef as any).execute(args, options)
-            },
-          })
-          tools[toolID] = wrappedTool as any
-        }
-      }
+      // Active Loader: lazy tools are NOT injected into the tools dict.
+      // They are passed separately via `lazyTools` to the processor/LLM,
+      // which handles on-demand unlock via experimental_repairToolCall.
+      // This avoids bloating every request with full schemas for rarely-used tools.
 
       if (format.type === "json_schema") {
         tools["StructuredOutput"] = createStructuredOutputTool({
