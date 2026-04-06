@@ -144,12 +144,15 @@ system_init() {
 
   ensure_command systemctl "systemd is required for --system-init."
 
-  # ── Clean up legacy "opencode" service user artifacts ──────────────
-  # The old architecture ran a single-process web service as a dedicated
-  # "opencode" system user.  The current architecture uses a root gateway
-  # (opencode-gateway) that fork+setuid's per-user daemons, so the
-  # service account is no longer needed.
-  _clean_legacy_service_user
+  # ── Clean up legacy service artifacts (but keep opencode user) ─────
+  _clean_legacy_service_artifacts
+
+  # ── Ensure opencode system user for file-ownership isolation (DD-4) ─
+  _ensure_opencode_system_user
+
+  # ── App directories + mcp-apps.json + sudo wrapper ──────────────────
+  _ensure_app_directories
+  _install_app_sudo_wrapper
 
   # ── Per-user daemon launcher (/usr/local/libexec) ──────────────────
   local daemon_launcher_src="${ROOT_DIR}/templates/system/opencode-user-daemon-launch.sh"
@@ -180,13 +183,13 @@ system_init() {
   run_as_root install -d -m 755 "${env_dir}"
 
   # Google binding registry — gateway reads, per-user daemons write via gateway API.
-  # Owned root:root 0664 so gateway (root) can read/write directly.
+  # Owned opencode:opencode 0664 (DD-4: file-ownership isolation).
   local binding_file="${env_dir}/google-bindings.json"
   if [ ! -f "${binding_file}" ] || [ ! -s "${binding_file}" ]; then
     echo '{}' | run_as_root tee "${binding_file}" > /dev/null
     log_ok "Initialized Google binding registry: ${binding_file}"
   fi
-  run_as_root chown root:root "${binding_file}"
+  run_as_root chown opencode:opencode "${binding_file}"
   run_as_root chmod 0664 "${binding_file}"
 
   if files_identical_root "${ROOT_DIR}/webctl.sh" "${runtime_webctl_dst}"; then
@@ -366,8 +369,11 @@ system_init() {
 # ── Legacy cleanup: remove "opencode" service user artifacts ─────────
 # Called by system_init() on every install to ensure stale artifacts from
 # the old single-process architecture are cleaned up.
-_clean_legacy_service_user() {
-  local legacy_user="opencode"
+_clean_legacy_service_artifacts() {
+  # Clean up legacy service artifacts (opencode-web.service, old sudoers, old
+  # wrappers) but KEEP the opencode system user — it is now repurposed for
+  # file-ownership isolation (DD-4: all product files on customer systems are
+  # owned by opencode:opencode for clear permission boundaries).
   local cleaned=0
 
   # 1. Remove legacy opencode-web.service (ran as User=opencode)
@@ -378,7 +384,7 @@ _clean_legacy_service_user() {
     cleaned=1
   fi
 
-  # 2. Remove sudoers policy for the legacy service user
+  # 2. Remove legacy sudoers policy (old run-as-user pattern, not the new app-install)
   if run_as_root test -f "/etc/sudoers.d/opencode-run-as-user"; then
     run_as_root rm -f /etc/sudoers.d/opencode-run-as-user
     log_ok "Removed legacy sudoers: /etc/sudoers.d/opencode-run-as-user"
@@ -392,31 +398,85 @@ _clean_legacy_service_user() {
     cleaned=1
   fi
 
-  # 4. Fix ownership: /etc/opencode and /usr/local/share/opencode → root:root
-  if run_as_root test -d "/etc/opencode"; then
-    run_as_root chown -R root:root /etc/opencode
+  if [[ "${cleaned}" -eq 1 ]]; then
+    log_info "Legacy service artifact cleanup complete"
   fi
-  if run_as_root test -d "/usr/local/share/opencode"; then
-    run_as_root chown -R root:root /usr/local/share/opencode
+}
+
+_ensure_opencode_system_user() {
+  # DD-4: opencode system account exists purely for file-ownership isolation.
+  # It does NOT run any processes — gateway runs as root, per-user daemons run
+  # as login users. This account owns /opt/opencode-apps/, /etc/opencode/, and
+  # /var/log/opencode/ so customer admins can clearly identify product files.
+  local svc_user="opencode"
+
+  if run_as_root id -u "${svc_user}" >/dev/null 2>&1; then
+    log_ok "System user '${svc_user}' already exists (uid $(run_as_root id -u "${svc_user}"))"
+  else
+    run_as_root useradd --system --no-create-home --shell /usr/sbin/nologin "${svc_user}"
+    log_ok "Created system user '${svc_user}' for file-ownership isolation"
+  fi
+}
+
+_ensure_app_directories() {
+  local svc_user="opencode"
+
+  # /opt/opencode-apps/ — shared MCP App install directory
+  run_as_root install -d -o "${svc_user}" -g "${svc_user}" -m 755 /opt/opencode-apps
+  log_ok "App install directory ready: /opt/opencode-apps/ (${svc_user}:${svc_user})"
+
+  # /var/log/opencode/ — system logs
+  run_as_root install -d -o "${svc_user}" -g "${svc_user}" -m 755 /var/log/opencode
+  log_ok "Log directory ready: /var/log/opencode/ (${svc_user}:${svc_user})"
+
+  # /etc/opencode/ — ownership transfer from root:root to opencode:opencode
+  if run_as_root test -d "/etc/opencode"; then
+    run_as_root chown -R "${svc_user}:${svc_user}" /etc/opencode
+    log_ok "Config directory ownership set: /etc/opencode/ (${svc_user}:${svc_user})"
   fi
 
-  # 5. Remove the system user itself (if it exists and is a system account)
-  if run_as_root id -u "${legacy_user}" >/dev/null 2>&1; then
-    local uid
-    uid="$(run_as_root id -u "${legacy_user}")"
-    if [[ "${uid}" -lt 1000 ]]; then
-      run_as_root userdel "${legacy_user}" 2>/dev/null || true
-      run_as_root groupdel "${legacy_user}" 2>/dev/null || true
-      log_ok "Removed legacy system user: ${legacy_user} (uid ${uid})"
-      cleaned=1
-    else
-      log_warn "User '${legacy_user}' exists but uid=${uid} >= 1000; skipping removal (not a system account)"
+  # /etc/opencode/mcp-apps.json — App registry (system-level)
+  local mcp_apps_file="/etc/opencode/mcp-apps.json"
+  if ! run_as_root test -f "${mcp_apps_file}"; then
+    echo '{"version":1,"apps":{}}' | run_as_root tee "${mcp_apps_file}" > /dev/null
+    run_as_root chown "${svc_user}:${svc_user}" "${mcp_apps_file}"
+    run_as_root chmod 0644 "${mcp_apps_file}"
+    log_ok "Initialized MCP App registry: ${mcp_apps_file}"
+  fi
+}
+
+_install_app_sudo_wrapper() {
+  # Sudo wrapper: allows per-user daemons (via system-manager MCP) to install,
+  # remove, and register MCP Apps in /opt/opencode-apps/ without root shell.
+  local wrapper_src="${ROOT_DIR}/templates/system/opencode-app-install.sh"
+  local wrapper_dst="/usr/local/bin/opencode-app-install"
+  local sudoers_file="/etc/sudoers.d/opencode-app-install"
+
+  if [[ ! -f "${wrapper_src}" ]]; then
+    log_warn "App install wrapper source not found: ${wrapper_src} (skipping)"
+    return
+  fi
+
+  if files_identical_root "${wrapper_src}" "${wrapper_dst}"; then
+    log_ok "App install wrapper up-to-date: ${wrapper_dst}"
+  else
+    run_as_root install -m 755 "${wrapper_src}" "${wrapper_dst}"
+    log_ok "Installed App install wrapper: ${wrapper_dst}"
+  fi
+
+  # Sudoers: ALL users can invoke this specific wrapper without password
+  local sudoers_content="ALL ALL=(root) NOPASSWD: ${wrapper_dst}"
+  if run_as_root test -f "${sudoers_file}"; then
+    local existing
+    existing="$(run_as_root cat "${sudoers_file}" 2>/dev/null || true)"
+    if [[ "${existing}" == "${sudoers_content}" ]]; then
+      log_ok "Sudoers policy up-to-date: ${sudoers_file}"
+      return
     fi
   fi
-
-  if [[ "${cleaned}" -eq 1 ]]; then
-    log_info "Legacy service user cleanup complete"
-  fi
+  echo "${sudoers_content}" | run_as_root tee "${sudoers_file}" > /dev/null
+  run_as_root chmod 0440 "${sudoers_file}"
+  log_ok "Installed sudoers policy: ${sudoers_file}"
 }
 
 start_system_service_if_ready() {
