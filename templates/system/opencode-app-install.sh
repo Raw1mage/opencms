@@ -95,17 +95,37 @@ cmd_register() {
     chown "${SVC_USER}:${SVC_USER}" "${MCP_APPS_JSON}"
   fi
 
-  # Add entry using a simple jq-free approach (python fallback)
+  # Read mcp.json and resolve command to absolute path at registration time.
+  # This is the single point of truth — runtime never needs to resolve again.
   local tmp_file
   tmp_file="$(mktemp)"
   python3 -c "
-import json, sys
+import json, os, sys
+from datetime import datetime, timezone
+
+app_path = '${resolved}'
+mcp_json_path = os.path.join(app_path, 'mcp.json')
+
+# Read command from mcp.json (required)
+command = []
+if os.path.isfile(mcp_json_path):
+    with open(mcp_json_path) as f:
+        manifest = json.load(f)
+    command = manifest.get('command', [])
+else:
+    print(f'WARNING: no mcp.json found at {mcp_json_path}, command will be empty', file=sys.stderr)
+
+# Resolve first element (binary) to absolute path
+if command and not command[0].startswith('/'):
+    command[0] = os.path.normpath(os.path.join(app_path, command[0]))
+
 with open('${MCP_APPS_JSON}') as f:
     data = json.load(f)
 data.setdefault('apps', {})['${id}'] = {
-    'path': '${resolved}',
+    'path': app_path,
+    'command': command,
     'enabled': True,
-    'installedAt': __import__('datetime').datetime.utcnow().isoformat() + 'Z',
+    'installedAt': datetime.now(timezone.utc).isoformat(),
     'source': {'type': 'local'}
 }
 with open('${tmp_file}', 'w') as f:

@@ -35,6 +35,7 @@ export namespace McpAppStore {
 
   export const AppEntry = z.object({
     path: z.string(),
+    command: z.array(z.string()).min(1),
     enabled: z.boolean(),
     installedAt: z.string(),
     source: AppSource,
@@ -121,6 +122,19 @@ export namespace McpAppStore {
    * Register an App by path. Reads manifest, validates, writes to the
    * appropriate tier.
    */
+  /**
+   * Resolve manifest command to absolute paths at registration time.
+   * Single point of truth — runtime uses entry.command directly, no re-resolution.
+   */
+  function resolveCommand(appPath: string, command: string[]): string[] {
+    return command.map((arg, i) => {
+      if (i === 0 && !arg.startsWith("/")) {
+        return path.resolve(appPath, arg)
+      }
+      return arg
+    })
+  }
+
   export async function addApp(
     id: string,
     appPath: string,
@@ -129,11 +143,14 @@ export namespace McpAppStore {
     const manifest = await McpAppManifest.load(appPath)
 
     if (target === "system") {
+      // sudo wrapper reads mcp.json and resolves command to absolute path
       sudoWrapper(["register", id, appPath])
     } else {
+      const resolvedCmd = resolveCommand(appPath, manifest.command)
       const config = await readConfigFile(userConfigPath())
       config.apps[id] = {
         path: appPath,
+        command: resolvedCmd,
         enabled: true,
         installedAt: new Date().toISOString(),
         source: { type: "local" },

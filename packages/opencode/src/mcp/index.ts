@@ -800,25 +800,30 @@ export namespace MCP {
           if (s.status[`mcpapp-${id}`]?.status === "connected") return
 
           try {
-            const { McpAppManifest } = await import("./manifest")
-            const manifest = await McpAppManifest.load(entry.path)
-
-            // Build environment: merge manifest env + auth token injection
-            const env: Record<string, string> = { ...manifest.env }
-            if (manifest.auth?.type === "oauth" || manifest.auth?.type === "api-key") {
-              log.info("app has auth requirement", { id, authType: manifest.auth.type })
+            // entry.command is already resolved to absolute path at registration time
+            // by the sudo wrapper or addApp(). No re-resolution needed here.
+            if (!entry.command || entry.command.length === 0) {
+              log.warn("mcp-apps.json app has no command", { id, path: entry.path })
+              return
             }
 
-            // Resolve command to absolute path relative to app install directory
-            // so spawn works regardless of daemon cwd
-            const resolvedCommand = [...manifest.command]
-            if (resolvedCommand[0] && !resolvedCommand[0].startsWith("/")) {
-              resolvedCommand[0] = path.resolve(entry.path, resolvedCommand[0])
+            // Optionally load manifest for env/auth metadata
+            let env: Record<string, string> = {}
+            try {
+              const { McpAppManifest } = await import("./manifest")
+              const manifest = await McpAppManifest.load(entry.path)
+              env = { ...manifest.env }
+              if (manifest.auth?.type === "oauth" || manifest.auth?.type === "api-key") {
+                log.info("app has auth requirement", { id, authType: manifest.auth.type })
+              }
+            } catch {
+              // manifest read failure is non-fatal — command is in entry
+              log.info("no mcp.json metadata, proceeding with entry.command only", { id })
             }
 
             const result = await add(`mcpapp-${id}`, {
               type: "local",
-              command: resolvedCommand,
+              command: entry.command,
               environment: env,
               enabled: true,
             })
@@ -830,7 +835,7 @@ export namespace MCP {
               const errorMsg = "error" in addedStatus ? addedStatus.error : "unknown"
               log.warn("mcp-apps.json app failed to start", { id, error: errorMsg })
             } else {
-              log.info("mcp-apps.json app connected", { id, tools: "via tools/list" })
+              log.info("mcp-apps.json app connected", { id, command: entry.command, tools: "via tools/list" })
             }
           } catch (err) {
             log.warn("mcp-apps.json app failed to connect", {
