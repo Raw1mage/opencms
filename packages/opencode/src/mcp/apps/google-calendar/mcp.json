@@ -1,0 +1,17 @@
+{
+  "id": "google-calendar",
+  "name": "Google Calendar",
+  "description": "Google Calendar integration — list calendars, query events, create/update/delete events, check availability",
+  "icon": "📅",
+  "version": "1.0.0",
+  "command": ["./gcal-server"],
+  "auth": {
+    "type": "oauth",
+    "provider": "google",
+    "tokenEnv": "GOOGLE_ACCESS_TOKEN",
+    "scopes": [
+      "https://www.googleapis.com/auth/calendar",
+      "https://www.googleapis.com/auth/calendar.events"
+    ]
+  }
+}
