@@ -518,6 +518,44 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["action"],
         },
       },
+      // ── MCP App Store tools (Layer 3: Conversational Provisioning) ───
+      {
+        name: "install_mcp_app",
+        description:
+          "Install an MCP App from a GitHub URL or local path. Clones the repo (if GitHub), reads/infers mcp.json manifest, installs dependencies, probes via stdio tools/list, and registers in mcp-apps.json. The App becomes available in the session tool pool.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            source: {
+              type: "string",
+              description: "GitHub URL (https://github.com/owner/repo) or absolute local path to an MCP server directory",
+            },
+            id: {
+              type: "string",
+              description: "App identifier (optional — inferred from repo name or mcp.json if omitted)",
+            },
+          },
+          required: ["source"],
+        },
+      },
+      {
+        name: "list_mcp_apps",
+        description:
+          "List all installed MCP Apps from mcp-apps.json (both system-level and user-level) with their manifest metadata, status, and tier.",
+        inputSchema: { type: "object", properties: {} },
+      },
+      {
+        name: "remove_mcp_app",
+        description:
+          "Remove an installed MCP App. Disconnects the stdio transport, removes from mcp-apps.json, and optionally deletes the App directory from /opt/opencode-apps/.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "App identifier to remove" },
+          },
+          required: ["id"],
+        },
+      },
     ],
   }
 })
@@ -1179,6 +1217,93 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: `Error: server returned ${res.status}` }], isError: true }
       } catch (e: any) {
         return { content: [{ type: "text", text: `Error: cannot reach server — ${e.message}` }], isError: true }
+      }
+    }
+
+    // ── MCP App Store handlers (Layer 3) ─────────────────────────────
+
+    if (name === "install_mcp_app") {
+      const { source, id: providedId } = args as { source: string; id?: string }
+
+      const isGithub = source.startsWith("https://github.com/") || source.startsWith("git@")
+      const inferredId = providedId ?? (isGithub ? source.split("/").pop()?.replace(/\.git$/, "") : source.split("/").pop()) ?? "unknown"
+
+      try {
+        const baseUrl = await getServerApiBaseUrl()
+        const res = await serverFetch(`${baseUrl}/mcp/store/apps`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            isGithub
+              ? { githubUrl: source, id: inferredId }
+              : { path: source, id: inferredId }
+          ),
+        })
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as { error?: string }
+          return { content: [{ type: "text", text: `Installation failed: ${err.error ?? res.statusText}` }], isError: true }
+        }
+
+        const result = await res.json() as { id: string; manifest: { name: string; description?: string; command: string[] }; status: string }
+        const lines = [
+          `MCP App installed successfully:`,
+          `  ID: ${result.id}`,
+          `  Name: ${result.manifest.name}`,
+          result.manifest.description ? `  Description: ${result.manifest.description}` : null,
+          `  Command: ${result.manifest.command.join(" ")}`,
+          `  Status: ${result.status}`,
+        ].filter(Boolean)
+        return { content: [{ type: "text", text: lines.join("\n") }] }
+      } catch (e: any) {
+        return { content: [{ type: "text", text: `Install error: ${e.message}` }], isError: true }
+      }
+    }
+
+    if (name === "list_mcp_apps") {
+      try {
+        const baseUrl = await getServerApiBaseUrl()
+        const res = await serverFetch(`${baseUrl}/mcp/store/apps`)
+        if (!res.ok) {
+          return { content: [{ type: "text", text: `Failed to list apps: HTTP ${res.status}` }], isError: true }
+        }
+        const apps = await res.json() as Array<{
+          id: string
+          entry: { path: string; enabled: boolean; source: { type: string } }
+          manifest: { name: string; description?: string; icon?: string } | null
+          tier: string
+        }>
+
+        if (apps.length === 0) {
+          return { content: [{ type: "text", text: "No MCP Apps installed." }] }
+        }
+
+        const lines = apps.map((app) => {
+          const status = app.entry.enabled ? "enabled" : "disabled"
+          const name = app.manifest?.name ?? app.id
+          const icon = app.manifest?.icon ?? "📦"
+          return `${icon} ${name} (${app.id}) — ${status} [${app.tier}] ${app.entry.path}`
+        })
+        return { content: [{ type: "text", text: `Installed MCP Apps:\n${lines.join("\n")}` }] }
+      } catch (e: any) {
+        return { content: [{ type: "text", text: `List error: ${e.message}` }], isError: true }
+      }
+    }
+
+    if (name === "remove_mcp_app") {
+      const { id } = args as { id: string }
+      try {
+        const baseUrl = await getServerApiBaseUrl()
+        const res = await serverFetch(`${baseUrl}/mcp/store/apps/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as { error?: string }
+          return { content: [{ type: "text", text: `Remove failed: ${err.error ?? res.statusText}` }], isError: true }
+        }
+        return { content: [{ type: "text", text: `MCP App '${id}' removed successfully.` }] }
+      } catch (e: any) {
+        return { content: [{ type: "text", text: `Remove error: ${e.message}` }], isError: true }
       }
     }
 

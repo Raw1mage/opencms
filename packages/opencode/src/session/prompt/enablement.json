@@ -71,7 +71,10 @@
       "system-manager_app_control",
       "system-manager_set_ui_config",
       "system-manager_export_transcript",
-      "system-manager_set_log_level"
+      "system-manager_set_log_level",
+      "system-manager_install_mcp_app",
+      "system-manager_list_mcp_apps",
+      "system-manager_remove_mcp_app"
     ],
     "fetch_mcp": ["fetch_get_raw_text", "fetch_get_rendered_html", "fetch_get_markdown", "fetch_get_markdown_summary"],
     "memory_mcp": [
