@@ -58,19 +58,48 @@ export const McpRoutes = lazy(() =>
           enabled: app.operator.install === "installed" && app.runtimeStatus === "ready",
         }))
 
+        // Check Google OAuth token availability for auth status
+        let hasGoogleToken = false
+        try {
+          const gauthPath = path.join(Global.Path.config, "gauth.json")
+          const content = await fs.readFile(gauthPath, "utf-8")
+          const tokens = JSON.parse(content) as { access_token?: string; expires_at?: number }
+          hasGoogleToken = !!tokens.access_token
+        } catch {
+          // No gauth.json
+        }
+
         // Convert store apps to unified format
-        const storeCards = storeApps.map((app) => ({
-          id: `store-${app.id}`,
-          name: app.manifest?.name ?? app.id,
-          description: app.manifest?.description ?? "",
-          icon: app.manifest?.icon ?? "📦",
-          kind: "mcp-app" as const,
-          status: app.entry.enabled ? "connected" : "disabled",
-          tools: (app.entry.tools ?? []).map((t) => ({ id: t.name, name: t.name, description: t.description ?? "" })),
-          enabled: app.entry.enabled,
-          auth: app.manifest?.auth,
-          toolCount: app.entry.tools?.length ?? 0,
-        }))
+        const storeCards = storeApps.map((app) => {
+          const auth = app.manifest?.auth
+          let status = app.entry.enabled ? "connected" : "disabled"
+
+          // Derive auth status for enabled apps
+          if (app.entry.enabled && auth && auth.type !== "none") {
+            if (auth.type === "oauth") {
+              const provider = (auth as any).provider
+              if (provider === "google" && !hasGoogleToken) status = "needs_auth"
+            } else if (auth.type === "api-key") {
+              const tokenEnv = (auth as any).tokenEnv
+              if (tokenEnv && !app.entry.config?.[tokenEnv]) status = "needs_auth"
+            }
+          }
+
+          return {
+            id: `store-${app.id}`,
+            name: app.manifest?.name ?? app.id,
+            description: app.manifest?.description ?? "",
+            icon: app.manifest?.icon ?? "📦",
+            kind: "mcp-app" as const,
+            status,
+            tools: (app.entry.tools ?? []).map((t) => ({ id: t.name, name: t.name, description: t.description ?? "" })),
+            enabled: app.entry.enabled,
+            auth: app.manifest?.auth,
+            toolCount: app.entry.tools?.length ?? 0,
+            settingsSchema: app.entry.settingsSchema ?? app.manifest?.settings,
+            config: app.entry.config,
+          }
+        })
 
         return c.json([...serverApps, ...managedCards, ...storeCards])
       },
@@ -878,6 +907,26 @@ export const McpRoutes = lazy(() =>
         try {
           await McpAppStore.setEnabled(id, enabled)
           return c.json({ id, enabled })
+        } catch (err) {
+          return c.json({ error: err instanceof Error ? err.message : String(err) }, 400)
+        }
+      },
+    )
+    .put(
+      "/store/apps/:id/config",
+      describeRoute({
+        summary: "Update MCP App config values",
+        operationId: "mcp.store.setConfig",
+        responses: { 200: { description: "Config updated" } },
+      }),
+      validator("param", z.object({ id: z.string() })),
+      validator("json", z.object({ config: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])) })),
+      async (c) => {
+        const { id } = c.req.valid("param")
+        const { config } = c.req.valid("json")
+        try {
+          await McpAppStore.setConfig(id, config)
+          return c.json({ id, status: "configured" })
         } catch (err) {
           return c.json({ error: err instanceof Error ? err.message : String(err) }, 400)
         }

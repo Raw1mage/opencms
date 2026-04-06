@@ -52,6 +52,8 @@ export namespace McpAppStore {
     installedAt: z.string(),
     source: AppSource,
     tools: z.array(AppToolInfo).optional(),
+    settingsSchema: McpAppManifest.Settings.optional(),
+    config: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
   })
   export type AppEntry = z.infer<typeof AppEntry>
 
@@ -207,6 +209,7 @@ export namespace McpAppStore {
       installedAt: new Date().toISOString(),
       source: { type: "local" },
       tools,
+      settingsSchema: manifest.settings,
     }
   }
 
@@ -306,6 +309,39 @@ export namespace McpAppStore {
       await saveUserConfig(config)
     }
     log.info("app state changed", { id, enabled, target })
+  }
+
+  /**
+   * Set user config values for an App. Validates against settingsSchema if present.
+   */
+  export async function setConfig(
+    id: string,
+    values: Record<string, string | number | boolean>,
+    target: InstallTarget = "system",
+  ): Promise<void> {
+    const configPath = target === "system" ? SYSTEM_CONFIG_PATH : userConfigPath()
+    const config = await readConfigFile(configPath)
+    const entry = config.apps[id]
+    if (!entry) throw new StoreError({ operation: "setConfig", reason: `App not found: ${id}` })
+
+    // Validate required fields if schema exists
+    if (entry.settingsSchema) {
+      const missing = entry.settingsSchema.fields
+        .filter((f) => f.required && !(f.key in values) && values[f.key] === undefined)
+        .map((f) => f.key)
+      if (missing.length > 0) {
+        throw new StoreError({ operation: "setConfig", reason: `Missing required settings: ${missing.join(", ")}` })
+      }
+    }
+
+    entry.config = { ...entry.config, ...values }
+
+    if (target === "system") {
+      await writeSystemEntry(id, entry)
+    } else {
+      await saveUserConfig(config)
+    }
+    log.info("app config updated", { id, keys: Object.keys(values), target })
   }
 
   /**

@@ -8,6 +8,17 @@ import "./dialog-app-market.css"
 
 const CARD_MIN_W = 260
 
+interface SettingsField {
+  key: string
+  label: string
+  type: "string" | "number" | "boolean" | "select"
+  description?: string
+  required?: boolean
+  secret?: boolean
+  default?: string | number | boolean
+  options?: Array<{ label: string; value: string }>
+}
+
 /** Unified MCP app entry — covers standard servers, managed apps, and store apps */
 interface MarketApp {
   id: string
@@ -20,8 +31,10 @@ interface MarketApp {
   error?: string
   tools: Array<{ id: string; name: string; description: string }>
   enabled: boolean
-  auth?: { type: string; provider?: string }
+  auth?: { type: string; provider?: string; tokenEnv?: string; scopes?: string[] }
   toolCount?: number
+  settingsSchema?: { fields: SettingsField[] }
+  config?: Record<string, string | number | boolean>
 }
 
 type StatusDisplay = { labelKey: string; color: string }
@@ -70,6 +83,10 @@ export const DialogAppMarket: Component = () => {
   const [addSource, setAddSource] = createSignal("")
   const [addLoading, setAddLoading] = createSignal(false)
   const [addError, setAddError] = createSignal<string | null>(null)
+  const [settingsAppId, setSettingsAppId] = createSignal<string | null>(null)
+  const [settingsValues, setSettingsValues] = createSignal<Record<string, string | number | boolean>>({})
+  const [settingsSaving, setSettingsSaving] = createSignal(false)
+  const [settingsError, setSettingsError] = createSignal<string | null>(null)
 
   function toggleToolsExpand(id: string) {
     setExpandedTools((prev) => {
@@ -207,6 +224,43 @@ export const DialogAppMarket: Component = () => {
     }
   }
 
+  // --- Settings dialog ---
+  function openSettings(app: MarketApp) {
+    setSettingsAppId(app.id)
+    setSettingsValues(app.config ? { ...app.config } : {})
+    setSettingsError(null)
+  }
+
+  async function saveSettings() {
+    const appId = settingsAppId()
+    if (!appId) return
+    setSettingsSaving(true)
+    setSettingsError(null)
+    try {
+      const storeId = appId.replace(/^store-/, "")
+      const res = await globalSDK.fetch(`${globalSDK.url}/api/v2/mcp/store/apps/${storeId}/config`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config: settingsValues() }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Unknown error" })) as { error?: string }
+        setSettingsError(err.error ?? `HTTP ${res.status}`)
+        return
+      }
+      setSettingsAppId(null)
+      await refetch()
+    } catch (err: any) {
+      setSettingsError(err.message ?? "Failed to save config")
+    } finally {
+      setSettingsSaving(false)
+    }
+  }
+
+  function updateSettingsValue(key: string, value: string | number | boolean) {
+    setSettingsValues((prev) => ({ ...prev, [key]: value }))
+  }
+
   // --- Add new app ---
   async function addNewApp() {
     const source = addSource().trim()
@@ -261,10 +315,24 @@ export const DialogAppMarket: Component = () => {
   /** Per-app action buttons: gear icon for apps with auth/settings */
   function renderAppActions(app: MarketApp, isLoading: boolean) {
     const hasAuth = app.auth && app.auth.type !== "none"
+    const hasSettings = app.settingsSchema && app.settingsSchema.fields.length > 0
 
-    // Show gear icon for any app with auth requirement (store apps or legacy)
-    if (hasAuth || app.id === "google-calendar") {
-      const storeId = app.kind === "mcp-app" ? app.id.replace(/^store-/, "") : app.id
+    // Show gear icon for apps with auth or settings schema
+    if (hasAuth || hasSettings) {
+      if (app.kind === "mcp-app") {
+        return (
+          <button
+            onClick={() => openSettings(app)}
+            disabled={isLoading}
+            class="p-1 rounded text-text-weak hover:text-text-base hover:bg-white/5 transition-colors disabled:opacity-50"
+            title="Settings"
+          >
+            <Icon name="settings-gear" size="small" />
+          </button>
+        )
+      }
+      // Legacy managed apps — use OAuth connect directly
+      const storeId = app.id
       return (
         <button
           onClick={() => openOAuthConnect(storeId)}
@@ -401,6 +469,22 @@ export const DialogAppMarket: Component = () => {
                       {language.t("app_market.card.description", { description: live().description })}
                     </p>
 
+                    {/* Error banner with retry */}
+                    <Show when={live().status === "failed" || live().status === "error"}>
+                      <div class="mx-2.5 mb-2 px-2 py-1.5 rounded bg-danger-base/10 border border-danger-base/20 md:mx-2">
+                        <p class="text-11-regular text-danger-base truncate" title={live().error}>
+                          {live().error || "Connection failed"}
+                        </p>
+                        <button
+                          onClick={() => handleAction(live())}
+                          disabled={loading()}
+                          class="mt-1 text-11-regular text-danger-base underline hover:no-underline"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    </Show>
+
                     {/* Tools list — collapsed by default */}
                     <Show when={live().tools.length > 0 || (live() as any).toolCount > 0}>
                       <div class="app-market-tools mx-3 mb-3 md:mx-2 md:mb-2">
@@ -474,6 +558,177 @@ export const DialogAppMarket: Component = () => {
             </div>
           </div>
         </div>
+      </Show>
+
+      {/* Settings Dialog Overlay */}
+      <Show when={settingsAppId()}>
+        {(_) => {
+          const app = () => getApp(settingsAppId()!)
+          const hasAuth = () => app()?.auth && app()!.auth!.type !== "none"
+          const hasSettings = () => app()?.settingsSchema && app()!.settingsSchema!.fields.length > 0
+
+          return (
+            <div class="absolute inset-0 bg-black/60 flex items-center justify-center z-10 rounded-lg">
+              <div class="bg-[#1a1a2e] border border-border-base rounded-lg p-6 w-[480px] max-w-[90%] max-h-[80vh] overflow-y-auto">
+                <h3 class="text-14-medium text-text-strong mb-1">{app()?.name ?? "Settings"}</h3>
+                <p class="text-11-regular text-text-weaker mb-4">Configure app settings and authentication</p>
+
+                {/* Auth Section */}
+                <Show when={hasAuth()}>
+                  <div class="mb-4">
+                    <h4 class="text-12-medium text-text-base mb-2 flex items-center gap-1.5">
+                      <Icon name="eye" size="small" />
+                      Authentication
+                    </h4>
+                    <div class="rounded border border-border-base bg-background-base/40 p-3">
+                      <Show when={app()!.auth!.type === "oauth"}>
+                        <div class="flex items-center justify-between">
+                          <div>
+                            <p class="text-12-regular text-text-base">OAuth — {app()!.auth!.provider}</p>
+                            <p class="text-11-regular text-text-weaker">
+                              {app()!.status === "connected" || app()!.status === "ready"
+                                ? "Authenticated"
+                                : "Not connected"}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              const storeId = app()!.id.replace(/^store-/, "")
+                              openOAuthConnect(storeId)
+                            }}
+                            class="px-2.5 py-1 rounded-sm border border-border-base text-12-regular text-text-base hover:bg-white/5 transition-colors"
+                          >
+                            {app()!.status === "connected" || app()!.status === "ready" ? "Reconnect" : "Connect"}
+                          </button>
+                        </div>
+                      </Show>
+                      <Show when={app()!.auth!.type === "api-key"}>
+                        <div>
+                          <label class="block text-12-regular text-text-base mb-1">
+                            API Key ({app()!.auth!.provider})
+                          </label>
+                          <input
+                            type="password"
+                            value={String(settingsValues()[app()!.auth!.tokenEnv ?? "API_KEY"] ?? "")}
+                            onInput={(e) => updateSettingsValue(app()!.auth!.tokenEnv ?? "API_KEY", e.currentTarget.value)}
+                            placeholder="Enter API key"
+                            class="w-full px-3 py-1.5 bg-background-input border border-border-base rounded-sm text-12-regular text-text-base placeholder:text-text-weaker focus:outline-none focus:border-border-focus"
+                          />
+                        </div>
+                      </Show>
+                    </div>
+                  </div>
+                </Show>
+
+                {/* Config Section — auto-rendered from settings schema */}
+                <Show when={hasSettings()}>
+                  <div class="mb-4">
+                    <h4 class="text-12-medium text-text-base mb-2 flex items-center gap-1.5">
+                      <Icon name="settings-gear" size="small" />
+                      Configuration
+                    </h4>
+                    <div class="rounded border border-border-base bg-background-base/40 p-3 flex flex-col gap-3">
+                      <For each={app()!.settingsSchema!.fields}>
+                        {(field) => (
+                          <div>
+                            <label class="block text-12-regular text-text-base mb-1">
+                              {field.label}
+                              <Show when={field.required}>
+                                <span class="text-danger-base ml-0.5">*</span>
+                              </Show>
+                            </label>
+                            <Show when={field.description}>
+                              <p class="text-11-regular text-text-weaker mb-1">{field.description}</p>
+                            </Show>
+
+                            {/* String / secret input */}
+                            <Show when={field.type === "string"}>
+                              <input
+                                type={field.secret ? "password" : "text"}
+                                value={String(settingsValues()[field.key] ?? field.default ?? "")}
+                                onInput={(e) => updateSettingsValue(field.key, e.currentTarget.value)}
+                                class="w-full px-3 py-1.5 bg-background-input border border-border-base rounded-sm text-12-regular text-text-base placeholder:text-text-weaker focus:outline-none focus:border-border-focus"
+                              />
+                            </Show>
+
+                            {/* Number input */}
+                            <Show when={field.type === "number"}>
+                              <input
+                                type="number"
+                                value={String(settingsValues()[field.key] ?? field.default ?? "")}
+                                onInput={(e) => updateSettingsValue(field.key, Number(e.currentTarget.value))}
+                                class="w-full px-3 py-1.5 bg-background-input border border-border-base rounded-sm text-12-regular text-text-base placeholder:text-text-weaker focus:outline-none focus:border-border-focus"
+                              />
+                            </Show>
+
+                            {/* Boolean toggle */}
+                            <Show when={field.type === "boolean"}>
+                              <button
+                                onClick={() => {
+                                  const cur = settingsValues()[field.key] ?? field.default ?? false
+                                  updateSettingsValue(field.key, !cur)
+                                }}
+                                class="flex items-center gap-2 text-12-regular text-text-base"
+                              >
+                                <span classList={{
+                                  "inline-block w-8 h-4 rounded-full transition-colors": true,
+                                  "bg-accent-base": Boolean(settingsValues()[field.key] ?? field.default),
+                                  "bg-border-base": !Boolean(settingsValues()[field.key] ?? field.default),
+                                }}>
+                                  <span classList={{
+                                    "block w-3 h-3 mt-0.5 rounded-full bg-white transition-transform": true,
+                                    "translate-x-4": Boolean(settingsValues()[field.key] ?? field.default),
+                                    "translate-x-0.5": !Boolean(settingsValues()[field.key] ?? field.default),
+                                  }} />
+                                </span>
+                                {Boolean(settingsValues()[field.key] ?? field.default) ? "Enabled" : "Disabled"}
+                              </button>
+                            </Show>
+
+                            {/* Select dropdown */}
+                            <Show when={field.type === "select" && field.options}>
+                              <select
+                                value={String(settingsValues()[field.key] ?? field.default ?? "")}
+                                onChange={(e) => updateSettingsValue(field.key, e.currentTarget.value)}
+                                class="w-full px-3 py-1.5 bg-background-input border border-border-base rounded-sm text-12-regular text-text-base focus:outline-none focus:border-border-focus"
+                              >
+                                <For each={field.options}>
+                                  {(opt) => <option value={opt.value}>{opt.label}</option>}
+                                </For>
+                              </select>
+                            </Show>
+                          </div>
+                        )}
+                      </For>
+                    </div>
+                  </div>
+                </Show>
+
+                {/* Error */}
+                <Show when={settingsError()}>
+                  <p class="text-12-regular text-danger-base mb-3">{settingsError()}</p>
+                </Show>
+
+                {/* Actions */}
+                <div class="flex justify-end gap-2">
+                  <button
+                    onClick={() => { setSettingsAppId(null); setSettingsError(null) }}
+                    class="px-3 py-1.5 rounded-sm text-12-regular text-text-weak hover:text-text-base transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveSettings}
+                    disabled={settingsSaving()}
+                    class="px-3 py-1.5 rounded-sm bg-accent-base text-12-regular text-white hover:bg-accent-hover transition-colors disabled:opacity-50"
+                  >
+                    {settingsSaving() ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        }}
       </Show>
     </Dialog>
   )

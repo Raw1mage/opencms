@@ -784,10 +784,10 @@ export namespace MCP {
    * Reads from gauth.json (Google OAuth) or accounts.json (other providers).
    * Returns env vars to inject into the App's spawn environment.
    */
-  async function resolveAuthEnv(manifest: { auth?: { type: string; provider?: string; tokenEnv?: string } }): Promise<Record<string, string>> {
+  async function resolveAuthEnv(manifest: { auth?: { type: string; provider?: string; tokenEnv?: string; refreshTokenEnv?: string } }): Promise<Record<string, string>> {
     if (!manifest.auth || manifest.auth.type === "none") return {}
 
-    const auth = manifest.auth as { type: string; provider?: string; tokenEnv?: string }
+    const auth = manifest.auth as { type: string; provider?: string; tokenEnv?: string; refreshTokenEnv?: string }
     if (!auth.tokenEnv) return {}
 
     // Google OAuth: read from gauth.json (legacy) or accounts.json
@@ -812,8 +812,12 @@ export namespace MCP {
             if (tokens.expires_at && Date.now() > tokens.expires_at) {
               log.warn("google oauth token expired, app may fail API calls", { path: gauthPath })
             }
-            log.info("injecting google oauth token", { tokenEnv: auth.tokenEnv, path: gauthPath })
-            return { [auth.tokenEnv]: tokens.access_token }
+            const env: Record<string, string> = { [auth.tokenEnv]: tokens.access_token }
+            if (auth.refreshTokenEnv && tokens.refresh_token) {
+              env[auth.refreshTokenEnv] = tokens.refresh_token
+            }
+            log.info("injecting google oauth token", { tokenEnv: auth.tokenEnv, refreshTokenEnv: auth.refreshTokenEnv, path: gauthPath })
+            return env
           }
         } catch {
           continue
@@ -861,7 +865,7 @@ export namespace MCP {
               return
             }
 
-            // Load manifest for env/auth, then resolve auth tokens
+            // Load manifest for env/auth, then resolve auth tokens + user config
             let env: Record<string, string> = {}
             try {
               const manifest = await McpAppManifest.load(entry.path)
@@ -876,6 +880,15 @@ export namespace MCP {
                 path: entry.path,
                 error: manifestErr instanceof Error ? manifestErr.message : String(manifestErr),
               })
+            }
+
+            // Inject user config values as env vars (key uppercased)
+            if (entry.config) {
+              for (const [key, value] of Object.entries(entry.config)) {
+                const envKey = key.toUpperCase()
+                env[envKey] = String(value)
+              }
+              log.info("user config injected as env", { id, keys: Object.keys(entry.config) })
             }
 
             const result = await add(`mcpapp-${id}`, {

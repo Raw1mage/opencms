@@ -22,6 +22,7 @@ export namespace McpAppManifest {
     type: z.literal("oauth"),
     provider: z.string(),
     tokenEnv: z.string(),
+    refreshTokenEnv: z.string().optional(),
     scopes: z.array(z.string()).optional(),
   })
 
@@ -33,6 +34,28 @@ export namespace McpAppManifest {
 
   export const Auth = z.discriminatedUnion("type", [AuthNone, AuthOAuth, AuthApiKey])
   export type Auth = z.infer<typeof Auth>
+
+  // ── Settings schema ──────────────────────────────────────────────────
+
+  export const SettingsFieldType = z.enum(["string", "number", "boolean", "select"])
+  export type SettingsFieldType = z.infer<typeof SettingsFieldType>
+
+  export const SettingsField = z.object({
+    key: z.string().min(1),
+    label: z.string().min(1),
+    type: SettingsFieldType,
+    description: z.string().optional(),
+    required: z.boolean().optional().default(false),
+    secret: z.boolean().optional().default(false),
+    default: z.union([z.string(), z.number(), z.boolean()]).optional(),
+    options: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
+  })
+  export type SettingsField = z.infer<typeof SettingsField>
+
+  export const Settings = z.object({
+    fields: z.array(SettingsField).min(1),
+  })
+  export type Settings = z.infer<typeof Settings>
 
   // ── Source provenance ────────────────────────────────────────────────
 
@@ -53,6 +76,7 @@ export namespace McpAppManifest {
       icon: z.string().optional(),
       version: z.string().optional(),
       env: z.record(z.string(), z.string()).optional(),
+      settings: Settings.optional(),
       auth: Auth.optional().default({ type: "none" }),
       source: Source.optional(),
     })
