@@ -2341,15 +2341,19 @@ export namespace Provider {
     if (s.models.has(key)) return s.models.get(key)!
 
     const provider = s.providers[model.providerId]
-    const sdk = await getSDK(model)
+
+    // Resolve model loader by base provider ID.
+    // Account-specific providerId (e.g. "codex-subscription-...") must resolve
+    // to the canonical provider ("codex") that registered the CUSTOM_LOADER.
+    const canonicalProviderId = Account.parseProvider(model.providerId) ?? model.providerId
+    const loader = s.modelLoaders[canonicalProviderId]
+
+    // Skip SDK loading when the model loader doesn't need it (e.g. native LMv2 providers).
+    // This prevents InitError from getSDK() trying to install a non-existent npm package.
+    const sdk = loader ? await getSDK(model).catch(() => null) : await getSDK(model)
 
     try {
-      // Resolve model loader by base provider ID.
-      // Account-specific providerId (e.g. "codex-subscription-...") must resolve
-      // to the canonical provider ("codex") that registered the CUSTOM_LOADER.
-      const canonicalProviderId = Account.parseProvider(model.providerId) ?? model.providerId
-      const loader = s.modelLoaders[canonicalProviderId]
-      const language = loader ? await loader(sdk, model.api.id, provider.options) : sdk.languageModel(model.api.id)
+      const language = loader ? await loader(sdk, model.api.id, provider.options) : sdk!.languageModel(model.api.id)
       s.models.set(key, language)
       return language
     } catch (e) {
