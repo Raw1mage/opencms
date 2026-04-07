@@ -2,42 +2,52 @@
 
 ## Phase 1 — Schema + Manifest
 
-- [ ] 1.1 Add `modelProcess: z.array(z.string()).optional()` to `McpAppManifest.Schema` (tools that NEED model processing; all others default to direct render)
-- [ ] 1.2 Propagate `modelProcess` to `AppEntry` in app-store.ts via `buildEntry()`
-- [ ] 1.3 Add `fullOutput: z.string().optional()` to ToolPart state in message-v2.ts
+- [ ] 1.1 Add `modelProcess: z.array(z.string()).optional()` to `McpAppManifest.Schema`
+- [ ] 1.2 Propagate `modelProcess` to `AppEntry` in app-store.ts
+- [ ] 1.3 Add `directRender` object type to ToolPart state in message-v2.ts:
+  - `filePath: string` — relative path under session dir
+  - `title: string` — display name for the link button
+  - `size: number` — content size in chars
 
-## Phase 2 — Core Fork Mechanism (resolve-tools.ts)
+## Phase 2 — Core Fork (resolve-tools.ts)
 
-- [ ] 2.1 In MCP tool wrapper: after result normalization, check if tool name is NOT in app's `modelProcess[]`
-- [ ] 2.2 Direct render path: call `Session.updatePart()` to write `fullOutput` to part state BEFORE returning to AI SDK
-- [ ] 2.3 Direct render path: return summary string to AI SDK instead of full text
-- [ ] 2.4 Summary format: `[Content displayed to user ({N} chars). Ask user to describe what they see, or request "analyze this" to read the content.]`
+- [ ] 2.1 In MCP tool wrapper: determine render mode
+  - tool in `modelProcess[]` → AI 處理（不改）
+  - session is cron → AI 處理（不改）
+  - otherwise → 直送
+- [ ] 2.2 直送路徑：寫暫存檔到 `{sessionDir}/files/{toolCallId}-{sanitizedTitle}.md`
+- [ ] 2.3 直送路徑：`Session.updatePart()` 寫入 `state.directRender = { filePath, title, size }`
+- [ ] 2.4 直送路徑：return summary to AI SDK: `[File displayed: "{title}" ({size}). User can see it in file viewer.]`
+- [ ] 2.5 Processor merge guard: don't overwrite existing `directRender` on part state
 
-## Phase 3 — Processor Merge Guard
+## Phase 3 — UI: 檔案連結按鈕
 
-- [ ] 3.1 In processor.ts "tool-result" handler: when updating part state, preserve existing `fullOutput` if already set
-- [ ] 3.2 Verify no race: side-channel write completes before processor write (log timestamps)
+- [ ] 3.1 In message-tool-invocation.tsx: detect `part.state.directRender`
+- [ ] 3.2 Render as clickable file link button: `📎 {title}` with file size badge
+- [ ] 3.3 Click handler: open file in fileview tab (`filePath` → fileview route)
+- [ ] 3.4 Tool header (name, status icon) still renders above the link button
 
-## Phase 4 — UI Rendering
+## Phase 4 — Gmail Integration
 
-- [ ] 4.1 In message-tool-invocation.tsx: detect `part.state.fullOutput`
-- [ ] 4.2 When fullOutput exists: render with existing markdown component (tables, text, code)
-- [ ] 4.3 Collapsible "Show more" for outputs exceeding ~200 lines
-- [ ] 4.4 Tool header (title, status icon) still renders above content
+- [ ] 4.1 Gmail mcp.json: add `"modelProcess": ["send-message", "reply-message", "forward-message", "create-draft"]`
+  - 所有 read-only tools（get-message, list-messages, list-labels, list-drafts）預設直送
+- [ ] 4.2 Rebuild and deploy gmail-server binary
+- [ ] 4.3 Google Calendar mcp.json: add `"modelProcess": ["create-event", "update-event", "delete-event"]`
+  - read-only tools（list-calendars, list-events, get-event, freebusy）預設直送
+- [ ] 4.4 Rebuild and deploy gcal-server binary
 
-## Phase 5 — Gmail Integration + Validation
+## Phase 5 — Validation
 
-- [ ] 5.1 Gmail mcp.json: default direct render (no `modelProcess` field needed — all tools direct by default)
-- [ ] 5.2 If send-message/reply-message need model confirmation, add them to `modelProcess`
-- [ ] 5.3 Rebuild and deploy gmail-server binary
-- [ ] 5.4 Test: `get-message` on large email — UI shows markdown, model sees < 100 token summary
-- [ ] 5.5 Test: `send-message` — model still processes result (in modelProcess list)
-- [ ] 5.6 Test: small model (qwen 9B) handles direct-rendered gmail
-- [ ] 5.7 Test: non-MCP tools (bash, edit) unchanged
+- [ ] 5.1 Test: `get-message` on large email → 對話顯示檔案連結、fileview 顯示完整 markdown
+- [ ] 5.2 Test: model log 確認 summary < 100 tokens
+- [ ] 5.3 Test: `send-message` → model 正常處理（在 modelProcess 名單）
+- [ ] 5.4 Test: cron session 執行 gmail → model 正常處理（cron 自動 AI 處理模式）
+- [ ] 5.5 Test: small model (qwen 9B) 順利完成 gmail 查詢
+- [ ] 5.6 Test: non-MCP tools (bash, edit) 完全不受影響
 
 ## Stop Gates
 
-- SG-1: Non-MCP tools (bash, edit, etc.) must be completely unaffected
-- SG-2: Model must never see >200 tokens for a direct-rendered result
-- SG-3: fullOutput capped at 64KB
-- SG-4: Race between side-channel write and processor write must be verified safe
+- SG-1: Non-MCP tools 完全不受影響
+- SG-2: Model 對 direct-render 結果消耗 < 200 tokens
+- SG-3: 暫存檔大小 cap 64KB
+- SG-4: Cron session 不走直送模式

@@ -2,106 +2,139 @@
 
 ## Context
 
-All MCP tool outputs currently flow through a single path — the AI SDK processes the tool result, feeds it to the model as context, and the same output eventually reaches the UI via session parts. There is no way to show tool output to the user without the model consuming it first.
+MCP tool output 目前只有一條路：全部進 model context → model 消化後回覆。對於「讀信」這種純展示場景，50 頁內容全部被 model 吃掉，浪費 token 且小模型根本處理不了。
 
-For data-retrieval tools (read email, list events), this wastes tokens and causes small models to truncate or fail. The user just wants to see the data.
-
-### Current single-path architecture
-
-```
-MCP tool execute()
-    ↓
-return result to AI SDK  ──→  model sees full output (burns tokens)
-    ↓
-AI SDK emits "tool-result" stream event
-    ↓
-processor.ts writes to ToolPart (state.output = full text)
-    ↓
-Bus → UI shows output
-```
-
-**The gap**: model and UI see the SAME output. No fork point exists today.
+使用者的需求很單純：**我就是要看信，不需要 AI 幫我看。**
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- MVP: text/markdown tool output direct to UI, model gets summary only
-- Reduce token consumption >90% for read-only tool results
-- Backward compatible — tools without directRender behave as before
+- 直送模式：tool output → 對話中顯示檔案連結按鈕 → fileview tab 顯示完整 rich content
+- AI 處理模式：tool output → model context（現有行為，適合 cron 自動化）
+- 兩種模式可切換，預設直送
 
-**Non-Goals (future phases):**
+**Non-Goals (MVP):**
 
-- Phase 2: inline images, attachment download, HTML sandbox rendering
-- Phase 3: "Ask AI to analyze" button — user-triggered model consumption
-- Rich interactive tool outputs (editing, filtering)
+- 附件下載（Phase 2，擴充 fileview tab）
+- HTML 原文 sandbox 渲染（Phase 2）
+- 「交給 AI 分析」按鈕（Phase 3）
+
+## 兩種模式
+
+| 模式 | 觸發條件 | 資料流 | 適用場景 |
+|------|---------|--------|---------|
+| **直送**（預設） | 互動對話中、tool 不在 `modelProcess` 名單 | output → 寫入 fileview 暫存 → 對話顯示連結按鈕 → 點擊開 tab | 人在看 |
+| **AI 處理** | cron 任務、或 tool 在 `modelProcess` 名單 | output → model context（現有行為） | 自動化 |
+
+### 直送模式 UX
+
+```
+使用者：列出最新一封來自 zhenkang_lau 的信
+
+AI：好的，我幫您查詢。
+  [mcpapp-gmail_get-message]
+  📎 20260407 股票排名  ← 檔案連結按鈕
+
+  （fileview tab 自動開啟，顯示完整信件內容）
+```
+
+Model 只花 ~50 token：呼叫 tool + 產生一行回覆。完整內容在 fileview tab。
+
+### AI 處理模式 UX（cron）
+
+```
+[cron] 每天早上 8 點檢查來自 zhenkang_lau 的新信，整理摘要
+
+AI 讀取完整信件內容 → 產生摘要 → 存入報告
+（無人互動，model 需要讀完整內容才能整理）
+```
 
 ## Decisions
 
 | DD | Decision | Rationale |
 |----|----------|-----------|
-| DD-1 | `directRender` is default for ALL MCP app tools, opt-out via `modelProcess: [tool-names]` | User's requirement: default direct, AI processing is the exception. Inverted from original design |
-| DD-2 | Fork via side-channel write before return | In the MCP tool wrapper (resolve-tools.ts), BEFORE returning summary to AI SDK, write fullOutput to the part via Session.updatePart(). This creates the fork: part has fullOutput for UI, AI SDK return value has summary for model |
-| DD-3 | `fullOutput` field on ToolPart state | New field alongside existing `output`. UI checks `fullOutput` first; if present, renders it instead of `output` |
-| DD-4 | Summary format: `[Content displayed to user ({N} chars). Ask user to describe what they see, or request "analyze this" to read the content.]` | Tells model the data is visible to user. Suggests interaction patterns |
-| DD-5 | 64KB cap on fullOutput | Beyond 64KB, truncate with "... (truncated)" marker. Prevents session state bloat |
-| DD-6 | Markdown renderer: reuse existing message markdown component | No new renderer needed for MVP. Tables, text, code blocks already supported |
+| DD-1 | 預設直送，`modelProcess: string[]` 是例外名單 | 使用者需求：預設直送。只有 send/reply 等需要 model 確認的才走 AI 處理 |
+| DD-2 | 直送不進 model context，而是寫成 fileview 可讀的暫存檔 | 完全跳過 model token 消耗。fileview tab 已有圖文顯示能力 |
+| DD-3 | 對話中顯示檔案連結按鈕，不顯示 inline 內容 | 乾淨俐落。大量資料不應塞在對話流裡 |
+| DD-4 | Model 收到的 summary：`[File displayed: "20260407 股票排名" (52KB). User can see it in file viewer.]` | 告訴 model 檔案已展示，不需重述 |
+| DD-5 | Cron context 自動切換 AI 處理模式 | Cron 任務沒有人看 fileview，必須走 model 處理 |
+| DD-6 | 暫存檔放 session 目錄下 `files/` 子目錄，markdown 格式 | fileview tab 已能讀取 session 內的檔案 |
 
 ## Data / State / Control Flow
 
-### New fork architecture
+### 直送模式
 
 ```
-MCP tool execute()
+MCP tool execute() → result text
     ↓
 resolve-tools.ts wrapper:
-    1. Normalize result text (existing)
-    2. Check: is this tool NOT in manifest.modelProcess[]?
-       ├─ Default YES (direct render):
-       │    a. Session.updatePart({ state: { fullOutput: text } })  ← UI gets full content
-       │    b. return summary string to AI SDK                       ← model gets summary
-       └─ NO (model process):
-            return full text to AI SDK (existing behavior)
+    1. 判斷：tool 不在 modelProcess[]？且不是 cron session？
+       → 直送模式
+    2. 將 result text 寫成暫存檔：
+       {sessionDir}/files/{toolCallId}-{title}.md
+    3. Session.updatePart() 寫入 part：
+       state.directRender = {
+         filePath: "files/{toolCallId}-{title}.md",
+         title: "20260407 股票排名",
+         size: 52076
+       }
+    4. Return summary to AI SDK:
+       "[File displayed: \"20260407 股票排名\" (52KB)]"
     ↓
-AI SDK stream → processor.ts:
-    - Direct render: output = summary, fullOutput already written
-    - Model process: output = full text, fullOutput = undefined
+processor.ts:
+    - output = summary（model 看到的）
+    - directRender 已在 part state 裡（UI 讀）
     ↓
 Bus → UI:
-    - if part.state.fullOutput → render markdown(fullOutput)
-    - else → render output as before
+    - 檢測 part.state.directRender
+    - 渲染為檔案連結按鈕（不是 inline 內容）
+    - 使用者點擊 → fileview tab 開啟對應檔案
 ```
 
-### Key detail: side-channel write timing
+### AI 處理模式（cron 或 modelProcess 工具）
 
-The MCP wrapper in resolve-tools.ts has access to `sessionID` and `messageID` (passed in closure). It can call `Session.updatePart()` to write `fullOutput` to the part BEFORE returning to AI SDK. When processor.ts later updates the same part with the summary, it must NOT overwrite `fullOutput`.
+```
+完全不變 — 現有行為，output 直接進 model context
+```
+
+### 模式判斷邏輯
+
+```
+if (tool in manifest.modelProcess[]) → AI 處理
+else if (session.type === "cron") → AI 處理
+else → 直送
+```
 
 ## Risks / Trade-offs
 
-- **Risk**: Race between side-channel write (fullOutput) and processor write (output/status)
-  - **Mitigation**: processor.ts must merge, not replace — check if `fullOutput` already exists on part before writing
-- **Risk**: Model cannot help with direct-rendered content without explicit user trigger
-  - **Mitigation**: Phase 3 will add "analyze this" mechanism. For MVP, user can copy-paste relevant parts into chat
-- **Risk**: MCP tool wrapper needs access to Session.updatePart and part IDs
-  - **Mitigation**: These are already available in the resolve-tools.ts closure (sessionID, messageID, toolID are all in scope)
+- **Risk**: 暫存檔寫入和 AI SDK return 之間的時序
+  - **Mitigation**: 先寫檔 + updatePart，都完成後才 return summary。同步操作，無 race
+- **Risk**: fileview tab 能否處理 markdown 表格
+  - **Mitigation**: fileview 已支援 markdown 渲染，需驗證表格顯示品質
+- **Risk**: session 目錄下累積大量暫存檔
+  - **Mitigation**: 跟隨 session 生命週期清理。或加 TTL（7天）
+- **Risk**: cron session 判斷方式
+  - **Mitigation**: session metadata 已有 lane/type 資訊，可從中判斷
 
 ## Critical Files
 
-- `packages/opencode/src/mcp/manifest.ts` — add `modelProcess` to schema (list of tools that need model processing)
+- `packages/opencode/src/mcp/manifest.ts` — add `modelProcess` to schema
 - `packages/opencode/src/mcp/app-store.ts` — propagate to AppEntry
-- `packages/opencode/src/session/resolve-tools.ts` — side-channel write + summary return (THE core change)
-- `packages/opencode/src/session/message-v2.ts` — add `fullOutput` to ToolPart state
-- `packages/opencode/src/session/processor.ts` — merge guard: don't overwrite existing `fullOutput`
-- `packages/app/src/pages/session/components/message-tool-invocation.tsx` — render fullOutput as markdown
+- `packages/opencode/src/session/resolve-tools.ts` — 核心：直送分叉 + 暫存檔寫入
+- `packages/opencode/src/session/message-v2.ts` — ToolPart state 加 `directRender` 欄位
+- `packages/opencode/src/session/processor.ts` — 保留已有的 directRender state
+- `packages/app/src/pages/session/components/message-tool-invocation.tsx` — 渲染檔案連結按鈕
+- `packages/app/src/pages/session/` — fileview tab 整合（可能不需改，已有檔案開啟能力）
 
 ## Future Phases
 
-### Phase 2: Rich content
-- Inline images (MCP ImageContent → `<img>` in tool result)
-- Attachment download (new endpoint: `GET /api/v2/mcp/attachments/:id`)
-- HTML sandbox (iframe with srcdoc, CSP restricted)
+### Phase 2: Rich content in fileview
+- Inline images（MCP ImageContent → fileview 內嵌圖片）
+- 附件下載按鈕（擴充 fileview tab header）
+- HTML 原文 sandbox 渲染（iframe + CSP）
 
-### Phase 3: "Ask AI to analyze"
-- Button on direct-rendered tool output
-- Sends fullOutput to model as a new user message or tool result injection
-- User-triggered — no auto token consumption
+### Phase 3: "交給 AI 分析" 按鈕
+- 檔案連結按鈕旁加「AI 分析」按鈕
+- 點擊後將 fullOutput 作為新的 user message 送入 model
+- User-triggered — 不會自動消耗 token
