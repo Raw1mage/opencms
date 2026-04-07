@@ -71,7 +71,10 @@
       "system-manager_app_control",
       "system-manager_set_ui_config",
       "system-manager_export_transcript",
-      "system-manager_set_log_level"
+      "system-manager_set_log_level",
+      "system-manager_install_mcp_app",
+      "system-manager_list_mcp_apps",
+      "system-manager_remove_mcp_app"
     ],
     "fetch_mcp": ["fetch_get_raw_text", "fetch_get_rendered_html", "fetch_get_markdown", "fetch_get_markdown_summary"],
     "memory_mcp": [
@@ -154,6 +157,38 @@
         "capability": "OpenCode runtime control, model/account switching, MCP toggling"
       },
       {
+        "name": "gmail",
+        "enabled": true,
+        "capability": "Gmail integration — search, read, send, reply, forward emails. Read-only tools save HTML files; use open_fileview to display them.",
+        "tools": [
+          {
+            "name": "list-messages",
+            "description": "Search Gmail messages. Returns subject/sender/date/ID list. Use get-message to view full content."
+          },
+          {
+            "name": "get-message",
+            "description": "Fetch email and save as HTML file. Returns file path. MUST call open_fileview afterward to display to user."
+          },
+          {
+            "name": "list-labels",
+            "description": "List all Gmail labels."
+          },
+          {
+            "name": "send-message",
+            "description": "Send a new email."
+          },
+          {
+            "name": "reply-message",
+            "description": "Reply to an email thread."
+          }
+        ]
+      },
+      {
+        "name": "google-calendar",
+        "enabled": true,
+        "capability": "Google Calendar — list calendars, query/create/update/delete events, check availability"
+      },
+      {
         "name": "drawmiat",
         "enabled": false,
         "capability": "IDEF0 / Grafcet (IEC 60848) diagram renderer — generates SVG from structured JSON",
@@ -174,21 +209,27 @@
   "routing": {
     "intent_to_capability": [
       {
+        "intent": "email/Gmail operations",
+        "keywords": ["email", "mail", "gmail", "inbox", "信件", "郵件", "寄信", "收信"],
+        "prefer": ["mcpapp-gmail_list-messages", "mcpapp-gmail_get-message", "system-manager_open_fileview"],
+        "fallback": [],
+        "notes": [
+          "Use list-messages to search, get-message to fetch (saves HTML file).",
+          "After get-message, ALWAYS call open_fileview to display the file to user.",
+          "Do NOT read email content yourself — the HTML file is for the user to view directly."
+        ]
+      },
+      {
+        "intent": "calendar operations",
+        "keywords": ["calendar", "event", "meeting", "schedule", "行事曆", "會議", "排程"],
+        "prefer": ["mcpapp-google-calendar_list-events", "mcpapp-google-calendar_get-event"],
+        "fallback": []
+      },
+      {
         "intent": "git/local repo operations",
         "keywords": ["git", "commit", "diff", "branch", "rebase", "merge"],
         "prefer": ["bash", "system-manager_execute_command"],
         "fallback": ["bash"]
-      },
-      {
-        "intent": "diagram generation (IDEF0/Grafcet)",
-        "keywords": ["idef0", "grafcet", "diagram", "svg", "draw", "render", "architecture diagram", "functional model", "sequential control"],
-        "requires_mcp": ["drawmiat"],
-        "prefer": ["drawmiat_generate_diagram", "drawmiat_validate_diagram"],
-        "fallback": ["miatdiagram skill for JSON generation, then drawmiat MCP for SVG rendering"],
-        "notes": [
-          "Use miatdiagram skill for text-to-JSON conversion, then drawmiat MCP for JSON-to-SVG rendering.",
-          "drawmiat supports hierarchical IDEF0 decomposition (multiple SVGs) and Grafcet sub-grafcets."
-        ]
       },
       {
         "intent": "repo/worktree beta loop orchestration",
@@ -205,6 +246,17 @@
         "keywords": ["github", "issue", "pr", "pull request", "review", "checks", "actions"],
         "prefer": ["github mcp (if installed)", "bash+gh"],
         "fallback": ["bash+git"]
+      },
+      {
+        "intent": "diagram generation (IDEF0/Grafcet)",
+        "keywords": ["idef0", "grafcet", "diagram", "svg", "draw", "render", "architecture diagram", "functional model", "sequential control"],
+        "requires_mcp": ["drawmiat"],
+        "prefer": ["drawmiat_generate_diagram", "drawmiat_validate_diagram"],
+        "fallback": ["miatdiagram skill for JSON generation, then drawmiat MCP for SVG rendering"],
+        "notes": [
+          "Use miatdiagram skill for text-to-JSON conversion, then drawmiat MCP for JSON-to-SVG rendering.",
+          "drawmiat supports hierarchical IDEF0 decomposition (multiple SVGs) and Grafcet sub-grafcets."
+        ]
       },
       {
         "intent": "web docs/api retrieval",

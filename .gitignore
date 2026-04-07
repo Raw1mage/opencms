@@ -57,3 +57,4 @@ __pycache__/
 /build.log
 /recyclebin/
 daemon/opencode-gateway
+.opencode/mcp-output/
