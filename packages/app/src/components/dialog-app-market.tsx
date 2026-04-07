@@ -428,7 +428,26 @@ export const DialogAppMarket: Component = () => {
                     </div>
 
                     <div class="grid min-w-0 gap-1 px-2.5 pt-1 pb-1.5 md:flex md:items-center md:gap-1.5 md:px-2 md:pt-1 md:pb-1.5">
-                      <div class="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1" />
+                      <div class="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+                        {/* Auth badge */}
+                        <Show when={live().auth && live().auth!.type !== "none"}>
+                          <span classList={{
+                            "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium": true,
+                            "bg-success-base/15 text-success-base": live().status === "connected" || live().status === "ready",
+                            "bg-warning-base/15 text-warning-base": live().status === "needs_auth" || live().status === "pending_auth",
+                            "bg-danger-base/15 text-danger-base": live().status === "failed" || live().status === "error",
+                            "bg-white/5 text-text-weaker": live().status === "disabled",
+                          }}>
+                            <Show when={live().status === "connected" || live().status === "ready"} fallback={
+                              <Show when={live().status === "disabled"} fallback={<>&#9888; {live().auth!.type === "oauth" ? "OAuth" : "Key"}</>}>
+                                &#128274; {live().auth!.type === "oauth" ? "OAuth" : "Key"}
+                              </Show>
+                            }>
+                              &#10003; {live().auth!.type === "oauth" ? "OAuth" : "Key"}
+                            </Show>
+                          </span>
+                        </Show>
+                      </div>
                       <div class="flex flex-wrap items-center justify-end gap-0.5 shrink-0 md:ml-auto">
                         {renderAppActions(live(), loading())}
                         <Show
