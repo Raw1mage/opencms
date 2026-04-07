@@ -1,241 +1,335 @@
-# Design
+# Design (v3)
 
-## Context
+> v1: C11 native plugin (abandoned — official CLI is JS)
+> v2: Hook-based refactor of anthropic.ts (superseded — SDK still pollutes)
+> v3: Replace @ai-sdk/anthropic with native LanguageModelV2 implementation
+> Updated: 2026-04-07
 
-- codex provider 已成功以 C11 native plugin 實現，約 3500 行 C + 300 行 TypeScript FFI binding
-- claude-cli provider 目前以約 560 行 TypeScript 實現，涵蓋 OAuth、request transform、SSE response transform
-- 兩個 provider 的協議有根本差異：Codex 使用 OpenAI Responses API（ChatGPT backend），Anthropic 使用 Messages API
-- Anthropic 額外要求：mcp_ tool prefix、?beta=true、系統 prompt identity 驗證、attribution hash
+---
 
-## Goals / Non-Goals
-
-**Goals:**
-
-- 建立與 codex provider 對稱的 C native plugin 架構
-- **Request signature 100% 符合 refs/claude-code 原始碼** — transport layer 的 packet format 必須從 official binary 逆向驗證，不可只參考 anthropic.ts（它有已知偏差）
-- 支援 native-first + TS-fallback 載入模式
-- ABI 穩定，版本化獨立於 codex
-
-**Non-Goals:**
-
-- 不追求與 codex provider 共用 C 代碼（兩個 provider 的協議完全不同）
-- 不做 generic provider C framework（每個 provider 獨立實現）
-- 不做 WebSocket transport（Anthropic 目前無 WS API）
-
-## Decisions
-
-### DD-1: 獨立 ABI，命名空間以 `claude_` 為 prefix
-
-所有 C 函數以 `claude_` 開頭（vs codex 的 `codex_`），避免 symbol 衝突。header guard 為 `CLAUDE_PROVIDER_H`。ABI 版本獨立追蹤 `CLAUDE_PROVIDER_ABI_VERSION = 1`。
-
-**Why:** 兩個 .so 可能同時被載入同一 process（Bun FFI dlopen），symbol 名必須唯一。
-
-### DD-2: SSE Event 型別映射到 Anthropic Messages API 事件
-
-Codex provider 使用 OpenAI Responses API 事件（response.created, output_item.added, ...）。Claude provider 必須映射 Anthropic 事件格式：
-
-| Anthropic Event | Claude Event Enum |
-|---|---|
-| message_start | CLAUDE_EVENT_MESSAGE_START |
-| content_block_start | CLAUDE_EVENT_CONTENT_BLOCK_START |
-| content_block_delta | CLAUDE_EVENT_CONTENT_BLOCK_DELTA |
-| content_block_stop | CLAUDE_EVENT_CONTENT_BLOCK_STOP |
-| message_delta | CLAUDE_EVENT_MESSAGE_DELTA |
-| message_stop | CLAUDE_EVENT_MESSAGE_STOP |
-| ping | CLAUDE_EVENT_PING |
-| error | CLAUDE_EVENT_ERROR |
-
-**Why:** Anthropic 和 OpenAI 的 SSE 事件結構完全不同，不能共用 enum。
-
-### DD-3: OAuth 端點差異封裝
-
-| | Codex (OpenAI) | Claude (Anthropic) |
-|---|---|---|
-| Issuer | auth.openai.com | platform.claude.com |
-| Authorize | /oauth/authorize | /oauth/authorize |
-| Token | /oauth/token | /v1/oauth/token |
-| Profile | (JWT claims) | GET /api/oauth/profile |
-| Client ID | app_EMoamEEZ73f0CkXaXp7hrann | 9d1c250a-e61b-44d9-88ed-5944d1962f5e |
-| Redirect | http://localhost:1455/auth/callback | https://platform.claude.com/oauth/code/callback |
-| PKCE | local HTTP server | code paste (no local server) |
-
-關鍵差異：Anthropic OAuth 不使用 local HTTP callback server，而是用 code paste 模式（`response_type=code`, redirect 到 platform 的 callback page，用戶手動貼回 code）。
-
-**Why:** 這改變了 `auth.c` 的結構 — 不需要實現 local HTTP server，改為 expose code exchange 函數讓 host 呼叫。
-
-### DD-4: Request Signature 必須 100% 符合 refs/claude-code（最高優先級）
-
-**真相來源是 official binary（`/home/pkcs12/.local/share/claude/versions/2.1.87`），不是 `anthropic.ts`。**
-
-`anthropic.ts` 中有已知偏差，C plugin 不可繼承這些偏差，必須以 binary 逆向結果為準。
-
-#### 4a. Attribution Header（`x-anthropic-billing-header`）
-
-**Official format（from binary function `TG$`）：**
+## Problem Statement
 
 ```
-x-anthropic-billing-header: cc_version=VERSION.HASH; cc_entrypoint=ENTRYPOINT; cch=00000;[ cc_workload=WORKLOAD;]
+                    ┌── @ai-sdk/anthropic ──┐
+                    │  anthropic-client: ✗   │
+streamText() ──►   │  x-api-key: ✗          │  ──► plugin fetch (scrub) ──► wire
+  (clean)          │  User-Agent: ✗         │        ↑ 在這裡擦屁股
+                    │  body serialize: ✗     │
+                    └────────────────────────┘
 ```
 
-| Field | Official (v2.1.87) | anthropic.ts (偏差) |
+Plugin 在最後一關 scrub SDK 注入的髒 header，但：
+- Scrub list 需手動維護，SDK 升級可能引入新污染
+- Body 已被 SDK serialize，plugin 必須 parse→modify→re-serialize
+- SDK 的 request builder 決定了 body 結構，plugin 無法控制
+
+**根本解法**：不用 `@ai-sdk/anthropic`，自己實作 `LanguageModelV2`。
+
+---
+
+## AI SDK 分層架構
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Layer A: Orchestration            package: 'ai'        │
+│  streamText(), generateText()                           │
+│  tool loop, retry, abort, telemetry                     │
+│  ➜ 完全不碰 HTTP，透過 LanguageModelV2 interface 呼叫   │
+│  ➜ 保留 ✅                                              │
+├─────────────────────────────────────────────────────────┤
+│  Layer B: Type System              package: '@ai-sdk/provider' │
+│  LanguageModelV2, LanguageModelV2CallOptions             │
+│  LanguageModelV2StreamPart, LanguageModelV2Middleware     │
+│  ➜ 純型別定義，零 runtime                               │
+│  ➜ 保留 ✅                                              │
+├─────────────────────────────────────────────────────────┤
+│  Layer C: Middleware               package: 'ai'        │
+│  wrapLanguageModel(), transformParams()                  │
+│  ➜ 不碰 HTTP，攔截 LanguageModelV2CallOptions           │
+│  ➜ 保留 ✅                                              │
+╞═════════════════════════════════════════════════════════╡
+│              ↑ KEEP ABOVE / REPLACE BELOW ↑             │
+╞═════════════════════════════════════════════════════════╡
+│  Layer D: @ai-sdk/anthropic        ← 整層替換 ❌        │
+│  D1: createAnthropic() — header 注入 (anthropic-client) │
+│  D2: getArgs() — body serialize (messages/tools format)  │
+│  D3: postJsonToApi() — HTTP fetch execution              │
+│  D4: SSE parser — response stream → StreamPart           │
+│  ➜ 替換為 opencode-claude-provider                      │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Protocol Boundary: LanguageModelV2
+
+```typescript
+interface LanguageModelV2 {
+  specificationVersion: 'v2'
+  provider: string
+  modelId: string
+
+  doGenerate(options: LanguageModelV2CallOptions): Promise<{
+    content: LanguageModelV2Content[]
+    finishReason: LanguageModelV2FinishReason
+    usage: { inputTokens: number; outputTokens: number }
+    response?: { id?: string; modelId?: string; headers?: Record<string,string> }
+  }>
+
+  doStream(options: LanguageModelV2CallOptions): Promise<{
+    stream: ReadableStream<LanguageModelV2StreamPart>
+    response?: Promise<{ id?: string; modelId?: string; headers?: Record<string,string> }>
+  }>
+}
+```
+
+**這就是分界線**。Layer A/B/C 只透過這個 interface 互動。我們實作這個 interface，就完全控制 HTTP 層。
+
+---
+
+## Target Architecture
+
+```
+┌─── ai core (保留) ──────────────────────────────┐
+│  streamText({ model, messages, tools, ... })     │
+│         │                                        │
+│         ▼                                        │
+│  wrapLanguageModel({ model, middleware })         │
+│         │  transformParams (ProviderTransform)    │
+│         ▼                                        │
+│  model.doStream(options)                         │
+│         │                                        │
+└─────────┼────────────────────────────────────────┘
+          │
+          ▼
+┌─── opencode-claude-provider (新建) ──────────────┐
+│                                                   │
+│  ClaudeCodeLanguageModel implements LMv2          │
+│                                                   │
+│  doStream(options):                               │
+│    │                                              │
+│    ├─ 1. convertMessages(options.prompt)           │
+│    │     LMv2 message format → Anthropic format   │
+│    │                                              │
+│    ├─ 2. buildSystemPrompt(options)                │
+│    │     identity + sections + boundary + cache    │
+│    │                                              │
+│    ├─ 3. convertTools(options.tools)               │
+│    │     LMv2 tools → Anthropic tools + mcp__     │
+│    │                                              │
+│    ├─ 4. buildHeaders(auth, model)                 │
+│    │     從零建構，無 SDK 殘留                      │
+│    │     Authorization, anthropic-beta,            │
+│    │     User-Agent, billing header, etc.          │
+│    │                                              │
+│    ├─ 5. fetch(url, { headers, body })             │
+│    │     直接呼叫 globalThis.fetch                 │
+│    │     URL: /v1/messages?beta=true               │
+│    │                                              │
+│    └─ 6. parseSSE(response.body)                   │
+│          Anthropic SSE → LMv2 StreamPart           │
+│          + mcp__ prefix stripping                  │
+│          + usage extraction                        │
+│                                                   │
+│  auth.ts: OAuth PKCE + token refresh               │
+│  protocol.ts: constants (VERSION, betas, salt)     │
+│  models.ts: model catalog                          │
+│  convert.ts: LMv2 ↔ Anthropic format converters   │
+│  sse.ts: SSE parser                               │
+│                                                   │
+└───────────────────────────────────────────────────┘
+```
+
+---
+
+## Module 拆分
+
+### 可共用 (Keep)
+
+| Module | Source | 用途 |
 |---|---|---|
-| VERSION | Build version (e.g. `2.1.87`) | Hardcoded `2.1.39` ❌ |
-| HASH | 由 caller 傳入的 hash 值 | `calculateAttributionHash()` — salt-based ⚠️ |
-| cch | `00000` (hardcoded) | `d7a3a` ❌ |
-| cc_entrypoint | `CLAUDE_CODE_ENTRYPOINT` env / `"unknown"` | `"unknown"` ✓ |
-| cc_workload | Optional, from `iP$()` function | 不存在 ❌ |
+| `streamText` | `ai` | Orchestration, tool loop, retry |
+| `wrapLanguageModel` | `ai` | Middleware (message transform) |
+| `LanguageModelV2` | `@ai-sdk/provider` | Interface contract |
+| `LanguageModelV2StreamPart` | `@ai-sdk/provider` | Stream event types |
+| `ProviderTransform` | opencode `transform.ts` | Message/cache transform |
 
-**C plugin 必須：**
-- 使用可配置的 VERSION（config 傳入或 `#define`）
-- `cch=00000` hardcoded
-- 支援 `cc_workload` optional field
-- Hash 計算邏輯需精確匹配 official — 需進一步逆向 `TG$` 的 caller
+### Provider Exclusive (Replace)
 
-#### 4b. System Prompt Identity（三變體）
-
-**Official（from binary function `ZG$`）：**
-
-| 條件 | Identity String |
-|---|---|
-| Interactive (default) | `"You are Claude Code, Anthropic's official CLI for Claude."` |
-| Non-interactive + hasAppendSystemPrompt | `"You are Claude Code, Anthropic's official CLI for Claude, running within the Claude Agent SDK."` |
-| Non-interactive (pure agent) | `"You are a Claude agent, built on Anthropic's Claude Agent SDK."` |
-
-`anthropic.ts` 只用了第一個變體。C plugin 應支援 config 選擇或由 host 指定。
-
-#### 4c. 其他 Transform（與 anthropic.ts 一致）
-
-1. **mcp_ tool prefix**: 所有 tool name 加 `mcp_` prefix，response 中移除
-2. **?beta=true**: Messages API URL 必須帶 `?beta=true`（confirmed: `/v1/models?beta=true` 也需要）
-3. **Required betas header**: `anthropic-beta: oauth-2025-04-20,claude-code-20250219,interleaved-thinking-2025-05-14`
-4. **Additional betas from custom loader**: `prompt-caching-scope-2026-01-05`, `fine-grained-tool-streaming-2025-05-14`
-5. **Header scrub**: 移除 `x-api-key`, `anthropic-client`, `x-app`, `session_id`
-6. **User-Agent**: `claude-code/VERSION`（VERSION 需與 billing header 一致）
-
-**Why:** request signature 是 Anthropic 驗證 Claude Code 訂閱身份的核心。任何偏差都可能導致降級到 free tier 或被拒絕。C plugin 是重新對齊 official 行為的機會，不應繼承 anthropic.ts 的歷史偏差。
-
-### DD-5: Storage 路徑與格式
-
-| | Codex | Claude |
+| Module | 取代誰 | 職責 |
 |---|---|---|
-| 預設 home | ~/.codex | ~/.claude-provider |
-| Env override | CODEX_HOME | CLAUDE_PROVIDER_HOME |
-| Auth file | auth.json | auth.json |
-| Format | { mode, access, refresh, account_id, email, plan_type } | { type, refresh, access, expires, accountId, email, orgID } |
+| `convert.ts` | `@ai-sdk/anthropic` getArgs() | LMv2 prompt → Anthropic messages/system/tools |
+| `headers.ts` | `@ai-sdk/anthropic` getHeaders() | 從零建構全部 HTTP headers |
+| `sse.ts` | `@ai-sdk/anthropic` response parser | SSE → LMv2 StreamPart |
+| `auth.ts` | `anthropic.ts` auth.loader | OAuth PKCE + token refresh |
+| `protocol.ts` | `anthropic.ts` constants | VERSION, CLIENT_ID, betas, salt |
+| `models.ts` | `provider.ts` hardcoded catalog | Model IDs, context, pricing |
+| `provider.ts` | `createAnthropic()` | LanguageModelV2 factory |
 
-**Why:** 獨立的 storage 路徑避免與 codex 衝突，格式對齊現有 TypeScript plugin 的 auth 物件結構。
+---
 
-### DD-6: No Local HTTP Server（Code Paste Mode）
+## Data Flow 對比
 
-與 codex 的 browser OAuth 不同，Anthropic 的 redirect_uri 是 `https://platform.claude.com/oauth/code/callback`，不是 `http://localhost:PORT`。用戶在瀏覽器完成授權後，平台頁面會顯示 authorization code，用戶手動貼回。
+### Before (v2: SDK + scrub)
 
-**C plugin 提供兩個函數：**
-- `claude_login_start()` → 回傳 authorize URL + PKCE verifier
-- `claude_login_exchange(code, verifier)` → 用 code 換 token
+```
+LMv2CallOptions
+  → @ai-sdk/anthropic.getArgs()     組 body (SDK 格式)
+  → @ai-sdk/anthropic.getHeaders()  加 anthropic-client, x-api-key (污染)
+  → wrapped fetch (provider.ts)      合併 custom-loaders headers (再污染)
+  → plugin fetch (anthropic.ts)      scrub headers, parse+modify body (擦屁股)
+  → globalThis.fetch                 HTTP wire
+```
 
-Host (TypeScript) 負責：打開瀏覽器、收集用戶輸入的 code、呼叫 exchange。
+### After (v3: native LMv2)
 
-**Why:** 這比 codex 的 local server 更簡單（不需 socket 編程），且匹配 Anthropic 的官方流程。
+```
+LMv2CallOptions
+  → ClaudeCodeLanguageModel.doStream()
+    → convertMessages()              自己組 body
+    → buildHeaders()                 自己組 headers (從零開始)
+    → globalThis.fetch               HTTP wire (零中間層)
+```
 
-### DD-7: Model Catalog — 靜態定義 + 訂閱模式
+**差異**：v2 有 4 層 header 合併/scrub，v3 只有 1 層。body 不需 parse→modify→re-serialize。
 
-所有模型 cost = 0（subscription included）。靜態定義 7 個模型：
+---
 
-| Model ID | Context | Max Output | Reasoning |
+## Key Design Decisions
+
+### D1: 完全取代 @ai-sdk/anthropic
+
+不再 `createAnthropic()`，改為自製 `createClaudeCode()` 回傳 `LanguageModelV2`。
+
+好處：
+- 零 header 污染
+- Body 結構完全控制
+- System prompt cache_control 精確放置
+- mcp__ prefix 在序列化前處理，不需 post-serialize regex
+
+風險：
+- 需自己實作 LMv2 message → Anthropic message 轉換
+- 需自己實作 SSE parser
+
+Mitigation：
+- `@ai-sdk/anthropic` 的 converter 可作為參考（不是 copy）
+- SSE parser 很簡單（event: / data: / blank line），~100 行
+
+### D2: auth 與 transport 分離
+
+```
+auth.ts:    OAuth PKCE + token refresh → returns { accessToken, orgID }
+provider.ts: 用 accessToken 組 Authorization header → 發 fetch
+```
+
+auth 不再包在 fetch 裡。Provider factory 初始化時取得 auth，每次 request 前檢查 token，過期就 refresh。
+
+### D3: System Prompt 結構對齊官方
+
+```typescript
+function buildSystemBlocks(sections, enableCaching) {
+  const blocks = []
+
+  // Block 0: billing header (no cache)
+  blocks.push({ type: "text", text: billingHeader, cache_control: undefined })
+
+  // Block 1: identity (org-level cache)
+  blocks.push({ type: "text", text: IDENTITY, cache_control: cQ("org") })
+
+  // Block 2: static sections (global cache) — before boundary
+  blocks.push({ type: "text", text: staticSections, cache_control: cQ("global") })
+
+  // Block 3+: dynamic sections (no cache) — after boundary
+  for (const section of dynamicSections) {
+    blocks.push({ type: "text", text: section })
+  }
+
+  return blocks
+}
+```
+
+完全控制 `cache_control` 的 scope 和 TTL。
+
+### D4: Host 端解耦
+
+Provider 透過 `LanguageModelV2` interface 註冊，host 不需知道是 Anthropic：
+
+```typescript
+// provider.ts 中
+const language = createClaudeCode({ auth, model: modelId })
+
+// 傳給 streamText
+streamText({ model: wrapLanguageModel({ model: language, middleware }) })
+```
+
+Host 端的 `isClaudeCode` 分支、`custom-loaders-def.ts` 的 anthropic headers — 全部刪除。Provider 自己處理一切。
+
+### D5: 參考 @ai-sdk/anthropic 但不依賴
+
+需要自己寫的 converter：
+
+| Converter | 輸入 | 輸出 | 複雜度 |
 |---|---|---|---|
-| claude-haiku-4-5-20251001 | 200K | 8192 | No |
-| claude-sonnet-4-5-20250514 | 200K | 16384 | Yes |
-| claude-sonnet-4-6-20250627 | 200K | 16384 | Yes |
-| claude-opus-4-5-20250514 | 200K | 32768 | Yes |
-| claude-opus-4-6-20250627 | 1M | 32768 | Yes |
-| claude-sonnet-4-5-v2-20250514 | 200K | 16384 | Yes |
-| claude-opus-4-5-v2-20250514 | 200K | 32768 | Yes |
+| `convertMessages` | `LanguageModelV2Prompt` | Anthropic `messages[]` | Medium — 處理 text/image/tool_use/tool_result |
+| `convertTools` | `LanguageModelV2FunctionTool[]` | Anthropic `tools[]` + mcp__ prefix | Low |
+| `convertSystemPrompt` | `string[]` sections | Anthropic `system[]` blocks + cache_control | Medium |
+| `parseSSEStream` | `ReadableStream<Uint8Array>` | `ReadableStream<LanguageModelV2StreamPart>` | Medium — map Anthropic events to LMv2 types |
 
-**Why:** 訂閱制下模型列表相對穩定，hardcode 避免運行時 API 呼叫。
+總量預估：~800 行 TypeScript（converter + SSE parser + provider factory）。
 
-### DD-8: Reference-First Validation（逆向驗證方法論）
+---
 
-C plugin 的 request signature 實作必須遵循以下驗證流程：
+## Module Dependency Graph
 
-1. **逆向 official binary** — 從 `/home/pkcs12/.local/share/claude/versions/LATEST` 提取所有協議常數（strings + decompile）
-2. **建立 test vectors** — 用 official binary 產生已知 input → output 的 request signature 對照表
-3. **C plugin 輸出比對** — 同樣 input 下，C plugin 產生的 HTTP request 必須 byte-for-byte 匹配 official
-4. **持續追蹤** — 當 claude-code 版本升級時，重新提取常數並更新 C plugin
+```
+opencode-claude-provider/
+  │
+  ├── provider.ts        ← LanguageModelV2 factory (entry point)
+  │     uses: auth, protocol, models, convert, headers, sse
+  │
+  ├── auth.ts            ← OAuth PKCE + token refresh
+  │     uses: protocol (CLIENT_ID, SCOPES, ENDPOINTS)
+  │
+  ├── protocol.ts        ← All constants from official 2.1.92
+  │     VERSION, CLIENT_ID, ATTRIBUTION_SALT, BETAS, SCOPES
+  │     IDENTITY_STRINGS, ENDPOINTS
+  │     (single file to update when official CLI upgrades)
+  │
+  ├── models.ts          ← Static model catalog
+  │     model IDs, context windows, max output, pricing
+  │
+  ├── convert.ts         ← LMv2 ↔ Anthropic format converters
+  │     convertPrompt(), convertTools(), convertSystemBlocks()
+  │
+  ├── headers.ts         ← HTTP header builder (from scratch)
+  │     buildHeaders(auth, model, betas, content)
+  │     buildBillingHeader(content, version)
+  │     assembleBetas(auth, model, features)
+  │
+  └── sse.ts             ← SSE stream parser
+        parseAnthropicSSE() → ReadableStream<LMv2StreamPart>
+        handles: message_start, content_block_*, message_delta, message_stop
+        strips mcp__ prefix from tool names
+```
 
-**不可以**：
-- 從 anthropic.ts 抄常數（它有已知偏差）
-- 自行猜測 hash 算法（必須逆向確認）
-- 假設 cch 值（official 是 hardcoded 00000）
+---
 
-**驗證項目清單：**
+## Risk Register
 
-| Request Component | 驗證方法 |
+| Risk | L | I | Mitigation |
+|---|---|---|---|
+| LMv2 message converter 有 edge case（image、多輪 tool） | M | H | 參考 @ai-sdk/anthropic converter，寫 test vectors |
+| SSE parser 漏處理某個 event type | M | M | 用 protocol-datasheet.md 的 event schema 逐一驗證 |
+| streamText() 升級改了 LMv2 interface | L | H | Pin ai 版本，升級時 review interface changes |
+| Host 端殘留 @ai-sdk/anthropic 依賴 | M | M | 其他 provider 仍用 SDK，只 claude-cli 不用 |
+| doGenerate (非 streaming) 也需要實作 | M | L | 先 stub throw，opencode 主流程都用 streamText |
+| Prompt caching 的 cache_control 格式微調 | L | H | 用 system-prompt-datasheet.md 逐 block 對齊 |
+
+---
+
+## v2 → v3 Migration Path
+
+| v2 Step | v3 替代 |
 |---|---|
-| `User-Agent` | strings 提取 → 比對 |
-| `anthropic-beta` | strings 提取 → 比對 |
-| `anthropic-version` | strings 提取 → 比對 |
-| `x-anthropic-billing-header` | 完整 format 逆向 → test vector |
-| System prompt identity | strings 提取 → 三變體確認 |
-| mcp_ prefix | 行為測試 → request/response 比對 |
-| ?beta=true URL | 行為測試 → URL 比對 |
-| Header scrub list | strings 提取 → 確認完整列表 |
-
-## Data / State / Control Flow
-
-### OAuth Flow (Code Paste Mode)
-
-```
-Host (TS)                        C Plugin                         Anthropic
-    |                                |                                |
-    |-- claude_login_start() ------->|                                |
-    |<-- { url, verifier } ----------|                                |
-    |                                |                                |
-    |== open browser(url) =========================================>|
-    |<== user copies code ==========================================|
-    |                                |                                |
-    |-- claude_login_exchange(code, verifier) -->|                    |
-    |                                |-- POST /v1/oauth/token ------->|
-    |                                |<-- { access, refresh } --------|
-    |                                |-- GET /api/oauth/profile ----->|
-    |                                |<-- { email, orgUuid } ---------|
-    |                                |-- storage_save() ------------->|
-    |<-- { ok, email, orgId } ------|                                |
-```
-
-### Request Flow
-
-```
-Host (TS)                        C Plugin                         Anthropic API
-    |                                |                                |
-    |-- claude_request(req, cb) ---->|                                |
-    |                                |-- refresh_if_needed() -------->|
-    |                                |-- transform_request() -------->|
-    |                                |   (mcp_ prefix, system prompt, |
-    |                                |    attribution hash)           |
-    |                                |-- POST /v1/messages?beta=true  |
-    |                                |   Headers: Bearer, betas,     |
-    |                                |   billing, User-Agent -------->|
-    |                                |<-- SSE stream events ---------|
-    |                                |-- parse_sse() --------------->|
-    |                                |   (strip mcp_ from response)  |
-    |<-- cb(event) -----------------|                                |
-    |<-- cb(event) -----------------|                                |
-    |<-- cb(COMPLETED) -------------|                                |
-```
-
-## Risks / Trade-offs
-
-- **Risk: OAuth 協議變更** — Anthropic 可能更新 scope、beta flags、或棄用 code paste mode。Mitigation: 將所有協議常數集中在 header 的 `#define` 區塊，變更時只需改一處。
-- **Risk: Bun FFI dual-library loading** — 同時 dlopen codex_provider.so 和 claude_provider.so 可能有 libcurl/OpenSSL 重複初始化問題。Mitigation: 兩個 library 各自 call `curl_global_init()` 時使用 `CURL_GLOBAL_NOTHING` 以避免重複初始化。
-- **Risk: SSE 格式差異** — Anthropic Messages API 的 SSE 格式與 OpenAI 不同（`event:` field 是 type discriminator，`data:` 是完整 JSON object）。Mitigation: 專用 SSE parser，不與 codex 共用。
-- **Trade-off: 靜態 model catalog** — 新模型上線需要更新 C 代碼並重新編譯。但訂閱制模型更新頻率低，且 host 可以從 models.dev 補充，可接受。
-- **Trade-off: Code paste vs local server** — Code paste 模式 UX 較差（多一步手動操作），但匹配 Anthropic 官方行為。未來如果 Anthropic 支援 localhost redirect，可以加 local server。
-
-## Critical Files
-
-- **`~/.local/share/claude/versions/LATEST`** — **Request signature 真相來源**（official binary，逆向提取協議常數）
-- `packages/opencode-codex-provider/include/codex_provider.h` — ABI 範本
-- `packages/opencode-codex-provider/src/*.c` — C 實現範本（每個 .c 對照改寫）
-- `packages/opencode/src/plugin/anthropic.ts` — 現有 TS 實現（參考，但有已知偏差，不作為 request signature 真相來源）
-- `packages/opencode/src/plugin/codex-native.ts` — FFI binding 範本
-- `packages/opencode/src/plugin/index.ts` — Plugin 載入入口（需小改）
+| Phase 0: Protocol sync | 保留 — 常數搬到 `protocol.ts` |
+| Phase 1: Hook 拆解 | 取消 — 不需要 hooks，provider 自己處理 |
+| Phase 2: Host 硬編碼清除 | 保留 — 仍需清除 `isClaudeCode` 等 |
+| Phase 3: Plugin pack | 變成 LMv2 provider package |

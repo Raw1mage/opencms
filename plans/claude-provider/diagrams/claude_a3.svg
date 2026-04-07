@@ -1,0 +1,52 @@
+<svg width="1405.5" height="981.8" viewBox="-314.0 -221.8 1405.5 981.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-314.0" y="-221.8" width="1405.5" height="981.8" fill="white" />
+<rect x="130.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A31" />
+<text x="230.0" y="186.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >A31</text>
+<text x="230.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >組裝測試功能旗標</text>
+<rect x="527.5" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A32" />
+<text x="627.5" y="186.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A32" >A32</text>
+<text x="627.5" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A32" >計算計費歸屬標頭</text>
+<rect x="130.0" y="400.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A33" />
+<text x="230.0" y="466.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A33" >A33</text>
+<text x="230.0" y="496.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A33" >建構請求標頭</text>
+<rect x="527.5" y="400.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A34" />
+<text x="627.5" y="466.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >A34</text>
+<text x="627.5" y="496.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >組合請求網址</text>
+<path d="M 727.5 200.0 L 757.5 200.0 Q 767.5 200.0 767.5 210.0 L 767.5 348.2 Q 767.5 358.2 757.5 358.2 L 90.0 358.2 Q 80.0 358.2 80.0 368.2 L 80.0 430.0 Q 80.0 440.0 90.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a3_f2" data-waypoints="727.5,200.0 767.5,200.0 767.5,358.2 80.0,358.2 80.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 200.0 L 383.2 200.0 Q 393.2 200.0 393.2 210.0 L 393.2 310.0 Q 393.2 320.0 383.2 320.0 L 50.0 320.0 Q 40.0 320.0 40.0 330.0 L 40.0 470.0 Q 40.0 480.0 50.0 480.0 L 130.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="a3_f1" data-waypoints="330.0,200.0 393.2,200.0 393.2,320.0 40.0,320.0 40.0,480.0 130.0,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -220.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a3_i1" data-waypoints="-220.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -220.0 78.2 L 454.2 78.2 Q 464.2 78.2 464.2 88.2 L 464.2 190.0 Q 464.2 200.0 474.2 200.0 L 527.5 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a3_i2" data-waypoints="-220.0,78.2 464.2,78.2 464.2,200.0 527.5,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -220.0 520.0 L 130.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="a3_i3" data-waypoints="-220.0,520.0 130.0,520.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 627.5 364.2 L 627.5 400.0" stroke="black" stroke-width="1.2" data-arrow-id="a3_c4" data-waypoints="627.5,364.2 627.5,400.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 480.0 L 383.2 480.0 Q 393.2 480.0 393.2 490.0 L 393.2 590.0 Q 393.2 600.0 403.2 600.0 L 1007.5 600.0" stroke="black" stroke-width="1.2" data-arrow-id="a3_o1" data-waypoints="330.0,480.0 393.2,480.0 393.2,600.0 1007.5,600.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 727.5 480.0 L 1007.5 480.0" stroke="black" stroke-width="1.2" data-arrow-id="a3_o2" data-waypoints="727.5,480.0 1007.5,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A31_control" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="224.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a3_c1" >測試旗標組裝規則</text>
+<text x="236.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a3_c5" >環境變數額外旗標</text>
+<path d="M 627.5 84.2 L 627.5 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a3_c2" data-waypoints="627.5,84.2 627.5,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="621.5" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a3_c2" >版本號＋</text>
+<text x="633.5" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a3_c2" >鹽值＋取樣索引</text>
+<path d="M 230.0 364.2 L 230.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="a3_c3" data-waypoints="230.0,364.2 230.0,400.0" marker-end="url(#arrow)" fill="none" />
+<text x="224.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a3_c3" >白名單</text>
+<text x="236.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a3_c3" >標頭規格</text>
+<rect x="-20.0" y="18.2" width="847.5" height="641.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="283.8" y="-181.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="403.8" y="-140.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >A3</text>
+<text x="403.8" y="-110.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >建構傳輸封包</text>
+<line x1="283.8" y1="-181.8" x2="-20.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="523.8" y1="-181.8" x2="827.5" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="283.8" y1="-71.8" x2="-20.0" y2="660.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="523.8" y1="-71.8" x2="827.5" y2="660.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="230.0" y="350.2" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a3_f2" >計費標頭數值</text>
+<text x="230.0" y="312.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a3_f1" >已組裝旗標字串</text>
+<text x="-24.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a3_i1" >驗證方式＋模型代號＋功能開關</text>
+<text x="-24.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a3_i2" >第一則使用者訊息內容</text>
+<text x="-24.0" y="512.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a3_i3" >存取權杖＋組織碼</text>
+<text x="623.5" y="395.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a3_c4" >基礎網址設定</text>
+<text x="831.5" y="592.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a3_o1" >乾淨請求標頭（從零建構）</text>
+<text x="831.5" y="472.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a3_o2" >請求網址</text>
+</svg>

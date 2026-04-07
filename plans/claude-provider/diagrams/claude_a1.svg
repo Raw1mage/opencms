@@ -1,0 +1,66 @@
+<svg width="1570.6" height="1051.6" viewBox="-242.0 -215.8 1570.6 1051.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-242.0" y="-215.8" width="1570.6" height="1051.6" fill="white" />
+<rect x="130.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A11" />
+<text x="230.0" y="186.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A11" >A11</text>
+<text x="230.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A11" >啟動授權登入流程</text>
+<rect x="554.6" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A12" />
+<text x="654.6" y="186.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >A12</text>
+<text x="654.6" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >兌換授權碼取得權杖</text>
+<rect x="854.6" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A13" />
+<text x="954.6" y="186.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A13" >A13</text>
+<text x="954.6" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A13" >取得使用者基本資料</text>
+<rect x="130.0" y="440.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A14" />
+<text x="230.0" y="506.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A14" >A14</text>
+<text x="230.0" y="536.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A14" >更新過期存取權杖</text>
+<rect x="554.6" y="440.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A15" />
+<text x="654.6" y="506.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A15" >A15</text>
+<text x="654.6" y="536.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A15" >儲存與載入憑證</text>
+<path d="M 330.0 200.0 L 554.6 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_f1" data-waypoints="330.0,200.0 554.6,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 754.6 200.0 L 854.6 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_f2" data-waypoints="754.6,200.0 854.6,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 560.0 L 554.6 560.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_f6" data-waypoints="330.0,560.0 554.6,560.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1054.6 226.7 L 1084.6 226.7 Q 1094.6 226.7 1094.6 236.7 L 1094.6 350.0 Q 1094.6 360.0 1084.6 360.0 L 510.8 360.0 Q 500.8 360.0 500.8 370.0 L 500.8 470.0 Q 500.8 480.0 510.8 480.0 L 554.6 480.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_f4" data-waypoints="1054.6,226.7 1094.6,226.7 1094.6,360.0 500.8,360.0 500.8,480.0 554.6,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 754.6 226.7 L 784.6 226.7 Q 794.6 226.7 794.6 236.7 L 794.6 315.7 Q 794.6 325.7 784.6 325.7 L 452.3 325.7 Q 442.3 325.7 442.3 335.7 L 442.3 510.0 Q 442.3 520.0 452.3 520.0 L 554.6 520.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_f3" data-waypoints="754.6,226.7 794.6,226.7 794.6,325.7 442.3,325.7 442.3,520.0 554.6,520.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 754.6 520.0 L 784.6 520.0 Q 794.6 520.0 794.6 530.0 L 794.6 631.8 Q 794.6 641.8 784.6 641.8 L 100.0 641.8 Q 90.0 641.8 90.0 631.8 L 90.0 530.0 Q 90.0 520.0 100.0 520.0 L 130.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_f5" data-waypoints="754.6,520.0 794.6,520.0 794.6,641.8 90.0,641.8 90.0,520.0 130.0,520.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -158.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_i1" data-waypoints="-158.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 654.6 315.8 L 654.6 280.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_m2" data-waypoints="654.6,315.8 654.6,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 635.8 L 230.0 600.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_m3" data-waypoints="230.0,635.8 230.0,600.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 654.6 635.8 L 654.6 600.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_m4" data-waypoints="654.6,635.8 654.6,600.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 493.3 L 373.8 493.3 Q 383.8 493.3 383.8 483.3 L 383.8 404.3 Q 383.8 394.3 393.8 394.3 L 1244.6 394.3" stroke="black" stroke-width="1.2" data-arrow-id="a1_o1" data-waypoints="330.0,493.3 383.8,493.3 383.8,394.3 1244.6,394.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 1054.6 173.3 L 1244.6 173.3" stroke="black" stroke-width="1.2" data-arrow-id="a1_o2" data-waypoints="1054.6,173.3 1244.6,173.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_c1" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="224.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a1_c1" >授權權限範圍與</text>
+<text x="236.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a1_c1" >端點位址</text>
+<path d="M 654.6 84.2 L 654.6 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_c2" data-waypoints="654.6,84.2 654.6,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="648.6" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a1_c2" >客戶端識別碼與</text>
+<text x="660.6" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a1_c2" >回呼網址</text>
+<path d="M 230.0 404.2 L 230.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_c3" data-waypoints="230.0,404.2 230.0,440.0" marker-end="url(#arrow)" fill="none" />
+<text x="224.0" y="435.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a1_c3" >更新用</text>
+<text x="236.0" y="435.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a1_c3" >權限範圍</text>
+<path d="M 230.0 315.8 L 230.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="a1_m1" data-waypoints="230.0,315.8 230.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="224.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a1_m1" >安全驗證</text>
+<text x="236.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a1_m1" >碼產生器</text>
+<rect x="30.0" y="24.2" width="1124.6" height="677.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="472.3" y="-175.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="592.3" y="-134.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >A1</text>
+<text x="592.3" y="-104.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >管理身分驗證</text>
+<line x1="472.3" y1="-175.8" x2="30.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="712.3" y1="-175.8" x2="1154.6" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="472.3" y1="-65.8" x2="30.0" y2="701.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="712.3" y1="-65.8" x2="1154.6" y2="701.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="442.3" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a1_f1" >授權網址與驗證碼</text>
+<text x="804.6" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a1_f2" >新鮮存取權杖</text>
+<text x="442.3" y="552.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a1_f6" >已更新的權杖組</text>
+<text x="654.6" y="352.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a1_f4" >個人資料（信箱+組織碼）</text>
+<text x="537.9" y="317.7" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a1_f3" >權杖組（更新+存取+到期時間）</text>
+<text x="442.3" y="633.8" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a1_f5" >已儲存的更新權杖</text>
+<text x="26.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a1_i1" >驗證模式（訂閱制/主控台）</text>
+<text x="650.6" y="296.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a1_m2" >網路請求工具</text>
+<text x="226.0" y="616.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a1_m3" >併發互斥鎖</text>
+<text x="650.6" y="616.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a1_m4" >帳號管理介面</text>
+<text x="1158.6" y="386.3" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a1_o1" >有效存取權杖</text>
+<text x="1158.6" y="165.3" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a1_o2" >組織識別碼</text>
+</svg>

@@ -1,70 +1,51 @@
 {
-  "diagram_title": "Manage Authentication Lifecycle — A2 Decomposition",
+  "diagram_title": "轉換請求格式",
   "node_reference": "A2",
   "activities": [
     {
       "id": "A21",
-      "title": "Generate PKCE Challenge",
-      "description": "Create cryptographically random verifier (43+ chars), compute SHA-256 hash, base64url-encode as challenge. Generate random state for CSRF protection.",
-      "decomposition": null
+      "title": "轉換對話訊息",
+      "description": "將標準訊息陣列轉為 Anthropic 格式（文字、圖片、工具呼叫、工具結果）",
+      "decomposition": "A21"
     },
     {
       "id": "A22",
-      "title": "Construct Authorization URL",
-      "description": "Build https://platform.claude.com/oauth/authorize with query parameters: client_id, response_type=code, redirect_uri, scope, code_challenge, code_challenge_method=S256, state.",
-      "decomposition": null
+      "title": "組建系統提示區塊",
+      "description": "組裝身分宣告、靜態指令、分界標記、動態段落，並設定快取策略",
+      "decomposition": "A22"
     },
     {
       "id": "A23",
-      "title": "Exchange Authorization Code",
-      "description": "POST to https://platform.claude.com/v1/oauth/token with grant_type=authorization_code, code (from user paste), client_id, redirect_uri, code_verifier. Receive access_token, refresh_token, expires_in.",
+      "title": "轉換工具定義",
+      "description": "將標準工具清單轉為 Anthropic 工具格式，並加上命名前綴",
       "decomposition": null
     },
     {
       "id": "A24",
-      "title": "Fetch User Profile",
-      "description": "GET https://api.anthropic.com/api/oauth/profile with Bearer token. Extract emailAddress, organizationUuid. These become accountId and orgID.",
+      "title": "轉換思考模式設定",
+      "description": "將思考預算等選項轉為 Anthropic 思考參數格式",
       "decomposition": null
     },
     {
       "id": "A25",
-      "title": "Persist Credentials",
-      "description": "Write auth.json to {claude_home}/ with type, refresh, access, expires, email, orgID. Set file permissions to 0600.",
-      "decomposition": null
-    },
-    {
-      "id": "A26",
-      "title": "Refresh Expired Token",
-      "description": "POST to https://platform.claude.com/v1/oauth/token with grant_type=refresh_token, refresh_token, client_id, scope=(user:profile user:inference user:sessions:claude_code user:mcp_servers). Note: org:create_api_key is NOT included in refresh scopes.",
-      "decomposition": null
-    },
-    {
-      "id": "A27",
-      "title": "Report Authentication Status",
-      "description": "Populate claude_auth_status_t struct: mode, authenticated, stale, email, org_id, access_token. Check token expiry to set stale flag.",
+      "title": "序列化請求主體",
+      "description": "將組裝完成的請求物件一次性轉為文字格式",
       "decomposition": null
     }
   ],
   "arrows": [
-    { "id": "AR1", "source": "EXTERNAL", "target": "A21:control", "label": "OAuth Endpoint Spec", "type": "control" },
-    { "id": "AR2", "source": "A21", "target": "A22:input", "label": "PKCE Verifier + Challenge + State", "type": "input" },
-    { "id": "AR3", "source": "EXTERNAL", "target": "A22:control", "label": "Client ID + Scopes + Redirect URI", "type": "control" },
-    { "id": "AR4", "source": "A22", "target": "EXTERNAL", "label": "Authorization URL", "type": "output" },
-    { "id": "AR5", "source": "EXTERNAL", "target": "A23:input", "label": "User Authorization Code", "type": "input" },
-    { "id": "AR6", "source": "A21", "target": "A23:input", "label": "PKCE Verifier", "type": "input" },
-    { "id": "AR7", "source": "A23", "target": "A24:input", "label": "Access Token", "type": "input" },
-    { "id": "AR8", "source": "A23", "target": "A25:input", "label": "Token Set (access + refresh + expires)", "type": "input" },
-    { "id": "AR9", "source": "A24", "target": "A25:input", "label": "User Profile (email + orgUuid)", "type": "input" },
-    { "id": "AR10", "source": "A25", "target": "EXTERNAL", "label": "Stored Credentials (auth.json)", "type": "output" },
-    { "id": "AR11", "source": "A25", "target": "A27:input", "label": "Credential State", "type": "input" },
-    { "id": "AR12", "source": "A26", "target": "A25:input", "label": "Refreshed Token Set", "type": "input" },
-    { "id": "AR13", "source": "A27", "target": "EXTERNAL", "label": "Auth Credentials (for packet assembly)", "type": "output" },
-    { "id": "AR14", "source": "EXTERNAL", "target": "A21:mechanism", "label": "OpenSSL (RAND_bytes + SHA-256)", "type": "mechanism" },
-    { "id": "AR15", "source": "EXTERNAL", "target": "A23:mechanism", "label": "libcurl (HTTPS POST)", "type": "mechanism" },
-    { "id": "AR16", "source": "EXTERNAL", "target": "A24:mechanism", "label": "libcurl (HTTPS GET)", "type": "mechanism" },
-    { "id": "AR17", "source": "EXTERNAL", "target": "A25:mechanism", "label": "Filesystem (write + chmod)", "type": "mechanism" },
-    { "id": "AR18", "source": "EXTERNAL", "target": "A26:mechanism", "label": "libcurl (HTTPS POST)", "type": "mechanism" },
-    { "id": "AR19", "source": "EXTERNAL", "target": "A25:control", "label": "Storage Mode Config", "type": "control" },
-    { "id": "AR20", "source": "EXTERNAL", "target": "A26:control", "label": "Refresh Scopes (excludes org:create_api_key)", "type": "control" }
+    {"id": "a2_i1", "source": "EXTERNAL", "target": "A21:input", "label": "標準對話訊息", "type": "input"},
+    {"id": "a2_i2", "source": "EXTERNAL", "target": "A22:input", "label": "系統提示段落", "type": "input"},
+    {"id": "a2_i3", "source": "EXTERNAL", "target": "A23:input", "label": "標準工具定義清單", "type": "input"},
+    {"id": "a2_i4", "source": "EXTERNAL", "target": "A24:input", "label": "思考模式選項", "type": "input"},
+    {"id": "a2_c1", "source": "EXTERNAL", "target": "A21:control", "label": "Anthropic 訊息格式規範", "type": "control"},
+    {"id": "a2_c2", "source": "EXTERNAL", "target": "A23:control", "label": "工具命名前綴規則", "type": "control"},
+    {"id": "a2_c3", "source": "EXTERNAL", "target": "A22:control", "label": "協議常數", "type": "control"},
+    {"id": "a2_f1", "source": "A21", "target": "A25:input", "label": "Anthropic 訊息陣列", "type": "input"},
+    {"id": "a2_f2", "source": "A22", "target": "A25:input", "label": "系統提示區塊陣列", "type": "input"},
+    {"id": "a2_f3", "source": "A23", "target": "A25:input", "label": "Anthropic 工具陣列", "type": "input"},
+    {"id": "a2_f4", "source": "A24", "target": "A25:input", "label": "思考參數", "type": "input"},
+    {"id": "a2_m1", "source": "EXTERNAL", "target": "A25:mechanism", "label": "序列化工具", "type": "mechanism"},
+    {"id": "a2_o1", "source": "A25", "target": "EXTERNAL", "label": "請求主體（文字格式）", "type": "output"}
   ]
 }

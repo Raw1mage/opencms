@@ -1,0 +1,49 @@
+<svg width="1187.4" height="941.8" viewBox="-149.0 -221.8 1187.4 941.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-149.0" y="-221.8" width="1187.4" height="941.8" fill="white" />
+<rect x="130.0" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A211" />
+<text x="230.0" y="186.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A211" >A211</text>
+<text x="230.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A211" >轉換文字與圖片內容</text>
+<rect x="514.4" y="120.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A212" />
+<text x="614.4" y="186.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A212" >A212</text>
+<text x="614.4" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A212" >轉換工具呼叫內容</text>
+<rect x="130.0" y="360.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A213" />
+<text x="230.0" y="426.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A213" >A213</text>
+<text x="230.0" y="456.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A213" >轉換工具結果內容</text>
+<rect x="514.4" y="360.0" width="200.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A214" />
+<text x="614.4" y="426.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A214" >A214</text>
+<text x="614.4" y="456.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A214" >組裝角色交替訊息陣列</text>
+<path d="M 330.0 480.0 L 514.4 480.0" stroke="black" stroke-width="1.2" data-arrow-id="a21_f3" data-waypoints="330.0,480.0 514.4,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 200.0 L 371.1 200.0 Q 381.1 200.0 381.1 210.0 L 381.1 430.0 Q 381.1 440.0 391.1 440.0 L 514.4 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a21_f1" data-waypoints="330.0,200.0 381.1,200.0 381.1,440.0 514.4,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 714.4 200.0 L 744.4 200.0 Q 754.4 200.0 754.4 210.0 L 754.4 308.2 Q 754.4 318.2 744.4 318.2 L 432.2 318.2 Q 422.2 318.2 422.2 328.2 L 422.2 390.0 Q 422.2 400.0 432.2 400.0 L 514.4 400.0" stroke="black" stroke-width="1.2" data-arrow-id="a21_f2" data-waypoints="714.4,200.0 754.4,200.0 754.4,318.2 422.2,318.2 422.2,400.0 514.4,400.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -65.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a21_i1" data-waypoints="-65.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -65.0 78.2 L 453.3 78.2 Q 463.3 78.2 463.3 88.2 L 463.3 190.0 Q 463.3 200.0 473.3 200.0 L 514.4 200.0" stroke="black" stroke-width="1.2" data-arrow-id="a21_i2" data-waypoints="-65.0,78.2 463.3,78.2 463.3,200.0 514.4,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -65.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a21_i3" data-waypoints="-65.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 614.4 324.2 L 614.4 360.0" stroke="black" stroke-width="1.2" data-arrow-id="a21_c3" data-waypoints="614.4,324.2 614.4,360.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 714.4 440.0 L 954.4 440.0" stroke="black" stroke-width="1.2" data-arrow-id="a21_o1" data-waypoints="714.4,440.0 954.4,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a21_c1" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="224.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a21_c1" >Anthropic</text>
+<text x="236.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a21_c1" >內容區塊格式</text>
+<path d="M 614.4 84.2 L 614.4 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a21_c2" data-waypoints="614.4,84.2 614.4,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="608.4" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a21_c2" >工具命名</text>
+<text x="620.4" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a21_c2" >前綴規則</text>
+<rect x="70.0" y="18.2" width="744.4" height="561.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="322.2" y="-181.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A21" />
+<text x="442.2" y="-140.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >A21</text>
+<text x="442.2" y="-110.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >轉換對話訊息</text>
+<line x1="322.2" y1="-181.8" x2="70.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="562.2" y1="-181.8" x2="814.4" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="322.2" y1="-71.8" x2="70.0" y2="580.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="562.2" y1="-71.8" x2="814.4" y2="580.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="422.2" y="472.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a21_f3" >已轉換的工具結果區塊</text>
+<text x="377.1" y="327.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a21_f1" >已轉換的文字與圖片區塊</text>
+<text x="614.4" y="310.2" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a21_f2" >已轉換的工具使用區塊</text>
+<text x="66.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a21_i1" >標準文字與圖片訊息</text>
+<text x="66.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a21_i2" >標準工具呼叫訊息</text>
+<text x="66.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a21_i3" >標準工具結果訊息</text>
+<text x="610.4" y="355.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a21_c3" >角色交替規則</text>
+<text x="818.4" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a21_o1" >Anthropic 訊息陣列</text>
+</svg>

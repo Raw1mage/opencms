@@ -1,0 +1,51 @@
+{
+  "diagram_title": "組裝測試功能旗標",
+  "node_reference": "A31",
+  "activities": [
+    {
+      "id": "A311",
+      "title": "載入最低必要旗標",
+      "description": "加入身分識別、交錯思考、上下文管理三項固定旗標",
+      "decomposition": null
+    },
+    {
+      "id": "A312",
+      "title": "加入驗證方式條件旗標",
+      "description": "若為訂閱制驗證，加入授權旗標與提示快取範圍旗標",
+      "decomposition": null
+    },
+    {
+      "id": "A313",
+      "title": "加入模型能力條件旗標",
+      "description": "依模型支援的能力加入：百萬上下文、思考遮蔽、結構化輸出、算力預算旗標",
+      "decomposition": null
+    },
+    {
+      "id": "A314",
+      "title": "加入功能開關條件旗標",
+      "description": "依功能開關加入：快速模式、離席模式、任務預算、顧問工具旗標",
+      "decomposition": null
+    },
+    {
+      "id": "A315",
+      "title": "合併環境變數旗標並去重",
+      "description": "附加環境變數指定的額外旗標，移除重複項目後輸出最終旗標字串",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {"id": "a31_i1", "source": "EXTERNAL", "target": "A312:input", "label": "驗證方式", "type": "input"},
+    {"id": "a31_i2", "source": "EXTERNAL", "target": "A313:input", "label": "模型代號", "type": "input"},
+    {"id": "a31_i3", "source": "EXTERNAL", "target": "A314:input", "label": "功能開關狀態", "type": "input"},
+    {"id": "a31_i4", "source": "EXTERNAL", "target": "A315:input", "label": "環境變數額外旗標", "type": "input"},
+    {"id": "a31_c1", "source": "EXTERNAL", "target": "A311:control", "label": "最低必要旗標清單", "type": "control"},
+    {"id": "a31_c2", "source": "EXTERNAL", "target": "A312:control", "label": "驗證方式與旗標對照表", "type": "control"},
+    {"id": "a31_c3", "source": "EXTERNAL", "target": "A313:control", "label": "模型能力與旗標對照表", "type": "control"},
+    {"id": "a31_c4", "source": "EXTERNAL", "target": "A314:control", "label": "功能開關與旗標對照表", "type": "control"},
+    {"id": "a31_f1", "source": "A311", "target": "A312:input", "label": "必要旗標集合", "type": "input"},
+    {"id": "a31_f2", "source": "A312", "target": "A313:input", "label": "加入驗證旗標後的集合", "type": "input"},
+    {"id": "a31_f3", "source": "A313", "target": "A314:input", "label": "加入模型旗標後的集合", "type": "input"},
+    {"id": "a31_f4", "source": "A314", "target": "A315:input", "label": "加入功能旗標後的集合", "type": "input"},
+    {"id": "a31_o1", "source": "A315", "target": "EXTERNAL", "label": "已組裝旗標字串（已去重）", "type": "output"}
+  ]
+}

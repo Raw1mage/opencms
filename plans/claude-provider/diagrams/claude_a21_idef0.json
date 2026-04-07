@@ -1,0 +1,42 @@
+{
+  "diagram_title": "轉換對話訊息",
+  "node_reference": "A21",
+  "activities": [
+    {
+      "id": "A211",
+      "title": "轉換文字與圖片內容",
+      "description": "將標準文字與圖片訊息轉為 Anthropic 的文字區塊與圖片區塊格式",
+      "decomposition": null
+    },
+    {
+      "id": "A212",
+      "title": "轉換工具呼叫內容",
+      "description": "將標準工具呼叫轉為 Anthropic 的工具使用區塊，並加上命名前綴",
+      "decomposition": null
+    },
+    {
+      "id": "A213",
+      "title": "轉換工具結果內容",
+      "description": "將標準工具結果轉為 Anthropic 的工具結果區塊，附帶成功或失敗狀態",
+      "decomposition": null
+    },
+    {
+      "id": "A214",
+      "title": "組裝角色交替訊息陣列",
+      "description": "確保使用者與助理訊息嚴格交替排列，合併相鄰同角色訊息",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {"id": "a21_i1", "source": "EXTERNAL", "target": "A211:input", "label": "標準文字與圖片訊息", "type": "input"},
+    {"id": "a21_i2", "source": "EXTERNAL", "target": "A212:input", "label": "標準工具呼叫訊息", "type": "input"},
+    {"id": "a21_i3", "source": "EXTERNAL", "target": "A213:input", "label": "標準工具結果訊息", "type": "input"},
+    {"id": "a21_c1", "source": "EXTERNAL", "target": "A211:control", "label": "Anthropic 內容區塊格式", "type": "control"},
+    {"id": "a21_c2", "source": "EXTERNAL", "target": "A212:control", "label": "工具命名前綴規則", "type": "control"},
+    {"id": "a21_c3", "source": "EXTERNAL", "target": "A214:control", "label": "角色交替規則", "type": "control"},
+    {"id": "a21_f1", "source": "A211", "target": "A214:input", "label": "已轉換的文字與圖片區塊", "type": "input"},
+    {"id": "a21_f2", "source": "A212", "target": "A214:input", "label": "已轉換的工具使用區塊", "type": "input"},
+    {"id": "a21_f3", "source": "A213", "target": "A214:input", "label": "已轉換的工具結果區塊", "type": "input"},
+    {"id": "a21_o1", "source": "A214", "target": "EXTERNAL", "label": "Anthropic 訊息陣列", "type": "output"}
+  ]
+}

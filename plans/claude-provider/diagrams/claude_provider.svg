@@ -1,0 +1,74 @@
+<svg width="1762.0" height="1013.4" viewBox="-272.0 -257.6 1762.0 1013.4" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-272.0" y="-257.6" width="1762.0" height="1013.4" fill="white" />
+<rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="230.0" y="166.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >A1</text>
+<text x="230.0" y="196.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >管理身分驗證</text>
+<rect x="560.8" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="660.8" y="166.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >A2</text>
+<text x="660.8" y="196.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >轉換請求格式</text>
+<rect x="932.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="1032.0" y="166.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >A3</text>
+<text x="1032.0" y="196.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >建構傳輸封包</text>
+<rect x="130.0" y="360.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="230.0" y="406.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >A4</text>
+<text x="230.0" y="436.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >執行網路傳輸</text>
+<rect x="560.8" y="360.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
+<text x="660.8" y="406.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A5" >A5</text>
+<text x="660.8" y="436.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A5" >轉換回應格式</text>
+<path d="M 760.8 200.0 L 932.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR06" data-waypoints="760.8,200.0 932.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 420.0 L 560.8 420.0" stroke="black" stroke-width="1.2" data-arrow-id="AR11" data-waypoints="330.0,420.0 560.8,420.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1132.0 180.0 L 1162.0 180.0 Q 1172.0 180.0 1172.0 190.0 L 1172.0 307.1 Q 1172.0 317.1 1162.0 317.1 L 100.0 317.1 Q 90.0 317.1 90.0 327.1 L 90.0 410.0 Q 90.0 420.0 100.0 420.0 L 130.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="AR08" data-waypoints="1132.0,180.0 1172.0,180.0 1172.0,317.1 90.0,317.1 90.0,420.0 130.0,420.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 180.0 L 405.3 180.0 Q 415.3 180.0 415.3 170.0 L 415.3 88.2 Q 415.3 78.2 425.3 78.2 L 881.8 78.2 Q 891.8 78.2 891.8 88.2 L 891.8 150.0 Q 891.8 160.0 901.8 160.0 L 932.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="AR05" data-waypoints="330.0,180.0 415.3,180.0 415.3,78.2 891.8,78.2 891.8,160.0 932.0,160.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -188.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="AR01" data-waypoints="-188.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -188.0 282.9 L 465.5 282.9 Q 475.5 282.9 475.5 272.9 L 475.5 190.0 Q 475.5 180.0 485.5 180.0 L 560.8 180.0" stroke="black" stroke-width="1.2" data-arrow-id="AR03" data-waypoints="-188.0,282.9 475.5,282.9 475.5,180.0 560.8,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 324.2 L 230.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="AR09" data-waypoints="230.0,324.2 230.0,360.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 515.8 L 230.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="AR10" data-waypoints="230.0,515.8 230.0,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 760.8 420.0 L 1406.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="AR13" data-waypoints="760.8,420.0 1406.0,420.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 275.8 L 230.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="AR15" data-waypoints="230.0,275.8 230.0,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR02" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="224.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR02" >授權設定</text>
+<text x="236.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR02" >（協議常數）</text>
+<path d="M 660.8 84.2 L 660.8 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR04" data-waypoints="660.8,84.2 660.8,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="654.8" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR04" >Anthropic</text>
+<text x="666.8" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR04" >格式規範</text>
+<path d="M 1032.0 84.2 L 1032.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR07" data-waypoints="1032.0,84.2 1032.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="1026.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR07" >協議常數（版本、</text>
+<text x="1038.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR07" >旗標、鹽值）</text>
+<path d="M 660.8 324.2 L 660.8 360.0" stroke="black" stroke-width="1.2" data-arrow-id="AR12" data-waypoints="660.8,324.2 660.8,360.0" marker-end="url(#arrow)" fill="none" />
+<text x="654.8" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR12" >串流事件格式＋</text>
+<text x="666.8" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR12" >命名前綴規則</text>
+<path d="M 660.8 515.8 L 660.8 480.0" stroke="black" stroke-width="1.2" data-arrow-id="AR16" data-waypoints="660.8,515.8 660.8,480.0" marker-end="url(#arrow)" fill="none" />
+<text x="654.8" y="496.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR16" >文字解碼器與</text>
+<text x="666.8" y="496.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR16" >串流讀取器</text>
+<rect x="30.0" y="18.2" width="1202.0" height="557.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="510.0" y="-181.8" width="242.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="631.0" y="-155.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >A0</text>
+<text x="631.0" y="-125.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >處理 CLAUDE CLI</text>
+<text x="631.0" y="-95.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >介面請求</text>
+<line x1="510.0" y1="-181.8" x2="30.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="752.0" y1="-181.8" x2="1232.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="510.0" y1="-71.8" x2="30.0" y2="575.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="752.0" y1="-71.8" x2="1232.0" y2="575.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 474.2 -126.8 L 510.0 -126.8" stroke="black" stroke-width="1.2" data-arrow-id="ctx_in" data-waypoints="474.2,-126.8 510.0,-126.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 631.0 -217.6 L 631.0 -181.8" stroke="black" stroke-width="1.2" data-arrow-id="ctx_ctl" data-waypoints="631.0,-217.6 631.0,-181.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 752.0 -126.8 L 787.8 -126.8" stroke="black" stroke-width="1.2" data-arrow-id="ctx_out" data-waypoints="752.0,-126.8 787.8,-126.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 631.0 -36.0 L 631.0 -71.8" stroke="black" stroke-width="1.2" data-arrow-id="ctx_mec" data-waypoints="631.0,-36.0 631.0,-71.8" marker-end="url(#arrow)" fill="none" />
+<text x="875.7" y="194.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR06">請求主體</text>
+<text x="875.7" y="216.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR06">（文字格式）</text>
+<text x="445.4" y="412.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR11" >串流回應主體</text>
+<text x="660.8" y="309.1" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR08" >網址＋標頭＋主體</text>
+<text x="660.8" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR05" >有效存取權杖＋組織碼</text>
+<text x="26.0" y="172.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR01" >標準對話呼叫選項</text>
+<text x="26.0" y="274.9" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR03" >標準對話呼叫選項（訊息/工具）</text>
+<text x="226.0" y="355.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR09" >錯誤分類規則</text>
+<text x="226.0" y="496.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR10" >網路請求工具</text>
+<text x="1236.0" y="412.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR13" >標準串流片段 / 用量指標</text>
+<text x="226.0" y="256.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR15" >帳號管理介面</text>
+<text x="506.0" y="-134.8" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="ctx_in" >標準對話呼叫選項</text>
+<text x="627.0" y="-186.8" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="ctx_ctl" >協議常數</text>
+<text x="756.0" y="-134.8" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="ctx_out" >標準串流片段</text>
+</svg>

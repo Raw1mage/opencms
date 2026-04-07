@@ -1,0 +1,55 @@
+<svg width="1297.4" height="901.8" viewBox="-234.0 -221.8 1297.4 901.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-234.0" y="-221.8" width="1297.4" height="901.8" fill="white" />
+<rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A421" />
+<text x="230.0" y="166.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A421" >A421</text>
+<text x="230.0" y="196.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A421" >判斷成功回應</text>
+<rect x="514.4" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A422" />
+<text x="614.4" y="166.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A422" >A422</text>
+<text x="614.4" y="196.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A422" >處理未授權回應</text>
+<rect x="130.0" y="360.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A423" />
+<text x="230.0" y="406.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A423" >A423</text>
+<text x="230.0" y="436.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A423" >識別流量限制回應</text>
+<rect x="514.4" y="360.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A424" />
+<text x="614.4" y="406.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A424" >A424</text>
+<text x="614.4" y="436.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A424" >報告不可恢復錯誤</text>
+<path d="M 330.0 180.0 L 514.4 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a42_f1" data-waypoints="330.0,180.0 514.4,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 420.0 L 514.4 420.0" stroke="black" stroke-width="1.2" data-arrow-id="a42_f3" data-waypoints="330.0,420.0 514.4,420.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 714.4 200.0 L 744.4 200.0 Q 754.4 200.0 754.4 210.0 L 754.4 270.0 Q 754.4 280.0 744.4 280.0 L 100.0 280.0 Q 90.0 280.0 90.0 290.0 L 90.0 410.0 Q 90.0 420.0 100.0 420.0 L 130.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="a42_f2" data-waypoints="714.4,200.0 754.4,200.0 754.4,280.0 90.0,280.0 90.0,420.0 130.0,420.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -150.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a42_i1" data-waypoints="-150.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 160.0 L 347.6 160.0 Q 357.6 160.0 357.6 150.0 L 357.6 88.2 Q 357.6 78.2 367.6 78.2 L 979.4 78.2" stroke="black" stroke-width="1.2" data-arrow-id="a42_o1" data-waypoints="330.0,160.0 357.6,160.0 357.6,78.2 979.4,78.2" marker-end="url(#arrow)" fill="none" />
+<path d="M 714.4 160.0 L 979.4 160.0" stroke="black" stroke-width="1.2" data-arrow-id="a42_o2" data-waypoints="714.4,160.0 979.4,160.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 400.0 L 347.6 400.0 Q 357.6 400.0 357.6 390.0 L 357.6 328.2 Q 357.6 318.2 367.6 318.2 L 979.4 318.2" stroke="black" stroke-width="1.2" data-arrow-id="a42_o3" data-waypoints="330.0,400.0 357.6,400.0 357.6,318.2 979.4,318.2" marker-end="url(#arrow)" fill="none" />
+<path d="M 714.4 420.0 L 979.4 420.0" stroke="black" stroke-width="1.2" data-arrow-id="a42_o4" data-waypoints="714.4,420.0 979.4,420.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a42_c1" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="224.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a42_c1" >成功狀</text>
+<text x="236.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a42_c1" >態碼範圍</text>
+<path d="M 614.4 84.2 L 614.4 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a42_c2" data-waypoints="614.4,84.2 614.4,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="608.4" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a42_c2" >未授權狀態碼</text>
+<text x="620.4" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a42_c2" >（401）</text>
+<path d="M 230.0 324.2 L 230.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="a42_c3" data-waypoints="230.0,324.2 230.0,360.0" marker-end="url(#arrow)" fill="none" />
+<text x="224.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a42_c3" >流量限制狀態碼</text>
+<text x="236.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a42_c3" >（429）</text>
+<path d="M 614.4 324.2 L 614.4 360.0" stroke="black" stroke-width="1.2" data-arrow-id="a42_c4" data-waypoints="614.4,324.2 614.4,360.0" marker-end="url(#arrow)" fill="none" />
+<text x="608.4" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a42_c4" >不可重試</text>
+<text x="620.4" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a42_c4" >狀態碼清單</text>
+<rect x="30.0" y="18.2" width="784.4" height="521.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="302.2" y="-181.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A42" />
+<text x="422.2" y="-140.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A42" >A42</text>
+<text x="422.2" y="-110.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A42" >分類回應狀態</text>
+<line x1="302.2" y1="-181.8" x2="30.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="542.2" y1="-181.8" x2="814.4" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="302.2" y1="-71.8" x2="30.0" y2="540.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="542.2" y1="-71.8" x2="814.4" y2="540.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="422.2" y="172.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a42_f1" >非成功回應</text>
+<text x="422.2" y="412.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a42_f3" >非流量限制回應</text>
+<text x="614.4" y="272.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a42_f2" >非未授權回應</text>
+<text x="26.0" y="172.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a42_i1" >網路回應（狀態碼＋主體）</text>
+<text x="818.4" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a42_o1" >串流回應主體</text>
+<text x="877.2" y="152.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a42_o2" >重新驗證請求</text>
+<text x="818.4" y="310.2" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a42_o3" >流量限制訊號＋等待時間</text>
+<text x="818.4" y="412.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a42_o4" >不可重試錯誤</text>
+</svg>

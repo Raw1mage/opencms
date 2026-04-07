@@ -8,11 +8,11 @@ const log = Log.create({ service: "plugin.claude-cli" })
 
 // GLOBAL CONSTANTS
 const CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
-const VERSION = "2.1.39"
+const VERSION = "2.1.92"
 const ATTRIBUTION_SALT = "59cf53e54c78"
 
 // STATE (Cross-request cache) - Sessions API deprecated, using ?beta=true strategy
-const TOOL_PREFIX = "mcp_"
+const TOOL_PREFIX = "mcp__"
 
 // Token refresh mutex — prevents concurrent refresh races
 // FIX: Multiple parallel requests detecting expired token would all trigger refresh,
@@ -69,7 +69,7 @@ async function authorize(mode: "max" | "console") {
   url.searchParams.set("redirect_uri", "https://platform.claude.com/oauth/code/callback")
   url.searchParams.set(
     "scope",
-    "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers",
+    "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload",
   )
   url.searchParams.set("code_challenge", pkce.challenge)
   url.searchParams.set("code_challenge_method", "S256")
@@ -159,16 +159,14 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                   refreshPromise = (async () => {
                     try {
                       log.info("Refreshing token for claude-cli...")
-                      // FIX: Use exact scope list from official Claude CLI (v2.1.37+)
-                      // The original code included "org:create_api_key" which is NOT in the
-                      // official refresh token request, causing "invalid_scope" error.
-                      // Official scope: ["user:profile", "user:inference", "user:sessions:claude_code", "user:mcp_servers"]
+                      // Official scope list from Claude CLI v2.1.92
                       // @event_20260214_oauth_refresh_invalid_scope
                       const REFRESH_SCOPES = [
                         "user:profile",
                         "user:inference",
                         "user:sessions:claude_code",
                         "user:mcp_servers",
+                        "user:file_upload",
                       ]
                       const response = await fetch("https://platform.claude.com/v1/oauth/token", {
                         method: "POST",
@@ -231,15 +229,24 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
             // User-Agent format from reference: claude-code/VERSION
             requestHeaders.set("User-Agent", `claude-code/${VERSION}`)
 
-            // Merge required betas with any incoming betas from SDK
-            // claude-code-20250219 is CRITICAL - it identifies the request as Claude Code
+            // Beta flags: minimum required (always) + conditional (per auth/model)
+            // Ref: claude-code@2.1.92 — gD1 set + conditional assembly
             const incomingBeta = requestHeaders.get("anthropic-beta") || ""
             const incomingBetasList = incomingBeta
               .split(",")
               .map((b) => b.trim())
               .filter(Boolean)
-            const requiredBetas = ["oauth-2025-04-20", "claude-code-20250219", "interleaved-thinking-2025-05-14"]
-            const mergedBetas = [...new Set([...requiredBetas, ...incomingBetasList])].join(",")
+            const minimumBetas = [
+              "claude-code-20250219",
+              "interleaved-thinking-2025-05-14",
+              "context-management-2025-06-27",
+            ]
+            // Auth-conditional betas (subscription/oauth only)
+            const authBetas =
+              auth.type === "oauth" || auth.type === "subscription"
+                ? ["oauth-2025-04-20", "prompt-caching-scope-2026-01-05"]
+                : []
+            const mergedBetas = [...new Set([...minimumBetas, ...authBetas, ...incomingBetasList])].join(",")
             requestHeaders.set("anthropic-beta", mergedBetas)
             // Note: Removed x-anthropic-additional-protection as it's not in reference implementation
             if (auth.orgID) requestHeaders.set("x-organization-uuid", auth.orgID)
@@ -378,13 +385,15 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
                         (typeof msg.content !== "object" || (Array.isArray(msg.content) && msg.content.length > 0)),
                     )
 
-                  // 3d. Add billing header from last user message
-                  const lastMessage = parsed.messages[parsed.messages.length - 1]
-                  if (lastMessage) {
+                  // 3d. Add billing header from first non-meta user message (matches official 2.1.92 HBY)
+                  const firstUserMessage = parsed.messages.find(
+                    (m: any) => m.role === "user" && !m.meta,
+                  )
+                  if (firstUserMessage) {
                     const userContent =
-                      typeof lastMessage.content === "string"
-                        ? lastMessage.content
-                        : JSON.stringify(lastMessage.content)
+                      typeof firstUserMessage.content === "string"
+                        ? firstUserMessage.content
+                        : JSON.stringify(firstUserMessage.content)
                     requestHeaders.set("x-anthropic-billing-header", getBillingHeader(userContent))
                   }
                 }

@@ -1,0 +1,44 @@
+{
+  "diagram_title": "分類回應狀態",
+  "node_reference": "A42",
+  "activities": [
+    {
+      "id": "A421",
+      "title": "判斷成功回應",
+      "description": "若回應狀態碼為成功，將回應主體導向串流處理管線",
+      "decomposition": null
+    },
+    {
+      "id": "A422",
+      "title": "處理未授權回應",
+      "description": "若回應狀態碼為未授權，觸發權杖更新後重新發送請求",
+      "decomposition": null
+    },
+    {
+      "id": "A423",
+      "title": "識別流量限制回應",
+      "description": "若回應狀態碼為流量限制，提取重試等待時間後送交重試處理",
+      "decomposition": null
+    },
+    {
+      "id": "A424",
+      "title": "報告不可恢復錯誤",
+      "description": "若為伺服器錯誤或其他無法重試的狀態，組裝錯誤訊息並終止流程",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {"id": "a42_i1", "source": "EXTERNAL", "target": "A421:input", "label": "網路回應（狀態碼＋主體）", "type": "input"},
+    {"id": "a42_c1", "source": "EXTERNAL", "target": "A421:control", "label": "成功狀態碼範圍", "type": "control"},
+    {"id": "a42_c2", "source": "EXTERNAL", "target": "A422:control", "label": "未授權狀態碼（401）", "type": "control"},
+    {"id": "a42_c3", "source": "EXTERNAL", "target": "A423:control", "label": "流量限制狀態碼（429）", "type": "control"},
+    {"id": "a42_c4", "source": "EXTERNAL", "target": "A424:control", "label": "不可重試狀態碼清單", "type": "control"},
+    {"id": "a42_f1", "source": "A421", "target": "A422:input", "label": "非成功回應", "type": "input"},
+    {"id": "a42_f2", "source": "A422", "target": "A423:input", "label": "非未授權回應", "type": "input"},
+    {"id": "a42_f3", "source": "A423", "target": "A424:input", "label": "非流量限制回應", "type": "input"},
+    {"id": "a42_o1", "source": "A421", "target": "EXTERNAL", "label": "串流回應主體", "type": "output"},
+    {"id": "a42_o2", "source": "A422", "target": "EXTERNAL", "label": "重新驗證請求", "type": "output"},
+    {"id": "a42_o3", "source": "A423", "target": "EXTERNAL", "label": "流量限制訊號＋等待時間", "type": "output"},
+    {"id": "a42_o4", "source": "A424", "target": "EXTERNAL", "label": "不可重試錯誤", "type": "output"}
+  ]
+}

@@ -1,69 +1,44 @@
 {
-  "diagram_title": "Assemble Request Packet — A3 Decomposition",
+  "diagram_title": "建構傳輸封包",
   "node_reference": "A3",
   "activities": [
     {
       "id": "A31",
-      "title": "Inject System Prompt Identity",
-      "description": "Select correct system prompt variant based on session mode (interactive / agent-SDK / pure-agent). Prepend to system block if not present. Filter empty text blocks.",
-      "decomposition": null
+      "title": "組裝測試功能旗標",
+      "description": "根據驗證方式、模型、功能開關動態組合測試功能旗標",
+      "decomposition": "A31"
     },
     {
       "id": "A32",
-      "title": "Prefix Tool Names",
-      "description": "Add mcp_ prefix to all tool names in tools array definitions. Add mcp_ prefix to tool_use blocks in messages content. Guard against double-prefix. Filter empty text blocks from messages.",
+      "title": "計算計費歸屬標頭",
+      "description": "以歸屬演算法對第一則使用者訊息內容進行雜湊",
       "decomposition": null
     },
     {
       "id": "A33",
-      "title": "Compute Attribution Header",
-      "description": "Build x-anthropic-billing-header value: cc_version=VERSION.HASH; cc_entrypoint=ENTRYPOINT; cch=00000;[ cc_workload=WORKLOAD;]. Compute HASH from last user message per official algorithm. Read ENTRYPOINT from env. Conditionally include cc_workload.",
+      "title": "建構請求標頭",
+      "description": "從空白開始組建：授權、測試旗標、使用者代理、計費、版本、組織碼",
       "decomposition": null
     },
     {
       "id": "A34",
-      "title": "Assemble Request Headers",
-      "description": "Set: Authorization (Bearer token), anthropic-version (2023-06-01), Content-Type (application/json), User-Agent (claude-code/VERSION), anthropic-beta (merged required + additional + incoming), x-organization-uuid (if orgID), x-anthropic-billing-header (from A33).",
-      "decomposition": null
-    },
-    {
-      "id": "A35",
-      "title": "Scrub Prohibited Headers",
-      "description": "Remove: x-api-key, anthropic-client, x-app, x-opencode-tools-debug, x-opencode-account-id, session_id. These headers trigger Anthropic non-Claude-Code detection.",
-      "decomposition": null
-    },
-    {
-      "id": "A36",
-      "title": "Rewrite Request URL",
-      "description": "Normalize path: relative → https://api.anthropic.com/v1/PATH. Append ?beta=true to /v1/messages endpoint (skip if already present).",
-      "decomposition": null
-    },
-    {
-      "id": "A37",
-      "title": "Serialize Wire-Format Body",
-      "description": "JSON-stringify the transformed body (after system prompt, tool prefix, empty block filter). This is the final body bytes sent over the wire.",
+      "title": "組合請求網址",
+      "description": "基礎網址加上訊息端點與測試參數",
       "decomposition": null
     }
   ],
   "arrows": [
-    { "id": "AR1", "source": "EXTERNAL", "target": "A31:input", "label": "Raw API Request (body JSON)", "type": "input" },
-    { "id": "AR2", "source": "EXTERNAL", "target": "A31:control", "label": "Session Mode Flag (interactive/agent-SDK/pure-agent)", "type": "control" },
-    { "id": "AR3", "source": "EXTERNAL", "target": "A31:control", "label": "Protocol Datasheet — System Prompt Variants", "type": "control" },
-    { "id": "AR4", "source": "A31", "target": "A32:input", "label": "Body with System Prompt", "type": "input" },
-    { "id": "AR5", "source": "A32", "target": "A33:input", "label": "Body with Prefixed Tools", "type": "input" },
-    { "id": "AR6", "source": "A32", "target": "A37:input", "label": "Transformed Body Object", "type": "input" },
-    { "id": "AR7", "source": "A33", "target": "A34:input", "label": "Attribution Header Value", "type": "input" },
-    { "id": "AR8", "source": "EXTERNAL", "target": "A33:control", "label": "Protocol Datasheet — Attribution Format", "type": "control" },
-    { "id": "AR9", "source": "EXTERNAL", "target": "A33:control", "label": "CLAUDE_CODE_ENTRYPOINT env", "type": "control" },
-    { "id": "AR10", "source": "EXTERNAL", "target": "A34:input", "label": "Auth Credentials (access_token, orgID)", "type": "input" },
-    { "id": "AR11", "source": "EXTERNAL", "target": "A34:control", "label": "Protocol Datasheet — Required Betas + Version", "type": "control" },
-    { "id": "AR12", "source": "A34", "target": "A35:input", "label": "Assembled Headers", "type": "input" },
-    { "id": "AR13", "source": "A35", "target": "EXTERNAL", "label": "Clean Request Headers", "type": "output" },
-    { "id": "AR14", "source": "EXTERNAL", "target": "A36:input", "label": "Original Request URL", "type": "input" },
-    { "id": "AR15", "source": "A36", "target": "EXTERNAL", "label": "Rewritten URL (with ?beta=true)", "type": "output" },
-    { "id": "AR16", "source": "A37", "target": "EXTERNAL", "label": "Wire-Format Body Bytes", "type": "output" },
-    { "id": "AR17", "source": "EXTERNAL", "target": "A35:control", "label": "Protocol Datasheet — Header Scrub List", "type": "control" },
-    { "id": "AR18", "source": "EXTERNAL", "target": "A33:mechanism", "label": "OpenSSL (SHA-256 for hash)", "type": "mechanism" },
-    { "id": "AR19", "source": "EXTERNAL", "target": "A37:mechanism", "label": "cJSON (serialization)", "type": "mechanism" }
+    {"id": "a3_i1", "source": "EXTERNAL", "target": "A31:input", "label": "驗證方式＋模型代號＋功能開關", "type": "input"},
+    {"id": "a3_i2", "source": "EXTERNAL", "target": "A32:input", "label": "第一則使用者訊息內容", "type": "input"},
+    {"id": "a3_i3", "source": "EXTERNAL", "target": "A33:input", "label": "存取權杖＋組織碼", "type": "input"},
+    {"id": "a3_c1", "source": "EXTERNAL", "target": "A31:control", "label": "測試旗標組裝規則", "type": "control"},
+    {"id": "a3_c2", "source": "EXTERNAL", "target": "A32:control", "label": "版本號＋鹽值＋取樣索引", "type": "control"},
+    {"id": "a3_c3", "source": "EXTERNAL", "target": "A33:control", "label": "白名單標頭規格", "type": "control"},
+    {"id": "a3_c4", "source": "EXTERNAL", "target": "A34:control", "label": "基礎網址設定", "type": "control"},
+    {"id": "a3_c5", "source": "EXTERNAL", "target": "A31:control", "label": "環境變數額外旗標", "type": "control"},
+    {"id": "a3_f1", "source": "A31", "target": "A33:input", "label": "已組裝旗標字串", "type": "input"},
+    {"id": "a3_f2", "source": "A32", "target": "A33:input", "label": "計費標頭數值", "type": "input"},
+    {"id": "a3_o1", "source": "A33", "target": "EXTERNAL", "label": "乾淨請求標頭（從零建構）", "type": "output"},
+    {"id": "a3_o2", "source": "A34", "target": "EXTERNAL", "label": "請求網址", "type": "output"}
   ]
 }

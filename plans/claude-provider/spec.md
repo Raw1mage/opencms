@@ -1,150 +1,123 @@
-# Spec
+# Spec (v3)
+
+> v1: C11 native plugin (abandoned)
+> v2: Hook-based refactor (superseded)
+> v3: Native LanguageModelV2 implementation
+> Updated: 2026-04-07
 
 ## Purpose
 
-- 以 C11 native plugin 復現 claude-cli provider 的 Anthropic OAuth 協議、request 變形、SSE 串流能力，與 codex provider 形成對稱架構
+以自製的 `LanguageModelV2` 實作取代 `@ai-sdk/anthropic`，達成：
+1. Request fingerprint 與官方 `claude-code@2.1.92` 完全一致
+2. HTTP 層零 SDK 污染（無中間層 header 注入、無 body re-serialize）
+3. System prompt cache_control 精確對齊官方結構
+4. 自包含 provider package，host 無硬編碼
 
-## Requirements
+---
 
-### Requirement: OAuth PKCE Browser Flow
+## Requirement 1: Fingerprint Fidelity
 
-The system SHALL implement Anthropic's browser-based OAuth PKCE authorization flow, matching official Claude CLI behavior.
+The provider SHALL produce HTTP requests indistinguishable from official Claude CLI 2.1.92. **No intermediate layer shall modify headers or body between the provider and the wire.**
 
-#### Scenario: Successful browser OAuth login
+### Scenario: Headers built from scratch
 
-- **GIVEN** the plugin is initialized with default config
-- **WHEN** `claude_login_browser()` is called
-- **THEN** a local HTTP server starts on the configured callback port
-- **THEN** the system browser opens `https://platform.claude.com/oauth/authorize` with correct parameters (client_id, code_challenge, scope, state)
-- **THEN** upon receiving the callback, the plugin exchanges the authorization code for tokens via `POST https://platform.claude.com/v1/oauth/token`
-- **THEN** the refresh token, access token, and expiry are persisted via storage backend
-- **THEN** the auth callback is invoked with `CLAUDE_OK` and user email
+- **GIVEN** the provider's `doStream()` is called
+- **WHEN** headers are constructed
+- **THEN** headers are built from an empty `Headers` object (not inheriting from `init.headers`)
+- **AND** only official-spec headers are present on the wire
+- **AND** no `anthropic-client`, `x-stainless-*`, or other SDK-injected headers exist
 
-#### Scenario: OAuth state mismatch
+### Scenario: Body directly serialized
 
-- **GIVEN** the plugin is waiting for OAuth callback
-- **WHEN** the callback contains a mismatched state parameter
-- **THEN** the auth callback is invoked with `CLAUDE_ERR_AUTH_STATE_MISMATCH`
-- **THEN** no tokens are stored
+- **GIVEN** the provider's `doStream()` is called
+- **WHEN** the request body is built
+- **THEN** the provider converts `LanguageModelV2CallOptions` directly to Anthropic format
+- **AND** `JSON.stringify` is called exactly once (no parse→modify→re-serialize)
 
-### Requirement: Device Code Flow
+### Scenario: Wire format matches official
 
-The system SHALL implement Anthropic's device code authorization flow for headless environments.
+- **GIVEN** a subscription-auth messages request
+- **THEN** wire format matches protocol-datasheet.md exactly:
+  - `User-Agent: claude-code/2.1.92`
+  - `anthropic-version: 2023-06-01`
+  - `anthropic-beta: claude-code-20250219,interleaved-thinking-2025-05-14,context-management-2025-06-27[,oauth-2025-04-20,prompt-caching-scope-2026-01-05]`
+  - `x-anthropic-billing-header: cc_version=2.1.92.{hash}; cc_entrypoint={ep}; cch=00000;`
+  - URL: `https://api.anthropic.com/v1/messages?beta=true`
+  - System block[0] = billing header text (no cache)
+  - System block[1] = identity string (cache: org)
 
-#### Scenario: Successful device code login
+---
 
-- **GIVEN** the plugin is initialized
-- **WHEN** `claude_login_device()` is called
-- **THEN** the device code callback is invoked with verification URL and user code
-- **THEN** the plugin polls the token endpoint until authorization is granted
-- **THEN** tokens are persisted and auth callback invoked with success
+## Requirement 2: AI SDK Layer Separation
 
-### Requirement: Token Refresh
+The provider SHALL replace `@ai-sdk/anthropic` while preserving `ai` core orchestration.
 
-The system SHALL automatically refresh expired OAuth tokens before API requests.
+### Scenario: streamText integration
 
-#### Scenario: Token refresh with valid refresh token
+- **GIVEN** `streamText()` is called with the provider's model
+- **WHEN** the orchestration layer invokes `model.doStream()`
+- **THEN** the provider handles the full HTTP lifecycle internally
+- **AND** `streamText()` receives `ReadableStream<LanguageModelV2StreamPart>` without knowing the transport
 
-- **GIVEN** an authenticated session with an expired access token
-- **WHEN** a request is initiated or `claude_refresh_token()` is called
-- **THEN** the plugin sends `POST https://platform.claude.com/v1/oauth/token` with `grant_type=refresh_token` and correct scopes (user:profile, user:inference, user:sessions:claude_code, user:mcp_servers)
-- **THEN** the access token is updated and stale flag is cleared
+### Scenario: No @ai-sdk/anthropic in claude-cli path
 
-#### Scenario: Token refresh with revoked refresh token
+- **GIVEN** a claude-cli provider is active
+- **WHEN** tracing the call stack from `streamText()` to HTTP
+- **THEN** `@ai-sdk/anthropic` is NOT in the call stack
+- **AND** only `ai` (core) and `@ai-sdk/provider` (types) are used
 
-- **GIVEN** an authenticated session with a revoked refresh token
-- **WHEN** `claude_refresh_token()` is called
-- **THEN** the function returns `CLAUDE_ERR_REFRESH_REVOKED`
-- **THEN** auth status shows `authenticated = 0`
+### Scenario: Other providers unaffected
 
-### Requirement: Request Transformation (Claude Code Protocol)
+- **GIVEN** a non-claude-cli provider (codex, copilot, google-api)
+- **WHEN** it uses `@ai-sdk/anthropic` or other SDK providers
+- **THEN** its behavior is unchanged
 
-The system SHALL transform outgoing API requests to conform to the Claude Code subscription protocol.
+---
 
-#### Scenario: Tool name prefixing
+## Requirement 3: System Prompt Cache Alignment
 
-- **GIVEN** a request body with tools array containing tool names
-- **WHEN** `claude_transform_request()` processes the body
-- **THEN** all tool names are prefixed with `mcp_` (unless already prefixed)
-- **THEN** tool_use blocks in messages are also prefixed
+The provider SHALL produce system prompt blocks with `cache_control` matching official structure (see system-prompt-datasheet.md).
 
-#### Scenario: System prompt injection
+### Scenario: Boundary-based caching
 
-- **GIVEN** a request body with or without system prompt
-- **WHEN** `claude_transform_request()` processes the body
-- **THEN** the system prompt starts with "You are Claude Code, Anthropic's official CLI for Claude."
+- **GIVEN** prompt sections include static and dynamic content
+- **WHEN** system blocks are generated
+- **THEN** blocks before `__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__` have `cache_control: { type: "ephemeral", scope: "global" }`
+- **AND** blocks after boundary have no `cache_control`
+- **AND** identity block has `cache_control: { type: "ephemeral", scope: "org" }` (not global)
+- **AND** billing header block has no `cache_control`
 
-#### Scenario: Beta endpoint routing
+### Scenario: Cache hit verification
 
-- **GIVEN** a request targeting `/v1/messages`
-- **WHEN** the URL is constructed
-- **THEN** `?beta=true` is appended to the URL
+- **GIVEN** a multi-turn conversation with stable static sections
+- **WHEN** the second turn is sent
+- **THEN** `cache_read_input_tokens > 0` in the response usage
 
-#### Scenario: Attribution header (x-anthropic-billing-header)
+---
 
-- **GIVEN** a request is being prepared
-- **WHEN** the billing header is computed
-- **THEN** the format is exactly `cc_version=VERSION.HASH; cc_entrypoint=ENTRYPOINT; cch=00000;[ cc_workload=WORKLOAD;]`
-- **THEN** `cch` is hardcoded `00000` (not computed)
-- **THEN** `cc_entrypoint` reads from `CLAUDE_CODE_ENTRYPOINT` env, defaults to `"unknown"`
-- **THEN** `cc_workload` is optional (included only when workload context available)
-- **THEN** the hash computation matches the official binary's algorithm (逆向驗證)
+## Requirement 4: Host Decoupling
 
-#### Scenario: System prompt identity variants
+NO file in host (`packages/opencode/src/`) outside of the provider package SHALL contain claude-cli branching logic.
 
-- **GIVEN** a request is being prepared
-- **WHEN** the system prompt identity is selected
-- **THEN** interactive mode uses: "You are Claude Code, Anthropic's official CLI for Claude."
-- **THEN** non-interactive with append uses: "You are Claude Code, Anthropic's official CLI for Claude, running within the Claude Agent SDK."
-- **THEN** non-interactive pure agent uses: "You are a Claude agent, built on Anthropic's Claude Agent SDK."
+### Scenario: No isClaudeCode flag
 
-### Requirement: SSE Streaming (Anthropic Messages API)
+- **GIVEN** the provider is integrated
+- **WHEN** grepping host code for `isClaudeCode` or `providerId === "claude-cli"`
+- **THEN** zero matches outside the provider package
 
-The system SHALL parse Server-Sent Events from the Anthropic Messages API and deliver structured events to the host.
+### Scenario: Provider self-registration
 
-#### Scenario: Successful streaming response
+- **GIVEN** the provider package is loaded
+- **WHEN** host queries available models
+- **THEN** model catalog comes from the provider package, not from `provider.ts` hardcoded lists
 
-- **GIVEN** a valid authenticated request
-- **WHEN** the API returns an SSE stream
-- **THEN** each SSE event is parsed and delivered as a `claude_event_t` via the event callback
-- **THEN** event types include: message_start, content_block_start, content_block_delta, content_block_stop, message_delta, message_stop
-- **THEN** the callback receives text deltas, tool use deltas, and thinking/reasoning blocks
+---
 
-#### Scenario: mcp_ prefix stripping in response
+## Architecture Constraints
 
-- **GIVEN** a streaming response containing tool names with `mcp_` prefix
-- **WHEN** events are parsed
-- **THEN** the `mcp_` prefix is stripped from tool names before delivery to host
-
-### Requirement: Credential Storage
-
-The system SHALL persist OAuth credentials using the configured storage backend.
-
-#### Scenario: File-based storage
-
-- **GIVEN** storage mode is `CLAUDE_STORAGE_FILE` with `claude_home` set
-- **WHEN** credentials are saved
-- **THEN** an `auth.json` file is written at `{claude_home}/auth.json` with tokens, email, and plan type
-- **THEN** file permissions are set to 0600
-
-### Requirement: Model Catalog
-
-The system SHALL report a static catalog of available Claude models.
-
-#### Scenario: Get models
-
-- **GIVEN** the plugin is initialized
-- **WHEN** `claude_get_models()` is called
-- **THEN** the function returns at least 5 Claude models (Haiku 4.5, Sonnet 4.5, Sonnet 4.6, Opus 4.5, Opus 4.6)
-- **THEN** each model includes id, name, family="claude", capabilities, limits, and cost=0 (subscription)
-
-## Acceptance Checks
-
-- `claude_login_browser()` completes OAuth flow and stores credentials
-- `claude_refresh_token()` refreshes an expired token using correct scopes
-- `claude_transform_request()` produces correctly prefixed tool names and injected system prompt
-- Attribution hash matches reference implementation output for test vectors
-- SSE parser correctly handles multi-line data fields and event boundaries
-- `claude_get_models()` returns the expected model catalog
-- `claude-native.ts` successfully loads the library and reads ABI version
-- CLI executable (`claude-provider`) can perform auth status check via stdio
+1. **LanguageModelV2 contract**: Provider MUST implement `doStream()` and `doGenerate()` per `@ai-sdk/provider` spec.
+2. **Auth separation**: OAuth PKCE flow and token refresh MUST be separate from transport (`doStream`). Token is passed as config, not obtained inside fetch.
+3. **Single serialize**: Request body MUST be serialized exactly once — no parse→modify→re-serialize chain.
+4. **Whitelist headers**: Headers MUST be built from empty, not inherited from any upstream layer.
+5. **Backward compat**: Existing OAuth credentials (refresh tokens in accounts.json) MUST continue to work.
+6. **No custom-loaders**: Provider MUST NOT use opencode's custom-loaders-def.ts pipeline. It manages its own SDK instance or raw fetch.

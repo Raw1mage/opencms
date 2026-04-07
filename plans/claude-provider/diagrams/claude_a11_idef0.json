@@ -1,0 +1,34 @@
+{
+  "diagram_title": "啟動授權登入流程",
+  "node_reference": "A11",
+  "activities": [
+    {
+      "id": "A111",
+      "title": "產生安全驗證碼",
+      "description": "以隨機亂數產生 PKCE 驗證碼與挑戰碼，挑戰碼用 SHA-256 雜湊",
+      "decomposition": null
+    },
+    {
+      "id": "A112",
+      "title": "決定授權權限範圍",
+      "description": "根據驗證模式（訂閱制或主控台）選擇對應的權限範圍清單",
+      "decomposition": null
+    },
+    {
+      "id": "A113",
+      "title": "組合授權網址",
+      "description": "將客戶端識別碼、回呼網址、權限範圍、挑戰碼組裝成完整授權網址",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {"id": "a11_i1", "source": "EXTERNAL", "target": "A111:input", "label": "驗證模式（訂閱制/主控台）", "type": "input"},
+    {"id": "a11_c1", "source": "EXTERNAL", "target": "A112:control", "label": "各模式權限範圍對照表", "type": "control"},
+    {"id": "a11_c2", "source": "EXTERNAL", "target": "A113:control", "label": "客戶端識別碼與回呼網址", "type": "control"},
+    {"id": "a11_c3", "source": "EXTERNAL", "target": "A113:control", "label": "授權端點位址", "type": "control"},
+    {"id": "a11_m1", "source": "EXTERNAL", "target": "A111:mechanism", "label": "安全亂數產生器＋SHA-256", "type": "mechanism"},
+    {"id": "a11_f1", "source": "A111", "target": "A113:input", "label": "驗證碼與挑戰碼", "type": "input"},
+    {"id": "a11_f2", "source": "A112", "target": "A113:input", "label": "選定的權限範圍清單", "type": "input"},
+    {"id": "a11_o1", "source": "A113", "target": "EXTERNAL", "label": "授權網址與驗證碼", "type": "output"}
+  ]
+}

@@ -1,0 +1,307 @@
+{
+    "diagram_title": "處理 Claude CLI 介面請求",
+    "node_reference": "A0",
+    "activities": [
+        {
+            "id": "A1",
+            "title": "管理身分驗證",
+            "description": "處理登入授權、權杖更新、憑證儲存",
+            "decomposition": {
+                "diagram_title": "管理身分驗證",
+                "node_reference": "A1",
+                "activities": [
+                    {
+                        "id": "A11",
+                        "title": "啟動授權登入流程",
+                        "description": "產生安全驗證碼，組合授權網址與權限範圍"
+                    },
+                    {
+                        "id": "A12",
+                        "title": "兌換授權碼取得權杖",
+                        "description": "向權杖端點提交授權碼，取回更新與存取權杖"
+                    },
+                    {
+                        "id": "A13",
+                        "title": "取得使用者基本資料",
+                        "description": "查詢個人資料端點，取得信箱與組織識別碼"
+                    },
+                    {
+                        "id": "A14",
+                        "title": "更新過期存取權杖",
+                        "description": "以互斥鎖保護的權杖更新，使用正確權限範圍"
+                    },
+                    {
+                        "id": "A15",
+                        "title": "儲存與載入憑證",
+                        "description": "透過帳號管理介面存取權杖資料"
+                    }
+                ],
+                "arrows": [
+                    {"id": "a1_i1", "source": "EXTERNAL", "target": "A11:input", "label": "驗證模式（訂閱制/主控台）"},
+                    {"id": "a1_c1", "source": "EXTERNAL", "target": "A11:control", "label": "授權權限範圍與端點位址"},
+                    {"id": "a1_c2", "source": "EXTERNAL", "target": "A12:control", "label": "客戶端識別碼與回呼網址"},
+                    {"id": "a1_c3", "source": "EXTERNAL", "target": "A14:control", "label": "更新用權限範圍"},
+                    {"id": "a1_m1", "source": "EXTERNAL", "target": "A11:mechanism", "label": "安全驗證碼產生器"},
+                    {"id": "a1_m2", "source": "EXTERNAL", "target": "A12:mechanism", "label": "網路請求工具"},
+                    {"id": "a1_m3", "source": "EXTERNAL", "target": "A14:mechanism", "label": "併發互斥鎖"},
+                    {"id": "a1_m4", "source": "EXTERNAL", "target": "A15:mechanism", "label": "帳號管理介面"},
+                    {"id": "a1_f1", "source": "A11:output", "target": "A12:input", "label": "授權網址與驗證碼"},
+                    {"id": "a1_f2", "source": "A12:output", "target": "A13:input", "label": "新鮮存取權杖"},
+                    {"id": "a1_f3", "source": "A12:output", "target": "A15:input", "label": "權杖組（更新+存取+到期時間）"},
+                    {"id": "a1_f4", "source": "A13:output", "target": "A15:input", "label": "個人資料（信箱+組織碼）"},
+                    {"id": "a1_f5", "source": "A15:output", "target": "A14:input", "label": "已儲存的更新權杖"},
+                    {"id": "a1_f6", "source": "A14:output", "target": "A15:input", "label": "已更新的權杖組"},
+                    {"id": "a1_o1", "source": "A14:output", "target": "EXTERNAL", "label": "有效存取權杖"},
+                    {"id": "a1_o2", "source": "A13:output", "target": "EXTERNAL", "label": "組織識別碼"}
+                ]
+            }
+        },
+        {
+            "id": "A2",
+            "title": "轉換請求格式",
+            "description": "將標準對話選項轉為 Anthropic 訊息、系統提示、工具格式",
+            "decomposition": {
+                "diagram_title": "轉換請求格式",
+                "node_reference": "A2",
+                "activities": [
+                    {
+                        "id": "A21",
+                        "title": "轉換對話訊息",
+                        "description": "將標準訊息陣列轉為 Anthropic 格式（文字、圖片、工具呼叫、工具結果）"
+                    },
+                    {
+                        "id": "A22",
+                        "title": "組建系統提示區塊",
+                        "description": "組裝身分宣告、靜態指令、分界標記、動態段落，並設定快取策略",
+                        "decomposition": {
+                            "diagram_title": "組建系統提示區塊",
+                            "node_reference": "A22",
+                            "activities": [
+                                {
+                                    "id": "A221",
+                                    "title": "產出計費標頭區塊",
+                                    "description": "系統區塊第零層：計費標頭文字，不設快取"
+                                },
+                                {
+                                    "id": "A222",
+                                    "title": "產出身分宣告區塊",
+                                    "description": "系統區塊第一層：官方身分識別字串，組織級快取"
+                                },
+                                {
+                                    "id": "A223",
+                                    "title": "產出靜態指令區塊",
+                                    "description": "系統區塊第二層：分界標記之前的程式指令、工具說明、語氣風格，全域快取"
+                                },
+                                {
+                                    "id": "A224",
+                                    "title": "產出動態段落區塊",
+                                    "description": "系統區塊第三層起：分界標記之後的記憶、環境資訊、對話引導，不設快取"
+                                }
+                            ],
+                            "arrows": [
+                                {"id": "a22_i1", "source": "EXTERNAL", "target": "A221:input", "label": "第一則使用者訊息內容"},
+                                {"id": "a22_i2", "source": "EXTERNAL", "target": "A223:input", "label": "靜態指令段落"},
+                                {"id": "a22_i3", "source": "EXTERNAL", "target": "A224:input", "label": "動態段落（記憶、環境等）"},
+                                {"id": "a22_c1", "source": "EXTERNAL", "target": "A221:control", "label": "版本號與雜湊鹽值"},
+                                {"id": "a22_c2", "source": "EXTERNAL", "target": "A222:control", "label": "身分變體選擇規則"},
+                                {"id": "a22_c3", "source": "EXTERNAL", "target": "A223:control", "label": "分界標記位置"},
+                                {"id": "a22_c4", "source": "EXTERNAL", "target": "A223:control", "label": "快取範圍規則"},
+                                {"id": "a22_m1", "source": "EXTERNAL", "target": "A221:mechanism", "label": "歸屬雜湊演算器"},
+                                {"id": "a22_f1", "source": "A221:output", "target": "A222:input", "label": "計費標頭文字區塊"},
+                                {"id": "a22_o1", "source": "A224:output", "target": "EXTERNAL", "label": "完整系統提示區塊陣列"}
+                            ]
+                        }
+                    },
+                    {
+                        "id": "A23",
+                        "title": "轉換工具定義",
+                        "description": "將標準工具清單轉為 Anthropic 工具格式，並加上命名前綴"
+                    },
+                    {
+                        "id": "A24",
+                        "title": "轉換思考模式設定",
+                        "description": "將思考預算等選項轉為 Anthropic 思考參數格式"
+                    },
+                    {
+                        "id": "A25",
+                        "title": "序列化請求主體",
+                        "description": "將組裝完成的請求物件一次性轉為文字格式"
+                    }
+                ],
+                "arrows": [
+                    {"id": "a2_i1", "source": "EXTERNAL", "target": "A21:input", "label": "標準對話訊息"},
+                    {"id": "a2_i2", "source": "EXTERNAL", "target": "A22:input", "label": "系統提示段落"},
+                    {"id": "a2_i3", "source": "EXTERNAL", "target": "A23:input", "label": "標準工具定義清單"},
+                    {"id": "a2_i4", "source": "EXTERNAL", "target": "A24:input", "label": "思考模式選項"},
+                    {"id": "a2_c1", "source": "EXTERNAL", "target": "A21:control", "label": "Anthropic 訊息格式規範"},
+                    {"id": "a2_c2", "source": "EXTERNAL", "target": "A23:control", "label": "工具命名前綴規則"},
+                    {"id": "a2_c3", "source": "EXTERNAL", "target": "A22:control", "label": "協議常數"},
+                    {"id": "a2_f1", "source": "A21:output", "target": "A25:input", "label": "Anthropic 訊息陣列"},
+                    {"id": "a2_f2", "source": "A22:output", "target": "A25:input", "label": "系統提示區塊陣列"},
+                    {"id": "a2_f3", "source": "A23:output", "target": "A25:input", "label": "Anthropic 工具陣列"},
+                    {"id": "a2_f4", "source": "A24:output", "target": "A25:input", "label": "思考參數"},
+                    {"id": "a2_m1", "source": "EXTERNAL", "target": "A25:mechanism", "label": "序列化工具"},
+                    {"id": "a2_o1", "source": "A25:output", "target": "EXTERNAL", "label": "請求主體（文字格式）"}
+                ]
+            }
+        },
+        {
+            "id": "A3",
+            "title": "建構傳輸封包",
+            "description": "從零建構請求標頭與網址",
+            "decomposition": {
+                "diagram_title": "建構傳輸封包",
+                "node_reference": "A3",
+                "activities": [
+                    {
+                        "id": "A31",
+                        "title": "組裝測試功能旗標",
+                        "description": "根據驗證方式、模型、功能開關動態組合測試功能旗標"
+                    },
+                    {
+                        "id": "A32",
+                        "title": "計算計費歸屬標頭",
+                        "description": "以歸屬演算法對第一則使用者訊息內容進行雜湊"
+                    },
+                    {
+                        "id": "A33",
+                        "title": "建構請求標頭",
+                        "description": "從空白開始組建：授權、測試旗標、使用者代理、計費、版本、組織碼"
+                    },
+                    {
+                        "id": "A34",
+                        "title": "組合請求網址",
+                        "description": "基礎網址加上訊息端點與測試參數"
+                    }
+                ],
+                "arrows": [
+                    {"id": "a3_i1", "source": "EXTERNAL", "target": "A31:input", "label": "驗證方式＋模型代號＋功能開關"},
+                    {"id": "a3_i2", "source": "EXTERNAL", "target": "A32:input", "label": "第一則使用者訊息內容"},
+                    {"id": "a3_i3", "source": "EXTERNAL", "target": "A33:input", "label": "存取權杖＋組織碼"},
+                    {"id": "a3_c1", "source": "EXTERNAL", "target": "A31:control", "label": "測試旗標組裝規則"},
+                    {"id": "a3_c2", "source": "EXTERNAL", "target": "A32:control", "label": "版本號＋鹽值＋取樣索引"},
+                    {"id": "a3_c3", "source": "EXTERNAL", "target": "A33:control", "label": "白名單標頭規格"},
+                    {"id": "a3_c4", "source": "EXTERNAL", "target": "A34:control", "label": "基礎網址設定"},
+                    {"id": "a3_c5", "source": "EXTERNAL", "target": "A31:control", "label": "環境變數額外旗標"},
+                    {"id": "a3_f1", "source": "A31:output", "target": "A33:input", "label": "已組裝旗標字串"},
+                    {"id": "a3_f2", "source": "A32:output", "target": "A33:input", "label": "計費標頭數值"},
+                    {"id": "a3_o1", "source": "A33:output", "target": "EXTERNAL", "label": "乾淨請求標頭（從零建構）"},
+                    {"id": "a3_o2", "source": "A34:output", "target": "EXTERNAL", "label": "請求網址"}
+                ]
+            }
+        },
+        {
+            "id": "A4",
+            "title": "執行網路傳輸",
+            "description": "發送請求、處理錯誤與重試",
+            "decomposition": {
+                "diagram_title": "執行網路傳輸",
+                "node_reference": "A4",
+                "activities": [
+                    {
+                        "id": "A41",
+                        "title": "發送請求",
+                        "description": "以網址、標頭、主體發出網路請求"
+                    },
+                    {
+                        "id": "A42",
+                        "title": "分類回應狀態",
+                        "description": "分流：成功→串流、未授權→重新驗證、流量限制→重試、伺服器錯誤→報錯"
+                    },
+                    {
+                        "id": "A43",
+                        "title": "處理流量限制重試",
+                        "description": "遞增等待時間後重新發送請求"
+                    }
+                ],
+                "arrows": [
+                    {"id": "a4_i1", "source": "EXTERNAL", "target": "A41:input", "label": "請求網址＋標頭＋主體"},
+                    {"id": "a4_c1", "source": "EXTERNAL", "target": "A42:control", "label": "錯誤分類規則"},
+                    {"id": "a4_c2", "source": "EXTERNAL", "target": "A43:control", "label": "重試策略（等待倍增設定）"},
+                    {"id": "a4_m1", "source": "EXTERNAL", "target": "A41:mechanism", "label": "網路請求工具"},
+                    {"id": "a4_f1", "source": "A41:output", "target": "A42:input", "label": "網路回應"},
+                    {"id": "a4_f2", "source": "A42:output", "target": "A43:input", "label": "流量限制訊號"},
+                    {"id": "a4_f3", "source": "A43:output", "target": "A41:input", "label": "重試請求"},
+                    {"id": "a4_o1", "source": "A42:output", "target": "EXTERNAL", "label": "串流回應主體"},
+                    {"id": "a4_o2", "source": "A42:output", "target": "EXTERNAL", "label": "不可重試錯誤"}
+                ]
+            }
+        },
+        {
+            "id": "A5",
+            "title": "轉換回應格式",
+            "description": "將串流事件轉為標準串流片段",
+            "decomposition": {
+                "diagram_title": "轉換回應格式",
+                "node_reference": "A5",
+                "activities": [
+                    {
+                        "id": "A51",
+                        "title": "緩衝串流行列",
+                        "description": "處理跨資料塊的行邊界切割，確保每行完整"
+                    },
+                    {
+                        "id": "A52",
+                        "title": "解析串流事件",
+                        "description": "從事件類型行與資料行中提取結構化事件"
+                    },
+                    {
+                        "id": "A53",
+                        "title": "映射事件為標準片段",
+                        "description": "分派：訊息開始→元資料、內容增量→文字/工具/思考、訊息結束→用量"
+                    },
+                    {
+                        "id": "A54",
+                        "title": "移除工具名稱前綴",
+                        "description": "從回應事件中的工具名稱移除命名前綴"
+                    },
+                    {
+                        "id": "A55",
+                        "title": "彙總用量指標",
+                        "description": "從訊息開始與結束事件中累計輸入、輸出、快取讀取權杖數"
+                    }
+                ],
+                "arrows": [
+                    {"id": "a5_i1", "source": "EXTERNAL", "target": "A51:input", "label": "串流回應主體"},
+                    {"id": "a5_c1", "source": "EXTERNAL", "target": "A52:control", "label": "串流事件協議格式"},
+                    {"id": "a5_c2", "source": "EXTERNAL", "target": "A53:control", "label": "事件類型對應表"},
+                    {"id": "a5_c3", "source": "EXTERNAL", "target": "A54:control", "label": "工具命名前綴規則"},
+                    {"id": "a5_m1", "source": "EXTERNAL", "target": "A51:mechanism", "label": "文字解碼器與串流讀取器"},
+                    {"id": "a5_f1", "source": "A51:output", "target": "A52:input", "label": "完整串流行"},
+                    {"id": "a5_f2", "source": "A52:output", "target": "A53:input", "label": "已解析事件（類型＋資料）"},
+                    {"id": "a5_f3", "source": "A53:output", "target": "A54:input", "label": "原始標準串流片段"},
+                    {"id": "a5_f4", "source": "A53:output", "target": "A55:input", "label": "用量事件"},
+                    {"id": "a5_f5", "source": "A54:output", "target": "EXTERNAL", "label": "乾淨標準串流片段"},
+                    {"id": "a5_o1", "source": "A55:output", "target": "EXTERNAL", "label": "累計用量指標"}
+                ]
+            }
+        }
+    ],
+    "arrows": [
+        {"id": "ctx_in",  "source": "EXTERNAL",    "target": "A0:input",     "label": "標準對話呼叫選項"},
+        {"id": "ctx_ctl", "source": "EXTERNAL",    "target": "A0:control",   "label": "協議常數"},
+        {"id": "ctx_out", "source": "A0:output",    "target": "EXTERNAL",    "label": "標準串流片段"},
+        {"id": "ctx_mec", "source": "EXTERNAL",    "target": "A0:mechanism", "label": "網路請求工具＋帳號管理介面"},
+
+        {"id": "AR01", "source": "EXTERNAL",   "target": "A1:input",   "label": "標準對話呼叫選項"},
+        {"id": "AR02", "source": "EXTERNAL",   "target": "A1:control", "label": "授權設定（協議常數）"},
+        {"id": "AR03", "source": "EXTERNAL",   "target": "A2:input",   "label": "標準對話呼叫選項（訊息/工具）"},
+        {"id": "AR04", "source": "EXTERNAL",   "target": "A2:control", "label": "Anthropic 格式規範"},
+
+        {"id": "AR05", "source": "A1:output",  "target": "A3:input",   "label": "有效存取權杖＋組織碼"},
+        {"id": "AR06", "source": "A2:output",  "target": "A3:input",   "label": "請求主體（文字格式）"},
+        {"id": "AR07", "source": "EXTERNAL",   "target": "A3:control", "label": "協議常數（版本、旗標、鹽值）"},
+
+        {"id": "AR08", "source": "A3:output",  "target": "A4:input",   "label": "網址＋標頭＋主體"},
+        {"id": "AR09", "source": "EXTERNAL",   "target": "A4:control", "label": "錯誤分類規則"},
+        {"id": "AR10", "source": "EXTERNAL",   "target": "A4:mechanism","label": "網路請求工具"},
+
+        {"id": "AR11", "source": "A4:output",  "target": "A5:input",   "label": "串流回應主體"},
+        {"id": "AR12", "source": "EXTERNAL",   "target": "A5:control", "label": "串流事件格式＋命名前綴規則"},
+        {"id": "AR13", "source": "A5:output",  "target": "EXTERNAL",   "label": "標準串流片段"},
+        {"id": "AR14", "source": "A5:output",  "target": "EXTERNAL",   "label": "用量指標"},
+
+        {"id": "AR15", "source": "EXTERNAL",   "target": "A1:mechanism","label": "帳號管理介面"},
+        {"id": "AR16", "source": "EXTERNAL",   "target": "A5:mechanism","label": "文字解碼器與串流讀取器"}
+    ]
+}
