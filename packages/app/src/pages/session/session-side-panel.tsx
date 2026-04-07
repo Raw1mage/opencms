@@ -1,6 +1,8 @@
 import { type ValidComponent, createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js"
+import { Portal } from "solid-js/web"
 import { Tabs } from "@opencode-ai/ui/tabs"
 import { IconButton } from "@opencode-ai/ui/icon-button"
+import { Icon } from "@opencode-ai/ui/icon"
 import { TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { ResizeHandle } from "@opencode-ai/ui/resize-handle"
 import { Mark } from "@opencode-ai/ui/logo"
@@ -35,6 +37,129 @@ import { SessionTelemetryCards } from "./session-telemetry-cards"
 import "./file-pane-scroll.css"
 import { useGlobalSync } from "@/context/global-sync"
 import { resolveTelemetryAccountLabel, useSessionTelemetryHydration } from "./session-telemetry-ui"
+
+/** Dropdown menu replacing the "+" button — includes Open File, Download, Open in New Tab */
+function FileTabMenu(props: {
+  file: ReturnType<typeof useFile>
+  activeFileTab: () => string | undefined
+  showAllFiles: () => void
+  dialog: ReturnType<typeof useDialog>
+  language: ReturnType<typeof useLanguage>
+  command: ReturnType<typeof useCommand>
+}) {
+  const [open, setOpen] = createSignal(false)
+  let ref: HTMLDivElement | undefined
+
+  const handleClickOutside = (e: MouseEvent) => {
+    const target = e.target as Node
+    if (triggerRef?.contains(target)) return
+    if (ref && !ref.contains(target)) setOpen(false)
+  }
+  createEffect(() => {
+    if (open()) document.addEventListener("click", handleClickOutside, true)
+    else document.removeEventListener("click", handleClickOutside, true)
+    onCleanup(() => document.removeEventListener("click", handleClickOutside, true))
+  })
+
+  const activePath = createMemo(() => {
+    const tab = props.activeFileTab()
+    return tab ? props.file.pathFromTab(tab) : undefined
+  })
+  const activeContent = createMemo(() => {
+    const p = activePath()
+    if (!p) return undefined
+    return props.file.get(p)?.content
+  })
+
+  const downloadFile = () => {
+    const c = activeContent()
+    const p = activePath()
+    if (!c || !p) return
+    const isBase64 = c.encoding === "base64"
+    const blob = isBase64
+      ? (() => { const bin = atob(c.content); const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); return new Blob([bytes], { type: c.mimeType || "application/octet-stream" }) })()
+      : new Blob([c.content], { type: c.mimeType || "text/plain" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = p.split("/").pop() ?? "file"
+    a.click()
+    URL.revokeObjectURL(url)
+    setOpen(false)
+  }
+
+  const openInNewTab = () => {
+    const c = activeContent()
+    if (!c) return
+    const isBase64 = c.encoding === "base64"
+    const blob = isBase64
+      ? (() => { const bin = atob(c.content); const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); return new Blob([bytes], { type: c.mimeType || "application/octet-stream" }) })()
+      : new Blob([c.content], { type: c.mimeType || "text/plain" })
+    window.open(URL.createObjectURL(blob), "_blank")
+    setOpen(false)
+  }
+
+  let triggerRef: HTMLDivElement | undefined
+  const [menuPos, setMenuPos] = createSignal({ top: 0, left: 0 })
+
+  const openMenu = () => {
+    if (triggerRef) {
+      const rect = triggerRef.getBoundingClientRect()
+      setMenuPos({ top: rect.bottom + 4, left: rect.right })
+    }
+    setOpen(v => !v)
+  }
+
+  return (
+    <div ref={triggerRef}>
+      <IconButton
+        icon="dot-grid"
+        variant="ghost"
+        iconSize="large"
+        class="!rounded-md"
+        onClick={openMenu}
+        aria-label="Actions"
+      />
+      <Show when={open()}>
+        <Portal>
+          <div
+            ref={ref}
+            class="fixed flex items-center gap-0.5 p-1 rounded-md border border-border-base bg-background-base shadow-lg"
+            style={{ "z-index": "99999", top: `${menuPos().top}px`, left: `${menuPos().left}px`, transform: "translateX(-100%)", "--icon-base": "#ffffff" } as any}
+          >
+            <button
+              class="p-1.5 hover:bg-surface-tertiary rounded transition-colors [&_[data-component=icon]]:!text-white"
+              onClick={() => {
+                setOpen(false)
+                props.dialog.show(() => <DialogSelectFile mode="files" onOpenFile={props.showAllFiles} />)
+              }}
+              title={props.language.t("command.file.open")}
+            >
+              <Icon name="plus-small" size="small" />
+            </button>
+            <Show when={activeContent()}>
+              <div class="w-px h-4" style={{ "background-color": "rgba(255,255,255,0.2)" }} />
+              <button
+                class="p-1.5 hover:bg-surface-tertiary rounded transition-colors [&_[data-component=icon]]:!text-white"
+                onClick={downloadFile}
+                title="Download"
+              >
+                <Icon name="arrow-down-to-line" size="small" />
+              </button>
+              <button
+                class="p-1.5 hover:bg-surface-tertiary rounded transition-colors [&_[data-component=icon]]:!text-white"
+                onClick={openInNewTab}
+                title="Open in new tab"
+              >
+                <Icon name="square-arrow-top-right" size="small" />
+              </button>
+            </Show>
+          </div>
+        </Portal>
+      </Show>
+    </div>
+  )
+}
 
 type SessionSidePanelViewModel = {
   messages: () => Message[]
@@ -231,22 +356,14 @@ export function SessionSidePanel(props: {
                   </div>
                   <StickyAddButton>
                     <div class="flex items-center gap-1 shrink-0">
-                      <TooltipKeybind
-                        title={props.language.t("command.file.open")}
-                        keybind={props.command.keybind("file.open")}
-                        class="flex items-center"
-                      >
-                        <IconButton
-                          icon="plus-small"
-                          variant="ghost"
-                          iconSize="large"
-                          class="!rounded-md"
-                          onClick={() =>
-                            props.dialog.show(() => <DialogSelectFile mode="files" onOpenFile={props.showAllFiles} />)
-                          }
-                          aria-label={props.language.t("command.file.open")}
-                        />
-                      </TooltipKeybind>
+                      <FileTabMenu
+                        file={props.file}
+                        activeFileTab={props.activeFileTab}
+                        showAllFiles={props.showAllFiles}
+                        dialog={props.dialog}
+                        language={props.language}
+                        command={props.command}
+                      />
                       <IconButton
                         icon="close-small"
                         variant="ghost"

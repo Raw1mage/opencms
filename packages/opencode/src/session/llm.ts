@@ -160,18 +160,28 @@ export namespace LLM {
       .toLowerCase()
   }
 
-  function getMatchedIntents(messages: ModelMessage[]): string[] {
+  interface MatchedRoute {
+    intent: string
+    prefer: string[]
+    notes: string[]
+  }
+
+  function getMatchedRoutes(messages: ModelMessage[]): MatchedRoute[] {
     const data = ENABLEMENT as any
-    const text = extractLatestUserText(messages)
+    const text = extractLatestUserText(messages).toLowerCase()
     return ((data?.routing?.intent_to_capability ?? []) as any[])
       .filter((route) => (route?.keywords ?? []).some((kw: string) => text.includes(String(kw).toLowerCase())))
       .slice(0, 4)
-      .map((route) => route.intent)
+      .map((route) => ({
+        intent: route.intent,
+        prefer: route.prefer ?? [],
+        notes: route.notes ?? [],
+      }))
   }
 
   function shouldInjectEnablementSnapshot(messages: ModelMessage[]) {
     if (messages.length <= 1) return true
-    return getMatchedIntents(messages).length > 0
+    return getMatchedRoutes(messages).length > 0
   }
 
   function getMessageShapeSummary(message: ModelMessage) {
@@ -218,17 +228,24 @@ export namespace LLM {
     const mcpServers = (data?.mcp_servers?.runtime_observed ?? []).map(
       (x: any) => `${x.name}:${x.enabled ? "on" : "off"}`,
     )
-    const matchedIntents = getMatchedIntents(messages)
+    const matchedRoutes = getMatchedRoutes(messages)
 
-    return [
+    const lines = [
       "[ENABLEMENT SNAPSHOT]",
       `- source: prompts/enablement.json`,
       `- core tools: ${coreTools.join(", ")}`,
       `- skills available: ${skills.join(", ")}`,
       `- configured mcp: ${mcpServers.join(", ")}`,
-      `- matched intents: ${matchedIntents.length ? matchedIntents.join("; ") : "none"}`,
       `- policy: prefer registry-guided tool/skill/mcp routing; use on-demand mcp when needed`,
-    ].join("\n")
+    ]
+    if (matchedRoutes.length) {
+      lines.push(`- matched routing:`)
+      for (const r of matchedRoutes) {
+        lines.push(`  * ${r.intent} → use tool_loader to load: [${r.prefer.join(", ")}]`)
+        for (const note of r.notes) lines.push(`    - ${note}`)
+      }
+    }
+    return lines.join("\n")
   }
 
   export async function stream(input: StreamInput) {

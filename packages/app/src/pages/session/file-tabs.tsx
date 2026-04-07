@@ -18,6 +18,7 @@ import { Dynamic } from "solid-js/web"
 import { sampledChecksum } from "@opencode-ai/util/encode"
 import { decode64 } from "@/utils/base64"
 import { showToast } from "@opencode-ai/ui/toast"
+import { Icon } from "@opencode-ai/ui/icon"
 import { LineComment as LineCommentView, LineCommentEditor } from "@opencode-ai/ui/line-comment"
 import { Mark } from "@opencode-ai/ui/logo"
 import { Tabs } from "@opencode-ai/ui/tabs"
@@ -848,8 +849,8 @@ export function FileTabContent(props: {
             <iframe
               sandbox="allow-same-origin"
               srcDoc={contents()}
-              class="w-full h-full border-0"
-              style={{ "min-height": "600px" }}
+              class="w-full border-0"
+              style={{ height: "calc(100vh - 120px)" }}
               title={path()?.split("/").pop() ?? "HTML"}
             />
           </Match>

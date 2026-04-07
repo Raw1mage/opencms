@@ -881,14 +881,15 @@ PART_MAPPING["tool"] = function ToolPartDisplay(props) {
 
   const render = ToolRegistry.render(part.tool) ?? GenericTool
 
-  // Auto-open fileview when open_fileview tool completes
-  createEffect(() => {
-    if (part.state.status !== "completed") return
-    if (!part.tool.endsWith("open_fileview")) return
-    const fp = String(part.state?.input?.path ?? "")
-    if (!fp) return
-    window.dispatchEvent(new CustomEvent("opencode:open-file", { detail: { path: fp } }))
-  })
+  // Auto-open fileview only on live completion (not history replay)
+  if (part.tool.endsWith("open_fileview") && part.state.status !== "completed") {
+    createEffect(() => {
+      if (part.state.status !== "completed") return
+      const fp = String(part.state?.input?.path ?? "")
+      if (!fp) return
+      window.dispatchEvent(new CustomEvent("opencode:open-file", { detail: { path: fp } }))
+    })
+  }
 
   return (
     <div data-component="tool-part-wrapper" data-permission={showPermission()} data-question={showQuestion()}>
@@ -1784,6 +1785,38 @@ ToolRegistry.register({
         }}
       >
         <ExaOutput output={props.output} />
+      </BasicTool>
+    )
+  },
+})
+
+ToolRegistry.register({
+  name: "system-manager_open_fileview",
+  render(props) {
+    const filePath = () => String(props.input.path ?? "")
+    const title = () => String(props.input.title ?? filePath().split("/").pop() ?? "File")
+    return (
+      <BasicTool
+        {...props}
+        icon="file-text"
+        trigger={{
+          title: "File Viewer",
+          subtitle: title(),
+        }}
+      >
+        <Show when={filePath()}>
+          <div data-component="tool-fileview-link" class="mt-2 px-2">
+            <button
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("opencode:open-file", { detail: { path: filePath() } }))
+              }}
+              class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border-base hover:bg-white/5 transition-colors text-12-regular text-text-dimmed-2 cursor-pointer"
+            >
+              <Icon name="file-text" size="small" />
+              <span class="truncate max-w-[300px]">{title()}</span>
+            </button>
+          </div>
+        </Show>
       </BasicTool>
     )
   },
