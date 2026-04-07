@@ -784,6 +784,59 @@ export namespace MCP {
    * Reads from gauth.json (Google OAuth) or accounts.json (other providers).
    * Returns env vars to inject into the App's spawn environment.
    */
+  /**
+   * Refresh Google OAuth token using refresh_token from gauth.json.
+   * Returns new access_token or null if refresh failed.
+   */
+  async function refreshGoogleToken(gauthPath: string): Promise<string | null> {
+    try {
+      const content = await fs.readFile(gauthPath, "utf-8")
+      const tokens = JSON.parse(content) as { refresh_token?: string }
+      if (!tokens.refresh_token) {
+        log.warn("no refresh_token in gauth.json, cannot auto-refresh", { path: gauthPath })
+        return null
+      }
+
+      const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID
+      const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET
+      if (!clientId || !clientSecret) {
+        log.warn("GOOGLE_CALENDAR_CLIENT_ID/SECRET not set, cannot auto-refresh", { path: gauthPath })
+        return null
+      }
+
+      const res = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          refresh_token: tokens.refresh_token,
+          grant_type: "refresh_token",
+        }),
+      })
+
+      if (!res.ok) {
+        const body = await res.text()
+        log.warn("google token refresh failed", { status: res.status, body })
+        return null
+      }
+
+      const data = await res.json() as { access_token: string; expires_in: number }
+      const updated = {
+        ...JSON.parse(await fs.readFile(gauthPath, "utf-8")),
+        access_token: data.access_token,
+        expires_at: Date.now() + data.expires_in * 1000,
+        updated_at: Date.now(),
+      }
+      await fs.writeFile(gauthPath, JSON.stringify(updated, null, 2))
+      log.info("google token auto-refreshed", { path: gauthPath, expiresAt: new Date(updated.expires_at).toISOString() })
+      return data.access_token
+    } catch (err) {
+      log.warn("google token refresh error", { path: gauthPath, error: err instanceof Error ? err.message : String(err) })
+      return null
+    }
+  }
+
   async function resolveAuthEnv(manifest: { auth?: { type: string; provider?: string; tokenEnv?: string; refreshTokenEnv?: string } }): Promise<Record<string, string>> {
     if (!manifest.auth || manifest.auth.type === "none") return {}
 
@@ -809,14 +862,25 @@ export namespace MCP {
           const content = await fs.readFile(gauthPath, "utf-8")
           const tokens = JSON.parse(content) as { access_token?: string; refresh_token?: string; expires_at?: number }
           if (tokens.access_token) {
-            if (tokens.expires_at && Date.now() > tokens.expires_at) {
-              log.warn("google oauth token expired, app may fail API calls", { path: gauthPath })
+            let accessToken = tokens.access_token
+
+            // Auto-refresh if expired (or expiring within 5 min)
+            const expiryBuffer = 5 * 60 * 1000
+            if (tokens.expires_at && Date.now() > tokens.expires_at - expiryBuffer) {
+              log.info("google oauth token expired or expiring soon, auto-refreshing", { path: gauthPath })
+              const refreshed = await refreshGoogleToken(gauthPath)
+              if (refreshed) {
+                accessToken = refreshed
+              } else {
+                log.warn("auto-refresh failed, injecting stale token", { path: gauthPath })
+              }
             }
-            const env: Record<string, string> = { [auth.tokenEnv]: tokens.access_token }
+
+            const env: Record<string, string> = { [auth.tokenEnv]: accessToken }
             if (auth.refreshTokenEnv && tokens.refresh_token) {
               env[auth.refreshTokenEnv] = tokens.refresh_token
             }
-            log.info("injecting google oauth token", { tokenEnv: auth.tokenEnv, refreshTokenEnv: auth.refreshTokenEnv, path: gauthPath })
+            log.info("injecting google oauth token", { tokenEnv: auth.tokenEnv, path: gauthPath })
             return env
           }
         } catch {
@@ -829,6 +893,35 @@ export namespace MCP {
     // TODO: other providers — read from accounts.json by auth.provider key
 
     return {}
+  }
+
+  // ── Background Google token refresh ────────────────────────────────
+  let gauthRefreshTimer: ReturnType<typeof setInterval> | undefined
+
+  function startGauthRefreshTimer() {
+    if (gauthRefreshTimer) return
+    const REFRESH_INTERVAL = 45 * 60 * 1000 // 45 minutes (tokens last ~60 min)
+
+    gauthRefreshTimer = setInterval(async () => {
+      try {
+        const gauthPath = path.join(Global.Path.config, "gauth.json")
+        const content = await fs.readFile(gauthPath, "utf-8")
+        const tokens = JSON.parse(content) as { access_token?: string; expires_at?: number }
+        if (!tokens.access_token) return
+
+        const expiryBuffer = 10 * 60 * 1000
+        if (tokens.expires_at && Date.now() > tokens.expires_at - expiryBuffer) {
+          log.info("background gauth refresh: token expiring soon, refreshing")
+          await refreshGoogleToken(gauthPath)
+        }
+      } catch {
+        // gauth.json doesn't exist — no Google OAuth apps, skip
+      }
+    }, REFRESH_INTERVAL)
+
+    // Don't keep daemon alive just for this timer
+    if (gauthRefreshTimer.unref) gauthRefreshTimer.unref()
+    log.info("background gauth refresh timer started", { intervalMs: REFRESH_INTERVAL })
   }
 
   let mcpAppsInitialized = false
@@ -921,6 +1014,9 @@ export namespace MCP {
         error: err instanceof Error ? err.message : String(err),
       })
     }
+
+    // Start background token refresh for Google OAuth apps
+    startGauthRefreshTimer()
   }
 
   export async function tools() {

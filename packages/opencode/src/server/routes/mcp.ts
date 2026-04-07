@@ -60,11 +60,15 @@ export const McpRoutes = lazy(() =>
 
         // Check Google OAuth token availability for auth status
         let hasGoogleToken = false
+        let googleTokenExpired = false
         try {
           const gauthPath = path.join(Global.Path.config, "gauth.json")
           const content = await fs.readFile(gauthPath, "utf-8")
           const tokens = JSON.parse(content) as { access_token?: string; expires_at?: number }
           hasGoogleToken = !!tokens.access_token
+          if (tokens.expires_at && Date.now() > tokens.expires_at) {
+            googleTokenExpired = true
+          }
         } catch {
           // No gauth.json
         }
@@ -73,12 +77,16 @@ export const McpRoutes = lazy(() =>
         const storeCards = storeApps.map((app) => {
           const auth = app.manifest?.auth
           let status = app.entry.enabled ? "connected" : "disabled"
+          let error: string | undefined
 
           // Derive auth status for enabled apps
           if (app.entry.enabled && auth && auth.type !== "none") {
             if (auth.type === "oauth") {
               const provider = (auth as any).provider
-              if (provider === "google" && !hasGoogleToken) status = "needs_auth"
+              if (provider === "google" && (!hasGoogleToken || googleTokenExpired)) {
+                status = "needs_auth"
+                if (googleTokenExpired) error = "OAuth token expired"
+              }
             } else if (auth.type === "api-key") {
               const tokenEnv = (auth as any).tokenEnv
               if (tokenEnv && !app.entry.config?.[tokenEnv]) status = "needs_auth"
@@ -92,6 +100,7 @@ export const McpRoutes = lazy(() =>
             icon: app.manifest?.icon ?? "📦",
             kind: "mcp-app" as const,
             status,
+            error,
             tools: (app.entry.tools ?? []).map((t) => ({ id: t.name, name: t.name, description: t.description ?? "" })),
             enabled: app.entry.enabled,
             auth: app.manifest?.auth,
