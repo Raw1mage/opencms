@@ -474,6 +474,19 @@ export function SessionHeader() {
                         <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="2" />
                       </svg>
                     </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      class={mobileNavButtonClass(view().filePane.opened())}
+                      onClick={() => view().filePane.toggle()}
+                      aria-label="File View"
+                    >
+                      <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M4.25 2.25h5.5l3 3v8.5h-8.5z" stroke-linejoin="round" />
+                        <path d="M9.75 2.25v3h3" stroke-linejoin="round" />
+                        <path d="M5.75 8h4.5M5.75 10.5h3" stroke-linecap="round" />
+                      </svg>
+                    </Button>
                   </div>
                 }
               >
@@ -545,6 +558,21 @@ export function SessionHeader() {
                         <path d="M3.25 4.5 6.5 7.75 3.25 11" stroke-linecap="round" stroke-linejoin="round" />
                         <path d="M8 11h4.75" stroke-linecap="round" />
                         <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="2" />
+                      </svg>
+                    </Button>
+                  </Tooltip>
+                  <Tooltip value="File View">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      class={desktopNavButtonClass(view().filePane.opened())}
+                      onClick={() => view().filePane.toggle()}
+                      aria-label="File View"
+                    >
+                      <svg viewBox="0 0 16 16" class="size-3.5" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M4.25 2.25h5.5l3 3v8.5h-8.5z" stroke-linejoin="round" />
+                        <path d="M9.75 2.25v3h3" stroke-linejoin="round" />
+                        <path d="M5.75 8h4.5M5.75 10.5h3" stroke-linecap="round" />
                       </svg>
                     </Button>
                   </Tooltip>
