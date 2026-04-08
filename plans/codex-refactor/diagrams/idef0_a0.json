@@ -1,0 +1,53 @@
+{
+  "diagram_title": "Codex Provider — Process Turn Request",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Build Request Body",
+      "description": "Convert AI SDK prompt → Responses API request body (datasheet §1, §2)"
+    },
+    {
+      "id": "A2",
+      "title": "Manage Auth & Identity",
+      "description": "OAuth token refresh + originator + headers (datasheet §5)"
+    },
+    {
+      "id": "A3",
+      "title": "Select & Dispatch Transport",
+      "description": "WS primary → HTTP fallback, delta mode, first-frame probe"
+    },
+    {
+      "id": "A4",
+      "title": "Parse Response Events",
+      "description": "Response events → LanguageModelV2StreamPart (datasheet §4)"
+    },
+    {
+      "id": "A5",
+      "title": "Manage Continuation & Compaction",
+      "description": "WS delta state, window generation, compaction threshold"
+    }
+  ],
+  "arrows": [
+    {"id": "ctx_in", "label": "AI SDK callOptions (prompt, tools, providerOptions, headers)", "source": "EXTERNAL", "target": "A0:input"},
+    {"id": "ctx_ctl", "label": "Model capabilities + Session config", "source": "EXTERNAL", "target": "A0:control"},
+    {"id": "ctx_mech", "label": "WS/HTTP transport + OAuth tokens", "source": "EXTERNAL", "target": "A0:mechanism"},
+    {"id": "ctx_out", "label": "ReadableStream<LanguageModelV2StreamPart>", "source": "A0:output", "target": "EXTERNAL"},
+
+    {"id": "a1_in", "label": "callOptions.prompt + callOptions.tools", "source": "EXTERNAL", "target": "A1:input"},
+    {"id": "a1_ctl", "label": "providerOptions (reasoning, store, service_tier)", "source": "EXTERNAL", "target": "A1:control"},
+    {"id": "a1_out_body", "label": "ResponsesApiRequest body", "source": "A1:output", "target": "A3:input"},
+
+    {"id": "a2_in", "label": "CodexCredentials", "source": "EXTERNAL", "target": "A2:input"},
+    {"id": "a2_ctl", "label": "Token expiry + Account ID", "source": "EXTERNAL", "target": "A2:control"},
+    {"id": "a2_out_headers", "label": "Auth headers + originator", "source": "A2:output", "target": "A3:control"},
+
+    {"id": "a3_out_events", "label": "ResponseStreamEvent stream", "source": "A3:output", "target": "A4:input"},
+    {"id": "a3_out_state", "label": "Turn state + response_id", "source": "A3:output", "target": "A5:input"},
+
+    {"id": "a4_out", "label": "LanguageModelV2StreamPart stream", "source": "A4:output", "target": "EXTERNAL"},
+
+    {"id": "a5_out_cont", "label": "previous_response_id + lastInputLength", "source": "A5:output", "target": "A3:control"},
+    {"id": "a5_ctl", "label": "compact_threshold + window generation", "source": "EXTERNAL", "target": "A5:control"}
+  ]
+}

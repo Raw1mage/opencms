@@ -1,0 +1,110 @@
+[
+  {
+    "StepNumber": 10,
+    "ModuleRef": "A3",
+    "StepType": "initial",
+    "StepAction": "Check WS State",
+    "LinkInputType": [],
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [11, 14, 17],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["WS open + readyState=OPEN", "WS null/stale → reconnect", "disableWebsockets=true → null"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 11,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Reuse WS — Set previous_response_id",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [10],
+    "LinkOutputNumber": [12],
+    "LinkOutputType": "track",
+    "Condition": ["lastResponseId 存在"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 12,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Send WS Request + Probe First Frame",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [11],
+    "LinkOutputNumber": [13, 14],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["first frame 收到 → 回傳 stream", "timeout ∨ error → reconnect"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 13,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "WS Delta Streaming Active",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [12],
+    "LinkOutputNumber": [18],
+    "LinkOutputType": "track",
+    "Condition": ["stream 完成"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 14,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Connect New WS",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [10, 12],
+    "LinkOutputNumber": [15, 17],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["connected", "connect 失敗"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 15,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Send Full Context (no delta)",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [14],
+    "LinkOutputNumber": [16],
+    "LinkOutputType": "track",
+    "Condition": ["request 送出"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 16,
+    "ModuleRef": "A4",
+    "StepType": "normal",
+    "StepAction": "WS Full Streaming Active",
+    "LinkInputType": ["track"],
+    "LinkInputNumber": [15],
+    "LinkOutputNumber": [18],
+    "LinkOutputType": "track",
+    "Condition": ["stream 完成"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 17,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Sticky HTTP Fallback — return null",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [10, 14],
+    "LinkOutputNumber": [18],
+    "LinkOutputType": "track",
+    "Condition": ["disableWebsockets = true"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 18,
+    "ModuleRef": "A5",
+    "StepType": "normal",
+    "StepAction": "Capture response_id + Persist Continuation",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [13, 16, 17],
+    "LinkOutputNumber": [10],
+    "LinkOutputType": "track",
+    "Condition": ["state 更新完成"],
+    "SubGrafcet": []
+  }
+]

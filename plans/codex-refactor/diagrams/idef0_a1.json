@@ -1,0 +1,52 @@
+{
+  "diagram_title": "A1 Build Request Body",
+  "node_reference": "A1",
+  "activities": [
+    {
+      "id": "A11",
+      "title": "Extract providerOptions",
+      "description": "Read codex/openai key from callOptions.providerOptions, map camelCase to snake_case API fields"
+    },
+    {
+      "id": "A12",
+      "title": "Convert System Prompt",
+      "description": "System messages → developer role input[0]. instructions = placeholder."
+    },
+    {
+      "id": "A13",
+      "title": "Convert Conversation History",
+      "description": "user → [input_text], assistant → [output_text], function_call, function_call_output"
+    },
+    {
+      "id": "A14",
+      "title": "Serialize Tool Schemas",
+      "description": "LanguageModelV2FunctionTool → {type:function, name, description, parameters, strict:false}"
+    },
+    {
+      "id": "A15",
+      "title": "Assemble Request Body",
+      "description": "Merge all fields into ResponsesApiRequest. Set context_management, prompt_cache_key."
+    }
+  ],
+  "arrows": [
+    {"id": "ctx_in", "label": "callOptions (prompt, tools, providerOptions, headers)", "source": "EXTERNAL", "target": "A1:input"},
+    {"id": "ctx_ctl", "label": "Model capabilities + compact_threshold", "source": "EXTERNAL", "target": "A1:control"},
+    {"id": "ctx_out", "label": "ResponsesApiRequest body", "source": "A1:output", "target": "EXTERNAL"},
+
+    {"id": "a11_in", "label": "callOptions.providerOptions", "source": "EXTERNAL", "target": "A11:input"},
+    {"id": "a11_out", "label": "store, service_tier, reasoning, text, include", "source": "A11:output", "target": "A15:input"},
+
+    {"id": "a12_in", "label": "prompt (system messages)", "source": "EXTERNAL", "target": "A12:input"},
+    {"id": "a12_out", "label": "instructions + developer input item", "source": "A12:output", "target": "A15:input"},
+
+    {"id": "a13_in", "label": "prompt (user, assistant, tool messages)", "source": "EXTERNAL", "target": "A13:input"},
+    {"id": "a13_ctl", "label": "Content format rules (datasheet §2)", "source": "EXTERNAL", "target": "A13:control"},
+    {"id": "a13_out", "label": "ResponseItem[] (input array)", "source": "A13:output", "target": "A15:input"},
+
+    {"id": "a14_in", "label": "callOptions.tools", "source": "EXTERNAL", "target": "A14:input"},
+    {"id": "a14_out", "label": "tools[] + tool_choice", "source": "A14:output", "target": "A15:input"},
+
+    {"id": "a15_ctl", "label": "compact_threshold + prompt_cache_key", "source": "EXTERNAL", "target": "A15:control"},
+    {"id": "a15_out", "label": "Complete ResponsesApiRequest", "source": "A15:output", "target": "EXTERNAL"}
+  ]
+}

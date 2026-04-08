@@ -1,0 +1,56 @@
+{
+  "diagram_title": "A4 Parse Response Events",
+  "node_reference": "A4",
+  "activities": [
+    {
+      "id": "A41",
+      "title": "Track Output Items",
+      "description": "output_item.added → register in ongoingToolCalls, start text/reasoning/tool-input"
+    },
+    {
+      "id": "A42",
+      "title": "Process Streaming Deltas",
+      "description": "text.delta, function_call_arguments.delta, reasoning.delta → StreamPart deltas"
+    },
+    {
+      "id": "A43",
+      "title": "Finalize Output Items",
+      "description": "output_item.done → emit tool-call (with REAL arguments), text-end, reasoning-end"
+    },
+    {
+      "id": "A44",
+      "title": "Handle Finish Events",
+      "description": "response.completed/incomplete → extract usage, finishReason, flush dangling parts"
+    },
+    {
+      "id": "A45",
+      "title": "Determine finishReason",
+      "description": "hasFunctionCall → tool-calls, incomplete.reason → mapped, else → stop"
+    }
+  ],
+  "arrows": [
+    {"id": "ctx_in", "label": "ReadableStream<ResponseStreamEvent>", "source": "EXTERNAL", "target": "A4:input"},
+    {"id": "ctx_ctl", "label": "State: ongoingToolCalls, currentTextId, activeReasoning", "source": "EXTERNAL", "target": "A4:control"},
+    {"id": "ctx_out", "label": "ReadableStream<LanguageModelV2StreamPart>", "source": "A4:output", "target": "EXTERNAL"},
+
+    {"id": "a41_in", "label": "output_item.added events", "source": "EXTERNAL", "target": "A41:input"},
+    {"id": "a41_out1", "label": "text-start / tool-input-start / reasoning-start", "source": "A41:output", "target": "EXTERNAL"},
+    {"id": "a41_out2", "label": "ongoingToolCalls[idx] registered", "source": "A41:output", "target": "A43:control"},
+
+    {"id": "a42_in", "label": "text.delta, arguments.delta, reasoning.delta", "source": "EXTERNAL", "target": "A42:input"},
+    {"id": "a42_ctl", "label": "currentTextId, toolCallId from ongoingToolCalls", "source": "EXTERNAL", "target": "A42:control"},
+    {"id": "a42_out", "label": "text-delta / tool-input-delta / reasoning-delta", "source": "A42:output", "target": "EXTERNAL"},
+
+    {"id": "a43_in", "label": "output_item.done events", "source": "EXTERNAL", "target": "A43:input"},
+    {"id": "a43_out1", "label": "tool-input-end + tool-call (arguments from item.arguments)", "source": "A43:output", "target": "EXTERNAL"},
+    {"id": "a43_out2", "label": "text-end / reasoning-end", "source": "A43:output", "target": "EXTERNAL"},
+    {"id": "a43_out3", "label": "hasFunctionCall = true", "source": "A43:output", "target": "A45:input"},
+
+    {"id": "a44_in", "label": "response.completed / response.incomplete", "source": "EXTERNAL", "target": "A44:input"},
+    {"id": "a44_out1", "label": "usage (input, output, cached, reasoning tokens)", "source": "A44:output", "target": "A45:input"},
+    {"id": "a44_out2", "label": "flush dangling text-end", "source": "A44:output", "target": "EXTERNAL"},
+
+    {"id": "a45_ctl", "label": "hasFunctionCall flag + incomplete_details.reason", "source": "EXTERNAL", "target": "A45:control"},
+    {"id": "a45_out", "label": "finish StreamPart (finishReason + usage + providerMetadata)", "source": "A45:output", "target": "EXTERNAL"}
+  ]
+}
