@@ -53,7 +53,7 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
               type: "function_call",
               call_id: tc.toolCallId,
               name: tc.toolName,
-              arguments: typeof tc.args === "string" ? tc.args : JSON.stringify(tc.args),
+              arguments: typeof tc.args === "string" ? tc.args : JSON.stringify(tc.args ?? {}),
             })
           }
         }
@@ -66,9 +66,11 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
           input.push({
             type: "function_call_output",
             call_id: result.toolCallId,
-            output: typeof result.result === "string"
-              ? result.result
-              : JSON.stringify(result.result),
+            output: result.result == null
+              ? ""
+              : typeof result.result === "string"
+                ? result.result
+                : JSON.stringify(result.result),
           })
         }
         break
@@ -160,7 +162,7 @@ function convertAssistantContent(content: LanguageModelV2Content[]): {
         toolCalls.push({
           toolCallId: part.toolCallId,
           toolName: part.toolName,
-          args: part.args,
+          args: (part as any).input ?? (part as any).args,
         })
         break
       case "reasoning":

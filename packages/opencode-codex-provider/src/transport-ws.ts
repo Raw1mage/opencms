@@ -212,6 +212,10 @@ function wsRequest(input: {
 
         try {
           const parsed = JSON.parse(data)
+          console.error(`[CODEX-WS] frame #${frameCount} type=${parsed.type} session=${sessionId} len=${data.length}`)
+          if (parsed.type === "error") {
+            console.error(`[CODEX-WS] ERROR detail: ${data.slice(0, 500)}`)
+          }
 
           // Rate limits frame — keep-alive, don't forward
           if (parsed.type === "codex.rate_limits") return
@@ -367,6 +371,7 @@ export interface WsTransportInput {
  */
 export async function tryWsTransport(input: WsTransportInput): Promise<ReadableStream<ResponseStreamEvent> | null> {
   const { sessionId, accessToken, accountId, body, wsUrl } = input
+  console.error(`[CODEX-WS] tryWsTransport: session=${sessionId} wsUrl=${wsUrl} hasToken=${!!accessToken}`)
   const state = getSession(sessionId)
 
   // Account switch: close WS, preserve per-account continuation
@@ -422,7 +427,9 @@ export async function tryWsTransport(input: WsTransportInput): Promise<ReadableS
   if (accountId) headers["chatgpt-account-id"] = accountId
   if (input.turnState) headers["x-codex-turn-state"] = input.turnState
 
+  console.error(`[CODEX-WS] connecting to ${wsUrl}`)
   const ws = await connectWs(wsUrl, headers)
+  console.error(`[CODEX-WS] connectWs result: ${ws ? "connected" : "failed"}`)
   if (ws) {
     state.ws = ws
     state.status = "open"
@@ -443,6 +450,7 @@ export async function tryWsTransport(input: WsTransportInput): Promise<ReadableS
   }
 
   // All failed → sticky HTTP fallback
+  console.error(`[CODEX-WS] all attempts failed, sticky HTTP fallback for session=${sessionId}`)
   state.disableWebsockets = true
   state.ws = null
   state.status = "failed"
