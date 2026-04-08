@@ -1268,7 +1268,7 @@ export namespace Provider {
       id: "codex",
       name: "Codex",
       source: "custom",
-      env: ["OPENAI_API_KEY"],
+      env: [],
       options: {},
       models: {},
     }

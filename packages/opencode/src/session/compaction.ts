@@ -20,7 +20,7 @@ import { ProviderTransform } from "@/provider/transform"
 import { SessionPrompt } from "./prompt"
 import { SharedContext } from "./shared-context"
 import { codexServerCompact } from "../provider/codex-compaction"
-import { ContinuationInvalidatedEvent } from "../plugin/codex"
+import { ContinuationInvalidatedEvent } from "../plugin/codex-auth"
 
 const SessionDeletedEvent = BusEvent.define(
   "session.deleted",

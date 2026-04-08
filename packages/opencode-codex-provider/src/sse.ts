@@ -213,8 +213,13 @@ function mapEvent(event: ResponseStreamEvent, state: StreamState): LanguageModel
 
     case "response.output_text.delta": {
       const delta = (event as any).delta as string
-      const id = `text_${state.textIdCounter > 0 ? state.textIdCounter - 1 : 0}`
-      parts.push({ type: "text-delta", id, delta } as LanguageModelV2StreamPart)
+      // Auto-emit text-start if delta arrives before output_item.added (§4.4)
+      if (state.openTextId == null) {
+        const id = `text_${state.textIdCounter++}`
+        state.openTextId = id
+        parts.push({ type: "text-start", id } as LanguageModelV2StreamPart)
+      }
+      parts.push({ type: "text-delta", id: state.openTextId, delta } as LanguageModelV2StreamPart)
       break
     }
 
