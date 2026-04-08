@@ -46,6 +46,7 @@ import { createGitLab } from "@gitlab/gitlab-ai-provider"
 import type { Auth as SDKAuth } from "@opencode-ai/sdk"
 import { ProviderTransform } from "./transform"
 import { ToolCallBridgeManager } from "./toolcall-bridge"
+import { CUSTOM_LOADERS as IMPORTED_CUSTOM_LOADERS } from "./custom-loaders-def"
 
 export namespace Provider {
   const log = Log.create({ service: "provider" })
@@ -1795,7 +1796,9 @@ export namespace Provider {
       }
     }
 
-    for (const [providerId, fn] of Object.entries(CUSTOM_LOADERS)) {
+    // Merge inline CUSTOM_LOADERS with imported ones (imported takes precedence)
+    const mergedCustomLoaders = { ...CUSTOM_LOADERS, ...IMPORTED_CUSTOM_LOADERS }
+    for (const [providerId, fn] of Object.entries(mergedCustomLoaders)) {
       if (disabled.has(providerId)) continue
       const data = database[providerId]
       if (!data) {
