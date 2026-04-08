@@ -1,0 +1,48 @@
+{
+  "diagram_title": "A5 管理接續狀態與壓縮",
+  "node_reference": "A5",
+  "activities": [
+    {
+      "id": "A51",
+      "title": "擷取回應 ID",
+      "description": "從 response.completed/created 事件中取得 response_id，供下次差量請求使用"
+    },
+    {
+      "id": "A52",
+      "title": "更新接續狀態",
+      "description": "將 previous_response_id + lastInputLength 寫入每帳號接續記錄"
+    },
+    {
+      "id": "A53",
+      "title": "持久化至磁碟",
+      "description": "將接續狀態序列化為 JSON 寫入 $STATE/ws-continuation.json"
+    },
+    {
+      "id": "A54",
+      "title": "處理壓縮後重設",
+      "description": "壓縮完成後：推進視窗世代、重設 WS 連線、清除當前帳號的接續狀態"
+    },
+    {
+      "id": "A55",
+      "title": "處理帳號切換",
+      "description": "帳號變更時：關閉 WS + 保留各帳號的接續記錄"
+    }
+  ],
+  "arrows": [
+    {"id": "a51_in", "label": "回應事件（response.completed/created）", "source": "EXTERNAL", "target": "A51:input"},
+    {"id": "a51_out", "label": "response_id", "source": "A51:output", "target": "A52:input"},
+
+    {"id": "a52_in", "label": "當前輸入長度", "source": "EXTERNAL", "target": "A52:input"},
+    {"id": "a52_ctl", "label": "帳號 ID（每帳號獨立記錄）", "source": "EXTERNAL", "target": "A52:control"},
+    {"id": "a52_out", "label": "更新後接續記錄", "source": "A52:output", "target": "A53:input"},
+
+    {"id": "a53_out", "label": "磁碟寫入完成", "source": "A53:output", "target": "EXTERNAL"},
+
+    {"id": "a54_in", "label": "壓縮完成信號", "source": "EXTERNAL", "target": "A54:input"},
+    {"id": "a54_out1", "label": "視窗世代 +1", "source": "A54:output", "target": "EXTERNAL"},
+    {"id": "a54_out2", "label": "清除當前帳號接續狀態", "source": "A54:output", "target": "A53:input"},
+
+    {"id": "a55_in", "label": "帳號切換信號", "source": "EXTERNAL", "target": "A55:input"},
+    {"id": "a55_out", "label": "關閉舊帳號 WS + 保留接續記錄", "source": "A55:output", "target": "EXTERNAL"}
+  ]
+}
