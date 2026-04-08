@@ -54,6 +54,7 @@
     "@ai-sdk/amazon-bedrock": "3.0.74",
     "@ai-sdk/anthropic": "2.0.58",
     "@opencode-ai/claude-provider": "workspace:*",
+    "@opencode-ai/codex-provider": "workspace:*",
     "@ai-sdk/azure": "2.0.91",
     "@ai-sdk/cerebras": "1.0.36",
     "@ai-sdk/cohere": "2.0.22",

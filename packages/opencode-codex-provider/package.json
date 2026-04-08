@@ -5,6 +5,7 @@
   "license": "MIT",
   "private": true,
   "exports": {
+    ".": "./src/index.ts",
     "./*": "./src/*.ts"
   },
   "peerDependencies": {

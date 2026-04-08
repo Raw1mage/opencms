@@ -422,6 +422,8 @@
         "@octokit/graphql": "9.0.2",
         "@octokit/rest": "catalog:",
         "@openauthjs/openauth": "catalog:",
+        "@opencode-ai/claude-provider": "workspace:*",
+        "@opencode-ai/codex-provider": "workspace:*",
         "@opencode-ai/plugin": "workspace:*",
         "@opencode-ai/script": "workspace:*",
         "@opencode-ai/sdk": "workspace:*",
@@ -489,6 +491,20 @@
         "vscode-languageserver-types": "3.17.5",
         "why-is-node-running": "3.2.2",
         "zod-to-json-schema": "3.24.5",
+      },
+    },
+    "packages/opencode-claude-provider": {
+      "name": "@opencode-ai/claude-provider",
+      "version": "0.1.0",
+      "peerDependencies": {
+        "@ai-sdk/provider": "^2.0.0",
+      },
+    },
+    "packages/opencode-codex-provider": {
+      "name": "@opencode-ai/codex-provider",
+      "version": "0.1.0",
+      "peerDependencies": {
+        "@ai-sdk/provider": "^2.0.0",
       },
     },
     "packages/plugin": {
@@ -1424,6 +1440,10 @@
     "@openauthjs/openauth": ["@openauthjs/openauth@0.0.0-20250322224806", "", { "dependencies": { "@standard-schema/spec": "1.0.0-beta.3", "aws4fetch": "1.0.20", "jose": "5.9.6" }, "peerDependencies": { "arctic": "^2.2.2", "hono": "^4.0.0" } }, "sha512-p5IWSRXvABcwocH2dNI0w8c1QJelIOFulwhKk+aLLFfUbs8u1pr7kQbYe8yCSM2+bcLHiwbogpUQc2ovrGwCuw=="],
 
     "@opencode-ai/app": ["@opencode-ai/app@workspace:packages/app"],
+
+    "@opencode-ai/claude-provider": ["@opencode-ai/claude-provider@workspace:packages/opencode-claude-provider"],
+
+    "@opencode-ai/codex-provider": ["@opencode-ai/codex-provider@workspace:packages/opencode-codex-provider"],
 
     "@opencode-ai/console-app": ["@opencode-ai/console-app@workspace:packages/console/app"],
 
