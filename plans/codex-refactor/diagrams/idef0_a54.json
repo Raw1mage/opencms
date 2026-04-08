@@ -1,0 +1,33 @@
+{
+  "diagram_title": "A54 處理壓縮後重設",
+  "node_reference": "A54",
+  "activities": [
+    {
+      "id": "A541",
+      "title": "推進視窗世代",
+      "description": "window.generation++。client_metadata 中的 window_generation 隨之遞增，讓伺服器識別新的壓縮週期。"
+    },
+    {
+      "id": "A542",
+      "title": "重設 WS 連線",
+      "description": "呼叫 resetWsSession()：關閉現有 WebSocket、清除 lastResponseId/lastInputLength、狀態回到 idle。"
+    },
+    {
+      "id": "A543",
+      "title": "清除當前帳號接續狀態",
+      "description": "呼叫 invalidateContinuation()：刪除該 sessionId 對應的磁碟持久化接續記錄，確保下次請求不使用過期的 previous_response_id。"
+    }
+  ],
+  "arrows": [
+    {"id": "a541_in", "label": "壓縮完成信號（advanceWindowGeneration 呼叫）", "source": "EXTERNAL", "target": "A541:input"},
+    {"id": "a541_out", "label": "generation + 1 → 更新 WindowState", "source": "A541:output", "target": "A542:input"},
+
+    {"id": "a542_ctl", "label": "sessionId（用於定位 WsSessionState）", "source": "EXTERNAL", "target": "A542:control"},
+    {"id": "a542_mech", "label": "resetWsSession()", "source": "EXTERNAL", "target": "A542:mechanism"},
+    {"id": "a542_out", "label": "WS 已關閉、狀態已回到 idle", "source": "A542:output", "target": "A543:input"},
+
+    {"id": "a543_ctl", "label": "sessionId（磁碟記錄鍵值）", "source": "EXTERNAL", "target": "A543:control"},
+    {"id": "a543_mech", "label": "invalidateContinuation()", "source": "EXTERNAL", "target": "A543:mechanism"},
+    {"id": "a543_out", "label": "接續狀態已清除 → 下次請求為全量模式", "source": "A543:output", "target": "EXTERNAL"}
+  ]
+}

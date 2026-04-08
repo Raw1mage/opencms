@@ -1,0 +1,41 @@
+{
+  "diagram_title": "A43 完成輸出項目",
+  "node_reference": "A43",
+  "activities": [
+    {
+      "id": "A431",
+      "title": "驗證 function_call 完整性",
+      "description": "檢查 done 事件中 item.type === 'function_call' 且 item.call_id 存在。不符則略過工具處理路徑。"
+    },
+    {
+      "id": "A432",
+      "title": "發射 tool-input-end",
+      "description": "以 call_id 為 id 發射 tool-input-end StreamPart，關閉串流輸入通道（取代 arguments.done 的重複結束）。"
+    },
+    {
+      "id": "A433",
+      "title": "發射 tool-call",
+      "description": "以 done 事件中的 item.arguments（完整引數，非串流差量拼接值）發射 tool-call StreamPart。包含 toolCallId、toolName、input、providerMetadata(itemId)。"
+    },
+    {
+      "id": "A434",
+      "title": "設定 hasFunctionCall 旗標",
+      "description": "將 StreamState.hasFunctionCall 設為 true，供 A45 判定完成原因時使用（stop → tool-calls 覆寫）。"
+    }
+  ],
+  "arrows": [
+    {"id": "a431_in", "label": "output_item.done 事件（含完整 item 物件）", "source": "EXTERNAL", "target": "A431:input"},
+    {"id": "a431_ctl", "label": "型別檢查規則（type === 'function_call' && call_id）", "source": "EXTERNAL", "target": "A431:control"},
+    {"id": "a431_out_ok", "label": "驗證通過 → call_id + name + arguments + id", "source": "A431:output", "target": "A432:input"},
+    {"id": "a431_out_skip", "label": "非 function_call → 略過", "source": "A431:output", "target": "EXTERNAL"},
+
+    {"id": "a432_out", "label": "tool-input-end StreamPart（id = call_id）", "source": "A432:output", "target": "EXTERNAL"},
+    {"id": "a432_chain", "label": "call_id + name + arguments", "source": "A432:output", "target": "A433:input"},
+
+    {"id": "a433_ctl", "label": "引數來源規則（使用 done 事件值，非串流差量）", "source": "EXTERNAL", "target": "A433:control"},
+    {"id": "a433_out", "label": "tool-call StreamPart（toolCallId + toolName + input + providerMetadata）", "source": "A433:output", "target": "EXTERNAL"},
+    {"id": "a433_chain", "label": "工具呼叫確認", "source": "A433:output", "target": "A434:input"},
+
+    {"id": "a434_out", "label": "hasFunctionCall = true → 影響 A45 完成原因判定", "source": "A434:output", "target": "EXTERNAL"}
+  ]
+}
