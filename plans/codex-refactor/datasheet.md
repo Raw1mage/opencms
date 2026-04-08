@@ -69,24 +69,27 @@
 }
 ```
 
-**注意**：system prompt 放在 `input[0]` 作為 `developer` role，**不是放在 `instructions` field**。`instructions` 只是 `"You are a helpful assistant."` placeholder。
+- `content` 是 **string**（不是 array）
+- system prompt 放 `input[0]` 作為 `developer` role，**不放 `instructions`**
+- `instructions` 只是 `"You are a helpful assistant."` placeholder
 
 ### 2.3 user message
 
 ```json
-{ "role": "user", "content": "讀取 ARCHITECTURE.md" }
+{ "role": "user", "content": [{ "type": "input_text", "text": "讀取 ARCHITECTURE.md" }] }
 ```
 
-或 multipart：
-```json
-{ "role": "user", "content": [{ "type": "input_text", "text": "..." }] }
-```
+- `content` **一律是 content parts array**，不用 string
+- 圖片：`[{ "type": "input_image", "image_url": "data:image/png;base64,..." }]`
 
 ### 2.4 assistant message
 
 ```json
-{ "role": "assistant", "content": "回覆文字" }
+{ "role": "assistant", "content": [{ "type": "output_text", "text": "回覆文字" }] }
 ```
+
+- `content` **一律是 content parts array**，不用 string
+- 注意 type 是 `output_text`（不是 `input_text`）
 
 ### 2.5 function_call（AI 發起的 tool call）
 
@@ -99,7 +102,7 @@
 }
 ```
 
-**注意**：`arguments` 是 **JSON 字串**，不是物件。
+- `arguments` 是 **JSON 字串**，不是物件
 
 ### 2.6 function_call_output（tool 執行結果）
 
@@ -111,7 +114,9 @@
 }
 ```
 
-**關鍵**：`output` 是 **content parts array**（`[{type: "input_text", text: "..."}]`），**不是字串**。AI SDK 把 tool result 包裝成這個格式。如果用 `JSON.stringify()` 轉成字串，AI 會看到空內容。
+- `output` 是 **content parts array**（`[{type: "input_text", text: "..."}]`）
+- **不是字串**。`JSON.stringify()` 會讓 AI 看到空內容
+- AI SDK 把 tool result 包裝成這個格式，必須原封不動傳遞
 
 ---
 

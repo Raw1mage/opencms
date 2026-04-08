@@ -32,24 +32,23 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
         break
 
       case "user": {
+        // User content is ALWAYS a content parts array (never plain string)
+        // Golden: [{type: "input_text", text: "..."}] or [{type: "input_image", image_url: "..."}]
         const parts = convertUserContent(msg.content)
-        if (parts.length === 1 && parts[0].type === "input_text") {
-          input.push({ role: "user", content: (parts[0] as { text: string }).text })
-        } else {
-          input.push({ role: "user", content: parts })
-        }
+        input.push({ role: "user", content: parts })
         break
       }
 
       case "assistant": {
         const parts = convertAssistantContent(msg.content)
         if (parts.textParts.length > 0 || parts.toolCalls.length > 0) {
-          // Add assistant text
+          // Assistant content is ALWAYS a content parts array with type="output_text"
+          // Golden: [{type: "output_text", text: "..."}]
           if (parts.textParts.length > 0) {
             const text = parts.textParts.join("")
-            input.push({ role: "assistant", content: text })
+            input.push({ role: "assistant", content: [{ type: "output_text", text }] })
           }
-          // Add tool calls as separate items
+          // Tool calls as separate items
           for (const tc of parts.toolCalls) {
             input.push({
               type: "function_call",

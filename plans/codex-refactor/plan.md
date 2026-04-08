@@ -58,8 +58,8 @@ tools:              FunctionTool[]                      ← 見 §3.3
 | 位置 | type/role | content 格式 | 說明 |
 |---|---|---|---|
 | `[0]` | `role: "developer"` | string (31K+ chars) | **完整 system prompt**。不是放 instructions。 |
-| `[1+]` | `role: "user"` | string 或 `[{type:"input_text", text}]` | 用戶訊息 |
-| | `role: "assistant"` | string | AI 回覆文字 |
+| `[1+]` | `role: "user"` | `[{type:"input_text", text}]` | **一律 content parts array**，不用 string |
+| | `role: "assistant"` | `[{type:"output_text", text}]` | **一律 content parts array**，type 是 output_text |
 | | `type: "function_call"` | `{call_id, name, arguments: "JSON字串"}` | AI 發起的 tool call |
 | | `type: "function_call_output"` | `{call_id, output: [{type:"input_text", text:"..."}]}` | **tool 結果是 content parts array，不是字串** |
 
