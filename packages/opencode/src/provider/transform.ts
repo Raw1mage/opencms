@@ -705,7 +705,9 @@ export namespace ProviderTransform {
     // openai and providers using openai package should set store to false by default.
     if (
       input.model.providerId === "openai" ||
+      input.model.providerId === "codex" ||
       input.model.api.npm === "@ai-sdk/openai" ||
+      input.model.api.npm === "@opencode-ai/codex-provider" ||
       input.model.api.npm === "@ai-sdk/github-copilot"
     ) {
       result["store"] = false

@@ -63,17 +63,30 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
       }
 
       case "tool": {
-        // Tool results
+        // Tool results — output must match Responses API format.
+        // AI SDK wraps tool results as content part arrays:
+        //   [{type: "input_text", text: "...actual output..."}]
+        // Pass as-is for array/object, stringify only for primitives.
         for (const result of msg.content) {
+          const raw = result.result
+          let output: unknown
+          if (raw == null) {
+            output = ""
+          } else if (typeof raw === "string") {
+            output = raw
+          } else if (Array.isArray(raw)) {
+            // Content parts array — pass directly
+            output = raw
+          } else if (typeof raw === "object") {
+            output = JSON.stringify(raw)
+          } else {
+            output = String(raw)
+          }
           input.push({
             type: "function_call_output",
             call_id: result.toolCallId,
-            output: result.result == null
-              ? ""
-              : typeof result.result === "string"
-                ? result.result
-                : JSON.stringify(result.result),
-          })
+            output,
+          } as ResponseItem)
         }
         break
       }
