@@ -116,9 +116,6 @@ export function mapResponseStream(
           const { done, value } = await reader.read()
           if (done) break
 
-          if (value.type?.includes("function_call")) {
-            console.error(`[CODEX-SSE] mapEvent: type=${value.type} FULL=${JSON.stringify(value).slice(0,500)}`)
-          }
           const parts = mapEvent(value, state)
           for (const part of parts) {
             controller.enqueue(part)
@@ -169,9 +166,6 @@ function mapEvent(event: ResponseStreamEvent, state: StreamState): LanguageModel
     case "response.output_item.added": {
       const item = (event as any).item as { type: string; id?: string; name?: string; call_id?: string; arguments?: string }
       const idx = (event as any).output_index as number
-      if (item.type === "function_call") {
-        console.error(`[CODEX-TOOL] output_item.added: idx=${idx} name=${item.name} call_id=${item.call_id} hasArgs=${!!item.arguments} argsLen=${item.arguments?.length ?? 0} argsPreview=${(item.arguments ?? "").slice(0, 100)}`)
-      }
       state.outputItems.set(idx, {
         type: item.type,
         id: item.id ?? `item_${idx}`,
@@ -250,7 +244,20 @@ function mapEvent(event: ResponseStreamEvent, state: StreamState): LanguageModel
     }
 
     case "response.output_item.done": {
-      // Item completed — no action needed, text-end/tool-input-end handle closure
+      const doneItem = (event as any).item as { type: string; call_id?: string; name?: string; arguments?: string; id?: string }
+      if (doneItem?.type === "function_call" && doneItem.call_id) {
+        // Emit tool-input-end + tool-call with FINAL arguments from done event.
+        // Streaming deltas may be obfuscated (delta="{}"), but output_item.done
+        // contains the real, complete arguments.
+        parts.push({ type: "tool-input-end", id: doneItem.call_id } as LanguageModelV2StreamPart)
+        parts.push({
+          type: "tool-call",
+          toolCallId: doneItem.call_id,
+          toolName: doneItem.name ?? "unknown",
+          input: doneItem.arguments ?? "{}",
+          providerMetadata: doneItem.id ? { openai: { itemId: doneItem.id } } : undefined,
+        } as LanguageModelV2StreamPart)
+      }
       break
     }
 
