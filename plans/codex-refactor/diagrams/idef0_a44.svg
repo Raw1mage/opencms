@@ -1,0 +1,49 @@
+<svg width="1921.0" height="940.0" viewBox="-412.0 -220.0 1921.0 940.0" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-412.0" y="-220.0" width="1921.0" height="940.0" fill="white" />
+<rect x="130.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A441" />
+<text x="230.0" y="166.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A441" >A441</text>
+<text x="230.0" y="196.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A441" >擷取回應 ID</text>
+<rect x="590.0" y="120.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A442" />
+<text x="690.0" y="166.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A442" >A442</text>
+<text x="690.0" y="196.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A442" >擷取用量資訊</text>
+<rect x="130.0" y="360.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A443" />
+<text x="230.0" y="406.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A443" >A443</text>
+<text x="230.0" y="436.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A443" >映射不完整原因</text>
+<rect x="590.0" y="360.0" width="200.0" height="120.0" stroke="black" fill="white" stroke-width="1.5" data-id="A444" />
+<text x="690.0" y="406.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A444" >A444</text>
+<text x="690.0" y="436.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A444" >記錄完成狀態</text>
+<path d="M 330.0 180.0 L 590.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a441_chain" data-waypoints="330.0,180.0 590.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 790.0 200.0 L 820.0 200.0 Q 830.0 200.0 830.0 210.0 L 830.0 272.9 Q 830.0 282.9 820.0 282.9 L 100.0 282.9 Q 90.0 282.9 90.0 292.9 L 90.0 410.0 Q 90.0 420.0 100.0 420.0 L 130.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="a442_chain" data-waypoints="790.0,200.0 830.0,200.0 830.0,282.9 90.0,282.9 90.0,420.0 130.0,420.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -328.0 180.0 L 130.0 180.0" stroke="black" stroke-width="1.2" data-arrow-id="a441_in" data-waypoints="-328.0,180.0 130.0,180.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 160.0 L 410.0 160.0 Q 420.0 160.0 420.0 150.0 L 420.0 90.0 Q 420.0 80.0 430.0 80.0 L 1425.0 80.0" stroke="black" stroke-width="1.2" data-arrow-id="a441_out" data-waypoints="330.0,160.0 420.0,160.0 420.0,80.0 1425.0,80.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 790.0 160.0 L 1425.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="a442_out" data-waypoints="790.0,160.0 1425.0,160.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 420.0 L 410.0 420.0 Q 420.0 420.0 420.0 410.0 L 420.0 327.1 Q 420.0 317.1 430.0 317.1 L 1425.0 317.1" stroke="black" stroke-width="1.2" data-arrow-id="a443_out" data-waypoints="330.0,420.0 420.0,420.0 420.0,317.1 1425.0,317.1" marker-end="url(#arrow)" fill="none" />
+<path d="M -328.0 520.0 L 490.0 520.0 Q 500.0 520.0 500.0 510.0 L 500.0 430.0 Q 500.0 420.0 510.0 420.0 L 590.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="a444_in" data-waypoints="-328.0,520.0 500.0,520.0 500.0,420.0 590.0,420.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 790.0 420.0 L 1425.0 420.0" stroke="black" stroke-width="1.2" data-arrow-id="a444_out" data-waypoints="790.0,420.0 1425.0,420.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 324.2 L 230.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="a443_ctl" data-waypoints="230.0,324.2 230.0,360.0" marker-end="url(#arrow)" fill="none" />
+<text x="224.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a443_ctl" >不完整原因映射規則（max_output_tokens</text>
+<text x="236.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a443_ctl" >→ &#x27;length&#x27;）</text>
+<path d="M 690.0 324.2 L 690.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="a444_ctl" data-waypoints="690.0,324.2 690.0,360.0" marker-end="url(#arrow)" fill="none" />
+<text x="684.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a444_ctl" >mapFinishReason</text>
+<text x="696.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a444_ctl" >映射表</text>
+<rect x="30.0" y="20.0" width="860.0" height="560.0" stroke="black" fill="none" stroke-width="2" />
+<rect x="340.0" y="-180.0" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A44" />
+<text x="460.0" y="-139.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A44" >A44</text>
+<text x="460.0" y="-109.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A44" >A44 處理結束事件</text>
+<line x1="340.0" y1="-180.0" x2="30.0" y2="20.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="580.0" y1="-180.0" x2="890.0" y2="20.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="340.0" y1="-70.0" x2="30.0" y2="580.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="580.0" y1="-70.0" x2="890.0" y2="580.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="460.0" y="198.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a441_chain" >回應物件（含 usage + status）</text>
+<text x="230.0" y="274.9" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a442_chain" >事件類型 + 回應物件</text>
+<text x="26.0" y="172.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a441_in" >response.completed / response.incomplete 事件</text>
+<text x="894.0" y="72.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a441_out" >responseId → state.responseId</text>
+<text x="894.0" y="152.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a442_out" >用量記錄（inputTokens、outputTokens、cachedTokens、reasoningTokens）</text>
+<text x="894.0" y="309.1" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a443_out" >finishReason = &#x27;length&#x27; 或 &#x27;other&#x27;</text>
+<text x="26.0" y="512.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a444_in" >response.completed 事件（含 status 欄位）</text>
+<text x="894.0" y="412.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a444_out" >finishReason = &#x27;stop&#x27; / &#x27;error&#x27; / &#x27;length&#x27; / &#x27;other&#x27;</text>
+</svg>

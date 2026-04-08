@@ -1,0 +1,52 @@
+<svg width="1728.0" height="941.8" viewBox="-355.0 -221.8 1728.0 941.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-355.0" y="-221.8" width="1728.0" height="941.8" fill="white" />
+<rect x="130.0" y="120.0" width="202.0" height="130.0" stroke="black" fill="white" stroke-width="1.5" data-id="A311" />
+<text x="231.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A311" >A311</text>
+<text x="231.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A311" >檢查 WS</text>
+<text x="231.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A311" >實例是否存在</text>
+<rect x="592.0" y="120.0" width="202.0" height="130.0" stroke="black" fill="white" stroke-width="1.5" data-id="A312" />
+<text x="693.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A312" >A312</text>
+<text x="693.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A312" >檢查</text>
+<text x="693.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A312" >READYSTATE</text>
+<rect x="130.0" y="370.0" width="202.0" height="130.0" stroke="black" fill="white" stroke-width="1.5" data-id="A313" />
+<text x="231.0" y="421.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A313" >A313</text>
+<text x="231.0" y="451.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A313" >檢查帳號一致性</text>
+<rect x="592.0" y="370.0" width="202.0" height="130.0" stroke="black" fill="white" stroke-width="1.5" data-id="A314" />
+<text x="693.0" y="421.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A314" >A314</text>
+<text x="693.0" y="451.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A314" >檢查停用旗標</text>
+<path d="M 332.0 185.0 L 592.0 185.0" stroke="black" stroke-width="1.2" data-arrow-id="a311_out_exists" data-waypoints="332.0,185.0 592.0,185.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 794.0 456.7 L 824.0 456.7 Q 834.0 456.7 834.0 466.7 L 834.0 530.0 Q 834.0 540.0 824.0 540.0 L 100.0 540.0 Q 90.0 540.0 90.0 530.0 L 90.0 445.0 Q 90.0 435.0 100.0 435.0 L 130.0 435.0" stroke="black" stroke-width="1.2" data-arrow-id="a314_out_ok" data-waypoints="794.0,456.7 834.0,456.7 834.0,540.0 90.0,540.0 90.0,435.0 130.0,435.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 332.0 456.7 L 390.0 456.7 Q 400.0 456.7 400.0 446.7 L 400.0 295.0 Q 400.0 285.0 390.0 285.0 L 100.0 285.0 Q 90.0 285.0 90.0 275.0 L 90.0 195.0 Q 90.0 185.0 100.0 185.0 L 130.0 185.0" stroke="black" stroke-width="1.2" data-arrow-id="a313_out_ok" data-waypoints="332.0,456.7 400.0,456.7 400.0,285.0 90.0,285.0 90.0,185.0 130.0,185.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -271.0 325.0 L 510.0 325.0 Q 520.0 325.0 520.0 335.0 L 520.0 425.0 Q 520.0 435.0 530.0 435.0 L 592.0 435.0" stroke="black" stroke-width="1.2" data-arrow-id="a314_in" data-waypoints="-271.0,325.0 520.0,325.0 520.0,435.0 592.0,435.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 794.0 413.3 L 1289.0 413.3" stroke="black" stroke-width="1.2" data-arrow-id="a314_out_disabled" data-waypoints="794.0,413.3 1289.0,413.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 231.0 334.2 L 231.0 370.0" stroke="black" stroke-width="1.2" data-arrow-id="a313_ctl" data-waypoints="231.0,334.2 231.0,370.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 332.0 413.3 L 452.0 413.3 Q 462.0 413.3 462.0 423.3 L 462.0 570.0 Q 462.0 580.0 472.0 580.0 L 1289.0 580.0" stroke="black" stroke-width="1.2" data-arrow-id="a313_out_switch" data-waypoints="332.0,413.3 462.0,413.3 462.0,580.0 1289.0,580.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 332.0 163.3 L 390.0 163.3 Q 400.0 163.3 400.0 153.3 L 400.0 88.2 Q 400.0 78.2 410.0 78.2 L 1289.0 78.2" stroke="black" stroke-width="1.2" data-arrow-id="a311_out_null" data-waypoints="332.0,163.3 400.0,163.3 400.0,78.2 1289.0,78.2" marker-end="url(#arrow)" fill="none" />
+<path d="M 794.0 185.0 L 1289.0 185.0" stroke="black" stroke-width="1.2" data-arrow-id="a312_out_open" data-waypoints="794.0,185.0 1289.0,185.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 693.0 84.2 L 693.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a312_ctl" data-waypoints="693.0,84.2 693.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="687.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a312_ctl" >WebSocket.OPEN 常數</text>
+<text x="699.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a312_ctl" >+ status === &#x27;open&#x27;</text>
+<rect x="30.0" y="18.2" width="864.0" height="621.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="342.0" y="-181.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A31" />
+<text x="462.0" y="-155.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >A31</text>
+<text x="462.0" y="-125.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >A31 檢查 WS</text>
+<text x="462.0" y="-95.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >連線狀態</text>
+<line x1="342.0" y1="-181.8" x2="30.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="582.0" y1="-181.8" x2="894.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="342.0" y1="-71.8" x2="30.0" y2="640.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="582.0" y1="-71.8" x2="894.0" y2="640.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="462.0" y="203.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a311_out_exists" >ws 存在 → 檢查狀態</text>
+<text x="547.0" y="534.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a314_out_ok">WS 未停用</text>
+<text x="547.0" y="556.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a314_out_ok">→ 繼續檢查</text>
+<text x="231.0" y="277.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a313_out_ok" >帳號一致 → 繼續檢查</text>
+<text x="26.0" y="317.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a314_in" >WsSessionState（含 disableWebsockets）</text>
+<text x="898.0" y="405.3" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a314_out_disabled" >WS 已停用 → 回傳 null</text>
+<text x="227.0" y="365.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a313_ctl" >請求帳號 ID</text>
+<text x="898.0" y="572.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a313_out_switch" >帳號不一致 → 觸發帳號切換</text>
+<text x="898.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a311_out_null" >ws === null → 需新連線</text>
+<text x="898.0" y="177.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a312_out_open" >連線存活 → 可重用 / 連線過期 → 作廢 + 清除接續狀態</text>
+</svg>

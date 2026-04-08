@@ -1,0 +1,41 @@
+{
+  "diagram_title": "A44 處理結束事件",
+  "node_reference": "A44",
+  "activities": [
+    {
+      "id": "A441",
+      "title": "擷取回應 ID",
+      "description": "從 response.completed 或 response.incomplete 事件中取出 response.id，寫入 state.responseId"
+    },
+    {
+      "id": "A442",
+      "title": "擷取用量資訊",
+      "description": "從 response.usage 擷取 input_tokens、output_tokens、input_tokens_details.cached_tokens、output_tokens_details.reasoning_tokens，寫入 state.usage"
+    },
+    {
+      "id": "A443",
+      "title": "映射不完整原因",
+      "description": "response.incomplete 時讀取 incomplete_details.reason，max_output_tokens 映射為 'length'，其餘映射為 'other'"
+    },
+    {
+      "id": "A444",
+      "title": "記錄完成狀態",
+      "description": "response.completed 時呼叫 mapFinishReason(status)：completed/cancelled → 'stop'、failed → 'error'、incomplete → 'length'、其餘 → 'other'"
+    }
+  ],
+  "arrows": [
+    {"id": "a441_in", "label": "response.completed / response.incomplete 事件", "source": "EXTERNAL", "target": "A441:input"},
+    {"id": "a441_out", "label": "responseId → state.responseId", "source": "A441:output", "target": "EXTERNAL"},
+    {"id": "a441_chain", "label": "回應物件（含 usage + status）", "source": "A441:output", "target": "A442:input"},
+
+    {"id": "a442_out", "label": "用量記錄（inputTokens、outputTokens、cachedTokens、reasoningTokens）", "source": "A442:output", "target": "EXTERNAL"},
+    {"id": "a442_chain", "label": "事件類型 + 回應物件", "source": "A442:output", "target": "A443:input"},
+
+    {"id": "a443_ctl", "label": "不完整原因映射規則（max_output_tokens → 'length'）", "source": "EXTERNAL", "target": "A443:control"},
+    {"id": "a443_out", "label": "finishReason = 'length' 或 'other'", "source": "A443:output", "target": "EXTERNAL"},
+
+    {"id": "a444_in", "label": "response.completed 事件（含 status 欄位）", "source": "EXTERNAL", "target": "A444:input"},
+    {"id": "a444_ctl", "label": "mapFinishReason 映射表", "source": "EXTERNAL", "target": "A444:control"},
+    {"id": "a444_out", "label": "finishReason = 'stop' / 'error' / 'length' / 'other'", "source": "A444:output", "target": "EXTERNAL"}
+  ]
+}

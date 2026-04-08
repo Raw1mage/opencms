@@ -1,0 +1,55 @@
+<svg width="2108.0" height="1081.8" viewBox="-482.0 -221.8 2108.0 1081.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-482.0" y="-221.8" width="2108.0" height="1081.8" fill="white" />
+<rect x="130.0" y="120.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A111" />
+<text x="230.0" y="206.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A111" >A111</text>
+<text x="230.0" y="236.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A111" >解析提供者選項鍵</text>
+<rect x="550.0" y="120.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A112" />
+<text x="650.0" y="206.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A112" >A112</text>
+<text x="650.0" y="236.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A112" >映射儲存與服務層級</text>
+<rect x="970.0" y="120.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A113" />
+<text x="1070.0" y="206.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A113" >A113</text>
+<text x="1070.0" y="236.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A113" >映射推理控制</text>
+<rect x="130.0" y="480.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A114" />
+<text x="230.0" y="566.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A114" >A114</text>
+<text x="230.0" y="596.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A114" >映射文字控制</text>
+<rect x="550.0" y="480.0" width="200.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A115" />
+<text x="650.0" y="566.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A115" >A115</text>
+<text x="650.0" y="596.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A115" >映射包含欄位</text>
+<path d="M 330.0 220.0 L 550.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="a111_out" data-waypoints="330.0,220.0 550.0,220.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 160.0 L 450.0 160.0 Q 460.0 160.0 460.0 170.0 L 460.0 350.0 Q 460.0 360.0 470.0 360.0 L 890.0 360.0 Q 900.0 360.0 900.0 350.0 L 900.0 230.0 Q 900.0 220.0 910.0 220.0 L 970.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="a111_to_a113" data-waypoints="330.0,160.0 460.0,160.0 460.0,360.0 460.0,360.0 900.0,360.0 900.0,360.0 900.0,220.0 970.0,220.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 400.0 L 490.0 400.0 Q 500.0 400.0 500.0 410.0 L 500.0 570.0 Q 500.0 580.0 510.0 580.0 L 550.0 580.0" stroke="black" stroke-width="1.2" data-arrow-id="a111_to_a115" data-waypoints="330.0,400.0 500.0,400.0 500.0,580.0 550.0,580.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 400.0 L 410.0 400.0 Q 420.0 400.0 420.0 410.0 L 420.0 430.0 Q 420.0 440.0 410.0 440.0 L 100.0 440.0 Q 90.0 440.0 90.0 450.0 L 90.0 570.0 Q 90.0 580.0 100.0 580.0 L 130.0 580.0" stroke="black" stroke-width="1.2" data-arrow-id="a111_to_a114" data-waypoints="330.0,400.0 420.0,400.0 420.0,440.0 90.0,440.0 90.0,580.0 130.0,580.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -398.0 220.0 L 130.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="a111_in" data-waypoints="-398.0,220.0 130.0,220.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 750.0 220.0 L 810.0 220.0 Q 820.0 220.0 820.0 210.0 L 820.0 88.2 Q 820.0 78.2 830.0 78.2 L 1542.0 78.2" stroke="black" stroke-width="1.2" data-arrow-id="a112_out" data-waypoints="750.0,220.0 820.0,220.0 820.0,78.2 1542.0,78.2" marker-end="url(#arrow)" fill="none" />
+<path d="M 1170.0 220.0 L 1542.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="a113_out" data-waypoints="1170.0,220.0 1542.0,220.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 330.0 580.0 L 370.0 580.0 Q 380.0 580.0 380.0 590.0 L 380.0 710.0 Q 380.0 720.0 390.0 720.0 L 1542.0 720.0" stroke="black" stroke-width="1.2" data-arrow-id="a114_out" data-waypoints="330.0,580.0 380.0,580.0 380.0,720.0 1542.0,720.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 750.0 580.0 L 1542.0 580.0" stroke="black" stroke-width="1.2" data-arrow-id="a115_out" data-waypoints="750.0,580.0 1542.0,580.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 230.0 84.2 L 230.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a111_ctl" data-waypoints="230.0,84.2 230.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="224.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a111_ctl" >鍵名優先順序：codex &gt;</text>
+<text x="236.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a111_ctl" >openai &gt; root</text>
+<path d="M 1070.0 84.2 L 1070.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="a113_ctl" data-waypoints="1070.0,84.2 1070.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="1064.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="a113_ctl" >reasoning 物件結構規格</text>
+<text x="1076.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="a113_ctl" >（effort, summary）</text>
+<rect x="30.0" y="18.2" width="1200.0" height="761.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="510.0" y="-181.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A11" />
+<text x="630.0" y="-140.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A11" >A11</text>
+<text x="630.0" y="-110.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A11" >A11 擷取提供者選項</text>
+<line x1="510.0" y1="-181.8" x2="30.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="750.0" y1="-181.8" x2="1230.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="510.0" y1="-71.8" x2="30.0" y2="780.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="750.0" y1="-71.8" x2="1230.0" y2="780.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="440.0" y="214.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a111_out">已解析的 po 物件</text>
+<text x="440.0" y="236.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a111_out">（Record&lt;string, unknown&gt;）</text>
+<text x="650.0" y="352.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a111_to_a113" >po 物件</text>
+<text x="496.0" y="497.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a111_to_a115" >po 物件</text>
+<text x="230.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a111_to_a114" >po 物件</text>
+<text x="26.0" y="212.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a111_in" >callOptions.providerOptions（含 codex/openai/root 鍵）</text>
+<text x="1234.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a112_out" >store (boolean) + service_tier (string)</text>
+<text x="1234.0" y="212.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a113_out" >reasoning 物件（effort + summary）</text>
+<text x="1234.0" y="712.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a114_out" >text 物件（verbosity）</text>
+<text x="1234.0" y="572.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="a115_out" >include 陣列（string[]）</text>
+</svg>

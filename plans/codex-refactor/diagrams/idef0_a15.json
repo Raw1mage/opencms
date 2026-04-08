@@ -1,0 +1,47 @@
+{
+  "diagram_title": "A15 組合請求主體",
+  "node_reference": "A15",
+  "activities": [
+    {
+      "id": "A151",
+      "title": "設定基礎欄位",
+      "description": "寫入 model、instructions、input、prompt_cache_key 至 ResponsesApiRequest"
+    },
+    {
+      "id": "A152",
+      "title": "組裝壓縮管理",
+      "description": "建構 context_management 陣列：type=compaction + compact_threshold（依模型動態計算）"
+    },
+    {
+      "id": "A153",
+      "title": "組裝客戶端中繼資料",
+      "description": "呼叫 buildClientMetadata：寫入 x-codex-installation-id 與 x-codex-window-id"
+    },
+    {
+      "id": "A154",
+      "title": "合併工具定義",
+      "description": "若 tools 非空則設定 body.tools 與 body.tool_choice=auto"
+    },
+    {
+      "id": "A155",
+      "title": "注入最大輸出 Token 數",
+      "description": "從 callOptions.maxOutputTokens 寫入 body.max_output_tokens"
+    }
+  ],
+  "arrows": [
+{"id": "a151_in", "label": "model、instructions、input、cacheKey", "source": "EXTERNAL", "target": "A151:input"},
+    {"id": "a151_out", "label": "body 基礎骨架（model + instructions + input + prompt_cache_key）", "source": "A151:output", "target": "A152:input"},
+
+    {"id": "a152_ctl", "label": "getCompactThreshold(modelId) 回傳值", "source": "EXTERNAL", "target": "A152:control"},
+    {"id": "a152_out", "label": "body + context_management 陣列", "source": "A152:output", "target": "A153:input"},
+
+    {"id": "a153_in2", "label": "installationId + window 狀態", "source": "EXTERNAL", "target": "A153:input"},
+    {"id": "a153_out", "label": "body + client_metadata 物件", "source": "A153:output", "target": "A154:input"},
+
+    {"id": "a154_in2", "label": "已序列化的 tools[]", "source": "EXTERNAL", "target": "A154:input"},
+    {"id": "a154_out", "label": "body + tools + tool_choice", "source": "A154:output", "target": "A155:input"},
+
+    {"id": "a155_ctl", "label": "callOptions.maxOutputTokens", "source": "EXTERNAL", "target": "A155:control"},
+    {"id": "a155_out", "label": "完整 ResponsesApiRequest", "source": "A155:output", "target": "EXTERNAL"}
+  ]
+}

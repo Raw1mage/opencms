@@ -1,0 +1,48 @@
+{
+  "diagram_title": "A34 HTTP SSE 備援",
+  "node_reference": "A34",
+  "activities": [
+    {
+      "id": "A341",
+      "title": "組裝 HTTP 請求",
+      "description": "在 body 加入 stream:true、JSON.stringify body、呼叫 buildHeaders 產生完整標頭"
+    },
+    {
+      "id": "A342",
+      "title": "發送 HTTP POST",
+      "description": "以 fetch() 向 CODEX_API_URL 發送 POST 請求，附帶 abort signal"
+    },
+    {
+      "id": "A343",
+      "title": "檢查回應狀態",
+      "description": "判斷 response.ok；4xx/5xx 時讀取錯誤本文並拋出例外；無 body 時拋出例外"
+    },
+    {
+      "id": "A344",
+      "title": "擷取回合狀態",
+      "description": "從 response headers 讀取 x-codex-turn-state 並更新 this.turnState"
+    },
+    {
+      "id": "A345",
+      "title": "解析 SSE 串流",
+      "description": "parseSSEStream：位元組串流 → TextDecoder 逐行拆分 → JSON.parse → ResponseStreamEvent 物件"
+    }
+  ],
+  "arrows": [
+{"id": "a341_in", "label": "body 物件 + BuildHeadersOptions", "source": "EXTERNAL", "target": "A341:input"},
+    {"id": "a341_ctl", "label": "stream:true 注入規則", "source": "EXTERNAL", "target": "A341:control"},
+    {"id": "a341_out", "label": "JSON 字串化的 body + headers + URL", "source": "A341:output", "target": "A342:input"},
+
+    {"id": "a342_ctl", "label": "callOptions.abortSignal", "source": "EXTERNAL", "target": "A342:control"},
+    {"id": "a342_out", "label": "HTTP Response 物件", "source": "A342:output", "target": "A343:input"},
+
+    {"id": "a343_ctl", "label": "HTTP 狀態碼 + content-type 判斷規則", "source": "EXTERNAL", "target": "A343:control"},
+    {"id": "a343_out", "label": "已驗證的 Response（含 body stream）", "source": "A343:output", "target": "A344:input"},
+
+    {"id": "a344_out1", "label": "更新後的 turnState", "source": "A344:output", "target": "EXTERNAL"},
+    {"id": "a344_out2", "label": "response.body（ReadableStream<Uint8Array>）", "source": "A344:output", "target": "A345:input"},
+
+    {"id": "a345_ctl", "label": "SSE 協定規則（data: 前綴、[DONE] 結束）", "source": "EXTERNAL", "target": "A345:control"},
+    {"id": "a345_out", "label": "ReadableStream<ResponseStreamEvent>", "source": "A345:output", "target": "EXTERNAL"}
+  ]
+}

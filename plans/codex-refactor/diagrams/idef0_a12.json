@@ -1,0 +1,39 @@
+{
+  "diagram_title": "A12 轉換系統提示",
+  "node_reference": "A12",
+  "activities": [
+    {
+      "id": "A121",
+      "title": "擷取系統訊息",
+      "description": "遍歷 LanguageModelV2Prompt 陣列，過濾 role === 'system' 的訊息項目"
+    },
+    {
+      "id": "A122",
+      "title": "串接系統文字",
+      "description": "取得系統訊息的 content 字串（目前實作為單筆直接取用，未做多筆串接）"
+    },
+    {
+      "id": "A123",
+      "title": "建立開發者輸入項",
+      "description": "包裝為 {role: 'developer', content: text} 推入 input 陣列的對應位置"
+    },
+    {
+      "id": "A124",
+      "title": "設定 instructions 欄位",
+      "description": "以固定預設值 'You are a helpful assistant.' 作為 instructions，不從系統提示衍生"
+    }
+  ],
+  "arrows": [
+    {"id": "a121_in", "label": "LanguageModelV2Prompt（完整提示陣列）", "source": "EXTERNAL", "target": "A121:input"},
+    {"id": "a121_ctl", "label": "角色過濾規則（role === 'system'）", "source": "EXTERNAL", "target": "A121:control"},
+    {"id": "a121_out", "label": "系統訊息項目（含 content 字串）", "source": "A121:output", "target": "A122:input"},
+
+    {"id": "a122_out", "label": "系統文字內容", "source": "A122:output", "target": "A123:input"},
+
+    {"id": "a123_ctl", "label": "Responses API 格式規則（developer 角色）", "source": "EXTERNAL", "target": "A123:control"},
+    {"id": "a123_out", "label": "開發者輸入項 {role:'developer', content}", "source": "A123:output", "target": "EXTERNAL"},
+
+    {"id": "a124_in", "label": "預設值常數", "source": "EXTERNAL", "target": "A124:input"},
+    {"id": "a124_out", "label": "instructions 字串", "source": "A124:output", "target": "EXTERNAL"}
+  ]
+}

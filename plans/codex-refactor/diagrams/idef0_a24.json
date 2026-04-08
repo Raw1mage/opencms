@@ -1,0 +1,40 @@
+{
+  "diagram_title": "A24 建構身份標頭",
+  "node_reference": "A24",
+  "activities": [
+    {
+      "id": "A241",
+      "title": "設定認證標頭",
+      "description": "寫入 Authorization: Bearer {token} 與 ChatGPT-Account-Id（若有帳號 ID）"
+    },
+    {
+      "id": "A242",
+      "title": "設定來源識別",
+      "description": "寫入 originator=codex-tui 與 User-Agent 字串"
+    },
+    {
+      "id": "A243",
+      "title": "設定協定標頭",
+      "description": "寫入 Content-Type: application/json；WebSocket 時額外加 OpenAI-Beta 標頭"
+    },
+    {
+      "id": "A244",
+      "title": "設定 Codex 專屬標頭",
+      "description": "寫入 x-codex-turn-state（黏著路由）、x-codex-window-id（視窗世系）、session_id"
+    }
+  ],
+  "arrows": [
+{"id": "a241_in", "label": "accessToken + accountId", "source": "EXTERNAL", "target": "A241:input"},
+    {"id": "a241_out", "label": "headers（含 Authorization + ChatGPT-Account-Id）", "source": "A241:output", "target": "A242:input"},
+
+    {"id": "a242_in2", "label": "userAgent 字串", "source": "EXTERNAL", "target": "A242:input"},
+    {"id": "a242_ctl", "label": "ORIGINATOR 常數 (codex-tui)", "source": "EXTERNAL", "target": "A242:control"},
+    {"id": "a242_out", "label": "headers（加入 originator + User-Agent）", "source": "A242:output", "target": "A243:input"},
+
+    {"id": "a243_ctl", "label": "isWebSocket 旗標 + WS_BETA_HEADER 常數", "source": "EXTERNAL", "target": "A243:control"},
+    {"id": "a243_out", "label": "headers（加入 Content-Type + OpenAI-Beta）", "source": "A243:output", "target": "A244:input"},
+
+    {"id": "a244_in2", "label": "turnState + window + sessionId", "source": "EXTERNAL", "target": "A244:input"},
+    {"id": "a244_out", "label": "完整標頭集 Record<string, string>", "source": "A244:output", "target": "EXTERNAL"}
+  ]
+}
