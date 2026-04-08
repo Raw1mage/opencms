@@ -179,6 +179,7 @@ function mapEvent(event: ResponseStreamEvent, state: StreamState): LanguageModel
         parts.push({ type: "text-start", id } as LanguageModelV2StreamPart)
       } else if (item.type === "function_call") {
         const id = item.call_id ?? `tool_${state.toolIdCounter++}`
+        console.error(`[CODEX-TOOL] input-start idx=${idx} callId=${id} name=${item.name} itemKeys=${Object.keys(item).join(",")}`)
         parts.push({
           type: "tool-input-start",
           id,
@@ -203,13 +204,18 @@ function mapEvent(event: ResponseStreamEvent, state: StreamState): LanguageModel
 
     case "response.function_call_arguments.delta": {
       const delta = (event as any).delta as string
-      const callId = (event as any).call_id as string
+      const outputIdx = (event as any).output_index as number
+      const trackedItem = state.outputItems.get(outputIdx)
+      const callId = trackedItem?.callId ?? (event as any).call_id ?? `tool_${outputIdx}`
+      console.error(`[CODEX-TOOL] args.delta outputIdx=${outputIdx} callId=${callId} trackedCallId=${trackedItem?.callId} eventCallId=${(event as any).call_id} fullDelta=${JSON.stringify(delta)} eventKeys=${Object.keys(event as any).join(",")}`)
       parts.push({ type: "tool-input-delta", id: callId, delta } as LanguageModelV2StreamPart)
       break
     }
 
     case "response.function_call_arguments.done": {
-      const callId = (event as any).call_id as string
+      const outputIdx = (event as any).output_index as number
+      const trackedItem2 = state.outputItems.get(outputIdx)
+      const callId = trackedItem2?.callId ?? (event as any).call_id ?? `tool_${outputIdx}`
       parts.push({ type: "tool-input-end", id: callId } as LanguageModelV2StreamPart)
       break
     }
