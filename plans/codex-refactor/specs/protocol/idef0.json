@@ -1,0 +1,227 @@
+{
+  "$schema": "idef0",
+  "title": "Codex Protocol — Functional Decomposition",
+  "version": "2026-04-08",
+  "context_diagram": {
+    "id": "A-0",
+    "name": "Process Codex API Turn",
+    "inputs": ["User message", "Conversation history", "Tool definitions"],
+    "outputs": ["Streamed response events", "Updated session state", "Analytics telemetry"],
+    "controls": ["Model capabilities", "Account quota", "Server-side feature gates"],
+    "mechanisms": ["Responses API endpoint", "WebSocket transport", "HTTP SSE transport", "OAuth tokens"]
+  },
+  "A0": {
+    "id": "A0",
+    "name": "Process Codex API Turn",
+    "activities": [
+      {
+        "id": "A1",
+        "name": "Build Request",
+        "inputs": ["User message", "Conversation history", "Tool definitions"],
+        "outputs": ["ResponsesApiRequest body", "Transport headers"],
+        "controls": ["Model capabilities", "Session identity"],
+        "mechanisms": ["Instruction templates", "Tool serializer", "Client config"]
+      },
+      {
+        "id": "A2",
+        "name": "Manage Identity & Auth",
+        "inputs": ["Account credentials", "Originator config"],
+        "outputs": ["Auth headers", "Installation ID", "Originator header"],
+        "controls": ["OAuth token lifecycle", "First-party whitelist"],
+        "mechanisms": ["AuthManager", "installation_id file", "Originator registry"]
+      },
+      {
+        "id": "A3",
+        "name": "Select & Manage Transport",
+        "inputs": ["ResponsesApiRequest body", "Auth headers", "Transport headers"],
+        "outputs": ["Transport stream", "Session state update"],
+        "controls": ["WS availability", "Fallback policy", "Window generation"],
+        "mechanisms": ["WebSocket client", "HTTP SSE client", "WebRTC client"]
+      },
+      {
+        "id": "A4",
+        "name": "Process Response Stream",
+        "inputs": ["Transport stream"],
+        "outputs": ["Parsed response events", "Token usage", "Rate limit info"],
+        "controls": ["SSE event schema", "Error classification"],
+        "mechanisms": ["SSE parser", "Event dispatcher", "Telemetry collector"]
+      },
+      {
+        "id": "A5",
+        "name": "Manage Continuation & Compaction",
+        "inputs": ["Response metadata", "Token usage", "Context window size"],
+        "outputs": ["Updated session state", "Compacted history", "WS session reset signal"],
+        "controls": ["compact_threshold", "Window generation policy"],
+        "mechanisms": ["Compaction engine", "WS session manager", "Prompt cache"]
+      }
+    ]
+  },
+  "A1_decomposition": {
+    "id": "A1",
+    "name": "Build Request",
+    "activities": [
+      {
+        "id": "A1.1",
+        "name": "Compose Instructions",
+        "inputs": ["Model instruction template", "Personality config", "Agent role"],
+        "outputs": ["Top-level instructions string"],
+        "controls": ["Model metadata", "Prompt instruction block config"],
+        "mechanisms": ["Template engine"]
+      },
+      {
+        "id": "A1.2",
+        "name": "Encode Input Items",
+        "inputs": ["Conversation history", "Tool call results", "Compacted context"],
+        "outputs": ["ResponseItem[] input array"],
+        "controls": ["Item encoding rules", "Shell output normalization"],
+        "mechanisms": ["Input encoder", "apply_patch serializer"]
+      },
+      {
+        "id": "A1.3",
+        "name": "Serialize Tools",
+        "inputs": ["Tool definitions", "MCP tool specs"],
+        "outputs": ["Serialized tools array"],
+        "controls": ["Tool availability", "Parallel tool call support", "Namespace descriptions"],
+        "mechanisms": ["Tool serializer", "JsonSchema processor"]
+      },
+      {
+        "id": "A1.4",
+        "name": "Attach Controls & Metadata",
+        "inputs": ["Reasoning config", "Text verbosity", "Session identity"],
+        "outputs": ["Complete request body with reasoning/text/metadata fields"],
+        "controls": ["Model capabilities (reasoning support, encrypted content)"],
+        "mechanisms": ["ProviderOptions builder"]
+      },
+      {
+        "id": "A1.5",
+        "name": "Compute Incremental Delta",
+        "inputs": ["Previous request snapshot", "Current request body"],
+        "outputs": ["Delta input (trimmed) or full input"],
+        "controls": ["Request equality check", "WS session validity"],
+        "mechanisms": ["Delta calculator", "WS continuation cache"]
+      }
+    ]
+  },
+  "A2_decomposition": {
+    "id": "A2",
+    "name": "Manage Identity & Auth",
+    "activities": [
+      {
+        "id": "A2.1",
+        "name": "Resolve OAuth Token",
+        "inputs": ["Account credentials"],
+        "outputs": ["Bearer token", "Token expiry"],
+        "controls": ["Refresh interval", "Permanent failure detection"],
+        "mechanisms": ["AuthManager", "Device code flow", "Proactive refresh"]
+      },
+      {
+        "id": "A2.2",
+        "name": "Resolve Originator",
+        "inputs": ["Client name from app-server or config"],
+        "outputs": ["Originator header value"],
+        "controls": ["First-party whitelist: codex_cli_rs, codex-tui, codex_vscode, Codex *"],
+        "mechanisms": ["set_default_originator()"]
+      },
+      {
+        "id": "A2.3",
+        "name": "Resolve Installation ID",
+        "inputs": ["CODEX_HOME path"],
+        "outputs": ["Stable UUID string"],
+        "controls": ["File lock", "Create-if-absent"],
+        "mechanisms": ["installation_id file (flock, 0644)"]
+      },
+      {
+        "id": "A2.4",
+        "name": "Build Client Metadata",
+        "inputs": ["Installation ID", "Client name", "Client version"],
+        "outputs": ["client_metadata HashMap"],
+        "controls": ["Analytics enablement"],
+        "mechanisms": ["AppServerClientMetadata struct"]
+      }
+    ]
+  },
+  "A3_decomposition": {
+    "id": "A3",
+    "name": "Select & Manage Transport",
+    "activities": [
+      {
+        "id": "A3.1",
+        "name": "Evaluate Transport Eligibility",
+        "inputs": ["Provider config", "WS disable flag", "Session fallback state"],
+        "outputs": ["Transport selection: WS | HTTP | WebRTC"],
+        "controls": ["Sticky fallback policy", "Feature gates"],
+        "mechanisms": ["Transport selector"]
+      },
+      {
+        "id": "A3.2",
+        "name": "Manage WS Connection",
+        "inputs": ["Auth headers", "WS endpoint URL"],
+        "outputs": ["Active WS connection", "WS session state"],
+        "controls": ["Connect timeout", "Account rotation detection"],
+        "mechanisms": ["WebSocket client", "Cached WS session"]
+      },
+      {
+        "id": "A3.3",
+        "name": "Build Transport Headers",
+        "inputs": ["Session identity", "Window generation", "Parent thread ID"],
+        "outputs": ["x-codex-window-id", "x-codex-parent-thread-id", "x-openai-subagent", "x-codex-beta-features"],
+        "controls": ["Session source type", "Beta feature config"],
+        "mechanisms": ["Header builder"]
+      },
+      {
+        "id": "A3.4",
+        "name": "Dispatch Request",
+        "inputs": ["Request body", "Transport headers", "Transport selection"],
+        "outputs": ["Raw response stream"],
+        "controls": ["Compression config", "Retry/backoff"],
+        "mechanisms": ["Selected transport adapter"]
+      }
+    ]
+  },
+  "A5_decomposition": {
+    "id": "A5",
+    "name": "Manage Continuation & Compaction",
+    "activities": [
+      {
+        "id": "A5.1",
+        "name": "Track Token Usage",
+        "inputs": ["Response usage metadata"],
+        "outputs": ["Cumulative token counts", "Context utilization ratio"],
+        "controls": ["Model context window size"],
+        "mechanisms": ["Token tracker"]
+      },
+      {
+        "id": "A5.2",
+        "name": "Evaluate Compaction Need",
+        "inputs": ["Context utilization ratio", "compact_threshold"],
+        "outputs": ["Compaction trigger decision"],
+        "controls": ["Server-side threshold (context_management)", "Client-side threshold"],
+        "mechanisms": ["Threshold comparator"]
+      },
+      {
+        "id": "A5.3",
+        "name": "Execute Compaction",
+        "inputs": ["Full conversation history", "Compaction prompt"],
+        "outputs": ["Compacted history", "Summary item"],
+        "controls": ["Remote vs inline policy", "InitialContextInjection mode"],
+        "mechanisms": ["Remote compact API", "Inline LLM summarizer"]
+      },
+      {
+        "id": "A5.4",
+        "name": "Reset Continuation State",
+        "inputs": ["Compaction completion signal"],
+        "outputs": ["WS session reset", "Window generation advance"],
+        "controls": ["Continuation invalidation triggers"],
+        "mechanisms": ["reset_websocket_session()", "advance_window_generation()"]
+      },
+      {
+        "id": "A5.5",
+        "name": "Manage Prompt Cache",
+        "inputs": ["conversation_id", "Request prefix"],
+        "outputs": ["prompt_cache_key", "Cache hit/miss signal"],
+        "controls": ["Prefix stability", "Model support"],
+        "mechanisms": ["Server-side prefix cache (automatic, free)"]
+      }
+    ]
+  }
+}

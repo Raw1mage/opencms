@@ -1,0 +1,63 @@
+{
+  "diagram_title": "Handle Errors Recovery — Decomposition",
+  "node_reference": "A8",
+  "activities": [
+    {
+      "id": "A81",
+      "title": "Retry WS Connection",
+      "description": "Budget-limited retry on connect failure. Prewarm counts as first attempt. stream_max_retries config limits total. On exhaustion: trigger HTTP fallback",
+      "decomposition": null
+    },
+    {
+      "id": "A82",
+      "title": "Retry WS Stream",
+      "description": "Budget-limited retry on stream error (server error, timeout, incomplete). Each retry opens new connection if needed. Emit StreamError 'Reconnecting N/N' for user feedback",
+      "decomposition": null
+    },
+    {
+      "id": "A83",
+      "title": "Handle 401 Unauthorized",
+      "description": "UnauthorizedRecovery state machine: check if recovery available and has_next(). Call recovery.next() to refresh auth. Retry request with new credentials. If recovery exhausted: propagate error",
+      "decomposition": null
+    },
+    {
+      "id": "A84",
+      "title": "Handle 426 Upgrade Required",
+      "description": "Server rejects WS upgrade (426 status). Return WebsocketStreamOutcome::FallbackToHttp. Caller activates session-scoped HTTP fallback via force_http_fallback()",
+      "decomposition": null
+    },
+    {
+      "id": "A85",
+      "title": "Evict Cache On Error",
+      "description": "On 4xx/5xx error: clear previous_response_id from connection-local cache. Prevents stale response reference on next request. Codex server also evicts server-side",
+      "decomposition": null
+    },
+    {
+      "id": "A86",
+      "title": "Handle Previous Response Not Found",
+      "description": "Server returns previous_response_not_found error. With store=false: no persistent fallback. Reset to full context request: set previous_response_id=null, send complete input array",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {"id": "AR1", "source": "EXTERNAL", "target": "A81:input", "label": "Connect Failure", "type": "input"},
+    {"id": "AR2", "source": "EXTERNAL", "target": "A81:control", "label": "Retry Budget Config", "type": "control"},
+    {"id": "AR3", "source": "A81:output", "target": "EXTERNAL", "label": "Retry Or Fallback", "type": "output"},
+    {"id": "AR4", "source": "EXTERNAL", "target": "A82:input", "label": "Stream Error", "type": "input"},
+    {"id": "AR5", "source": "EXTERNAL", "target": "A82:control", "label": "Max Retries Config", "type": "control"},
+    {"id": "AR6", "source": "A82:output", "target": "EXTERNAL", "label": "Retry Or Propagate", "type": "output"},
+    {"id": "AR7", "source": "EXTERNAL", "target": "A83:input", "label": "401 Error", "type": "input"},
+    {"id": "AR8", "source": "EXTERNAL", "target": "A83:control", "label": "Auth Recovery Policy", "type": "control"},
+    {"id": "AR9", "source": "A83:output", "target": "EXTERNAL", "label": "Refreshed Credentials", "type": "output"},
+    {"id": "AR10", "source": "EXTERNAL", "target": "A84:input", "label": "426 Error", "type": "input"},
+    {"id": "AR11", "source": "EXTERNAL", "target": "A84:control", "label": "Fallback Protocol", "type": "control"},
+    {"id": "AR12", "source": "A84:output", "target": "EXTERNAL", "label": "HTTP Fallback Signal", "type": "output"},
+    {"id": "AR13", "source": "EXTERNAL", "target": "A85:input", "label": "4xx 5xx Error", "type": "input"},
+    {"id": "AR14", "source": "EXTERNAL", "target": "A85:control", "label": "Cache Eviction Rules", "type": "control"},
+    {"id": "AR15", "source": "A85:output", "target": "EXTERNAL", "label": "Cache Cleared Signal", "type": "output"},
+    {"id": "AR16", "source": "EXTERNAL", "target": "A86:input", "label": "Not Found Error", "type": "input"},
+    {"id": "AR17", "source": "EXTERNAL", "target": "A86:control", "label": "Store Mode Policy", "type": "control"},
+    {"id": "AR18", "source": "A86:output", "target": "EXTERNAL", "label": "Full Context Fallback", "type": "output"},
+    {"id": "AR19", "source": "EXTERNAL", "target": "A83:mechanism", "label": "Auth Manager", "type": "mechanism"}
+  ]
+}

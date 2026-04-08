@@ -1,0 +1,82 @@
+{
+  "diagram_title": "Map Response Events — Decomposition",
+  "node_reference": "A5",
+  "activities": [
+    {
+      "id": "A51",
+      "title": "Map Response Created",
+      "description": "kind='response.created', response field present → emit Created event",
+      "decomposition": null
+    },
+    {
+      "id": "A52",
+      "title": "Map Output Item Done",
+      "description": "kind='response.output_item.done', deserialize item field as ResponseItem → emit OutputItemDone(item)",
+      "decomposition": null
+    },
+    {
+      "id": "A53",
+      "title": "Map Output Item Added",
+      "description": "kind='response.output_item.added', deserialize item field as ResponseItem → emit OutputItemAdded(item)",
+      "decomposition": null
+    },
+    {
+      "id": "A54",
+      "title": "Map Output Text Delta",
+      "description": "kind='response.output_text.delta', extract delta string → emit OutputTextDelta(delta)",
+      "decomposition": null
+    },
+    {
+      "id": "A55",
+      "title": "Map Reasoning Summary Delta",
+      "description": "kind='response.reasoning_summary_text.delta', extract delta+summary_index → emit ReasoningSummaryDelta{delta,summary_index}",
+      "decomposition": null
+    },
+    {
+      "id": "A56",
+      "title": "Map Reasoning Content Delta",
+      "description": "kind='response.reasoning_text.delta', extract delta+content_index → emit ReasoningContentDelta{delta,content_index}",
+      "decomposition": null
+    },
+    {
+      "id": "A57",
+      "title": "Map Response Completed",
+      "description": "kind='response.completed', deserialize ResponseCompleted{id,usage{input_tokens,cached_tokens,output_tokens,reasoning_tokens,total_tokens}} → emit Completed{response_id,token_usage}",
+      "decomposition": null
+    },
+    {
+      "id": "A58",
+      "title": "Map Response Failed",
+      "description": "kind='response.failed', extract error{type,code,message}. Classify: context_length_exceeded→ContextWindowExceeded, insufficient_quota→QuotaExceeded, usage_not_included→UsageNotIncluded, invalid_prompt→InvalidRequest, server_is_overloaded|slow_down→ServerOverloaded, rate_limit_exceeded→Retryable(parse retry-after), default→Retryable",
+      "decomposition": null
+    },
+    {
+      "id": "A59",
+      "title": "Map Response Incomplete",
+      "description": "kind='response.incomplete', extract incomplete_details.reason → emit ApiError::Stream with reason",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {"id": "AR1", "source": "EXTERNAL", "target": "A51:input", "label": "Created Event", "type": "input"},
+    {"id": "AR2", "source": "EXTERNAL", "target": "A52:input", "label": "Item Done Event", "type": "input"},
+    {"id": "AR3", "source": "EXTERNAL", "target": "A53:input", "label": "Item Added Event", "type": "input"},
+    {"id": "AR4", "source": "EXTERNAL", "target": "A54:input", "label": "Text Delta Event", "type": "input"},
+    {"id": "AR5", "source": "EXTERNAL", "target": "A55:input", "label": "Reasoning Summary Event", "type": "input"},
+    {"id": "AR6", "source": "EXTERNAL", "target": "A56:input", "label": "Reasoning Content Event", "type": "input"},
+    {"id": "AR7", "source": "EXTERNAL", "target": "A57:input", "label": "Completed Event", "type": "input"},
+    {"id": "AR8", "source": "EXTERNAL", "target": "A58:input", "label": "Failed Event", "type": "input"},
+    {"id": "AR9", "source": "EXTERNAL", "target": "A59:input", "label": "Incomplete Event", "type": "input"},
+    {"id": "AR10", "source": "EXTERNAL", "target": "A51:control", "label": "Event Type Router", "type": "control"},
+    {"id": "AR11", "source": "EXTERNAL", "target": "A58:control", "label": "Error Classification Rules", "type": "control"},
+    {"id": "AR12", "source": "A51:output", "target": "EXTERNAL", "label": "Created ResponseEvent", "type": "output"},
+    {"id": "AR13", "source": "A52:output", "target": "EXTERNAL", "label": "OutputItemDone ResponseEvent", "type": "output"},
+    {"id": "AR14", "source": "A53:output", "target": "EXTERNAL", "label": "OutputItemAdded ResponseEvent", "type": "output"},
+    {"id": "AR15", "source": "A54:output", "target": "EXTERNAL", "label": "OutputTextDelta ResponseEvent", "type": "output"},
+    {"id": "AR16", "source": "A55:output", "target": "EXTERNAL", "label": "ReasoningSummaryDelta ResponseEvent", "type": "output"},
+    {"id": "AR17", "source": "A56:output", "target": "EXTERNAL", "label": "ReasoningContentDelta ResponseEvent", "type": "output"},
+    {"id": "AR18", "source": "A57:output", "target": "EXTERNAL", "label": "Completed ResponseEvent", "type": "output"},
+    {"id": "AR19", "source": "A58:output", "target": "EXTERNAL", "label": "Classified ApiError", "type": "output"},
+    {"id": "AR20", "source": "A59:output", "target": "EXTERNAL", "label": "Stream Error", "type": "output"}
+  ]
+}

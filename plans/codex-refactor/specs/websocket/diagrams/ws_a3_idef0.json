@@ -1,0 +1,54 @@
+{
+  "diagram_title": "Handle WS Message Pump — Decomposition",
+  "node_reference": "A3",
+  "activities": [
+    {
+      "id": "A31",
+      "title": "Send Text Frame",
+      "description": "WsStream.send(): serialize JSON to Message::Text, dispatch via tx_command MPSC channel, await oneshot result. Returns WsError on channel disconnect",
+      "decomposition": null
+    },
+    {
+      "id": "A32",
+      "title": "Receive Frames",
+      "description": "WsStream.next(): receive from rx_message unbounded channel. Pump task uses tokio::select to multiplex send commands and incoming messages. Forwards Text/Binary/Close/Frame messages",
+      "decomposition": null
+    },
+    {
+      "id": "A33",
+      "title": "Auto Reply Ping Pong",
+      "description": "Pump task intercepts Message::Ping, immediately sends Message::Pong with same payload. Message::Pong silently ignored. Keeps connection alive",
+      "decomposition": null
+    },
+    {
+      "id": "A34",
+      "title": "Detect Close Frame",
+      "description": "Message::Close forwarded to rx_message then pump breaks. Consumer sees Close as error: stream closed before response.completed",
+      "decomposition": null
+    },
+    {
+      "id": "A35",
+      "title": "Enforce Idle Timeout",
+      "description": "tokio::time::timeout wraps ws_stream.next() call. On timeout: return ApiError::Stream idle timeout. Configurable via provider.stream_idle_timeout",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {"id": "AR1", "source": "EXTERNAL", "target": "A31:input", "label": "JSON Request Body", "type": "input"},
+    {"id": "AR2", "source": "EXTERNAL", "target": "A31:control", "label": "WS Protocol", "type": "control"},
+    {"id": "AR3", "source": "A31:output", "target": "EXTERNAL", "label": "Send Result", "type": "output"},
+    {"id": "AR4", "source": "EXTERNAL", "target": "A32:input", "label": "WS Connection Stream", "type": "input"},
+    {"id": "AR5", "source": "EXTERNAL", "target": "A32:control", "label": "Select Loop Control", "type": "control"},
+    {"id": "AR6", "source": "A32:output", "target": "EXTERNAL", "label": "Raw WS Message", "type": "output"},
+    {"id": "AR7", "source": "A32:output", "target": "A33:input", "label": "Ping Frame", "type": "output"},
+    {"id": "AR8", "source": "A33:output", "target": "EXTERNAL", "label": "Pong Frame", "type": "output"},
+    {"id": "AR9", "source": "EXTERNAL", "target": "A33:control", "label": "Keep Alive Protocol", "type": "control"},
+    {"id": "AR10", "source": "A32:output", "target": "A34:input", "label": "Close Frame", "type": "output"},
+    {"id": "AR11", "source": "A34:output", "target": "EXTERNAL", "label": "Close Error Signal", "type": "output"},
+    {"id": "AR12", "source": "EXTERNAL", "target": "A34:control", "label": "Stream Completion State", "type": "control"},
+    {"id": "AR13", "source": "EXTERNAL", "target": "A35:input", "label": "Next Frame Await", "type": "input"},
+    {"id": "AR14", "source": "EXTERNAL", "target": "A35:control", "label": "Idle Timeout Duration", "type": "control"},
+    {"id": "AR15", "source": "A35:output", "target": "EXTERNAL", "label": "Timeout Error Signal", "type": "output"},
+    {"id": "AR16", "source": "EXTERNAL", "target": "A32:mechanism", "label": "Tokio Select Runtime", "type": "mechanism"}
+  ]
+}

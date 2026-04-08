@@ -1,0 +1,64 @@
+{
+  "diagram_title": "Manage WS Connection — Decomposition",
+  "node_reference": "A2",
+  "activities": [
+    {
+      "id": "A21",
+      "title": "Build Connection URL",
+      "description": "websocket_url_for_path(): convert https→wss scheme, append /responses path, preserve query params",
+      "decomposition": null
+    },
+    {
+      "id": "A22",
+      "title": "Build Connection Headers",
+      "description": "Merge provider headers + extra headers + defaults. Auth via add_auth_headers_to_header_map. Include: Authorization, originator, chatgpt-account-id, x-codex-turn-state, x-codex-turn-metadata, x-client-request-id, OpenAI-Beta (responses_websockets=2026-02-06), x-responsesapi-include-timing-metrics",
+      "decomposition": null
+    },
+    {
+      "id": "A23",
+      "title": "Establish WS Handshake",
+      "description": "connect_async_tls_with_config: TLS via rustls with custom CA support, permessage-deflate compression enabled via WebSocketConfig, connect timeout enforcement",
+      "decomposition": null
+    },
+    {
+      "id": "A24",
+      "title": "Capture Response Headers",
+      "description": "Extract from handshake response: x-reasoning-included (bool), x-models-etag (string), openai-model (string), x-codex-turn-state (set OnceLock)",
+      "decomposition": null
+    },
+    {
+      "id": "A25",
+      "title": "Cache Connection Per Session",
+      "description": "WebsocketSession stored in ModelClient.cached_websocket_session (StdMutex). ModelClientSession takes ownership on creation, returns on Drop. Reused across turns within same session",
+      "decomposition": null
+    },
+    {
+      "id": "A26",
+      "title": "Detect Account Change",
+      "description": "Compare current accountId with connection's accountId. On mismatch: close existing WS, delete from cache, open new connection with correct auth",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {"id": "AR1", "source": "EXTERNAL", "target": "A21:input", "label": "Provider Base URL", "type": "input"},
+    {"id": "AR2", "source": "EXTERNAL", "target": "A21:control", "label": "URL Scheme Rules", "type": "control"},
+    {"id": "AR3", "source": "A21:output", "target": "A23:input", "label": "WSS URL", "type": "output"},
+    {"id": "AR4", "source": "EXTERNAL", "target": "A22:input", "label": "Auth Token", "type": "input"},
+    {"id": "AR5", "source": "EXTERNAL", "target": "A22:input", "label": "Conversation ID", "type": "input"},
+    {"id": "AR6", "source": "EXTERNAL", "target": "A22:input", "label": "Turn State OnceLock", "type": "input"},
+    {"id": "AR7", "source": "EXTERNAL", "target": "A22:control", "label": "Beta Feature Flags", "type": "control"},
+    {"id": "AR8", "source": "A22:output", "target": "A23:input", "label": "Header Map", "type": "output"},
+    {"id": "AR9", "source": "EXTERNAL", "target": "A23:control", "label": "TLS Policy", "type": "control"},
+    {"id": "AR10", "source": "EXTERNAL", "target": "A23:control", "label": "Connect Timeout", "type": "control"},
+    {"id": "AR11", "source": "A23:output", "target": "A24:input", "label": "WS Handshake Response", "type": "output"},
+    {"id": "AR12", "source": "A23:output", "target": "EXTERNAL", "label": "WsStream Instance", "type": "output"},
+    {"id": "AR13", "source": "A24:output", "target": "EXTERNAL", "label": "Server Metadata", "type": "output"},
+    {"id": "AR14", "source": "EXTERNAL", "target": "A25:input", "label": "New Connection", "type": "input"},
+    {"id": "AR15", "source": "EXTERNAL", "target": "A25:control", "label": "Session Lifecycle", "type": "control"},
+    {"id": "AR16", "source": "A25:output", "target": "EXTERNAL", "label": "Cached Connection", "type": "output"},
+    {"id": "AR17", "source": "EXTERNAL", "target": "A26:input", "label": "Current Account ID", "type": "input"},
+    {"id": "AR18", "source": "EXTERNAL", "target": "A26:control", "label": "Rotation Event", "type": "control"},
+    {"id": "AR19", "source": "A26:output", "target": "A23:input", "label": "Reconnect Trigger", "type": "output"},
+    {"id": "AR20", "source": "EXTERNAL", "target": "A23:mechanism", "label": "WebSocket Runtime", "type": "mechanism"}
+  ]
+}

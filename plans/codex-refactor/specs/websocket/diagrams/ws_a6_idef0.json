@@ -1,0 +1,64 @@
+{
+  "diagram_title": "Execute WS Request — Decomposition",
+  "node_reference": "A6",
+  "activities": [
+    {
+      "id": "A61",
+      "title": "Build WS Request Payload",
+      "description": "Construct ResponseCreateWsRequest: model, instructions, input[], tools[], tool_choice, parallel_tool_calls, reasoning, store, include, service_tier, prompt_cache_key, text, generate, client_metadata. Serialize with type:'response.create' tag. Strip stream/background fields",
+      "decomposition": null
+    },
+    {
+      "id": "A62",
+      "title": "Prepare Incremental Request",
+      "description": "get_incremental_items(): compare current request with last_request. Check non-input fields match. Verify current input starts with (last input + server-returned items). If valid: return delta items + previous_response_id. If empty delta and !allow_empty_delta: return None (full request)",
+      "decomposition": null
+    },
+    {
+      "id": "A63",
+      "title": "Send Request Frame",
+      "description": "Serialize ResponsesWsRequest to JSON, send as Message::Text via WsStream.send(). Record telemetry: on_ws_request(duration, error, connection_reused)",
+      "decomposition": null
+    },
+    {
+      "id": "A64",
+      "title": "Stream Response Loop",
+      "description": "run_websocket_response_stream(): loop receiving frames with idle timeout. For each Text frame: check WrappedWebsocketErrorEvent first, then parse ResponsesStreamEvent, handle codex.rate_limits, track server model, call process_responses_event(). Break on Completed. Error on Close/Binary/timeout",
+      "decomposition": null
+    },
+    {
+      "id": "A65",
+      "title": "Return Synthetic SSE Response",
+      "description": "Wrap event channel as ReadableStream. Encode each event as 'data: {json}\\n\\n' SSE format. Append 'data: [DONE]\\n\\n' on stream end. Return Response(200, text/event-stream) for AI SDK consumption",
+      "decomposition": null
+    },
+    {
+      "id": "A66",
+      "title": "Track Last Response",
+      "description": "map_response_stream(): spawn task that accumulates OutputItemDone items and captures response_id from Completed event. Send LastResponse{response_id, items_added} via oneshot for next turn's incremental detection",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {"id": "AR1", "source": "EXTERNAL", "target": "A61:input", "label": "Model Request Params", "type": "input"},
+    {"id": "AR2", "source": "EXTERNAL", "target": "A61:control", "label": "WS Protocol Schema", "type": "control"},
+    {"id": "AR3", "source": "A61:output", "target": "A62:input", "label": "Full Request", "type": "output"},
+    {"id": "AR4", "source": "EXTERNAL", "target": "A62:input", "label": "Last Request State", "type": "input"},
+    {"id": "AR5", "source": "EXTERNAL", "target": "A62:input", "label": "Last Response Items", "type": "input"},
+    {"id": "AR6", "source": "EXTERNAL", "target": "A62:control", "label": "Incremental Detection Rules", "type": "control"},
+    {"id": "AR7", "source": "A62:output", "target": "A63:input", "label": "Final WS Request", "type": "output"},
+    {"id": "AR8", "source": "EXTERNAL", "target": "A63:input", "label": "WsStream Handle", "type": "input"},
+    {"id": "AR9", "source": "EXTERNAL", "target": "A63:control", "label": "Send Protocol", "type": "control"},
+    {"id": "AR10", "source": "A63:output", "target": "A64:input", "label": "Request Sent Signal", "type": "output"},
+    {"id": "AR11", "source": "EXTERNAL", "target": "A64:input", "label": "WS Frame Stream", "type": "input"},
+    {"id": "AR12", "source": "EXTERNAL", "target": "A64:control", "label": "Idle Timeout Config", "type": "control"},
+    {"id": "AR13", "source": "A64:output", "target": "A65:input", "label": "Response Events", "type": "output"},
+    {"id": "AR14", "source": "A64:output", "target": "A66:input", "label": "Completed Event", "type": "output"},
+    {"id": "AR15", "source": "EXTERNAL", "target": "A65:control", "label": "SSE Format Rules", "type": "control"},
+    {"id": "AR16", "source": "A65:output", "target": "EXTERNAL", "label": "Synthetic SSE Response", "type": "output"},
+    {"id": "AR17", "source": "A66:output", "target": "EXTERNAL", "label": "Last Response State", "type": "output"},
+    {"id": "AR18", "source": "EXTERNAL", "target": "A66:control", "label": "Item Accumulation Rules", "type": "control"},
+    {"id": "AR19", "source": "EXTERNAL", "target": "A64:mechanism", "label": "Event Parser", "type": "mechanism"},
+    {"id": "AR20", "source": "EXTERNAL", "target": "A65:mechanism", "label": "AI SDK EventSource", "type": "mechanism"}
+  ]
+}

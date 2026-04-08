@@ -1,0 +1,38 @@
+{
+  "diagram_title": "Manage Transport Selection — Decomposition",
+  "node_reference": "A1",
+  "activities": [
+    {
+      "id": "A11",
+      "title": "Check WS Availability",
+      "description": "Evaluate provider.supports_websockets, disable_websockets AtomicBool, SSE_FIXTURE override",
+      "decomposition": null
+    },
+    {
+      "id": "A12",
+      "title": "Activate HTTP Fallback",
+      "description": "force_http_fallback() sets disable_websockets=true via AtomicBool.swap, resets cached WebsocketSession, sticky per session lifetime",
+      "decomposition": null
+    },
+    {
+      "id": "A13",
+      "title": "Select Transport Per Turn",
+      "description": "ModelClientSession.stream() entry: if WS enabled try stream_responses_websocket, on FallbackToHttp activate fallback, fall through to stream_responses_api",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {"id": "AR1", "source": "EXTERNAL", "target": "A11:input", "label": "Provider Config", "type": "input"},
+    {"id": "AR2", "source": "EXTERNAL", "target": "A11:input", "label": "Session Disable Flag", "type": "input"},
+    {"id": "AR3", "source": "EXTERNAL", "target": "A11:control", "label": "SSE Fixture Override", "type": "control"},
+    {"id": "AR4", "source": "A11:output", "target": "A13:input", "label": "WS Enabled Boolean", "type": "output"},
+    {"id": "AR5", "source": "EXTERNAL", "target": "A12:input", "label": "Failure Signal", "type": "input"},
+    {"id": "AR6", "source": "EXTERNAL", "target": "A12:control", "label": "Fallback Policy", "type": "control"},
+    {"id": "AR7", "source": "A12:output", "target": "A11:input", "label": "Disable Websockets Flag", "type": "output"},
+    {"id": "AR8", "source": "A12:output", "target": "EXTERNAL", "label": "Fallback Activated Event", "type": "output"},
+    {"id": "AR9", "source": "EXTERNAL", "target": "A13:input", "label": "Turn Request", "type": "input"},
+    {"id": "AR10", "source": "EXTERNAL", "target": "A13:control", "label": "Wire API Mode", "type": "control"},
+    {"id": "AR11", "source": "A13:output", "target": "EXTERNAL", "label": "Transport Decision", "type": "output"},
+    {"id": "AR12", "source": "A13:output", "target": "A12:input", "label": "WS Failure Trigger", "type": "output"}
+  ]
+}
