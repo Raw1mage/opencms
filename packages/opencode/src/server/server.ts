@@ -95,6 +95,15 @@ export namespace Server {
   export async function listenUnix(socketPath: string): Promise<ReturnType<typeof Bun.serve>> {
     log.info("starting unix socket daemon", { socketPath })
 
+    // Ensure socket parent directory exists (auto-heal runtime path)
+    const { mkdirSync } = await import("node:fs")
+    const { dirname } = await import("node:path")
+    try {
+      mkdirSync(dirname(socketPath), { recursive: true })
+    } catch (e) {
+      log.warn("failed to create socket directory", { path: dirname(socketPath), error: e })
+    }
+
     // Check single-instance guard
     const existingPid = await DiscoveryDaemon.checkSingleInstance()
     if (existingPid !== null) {
