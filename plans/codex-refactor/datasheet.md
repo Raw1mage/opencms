@@ -2,7 +2,40 @@
 
 ## Purpose
 
-本文件是 native codex provider 的**唯一施工圖**。所有欄位值來自**舊 provider 的實際 dump**（`golden-request.json`）和 **AI SDK adapter 原始碼逐行分析**（`openai-responses-language-model.ts`, 1733 行）。
+本文件是 native codex provider 的**唯一施工圖**。
+
+### 權威來源（優先順序）
+
+1. **OpenAI Responses API 官方文件**（聖經）：https://developers.openai.com/api/docs
+   - Request body: https://developers.openai.com/api/docs/guides/migrate-to-responses
+   - Function calling: https://developers.openai.com/api/docs/guides/function-calling
+   - Streaming events: https://developers.openai.com/api/docs/guides/streaming-responses
+   - WebSocket mode: https://developers.openai.com/api/docs/guides/websocket-mode
+   - Tools: https://developers.openai.com/api/docs/guides/tools
+2. **Golden request dump**（`golden-request.json`）：舊 provider 的實際 WS request
+3. **AI SDK adapter 原始碼**（`openai-responses-language-model.ts`, 1733 行）：實戰驗證的映射邏輯
+
+當三者有衝突時，以官方文件為準。golden dump 用於驗證格式，AI SDK adapter 用於補充官方文件未涵蓋的實作細節。
+
+### 官方文件關鍵規格摘要
+
+**function_call_output.output 格式**（官方）：
+> "you can pass an array of image or file objects instead of a string"
+
+→ output 可以是 string 或 content parts array。AI SDK 使用 array 格式。
+
+**WS mode 與 HTTP 差異**（官方）：
+> "Transport-specific fields like `stream` and `background` are not used" in WebSocket mode.
+
+→ WS 不送 `stream` 和 `background`。
+
+**store 預設值**（官方）：`default: true`
+→ 必須明確設 `false`，否則 response 會被存儲。
+
+**previous_response_id**（官方）：
+> "The service maintains one previous-response state in a connection-local in-memory cache."
+
+→ WS 連線內的 continuation 是 server 端 cache，不是 client 請求。
 
 ---
 

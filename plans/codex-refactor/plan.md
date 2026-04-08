@@ -26,6 +26,11 @@ Codex provider 散布在 opencode core 多個檔案中（codex.ts 960 行、code
 
 ## 三、規格文件
 
+### 權威來源
+
+**官方文件（聖經）**：https://developers.openai.com/api/docs
+- Responses API, Function calling, Streaming events, WebSocket mode, Tools
+
 所有實作細節記錄在 **[datasheet.md](datasheet.md)**，包含：
 
 - §1 Request body 每個欄位的值、來源、WS/HTTP 差異
