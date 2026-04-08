@@ -116,6 +116,9 @@ export function mapResponseStream(
           const { done, value } = await reader.read()
           if (done) break
 
+          if (value.type?.includes("function_call")) {
+            console.error(`[CODEX-SSE] mapEvent: type=${value.type} FULL=${JSON.stringify(value).slice(0,500)}`)
+          }
           const parts = mapEvent(value, state)
           for (const part of parts) {
             controller.enqueue(part)
@@ -164,8 +167,11 @@ function mapEvent(event: ResponseStreamEvent, state: StreamState): LanguageModel
     }
 
     case "response.output_item.added": {
-      const item = (event as any).item as { type: string; id?: string; name?: string; call_id?: string }
+      const item = (event as any).item as { type: string; id?: string; name?: string; call_id?: string; arguments?: string }
       const idx = (event as any).output_index as number
+      if (item.type === "function_call") {
+        console.error(`[CODEX-TOOL] output_item.added: idx=${idx} name=${item.name} call_id=${item.call_id} hasArgs=${!!item.arguments} argsLen=${item.arguments?.length ?? 0} argsPreview=${(item.arguments ?? "").slice(0, 100)}`)
+      }
       state.outputItems.set(idx, {
         type: item.type,
         id: item.id ?? `item_${idx}`,
@@ -179,12 +185,17 @@ function mapEvent(event: ResponseStreamEvent, state: StreamState): LanguageModel
         parts.push({ type: "text-start", id } as LanguageModelV2StreamPart)
       } else if (item.type === "function_call") {
         const id = item.call_id ?? `tool_${state.toolIdCounter++}`
-        console.error(`[CODEX-TOOL] input-start idx=${idx} callId=${id} name=${item.name} itemKeys=${Object.keys(item).join(",")}`)
         parts.push({
           type: "tool-input-start",
           id,
           toolName: item.name ?? "unknown",
         } as LanguageModelV2StreamPart)
+        // If arguments are already complete in the added event (non-streaming tool call),
+        // emit them immediately as delta + end
+        if (item.arguments && item.arguments !== "{}") {
+          parts.push({ type: "tool-input-delta", id, delta: item.arguments } as LanguageModelV2StreamPart)
+          parts.push({ type: "tool-input-end", id } as LanguageModelV2StreamPart)
+        }
       }
       break
     }
@@ -207,7 +218,6 @@ function mapEvent(event: ResponseStreamEvent, state: StreamState): LanguageModel
       const outputIdx = (event as any).output_index as number
       const trackedItem = state.outputItems.get(outputIdx)
       const callId = trackedItem?.callId ?? (event as any).call_id ?? `tool_${outputIdx}`
-      console.error(`[CODEX-TOOL] args.delta outputIdx=${outputIdx} callId=${callId} trackedCallId=${trackedItem?.callId} eventCallId=${(event as any).call_id} fullDelta=${JSON.stringify(delta)} eventKeys=${Object.keys(event as any).join(",")}`)
       parts.push({ type: "tool-input-delta", id: callId, delta } as LanguageModelV2StreamPart)
       break
     }
