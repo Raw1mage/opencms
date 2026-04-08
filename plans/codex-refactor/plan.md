@@ -9,6 +9,8 @@
 
 Codex provider 散布在 opencode core 多個檔案中（codex.ts 960 行、codex-websocket.ts 653 行、codex-native.ts 318 行），透過 fetch interceptor hack 注入 protocol 行為。需重構為獨立的 `@opencode-ai/codex-provider` package。
 
+V1 重構失敗的根因：convert 層從 type definition 猜格式，沒對照舊 provider 實際輸出。結果 tool call 不是不能用就是用了之後沒內容——system prompt 放錯欄位導致 AI 沒 context、tool result stringify 導致 AI 看到空內容、tool-call StreamPart 缺失導致 tool 不執行、finishReason 永遠 "stop" 導致 tool loop 不繼續。V2 的核心原則：**任何格式轉換必須對照 golden-request.json 驗證，不准猜。**
+
 前置修復（已完成）：compact_threshold 動態化 + SessionSnapshot 廢除。
 
 ---
