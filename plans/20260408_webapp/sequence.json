@@ -1,0 +1,157 @@
+[
+  {
+    "diagram_title": "Supported Browser Voice Input Flow",
+    "scenario": "User starts speech recognition in a supported browser and final transcript is committed into the prompt editor.",
+    "moduleRef": "A1",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "User",
+        "type": "actor",
+        "componentRef": "SYS1"
+      },
+      {
+        "id": "P2",
+        "name": "Prompt Input Component",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P3",
+        "name": "Speech Helper",
+        "type": "component",
+        "componentRef": "C2"
+      },
+      {
+        "id": "P4",
+        "name": "Browser Speech Runtime",
+        "type": "system",
+        "componentRef": "SYS2"
+      },
+      {
+        "id": "P5",
+        "name": "Prompt State Context",
+        "type": "component",
+        "componentRef": "C3"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P1",
+        "to": "P2",
+        "label": "click mic",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P2",
+        "to": "P3",
+        "label": "start()",
+        "type": "sync",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P3",
+        "to": "P4",
+        "label": "recognition.start()",
+        "type": "sync",
+        "order": 3
+      },
+      {
+        "id": "MSG4",
+        "from": "P4",
+        "to": "P3",
+        "label": "onresult(interim/final transcript)",
+        "type": "async",
+        "order": 4
+      },
+      {
+        "id": "MSG5",
+        "from": "P3",
+        "to": "P2",
+        "label": "update recording + transcript state",
+        "type": "async",
+        "order": 5
+      },
+      {
+        "id": "MSG6",
+        "from": "P2",
+        "to": "P5",
+        "label": "prompt.set(...) with committed transcript",
+        "type": "sync",
+        "order": 6
+      },
+      {
+        "id": "MSG7",
+        "from": "P5",
+        "to": "P2",
+        "label": "rerender canonical prompt editor",
+        "type": "return",
+        "order": 7
+      }
+    ],
+    "fragments": [
+      {
+        "id": "FRAG1",
+        "type": "opt",
+        "label": "final transcript or stop promotes pending text",
+        "messageRefs": ["MSG6", "MSG7"]
+      }
+    ]
+  },
+  {
+    "diagram_title": "Unsupported Browser Fail-Fast Flow",
+    "scenario": "User is in a browser without speech recognition support and the prompt input exposes an explicit unavailable state.",
+    "moduleRef": "A2",
+    "participants": [
+      {
+        "id": "P1",
+        "name": "User",
+        "type": "actor",
+        "componentRef": "SYS1"
+      },
+      {
+        "id": "P2",
+        "name": "Prompt Input Component",
+        "type": "component",
+        "componentRef": "C1"
+      },
+      {
+        "id": "P3",
+        "name": "Speech Helper",
+        "type": "component",
+        "componentRef": "C2"
+      }
+    ],
+    "messages": [
+      {
+        "id": "MSG1",
+        "from": "P2",
+        "to": "P3",
+        "label": "isSupported()",
+        "type": "sync",
+        "order": 1
+      },
+      {
+        "id": "MSG2",
+        "from": "P3",
+        "to": "P2",
+        "label": "return false",
+        "type": "return",
+        "order": 2
+      },
+      {
+        "id": "MSG3",
+        "from": "P2",
+        "to": "P1",
+        "label": "render unavailable mic state / tooltip",
+        "type": "sync",
+        "order": 3
+      }
+    ],
+    "fragments": []
+  }
+]

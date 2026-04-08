@@ -1,0 +1,50 @@
+[
+  {
+    "StepNumber": 0,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Render Idle Prompt Input",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [1],
+    "LinkOutputType": "track",
+    "Condition": ["user_clicks_mic_in_supported_browser"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Capture Speech Transcript",
+    "LinkInputType": [],
+    "LinkInputNumber": [0],
+    "LinkOutputNumber": [2,3],
+    "LinkOutputType": "divergence_or",
+    "Condition": ["speech_result_updates", "speech_error_or_stop"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Commit Transcript To Prompt State",
+    "LinkInputType": [],
+    "LinkInputNumber": [1],
+    "LinkOutputNumber": [3],
+    "LinkOutputType": "track",
+    "Condition": ["final_transcript_or_stop_promotes_pending_text"],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Verify Voice Input Outcome",
+    "LinkInputType": ["convergence_or"],
+    "LinkInputNumber": [1,2],
+    "LinkOutputNumber": [0],
+    "LinkOutputType": "track",
+    "Condition": ["recording_session_finishes_and_validation_resets_flow"],
+    "SubGrafcet": []
+  }
+]

@@ -291,9 +291,13 @@ export const dict = {
   "prompt.context.removeActiveFile": "Remove active file from context",
   "prompt.context.removeFile": "Remove file from context",
   "prompt.action.attachFile": "Attach file",
+  "prompt.action.voiceInputStart": "Start voice input",
+  "prompt.action.voiceInputStop": "Stop voice input",
   "prompt.attachment.remove": "Remove attachment",
   "prompt.action.send": "Send",
   "prompt.action.stop": "Stop",
+  "prompt.voice.recording": "Listening...",
+  "prompt.voice.unsupported": "Voice input is not supported in this browser",
 
   "prompt.toast.pasteUnsupported.title": "Unsupported paste",
   "prompt.toast.pasteUnsupported.description": "Only images or PDFs can be pasted here.",

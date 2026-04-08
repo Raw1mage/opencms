@@ -185,6 +185,8 @@ export function createSpeechRecognition(opts?: {
           sessionCommitted = appendSegment(sessionCommitted, finalSuffix)
           commitSegment(finalSuffix)
         }
+        shouldContinue = false
+        clearRestart()
         pendingHypothesis = ""
         lastInterimSuffix = ""
         shrinkCandidate = undefined

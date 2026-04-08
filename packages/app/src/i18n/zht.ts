@@ -291,9 +291,13 @@ export const dict = {
   "prompt.context.removeActiveFile": "從上下文移除目前檔案",
   "prompt.context.removeFile": "從上下文移除檔案",
   "prompt.action.attachFile": "附加檔案",
+  "prompt.action.voiceInputStart": "開始語音輸入",
+  "prompt.action.voiceInputStop": "停止語音輸入",
   "prompt.attachment.remove": "移除附件",
   "prompt.action.send": "傳送",
   "prompt.action.stop": "停止",
+  "prompt.voice.recording": "正在聆聽...",
+  "prompt.voice.unsupported": "此瀏覽器不支援語音輸入",
 
   "prompt.toast.pasteUnsupported.title": "不支援的貼上",
   "prompt.toast.pasteUnsupported.description": "這裡只能貼上圖片或 PDF 檔案。",

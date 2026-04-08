@@ -1,0 +1,95 @@
+{
+  "diagram_title": "Webapp Voice Input MVP — C4 Component Diagram",
+  "diagram_level": "component",
+  "systems": [
+    {
+      "id": "SYS1",
+      "name": "OpenCode Webapp Session Surface",
+      "description": "Browser-based session UI where users compose and submit prompts.",
+      "external": false
+    },
+    {
+      "id": "SYS2",
+      "name": "Browser Speech Recognition Runtime",
+      "description": "Native browser speech recognition capability exposed via SpeechRecognition or webkitSpeechRecognition.",
+      "external": true
+    }
+  ],
+  "containers": [
+    {
+      "id": "CT1",
+      "name": "App Frontend",
+      "description": "Solid.js webapp prompt UI and client state.",
+      "technology": "SolidJS + TypeScript",
+      "systemRef": "SYS1"
+    }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "Prompt Input Component",
+      "description": "Owns the session prompt editor, footer actions, submit flow, and voice-input UI integration.",
+      "technology": "SolidJS component",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/app/src/components/prompt-input.tsx"
+    },
+    {
+      "id": "C2",
+      "name": "Speech Helper",
+      "description": "Wraps browser speech recognition lifecycle and exposes supported, recording, committed, and interim states.",
+      "technology": "TypeScript utility",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/app/src/utils/speech.ts"
+    },
+    {
+      "id": "C3",
+      "name": "Prompt State Context",
+      "description": "Canonical prompt parts/state surface consumed by the prompt editor and submit flow.",
+      "technology": "SolidJS context",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/app/src/context/prompt.tsx"
+    },
+    {
+      "id": "C4",
+      "name": "Runtime Adapter Helper",
+      "description": "Resolves browser-specific SpeechRecognition constructors with compatibility checks.",
+      "technology": "TypeScript utility",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "packages/app/src/utils/runtime-adapters.ts"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "REL1",
+      "source": "C1",
+      "target": "C2",
+      "description": "Starts, stops, and reads speech recognition state",
+      "technology": "function calls / reactive state"
+    },
+    {
+      "id": "REL2",
+      "source": "C2",
+      "target": "C4",
+      "description": "Resolves browser speech recognition constructor",
+      "technology": "utility call"
+    },
+    {
+      "id": "REL3",
+      "source": "C2",
+      "target": "SYS2",
+      "description": "Invokes browser-native speech recognition runtime",
+      "technology": "Web Speech API"
+    },
+    {
+      "id": "REL4",
+      "source": "C1",
+      "target": "C3",
+      "description": "Commits recognized transcript into canonical prompt state",
+      "technology": "context state update"
+    }
+  ]
+}

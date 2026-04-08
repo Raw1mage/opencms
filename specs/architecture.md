@@ -10,6 +10,8 @@ OpenCode is a desktop/TUI/Webapp multi-interface platform for interacting with A
 - **Unified Backend**: All interfaces communicate with a shared Node/Bun backend via the `@opencode-ai/sdk` or direct function calls.
 - **Provider Abstraction**: Model interactions are abstracted through the `Provider` module. Product-visible provider universe is now registry-first: a repo-owned supported provider registry defines which canonical providers cms officially supports and may show in `/provider` or UI lists, while runtime/config/accounts/models sources only enrich those supported providers with state and model metadata.
 
+Architecture Sync (2026-04-08, webapp voice input MVP): Verified (No doc changes). 依據：變更僅限 `packages/app/src/components/prompt-input.tsx` 既有前端互動接線，未新增或改寫模組邊界、跨層資料流、server/API contract 或 runtime state authority。
+
 ## Frontend Architecture
 
 ### Layered Structure

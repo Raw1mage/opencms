@@ -1,0 +1,69 @@
+{
+  "diagram_title": "Webapp Voice Input MVP Functional Context",
+  "node_reference": "A0",
+  "activities": [
+    {
+      "id": "A1",
+      "title": "Capture Voice Prompt Input",
+      "description": "Enable browser speech recognition in the webapp prompt input and commit transcript into canonical prompt state.",
+      "decomposition": null
+    },
+    {
+      "id": "A2",
+      "title": "Validate Voice Input Behavior",
+      "description": "Verify supported-browser recording flow, unsupported fail-fast behavior, and prompt-input regression safety.",
+      "decomposition": null
+    }
+  ],
+  "arrows": [
+    {
+      "id": "AR1",
+      "source": "EXTERNAL",
+      "target": "A1:input",
+      "label": "User Voice And Mic Click",
+      "type": "input"
+    },
+    {
+      "id": "AR2",
+      "source": "EXTERNAL",
+      "target": "A1:control",
+      "label": "Browser Speech API Support And Fail-Fast Policy",
+      "type": "control"
+    },
+    {
+      "id": "AR3",
+      "source": "EXTERNAL",
+      "target": "A1:mechanism",
+      "label": "Prompt Input UI And Speech Helper",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR4",
+      "source": "A1:output",
+      "target": "A2:input",
+      "label": "Prompt Transcript And Recording State",
+      "type": "output"
+    },
+    {
+      "id": "AR5",
+      "source": "EXTERNAL",
+      "target": "A2:control",
+      "label": "Validation Plan And Existing Prompt Behavior Contracts",
+      "type": "control"
+    },
+    {
+      "id": "AR6",
+      "source": "EXTERNAL",
+      "target": "A2:mechanism",
+      "label": "Unit Tests And Manual Browser Checks",
+      "type": "mechanism"
+    },
+    {
+      "id": "AR7",
+      "source": "A2:output",
+      "target": "EXTERNAL",
+      "label": "Validated Voice Input MVP Plan",
+      "type": "output"
+    }
+  ]
+}
