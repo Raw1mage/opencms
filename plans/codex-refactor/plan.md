@@ -1,138 +1,60 @@
 # Codex Provider Refactor — 單一計畫書
 
-版本：2026-04-09
-狀態：施工中（Phase 4 實作 + hotfix 迭代）
+版本：2026-04-09 rev2
+狀態：施工中
 
 ---
 
 ## 一、背景
 
-Codex provider 散布在 opencode core 的多個檔案中（codex.ts 960 行、codex-websocket.ts 653 行、codex-native.ts 318 行、provider.ts 中的 model 定義、compaction.ts 中的特殊路徑），透過 fetch interceptor hack 注入 protocol 行為。需重構為獨立的 `@opencode-ai/codex-provider` package。
+Codex provider 散布在 opencode core 多個檔案中（codex.ts 960 行、codex-websocket.ts 653 行、codex-native.ts 318 行），透過 fetch interceptor hack 注入 protocol 行為。需重構為獨立的 `@opencode-ai/codex-provider` package。
 
-### 前置修復（已完成 2026-04-08）
-
-compact_threshold 從硬編碼 100K 改為動態計算（model context * 80%）。SessionSnapshot 廢除，compaction 改用 SharedContext。已 merge 到 main。
+前置修復（已完成）：compact_threshold 動態化 + SessionSnapshot 廢除。
 
 ---
 
 ## 二、需求
 
-1. Codex provider 重構為獨立 package（`packages/opencode-codex-provider/`）
+1. Codex provider 重構為獨立 package
 2. 實作 `LanguageModelV2` interface，直接對接 Responses API
-3. 保持與舊 provider 完全相同的 request fingerprint
-4. WS transport + delta + continuation 在 package 內部完成
-5. opencode 主程式零 codex 硬編碼
-
-### 已 dropped
-
-- HTTP delta（upstream 不支援 `previous_response_id` over HTTP）
+3. **request body 必須與舊 provider 的 golden output 逐欄位一致**
+4. **response event → StreamPart 映射必須與舊 AI SDK adapter（1733 行）行為一致**
+5. WS transport + delta + continuation 在 package 內部完成
+6. opencode 主程式零 codex 硬編碼
 
 ---
 
-## 三、Datasheet（Protocol 規格）
+## 三、規格文件
 
-### 3.1 Request Body（WS mode）
+所有實作細節記錄在 **[datasheet.md](datasheet.md)**，包含：
 
-Golden reference: `golden-request.json`
+- §1 Request body 每個欄位的值、來源、WS/HTTP 差異
+- §2 Input items 六種格式的完整 schema（developer, user, assistant, function_call, function_call_output）
+- §3 Tool schema
+- §4 Response event → StreamPart 完整映射（11 種 added type、10 種 done type、7 種 delta type、state management）
+- §5 providerOptions camelCase → snake_case 映射
+- §6 sse.ts 目前缺少的 event handlers 和優先級
+- §7 已知陷阱（11 項，每項有後果和正確做法）
 
-```
-type:               "response.create"
-model:              "gpt-5.4"
-instructions:       "You are a helpful assistant."     ← 固定 placeholder
-store:              false
-service_tier:       "priority"
-tool_choice:        "auto"
-reasoning:          { effort: "medium", summary: "auto" }
-text:               { verbosity: "low" }               ← 僅非 codex 型號
-include:            ["reasoning.encrypted_content"]     ← 僅 opencode provider
-prompt_cache_key:   "ses_{sessionID}"
-context_management: [{ type: "compaction", compact_threshold: N }]
-input:              ResponseItem[]                      ← 見 §3.2
-tools:              FunctionTool[]                      ← 見 §3.3
-```
-
-**WS 不送的 fields**：`stream`, `parallel_tool_calls`, `max_tokens`, `temperature`
-
-### 3.2 Input Items 格式
-
-| 位置 | type/role | content 格式 | 說明 |
-|---|---|---|---|
-| `[0]` | `role: "developer"` | string (31K+ chars) | **完整 system prompt**。不是放 instructions。 |
-| `[1+]` | `role: "user"` | `[{type:"input_text", text}]` | **一律 content parts array**，不用 string |
-| | `role: "assistant"` | `[{type:"output_text", text}]` | **一律 content parts array**，type 是 output_text |
-| | `type: "function_call"` | `{call_id, name, arguments: "JSON字串"}` | AI 發起的 tool call |
-| | `type: "function_call_output"` | `{call_id, output: [{type:"input_text", text:"..."}]}` | **tool 結果是 content parts array，不是字串** |
-
-### 3.3 Tool Schema
-
-```json
-{
-  "type": "function",
-  "name": "bash",
-  "description": "...",
-  "parameters": { "type": "object", ... },
-  "strict": false
-}
-```
-
-### 3.4 Response Event → StreamPart 映射
-
-| Server Event | Emit StreamPart | 備註 |
-|---|---|---|
-| `output_item.added` (message) | `text-start` | |
-| `output_text.delta` | `text-delta` | |
-| `output_text.done` | `text-end` | |
-| `output_item.added` (function_call) | `tool-input-start` | |
-| `function_call_arguments.delta` | `tool-input-delta` | **可能被 obfuscated，不可依賴** |
-| **`output_item.done` (function_call)** | **`tool-input-end` + `tool-call`** | **tool-call 是唯一 execution trigger。arguments 從此事件的 item.arguments 取。** |
-| `reasoning_summary_text.delta` | `reasoning-start` + `reasoning-delta` | |
-| `reasoning_summary_text.done` | `reasoning-end` | |
-| `response.completed` | `finish` | usage 含 `cachedInputTokens`, `reasoningTokens` |
-
-### 3.5 providerOptions 映射
-
-| camelCase option | API field | 值 | 來源 |
-|---|---|---|---|
-| `store` | `store` | `false` | `ProviderTransform.options()` 需加 codex 判斷 |
-| `promptCacheKey` | `prompt_cache_key` | sessionID | 固定 |
-| `serviceTier` | `service_tier` | `"priority"` | codex 專用 |
-| `reasoningEffort` | `reasoning.effort` | `"medium"` | gpt-5.x |
-| `reasoningSummary` | `reasoning.summary` | `"auto"` | gpt-5.x |
-| `textVerbosity` | `text.verbosity` | `"low"` | gpt-5.x 非 codex 型號 |
-
-讀取路徑：`callOptions.providerOptions.codex.{key}` → fallback `callOptions.providerOptions.{key}`
+Golden reference: **[golden-request.json](golden-request.json)**
 
 ---
 
-## 四、已知陷阱
-
-| 陷阱 | 後果 | 正確做法 |
-|---|---|---|
-| System prompt 放 `instructions` | AI 沒有 context，回覆一句話就停 | 放 `input[0]` developer role |
-| Tool result 用 `JSON.stringify()` | AI 看到空內容 | Array output 直接傳 |
-| 只 emit `tool-input-end` | Tool 不執行 | 必須 emit `tool-call`（從 `output_item.done` 取 args） |
-| 從 streaming delta 取 arguments | 被 obfuscated 得到 `"{}"` | 從 `output_item.done` 的 `item.arguments` 取 |
-| 缺 `reasoning`/`store`/`service_tier` | Server 降級回應 | 從 providerOptions pipeline 完整映射 |
-| Tool schema 缺 `strict: false` | Schema validation 差異 | 加上 |
-| WS mode 送 `stream: true` | 舊 adapter 不送 | 只在 HTTP path 送 |
-
----
-
-## 五、Package 結構
+## 四、Package 結構
 
 ```
 packages/opencode-codex-provider/src/
-├── protocol.ts      — 常數（URL, originator, timeout）
-├── types.ts         — ResponsesApiRequest, ResponseStreamEvent, CodexCredentials
-├── convert.ts       — AI SDK prompt → instructions + input[]（§3.2 格式）
-├── headers.ts       — HTTP/WS headers builder
-├── auth.ts          — OAuth PKCE + token refresh
-├── sse.ts           — Response events → LanguageModelV2StreamPart（§3.4 映射）
-├── models.ts        — Model catalog + compact_threshold
-├── continuation.ts  — File-backed WS continuation state
-├── transport-ws.ts  — WS transport + delta + first-frame probe
-├── provider.ts      — CodexLanguageModel（LanguageModelV2 實作）
-└── index.ts         — Public exports
+├── protocol.ts      — 常數
+├── types.ts         — API types
+├── convert.ts       — prompt → request body（§1, §2 實作）
+├── headers.ts       — headers builder
+├── auth.ts          — OAuth PKCE
+├── sse.ts           — events → StreamPart（§4 實作）
+├── models.ts        — model catalog
+├── continuation.ts  — WS continuation state
+├── transport-ws.ts  — WS transport
+├── provider.ts      — LanguageModelV2（§5 實作）
+└── index.ts         — exports
 ```
 
 ### 整合點
@@ -140,22 +62,65 @@ packages/opencode-codex-provider/src/
 | 檔案 | 修改 |
 |---|---|
 | `custom-loaders-def.ts` | codex loader 呼叫 `createCodex()` |
-| `plugin/codex-auth.ts` | Thin auth plugin（OAuth only，無 fetch interceptor） |
-| `plugin/index.ts` | Import `CodexNativeAuthPlugin` from `codex-auth.ts` |
-| `provider/provider.ts` | Model npm 改為 `@opencode-ai/codex-provider` |
-| `provider/transform.ts` | `store=false` 判斷加入 codex providerId |
-| `session/llm.ts` | 送 `session_id` header 給 codex provider |
+| `plugin/codex-auth.ts` | OAuth only（無 fetch interceptor） |
+| `plugin/index.ts` | import from `codex-auth.ts` |
+| `provider/provider.ts` | npm 改為 `@opencode-ai/codex-provider` |
+| `provider/transform.ts` | store=false 加入 codex |
+| `session/llm.ts` | 送 session_id header |
+
+---
+
+## 五、施工清單
+
+### 已完成
+
+- [x] Package 建立（11 files, 1924 LOC）
+- [x] 整合 wiring（custom-loaders-def, codex-auth, index.ts, provider.ts, llm.ts）
+- [x] WS transport 連線 + delta + continuation
+- [x] Session context wiring（sessionId → provider via headers）
+- [x] Cache reporting（cachedInputTokens from usage）
+- [x] Tool call: `tool-call` StreamPart from `output_item.done`
+- [x] Tool result: content parts array 直接傳
+- [x] System prompt: developer role in input[0]
+- [x] User/assistant content: content parts array 格式
+- [x] providerOptions: store, service_tier, reasoning, text
+- [x] Tool schema: strict:false
+- [x] Golden request dump + datasheet + plan 整併
+
+### 待修（datasheet §6 gap analysis）
+
+- [ ] **finishReason = "tool-calls"**（有 function_call 時）— **高優先**
+- [ ] text-end flush（stream 結束時補發）
+- [ ] text-start 自動補發（delta 前無 added）
+- [ ] response.created → response-metadata
+- [ ] response.incomplete finishReason 映射
+- [ ] annotation → source events
+- [ ] reasoning encrypted_content metadata
+- [ ] reasoning summary_part.added (index > 0)
+- [ ] max_output_tokens 傳遞
+- [ ] providerOptions 完整性驗證（對照 ProviderTransform.options 實際輸出）
+
+### 待清理
+
+- [ ] 移除舊 codex.ts 中的 CodexNativeAuthPlugin（已被 codex-auth.ts 取代）
+- [ ] 移除 codex-websocket.ts（已被 transport-ws.ts 取代）
+- [ ] 移除 codex-native.ts（FFI，未使用）
+- [ ] 移除 provider.ts 中的 codex-compaction.ts 引用
+- [ ] 驗證 core 零 codex 殘留：`grep -r "codex" src/ | grep -v plugin/codex`
 
 ---
 
 ## 六、驗證方法
 
-1. **Golden diff**：新 provider 的 WS request body 必須與 `golden-request.json` 的 top-level fields 完全匹配
-2. **Tool call**：開新 session，要求 AI 讀檔 → 必須完整回報內容
-3. **Multi-turn**：3+ 輪對話含 tool call → 全部正常完成
-4. **WS delta**：R2+ 的 `inputItems < fullItems` → delta mode 生效
-5. **Cache hit**：R2+ 的 `cacheReadTokens > 0`
-6. **Abort zero**：整個 session 無 `Tool execution aborted`
+| # | 項目 | 判定 |
+|---|---|---|
+| 1 | Golden diff | 新 request body top-level fields 與 golden-request.json 一致 |
+| 2 | Tool call | AI 讀檔 → 完整回報內容（非空） |
+| 3 | Multi-turn | 3+ 輪含 tool call，全部正常 |
+| 4 | WS delta | R2+ inputItems < fullItems |
+| 5 | Cache hit | R2+ cacheReadTokens > 0 |
+| 6 | Abort zero | 整個 session 無 Tool execution aborted |
+| 7 | Tool loop | AI 自主決定多次 tool call → 全部執行（finishReason=tool-calls 生效） |
 
 ---
 
@@ -163,11 +128,7 @@ packages/opencode-codex-provider/src/
 
 | 日期 | 事件 |
 |---|---|
-| 2026-04-08 | 初始需求（quota 調查 → compact_threshold fix → codex refactor plan） |
-| 2026-04-08 | Upstream delta 分析（30+ commits, originator 架構變更） |
-| 2026-04-08 | Beta workflow: native provider package 實作 + merge to main |
-| 2026-04-08 | Hotfix: session context wiring, cache reporting, tool call_id |
-| 2026-04-08~09 | Hotfix: tool-call stream part, tool result format, system prompt placement |
-| 2026-04-09 | Hotfix: providerOptions pipeline（reasoning, store, service_tier） |
-| 2026-04-09 | 計畫整併：compaction-hotfix + specs/codex + codex-refactor → 單一 plan |
-| 2026-04-09 | Datasheet 建立：golden-request.json + field-level 規格 |
+| 2026-04-08 | 初始需求、upstream 分析、beta workflow、merge to main |
+| 2026-04-08~09 | Hotfix 迭代：session wiring, cache, tool-call, tool result, system prompt, providerOptions |
+| 2026-04-09 | 計畫整併、datasheet 建立（golden dump + 1733 行 adapter 逐行分析） |
+| 2026-04-09 rev2 | Plan 重寫：§三指向 datasheet、§五 gap analysis 完整施工清單、§六 增加 tool loop 驗證 |
