@@ -1281,7 +1281,7 @@ export namespace Provider {
         name: m.name,
         providerId: "codex",
         family: "openai",
-        api: { id: m.id, url: "https://chatgpt.com/backend-api/codex", npm: "@ai-sdk/openai" },
+        api: { id: m.id, url: "https://chatgpt.com/backend-api/codex", npm: "@opencode-ai/codex-provider" },
         status: "active",
         capabilities: {
           temperature: false,

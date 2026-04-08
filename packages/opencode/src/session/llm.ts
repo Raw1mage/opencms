@@ -904,11 +904,16 @@ export namespace LLM {
               "x-opencode-request": input.user.id,
               "x-opencode-client": Flag.OPENCODE_CLIENT,
             }
-          : input.model.api.npm !== "@opencode-ai/claude-provider"
+          : input.model.api.npm === "@opencode-ai/codex-provider"
             ? {
-                "User-Agent": `opencode/${Installation.VERSION}`,
+                "session_id": input.sessionID,
+                "x-opencode-session": input.sessionID,
               }
-            : undefined),
+            : input.model.api.npm !== "@opencode-ai/claude-provider"
+              ? {
+                  "User-Agent": `opencode/${Installation.VERSION}`,
+                }
+              : undefined),
         ...input.model.headers,
         ...headers,
       },

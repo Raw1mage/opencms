@@ -89,21 +89,41 @@ class CodexLanguageModel implements LanguageModelV2 {
     // § 2.1.1  Ensure valid token
     await this.ensureValidToken()
 
-    // § 2.1.2  Convert prompt → instructions + input
+    // § 2.1.2  Resolve per-request session context from headers/providerOptions
+    // Model instance is cached and reused across sessions — session context must
+    // come from the request, not the constructor.
+    const requestHeaders = callOptions.headers as Record<string, string> | undefined
+    const sessionId = requestHeaders?.["x-opencode-session"]
+      ?? requestHeaders?.["session_id"]
+      ?? this.options.sessionId
+    const accountId = requestHeaders?.["x-opencode-account-id"]
+      ?? this.options.credentials.accountId
+
+    // Stable prompt_cache_key per session (NOT per model instance)
+    const cacheKey = sessionId
+      ? `codex-${accountId || "default"}-${sessionId}`
+      : this.window.conversationId
+
+    // Update window conversationId to match session for lineage tracking
+    if (sessionId && this.window.conversationId !== sessionId) {
+      this.window.conversationId = sessionId
+    }
+
+    // § 2.1.3  Convert prompt → instructions + input
     const { instructions, input } = convertPrompt(callOptions.prompt)
 
-    // § 2.1.3  Convert tools
+    // § 2.1.4  Convert tools
     const tools = convertTools(
       callOptions.tools?.filter((t): t is Extract<typeof t, { type: "function" }> => t.type === "function"),
     )
 
-    // § 2.1.4  Build request body
+    // § 2.1.5  Build request body
     const body: ResponsesApiRequest = {
       model: this.modelId,
       instructions,
       input,
       stream: true,
-      prompt_cache_key: this.window.conversationId,
+      prompt_cache_key: cacheKey,
       context_management: [{
         type: "compaction",
         compact_threshold: getCompactThreshold(this.modelId),
@@ -134,11 +154,11 @@ class CodexLanguageModel implements LanguageModelV2 {
     }
 
     // § 2.1.5  Try WebSocket transport first
-    const sessionId = this.options.sessionId ?? this.window.conversationId
+    const wsSessionId = sessionId ?? this.window.conversationId
     const wsEvents = await tryWsTransport({
-      sessionId,
+      sessionId: wsSessionId,
       accessToken: this.options.credentials.access!,
-      accountId: this.options.credentials.accountId,
+      accountId: accountId,
       turnState: this.turnState,
       body: body as unknown as Record<string, unknown>,
       wsUrl: CODEX_WS_URL,
@@ -160,11 +180,11 @@ class CodexLanguageModel implements LanguageModelV2 {
     // § 2.1.6  HTTP SSE fallback
     const headers = buildHeaders({
       accessToken: this.options.credentials.access!,
-      accountId: this.options.credentials.accountId,
+      accountId: accountId,
       turnState: this.turnState,
       window: this.window,
       installationId: this.options.installationId,
-      sessionId,
+      sessionId: wsSessionId,
       userAgent: this.options.userAgent,
     })
 
