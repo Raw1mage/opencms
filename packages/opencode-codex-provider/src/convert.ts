@@ -19,14 +19,16 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
   instructions: string
   input: ResponseItem[]
 } {
-  let instructions = ""
+  const instructions = "You are a helpful assistant."
   const input: ResponseItem[] = []
 
   for (const msg of prompt) {
     switch (msg.role) {
       case "system":
-        // System/developer messages become top-level `instructions`
-        instructions = instructions ? `${instructions}\n\n${msg.content}` : msg.content
+        // System prompt goes into input as `developer` role message —
+        // matches AI SDK @ai-sdk/openai Responses adapter behavior.
+        // `instructions` is a short placeholder only.
+        input.push({ role: "developer", content: msg.content })
         break
 
       case "user": {
@@ -78,9 +80,6 @@ export function convertPrompt(prompt: LanguageModelV2Prompt): {
     }
   }
 
-  if (!instructions) {
-    instructions = "You are a helpful assistant."
-  }
 
   return { instructions, input }
 }
