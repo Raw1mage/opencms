@@ -43,6 +43,13 @@ export const dict = {
   "ui.sessionTurn.status.thinkingWithTopic": "Réflexion - {{topic}}",
   "ui.sessionTurn.status.gatheringThoughts": "Rassemblement des idées",
   "ui.sessionTurn.status.consideringNextSteps": "Examen des prochaines étapes",
+  "ui.sessionTurn.status.applyPatch": "Applying patch",
+  "ui.sessionTurn.status.applyPatch.parsing": "Parsing patch",
+  "ui.sessionTurn.status.applyPatch.planning": "Planning changes",
+  "ui.sessionTurn.status.applyPatch.awaitingApproval": "Awaiting approval",
+  "ui.sessionTurn.status.applyPatch.applying": "Applying patch",
+  "ui.sessionTurn.status.applyPatch.applyingProgress": "Applying patch — {{file}} ({{completed}}/{{total}})",
+  "ui.sessionTurn.status.applyPatch.diagnostics": "Running diagnostics",
 
   "ui.messagePart.diagnostic.error": "Erreur",
   "ui.messagePart.title.edit": "Modifier",

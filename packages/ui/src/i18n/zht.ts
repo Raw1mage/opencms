@@ -47,6 +47,13 @@ export const dict = {
   "ui.sessionTurn.status.thinkingWithTopic": "思考 - {{topic}}",
   "ui.sessionTurn.status.gatheringThoughts": "正在整理思緒",
   "ui.sessionTurn.status.consideringNextSteps": "正在考慮下一步",
+  "ui.sessionTurn.status.applyPatch": "正在套用修補",
+  "ui.sessionTurn.status.applyPatch.parsing": "正在解析修補",
+  "ui.sessionTurn.status.applyPatch.planning": "正在規劃變更",
+  "ui.sessionTurn.status.applyPatch.awaitingApproval": "等待核准",
+  "ui.sessionTurn.status.applyPatch.applying": "正在套用修補",
+  "ui.sessionTurn.status.applyPatch.applyingProgress": "正在套用修補 — {{file}} ({{completed}}/{{total}})",
+  "ui.sessionTurn.status.applyPatch.diagnostics": "正在執行診斷",
 
   "ui.messagePart.diagnostic.error": "錯誤",
   "ui.messagePart.title.edit": "編輯",

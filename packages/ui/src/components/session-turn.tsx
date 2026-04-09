@@ -98,6 +98,30 @@ function computeStatusFromPart(part: PartType | undefined, t: Translator): strin
         return t("ui.sessionTurn.status.searchingCodebase")
       case "webfetch":
         return t("ui.sessionTurn.status.searchingWeb")
+      case "apply_patch": {
+        if (part.state && "metadata" in part.state && part.state.metadata) {
+          const meta = part.state.metadata as Record<string, unknown>
+          const phase = meta.phase as string | undefined
+          if (phase === "parsing") return t("ui.sessionTurn.status.applyPatch.parsing")
+          if (phase === "planning") return t("ui.sessionTurn.status.applyPatch.planning")
+          if (phase === "awaiting_approval") return t("ui.sessionTurn.status.applyPatch.awaitingApproval")
+          if (phase === "applying") {
+            const currentFile = meta.currentFile as string | undefined
+            const total = meta.totalCount as number | undefined
+            if (currentFile && total) {
+              const baseName = currentFile.split("/").pop() ?? currentFile
+              return t("ui.sessionTurn.status.applyPatch.applyingProgress", {
+                file: baseName,
+                completed: String(meta.completedCount ?? 0),
+                total: String(total),
+              })
+            }
+            return t("ui.sessionTurn.status.applyPatch.applying")
+          }
+          if (phase === "diagnostics") return t("ui.sessionTurn.status.applyPatch.diagnostics")
+        }
+        return t("ui.sessionTurn.status.applyPatch")
+      }
       case "edit":
       case "write":
         return t("ui.sessionTurn.status.makingEdits")

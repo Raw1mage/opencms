@@ -1,4 +1,6 @@
-Use the `apply_patch` tool to edit files. Your patch language is a stripped‑down, file‑oriented diff format designed to be easy to parse and safe to apply. You can think of it as a high‑level envelope:
+Use the `apply_patch` tool to edit files. IMPORTANT: Before patching an existing file, you MUST `read` that file in the current turn so your context lines and old lines match the latest contents. Do not patch a file you have not read — stale context causes match failures and slow retries.
+
+Your patch language is a stripped‑down, file‑oriented diff format designed to be easy to parse and safe to apply. You can think of it as a high‑level envelope:
 
 *** Begin Patch
 [ one or more file sections ]
