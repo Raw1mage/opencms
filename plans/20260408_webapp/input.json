@@ -1,0 +1,55 @@
+[
+  {
+    "StepNumber": 0,
+    "StepType": "initial",
+    "StepAction": "Render Idle Prompt Input",
+    "LinkInputType": [],
+    "LinkOutputType": "track",
+    "LinkInputNumber": [],
+    "LinkOutputNumber": [
+      1
+    ],
+    "Condition": [
+      "user_clicks_mic_in_supported_browser"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 1,
+    "StepType": "normal",
+    "StepAction": "Capture Speech Transcript",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      0
+    ],
+    "LinkOutputNumber": [
+      2
+    ],
+    "LinkOutputType": "track",
+    "Condition": [
+      "speech_result_updates_or_stop"
+    ],
+    "SubGrafcet": []
+  },
+  {
+    "StepNumber": 2,
+    "StepType": "normal",
+    "StepAction": "Commit Transcript To Prompt State",
+    "LinkInputType": [
+      "track"
+    ],
+    "LinkInputNumber": [
+      1
+    ],
+    "LinkOutputNumber": [
+      0
+    ],
+    "LinkOutputType": "track",
+    "Condition": [
+      "final_transcript_or_stop_promotes_pending_text"
+    ],
+    "SubGrafcet": []
+  }
+]

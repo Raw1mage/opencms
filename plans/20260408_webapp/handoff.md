@@ -7,6 +7,7 @@
 - Runtime todo must be materialized from `tasks.md` before execution continues.
 - Build agent must not rely on discussion memory when this plan package is available.
 - Same-workstream changes stay inside `plans/20260408_webapp/` unless the user explicitly approves a new plan root.
+- Build work is now split into desktop speech and mobile recording/transcription slices; execution should preserve the two-path boundary instead of collapsing them back into one helper.
 
 ## Required Reads
 
@@ -17,6 +18,13 @@
 - `plans/20260408_webapp/tasks.md`
 - `specs/architecture.md`
 - `docs/events/event_20260408_webapp_voice_input_mvp.md`
+
+## Execution Slices
+
+- Slice A: desktop speech recognition integration in `prompt-input`.
+- Slice B: mobile media recording capture and upload boundary.
+- Slice C: transcription handoff and prompt-state reintegration.
+- Slice D: validation, docs, and architecture sync.
 
 ## Current State
 
@@ -29,6 +37,7 @@
 
 - Stop if prompt editor integration would require broad `contenteditable` architecture changes.
 - Stop if browser-only speech helper proves insufficient and the work expands into backend STT.
+- Stop if mobile recording needs a backend route but the route contract is not yet defined in plan artifacts.
 - Stop if a fallback mechanism is needed to hide unsupported/error states.
 - Stop and re-plan if requested scope expands beyond webapp prompt input MVP.
 
@@ -37,7 +46,7 @@
 - Enter build through the beta workflow, not the authoritative main worktree.
 - Before any implementation, restate beta authority fields from mission metadata: `mainRepo`, `mainWorktree`, `baseBranch`, `implementationRepo`, `implementationWorktree`, `implementationBranch`, `docsWriteRepo`.
 - Confirm the admitted implementation surface is separate from the authoritative mainline surface.
-- Start from `tasks.md` section 1 to confirm the approved scope, then implement section 2 inside `packages/app/src/components/prompt-input.tsx` with `speech.ts` as the only speech state surface.
+- Start from `tasks.md` section 1 to confirm the approved scope, then implement section 2 inside `packages/app/src/components/prompt-input.tsx`; desktop speech continues to use `speech.ts`, mobile recording/transcription uses a separate planned boundary.
 
 ## Execution-Ready Checklist
 

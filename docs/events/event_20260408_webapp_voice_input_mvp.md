@@ -7,7 +7,7 @@ Plan Root: `plans/20260408_webapp/`
 ## 需求
 
 - 使用者希望為 webapp 的文字輸入框新增語音輸入功能。
-- 經討論後，先做 browser-only 的快速版，優先驗證體驗與整合可行性。
+- 經討論後，原本先做 browser-only 快速版；後續使用者補充 iPhone Chrome 也要可用，因此 plan 擴充為桌面即時辨識 + 手機錄音轉寫雙路方案。
 
 ## 範圍 (IN/OUT)
 
@@ -16,9 +16,10 @@ Plan Root: `plans/20260408_webapp/`
   - 沿用 `packages/app/src/utils/speech.ts` 與 `packages/app/src/utils/runtime-adapters.ts`。
   - 將 final transcript 安全回寫到 canonical prompt state。
   - 最小必要的測試與手動驗證規劃。
+  - 手機錄音 + 上傳 + 轉寫的 plan 擴充與驗證規劃。
 - OUT:
-  - 後端 STT / Whisper / provider audio transcription。
-  - 音訊錄製檔案上傳、附件化、儲存或回放。
+  - 具體後端 STT provider 選型與實作細節。
+  - 音訊錄製檔案的長期儲存、回放與產品化管理。
   - TUI / desktop parity。
   - 進階語音產品化體驗。
 
@@ -31,6 +32,7 @@ Plan Root: `plans/20260408_webapp/`
 - [x] 進入 beta workflow build handoff。
 - [x] 在 beta implementation surface 實作 `prompt-input` 語音輸入 MVP。
 - [~] 驗證支援瀏覽器、unsupported path、既有 prompt 行為無回歸（尚缺 browser smoke 與完整 typecheck/lint 證據）。
+- [ ] 擴充 plan 為手機錄音 + 轉寫雙路方案。
 
 ## Debug Checkpoints
 
@@ -44,6 +46,8 @@ Plan Root: `plans/20260408_webapp/`
 - Design Decision:
   - Transcript strategy 採 `Final only`：只把 final transcript 寫入 canonical prompt state，interim 僅做暫態 UI 顯示。
   - 理由：降低 `contenteditable` + prompt state 雙向同步風險，先保守驗證 MVP。
+- Design Update:
+  - iPhone Chrome / iOS WebKit 不可靠支援 `SpeechRecognition`，因此手機目標必須新增錄音 + 轉寫路徑，而不是只擴充既有 Web Speech API。
 - Implementation Evidence:
   - `packages/app/src/components/prompt-input.tsx` 已接入 `createSpeechRecognition()`。
   - `appendSpeechTranscript()` 只在 `onFinal` 經 `prompt.set(...)` 回寫 canonical state。
@@ -56,6 +60,7 @@ Plan Root: `plans/20260408_webapp/`
 - 採 browser-only MVP，不做後端 STT。
 - 沿用既有 `speech.ts`，不新增第二套 speech abstraction。
 - unsupported/error path 維持 fail-fast，不用 fallback 掩蓋能力缺失。
+- 手機目標擴充為錄音 + 轉寫方案，避免把 iPhone Chrome 當成可用的 Web Speech API 目標。
 - 實作前先用 planner package 鎖定同一 workstream，再交給 beta workflow build。
 - Beta workflow authority confirmed:
   - `mainRepo=/home/pkcs12/projects/opencode`
