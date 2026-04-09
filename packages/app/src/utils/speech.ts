@@ -236,13 +236,15 @@ export function createSpeechRecognition(opts?: {
 
     recognition.onerror = (e: { error: string }) => {
       clearRestart()
+      promotePending()
       cancelPendingCommit()
       lastInterimSuffix = ""
       shrinkCandidate = undefined
-      if (e.error === "no-speech" && shouldContinue) {
+      if (e.error === "no-speech") {
+        shouldContinue = false
         setStore("interim", "")
         if (opts?.onInterim) opts.onInterim("")
-        scheduleRestart()
+        setStore("isRecording", false)
         return
       }
       shouldContinue = false
@@ -263,13 +265,12 @@ export function createSpeechRecognition(opts?: {
 
     recognition.onend = () => {
       clearRestart()
+      promotePending()
       cancelPendingCommit()
       lastInterimSuffix = ""
       shrinkCandidate = undefined
+      shouldContinue = false
       setStore("isRecording", false)
-      if (shouldContinue) {
-        scheduleRestart()
-      }
     }
   }
 
