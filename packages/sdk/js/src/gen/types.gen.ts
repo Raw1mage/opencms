@@ -377,7 +377,7 @@ export type CompactionPart = {
   id: string
   sessionID: string
   messageID: string
-  type: "compaction"
+  type: "compaction" | "compaction-request"
   auto: boolean
 }
 

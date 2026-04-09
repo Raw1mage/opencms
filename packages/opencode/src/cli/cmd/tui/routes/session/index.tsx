@@ -1181,7 +1181,7 @@ function UserMessage(props: {
   const queuedFg = createMemo(() => selectedForeground(theme, color()))
   const metadataVisible = createMemo(() => queued() || ctx.showTimestamps())
 
-  const compaction = createMemo(() => props.parts.find((x) => x.type === "compaction"))
+  const compaction = createMemo(() => props.parts.find((x) => x.type === "compaction" || x.type === "compaction-request"))
 
   return (
     <>

@@ -20348,7 +20348,7 @@
           },
           "type": {
             "type": "string",
-            "const": "compaction"
+            "enum": ["compaction", "compaction-request"]
           },
           "auto": {
             "type": "boolean"

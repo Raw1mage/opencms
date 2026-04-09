@@ -1089,7 +1089,7 @@ When constructing the summary, try to stick to this template:
         id: Identifier.ascending("part"),
         messageID: msg.id,
         sessionID: msg.sessionID,
-        type: "compaction",
+        type: "compaction-request",
         auto: input.auto,
       })
     },

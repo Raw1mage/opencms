@@ -933,7 +933,7 @@ export namespace SessionPrompt {
         if (!lastUser && msg.info.role === "user") lastUser = msg.info as MessageV2.User
         if (lastUser && lastFinished) break
         const task = msg.parts.filter((part): part is MessageV2.CompactionPart | MessageV2.SubtaskPart => {
-          if (part.type === "compaction") {
+          if (part.type === "compaction-request") {
             // Prevent re-processing the same compaction request when a child assistant
             // message already exists (including failed/unfinished attempts).
             // Otherwise, a failed compaction can get stuck in a retry loop that keeps
@@ -1253,7 +1253,7 @@ export namespace SessionPrompt {
       }
 
       // pending compaction
-      if (task?.type === "compaction") {
+      if (task?.type === "compaction-request") {
         const result = await SessionCompaction.process({
           messages: msgs,
           parentID: lastUser.id,

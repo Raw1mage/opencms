@@ -323,7 +323,7 @@ export namespace MessageV2 {
   export type AgentPart = z.infer<typeof AgentPart>
 
   export const CompactionPart = PartBase.extend({
-    type: z.literal("compaction"),
+    type: z.enum(["compaction", "compaction-request"]),
     auto: z.boolean(),
   }).meta({
     ref: "CompactionPart",
@@ -692,7 +692,7 @@ export namespace MessageV2 {
               filename: part.filename,
             })
 
-          if (part.type === "compaction") {
+          if (part.type === "compaction" || part.type === "compaction-request") {
             userMessage.parts.push({
               type: "text",
               text: "What did we do so far?",
@@ -856,7 +856,7 @@ export namespace MessageV2 {
               },
               decision: continuationResetDecision,
               replay: replayDebug,
-              compactionParts: msg.parts.filter((part) => part.type === "compaction").length,
+              compactionParts: msg.parts.filter((part) => part.type === "compaction" || part.type === "compaction-request").length,
             }),
           })
         }
