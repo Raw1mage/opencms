@@ -294,6 +294,8 @@ export namespace Session {
       projectID: z.string(),
       directory: z.string(),
       parentID: Identifier.schema("session").optional(),
+      /** Codex fork: parent's lastResponseId, used to skip parentMessagePrefix and seed child continuation */
+      codexForkResponseId: z.string().optional(),
       summary: z
         .object({
           additions: z.number(),
@@ -460,6 +462,7 @@ export namespace Session {
     z
       .object({
         parentID: Identifier.schema("session").optional(),
+        codexForkResponseId: z.string().optional(),
         title: z.string().optional(),
         permission: Info.shape.permission,
       })
@@ -467,6 +470,7 @@ export namespace Session {
     async (input) => {
       return createNext({
         parentID: input?.parentID,
+        codexForkResponseId: input?.codexForkResponseId,
         directory: Instance.directory,
         title: input?.title,
         permission: input?.permission,
@@ -526,6 +530,7 @@ export namespace Session {
     id?: string
     title?: string
     parentID?: string
+    codexForkResponseId?: string
     directory: string
     permission?: PermissionNext.Ruleset
   }) {
@@ -536,6 +541,7 @@ export namespace Session {
       projectID: Instance.project.id,
       directory: input.directory,
       parentID: input.parentID,
+      codexForkResponseId: input.codexForkResponseId,
       title: input.title ?? createDefaultTitle(!!input.parentID),
       permission: input.permission,
       time: {
