@@ -431,10 +431,23 @@ export async function tryWsTransport(input: WsTransportInput): Promise<ReadableS
     state.accountId = accountId
 
     const reqBody = { ...body }
-    delete reqBody.previous_response_id
-    state.lastResponseId = undefined
-    state.lastInputLength = undefined
-    invalidateContinuation(sessionId)
+
+    // Fork seed: child session pre-seeded with parent's responseId.
+    // Preserve previous_response_id so server continues from parent's conversation state.
+    const persisted = getContinuation(sessionId)
+    if (persisted.isForkSeed && persisted.lastResponseId) {
+      reqBody.previous_response_id = persisted.lastResponseId
+      state.lastResponseId = persisted.lastResponseId
+      state.lastInputLength = 0  // child sends new input, no delta trimming
+      // Clear fork seed — subsequent calls use normal continuation
+      updateContinuation(sessionId, { ...persisted, isForkSeed: false })
+      console.error(`[CODEX-WS] FORK session=${sessionId} parentResponseId=${persisted.lastResponseId.slice(0, 16)}...`)
+    } else {
+      delete reqBody.previous_response_id
+      state.lastResponseId = undefined
+      state.lastInputLength = undefined
+      invalidateContinuation(sessionId)
+    }
 
     try {
       return wsRequest({ ws, body: reqBody, sessionId, state })

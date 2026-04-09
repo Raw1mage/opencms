@@ -829,15 +829,25 @@ export namespace SessionPrompt {
 
     // Context Sharing v2: load parent messages once for child sessions.
     // These form a stable prefix in every LLM call → automatic cache hit.
+    // Exception: Codex fork — parent context is inherited via previousResponseId
+    // at the transport layer, so re-sending it wastes ~100K tokens.
     let parentMessagePrefix: MessageV2.WithParts[] | undefined
     if (session.parentID) {
-      const parentFiltered = await MessageV2.filterCompacted(MessageV2.stream(session.parentID))
-      parentMessagePrefix = parentFiltered.messages
-      log.info("context sharing: loaded parent messages", {
-        sessionID,
-        parentID: session.parentID,
-        parentMessageCount: parentMessagePrefix.length,
-      })
+      if (session.codexForkResponseId) {
+        log.info("context sharing: codex fork active, skipping parentMessagePrefix", {
+          sessionID,
+          parentID: session.parentID,
+          forkResponseId: session.codexForkResponseId.slice(0, 16) + "...",
+        })
+      } else {
+        const parentFiltered = await MessageV2.filterCompacted(MessageV2.stream(session.parentID))
+        parentMessagePrefix = parentFiltered.messages
+        log.info("context sharing: loaded parent messages", {
+          sessionID,
+          parentID: session.parentID,
+          parentMessageCount: parentMessagePrefix.length,
+        })
+      }
     }
 
     debugCheckpoint("prompt", "loop:session_loaded", {
