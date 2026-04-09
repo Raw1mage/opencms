@@ -1061,7 +1061,7 @@ export namespace SessionPrompt {
               })
             } else {
               msgs = applied.messages
-              await SessionCompaction.deleteRebindCheckpoint(sessionID)
+              // Checkpoint is persistent — new compactions overwrite it, not consumed on read.
               debugCheckpoint("prompt", "loop:rebind_checkpoint_applied", {
                 sessionID,
                 step,
