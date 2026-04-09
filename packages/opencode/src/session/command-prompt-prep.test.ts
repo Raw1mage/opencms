@@ -10,8 +10,7 @@ describe("prepareCommandPrompt", () => {
     expect(command?.name).toBe("plan")
     expect(command?.description).toContain("planner")
     const template = await command?.template
-    expect(template).toContain("plan_enter()")
-    expect(template).toContain("canonical plan-mode path")
+    expect(template).toContain("plan mode")
   })
 
   it("prefers session.execution for subtask user model when no explicit input model is provided", async () => {

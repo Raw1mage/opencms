@@ -6,7 +6,6 @@ import { ulid } from "ulid"
 import { debugCheckpoint } from "@/util/debug"
 import { ToolFrequency } from "../tool/frequency"
 import { SessionPrompt } from "./prompt"
-import type { PlannerIntent } from "./dialog-trigger"
 
 const log = Log.create({ service: "tool-invoker" })
 
@@ -22,19 +21,6 @@ type InvokableTool<TResult = ToolExecutionResult> = Tool.Info | InitializedTool<
 
 function hasInit<TResult>(tool: InvokableTool<TResult>): tool is Tool.Info {
   return typeof (tool as Tool.Info).init === "function"
-}
-
-async function assertPlannerIntentConsistency(options: ToolInvoker.InvokeOptions) {
-  if (!options.toolID.startsWith("plan_")) return
-  const committedPlannerIntent = await SessionPrompt.getCommittedPlannerIntent(options.sessionID)
-  if (!committedPlannerIntent) return
-  // One-way safety gate:
-  // Once build-direction intent is committed, block opposite plan_enter invocations.
-  // plan_exit must stay invocable from plan mode when user explicitly asks to switch.
-  if (!(committedPlannerIntent === "plan_exit" && options.toolID === "plan_enter")) return
-  throw new Error(
-    `planner_intent_mismatch: committed ${committedPlannerIntent} intent forbids opposite-direction ${options.toolID} invocation`,
-  )
 }
 
 export namespace ToolInvoker {
@@ -87,8 +73,6 @@ export namespace ToolInvoker {
       callID,
       agent,
     })
-
-    await assertPlannerIntentConsistency(options)
 
     await Plugin.trigger(
       "tool.execute.before",

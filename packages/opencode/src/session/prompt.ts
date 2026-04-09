@@ -72,7 +72,7 @@ import {
   shouldInterruptAutonomousRun,
 } from "./workflow-runner"
 import { consumeMissionArtifacts, deriveDelegatedExecutionRole } from "./mission-consumption"
-import { type PlannerIntent, resolveDialogTriggerPolicy } from "./dialog-trigger"
+import { resolveDialogTriggerPolicy } from "./dialog-trigger"
 
 globalThis.AI_SDK_LOG_WARNINGS = false
 
@@ -137,16 +137,13 @@ export namespace SessionPrompt {
 
     const toolParts = input.parts.filter((part) => part.type === "tool")
     const hasQuestionTool = toolParts.some((part) => part.tool === "question")
-    const hasPlanExitTool = toolParts.some((part) => part.tool === "plan_exit")
-    if (hasQuestionTool || hasPlanExitTool || input.finish === "tool-calls") {
+    if (hasQuestionTool || input.finish === "tool-calls") {
       return {
         enforced: true as const,
         violation: false as const,
         reason: hasQuestionTool
           ? ("question_tool" as const)
-          : hasPlanExitTool
-            ? ("plan_exit_tool" as const)
-            : ("tool_calls" as const),
+          : ("tool_calls" as const),
       }
     }
 
@@ -1570,7 +1567,7 @@ export namespace SessionPrompt {
           processor.message.error = new NamedError.Unknown({
             message:
               `Plan mode enforcement violation: ${planTurnCheck.reason}. ` +
-              `Bounded or execution-shaping questions must use MCP question; allowed endings are question tool, plan_exit, or non-question progress summary.`,
+              `Bounded or execution-shaping questions must use MCP question; allowed endings are question tool or non-question progress summary.`,
           }).toObject()
           await Session.updateMessage(processor.message)
           break
@@ -1790,35 +1787,13 @@ export namespace SessionPrompt {
     input: PromptInput,
     session: Session.Info,
   ): Promise<{ info: MessageV2.User; parts: MessageV2.WithParts["parts"] }> {
-    const committedPlannerIntent = await getCommittedPlannerIntent(input.sessionID)
     const triggerPolicy = await resolveDialogTriggerPolicy({
       agent: input.agent,
       client: Flag.OPENCODE_CLIENT,
       parts: input.parts,
       session,
-      committedPlannerIntent,
     })
     const triggerDecision = triggerPolicy.decision
-
-    if (triggerPolicy.autoPlanExitHandoff) {
-      const { PlanExitTool } = await import("../tool/plan")
-      await ToolInvoker.execute(PlanExitTool, {
-        sessionID: input.sessionID,
-        messageID: input.messageID ?? Identifier.ascending("message"),
-        toolID: "plan_exit",
-        args: {},
-        agent: "build",
-        abort: AbortSignal.timeout(30_000),
-        messages: [],
-      })
-      const sessionMessages = await Session.messages({ sessionID: input.sessionID })
-      const latestUser = sessionMessages.findLast((message) => message.info.role === "user")
-      if (!latestUser) throw new Error("plan_exit handoff did not produce a synthetic user message")
-      return {
-        info: latestUser.info as MessageV2.User,
-        parts: latestUser.parts,
-      }
-    }
 
     const effectiveAgent = triggerDecision.routeAgent ?? input.agent
     const { agent, partsInput, info } = await prepareUserMessageContext({
@@ -1859,24 +1834,6 @@ export namespace SessionPrompt {
     }
   }
 
-  export async function getCommittedPlannerIntent(sessionID: string): Promise<PlannerIntent | undefined> {
-    const session = await Session.get(sessionID)
-    const metadataIntent = session.planner?.committedIntent
-    if (metadataIntent) return metadataIntent
-
-    for await (const message of MessageV2.stream(sessionID)) {
-      if (message.info.role !== "assistant") continue
-      if (!isNarrationAssistantMessage(message.info, message.parts)) continue
-      const text = message.parts
-        .filter((part): part is MessageV2.TextPart => part.type === "text")
-        .map((part) => part.text.toLowerCase())
-        .join("\n")
-      if (/\bplan_exit\b|switch to build mode|build mode/.test(text)) return "plan_exit"
-      if (/\bplan_enter\b|enter plan mode|plan mode/.test(text)) return "plan_enter"
-      return undefined
-    }
-    return undefined
-  }
 
   export const ShellInput = z.object({
     sessionID: Identifier.schema("session"),

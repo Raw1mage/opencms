@@ -266,13 +266,7 @@ export function Session() {
     if (part.state.status !== "completed") return
     if (part.id === lastSwitch) return
 
-    if (part.tool === "plan_exit") {
-      local.agent.set("build")
-      lastSwitch = part.id
-    } else if (part.tool === "plan_enter") {
-      local.agent.set("plan")
-      lastSwitch = part.id
-    }
+    // plan_enter/plan_exit tools removed — agent switching now handled by skill invocation
   })
 
   let scroll: ScrollBoxRenderable

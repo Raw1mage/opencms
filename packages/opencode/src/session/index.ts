@@ -271,6 +271,7 @@ export namespace Session {
   })
   export type MissionContract = z.output<typeof MissionContract>
 
+  /** @deprecated Planner intent is no longer tracked in session state. Kept for backwards compat with existing data. */
   export const PlannerState = z.object({
     committedIntent: z.enum(["plan_enter", "plan_exit"]).optional(),
     updatedAt: z.number().optional(),
@@ -730,19 +731,6 @@ export namespace Session {
     )
   }
 
-  export async function setPlannerIntent(input: { sessionID: string; intent: "plan_enter" | "plan_exit" }) {
-    return update(
-      input.sessionID,
-      (draft) => {
-        draft.planner = {
-          ...(draft.planner ?? {}),
-          committedIntent: input.intent,
-          updatedAt: Date.now(),
-        }
-      },
-      { touch: false },
-    )
-  }
 
   export async function clearMission(sessionID: string) {
     return update(

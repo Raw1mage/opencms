@@ -1,6 +1,5 @@
 import { Session } from "."
 import type { MessageV2 } from "./message-v2"
-import { plannerArtifacts } from "./planner-layout"
 
 export type DialogTriggerName = "plan_enter" | "replan" | "approval"
 
@@ -13,17 +12,11 @@ export type DialogTriggerDecision = {
 
 export type DialogTriggerPolicy = {
   decision: DialogTriggerDecision
-  autoPlanExitHandoff: boolean
 }
-
-export type PlannerIntent = "plan_enter" | "plan_exit"
 
 const SUPPORTED_CLIENTS = ["app", "cli", "desktop"] as const
 
 const PLAN_ENTER_HARD_NEGATIVE_PATTERNS = [
-  /\bplan_exit\b/,
-  /\bgo on plan_exit\b/,
-  /\bexit plan mode\b/,
   /\bswitch to build mode\b/,
   /\bstart executing (it|the plan)\b/,
   /\bbuild mode\b/,
@@ -37,10 +30,7 @@ const PLAN_ENTER_HARD_NEGATIVE_PATTERNS = [
   /做了什麼/,
   /總結一下/,
   /只要說明/,
-  /退出 plan mode/,
-  /離開 plan mode/,
   /切到 build mode/,
-  /執行 plan_exit/,
 ] as const
 
 const PLAN_ENTER_INTENT_KEYWORDS = [
@@ -130,7 +120,6 @@ const APPROVAL_PATTERNS = [
   /准許/,
 ] as const
 
-const BUILD_START_PATTERNS = [/^開始\s*build\b/, /^start\s+build\b/, /^begin\s+build\b/] as const
 
 function normalizePromptText(parts: MessageV2.Part[] | Array<{ type: string; text?: string }>) {
   return parts
@@ -176,33 +165,12 @@ function detectApproval(text: string, session: Pick<Session.Info, "workflow" | "
   return APPROVAL_PATTERNS.some((pattern) => pattern.test(text))
 }
 
-function detectBuildStart(text: string) {
-  if (!text) return false
-  return BUILD_START_PATTERNS.some((pattern) => pattern.test(text))
-}
-
-async function hasPlannerArtifacts(session: Pick<Session.Info, "slug" | "title" | "time">) {
-  const artifacts = plannerArtifacts(session)
-  const required = [
-    artifacts.implementationSpec,
-    artifacts.proposal,
-    artifacts.spec,
-    artifacts.design,
-    artifacts.tasks,
-    artifacts.handoff,
-  ]
-  for (const file of required) {
-    if (!(await Bun.file(file).exists())) return false
-  }
-  return true
-}
 
 export function resolveDialogTrigger(input: {
   agent?: string
   client: string
   parts: Array<{ type: string; text?: string }>
   session: Pick<Session.Info, "mission" | "workflow" | "time">
-  committedPlannerIntent?: PlannerIntent
 }): DialogTriggerDecision {
   if (input.agent) {
     return {
@@ -214,14 +182,6 @@ export function resolveDialogTrigger(input: {
   if (!SUPPORTED_CLIENTS.includes(input.client as (typeof SUPPORTED_CLIENTS)[number])) {
     return {
       trigger: "none",
-      suppressAutoEnterPlan: true,
-    }
-  }
-
-  if (input.committedPlannerIntent === "plan_exit") {
-    return {
-      trigger: "none",
-      routeAgent: "build",
       suppressAutoEnterPlan: true,
     }
   }
@@ -271,14 +231,9 @@ export async function resolveDialogTriggerPolicy(input: {
   client: string
   parts: Array<{ type: string; text?: string }>
   session: Pick<Session.Info, "mission" | "workflow" | "time" | "slug" | "title">
-  committedPlannerIntent?: PlannerIntent
 }): Promise<DialogTriggerPolicy> {
   const decision = resolveDialogTrigger(input)
-  const text = normalizePromptText(input.parts)
-  const autoPlanExitHandoff =
-    decision.trigger === "none" && detectBuildStart(text) && (await hasPlannerArtifacts(input.session))
   return {
     decision,
-    autoPlanExitHandoff,
   }
 }

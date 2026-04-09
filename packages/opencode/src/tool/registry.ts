@@ -26,7 +26,6 @@ import { Log } from "@/util/log"
 import { debugCheckpoint } from "@/util/debug"
 import { LspTool } from "./lsp"
 import { Truncate } from "./truncation"
-import { PlanExitTool, PlanEnterTool } from "./plan"
 import { ApplyPatchTool } from "./apply_patch"
 import { CronCreateTool, CronListTool, CronDeleteTool } from "./cron"
 import { ToolLoaderTool } from "./tool-loader"
@@ -153,7 +152,6 @@ export namespace ToolRegistry {
       CronDeleteTool,
       ...(Flag.OPENCODE_EXPERIMENTAL_LSP_TOOL ? [LspTool] : []),
       ...(config.experimental?.batch_tool === true ? [BatchTool] : []),
-      ...(["app", "cli", "desktop", "web"].includes(Flag.OPENCODE_CLIENT) ? [PlanExitTool, PlanEnterTool] : []),
       ...custom,
     ]
   }

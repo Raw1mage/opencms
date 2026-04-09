@@ -56,8 +56,6 @@ export namespace Agent {
         [Truncate.GLOB]: "allow",
       },
       question: "deny",
-      plan_enter: "deny",
-      plan_exit: "deny",
       read: {
         "*": "allow",
         "*.env": "ask",
@@ -94,7 +92,6 @@ export namespace Agent {
           defaults,
           PermissionNext.fromConfig({
             question: "allow",
-            plan_enter: "allow",
           }),
           user,
         ),
@@ -110,7 +107,6 @@ export namespace Agent {
           defaults,
           PermissionNext.fromConfig({
             question: "allow",
-            plan_exit: "allow",
             external_directory: {
               [path.join(Global.Path.data, "plans", "*")]: "allow",
             },
@@ -228,8 +224,6 @@ export namespace Agent {
             task: "deny",
             todowrite: "deny",
             todoread: "deny",
-            plan_enter: "deny",
-            plan_exit: "deny",
           }),
           user,
         ),

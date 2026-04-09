@@ -7,7 +7,7 @@ Plan mode is ACTIVE. This driver tells you how to use the plan runtime.
 
 Before any plan work, load these two skills in order:
 
-1. `planner` — full methodology: artifact definitions, workflow phases, validation checklist, traceability chain.
+1. `planner` — full methodology: artifact definitions, workflow phases, validation checklist, traceability chain, and **scripts** for initialization and validation.
 2. `miatdiagram` — IDEF0 functional decomposition + GRAFCET state machine modeling. Required for producing `idef0.json`, `grafcet.json`, and deeper decompositions.
 
 Both skills MUST be loaded. Do not skip `miatdiagram` — IDEF0/GRAFCET artifacts are mandatory parts of the plan spec, not optional extras.
@@ -16,17 +16,21 @@ Both skills MUST be loaded. Do not skip `miatdiagram` — IDEF0/GRAFCET artifact
 
 - **Discussion-first.** Think, read, search, ask the user, refine artifacts. Do not jump into broad implementation.
 - Small bounded edits that directly support planning evidence or artifact quality are acceptable.
-- When substantial implementation is needed, complete the artifacts and call `plan_exit` to hand off to build mode.
+- When substantial implementation is needed, complete the artifacts and present the plan to the user for approval. Build execution goes through the beta-workflow skill.
+
+## Scripts
+
+- **`bun run scripts/plan-init.ts <plan-root>`**: Initialize a plan directory with all 10 artifact templates. Existing files are NOT overwritten.
+- **`bun run scripts/plan-validate.ts <plan-root>`**: Validate all artifacts programmatically — checks structural completeness, placeholder detection, JSON schema, and cross-artifact traceability. Fix reported blockers, then re-run until it passes.
 
 ## Runtime Tools
 
-- **`plan_exit`**: Validates all artifacts, materializes `tasks.md` into runtime todos, and switches to build mode. Call this when the plan is execution-ready.
-- **`todowrite`**: In plan mode, acts as a **working ledger** — freely create, restructure, and update todos for exploration and tracking. This relaxed policy does NOT carry over into build mode.
+- **`todowrite`**: In plan mode, acts as a **working ledger** — freely create, restructure, and update todos for exploration and tracking.
 - **`question`**: Use structured multiple-choice questions for bounded planning decisions (scope, priority, approval posture, delegation strategy). Use freeform only for open-ended domain context.
 
 ## Artifact Directory
 
-`plan_enter` created a `/specs/YYYYMMDD_<slug>/` directory with template files. Write your artifacts there. The primary artifact is `implementation-spec.md`; keep all companion artifacts aligned.
+Use `bun run scripts/plan-init.ts plans/<feature-slug>/` to create the plan directory with template files. The primary artifact is `implementation-spec.md`; keep all companion artifacts aligned.
 
 ## Todo ↔ Tasks Alignment
 

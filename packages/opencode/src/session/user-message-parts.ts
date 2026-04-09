@@ -370,7 +370,7 @@ export async function buildUserMessageParts(input: {
               sessionID: input.sessionID,
               type: "text",
               synthetic: true,
-              text: " The user explicitly requested planner mode via @planner. Do not treat this as a subagent task. If you are not already in plan mode, call the plan_enter tool. If you are already in plan mode, continue planner-first discussion and maintain the active planner artifacts.",
+              text: " The user explicitly requested planner mode via @planner. Do not treat this as a subagent task. Load the planner skill and continue planner-first discussion, maintaining the active planner artifacts.",
             },
           ]
         }
