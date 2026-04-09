@@ -720,6 +720,20 @@ When constructing the summary, try to stick to this template:
       })
     }
     if (processor.message.error) return "stop"
+
+    // Write the compaction boundary anchor on the summary assistant message.
+    // filterCompacted() uses this as the authoritative truncation point.
+    // (Previously, create()'s "compaction-request" trigger marker was mistakenly
+    // used as the boundary, but that caused premature truncation before the
+    // summary was written.)
+    await Session.updatePart({
+      id: Identifier.ascending("part"),
+      messageID: processor.message.id,
+      sessionID: input.sessionID,
+      type: "compaction",
+      auto: input.auto,
+    })
+
     Bus.publish(Event.Compacted, { sessionID: input.sessionID })
 
     // T3.3: Save checkpoint after B (LLM) compaction
