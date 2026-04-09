@@ -21,7 +21,6 @@ export interface ResponsesApiRequest {
   text?: TextControls
   context_management?: ContextManagement[]
   client_metadata?: Record<string, string>
-  max_output_tokens?: number
 }
 
 /** WebSocket request — wraps ResponsesApiRequest + WS-only fields */

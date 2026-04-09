@@ -166,10 +166,8 @@ class CodexLanguageModel implements LanguageModelV2 {
       body.text = { verbosity: po.textVerbosity as string }
     }
 
-    // max_output_tokens (from AI SDK callOptions)
-    if (callOptions.maxOutputTokens != null) {
-      body.max_output_tokens = callOptions.maxOutputTokens
-    }
+    // NOTE: max_output_tokens is NOT supported by Codex API (400 error).
+    // Codex server controls output length internally via context_management.
 
     // tools
     if (tools && tools.length > 0) {
