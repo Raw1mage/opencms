@@ -1,0 +1,59 @@
+<svg width="1568.0" height="911.6" viewBox="-262.0 -215.8 1568.0 911.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-262.0" y="-215.8" width="1568.0" height="911.6" fill="white" />
+<rect x="130.0" y="120.0" width="314.0" height="130.0" stroke="black" fill="white" stroke-width="1.5" data-id="A21" />
+<text x="287.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >A21</text>
+<text x="287.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >EVALUATE LOGLEVEL</text>
+<text x="287.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >SUBSCRIBER GATE</text>
+<rect x="664.0" y="120.0" width="314.0" height="130.0" stroke="black" fill="white" stroke-width="1.5" data-id="A22" />
+<text x="821.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >A22</text>
+<text x="821.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >WRITE DEBUG LOG</text>
+<text x="821.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >ENTRY</text>
+<rect x="130.0" y="330.0" width="314.0" height="130.0" stroke="black" fill="white" stroke-width="1.5" data-id="A23" />
+<text x="287.0" y="366.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A23" >A23</text>
+<text x="287.0" y="396.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A23" >DELIVER TOAST</text>
+<text x="287.0" y="426.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A23" >NOTIFICATION</text>
+<path d="M 444.0 185.0 L 664.0 185.0" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="444.0,185.0 664.0,185.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 444.0 206.7 L 474.0 206.7 Q 484.0 206.7 484.0 216.7 L 484.0 281.8 Q 484.0 291.8 474.0 291.8 L 100.0 291.8 Q 90.0 291.8 90.0 301.8 L 90.0 385.0 Q 90.0 395.0 100.0 395.0 L 130.0 395.0" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="444.0,206.7 484.0,206.7 484.0,291.8 90.0,291.8 90.0,395.0 130.0,395.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -178.0 185.0 L 130.0 185.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-178.0,185.0 130.0,185.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 978.0 185.0 L 1222.0 185.0" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="978.0,185.0 1222.0,185.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 444.0 395.0 L 1222.0 395.0" stroke="black" stroke-width="1.2" data-arrow-id="AR8" data-waypoints="444.0,395.0 1222.0,395.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 287.0 84.2 L 287.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="287.0,84.2 287.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="281.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR2" >OPENCODE_LOG_LEVEL</text>
+<text x="293.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR2" >Env Value</text>
+<path d="M 821.0 84.2 L 821.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="821.0,84.2 821.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="815.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR3" >Debug Log Format</text>
+<text x="827.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR3" >Specification</text>
+<path d="M 287.0 294.2 L 287.0 330.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="287.0,294.2 287.0,330.0" marker-end="url(#arrow)" fill="none" />
+<text x="281.0" y="325.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR4" >Toast Format And</text>
+<text x="293.0" y="325.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR4" >Duration Config</text>
+<path d="M 287.0 285.8 L 287.0 250.0" stroke="black" stroke-width="1.2" data-arrow-id="AR9" data-waypoints="287.0,285.8 287.0,250.0" marker-end="url(#arrow)" fill="none" />
+<text x="281.0" y="266.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR9" >LogLevel Threshold</text>
+<text x="293.0" y="266.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR9" >Comparator</text>
+<path d="M 821.0 285.8 L 821.0 250.0" stroke="black" stroke-width="1.2" data-arrow-id="AR10" data-waypoints="821.0,285.8 821.0,250.0" marker-end="url(#arrow)" fill="none" />
+<text x="815.0" y="266.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR10" >Bun File</text>
+<text x="827.0" y="266.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR10" >Append API</text>
+<path d="M 287.0 495.8 L 287.0 460.0" stroke="black" stroke-width="1.2" data-arrow-id="AR11" data-waypoints="287.0,495.8 287.0,460.0" marker-end="url(#arrow)" fill="none" />
+<text x="281.0" y="476.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR11" >TUI Toast</text>
+<text x="293.0" y="476.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR11" >Display API</text>
+<rect x="30.0" y="24.2" width="1008.0" height="531.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="394.0" y="-175.8" width="280.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="534.0" y="-164.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >A2</text>
+<text x="534.0" y="-134.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >ROUTE TO</text>
+<text x="534.0" y="-104.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >BACKEND</text>
+<text x="534.0" y="-74.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >SUBSCRIBERS</text>
+<line x1="394.0" y1="-175.8" x2="30.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="674.0" y1="-175.8" x2="1038.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="394.0" y1="-65.8" x2="30.0" y2="555.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="674.0" y1="-65.8" x2="1038.0" y2="555.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="554.0" y="179.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR5">Event Passing</text>
+<text x="554.0" y="201.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR5">LogLevel Gate For Debug</text>
+<text x="399.6" y="285.8" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR6">Event Passing</text>
+<text x="399.6" y="307.8" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR6">LogLevel Gate For Toast</text>
+<text x="26.0" y="177.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR1" >Validated Event With Topic</text>
+<text x="1042.0" y="177.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR7" >Debug Log File Entries</text>
+<text x="1042.0" y="387.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR8" >TUI Toast Notifications</text>
+</svg>

@@ -1,0 +1,87 @@
+<svg width="2209.4" height="1155.8" viewBox="-230.0 -240.0 2209.4 1155.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-230.0" y="-240.0" width="2209.4" height="1155.8" fill="white" />
+<rect x="130.0" y="120.0" width="314.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A31" />
+<text x="287.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >A31</text>
+<text x="287.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >ACQUIRE GATEWAY</text>
+<text x="287.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >LOCK</text>
+<rect x="666.0" y="120.0" width="314.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A32" />
+<text x="823.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A32" >A32</text>
+<text x="823.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A32" >HANDLE SIGNAL</text>
+<text x="823.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A32" >DISPATCH</text>
+<rect x="1209.0" y="120.0" width="314.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A33" />
+<text x="1366.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A33" >A33</text>
+<text x="1366.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A33" >EXECUTE DRAIN</text>
+<text x="1366.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A33" >STATE MACHINE</text>
+<rect x="130.0" y="440.0" width="314.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A34" />
+<text x="287.0" y="491.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >A34</text>
+<text x="287.0" y="521.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >COORDINATE</text>
+<text x="287.0" y="551.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >PROCESS RESTART</text>
+<rect x="666.0" y="440.0" width="314.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A35" />
+<text x="823.0" y="491.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A35" >A35</text>
+<text x="823.0" y="521.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A35" >TRACK LIFECYCLE</text>
+<text x="823.0" y="551.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A35" >GENERATION NUMBER</text>
+<path d="M 980.0 200.0 L 1209.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I3" data-waypoints="980.0,200.0 1209.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 444.0 520.0 L 666.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="I5" data-waypoints="444.0,520.0 666.0,520.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1523.0 226.7 L 1553.0 226.7 Q 1563.0 226.7 1563.0 236.7 L 1563.0 350.0 Q 1563.0 360.0 1553.0 360.0 L 100.0 360.0 Q 90.0 360.0 90.0 370.0 L 90.0 510.0 Q 90.0 520.0 100.0 520.0 L 130.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="I4" data-waypoints="1523.0,226.7 1563.0,226.7 1563.0,360.0 90.0,360.0 90.0,520.0 130.0,520.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -146.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-146.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -146.0 78.2 L 582.0 78.2 Q 592.0 78.2 592.0 88.2 L 592.0 190.0 Q 592.0 200.0 602.0 200.0 L 666.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I2" data-waypoints="-146.0,78.2 592.0,78.2 592.0,200.0 666.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 444.0 200.0 L 514.7 200.0 Q 524.7 200.0 524.7 210.0 L 524.7 311.8 Q 524.7 321.8 534.7 321.8 L 1839.0 321.8" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="444.0,200.0 524.7,200.0 524.7,321.8 1839.0,321.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 980.0 173.3 L 1164.6 173.3 Q 1174.6 173.3 1174.6 163.3 L 1174.6 70.0 Q 1174.6 60.0 1184.6 60.0 L 1839.0 60.0" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="980.0,173.3 1174.6,173.3 1174.6,60.0 1839.0,60.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1523.0 173.3 L 1839.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="O3" data-waypoints="1523.0,173.3 1839.0,173.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 444.0 493.3 L 514.7 493.3 Q 524.7 493.3 524.7 483.3 L 524.7 408.2 Q 524.7 398.2 534.7 398.2 L 1839.0 398.2" stroke="black" stroke-width="1.2" data-arrow-id="O4" data-waypoints="444.0,493.3 524.7,493.3 524.7,398.2 1839.0,398.2" marker-end="url(#arrow)" fill="none" />
+<path d="M 980.0 520.0 L 1839.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="O5" data-waypoints="980.0,520.0 1839.0,520.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 287.0 84.2 L 287.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="287.0,84.2 287.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="281.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C1" >Lock File</text>
+<text x="293.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C1" >Path Config</text>
+<path d="M 823.0 84.2 L 823.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C2" data-waypoints="823.0,84.2 823.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="817.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C2" >Signal</text>
+<text x="829.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C2" >Authorization Policy</text>
+<path d="M 1366.0 84.2 L 1366.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C3" data-waypoints="1366.0,84.2 1366.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="1360.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C3" >Drain Timeout</text>
+<text x="1372.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C3" >Policy</text>
+<path d="M 287.0 404.2 L 287.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="C4" data-waypoints="287.0,404.2 287.0,440.0" marker-end="url(#arrow)" fill="none" />
+<text x="281.0" y="435.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C4" >Respawn</text>
+<text x="293.0" y="435.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C4" >Mode Config</text>
+<path d="M 823.0 404.2 L 823.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="C5" data-waypoints="823.0,404.2 823.0,440.0" marker-end="url(#arrow)" fill="none" />
+<text x="817.0" y="435.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C5" >Generation</text>
+<text x="829.0" y="435.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C5" >Validation Rules</text>
+<path d="M 287.0 315.8 L 287.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M1" data-waypoints="287.0,315.8 287.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="281.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M1" >File Lock</text>
+<text x="293.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M1" >Manager</text>
+<path d="M 823.0 315.8 L 823.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M2" data-waypoints="823.0,315.8 823.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="817.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M2" >Node Process</text>
+<text x="829.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M2" >Signal API</text>
+<path d="M 1366.0 315.8 L 1366.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M3" data-waypoints="1366.0,315.8 1366.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="1360.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M3" >Task Wait</text>
+<text x="1372.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M3" >Controller</text>
+<path d="M 287.0 635.8 L 287.0 600.0" stroke="black" stroke-width="1.2" data-arrow-id="M4" data-waypoints="287.0,635.8 287.0,600.0" marker-end="url(#arrow)" fill="none" />
+<text x="281.0" y="616.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M4" >Child Process</text>
+<text x="293.0" y="616.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M4" >Spawner</text>
+<path d="M 823.0 635.8 L 823.0 600.0" stroke="black" stroke-width="1.2" data-arrow-id="M5" data-waypoints="823.0,635.8 823.0,600.0" marker-end="url(#arrow)" fill="none" />
+<text x="817.0" y="616.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M5" >Atomic</text>
+<text x="829.0" y="616.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M5" >Counter Store</text>
+<rect x="30.0" y="0.0" width="1593.0" height="695.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="611.0" y="-200.0" width="431.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="826.5" y="-189.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >A3</text>
+<text x="826.5" y="-159.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >SUPERVISE DAEMON</text>
+<text x="826.5" y="-129.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >LIFECYCLE — D.3</text>
+<text x="826.5" y="-99.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >DECOMPOSITION</text>
+<line x1="611.0" y1="-200.0" x2="30.0" y2="0.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="1042.0" y1="-200.0" x2="1623.0" y2="0.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="611.0" y1="-90.0" x2="30.0" y2="695.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="1042.0" y1="-90.0" x2="1623.0" y2="695.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="1094.5" y="218.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I3" >Drain Command</text>
+<text x="555.0" y="538.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I5" >Restart Cycle Event</text>
+<text x="826.5" y="352.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I4" >Drain Complete Notification</text>
+<text x="26.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1" >Daemon Startup Request</text>
+<text x="26.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I2" >OS Process Signals</text>
+<text x="1627.0" y="313.8" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1" >Lock Acquired Confirmation</text>
+<text x="1627.0" y="52.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2" >Lifecycle Transition Events</text>
+<text x="1807.4" y="165.3" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O3" >Drain Completion Status</text>
+<text x="1627.0" y="390.2" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O4" >Restart Outcome</text>
+<text x="1627.0" y="512.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O5" >Current Generation Number</text>
+</svg>

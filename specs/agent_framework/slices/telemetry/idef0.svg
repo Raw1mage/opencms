@@ -1,0 +1,52 @@
+<svg width="1912.0" height="880.0" viewBox="-342.0 -220.0 1912.0 880.0" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-342.0" y="-220.0" width="1912.0" height="880.0" fill="white" />
+<rect x="130.0" y="120.0" width="378.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="319.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >A1</text>
+<text x="319.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >DEFINE TELEMETRY</text>
+<text x="319.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >REQUIREMENTS</text>
+<rect x="648.0" y="120.0" width="378.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A11" />
+<text x="837.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A11" >A11</text>
+<text x="837.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A11" >PLAN PROMPT BLOCK</text>
+<text x="837.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A11" >TELEMETRY (A111)</text>
+<rect x="130.0" y="360.0" width="378.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A12" />
+<text x="319.0" y="396.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >A12</text>
+<text x="319.0" y="426.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >PLAN ROUND/SESSION</text>
+<text x="319.0" y="456.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >USAGE TELEMETRY</text>
+<text x="319.0" y="486.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >(A112)</text>
+<rect x="648.0" y="360.0" width="378.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A13" />
+<text x="837.0" y="411.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A13" >A13</text>
+<text x="837.0" y="441.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A13" >VALIDATION, HANDOFF &amp;</text>
+<text x="837.0" y="471.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A13" >SIDEBAR CONSUMPTION</text>
+<path d="M 508.0 440.0 L 648.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="508.0,440.0 648.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1026.0 200.0 L 1056.0 200.0 Q 1066.0 200.0 1066.0 210.0 L 1066.0 311.8 Q 1066.0 321.8 1056.0 321.8 L 100.0 321.8 Q 90.0 321.8 90.0 331.8 L 90.0 430.0 Q 90.0 440.0 100.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="1026.0,200.0 1066.0,200.0 1066.0,321.8 90.0,321.8 90.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -258.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-258.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 508.0 200.0 L 538.0 200.0 Q 548.0 200.0 548.0 190.0 L 548.0 90.0 Q 548.0 80.0 558.0 80.0 L 1486.0 80.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="508.0,200.0 548.0,200.0 548.0,80.0 1486.0,80.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1026.0 440.0 L 1486.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="1026.0,440.0 1486.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 319.0 84.2 L 319.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="319.0,84.2 319.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="313.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR2" >Fail-fast /</text>
+<text x="325.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR2" >behavior-preservation constraints</text>
+<path d="M 319.0 315.8 L 319.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="319.0,315.8 319.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="313.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR4" >Planning artifacts,</text>
+<text x="325.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR4" >baseline data, diagram tools</text>
+<rect x="30.0" y="20.0" width="1096.0" height="560.0" stroke="black" fill="none" stroke-width="2" />
+<rect x="442.0" y="-180.0" width="272.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="578.0" y="-169.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >A0</text>
+<text x="578.0" y="-139.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >TELEMETRY</text>
+<text x="578.0" y="-109.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >PLANNING</text>
+<text x="578.0" y="-79.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >WORKFLOW</text>
+<line x1="442.0" y1="-180.0" x2="30.0" y2="20.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="714.0" y1="-180.0" x2="1126.0" y2="20.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="442.0" y1="-70.0" x2="30.0" y2="580.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="714.0" y1="-70.0" x2="1126.0" y2="580.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="554.0" y="434.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR6">Telemetry fields and</text>
+<text x="554.0" y="456.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR6">validation checkpoints</text>
+<text x="837.0" y="315.8" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR5">Prompt block data definitions feed</text>
+<text x="837.0" y="337.8" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR5">round/session telemetry assumptions</text>
+<text x="26.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR1" >Telemetry Request (A111/A112 intent)</text>
+<text x="1130.0" y="72.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR3" >Telemetry plan with traceability to A111/A112</text>
+<text x="1130.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR7" >Execution-ready plans / diagrams / tasks</text>
+</svg>

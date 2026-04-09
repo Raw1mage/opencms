@@ -1,0 +1,31 @@
+<svg width="714.0" height="671.6" viewBox="-134.0 -215.8 714.0 671.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-134.0" y="-215.8" width="714.0" height="671.6" fill="white" />
+<rect x="130.0" y="120.0" width="218.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="239.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >A1</text>
+<text x="239.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >DELIVER</text>
+<text x="239.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >CORE</text>
+<text x="239.0" y="246.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >FUNCTION</text>
+<path d="M -50.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-50.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 348.0 200.0 L 496.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="348.0,200.0 496.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 239.0 84.2 L 239.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="239.0,84.2 239.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="233.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR2" >Policy And</text>
+<text x="245.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR2" >Constraints</text>
+<path d="M 239.0 315.8 L 239.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="239.0,315.8 239.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="233.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR4" >Execution</text>
+<text x="245.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR4" >Resources</text>
+<rect x="70.0" y="24.2" width="338.0" height="351.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="119.0" y="-175.8" width="240.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="239.0" y="-149.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >A0</text>
+<text x="239.0" y="-119.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >SYSTEM</text>
+<text x="239.0" y="-89.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >CONTEXT</text>
+<line x1="119.0" y1="-175.8" x2="70.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="359.0" y1="-175.8" x2="408.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="119.0" y1="-65.8" x2="70.0" y2="375.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="359.0" y1="-65.8" x2="408.0" y2="375.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="66.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR1" >Primary Request</text>
+<text x="412.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR3" >Deliverable</text>
+</svg>

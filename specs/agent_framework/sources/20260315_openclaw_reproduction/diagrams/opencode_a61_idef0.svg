@@ -1,0 +1,58 @@
+<svg width="1733.0" height="1017.6" viewBox="-254.0 -221.8 1733.0 1017.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-254.0" y="-221.8" width="1733.0" height="1017.6" fill="white" />
+<rect x="130.0" y="120.0" width="362.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A611" />
+<text x="311.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A611" >A611</text>
+<text x="311.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A611" >RESTORE CHANNEL</text>
+<text x="311.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A611" >STORE STATE</text>
+<rect x="693.0" y="120.0" width="362.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A612" />
+<text x="874.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A612" >A612</text>
+<text x="874.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A612" >REGISTER PER-CHANNEL</text>
+<text x="874.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A612" >LANE POLICIES</text>
+<rect x="130.0" y="360.0" width="362.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A613" />
+<text x="311.0" y="396.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A613" >A613</text>
+<text x="311.0" y="426.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A613" >ASSERT HEALTH</text>
+<text x="311.0" y="456.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A613" >ENDPOINT CHANNEL</text>
+<text x="311.0" y="486.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A613" >COVERAGE</text>
+<path d="M 492.0 200.0 L 693.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I2" data-waypoints="492.0,200.0 693.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1055.0 226.7 L 1085.0 226.7 Q 1095.0 226.7 1095.0 236.7 L 1095.0 311.8 Q 1095.0 321.8 1085.0 321.8 L 100.0 321.8 Q 90.0 321.8 90.0 331.8 L 90.0 430.0 Q 90.0 440.0 100.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="I3" data-waypoints="1055.0,226.7 1095.0,226.7 1095.0,321.8 90.0,321.8 90.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -170.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-170.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 492.0 173.3 L 671.5 173.3 Q 681.5 173.3 681.5 163.3 L 681.5 88.2 Q 681.5 78.2 691.5 78.2 L 1395.0 78.2" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="492.0,173.3 681.5,173.3 681.5,78.2 1395.0,78.2" marker-end="url(#arrow)" fill="none" />
+<path d="M 1055.0 173.3 L 1395.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="1055.0,173.3 1395.0,173.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 492.0 440.0 L 1395.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="O3" data-waypoints="492.0,440.0 1395.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 874.0 315.8 L 874.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M2" data-waypoints="874.0,315.8 874.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 311.0 84.2 L 311.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="311.0,84.2 311.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="305.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C1" >Channel Schema</text>
+<text x="317.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C1" >Validator</text>
+<path d="M 874.0 84.2 L 874.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C2" data-waypoints="874.0,84.2 874.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="868.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C2" >Lane Policy</text>
+<text x="880.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C2" >Defaults</text>
+<path d="M 311.0 324.2 L 311.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="C3" data-waypoints="311.0,324.2 311.0,360.0" marker-end="url(#arrow)" fill="none" />
+<text x="305.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C3" >Health Assertion</text>
+<text x="317.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C3" >Thresholds</text>
+<path d="M 311.0 315.8 L 311.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M1" data-waypoints="311.0,315.8 311.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="305.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M1" >ChannelStore</text>
+<text x="317.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M1" >Module</text>
+<path d="M 311.0 555.8 L 311.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="M3" data-waypoints="311.0,555.8 311.0,520.0" marker-end="url(#arrow)" fill="none" />
+<text x="305.0" y="536.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M3" >Daemon</text>
+<text x="317.0" y="536.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M3" >Health API</text>
+<rect x="30.0" y="18.2" width="1125.0" height="597.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="365.0" y="-181.8" width="455.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A61" />
+<text x="592.5" y="-155.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A61" >A61</text>
+<text x="592.5" y="-125.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A61" >BOOT MULTI-CHANNEL DAEMON</text>
+<text x="592.5" y="-95.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A61" >— A61 L2 DECOMPOSITION</text>
+<line x1="365.0" y1="-181.8" x2="30.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="820.0" y1="-181.8" x2="1155.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="365.0" y1="-71.8" x2="30.0" y2="615.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="820.0" y1="-71.8" x2="1155.0" y2="615.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="592.5" y="218.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I2" >Restored Channel List</text>
+<text x="874.0" y="339.8" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I3" >Registered Lane State</text>
+<text x="26.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1" >Channel Persistence Files</text>
+<text x="1159.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1" >Validated Channel State</text>
+<text x="1159.0" y="165.3" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2" >Lane Registration Confirmation</text>
+<text x="1159.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O3" >Boot Health Report</text>
+<text x="870.0" y="296.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M2" >Lanes Module</text>
+</svg>

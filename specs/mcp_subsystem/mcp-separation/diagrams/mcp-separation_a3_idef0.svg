@@ -1,0 +1,63 @@
+<svg width="1709.0" height="1091.6" viewBox="-272.0 -215.8 1709.0 1091.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-272.0" y="-215.8" width="1709.0" height="1091.6" fill="white" />
+<rect x="130.0" y="120.0" width="314.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A31" />
+<text x="287.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >A31</text>
+<text x="287.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >READ MANIFEST</text>
+<text x="287.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >FILE</text>
+<rect x="659.0" y="120.0" width="314.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A32" />
+<text x="816.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A32" >A32</text>
+<text x="816.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A32" >INFER MANIFEST</text>
+<text x="816.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A32" >FROM PROJECT</text>
+<text x="816.0" y="246.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A32" >FILES</text>
+<rect x="130.0" y="440.0" width="314.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A33" />
+<text x="287.0" y="491.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A33" >A33</text>
+<text x="287.0" y="521.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A33" >VALIDATE MANIFEST</text>
+<text x="287.0" y="551.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A33" >SCHEMA</text>
+<rect x="659.0" y="440.0" width="314.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A34" />
+<text x="816.0" y="491.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >A34</text>
+<text x="816.0" y="521.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >PROBE APP VIA</text>
+<text x="816.0" y="551.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >STDIO HANDSHAKE</text>
+<path d="M 444.0 200.0 L 659.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="F2" data-waypoints="444.0,200.0 659.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 444.0 520.0 L 659.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="F4" data-waypoints="444.0,520.0 659.0,520.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 973.0 226.7 L 1003.0 226.7 Q 1013.0 226.7 1013.0 236.7 L 1013.0 350.0 Q 1013.0 360.0 1003.0 360.0 L 90.0 360.0 Q 80.0 360.0 80.0 370.0 L 80.0 483.3 Q 80.0 493.3 90.0 493.3 L 130.0 493.3" stroke="black" stroke-width="1.2" data-arrow-id="F3" data-waypoints="973.0,226.7 1013.0,226.7 1013.0,360.0 80.0,360.0 80.0,493.3 130.0,493.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 444.0 226.7 L 468.4 226.7 Q 478.4 226.7 478.4 236.7 L 478.4 310.0 Q 478.4 320.0 468.4 320.0 L 50.0 320.0 Q 40.0 320.0 40.0 330.0 L 40.0 536.7 Q 40.0 546.7 50.0 546.7 L 130.0 546.7" stroke="black" stroke-width="1.2" data-arrow-id="F1" data-waypoints="444.0,226.7 478.4,226.7 478.4,320.0 40.0,320.0 40.0,546.7 130.0,546.7" marker-end="url(#arrow)" fill="none" />
+<path d="M -178.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-178.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 973.0 520.0 L 1353.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="973.0,520.0 1353.0,520.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 444.0 493.3 L 468.4 493.3 Q 478.4 493.3 478.4 483.3 L 478.4 408.2 Q 478.4 398.2 488.4 398.2 L 1353.0 398.2" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="444.0,493.3 478.4,493.3 478.4,398.2 1353.0,398.2" marker-end="url(#arrow)" fill="none" />
+<path d="M 973.0 173.3 L 1353.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="O3" data-waypoints="973.0,173.3 1353.0,173.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 816.0 635.8 L 816.0 600.0" stroke="black" stroke-width="1.2" data-arrow-id="M2" data-waypoints="816.0,635.8 816.0,600.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 287.0 84.2 L 287.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="287.0,84.2 287.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="281.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C1" >No Silent</text>
+<text x="293.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C1" >Fallback Rule</text>
+<path d="M 287.0 404.2 L 287.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="C2" data-waypoints="287.0,404.2 287.0,440.0" marker-end="url(#arrow)" fill="none" />
+<text x="281.0" y="435.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C2" >McpAppManifest</text>
+<text x="293.0" y="435.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C2" >Zod Schema</text>
+<path d="M 816.0 404.2 L 816.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="C3" data-waypoints="816.0,404.2 816.0,440.0" marker-end="url(#arrow)" fill="none" />
+<text x="810.0" y="435.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C3" >Probe</text>
+<text x="822.0" y="435.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C3" >Timeout (30s)</text>
+<path d="M 287.0 635.8 L 287.0 600.0" stroke="black" stroke-width="1.2" data-arrow-id="M1" data-waypoints="287.0,635.8 287.0,600.0" marker-end="url(#arrow)" fill="none" />
+<text x="281.0" y="616.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M1" >Zod Validation</text>
+<text x="293.0" y="616.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M1" >Runtime</text>
+<rect x="-20.0" y="24.2" width="1093.0" height="671.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="339.0" y="-175.8" width="375.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="526.5" y="-149.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >A3</text>
+<text x="526.5" y="-119.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >VALIDATE APP PACKAGE</text>
+<text x="526.5" y="-89.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >— A3 DECOMPOSITION</text>
+<line x1="339.0" y1="-175.8" x2="-20.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="714.0" y1="-175.8" x2="1073.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="339.0" y1="-65.8" x2="-20.0" y2="695.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="714.0" y1="-65.8" x2="1073.0" y2="695.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="551.5" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F2" >Manifest Not Found Signal</text>
+<text x="551.5" y="538.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F4" >Valid McpAppManifest</text>
+<text x="287.0" y="352.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F3" >Inferred Manifest</text>
+<text x="287.0" y="312.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F1" >Raw mcp.json Content</text>
+<text x="-24.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1" >App Directory on Disk</text>
+<text x="1077.0" y="512.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1" >Validated Manifest and Probe Result</text>
+<text x="1077.0" y="390.2" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2" >Validation Error Report</text>
+<text x="1077.0" y="165.3" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O3" >Inference Failure Report</text>
+<text x="812.0" y="616.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M2" >StdioClientTransport</text>
+</svg>

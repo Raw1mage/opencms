@@ -1,0 +1,78 @@
+<svg width="2646.0" height="1135.8" viewBox="-390.0 -220.0 2646.0 1135.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-390.0" y="-220.0" width="2646.0" height="1135.8" fill="white" />
+<rect x="130.0" y="120.0" width="330.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="295.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >A1</text>
+<text x="295.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >PUBLISH EVENT TO</text>
+<text x="295.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >TOPIC</text>
+<rect x="800.0" y="120.0" width="330.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="965.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >A2</text>
+<text x="965.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >ROUTE TO BACKEND</text>
+<text x="965.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >SUBSCRIBERS</text>
+<rect x="1310.0" y="120.0" width="330.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="1475.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >A3</text>
+<text x="1475.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >TRANSPORT TO</text>
+<text x="1475.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >FRONTEND VIA SSE</text>
+<rect x="130.0" y="440.0" width="330.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="295.0" y="476.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >A4</text>
+<text x="295.0" y="506.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >ROUTE FRONTEND</text>
+<text x="295.0" y="536.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >EVENTS TO</text>
+<text x="295.0" y="566.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >COMPONENTS</text>
+<rect x="800.0" y="440.0" width="330.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
+<text x="965.0" y="491.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A5" >A5</text>
+<text x="965.0" y="521.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A5" >MIGRATE LEGACY</text>
+<text x="965.0" y="551.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A5" >EVENT CALLERS</text>
+<path d="M 460.0 200.0 L 800.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="460.0,200.0 800.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1640.0 200.0 L 1670.0 200.0 Q 1680.0 200.0 1680.0 210.0 L 1680.0 388.2 Q 1680.0 398.2 1670.0 398.2 L 100.0 398.2 Q 90.0 398.2 90.0 408.2 L 90.0 510.0 Q 90.0 520.0 100.0 520.0 L 130.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="AR10" data-waypoints="1640.0,200.0 1680.0,200.0 1680.0,398.2 90.0,398.2 90.0,520.0 130.0,520.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 460.0 173.3 L 620.0 173.3 Q 630.0 173.3 630.0 183.3 L 630.0 311.8 Q 630.0 321.8 640.0 321.8 L 1230.0 321.8 Q 1240.0 321.8 1240.0 311.8 L 1240.0 210.0 Q 1240.0 200.0 1250.0 200.0 L 1310.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="460.0,173.3 630.0,173.3 630.0,321.8 1240.0,321.8 1240.0,200.0 1310.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1130.0 520.0 L 1190.0 520.0 Q 1200.0 520.0 1200.0 510.0 L 1200.0 370.0 Q 1200.0 360.0 1190.0 360.0 L 100.0 360.0 Q 90.0 360.0 90.0 350.0 L 90.0 236.7 Q 90.0 226.7 100.0 226.7 L 130.0 226.7" stroke="black" stroke-width="1.2" data-arrow-id="AR13" data-waypoints="1130.0,520.0 1200.0,520.0 1200.0,360.0 90.0,360.0 90.0,226.7 130.0,226.7" marker-end="url(#arrow)" fill="none" />
+<path d="M -306.0 173.3 L 130.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-306.0,173.3 130.0,173.3" marker-end="url(#arrow)" fill="none" />
+<path d="M -306.0 660.0 L 710.0 660.0 Q 720.0 660.0 720.0 650.0 L 720.0 530.0 Q 720.0 520.0 730.0 520.0 L 800.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="-306.0,660.0 720.0,660.0 720.0,520.0 800.0,520.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1130.0 200.0 L 1190.0 200.0 Q 1200.0 200.0 1200.0 190.0 L 1200.0 90.0 Q 1200.0 80.0 1210.0 80.0 L 2172.0 80.0" stroke="black" stroke-width="1.2" data-arrow-id="AR8" data-waypoints="1130.0,200.0 1200.0,200.0 1200.0,80.0 2172.0,80.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 460.0 520.0 L 550.0 520.0 Q 560.0 520.0 560.0 530.0 L 560.0 631.8 Q 560.0 641.8 570.0 641.8 L 2172.0 641.8" stroke="black" stroke-width="1.2" data-arrow-id="AR11" data-waypoints="460.0,520.0 560.0,520.0 560.0,641.8 2172.0,641.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 295.0 84.2 L 295.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="295.0,84.2 295.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="289.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR3" >Zod Schema</text>
+<text x="301.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR3" >Validation</text>
+<path d="M 965.0 84.2 L 965.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="965.0,84.2 965.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="959.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR4" >OPENCODE_LOG_LEVEL</text>
+<text x="971.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR4" >Subscriber Filter</text>
+<path d="M 295.0 404.2 L 295.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="295.0,404.2 295.0,440.0" marker-end="url(#arrow)" fill="none" />
+<text x="289.0" y="435.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR5" >Broadcast-First</text>
+<text x="301.0" y="435.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR5" >Routing Policy</text>
+<path d="M 295.0 315.8 L 295.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR14" data-waypoints="295.0,315.8 295.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="289.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR14" >Bus.publish</text>
+<text x="301.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR14" >Dispatcher</text>
+<path d="M 965.0 315.8 L 965.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR15" data-waypoints="965.0,315.8 965.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="959.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR15" >Bus.subscribe</text>
+<text x="971.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR15" >Callback Registry</text>
+<path d="M 1475.0 315.8 L 1475.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR16" data-waypoints="1475.0,315.8 1475.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="1469.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR16" >GlobalBus SSE Adapter</text>
+<text x="1481.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR16" >And Hono streamSSE</text>
+<path d="M 295.0 635.8 L 295.0 600.0" stroke="black" stroke-width="1.2" data-arrow-id="AR17" data-waypoints="295.0,635.8 295.0,600.0" marker-end="url(#arrow)" fill="none" />
+<text x="289.0" y="616.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR17" >SolidJS Store</text>
+<text x="301.0" y="616.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR17" >And Event Reducer</text>
+<path d="M 965.0 635.8 L 965.0 600.0" stroke="black" stroke-width="1.2" data-arrow-id="AR18" data-waypoints="965.0,635.8 965.0,600.0" marker-end="url(#arrow)" fill="none" />
+<text x="959.0" y="616.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR18" >Backward Compatible</text>
+<text x="971.0" y="616.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR18" >Wrapper Functions</text>
+<rect x="30.0" y="20.0" width="1710.0" height="700.0" stroke="black" fill="none" stroke-width="2" />
+<rect x="749.0" y="-180.0" width="272.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="885.0" y="-154.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >A0</text>
+<text x="885.0" y="-124.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >OPERATE UNIFIED</text>
+<text x="885.0" y="-94.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >MESSAGE BUS</text>
+<line x1="749.0" y1="-180.0" x2="30.0" y2="20.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="1021.0" y1="-180.0" x2="1740.0" y2="20.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="749.0" y1="-70.0" x2="30.0" y2="720.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="1021.0" y1="-70.0" x2="1740.0" y2="720.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="552.3" y="194.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR6">Validated Event</text>
+<text x="552.3" y="216.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR6">With Topic</text>
+<text x="965.0" y="390.2" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR10" >SSE Event Stream</text>
+<text x="965.0" y="339.8" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR7" >Validated Event For SSE Transport</text>
+<text x="295.0" y="352.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR13" >Wrapped Legacy Events</text>
+<text x="26.0" y="165.3" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR1" >Event Props From Publisher</text>
+<text x="26.0" y="652.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR2" >Legacy debugCheckpoint And GlobalBus Calls</text>
+<text x="1744.0" y="72.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR8" >Debug Log Entries / TUI Toast Notifications</text>
+<text x="1744.0" y="633.8" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR11" >Webapp Toast Notifications / Webapp Card State Updates</text>
+</svg>

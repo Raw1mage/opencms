@@ -1,0 +1,84 @@
+<svg width="1950.0" height="1180.0" viewBox="-134.0 -260.0 1950.0 1180.0" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-134.0" y="-260.0" width="1950.0" height="1180.0" fill="white" />
+<rect x="130.0" y="120.0" width="322.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A81" />
+<text x="291.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A81" >A81</text>
+<text x="291.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A81" >RETRY WS</text>
+<text x="291.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A81" >CONNECTION</text>
+<rect x="632.0" y="120.0" width="322.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A82" />
+<text x="793.0" y="186.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A82" >A82</text>
+<text x="793.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A82" >RETRY WS STREAM</text>
+<rect x="1134.0" y="120.0" width="322.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A83" />
+<text x="1295.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A83" >A83</text>
+<text x="1295.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A83" >HANDLE 401</text>
+<text x="1295.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A83" >UNAUTHORIZED</text>
+<rect x="130.0" y="480.0" width="322.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A84" />
+<text x="291.0" y="531.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A84" >A84</text>
+<text x="291.0" y="561.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A84" >HANDLE 426 UPGRADE</text>
+<text x="291.0" y="591.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A84" >REQUIRED</text>
+<rect x="632.0" y="480.0" width="322.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A85" />
+<text x="793.0" y="531.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A85" >A85</text>
+<text x="793.0" y="561.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A85" >EVICT CACHE ON</text>
+<text x="793.0" y="591.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A85" >ERROR</text>
+<rect x="1134.0" y="480.0" width="322.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A86" />
+<text x="1295.0" y="531.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A86" >A86</text>
+<text x="1295.0" y="561.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A86" >HANDLE PREVIOUS</text>
+<text x="1295.0" y="591.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A86" >RESPONSE NOT FOUND</text>
+<path d="M -50.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-50.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 452.0 200.0 L 508.0 200.0 Q 518.0 200.0 518.0 190.0 L 518.0 50.0 Q 518.0 40.0 528.0 40.0 L 1684.0 40.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="452.0,200.0 518.0,200.0 518.0,40.0 1684.0,40.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -50.0 320.0 L 553.7 320.0 Q 563.7 320.0 563.7 310.0 L 563.7 210.0 Q 563.7 200.0 573.7 200.0 L 632.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="-50.0,320.0 563.7,320.0 563.7,200.0 632.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 954.0 200.0 L 1012.0 200.0 Q 1022.0 200.0 1022.0 190.0 L 1022.0 88.2 Q 1022.0 78.2 1032.0 78.2 L 1684.0 78.2" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="954.0,200.0 1022.0,200.0 1022.0,78.2 1684.0,78.2" marker-end="url(#arrow)" fill="none" />
+<path d="M -50.0 360.0 L 1062.0 360.0 Q 1072.0 360.0 1072.0 350.0 L 1072.0 210.0 Q 1072.0 200.0 1082.0 200.0 L 1134.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="-50.0,360.0 1072.0,360.0 1072.0,200.0 1134.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1456.0 200.0 L 1684.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR9" data-waypoints="1456.0,200.0 1684.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -50.0 560.0 L 130.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="AR10" data-waypoints="-50.0,560.0 130.0,560.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 452.0 560.0 L 508.0 560.0 Q 518.0 560.0 518.0 550.0 L 518.0 410.0 Q 518.0 400.0 528.0 400.0 L 1684.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="AR12" data-waypoints="452.0,560.0 518.0,560.0 518.0,400.0 1684.0,400.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -50.0 660.0 L 553.7 660.0 Q 563.7 660.0 563.7 650.0 L 563.7 570.0 Q 563.7 560.0 573.7 560.0 L 632.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="AR13" data-waypoints="-50.0,660.0 563.7,660.0 563.7,560.0 632.0,560.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 954.0 560.0 L 1012.0 560.0 Q 1022.0 560.0 1022.0 550.0 L 1022.0 448.2 Q 1022.0 438.2 1032.0 438.2 L 1684.0 438.2" stroke="black" stroke-width="1.2" data-arrow-id="AR15" data-waypoints="954.0,560.0 1022.0,560.0 1022.0,438.2 1684.0,438.2" marker-end="url(#arrow)" fill="none" />
+<path d="M -50.0 700.0 L 1062.0 700.0 Q 1072.0 700.0 1072.0 690.0 L 1072.0 570.0 Q 1072.0 560.0 1082.0 560.0 L 1134.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="AR16" data-waypoints="-50.0,700.0 1072.0,700.0 1072.0,560.0 1134.0,560.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1456.0 560.0 L 1684.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="AR18" data-waypoints="1456.0,560.0 1684.0,560.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1295.0 315.8 L 1295.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR19" data-waypoints="1295.0,315.8 1295.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 291.0 84.2 L 291.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="291.0,84.2 291.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="285.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR2" >Retry</text>
+<text x="297.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR2" >Budget Config</text>
+<path d="M 793.0 84.2 L 793.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="793.0,84.2 793.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="787.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR5" >Max Retries</text>
+<text x="799.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR5" >Config</text>
+<path d="M 1295.0 84.2 L 1295.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR8" data-waypoints="1295.0,84.2 1295.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="1289.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR8" >Auth Recovery</text>
+<text x="1301.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR8" >Policy</text>
+<path d="M 291.0 444.2 L 291.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="AR11" data-waypoints="291.0,444.2 291.0,480.0" marker-end="url(#arrow)" fill="none" />
+<text x="285.0" y="475.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR11" >Fallback</text>
+<text x="297.0" y="475.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR11" >Protocol</text>
+<path d="M 793.0 444.2 L 793.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="AR14" data-waypoints="793.0,444.2 793.0,480.0" marker-end="url(#arrow)" fill="none" />
+<text x="787.0" y="475.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR14" >Cache</text>
+<text x="799.0" y="475.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR14" >Eviction Rules</text>
+<path d="M 1295.0 444.2 L 1295.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="AR17" data-waypoints="1295.0,444.2 1295.0,480.0" marker-end="url(#arrow)" fill="none" />
+<text x="1289.0" y="475.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR17" >Store</text>
+<text x="1301.0" y="475.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR17" >Mode Policy</text>
+<rect x="70.0" y="-20.0" width="1446.0" height="780.0" stroke="black" fill="none" stroke-width="2" />
+<rect x="609.5" y="-220.0" width="367.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A8" />
+<text x="793.0" y="-209.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A8" >A8</text>
+<text x="793.0" y="-179.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A8" >HANDLE ERRORS</text>
+<text x="793.0" y="-149.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A8" >RECOVERY —</text>
+<text x="793.0" y="-119.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A8" >DECOMPOSITION</text>
+<line x1="609.5" y1="-220.0" x2="70.0" y2="-20.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="976.5" y1="-220.0" x2="1516.0" y2="-20.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="609.5" y1="-110.0" x2="70.0" y2="760.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="976.5" y1="-110.0" x2="1516.0" y2="760.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="66.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR1" >Connect Failure</text>
+<text x="1520.0" y="32.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR3" >Retry Or Fallback</text>
+<text x="66.0" y="312.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR4" >Stream Error</text>
+<text x="1520.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR6" >Retry Or Propagate</text>
+<text x="66.0" y="352.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR7" >401 Error</text>
+<text x="1520.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR9" >Refreshed Credentials</text>
+<text x="66.0" y="552.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR10" >426 Error</text>
+<text x="1520.0" y="392.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR12" >HTTP Fallback Signal</text>
+<text x="66.0" y="652.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR13" >4xx 5xx Error</text>
+<text x="1520.0" y="430.2" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR15" >Cache Cleared Signal</text>
+<text x="66.0" y="692.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR16" >Not Found Error</text>
+<text x="1520.0" y="552.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR18" >Full Context Fallback</text>
+<text x="1291.0" y="296.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR19" >Auth Manager</text>
+</svg>

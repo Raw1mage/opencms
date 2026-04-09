@@ -1,0 +1,30 @@
+<svg width="1008.0" height="605.8" viewBox="-169.0 -215.8 1008.0 605.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-169.0" y="-215.8" width="1008.0" height="605.8" fill="white" />
+<rect x="130.0" y="120.0" width="306.0" height="130.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="283.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >A0</text>
+<text x="283.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >UNIFIED ACCOUNT</text>
+<text x="283.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >MANAGER REFACTOR</text>
+<rect x="70.0" y="60.0" width="426.0" height="250.0" stroke="black" fill="none" stroke-width="2" />
+<rect x="115.0" y="-140.0" width="336.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="283.0" y="-114.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >A0</text>
+<text x="283.0" y="-84.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >ACCOUNT MANAGER</text>
+<text x="283.0" y="-54.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >UNIFIED REFACTOR V2</text>
+<line x1="115.0" y1="-140.0" x2="70.0" y2="60.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="451.0" y1="-140.0" x2="496.0" y2="60.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="115.0" y1="-30.0" x2="70.0" y2="310.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="451.0" y1="-30.0" x2="496.0" y2="310.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 95.0 -85.0 L 115.0 -85.0" stroke="black" stroke-width="1.2" data-arrow-id="root1" data-waypoints="95.0,-85.0 115.0,-85.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 451.0 -85.0 L 471.0 -85.0" stroke="black" stroke-width="1.2" data-arrow-id="root2" data-waypoints="451.0,-85.0 471.0,-85.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 283.0 -175.8 L 283.0 -140.0" stroke="black" stroke-width="1.2" data-arrow-id="root3" data-waypoints="283.0,-175.8 283.0,-140.0" marker-end="url(#arrow)" fill="none" />
+<text x="277.0" y="-145.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="root3" >Architecture +</text>
+<text x="289.0" y="-145.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="root3" >No-Fallback Constraints</text>
+<path d="M 283.0 5.8 L 283.0 -30.0" stroke="black" stroke-width="1.2" data-arrow-id="root4" data-waypoints="283.0,5.8 283.0,-30.0" marker-end="url(#arrow)" fill="none" />
+<text x="277.0" y="-14.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="root4" >Planner +</text>
+<text x="289.0" y="-14.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="root4" >Builder Workflow</text>
+<text x="111.0" y="-93.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="root1" >Fragmented Account System</text>
+<text x="455.0" y="-93.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="root2" >Unified Account Manager with Event Bus</text>
+</svg>

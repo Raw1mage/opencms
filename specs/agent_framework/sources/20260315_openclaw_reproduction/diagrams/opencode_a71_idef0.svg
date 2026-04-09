@@ -1,0 +1,59 @@
+<svg width="1615.0" height="1017.6" viewBox="-214.0 -221.8 1615.0 1017.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-214.0" y="-221.8" width="1615.0" height="1017.6" fill="white" />
+<rect x="130.0" y="120.0" width="330.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A711" />
+<text x="295.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A711" >A711</text>
+<text x="295.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A711" >RENDER CHANNEL</text>
+<text x="295.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A711" >LIST VIEW</text>
+<rect x="703.0" y="120.0" width="330.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A712" />
+<text x="868.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A712" >A712</text>
+<text x="868.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A712" >HANDLE CHANNEL</text>
+<text x="868.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A712" >CREATE AND EDIT</text>
+<text x="868.0" y="246.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A712" >FORM</text>
+<rect x="130.0" y="400.0" width="330.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A713" />
+<text x="295.0" y="451.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A713" >A713</text>
+<text x="295.0" y="481.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A713" >CONFIRM CHANNEL</text>
+<text x="295.0" y="511.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A713" >DELETION</text>
+<path d="M 460.0 226.7 L 543.6 226.7 Q 553.6 226.7 553.6 236.7 L 553.6 348.2 Q 553.6 358.2 543.6 358.2 L 100.0 358.2 Q 90.0 358.2 90.0 368.2 L 90.0 470.0 Q 90.0 480.0 100.0 480.0 L 130.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="I3" data-waypoints="460.0,226.7 553.6,226.7 553.6,358.2 90.0,358.2 90.0,480.0 130.0,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -130.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-130.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -130.0 321.8 L 618.0 321.8 Q 628.0 321.8 628.0 311.8 L 628.0 210.0 Q 628.0 200.0 638.0 200.0 L 703.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I2" data-waypoints="-130.0,321.8 628.0,321.8 628.0,200.0 703.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 460.0 173.3 L 543.6 173.3 Q 553.6 173.3 553.6 163.3 L 553.6 88.2 Q 553.6 78.2 563.6 78.2 L 1317.0 78.2" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="460.0,173.3 553.6,173.3 553.6,78.2 1317.0,78.2" marker-end="url(#arrow)" fill="none" />
+<path d="M 1033.0 200.0 L 1317.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="1033.0,200.0 1317.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 460.0 480.0 L 1317.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="O3" data-waypoints="460.0,480.0 1317.0,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 295.0 84.2 L 295.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="295.0,84.2 295.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="289.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C1" >UI Component</text>
+<text x="301.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C1" >Library</text>
+<path d="M 868.0 84.2 L 868.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C2" data-waypoints="868.0,84.2 868.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="862.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C2" >Channel Schema</text>
+<text x="874.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C2" >Validation</text>
+<path d="M 295.0 364.2 L 295.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="C3" data-waypoints="295.0,364.2 295.0,400.0" marker-end="url(#arrow)" fill="none" />
+<text x="289.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C3" >Default</text>
+<text x="301.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C3" >Channel Guard</text>
+<path d="M 295.0 315.8 L 295.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M1" data-waypoints="295.0,315.8 295.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="289.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M1" >Solid.js Table</text>
+<text x="301.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M1" >Component</text>
+<path d="M 868.0 315.8 L 868.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M2" data-waypoints="868.0,315.8 868.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="862.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M2" >Form Validation</text>
+<text x="874.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M2" >Library</text>
+<path d="M 295.0 595.8 L 295.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="M3" data-waypoints="295.0,595.8 295.0,560.0" marker-end="url(#arrow)" fill="none" />
+<text x="289.0" y="576.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M3" >Confirmation</text>
+<text x="301.0" y="576.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M3" >Dialog Component</text>
+<rect x="30.0" y="18.2" width="1063.0" height="637.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="290.0" y="-181.8" width="543.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A71" />
+<text x="561.5" y="-155.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A71" >A71</text>
+<text x="561.5" y="-125.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A71" >PRESENT CHANNEL MANAGEMENT</text>
+<text x="561.5" y="-95.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A71" >INTERFACE — A71 L2 DECOMPOSITION</text>
+<line x1="290.0" y1="-181.8" x2="30.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="833.0" y1="-181.8" x2="1093.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="290.0" y1="-71.8" x2="30.0" y2="655.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="833.0" y1="-71.8" x2="1093.0" y2="655.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="295.0" y="350.2" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I3" >Selected Channel for Deletion</text>
+<text x="26.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1" >Channel API Response</text>
+<text x="26.0" y="313.8" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I2" >Operator Form Input</text>
+<text x="1097.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1" >Rendered Channel Table</text>
+<text x="1097.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2" >Channel Mutation Result</text>
+<text x="1097.0" y="472.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O3" >Deletion Confirmation Result</text>
+</svg>

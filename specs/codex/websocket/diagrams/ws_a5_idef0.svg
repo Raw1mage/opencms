@@ -1,0 +1,95 @@
+<svg width="2134.2" height="1501.8" viewBox="-198.0 -221.8 2134.2 1501.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-198.0" y="-221.8" width="2134.2" height="1501.8" fill="white" />
+<rect x="130.0" y="120.0" width="266.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A51" />
+<text x="263.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A51" >A51</text>
+<text x="263.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A51" >MAP RESPONSE</text>
+<text x="263.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A51" >CREATED</text>
+<rect x="639.0" y="120.0" width="266.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A52" />
+<text x="772.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A52" >A52</text>
+<text x="772.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A52" >MAP OUTPUT</text>
+<text x="772.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A52" >ITEM DONE</text>
+<rect x="1190.0" y="120.0" width="266.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A53" />
+<text x="1323.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A53" >A53</text>
+<text x="1323.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A53" >MAP OUTPUT</text>
+<text x="1323.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A53" >ITEM ADDED</text>
+<rect x="130.0" y="480.0" width="266.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A54" />
+<text x="263.0" y="531.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A54" >A54</text>
+<text x="263.0" y="561.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A54" >MAP OUTPUT</text>
+<text x="263.0" y="591.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A54" >TEXT DELTA</text>
+<rect x="639.0" y="480.0" width="266.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A55" />
+<text x="772.0" y="531.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A55" >A55</text>
+<text x="772.0" y="561.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A55" >MAP REASONING</text>
+<text x="772.0" y="591.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A55" >SUMMARY DELTA</text>
+<rect x="1190.0" y="480.0" width="266.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A56" />
+<text x="1323.0" y="531.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A56" >A56</text>
+<text x="1323.0" y="561.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A56" >MAP REASONING</text>
+<text x="1323.0" y="591.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A56" >CONTENT DELTA</text>
+<rect x="130.0" y="840.0" width="266.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A57" />
+<text x="263.0" y="891.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A57" >A57</text>
+<text x="263.0" y="921.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A57" >MAP RESPONSE</text>
+<text x="263.0" y="951.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A57" >COMPLETED</text>
+<rect x="639.0" y="840.0" width="266.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A58" />
+<text x="772.0" y="891.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A58" >A58</text>
+<text x="772.0" y="921.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A58" >MAP RESPONSE</text>
+<text x="772.0" y="951.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A58" >FAILED</text>
+<rect x="1190.0" y="840.0" width="266.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A59" />
+<text x="1323.0" y="891.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A59" >A59</text>
+<text x="1323.0" y="921.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A59" >MAP RESPONSE</text>
+<text x="1323.0" y="951.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A59" >INCOMPLETE</text>
+<path d="M -114.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-114.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -114.0 322.9 L 545.1 322.9 Q 555.1 322.9 555.1 312.9 L 555.1 210.0 Q 555.1 200.0 565.1 200.0 L 639.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="-114.0,322.9 555.1,322.9 555.1,200.0 639.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -114.0 78.2 L 1082.9 78.2 Q 1092.9 78.2 1092.9 88.2 L 1092.9 190.0 Q 1092.9 200.0 1102.9 200.0 L 1190.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="-114.0,78.2 1092.9,78.2 1092.9,200.0 1190.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -114.0 560.0 L 130.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="-114.0,560.0 130.0,560.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -114.0 677.5 L 545.1 677.5 Q 555.1 677.5 555.1 667.5 L 555.1 570.0 Q 555.1 560.0 565.1 560.0 L 639.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="-114.0,677.5 555.1,677.5 555.1,560.0 639.0,560.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -114.0 437.1 L 1082.9 437.1 Q 1092.9 437.1 1092.9 447.1 L 1092.9 550.0 Q 1092.9 560.0 1102.9 560.0 L 1190.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="-114.0,437.1 1092.9,437.1 1092.9,560.0 1190.0,560.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -114.0 920.0 L 130.0 920.0" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="-114.0,920.0 130.0,920.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -114.0 1040.0 L 545.1 1040.0 Q 555.1 1040.0 555.1 1030.0 L 555.1 930.0 Q 555.1 920.0 565.1 920.0 L 639.0 920.0" stroke="black" stroke-width="1.2" data-arrow-id="AR8" data-waypoints="-114.0,1040.0 555.1,1040.0 555.1,920.0 639.0,920.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -114.0 798.2 L 1082.9 798.2 Q 1092.9 798.2 1092.9 808.2 L 1092.9 910.0 Q 1092.9 920.0 1102.9 920.0 L 1190.0 920.0" stroke="black" stroke-width="1.2" data-arrow-id="AR9" data-waypoints="-114.0,798.2 1092.9,798.2 1092.9,920.0 1190.0,920.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 396.0 200.0 L 475.4 200.0 Q 485.4 200.0 485.4 210.0 L 485.4 384.3 Q 485.4 394.3 495.4 394.3 L 1796.0 394.3" stroke="black" stroke-width="1.2" data-arrow-id="AR12" data-waypoints="396.0,200.0 485.4,200.0 485.4,394.3 1796.0,394.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 905.0 200.0 L 988.3 200.0 Q 998.3 200.0 998.3 210.0 L 998.3 355.7 Q 998.3 365.7 1008.3 365.7 L 1796.0 365.7" stroke="black" stroke-width="1.2" data-arrow-id="AR13" data-waypoints="905.0,200.0 998.3,200.0 998.3,365.7 1796.0,365.7" marker-end="url(#arrow)" fill="none" />
+<path d="M 1456.0 200.0 L 1796.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR14" data-waypoints="1456.0,200.0 1796.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 396.0 560.0 L 475.4 560.0 Q 485.4 560.0 485.4 570.0 L 485.4 755.0 Q 485.4 765.0 495.4 765.0 L 1796.0 765.0" stroke="black" stroke-width="1.2" data-arrow-id="AR15" data-waypoints="396.0,560.0 485.4,560.0 485.4,765.0 1796.0,765.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 905.0 560.0 L 988.3 560.0 Q 998.3 560.0 998.3 570.0 L 998.3 705.0 Q 998.3 715.0 1008.3 715.0 L 1796.0 715.0" stroke="black" stroke-width="1.2" data-arrow-id="AR16" data-waypoints="905.0,560.0 998.3,560.0 998.3,715.0 1796.0,715.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1456.0 560.0 L 1796.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="AR17" data-waypoints="1456.0,560.0 1796.0,560.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 396.0 920.0 L 475.4 920.0 Q 485.4 920.0 485.4 930.0 L 485.4 1070.0 Q 485.4 1080.0 495.4 1080.0 L 1796.0 1080.0" stroke="black" stroke-width="1.2" data-arrow-id="AR18" data-waypoints="396.0,920.0 485.4,920.0 485.4,1080.0 1796.0,1080.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 905.0 920.0 L 988.3 920.0 Q 998.3 920.0 998.3 930.0 L 998.3 1050.0 Q 998.3 1060.0 1008.3 1060.0 L 1796.0 1060.0" stroke="black" stroke-width="1.2" data-arrow-id="AR19" data-waypoints="905.0,920.0 998.3,920.0 998.3,1060.0 1796.0,1060.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1456.0 920.0 L 1796.0 920.0" stroke="black" stroke-width="1.2" data-arrow-id="AR20" data-waypoints="1456.0,920.0 1796.0,920.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 263.0 84.2 L 263.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR10" data-waypoints="263.0,84.2 263.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="257.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR10" >Event</text>
+<text x="269.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR10" >Type Router</text>
+<path d="M 772.0 804.2 L 772.0 840.0" stroke="black" stroke-width="1.2" data-arrow-id="AR11" data-waypoints="772.0,804.2 772.0,840.0" marker-end="url(#arrow)" fill="none" />
+<text x="766.0" y="835.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR11" >Error</text>
+<text x="778.0" y="835.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR11" >Classification Rules</text>
+<rect x="70.0" y="18.2" width="1446.0" height="1121.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="621.5" y="-181.8" width="343.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
+<text x="793.0" y="-155.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A5" >A5</text>
+<text x="793.0" y="-125.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A5" >MAP RESPONSE EVENTS</text>
+<text x="793.0" y="-95.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A5" >— DECOMPOSITION</text>
+<line x1="621.5" y1="-181.8" x2="70.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="964.5" y1="-181.8" x2="1516.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="621.5" y1="-71.8" x2="70.0" y2="1140.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="964.5" y1="-71.8" x2="1516.0" y2="1140.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="66.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR1" >Created Event</text>
+<text x="66.0" y="314.9" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR2" >Item Done Event</text>
+<text x="66.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR3" >Item Added Event</text>
+<text x="66.0" y="552.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR4" >Text Delta Event</text>
+<text x="66.0" y="669.5" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR5" >Reasoning Summary Event</text>
+<text x="66.0" y="429.1" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR6" >Reasoning Content Event</text>
+<text x="66.0" y="912.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR7" >Completed Event</text>
+<text x="66.0" y="1032.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR8" >Failed Event</text>
+<text x="66.0" y="790.2" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR9" >Incomplete Event</text>
+<text x="1520.0" y="386.3" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR12" >Created ResponseEvent</text>
+<text x="1520.0" y="357.7" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR13" >OutputItemDone ResponseEvent</text>
+<text x="1645.4" y="194.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR14">OutputItemAdded</text>
+<text x="1645.4" y="216.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR14">ResponseEvent</text>
+<text x="1520.0" y="757.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR15" >OutputTextDelta ResponseEvent</text>
+<text x="1716.2" y="707.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR16" >ReasoningSummaryDelta ResponseEvent</text>
+<text x="1520.0" y="552.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR17" >ReasoningContentDelta ResponseEvent</text>
+<text x="1664.9" y="1098.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR18" >Completed ResponseEvent</text>
+<text x="1520.0" y="1036.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR19" >Classified ApiError</text>
+<text x="1520.0" y="912.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR20" >Stream Error</text>
+</svg>

@@ -1,0 +1,63 @@
+<svg width="1466.0" height="1017.6" viewBox="-214.0 -221.8 1466.0 1017.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-214.0" y="-221.8" width="1466.0" height="1017.6" fill="white" />
+<rect x="130.0" y="120.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A811" />
+<text x="279.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A811" >A811</text>
+<text x="279.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A811" >TRACK CHANNEL</text>
+<text x="279.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A811" >TOKEN</text>
+<text x="279.0" y="246.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A811" >CONSUMPTION</text>
+<rect x="650.0" y="120.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A812" />
+<text x="799.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A812" >A812</text>
+<text x="799.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A812" >EVALUATE RATE</text>
+<text x="799.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A812" >LIMIT WINDOW</text>
+<rect x="130.0" y="360.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A813" />
+<text x="279.0" y="411.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A813" >A813</text>
+<text x="279.0" y="441.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A813" >CAP CONCURRENT</text>
+<text x="279.0" y="471.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A813" >SESSION COUNT</text>
+<path d="M 428.0 226.7 L 650.0 226.7" stroke="black" stroke-width="1.2" data-arrow-id="I4" data-waypoints="428.0,226.7 650.0,226.7" marker-end="url(#arrow)" fill="none" />
+<path d="M -130.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-130.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -130.0 78.2 L 559.3 78.2 Q 569.3 78.2 569.3 88.2 L 569.3 163.3 Q 569.3 173.3 579.3 173.3 L 650.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="I2" data-waypoints="-130.0,78.2 569.3,78.2 569.3,173.3 650.0,173.3" marker-end="url(#arrow)" fill="none" />
+<path d="M -130.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="I3" data-waypoints="-130.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 428.0 173.3 L 501.6 173.3 Q 511.6 173.3 511.6 183.3 L 511.6 311.8 Q 511.6 321.8 521.6 321.8 L 1168.0 321.8" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="428.0,173.3 511.6,173.3 511.6,321.8 1168.0,321.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 948.0 200.0 L 1168.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="948.0,200.0 1168.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 428.0 440.0 L 1168.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="O3" data-waypoints="428.0,440.0 1168.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 279.0 84.2 L 279.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="279.0,84.2 279.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="273.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C1" >Token</text>
+<text x="285.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C1" >Budget Config</text>
+<path d="M 799.0 84.2 L 799.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C2" data-waypoints="799.0,84.2 799.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="793.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C2" >Rate Limit</text>
+<text x="805.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C2" >Config</text>
+<path d="M 279.0 324.2 L 279.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="C3" data-waypoints="279.0,324.2 279.0,360.0" marker-end="url(#arrow)" fill="none" />
+<text x="273.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C3" >Concurrent</text>
+<text x="285.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C3" >Session Cap</text>
+<path d="M 279.0 315.8 L 279.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M1" data-waypoints="279.0,315.8 279.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="273.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M1" >Channel</text>
+<text x="285.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M1" >State Store</text>
+<path d="M 799.0 315.8 L 799.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M2" data-waypoints="799.0,315.8 799.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="793.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M2" >Sliding</text>
+<text x="805.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M2" >Window Counter</text>
+<path d="M 279.0 555.8 L 279.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="M3" data-waypoints="279.0,555.8 279.0,520.0" marker-end="url(#arrow)" fill="none" />
+<text x="273.0" y="536.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M3" >Session</text>
+<text x="285.0" y="536.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M3" >Status Registry</text>
+<rect x="70.0" y="18.2" width="938.0" height="597.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="263.5" y="-181.8" width="551.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A81" />
+<text x="539.0" y="-155.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A81" >A81</text>
+<text x="539.0" y="-125.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A81" >ENFORCE CHANNEL QUOTA AND RATE</text>
+<text x="539.0" y="-95.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A81" >LIMITS — A81 L2 DECOMPOSITION</text>
+<line x1="263.5" y1="-181.8" x2="70.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="814.5" y1="-181.8" x2="1008.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="263.5" y1="-71.8" x2="70.0" y2="615.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="814.5" y1="-71.8" x2="1008.0" y2="615.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="577.1" y="220.7" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I4">Current Token</text>
+<text x="577.1" y="242.7" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I4">Budget State</text>
+<text x="66.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1" >Session Completion Events</text>
+<text x="66.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I2" >Incoming Request</text>
+<text x="66.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I3" >Session Creation Request</text>
+<text x="1012.0" y="313.8" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1" >Updated Token Ledger</text>
+<text x="1070.6" y="194.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2">Rate Limit</text>
+<text x="1070.6" y="216.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2">Decision</text>
+<text x="1012.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O3" >Session Cap Decision</text>
+</svg>

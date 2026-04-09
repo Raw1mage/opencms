@@ -1,0 +1,43 @@
+<svg width="1464.0" height="641.6" viewBox="-206.0 -215.8 1464.0 641.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-206.0" y="-215.8" width="1464.0" height="641.6" fill="white" />
+<rect x="130.0" y="120.0" width="282.0" height="130.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="271.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >A1</text>
+<text x="271.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >CAPTURE VOICE</text>
+<text x="271.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >PROMPT INPUT</text>
+<rect x="592.0" y="120.0" width="282.0" height="130.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="733.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >A2</text>
+<text x="733.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >VALIDATE VOICE</text>
+<text x="733.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >INPUT BEHAVIOR</text>
+<path d="M 412.0 185.0 L 592.0 185.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="412.0,185.0 592.0,185.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -122.0 185.0 L 130.0 185.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-122.0,185.0 130.0,185.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 874.0 185.0 L 1174.0 185.0" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="874.0,185.0 1174.0,185.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 271.0 84.2 L 271.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="271.0,84.2 271.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="265.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR2" >Browser Speech API Support</text>
+<text x="277.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR2" >And Fail-Fast Policy</text>
+<path d="M 271.0 285.8 L 271.0 250.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="271.0,285.8 271.0,250.0" marker-end="url(#arrow)" fill="none" />
+<text x="265.0" y="266.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR3" >Prompt Input UI</text>
+<text x="277.0" y="266.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR3" >And Speech Helper</text>
+<path d="M 733.0 84.2 L 733.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="733.0,84.2 733.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="727.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR5" >Validation Plan And Existing</text>
+<text x="739.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR5" >Prompt Behavior Contracts</text>
+<path d="M 733.0 285.8 L 733.0 250.0" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="733.0,285.8 733.0,250.0" marker-end="url(#arrow)" fill="none" />
+<text x="727.0" y="266.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR6" >Unit Tests And</text>
+<text x="739.0" y="266.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR6" >Manual Browser Checks</text>
+<rect x="70.0" y="24.2" width="864.0" height="321.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="310.0" y="-175.8" width="384.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="502.0" y="-149.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >A0</text>
+<text x="502.0" y="-119.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >WEBAPP VOICE INPUT MVP</text>
+<text x="502.0" y="-89.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >FUNCTIONAL CONTEXT</text>
+<line x1="310.0" y1="-175.8" x2="70.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="694.0" y1="-175.8" x2="934.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="310.0" y1="-65.8" x2="70.0" y2="345.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="694.0" y1="-65.8" x2="934.0" y2="345.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="502.0" y="179.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR4">Prompt Transcript</text>
+<text x="502.0" y="201.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR4">And Recording State</text>
+<text x="66.0" y="177.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR1" >User Voice And Mic Click</text>
+<text x="938.0" y="177.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR7" >Validated Voice Input MVP Plan</text>
+</svg>

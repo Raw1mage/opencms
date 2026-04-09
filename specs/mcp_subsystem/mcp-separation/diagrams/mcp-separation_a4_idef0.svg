@@ -1,0 +1,52 @@
+<svg width="1760.0" height="975.8" viewBox="-334.0 -215.8 1760.0 975.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-334.0" y="-215.8" width="1760.0" height="975.8" fill="white" />
+<rect x="130.0" y="120.0" width="314.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A41" />
+<text x="287.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A41" >A41</text>
+<text x="287.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A41" >PERSIST APP</text>
+<text x="287.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A41" >REGISTRATION</text>
+<rect x="680.0" y="120.0" width="314.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A42" />
+<text x="837.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A42" >A42</text>
+<text x="837.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A42" >MERGE TWO-TIER</text>
+<text x="837.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A42" >CONFIGURATION</text>
+<rect x="130.0" y="360.0" width="314.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A43" />
+<text x="287.0" y="411.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A43" >A43</text>
+<text x="287.0" y="441.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A43" >MANAGE APP STATE</text>
+<text x="287.0" y="471.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A43" >TRANSITIONS</text>
+<rect x="680.0" y="360.0" width="314.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A44" />
+<text x="837.0" y="411.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A44" >A44</text>
+<text x="837.0" y="441.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A44" >MIGRATE BUILTIN</text>
+<text x="837.0" y="471.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A44" >APP REGISTRATIONS</text>
+<path d="M 444.0 173.3 L 680.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="F1" data-waypoints="444.0,173.3 680.0,173.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 444.0 466.7 L 521.4 466.7 Q 531.4 466.7 531.4 456.7 L 531.4 236.7 Q 531.4 226.7 541.4 226.7 L 680.0 226.7" stroke="black" stroke-width="1.2" data-arrow-id="F2" data-waypoints="444.0,466.7 531.4,466.7 531.4,226.7 680.0,226.7" marker-end="url(#arrow)" fill="none" />
+<path d="M 994.0 440.0 L 1024.0 440.0 Q 1034.0 440.0 1034.0 430.0 L 1034.0 328.2 Q 1034.0 318.2 1024.0 318.2 L 100.0 318.2 Q 90.0 318.2 90.0 308.2 L 90.0 236.7 Q 90.0 226.7 100.0 226.7 L 130.0 226.7" stroke="black" stroke-width="1.2" data-arrow-id="F3" data-waypoints="994.0,440.0 1034.0,440.0 1034.0,318.2 90.0,318.2 90.0,226.7 130.0,226.7" marker-end="url(#arrow)" fill="none" />
+<path d="M -250.0 173.3 L 130.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-250.0,173.3 130.0,173.3" marker-end="url(#arrow)" fill="none" />
+<path d="M -250.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="I2" data-waypoints="-250.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 994.0 200.0 L 1342.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="994.0,200.0 1342.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 444.0 413.3 L 593.4 413.3 Q 603.4 413.3 603.4 423.3 L 603.4 550.0 Q 603.4 560.0 613.4 560.0 L 1342.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="444.0,413.3 603.4,413.3 603.4,560.0 1342.0,560.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 837.0 84.2 L 837.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="837.0,84.2 837.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="831.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C1" >Two-Tier Config Priority</text>
+<text x="843.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C1" >(System over User)</text>
+<path d="M 837.0 324.2 L 837.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="C2" data-waypoints="837.0,324.2 837.0,360.0" marker-end="url(#arrow)" fill="none" />
+<text x="831.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C2" >Existing CatalogEntry</text>
+<text x="843.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C2" >Type Contract</text>
+<rect x="30.0" y="24.2" width="1064.0" height="595.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="366.5" y="-175.8" width="391.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="562.0" y="-149.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >A4</text>
+<text x="562.0" y="-119.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >REGISTER APP LIFECYCLE</text>
+<text x="562.0" y="-89.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >— A4 DECOMPOSITION</text>
+<line x1="366.5" y1="-175.8" x2="30.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="757.5" y1="-175.8" x2="1094.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="366.5" y1="-65.8" x2="30.0" y2="620.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="757.5" y1="-65.8" x2="1094.0" y2="620.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="562.0" y="165.3" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F1" >Updated mcp-apps.json</text>
+<text x="605.7" y="218.7" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F2" >State Change Persisted</text>
+<text x="837.0" y="310.2" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F3" >Migrated Builtin Entries</text>
+<text x="26.0" y="165.3" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1" >Validated Manifest and Probe Result</text>
+<text x="26.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I2" >User Enable/Disable/Remove Command</text>
+<text x="1098.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1" >Merged App Registry (all tiers)</text>
+<text x="1098.0" y="552.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2" >Bus Event: App State Changed</text>
+</svg>

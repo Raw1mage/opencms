@@ -1,0 +1,91 @@
+<svg width="2169.0" height="1375.8" viewBox="-230.0 -260.0 2169.0 1375.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-230.0" y="-260.0" width="2169.0" height="1375.8" fill="white" />
+<rect x="130.0" y="120.0" width="330.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="295.0" y="191.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >A1</text>
+<text x="295.0" y="221.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >RECOVER SCHEDULER</text>
+<text x="295.0" y="251.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >STATE ON BOOT</text>
+<rect x="680.0" y="120.0" width="330.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="845.0" y="191.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >A2</text>
+<text x="845.0" y="221.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >MANAGE CHANNEL</text>
+<text x="845.0" y="251.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >LIFECYCLE</text>
+<rect x="1225.0" y="120.0" width="330.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="1390.0" y="176.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >A3</text>
+<text x="1390.0" y="206.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >ALLOCATE PER-</text>
+<text x="1390.0" y="236.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >CHANNEL LANE</text>
+<text x="1390.0" y="266.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >RESOURCES</text>
+<rect x="130.0" y="520.0" width="330.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="295.0" y="591.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >A4</text>
+<text x="295.0" y="621.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >ENFORCE CHANNEL-</text>
+<text x="295.0" y="651.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >SCOPED KILL-SWITCH</text>
+<rect x="680.0" y="520.0" width="330.0" height="200.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
+<text x="845.0" y="591.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A5" >A5</text>
+<text x="845.0" y="621.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A5" >EXPOSE CHANNEL</text>
+<text x="845.0" y="651.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A5" >HEALTH AND API</text>
+<path d="M 1010.0 220.0 L 1225.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="I4" data-waypoints="1010.0,220.0 1225.0,220.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1010.0 280.0 L 1075.0 280.0 Q 1085.0 280.0 1085.0 290.0 L 1085.0 393.3 Q 1085.0 403.3 1075.0 403.3 L 100.0 403.3 Q 90.0 403.3 90.0 413.3 L 90.0 610.0 Q 90.0 620.0 100.0 620.0 L 130.0 620.0" stroke="black" stroke-width="1.2" data-arrow-id="I5" data-waypoints="1010.0,280.0 1085.0,280.0 1085.0,403.3 90.0,403.3 90.0,620.0 130.0,620.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1555.0 253.3 L 1585.0 253.3 Q 1595.0 253.3 1595.0 263.3 L 1595.0 468.3 Q 1595.0 478.3 1585.0 478.3 L 596.7 478.3 Q 586.7 478.3 586.7 488.3 L 586.7 560.0 Q 586.7 570.0 596.7 570.0 L 680.0 570.0" stroke="black" stroke-width="1.2" data-arrow-id="I7" data-waypoints="1555.0,253.3 1595.0,253.3 1595.0,478.3 586.7,478.3 586.7,570.0 680.0,570.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1010.0 240.0 L 1140.0 240.0 Q 1150.0 240.0 1150.0 250.0 L 1150.0 426.7 Q 1150.0 436.7 1140.0 436.7 L 563.3 436.7 Q 553.3 436.7 553.3 446.7 L 553.3 610.0 Q 553.3 620.0 563.3 620.0 L 680.0 620.0" stroke="black" stroke-width="1.2" data-arrow-id="I6" data-waypoints="1010.0,240.0 1150.0,240.0 1150.0,436.7 553.3,436.7 553.3,620.0 680.0,620.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -146.0 220.0 L 130.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-146.0,220.0 130.0,220.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -146.0 361.7 L 621.1 361.7 Q 631.1 361.7 631.1 351.7 L 631.1 230.0 Q 631.1 220.0 641.1 220.0 L 680.0 220.0" stroke="black" stroke-width="1.2" data-arrow-id="I2" data-waypoints="-146.0,361.7 631.1,361.7 631.1,220.0 680.0,220.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -146.0 761.8 L 621.1 761.8 Q 631.1 761.8 631.1 751.8 L 631.1 680.0 Q 631.1 670.0 641.1 670.0 L 680.0 670.0" stroke="black" stroke-width="1.2" data-arrow-id="I3" data-waypoints="-146.0,761.8 631.1,761.8 631.1,670.0 680.0,670.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 460.0 220.0 L 498.9 220.0 Q 508.9 220.0 508.9 210.0 L 508.9 50.0 Q 508.9 40.0 518.9 40.0 L 1855.0 40.0" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="460.0,220.0 508.9,220.0 508.9,40.0 1855.0,40.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1010.0 160.0 L 1075.0 160.0 Q 1085.0 160.0 1085.0 150.0 L 1085.0 88.2 Q 1085.0 78.2 1095.0 78.2 L 1855.0 78.2" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="1010.0,160.0 1085.0,160.0 1085.0,78.2 1855.0,78.2" marker-end="url(#arrow)" fill="none" />
+<path d="M 1555.0 186.7 L 1855.0 186.7" stroke="black" stroke-width="1.2" data-arrow-id="O3" data-waypoints="1555.0,186.7 1855.0,186.7" marker-end="url(#arrow)" fill="none" />
+<path d="M 460.0 620.0 L 498.9 620.0 Q 508.9 620.0 508.9 630.0 L 508.9 790.0 Q 508.9 800.0 518.9 800.0 L 1855.0 800.0" stroke="black" stroke-width="1.2" data-arrow-id="O4" data-waypoints="460.0,620.0 508.9,620.0 508.9,800.0 1855.0,800.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1010.0 620.0 L 1855.0 620.0" stroke="black" stroke-width="1.2" data-arrow-id="O5" data-waypoints="1010.0,620.0 1855.0,620.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1390.0 355.8 L 1390.0 320.0" stroke="black" stroke-width="1.2" data-arrow-id="M3" data-waypoints="1390.0,355.8 1390.0,320.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 295.0 755.8 L 295.0 720.0" stroke="black" stroke-width="1.2" data-arrow-id="M4" data-waypoints="295.0,755.8 295.0,720.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 295.0 84.2 L 295.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="295.0,84.2 295.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="289.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C1" >Daemon</text>
+<text x="301.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C1" >Boot Signal</text>
+<path d="M 845.0 84.2 L 845.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C2" data-waypoints="845.0,84.2 845.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="839.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C2" >Channel</text>
+<text x="851.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C2" >Schema Policy</text>
+<path d="M 1390.0 84.2 L 1390.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C3" data-waypoints="1390.0,84.2 1390.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="1384.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C3" >Lane Concurrency</text>
+<text x="1396.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C3" >Limits</text>
+<path d="M 295.0 484.2 L 295.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="C4" data-waypoints="295.0,484.2 295.0,520.0" marker-end="url(#arrow)" fill="none" />
+<text x="289.0" y="515.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C4" >Kill-Switch</text>
+<text x="301.0" y="515.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C4" >Trigger Event</text>
+<path d="M 845.0 484.2 L 845.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="C5" data-waypoints="845.0,484.2 845.0,520.0" marker-end="url(#arrow)" fill="none" />
+<text x="839.0" y="515.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C5" >Route</text>
+<text x="851.0" y="515.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C5" >Authorization</text>
+<path d="M 295.0 355.8 L 295.0 320.0" stroke="black" stroke-width="1.2" data-arrow-id="M1" data-waypoints="295.0,355.8 295.0,320.0" marker-end="url(#arrow)" fill="none" />
+<text x="289.0" y="336.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M1" >CronStore</text>
+<text x="301.0" y="336.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M1" >Module</text>
+<path d="M 845.0 355.8 L 845.0 320.0" stroke="black" stroke-width="1.2" data-arrow-id="M2" data-waypoints="845.0,355.8 845.0,320.0" marker-end="url(#arrow)" fill="none" />
+<text x="839.0" y="336.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M2" >ChannelStore</text>
+<text x="851.0" y="336.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M2" >Module</text>
+<path d="M 845.0 755.8 L 845.0 720.0" stroke="black" stroke-width="1.2" data-arrow-id="M5" data-waypoints="845.0,755.8 845.0,720.0" marker-end="url(#arrow)" fill="none" />
+<text x="839.0" y="736.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M5" >Hono HTTP</text>
+<text x="851.0" y="736.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M5" >Server</text>
+<rect x="30.0" y="-20.0" width="1625.0" height="880.0" stroke="black" fill="none" stroke-width="2" />
+<rect x="594.5" y="-220.0" width="496.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="842.5" y="-209.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >A0</text>
+<text x="842.5" y="-179.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >ORCHESTRATE SCHEDULER</text>
+<text x="842.5" y="-149.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >PERSISTENCE AND CHANNEL</text>
+<text x="842.5" y="-119.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >ISOLATION</text>
+<line x1="594.5" y1="-220.0" x2="30.0" y2="-20.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="1090.5" y1="-220.0" x2="1655.0" y2="-20.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="594.5" y1="-110.0" x2="30.0" y2="860.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="1090.5" y1="-110.0" x2="1655.0" y2="860.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="1117.5" y="212.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I4" >Channel Configuration</text>
+<text x="842.5" y="395.3" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I5" >Channel Registry</text>
+<text x="842.5" y="470.3" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I7" >Lane Occupancy Snapshot</text>
+<text x="842.5" y="428.7" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I6" >Channel Store State</text>
+<text x="26.0" y="212.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1" >Persisted CronJobState</text>
+<text x="26.0" y="353.7" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I2" >Channel Create Request</text>
+<text x="26.0" y="753.8" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I3" >HTTP API Request</text>
+<text x="1659.0" y="32.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1" >Restored Schedule Timers</text>
+<text x="1659.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2" >Channel Persistence Files</text>
+<text x="1825.0" y="180.7" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O3">Isolated</text>
+<text x="1825.0" y="202.7" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O3">Lane Set</text>
+<text x="1659.0" y="792.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O4" >Kill-Switch State Change</text>
+<text x="1659.0" y="612.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O5" >API Response</text>
+<text x="1386.0" y="336.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M3" >Lanes Module</text>
+<text x="291.0" y="736.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M4" >KillSwitchService</text>
+</svg>

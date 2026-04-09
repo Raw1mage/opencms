@@ -1,0 +1,119 @@
+<svg width="3234.0" height="1771.6" viewBox="-326.0 -251.6 3234.0 1771.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-326.0" y="-251.6" width="3234.0" height="1771.6" fill="white" />
+<rect x="999.5" y="-140.0" width="471.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="1235.0" y="-114.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >A0</text>
+<text x="1235.0" y="-84.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >MANAGE SESSION SHARED</text>
+<text x="1235.0" y="-54.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >CONTEXT</text>
+<rect x="688.0" y="120.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="837.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >A1</text>
+<text x="837.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >UPDATE CONTEXT</text>
+<text x="837.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >FROM TURN</text>
+<rect x="1166.0" y="120.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A11" />
+<text x="1315.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A11" >A11</text>
+<text x="1315.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A11" >EXTRACT TOOL</text>
+<text x="1315.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A11" >KNOWLEDGE</text>
+<rect x="1564.0" y="120.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A12" />
+<text x="1713.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >A12</text>
+<text x="1713.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >EXTRACT TEXT</text>
+<text x="1713.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >INSIGHTS</text>
+<rect x="2042.0" y="120.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A13" />
+<text x="2191.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A13" >A13</text>
+<text x="2191.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A13" >DEDUPLICATE FILE</text>
+<text x="2191.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A13" >ENTRIES</text>
+<rect x="130.0" y="480.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A14" />
+<text x="279.0" y="531.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A14" >A14</text>
+<text x="279.0" y="561.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A14" >ENFORCE BUDGET</text>
+<text x="279.0" y="591.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A14" >LIMIT</text>
+<rect x="688.0" y="480.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="837.0" y="531.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >A2</text>
+<text x="837.0" y="561.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >INJECT CONTEXT</text>
+<text x="837.0" y="591.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >INTO SUBAGENT</text>
+<rect x="1166.0" y="480.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A21" />
+<text x="1315.0" y="531.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >A21</text>
+<text x="1315.0" y="561.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >GENERATE CONTEXT</text>
+<text x="1315.0" y="591.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >SNAPSHOT</text>
+<rect x="1564.0" y="480.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A22" />
+<text x="1713.0" y="531.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >A22</text>
+<text x="1713.0" y="561.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >SEED SUBAGENT</text>
+<text x="1713.0" y="591.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >MESSAGE</text>
+<rect x="2042.0" y="480.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="2191.0" y="531.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >A3</text>
+<text x="2191.0" y="561.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >COMPACT WITH</text>
+<text x="2191.0" y="591.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >SHARED CONTEXT</text>
+<rect x="130.0" y="800.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A31" />
+<text x="279.0" y="836.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >A31</text>
+<text x="279.0" y="866.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >EVALUATE</text>
+<text x="279.0" y="896.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >COMPACTION</text>
+<text x="279.0" y="926.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >ELIGIBILITY</text>
+<rect x="688.0" y="800.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A32" />
+<text x="837.0" y="851.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A32" >A32</text>
+<text x="837.0" y="881.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A32" >WRITE COMPACTION</text>
+<text x="837.0" y="911.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A32" >SUMMARY</text>
+<rect x="1166.0" y="800.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A33" />
+<text x="1315.0" y="851.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A33" >A33</text>
+<text x="1315.0" y="881.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A33" >EMIT CONTINUE</text>
+<text x="1315.0" y="911.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A33" >PROMPT</text>
+<rect x="1564.0" y="800.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="1713.0" y="851.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >A4</text>
+<text x="1713.0" y="881.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >CONSOLIDATE</text>
+<text x="1713.0" y="911.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >OVERSIZE SPACE</text>
+<rect x="2042.0" y="800.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A41" />
+<text x="2191.0" y="866.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A41" >A41</text>
+<text x="2191.0" y="896.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A41" >TRIM OLD ACTIONS</text>
+<rect x="130.0" y="1000.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A42" />
+<text x="279.0" y="1051.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A42" >A42</text>
+<text x="279.0" y="1081.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A42" >COLLAPSE</text>
+<text x="279.0" y="1111.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A42" >DIRECTORY FILES</text>
+<rect x="688.0" y="1000.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A43" />
+<text x="837.0" y="1051.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A43" >A43</text>
+<text x="837.0" y="1081.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A43" >PRUNE OLDEST</text>
+<text x="837.0" y="1111.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A43" >DISCOVERIES</text>
+<path d="M 986.0 160.0 L 1115.0 160.0 Q 1125.0 160.0 1125.0 170.0 L 1125.0 310.0 Q 1125.0 320.0 1135.0 320.0 L 1942.0 320.0 Q 1952.0 320.0 1952.0 330.0 L 1952.0 523.3 Q 1952.0 533.3 1962.0 533.3 L 2042.0 533.3" stroke="black" stroke-width="1.2" data-arrow-id="AR8" data-waypoints="986.0,160.0 1125.0,160.0 1125.0,320.0 1952.0,320.0 1952.0,533.3 2042.0,533.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 986.0 200.0 L 1082.3 200.0 Q 1092.3 200.0 1092.3 210.0 L 1092.3 350.0 Q 1092.3 360.0 1102.3 360.0 L 1504.0 360.0 Q 1514.0 360.0 1514.0 370.0 L 1514.0 870.0 Q 1514.0 880.0 1524.0 880.0 L 1564.0 880.0" stroke="black" stroke-width="1.2" data-arrow-id="AR10" data-waypoints="986.0,200.0 1092.3,200.0 1092.3,360.0 1514.0,360.0 1514.0,880.0 1564.0,880.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1862.0 880.0 L 1910.0 880.0 Q 1920.0 880.0 1920.0 870.0 L 1920.0 448.2 Q 1920.0 438.2 1910.0 438.2 L 550.0 438.2 Q 540.0 438.2 540.0 428.2 L 540.0 236.7 Q 540.0 226.7 550.0 226.7 L 688.0 226.7" stroke="black" stroke-width="1.2" data-arrow-id="AR11" data-waypoints="1862.0,880.0 1920.0,880.0 1920.0,438.2 540.0,438.2 540.0,226.7 688.0,226.7" marker-end="url(#arrow)" fill="none" />
+<path d="M 986.0 240.0 L 1049.7 240.0 Q 1059.7 240.0 1059.7 250.0 L 1059.7 390.0 Q 1059.7 400.0 1049.7 400.0 L 510.0 400.0 Q 500.0 400.0 500.0 410.0 L 500.0 523.3 Q 500.0 533.3 510.0 533.3 L 688.0 533.3" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="986.0,240.0 1059.7,240.0 1059.7,400.0 500.0,400.0 500.0,533.3 688.0,533.3" marker-end="url(#arrow)" fill="none" />
+<path d="M -242.0 100.0 L 610.0 100.0 Q 620.0 100.0 620.0 110.0 L 620.0 163.3 Q 620.0 173.3 630.0 173.3 L 688.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-242.0,100.0 620.0,100.0 620.0,173.3 688.0,173.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 986.0 560.0 L 1010.0 560.0 Q 1020.0 560.0 1020.0 570.0 L 1020.0 758.0 Q 1020.0 768.0 1030.0 768.0 L 2824.0 768.0" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="986.0,560.0 1020.0,560.0 1020.0,768.0 2824.0,768.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 2340.0 560.0 L 2824.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="AR9" data-waypoints="2340.0,560.0 2824.0,560.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -242.0 672.0 L 610.0 672.0 Q 620.0 672.0 620.0 662.0 L 620.0 596.7 Q 620.0 586.7 630.0 586.7 L 688.0 586.7" stroke="black" stroke-width="1.2" data-arrow-id="AR12" data-waypoints="-242.0,672.0 620.0,672.0 620.0,586.7 688.0,586.7" marker-end="url(#arrow)" fill="none" />
+<path d="M -242.0 720.0 L 1990.0 720.0 Q 2000.0 720.0 2000.0 710.0 L 2000.0 596.7 Q 2000.0 586.7 2010.0 586.7 L 2042.0 586.7" stroke="black" stroke-width="1.2" data-arrow-id="AR13" data-waypoints="-242.0,720.0 2000.0,720.0 2000.0,586.7 2042.0,586.7" marker-end="url(#arrow)" fill="none" />
+<path d="M 2191.0 444.2 L 2191.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="AR14" data-waypoints="2191.0,444.2 2191.0,480.0" marker-end="url(#arrow)" fill="none" />
+<text x="2185.0" y="475.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR14" >Utilization Threshold</text>
+<text x="2197.0" y="475.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR14" >(opportunisticThreshold)</text>
+<path d="M 837.0 84.2 L 837.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR15" data-waypoints="837.0,84.2 837.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="831.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR15" >Main Session</text>
+<text x="843.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR15" >Guard (!parentID)</text>
+<path d="M 837.0 444.2 L 837.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="AR16" data-waypoints="837.0,444.2 837.0,480.0" marker-end="url(#arrow)" fill="none" />
+<text x="831.0" y="475.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR16" >Continuation Guard</text>
+<text x="843.0" y="475.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR16" >(!session_id)</text>
+<path d="M 1235.0 -175.8 L 1235.0 -140.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A0_control" data-waypoints="1235.0,-175.8 1235.0,-140.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1235.0 5.8 L 1235.0 -30.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A0_mechanism" data-waypoints="1235.0,5.8 1235.0,-30.0" marker-end="url(#arrow)" fill="none" />
+<rect x="70.0" y="24.2" width="2330.0" height="1195.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="999.5" y="-175.8" width="471.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="1235.0" y="-149.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >A0</text>
+<text x="1235.0" y="-119.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >SHARED CONTEXT STRUCTURE —</text>
+<text x="1235.0" y="-89.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >FUNCTIONAL DECOMPOSITION</text>
+<line x1="999.5" y1="-175.8" x2="70.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="1470.5" y1="-175.8" x2="2400.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="999.5" y1="-65.8" x2="70.0" y2="1220.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="1470.5" y1="-65.8" x2="2400.0" y2="1220.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<path d="M 1156.5 -211.6 L 1156.5 -175.8" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="1156.5,-211.6 1156.5,-175.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 1313.5 -211.6 L 1313.5 -175.8" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="1313.5,-211.6 1313.5,-175.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 1156.5 -30.0 L 1156.5 -65.8" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="1156.5,-30.0 1156.5,-65.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 1313.5 -30.0 L 1313.5 -65.8" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="1313.5,-30.0 1313.5,-65.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 1470.5 -120.8 L 1506.3 -120.8" stroke="black" stroke-width="1.2" data-arrow-id="AR17" data-waypoints="1470.5,-120.8 1506.3,-120.8" marker-end="url(#arrow)" fill="none" />
+<text x="1713.0" y="312.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR8" >Updated Space (for compaction)</text>
+<text x="1315.0" y="352.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR10" >Oversize Space</text>
+<text x="1315.0" y="430.2" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR11" >Consolidated Space (within budget)</text>
+<text x="837.0" y="392.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR6" >Updated Space</text>
+<text x="66.0" y="92.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR1" >Completed Assistant Turn (parts + text)</text>
+<text x="2404.0" y="760.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR7" >Seeded Subagent Session</text>
+<text x="2404.0" y="552.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR9" >Compacted Session (summary message + Compacted event)</text>
+<text x="66.0" y="664.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR12" >Task Dispatch Request</text>
+<text x="66.0" y="712.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR13" >Overflow Compaction Trigger</text>
+<text x="1474.5" y="-128.8" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR17" >Telemetry (tokens, version, injected flag)</text>
+</svg>

@@ -1,0 +1,48 @@
+<svg width="1424.0" height="881.8" viewBox="-270.0 -221.8 1424.0 881.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-270.0" y="-221.8" width="1424.0" height="881.8" fill="white" />
+<rect x="130.0" y="120.0" width="234.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="247.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >A1</text>
+<text x="247.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >ASSEMBLE</text>
+<text x="247.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >PROMPT</text>
+<text x="247.0" y="246.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >LAYERS</text>
+<rect x="544.0" y="120.0" width="234.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="661.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >A2</text>
+<text x="661.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >MANAGE SKILL</text>
+<text x="661.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >LIFECYCLE</text>
+<rect x="130.0" y="360.0" width="234.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="247.0" y="396.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >A3</text>
+<text x="247.0" y="426.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >OBSERVE</text>
+<text x="247.0" y="456.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >LAYER</text>
+<text x="247.0" y="486.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >DECISIONS</text>
+<path d="M 364.0 226.7 L 394.0 226.7 Q 404.0 226.7 404.0 236.7 L 404.0 311.8 Q 404.0 321.8 394.0 321.8 L 100.0 321.8 Q 90.0 321.8 90.0 331.8 L 90.0 430.0 Q 90.0 440.0 100.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="364.0,226.7 404.0,226.7 404.0,321.8 90.0,321.8 90.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -186.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-186.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 364.0 440.0 L 1070.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="364.0,440.0 1070.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 364.0 173.3 L 394.0 173.3 Q 404.0 173.3 404.0 163.3 L 404.0 88.2 Q 404.0 78.2 414.0 78.2 L 1070.0 78.2" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="364.0,173.3 404.0,173.3 404.0,78.2 1070.0,78.2" marker-end="url(#arrow)" fill="none" />
+<path d="M 247.0 84.2 L 247.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="247.0,84.2 247.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="241.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR2" >Core Prompt</text>
+<text x="253.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR2" >Boundary Rules</text>
+<path d="M 661.0 84.2 L 661.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="661.0,84.2 661.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="655.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR3" >Unload</text>
+<text x="667.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR3" >Policy</text>
+<path d="M 247.0 315.8 L 247.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="247.0,315.8 247.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="241.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR4" >Managed Layer</text>
+<text x="253.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR4" >Registry</text>
+<rect x="30.0" y="18.2" width="808.0" height="561.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="254.0" y="-181.8" width="360.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="434.0" y="-170.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >A0</text>
+<text x="434.0" y="-140.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >DYNAMIC CONTEXT</text>
+<text x="434.0" y="-110.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >LAYER PLANNING -</text>
+<text x="434.0" y="-80.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >IDEF0</text>
+<line x1="254.0" y1="-181.8" x2="30.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="614.0" y1="-181.8" x2="838.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="254.0" y1="-71.8" x2="30.0" y2="580.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="614.0" y1="-71.8" x2="838.0" y2="580.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="247.0" y="339.8" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR5" >Layer Injection Decisions</text>
+<text x="26.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR1" >User Turn And Session State</text>
+<text x="842.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR6" >Prompt Telemetry And Evidence</text>
+<text x="842.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR7" >Next Round Prompt Payload</text>
+</svg>

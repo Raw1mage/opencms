@@ -1,0 +1,77 @@
+<svg width="1491.0" height="1177.6" viewBox="-214.0 -221.8 1491.0 1177.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-214.0" y="-221.8" width="1491.0" height="1177.6" fill="white" />
+<rect x="130.0" y="120.0" width="250.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A21" />
+<text x="255.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >A21</text>
+<text x="255.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >PARSE</text>
+<text x="255.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >SCHEDULE</text>
+<text x="255.0" y="246.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >EXPRESSION</text>
+<rect x="609.0" y="120.0" width="250.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A22" />
+<text x="734.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >A22</text>
+<text x="734.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >GATE ACTIVE</text>
+<text x="734.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >HOURS WINDOW</text>
+<rect x="130.0" y="400.0" width="250.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A23" />
+<text x="255.0" y="451.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A23" >A23</text>
+<text x="255.0" y="481.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A23" >DISPATCH</text>
+<text x="255.0" y="511.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A23" >SYSTEM EVENT</text>
+<rect x="609.0" y="400.0" width="250.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A24" />
+<text x="734.0" y="451.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A24" >A24</text>
+<text x="734.0" y="481.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A24" >DISPATCH</text>
+<text x="734.0" y="511.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A24" >AGENT TURN</text>
+<path d="M 380.0 200.0 L 609.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I2" data-waypoints="380.0,200.0 609.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 859.0 240.0 L 899.0 240.0 Q 909.0 240.0 909.0 250.0 L 909.0 312.0 Q 909.0 322.0 899.0 322.0 L 100.0 322.0 Q 90.0 322.0 90.0 332.0 L 90.0 470.0 Q 90.0 480.0 100.0 480.0 L 130.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="I3" data-waypoints="859.0,240.0 909.0,240.0 909.0,322.0 90.0,322.0 90.0,480.0 130.0,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 859.0 200.0 L 939.0 200.0 Q 949.0 200.0 949.0 210.0 L 949.0 348.0 Q 949.0 358.0 939.0 358.0 L 504.5 358.0 Q 494.5 358.0 494.5 368.0 L 494.5 443.3 Q 494.5 453.3 504.5 453.3 L 609.0 453.3" stroke="black" stroke-width="1.2" data-arrow-id="I4" data-waypoints="859.0,200.0 949.0,200.0 949.0,358.0 494.5,358.0 494.5,453.3 609.0,453.3" marker-end="url(#arrow)" fill="none" />
+<path d="M -130.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-130.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -130.0 620.0 L 536.8 620.0 Q 546.8 620.0 546.8 610.0 L 546.8 516.7 Q 546.8 506.7 556.8 506.7 L 609.0 506.7" stroke="black" stroke-width="1.2" data-arrow-id="I5" data-waypoints="-130.0,620.0 546.8,620.0 546.8,506.7 609.0,506.7" marker-end="url(#arrow)" fill="none" />
+<path d="M 380.0 173.3 L 432.2 173.3 Q 442.2 173.3 442.2 163.3 L 442.2 88.2 Q 442.2 78.2 452.2 78.2 L 1183.0 78.2" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="380.0,173.3 442.2,173.3 442.2,78.2 1183.0,78.2" marker-end="url(#arrow)" fill="none" />
+<path d="M 859.0 160.0 L 1183.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="859.0,160.0 1183.0,160.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 380.0 480.0 L 432.2 480.0 Q 442.2 480.0 442.2 490.0 L 442.2 591.8 Q 442.2 601.8 452.2 601.8 L 1183.0 601.8" stroke="black" stroke-width="1.2" data-arrow-id="O3" data-waypoints="380.0,480.0 442.2,480.0 442.2,601.8 1183.0,601.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 859.0 480.0 L 1183.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="O4" data-waypoints="859.0,480.0 1183.0,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 255.0 84.2 L 255.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="255.0,84.2 255.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="249.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C1" >Timezone and</text>
+<text x="261.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C1" >Stagger Config</text>
+<path d="M 734.0 84.2 L 734.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C2" data-waypoints="734.0,84.2 734.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="728.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C2" >Active</text>
+<text x="740.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C2" >Hours Config</text>
+<path d="M 255.0 364.2 L 255.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="C3" data-waypoints="255.0,364.2 255.0,400.0" marker-end="url(#arrow)" fill="none" />
+<text x="249.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C3" >Wake Mode</text>
+<text x="261.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C3" >Policy</text>
+<path d="M 734.0 364.2 L 734.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="C4" data-waypoints="734.0,364.2 734.0,400.0" marker-end="url(#arrow)" fill="none" />
+<text x="728.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C4" >AutonomousPolicy</text>
+<text x="740.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C4" >Throttle</text>
+<path d="M 255.0 315.8 L 255.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M1" data-waypoints="255.0,315.8 255.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="249.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M1" >Cron Expression</text>
+<text x="261.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M1" >Parser</text>
+<path d="M 734.0 315.8 L 734.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M2" data-waypoints="734.0,315.8 734.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="728.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M2" >Clock and</text>
+<text x="740.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M2" >Timer Runtime</text>
+<path d="M 255.0 595.8 L 255.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="M3" data-waypoints="255.0,595.8 255.0,560.0" marker-end="url(#arrow)" fill="none" />
+<text x="249.0" y="576.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M3" >In-Memory</text>
+<text x="261.0" y="576.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M3" >Event Queue</text>
+<path d="M 734.0 595.8 L 734.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="M4" data-waypoints="734.0,595.8 734.0,560.0" marker-end="url(#arrow)" fill="none" />
+<text x="728.0" y="576.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M4" >Session</text>
+<text x="740.0" y="576.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M4" >Factory</text>
+<rect x="30.0" y="18.2" width="979.0" height="661.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="300.0" y="-181.8" width="439.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="519.5" y="-170.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >A2</text>
+<text x="519.5" y="-140.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >SCHEDULE TRIGGER</text>
+<text x="519.5" y="-110.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >EVALUATION — D.2</text>
+<text x="519.5" y="-80.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >DECOMPOSITION</text>
+<line x1="300.0" y1="-181.8" x2="30.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="739.0" y1="-181.8" x2="1009.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="300.0" y1="-71.8" x2="30.0" y2="680.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="739.0" y1="-71.8" x2="1009.0" y2="680.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="494.5" y="218.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I2" >Parsed Fire Times</text>
+<text x="734.0" y="340.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I3" >Gated Main Session Triggers</text>
+<text x="643.8" y="352.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I4">Gated Isolated</text>
+<text x="643.8" y="374.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I4">Job Triggers</text>
+<text x="26.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1" >Schedule Definitions</text>
+<text x="26.0" y="612.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I5" >Agent Turn Payload</text>
+<text x="1013.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1" >Next Fire Time Schedule</text>
+<text x="1013.0" y="152.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2" >Suppression Records</text>
+<text x="1013.0" y="593.8" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O3" >Queued System Events</text>
+<text x="1013.0" y="472.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O4" >Dispatched Agent Turns</text>
+</svg>

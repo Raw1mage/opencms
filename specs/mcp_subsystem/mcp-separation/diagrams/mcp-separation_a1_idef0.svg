@@ -1,0 +1,59 @@
+<svg width="1582.0" height="971.6" viewBox="-214.0 -215.8 1582.0 971.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-214.0" y="-215.8" width="1582.0" height="971.6" fill="white" />
+<rect x="130.0" y="120.0" width="314.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A11" />
+<text x="287.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A11" >A11</text>
+<text x="287.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A11" >CREATE SYSTEM</text>
+<text x="287.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A11" >SERVICE ACCOUNT</text>
+<rect x="624.0" y="120.0" width="314.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A12" />
+<text x="781.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >A12</text>
+<text x="781.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >ESTABLISH</text>
+<text x="781.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >DIRECTORY</text>
+<text x="781.0" y="246.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >HIERARCHY</text>
+<rect x="130.0" y="400.0" width="314.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A13" />
+<text x="287.0" y="451.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A13" >A13</text>
+<text x="287.0" y="481.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A13" >DEPLOY PRIVILEGED</text>
+<text x="287.0" y="511.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A13" >INSTALL WRAPPER</text>
+<rect x="624.0" y="400.0" width="314.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A14" />
+<text x="781.0" y="451.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A14" >A14</text>
+<text x="781.0" y="481.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A14" >INITIALIZE SYSTEM</text>
+<text x="781.0" y="511.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A14" >CONFIGURATION</text>
+<path d="M 444.0 200.0 L 624.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="F1" data-waypoints="444.0,200.0 624.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 938.0 226.7 L 970.0 226.7 Q 980.0 226.7 980.0 236.7 L 980.0 311.8 Q 980.0 321.8 970.0 321.8 L 100.0 321.8 Q 90.0 321.8 90.0 331.8 L 90.0 470.0 Q 90.0 480.0 100.0 480.0 L 130.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="F3" data-waypoints="938.0,226.7 980.0,226.7 980.0,321.8 90.0,321.8 90.0,480.0 130.0,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 938.0 173.3 L 1030.0 173.3 Q 1040.0 173.3 1040.0 183.3 L 1040.0 354.0 Q 1040.0 364.0 1030.0 364.0 L 570.0 364.0 Q 560.0 364.0 560.0 374.0 L 560.0 470.0 Q 560.0 480.0 570.0 480.0 L 624.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="F2" data-waypoints="938.0,173.3 1040.0,173.3 1040.0,364.0 560.0,364.0 560.0,480.0 624.0,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -130.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-130.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 444.0 480.0 L 490.0 480.0 Q 500.0 480.0 500.0 490.0 L 500.0 590.0 Q 500.0 600.0 510.0 600.0 L 1262.0 600.0" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="444.0,480.0 500.0,480.0 500.0,600.0 1262.0,600.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 938.0 480.0 L 1262.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="938.0,480.0 1262.0,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 287.0 315.8 L 287.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M1" data-waypoints="287.0,315.8 287.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 287.0 595.8 L 287.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="M3" data-waypoints="287.0,595.8 287.0,560.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 287.0 84.2 L 287.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="287.0,84.2 287.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="281.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C1" >Linux System</text>
+<text x="293.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C1" >User Policy</text>
+<path d="M 287.0 364.2 L 287.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="C2" data-waypoints="287.0,364.2 287.0,400.0" marker-end="url(#arrow)" fill="none" />
+<text x="281.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C2" >Sudoers</text>
+<text x="293.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C2" >Security Policy</text>
+<path d="M 781.0 315.8 L 781.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M2" data-waypoints="781.0,315.8 781.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="775.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M2" >mkdir</text>
+<text x="787.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M2" >and chown</text>
+<rect x="30.0" y="24.2" width="1070.0" height="635.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="349.5" y="-175.8" width="431.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="565.0" y="-164.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >A1</text>
+<text x="565.0" y="-134.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >PREPARE RUNTIME</text>
+<text x="565.0" y="-104.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >ENVIRONMENT — A1</text>
+<text x="565.0" y="-74.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >DECOMPOSITION</text>
+<line x1="349.5" y1="-175.8" x2="30.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="780.5" y1="-175.8" x2="1100.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="349.5" y1="-65.8" x2="30.0" y2="660.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="780.5" y1="-65.8" x2="1100.0" y2="660.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="534.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F1" >opencode UID/GID</text>
+<text x="781.0" y="339.8" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F3" >Target Directories Known</text>
+<text x="781.0" y="356.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F2" >Directory Hierarchy Ready</text>
+<text x="26.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1" >Installation Trigger</text>
+<text x="1104.0" y="592.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1" >Sudo Wrapper Installed</text>
+<text x="1104.0" y="472.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2" >Install Directory Ready</text>
+<text x="283.0" y="296.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M1" >useradd</text>
+<text x="283.0" y="576.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M3" >install.sh</text>
+</svg>

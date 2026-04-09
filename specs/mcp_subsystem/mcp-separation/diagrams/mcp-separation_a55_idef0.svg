@@ -1,0 +1,52 @@
+<svg width="1360.0" height="940.0" viewBox="-174.0 -220.0 1360.0 940.0" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-174.0" y="-220.0" width="1360.0" height="940.0" fill="white" />
+<rect x="130.0" y="120.0" width="266.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A551" />
+<text x="263.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A551" >A551</text>
+<text x="263.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A551" >SERVE APP LIST</text>
+<text x="263.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A551" >API</text>
+<rect x="576.0" y="120.0" width="266.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A552" />
+<text x="709.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A552" >A552</text>
+<text x="709.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A552" >PREVIEW APP</text>
+<text x="709.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A552" >BEFORE ADDING</text>
+<rect x="130.0" y="360.0" width="266.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A553" />
+<text x="263.0" y="396.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A553" >A553</text>
+<text x="263.0" y="426.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A553" >ACCEPT APP</text>
+<text x="263.0" y="456.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A553" >ADDITION</text>
+<text x="263.0" y="486.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A553" >REQUEST</text>
+<rect x="576.0" y="360.0" width="266.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A554" />
+<text x="709.0" y="396.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A554" >A554</text>
+<text x="709.0" y="426.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A554" >RENDER APP</text>
+<text x="709.0" y="456.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A554" >CARD</text>
+<text x="709.0" y="486.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A554" >COMPONENTS</text>
+<path d="M 396.0 200.0 L 492.3 200.0 Q 502.3 200.0 502.3 210.0 L 502.3 403.3 Q 502.3 413.3 512.3 413.3 L 576.0 413.3" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="396.0,200.0 502.3,200.0 502.3,413.3 576.0,413.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 842.0 200.0 L 872.0 200.0 Q 882.0 200.0 882.0 210.0 L 882.0 310.0 Q 882.0 320.0 872.0 320.0 L 479.7 320.0 Q 469.7 320.0 469.7 330.0 L 469.7 456.7 Q 469.7 466.7 479.7 466.7 L 576.0 466.7" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="842.0,200.0 882.0,200.0 882.0,320.0 469.7,320.0 469.7,466.7 576.0,466.7" marker-end="url(#arrow)" fill="none" />
+<path d="M -90.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-90.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -90.0 80.0 L 530.0 80.0 Q 540.0 80.0 540.0 90.0 L 540.0 190.0 Q 540.0 200.0 550.0 200.0 L 576.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I2" data-waypoints="-90.0,80.0 540.0,80.0 540.0,200.0 576.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -90.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="I3" data-waypoints="-90.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 842.0 440.0 L 1102.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="O3" data-waypoints="842.0,440.0 1102.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 396.0 440.0 L 430.0 440.0 Q 440.0 440.0 440.0 450.0 L 440.0 550.0 Q 440.0 560.0 450.0 560.0 L 1102.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="O4" data-waypoints="396.0,440.0 440.0,440.0 440.0,560.0 1102.0,560.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 263.0 324.2 L 263.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="263.0,324.2 263.0,360.0" marker-end="url(#arrow)" fill="none" />
+<text x="257.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C1" >Path Traversal</text>
+<text x="269.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C1" >Security Policy</text>
+<rect x="70.0" y="20.0" width="872.0" height="600.0" stroke="black" fill="none" stroke-width="2" />
+<rect x="266.5" y="-180.0" width="479.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A55" />
+<text x="506.0" y="-169.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A55" >A55</text>
+<text x="506.0" y="-139.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A55" >RENDER APP MANAGEMENT</text>
+<text x="506.0" y="-109.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A55" >INTERFACE — A55</text>
+<text x="506.0" y="-79.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A55" >DECOMPOSITION</text>
+<line x1="266.5" y1="-180.0" x2="70.0" y2="20.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="745.5" y1="-180.0" x2="942.0" y2="20.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="266.5" y1="-70.0" x2="70.0" y2="620.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="745.5" y1="-70.0" x2="942.0" y2="620.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="498.3" y="301.5" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1" >App List with Metadata</text>
+<text x="709.0" y="312.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2" >Preview Card Data</text>
+<text x="66.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1" >Merged App Registry</text>
+<text x="66.0" y="72.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I2" >Preview Path Request</text>
+<text x="66.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I3" >Add App Request</text>
+<text x="946.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O3" >App Card UI State</text>
+<text x="946.0" y="552.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O4" >Registration Trigger</text>
+</svg>

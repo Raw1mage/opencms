@@ -1,0 +1,87 @@
+<svg width="1998.0" height="1161.8" viewBox="-206.0 -221.8 1998.0 1161.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-206.0" y="-221.8" width="1998.0" height="1161.8" fill="white" />
+<rect x="130.0" y="120.0" width="274.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A21" />
+<text x="267.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >A21</text>
+<text x="267.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >BUILD</text>
+<text x="267.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >CONNECTION URL</text>
+<rect x="624.0" y="120.0" width="274.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A22" />
+<text x="761.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >A22</text>
+<text x="761.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >BUILD</text>
+<text x="761.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >CONNECTION</text>
+<text x="761.0" y="246.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >HEADERS</text>
+<rect x="1118.0" y="120.0" width="274.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A23" />
+<text x="1255.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A23" >A23</text>
+<text x="1255.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A23" >ESTABLISH WS</text>
+<text x="1255.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A23" >HANDSHAKE</text>
+<rect x="130.0" y="560.0" width="274.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A24" />
+<text x="267.0" y="596.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A24" >A24</text>
+<text x="267.0" y="626.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A24" >CAPTURE</text>
+<text x="267.0" y="656.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A24" >RESPONSE</text>
+<text x="267.0" y="686.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A24" >HEADERS</text>
+<rect x="624.0" y="560.0" width="274.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A25" />
+<text x="761.0" y="596.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A25" >A25</text>
+<text x="761.0" y="626.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A25" >CACHE</text>
+<text x="761.0" y="656.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A25" >CONNECTION PER</text>
+<text x="761.0" y="686.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A25" >SESSION</text>
+<rect x="1118.0" y="560.0" width="274.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A26" />
+<text x="1255.0" y="611.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A26" >A26</text>
+<text x="1255.0" y="641.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A26" >DETECT ACCOUNT</text>
+<text x="1255.0" y="671.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A26" >CHANGE</text>
+<path d="M 898.0 200.0 L 1118.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR8" data-waypoints="898.0,200.0 1118.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1392.0 226.7 L 1430.0 226.7 Q 1440.0 226.7 1440.0 236.7 L 1440.0 472.2 Q 1440.0 482.2 1430.0 482.2 L 100.0 482.2 Q 90.0 482.2 90.0 492.2 L 90.0 630.0 Q 90.0 640.0 100.0 640.0 L 130.0 640.0" stroke="black" stroke-width="1.2" data-arrow-id="AR11" data-waypoints="1392.0,226.7 1440.0,226.7 1440.0,482.2 90.0,482.2 90.0,640.0 130.0,640.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 404.0 200.0 L 504.0 200.0 Q 514.0 200.0 514.0 190.0 L 514.0 88.2 Q 514.0 78.2 524.0 78.2 L 982.4 78.2 Q 992.4 78.2 992.4 88.2 L 992.4 150.0 Q 992.4 160.0 1002.4 160.0 L 1118.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="404.0,200.0 514.0,200.0 514.0,78.2 992.4,78.2 992.4,160.0 1118.0,160.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1392.0 640.0 L 1470.0 640.0 Q 1480.0 640.0 1480.0 630.0 L 1480.0 445.6 Q 1480.0 435.6 1470.0 435.6 L 1035.8 435.6 Q 1025.8 435.6 1025.8 425.6 L 1025.8 250.0 Q 1025.8 240.0 1035.8 240.0 L 1118.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="AR19" data-waypoints="1392.0,640.0 1480.0,640.0 1480.0,435.6 1025.8,435.6 1025.8,240.0 1118.0,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -122.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-122.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -122.0 326.7 L 551.8 326.7 Q 561.8 326.7 561.8 316.7 L 561.8 250.0 Q 561.8 240.0 571.8 240.0 L 624.0 240.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="-122.0,326.7 561.8,326.7 561.8,240.0 624.0,240.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -122.0 357.8 L 551.8 357.8 Q 561.8 357.8 561.8 347.8 L 561.8 170.0 Q 561.8 160.0 571.8 160.0 L 624.0 160.0" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="-122.0,357.8 561.8,357.8 561.8,160.0 624.0,160.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -122.0 404.4 L 562.9 404.4 Q 572.9 404.4 572.9 394.4 L 572.9 210.0 Q 572.9 200.0 582.9 200.0 L 624.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="-122.0,404.4 572.9,404.4 572.9,200.0 624.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1392.0 173.3 L 1668.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="AR12" data-waypoints="1392.0,173.3 1668.0,173.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 404.0 640.0 L 451.8 640.0 Q 461.8 640.0 461.8 650.0 L 461.8 790.0 Q 461.8 800.0 471.8 800.0 L 1668.0 800.0" stroke="black" stroke-width="1.2" data-arrow-id="AR13" data-waypoints="404.0,640.0 461.8,640.0 461.8,800.0 1668.0,800.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -122.0 760.0 L 551.8 760.0 Q 561.8 760.0 561.8 750.0 L 561.8 650.0 Q 561.8 640.0 571.8 640.0 L 624.0 640.0" stroke="black" stroke-width="1.2" data-arrow-id="AR14" data-waypoints="-122.0,760.0 561.8,760.0 561.8,640.0 624.0,640.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 898.0 640.0 L 938.0 640.0 Q 948.0 640.0 948.0 650.0 L 948.0 770.0 Q 948.0 780.0 958.0 780.0 L 1668.0 780.0" stroke="black" stroke-width="1.2" data-arrow-id="AR16" data-waypoints="898.0,640.0 948.0,640.0 948.0,780.0 1668.0,780.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -122.0 513.3 L 1060.2 513.3 Q 1070.2 513.3 1070.2 523.3 L 1070.2 630.0 Q 1070.2 640.0 1080.2 640.0 L 1118.0 640.0" stroke="black" stroke-width="1.2" data-arrow-id="AR17" data-waypoints="-122.0,513.3 1070.2,513.3 1070.2,640.0 1118.0,640.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 267.0 84.2 L 267.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="267.0,84.2 267.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="261.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR2" >URL Scheme</text>
+<text x="273.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR2" >Rules</text>
+<path d="M 761.0 84.2 L 761.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="761.0,84.2 761.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="755.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR7" >Beta Feature</text>
+<text x="767.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR7" >Flags</text>
+<path d="M 1255.0 84.2 L 1255.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A23_control" data-waypoints="1255.0,84.2 1255.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="1249.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR9" >TLS Policy</text>
+<text x="1261.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR10" >Connect Timeout</text>
+<path d="M 761.0 524.2 L 761.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="AR15" data-waypoints="761.0,524.2 761.0,560.0" marker-end="url(#arrow)" fill="none" />
+<text x="755.0" y="555.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR15" >Session</text>
+<text x="767.0" y="555.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR15" >Lifecycle</text>
+<path d="M 1255.0 524.2 L 1255.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="AR18" data-waypoints="1255.0,524.2 1255.0,560.0" marker-end="url(#arrow)" fill="none" />
+<text x="1249.0" y="555.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR18" >Rotation</text>
+<text x="1261.0" y="555.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR18" >Event</text>
+<path d="M 1255.0 315.8 L 1255.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR20" data-waypoints="1255.0,315.8 1255.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="1249.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR20" >WebSocket</text>
+<text x="1261.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR20" >Runtime</text>
+<rect x="30.0" y="18.2" width="1510.0" height="841.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="609.5" y="-181.8" width="351.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="785.0" y="-155.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >A2</text>
+<text x="785.0" y="-125.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >MANAGE WS CONNECTION</text>
+<text x="785.0" y="-95.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >— DECOMPOSITION</text>
+<line x1="609.5" y1="-181.8" x2="30.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="960.5" y1="-181.8" x2="1540.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="609.5" y1="-71.8" x2="30.0" y2="860.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="960.5" y1="-71.8" x2="1540.0" y2="860.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="1008.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR8" >Header Map</text>
+<text x="761.0" y="474.2" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR11" >WS Handshake Response</text>
+<text x="761.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR3" >WSS URL</text>
+<text x="1255.0" y="427.6" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR19" >Reconnect Trigger</text>
+<text x="26.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR1" >Provider Base URL</text>
+<text x="26.0" y="318.7" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR4" >Auth Token</text>
+<text x="26.0" y="349.8" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR5" >Conversation ID</text>
+<text x="26.0" y="396.4" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR6" >Turn State OnceLock</text>
+<text x="1544.0" y="165.3" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR12" >WsStream Instance</text>
+<text x="1544.0" y="818.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR13" >Server Metadata</text>
+<text x="26.0" y="752.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR14" >New Connection</text>
+<text x="1544.0" y="772.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR16" >Cached Connection</text>
+<text x="26.0" y="505.3" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR17" >Current Account ID</text>
+</svg>

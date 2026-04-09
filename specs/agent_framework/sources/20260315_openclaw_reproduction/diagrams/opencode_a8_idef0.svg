@@ -1,0 +1,74 @@
+<svg width="1601.0" height="1137.6" viewBox="-190.0 -221.8 1601.0 1137.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-190.0" y="-221.8" width="1601.0" height="1137.6" fill="white" />
+<rect x="130.0" y="120.0" width="346.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A81" />
+<text x="303.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A81" >A81</text>
+<text x="303.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A81" >ENFORCE CHANNEL</text>
+<text x="303.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A81" >QUOTA AND RATE</text>
+<text x="303.0" y="246.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A81" >LIMITS</text>
+<rect x="705.0" y="120.0" width="346.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A82" />
+<text x="878.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A82" >A82</text>
+<text x="878.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A82" >SCOPE CRON JOBS TO</text>
+<text x="878.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A82" >CHANNEL</text>
+<rect x="130.0" y="400.0" width="346.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A83" />
+<text x="303.0" y="451.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A83" >A83</text>
+<text x="303.0" y="481.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A83" >EXECUTE CHANNEL</text>
+<text x="303.0" y="511.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A83" >MIGRATION</text>
+<rect x="705.0" y="400.0" width="346.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A84" />
+<text x="878.0" y="451.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A84" >A84</text>
+<text x="878.0" y="481.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A84" >ENFORCE CHANNEL</text>
+<text x="878.0" y="511.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A84" >ACCESS CONTROL</text>
+<path d="M 476.0 226.7 L 705.0 226.7" stroke="black" stroke-width="1.2" data-arrow-id="I5" data-waypoints="476.0,226.7 705.0,226.7" marker-end="url(#arrow)" fill="none" />
+<path d="M -106.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-106.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -106.0 78.2 L 619.2 78.2 Q 629.2 78.2 629.2 88.2 L 629.2 163.3 Q 629.2 173.3 639.2 173.3 L 705.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="I2" data-waypoints="-106.0,78.2 629.2,78.2 629.2,173.3 705.0,173.3" marker-end="url(#arrow)" fill="none" />
+<path d="M -106.0 480.0 L 130.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="I3" data-waypoints="-106.0,480.0 130.0,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -106.0 358.2 L 619.2 358.2 Q 629.2 358.2 629.2 368.2 L 629.2 470.0 Q 629.2 480.0 639.2 480.0 L 705.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="I4" data-waypoints="-106.0,358.2 629.2,358.2 629.2,480.0 705.0,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 476.0 173.3 L 546.0 173.3 Q 556.0 173.3 556.0 183.3 L 556.0 311.8 Q 556.0 321.8 566.0 321.8 L 1327.0 321.8" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="476.0,173.3 556.0,173.3 556.0,321.8 1327.0,321.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 1051.0 200.0 L 1327.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="1051.0,200.0 1327.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 476.0 480.0 L 546.0 480.0 Q 556.0 480.0 556.0 490.0 L 556.0 591.8 Q 556.0 601.8 566.0 601.8 L 1327.0 601.8" stroke="black" stroke-width="1.2" data-arrow-id="O3" data-waypoints="476.0,480.0 556.0,480.0 556.0,601.8 1327.0,601.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 1051.0 480.0 L 1327.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="O4" data-waypoints="1051.0,480.0 1327.0,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 878.0 315.8 L 878.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M2" data-waypoints="878.0,315.8 878.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 878.0 595.8 L 878.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="M4" data-waypoints="878.0,595.8 878.0,560.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 303.0 84.2 L 303.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="303.0,84.2 303.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="297.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C1" >Quota</text>
+<text x="309.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C1" >Policy Config</text>
+<path d="M 878.0 84.2 L 878.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C2" data-waypoints="878.0,84.2 878.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="872.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C2" >Channel-Cron</text>
+<text x="884.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C2" >Binding Rules</text>
+<path d="M 303.0 364.2 L 303.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="C3" data-waypoints="303.0,364.2 303.0,400.0" marker-end="url(#arrow)" fill="none" />
+<text x="297.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C3" >Migration</text>
+<text x="309.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C3" >Safety Checks</text>
+<path d="M 878.0 364.2 L 878.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="C4" data-waypoints="878.0,364.2 878.0,400.0" marker-end="url(#arrow)" fill="none" />
+<text x="872.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C4" >RBAC Policy</text>
+<text x="884.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C4" >Definition</text>
+<path d="M 303.0 315.8 L 303.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M1" data-waypoints="303.0,315.8 303.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="297.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M1" >Quota</text>
+<text x="309.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M1" >Tracker</text>
+<path d="M 303.0 595.8 L 303.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="M3" data-waypoints="303.0,595.8 303.0,560.0" marker-end="url(#arrow)" fill="none" />
+<text x="297.0" y="576.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M3" >Storage</text>
+<text x="309.0" y="576.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M3" >Migration Engine</text>
+<rect x="70.0" y="18.2" width="1041.0" height="643.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="363.0" y="-181.8" width="455.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A8" />
+<text x="590.5" y="-155.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A8" >A8</text>
+<text x="590.5" y="-125.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A8" >GOVERN CHANNEL EXTENSIONS</text>
+<text x="590.5" y="-95.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A8" >— STAGE D DECOMPOSITION</text>
+<line x1="363.0" y1="-181.8" x2="70.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="818.0" y1="-181.8" x2="1111.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="363.0" y1="-71.8" x2="70.0" y2="661.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="818.0" y1="-71.8" x2="1111.0" y2="661.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="642.8" y="220.7" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I5">Quota</text>
+<text x="642.8" y="242.7" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I5">Enforcement State</text>
+<text x="66.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1" >Channel Usage Metrics</text>
+<text x="66.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I2" >Cron Job Definitions</text>
+<text x="66.0" y="472.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I3" >Migration Request</text>
+<text x="66.0" y="350.2" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I4" >Access Control Request</text>
+<text x="1115.0" y="313.8" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1" >Quota Enforcement Decisions</text>
+<text x="1115.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2" >Channel-Scoped Cron State</text>
+<text x="1115.0" y="593.8" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O3" >Migration Completion Report</text>
+<text x="1115.0" y="472.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O4" >Access Audit Trail</text>
+<text x="874.0" y="296.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M2" >Cron Store</text>
+<text x="874.0" y="576.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M4" >RBAC Engine</text>
+</svg>

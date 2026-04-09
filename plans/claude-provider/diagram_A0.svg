@@ -1,0 +1,84 @@
+<svg width="2444.0" height="1115.8" viewBox="-238.0 -240.0 2444.0 1115.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-238.0" y="-240.0" width="2444.0" height="1115.8" fill="white" />
+<rect x="130.0" y="120.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="279.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >A1</text>
+<text x="279.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >EXTRACT PROTOCOL</text>
+<text x="279.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >SPECIFICATION</text>
+<rect x="768.0" y="120.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="917.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >A2</text>
+<text x="917.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >MANAGE</text>
+<text x="917.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >AUTHENTICATION</text>
+<text x="917.0" y="246.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >LIFECYCLE</text>
+<rect x="1316.0" y="120.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="1465.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >A3</text>
+<text x="1465.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >ASSEMBLE REQUEST</text>
+<text x="1465.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >PACKET</text>
+<rect x="130.0" y="440.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="279.0" y="476.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >A4</text>
+<text x="279.0" y="506.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >EXECUTE</text>
+<text x="279.0" y="536.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >TRANSPORT</text>
+<text x="279.0" y="566.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >EXCHANGE</text>
+<rect x="768.0" y="440.0" width="298.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A5" />
+<text x="917.0" y="491.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A5" >A5</text>
+<text x="917.0" y="521.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A5" >VALIDATE PACKET</text>
+<text x="917.0" y="551.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A5" >CONFORMANCE</text>
+<path d="M 1066.0 226.7 L 1316.0 226.7" stroke="black" stroke-width="1.2" data-arrow-id="AR8" data-waypoints="1066.0,226.7 1316.0,226.7" marker-end="url(#arrow)" fill="none" />
+<path d="M 1614.0 226.7 L 1660.0 226.7 Q 1670.0 226.7 1670.0 236.7 L 1670.0 350.0 Q 1670.0 360.0 1660.0 360.0 L 100.0 360.0 Q 90.0 360.0 90.0 370.0 L 90.0 510.0 Q 90.0 520.0 100.0 520.0 L 130.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="AR11" data-waypoints="1614.0,226.7 1670.0,226.7 1670.0,360.0 90.0,360.0 90.0,520.0 130.0,520.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1614.0 173.3 L 1700.0 173.3 Q 1710.0 173.3 1710.0 183.3 L 1710.0 388.2 Q 1710.0 398.2 1700.0 398.2 L 608.0 398.2 Q 598.0 398.2 598.0 408.2 L 598.0 510.0 Q 598.0 520.0 608.0 520.0 L 768.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="AR13" data-waypoints="1614.0,173.3 1710.0,173.3 1710.0,398.2 598.0,398.2 598.0,520.0 768.0,520.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -154.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-154.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 917.0 404.2 L 917.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="917.0,404.2 917.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -154.0 89.2 L 670.0 74.4 Q 680.0 74.2 680.0 84.2 L 680.0 190.0 Q 680.0 200.0 690.0 200.0 L 768.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="-154.0,89.2 680.0,74.2 680.0,200.0 768.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -154.0 60.0 L 1212.6 60.0 Q 1222.6 60.0 1222.6 70.0 L 1222.6 163.3 Q 1222.6 173.3 1232.6 173.3 L 1316.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="AR9" data-waypoints="-154.0,60.0 1222.6,60.0 1222.6,173.3 1316.0,173.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 428.0 520.0 L 510.0 520.0 Q 520.0 520.0 520.0 530.0 L 520.0 630.0 Q 520.0 640.0 530.0 640.0 L 2106.0 640.0" stroke="black" stroke-width="1.2" data-arrow-id="AR12" data-waypoints="428.0,520.0 520.0,520.0 520.0,640.0 2106.0,640.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1066.0 520.0 L 2106.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="AR14" data-waypoints="1066.0,520.0 2106.0,520.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 428.0 200.0 L 510.0 200.0 Q 520.0 200.0 520.0 210.0 L 520.0 311.8 Q 520.0 321.8 530.0 321.8 L 2106.0 321.8" stroke="black" stroke-width="1.2" data-arrow-id="AR19" data-waypoints="428.0,200.0 520.0,200.0 520.0,321.8 2106.0,321.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 1066.0 185.0 L 1140.8 185.0 Q 1150.8 185.0 1150.8 175.0 L 1150.8 88.2 Q 1150.8 78.2 1160.8 78.2 L 2106.0 78.2" stroke="black" stroke-width="1.2" data-arrow-id="AR21" data-waypoints="1066.0,185.0 1150.8,185.0 1150.8,78.2 2106.0,78.2" marker-end="url(#arrow)" fill="none" />
+<path d="M 279.0 84.2 L 279.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="279.0,84.2 279.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="273.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR2" >Binary</text>
+<text x="285.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR2" >Version Tag</text>
+<path d="M 1465.0 84.2 L 1465.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A3_control" data-waypoints="1465.0,84.2 1465.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="1459.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR3" >Protocol Datasheet</text>
+<text x="1471.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR10" >Session Mode Flag</text>
+<path d="M 917.0 84.2 L 917.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A2_control" data-waypoints="917.0,84.2 917.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="911.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR4" >OAuth Endpoint Spec</text>
+<text x="923.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR22" >Storage Mode Config</text>
+<path d="M 279.0 404.2 L 279.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="279.0,404.2 279.0,440.0" marker-end="url(#arrow)" fill="none" />
+<text x="273.0" y="435.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR6" >SSE Event</text>
+<text x="285.0" y="435.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR6" >Schema</text>
+<path d="M 279.0 315.8 L 279.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR15" data-waypoints="279.0,315.8 279.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="273.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR15" >strings / objdump</text>
+<text x="285.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR15" >/ decompiler</text>
+<path d="M 917.0 315.8 L 917.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR16" data-waypoints="917.0,315.8 917.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="911.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR16" >libcurl</text>
+<text x="923.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR16" >+ OpenSSL</text>
+<path d="M 1465.0 315.8 L 1465.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR17" data-waypoints="1465.0,315.8 1465.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="1459.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR17" >cJSON + OpenSSL</text>
+<text x="1471.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR17" >(SHA-256)</text>
+<path d="M 279.0 635.8 L 279.0 600.0" stroke="black" stroke-width="1.2" data-arrow-id="AR18" data-waypoints="279.0,635.8 279.0,600.0" marker-end="url(#arrow)" fill="none" />
+<text x="273.0" y="616.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR18" >libcurl (TLS</text>
+<text x="285.0" y="616.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR18" >+ streaming)</text>
+<rect x="30.0" y="0.0" width="1740.0" height="700.0" stroke="black" fill="none" stroke-width="2" />
+<rect x="700.5" y="-200.0" width="399.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="900.0" y="-174.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >A0</text>
+<text x="900.0" y="-144.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >CLAUDE PROVIDER NATIVE</text>
+<text x="900.0" y="-114.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >PLUGIN — A0 CONTEXT</text>
+<line x1="700.5" y1="-200.0" x2="30.0" y2="0.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="1099.5" y1="-200.0" x2="1770.0" y2="0.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="700.5" y1="-90.0" x2="30.0" y2="700.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="1099.5" y1="-90.0" x2="1770.0" y2="700.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="1191.0" y="218.7" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR8" >Auth Credentials</text>
+<text x="917.0" y="352.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR11" >Wire-Format HTTP Packet</text>
+<text x="917.0" y="390.2" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR13" >Generated Packet Snapshot</text>
+<text x="26.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR1" >Official Binary Image</text>
+<text x="913.0" y="435.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR5" >Test Vectors</text>
+<text x="26.0" y="81.2" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR7" >User Authorization Code</text>
+<text x="26.0" y="52.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR9" >Raw API Request</text>
+<text x="1774.0" y="632.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR12" >Structured SSE Events</text>
+<text x="1774.0" y="512.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR14" >Conformance Report</text>
+<text x="1774.0" y="313.8" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR19" >Packet Composition Diagram / Handshake Chart</text>
+<text x="1774.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR21" >Stored Credentials (auth.json)</text>
+</svg>

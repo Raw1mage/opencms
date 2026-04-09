@@ -1,0 +1,52 @@
+<svg width="1688.0" height="931.6" viewBox="-262.0 -215.8 1688.0 931.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-262.0" y="-215.8" width="1688.0" height="931.6" fill="white" />
+<rect x="130.0" y="120.0" width="282.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="271.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >A1</text>
+<text x="271.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >APPROVE BUILD</text>
+<text x="271.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >ENTRY</text>
+<rect x="632.0" y="120.0" width="282.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="773.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >A2</text>
+<text x="773.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >EXECUTE BETA</text>
+<text x="773.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >BRANCH WORK</text>
+<rect x="130.0" y="360.0" width="282.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="271.0" y="396.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >A3</text>
+<text x="271.0" y="426.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >VALIDATE</text>
+<text x="271.0" y="456.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >MAINLINE</text>
+<text x="271.0" y="486.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >INTEGRATION</text>
+<path d="M 412.0 200.0 L 632.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="412.0,200.0 632.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 914.0 200.0 L 944.0 200.0 Q 954.0 200.0 954.0 210.0 L 954.0 308.2 Q 954.0 318.2 944.0 318.2 L 100.0 318.2 Q 90.0 318.2 90.0 328.2 L 90.0 430.0 Q 90.0 440.0 100.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="914.0,200.0 954.0,200.0 954.0,318.2 90.0,318.2 90.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -178.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-178.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 412.0 440.0 L 1342.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="AR9" data-waypoints="412.0,440.0 1342.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 271.0 84.2 L 271.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="271.0,84.2 271.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="265.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR2" >Build Approval</text>
+<text x="277.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR2" >And Stop Gates</text>
+<path d="M 773.0 84.2 L 773.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="773.0,84.2 773.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="767.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR4" >Branch Naming Runtime</text>
+<text x="779.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR4" >Policy And Git Policy</text>
+<path d="M 773.0 315.8 L 773.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="773.0,315.8 773.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="767.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR5" >Builder Native</text>
+<text x="779.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR5" >Beta Primitives</text>
+<path d="M 271.0 324.2 L 271.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="271.0,324.2 271.0,360.0" marker-end="url(#arrow)" fill="none" />
+<text x="265.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR7" >Validation And Merge</text>
+<text x="277.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR7" >Approval Policy</text>
+<path d="M 271.0 555.8 L 271.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="AR8" data-waypoints="271.0,555.8 271.0,520.0" marker-end="url(#arrow)" fill="none" />
+<text x="265.0" y="536.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR8" >Main Repo</text>
+<text x="277.0" y="536.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR8" >Runtime Adapter</text>
+<rect x="30.0" y="24.2" width="984.0" height="591.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="382.0" y="-175.8" width="280.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="522.0" y="-149.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >A0</text>
+<text x="522.0" y="-119.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >BUILDER NATIVE</text>
+<text x="522.0" y="-89.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >BETA WORKFLOW</text>
+<line x1="382.0" y1="-175.8" x2="30.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="662.0" y1="-175.8" x2="1014.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="382.0" y1="-65.8" x2="30.0" y2="615.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="662.0" y1="-65.8" x2="1014.0" y2="615.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="522.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR3" >Beta-Aware Mission Handoff</text>
+<text x="271.0" y="310.2" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR6" >Feature Branch And Validation Context</text>
+<text x="26.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR1" >Approved Planner Artifacts</text>
+<text x="1018.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR9" >Validated Branch Ready For Merge Decision</text>
+</svg>

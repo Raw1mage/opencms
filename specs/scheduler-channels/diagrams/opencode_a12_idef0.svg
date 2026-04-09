@@ -1,0 +1,50 @@
+<svg width="1552.0" height="901.8" viewBox="-182.0 -221.8 1552.0 901.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-182.0" y="-221.8" width="1552.0" height="901.8" fill="white" />
+<rect x="130.0" y="120.0" width="370.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A121" />
+<text x="315.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A121" >A121</text>
+<text x="315.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A121" >COMPARE NEXTRUNATMS</text>
+<text x="315.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A121" >AGAINST CURRENT TIME</text>
+<rect x="680.0" y="120.0" width="370.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A122" />
+<text x="865.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A122" >A122</text>
+<text x="865.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A122" >CLASSIFY JOB SCHEDULE</text>
+<text x="865.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A122" >KIND</text>
+<rect x="130.0" y="360.0" width="370.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A123" />
+<text x="315.0" y="411.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A123" >A123</text>
+<text x="315.0" y="441.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A123" >EVALUATE CONSECUTIVE</text>
+<text x="315.0" y="471.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A123" >ERROR COUNT</text>
+<path d="M 500.0 200.0 L 680.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I2" data-waypoints="500.0,200.0 680.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1050.0 200.0 L 1080.0 200.0 Q 1090.0 200.0 1090.0 210.0 L 1090.0 311.8 Q 1090.0 321.8 1080.0 321.8 L 100.0 321.8 Q 90.0 321.8 90.0 331.8 L 90.0 430.0 Q 90.0 440.0 100.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="I3" data-waypoints="1050.0,200.0 1090.0,200.0 1090.0,321.8 90.0,321.8 90.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -98.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-98.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 500.0 173.3 L 524.0 173.3 Q 534.0 173.3 534.0 163.3 L 534.0 88.2 Q 534.0 78.2 544.0 78.2 L 1286.0 78.2" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="500.0,173.3 534.0,173.3 534.0,78.2 1286.0,78.2" marker-end="url(#arrow)" fill="none" />
+<path d="M 500.0 440.0 L 1286.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="500.0,440.0 1286.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 315.0 84.2 L 315.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="315.0,84.2 315.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="309.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C1" >Current</text>
+<text x="321.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C1" >Timestamp</text>
+<path d="M 865.0 84.2 L 865.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C2" data-waypoints="865.0,84.2 865.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="859.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C2" >Schedule</text>
+<text x="871.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C2" >Kind Enum</text>
+<path d="M 315.0 324.2 L 315.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="C3" data-waypoints="315.0,324.2 315.0,360.0" marker-end="url(#arrow)" fill="none" />
+<text x="309.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C3" >Error Threshold</text>
+<text x="321.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C3" >Policy</text>
+<path d="M 315.0 315.8 L 315.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M1" data-waypoints="315.0,315.8 315.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="309.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M1" >CronStore</text>
+<text x="321.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M1" >Module</text>
+<rect x="30.0" y="18.2" width="1120.0" height="561.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="442.0" y="-181.8" width="296.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A12" />
+<text x="590.0" y="-155.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >A12</text>
+<text x="590.0" y="-125.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >DETECT STALE</text>
+<text x="590.0" y="-95.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >SCHEDULE ENTRIES</text>
+<line x1="442.0" y1="-181.8" x2="30.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="738.0" y1="-181.8" x2="1150.0" y2="18.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="442.0" y1="-71.8" x2="30.0" y2="580.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="738.0" y1="-71.8" x2="1150.0" y2="580.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="590.0" y="218.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I2" >Stale Job Candidates</text>
+<text x="865.0" y="313.8" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I3" >Classified Stale Jobs</text>
+<text x="26.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1" >Enabled Job List</text>
+<text x="1154.0" y="70.2" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1" >Clean Job Entries</text>
+<text x="1154.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2" >Stale Job Entries</text>
+</svg>

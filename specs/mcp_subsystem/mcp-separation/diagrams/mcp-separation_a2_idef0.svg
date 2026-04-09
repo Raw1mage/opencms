@@ -1,0 +1,68 @@
+<svg width="2221.0" height="1051.6" viewBox="-376.0 -215.8 2221.0 1051.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-376.0" y="-215.8" width="2221.0" height="1051.6" fill="white" />
+<rect x="130.0" y="120.0" width="274.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A21" />
+<text x="267.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >A21</text>
+<text x="267.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >RESOLVE SOURCE</text>
+<text x="267.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >TYPE</text>
+<rect x="682.0" y="120.0" width="274.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A22" />
+<text x="819.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >A22</text>
+<text x="819.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >CLONE REMOTE</text>
+<text x="819.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >REPOSITORY</text>
+<rect x="1115.0" y="120.0" width="274.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A23" />
+<text x="1252.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A23" >A23</text>
+<text x="1252.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A23" >VERIFY LOCAL</text>
+<text x="1252.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A23" >PATH EXISTS</text>
+<rect x="130.0" y="440.0" width="274.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A24" />
+<text x="267.0" y="491.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A24" >A24</text>
+<text x="267.0" y="521.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A24" >INSTALL RUNTIME</text>
+<text x="267.0" y="551.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A24" >DEPENDENCIES</text>
+<rect x="682.0" y="440.0" width="274.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A25" />
+<text x="819.0" y="491.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A25" >A25</text>
+<text x="819.0" y="521.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A25" >COMPILE BUILTIN</text>
+<text x="819.0" y="551.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A25" >APP BINARY</text>
+<path d="M 404.0 200.0 L 682.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="F1" data-waypoints="404.0,200.0 682.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 1389.0 200.0 L 1419.0 200.0 Q 1429.0 200.0 1429.0 210.0 L 1429.0 384.3 Q 1429.0 394.3 1419.0 394.3 L 90.0 394.3 Q 80.0 394.3 80.0 404.3 L 80.0 483.3 Q 80.0 493.3 90.0 493.3 L 130.0 493.3" stroke="black" stroke-width="1.2" data-arrow-id="F4" data-waypoints="1389.0,200.0 1429.0,200.0 1429.0,394.3 80.0,394.3 80.0,493.3 130.0,493.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 404.0 173.3 L 570.1 173.3 Q 580.1 173.3 580.1 183.3 L 580.1 315.7 Q 580.1 325.7 590.1 325.7 L 1053.3 325.7 Q 1063.3 325.7 1063.3 315.7 L 1063.3 210.0 Q 1063.3 200.0 1073.3 200.0 L 1115.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="F2" data-waypoints="404.0,173.3 580.1,173.3 580.1,325.7 1063.3,325.7 1063.3,200.0 1115.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 956.0 200.0 L 1001.2 200.0 Q 1011.2 200.0 1011.2 210.0 L 1011.2 350.0 Q 1011.2 360.0 1001.2 360.0 L 50.0 360.0 Q 40.0 360.0 40.0 370.0 L 40.0 536.7 Q 40.0 546.7 50.0 546.7 L 130.0 546.7" stroke="black" stroke-width="1.2" data-arrow-id="F3" data-waypoints="956.0,200.0 1011.2,200.0 1011.2,360.0 40.0,360.0 40.0,546.7 130.0,546.7" marker-end="url(#arrow)" fill="none" />
+<path d="M -282.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-282.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 404.0 520.0 L 489.5 520.0 Q 499.5 520.0 499.5 530.0 L 499.5 631.8 Q 499.5 641.8 509.5 641.8 L 1761.0 641.8" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="404.0,520.0 499.5,520.0 499.5,641.8 1761.0,641.8" marker-end="url(#arrow)" fill="none" />
+<path d="M 956.0 520.0 L 1761.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="956.0,520.0 1761.0,520.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 819.0 315.8 L 819.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M1" data-waypoints="819.0,315.8 819.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 819.0 84.2 L 819.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="819.0,84.2 819.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="813.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C1" >GitHub</text>
+<text x="825.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C1" >Access Policy</text>
+<path d="M 1252.0 84.2 L 1252.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C2" data-waypoints="1252.0,84.2 1252.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="1246.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C2" >Path Traversal</text>
+<text x="1258.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C2" >Security Policy</text>
+<path d="M 819.0 404.2 L 819.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="C3" data-waypoints="819.0,404.2 819.0,440.0" marker-end="url(#arrow)" fill="none" />
+<text x="813.0" y="435.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C3" >Existing CatalogEntry</text>
+<text x="825.0" y="435.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C3" >Type Contract</text>
+<path d="M 267.0 635.8 L 267.0 600.0" stroke="black" stroke-width="1.2" data-arrow-id="M2" data-waypoints="267.0,635.8 267.0,600.0" marker-end="url(#arrow)" fill="none" />
+<text x="261.0" y="616.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M2" >bun install</text>
+<text x="273.0" y="616.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M2" >/ pip install</text>
+<path d="M 819.0 635.8 L 819.0 600.0" stroke="black" stroke-width="1.2" data-arrow-id="M3" data-waypoints="819.0,635.8 819.0,600.0" marker-end="url(#arrow)" fill="none" />
+<text x="813.0" y="616.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M3" >Bun Compile</text>
+<text x="825.0" y="616.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M3" >Toolchain</text>
+<rect x="-20.0" y="24.2" width="1509.0" height="677.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="551.0" y="-175.8" width="367.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="734.5" y="-149.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >A2</text>
+<text x="734.5" y="-119.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >ACQUIRE APP PACKAGE —</text>
+<text x="734.5" y="-89.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >A2 DECOMPOSITION</text>
+<line x1="551.0" y1="-175.8" x2="-20.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="918.0" y1="-175.8" x2="1489.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="551.0" y1="-65.8" x2="-20.0" y2="701.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="918.0" y1="-65.8" x2="1489.0" y2="701.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="527.1" y="194.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F1">GitHub</text>
+<text x="527.1" y="216.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F1">URL Parsed</text>
+<text x="819.0" y="386.3" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F4" >Verified Local Directory</text>
+<text x="819.0" y="343.7" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F2" >Local Path Parsed</text>
+<text x="267.0" y="352.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="F3" >Cloned Directory</text>
+<text x="-24.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1" >App Source Reference (URL or Path)</text>
+<text x="1493.0" y="633.8" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1" >App Directory on Disk (deps ready)</text>
+<text x="1493.0" y="512.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2" >Compiled Binary in Install Dir</text>
+<text x="815.0" y="296.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M1" >Git CLI</text>
+</svg>

@@ -1,0 +1,66 @@
+<svg width="1405.0" height="1051.6" viewBox="-182.0 -215.8 1405.0 1051.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-182.0" y="-215.8" width="1405.0" height="1051.6" fill="white" />
+<rect x="130.0" y="120.0" width="282.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A31" />
+<text x="271.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >A31</text>
+<text x="271.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >MAP LANE</text>
+<text x="271.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A31" >NAMESPACE KEY</text>
+<rect x="613.0" y="120.0" width="282.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A32" />
+<text x="754.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A32" >A32</text>
+<text x="754.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A32" >ENFORCE</text>
+<text x="754.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A32" >CONCURRENCY CAP</text>
+<rect x="130.0" y="360.0" width="282.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A33" />
+<text x="271.0" y="411.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A33" >A33</text>
+<text x="271.0" y="441.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A33" >DRAIN CHANNEL</text>
+<text x="271.0" y="471.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A33" >LANE SET</text>
+<rect x="613.0" y="360.0" width="282.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A34" />
+<text x="754.0" y="396.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >A34</text>
+<text x="754.0" y="426.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >RESET LANE</text>
+<text x="754.0" y="456.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >STATE POST</text>
+<text x="754.0" y="486.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A34" >RESTART</text>
+<path d="M 412.0 200.0 L 613.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I2" data-waypoints="412.0,200.0 613.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -98.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-98.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -98.0 440.0 L 130.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="I3" data-waypoints="-98.0,440.0 130.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -98.0 321.8 L 527.1 321.8 Q 537.1 321.8 537.1 331.8 L 537.1 430.0 Q 537.1 440.0 547.1 440.0 L 613.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="I4" data-waypoints="-98.0,321.8 537.1,321.8 537.1,440.0 613.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 271.0 324.2 L 271.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="C3" data-waypoints="271.0,324.2 271.0,360.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 895.0 200.0 L 1139.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="895.0,200.0 1139.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 412.0 440.0 L 475.3 440.0 Q 485.3 440.0 485.3 450.0 L 485.3 550.0 Q 485.3 560.0 495.3 560.0 L 1139.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="412.0,440.0 485.3,440.0 485.3,560.0 1139.0,560.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 895.0 440.0 L 1139.0 440.0" stroke="black" stroke-width="1.2" data-arrow-id="O3" data-waypoints="895.0,440.0 1139.0,440.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 271.0 315.8 L 271.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M1" data-waypoints="271.0,315.8 271.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 754.0 315.8 L 754.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M2" data-waypoints="754.0,315.8 754.0,280.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 271.0 555.8 L 271.0 520.0" stroke="black" stroke-width="1.2" data-arrow-id="M3" data-waypoints="271.0,555.8 271.0,520.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 271.0 84.2 L 271.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="271.0,84.2 271.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="265.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C1" >Lane Naming</text>
+<text x="277.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C1" >Convention</text>
+<path d="M 754.0 84.2 L 754.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C2" data-waypoints="754.0,84.2 754.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="748.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C2" >Lane Concurrency</text>
+<text x="760.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C2" >Limits</text>
+<path d="M 754.0 324.2 L 754.0 360.0" stroke="black" stroke-width="1.2" data-arrow-id="C4" data-waypoints="754.0,324.2 754.0,360.0" marker-end="url(#arrow)" fill="none" />
+<text x="748.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C4" >Generation</text>
+<text x="760.0" y="355.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C4" >Number</text>
+<rect x="70.0" y="24.2" width="885.0" height="595.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="344.5" y="-175.8" width="336.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="512.5" y="-164.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >A3</text>
+<text x="512.5" y="-134.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >ALLOCATE PER-</text>
+<text x="512.5" y="-104.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >CHANNEL LANE</text>
+<text x="512.5" y="-74.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >RESOURCES</text>
+<line x1="344.5" y1="-175.8" x2="70.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="680.5" y1="-175.8" x2="955.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="344.5" y1="-65.8" x2="70.0" y2="620.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="680.5" y1="-65.8" x2="955.0" y2="620.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="512.5" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I2" >Namespaced Lane Key</text>
+<text x="66.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1" >Channel Configuration</text>
+<text x="66.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I3" >Drain Request</text>
+<text x="66.0" y="313.8" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I4" >Restart Signal</text>
+<text x="267.0" y="355.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="C3" >Drain Scope</text>
+<text x="1030.9" y="194.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1">Isolated</text>
+<text x="1030.9" y="216.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1">Lane Set</text>
+<text x="959.0" y="552.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2" >Drain Completion Signal</text>
+<text x="959.0" y="432.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O3" >Clean Lane State</text>
+<text x="267.0" y="296.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M1" >Lanes Module</text>
+<text x="750.0" y="296.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M2" >Lanes Module</text>
+<text x="267.0" y="536.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="M3" >Lanes Module</text>
+</svg>

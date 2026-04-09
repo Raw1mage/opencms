@@ -1,0 +1,65 @@
+<svg width="1896.0" height="1011.6" viewBox="-446.0 -215.8 1896.0 1011.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-446.0" y="-215.8" width="1896.0" height="1011.6" fill="white" />
+<rect x="130.0" y="120.0" width="274.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="267.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >A1</text>
+<text x="267.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >DEFINE CONTEXT</text>
+<text x="267.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >CARD CONTRACT</text>
+<rect x="704.0" y="120.0" width="274.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="841.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >A2</text>
+<text x="841.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >RENDER CONTEXT</text>
+<text x="841.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >CARDS</text>
+<rect x="130.0" y="400.0" width="274.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A3" />
+<text x="267.0" y="451.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >A3</text>
+<text x="267.0" y="481.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >PERSIST CONTEXT</text>
+<text x="267.0" y="511.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A3" >CARD ORDER</text>
+<rect x="704.0" y="400.0" width="274.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A4" />
+<text x="841.0" y="436.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >A4</text>
+<text x="841.0" y="466.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >VALIDATE</text>
+<text x="841.0" y="496.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >SIDEBAR</text>
+<text x="841.0" y="526.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A4" >EXPERIENCE</text>
+<path d="M 404.0 480.0 L 704.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="AR9" data-waypoints="404.0,480.0 704.0,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 978.0 200.0 L 1008.0 200.0 Q 1018.0 200.0 1018.0 210.0 L 1018.0 348.2 Q 1018.0 358.2 1008.0 358.2 L 100.0 358.2 Q 90.0 358.2 90.0 368.2 L 90.0 470.0 Q 90.0 480.0 100.0 480.0 L 130.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="AR6" data-waypoints="978.0,200.0 1018.0,200.0 1018.0,358.2 90.0,358.2 90.0,480.0 130.0,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -362.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR1" data-waypoints="-362.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -362.0 320.0 L 664.0 320.0 Q 674.0 320.0 674.0 310.0 L 674.0 210.0 Q 674.0 200.0 684.0 200.0 L 704.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="AR4" data-waypoints="-362.0,320.0 674.0,320.0 674.0,200.0 704.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 978.0 480.0 L 1366.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="AR12" data-waypoints="978.0,480.0 1366.0,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 267.0 84.2 L 267.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR2" data-waypoints="267.0,84.2 267.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="261.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR2" >Plan Driver And</text>
+<text x="273.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR2" >Project Constraints</text>
+<path d="M 841.0 84.2 L 841.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="AR3" data-waypoints="841.0,84.2 841.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="835.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR3" >Three Card</text>
+<text x="847.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR3" >Layout Contract</text>
+<path d="M 841.0 315.8 L 841.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="AR5" data-waypoints="841.0,315.8 841.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="835.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR5" >SessionContextTab And</text>
+<text x="847.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR5" >Telemetry Card Components</text>
+<path d="M 267.0 364.2 L 267.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="AR7" data-waypoints="267.0,364.2 267.0,400.0" marker-end="url(#arrow)" fill="none" />
+<text x="261.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR7" >Status Sidebar</text>
+<text x="273.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR7" >Drag Pattern</text>
+<path d="M 267.0 595.8 L 267.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="AR8" data-waypoints="267.0,595.8 267.0,560.0" marker-end="url(#arrow)" fill="none" />
+<text x="261.0" y="576.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR8" >Layout Store And</text>
+<text x="273.0" y="576.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR8" >Drag Drop Utilities</text>
+<path d="M 841.0 364.2 L 841.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="AR10" data-waypoints="841.0,364.2 841.0,400.0" marker-end="url(#arrow)" fill="none" />
+<text x="835.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR10" >Validation Commands</text>
+<text x="847.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR10" >And Acceptance Checks</text>
+<path d="M 841.0 595.8 L 841.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="AR11" data-waypoints="841.0,595.8 841.0,560.0" marker-end="url(#arrow)" fill="none" />
+<text x="835.0" y="576.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="AR11" >Typecheck And</text>
+<text x="847.0" y="576.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="AR11" >Targeted UI Tests</text>
+<rect x="30.0" y="24.2" width="1048.0" height="631.6" stroke="black" fill="none" stroke-width="2" />
+<rect x="262.5" y="-175.8" width="583.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A0" />
+<text x="554.0" y="-164.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >A0</text>
+<text x="554.0" y="-134.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >TELEMETRY CONTEXT SIDEBAR</text>
+<text x="554.0" y="-104.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >OPTIMIZATION — FUNCTIONAL</text>
+<text x="554.0" y="-74.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A0" >DECOMPOSITION</text>
+<line x1="262.5" y1="-175.8" x2="30.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="845.5" y1="-175.8" x2="1078.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="262.5" y1="-65.8" x2="30.0" y2="655.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="845.5" y1="-65.8" x2="1078.0" y2="655.8" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="554.0" y="472.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR9" >Reorderable Context Sidebar</text>
+<text x="841.0" y="350.2" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR6" >Card Section Identifiers</text>
+<text x="26.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR1" >User Requirement For Context Sidebar Optimization</text>
+<text x="26.0" y="312.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR4" >Existing Context Metrics And Telemetry Data</text>
+<text x="1082.0" y="472.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="AR12" >Execution Ready Context Sidebar Plan</text>
+</svg>

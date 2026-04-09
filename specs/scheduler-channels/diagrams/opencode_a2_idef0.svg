@@ -1,0 +1,65 @@
+<svg width="1642.0" height="1015.8" viewBox="-222.0 -215.8 1642.0 1015.8" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-222.0" y="-215.8" width="1642.0" height="1015.8" fill="white" />
+<rect x="130.0" y="120.0" width="282.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A21" />
+<text x="271.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >A21</text>
+<text x="271.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >BOOTSTRAP</text>
+<text x="271.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A21" >DEFAULT CHANNEL</text>
+<rect x="606.0" y="120.0" width="282.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A22" />
+<text x="747.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >A22</text>
+<text x="747.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >PERSIST CHANNEL</text>
+<text x="747.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A22" >CONFIGURATION</text>
+<rect x="130.0" y="320.0" width="282.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A23" />
+<text x="271.0" y="371.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A23" >A23</text>
+<text x="271.0" y="401.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A23" >VALIDATE</text>
+<text x="271.0" y="431.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A23" >CHANNEL SCHEMA</text>
+<rect x="606.0" y="320.0" width="282.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A24" />
+<text x="747.0" y="371.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A24" >A24</text>
+<text x="747.0" y="401.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A24" >REMOVE INACTIVE</text>
+<text x="747.0" y="431.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A24" >CHANNEL</text>
+<path d="M 412.0 173.3 L 606.0 173.3" stroke="black" stroke-width="1.2" data-arrow-id="I4" data-waypoints="412.0,173.3 606.0,173.3" marker-end="url(#arrow)" fill="none" />
+<path d="M 412.0 400.0 L 472.9 400.0 Q 482.9 400.0 482.9 390.0 L 482.9 236.7 Q 482.9 226.7 492.9 226.7 L 606.0 226.7" stroke="black" stroke-width="1.2" data-arrow-id="I3" data-waypoints="412.0,400.0 482.9,400.0 482.9,226.7 606.0,226.7" marker-end="url(#arrow)" fill="none" />
+<path d="M -138.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-138.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -138.0 400.0 L 130.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="I2" data-waypoints="-138.0,400.0 130.0,400.0" marker-end="url(#arrow)" fill="none" />
+<path d="M -138.0 520.0 L 522.6 520.0 Q 532.6 520.0 532.6 510.0 L 532.6 410.0 Q 532.6 400.0 542.6 400.0 L 606.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="I5" data-waypoints="-138.0,520.0 532.6,520.0 532.6,400.0 606.0,400.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 747.0 84.2 L 747.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C4" data-waypoints="747.0,84.2 747.0,120.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 888.0 200.0 L 1340.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="888.0,200.0 1340.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 888.0 400.0 L 1340.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="O3" data-waypoints="888.0,400.0 1340.0,400.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 271.0 84.2 L 271.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="271.0,84.2 271.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="265.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C1" >Channel</text>
+<text x="277.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C1" >Schema Policy</text>
+<path d="M 271.0 284.2 L 271.0 320.0" stroke="black" stroke-width="1.2" data-arrow-id="C2" data-waypoints="271.0,284.2 271.0,320.0" marker-end="url(#arrow)" fill="none" />
+<text x="265.0" y="315.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C2" >Channel</text>
+<text x="277.0" y="315.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C2" >Schema Policy</text>
+<path d="M 747.0 284.2 L 747.0 320.0" stroke="black" stroke-width="1.2" data-arrow-id="C3" data-waypoints="747.0,284.2 747.0,320.0" marker-end="url(#arrow)" fill="none" />
+<text x="741.0" y="315.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C3" >Active Session</text>
+<text x="753.0" y="315.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C3" >Count Guard</text>
+<path d="M 747.0 315.8 L 747.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M1" data-waypoints="747.0,315.8 747.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="741.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M1" >ChannelStore</text>
+<text x="753.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M1" >Module</text>
+<path d="M 271.0 315.8 L 271.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M2" data-waypoints="271.0,315.8 271.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="265.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M2" >ChannelStore</text>
+<text x="277.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M2" >Module</text>
+<rect x="70.0" y="24.2" width="878.0" height="555.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="385.0" y="-175.8" width="248.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A2" />
+<text x="509.0" y="-164.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >A2</text>
+<text x="509.0" y="-134.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >MANAGE</text>
+<text x="509.0" y="-104.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >CHANNEL</text>
+<text x="509.0" y="-74.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A2" >LIFECYCLE</text>
+<line x1="385.0" y1="-175.8" x2="70.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="633.0" y1="-175.8" x2="948.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="385.0" y1="-65.8" x2="70.0" y2="580.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="633.0" y1="-65.8" x2="948.0" y2="580.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="509.0" y="165.3" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I4" >Default Channel.Info</text>
+<text x="544.5" y="218.7" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I3" >Validated Channel.Info</text>
+<text x="66.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1" >Empty Channel Store Signal</text>
+<text x="66.0" y="392.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I2" >Channel Create Request</text>
+<text x="66.0" y="512.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I5" >Channel Delete Request</text>
+<text x="743.0" y="115.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="C4" >File Lock</text>
+<text x="1114.0" y="194.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1">Channel Persistence Files</text>
+<text x="1114.0" y="216.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1">/ Channel Configuration</text>
+<text x="952.0" y="392.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O3" >Channel Removal Confirmation</text>
+</svg>

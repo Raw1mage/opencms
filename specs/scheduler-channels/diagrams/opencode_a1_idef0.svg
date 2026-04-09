@@ -1,0 +1,67 @@
+<svg width="1561.0" height="1051.6" viewBox="-230.0 -215.8 1561.0 1051.6" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="black" /></marker>
+<marker id="call_arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 M 0 2 L 6 5 L 0 8" fill="none" stroke="black" stroke-width="1" /></marker>
+</defs>
+<rect x="-230.0" y="-215.8" width="1561.0" height="1051.6" fill="white" />
+<rect x="130.0" y="120.0" width="282.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A11" />
+<text x="271.0" y="171.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A11" >A11</text>
+<text x="271.0" y="201.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A11" >LOAD PERSISTED</text>
+<text x="271.0" y="231.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A11" >JOB STATE</text>
+<rect x="627.0" y="120.0" width="282.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A12" />
+<text x="768.0" y="156.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >A12</text>
+<text x="768.0" y="186.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >DETECT STALE</text>
+<text x="768.0" y="216.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >SCHEDULE</text>
+<text x="768.0" y="246.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A12" >ENTRIES</text>
+<rect x="130.0" y="400.0" width="282.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A13" />
+<text x="271.0" y="451.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A13" >A13</text>
+<text x="271.0" y="481.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A13" >RECOMPUTE NEXT</text>
+<text x="271.0" y="511.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A13" >RUN TIMING</text>
+<rect x="627.0" y="400.0" width="282.0" height="160.0" stroke="black" fill="white" stroke-width="1.5" data-id="A14" />
+<text x="768.0" y="436.0" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A14" >A14</text>
+<text x="768.0" y="466.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A14" >RE-REGISTER</text>
+<text x="768.0" y="496.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A14" >ACTIVE</text>
+<text x="768.0" y="526.0" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A14" >SCHEDULES</text>
+<path d="M 412.0 200.0 L 627.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I2" data-waypoints="412.0,200.0 627.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 412.0 506.7 L 627.0 506.7" stroke="black" stroke-width="1.2" data-arrow-id="I4" data-waypoints="412.0,506.7 627.0,506.7" marker-end="url(#arrow)" fill="none" />
+<path d="M 909.0 226.7 L 945.0 226.7 Q 955.0 226.7 955.0 236.7 L 955.0 312.9 Q 955.0 322.9 945.0 322.9 L 100.0 322.9 Q 90.0 322.9 90.0 332.9 L 90.0 470.0 Q 90.0 480.0 100.0 480.0 L 130.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="I3" data-waypoints="909.0,226.7 955.0,226.7 955.0,322.9 90.0,322.9 90.0,480.0 130.0,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 909.0 173.3 L 985.0 173.3 Q 995.0 173.3 995.0 183.3 L 995.0 347.1 Q 995.0 357.1 985.0 357.1 L 560.4 357.1 Q 550.4 357.1 550.4 367.1 L 550.4 443.3 Q 550.4 453.3 560.4 453.3 L 627.0 453.3" stroke="black" stroke-width="1.2" data-arrow-id="I5" data-waypoints="909.0,173.3 995.0,173.3 995.0,357.1 550.4,357.1 550.4,453.3 627.0,453.3" marker-end="url(#arrow)" fill="none" />
+<path d="M -146.0 200.0 L 130.0 200.0" stroke="black" stroke-width="1.2" data-arrow-id="I1" data-waypoints="-146.0,200.0 130.0,200.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 909.0 480.0 L 1241.0 480.0" stroke="black" stroke-width="1.2" data-arrow-id="O1" data-waypoints="909.0,480.0 1241.0,480.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 412.0 453.3 L 475.4 453.3 Q 485.4 453.3 485.4 463.3 L 485.4 590.0 Q 485.4 600.0 495.4 600.0 L 1241.0 600.0" stroke="black" stroke-width="1.2" data-arrow-id="O2" data-waypoints="412.0,453.3 485.4,453.3 485.4,600.0 1241.0,600.0" marker-end="url(#arrow)" fill="none" />
+<path d="M 271.0 84.2 L 271.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C1" data-waypoints="271.0,84.2 271.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="265.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C1" >Daemon</text>
+<text x="277.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C1" >Boot Signal</text>
+<path d="M 768.0 84.2 L 768.0 120.0" stroke="black" stroke-width="1.2" data-arrow-id="C2" data-waypoints="768.0,84.2 768.0,120.0" marker-end="url(#arrow)" fill="none" />
+<text x="762.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C2" >Current</text>
+<text x="774.0" y="115.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C2" >Timestamp</text>
+<path d="M 271.0 364.2 L 271.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="C3" data-waypoints="271.0,364.2 271.0,400.0" marker-end="url(#arrow)" fill="none" />
+<text x="265.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C3" >Schedule</text>
+<text x="277.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C3" >Kind Policy</text>
+<path d="M 768.0 364.2 L 768.0 400.0" stroke="black" stroke-width="1.2" data-arrow-id="C4" data-waypoints="768.0,364.2 768.0,400.0" marker-end="url(#arrow)" fill="none" />
+<text x="762.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="C4" >CronStore</text>
+<text x="774.0" y="395.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="C4" >Write Lock</text>
+<path d="M 271.0 315.8 L 271.0 280.0" stroke="black" stroke-width="1.2" data-arrow-id="M1" data-waypoints="271.0,315.8 271.0,280.0" marker-end="url(#arrow)" fill="none" />
+<text x="265.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M1" >CronStore</text>
+<text x="277.0" y="296.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M1" >Module</text>
+<path d="M 271.0 595.8 L 271.0 560.0" stroke="black" stroke-width="1.2" data-arrow-id="_merged_A13_mechanism" data-waypoints="271.0,595.8 271.0,560.0" marker-end="url(#arrow)" fill="none" />
+<text x="265.0" y="576.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="end" data-arrow-id="M2" >Schedule Module</text>
+<text x="277.0" y="576.0" font-size="14" font-weight="bold" fill="black" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" text-anchor="start" data-arrow-id="M3" >RetryPolicy Module</text>
+<rect x="30.0" y="24.2" width="1025.0" height="635.8" stroke="black" fill="none" stroke-width="2" />
+<rect x="390.5" y="-175.8" width="304.0" height="110.0" stroke="black" fill="white" stroke-width="1.5" data-id="A1" />
+<text x="542.5" y="-149.8" text-anchor="middle" font-size="14" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >A1</text>
+<text x="542.5" y="-119.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >RECOVER SCHEDULER</text>
+<text x="542.5" y="-89.8" text-anchor="middle" font-size="16" font-weight="bold" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-id="A1" >STATE ON BOOT</text>
+<line x1="390.5" y1="-175.8" x2="30.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="694.5" y1="-175.8" x2="1055.0" y2="24.2" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="390.5" y1="-65.8" x2="30.0" y2="660.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<line x1="694.5" y1="-65.8" x2="1055.0" y2="660.0" stroke="red" stroke-dasharray="5,5" stroke-width="1.0" opacity="0.6" />
+<text x="519.5" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I2" >Enabled Job List</text>
+<text x="556.4" y="500.7" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I4">Recomputed</text>
+<text x="556.4" y="522.7" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I4">Schedule State</text>
+<text x="768.0" y="314.9" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I3" >Stale Job Entries</text>
+<text x="768.0" y="349.1" font-size="14" font-weight="bold" fill="black" text-anchor="middle" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I5" >Clean Job Entries</text>
+<text x="26.0" y="192.0" font-size="14" font-weight="bold" fill="black" text-anchor="end" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="I1" >Persisted CronJobState</text>
+<text x="1059.0" y="472.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O1" >Restored Schedule Timers</text>
+<text x="1059.0" y="592.0" font-size="14" font-weight="bold" fill="black" text-anchor="start" font-family="'Times New Roman', 'BiauKai', 'DFKai-SB', '标楷体', serif" data-arrow-id="O2" >Disabled One-Shot Jobs</text>
+</svg>
