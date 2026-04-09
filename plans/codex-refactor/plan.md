@@ -201,6 +201,47 @@ index.ts        Public exports
 
 ---
 
+## Phase 2：整合獨立（未開始）
+
+### 目標
+
+opencode 在沒有 codex-provider plugin 的情況下正常運作。當 plugin 存在時，opencode 自動獲得 codex 能力。使用者只需在 config 加一行 `"plugin": ["@opencode-ai/codex-provider"]`。
+
+### 前提：擴展 `@opencode-ai/plugin` 介面
+
+現有的 `Hooks` + `PluginInput` 介面不足以支撐 plugin 自註冊 models、custom loader、provider options transform。需要新增：
+
+| 新 Hook | 用途 | 取代什麼 |
+|---------|------|----------|
+| `models()` | Plugin 回傳 model catalog | provider.ts 硬編碼 codex models |
+| `loader()` | Plugin 回傳 custom LanguageModelV2 factory | custom-loaders-def.ts 硬 import |
+| `transform()` | Plugin 修改 providerOptions | transform.ts 硬編碼 codex checks |
+| `compaction()` | Plugin 提供 server-side compaction | codex-compaction.ts 硬 import |
+| `delta()` | Plugin 管理 incremental response delta | llm.ts 硬編碼 codex delta logic |
+
+### 硬接點搬遷清單
+
+| # | 硬接點 | 現在位置 | 搬到 plugin | 影響 |
+|---|--------|----------|-------------|------|
+| 1 | CodexNativeAuthPlugin import | plugin/index.ts:1 | 動態載入 | auth |
+| 2 | createCodex import | custom-loaders-def.ts:10 | plugin.loader() | model creation |
+| 3 | 7 model definitions | provider.ts:1257-1300 | plugin.models() | model catalog |
+| 4 | codex delta logic | llm.ts:113-114,657-679,761-777 | plugin.delta() | WS continuation |
+| 5 | store/serviceTier/cache | transform.ts:708,741,748 | plugin.transform() | request options |
+| 6 | xhigh reasoning | transform.ts:462,533 | plugin.models() capabilities | reasoning |
+| 7 | codexServerCompact | compaction.ts:22 | plugin.compaction() | server compaction |
+| 8 | ContinuationInvalidatedEvent | codex-auth.ts → compaction.ts | plugin.delta() | rebind trigger |
+| 9 | codex-auth.ts 整檔 | plugin/ | 搬進 provider package | auth |
+| 10 | codex-compaction.ts 整檔 | provider/ | 搬進 provider package | compaction |
+
+### 驗證標準
+
+- `grep -r "codex" packages/opencode/src/ --include="*.ts"` 只出現 `"codex"` string literal（provider ID 比對），不出現 import/硬編碼邏輯
+- 移除 `@opencode-ai/codex-provider` workspace dependency 後，`bun test` 全過、daemon 正常啟動（無 codex 功能）
+- 加回 plugin config 後，codex 功能恢復
+
+---
+
 ## 七、Revision History
 
 | 日期 | 事件 |
@@ -211,3 +252,4 @@ index.ts        Public exports
 | 2026-04-09 rev2 | Plan 重寫 |
 | 2026-04-09 rev3 | Gap audit：§二加 error/account 需求、§四加依賴關係、§五分「已驗證/未驗證/待修」、§六分 happy/failure path + 狀態追蹤 |
 | 2026-04-09 rev4 | 實作：sse.ts 5 修復、1948 行舊 codex 刪除、18 個自動化測試全過、IDEF0 3 層 21 圖完成 |
+| 2026-04-09 rev5 | Phase 1 merged to main。tool result 修復（output vs result 欄位）、max_output_tokens 移除。Phase 2（整合獨立）計畫加入 |
