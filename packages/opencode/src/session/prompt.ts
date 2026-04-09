@@ -1733,6 +1733,7 @@ export namespace SessionPrompt {
           reason: decision.reason,
           state: decision.reason === "wait_subagent" ? "idle" : "waiting_user",
         })
+        console.error(`[LOOP-BREAK] ${sessionID} reason=${decision.reason} step=${step}`)
         break
       }
       if (result === "compact") {
@@ -1760,12 +1761,14 @@ export namespace SessionPrompt {
     }
 
     // ── Session Snapshot + Shared Context: incremental update + idle compaction at turn boundary ──
+    console.error(`[POSTLOOP] ${sessionID} step=${step} entering post-loop cleanup`)
     {
       const config = await Config.get()
       if (config.compaction?.sharedContext !== false) {
         try {
-          // Find the last assistant message to extract parts
+          console.error(`[POSTLOOP] ${sessionID} filterCompacted start`)
           const { messages: finalMsgs } = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
+          console.error(`[POSTLOOP] ${sessionID} filterCompacted done, msgs=${finalMsgs.length}`)
           const lastAssistantMsg = finalMsgs.findLast((m) => m.info.role === "assistant")
           if (lastAssistantMsg) {
             const assistantText = lastAssistantMsg.parts
@@ -1773,19 +1776,17 @@ export namespace SessionPrompt {
               .map((p) => p.text)
               .join("\n")
 
-            // SharedContext: auto-collect structured work state from tool calls + text
+            console.error(`[POSTLOOP] ${sessionID} SharedContext.updateFromTurn start`)
             await SharedContext.updateFromTurn({
               sessionID,
               parts: lastAssistantMsg.parts,
               assistantText,
               turnNumber: step,
             })
+            console.error(`[POSTLOOP] ${sessionID} SharedContext.updateFromTurn done`)
 
-            // Persist snapshot for provider-agnostic session reload (fire-and-forget)
             void SharedContext.persistSnapshot(sessionID)
 
-            // 2. Idle compaction: only for parent sessions, only when task dispatched
-            // In daemon fire-and-forget mode, task parts are "running" at turn boundary
             if (!session.parentID) {
               const hasTaskDispatch = lastAssistantMsg.parts.some(
                 (p) => p.type === "tool" && p.tool === "task" && p.state.status !== "pending",
@@ -1793,12 +1794,14 @@ export namespace SessionPrompt {
               if (hasTaskDispatch) {
                 const lastFinishedInfo = lastAssistantMsg.info as MessageV2.Assistant
                 if (lastFinishedInfo.tokens) {
+                  console.error(`[POSTLOOP] ${sessionID} idleCompaction start`)
                   const model = await Provider.getModel(lastFinishedInfo.providerId, lastFinishedInfo.modelID)
                   await SessionCompaction.idleCompaction({
                     sessionID,
                     model,
                     config,
                   })
+                  console.error(`[POSTLOOP] ${sessionID} idleCompaction done`)
                 }
               }
             }
@@ -1811,11 +1814,14 @@ export namespace SessionPrompt {
       }
     }
 
+    console.error(`[POSTLOOP] ${sessionID} pruning start`)
     log.info("loop:pruning_compacting_and_returning", { sessionID })
     SessionCompaction.prune({ sessionID })
+    console.error(`[POSTLOOP] ${sessionID} pruning done, streaming messages`)
     for await (const item of MessageV2.stream(sessionID)) {
       if (item.info.role === "user") continue
       const queued = consumeCallbacks(sessionID)
+      console.error(`[POSTLOOP] ${sessionID} returning msg=${item.info.id} queued=${queued.length}`)
       log.info("loop:found_assistant_message_returning", {
         sessionID,
         returnedMessageID: item.info.id,
@@ -1826,6 +1832,7 @@ export namespace SessionPrompt {
       }
       return item
     }
+    console.error(`[POSTLOOP] ${sessionID} ERROR: no assistant message found — will throw Impossible`)
     throw new Error("Impossible")
   }
 
